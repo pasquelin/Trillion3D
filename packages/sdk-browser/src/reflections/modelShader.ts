@@ -1,17 +1,17 @@
-import { ROUGHNESS_FLOOR, shaderFloat } from '../lighting/shaderConstants.ts';
-import { LTC_SIZE } from '../../../sdk-core/src/lighting/ltcTable.ts';
-import { MODEL_FLAG, SURFACE_MODEL } from '../scene/surfaceModel.ts';
-import { shaderLanguage } from '../math/shaderLanguage.ts';
+import { ROUGHNESS_FLOOR, shaderFloat } from '../lighting/shaderConstants.ts'
+import { LTC_SIZE } from '../../../sdk-core/src/lighting/ltcTable.ts'
+import { MODEL_FLAG, SURFACE_MODEL } from '../scene/surfaceModel.ts'
+import { shaderLanguage } from '../math/shaderLanguage.ts'
 
 /** One roughness sample of the lobe table: transition resolution, not a rough-lobe filter. */
-export const MIRROR_TRANSITION_END = shaderFloat(Number(ROUGHNESS_FLOOR) + 1 / (LTC_SIZE - 1));
+export const MIRROR_TRANSITION_END = shaderFloat(Number(ROUGHNESS_FLOOR) + 1 / (LTC_SIZE - 1))
 /** The roughness above which a lobe is never screen-traced and takes the environment/probe
  *  reflection alone (#1341). */
-export const SCREEN_REFLECTION_CUTOFF = 0.6;
-export const SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(SCREEN_REFLECTION_CUTOFF);
+export const SCREEN_REFLECTION_CUTOFF = 0.6
+export const SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(SCREEN_REFLECTION_CUTOFF)
 /** A blended surface's: screen reflection fades linearly by
  *  `saturate(2 - 6.6·roughness)`, whole to 1/6.6 and none from 2/6.6. */
-export const TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(2 / 6.6);
+export const TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS = shaderFloat(2 / 6.6)
 export const mirrorWeightShader = (language: 'wgsl' | 'glsl') =>
   shaderLanguage(
     `
@@ -19,11 +19,11 @@ fn mirrorWeight(rough:f32)->f32{
  return 1.0-smoothstep(${ROUGHNESS_FLOOR},${MIRROR_TRANSITION_END},rough);
 }`,
     language,
-  );
+  )
 
 /** One split-sum mirror model for deferred, forward and both graphics APIs. */
 export function mirrorLightingShader(language: 'wgsl' | 'glsl') {
-  const flags = language === 'wgsl' ? MODEL_FLAG : SURFACE_MODEL;
+  const flags = language === 'wgsl' ? MODEL_FLAG : SURFACE_MODEL
   return shaderLanguage(
     `
 fn mirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
@@ -33,5 +33,5 @@ fn mirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
  return (f0*t.x+(vec3f(1.0)-f0)*t.y)*reflectedRadiance(P,N,reflect(-V,N),rough);
 }`,
     language,
-  );
+  )
 }

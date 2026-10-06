@@ -3,12 +3,12 @@
  * stride written twice is a stride that will one day disagree with itself: `batch.ts` and the
  * kernels beside it all read these.
  */
-export const MATRIX_VALUES = 16;
+export const MATRIX_VALUES = 16
 /** Numbers per position in a batch: three. */
-export const POSITION_VALUES = 3;
+export const POSITION_VALUES = 3
 /** Numbers per rotation in a batch: four. */
-export const QUATERNION_VALUES = 4;
+export const QUATERNION_VALUES = 4
 /** A bounding sphere: centre then radius. */
-export const SPHERE_VALUES = 4;
+export const SPHERE_VALUES = 4
 /** A 3×3 normal matrix. */
-export const NORMAL_MATRIX_VALUES = 9;
+export const NORMAL_MATRIX_VALUES = 9

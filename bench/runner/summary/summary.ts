@@ -1,45 +1,45 @@
 // Statistics, machine load and `resume.md`, for `bench.ts`, on the SDK's calculations.
-import { loadavg } from 'node:os';
-import { summarize } from '../../../packages/sdk-core/src/index.ts';
-import { computePaths } from './summaryCompute.ts';
-import { p50p95, passes, type Distribution } from './summaryPasses.ts';
-import { textures } from './summaryTextures.ts';
-import { memoire } from './summaryMemory.ts';
-import { stalls } from './summaryDag.ts';
-import { referenceLines } from '../references/referenceProof.ts';
-import type { ImageDiff, Report, Row } from '../report/types.ts';
+import { loadavg } from 'node:os'
+import { summarize } from '../../../packages/sdk-core/src/index.ts'
+import { computePaths } from './summaryCompute.ts'
+import { p50p95, passes, type Distribution } from './summaryPasses.ts'
+import { textures } from './summaryTextures.ts'
+import { memoire } from './summaryMemory.ts'
+import { stalls } from './summaryDag.ts'
+import { referenceLines } from '../references/referenceProof.ts'
+import type { ImageDiff, Report, Row } from '../report/types.ts'
 
 /** p50/p95/p99 of a series, or `null` if it is empty: nothing is inferred from an absent series. */
 export const distribution = (values?: readonly number[] | null): Distribution =>
-  summarize(values ?? []);
+  summarize(values ?? [])
 
 /** The three system load averages, read as-is. */
-export const machineLoad = () => loadavg();
+export const machineLoad = () => loadavg()
 
-const ms = (d: Distribution, key: 'p50' | 'p95') => (d ? d[key].toFixed(3) : '—');
-const num = (value: number | string | null | undefined) => (value == null ? '—' : String(value));
+const ms = (d: Distribution, key: 'p50' | 'p95') => (d ? d[key].toFixed(3) : '—')
+const num = (value: number | string | null | undefined) => (value == null ? '—' : String(value))
 /** Bytes in megabytes, or a dash: a zero would not be distinct from an absent reading. */
 const mo = (value: number | null | undefined) =>
-  value == null ? '—' : (value / (1024 * 1024)).toFixed(1);
+  value == null ? '—' : (value / (1024 * 1024)).toFixed(1)
 /** A three-state witness: `yes`, `no`, or a dash when this engine does not publish it. */
-const oui = (value: boolean | null | undefined) => (value == null ? '—' : value ? 'yes' : 'no');
+const oui = (value: boolean | null | undefined) => (value == null ? '—' : value ? 'yes' : 'no')
 /** Reservoirs requested of the engine: in MiB when the bench gave them, otherwise its defaults. */
 const pool = (bytes: number | null | undefined) =>
-  bytes == null ? 'engine default' : `${mo(bytes)} MiB`;
+  bytes == null ? 'engine default' : `${mo(bytes)} MiB`
 const budgets = (settings: Report['settings']) => {
   const parts = [
     `geometry pool ${pool(settings.geometryPoolBytes)}`,
     `texture pool ${pool(settings.texturePoolBytes)}`,
-  ];
-  if (settings.maxPages != null) parts.push(`ceiling ${settings.maxPages} pages`);
-  return parts.join(', ');
-};
+  ]
+  if (settings.maxPages != null) parts.push(`ceiling ${settings.maxPages} pages`)
+  return parts.join(', ')
+}
 const diffText = (d: ImageDiff | undefined) =>
   !d
     ? '—'
     : 'error' in d
       ? d.error
-      : `${d.pixels} px, max channel ${d.maxChannel}, mean ${d.meanChannel.toFixed(3)}, p99.9 ${d.p999Channel}`;
+      : `${d.pixels} px, max channel ${d.maxChannel}, mean ${d.meanChannel.toFixed(3)}, p99.9 ${d.p999Channel}`
 /**
  * Coverage relation of a reading: `selected − drawn − uncovered`. Zero says every triangle
  * of the cut is either submitted to draw or counted as a hole; anything else says one of
@@ -48,17 +48,17 @@ const diffText = (d: ImageDiff | undefined) =>
 const couverture = (r: Row) =>
   r.selectedTriangles == null || r.drawnTriangles == null || r.uncoveredTriangles == null
     ? '—'
-    : String(r.selectedTriangles - r.drawnTriangles - r.uncoveredTriangles);
+    : String(r.selectedTriangles - r.drawnTriangles - r.uncoveredTriangles)
 
 /** The series table: one row per view, per threshold and per side. */
 function rows(report: Report) {
   const lines = [
     '| view | pixelError | side | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | GPU selection fallback | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
     '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
-  ];
+  ]
   for (const series of report.series)
     for (const [side, r] of Object.entries(series.sides)) {
-      const hiz = r.hiZ;
+      const hiz = r.hiZ
       lines.push(
         `| ${series.view} | ${series.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
           `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
@@ -70,27 +70,27 @@ function rows(report: Report) {
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
           `| ${num(r.pageBudget.requested)} requested, ${num(r.pageBudget.resident)} resident ` +
           `| ${mo(r.geometryBytes)} |`,
-      );
+      )
     }
-  return lines;
+  return lines
 }
 
 /** Counters of a stage, on a single line; empty when the stage carries none. */
 const compteurs = (counts: Readonly<Record<string, number>> | undefined) =>
   Object.entries(counts ?? {})
     .map(([nom, valeur]) => `${nom} ${valeur}`)
-    .join(', ');
+    .join(', ')
 
 /** Per-stage breakdown of a series: one line per stage, CPU and GPU separated. */
 function steps(report: Report) {
-  const lines: string[] = [];
+  const lines: string[] = []
   for (const series of report.series)
     for (const [side, result] of Object.entries(series.sides)) {
-      const titre = `### ${series.view} · e${series.pixelError} · ${side}`;
-      const profile = result.stageProfile;
+      const titre = `### ${series.view} · e${series.pixelError} · ${side}`
+      const profile = result.stageProfile
       if (!profile || !profile.enabled) {
-        lines.push(`${titre} : per-stage profile absent`, '');
-        continue;
+        lines.push(`${titre} : per-stage profile absent`, '')
+        continue
       }
       lines.push(
         titre,
@@ -114,9 +114,9 @@ function steps(report: Report) {
         '',
         ...passes(result.passesGpu),
         ...textures(result.metrics, result),
-      );
+      )
     }
-  return lines;
+  return lines
 }
 
 /** `resume.md`: what the series recorded, and nothing else. A dash is an absence, not a zero. */
@@ -182,14 +182,14 @@ export function resume(report: Report) {
     'None of these durations is a performance measurement until the machine load has been',
     'judged acceptable by the caller: the harness records it, it does not judge it.',
     '',
-  ];
+  ]
   if (report.errors.length) {
-    lines.push('## Page errors', '');
+    lines.push('## Page errors', '')
     for (const error of report.errors.slice(0, 40))
       lines.push(
         `- ${error.kind} : ${'message' in error ? error.message : error.status + ' ' + error.url}`,
-      );
-    lines.push('');
+      )
+    lines.push('')
   }
-  return lines.join('\n');
+  return lines.join('\n')
 }

@@ -1,126 +1,126 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createGpuPageCache } from './pages.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createGpuPageCache } from './pages.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
-const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 };
+const LIMITS = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 }
 
 test('the page pool shrinks while keeping its pages: copy, move, eviction of the last ones', async () => {
-  const { device: gpu, copies, destroyed } = fakeDevice({ limits: LIMITS });
+  const { device: gpu, copies, destroyed } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 6 },
-  );
+  )
   // Six pages, one per slot: a..f. Slots are taken from the top (5, 4, …).
-  for (const key of ['a', 'b', 'c', 'd', 'e', 'f']) await cache.load(key);
-  cache.pin('a'); // slot 5, the highest: it keeps a place before any unpinned page
-  const before = cache.buffer;
-  const evicted = await cache.resize(3);
+  for (const key of ['a', 'b', 'c', 'd', 'e', 'f']) await cache.load(key)
+  cache.pin('a') // slot 5, the highest: it keeps a place before any unpinned page
+  const before = cache.buffer
+  const evicted = await cache.resize(3)
   // Three places for six pages: a (pinned) first, then the most recent — f, e. Slots 0 and 1
   // survive with f and e; a takes slot 2, which d leaves free; b, c and d are evicted.
-  assert.equal(cache.stats().slots, 3);
-  assert.equal(cache.stats().allocatedBytes, 24);
-  assert.notEqual(cache.buffer, before);
-  assert.equal(destroyed.length, 1, 'the old buffer is destroyed');
-  assert.equal(copies[0].size, 24, 'the common prefix is copied in one go');
-  assert.deepEqual(evicted.sort(), ['b', 'c', 'd']);
-  assert.ok(cache.get('e') && cache.get('f'));
-  assert.equal(cache.get('a')!.slot, 2, 'moved into the slot the evicted page left');
-  assert.equal(cache.get('d'), undefined);
+  assert.equal(cache.stats().slots, 3)
+  assert.equal(cache.stats().allocatedBytes, 24)
+  assert.notEqual(cache.buffer, before)
+  assert.equal(destroyed.length, 1, 'the old buffer is destroyed')
+  assert.equal(copies[0].size, 24, 'the common prefix is copied in one go')
+  assert.deepEqual(evicted.sort(), ['b', 'c', 'd'])
+  assert.ok(cache.get('e') && cache.get('f'))
+  assert.equal(cache.get('a')!.slot, 2, 'moved into the slot the evicted page left')
+  assert.equal(cache.get('d'), undefined)
   const keys: string[] = [],
-    slots: number[] = [];
-  cache.drainResidencyChanges(keys, slots);
-  assert.deepEqual(keys.slice(-4), ['d', 'c', 'b', 'a'], 'evictions, then the move');
-  assert.deepEqual(slots.slice(-4), [-1, -1, -1, 4], 'word offset of slot 2');
-});
+    slots: number[] = []
+  cache.drainResidencyChanges(keys, slots)
+  assert.deepEqual(keys.slice(-4), ['d', 'c', 'b', 'a'], 'evictions, then the move')
+  assert.deepEqual(slots.slice(-4), [-1, -1, -1, 4], 'word offset of slot 2')
+})
 
 test('the held cover keeps its place before every pinned page, and no held page is evicted', async () => {
-  const { device: gpu } = fakeDevice({ limits: LIMITS });
+  const { device: gpu } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 4 },
-  );
-  for (const key of ['root', 'a', 'b', 'c']) await cache.load(key);
+  )
+  for (const key of ['root', 'a', 'b', 'c']) await cache.load(key)
   // Everything the image draws is pinned; the root cover is the oldest of all.
-  for (const key of ['root', 'a', 'b', 'c']) cache.pin(key);
-  cache.pin('root', 'held');
-  const evicted = await cache.resize(2);
-  assert.deepEqual(evicted.sort(), ['a', 'b'], 'pinned pages go before the held cover');
-  assert.ok(cache.get('root'), 'the cover survives');
-  assert.ok(cache.get('c'), 'and the most recent pinned page with it');
-});
+  for (const key of ['root', 'a', 'b', 'c']) cache.pin(key)
+  cache.pin('root', 'held')
+  const evicted = await cache.resize(2)
+  assert.deepEqual(evicted.sort(), ['a', 'b'], 'pinned pages go before the held cover')
+  assert.ok(cache.get('root'), 'the cover survives')
+  assert.ok(cache.get('c'), 'and the most recent pinned page with it')
+})
 
 test('a page outside the pool is moved into a free slot rather than evicted, and the log says so', async () => {
-  const { device: gpu, copies } = fakeDevice({ limits: LIMITS });
+  const { device: gpu, copies } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     gpu,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 4 },
-  );
-  await cache.load('a'); // slot 3
-  const evicted = await cache.resize(2);
-  assert.deepEqual(evicted, []);
-  assert.equal(cache.get('a')!.slot, 0, 'moved into the lowest free slot');
-  assert.equal(copies.at(-1)!.toOffset, 0);
-  assert.equal(copies.at(-1)!.fromOffset, 24);
+  )
+  await cache.load('a') // slot 3
+  const evicted = await cache.resize(2)
+  assert.deepEqual(evicted, [])
+  assert.equal(cache.get('a')!.slot, 0, 'moved into the lowest free slot')
+  assert.equal(copies.at(-1)!.toOffset, 0)
+  assert.equal(copies.at(-1)!.fromOffset, 24)
   const keys: string[] = [],
-    slots: number[] = [];
-  cache.drainResidencyChanges(keys, slots);
-  assert.deepEqual([keys.at(-1), slots.at(-1)], ['a', 0]);
+    slots: number[] = []
+  cache.drainResidencyChanges(keys, slots)
+  assert.deepEqual([keys.at(-1), slots.at(-1)], ['a', 0])
   // The pool grows again: nothing moves, the new slots are free.
-  await cache.resize(4);
-  await cache.load('b');
-  assert.equal(cache.get('b')!.slot, 3);
-});
+  await cache.resize(4)
+  await cache.load('b')
+  assert.equal(cache.get('b')!.slot, 3)
+})
 
 test('held pins survive ordinary repinning, release with unpin, and leave no tier after eviction', async () => {
-  const { device } = fakeDevice({ limits: LIMITS });
+  const { device } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     device,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 3 },
-  );
-  for (const key of ['root', 'a', 'b']) await cache.load(key);
-  cache.pin('root', 'held');
-  cache.pin('root');
-  cache.pin('a');
-  cache.pin('b');
-  assert.equal(cache.unpinnedSlots(), 0, 'a held page counts once');
-  assert.equal(cache.unload('root'), false);
-  await cache.resize(2);
-  assert.ok(cache.get('root'));
-  cache.unpin('root');
-  assert.equal(cache.unpinnedSlots(), 1);
-  await cache.resize(1);
-  assert.equal(cache.get('root'), undefined);
-  cache.unpin('b');
-  await cache.load('root');
-  await cache.resize(2);
-  await cache.load('new');
-  await cache.resize(1);
-  assert.equal(cache.get('root'), undefined, 'the reloaded page is not still held');
-  assert.ok(cache.get('new'));
-});
+  )
+  for (const key of ['root', 'a', 'b']) await cache.load(key)
+  cache.pin('root', 'held')
+  cache.pin('root')
+  cache.pin('a')
+  cache.pin('b')
+  assert.equal(cache.unpinnedSlots(), 0, 'a held page counts once')
+  assert.equal(cache.unload('root'), false)
+  await cache.resize(2)
+  assert.ok(cache.get('root'))
+  cache.unpin('root')
+  assert.equal(cache.unpinnedSlots(), 1)
+  await cache.resize(1)
+  assert.equal(cache.get('root'), undefined)
+  cache.unpin('b')
+  await cache.load('root')
+  await cache.resize(2)
+  await cache.load('new')
+  await cache.resize(1)
+  assert.equal(cache.get('root'), undefined, 'the reloaded page is not still held')
+  assert.ok(cache.get('new'))
+})
 
 test('a page loaded held is held on arrival: a resize queued behind its load keeps it', async () => {
-  const { device } = fakeDevice({ limits: LIMITS });
+  const { device } = fakeDevice({ limits: LIMITS })
   const cache = createGpuPageCache(
     device,
     { read: async () => new Uint8Array(8) },
     { pageBytes: 8, slots: 4 },
-  );
+  )
   // Nothing is awaited: the resize runs behind the four loads, before any caller could pin.
   const loads = [
     cache.load('root', undefined, 'held'),
     cache.load('cover', undefined, 'held'),
     cache.load('a'),
     cache.load('b'),
-  ];
-  const evicted = await cache.resize(2);
-  await Promise.all(loads);
-  assert.deepEqual(evicted.sort(), ['a', 'b'], 'the newer unpinned pages go, not the cover');
-  assert.ok(cache.get('root') && cache.get('cover'));
-  assert.equal(cache.unpinnedSlots(), 0, 'both cover pages arrived pinned');
-});
+  ]
+  const evicted = await cache.resize(2)
+  await Promise.all(loads)
+  assert.deepEqual(evicted.sort(), ['a', 'b'], 'the newer unpinned pages go, not the cover')
+  assert.ok(cache.get('root') && cache.get('cover'))
+  assert.equal(cache.unpinnedSlots(), 0, 'both cover pages arrived pinned')
+})

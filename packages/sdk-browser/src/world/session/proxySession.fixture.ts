@@ -1,19 +1,19 @@
-import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
-import { probeBackendContext } from './backends.fixture.ts';
-import { createExplorerPageSources } from './pageSources.ts';
-import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts';
-import { sha256Hex } from '../../streaming/sha256Hex.ts';
-import type { PageCache } from '../../streaming/pageCache.ts';
+import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts'
+import { probeBackendContext } from './backends.fixture.ts'
+import { createExplorerPageSources } from './pageSources.ts'
+import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts'
+import { sha256Hex } from '../../streaming/sha256Hex.ts'
+import type { PageCache } from '../../streaming/pageCache.ts'
 import {
   PROXY_TRIANGLE_FLOATS,
   SCENE_PROXY_HEADER_WORDS,
   SCENE_PROXY_MAGIC,
   SCENE_PROXY_VERSION,
   type ClusterManifest,
-} from '../../../../sdk-core/src/index.ts';
+} from '../../../../sdk-core/src/index.ts'
 
-export const base = 'http://localhost/cache/';
-const page = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0]);
+export const base = 'http://localhost/cache/'
+const page = new Uint8Array([1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0])
 
 /**
  * A scene of `pages` 12-byte pages and a proxy of `triangles` triangles and no node, served under
@@ -29,23 +29,23 @@ export async function servedScene(
   // One static identity owner for every triangle, and an empty group range for an empty proxy.
   const groups = triangles ? 1 : 0,
     owners = groups,
-    instances = groups;
-  const prefix = SCENE_PROXY_HEADER_WORDS + triangles * (PROXY_TRIANGLE_FLOATS + 1);
-  const suffix = triangles + groups + 1 + owners * 2 + instances * 2;
-  const words = new Uint32Array(prefix + suffix + instances * 32);
-  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, triangles, 0, groups, owners, instances, 0]);
+    instances = groups
+  const prefix = SCENE_PROXY_HEADER_WORDS + triangles * (PROXY_TRIANGLE_FLOATS + 1)
+  const suffix = triangles + groups + 1 + owners * 2 + instances * 2
+  const words = new Uint32Array(prefix + suffix + instances * 32)
+  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, triangles, 0, groups, owners, instances, 0])
   if (instances) {
-    const range = prefix + triangles;
-    words[range + 1] = 1;
-    const parent = range + 2 + owners * 2;
+    const range = prefix + triangles
+    words[range + 1] = 1
+    const parent = range + 2 + owners * 2
     // No parent, no mesh (#966), then the bind world.
-    words[parent] = words[parent + 1] = 0xffffffff;
+    words[parent] = words[parent + 1] = 0xffffffff
     const view = new DataView(words.buffer),
-      identity = proxyIdentity();
-    for (let i = 0; i < 16; i++) view.setFloat64((parent + 2) * 4 + i * 8, identity[i], true);
+      identity = proxyIdentity()
+    for (let i = 0; i < 16; i++) view.setFloat64((parent + 2) * 4 + i * 8, identity[i], true)
   }
-  const pageSha = await sha256Hex(page.buffer);
-  const urls = Array.from({ length: pages }, (_, i) => `p${i}.bin`);
+  const pageSha = await sha256Hex(page.buffer)
+  const urls = Array.from({ length: pages }, (_, i) => `p${i}.bin`)
   const metadata = {
     primitives: [{ pages: urls.map((url, id) => ({ id, url, bytes: 12, sha256: pageSha })) }],
     proxy: {
@@ -60,36 +60,36 @@ export async function servedScene(
       instances,
       bounds: [0, 0, 0, 1, 1, 0],
     },
-  } as unknown as ClusterManifest;
-  const served = new Map<string, Uint8Array>(urls.map((url) => [url, page]));
-  served.set('proxy.bin', new Uint8Array(words.buffer));
+  } as unknown as ClusterManifest
+  const served = new Map<string, Uint8Array>(urls.map((url) => [url, page]))
+  served.set('proxy.bin', new Uint8Array(words.buffer))
   const fetched: string[] = [],
     released = new Map<string, Array<() => void>>(),
     freed = new Set<string>(),
-    heard = new Map<string, Array<() => void>>();
+    heard = new Map<string, Array<() => void>>()
   const asked = (url: string) =>
     fetched.includes(url)
       ? Promise.resolve()
-      : new Promise<void>((resolve) => heard.set(url, [...(heard.get(url) ?? []), resolve]));
+      : new Promise<void>((resolve) => heard.set(url, [...(heard.get(url) ?? []), resolve]))
   globalThis.fetch = async (input, init) => {
     const url = String(input),
-      file = url.slice(url.lastIndexOf('/') + 1);
-    fetched.push(url);
-    for (const resolve of heard.get(url) ?? []) resolve();
+      file = url.slice(url.lastIndexOf('/') + 1)
+    fetched.push(url)
+    for (const resolve of heard.get(url) ?? []) resolve()
     // A held answer is refused as soon as its request is cancelled, as a browser's is.
     if (held.includes(file) && !freed.has(file))
       await new Promise<void>((resolve, reject) => {
-        released.set(file, [...(released.get(file) ?? []), resolve]);
-        init?.signal?.addEventListener('abort', () => reject(init.signal!.reason), { once: true });
-      });
-    if (missing.includes(file)) return new Response(null, { status: 404 });
-    return new Response(served.get(file)!.slice(), { status: 200 });
-  };
+        released.set(file, [...(released.get(file) ?? []), resolve])
+        init?.signal?.addEventListener('abort', () => reject(init.signal!.reason), { once: true })
+      })
+    if (missing.includes(file)) return new Response(null, { status: 404 })
+    return new Response(served.get(file)!.slice(), { status: 200 })
+  }
   const release = (file: string) => {
-    freed.add(file);
-    for (const resolve of released.get(file) ?? []) resolve();
-  };
-  return { metadata, urls, fetched, asked, release };
+    freed.add(file)
+    for (const resolve of released.get(file) ?? []) resolve()
+  }
+  return { metadata, urls, fetched, asked, release }
 }
 
 /** One session on the world's kept cache, as far as its engines' context: what they read. `root`
@@ -103,14 +103,14 @@ export async function openSession(
     signal,
     diagnostics,
   }: {
-    root?: string;
-    maxPageTransferBytes?: number;
-    signal?: AbortSignal;
-    diagnostics?: DiagnosticObserver;
+    root?: string
+    maxPageTransferBytes?: number
+    signal?: AbortSignal
+    diagnostics?: DiagnosticObserver
   } = {},
 ) {
-  const options = { manifestUrl: `${root}manifest.json`, pageCache, maxPageTransferBytes };
-  const channel = createDiagnosticChannel(diagnostics);
+  const options = { manifestUrl: `${root}manifest.json`, pageCache, maxPageTransferBytes }
+  const channel = createDiagnosticChannel(diagnostics)
   const pageSources = await createExplorerPageSources(
     metadata,
     options,
@@ -120,12 +120,12 @@ export async function openSession(
     [],
     channel,
     () => {},
-  );
+  )
   const context = await probeBackendContext(metadata, pageSources, {
     options,
     base: root,
     session: { signal },
-  });
-  const { streamer } = pageSources;
-  return { context, streamer, flush: () => channel.flush(), close: () => streamer.dispose() };
+  })
+  const { streamer } = pageSources
+  return { context, streamer, flush: () => channel.flush(), close: () => streamer.dispose() }
 }

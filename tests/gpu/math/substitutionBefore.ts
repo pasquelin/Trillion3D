@@ -19,15 +19,15 @@
 // original text, character for character. It also requires the previous block to carry the marker
 // that MAKES the reproduction (the threshold, the formula, what the fix changed) and the shipped
 // block not to: a reproduction that no longer reproduces reassures wrongly.
-import assert from 'node:assert/strict';
-import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts';
-import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts';
+import assert from 'node:assert/strict'
+import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts'
 
 /** Occurrences of `block` in `text`, without overlap. */
 function occurrences(text: string, block: string): number {
-  let count = 0;
-  for (let i = text.indexOf(block); i >= 0; i = text.indexOf(block, i + block.length)) count++;
-  return count;
+  let count = 0
+  for (let i = text.indexOf(block); i >= 0; i = text.indexOf(block, i + block.length)) count++
+  return count
 }
 
 /**
@@ -44,42 +44,42 @@ export function substitutePreviousForm({
   origin,
   marker,
 }: {
-  text: string;
-  shipped: string;
-  previous: string;
-  name: string;
-  origin: string;
-  marker: string;
+  text: string
+  shipped: string
+  previous: string
+  name: string
+  origin: string
+  marker: string
 }): string {
-  const where = `${name}: the previous form comes from ${origin}`;
-  assert.notEqual(shipped, previous, `${where} — both blocks are the same text, nothing to replay`);
+  const where = `${name}: the previous form comes from ${origin}`
+  assert.notEqual(shipped, previous, `${where} — both blocks are the same text, nothing to replay`)
   assert.ok(
     previous.includes(marker),
     `${where} — the previous form no longer carries « ${marker} »`,
-  );
-  assert.ok(!shipped.includes(marker), `${where} — the shipped form still carries « ${marker} »`);
+  )
+  assert.ok(!shipped.includes(marker), `${where} — the shipped form still carries « ${marker} »`)
   assert.equal(
     occurrences(text, shipped),
     1,
     `${where} — the shipped block appears ${occurrences(text, shipped)} times in ${name} instead ` +
       `of once: substituting would replace the first only, and the "previous shader" would mix ` +
       `both versions`,
-  );
+  )
   assert.equal(
     occurrences(text, previous),
     0,
     `${where} — the previous form is ALREADY in ${name}: this is no longer a reproduction`,
-  );
-  const result = text.replace(shipped, () => previous);
-  assert.equal(occurrences(result, previous), 1, `${where} — the previous form was not inserted`);
-  assert.equal(occurrences(result, shipped), 0, `${where} — the shipped form stayed in place`);
+  )
+  const result = text.replace(shipped, () => previous)
+  assert.equal(occurrences(result, previous), 1, `${where} — the previous form was not inserted`)
+  assert.equal(occurrences(result, shipped), 0, `${where} — the shipped form stayed in place`)
   assert.equal(
     result.replace(previous, () => shipped),
     text,
     `${where} — the round trip does not give the original text back: the substitution touched ` +
       `something other than the expected block`,
-  );
-  return result;
+  )
+  return result
 }
 
 /** `text`, a shader holding the shipped inverse-transpose kernel, with the form from before
@@ -94,4 +94,4 @@ export const inverseTransposeBeforeIn = (text: string, name: string) =>
     name,
     origin: 'packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts',
     marker: 'abs(det)<1e-20',
-  });
+  })

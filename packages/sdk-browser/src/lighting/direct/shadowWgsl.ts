@@ -1,20 +1,20 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts';
-import { VSM_CONSTANTS_WGSL, VSM_MASK_MAX_RAYS, VSM_UNIT_PER_CM } from '../../vsm/constants.ts';
-import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts';
-import { vsmPoolTexelIndexWgsl } from '../../vsm/resources.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { SHADOW_VIEW_WGSL } from './shadowViewWgsl.ts'
+import { VSM_CONSTANTS_WGSL, VSM_MASK_MAX_RAYS, VSM_UNIT_PER_CM } from '../../vsm/constants.ts'
+import { VSM_UNIFORMS_WGSL } from '../../vsm/uniforms.ts'
+import { vsmPoolTexelIndexWgsl } from '../../vsm/resources.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_STRUCTS_WGSL,
-} from '../../vsm/pageTableWgsl.ts';
+} from '../../vsm/pageTableWgsl.ts'
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
   VSM_PROJECTION_SAMPLE_WGSL,
-} from '../../vsm/projectionDataWgsl.ts';
-import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts';
+} from '../../vsm/projectionDataWgsl.ts'
+import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
 import {
   VSM_TRACE_RESULT_WGSL,
   VSM_TRACE_COMMON_WGSL,
@@ -22,25 +22,25 @@ import {
   VSM_TRACE_LIGHT_WGSL,
   VSM_TRACE_LOCAL_WGSL,
   vsmTraceWgsl,
-} from '../../vsm/traceWgsl.ts';
-import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.ts';
-import { PCF_TAPS } from './pcfTaps.ts';
+} from '../../vsm/traceWgsl.ts'
+import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.ts'
+import { PCF_TAPS } from './pcfTaps.ts'
 import {
   VSM_MASK_TABLE_BINDING,
   VSM_MASK_TILES_BINDING,
   vsmMaskTableReadWgsl,
-} from '../../vsm/projectionMaskTable.ts';
-import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts';
-import { interleavedGradientWgsl } from '../../math/interleavedGradientWgsl.ts';
-import { ALL_SHADOW_KINDS, byShadowKind, type ShadowKinds } from './shadowKinds.ts';
+} from '../../vsm/projectionMaskTable.ts'
+import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
+import { interleavedGradientWgsl } from '../../math/interleavedGradientWgsl.ts'
+import { ALL_SHADOW_KINDS, byShadowKind, type ShadowKinds } from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmShadowFactor`): the page
  *  table, the projection data, the uniforms and the pool's dynamic slice (one part). */
 export interface VsmConsumerBindings {
-  pageTable: number;
-  projectionData: number;
-  uniforms: number;
-  pool: number;
+  pageTable: number
+  projectionData: number
+  uniforms: number
+  pool: number
 }
 /** The opaque resolve's and the water composite's numbers (the old records', atlas, sampler and
  *  translucent depth). */
@@ -49,7 +49,7 @@ export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   projectionData: 9,
   uniforms: 10,
   pool: 19,
-};
+}
 
 /** A consumer's read of the pool's dynamic slice, at `binding`. */
 const vsmPoolReadWgsl = (binding: number) => `
@@ -59,13 +59,13 @@ fn vsmPoolLoad(t:vec2u,slice:u32)->u32{
  let i=vsmPoolTexelIndex(t);
  if(i>=arrayLength(&vsmPool0)){return 0u;}
  return vsmPool0[i];
-}`;
+}`
 
 /** The opaque resolve binds no pool: its opaque shadow is the mask's, and its transmission read
  *  takes a sample's page, never its depth (`vsmTransmissionRead`), so a depth reads 0 there, which
  *  no read takes. Its stage holds the eight storage buffers WebGPU guarantees
  *  (`deferredLayoutEntries`). */
-const RESOLVE_POOL_WGSL = `fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}`;
+const RESOLVE_POOL_WGSL = `fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}`
 
 /**
  * The plain (untraced) lookup of a virtual shadow map — what forward shading and translucency read
@@ -145,7 +145,7 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);
  return select(1.0,0.0,sm.depth-vsmConsumerSlopeBias(slope,sm)>uvz.z);`,
  )}
-}`;
+}`
 
 /**
  * Mode 1 of a blended surface's and the water's read (`vsmShadowRead`): sixteen taps a texel apart
@@ -323,18 +323,18 @@ fn vsmShadowFiltered(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  if(lit>0.0){shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);}
  return lit;`,
  )}
-}`;
+}`
 
 /** The traced read's ray, the sun's or the local light's (`byShadowKind`'s branches, here a block). */
 const TRACED_SUN_WGSL = `  let source=VsmProjectionLight(vec3f(0.0),0.0,-light.directionCone.xyz,sin(light.shape.x),vec2f(-2.0,1.0),i32(id),0u);
-  traced=vsmTraceSun(i32(id),source,pixel,fromEye,start,noise,N,true,true);`;
+  traced=vsmTraceSun(i32(id),source,pixel,fromEye,start,noise,N,true,true);`
 const TRACED_LOCAL_WGSL = `  let spot=abs(light.params.x-KIND_SPOT)<0.5;
   let source=VsmProjectionLight(light.positionRange.xyz-shadowCamera,0.0,-light.directionCone.xyz,light.shape.x,vec2f(select(-2.0,light.directionCone.w,spot),1.0),i32(id),0u);
-  traced=vsmTraceLocal(i32(id),source,pixel,depth,fromEye,start,noise,N,true,true);`;
+  traced=vsmTraceLocal(i32(id),source,pixel,depth,fromEye,start,noise,N,true,true);`
 const tracedKindWgsl = (kinds: ShadowKinds) =>
   kinds.sun && kinds.local
     ? `if(isSun(light)){\n${TRACED_SUN_WGSL}\n }else{\n${TRACED_LOCAL_WGSL}\n }`
-    : `{\n${kinds.sun ? TRACED_SUN_WGSL : TRACED_LOCAL_WGSL}\n }`;
+    : `{\n${kinds.sun ? TRACED_SUN_WGSL : TRACED_LOCAL_WGSL}\n }`
 
 /**
  * Mode 2 of the same read: the opaque projection's rays (`vsmTraceWgsl`, every ray traced: a
@@ -393,7 +393,7 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  if(shade>0.0&&shade<1.0){shade=saturate(shade+(vsmPixelNoise(shadowPixel+vec2f(13.0,71.0)+f32(frame%VSM_NOISE_TILE.z)*vec2f(32.665,11.815))-0.5)/${VSM_MASK_MAX_RAYS}.0);}
  if(shade>0.0){_=vsmShadowFactor(id,isSun(light),P,Nin);}
  return shade;
-}`;
+}`
 
 /**
  * The read of a blended surface and of the water (`vsmShadowRead`), on the word
@@ -415,7 +415,7 @@ fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
      : ''
  }
  return vsmShadowFiltered(id,isSun(light),P,N);
-}`;
+}`
 
 /**
  * The shadow read of every lit surface since the virtual shadow maps (`../../vsm/`).
@@ -469,7 +469,7 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,taps:bool)->f32{
  if(mask>0.0&&vsmTranslucentCasters()){vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}
  return mask;`
  }
-}`;
+}`
 
 const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) => `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
@@ -548,4 +548,4 @@ fn vsmMaskFactor(channel:u32)->f32{
   vsmMaskLayer=layer;
  }
  return vsmMaskDecode((vsmMaskWord>>(8u*(channel%4u)))&255u);
-}`;
+}`

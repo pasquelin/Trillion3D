@@ -1,14 +1,14 @@
-import { pendingBuffers, type PendingGrowth } from '../../gpu/core/tableGrowth.ts';
-import type { WebgpuLightState } from '../pages/state/lights.ts';
+import { pendingBuffers, type PendingGrowth } from '../../gpu/core/tableGrowth.ts'
+import type { WebgpuLightState } from '../pages/state/lights.ts'
 
-import { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts';
-import { ROW_LOD_FLOATS } from './rowLodWords.ts';
-export { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts';
+import { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts'
+import { ROW_LOD_FLOATS } from './rowLodWords.ts'
+export { CLUSTER_SPHERE_FLOATS } from '../../gpu/shadow/sphereContract.ts'
 
 /** Bytes a shadow row buffer of `words` 4-byte words per row takes at `casterSlots` rows: never
  *  empty, a binding holds at least a row. */
 export const rowBufferBytes = (casterSlots: number, words: number) =>
-  Math.max(1, casterSlots) * words * 4;
+  Math.max(1, casterSlots) * words * 4
 
 /** GPU bytes the caster rows' shadow data takes at `casterSlots` rows — the world spheres, the
  *  mobility words, the detail — as their buffers are sized: what the first frame a light casts
@@ -17,7 +17,7 @@ export const rowBufferBytes = (casterSlots: number, words: number) =>
 export const shadowRowBytes = (casterSlots: number) =>
   rowBufferBytes(casterSlots, CLUSTER_SPHERE_FLOATS) +
   rowBufferBytes(casterSlots, 1) +
-  rowBufferBytes(casterSlots, ROW_LOD_FLOATS);
+  rowBufferBytes(casterSlots, ROW_LOD_FLOATS)
 
 /** The world spheres of `casterSlots` rows, and their CPU copy (`bounds.ts`). */
 export function clusterSpheres(device: GPUDevice, casterSlots: number) {
@@ -25,7 +25,7 @@ export function clusterSpheres(device: GPUDevice, casterSlots: number) {
     label: 'Trillion3D cluster spheres v1',
     size: rowBufferBytes(casterSlots, CLUSTER_SPHERE_FLOATS),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+  })
   return {
     buffer,
     packed: new Float32Array(casterSlots * CLUSTER_SPHERE_FLOATS),
@@ -39,7 +39,7 @@ export function clusterSpheres(device: GPUDevice, casterSlots: number) {
      *  (`linkedRowSpheres`). */
     local: undefined as GPUBuffer | undefined,
     localPacked: undefined as Uint32Array<ArrayBuffer> | undefined,
-  };
+  }
 }
 
 /** One mobility word per row of `casterSlots` rows (`mobility.ts`), the size its words take. */
@@ -48,7 +48,7 @@ export const mobilityRows = (device: GPUDevice, casterSlots: number) =>
     label: 'Trillion3D shadow row mobility v1',
     size: rowBufferBytes(casterSlots, 1),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
+  })
 
 /**
  * The shadow pass's own buffers sized by row, for a table grown to `casterSlots` rows
@@ -61,26 +61,26 @@ export function growShadowRows(
   device: GPUDevice,
   casterSlots: number,
 ): PendingGrowth[] {
-  const grown: PendingGrowth[] = [];
+  const grown: PendingGrowth[] = []
   if (lights.spheres) {
-    const next = clusterSpheres(device, casterSlots);
+    const next = clusterSpheres(device, casterSlots)
     grown.push(
       pendingBuffers([next.buffer], () => {
-        const old = lights.spheres;
-        lights.spheres = next;
-        return [old?.buffer, old?.local];
+        const old = lights.spheres
+        lights.spheres = next
+        return [old?.buffer, old?.local]
       }),
-    );
+    )
   }
   if (lights.mobilityRows) {
-    const next = mobilityRows(device, casterSlots);
+    const next = mobilityRows(device, casterSlots)
     grown.push(
       pendingBuffers([next], () => {
-        const old = lights.mobilityRows;
-        lights.mobilityRows = next;
-        return [old];
+        const old = lights.mobilityRows
+        lights.mobilityRows = next
+        return [old]
       }),
-    );
+    )
   }
-  return grown;
+  return grown
 }

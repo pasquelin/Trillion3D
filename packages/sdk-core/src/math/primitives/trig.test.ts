@@ -1,6 +1,6 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { fdlibmAcos, fdlibmSin } from './trig.ts';
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { fdlibmAcos, fdlibmSin } from './trig.ts'
 
 // `libm` 0.2.16's own `sin` and `acos` (the Rust crate the WebAssembly sampler transcribes too),
 // as bit patterns: x, sin x, acos x. On every branch of the reduction below 2^20 · π/2 — the
@@ -35,29 +35,29 @@ const LIBM: [string, string, string][] = [
   ['3e112e0be826d695', '3e112e0be826d695', '3ff921fb53ff74e9'],
   ['bfe0000000000000', 'bfdeaee8744b05f0', '4000c152382d7366'],
   ['3fdfffffffffffff', '3fdeaee8744b05ef', '3ff0c152382d7366'],
-];
+]
 
 const bits = new Float64Array(1),
-  words = new BigUint64Array(bits.buffer);
-const of = (hex: string) => ((words[0] = BigInt('0x' + hex)), bits[0]);
-const hex = (x: number) => ((bits[0] = x), words[0].toString(16).padStart(16, '0'));
+  words = new BigUint64Array(bits.buffer)
+const of = (hex: string) => ((words[0] = BigInt('0x' + hex)), bits[0])
+const hex = (x: number) => ((bits[0] = x), words[0].toString(16).padStart(16, '0'))
 
 test('the sine and the arc cosine carry the bits of libm', () => {
   for (const [x, sin, acos] of LIBM) {
-    assert.equal(hex(fdlibmSin(of(x))), sin, `sin(${of(x)})`);
-    const a = fdlibmAcos(of(x));
-    assert.ok(hex(a) === acos || (Number.isNaN(a) && Number.isNaN(of(acos))), `acos(${of(x)})`);
+    assert.equal(hex(fdlibmSin(of(x))), sin, `sin(${of(x)})`)
+    const a = fdlibmAcos(of(x))
+    assert.ok(hex(a) === acos || (Number.isNaN(a) && Number.isNaN(of(acos))), `acos(${of(x)})`)
   }
-});
+})
 
 test('the specials of both, and Math.sin past the reduction this file carries', () => {
   assert.ok(
     Object.is(fdlibmSin(-0), -0) &&
       Number.isNaN(fdlibmSin(Infinity)) &&
       Number.isNaN(fdlibmSin(NaN)),
-  );
-  assert.equal(fdlibmSin(1e7), Math.sin(1e7));
+  )
+  assert.equal(fdlibmSin(1e7), Math.sin(1e7))
   assert.ok(
     Object.is(fdlibmAcos(1), 0) && fdlibmAcos(-1) === Math.PI && Number.isNaN(fdlibmAcos(1.5)),
-  );
-});
+  )
+})

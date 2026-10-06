@@ -1,5 +1,5 @@
-import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
-import { boundToContext } from '../../webgl/core/contextBound.ts';
+import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts'
+import { boundToContext } from '../../webgl/core/contextBound.ts'
 
 /**
  * The one place that knows how an engine's image reaches the host surface. An engine that
@@ -21,14 +21,14 @@ export function createBackendPresenter(gl: WebGL2RenderingContext) {
     gl,
     () => createCanvasBlit(gl),
     (program) => program.dispose(),
-  );
+  )
   const present = (backend: { readonly presentedSurface?: HTMLCanvasElement }) => {
-    const surface = backend.presentedSurface;
-    if (!surface) return false;
+    const surface = backend.presentedSurface
+    if (!surface) return false
     // A lost context draws nothing until it comes back; the program is rebuilt on the next copy.
-    blit.current()?.draw(surface);
-    return true;
-  };
-  present.dispose = blit.dispose;
-  return present;
+    blit.current()?.draw(surface)
+    return true
+  }
+  present.dispose = blit.dispose
+  return present
 }

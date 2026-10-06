@@ -5,17 +5,17 @@
 // host functions the shipped walks read are the proof's — the projection, the depth and its bounds
 // pyramid, the hit and each mip level's colour, as the WebGPU adapter defines them on textures
 // (`screenWgsl.ts`, `coneWgsl.ts`); the walks, the cone and the bands are the engine's text.
-import { reflectionBandsShader } from '../../../packages/sdk-browser/src/reflections/bandsShader.ts';
-import { screenTraceShader } from '../../../packages/sdk-browser/src/reflections/traceShader.ts';
-import { reflectionConeShader } from '../../../packages/sdk-browser/src/reflections/coneShader.ts';
-import { reflectionConeFilterShader } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts';
+import { reflectionBandsShader } from '../../../packages/sdk-browser/src/reflections/bandsShader.ts'
+import { screenTraceShader } from '../../../packages/sdk-browser/src/reflections/traceShader.ts'
+import { reflectionConeShader } from '../../../packages/sdk-browser/src/reflections/coneShader.ts'
+import { reflectionConeFilterShader } from '../../../packages/sdk-browser/src/reflections/coneFilterShader.ts'
 
 /** The image's side, in pixels, and its mip levels above the pixels: 32, 16, … 1. */
-const SIDE = 64;
-const LEVELS = Math.log2(SIDE);
+const SIDE = 64
+const LEVELS = Math.log2(SIDE)
 
 /** Rows the proof dispatches, one invocation each: what each row traces is read in `main`. */
-export const CONE_ROWS = 75;
+export const CONE_ROWS = 75
 
 export const CONE_SCENE_WGSL = `
 fn reflectionProject(p:vec4f)->vec4f{return p;}
@@ -52,7 +52,7 @@ ${reflectionBandsShader('wgsl')}
  }
  output[index]=value;
  control[index].w=1u;
-}`;
+}`
 
 /** The rows that do not trace row 1's receiver: 3 exits the view, 4 lies nearer the plane, 5 mirrors
  *  row 1's direction across x. */
@@ -60,16 +60,16 @@ const RECEIVERS: Record<number, number[]> = {
   3: [0.9, 0, 0.8],
   4: [-0.8, 0, 0.4],
   5: [0.8, 0, 0.8],
-};
+}
 
 /** Each row's receiver and reflected direction, eight floats: the point and its roughness, the
  *  direction. */
 export function coneRows() {
-  const data = new Float32Array(CONE_ROWS * 8);
+  const data = new Float32Array(CONE_ROWS * 8)
   for (let row = 0; row < CONE_ROWS; row++)
     data.set(
       [...(RECEIVERS[row] ?? [-0.8, 0, 0.8]), 0.5, row === 5 ? -0.8 : 0.8, 0, -0.6, 0],
       row * 8,
-    );
-  return data;
+    )
+  return data
 }

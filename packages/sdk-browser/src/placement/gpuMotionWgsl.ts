@@ -28,7 +28,7 @@ fn fromF32(w:u32)->vec2u{
   field=897u-shift;
  }
  return vec2u(sign|(field<<20u)|(m>>3u),m<<29u);
-}`;
+}`
 
 /** `invertMatrix4`'s cofactors, each a sum taken left to right: `+a*b −c*d …`. */
 const COFACTORS = {
@@ -36,7 +36,7 @@ const COFACTORS = {
   cy: '+xz32*w1 -xz23*w1 -xz31*w2 +xz13*w2 +xz21*w3 -xz12*w3',
   cz: '+xy23*w1 -xy32*w1 +xy31*w2 -xy13*w2 -xy21*w3 +xy12*w3',
   cw: '+xy32*z1 -xy23*z1 -xy31*z2 +xy13*z2 +xy21*z3 -xy12*z3',
-};
+}
 /** Each entry of the inverse before the reciprocal: a cofactor, or the sum that is one. */
 const ENTRIES = [
   'cx',
@@ -55,17 +55,17 @@ const ENTRIES = [
   '+xy23*z0 -xy32*z0 +xy30*z2 -xy03*z2 -xy20*z3 +xy02*z3',
   '+xy31*z0 -xy13*z0 -xy30*z1 +xy03*z1 +xy10*z3 -xy01*z3',
   '+xy12*z0 -xy21*z0 +xy20*z1 -xy02*z1 -xy10*z2 +xy01*z2',
-];
+]
 
 /** `+a*b −c*d …` as WGSL: each product rounded, then each sum, the first term first. */
 function sumText(terms: string) {
-  let text = '';
+  let text = ''
   for (const term of terms.split(' ')) {
     const [a, b] = term.slice(1).split('*'),
-      product = `dMul(${a},${b})`;
-    text = text ? `${term[0] === '+' ? 'dAdd' : 'dSub'}(${text},${product})` : product;
+      product = `dMul(${a},${b})`
+    text = text ? `${term[0] === '+' ? 'dAdd' : 'dSub'}(${text},${product})` : product
   }
-  return text;
+  return text
 }
 
 /** The products of two entries the cofactors share: `yz12` is row y, column 1 times row z, column 2. */
@@ -73,7 +73,7 @@ const PRODUCTS = ['yz', 'xz', 'xy'].flatMap((rows) =>
   ['12', '13', '21', '23', '31', '32', '01', '02', '03', '10', '20', '30'].map(
     (columns) => `let ${rows}${columns}=dMul(${rows[0]}${columns[0]},${rows[1]}${columns[1]});`,
   ),
-);
+)
 
 /** `m⁻¹` as `invertMatrix4` computes it: the zero matrix for an exactly zero determinant. */
 const INVERSE_WGSL = `
@@ -92,7 +92,7 @@ ${Object.entries(COFACTORS)
  let r=dDiv(vec2u(0x3ff00000u,0u),determinant);
 ${ENTRIES.map((entry, k) => `out[${k}]=dMul(${entry.length === 2 ? entry : sumText(entry)},r);`).join('\n')}
  return out;
-}`;
+}`
 
 /**
  * The sixteen motion words of a root whose single-precision world went from `previous` to
@@ -124,4 +124,4 @@ fn motionWords(previous:array<u32,16>,current:array<u32,16>,eye:array<vec2u,3>)-
   out[12u+j]=toF32(dSub(t,eye[j]));
  }
  return out;
-}`;
+}`

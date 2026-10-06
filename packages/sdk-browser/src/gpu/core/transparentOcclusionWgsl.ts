@@ -1,6 +1,6 @@
-import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts';
-import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts';
-import { PARTITION_WORKGROUP } from '../partition/contract.ts';
+import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts'
+import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
+import { PARTITION_WORKGROUP } from '../partition/contract.ts'
 
 /**
  * Occlusion test of transparent clusters, one table entry per thread.
@@ -40,5 +40,5 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u){
  let reject=!open&&box.clips==0u&&uni.levels>0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);
 }
-`;
+`
 }

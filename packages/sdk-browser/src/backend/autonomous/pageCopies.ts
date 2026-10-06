@@ -1,5 +1,5 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import { type PageCopies } from './pool.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
+import { type PageCopies } from './pool.ts'
 
 /**
  * The copies each page holds once resident (`PageCopies`), from the records collected when the
@@ -17,29 +17,29 @@ export function pageCopies(
   childUrls: ReadonlySet<string>,
 ): PageCopies {
   const owned = new Map<string, number>(),
-    shared = new Set<string>();
-  let sceneOwned = 0;
+    shared = new Set<string>()
+  let sceneOwned = 0
   const root = { owned: 0, shared: 0 },
-    floor = { owned: 0, shared: 0 };
+    floor = { owned: 0, shared: 0 }
   for (const [url, recs] of byUrl) {
-    let own = 0;
+    let own = 0
     for (const rec of recs)
-      if (placedByRow(rec)) shared.add(url);
-      else own++;
-    owned.set(url, own);
-    sceneOwned += own;
-    const held = rootUrls.has(url) ? root : childUrls.has(url) ? floor : undefined;
+      if (placedByRow(rec)) shared.add(url)
+      else own++
+    owned.set(url, own)
+    sceneOwned += own
+    const held = rootUrls.has(url) ? root : childUrls.has(url) ? floor : undefined
     if (held) {
-      held.owned += own;
-      if (shared.has(url)) held.shared++;
+      held.owned += own
+      if (shared.has(url)) held.shared++
     }
   }
-  const each = () => 1 + instanceCount();
-  const copiesOf = (held: typeof root) => held.owned * each() + held.shared;
+  const each = () => 1 + instanceCount()
+  const copiesOf = (held: typeof root) => held.owned * each() + held.shared
   return {
     of: (url) => (owned.get(url) ?? 0) * each() + (shared.has(url) ? 1 : 0),
     root: () => copiesOf(root),
     floor: () => copiesOf(root) + copiesOf(floor),
     scene: () => sceneOwned * each() + shared.size,
-  };
+  }
 }

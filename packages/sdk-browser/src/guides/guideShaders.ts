@@ -1,5 +1,5 @@
-import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts';
-import { GUIDE_CORNER_WGSL, GUIDE_CORNER_GLSL } from './guideCorner.ts';
+import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
+import { GUIDE_CORNER_WGSL, GUIDE_CORNER_GLSL } from './guideCorner.ts'
 
 /**
  * The guide program, in WGSL and in GLSL, one rule for both: every instance is a segment `a → b`
@@ -13,7 +13,7 @@ import { GUIDE_CORNER_WGSL, GUIDE_CORNER_GLSL } from './guideCorner.ts';
 
 /** Floats of the view uniform: the matrix, the viewport and the image's jitter in pixels, the
  *  pixel ratio, the size the scene depth was drawn at (padded to the uniform's sixteen bytes). */
-export const GUIDE_UNIFORM_FLOATS = 24;
+export const GUIDE_UNIFORM_FLOATS = 24
 
 /**
  * Writes the view uniform: `viewProjection` times the translation to `anchor`, in double
@@ -30,18 +30,18 @@ export function writeGuideView(
   jitter: ArrayLike<number> = [0, 0],
   scene: ArrayLike<number> = [width, height],
 ) {
-  for (let i = 0; i < 12; i++) into[i] = viewProjection[i];
+  for (let i = 0; i < 12; i++) into[i] = viewProjection[i]
   for (let r = 0; r < 4; r++)
     into[12 + r] =
       viewProjection[r] * anchor[0] +
       viewProjection[4 + r] * anchor[1] +
       viewProjection[8 + r] * anchor[2] +
-      viewProjection[12 + r];
-  into.set([width, height, jitter[0], jitter[1]], 16);
-  into[20] = pixelRatio;
-  into[22] = scene[0];
-  into[23] = scene[1];
-  return into;
+      viewProjection[12 + r]
+  into.set([width, height, jitter[0], jitter[1]], 16)
+  into[20] = pixelRatio
+  into[22] = scene[0]
+  into[23] = scene[1]
+  return into
 }
 
 export const GUIDE_WGSL = /* wgsl */ `
@@ -81,7 +81,7 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   if (in.position.z < scene - jitterSlack(p, scene)) { discard; }
   return in.color;
 }
-`;
+`
 
 export const GUIDE_GLSL_VERTEX = /* glsl */ `#version 300 es
 uniform mat4 matrix;
@@ -100,10 +100,10 @@ void main() {
   tint = color;
   gl_Position = guideCorner(matrix * vec4(a, 1.0), matrix * vec4(b, 1.0), CORNERS[gl_VertexID % 6],
     width, viewport.xy, pixelRatio);
-}`;
+}`
 
 export const GUIDE_GLSL_FRAGMENT = /* glsl */ `#version 300 es
 precision mediump float;
 in vec4 tint;
 out vec4 colour;
-void main() { colour = tint; }`;
+void main() { colour = tint; }`

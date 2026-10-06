@@ -1,20 +1,20 @@
-import { useReducer } from 'react';
+import { useReducer } from 'react'
 
 /** The sandbox's edits: the source in the editor and the source last run, `null` for the
  * starting one in both, so that the state never copies a source it has not changed. */
 interface SandboxState {
-  edited: string | null;
-  ran: string | null;
+  edited: string | null
+  ran: string | null
 }
 
-type SandboxAction = { type: 'edit'; code: string } | { type: 'run' } | { type: 'reset' };
+type SandboxAction = { type: 'edit'; code: string } | { type: 'run' } | { type: 'reset' }
 
 /** Editing changes the editor alone; Run renders what the editor holds; Reset brings both back
  * to the starting source. */
 function sandboxReducer(state: SandboxState, action: SandboxAction): SandboxState {
-  if (action.type === 'edit') return { ...state, edited: action.code };
-  if (action.type === 'run') return { ...state, ran: state.edited };
-  return { edited: null, ran: null };
+  if (action.type === 'edit') return { ...state, edited: action.code }
+  if (action.type === 'run') return { ...state, ran: state.edited }
+  return { edited: null, ran: null }
 }
 
 /**
@@ -23,24 +23,24 @@ function sandboxReducer(state: SandboxState, action: SandboxAction): SandboxStat
  * as they do when that file is served itself.
  */
 export function sandboxDocument(source: string, address: string) {
-  const base = `<base href="${address}">`;
-  const head = /<head(\s[^>]*)?>/i;
-  return head.test(source) ? source.replace(head, (tag) => tag + base) : base + source;
+  const base = `<base href="${address}">`
+  const head = /<head(\s[^>]*)?>/i
+  return head.test(source) ? source.replace(head, (tag) => tag + base) : base + source
 }
 
 /** Storage can be refused (a private window, blocked site data): the edits then last the visit. */
 function stored(key: string) {
   try {
-    return localStorage.getItem(key);
+    return localStorage.getItem(key)
   } catch {
-    return null;
+    return null
   }
 }
 
 function store(key: string, code: string | null) {
   try {
-    if (code === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, code);
+    if (code === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, code)
   } catch {
     // Unsaved: the sandbox works the same, for this visit only.
   }
@@ -51,22 +51,22 @@ function store(key: string, code: string | null) {
  * reload in the browser, and the source the frame shows. The source found on arrival is shown.
  */
 export function useSandbox(file: string, start: string) {
-  const key = `trillion3d.sandbox/${file}`;
+  const key = `trillion3d.sandbox/${file}`
   const [state, dispatch] = useReducer(sandboxReducer, key, (name) => {
-    const edited = stored(name);
-    return { edited, ran: edited };
-  });
+    const edited = stored(name)
+    return { edited, ran: edited }
+  })
   return {
     code: state.edited ?? start,
     shown: state.ran ?? start,
     edit: (code: string) => {
-      store(key, code);
-      dispatch({ type: 'edit', code });
+      store(key, code)
+      dispatch({ type: 'edit', code })
     },
     run: () => dispatch({ type: 'run' }),
     reset: () => {
-      store(key, null);
-      dispatch({ type: 'reset' });
+      store(key, null)
+      dispatch({ type: 'reset' })
     },
-  };
+  }
 }

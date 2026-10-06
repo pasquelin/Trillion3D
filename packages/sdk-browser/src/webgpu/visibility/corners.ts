@@ -1,13 +1,13 @@
-import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts';
-import { forEachRewrittenRun } from '../row/dirty.ts';
-import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { rootOf } from '../../page/selection/placements.ts';
-import type { MatrixElements } from '../../math/matrixElements.ts';
+import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts'
+import { forEachRewrittenRun } from '../row/dirty.ts'
+import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { rootOf } from '../../page/selection/placements.ts'
+import type { MatrixElements } from '../../math/matrixElements.ts'
 
 /** What describes the corners already sent to the GPU: the age of the table they came from. */
 export function createCornerUploadHold() {
-  return { epoch: -1, count: 0 };
+  return { epoch: -1, count: 0 }
 }
 
 /**
@@ -25,54 +25,54 @@ export function createCornerUploadHold() {
  * on cluster size (`../../gpu/partition/margins.ts`).
  */
 export function uploadRowCorners(rt: WebgpuPagesRuntime) {
-  const { rows, cornerHold } = rt.layout;
+  const { rows, cornerHold } = rt.layout
   // No partition reads the marks this image clears: the hold goes back to holding nothing, and the
   // partition that reads next forgets every drawable row's history and receives its corners again,
   // whatever changed in between (#198).
   if (!rt.vis.gpuPartition) {
-    cornerHold.epoch = -1;
-    cornerHold.count = 0;
-    return;
+    cornerHold.epoch = -1
+    cornerHold.count = 0
+    return
   }
-  const stale = cornerHold.epoch !== rows.tableEpoch;
-  if (stale) cornerHold.epoch = rows.tableEpoch;
+  const stale = cornerHold.epoch !== rows.tableEpoch
+  if (stale) cornerHold.epoch = rows.tableEpoch
   // Rows whose page arrived, left, changed rank or moved: what they held describes another page or
   // another place, and the partition reads them as never projected. A new age moves no page between
   // ranks, so the rows it re-uploads beyond those runs keep their history, on corners that moved.
   if (stale) {
-    forEachRewrittenRun(rows, cornerHold.count, rt, forgetRun);
-    if (rows.packedCount > 0) uploadRun(rt, 0, rows.packedCount - 1);
-  } else forEachRewrittenRun(rows, cornerHold.count, rt, forgetAndUploadRun);
-  cornerHold.count = rows.packedCount;
+    forEachRewrittenRun(rows, cornerHold.count, rt, forgetRun)
+    if (rows.packedCount > 0) uploadRun(rt, 0, rows.packedCount - 1)
+  } else forEachRewrittenRun(rows, cornerHold.count, rt, forgetAndUploadRun)
+  cornerHold.count = rows.packedCount
 }
 
 function forgetRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  rt.vis.gpuPartition!.forgetRows(from, to);
+  rt.vis.gpuPartition!.forgetRows(from, to)
 }
 
 function forgetAndUploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  forgetRun(rt, from, to);
-  uploadRun(rt, from, to);
+  forgetRun(rt, from, to)
+  uploadRun(rt, from, to)
 }
 
 /** Packs the corners of rows `[from, to]` and sends them in one write. */
 function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const { rows, cornerPacked } = rt.layout;
+  const { rows, cornerPacked } = rt.layout
   for (let row = from; row <= to; row++) {
-    const rec = rows.packedRecs[row];
-    const base = row * CORNER_VALUES;
+    const rec = rows.packedRecs[row]
+    const base = row * CORNER_VALUES
     if (!rec) {
-      cornerPacked.fill(0, base, base + CORNER_VALUES);
-      continue;
+      cornerPacked.fill(0, base, base + CORNER_VALUES)
+      continue
     }
     const rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]] ?? -1,
-      root = rootOf(rt.layout.selectionRoots, rank);
-    packPageCorners(cornerPacked, base, rec, root.world, root.reach);
+      root = rootOf(rt.layout.selectionRoots, rank)
+    packPageCorners(cornerPacked, base, rec, root.world, root.reach)
   }
-  rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to);
+  rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to)
 }
 
-const pageCorners = new Float64Array(BOX_CORNER_VALUES);
+const pageCorners = new Float64Array(BOX_CORNER_VALUES)
 
 /**
  * The eight world corners of `page` placed by `world` and grown by `reach`, derived by `pageCornersInto`, written in `packed` from `base`.
@@ -86,7 +86,7 @@ export function packPageCorners(
   world: MatrixElements,
   reach = 0,
 ) {
-  pageCornersInto(pageCorners, 0, page, world, reach);
+  pageCornersInto(pageCorners, 0, page, world, reach)
   for (let k = 0; k < 8; k++)
     for (let axis = 0; axis < 3; axis++)
       writeSplitDouble(
@@ -94,5 +94,5 @@ export function packPageCorners(
         base + k * 6 + axis,
         base + k * 6 + 3 + axis,
         pageCorners[k * 3 + axis],
-      );
+      )
 }

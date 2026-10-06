@@ -1,13 +1,13 @@
-import { DEG2RAD, clampNumber } from './spherical.ts';
-import { Vector2, Vector4, Spherical } from './vector2.ts';
-import { Vector3, readVec3, type Vec3Input } from './vector3.ts';
-import { Matrix3, Matrix4 } from './matrix4.ts';
-import { Quaternion } from './quaternion.ts';
-import { Euler } from './euler.ts';
-import { Box3 } from './box3.ts';
-import { Frustum, Plane, Ray, Sphere, Triangle } from './volumes.ts';
-import { Color, type ColorInput } from './color.ts';
-import { Path, Shape, SplineCurve } from './curves.ts';
+import { DEG2RAD, clampNumber } from './spherical.ts'
+import { Vector2, Vector4, Spherical } from './vector2.ts'
+import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
+import { Matrix3, Matrix4 } from './matrix4.ts'
+import { Quaternion } from './quaternion.ts'
+import { Euler } from './euler.ts'
+import { Box3 } from './box3.ts'
+import { Frustum, Plane, Ray, Sphere, Triangle } from './volumes.ts'
+import { Color, type ColorInput } from './color.ts'
+import { Path, Shape, SplineCurve } from './curves.ts'
 
 /** The `math` family: the value types of a scene, each built by the member named after it. */
 export const math = {
@@ -142,7 +142,7 @@ export const math = {
    * @param r - An angle in radians.
    */
   radToDeg: (r: number) => r / DEG2RAD,
-};
+}
 
 export {
   Vector2,
@@ -163,8 +163,8 @@ export {
   Path,
   Shape,
   SplineCurve,
-};
-export { Curve } from './curves.ts';
-export type { ColorInput, Vec3Input };
-export type { BoundedNode } from './box3.ts';
-export type { EulerLike, XYLike, XYZLike, XYZSink, XYZWLike, XYZWSink } from './likes.ts';
+}
+export { Curve } from './curves.ts'
+export type { ColorInput, Vec3Input }
+export type { BoundedNode } from './box3.ts'
+export type { EulerLike, XYLike, XYZLike, XYZSink, XYZWLike, XYZWSink } from './likes.ts'

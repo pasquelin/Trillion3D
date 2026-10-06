@@ -1,12 +1,12 @@
-import { EngineError } from '../../contracts/cache.ts';
+import { EngineError } from '../../contracts/cache.ts'
 import {
   NODE_LISTED,
   NODE_LOCAL_CHANGED,
   assertNode,
   markTransformNode,
   type TransformTree,
-} from './transformTree.ts';
-import { hangDepths, linkTransformNode, nextInSubtree, unlinkTransformNode } from './links.ts';
+} from './transformTree.ts'
+import { hangDepths, linkTransformNode, nextInSubtree, unlinkTransformNode } from './links.ts'
 
 /**
  * Hierarchy structure: subtree walk, removal, release, reparenting. Every operation reads the
@@ -18,12 +18,12 @@ import { hangDepths, linkTransformNode, nextInSubtree, unlinkTransformNode } fro
  * bit in it. Stamps are cleared on wrap-around.
  */
 export function nextStamp(tree: TransformTree) {
-  tree.call = (tree.call + 1) & 0x7fffffff;
+  tree.call = (tree.call + 1) & 0x7fffffff
   if (tree.call === 0) {
-    tree.stamp.fill(0);
-    tree.call = 1;
+    tree.stamp.fill(0)
+    tree.call = 1
   }
-  return tree.call;
+  return tree.call
 }
 
 /**
@@ -36,9 +36,9 @@ export function visitSubtree(
   node: number,
   visit: (tree: TransformTree, node: number) => void,
 ) {
-  let visited = 0;
-  for (let j = node; j >= 0; j = nextInSubtree(tree, j, node), visited++) visit(tree, j);
-  return visited;
+  let visited = 0
+  for (let j = node; j >= 0; j = nextInSubtree(tree, j, node), visited++) visit(tree, j)
+  return visited
 }
 
 /**
@@ -46,9 +46,9 @@ export function visitSubtree(
  * subtree while keeping it, `reparentTransformNode(tree, node, -1)`.
  */
 export function removeTransformNode(tree: TransformTree, node: number) {
-  assertNode(tree, node);
-  unlinkTransformNode(tree, node);
-  visitSubtree(tree, node, freeNode);
+  assertNode(tree, node)
+  unlinkTransformNode(tree, node)
+  visitSubtree(tree, node, freeNode)
 }
 
 /**
@@ -56,20 +56,20 @@ export function removeTransformNode(tree: TransformTree, node: number) {
  * leaves its parent, and its children become roots until their own release.
  */
 export function releaseTransformNode(tree: TransformTree, node: number) {
-  assertNode(tree, node);
-  unlinkTransformNode(tree, node);
+  assertNode(tree, node)
+  unlinkTransformNode(tree, node)
   for (let child = tree.firstChild[node]; child >= 0; child = tree.nextSibling[child]) {
-    tree.parent[child] = -1;
-    markTransformNode(tree, child, NODE_LOCAL_CHANGED);
-    hangDepths(tree, child);
+    tree.parent[child] = -1
+    markTransformNode(tree, child, NODE_LOCAL_CHANGED)
+    hangDepths(tree, child)
   }
-  freeNode(tree, node);
+  freeNode(tree, node)
 }
 
 /** A freed slot keeps only its place in `listed`, which the frame pass skips. */
 function freeNode(tree: TransformTree, node: number) {
-  tree.flags[node] &= NODE_LISTED;
-  tree.free[tree.freeCount++] = node;
+  tree.flags[node] &= NODE_LISTED
+  tree.free[tree.freeCount++] = node
 }
 
 /**
@@ -77,16 +77,16 @@ function freeNode(tree: TransformTree, node: number) {
  * until the next update. Throws if `parent` is `node` or one of its descendants.
  */
 export function reparentTransformNode(tree: TransformTree, node: number, parent: number) {
-  assertNode(tree, node);
-  if (parent !== -1) assertNode(tree, parent);
+  assertNode(tree, node)
+  if (parent !== -1) assertNode(tree, parent)
   for (let walk = parent; walk >= 0; walk = tree.parent[walk])
     if (walk === node)
       throw new EngineError('TRANSFORM_CYCLE', `node ${parent} under ${node}: cycle`, {
         node,
         parent,
-      });
-  if (tree.parent[node] === parent) return;
-  unlinkTransformNode(tree, node);
-  linkTransformNode(tree, node, parent);
-  markTransformNode(tree, node, NODE_LOCAL_CHANGED);
+      })
+  if (tree.parent[node] === parent) return
+  unlinkTransformNode(tree, node)
+  linkTransformNode(tree, node, parent)
+  markTransformNode(tree, node, NODE_LOCAL_CHANGED)
 }

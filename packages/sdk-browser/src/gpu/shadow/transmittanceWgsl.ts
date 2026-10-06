@@ -1,5 +1,5 @@
-import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts';
-import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts';
+import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts'
 
 /** KHR_materials_volume's raster approximation applies the declared mesh-space path at
  * the entrance, once per closed volume. The exit is not a second sheet of absorption.
@@ -34,4 +34,4 @@ fn blendTransmittance(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,ray:vec3f)->vec
   if(path>0.0){tint*=volumeTransmittanceOf(vec3f(page.attenuationRG,page.attenuationB),page.attenuationDistance,path);}
  }
  return vec4f(mix(vec3f(1.0),tint*clamp(page.transmission,0.0,1.0),coverage),1.0-coverage);
-}`;
+}`

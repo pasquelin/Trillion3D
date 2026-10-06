@@ -1,18 +1,18 @@
-import { boxEmpty } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { Placements } from '../../page/selection/placements.ts';
-import type { WebgpuLightState } from '../pages/state/lights.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { PAGE_INFO_STRIDE } from '../../visibility/types.ts';
-import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts';
-import { mobilityRows } from './rowBuffers.ts';
-import { forEachDirtyRun, type RowRunVisitor } from '../row/dirty.ts';
-import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts';
-import { growClusterBox } from './spheres.ts';
+import { boxEmpty } from '../../../../sdk-core/src/index.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { Placements } from '../../page/selection/placements.ts'
+import type { WebgpuLightState } from '../pages/state/lights.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
+import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
+import { mobilityRows } from './rowBuffers.ts'
+import { forEachDirtyRun, type RowRunVisitor } from '../row/dirty.ts'
+import { CASTS_NO_SHADOW } from '../../visibility/shader/spriteWgsl.ts'
+import { growClusterBox } from './spheres.ts'
 
-export { growClusterBox, uploadClusterSpheres } from './spheres.ts';
+export { growClusterBox, uploadClusterSpheres } from './spheres.ts'
 
-const ROW_WORDS = PAGE_INFO_STRIDE / 4;
+const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /**
  * What `mobility.writeRows` reads of the table, built once per runtime: the table, its roots and its
@@ -21,26 +21,26 @@ const ROW_WORDS = PAGE_INFO_STRIDE / 4;
  * the one the call in progress uploads on.
  */
 type MobilitySource = {
-  rt: WebgpuPagesRuntime;
-  device: GPUDevice;
-  worldOf: (rank: number) => ArrayLike<number>;
-  placementOf: (row: number) => number;
-  push: (first: number, count: number) => void;
-  corners: (row: number) => number;
-  cutout: (row: number) => boolean;
-  shadowless: (rank: number) => boolean;
-};
+  rt: WebgpuPagesRuntime
+  device: GPUDevice
+  worldOf: (rank: number) => ArrayLike<number>
+  placementOf: (row: number) => number
+  push: (first: number, count: number) => void
+  corners: (row: number) => number
+  cutout: (row: number) => boolean
+  shadowless: (rank: number) => boolean
+}
 
-const sources = new WeakMap<WebgpuPagesRuntime, MobilitySource>();
+const sources = new WeakMap<WebgpuPagesRuntime, MobilitySource>()
 
 function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const built = sources.get(rt);
+  const built = sources.get(rt)
   if (built) {
-    built.device = device;
-    return built;
+    built.device = device
+    return built
   }
   const { lights, layout } = rt,
-    { rows, selectionRoots, placement } = layout;
+    { rows, selectionRoots, placement } = layout
   const source: MobilitySource = {
     rt,
     device,
@@ -60,17 +60,17 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
       rows.pageTableInts?.[row * ROW_WORDS + ROW_INDEX_WORDS] ?? rt.setup.maxCorners,
     cutout: (row) => !!rows.pageTableInts && rowCutout(rows.pageTableInts, row),
     shadowless: (rank) => {
-      const root = selectionRoots[rank];
-      return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0;
+      const root = selectionRoots[rank]
+      return !root || !!root.parked || ((root.mark ?? 0) & CASTS_NO_SHADOW) !== 0
     },
-  };
-  sources.set(rt, source);
-  return source;
+  }
+  sources.set(rt, source)
+  return source
 }
 
 /** Rows `[from, to]`'s mobility words, on the buffer `uploadRowMobility` sized: one dirty run's. */
 const mobilityRun: RowRunVisitor<MobilitySource> = (source, from, to) => {
-  const { rows } = source.rt.layout;
+  const { rows } = source.rt.layout
   source.rt.lights.mobility.writeRows(
     source.placementOf,
     rows.casterSlots,
@@ -81,8 +81,8 @@ const mobilityRun: RowRunVisitor<MobilitySource> = (source, from, to) => {
     rows.blendFirst,
     source.cutout,
     source.shadowless,
-  );
-};
+  )
+}
 
 /**
  * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout,
@@ -103,15 +103,15 @@ export function uploadRowMobility(
   const source = sourceOf(rt, device),
     { lights, layout } = rt,
     { casterSlots } = layout.rows,
-    { mobility } = lights;
-  mobility.ensure(layout.selectionRoots.length, casterSlots, source.worldOf);
+    { mobility } = lights
+  mobility.ensure(layout.selectionRoots.length, casterSlots, source.worldOf)
   if (!lights.mobilityRows || lights.mobilityRows.size !== mobility.rowWords.byteLength) {
-    lights.mobilityRows?.destroy();
-    lights.mobilityRows = mobilityRows(device, mobility.rowWords.length);
-    from = 0;
-    to = casterSlots - 1;
+    lights.mobilityRows?.destroy()
+    lights.mobilityRows = mobilityRows(device, mobility.rowWords.length)
+    from = 0
+    to = casterSlots - 1
   }
-  mobilityRun(source, from, to);
+  mobilityRun(source, from, to)
 }
 
 /**
@@ -122,22 +122,22 @@ export function uploadRowMobility(
  * then written whole by its run, from the same placement state.
  */
 export function uploadDirtyRowMobility(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { rows } = rt.layout;
-  uploadRowMobility(rt, device, 0, -1);
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, sourceOf(rt, device), mobilityRun);
+  const { rows } = rt.layout
+  uploadRowMobility(rt, device, 0, -1)
+  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, rows.dirtyTo, sourceOf(rt, device), mobilityRun)
 }
 
 /** Two flat world boxes and their halves, allocated once, that a change is declared with: the
  *  rows the static layer holds, then the rows already moving. */
 export const changeBoxes = [0, 1].map(() => {
-  const box = new Float64Array(6);
-  return { box, min: box.subarray(0, 3), max: box.subarray(3, 6) };
-});
+  const box = new Float64Array(6)
+  return { box, min: box.subarray(0, 3), max: box.subarray(3, 6) }
+})
 
 /** True when the placement of rank `rank` already moves: the static layer does not hold its
  *  casters, and a change of its own redraws the moving casters alone (#993). */
 export const recordMoves = ({ mobility }: WebgpuLightState, rank: number) =>
-  rank >= 0 && mobility.moves(rank);
+  rank >= 0 && mobility.moves(rank)
 
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
@@ -159,13 +159,13 @@ export function noteResidenceChange(
   moving?: boolean,
   atOnce = false,
 ) {
-  const { store, changes } = lights;
-  if (!store.count) return;
-  const rank = rootOfPacked[packed] ?? -1;
-  const onlyMoving = moving ?? recordMoves(lights, rank);
-  const { box, min, max } = changeBoxes[+onlyMoving];
-  boxEmpty(box, 0);
-  growClusterBox(rec, roots, box, rank);
-  if (atOnce) changes.residencyChanged(min, max, onlyMoving);
-  else changes.representationChanged(min, max, onlyMoving);
+  const { store, changes } = lights
+  if (!store.count) return
+  const rank = rootOfPacked[packed] ?? -1
+  const onlyMoving = moving ?? recordMoves(lights, rank)
+  const { box, min, max } = changeBoxes[+onlyMoving]
+  boxEmpty(box, 0)
+  growClusterBox(rec, roots, box, rank)
+  if (atOnce) changes.residencyChanged(min, max, onlyMoving)
+  else changes.representationChanged(min, max, onlyMoving)
 }

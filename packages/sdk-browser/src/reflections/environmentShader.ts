@@ -1,15 +1,15 @@
-import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
-import { shaderLanguage } from '../math/shaderLanguage.ts';
-import { reflectionBandsShader } from './bandsShader.ts';
+import { filteredRadianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { shaderLanguage } from '../math/shaderLanguage.ts'
+import { reflectionBandsShader } from './bandsShader.ts'
 
 /** Where a program reads its environment's nine radiance coefficients. */
 export interface EnvironmentSource {
   /** Statements run first, in the shader's own syntax (e.g. carrying `R` to the world). */
-  prelude: string;
+  prelude: string
   /** The world direction the coefficients are expressed in. */
-  direction: string;
+  direction: string
   /** Coefficient `k`, a three-component vector. */
-  coefficient: (k: number) => string;
+  coefficient: (k: number) => string
 }
 
 /** The environment's order-2 radiance seen along R through the GGX lobe: the specular reflection
@@ -20,7 +20,7 @@ export function environmentReflectionShader(
   language: 'wgsl' | 'glsl',
   { prelude, direction, coefficient }: EnvironmentSource,
 ) {
-  const magnitude = Array.from({ length: 9 }, (_, k) => `abs(${coefficient(k)})`).join('+');
+  const magnitude = Array.from({ length: 9 }, (_, k) => `abs(${coefficient(k)})`).join('+')
   return `${reflectionBandsShader(language)}
 ${shaderLanguage(
   `
@@ -31,5 +31,5 @@ fn environmentReflection(R:vec3f,rough:f32)->vec3f{
  return max(vec3f(0.0),${filteredRadianceShader(coefficient, direction, 'bands')});
 }`,
   language,
-)}`;
+)}`
 }

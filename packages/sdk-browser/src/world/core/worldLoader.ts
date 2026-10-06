@@ -1,7 +1,7 @@
-import type { LoadOptions } from './scene.ts';
-import { loadModel } from './loadedModel.ts';
-import { loadModelOfAnyFormat } from './modelFormat.ts';
-import type { WorldRenderer } from '../capability/worldReady.ts';
+import type { LoadOptions } from './scene.ts'
+import { loadModel } from './loadedModel.ts'
+import { loadModelOfAnyFormat } from './modelFormat.ts'
+import type { WorldRenderer } from '../capability/worldReady.ts'
 
 /**
  * The one door for every model a world's scene loads: its format is read from its content, then
@@ -14,9 +14,9 @@ export function worldModelLoader(
   signal: AbortSignal | undefined,
   renderer: () => WorldRenderer | null,
 ) {
-  let models = 0;
+  let models = 0
   return async (url: string, load: LoadOptions) => {
-    await ready;
+    await ready
     const read = {
       scope: load.scope === undefined ? undefined : load.scope === 'full' ? 'full' : 'slice',
       signal: load.signal ?? signal,
@@ -24,7 +24,7 @@ export function worldModelLoader(
       textureSource: renderer() === 'webgpu' && models++ === 0 ? 'cache' : 'host',
       // WebGPU reads the whole manifest until its session grows in place (#216).
       lazy: renderer() === 'webgl2',
-    } as const;
-    return loadModelOfAnyFormat(url, read, { manifest: loadModel });
-  };
+    } as const
+    return loadModelOfAnyFormat(url, read, { manifest: loadModel })
+  }
 }

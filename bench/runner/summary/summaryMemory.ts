@@ -1,10 +1,10 @@
-import { go, mo } from './summaryTextures.ts';
-import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
-import type { Report } from '../report/types.ts';
+import { go, mo } from './summaryTextures.ts'
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
+import type { Report } from '../report/types.ts'
 
-const num = (v: number | null | undefined) => (typeof v === 'number' ? v : null);
+const num = (v: number | null | undefined) => (typeof v === 'number' ? v : null)
 /** Labels published in the summary: beyond them, the full reading is in `measure.json`. */
-const PLUS_LOURDES = 8;
+const PLUS_LOURDES = 8
 
 /**
  * GPU memory per side and per view, read from the allocation registry the engine publishes: the
@@ -18,40 +18,39 @@ export function memoire(report: Report) {
   const lines = [
     '| view | threshold | side | total allocated | texture pool | geometry / pool | frame targets | rest |',
     '|---|---|---|---|---|---|---|---|',
-  ];
-  const details: string[] = [];
+  ]
+  const details: string[] = []
   for (const series of report.series)
     for (const [side, result] of Object.entries(series.sides)) {
-      const m = result.metrics ?? {};
-      const total = num(m.gpuAllocatedBytes);
+      const m = result.metrics ?? {}
+      const total = num(m.gpuAllocatedBytes)
       const atlas = num(m.texturePoolBytes),
         geometry = num(m.geometryAllocationBytes),
-        cibles = num(m.gpuFrameTargetBytes);
-      const reste = total === null ? null : total - (atlas ?? 0) - (geometry ?? 0) - (cibles ?? 0);
+        cibles = num(m.gpuFrameTargetBytes)
+      const reste = total === null ? null : total - (atlas ?? 0) - (geometry ?? 0) - (cibles ?? 0)
       lines.push(
         `| ${series.view} | e${series.pixelError} | ${side} | ${go(total)} | ${go(atlas)} ` +
           `| ${go(geometry)} / ${mo(m.geometryPoolBytes)}${borne(m)} | ${mo(cibles)} | ${go(reste)} |`,
-      );
-      details.push(...plusLourdes(series, side, m));
+      )
+      details.push(...plusLourdes(series, side, m))
     }
-  return [...lines, '', ...details];
+  return [...lines, '', ...details]
 }
 
-const borne = (m: Partial<FrameMetrics>) =>
-  m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '';
+const borne = (m: Partial<FrameMetrics>) => (m.geometryPoolClamp ? ` (${m.geometryPoolClamp})` : '')
 
 /** The heaviest allocations of a side, by label, and the admission of an unknown format. */
 function plusLourdes(series: Report['series'][number], side: string, m: Partial<FrameMetrics>) {
-  if (typeof m.gpuAllocatedBytes !== 'number') return [];
-  const inconnues = num(m.gpuAllocationsUnknownFormat);
+  if (typeof m.gpuAllocatedBytes !== 'number') return []
+  const inconnues = num(m.gpuAllocationsUnknownFormat)
   const parEtiquette = Object.entries(m.gpuAllocatedByLabel ?? {})
     .slice(0, PLUS_LOURDES)
     .map(([label, bytes]) => `${label} ${mo(bytes)}`)
-    .join(', ');
+    .join(', ')
   return [
     `- ${series.view} · e${series.pixelError} · ${side}, heaviest: ${parEtiquette || 'none'}` +
       (inconnues
         ? ` — ${inconnues} texture(s) of a format unknown to the registry, counted as zero: this total is not a proof`
         : ''),
-  ];
+  ]
 }

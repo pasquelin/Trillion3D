@@ -4,59 +4,59 @@
 // does (`loadModel`), finds the district by name (`getObjectByName`) and moves it 5 km, to where a
 // still camera stands. The session's per-frame step (`createPartitionFrame`) then reads the cells
 // there: every node within the camera's reach is drawn, on a row at its moved place.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts';
-import type { RenderBackend } from '../../packages/sdk-browser/src/backend/types.ts';
-import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts';
-import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts';
-import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts';
-import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
-import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
-import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
+import type { RenderBackend } from '../../packages/sdk-browser/src/backend/types.ts'
+import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts'
+import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
+import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts'
+import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts'
+import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts'
+import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts'
 import {
   createPartitionFrame,
   primePartitions,
-} from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts';
-import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts';
-import { cellRecords } from './world-partition-pages.fixture.ts';
+} from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
+import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts'
+import { cellRecords } from './world-partition-pages.fixture.ts'
 
-const SHIFT = 5000;
+const SHIFT = 5000
 
 test(
   'a page that moves the parent of placed nodes moves their cells: none is missing, camera still',
   { skip: !existsSync(compiler) },
   async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'world-partition-parents-'));
-    t.after(() => rm(root, { recursive: true, force: true }));
-    const pointer = await compiled(root, world(96, 'district'));
-    machine(t, pointer);
-    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' });
-    const [cells] = model.record.scene.partitions;
-    const streamer = createPageStreamer(cells.pages, model.record.base);
+    const root = await mkdtemp(join(tmpdir(), 'world-partition-parents-'))
+    t.after(() => rm(root, { recursive: true, force: true }))
+    const pointer = await compiled(root, world(96, 'district'))
+    machine(t, pointer)
+    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' })
+    const [cells] = model.record.scene.partitions
+    const streamer = createPageStreamer(cells.pages, model.record.base)
     // The camera stands where the middle of the district will be, 5 km from where it is.
-    const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
-    const eye = [48 * SPACING - SHIFT, 2, 48 * SPACING];
-    camera.position.set(eye[0], eye[1], eye[2]);
-    camera.updateMatrixWorld();
-    await primePartitions([cells], camera, streamer, true);
-    assert.equal(cells.stats().held, 0, 'nothing is there yet');
+    const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
+    const eye = [48 * SPACING - SHIFT, 2, 48 * SPACING]
+    camera.position.set(eye[0], eye[1], eye[2])
+    camera.updateMatrixWorld()
+    await primePartitions([cells], camera, streamer, true)
+    assert.equal(cells.stats().held, 0, 'nothing is there yet')
 
-    const scene = new Object3D();
-    scene.add(model);
-    const district = model.getObjectByName('district')!;
-    district.position.x -= SHIFT;
-    const poses = createWorldPoses();
-    poses.moved(district);
-    poses.apply(scene, new Map(), new Map(), () => {});
+    const scene = new Object3D()
+    scene.add(model)
+    const district = model.getObjectByName('district')!
+    district.position.x -= SHIFT
+    const poses = createWorldPoses()
+    poses.moved(district)
+    poses.apply(scene, new Map(), new Map(), () => {})
 
-    const written = new Set<PlacementRows>();
-    let renewed = 0;
+    const written = new Set<PlacementRows>()
+    let renewed = 0
     const frame = createPartitionFrame({
       partitions: [cells],
       streamer,
@@ -67,58 +67,58 @@ test(
         }) as Partial<RenderBackend> as RenderBackend,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
-    })!;
+    })!
     for (let step = 0; step < 16; step++) {
-      frame();
-      if (!(await frame.pending())) break;
+      frame()
+      if (!(await frame.pending())) break
     }
-    const { held, waiting } = cells.stats();
-    assert.ok(held > 0 && waiting === 0 && renewed === 0, JSON.stringify({ held, renewed }));
+    const { held, waiting } = cells.stats()
+    assert.ok(held > 0 && waiting === 0 && renewed === 0, JSON.stringify({ held, renewed }))
 
     // Every node within reach of the still camera has a live row at its moved place.
-    const drawn = new Set<string>();
-    const key = (x: number, z: number) => `${Math.round(x * 1e3)},${Math.round(z * 1e3)}`;
+    const drawn = new Set<string>()
+    const key = (x: number, z: number) => `${Math.round(x * 1e3)},${Math.round(z * 1e3)}`
     for (const rows of written)
       for (let row = 0; row < rows.capacity; row++)
         if (rows.live[row])
-          drawn.add(key(rows.matrices[row * 16 + 12], rows.matrices[row * 16 + 14]));
-    const reach = cellReach(camera);
-    let near = 0;
+          drawn.add(key(rows.matrices[row * 16 + 12], rows.matrices[row * 16 + 14]))
+    const reach = cellReach(camera)
+    let near = 0
     for (const { url } of await cellRecords(cells.pages)) {
-      const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'));
+      const body = JSON.parse(await readFile(fileURLToPath(url), 'utf8'))
       for (const {
         translation: [x, y, z],
       } of body.nodes) {
-        const at = [x - SHIFT, y, z];
-        if (Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]) > reach) continue;
-        near++;
-        assert.ok(drawn.has(key(at[0], at[2])), `the node at ${at} is drawn`);
+        const at = [x - SHIFT, y, z]
+        if (Math.hypot(at[0] - eye[0], at[1] - eye[1], at[2] - eye[2]) > reach) continue
+        near++
+        assert.ok(drawn.has(key(at[0], at[2])), `the node at ${at} is drawn`)
       }
     }
-    assert.ok(near > 100, `${near} nodes within reach`);
+    assert.ok(near > 100, `${near} nodes within reach`)
   },
-);
+)
 
 test(
   'a page that shrinks the parent of placed nodes grows their rows in place: no reopen, no wait',
   { skip: !existsSync(compiler) },
   async (t) => {
-    const root = await mkdtemp(join(tmpdir(), 'world-partition-shrink-'));
-    t.after(() => rm(root, { recursive: true, force: true }));
-    const pointer = await compiled(root, world(384, 'district'));
-    machine(t, pointer);
-    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' });
-    const [cells] = model.record.scene.partitions;
-    const streamer = createPageStreamer(cells.pages, model.record.base);
+    const root = await mkdtemp(join(tmpdir(), 'world-partition-shrink-'))
+    t.after(() => rm(root, { recursive: true, force: true }))
+    const pointer = await compiled(root, world(384, 'district'))
+    machine(t, pointer)
+    const model = await loadModel(pointer.href, { textureSource: 'host', scope: 'full' })
+    const [cells] = model.record.scene.partitions
+    const streamer = createPageStreamer(cells.pages, model.record.base)
     // The camera stands where the middle of the district will be once it is four times smaller.
-    const camera = hostFramingCamera(60, 16 / 9, 0.1, 300);
-    camera.position.set(48 * SPACING, 2, 48 * SPACING);
-    camera.updateMatrixWorld();
-    await primePartitions([cells], camera, streamer, true);
-    const scene = new Object3D();
-    scene.add(model);
+    const camera = hostFramingCamera(60, 16 / 9, 0.1, 300)
+    camera.position.set(48 * SPACING, 2, 48 * SPACING)
+    camera.updateMatrixWorld()
+    await primePartitions([cells], camera, streamer, true)
+    const scene = new Object3D()
+    scene.add(model)
     let renewed = 0,
-      grown = 0;
+      grown = 0
     const frame = createPartitionFrame({
       partitions: [cells],
       streamer,
@@ -130,23 +130,23 @@ test(
         }) as Partial<RenderBackend> as RenderBackend,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
-    })!;
+    })!
     const settle = async () => {
       for (let step = 0; step < 16; step++) {
-        frame();
-        if (!(await frame.pending())) break;
+        frame()
+        if (!(await frame.pending())) break
       }
-      return cells.stats();
-    };
-    const before = await settle();
-    const district = model.getObjectByName('district')!;
-    district.scale.set(0.25, 0.25, 0.25);
-    const poses = createWorldPoses();
-    poses.moved(district);
-    poses.apply(scene, new Map(), new Map(), () => {});
-    const after = await settle();
-    assert.ok(grown > 0 && after.rows > before.rows, JSON.stringify({ before, after, grown }));
-    assert.deepEqual([after.waiting, renewed], [0, 0]);
-    assert.ok(after.held > before.held, 'four times as many cells are within reach');
+      return cells.stats()
+    }
+    const before = await settle()
+    const district = model.getObjectByName('district')!
+    district.scale.set(0.25, 0.25, 0.25)
+    const poses = createWorldPoses()
+    poses.moved(district)
+    poses.apply(scene, new Map(), new Map(), () => {})
+    const after = await settle()
+    assert.ok(grown > 0 && after.rows > before.rows, JSON.stringify({ before, after, grown }))
+    assert.deepEqual([after.waiting, renewed], [0, 0])
+    assert.ok(after.held > before.held, 'four times as many cells are within reach')
   },
-);
+)

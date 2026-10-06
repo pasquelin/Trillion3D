@@ -16,8 +16,8 @@ world.scene.add(floor, crate);
 crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, impulse));
 ```
 
-Without physics, no byte of the physics module or its page code is fetched; they and the worker's WebAssembly
-module load when physics is first enabled, bodies set before queued.
+Without physics, no byte of the physics module or its page code is fetched; they and the worker's
+WebAssembly module load when physics is first enabled, bodies set before queued.
 
 ## World
 
@@ -77,15 +77,15 @@ sensor, ccd, decorative, friction, restitution, damping }`.
 - **Events.** `on('contact' | 'enter' | 'leave')` gives the other object, an impulse estimate
   (approach speed times the pair's reduced mass) and the point. After `Update`, contact records
   merge in a canonical order no thread decides: by body pair key (lower engine index first), each
-  pair's events as the simulation ran them — not the engine's callback order. A full buffer's carried `leave` events
-  and a removed body's come before the merge, a soft body's after it. Any pool size gives the single
-  thread's order (`contactThreads.test.ts`).
+  pair's events as the simulation ran them — not the engine's callback order. A full buffer's
+  carried `leave` events and a removed body's come before the merge, a soft body's after it. Any
+  pool size gives the single thread's order (`contactThreads.test.ts`).
 
 ## Joints
 
 `joint.fixed | point | hinge | slider | distance | cone(a, b, options)` joins two bodies, or a body
-and the world (`b` is `null`), with the module's constraints; `world.physics.add(j)` and `remove(j)` put
-it in and out. It exists while both bodies are simulated, made again when one returns.
+and the world (`b` is `null`), with the module's constraints; `world.physics.add(j)` and `remove(j)`
+put it in and out. It exists while both bodies are simulated, made again when one returns.
 
 | Option | Meaning |
 | --- | --- |
@@ -119,25 +119,26 @@ A tuning a kind lacks (a motor on a fixed joint) throws `RangeError`. Example:
   over `b`'s), the other way round; `joint.rackAndPinion(pinion, rack, { axis, axisB, ratio })`
   slides the rack along `axisB` by `1 / ratio` metres per pinion radian (`ratio` is 1 / its radius).
   Each gear, pinion and rack needs its own hinge or slider, the body as its `a`, about the same
-  axis; the simulation reads them to keep the teeth in phase over any run: always for a rack and pinion; for a
-  gear when `ratio` or `1 / ratio` is whole (it wraps each hinge's angle to one turn); any other
-  gear ties speeds only and may slip a fraction of a tooth under load. Example: [gears and
+  axis; the simulation reads them to keep the teeth in phase over any run: always for a rack and
+  pinion; for a gear when `ratio` or `1 / ratio` is whole (it wraps each hinge's angle to one turn);
+  any other gear ties speeds only and may slip a fraction of a tooth under load. Example: [gears and
   pulleys](../site/examples/gears-and-pulleys.html).
 
 ## Vehicles
 
 `vehicle.car | motorcycle | tracked(body, { wheels, ...spec })` puts a dynamic body on wheels with
-The module's vehicle constraint — engine, automatic gearbox, differentials, suspension, anti-roll bars;
-`world.physics.add(v)` makes it once its body is simulated, `remove(v)` leaves the body wheelless.
+the module's vehicle constraint — engine, automatic gearbox, differentials, suspension, anti-roll
+bars; `world.physics.add(v)` makes it once its body is simulated, `remove(v)` leaves the body
+wheelless.
 
 - **Wheels** are meshes, children of the body, placed at their centre as they rest on flat ground,
   axle along the body's x; radius and width come from their bounds, and each step turns, steers and
   lifts them on the suspension, drawn at the bodies' time as the body is.
-- **Body.** As in the module's own vehicle samples, the centre of mass is lowered to the shape's bottom,
-  midway between the wheels, and restored when the vehicle leaves. While a vehicle, its running gear
-  is solid: a box over the wheels' footprint, from the body's bottom to their lowest point raised by
-  the suspension travel, joins its shape, so no body slips under it among the wheels (the module only
-  casts them); mass and inertia stay the shape's. The body faces −z; the forward wheels steer.
+- **Body.** The centre of mass is lowered to the shape's bottom, midway between the wheels, and
+  restored when the vehicle leaves. While a vehicle, its running gear is solid: a box over the
+  wheels' footprint, from the body's bottom to their lowest point raised by the suspension travel,
+  joins its shape, so no body slips under it among the wheels (the module only casts them); mass and
+  inertia stay the shape's. The body faces −z; the forward wheels steer.
 - **Kinds.** A car: three wheels or more, one differential per driven axle
   (`drive: 'front' | 'rear' | 'all'`), handbrake on the rear. A motorcycle: two, rear-driven,
   leaning into turns. A tracked vehicle: two or more a side, each track driven by its rearmost
@@ -146,11 +147,10 @@ The module's vehicle constraint — engine, automatic gearbox, differentials, su
   ([Camera controllers](SDK.md#camera-controllers)), `v.drive(input)` from code. The brake stops it,
   then backs it up; the throttle first stops one rolling back. Parked — not driven since it was
   made or last stood still — it holds its brakes and its engine idles, so it rests on a slope and
-  sleeps at once, never awake while its engine spins down (#831).
-  `v.speed` (m/s forward), `v.gear` (−1
+  sleeps at once, never awake while its engine spins down. `v.speed` (m/s forward), `v.gear` (−1
   reverse, 0 neutral) and `v.rpm` read the last step.
-- **Specs.** Each kind is a real machine (`VEHICLE_SPECS`: a Corvette C5, a Yamaha XJ900, an M1
-  Abrams), every number sourced in `vehicleSpec.ts`, each an option: torque per body kilogram
+- **Specs.** Each kind starts from its declared spec (`VEHICLE_SPECS`,
+  `packages/sdk-core/src/physics/vehicleSpec.ts`), each number an option: torque per body kilogram
   (`torquePerKg`), torque curve, idle and redline, gear ratios, shift points and final drive,
   suspension frequency, damping and travel, anti-roll bars, the turning radius the steering lock
   derives from, the time a hand takes to full lock, brake grip, a motorcycle's lean, a track's turn.
@@ -174,9 +174,10 @@ vertex on the module's soft bodies.
   cotton (`SOFT_AREAL_DENSITY`, 0.2 kg/m²) or a 10 mm polyamide rope (`SOFT_LINEAR_DENSITY`,
   0.065 kg/m).
 - **Stiffness.** `stretch` and `bend` are compliances, the inverse of stiffness, for a pulled edge
-  and a bent fold (the module's defaults: 0 never stretches, `Infinity` folds freely). A pinned cloth with
-  `stretch` 0 keeps each free vertex within its rest distance of the nearest pin (the module's long range
-  attachments), so a large one never stretches without end; one given stretch keeps its give.
+  and a bent fold (the module's defaults: 0 never stretches, `Infinity` folds freely). A pinned
+  cloth with `stretch` 0 keeps each free vertex within its rest distance of the nearest pin (the
+  module's long range attachments), so a large one never stretches without end; one given stretch
+  keeps its give.
 - **Pressure.** A volume's default rests its weight on a quarter of its mean cross-section
   (`SOFT_FOOTPRINT`, declared), or the most its skin holds if less. A pressure past what the skin
   holds within a tenth of its rest volume throws `RangeError`: edges give by their `stretch` and by
@@ -190,35 +191,32 @@ vertex on the module's soft bodies.
   (`SOFT_DAMPING`, `−ln(0.99)·60` = 0.603 per second), whatever its type, mass or size: a swing
   settles within seconds, and it falls at most at `g / 0.603`, 16.3 m/s. A declared value wins, 0
   included; a saved scene leaves the default out.
-- **Thickness.** Its vertices keep 1 cm from what they collide with (the module's vertex radius): a cloth
-  laid on a surface rests 1 cm above it.
+- **Thickness.** Its vertices keep 1 cm from what they collide with (the module's vertex radius): a
+  cloth laid on a surface rests 1 cm above it.
 - **Bends.** No bend is stiffer than the solver resolves: its compliance is at least a fifth of the
-  one its four vertices' masses give over a substep (`h²·Σ wᵢ|∇ᵢθ|²`, XPBD's own), so it corrects at
-  most five sixths of the angle it is off per substep. A stiffer one overshoots: a flag's
-  `bend: 0.001` on vertices of 0.7 g, loaded in its own plane, folded its triangles through each
-  other and flapped until it ran away. Floored, that flag's bends give at least 1.5 to 16 rad/(N·m)
-  (squares of 6 cm, at 60 Hz) and it comes to rest; a cloth clamped along an edge and bent stiff
-  still stands out. A softer bend is kept as declared. The floor is applied when the body is made,
+  one its four vertices' masses give over a substep (`h²·Σ wᵢ|∇ᵢθ|²`), so it corrects at most five
+  sixths of the angle it is off per substep; a stiffer one would overshoot and fold its triangles
+  through each other. A softer bend is kept as declared. The floor is applied when the body is made,
   over a substep of the page's step (a finer step resolves stiffer bends), cooked bodies included;
   the cooked bytes are unchanged.
-- **Speed.** The module holds each vertex under the faster of two speeds: the fall from a hundred times
-  the body's size (the diagonal of its rest bounds) under its pull, 59 m/s for a 1.8 m flag, and its
-  fall through its own damping, `pull / damping` (500 m/s, the module's own bound, with none). The pull is
-  the gravity times its scale, never less than 9.81 m/s², read again whenever either changes:
-  neither a swing nor a body falling whole is ever held back.
+- **Speed.** The module holds each vertex under the faster of two speeds: the fall from a hundred
+  times the body's size (the diagonal of its rest bounds) under its pull, 59 m/s for a 1.8 m flag,
+  and its fall through its own damping, `pull / damping` (500 m/s, the module's own bound, with
+  none). The pull is the gravity times its scale, never less than 9.81 m/s², read again whenever
+  either changes: neither a swing nor a body falling whole is ever held back.
 - **Place.** A direct child of the scene. Moved by the page, it is carried with its vertices, pins
   included, its shape and motion kept and no motion induced by the move; moved more than 3 m at
   once, it starts again at rest in its rest shape at its new place. A slow frame changes nothing:
-  the worker steps a fixed 1/60 s, four steps at most a frame. Placed at another scale than it
-  was made at, it is refused (`PHYSICS_FAILED`) and leaves the simulation until back at that scale
-  (the module scales no soft body once made), as a compiled model's cooked one does; hidden, its vertices
+  the worker steps a fixed 1/60 s, four steps at most a frame. Placed at another scale than it was
+  made at, it is refused (`PHYSICS_FAILED`) and leaves the simulation until back at that scale (the
+  module scales no soft body once made), as a compiled model's cooked one does; hidden, its vertices
   are not sent.
 - **Support.** A static body that the cloth near a pin starts inside (the rest midpoint of an edge
   from a pin lies 1 mm deep in its shape) is passed through by that soft body, which it would
   otherwise push out against its own pins at every step. It is judged once per pair, again when
   either is moved, and forgotten when the body leaves. Pins on a surface keep colliding with it: a
-  flag pinned on its pole's surface still wraps round the pole (the module's filter is per body, not per
-  vertex).
+  flag pinned on its pole's surface still wraps round the pole (the module's filter is per body, not
+  per vertex).
 - **Divergence.** A body, soft or rigid, whose vertices or pose go non-finite sends none: it keeps
   its last finite one on screen and leaves the simulation with `PHYSICS_DIVERGED` (the mesh named).
   A soft body has also diverged when its vertices go apart, the spread of their velocities, at
@@ -229,20 +227,23 @@ vertex on the module's soft bodies.
   shape, at its pins or around its centre of mass, when it kept none), then calmed for 2 s, damped
   so that it falls no faster than a quarter of its mean edge per step. The page counts it in
   `world.physics.stats.softRecoveries` and hears a non-fatal `PHYSICS_DIVERGED` naming it, at most
-  once a second. The module finds a soft body's collision planes once per step for its five substeps, so
-  a fine cloth draped over a sharp edge or corner can still throw itself apart: a 1.5 m cloth of
-  44 × 44 squares dropped on a 1 m box is brought back once and rests on it. That is a limit of
-  the module's solver, counted and named, not hidden.
+  once a second. The module finds a soft body's collision planes once per step for its five
+  substeps, so a fine cloth draped over a sharp edge or corner can still throw itself apart and be
+  brought back this way.
 - **Collisions.** Rigid bodies and the character collide with its vertices: the character is turned
   aside or stopped, never pushing it; a rigid body much heavier than the skin can push between its
   vertices; soft bodies pass through each other (the module collides them with rigid bodies only).
-  `on('contact' | 'enter' | 'leave')` works on either side, from the module's soft-body contact listener:
-  the point is the mean of the touching vertices, the impulse estimated from their mean velocity and
-  mass, a pair stays entered while both rest; a sensor reports without stopping it.
+  `on('contact' | 'enter' | 'leave')` works on either side, from the module's soft-body contact
+  listener: the point is the mean of the touching vertices, the impulse estimated from their mean
+  velocity and mass, a pair stays entered while both rest; a sensor reports without stopping it.
 - **Drawing.** `mesh.physics.vertices` reads the vertices as they are drawn, `x, y, z` per geometry
   vertex in the geometry's frame, at the bodies' time: between the places the two steps that
   bracket it left them, as a body is drawn; the geometry is dynamic
-  ([Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame), #573).
+  ([Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame)). A compiled model's
+  cooked soft body draws through the GPU deformation source (`deformation/softSource.ts`,
+  `physics/cookedSoft.ts`): its cooked render positions and indices are attached to the model's
+  nodes, each step's vertices are copied in with their normals, and the deformation pass moves the
+  drawn pages ([GPU deformation](ENGINE.md#gpu-deformation)).
 
 ## Stillness, distance and view
 
@@ -270,14 +271,13 @@ mesh resting in place (set `physics` again to resume), their joints broken (`j.b
 
 | Case | Refusal |
 | --- | --- |
-| a key that is no budget (the removed `triangles`) | `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics` |
+| a key that is no budget | `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics` |
 | a request past one, or a step finding more pairs or contacts than budgeted | `PHYSICS_BUDGET` on `world.physics.error` |
 | a soft body past `softVertices` | `PHYSICS_BUDGET` naming `softVertices` |
 | an `enter` past the events budget | counted in `stats.droppedEvents`; its `leave` is never sent |
 
-Every soft vertex is solved each step, so the step grows linearly with them: the R&D audit measured
-6.5–8.2 ms a step at the default and 2.4–2.8 ms at 4096 (four of 32 × 32), natively on one thread
-(#975); a page needing fewer lowers it.
+Every soft vertex is solved each step, so the step grows linearly with them; a page needing fewer
+lowers `softVertices`.
 
 **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
 `stats.stepMs` (mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its own
@@ -286,14 +286,14 @@ clock: never added together.
 ## Compiled models
 
 A model loaded with `scene.load()` collides with its own triangles once physics is on: the compiler
-cooked them (`physics.json`, [FORMAT.md](FORMAT.md)), and tiles stream in from the module's binary state
-around every moving body and the eye up to the simulation range, nearest first, within half of
+cooked them (`physics.json`, [FORMAT.md](FORMAT.md)), and tiles stream in from the module's binary
+state around every moving body and the eye up to the simulation range, nearest first, within half of
 `budget.physics.memoryBytes`, leaving as they move away (a tile stays until half as far again as it
 came in). No scene is refused for its size: a tile that does not fit waits, the farthest leaving for
-it. Another format or another engine build's cook is refused (`PHYSICS_FORMAT`); a model compiled before the cook
-collides nowhere. A tile or a soft body's settings the server refuses is `RESOURCE_HTTP_ERROR` on
-`world.physics.error` ([Files over HTTP](SDK.md#files-over-http)); a model leaving the scene drops
-its pending reads, no error.
+it. Another format or another engine build's cook is refused (`PHYSICS_FORMAT`); a model compiled
+without a physics cook collides nowhere. A tile or a soft body's settings the server refuses is
+`RESOURCE_HTTP_ERROR` on `world.physics.error` ([Files over HTTP](SDK.md#files-over-http)); a model
+leaving the scene drops its pending reads, no error.
 
 Tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
 `DEFAULT_MATTER`. Every drawn node is static ground but one declaring a `motion`: its body is
@@ -304,9 +304,9 @@ pushing what it meets (under a dynamic one, as that body carries its node); a dy
 its node and what hangs under it drawn where the simulation puts them, that subtree's tiles leaving
 and ground streaming in around it; moved by the page with its model or node, it is put where the
 node is then drawn. In a partitioned model, whose cache numbers nodes otherwise, it is held
-kinematic and asleep where drawn. A shape the module cannot make at the body's scale is `PHYSICS_FAILED`
-naming its node, which stays static ground; a body refused at a rescale is made again at another
-scale.
+kinematic and asleep where drawn. A shape the module cannot make at the body's scale is
+`PHYSICS_FAILED` naming its node, which stays static ground; a body refused at a rescale is made
+again at another scale.
 
 ## Exact raycast
 
@@ -322,13 +322,3 @@ off, an exact raycast throws `PHYSICS_OFF`.
 
 With physics on, `world.controls` `'character'` is the physics' own character: it pushes, rides and
 is pushed ([Camera controllers](SDK.md#camera-controllers)).
-
-## Measured, and what remains
-
-`ten-thousand-bodies` (10,000 boxes landing at once; headed Chrome, 1280×720, DPR 1, cross-origin
-isolated, eight threads, 120 Hz display; load average 8–14, not a quiet machine; commit f56d2dd57;
-three runs): worker step 3.7–4.2 ms p50, 20–25 ms p95 during the landing, which then runs in slow
-motion for a moment; page `physics` stage 0.40 ms p50, 0.59–0.71 ms p95 a frame; rAF interval
-8.8–10.4 ms p50, 10–13.4 ms p99. The renderer's work for 10,000 moved instances is measured apart
-(#432). Joints, advanced joints, vehicles, cooked colliders and soft bodies are not measured at
-this scale. Destruction, ragdolls and clothes on an animated character remain (#399).

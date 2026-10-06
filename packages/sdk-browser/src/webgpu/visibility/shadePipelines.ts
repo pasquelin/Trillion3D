@@ -1,31 +1,31 @@
-import { shadeLayout } from './shadeLayout.ts';
-import { scoped } from './pipelines.ts';
+import { shadeLayout } from './shadeLayout.ts'
+import { scoped } from './pipelines.ts'
 import {
   preparedPipeline,
   preparedPipelines,
   type PreparedPipeline,
-} from '../../lighting/deferred/fullscreen.ts';
-import { shadeVariantFragment, variesShade } from '../../diagnostic/gpuGeometry.ts';
-import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-import { shadeTargetFormats } from './shadeTargets.ts';
-import { createMaterialTiles, materialTileDrawLayout } from '../core/materialTiles.ts';
+} from '../../lighting/deferred/fullscreen.ts'
+import { shadeVariantFragment, variesShade } from '../../diagnostic/gpuGeometry.ts'
+import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
+import { shadeTargetFormats } from './shadeTargets.ts'
+import { createMaterialTiles, materialTileDrawLayout } from '../core/materialTiles.ts'
 
 /** The resolve's class pipelines: one per class key (`../../visibility/shader/materialClass.ts`),
  *  prepared before the image that draws the class (`PreparedPipeline`), never by it. */
 export type ShadeClasses = {
   /** The pipeline of class `key`. */
-  of(key: number): PreparedPipeline<GPURenderPipeline>;
+  of(key: number): PreparedPipeline<GPURenderPipeline>
   /** The classes made so far: those of the census, and those asked since. */
-  keys(): Iterable<number>;
+  keys(): Iterable<number>
   /** Direct resolve of a one-class image, for the scene's class at preparation — its fragment
    *  stage rejects the background —; none for another class. Each set holds its own, prepared as
    *  its classes are and asked with them (`../frame/framePipelines.ts`). */
-  single(key: number): PreparedPipeline<GPURenderPipeline> | undefined;
+  single(key: number): PreparedPipeline<GPURenderPipeline> | undefined
   /** The same classes writing the layer, made once — itself when it writes it: what a scene whose
    *  surface came to emit or occlude switches to once they are compiled
    *  (`../frame/framePipelines.ts`). */
-  withEmissiveAo(): ShadeClasses;
-};
+  withEmissiveAo(): ShadeClasses
+}
 
 /** Builds the class-specialized material pipelines and, for the image's own resolve, its material
  *  tiles (`../core/materialTiles.ts`) during preparation. A class's fragment stage rejects every
@@ -44,15 +44,15 @@ export function createWebgpuShadePipelines(
   /** What the frame's cache holds for the pixels to read (`./shadeCache.ts`); none, each composes. */
   cached: Readonly<Record<string, number>> = {},
 ) {
-  const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device);
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
+  const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device)
+  const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] })
   // A class draws its tiles only (`materialTiles.ts`).
-  const tileDrawLayout = materialTileDrawLayout(device);
+  const tileDrawLayout = materialTileDrawLayout(device)
   const tileLayout = device.createPipelineLayout({
     bindGroupLayouts: [shadeBindGroupLayout, tileDrawLayout],
-  });
-  const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
-  const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback';
+  })
+  const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' }
+  const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback'
   /** Class features derive from the key; a single class draws full screen, every other the tiles
    *  its pixels are in. */
   const shadeDescriptor = (
@@ -62,8 +62,8 @@ export function createWebgpuShadePipelines(
   ): GPURenderPipelineDescriptor => {
     const constants: Record<string, number> = single
       ? { ...cached, CLASS_KEY: key, SINGLE_CLASS: 1 }
-      : { ...cached, CLASS_KEY: key };
-    if (!layer) constants.EMISSIVE_AO = 0;
+      : { ...cached, CLASS_KEY: key }
+    if (!layer) constants.EMISSIVE_AO = 0
     return {
       layout: single ? layout : tileLayout,
       vertex: {
@@ -81,27 +81,27 @@ export function createWebgpuShadePipelines(
         ),
       },
       primitive,
-    };
-  };
+    }
+  }
   const classSet = (layer: boolean, singleKey: number | undefined): ShadeClasses => {
     const set = preparedPipelines((key: number) =>
       preparedPipeline(device, shadeDescriptor(key, false, layer)),
-    );
+    )
     const direct =
       singleKey === undefined
         ? undefined
-        : preparedPipeline(device, shadeDescriptor(singleKey, true, layer));
-    let layered: ShadeClasses | undefined;
+        : preparedPipeline(device, shadeDescriptor(singleKey, true, layer))
+    let layered: ShadeClasses | undefined
     const shade: ShadeClasses = {
       ...set,
       single: (key) => (key === singleKey ? direct : undefined),
       withEmissiveAo: () => (layer ? shade : (layered ??= classSet(true, singleKey))),
-    };
-    return shade;
-  };
-  const singleKey = classes.length === 1 && !variesShade(variant) ? classes[0] : undefined;
+    }
+    return shade
+  }
+  const singleKey = classes.length === 1 && !variesShade(variant) ? classes[0] : undefined
   return scoped(device, async () => {
-    const shadeClasses = classSet(emissiveAo, singleKey);
+    const shadeClasses = classSet(emissiveAo, singleKey)
     const [materialTiles] = await Promise.all([
       // The scene's resolve classifies its tiles; a set built beside it on its layout — the
       // feedback A/B's arm, the other feedback variant (`../pages/prepare/feedbackVariant.ts`) —
@@ -109,7 +109,7 @@ export function createWebgpuShadePipelines(
       sharedLayout ? undefined : createMaterialTiles(device, tileDrawLayout),
       singleKey === undefined ? undefined : shadeClasses.single(singleKey)!.prepare(),
       Promise.all(classes.map((key) => shadeClasses.of(key).prepare())),
-    ]);
-    return { shadeBindGroupLayout, materialTiles, shadeClasses };
-  });
+    ])
+    return { shadeBindGroupLayout, materialTiles, shadeClasses }
+  })
 }

@@ -1,6 +1,6 @@
-import type { JsonSchemaObject } from './types.ts';
-import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
-import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts';
+import type { JsonSchemaObject } from './types.ts'
+import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts'
+import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
@@ -154,4 +154,4 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
   },
   required: ['manifestUrl'],
   additionalProperties: true,
-};
+}

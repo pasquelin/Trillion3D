@@ -1,9 +1,9 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { HTTP_ATTEMPTS, pause } from '../cluster/checked.ts';
-import { RETRY_AFTER_CAP_MS } from '../cluster/retryCap.ts';
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import { HTTP_ATTEMPTS, pause } from '../cluster/checked.ts'
+import { RETRY_AFTER_CAP_MS } from '../cluster/retryCap.ts'
 
-/** The public code of a family that could not load (`docs/messages/T3D-E090.md`). */
-const FAMILY_LOAD_FAILED_ID = 'T3D-E090';
+/** The public code of a family that could not load (`FAMILY_LOAD_FAILED` in the message catalogue). */
+const FAMILY_LOAD_FAILED_ID = 'T3D-E090'
 
 /**
  * The engine's one on-demand loader (#1353, #1404): a module imported on its first use, which the
@@ -30,43 +30,43 @@ export function onDemand<M>(
   let module: M | undefined,
     refusal: EngineError | undefined,
     loading: Promise<void> | undefined,
-    refusedAt = -Infinity;
+    refusedAt = -Infinity
   const round = async () => {
-    const wait = refusedAt + RETRY_AFTER_CAP_MS - Date.now();
-    if (wait > 0) await pause(wait);
-    let cause: unknown;
+    const wait = refusedAt + RETRY_AFTER_CAP_MS - Date.now()
+    if (wait > 0) await pause(wait)
+    let cause: unknown
     for (let tried = 0; tried < HTTP_ATTEMPTS; tried++) {
       try {
-        module = await load();
-        refusal = undefined;
-        return;
+        module = await load()
+        refusal = undefined
+        return
       } catch (error) {
-        cause = error;
+        cause = error
       }
     }
-    refusedAt = Date.now();
+    refusedAt = Date.now()
     refusal = new EngineError(
       'FAMILY_LOAD_FAILED',
       `${FAMILY_LOAD_FAILED_ID} FAMILY_LOAD_FAILED: the ${family} family did not load after ${HTTP_ATTEMPTS} attempts: ${String(cause)}`,
       { id: FAMILY_LOAD_FAILED_ID, family, attempts: HTTP_ATTEMPTS, cause },
-    );
-    loading = undefined; // the next ask tries again
-    refused(refusal);
-  };
-  const start = () => (loading ??= round());
+    )
+    loading = undefined // the next ask tries again
+    refused(refusal)
+  }
+  const start = () => (loading ??= round())
   return {
     get(): M | undefined {
-      if (module === undefined) void start();
-      return module;
+      if (module === undefined) void start()
+      return module
     },
     get arrived() {
-      return module !== undefined;
+      return module !== undefined
     },
     settled: () => loading ?? Promise.resolve(),
     async load(): Promise<M> {
-      if (module === undefined) await start();
-      if (module === undefined) throw refusal;
-      return module;
+      if (module === undefined) await start()
+      if (module === undefined) throw refusal
+      return module
     },
-  };
+  }
 }

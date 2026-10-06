@@ -1,16 +1,16 @@
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import type { HostCamera } from '../../camera/world.ts';
-import type { OrthographicBox } from '../../camera/engineCamera.ts';
-import { drawnView } from '../../../../sdk-core/src/math/primitives/camera.ts';
-import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
-import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
-import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
-import { createCharacterCameraControls } from '../../camera/controls/characterControls.ts';
-import { createVehicleCameraControls } from '../../camera/controls/vehicleControls.ts';
-import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts';
-import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts';
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import type { HostCamera } from '../../camera/world.ts'
+import type { OrthographicBox } from '../../camera/engineCamera.ts'
+import { drawnView } from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts'
+import { createFlyCameraControls } from '../../camera/controls/flyControls.ts'
+import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts'
+import { createCharacterCameraControls } from '../../camera/controls/characterControls.ts'
+import { createVehicleCameraControls } from '../../camera/controls/vehicleControls.ts'
+import { createTrackballCameraControls } from '../../camera/controls/trackballControls.ts'
+import { createPanZoomCameraControls } from '../../camera/controls/panZoomControls.ts'
 
 /**
  * The ways a page can steer the camera with the mouse and keyboard, or `'none'`. `'firstPerson'`
@@ -19,14 +19,14 @@ import { createPanZoomCameraControls } from '../../camera/controls/panZoomContro
  * `world.controls.movementSpeed` and turn at `world.controls.lookSpeed`.
  */
 export type WorldControls =
-  'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none';
+  'orbit' | 'fly' | 'firstPerson' | 'character' | 'vehicle' | 'trackball' | 'panZoom' | 'none'
 
 const position = new Vector3(),
   rotation = new Quaternion(),
-  scale = new Vector3();
+  scale = new Vector3()
 
 /** The shape a frame is drawn at: the canvas's drawing buffer, its width over its height. */
-export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height);
+export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.max(1, canvas.height)
 
 /**
  * Puts the world's camera on the one a session draws from: its world pose, ancestors resolved,
@@ -34,22 +34,22 @@ export const drawnAspect = (canvas: HTMLCanvasElement) => canvas.width / Math.ma
  * is copied onto it number by number, never handed in.
  */
 function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
-  camera.updateWorldMatrix(true, false);
-  camera.matrixWorld.decompose(position, rotation, scale);
-  into.position.set(position.x, position.y, position.z);
-  into.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w);
-  into.fov = camera.fov;
-  into.near = camera.near;
-  into.far = camera.far;
-  into.zoom = camera.zoom;
-  into.aspect = aspect;
-  const { left, right, top, bottom, fitAspect } = camera;
-  const box = camera.projection === 'orthographic' ? { left, right, top, bottom, fitAspect } : null;
+  camera.updateWorldMatrix(true, false)
+  camera.matrixWorld.decompose(position, rotation, scale)
+  into.position.set(position.x, position.y, position.z)
+  into.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w)
+  into.fov = camera.fov
+  into.near = camera.near
+  into.far = camera.far
+  into.zoom = camera.zoom
+  into.aspect = aspect
+  const { left, right, top, bottom, fitAspect } = camera
+  const box = camera.projection === 'orthographic' ? { left, right, top, bottom, fitAspect } : null
   // The box is handed on as declared, fitted where each projection is composed, at the shape it
   // is drawn at. The engine composes its own projection from it (`engineCamera.ts`); the host
   // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here.
-  into.orthographic = box;
-  into.updateProjectionMatrix();
+  into.orthographic = box
+  into.updateProjectionMatrix()
   if (box)
     hostOrthographic(
       into.projectionMatrix.elements as number[],
@@ -57,17 +57,17 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
       box,
       camera,
       aspect,
-    );
-  into.updateMatrixWorld();
+    )
+  into.updateMatrixWorld()
 }
 
 /** Puts a session's camera on the page's `camera()`, at the shape of `canvas`: before the session
  *  reads anything for its first frame, then before every frame. */
 export const followPageCamera =
   (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
-    copyWorldCamera(camera(), into, drawnAspect(canvas));
+    copyWorldCamera(camera(), into, drawnAspect(canvas))
 
-const view = new Float64Array(4);
+const view = new Float64Array(4)
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
  *  the box a camera sees at `aspect` (`drawnView`), scaled by its zoom about the box centre, and
  *  its inverse. */
@@ -79,24 +79,24 @@ export function hostOrthographic(
   aspect: number,
 ) {
   const [x, y, w, h] = drawnView(box, aspect, camera.zoom, view),
-    depth = camera.far - camera.near;
-  out.fill(0);
-  out[0] = 1 / w;
-  out[5] = 1 / h;
-  out[10] = -2 / depth;
-  out[12] = -x / w;
-  out[13] = -y / h;
-  out[14] = -(camera.far + camera.near) / depth;
-  out[15] = 1;
-  if (!inverse) return;
-  inverse.fill(0);
-  inverse[0] = w;
-  inverse[5] = h;
-  inverse[10] = -depth / 2;
-  inverse[12] = x;
-  inverse[13] = y;
-  inverse[14] = -(camera.far + camera.near) / 2;
-  inverse[15] = 1;
+    depth = camera.far - camera.near
+  out.fill(0)
+  out[0] = 1 / w
+  out[5] = 1 / h
+  out[10] = -2 / depth
+  out[12] = -x / w
+  out[13] = -y / h
+  out[14] = -(camera.far + camera.near) / depth
+  out[15] = 1
+  if (!inverse) return
+  inverse.fill(0)
+  inverse[0] = w
+  inverse[5] = h
+  inverse[10] = -depth / 2
+  inverse[12] = x
+  inverse[13] = y
+  inverse[14] = -(camera.far + camera.near) / 2
+  inverse[15] = 1
 }
 
 /**
@@ -106,42 +106,42 @@ export function hostOrthographic(
  */
 export function createCanvasFit(canvas: HTMLCanvasElement, led: boolean) {
   let sizedWidth = 0,
-    sizedHeight = 0;
+    sizedHeight = 0
   return {
     apply(session: { resize(width: number, height: number): void }) {
       const width = Math.floor(canvas.clientWidth),
-        height = Math.floor(canvas.clientHeight);
-      if (!led || width < 1 || height < 1) return;
-      if (width === sizedWidth && height === sizedHeight) return;
-      sizedWidth = width;
-      sizedHeight = height;
-      session.resize(width, height);
+        height = Math.floor(canvas.clientHeight)
+      if (!led || width < 1 || height < 1) return
+      if (width === sizedWidth && height === sizedHeight) return
+      sizedWidth = width
+      sizedHeight = height
+      session.resize(width, height)
     },
     /** A new session starts from its own default buffer: the next frame fits it again. */
     reset() {
-      sizedWidth = sizedHeight = 0;
+      sizedWidth = sizedHeight = 0
     },
-  };
+  }
 }
 
 /** The controller a world drives its camera with, `none` for a page that poses it itself. */
 export function worldControls(kind: WorldControls, camera: Camera, surface: HTMLElement) {
   switch (kind) {
     case 'orbit':
-      return createOrbitCameraControls(camera, surface);
+      return createOrbitCameraControls(camera, surface)
     case 'fly':
-      return createFlyCameraControls(camera, surface);
+      return createFlyCameraControls(camera, surface)
     case 'firstPerson':
-      return createFirstPersonCameraControls(camera, surface);
+      return createFirstPersonCameraControls(camera, surface)
     case 'character':
-      return createCharacterCameraControls(camera, surface);
+      return createCharacterCameraControls(camera, surface)
     case 'vehicle':
-      return createVehicleCameraControls(camera, surface);
+      return createVehicleCameraControls(camera, surface)
     case 'trackball':
-      return createTrackballCameraControls(camera, surface);
+      return createTrackballCameraControls(camera, surface)
     case 'panZoom':
-      return createPanZoomCameraControls(camera, surface);
+      return createPanZoomCameraControls(camera, surface)
     default:
-      return null;
+      return null
   }
 }

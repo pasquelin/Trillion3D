@@ -4,22 +4,22 @@
 // (`packages/sdk-browser/src/math/normalTransform.test.ts`) and the shipped shader on Dawn
 // (`tests/gpu/math/normal-transform.gpu.ts`): the f32 model and the real shader answer on the SAME
 // inputs, or their agreement would mean nothing.
-import { LIT_MATERIAL as MATERIAL, lightingCase } from './lightingNormalCases.ts';
+import { LIT_MATERIAL as MATERIAL, lightingCase } from './lightingNormalCases.ts'
 
 /** s³ = 1e-20: the uniform scale under which the old absolute threshold fired. */
-export const THRESHOLD_SCALE = Math.cbrt(1e-20);
+export const THRESHOLD_SCALE = Math.cbrt(1e-20)
 
 const AXES = [
   [1, 0, 0],
   [0, 1, 0],
   [0.5773502691896258, 0.5773502691896258, 0.5773502691896258],
-];
+]
 const NORMALS = [
   [0, 0, 1],
   [0.6, -0.8, 0],
-];
+]
 /** From 1e3 to 1e-16, on both sides of the threshold: the cases bracket it instead of avoiding it. */
-const SCALES = [1e3, 1, 1e-3, 1e-6, 2.16e-7, 2.154e-7, 1e-7, 1e-8, 1e-12, 1e-16];
+const SCALES = [1e3, 1, 1e-3, 1e-6, 2.16e-7, 2.154e-7, 1e-7, 1e-8, 1e-12, 1e-16]
 
 export const CASES = SCALES.flatMap((s) =>
   (['uniform', 'anisotropic'] as const).flatMap((kind) =>
@@ -29,7 +29,7 @@ export const CASES = SCALES.flatMap((s) =>
       ),
     ),
   ),
-);
+)
 
 /** A column-major 4×4 from three 3D columns and no translation. */
 const pose = (columns: number[][]): number[] => [
@@ -43,14 +43,14 @@ const pose = (columns: number[][]): number[] => [
   0,
   0,
   1,
-];
+]
 const TINY_ROTATION = [
   [1e-8, 0, 0],
   [0, -1e-8, 0],
   [0, 0, -1e-8],
-];
-const ZERO = [0, 0, 0];
-const SINGULAR_NORMAL = [0.6, -0.8, 0];
+]
+const ZERO = [0, 0, 0]
+const SINGULAR_NORMAL = [0.6, -0.8, 0]
 
 /** A singular case: its pose, its local normal, and the world normal the convention requires. */
 const singular = (name: string, columns: number[][], normal: number[], truth: number[]) => ({
@@ -61,7 +61,7 @@ const singular = (name: string, columns: number[][], normal: number[], truth: nu
   singular: true,
   collapsed: truth === ZERO,
   ...MATERIAL,
-});
+})
 
 /**
  * SINGULAR POSES THAT KEEP A FACE (rank 2). The primitive is crushed onto a PLANE, its faces keep
@@ -93,7 +93,7 @@ export const FLATTENED = [
     SINGULAR_NORMAL,
     [0, 1, 0],
   ),
-];
+]
 
 /**
  * POSES THAT COLLAPSE THE FACE: no world area left, hence no normal, hence no light. The
@@ -131,7 +131,7 @@ export const COLLAPSED = [
     SINGULAR_NORMAL,
     ZERO,
   ),
-];
+]
 
 /**
  * The guard is not greedy: a tiny but regular pose must rotate.
@@ -151,4 +151,4 @@ export const TINY_REGULAR = {
   singular: false,
   collapsed: false,
   ...MATERIAL,
-};
+}

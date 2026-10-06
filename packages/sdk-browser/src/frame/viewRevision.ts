@@ -1,6 +1,6 @@
-import { createViewFingerprint } from './viewFingerprint.ts';
-import type { EngineCamera, HostCamera } from '../camera/world.ts';
-import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts';
+import { createViewFingerprint } from './viewFingerprint.ts'
+import type { EngineCamera, HostCamera } from '../camera/world.ts'
+import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts'
 
 /**
  * Origin of the view revision. The camera is not written by the engine: the host hands it over
@@ -12,10 +12,10 @@ import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts';
  * (`viewFingerprint.ts`); far-plane range and the quality threshold belong only to this one.
  */
 function createViewRevision() {
-  const fingerprint = createViewFingerprint();
+  const fingerprint = createViewFingerprint()
   // `NaN` never equals `cam.far`: the first read always counts as a motion.
   let far = NaN,
-    quality = NaN;
+    quality = NaN
   return {
     same: fingerprint.same,
     /** Rereads this frame's view; increments `view` and returns true if any of these numbers moved. */
@@ -35,19 +35,19 @@ function createViewRevision() {
         quality === pixelError &&
         fingerprint.same(cam, viewportWidth, viewportHeight)
       )
-        return false;
-      fingerprint.keep(cam, viewportWidth, viewportHeight);
-      far = cam.far;
-      quality = pixelError;
-      bumpView(revisions);
-      return true;
+        return false
+      fingerprint.keep(cam, viewportWidth, viewportHeight)
+      far = cam.far
+      quality = pixelError
+      bumpView(revisions)
+      return true
     },
-  };
+  }
 }
 
 /** One view's hold, which the frame gate holds while that view is drawn (`gateCore.ts`): its view
  *  fingerprint, its view revision and the frame it last kept. */
-export type ViewHold = ReturnType<typeof createViewHold>;
+export type ViewHold = ReturnType<typeof createViewHold>
 export const createViewHold = (values: number, view: number) => ({
   fingerprint: createViewRevision(),
   hold: createFrameHold(values),
@@ -55,4 +55,4 @@ export const createViewHold = (values: number, view: number) => ({
   camera: undefined as HostCamera | undefined,
   cameraRevision: 0,
   temporalRevision: 0,
-});
+})

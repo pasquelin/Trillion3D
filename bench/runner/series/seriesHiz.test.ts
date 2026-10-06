@@ -2,14 +2,14 @@
 // their contract names (`hizTestedClusters`…, never the old `hiZTested`… which never existed),
 // and publishes `null` without inferring zero when the engine does not count them.
 // Split from `series/series.test.ts` to keep both files under the line budget.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { rm } from 'node:fs/promises';
-import { runSeries } from './series.ts';
-import { contexte, page, pose } from './seriesTestFixtures.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { rm } from 'node:fs/promises'
+import { runSeries } from './series.ts'
+import { contexte, page, pose } from './seriesTestFixtures.ts'
 
 test('runSeries reads the six Hi-Z counters under contract names, with frame described', async () => {
-  const { ctx, side, OUT } = await contexte();
+  const { ctx, side, OUT } = await contexte()
   try {
     const { row } = await runSeries(
       ctx,
@@ -32,7 +32,7 @@ test('runSeries reads the six Hi-Z counters under contract names, with frame des
       1,
       pose,
       new Map(),
-    );
+    )
     assert.deepEqual(row.hiZ, {
       tested: 300,
       rejected: 70,
@@ -41,14 +41,14 @@ test('runSeries reads the six Hi-Z counters under contract names, with frame des
       rejectedTriangles: 21000,
       beyond16TexelsTriangles: 1200,
       image: 17,
-    });
+    })
   } finally {
-    await rm(OUT, { recursive: true, force: true });
+    await rm(OUT, { recursive: true, force: true })
   }
-});
+})
 
 test('runSeries no longer reads old Hi-Z names: without contract names, everything remains null', async () => {
-  const { ctx, side, OUT } = await contexte();
+  const { ctx, side, OUT } = await contexte()
   try {
     const { row } = await runSeries(
       ctx,
@@ -58,7 +58,7 @@ test('runSeries no longer reads old Hi-Z names: without contract names, everythi
       1,
       pose,
       new Map(),
-    );
+    )
     assert.deepEqual(row.hiZ, {
       tested: null,
       rejected: null,
@@ -67,8 +67,8 @@ test('runSeries no longer reads old Hi-Z names: without contract names, everythi
       rejectedTriangles: null,
       beyond16TexelsTriangles: null,
       image: null,
-    });
+    })
   } finally {
-    await rm(OUT, { recursive: true, force: true });
+    await rm(OUT, { recursive: true, force: true })
   }
-});
+})

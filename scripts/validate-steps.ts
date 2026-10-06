@@ -31,7 +31,7 @@
 // restored, and the suite that drives it must run.
 /** The fast gates that read the whole tree, which `check:changed` runs too: each `check:x` is
  *  `node scripts/check-x.ts`. */
-export const TREE_GATES = ['check:translations', 'check:english'] as const;
+export const TREE_GATES = ['check:translations', 'check:english'] as const
 
 export const VALIDATE_GROUPS = {
   quick: [
@@ -66,28 +66,26 @@ export const VALIDATE_GROUPS = {
   ],
   native: ['lint:native', 'build:native', 'compile:caches', 'test:native'],
   unit: ['build:native', 'build', 'test'],
-} as const satisfies Record<string, readonly string[]>;
+} as const satisfies Record<string, readonly string[]>
 
-type ValidateGroup = keyof typeof VALIDATE_GROUPS;
+type ValidateGroup = keyof typeof VALIDATE_GROUPS
 
 /** Whether `name` is one of the groups, and not a caller's typo. */
 function isValidateGroup(name: string): name is ValidateGroup {
-  return Object.hasOwn(VALIDATE_GROUPS, name);
+  return Object.hasOwn(VALIDATE_GROUPS, name)
 }
 
 /** The ordered gates of a full `validate`: every group's, each one run once. */
-export const VALIDATE_STEPS: readonly string[] = [
-  ...new Set(Object.values(VALIDATE_GROUPS).flat()),
-];
+export const VALIDATE_STEPS: readonly string[] = [...new Set(Object.values(VALIDATE_GROUPS).flat())]
 
 /** The steps that compile the Rust crates: named `*:native` in `package.json`. */
 export const NATIVE_STEPS: readonly string[] = VALIDATE_STEPS.filter((step) =>
   step.endsWith(':native'),
-);
+)
 
 /** Whether `env` asks `validate` to skip the native steps. */
 export function skipsNative(env: NodeJS.ProcessEnv): boolean {
-  return env.TRILLION3D_SKIP_NATIVE === '1';
+  return env.TRILLION3D_SKIP_NATIVE === '1'
 }
 
 /**
@@ -98,7 +96,7 @@ export function stepsToRun(env: NodeJS.ProcessEnv, group?: string): readonly str
   if (group !== undefined && !isValidateGroup(group))
     throw new Error(
       `Unknown validate group '${group}': expected one of ${Object.keys(VALIDATE_GROUPS).join(', ')}.`,
-    );
-  const steps: readonly string[] = group === undefined ? VALIDATE_STEPS : VALIDATE_GROUPS[group];
-  return skipsNative(env) ? steps.filter((step) => !NATIVE_STEPS.includes(step)) : steps;
+    )
+  const steps: readonly string[] = group === undefined ? VALIDATE_STEPS : VALIDATE_GROUPS[group]
+  return skipsNative(env) ? steps.filter((step) => !NATIVE_STEPS.includes(step)) : steps
 }

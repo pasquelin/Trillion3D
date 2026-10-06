@@ -1,10 +1,10 @@
-import { addressFlag } from './addressFlag.ts';
-import { families } from './families.ts';
+import { addressFlag } from './addressFlag.ts'
+import { families } from './families.ts'
 
 /** Whether a world or the page turned the debug mode on (`setDebugMode`). */
-let asked = false;
+let asked = false
 /** Whether the page's address carries `?profile`, read as the examples' profile reads it. */
-const profileAsked = addressFlag((params) => params.has('profile'));
+const profileAsked = addressFlag((params) => params.has('profile'))
 
 /**
  * The engine's debug mode (#1353), a development build's tools against a shipping build: the
@@ -16,11 +16,11 @@ const profileAsked = addressFlag((params) => params.has('profile'));
  * in its address — files no frame into a profile. It is the page's: every world reads it.
  */
 export function debugMode() {
-  return asked || profileAsked();
+  return asked || profileAsked()
 }
 
 /** Turns the page's debug mode on or off, from the next frame; on, fetches the debug code. */
 export function setDebugMode(on: boolean) {
-  asked = on;
-  if (on) families.measurement.get();
+  asked = on
+  if (on) families.measurement.get()
 }

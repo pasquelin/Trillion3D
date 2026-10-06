@@ -1,8 +1,8 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { resolveExplorerTarget } from '../session/target.ts';
+import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { resolveExplorerTarget } from '../session/target.ts'
 
 /** A canvas, an element to draw inside, or the literal document ID of either (no selector prefix). */
-export type WorldTarget = HTMLCanvasElement | HTMLElement | string;
+export type WorldTarget = HTMLCanvasElement | HTMLElement | string
 
 /**
  * The canvas a world draws on: the target itself when it is one — `resolveExplorerTarget` checks
@@ -10,25 +10,25 @@ export type WorldTarget = HTMLCanvasElement | HTMLElement | string;
  * leaves the host's own where it is.
  */
 export function resolveWorldTarget(target: WorldTarget): {
-  canvas: HTMLCanvasElement;
-  release(): void;
+  canvas: HTMLCanvasElement
+  release(): void
 } {
   const element =
     typeof target === 'string' && typeof document !== 'undefined'
       ? document.getElementById(target)
-      : target;
+      : target
   // An ID not found, or no document, is refused by its own reason; an element found is not
   // looked up again.
   if (!element || typeof element === 'string')
-    return { canvas: resolveExplorerTarget(target as string), release() {} };
+    return { canvas: resolveExplorerTarget(target as string), release() {} }
   if (element.nodeName === 'CANVAS')
-    return { canvas: resolveExplorerTarget(element as HTMLCanvasElement), release() {} };
+    return { canvas: resolveExplorerTarget(element as HTMLCanvasElement), release() {} }
   if (typeof element.appendChild !== 'function' || !element.ownerDocument)
-    throw new EngineError('INVALID_CANVAS', 'World target must be an element, a canvas or its ID');
-  const canvas = element.ownerDocument.createElement('canvas');
-  canvas.style.width = '100%';
-  canvas.style.height = '100%';
-  canvas.style.display = 'block';
-  element.appendChild(canvas);
-  return { canvas, release: () => canvas.remove() };
+    throw new EngineError('INVALID_CANVAS', 'World target must be an element, a canvas or its ID')
+  const canvas = element.ownerDocument.createElement('canvas')
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
+  canvas.style.display = 'block'
+  element.appendChild(canvas)
+  return { canvas, release: () => canvas.remove() }
 }

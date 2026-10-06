@@ -11,9 +11,9 @@ import {
   adaptivePixelError,
   createPathGovernor,
   lodQuality,
-} from './engine.ts';
-import { formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts';
-import type { DemoDef } from './kit.ts';
+} from './engine.ts'
+import { formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts'
+import type { DemoDef } from './kit.ts'
 
 export const TABLE_DEMOS: Record<string, DemoDef> = {
   IDENTITY_MATRIX4: {
@@ -24,7 +24,7 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
           IDENTITY_MATRIX4,
           'read and never written',
         ),
-      ];
+      ]
     },
   },
   DiagnosticMode: {
@@ -37,7 +37,7 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
             `${capability.available ? 'available' : 'unavailable'} — ${capability.reason}`,
           ]),
         ),
-      ];
+      ]
     },
   },
   LodQualityId: {
@@ -49,9 +49,9 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
       const rows = Object.values(LOD_QUALITY).map((quality): [string, string] => [
         quality.id,
         `${quality.label} — pixelError ${quality.pixelError}, anisotropy ${quality.anisotropy}${quality.adaptive ? ', adaptive' : ''}`,
-      ]);
-      const base = lodQuality('adaptive').pixelError;
-      const adapted = adaptivePixelError(base, state.speed, state.radius);
+      ])
+      const base = lodQuality('adaptive').pixelError
+      const adapted = adaptivePixelError(base, state.speed, state.radius)
       return [
         valueView('LOD_QUALITY, as the engine holds it', rows),
         valueView('adaptivePixelError(base, speed, radius) on the adaptive preset', [
@@ -59,7 +59,7 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
           ['threshold at this speed', formatNumber(adapted)],
           ['note', 'a still view keeps the base; a moving view may coarsen'],
         ]),
-      ];
+      ]
     },
   },
   MathPathMode: {
@@ -69,15 +69,15 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
       slider('runs', 'executions observed', 1, 40, 12, 1),
     ],
     run(state) {
-      const governor = createPathGovernor(() => performance.now(), 'auto');
-      governor.setWasm(true, true, null);
-      const elements = 1000;
+      const governor = createPathGovernor(() => performance.now(), 'auto')
+      governor.setWasm(true, true, null)
+      const elements = 1000
       for (let run = 0; run < Math.round(state.runs); run++) {
-        governor.observe('demo', 'js', (state.js * elements) / 1e6, elements);
-        governor.observe('demo', 'wasm', (state.wasm * elements) / 1e6, elements);
+        governor.observe('demo', 'js', (state.js * elements) / 1e6, elements)
+        governor.observe('demo', 'wasm', (state.wasm * elements) / 1e6, elements)
       }
-      const metrics = governor.metrics();
-      const operation = metrics.operations.demo ?? {};
+      const metrics = governor.metrics()
+      const operation = metrics.operations.demo ?? {}
       return [
         valueView('the governor, after those executions', [
           ['contract version', String(MATH_PATH_CONTRACT)],
@@ -97,13 +97,13 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
             ? 'the kernel leads by enough, for long enough, to be worth the switch'
             : 'JS keeps the work: under five samples, or the lead is not a burst',
         ),
-      ];
+      ]
     },
   },
   ColumnKind: {
     run() {
-      const kinds: Record<string, string[]> = {};
-      for (const [column, kind] of Object.entries(COLUMN_KIND)) (kinds[kind] ??= []).push(column);
+      const kinds: Record<string, string[]> = {}
+      for (const [column, kind] of Object.entries(COLUMN_KIND)) (kinds[kind] ??= []).push(column)
       return [
         valueView(
           'COLUMN_KIND — every column of the binary manifest, by storage',
@@ -112,7 +112,7 @@ export const TABLE_DEMOS: Record<string, DemoDef> = {
             columns.join(', '),
           ]),
         ),
-      ];
+      ]
     },
   },
-};
+}

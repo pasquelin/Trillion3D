@@ -1,26 +1,26 @@
-import { followHostTexture, hostTextureWrites } from '../../host/textureImport.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { CoverageReaders } from '../../texture/coverage.ts';
-import type { WebgpuTileAtlas } from './atlas.ts';
-import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts';
-import { SAMPLE_FILTER_MASK } from '../../texture/sampling.ts';
+import { followHostTexture, hostTextureWrites } from '../../host/textureImport.ts'
+import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { CoverageReaders } from '../../texture/coverage.ts'
+import type { WebgpuTileAtlas } from './atlas.ts'
+import { PAGE_FILTER_SHIFT, PAGE_HEADER_WORDS, PAGE_SLOT_WORDS } from './pageTable.ts'
+import { SAMPLE_FILTER_MASK } from '../../texture/sampling.ts'
 
 /** True when the texture at `slot` of a page table has a filter word: it is read through its
  *  filter rule. Slot 0, the fill texel, never has one. */
 export function slotSampled({ words }: { readonly words: Uint32Array }, slot: number) {
-  const word = words[PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS + 2];
-  return ((word >>> PAGE_FILTER_SHIFT) & SAMPLE_FILTER_MASK) !== 0;
+  const word = words[PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS + 2]
+  return ((word >>> PAGE_FILTER_SHIFT) & SAMPLE_FILTER_MASK) !== 0
 }
 
 /** Copies a slot's texels again into the places it holds; false when it could not. */
-type PictureCopy = (atlas: WebgpuTileAtlas, slot: number) => boolean;
+type PictureCopy = (atlas: WebgpuTileAtlas, slot: number) => boolean
 /** `refresh`: a moved picture (#362); `reduce`: the same picture under a new coverage rule (#42). */
-type TileCopies = { refresh: PictureCopy; reduce: PictureCopy };
+type TileCopies = { refresh: PictureCopy; reduce: PictureCopy }
 
 /** What a follow found: a header word moved, and a texture's filter rule switched on or off —
  *  the pages that wear it change resolve class (`FLAG_SAMPLED`). */
 export const HEADERS_WRITTEN = 1,
-  HEADERS_SWITCHED = 2;
+  HEADERS_SWITCHED = 2
 
 /**
  * The sampling headers of both atlases' textures (#360, #361), written per texture and not per
@@ -37,109 +37,109 @@ export const HEADERS_WRITTEN = 1,
  * the pool to be copied again (#362); one copied counts as a written header.
  */
 export function samplingHeaders(color: WebgpuTileAtlas, data: WebgpuTileAtlas) {
-  const coverage = coverageRules(color);
+  const coverage = coverageRules(color)
   const atlasHeaders = (atlas: WebgpuTileAtlas, copied?: (slot: number) => void) => {
-    const { textures } = atlas;
+    const { textures } = atlas
     /** `sampling + placement` of each slot's record when its header was written: both monotonic;
      *  none yet for a slot appended after open. */
-    const seen: number[] = [];
+    const seen: number[] = []
     /** The record's `version` each host-image slot's pool places were last written at: a slot
      *  appended after open was pinned from the picture it has when first walked. */
-    const pictures: number[] = [];
-    const identities: Array<Texture | undefined> = [];
+    const pictures: number[] = []
+    const identities: Array<Texture | undefined> = []
     return (force: boolean, moved?: Set<number>, copies?: TileCopies) => {
-      let result = 0;
+      let result = 0
       for (let slot = 0; slot < textures.length; slot++) {
-        const { texture, source } = textures[slot];
+        const { texture, source } = textures[slot]
         if (!texture) {
-          identities[slot] = undefined;
-          continue;
+          identities[slot] = undefined
+          continue
         }
         // A regrown table copied existing headers. Only a new/reused slot was just uploaded;
         // pending picture and filter changes on its neighbours still belong to the next frame.
-        const fresh = identities[slot] !== texture;
-        if (force && !fresh) continue;
-        followHostTexture(texture);
+        const fresh = identities[slot] !== texture
+        if (force && !fresh) continue
+        followHostTexture(texture)
         if (fresh) {
-          identities[slot] = texture;
-          pictures[slot] = texture.version;
-          seen[slot] = -1;
+          identities[slot] = texture
+          pictures[slot] = texture.version
+          seen[slot] = -1
         }
         if (source.kind === 'host' && pictures[slot] !== texture.version) {
-          pictures[slot] = texture.version;
+          pictures[slot] = texture.version
           if (copies?.refresh(atlas, slot)) {
-            copied?.(slot);
-            result |= HEADERS_WRITTEN;
-            moved?.add(slot);
+            copied?.(slot)
+            result |= HEADERS_WRITTEN
+            moved?.add(slot)
           }
         }
-        const revision = texture.sampling + texture.placement;
-        if (!force && seen[slot] === revision) continue;
-        seen[slot] = revision;
-        const { pages } = atlas;
-        const was = slotSampled(pages, slot);
-        if (!pages.setSampling(slot, texture, source.kind !== 'host')) continue;
-        result |= HEADERS_WRITTEN | (was === slotSampled(pages, slot) ? 0 : HEADERS_SWITCHED);
-        moved?.add(slot);
+        const revision = texture.sampling + texture.placement
+        if (!force && seen[slot] === revision) continue
+        seen[slot] = revision
+        const { pages } = atlas
+        const was = slotSampled(pages, slot)
+        if (!pages.setSampling(slot, texture, source.kind !== 'host')) continue
+        result |= HEADERS_WRITTEN | (was === slotSampled(pages, slot) ? 0 : HEADERS_SWITCHED)
+        moved?.add(slot)
       }
-      return result;
-    };
-  };
+      return result
+    }
+  }
   const colour = atlasHeaders(color, (slot) => coverage.copied(slot)),
-    other = atlasHeaders(data);
-  let followed = -1;
+    other = atlasHeaders(data)
+  let followed = -1
   return (force: boolean, colorMoved?: Set<number>, copies?: TileCopies) => {
     // The readers first: a picture copied again below reduces under the rule they declare now.
-    if (force) coverage.sync();
-    if (copies) coverage.follow();
-    let result = 0;
+    if (force) coverage.sync()
+    if (copies) coverage.follow()
+    let result = 0
     if (force || followed !== hostTextureWrites()) {
-      followed = force ? -1 : hostTextureWrites();
-      result = colour(force, colorMoved, copies) | other(force, undefined, copies);
+      followed = force ? -1 : hostTextureWrites()
+      result = colour(force, colorMoved, copies) | other(force, undefined, copies)
     }
-    return copies ? result | coverage.reduce(copies.reduce, colorMoved) : result;
-  };
+    return copies ? result | coverage.reduce(copies.reduce, colorMoved) : result
+  }
 }
 
 /** The rule each host colour map's chain was reduced under, followed at every image (#42): a map
  *  whose rule moved goes to `reduce`, its slot to `moved`; one just `copied` already carries it. */
 function coverageRules(atlas: WebgpuTileAtlas) {
-  let readers: CoverageReaders | undefined;
-  const hosts = new Map<number, { map: Texture; rule?: number }>();
-  let maps: Texture[] = [];
-  const ruleOf = (map: Texture) => readers?.cutoff(map);
+  let readers: CoverageReaders | undefined
+  const hosts = new Map<number, { map: Texture; rule?: number }>()
+  let maps: Texture[] = []
+  const ruleOf = (map: Texture) => readers?.cutoff(map)
   // Preserve the last uploaded rule for unchanged slots; retirement removes every strong map
   // reference, and reuse starts with the rule its new tail was actually reduced under.
   const sync = () => {
     for (const [slot, { source }] of atlas.textures.entries()) {
       if (source.kind !== 'host' || !(readers ??= source.coverage)) {
-        hosts.delete(slot);
-        continue;
+        hosts.delete(slot)
+        continue
       }
       if (hosts.get(slot)?.map !== source.map)
-        hosts.set(slot, { map: source.map, rule: ruleOf(source.map) });
+        hosts.set(slot, { map: source.map, rule: ruleOf(source.map) })
     }
-    maps = [...hosts.values()].map(({ map }) => map);
-  };
-  sync();
+    maps = [...hosts.values()].map(({ map }) => map)
+  }
+  sync()
   return {
     sync,
     follow: () => readers?.follow(maps),
     copied(slot: number) {
-      const host = hosts.get(slot);
-      if (host) host.rule = ruleOf(host.map);
+      const host = hosts.get(slot)
+      if (host) host.rule = ruleOf(host.map)
     },
     reduce(reduce: PictureCopy, moved?: Set<number>) {
-      let result = 0;
+      let result = 0
       for (const [slot, host] of hosts) {
-        const rule = ruleOf(host.map);
-        if (rule === host.rule) continue;
-        host.rule = rule;
-        if (!reduce(atlas, slot)) continue;
-        result |= HEADERS_WRITTEN;
-        moved?.add(slot);
+        const rule = ruleOf(host.map)
+        if (rule === host.rule) continue
+        host.rule = rule
+        if (!reduce(atlas, slot)) continue
+        result |= HEADERS_WRITTEN
+        moved?.add(slot)
       }
-      return result;
+      return result
     },
-  };
+  }
 }

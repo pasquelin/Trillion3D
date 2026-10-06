@@ -1,8 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { checkGeometryPoolBudget, checkTexturePoolBudget } from './pools.ts';
-import { DEFAULT_CPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts';
-import { DEFAULT_GPU_BUDGET } from './budget.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { checkGeometryPoolBudget, checkTexturePoolBudget } from './pools.ts'
+import { DEFAULT_CPU_BUDGET, splitMemoryBudget } from './memoryBudget.ts'
+import { DEFAULT_GPU_BUDGET } from './budget.fixture.ts'
 
 test('every budget entry point preserves its named error for invalid positive safe integers', () => {
   const cases: [string, (value: number) => unknown][] = [
@@ -20,10 +20,10 @@ test('every budget entry point preserves its named error for invalid positive sa
       (value) =>
         splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, { width: 1, height: value }),
     ],
-  ];
+  ]
   for (const [message, check] of cases)
     for (const value of [-1, -0, 0.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1])
-      assert.throws(() => check(value), { name: 'Error', message });
+      assert.throws(() => check(value), { name: 'Error', message })
   for (const check of [checkGeometryPoolBudget, checkTexturePoolBudget])
-    for (const value of [1, Number.MAX_SAFE_INTEGER]) assert.doesNotThrow(() => check(value));
-});
+    for (const value of [1, Number.MAX_SAFE_INTEGER]) assert.doesNotThrow(() => check(value))
+})

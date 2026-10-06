@@ -1,5 +1,5 @@
-import { VIEW_BLOCK_WORDS } from '../viewLayout.ts';
-import { AHEAD_VIEW } from './aheadWgsl.ts';
+import { VIEW_BLOCK_WORDS } from '../viewLayout.ts'
+import { AHEAD_VIEW } from './aheadWgsl.ts'
 
 /**
  * ONE cut, many views: the frame's shadow views — sun clipmap levels and lamp faces that have
@@ -23,11 +23,11 @@ import { AHEAD_VIEW } from './aheadWgsl.ts';
  * `uniforms.ts` writes `viewCount` 1 and nothing else indexes a view; the shader still carries the
  * entry's view bits, as the view ahead is the one view past the camera's.
  */
-const DAG_MAX_VIEWS = AHEAD_VIEW + 1;
+const DAG_MAX_VIEWS = AHEAD_VIEW + 1
 /** Bits below the view index in a work entry: 2^27 nodes or clusters, five bits of view. */
-const VIEW_SHIFT = 27;
+const VIEW_SHIFT = 27
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
-  throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`);
+  throw new Error(`${DAG_MAX_VIEWS} views do not fit the ${32 - VIEW_SHIFT} view bits`)
 
 /**
  * Words of one view's uniform block: the uniform array's stride (`shader.ts`, `Uniforms`).
@@ -35,18 +35,18 @@ if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))
  * It is the field table's own size (`../viewLayout.ts`), so a field added to the block moves the
  * stride with it.
  */
-export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS;
+export const DAG_VIEW_WORDS = VIEW_BLOCK_WORDS
 /** Bytes of the uniform array a cut binds: every view's block, whatever the views it runs. */
-export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4;
+export const DAG_UNIFORM_BYTES = DAG_MAX_VIEWS * DAG_VIEW_WORDS * 4
 /** Per-view words behind `work`'s frame counters, one row of `viewCapacity` each — live count,
  *  live offset, drawn count —, then one word: zeroed by `dagPrepare`, read by no kernel since the
  *  cut runs one view; the frame count lies behind them (`dagWorkLayout`). */
-export const VIEW_WORD_ROWS = 3;
+export const VIEW_WORD_ROWS = 3
 /**
  * Bit of the output's flag word set when a queue or a list was full and work was dropped: each
  * list holds the whole catalogue, each queue every node and one root per slot.
  */
-const WORK_DROPPED = 4;
+const WORK_DROPPED = 4
 
 export const DAG_VIEWS_WGSL = `const MAX_VIEWS:u32=${DAG_MAX_VIEWS}u;
 const VIEW_SHIFT:u32=${VIEW_SHIFT}u;
@@ -75,4 +75,4 @@ fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */
 fn drawnGroupsMax()->u32{return viewWord(${VIEW_WORD_ROWS}u,0u);}
 fn dropWork(){atomicOr(&out.overflow,${WORK_DROPPED}u);}
-`;
+`

@@ -1,18 +1,18 @@
-import { cadenceOf } from './cadence.ts';
-import { spread } from './profile.ts';
+import { cadenceOf } from './cadence.ts'
+import { spread } from './profile.ts'
 import {
   rate,
   sceneTriangles,
   type FrameCounters,
   type StatsSample,
   type StatsWorld,
-} from './statsLines.ts';
+} from './statsLines.ts'
 
 /** Where the corner reads the CPU: whether it does now (not while the panel is hidden or the
  *  page profiles), and the frame's CPU stages since the last read, `null` when none is measured. */
 export interface CpuSource {
-  open(): boolean;
-  stages(): [string, number][] | null;
+  open(): boolean
+  stages(): [string, number][] | null
 }
 
 /**
@@ -35,7 +35,7 @@ export function watchStats(
   const drawn: number[] = [],
     cpuFrameMs: number[] = [],
     /** Each drawn frame's interval since the last, `NaN` when not measured (`cadence.ts`). */
-    intervals: number[] = [];
+    intervals: number[] = []
   let last: FrameCounters = {},
     rated = false,
     gpuFrameMs: number | null = null,
@@ -49,39 +49,39 @@ export function watchStats(
     /** The rate of the last sample, `undefined` before the first; and whether a tick passed unread. */
     sampledFps: number | null | undefined,
     unread = false,
-    triangles: number | null = null;
+    triangles: number | null = null
   const unhook = world.onFrame(({ metrics }) => {
-    frames++;
-    drawn.push(performance.now());
-    intervals.push(metrics.rafIntervalMs ?? Number.NaN);
-    last = metrics;
-    if (metrics.displayRefreshMs != null) refreshMs = metrics.displayRefreshMs;
+    frames++
+    drawn.push(performance.now())
+    intervals.push(metrics.rafIntervalMs ?? Number.NaN)
+    last = metrics
+    if (metrics.displayRefreshMs != null) refreshMs = metrics.displayRefreshMs
     // The engine hands the same metrics every frame: the corner keeps the number, not the object.
-    if (metrics.cpuFrameMs != null && cpu.open()) cpuFrameMs.push(metrics.cpuFrameMs);
+    if (metrics.cpuFrameMs != null && cpu.open()) cpuFrameMs.push(metrics.cpuFrameMs)
     // A held image times nothing: the corner keeps the GPU time last measured.
-    if (metrics.gpuFrameMs != null) gpuFrameMs = metrics.gpuFrameMs;
-    if (metrics.gpuIdleMs != null) gpuIdleMs = metrics.gpuIdleMs;
-  });
+    if (metrics.gpuFrameMs != null) gpuFrameMs = metrics.gpuFrameMs
+    if (metrics.gpuIdleMs != null) gpuIdleMs = metrics.gpuIdleMs
+  })
   const timer = setInterval(() => {
     // Hidden or not, the frames file their times: only the rate's last second is kept.
-    const now = performance.now();
+    const now = performance.now()
     while (drawn.length && drawn[0] < now - 1000) {
-      drawn.shift();
-      intervals.shift();
+      drawn.shift()
+      intervals.shift()
     }
     if (!active()) {
-      unread = true;
-      return;
+      unread = true
+      return
     }
     // The rate is read from the intervals between the frames of the last second; with fewer
     // than two, the image stands still: it reads no rate (an earlier image's), and says held.
-    const fps = rate(drawn);
+    const fps = rate(drawn)
     // A held image, already read as such: the same sample as the last one, so nothing to build.
-    if (fps === null && sampledFps === null && frames === sampledAt && !unread) return;
-    unread = false;
-    sampledAt = frames;
-    sampledFps = fps;
-    rated ||= fps !== null;
+    if (fps === null && sampledFps === null && frames === sampledAt && !unread) return
+    unread = false
+    sampledAt = frames
+    sampledFps = fps
+    rated ||= fps !== null
     const sample: StatsSample = {
       ...last,
       fps,
@@ -91,27 +91,27 @@ export function watchStats(
       gpuFrameLast: last.gpuFrameMs == null,
       gpuIdleMs,
       cadence: cadenceOf(intervals, refreshMs),
-    };
-    const cpuOpen = cpu.open();
+    }
+    const cpuOpen = cpu.open()
     if (cpuOpen) {
       // The engine's window ran on while the corner was closed: its first read after opening
       // spans that time, so it only opens the window again and is not shown.
-      const stages = cpu.stages();
+      const stages = cpu.stages()
       sample.cpu = {
         frameMs: spread(cpuFrameMs.splice(0))?.p50 ?? null,
         stages: (cpuWasOpen && stages) || [],
-      };
-    } else cpuFrameMs.length = 0;
-    cpuWasOpen = cpuOpen;
+      }
+    } else cpuFrameMs.length = 0
+    cpuWasOpen = cpuOpen
     if (last.selectedTriangles == null) {
-      if (countedAt !== frames) triangles = sceneTriangles(world.scene);
-      countedAt = frames;
-      sample.sceneTriangles = triangles;
+      if (countedAt !== frames) triangles = sceneTriangles(world.scene)
+      countedAt = frames
+      sample.sceneTriangles = triangles
     }
-    show(sample);
-  }, periodMs);
+    show(sample)
+  }, periodMs)
   return () => {
-    clearInterval(timer);
-    if (typeof unhook === 'function') unhook();
-  };
+    clearInterval(timer)
+    if (typeof unhook === 'function') unhook()
+  }
 }

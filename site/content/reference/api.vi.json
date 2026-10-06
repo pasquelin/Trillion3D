@@ -4879,7 +4879,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy được đọc lại và kiểm tra lại trước khi một tia duy nhất chạm vào nó.",
-    "description": "Mười một từ tiêu đề little-endian đứng trước hình học dùng chung và riêng, các cột cây và quyền sở hữu có phiên bản. `docs/FORMAT.md` định nghĩa mọi số lượng và cột. Độ dài sai bị từ chối trước khi tia truy cập."
+    "description": "Mười một từ tiêu đề little-endian đứng trước hình học dùng chung và riêng, các cột cây và quyền sở hữu có phiên bản. Trình biên dịch ghi chúng theo thứ tự này (`SceneProxy::encode`). Độ dài sai bị từ chối trước khi tia truy cập."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` được phân tách thành `position`, `quaternion`, `scale`."

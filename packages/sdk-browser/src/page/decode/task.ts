@@ -2,16 +2,16 @@ import {
   EngineError,
   PAGE_DECODE_PROTOCOL,
   pageDecodeFailureCode,
-} from '../../../../sdk-core/src/index.ts';
-import type { DecodedGeometryPage } from './geometryPage.ts';
-import { pageViews } from './geometryPageBlock.ts';
-import { sha256Hex } from '../../streaming/sha256Hex.ts';
+} from '../../../../sdk-core/src/index.ts'
+import type { DecodedGeometryPage } from './geometryPage.ts'
+import { pageViews } from './geometryPageBlock.ts'
+import { sha256Hex } from '../../streaming/sha256Hex.ts'
 import type {
   PageDecodeAnswer,
   PageDecodeDone,
   PageDecodeGeometryPayload,
   PageDecodeRequest,
-} from '../../../../sdk-core/src/index.ts';
+} from '../../../../sdk-core/src/index.ts'
 
 /**
  * The page decoder, chosen once and kept. First the module compiled to WebAssembly: it names no
@@ -23,16 +23,16 @@ import type {
  * Both yield the same buffers and the same refusals: the H2b bench proves it value by value.
  */
 type Decodeur = {
-  decode: (data: Uint8Array, maxDecodedBytes: number) => Promise<DecodedGeometryPage>;
-  wasm: boolean;
-};
-let decodeur: Promise<Decodeur> | undefined;
+  decode: (data: Uint8Array, maxDecodedBytes: number) => Promise<DecodedGeometryPage>
+  wasm: boolean
+}
+let decodeur: Promise<Decodeur> | undefined
 
 async function chargeDecodeur(): Promise<Decodeur> {
-  const codec = await import('./geometryPageWasm.ts');
-  if (await codec.prepareSdkWasm()) return { decode: codec.decodeGeometryPageWasm, wasm: true };
-  const js = await import('./geometryPage.ts');
-  return { decode: async (data, max) => js.decodeGeometryPage(data, max), wasm: false };
+  const codec = await import('./geometryPageWasm.ts')
+  if (await codec.prepareSdkWasm()) return { decode: codec.decodeGeometryPageWasm, wasm: true }
+  const js = await import('./geometryPage.ts')
+  return { decode: async (data, max) => js.decodeGeometryPage(data, max), wasm: false }
 }
 
 /** No decoder on this side of the thread: the caller will redo the work on its side, rejecting nothing. */
@@ -46,7 +46,7 @@ function unavailable(id: number, cause: unknown) {
       message: cause instanceof Error ? cause.message : String(cause),
     },
     transfer: [] as ArrayBuffer[],
-  };
+  }
 }
 
 /** A task's success: `fields` over an answer that carries nothing else, `transfer` beside it. */
@@ -66,8 +66,8 @@ function done(
     wasm: false,
     taskMs: performance.now() - started,
     ...fields,
-  };
-  return { answer, transfer };
+  }
+  return { answer, transfer }
 }
 
 /**
@@ -78,43 +78,42 @@ function done(
 export async function runPageDecodeTask(
   request: PageDecodeRequest,
 ): Promise<{ answer: PageDecodeAnswer; transfer: ArrayBuffer[] }> {
-  const started = performance.now();
+  const started = performance.now()
   try {
     if (request.op === 'cut') {
       // Loaded on the first cut alone: a worker that only decodes never reads the encoder.
-      const cutter = await import('../../world/page/runtimeCut.ts');
-      const { drawn, cones, blended, recut, held } = cutter.unpackDrawn(request.source);
-      const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, { recut, held });
-      const transfer = cut.pages.flatMap((page) => [page.index, page.geometry]);
-      return done(request, started, { cut }, transfer);
+      const cutter = await import('../../world/page/runtimeCut.ts')
+      const { drawn, cones, blended, recut, held } = cutter.unpackDrawn(request.source)
+      const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, { recut, held })
+      const transfer = cut.pages.flatMap((page) => [page.index, page.geometry])
+      return done(request, started, { cut }, transfer)
     }
     if (request.op === 'cells') {
-      const { decodeCellFile } = await import('../../partition/cellDecode.ts');
-      const cells = decodeCellFile(request.source, request.name);
-      return done(request, started, { cells }, [cells.ranks, cells.locals]);
+      const { decodeCellFile } = await import('../../partition/cellDecode.ts')
+      const cells = decodeCellFile(request.source, request.name)
+      return done(request, started, { cells }, [cells.ranks, cells.locals])
     }
     if (request.op === 'cellPage') {
-      const { readCellPage } =
-        await import('../../../../sdk-core/src/scene/core/tablePartition.ts');
-      const cellPage = readCellPage(new Uint8Array(request.source), request.name ?? 'a scene page');
-      return done(request, started, { cellPage }, []);
+      const { readCellPage } = await import('../../../../sdk-core/src/scene/core/tablePartition.ts')
+      const cellPage = readCellPage(new Uint8Array(request.source), request.name ?? 'a scene page')
+      return done(request, started, { cellPage }, [])
     }
     if (request.op === 'verify') {
-      const sha256 = await sha256Hex(request.source);
-      return done(request, started, { sha256, source: request.source }, [request.source]);
+      const sha256 = await sha256Hex(request.source)
+      return done(request, started, { sha256, source: request.source }, [request.source])
     }
-    let choisi: Decodeur;
+    let choisi: Decodeur
     try {
-      choisi = await (decodeur ??= chargeDecodeur());
+      choisi = await (decodeur ??= chargeDecodeur())
     } catch (cause) {
-      decodeur = undefined;
-      return unavailable(request.id, cause);
+      decodeur = undefined
+      return unavailable(request.id, cause)
     }
-    const decoded = await choisi.decode(new Uint8Array(request.source), request.maxDecodedBytes);
-    const payload = geometryPayload(decoded);
-    return done(request, started, { decoded: payload, wasm: choisi.wasm }, [payload.block]);
+    const decoded = await choisi.decode(new Uint8Array(request.source), request.maxDecodedBytes)
+    const payload = geometryPayload(decoded)
+    return done(request, started, { decoded: payload, wasm: choisi.wasm }, [payload.block])
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error)
     return {
       answer: {
         protocol: PAGE_DECODE_PROTOCOL,
@@ -126,7 +125,7 @@ export async function runPageDecodeTask(
         ...(error instanceof EngineError ? { refusal: error.code } : {}),
       },
       transfer: [],
-    };
+    }
   }
 }
 
@@ -145,7 +144,7 @@ function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
     flags: page.flags,
     decodedBytes: page.decodedBytes,
     quantizationError: page.quantizationError,
-  };
+  }
 }
 
 /** The decoded page rebuilt on its block. `names` yields the decode's write order, so the
@@ -165,5 +164,5 @@ export function restorePageDecode(payload: PageDecodeGeometryPayload): DecodedGe
     flags: payload.flags,
     decodedBytes: payload.decodedBytes,
     quantizationError: payload.quantizationError,
-  };
+  }
 }

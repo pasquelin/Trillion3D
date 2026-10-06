@@ -1,62 +1,62 @@
-import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
-import { adaptivePixelError } from '../../../../sdk-core/src/index.ts';
-import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
-import { readCameraMotion } from '../../camera/motion.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { adaptivePixelError } from '../../../../sdk-core/src/index.ts'
+import type { CameraMotion, EngineCamera } from '../../camera/world.ts'
+import { readCameraMotion } from '../../camera/motion.ts'
 
 export function resolvePixelError(
   context: { pixelError?: number; lodAdaptive?: boolean },
   cam: EngineCamera,
   motion: CameraMotion,
 ) {
-  const base = context.pixelError ?? 0;
+  const base = context.pixelError ?? 0
   const speed = readCameraMotion(
     cam,
     motion,
     typeof performance !== 'undefined' ? performance.now() : 0,
-  );
-  if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base;
-  return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1));
+  )
+  if (!explorerSwitch(context, 'lodAdaptive') || !(base > 0)) return base
+  return adaptivePixelError(base, speed, Math.max(cam.far * 0.05, 1))
 }
 /** The request key of a record: its streaming bundle when the cache has one, its own page otherwise. */
 export function pageRequestUrl<T extends { url: string; streamUrl?: string }>(rec: T) {
-  return rec.streamUrl ?? rec.url;
+  return rec.streamUrl ?? rec.url
 }
 /** Number distinct request keys once and for all; returns their count. */
 export function indexPageRequests<
   T extends { url: string; streamUrl?: string; requestIndex?: number },
 >(pages: readonly T[]) {
-  const byKey = new Map<string, number>();
+  const byKey = new Map<string, number>()
   for (let i = 0; i < pages.length; i++) {
-    const key = pageRequestUrl(pages[i]);
-    let rank = byKey.get(key);
+    const key = pageRequestUrl(pages[i])
+    let rank = byKey.get(key)
     if (rank === undefined) {
-      rank = byKey.size;
-      byKey.set(key, rank);
+      rank = byKey.size
+      byKey.set(key, rank)
     }
-    pages[i].requestIndex = rank;
+    pages[i].requestIndex = rank
   }
-  return byKey.size;
+  return byKey.size
 }
 /**
  * Deduplicate request keys without a hash table: one stamp per rank, reused from one
  * frame to the next. A cut of fifteen thousand pages is walked without allocating or hashing.
  */
 export class RequestStamps {
-  private stamps: Int32Array;
-  private current = 0;
+  private stamps: Int32Array
+  private current = 0
   constructor(count: number) {
-    this.stamps = new Int32Array(Math.max(0, count));
+    this.stamps = new Int32Array(Math.max(0, count))
   }
   /** Open a pass: everything seen before is forgotten. */
   begin() {
-    this.current++;
+    this.current++
   }
   /** True the first time this rank is seen since `begin()`. An unknown rank is never filtered. */
   first(index: number | undefined) {
-    if (index === undefined || index < 0 || index >= this.stamps.length) return true;
-    if (this.stamps[index] === this.current) return false;
-    this.stamps[index] = this.current;
-    return true;
+    if (index === undefined || index < 0 || index >= this.stamps.length) return true
+    if (this.stamps[index] === this.current) return false
+    this.stamps[index] = this.current
+    return true
   }
   /**
    * Append to `into` the request address of each record whose rank has not yet been seen
@@ -67,28 +67,28 @@ export class RequestStamps {
    */
   mark(
     list: readonly {
-      url: string;
-      streamUrl?: string;
-      array?: Uint32Array;
-      requestIndex?: number;
+      url: string
+      streamUrl?: string
+      array?: Uint32Array
+      requestIndex?: number
     }[],
     into: string[],
     missing = false,
   ) {
-    const { stamps, current } = this;
-    let count = into.length;
+    const { stamps, current } = this
+    let count = into.length
     for (let i = 0; i < list.length; i++) {
       const rec = list[i],
-        index = rec.requestIndex;
-      if (missing && rec.array) continue;
+        index = rec.requestIndex
+      if (missing && rec.array) continue
       if (index !== undefined && index >= 0 && index < stamps.length) {
-        if (stamps[index] === current) continue;
-        stamps[index] = current;
+        if (stamps[index] === current) continue
+        stamps[index] = current
       }
-      into[count++] = rec.streamUrl ?? rec.url;
+      into[count++] = rec.streamUrl ?? rec.url
     }
-    into.length = count;
-    return into;
+    into.length = count
+    return into
   }
 }
 /**
@@ -101,19 +101,19 @@ export function indexPagesByUrl<T extends { url: string; streamUrl?: string }>(
   pages: readonly T[],
   keyOf: (rec: T) => string = pageRequestUrl,
 ) {
-  const byUrl = new Map<string, T[]>();
+  const byUrl = new Map<string, T[]>()
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i],
-      key = keyOf(rec);
-    let list = byUrl.get(key);
-    if (!list) byUrl.set(key, (list = []));
-    list.push(rec);
+      key = keyOf(rec)
+    let list = byUrl.get(key)
+    if (!list) byUrl.set(key, (list = []))
+    list.push(rec)
   }
-  return byUrl;
+  return byUrl
 }
 /** Fallback without stamps: one set for the whole host, cleared on each call. */
-const viewsWithoutStamp = new Set<string>();
-type Requested = { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number };
+const viewsWithoutStamp = new Set<string>()
+type Requested = { array?: Uint32Array; url: string; streamUrl?: string; requestIndex?: number }
 /**
  * Request addresses of the records still missing bytes. A request brings its closure: the missing
  * bundles a record's bundle is installed after (`dependencies`, `./bundleDependencies.ts`) are
@@ -124,28 +124,28 @@ export function collectPendingUrls<T extends Requested & { dependencies?: readon
   into: string[],
   stamps?: RequestStamps,
 ) {
-  into.length = 0;
+  into.length = 0
   if (stamps) {
-    stamps.begin();
+    stamps.begin()
     for (let i = 0; i < shown.length; i++) {
-      const dependencies = shown[i].dependencies;
-      if (dependencies?.length) stamps.mark(dependencies, into, true);
+      const dependencies = shown[i].dependencies
+      if (dependencies?.length) stamps.mark(dependencies, into, true)
     }
-    return stamps.mark(shown, into, true);
+    return stamps.mark(shown, into, true)
   }
   // Fallback without stamps: a host that has not numbered its requests deduplicates by the strings.
-  const seen = viewsWithoutStamp;
-  seen.clear();
+  const seen = viewsWithoutStamp
+  seen.clear()
   const add = (rec: Requested) => {
-    if (rec.array) return;
-    const key = pageRequestUrl(rec);
-    if (seen.has(key)) return;
-    seen.add(key);
-    into.push(key);
-  };
-  for (let i = 0; i < shown.length; i++) shown[i].dependencies?.forEach(add);
-  for (let i = 0; i < shown.length; i++) add(shown[i]);
-  return into;
+    if (rec.array) return
+    const key = pageRequestUrl(rec)
+    if (seen.has(key)) return
+    seen.add(key)
+    into.push(key)
+  }
+  for (let i = 0; i < shown.length; i++) shown[i].dependencies?.forEach(add)
+  for (let i = 0; i < shown.length; i++) add(shown[i])
+  return into
 }
 /** Hand a loaded page or bundle to every record that shares it; a bundled record gets a view at its
  *  own offset, so one request makes dozens of clusters drawable. */
@@ -154,10 +154,10 @@ export function acceptPageArray<
 >(recs: readonly T[], array: Uint32Array) {
   for (let i = 0; i < recs.length; i++) {
     const rec = recs[i],
-      offset = rec.streamOffset;
+      offset = rec.streamOffset
     const view =
-      offset === undefined ? array : array.subarray(offset / 4, offset / 4 + rec.triangles * 3);
-    rec.array = view;
-    rec.indexBytes = view.byteLength;
+      offset === undefined ? array : array.subarray(offset / 4, offset / 4 + rec.triangles * 3)
+    rec.array = view
+    rec.indexBytes = view.byteLength
   }
 }

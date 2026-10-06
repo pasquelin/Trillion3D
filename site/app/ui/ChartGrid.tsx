@@ -1,14 +1,14 @@
-import { Children, isValidElement } from 'react';
-import type { ReactNode } from 'react';
+import { Children, isValidElement } from 'react'
+import type { ReactNode } from 'react'
 
 interface ChartGridProps {
-  children: ReactNode;
-  columns?: number;
+  children: ReactNode
+  columns?: number
 }
 
 /** Shared chart layout: an unpaired final chart occupies the available row. */
 export function ChartGrid({ children, columns = 2 }: ChartGridProps) {
-  const items = Children.toArray(children);
+  const items = Children.toArray(children)
   return (
     <div className={`grid min-w-0 items-start gap-4 ${columns === 2 ? 'xl:grid-cols-2' : ''}`}>
       {items.map((child, index) => (
@@ -24,5 +24,5 @@ export function ChartGrid({ children, columns = 2 }: ChartGridProps) {
         </div>
       ))}
     </div>
-  );
+  )
 }

@@ -3,20 +3,20 @@
 // must stay the one the double projection used to yield — the same sphere written twice — and the
 // guards `projectedClusterError` no longer poses itself must stay posed by `projectedErrorAt` and
 // by `clusterErrorAtDepth`.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as G from '../../host/graph/graph.fixture.ts';
-import { clusterErrorPixels } from '../../../../sdk-core/src/index.ts';
-import { clusterPixels, projectedClusterError } from '../selection/math.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as G from '../../host/graph/graph.fixture.ts'
+import { clusterErrorPixels } from '../../../../sdk-core/src/index.ts'
+import { clusterPixels, projectedClusterError } from '../selection/math.ts'
 
-const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
-cam.position.set(0.4, 1.1, 7);
-cam.lookAt(0.2, 0, 0);
-cam.updateMatrixWorld();
-const E = cam.matrixWorldInverse.elements;
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
+cam.position.set(0.4, 1.1, 7)
+cam.lookAt(0.2, 0, 0)
+cam.updateMatrixWorld()
+const E = cam.matrixWorldInverse.elements
 const STRETCH = 1.7,
   FOCAL = 940,
-  NEAR = cam.near;
+  NEAR = cam.near
 
 test('a stand-in without a sphere of its own yields the verdict of the own sphere written twice', () => {
   for (const sphere of [
@@ -27,33 +27,33 @@ test('a stand-in without a sphere of its own yields the verdict of the own spher
   ])
     for (const own of [0, 1e-6, 0.02, 3, Infinity])
       for (const parent of [0, 1e-6, 0.05, 9, Infinity, null, undefined]) {
-        const partage = { lodError: own, sphere, parentError: parent };
+        const partage = { lodError: own, sphere, parentError: parent }
         // The same data, but with an explicit stand-in sphere distinct in memory: that is the
         // path that projects twice, the one from before the lot.
-        const explicite = { ...partage, parentSphere: [...sphere] };
+        const explicite = { ...partage, parentSphere: [...sphere] }
         const a = clusterPixels(partage, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2)),
-          b = clusterPixels(explicite, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2));
+          b = clusterPixels(explicite, E, STRETCH, FOCAL, NEAR, 1, new Float64Array(2))
         for (const i of [0, 1])
-          assert.ok(Object.is(a[i], b[i]), `own=${own} parent=${parent} sphere=${sphere} [${i}]`);
+          assert.ok(Object.is(a[i], b[i]), `own=${own} parent=${parent} sphere=${sphere} [${i}]`)
       }
-});
+})
 
 test('without a sphere, only a null error stays null: everything else is infinity', () => {
   for (const sphere of [null, undefined]) {
-    assert.equal(projectedClusterError(0, sphere, 0, E, STRETCH, FOCAL, NEAR), 0);
+    assert.equal(projectedClusterError(0, sphere, 0, E, STRETCH, FOCAL, NEAR), 0)
     for (const err of [1e-9, 2, Infinity, null, undefined, -1, NaN])
-      assert.equal(projectedClusterError(err, sphere, 0, E, STRETCH, FOCAL, NEAR), Infinity);
+      assert.equal(projectedClusterError(err, sphere, 0, E, STRETCH, FOCAL, NEAR), Infinity)
   }
-});
+})
 
 test('a malformed error with a sphere is always refused, by the guard left downstream', () => {
-  const sphere = [1, 2, -9, 0.5];
+  const sphere = [1, 2, -9, 0.5]
   for (const err of [-1, NaN])
     assert.throws(
       () => projectedClusterError(err, sphere, 0, E, STRETCH, FOCAL, NEAR),
       /Invalid cluster parameters/,
-    );
-});
+    )
+})
 
 test("a non-finite centre is always refused, without a guard of clusterErrorPixels's own", () => {
   for (const [x, y] of [
@@ -67,8 +67,8 @@ test("a non-finite centre is always refused, without a guard of clusterErrorPixe
       () => clusterErrorPixels(0.5, 1, x, y, -10, 0.25, 900, 0.1),
       /Invalid cluster parameters/,
       `centre (${x}, ${y})`,
-    );
+    )
   // Both short-circuits stay in front of the guard: they do not read the centre.
-  assert.equal(clusterErrorPixels(0, 1, NaN, NaN, -10, 0.25, 900, 0.1), 0);
-  assert.equal(clusterErrorPixels(Infinity, 1, NaN, NaN, -10, 0.25, 900, 0.1), Infinity);
-});
+  assert.equal(clusterErrorPixels(0, 1, NaN, NaN, -10, 0.25, 900, 0.1), 0)
+  assert.equal(clusterErrorPixels(Infinity, 1, NaN, NaN, -10, 0.25, 900, 0.1), Infinity)
+})

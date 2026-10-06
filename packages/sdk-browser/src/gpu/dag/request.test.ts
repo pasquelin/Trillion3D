@@ -5,8 +5,8 @@
 // order of an atomic counter, i.e. in none. This test holds both halves:
 // ① the word yields exactly what was put in it, and quantification never reverses two errors;
 // ② the order the cut publishes is that of the WebGL2 formula, on the same scene.
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   packRequest,
   REQUEST_PAGE_MAX,
@@ -15,88 +15,88 @@ import {
   REQUEST_STEP_MAX,
   requestPage,
   requestPriority,
-} from './request.ts';
-import { requestScene } from './requestScene.fixture.ts';
+} from './request.ts'
+import { requestScene } from './requestScene.fixture.ts'
 import {
   clusterErrorPixels,
   maxStretch,
   multiplyMatrix4,
   transformAffinePoint,
-} from '../../../../sdk-core/src/index.ts';
-import { quantizeAheadPriority, quantizeRequestPriority, requestRank } from './request.fixture.ts';
-import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts';
+} from '../../../../sdk-core/src/index.ts'
+import { quantizeAheadPriority, quantizeRequestPriority, requestRank } from './request.fixture.ts'
+import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 
 test('the request word yields the page and the priority that were put in it', () => {
   for (const page of [0, 1, 4095, 1959791, REQUEST_PAGE_MAX - 1])
     for (const priority of [0, 1, 512, REQUEST_PRIORITY_MAX]) {
-      const mot = packRequest(page, priority);
-      assert.equal(requestPage(mot), page, `page ${page} / priority ${priority}`);
-      assert.equal(requestPriority(mot), priority, `page ${page} / priority ${priority}`);
+      const mot = packRequest(page, priority)
+      assert.equal(requestPage(mot), page, `page ${page} / priority ${priority}`)
+      assert.equal(requestPriority(mot), priority, `page ${page} / priority ${priority}`)
     }
-});
+})
 
 test('quantification is monotone: it never reverses two errors', () => {
-  const errors = [0, 0.001, 0.01, 0.1, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65536, Infinity];
-  let precedent = -1;
+  const errors = [0, 0.001, 0.01, 0.1, 0.5, 1, 2, 4, 16, 64, 256, 4096, 65536, Infinity]
+  let precedent = -1
   for (const pixels of errors) {
-    const q = quantizeRequestPriority(pixels);
-    assert.ok(q >= precedent, `${pixels} px : ${q} < ${precedent}`);
-    assert.ok(q >= 0 && q <= REQUEST_PRIORITY_MAX, `${pixels} px outside bounds : ${q}`);
-    precedent = q;
+    const q = quantizeRequestPriority(pixels)
+    assert.ok(q >= precedent, `${pixels} px : ${q} < ${precedent}`)
+    assert.ok(q >= 0 && q <= REQUEST_PRIORITY_MAX, `${pixels} px outside bounds : ${q}`)
+    precedent = q
   }
   // A null or absurd error never goes ahead of a real error.
-  assert.equal(quantizeRequestPriority(0), 0);
-  assert.equal(quantizeRequestPriority(-1), 0);
-  assert.equal(quantizeRequestPriority(NaN), 0);
-  assert.equal(quantizeRequestPriority(Infinity), REQUEST_STEP_MAX);
-});
+  assert.equal(quantizeRequestPriority(0), 0)
+  assert.equal(quantizeRequestPriority(-1), 0)
+  assert.equal(quantizeRequestPriority(NaN), 0)
+  assert.equal(quantizeRequestPriority(Infinity), REQUEST_STEP_MAX)
+})
 
 test('every visible request outranks every request ahead, served soonest first, then by error', () => {
   // The costliest absence ahead against the cheapest one on screen: the deadline decides first.
-  const visible = (pixels: number) => requestRank(quantizeRequestPriority(pixels));
-  const ahead = (pixels: number, due: number) => requestRank(quantizeAheadPriority(pixels, due));
-  assert.ok(visible(0) > ahead(Infinity, 0));
-  assert.equal(ahead(NaN, 1), 0, 'the least a request can rank');
-  assert.equal(visible(Infinity), REQUEST_PRIORITY_MAX, 'the most a request can rank');
+  const visible = (pixels: number) => requestRank(quantizeRequestPriority(pixels))
+  const ahead = (pixels: number, due: number) => requestRank(quantizeAheadPriority(pixels, due))
+  assert.ok(visible(0) > ahead(Infinity, 0))
+  assert.equal(ahead(NaN, 1), 0, 'the least a request can rank')
+  assert.equal(visible(Infinity), REQUEST_PRIORITY_MAX, 'the most a request can rank')
   // Within the tier ahead: the sooner needed first, whatever its error, then the larger error.
-  assert.ok(ahead(1, 0.1) > ahead(1e6, 0.9));
-  assert.ok(ahead(64, 0.5) > ahead(4, 0.5));
-  assert.equal(ahead(4, NaN), ahead(4, 1), 'a deadline that is no number is the latest');
-  assert.equal(ahead(4, -1), ahead(4, 0), 'and one already past is now');
-});
+  assert.ok(ahead(1, 0.1) > ahead(1e6, 0.9))
+  assert.ok(ahead(64, 0.5) > ahead(4, 0.5))
+  assert.equal(ahead(4, NaN), ahead(4, 1), 'a deadline that is no number is the latest')
+  assert.equal(ahead(4, -1), ahead(4, 0), 'and one already past is now')
+})
 
 function coupe(threshold: number) {
-  const scene = requestScene(threshold);
-  return { ...scene, reading: evaluateDagSelectionKernel(scene.packed, scene.uni) };
+  const scene = requestScene(threshold)
+  return { ...scene, reading: evaluateDagSelectionKernel(scene.packed, scene.uni) }
 }
 
 test('published order decreases with the substitute’s screen error, like the WebGL2 path', () => {
-  const { pages, packed, cam, uni, reading } = coupe(1);
-  assert.ok(reading.pageIds.length > 100, 'the cut must keep enough to rank');
-  const focal = Math.max(uni.pixelScale[0], uni.pixelScale[1]);
+  const { pages, packed, cam, uni, reading } = coupe(1)
+  assert.ok(reading.pageIds.length > 100, 'the cut must keep enough to rank')
+  const focal = Math.max(uni.pixelScale[0], uni.pixelScale[1])
   // View of each pose, composed as the kernel composes it: on matrices BROUGHT TO THE RENDER
   // FRAME, those `packedWorldsToRenderOrigin` wrote into `packed.worlds`. Taking the roots'
   // would mix an absolute world with a relative view, and put the whole scene on the eye — which
   // would yield an infinite error for half the cut, in silence.
   const views = Array.from({ length: packed.worldCount }, (_, w) => {
-    const view = new Float64Array(16);
+    const view = new Float64Array(16)
     multiplyMatrix4(
       view,
       cam.viewRelative,
       Float64Array.from(packed.worlds.subarray(w * 16, w * 16 + 16)),
-    );
-    return { view, stretch: maxStretch(view as unknown as readonly number[]) };
-  });
+    )
+    return { view, stretch: maxStretch(view as unknown as readonly number[]) }
+  })
   // SUBSTITUTE screen error, by the core formula (`clusterErrorPixels`), of which `projected`
   // (WGSL) is the proven mirror. Recomputing it here, not rereading it from the
   // snapshot, is what makes the proof non-circular.
-  const centre = new Float64Array(4);
+  const centre = new Float64Array(4)
   const pixelsDe = (id: number) => {
     const page = pages[id % pages.length],
-      { view, stretch } = views[Math.floor(id / pages.length)];
-    const sphere = (page.parentError === null ? page.sphere : page.parentSphere) as number[];
-    const bande = page.parentError === null ? (page.lodError ?? 0) : page.parentError;
-    transformAffinePoint(centre, view, sphere[0], sphere[1], sphere[2]);
+      { view, stretch } = views[Math.floor(id / pages.length)]
+    const sphere = (page.parentError === null ? page.sphere : page.parentSphere) as number[]
+    const bande = page.parentError === null ? (page.lodError ?? 0) : page.parentError
+    transformAffinePoint(centre, view, sphere[0], sphere[1], sphere[2])
     return clusterErrorPixels(
       bande,
       stretch,
@@ -106,19 +106,19 @@ test('published order decreases with the substitute’s screen error, like the W
       sphere[3],
       focal,
       cam.near,
-    );
-  };
-  const pixels = reading.pageIds.map(pixelsDe);
-  assert.ok(new Set(pixels.map((p) => p.toFixed(3))).size > 8, 'the cut must carry varied errors');
+    )
+  }
+  const pixels = reading.pageIds.map(pixelsDe)
+  assert.ok(new Set(pixels.map((p) => p.toFixed(3))).size > 8, 'the cut must carry varied errors')
   // Published order never rises beyond ONE quantification STEP. Two reasons, and not one more:
   // between two clusters of the same step order is indifferent — ties are not broken —, and the boundary between two steps is floating, the kernel rounding in
   // f32 what this proof recomputes in f64. One step is 2^(1/16), i.e. 4.43 %.
-  const PAS = 2 ** (1 / REQUEST_PRIORITY_SCALE);
+  const PAS = 2 ** (1 / REQUEST_PRIORITY_SCALE)
   for (let i = 1; i < pixels.length; i++)
     assert.ok(
       pixels[i] <= pixels[i - 1] * PAS,
       `rank ${i}: ${pixels[i]} px steps more than one step past ${pixels[i - 1]} px`,
-    );
+    )
   // And the first is indeed the most costly absence of the whole cut, to the step.
-  assert.ok(pixels[0] * PAS >= Math.max(...pixels), 'the head is not the most expensive');
-});
+  assert.ok(pixels[0] * PAS >= Math.max(...pixels), 'the head is not the most expensive')
+})

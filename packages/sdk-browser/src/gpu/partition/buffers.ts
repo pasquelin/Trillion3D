@@ -6,7 +6,7 @@ import {
   STATE_WORDS,
   TESTED_U32,
   UNIFORM_U32,
-} from './contract.ts';
+} from './contract.ts'
 
 /**
  * Buffers the GPU partition owns: they depend only on the drawable-row count, never on the frame.
@@ -14,45 +14,45 @@ import {
  * partition writes in their place.
  */
 export function createGpuPartitionBuffers(device: GPUDevice, slotCap: number) {
-  const rows = createGpuPartitionRows(device, slotCap);
+  const rows = createGpuPartitionRows(device, slotCap)
   // Zeroed each frame by the partition's first dispatch (`clearRows`), copied to the counts.
   const state = device.createBuffer({
     label: 'Trillion3D partition state v1',
     size: STATE_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-  });
+  })
   const uniforms = device.createBuffer({
     label: 'Trillion3D partition uniform v1',
     size: UNIFORM_U32 * 4,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  return { ...rows, state, uniforms, all: [...rows.all, state, uniforms] };
+  })
+  return { ...rows, state, uniforms, all: [...rows.all, state, uniforms] }
 }
 
 /** The partition's buffers sized by row — what a grown table makes again (`factory.ts`). */
 export function createGpuPartitionRows(device: GPUDevice, slotCap: number) {
-  const rows = Math.max(1, slotCap);
-  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const rows = Math.max(1, slotCap)
+  const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const corners = device.createBuffer({
     label: 'Trillion3D partition corners v1',
     size: rows * CORNER_VALUES * 4,
     usage: storage,
-  });
+  })
   const rowData = device.createBuffer({
     label: 'Trillion3D partition rows v1',
     size: rows * ROW_DATA_U32 * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
-  });
+  })
   const tested = device.createBuffer({
     label: 'Trillion3D partition tested bounds v1',
     size: rows * TESTED_U32 * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
-  });
-  return { rows, corners, rowData, tested, all: [corners, rowData, tested] };
+  })
+  return { rows, corners, rowData, tested, all: [corners, rowData, tested] }
 }
 
-type Binding = keyof typeof PARTITION_BINDING;
-export type PartitionKernel = keyof typeof PARTITION_KERNEL_BINDINGS;
+type Binding = keyof typeof PARTITION_BINDING
+export type PartitionKernel = keyof typeof PARTITION_KERNEL_BINDINGS
 const BINDING_TYPE: Record<Binding, GPUBufferBindingType> = {
   corners: 'read-only-storage',
   items: 'read-only-storage',
@@ -64,7 +64,7 @@ const BINDING_TYPE: Record<Binding, GPUBufferBindingType> = {
   state: 'storage',
   uniforms: 'uniform',
   pyramid: 'read-only-storage',
-};
+}
 /** The bind layout of one kernel: its buffers alone, at the module's binding numbers. */
 export function createGpuPartitionLayout(device: GPUDevice, kernel: PartitionKernel) {
   return device.createBindGroupLayout({
@@ -73,7 +73,7 @@ export function createGpuPartitionLayout(device: GPUDevice, kernel: PartitionKer
       visibility: GPUShaderStage.COMPUTE,
       buffer: { type: BINDING_TYPE[name] },
     })),
-  });
+  })
 }
 
 /** The bind group of one kernel, from the buffers by name. */
@@ -89,5 +89,5 @@ export function createGpuPartitionGroup(
       binding: PARTITION_BINDING[name],
       resource: { buffer: buffers[name] },
     })),
-  });
+  })
 }

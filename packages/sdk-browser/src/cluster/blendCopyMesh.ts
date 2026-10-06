@@ -1,11 +1,11 @@
-import type { HostMesh } from '../host/resources.ts';
-import type { BlendCopy } from './blendCopyContract.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
-import type { PageSurface } from '../page/surface.ts';
-import { placementWorld, type PlacementOf, type PlacementRows } from '../placement/rows.ts';
-import { notDrawn } from '../placement/hidden.ts';
-import { growPlaced } from '../placement/growth.ts';
-import { hostMeshCopy } from '../host/scene/graphObjects.ts';
+import type { HostMesh } from '../host/resources.ts'
+import type { BlendCopy } from './blendCopyContract.ts'
+import type { MatrixElements } from '../math/matrixElements.ts'
+import type { PageSurface } from '../page/surface.ts'
+import { placementWorld, type PlacementOf, type PlacementRows } from '../placement/rows.ts'
+import { notDrawn } from '../placement/hidden.ts'
+import { growPlaced } from '../placement/growth.ts'
+import { hostMeshCopy } from '../host/scene/graphObjects.ts'
 
 /**
  * The transparent draw copy of an engine that draws its display graph whole — the WebGL2 page
@@ -36,25 +36,25 @@ export function createBlendCopy(
   surface: PageSurface,
   placement?: PlacementOf,
 ): BlendCopy {
-  const copy = hostMeshCopy(mesh);
-  copy.matrixAutoUpdate = false;
-  copy.matrix.elements = world.elements as Float64Array;
-  copy.frustumCulled = mesh.frustumCulled;
-  copy.renderOrder = renderOrder;
-  copy.userData.sourceMesh = mesh;
+  const copy = hostMeshCopy(mesh)
+  copy.matrixAutoUpdate = false
+  copy.matrix.elements = world.elements as Float64Array
+  copy.frustumCulled = mesh.frustumCulled
+  copy.renderOrder = renderOrder
+  copy.userData.sourceMesh = mesh
   // The engine reads the surface off the record the collection built; the declaration stays on
   // the copy for the ONE reader that needs it, the program that draws it.
   // A copy posed by a row is shown while the row is live: its flag is read here, then again each
   // time the owner reports the row written (`followBlendCopies`).
-  const record = Object.assign(copy as unknown as BlendCopy, { surface, placement });
-  showBlendCopy(record);
-  return record;
+  const record = Object.assign(copy as unknown as BlendCopy, { surface, placement })
+  showBlendCopy(record)
+  return record
 }
 
 /** Shows `copy` unless its source node is hidden or its row parked. */
 export const showBlendCopy = (copy: BlendCopy) => {
-  (copy as unknown as HostMesh).visible = !notDrawn(copy);
-};
+  ;(copy as unknown as HostMesh).visible = !notDrawn(copy)
+}
 
 /**
  * Rows `from` to `to` of `rows` were written: each copy they pose is shown again while its
@@ -66,14 +66,14 @@ export function followBlendCopies(
   from: number,
   to: number,
 ) {
-  let posed = false;
+  let posed = false
   for (const copy of copies) {
-    if (copy.placement?.rows !== rows) continue;
-    posed = true;
-    const { index } = copy.placement;
-    if (index >= from && index <= to) showBlendCopy(copy);
+    if (copy.placement?.rows !== rows) continue
+    posed = true
+    const { index } = copy.placement
+    if (index >= from && index <= to) showBlendCopy(copy)
   }
-  return posed;
+  return posed
 }
 
 /**
@@ -88,27 +88,27 @@ export function growBlendCopies(
   add: (copy: HostMesh) => void,
 ) {
   const rebind = (copy: BlendCopy, placement: PlacementOf) => {
-    const { elements } = placementWorld(placement.rows, placement.index);
-    (copy as unknown as HostMesh).matrix.elements = elements as Float64Array;
-    Object.assign(copy, { placement });
-  };
+    const { elements } = placementWorld(placement.rows, placement.index)
+    ;(copy as unknown as HostMesh).matrix.elements = elements as Float64Array
+    Object.assign(copy, { placement })
+  }
   const clone = (template: BlendCopy, placement: PlacementOf) => {
-    const world = placementWorld(placement.rows, placement.index);
-    const { sourceMesh } = template.userData;
+    const world = placementWorld(placement.rows, placement.index)
+    const { sourceMesh } = template.userData
     const made = createBlendCopy(
       sourceMesh!,
       template.renderOrder,
       world,
       template.surface,
       placement,
-    );
+    )
     // A copy grown under a hidden node stays hidden with it.
-    made.hidden = template.hidden;
-    showBlendCopy(made);
-    return made;
-  };
+    made.hidden = template.hidden
+    showBlendCopy(made)
+    return made
+  }
   for (const { item } of growPlaced(copies, from, to, rebind, clone)) {
-    copies.push(item);
-    add(item as unknown as HostMesh);
+    copies.push(item)
+    add(item as unknown as HostMesh)
   }
 }

@@ -4,13 +4,13 @@
  * waits. It stands for a human's patience before a blank view reads as broken; any value from a
  * few seconds to a minute says the same thing, only sooner or later.
  */
-const OPENING_REPORT_MS = 10_000;
+const OPENING_REPORT_MS = 10_000
 
 /** A timer that never holds a Node process open on its own; a browser has no such notion. */
 function later(report: () => void, delayMs: number) {
-  const timer = setTimeout(report, delayMs);
-  (timer as { unref?: () => void }).unref?.();
-  return timer;
+  const timer = setTimeout(report, delayMs)
+  ;(timer as { unref?: () => void }).unref?.()
+  return timer
 }
 
 /**
@@ -19,7 +19,7 @@ function later(report: () => void, delayMs: number) {
  * opening that never settles — a promise nothing resolves — is then named rather than silent.
  */
 export function watchOpening(manifestUrl: string, delayMs = OPENING_REPORT_MS) {
-  let step = 'start';
+  let step = 'start'
   const timer = later(
     () =>
       console.warn(
@@ -27,15 +27,15 @@ export function watchOpening(manifestUrl: string, delayMs = OPENING_REPORT_MS) {
           `${delayMs / 1000} s; last step: ${step}`,
       ),
     delayMs,
-  );
+  )
   return {
     note(phase: string, message: string) {
-      step = `${phase} (${message})`;
+      step = `${phase} (${message})`
     },
     done() {
-      clearTimeout(timer);
+      clearTimeout(timer)
     },
-  };
+  }
 }
 
 /**
@@ -46,8 +46,8 @@ export function watchOpening(manifestUrl: string, delayMs = OPENING_REPORT_MS) {
  */
 export function watchFirstFrame(stage: () => string | null, delayMs = OPENING_REPORT_MS) {
   later(() => {
-    const at = stage();
+    const at = stage()
     if (at)
-      console.warn(`[trillion3d] no frame drawn ${delayMs / 1000} s after the world began: ${at}`);
-  }, delayMs);
+      console.warn(`[trillion3d] no frame drawn ${delayMs / 1000} s after the world began: ${at}`)
+  }, delayMs)
 }

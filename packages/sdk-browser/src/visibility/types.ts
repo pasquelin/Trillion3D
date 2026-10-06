@@ -1,31 +1,31 @@
-import type { HostAttributes } from '../host/resources.ts';
-import type { PageSurface } from '../page/surface.ts';
-import type { Texture } from '../../../sdk-core/src/index.ts';
-import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
-import { texelFormatOf } from '../host/textureImport.ts';
-import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts';
-export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts';
+import type { HostAttributes } from '../host/resources.ts'
+import type { PageSurface } from '../page/surface.ts'
+import type { Texture } from '../../../sdk-core/src/index.ts'
+import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts'
+import { texelFormatOf } from '../host/textureImport.ts'
+import { VIS_MAX_PAGE_TRIANGLES } from './visWords.ts'
+export { VIS_TRIANGLE_BITS, VIS_TRIANGLE_MASK } from './visWords.ts'
 /** Largest addressable page count. Row `VIS_MAX_PAGES-1` still leaves 0xffffffff free as a sentinel. */
-export const VIS_MAX_PAGES = 0xfffffe;
+export const VIS_MAX_PAGES = 0xfffffe
 /** Rejects a page the identifier cannot address, naming the page so a bad cache is actionable. */
 export function assertVisibilityPageTriangles(triangles: number, page?: string) {
   if (!Number.isInteger(triangles) || triangles < 0 || triangles > VIS_MAX_PAGE_TRIANGLES)
     throw new Error(
       `VISIBILITY_PAGE_TRIANGLES: ${triangles} triangles exceed the ${VIS_MAX_PAGE_TRIANGLES} a visibility identifier addresses${page ? ` (${page})` : ''}`,
-    );
-  return triangles;
+    )
+  return triangles
 }
-export const PAGE_INFO_STRIDE = 272;
+export const PAGE_INFO_STRIDE = 272
 /** Deformation metadata follows the physical-material block; all offsets are u32 words. */
 export const PAGE_DEFORM_WORD = 64,
   PAGE_DEFORM_COUNT_WORD = 65,
-  PAGE_DEFORM_OUTPUT_WORD = 66;
+  PAGE_DEFORM_OUTPUT_WORD = 66
 /** The bits of `PAGE_DEFORM_OUTPUT_WORD`: results in the float pool rather than a slot's tail; a
  *  float-pool block with no source header (`../deformation/slotLayout.ts`); the address, the
  *  results' first word plus one. */
 export const DEFORM_IN_POOL = 0x80000000,
   DEFORM_NO_HEADER = 0x40000000,
-  DEFORM_ADDRESS = 0x3fffffff;
+  DEFORM_ADDRESS = 0x3fffffff
 export const FLAG_LIT = 1,
   FLAG_DOUBLE = 2,
   FLAG_HAS_UV = 4,
@@ -60,54 +60,54 @@ export const FLAG_LIT = 1,
   FLAG_BLEND_CASTER = 65536,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
-  FLAG_DIAGNOSTIC_VIEW = 0x40000000;
+  FLAG_DIAGNOSTIC_VIEW = 0x40000000
 /** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
 export const FLAG_FOG_FREE = 1 << 20,
-  FLAG_DYNAMIC = 1 << 21;
+  FLAG_DYNAMIC = 1 << 21
 export type VisPage = {
-  array: Uint32Array;
-  attributes: HostAttributes;
+  array: Uint32Array
+  attributes: HostAttributes
   /** The engine's surface record, read once at the boundary (`../page/surface.ts`). */
-  material: PageSurface;
-  clusterId?: string;
-};
-export type { VisMaterial } from './materialType.ts';
+  material: PageSurface
+  clusterId?: string
+}
+export type { VisMaterial } from './materialType.ts'
 
-export { isTransmissive } from './shader/material.ts';
+export { isTransmissive } from './shader/material.ts'
 
 /** Why raw texels cannot be read as `textureRgba` reads them — one byte per channel of four, as
  *  many as the size holds —, or nothing when they can: a gate names the storage, never draws it
  *  blank. */
 export const texelsReason = ({ format, image }: { format?: number; image: unknown }) => {
-  if (format !== HOST_FORMAT_RGBA) return `texel format ${format} is unsupported: RGBA only`;
-  const { data, width, height } = image as { data?: unknown; width: number; height: number };
+  if (format !== HOST_FORMAT_RGBA) return `texel format ${format} is unsupported: RGBA only`
+  const { data, width, height } = image as { data?: unknown; width: number; height: number }
   if (!(data instanceof Uint8Array || data instanceof Uint8ClampedArray))
-    return 'texel storage is unsupported: 8-bit texels only';
+    return 'texel storage is unsupported: 8-bit texels only'
   if (data.length !== width * height * 4)
-    return `texel storage holds ${data.length} bytes, not ${width}×${height} RGBA`;
-};
+    return `texel storage holds ${data.length} bytes, not ${width}×${height} RGBA`
+}
 
 /** Why the texels a record holds in memory cannot be read as `textureRgba` reads them, in
  *  `texelsReason`'s words: its host's format for raw texels, RGBA for any other picture. The
  *  WebGPU fill throws it (#43), as the WebGL2 gate refuses the host by `texelsReason`. */
 export const texelsRefusal = (texture: Texture) =>
-  texelsReason({ format: texelFormatOf(texture) ?? HOST_FORMAT_RGBA, image: texture.image });
+  texelsReason({ format: texelFormatOf(texture) ?? HOST_FORMAT_RGBA, image: texture.image })
 
-type TextureRgba = { data: Uint8Array; width: number; height: number };
+type TextureRgba = { data: Uint8Array; width: number; height: number }
 /**
  * Bytes of a texture, kept as long as it shows the same image. The rasterizer and the sample
  * call this per texel read: without a cache, each texel allocated a `Uint8Array` view and an
  * object. The source is rechecked every call — buffer, offset, length, width, height — so a
  * replaced image does yield the new bytes.
  */
-const rgbaCache = new WeakMap<Texture, { source: ArrayBufferView; rgba: TextureRgba }>();
+const rgbaCache = new WeakMap<Texture, { source: ArrayBufferView; rgba: TextureRgba }>()
 
 export function textureRgba(texture: Texture): TextureRgba | null {
   const image = texture.image as
-    { data?: ArrayBufferView; width?: number; height?: number } | undefined;
-  if (!image?.data || !image.width || !image.height) return null;
-  const src = image.data;
-  const held = rgbaCache.get(texture);
+    { data?: ArrayBufferView; width?: number; height?: number } | undefined
+  if (!image?.data || !image.width || !image.height) return null
+  const src = image.data
+  const held = rgbaCache.get(texture)
   if (
     held &&
     held.source === src &&
@@ -117,12 +117,12 @@ export function textureRgba(texture: Texture): TextureRgba | null {
     held.rgba.data.byteOffset === src.byteOffset &&
     held.rgba.data.byteLength === src.byteLength
   )
-    return held.rgba;
+    return held.rgba
   const rgba: TextureRgba = {
     data: new Uint8Array(src.buffer, src.byteOffset, src.byteLength),
     width: image.width,
     height: image.height,
-  };
-  rgbaCache.set(texture, { source: src, rgba });
-  return rgba;
+  }
+  rgbaCache.set(texture, { source: src, rgba })
+  return rgba
 }

@@ -1,4 +1,4 @@
-import { FLAG_SAMPLED } from '../../visibility/types.ts';
+import { FLAG_SAMPLED } from '../../visibility/types.ts'
 
 /**
  * Tile rank a transparent pixel requests from the virtual textures, stored in the second
@@ -22,4 +22,4 @@ fn blendRequest(in:VSOut,gradX:vec2f,gradY:vec2f)->u32{
  }
  return blendPick(in,requestPick(in.position.xy,choices,uni.feedback),false,gradX,gradY);
 }
-`;
+`

@@ -1,4 +1,4 @@
-import type { JoltModule } from './joltModule.ts';
+import type { JoltModule } from './joltModule.ts'
 
 /** A module whose steps give `poses` and `events`, leave `diverged` non-finite and bring
  *  `recovered` soft bodies back to a good state (engine ids), and report nothing else. */
@@ -20,4 +20,4 @@ export const tickModule = (
     vehicles: () => new Uint32Array(0),
     soft: () => new Uint32Array(0),
     character: () => new Float32Array(1),
-  }) as unknown as JoltModule;
+  }) as unknown as JoltModule

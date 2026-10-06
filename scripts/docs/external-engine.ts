@@ -1,4 +1,4 @@
-import type { Plugin } from 'esbuild';
+import type { Plugin } from 'esbuild'
 
 /**
  * The lesson runtimes import the browser SDK by its source entry, `packages/sdk-browser/src/index.ts`,
@@ -12,9 +12,9 @@ export const externalEngine: Plugin = {
     bundler.onResolve({ filter: /packages\/sdk-browser\/src\/index\.ts$/ }, () => ({
       path: './engine.js',
       external: true,
-    }));
+    }))
   },
-};
+}
 
 /** Program files the portal shows as text (`site/app/migration/`): bundled as strings. */
-export const PROGRAM_TEXT = { '.txt': 'text', '.html': 'text' } as const;
+export const PROGRAM_TEXT = { '.txt': 'text', '.html': 'text' } as const

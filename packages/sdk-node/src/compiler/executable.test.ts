@@ -1,18 +1,18 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { currentCompilerExecutable } from './executable.mts';
-import { COMPILER_PLATFORMS } from './platform.mts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { currentCompilerExecutable } from './executable.mts'
+import { COMPILER_PLATFORMS } from './platform.mts'
 
 /** An installed package: the crate folder beside it carries no `Cargo.toml`. */
 async function installed(run: (crate: string) => void) {
-  const crate = await mkdtemp(join(tmpdir(), 'trillion3d-installed-'));
+  const crate = await mkdtemp(join(tmpdir(), 'trillion3d-installed-'))
   try {
-    run(join(crate, 'packages/asset-compiler-rust'));
+    run(join(crate, 'packages/asset-compiler-rust'))
   } finally {
-    await rm(crate, { recursive: true, force: true });
+    await rm(crate, { recursive: true, force: true })
   }
 }
 
@@ -35,7 +35,7 @@ test('a missing compiler in an installed package gives the actions and no reposi
         !error.message.includes('build:native') &&
         !error.message.includes('COMPILER_STALE'),
     ),
-  ));
+  ))
 
 // Behaviour: a machine the compiler is not built for is named, with the supported list.
 test('an unsupported platform is told the supported list', () =>
@@ -48,4 +48,4 @@ test('an unsupported platform is told the supported list', () =>
         COMPILER_PLATFORMS.every((machine) => error.message.includes(machine)) &&
         !error.message.includes('packages/'),
     ),
-  ));
+  ))

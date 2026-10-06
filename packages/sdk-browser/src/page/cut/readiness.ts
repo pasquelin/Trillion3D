@@ -1,6 +1,6 @@
-import type { ClusterStructureIndex } from '../selection/types.ts';
-import { createSparseInts } from './sparseInts.ts';
-import { baseOpen, type CullingLinks } from './links.ts';
+import type { ClusterStructureIndex } from '../selection/types.ts'
+import { createSparseInts } from './sparseInts.ts'
+import { baseOpen, type CullingLinks } from './links.ts'
 
 /**
  * THE RESIDENCY THE CUT RULE READS (`./rule.ts`), derived from the per-cluster residency of one
@@ -31,29 +31,29 @@ import { baseOpen, type CullingLinks } from './links.ts';
  *
  * A placement without group links has no replacement to name: each cluster stands for itself.
  */
-export type CutReadiness = ReturnType<typeof createCutReadiness>;
+export type CutReadiness = ReturnType<typeof createCutReadiness>
 
 /** What `writeOpen` targets between calls: nothing. */
-const NO_OUT = new Int32Array(0);
+const NO_OUT = new Int32Array(0)
 
 /** Where `writeOpen` writes, read by one callback built once: a walk allocates nothing. */
-const opened = { out: NO_OUT as Int32Array | Uint32Array, count: 0 };
+const opened = { out: NO_OUT as Int32Array | Uint32Array, count: 0 }
 const openNode = (node: number, value: number) => {
-  if (node < opened.count) opened.out[node] -= value;
-};
+  if (node < opened.count) opened.out[node] -= value
+}
 
 /** What one readiness holds between calls, the state its propagation reads and writes. */
-type SparseInts = ReturnType<typeof createSparseInts>;
+type SparseInts = ReturnType<typeof createSparseInts>
 
 interface ReadinessState {
-  resident: SparseInts;
-  groupReady: SparseInts;
+  resident: SparseInts
+  groupReady: SparseInts
   /** Per node, its clusters whose finer group is ready: what `openAt` takes off `baseOpen`. */
-  closed: SparseInts;
-  pending: number[];
-  work: number[];
-  touchedPages: number[];
-  touchedNodes: number[];
+  closed: SparseInts
+  pending: number[]
+  work: number[]
+  touchedPages: number[]
+  touchedNodes: number[]
 }
 
 /** A cluster's finer group became ready (`step` 1) or unready (-1): its nodes close or open. */
@@ -63,25 +63,25 @@ function markNodes(
   page: number,
   step: number,
 ) {
-  let node = links ? links.leafOfPage[page] : -1;
+  let node = links ? links.leafOfPage[page] : -1
   while (node >= 0) {
-    state.closed.add(node, step);
-    state.touchedNodes.push(node);
-    node = links!.parents[node];
+    state.closed.add(node, step)
+    state.touchedNodes.push(node)
+    node = links!.parents[node]
   }
 }
 
 /** Group `g` from what it reads: its members' residency and its outputs' own groups. */
 function groupOf(structure: ClusterStructureIndex, state: ReadinessState, g: number) {
-  const s = structure;
+  const s = structure
   for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++)
-    if (!state.resident.get(s.children[i])) return 0;
+    if (!state.resident.get(s.children[i])) return 0
   for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
     const output = s.outputs[i],
-      owner = s.owners[output];
-    if (owner < 0 ? !state.resident.get(output) : !state.groupReady.get(owner)) return 0;
+      owner = s.owners[output]
+    if (owner < 0 ? !state.resident.get(output) : !state.groupReady.get(owner)) return 0
   }
-  return 1;
+  return 1
 }
 
 /** Seeds the worklist from the pages `set` recorded and settles it on a fixed point. */
@@ -90,14 +90,14 @@ function propagate(
   links: CullingLinks | undefined,
   state: ReadinessState,
 ) {
-  const { pending, work, touchedPages, groupReady } = state;
+  const { pending, work, touchedPages, groupReady } = state
   for (const page of pending) {
     const owner = structure ? structure.owners[page] : -1,
-      source = structure ? structure.sources[page] : -1;
-    if (owner >= 0) work.push(owner);
+      source = structure ? structure.sources[page] : -1
+    if (owner >= 0) work.push(owner)
     else {
-      touchedPages.push(page);
-      if (source >= 0) work.push(source);
+      touchedPages.push(page)
+      if (source >= 0) work.push(source)
     }
   }
   // Readiness only flows DOWN the DAG, from a group to those that produced its members: the
@@ -105,19 +105,19 @@ function propagate(
   while (work.length) {
     const g = work.pop()!,
       value = groupOf(structure!, state, g),
-      s = structure!;
-    if (groupReady.set(g, value) === value) continue;
+      s = structure!
+    if (groupReady.set(g, value) === value) continue
     for (let i = s.childOffsets[g]; i < s.childOffsets[g + 1]; i++) {
-      const member = s.children[i];
-      touchedPages.push(member);
-      if (s.sources[member] >= 0) work.push(s.sources[member]);
+      const member = s.children[i]
+      touchedPages.push(member)
+      if (s.sources[member] >= 0) work.push(s.sources[member])
     }
     for (let i = s.outputOffsets[g]; i < s.outputOffsets[g + 1]; i++) {
-      touchedPages.push(s.outputs[i]);
-      markNodes(links, state, s.outputs[i], value ? 1 : -1);
+      touchedPages.push(s.outputs[i])
+      markNodes(links, state, s.outputs[i], value ? 1 : -1)
     }
   }
-  pending.length = 0;
+  pending.length = 0
 }
 
 /** The rule's `resident(c)`: the cluster's own group is ready, or, nothing replacing it, it is
@@ -127,8 +127,8 @@ function isReadyIn(
   state: ReadinessState,
   page: number,
 ) {
-  const owner = structure ? structure.owners[page] : -1;
-  return owner >= 0 ? state.groupReady.get(owner) !== 0 : state.resident.get(page) !== 0;
+  const owner = structure ? structure.owners[page] : -1
+  return owner >= 0 ? state.groupReady.get(owner) !== 0 : state.resident.get(page) !== 0
 }
 
 /** The rule's `resident(childGroup(c))`: the group that produced the cluster is ready. */
@@ -137,8 +137,8 @@ function isChildReadyIn(
   state: ReadinessState,
   page: number,
 ) {
-  const source = structure ? structure.sources[page] : -1;
-  return source < 0 || state.groupReady.get(source) !== 0;
+  const source = structure ? structure.sources[page] : -1
+  return source < 0 || state.groupReady.get(source) !== 0
 }
 
 /** Writes the first `count` open counts into `out`: the base counts less the closed ones. */
@@ -148,14 +148,14 @@ function writeOpenCounts(
   out: Int32Array | Uint32Array,
   count: number,
 ) {
-  if (!base) return void out.fill(0, 0, count);
-  out.set(base.subarray(0, count));
-  opened.out = out;
-  opened.count = count;
-  closed.forEach(openNode);
+  if (!base) return void out.fill(0, 0, count)
+  out.set(base.subarray(0, count))
+  opened.out = out
+  opened.count = count
+  closed.forEach(openNode)
   // The caller's view (the walk's WebAssembly memory) is not kept past the call.
-  opened.out = NO_OUT;
-  opened.count = 0;
+  opened.out = NO_OUT
+  opened.count = 0
 }
 
 export function createCutReadiness(
@@ -170,15 +170,15 @@ export function createCutReadiness(
     work: [],
     touchedPages: [],
     touchedNodes: [],
-  };
-  const { resident, groupReady, closed, pending, touchedPages, touchedNodes } = state;
-  const base = structure && links ? baseOpen(links, structure) : undefined;
-  const bytes = () => resident.byteLength + groupReady.byteLength + closed.byteLength;
+  }
+  const { resident, groupReady, closed, pending, touchedPages, touchedNodes } = state
+  const base = structure && links ? baseOpen(links, structure) : undefined
+  const bytes = () => resident.byteLength + groupReady.byteLength + closed.byteLength
   /** The bytes the last `settle` handed over. */
-  let reported = 0;
-  const isReady = (page: number) => isReadyIn(structure, state, page);
-  const isChildReady = (page: number) => isChildReadyIn(structure, state, page);
-  const openAt = (node: number) => (base ? base[node] - closed.get(node) : 0);
+  let reported = 0
+  const isReady = (page: number) => isReadyIn(structure, state, page)
+  const isChildReady = (page: number) => isChildReadyIn(structure, state, page)
+  const openAt = (node: number) => (base ? base[node] - closed.get(node) : 0)
   return {
     isReady,
     isChildReady,
@@ -188,17 +188,17 @@ export function createCutReadiness(
       writeOpenCounts(base, closed, out, count),
     /** Bytes of the state: what the resident pages hold, never the catalogue. */
     get hostBytes() {
-      return bytes();
+      return bytes()
     },
     /** True when nothing is resident and nothing is pending: the state reads as one just made. */
     get holdsNothing() {
-      return !pending.length && !resident.size && !groupReady.size && !closed.size;
+      return !pending.length && !resident.size && !groupReady.size && !closed.size
     },
     /** Records page `page`'s residency; `settle` propagates it. True when it changed. */
     set(page: number, value: boolean) {
-      if (resident.set(page, value ? 1 : 0) === (value ? 1 : 0)) return false;
-      pending.push(page);
-      return true;
+      if (resident.set(page, value ? 1 : 0) === (value ? 1 : 0)) return false
+      pending.push(page)
+      return true
     },
     /** Propagates what `set` recorded, then hands over the pages whose `isReady` or
      *  `isChildReady` changed and the nodes whose `openAt` changed, each possibly more than once:
@@ -206,15 +206,15 @@ export function createCutReadiness(
      *  what `hostBytes` gained, or lost when negative, since the last settle: what a running total
      *  of many readinesses adds, so that it is read without walking them (#483 rule 7). */
     settle(onPage?: (page: number) => void, onNode?: (node: number) => void) {
-      propagate(structure, links, state);
-      if (onPage) for (const page of touchedPages) onPage(page);
-      if (onNode) for (const node of touchedNodes) onNode(node);
-      touchedPages.length = 0;
-      touchedNodes.length = 0;
+      propagate(structure, links, state)
+      if (onPage) for (const page of touchedPages) onPage(page)
+      if (onNode) for (const node of touchedNodes) onNode(node)
+      touchedPages.length = 0
+      touchedNodes.length = 0
       const now = bytes(),
-        moved = now - reported;
-      reported = now;
-      return moved;
+        moved = now - reported
+      reported = now
+      return moved
     },
-  };
+  }
 }

@@ -1,10 +1,10 @@
-import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts';
-import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
-import { withScreenReflections } from './screenWgsl.ts';
-import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts';
-import { HIZ_TRACE_WGSL, REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts';
-import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts';
+import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
+import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts'
+import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
+import { withScreenReflections } from './screenWgsl.ts'
+import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts'
+import { HIZ_TRACE_WGSL, REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts'
+import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
 
 /** A sample is bounded: one ray per 2 × 2 block (`reflectionPhase`, the
  *  half-resolution trace), resolved by the bounded ray (`boundedReflectionRay`, `hizTraceWgsl.ts`):
@@ -44,15 +44,15 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
  if(sample.w<=0.0){return vec4f(0.0);}
  textureStore(reflectionOwners,vec2i(texel.xy),vec4u(textureLoad(vis,at,0).r,bitcast<u32>(z),0u,0u));
  return vec4f(${unbounded ? 'resolvedReflectionRay' : 'boundedReflectionRay'}(P,N,sample.xyz),sample.w);
-}`;
+}`
 
 /** The trace borrows the same lighting/proxy bindings as the final resolve; `unbounded`, a
  *  reference session's program (#33). */
 export function stochasticReflectionShader(shader: string, unbounded = false) {
-  const source = withScreenReflections(shader);
+  const source = withScreenReflections(shader)
   return (
     source +
     (source.includes('fn hashUnit(') ? '' : HASH_UNIT_WGSL) +
     stochasticReflectionWgsl(unbounded)
-  );
+  )
 }

@@ -1,13 +1,13 @@
-import { resolve } from 'node:path';
-import { boardMeshes, playOpening, SQUARE } from './chess-game.ts';
-import { chessPieces } from './chess-pieces.ts';
-import { usdMesh, writeUsdz } from './usdz.ts';
+import { resolve } from 'node:path'
+import { boardMeshes, playOpening, SQUARE } from './chess-game.ts'
+import { chessPieces } from './chess-pieces.ts'
+import { usdMesh, writeUsdz } from './usdz.ts'
 
 /**
  * `a-model-from-usdz`: a chess set written as one USD text layer — centimetres, Y up — its
  * thirty-two pieces instanced from six turned prototypes, packed as a USDZ.
  */
-const MATERIALS = '/ChessSet/Materials';
+const MATERIALS = '/ChessSet/Materials'
 
 function material(name: string, [r, g, b]: readonly number[], roughness: number, clearcoat = 0) {
   return `        def Material "${name}"
@@ -23,17 +23,17 @@ function material(name: string, [r, g, b]: readonly number[], roughness: number,
                 token outputs:surface
             }
         }
-`;
+`
 }
 
 /** Light and dark squares, a frame around them and a plinth under the whole board. */
 function board() {
-  const { light, dark, frame } = boardMeshes();
+  const { light, dark, frame } = boardMeshes()
   return [
     usdMesh('LightSquares', light, `${MATERIALS}/Maple`),
     usdMesh('DarkSquares', dark, `${MATERIALS}/Walnut`),
     usdMesh('Frame', frame, `${MATERIALS}/Frame`),
-  ].join('');
+  ].join('')
 }
 
 /** The pieces where 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 left them, each an instance of its shape. */
@@ -58,7 +58,7 @@ function pieces() {
         }
 `,
     )
-    .join('');
+    .join('')
 }
 
 /** Writes `chess-set.usdz` into `directory`. */
@@ -67,7 +67,7 @@ export async function writeChessSet(directory: string) {
   // the binding reaches the shape it references.
   const prototypes = Object.entries(chessPieces())
     .map(([name, mesh]) => `    class Xform "${name}"\n    {\n${usdMesh('Shape', mesh)}    }\n`)
-    .join('');
+    .join('')
   const layer = `#usda 1.0
 (
     defaultPrim = "ChessSet"
@@ -94,6 +94,6 @@ ${board()}    }
     {
 ${pieces()}    }
 }
-`;
-  await writeUsdz(resolve(directory, 'chess-set.usdz'), [['chess-set.usda', Buffer.from(layer)]]);
+`
+  await writeUsdz(resolve(directory, 'chess-set.usdz'), [['chess-set.usda', Buffer.from(layer)]])
 }

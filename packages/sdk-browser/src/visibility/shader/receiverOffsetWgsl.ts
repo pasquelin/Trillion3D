@@ -1,19 +1,14 @@
-import { SHADING_POINT_WGSL } from './shadingPoint.ts';
-import { CLASS_FEATURE } from './classWords.ts';
+import { SHADING_POINT_WGSL } from './shadingPoint.ts'
+import { CLASS_FEATURE } from './classWords.ts'
 import {
   FRAMEBUFFER_WGSL,
   PIXEL_BARY_WGSL,
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
-} from './pixelTriangleWgsl.ts';
-import {
-  BARY_WEIGHTS_WGSL,
-  EDGE_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-  normalAtlasWgsl,
-} from './pageWgsl.ts';
-import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts';
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
+} from './pixelTriangleWgsl.ts'
+import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
+import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
 
 /**
  * THE SHADOW RECEIVER OF A PIXEL (#1410): its shading-point offset and its triangle's plane, the
@@ -56,7 +51,7 @@ fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let plane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
  let offset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n[0]*lit,n[1]*lit,n[2]*lit);
  return ShadowReceiver(offset,select(vec3f(0.0),normalize(plane),dot(plane,plane)>0.0));
-}`;
+}`
 
 /** What the receiver offset binds, in binding order from the pass's first number: never the
  *  texture coordinates, which it does not read; the float pool's positions, and its normals from
@@ -69,13 +64,13 @@ export const RECEIVER_BINDINGS = [
   'indices',
   'positions',
   'normals',
-] as const;
+] as const
 
 /** The receiver offset with its bindings from `first` on (`RECEIVER_BINDINGS`) and the page
  *  geometry it decodes with: the one text the lighting and the shadow demand insert. */
 export const receiverOffsetWgsl = (first: number) => {
   const at = (name: (typeof RECEIVER_BINDINGS)[number]) =>
-    `@group(0) @binding(${first + RECEIVER_BINDINGS.indexOf(name)})`;
+    `@group(0) @binding(${first + RECEIVER_BINDINGS.indexOf(name)})`
   return `${PAGE_INFO_STRUCT_WGSL}
 ${SHADE_UNI_WGSL}
 ${at('vis')} var vis:texture_2d<u32>;
@@ -93,5 +88,5 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${VERTEX_NORMALS_WGSL}
 ${SHADING_POINT_WGSL}
 ${FRAMEBUFFER_WGSL}
-${RECEIVER_OFFSET_FN_WGSL}`;
-};
+${RECEIVER_OFFSET_FN_WGSL}`
+}

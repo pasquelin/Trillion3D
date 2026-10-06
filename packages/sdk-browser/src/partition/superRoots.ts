@@ -15,17 +15,17 @@
  * pixel past the target; where the cut, on a sphere astride the frustum's edge, would still descend,
  * the super-root stands in, as for any page not resident.
  */
-import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts';
-import type { SelectionUniforms } from '../gpu/core/selection.ts';
-import { projectedErrorAt } from '../page/selection/projection.ts';
-import { growSphere } from '../page/cut/bounds.ts';
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
-import { perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts';
-import type { PartitionOptics } from './plan.ts';
+import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import type { SelectionUniforms } from '../gpu/core/selection.ts'
+import { projectedErrorAt } from '../page/selection/projection.ts'
+import { growSphere } from '../page/cut/bounds.ts'
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts'
+import type { PartitionOptics } from './plan.ts'
 
 /** Five numbers per cell: the error its object roots are replaced at, then the sphere bounding the
  *  super-roots replacing them, `x, y, z, radius`, world space. */
-const SUPER_ROOT_FLOATS = 5;
+const SUPER_ROOT_FLOATS = 5
 
 /**
  * Each of `cells` cells' super-root bound, from the world DAG's `clusters` (`world-roots.dag`), an
@@ -38,36 +38,36 @@ export function cellSuperRoots(
   cellOf: (origin: number) => number,
   cells: number,
 ) {
-  const bounds = new Float64Array(cells * SUPER_ROOT_FLOATS);
+  const bounds = new Float64Array(cells * SUPER_ROOT_FLOATS)
   // Not seen yet: no error, an empty sphere (a negative radius, `growSphere`).
-  for (let at = 0; at < bounds.length; at += SUPER_ROOT_FLOATS) bounds[at + 4] = -1;
+  for (let at = 0; at < bounds.length; at += SUPER_ROOT_FLOATS) bounds[at + 4] = -1
   for (const { origin, parentError, parentSphere } of clusters) {
-    if (origin === null) continue;
-    const at = cellOf(origin) * SUPER_ROOT_FLOATS;
-    if (parentError === null || !parentSphere) bounds[at] = Infinity;
+    if (origin === null) continue
+    const at = cellOf(origin) * SUPER_ROOT_FLOATS
+    if (parentError === null || !parentSphere) bounds[at] = Infinity
     else if (bounds[at] !== Infinity) {
-      bounds[at] = Math.max(bounds[at], parentError);
-      growSphere(bounds, at + 1, parentSphere, 0);
+      bounds[at] = Math.max(bounds[at], parentError)
+      growSphere(bounds, at + 1, parentSphere, 0)
     }
   }
   // A cell absent from the DAG, or one an unreplaced object root keeps, is always near.
   for (let at = 0; at < bounds.length; at += SUPER_ROOT_FLOATS)
     if (bounds[at + 4] < 0 || bounds[at] === Infinity)
-      bounds.fill(Infinity, at, at + SUPER_ROOT_FLOATS);
-  return bounds;
+      bounds.fill(Infinity, at, at + SUPER_ROOT_FLOATS)
+  return bounds
 }
 
 /** What the cut projects with: its uniforms, and the frustum's diagonal slope (`lensSlope`). */
 export type SuperRootLens = Pick<
   SelectionUniforms,
   'pixelScale' | 'pixelError' | 'near' | 'perspective'
-> & { slope: number };
+> & { slope: number }
 
 /** The slope of the frustum's diagonal `optics` sees, as `cellReach` reads it; 0 for an
  *  orthographic camera, which projects no depth. */
 export function lensSlope(optics: PartitionOptics) {
-  if (optics.orthographic) return 0;
-  return perspectiveSlope(optics.fov, optics.zoom || 1) * Math.sqrt(1 + optics.aspect ** 2);
+  if (optics.orthographic) return 0
+  return perspectiveSlope(optics.fov, optics.zoom || 1) * Math.sqrt(1 + optics.aspect ** 2)
 }
 
 /**
@@ -81,13 +81,13 @@ export function cellSuperRootError(
   eye: ArrayLike<number>,
   lens: SuperRootLens,
 ) {
-  const at = cell * SUPER_ROOT_FLOATS;
-  const centre = hypot3(bounds[at + 1] - eye[0], bounds[at + 2] - eye[1], bounds[at + 3] - eye[2]);
-  const distance = Math.max(0, centre - bounds[at + 4]);
+  const at = cell * SUPER_ROOT_FLOATS
+  const centre = hypot3(bounds[at + 1] - eye[0], bounds[at + 2] - eye[1], bounds[at + 3] - eye[2])
+  const distance = Math.max(0, centre - bounds[at + 4])
   // On the diagonal a point at `distance` lies at depth `distance·cos θ`, `distance·sin θ` off axis.
   const cos = 1 / Math.sqrt(1 + lens.slope * lens.slope),
-    sin = lens.slope * cos;
-  const focal = Math.max(lens.pixelScale[0], lens.pixelScale[1]);
+    sin = lens.slope * cos
+  const focal = Math.max(lens.pixelScale[0], lens.pixelScale[1])
   return projectedErrorAt(
     bounds[at],
     distance * sin,
@@ -97,5 +97,5 @@ export function cellSuperRootError(
     focal,
     lens.near,
     lens.perspective ?? 1,
-  );
+  )
 }

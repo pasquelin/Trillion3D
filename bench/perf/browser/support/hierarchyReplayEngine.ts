@@ -22,31 +22,31 @@ import {
   updateCameraFrame,
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
-} from '../../../../packages/sdk-core/src/index.ts';
-import type { HierarchyOp, CameraSpec } from './hierarchyScenarios.ts';
+} from '../../../../packages/sdk-core/src/index.ts'
+import type { HierarchyOp, CameraSpec } from './hierarchyScenarios.ts'
 
 // Two reads the SDK does not export, written here on its own decomposition and
 // determinant, as `getWorldScale` and `matrixWorld.determinant() < 0` read them.
-const decomposed = { position: new Float64Array(3), quaternion: new Float64Array(4) };
+const decomposed = { position: new Float64Array(3), quaternion: new Float64Array(4) }
 function nodeWorldScale(
   out: Float64Array,
   tree: ReturnType<typeof createTransformTree>,
   node: number,
 ) {
-  updateNodeWorldMatrix(tree, node, true, false);
-  decomposeMatrix4(tree.worldViews[node], decomposed.position, decomposed.quaternion, out);
-  return out;
+  updateNodeWorldMatrix(tree, node, true, false)
+  decomposeMatrix4(tree.worldViews[node], decomposed.position, decomposed.quaternion, out)
+  return out
 }
 const nodeWorldMirrorsFaces = (tree: ReturnType<typeof createTransformTree>, node: number) =>
-  determinantMatrix4(tree.worldViews[node]) < 0;
+  determinantMatrix4(tree.worldViews[node]) < 0
 
 interface CameraRuntime {
-  spec: CameraSpec;
-  projection: Float64Array;
+  spec: CameraSpec
+  projection: Float64Array
 }
 
 const projectionNous = (output: Float64Array, s: CameraSpec) =>
-  perspectiveProjection(output, s.fov, s.aspect, s.near, s.zoom);
+  perspectiveProjection(output, s.fov, s.aspect, s.near, s.zoom)
 
 /** The same operations on the sdk-core hierarchy and camera. */
 export function joueNous(scenario: HierarchyOp[]): number[][] {
@@ -54,62 +54,62 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
     nodes: number[] = [],
     vivants: boolean[] = [],
     cameras: CameraRuntime[] = [],
-    sorties: number[][] = [];
+    sorties: number[][] = []
   const image = createCameraFrame(),
-    lecture = new Float64Array(13);
+    lecture = new Float64Array(13)
   scenario.forEach((op, rang) => {
-    const n = nodes[op[1]];
+    const n = nodes[op[1]]
     switch (op[0]) {
       case 'add': {
-        const [, id, parent, p, r, s, camera] = op;
-        const node = addTransformNode(tree, parent >= 0 ? nodes[parent] : -1);
-        setNodePosition(tree, node, p[0], p[1], p[2]);
-        setNodeQuaternion(tree, node, r[0], r[1], r[2], r[3]);
-        setNodeScale(tree, node, s[0], s[1], s[2]);
+        const [, id, parent, p, r, s, camera] = op
+        const node = addTransformNode(tree, parent >= 0 ? nodes[parent] : -1)
+        setNodePosition(tree, node, p[0], p[1], p[2])
+        setNodeQuaternion(tree, node, r[0], r[1], r[2], r[3])
+        setNodeScale(tree, node, s[0], s[1], s[2])
         if (camera) {
-          const runtime: CameraRuntime = { spec: camera, projection: new Float64Array(16) };
-          projectionNous(runtime.projection, camera);
-          cameras[id] = runtime;
+          const runtime: CameraRuntime = { spec: camera, projection: new Float64Array(16) }
+          projectionNous(runtime.projection, camera)
+          cameras[id] = runtime
         }
-        nodes[id] = node;
-        vivants[id] = true;
-        break;
+        nodes[id] = node
+        vivants[id] = true
+        break
       }
       case 'pose':
-        if (op[2]) setNodePosition(tree, n, op[2][0], op[2][1], op[2][2]);
-        if (op[3]) setNodeQuaternion(tree, n, op[3][0], op[3][1], op[3][2], op[3][3]);
-        if (op[4]) setNodeScale(tree, n, op[4][0], op[4][1], op[4][2]);
-        break;
+        if (op[2]) setNodePosition(tree, n, op[2][0], op[2][1], op[2][2])
+        if (op[3]) setNodeQuaternion(tree, n, op[3][0], op[3][1], op[3][2], op[3][3])
+        if (op[4]) setNodeScale(tree, n, op[4][0], op[4][1], op[4][2])
+        break
       case 'local':
-        setNodeLocalMatrix(tree, n, op[2]);
-        break;
+        setNodeLocalMatrix(tree, n, op[2])
+        break
       case 'auto':
-        setNodeAutoUpdate(tree, n, op[2]);
-        break;
+        setNodeAutoUpdate(tree, n, op[2])
+        break
       case 'rattache':
-        reparentTransformNode(tree, n, op[2] < 0 ? -1 : nodes[op[2]]);
-        break;
+        reparentTransformNode(tree, n, op[2] < 0 ? -1 : nodes[op[2]])
+        break
       case 'retire':
-        removeTransformNode(tree, n);
-        for (const id of op[2]) vivants[id] = false;
-        break;
+        removeTransformNode(tree, n)
+        for (const id of op[2]) vivants[id] = false
+        break
       case 'maj':
-        updateNodeMatrixWorld(tree, n, op[2]);
-        break;
+        updateNodeMatrixWorld(tree, n, op[2])
+        break
       case 'updateWorld':
-        updateNodeWorldMatrix(tree, n, op[2], op[3]);
-        break;
+        updateNodeWorldMatrix(tree, n, op[2], op[3])
+        break
       case 'vise':
-        lookAtNode(tree, n, op[2][0], op[2][1], op[2][2], op[3], !!cameras[op[1]]);
-        break;
+        lookAtNode(tree, n, op[2][0], op[2][1], op[2][2], op[3], !!cameras[op[1]])
+        break
       case 'objectif': {
-        const camera = cameras[op[1]];
-        camera.spec = { ...camera.spec, ...op[2] };
-        projectionNous(camera.projection, camera.spec);
-        break;
+        const camera = cameras[op[1]]
+        camera.spec = { ...camera.spec, ...op[2] }
+        projectionNous(camera.projection, camera.spec)
+        break
       }
       case 'lis':
-        nodeWorldPosition(lecture, tree, n);
+        nodeWorldPosition(lecture, tree, n)
         sorties.push([
           rang,
           ...lecture.subarray(0, 3),
@@ -118,31 +118,31 @@ export function joueNous(scenario: HierarchyOp[]): number[][] {
           ...nodeWorldDirection(lecture, tree, n, !!cameras[op[1]]).subarray(0, 3),
           nodeWorldMirrorsFaces(tree, n) ? 1 : 0,
           ...tree.worldViews[n],
-        ]);
-        break;
+        ])
+        break
       case 'image':
-        updateNodeMatrixWorld(tree, n);
+        updateNodeMatrixWorld(tree, n)
         updateCameraFrame(
           image,
           cameras[op[1]].projection,
           tree.worldViews[n],
           cameras[op[1]].spec.far,
-        );
+        )
         sorties.push([
           rang,
           ...cameras[op[1]].projection,
           ...image.view,
           ...image.viewProjection,
           ...image.planes,
-        ]);
-        break;
+        ])
+        break
       case 'instantane':
         sorties.push([
           rang,
           ...nodes.flatMap((node, id) => (vivants[id] ? [...tree.worldViews[node]] : [])),
-        ]);
-        break;
+        ])
+        break
     }
-  });
-  return sorties;
+  })
+  return sorties
 }

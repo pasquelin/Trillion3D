@@ -1,7 +1,7 @@
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
-import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts';
-import { waterCompositeShader } from './compositeWgsl.ts';
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
+import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
+import { waterCompositeShader } from './compositeWgsl.ts'
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
 
 /** With display layers (`../blend/displayFilter.ts`): masked, tint and added value as a normal
  *  layer's; then the reactive value (`historyWgsl.ts`), green alone at the water's coverage. The
@@ -25,4 +25,4 @@ fn waterRoute(pixel:vec4f,c:vec4f)->Route{
  let c=waterColor(pixel);
  let r=waterRoute(pixel,c);
  return RoutedReactive(vec4f(c.rgb,c.a*r.keep),r.tint,r.add,vec4f(0.0,1.0,0.0,c.a));
-}`;
+}`

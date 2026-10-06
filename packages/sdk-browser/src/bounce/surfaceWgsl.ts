@@ -1,20 +1,20 @@
-import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
-import { atlasBytes, atlasExtent } from './atlas.ts';
-import { surfaceCacheTexels } from './sizes.ts';
-import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
-import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
-import { PROXY_ALBEDO_WGSL, residentProxyWgsl } from './nodeWgsl.ts';
-import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
+import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
+import { atlasBytes, atlasExtent } from './atlas.ts'
+import { surfaceCacheTexels } from './sizes.ts'
+import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
+import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
+import { PROXY_ALBEDO_WGSL, residentProxyWgsl } from './nodeWgsl.ts'
+import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 
 /** Threads of a cache-pass workgroup: one texel per thread. */
-export const SURFACE_WORKGROUP = 64;
+export const SURFACE_WORKGROUP = 64
 /**
  * Cache bytes, the single source of truth: the pass that creates it and the binding plan
  * read the same formula. A texel holds a `vec4f` — the face's outgoing radiance and its flag —,
  * in an atlas (`atlas.ts`) whose texel count the pass reads from its span (`span.z`).
  */
 export const surfaceCacheBytes = (triangleCount: number) =>
-  atlasBytes(atlasExtent(surfaceCacheTexels(triangleCount)));
+  atlasBytes(atlasExtent(surfaceCacheTexels(triangleCount)))
 
 /**
  * Proxy surface cache (LR5): one outgoing radiance per triangle and per face.
@@ -67,4 +67,4 @@ fn updateSurface(@builtin(global_invocation_id) id:vec3u){
  let irradiance=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
  let width=textureDimensions(surface).x;
  textureStore(surface,vec2u(texel%width,texel/width),vec4f(proxyAlbedoOf(triangle)*irradiance*INVERSE_PI,1.0));
-}`;
+}`

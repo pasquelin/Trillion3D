@@ -1,10 +1,10 @@
-import type { ControlBase } from './base.ts';
-import { trackPointers } from './input.ts';
-import type { ControlPose } from './pose.ts';
-import { orbitOrientation } from './math.ts';
-import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import type { ControlBase } from './base.ts'
+import { trackPointers } from './input.ts'
+import type { ControlPose } from './pose.ts'
+import { orbitOrientation } from './math.ts'
+import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
 /**
  * THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw
@@ -18,28 +18,28 @@ import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
  */
 export interface HeadSettings {
   /** Radians turned per pixel of pointer motion; `null` (the default) is 0.002. */
-  lookSpeed: number | null;
+  lookSpeed: number | null
   /**
    * Lowest the head looks, in radians below the horizon counted negative (0 is the horizon);
    * by default just short of straight down. Raise it so a walker never looks into its own body.
    */
-  minPitch: number;
+  minPitch: number
   /** Highest the head looks, in radians above the horizon; by default just short of the zenith. */
-  maxPitch: number;
+  maxPitch: number
 }
 
 /** What a controller that looks through a person's eyes publishes: the head and its lock. */
 export interface PersonHead extends HeadSettings {
   /** Whether the pointer is locked to the view. */
-  locked(): boolean;
+  locked(): boolean
   /** Locks the pointer to the view. */
-  lock(): void;
+  lock(): void
   /** Frees the pointer. */
-  unlock(): void;
+  unlock(): void
 }
 
 /** Radians a head turns per pixel of pointer motion when its `lookSpeed` is `null`. */
-const HEAD_LOOK_SPEED = 0.002;
+const HEAD_LOOK_SPEED = 0.002
 
 /** A head's defaults: its own look speed, and a pitch range just short of either pole, where the
  *  yaw would lose its meaning. */
@@ -47,7 +47,7 @@ export const HEAD_DEFAULTS = {
   lookSpeed: null as number | null,
   minPitch: POLAR_EPSILON - Math.PI / 2,
   maxPitch: Math.PI / 2 - POLAR_EPSILON,
-};
+}
 
 export function createHead(
   pose: ControlPose,
@@ -55,27 +55,27 @@ export function createHead(
   base: ControlBase,
   settings: HeadSettings,
 ) {
-  const owner = surface.ownerDocument;
+  const owner = surface.ownerDocument
   const read = new Float64Array(4),
     written = new Float64Array(4),
     forward = new Float64Array(3),
-    angles = new Float64Array(3);
+    angles = new Float64Array(3)
   let pitch = 0,
     yaw = 0,
     lookX = 0,
-    lookY = 0;
+    lookY = 0
   // The head keeps its own two angles, but a host that re-poses the camera must be obeyed:
   // an orientation that is not the one last written is read back into yaw and pitch.
   const sample = () => {
-    pose.readOrientation(read);
-    if (read.every((value, i) => value === written[i])) return;
-    rotateByQuaternion(forward, read, 0, 0, -1);
+    pose.readOrientation(read)
+    if (read.every((value, i) => value === written[i])) return
+    rotateByQuaternion(forward, read, 0, 0, -1)
     // The elevation of the forward axis, by its height over its horizontal length: blind to the
     // length a quaternion off unit length gives it, and as well conditioned at the poles as at the
     // horizon, where the arc sine of the height alone loses half its digits.
-    pitch = Math.atan2(forward[1], hypot2(forward[0], forward[2]));
-    yaw = Math.atan2(-forward[0], -forward[2]);
-  };
+    pitch = Math.atan2(forward[1], hypot2(forward[0], forward[2]))
+    yaw = Math.atan2(-forward[0], -forward[2])
+  }
   const head = {
     locked: () => owner.pointerLockElement === surface,
     // A refused lock (asked too soon after Escape, or from a detached surface) is not an error:
@@ -87,45 +87,45 @@ export function createHead(
      * `orientation`; returns the yaw, in radians from -Z towards -X, that a walk follows.
      */
     turn(orientation: Float64Array) {
-      sample();
-      const speed = settings.lookSpeed ?? HEAD_LOOK_SPEED;
-      yaw -= lookX * speed;
-      pitch = clampNumber(pitch - lookY * speed, settings.minPitch, settings.maxPitch);
-      lookX = lookY = 0;
-      angles[1] = yaw;
-      angles[2] = Math.PI / 2 + pitch;
-      orbitOrientation(orientation, angles);
-      written.set(orientation);
-      return yaw;
+      sample()
+      const speed = settings.lookSpeed ?? HEAD_LOOK_SPEED
+      yaw -= lookX * speed
+      pitch = clampNumber(pitch - lookY * speed, settings.minPitch, settings.maxPitch)
+      lookX = lookY = 0
+      angles[1] = yaw
+      angles[2] = Math.PI / 2 + pitch
+      orbitOrientation(orientation, angles)
+      written.set(orientation)
+      return yaw
     },
-  };
+  }
   trackPointers(surface, base, {
     down: () => head.lock(),
     drag: (dx, dy) => {
-      if (head.locked()) return; // A locked pointer reports through `pointermove` below.
-      lookX += dx;
-      lookY += dy;
-      base.emit();
+      if (head.locked()) return // A locked pointer reports through `pointermove` below.
+      lookX += dx
+      lookY += dy
+      base.emit()
     },
-  });
+  })
   // The first move a browser reports once the lock is granted may carry the cursor's whole jump
   // to the middle of the screen: it is dropped, never turned into a look.
-  let fresh = false;
+  let fresh = false
   base.listen<PointerEvent>(surface, 'pointermove', (event) => {
-    if (!head.locked()) return;
-    if (fresh) return void (fresh = false);
-    lookX += event.movementX;
-    lookY += event.movementY;
-    base.emit();
-  });
+    if (!head.locked()) return
+    if (fresh) return void (fresh = false)
+    lookX += event.movementX
+    lookY += event.movementY
+    base.emit()
+  })
   base.listen<Event>(owner, 'pointerlockchange', () => {
-    fresh = head.locked();
-    base.emit();
-  });
-  base.undo(() => head.unlock());
+    fresh = head.locked()
+    base.emit()
+  })
+  base.undo(() => head.unlock())
   base.onPause(() => {
-    head.unlock();
-    lookX = lookY = 0;
-  });
-  return head;
+    head.unlock()
+    lookX = lookY = 0
+  })
+  return head
 }

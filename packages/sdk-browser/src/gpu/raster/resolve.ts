@@ -1,13 +1,13 @@
-import type { GpuRasterInput } from './types.ts';
-import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts';
-import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts';
-import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
+import type { GpuRasterInput } from './types.ts'
+import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
+import { VIS_UNIFORM_BYTES } from '../../webgpu/core/bindLayout.ts'
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 
 const RESOLVE_DEPTH = {
   format: 'depth32float' as const,
   depthWriteEnabled: true,
   depthCompare: DEPTH_COMPARE_OR_EQUAL,
-};
+}
 
 /**
  * Full-screen hardware resolves of the visibility buffer.
@@ -32,11 +32,11 @@ export function createRasterResolves(
       { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
-  });
-  const module = device.createShaderModule({ code });
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const vertex = { module, entryPoint: 'vs' };
-  const primitive = { topology: 'triangle-list' as const };
+  })
+  const module = device.createShaderModule({ code })
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+  const vertex = { module, entryPoint: 'vs' }
+  const primitive = { topology: 'triangle-list' as const }
   // Asked, compiled off the thread from now, the frames held on them, as the raster's own
   // (`raster.ts`).
   const makeFinal = (two: boolean) =>
@@ -52,17 +52,17 @@ export function createRasterResolves(
       },
       primitive,
       depthStencil: RESOLVE_DEPTH,
-    });
+    })
   const one = makeFinal(false).ask(),
-    two = makeFinal(true).ask();
+    two = makeFinal(true).ask()
   const hizOnly = preparedPipeline(device, {
     layout: pipelineLayout,
     vertex,
     fragment: { module, entryPoint: 'hiz', targets: [{ format: 'r32float' as const }] },
     primitive,
     depthStencil: RESOLVE_DEPTH,
-  }).ask();
-  let group: GPUBindGroup | undefined;
+  }).ask()
+  let group: GPUBindGroup | undefined
   const bound = (uniform: GPUBuffer) =>
     (group ??= device.createBindGroup({
       layout,
@@ -70,18 +70,18 @@ export function createRasterResolves(
         { binding: 0, resource: { buffer: work, offset: 0, size: targetBytes } },
         { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
       ],
-    }));
+    }))
   /** A colour attachment kept as the hardware raster left it. */
   const kept = (view: GPUTextureView) => ({
     view,
     loadOp: 'load' as const,
     storeOp: 'store' as const,
-  });
+  })
   const depthKept = (view: GPUTextureView) => ({
     view,
     depthLoadOp: 'load' as const,
     depthStoreOp: 'store' as const,
-  });
+  })
   /**
    * The two pass descriptors, kept as-is until the next set of views. They depend only on the
    * views, and the views change only on target resize — which releases this whole raster.
@@ -91,48 +91,47 @@ export function createRasterResolves(
     depthFor: GPUTextureView | undefined,
     hizFor: GPUTextureView | undefined,
     hizPass: GPURenderPassDescriptor | undefined,
-    finalPass: GPURenderPassDescriptor | undefined;
+    finalPass: GPURenderPassDescriptor | undefined
   /** Rebuilds both descriptors when, and only when, one of the three views has changed. */
   const refresh = (input: GpuRasterInput) => {
-    if (idsFor === input.idsView && depthFor === input.depthView && hizFor === input.hizView)
-      return;
-    idsFor = input.idsView;
-    depthFor = input.depthView;
-    hizFor = input.hizView;
+    if (idsFor === input.idsView && depthFor === input.depthView && hizFor === input.hizView) return
+    idsFor = input.idsView
+    depthFor = input.depthView
+    hizFor = input.hizView
     hizPass = {
       label: 'Trillion3D raster occluder hiz',
       colorAttachments: [kept(input.hizView!)],
       depthStencilAttachment: depthKept(input.depthView),
-    };
+    }
     finalPass = {
       label: 'Trillion3D raster resolve',
       colorAttachments: input.hizView
         ? [kept(input.idsView), kept(input.hizView)]
         : [kept(input.idsView)],
       depthStencilAttachment: depthKept(input.depthView),
-    };
-  };
+    }
+  }
   return {
     /** Compute occluder depth, in the level zero the pyramid reduces and in the depth
      *  buffer; no identifier. */
     encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
-      refresh(input);
-      const pass = encoder.beginRenderPass(hizPass!);
-      pass.setViewport(0, 0, width, height, 0, 1);
-      pass.setPipeline(hizOnly.get());
-      pass.setBindGroup(0, bound(input.uniform));
-      pass.draw(3);
-      pass.end();
+      refresh(input)
+      const pass = encoder.beginRenderPass(hizPass!)
+      pass.setViewport(0, 0, width, height, 0, 1)
+      pass.setPipeline(hizOnly.get())
+      pass.setBindGroup(0, bound(input.uniform))
+      pass.draw(3)
+      pass.end()
     },
     /** Closed frame: identifiers, depth, and the pyramid reset to the whole cut. */
     encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
-      refresh(input);
-      const pass = encoder.beginRenderPass(finalPass!);
-      pass.setViewport(0, 0, width, height, 0, 1);
-      pass.setPipeline((input.hizView ? two : one).get());
-      pass.setBindGroup(0, bound(input.uniform));
-      pass.draw(3);
-      pass.end();
+      refresh(input)
+      const pass = encoder.beginRenderPass(finalPass!)
+      pass.setViewport(0, 0, width, height, 0, 1)
+      pass.setPipeline((input.hizView ? two : one).get())
+      pass.setBindGroup(0, bound(input.uniform))
+      pass.draw(3)
+      pass.end()
     },
-  };
+  }
 }

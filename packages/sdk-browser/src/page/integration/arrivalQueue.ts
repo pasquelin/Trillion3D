@@ -27,25 +27,25 @@
  * spends from it, the drain spends the rest, and the WebGPU row records written after it
  * (`webgpu/row/claims.ts`) whatever is left.
  */
-import { planArrival, planArrivalHere, type ArrivalPlan } from './host.ts';
-import type { FrameBudget } from './frameBudget.ts';
+import { planArrival, planArrivalHere, type ArrivalPlan } from './host.ts'
+import type { FrameBudget } from './frameBudget.ts'
 
 /** What the queue requires of a target: a way to receive a page before the next render, and
  *  the catalogue sheet for the request — the integers the plan is deduced from, and nothing else. */
 export type ArrivalTarget = {
-  acceptPage?(url: string, array: Uint32Array, plan?: ArrivalPlan): void;
-  pageSpecs?(url: string): Int32Array | undefined;
-};
+  acceptPage?(url: string, array: Uint32Array, plan?: ArrivalPlan): void
+  pageSpecs?(url: string): Int32Array | undefined
+}
 
 type Arrival = {
-  target: ArrivalTarget;
-  url: string;
-  array: Uint32Array;
-  plan: ArrivalPlan | undefined;
-  ready: boolean;
-  done: boolean;
-  waits: number;
-};
+  target: ArrivalTarget
+  url: string
+  array: Uint32Array
+  plan: ArrivalPlan | undefined
+  ready: boolean
+  done: boolean
+  waits: number
+}
 
 /**
  * Drains an arrival may spend at the head of the queue without its plan having returned. Beyond
@@ -53,7 +53,7 @@ type Arrival = {
  * let a slow transport punch a hole in the frame. Two frames, not one: a message round-trip
  * easily fits in the time that separates the arrival from the next drain.
  */
-const MAX_PLAN_WAITS = 2;
+const MAX_PLAN_WAITS = 2
 
 export function createArrivalQueue(
   byteBudget: number,
@@ -61,32 +61,32 @@ export function createArrivalQueue(
   /** The frame's one integration budget, which its frame opens (`./frameBudget.ts`). */
   budget: FrameBudget,
 ) {
-  const items: Arrival[] = [];
+  const items: Arrival[] = []
   // The same page may be seen by the cache then by the end of its download: while it waits,
   // it is queued only once per target. The wait is forgotten as soon as it is delivered.
-  const waiting = new Map<ArrivalTarget, Set<string>>();
-  let head = 0;
+  const waiting = new Map<ArrivalTarget, Set<string>>()
+  let head = 0
   /** Delivers an arrival with its plan, and removes its address from the waiting pages. */
   const deliver = (item: Arrival) => {
-    item.done = true;
-    waiting.get(item.target)?.delete(item.url);
-    item.target.acceptPage?.(item.url, item.array, item.plan);
-  };
+    item.done = true
+    waiting.get(item.target)?.delete(item.url)
+    item.target.acceptPage?.(item.url, item.array, item.plan)
+  }
   return {
     /** Arrivals still waiting to drain. */
     get pending() {
-      return items.length - head;
+      return items.length - head
     },
     /** Queues a page for a target; without `acceptPage` it has nothing to do with it. */
     queue(target: ArrivalTarget, url: string, array: Uint32Array) {
-      if (!target.acceptPage) return false;
-      let urls = waiting.get(target);
+      if (!target.acceptPage) return false
+      let urls = waiting.get(target)
       if (!urls) {
-        urls = new Set();
-        waiting.set(target, urls);
+        urls = new Set()
+        waiting.set(target, urls)
       }
-      if (urls.has(url)) return false;
-      urls.add(url);
+      if (urls.has(url)) return false
+      urls.add(url)
       const item: Arrival = {
         target,
         url,
@@ -95,23 +95,23 @@ export function createArrivalQueue(
         ready: false,
         done: false,
         waits: 0,
-      };
-      items.push(item);
-      const planned = planArrival(url, array.length, target.pageSpecs?.(url));
+      }
+      items.push(item)
+      const planned = planArrival(url, array.length, target.pageSpecs?.(url))
       // A plan already there — nothing to plan, or no off-thread queue — is not a wait: it
       // makes the arrival deliverable as soon as it is queued. Only a message that actually left waits.
       if (planned instanceof Promise)
         void planned.then((plan) => {
           // An arrival already delivered — the frame stopped waiting for it — ignores its late plan.
-          if (item.done) return;
-          item.plan = plan;
-          item.ready = true;
-        });
+          if (item.done) return
+          item.plan = plan
+          item.ready = true
+        })
       else {
-        item.plan = planned;
-        item.ready = true;
+        item.plan = planned
+        item.ready = true
       }
-      return true;
+      return true
     },
     /**
      * Delivers arrivals up to the budget — at most `countBudget` pages, `byteBudget` index bytes
@@ -121,31 +121,31 @@ export function createArrivalQueue(
      */
     drain() {
       let bytes = 0,
-        count = 0;
+        count = 0
       while (head < items.length && bytes < byteBudget && count < countBudget && budget.admits()) {
-        const item = items[head];
+        const item = items[head]
         if (!item.ready) {
           // Order is priority: an arrival whose plan has not returned holds back those that
           // follow, for two drains, then is planned inline and goes through.
-          if (item.waits++ < MAX_PLAN_WAITS) break;
+          if (item.waits++ < MAX_PLAN_WAITS) break
           // Same function, same result, on the main thread: the contract fallback is synchronous.
           item.plan = planArrivalHere(
             item.url,
             item.array.length,
             item.target.pageSpecs?.(item.url),
-          );
+          )
         }
-        head++;
-        deliver(item);
-        budget.spend();
-        bytes += item.array.byteLength;
-        count++;
+        head++
+        deliver(item)
+        budget.spend()
+        bytes += item.array.byteLength
+        count++
       }
       if (head >= items.length) {
-        items.length = 0;
-        head = 0;
+        items.length = 0
+        head = 0
       }
-      return count;
+      return count
     },
-  };
+  }
 }

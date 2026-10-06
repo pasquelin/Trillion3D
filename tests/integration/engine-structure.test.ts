@@ -1,29 +1,29 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts';
-const core = new URL('../../packages/sdk-core/src/', import.meta.url);
-const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts'
+const core = new URL('../../packages/sdk-core/src/', import.meta.url)
+const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
 test('sdk-core excludes browser, UI and filesystem dependencies', async () => {
   const files = (await readdir(core, { recursive: true })).filter(
     // Tests and their fixtures are not shipped (`packages/sdk-core/package.json`, `files`).
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !name.endsWith('.fixture.ts'),
-  );
-  assert.ok(files.length > 100, 'the core package must be found');
+  )
+  assert.ok(files.length > 100, 'the core package must be found')
   for (const file of files) {
-    const text = await readFile(new URL(file, core), 'utf8');
+    const text = await readFile(new URL(file, core), 'utf8')
     assert.doesNotMatch(
       text,
       /from\s+['"](?:node:|react|electron|three|(?:\.\.\/)+sdk-browser|(?:\.\.\/)+sdk-node)/,
       file,
-    );
+    )
     assert.doesNotMatch(
       text,
       /\b(?:document|window|HTMLElement|HTMLCanvasElement|GPUDevice)\b/,
       file,
-    );
+    )
   }
-});
+})
 
 // THE CAMERA POSE CONTRACT BOUNDARY (`camera/world.ts`).
 //
@@ -40,7 +40,7 @@ const RESOLVENT: Record<string, string> = {
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
   'physics/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
-};
+}
 
 /** Who is allowed to touch a LOCAL camera pose, or resolve it via a Three accessor. */
 const POSE_LOCALE: Record<string, string> = {
@@ -59,7 +59,7 @@ const POSE_LOCALE: Record<string, string> = {
   'webgpu/pages/testScenes.fixture.ts': 'test scene builder: it poses the camera',
   'backend/autonomous/triangle.fixture.ts': 'test scene builder: it poses the camera',
   'webgpu/pages/twoPlaces.fixture.ts': 'test scene builder: it poses the camera',
-};
+}
 
 /**
  * Who READS the resolved world pose, and how it reaches them.
@@ -73,43 +73,43 @@ const LISENT_LA_POSE: Record<string, string> = {
   'camera/world.ts': 'the contract',
   'page/raster.fixture.ts': 'host-graph raster oracle — resolves (callable alone)',
   'physics/view.ts': 'the eye, facing and range the physics worker is sent, once they change',
-};
+}
 
-const RESOUT = /\.updateWorldMatrix\s*\(/;
-const RECEVEUR = String.raw`[A-Za-z_$]*[Cc]am[A-Za-z_$]*`;
+const RESOUT = /\.updateWorldMatrix\s*\(/
+const RECEVEUR = String.raw`[A-Za-z_$]*[Cc]am[A-Za-z_$]*`
 const POSE_DIRECTE = new RegExp(
   `${RECEVEUR}\\??\\.(?:position|quaternion|rotation|getWorldPosition|getWorldQuaternion|getWorldDirection|updateMatrixWorld)\\b`,
-);
-const WORLD_POSE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`);
+)
+const WORLD_POSE = new RegExp(`${RECEVEUR}\\??\\.matrixWorld(?:Inverse)?\\b`)
 
 /** Lines triggering a pattern, comments excluded. */
 const lignesFautives = (text: string, motif: RegExp): string[] =>
   text
     .split('\n')
     .filter((line) => !/^\s*(?:\/\/|\*|\/\*)/.test(line) && motif.test(line))
-    .map((line) => line.trim());
+    .map((line) => line.trim())
 
 test('camera pose is read only through the `camera/world.ts` contract', async () => {
   const fichiers = (await readdir(browser, { recursive: true })).filter(
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(name),
-  );
-  assert.ok(fichiers.length > 100, 'the browser package must be found');
-  const fuites: string[] = [];
+  )
+  assert.ok(fichiers.length > 100, 'the browser package must be found')
+  const fuites: string[] = []
   const regles: Array<[RegExp, Record<string, string>, string]> = [
     [RESOUT, RESOLVENT, 'resolves the pose itself instead of calling `resolveCameraWorld`'],
     [POSE_DIRECTE, POSE_LOCALE, 'touches a camera local pose outside the contract'],
     [WORLD_POSE, LISENT_LA_POSE, 'reads world pose without being a declared consumer'],
-  ];
+  ]
   for (const file of fichiers) {
-    const text = await readFile(new URL(file, browser), 'utf8');
+    const text = await readFile(new URL(file, browser), 'utf8')
     for (const [motif, permis, faute] of regles) {
-      if (permis[file]) continue;
-      for (const ligne of lignesFautives(text, motif)) fuites.push(`${file} ${faute} : ${ligne}`);
+      if (permis[file]) continue
+      for (const ligne of lignesFautives(text, motif)) fuites.push(`${file} ${faute} : ${ligne}`)
     }
   }
-  assert.deepEqual(fuites, [], `contract boundary declared in ${import.meta.url}`);
+  assert.deepEqual(fuites, [], `contract boundary declared in ${import.meta.url}`)
   const dead = [RESOLVENT, POSE_LOCALE, LISENT_LA_POSE].flatMap((list) =>
     Object.keys(list).filter((file) => !fichiers.includes(file)),
-  );
-  assert.deepEqual(dead, [], 'a declared file that no longer exists is removed from its list');
-});
+  )
+  assert.deepEqual(dead, [], 'a declared file that no longer exists is removed from its list')
+})

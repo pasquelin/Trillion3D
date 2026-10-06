@@ -75,6 +75,8 @@ pub(super) fn hash_open(mut f: File) -> Result<(String, Option<u8>, u64)> {
     }
     Ok((format!("{:x}", h.finalize()), last, bytes))
 }
+/// Whether `name` is one relative path segment, as a source file and its sidecar must be: no
+/// `/`, `\`, `..` or NUL, under 256 bytes. Anything else, a path escape first, is refused.
 pub(super) fn is_safe_source_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() < 256

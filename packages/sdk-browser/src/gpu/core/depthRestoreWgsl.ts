@@ -5,4 +5,4 @@ export const depthRestoreWgsl = (group: number) => `
 @fragment fn restore_fs(@builtin(position) p:vec4f)->@builtin(frag_depth) f32{
  return textureLoad(layer,vec2i(p.xy),0);
 }
-`;
+`

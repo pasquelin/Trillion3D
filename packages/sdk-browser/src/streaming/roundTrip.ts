@@ -12,11 +12,11 @@
  * jumps at every slow answer; a smaller one does the reverse.
  */
 export function createRoundTrip() {
-  let ms: number | undefined;
+  let ms: number | undefined
   return {
     ms: () => ms ?? 0,
     note(sample: number) {
-      if (sample >= 0 && sample < Infinity) ms = ms === undefined ? sample : ms + (sample - ms) / 8;
+      if (sample >= 0 && sample < Infinity) ms = ms === undefined ? sample : ms + (sample - ms) / 8
     },
-  };
+  }
 }

@@ -1,28 +1,24 @@
 import {
   createSceneProxyMotion,
   type ProxySync,
-} from '../../../sdk-core/src/scene/core/proxyMotion.ts';
-import { ensureProxyFits } from './limits.ts';
-import {
-  BOUNCE_SETTINGS,
-  PROXY_NODE_FLOATS,
-  type SceneProxy,
-} from '../../../sdk-core/src/index.ts';
-import { PROXY_LAYOUT_WORD, PROXY_REVISION_WORD, PROXY_STEPS_WORD } from './nodeWgsl.ts';
-import { PROXY_HEADER_WORDS } from './sizes.ts';
+} from '../../../sdk-core/src/scene/core/proxyMotion.ts'
+import { ensureProxyFits } from './limits.ts'
+import { BOUNCE_SETTINGS, PROXY_NODE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts'
+import { PROXY_LAYOUT_WORD, PROXY_REVISION_WORD, PROXY_STEPS_WORD } from './nodeWgsl.ts'
+import { PROXY_HEADER_WORDS } from './sizes.ts'
 
 /** Ranks of the columns a sync rewrites. */
 const TRIANGLES = 0,
   BOUNDS = 1,
   CHILDREN = 2,
   GROUPS = 3,
-  TRANSFORMS = 6;
+  TRANSFORMS = 6
 /** Columns motion rewrites whole: node bounds, node children and owner transforms. */
-const MOVING_COLUMNS = [BOUNDS, CHILDREN, TRANSFORMS];
+const MOVING_COLUMNS = [BOUNDS, CHILDREN, TRANSFORMS]
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
-  new Uint32Array(data.buffer as ArrayBuffer, data.byteOffset, data.length);
+  new Uint32Array(data.buffer as ArrayBuffer, data.byteOffset, data.length)
 
 /** Resident albedo buffer: written once, at prepare, never touched by a frame. */
 function albedoBuffer(device: GPUDevice, data: Uint32Array) {
@@ -33,20 +29,20 @@ function albedoBuffer(device: GPUDevice, data: Uint32Array) {
     size: Math.max(4, data.byteLength),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     mappedAtCreation: true,
-  });
-  new Uint32Array(buffer.getMappedRange()).set(data);
-  buffer.unmap();
-  return buffer;
+  })
+  new Uint32Array(buffer.getMappedRange()).set(data)
+  buffer.unmap()
+  return buffer
 }
 
-export type GpuBounceProxy = ReturnType<typeof createGpuBounceProxy>;
+export type GpuBounceProxy = ReturnType<typeof createGpuBounceProxy>
 
 /** Canonical triangles and owner poses in one binding. Motion refits the existing BVH in place;
  *  immutable triangles and albedo never expand with the number of owners. */
 export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
-  ensureProxyFits(device, proxy);
-  const motion = createSceneProxyMotion(proxy);
-  const data = motion.data;
+  ensureProxyFits(device, proxy)
+  const motion = createSceneProxyMotion(proxy)
+  const data = motion.data
   const columns = [
     words(data?.triangles ?? new Float32Array(0)),
     words(data?.nodeBounds ?? new Float32Array(0)),
@@ -55,36 +51,36 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     words(data?.groupOffsets ?? new Uint32Array(0)),
     words(data?.owners ?? new Uint32Array(0)),
     words(motion.transforms),
-  ];
+  ]
   // Start rank of each column, counted from the first word after the header: that is what the
   // shader adds to a triangle or node index.
-  const starts: number[] = [];
-  let total = 0;
+  const starts: number[] = []
+  let total = 0
   for (const column of columns) {
-    starts.push(total);
-    total += column.length;
+    starts.push(total)
+    total += column.length
   }
   const buffer = device.createBuffer({
     label: 'Trillion3D resident proxy v2',
     size: (PROXY_HEADER_WORDS + Math.max(4, total)) * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     mappedAtCreation: true,
-  });
-  const mapped = new Uint32Array(buffer.getMappedRange());
+  })
+  const mapped = new Uint32Array(buffer.getMappedRange())
   // Node count is read from the bounds column, as `arrayLength` did before the three columns
   // fit in one buffer: the same value, from the same source.
-  mapped[PROXY_LAYOUT_WORD] = columns[BOUNDS].length / PROXY_NODE_FLOATS;
+  mapped[PROXY_LAYOUT_WORD] = columns[BOUNDS].length / PROXY_NODE_FLOATS
   for (let index = 0; index < columns.length; index++) {
-    mapped[PROXY_LAYOUT_WORD + 1 + index] = starts[index];
-    mapped.set(columns[index], PROXY_HEADER_WORDS + starts[index]);
+    mapped[PROXY_LAYOUT_WORD + 1 + index] = starts[index]
+    mapped.set(columns[index], PROXY_HEADER_WORDS + starts[index])
   }
   /** Visited nodes per ray: the built tree's bound, plus each node motion let into a ray. */
-  const steps = () => BOUNCE_SETTINGS.traversalSteps + motion.grownNodes;
-  mapped[PROXY_STEPS_WORD] = steps();
-  buffer.unmap();
-  const albedo = albedoBuffer(device, data?.albedo ?? new Uint32Array(0));
+  const steps = () => BOUNCE_SETTINGS.traversalSteps + motion.grownNodes
+  mapped[PROXY_STEPS_WORD] = steps()
+  buffer.unmap()
+  const albedo = albedoBuffer(device, data?.albedo ?? new Uint32Array(0))
   // Revision and steps, written after each change.
-  const tail = new Uint32Array(2);
+  const tail = new Uint32Array(2)
   /** A column, or the word range `[from, to)` of it. */
   const write = (index: number, from = 0, to = columns[index].length) =>
     device.queue.writeBuffer(
@@ -93,14 +89,14 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
       columns[index],
       from,
       to - from,
-    );
+    )
   return {
     buffer,
     albedo,
     /** What the proxy actually occupies in GPU memory, published in the diagnostic. */
     bytes: (PROXY_HEADER_WORDS + Math.max(4, total)) * 4 + (data?.albedo.byteLength ?? 0),
     get hostBytes() {
-      return motion.hostBytes;
+      return motion.hostBytes
     },
     triangleCount: proxy.triangles,
     nodeCount: proxy.nodes,
@@ -109,41 +105,41 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     changedTriangles: motion.changedTriangles,
     /** Some leaf is traced under its owners' poses. */
     get dynamic() {
-      return motion.dynamic;
+      return motion.dynamic
     },
     /** Owned leaves wait for their still streak: the host keeps syncing each frame. */
     get settling() {
-      return motion.settling;
+      return motion.settling
     },
     get revision() {
-      return motion.revision;
+      return motion.revision
     },
     /** Visited nodes a ray may take, as the shader reads it. */
     get steps() {
-      return steps();
+      return steps()
     },
     /** Uploads only what changed: the triangles and leaf flags a settle or a resume rewrote, and on
      *  motion the tree and the poses. A leaf never posed away from bind uploads no triangle. */
     sync(worldOf: (source: number) => ArrayLike<number> | undefined): ProxySync {
-      const change = motion.sync(worldOf);
-      if (!change) return null;
-      const spans = motion.take();
-      if (spans.triangles) write(TRIANGLES, spans.triangles[0] * 9, spans.triangles[1] * 9);
-      if (spans.groups) write(GROUPS, ...spans.groups);
-      if (change === 'moved') for (const index of MOVING_COLUMNS) write(index);
-      else if (spans.childWords) write(CHILDREN, ...spans.childWords);
-      tail[0] = motion.revision;
-      tail[1] = steps();
-      device.queue.writeBuffer(buffer, PROXY_REVISION_WORD * 4, tail);
-      return change;
+      const change = motion.sync(worldOf)
+      if (!change) return null
+      const spans = motion.take()
+      if (spans.triangles) write(TRIANGLES, spans.triangles[0] * 9, spans.triangles[1] * 9)
+      if (spans.groups) write(GROUPS, ...spans.groups)
+      if (change === 'moved') for (const index of MOVING_COLUMNS) write(index)
+      else if (spans.childWords) write(CHILDREN, ...spans.childWords)
+      tail[0] = motion.revision
+      tail[1] = steps()
+      device.queue.writeBuffer(buffer, PROXY_REVISION_WORD * 4, tail)
+      return change
     },
     get errorMetres() {
-      return motion.errorMetres;
+      return motion.errorMetres
     },
     cellMetres: proxy.cellMetres,
     dispose() {
-      buffer.destroy();
-      albedo.destroy();
+      buffer.destroy()
+      albedo.destroy()
     },
-  };
+  }
 }

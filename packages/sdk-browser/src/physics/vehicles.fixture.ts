@@ -1,24 +1,24 @@
-import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { Material } from '../../../sdk-core/src/world/material/material.ts';
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { jointRig, type Rig } from './joints.fixture.ts';
+import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts'
+import { Material } from '../../../sdk-core/src/world/material/material.ts'
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
+import { jointRig, type Rig } from './joints.fixture.ts'
 import {
   vehicle,
   type VehicleInput,
   type VehicleKind,
   type VehicleOptions,
-} from '../../../sdk-core/src/physics/vehicle.ts';
+} from '../../../sdk-core/src/physics/vehicle.ts'
 
 /** Each kind's body — size, mass, wheels `[x, y, z]` from its centre, wheel radius and width —
  *  drawn from the machines of `VEHICLE_SPECS`. */
 const MACHINES: Record<
   VehicleKind,
   {
-    size: [number, number, number];
-    mass: number;
-    wheels: number[][];
-    radius: number;
-    width: number;
+    size: [number, number, number]
+    mass: number
+    wheels: number[][]
+    radius: number
+    width: number
   }
 > = {
   car: {
@@ -42,10 +42,10 @@ const MACHINES: Record<
     radius: 0.4,
     width: 0.6,
   },
-};
+}
 
 /** The released pedals and wheel. */
-export const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false };
+export const RELEASED: VehicleInput = { throttle: 0, brake: 0, steer: 0, handbrake: false }
 
 /**
  * A vehicle of `kind` on `rig`, facing −z, its body placed at `x, z` resting on its wheels on
@@ -57,34 +57,34 @@ export function placeVehicle(
   options: Partial<VehicleOptions> = {},
   [x, y, z] = [0, 0, 0],
 ) {
-  const machine = MACHINES[kind];
-  const body = new Mesh(box(...machine.size), new Material('meshStandard'));
-  body.physics = { mass: machine.mass };
-  body.position.set(x, y + machine.radius - machine.wheels[0][1], z);
+  const machine = MACHINES[kind]
+  const body = new Mesh(box(...machine.size), new Material('meshStandard'))
+  body.physics = { mass: machine.mass }
+  body.position.set(x, y + machine.radius - machine.wheels[0][1], z)
   const wheels = machine.wheels.map(([x, y, z]) => {
     const wheel = new Mesh(
       cylinder(machine.radius, machine.radius, machine.width),
       new Material('meshStandard'),
-    );
-    wheel.position.set(x, y, z);
-    wheel.rotation.z = Math.PI / 2;
-    body.add(wheel);
-    return wheel;
-  });
-  rig.scene.add(body);
-  const driven = vehicle[kind](body, { wheels, ...options });
-  rig.driven.add(driven);
-  return { body, wheels, machine, vehicle: driven };
+    )
+    wheel.position.set(x, y, z)
+    wheel.rotation.z = Math.PI / 2
+    body.add(wheel)
+    return wheel
+  })
+  rig.scene.add(body)
+  const driven = vehicle[kind](body, { wheels, ...options })
+  rig.driven.add(driven)
+  return { body, wheels, machine, vehicle: driven }
 }
 
 /** A rig on flat stone 2 km wide, its top at 0. */
 export async function flatRig() {
-  const rig = await jointRig();
-  const ground = new Mesh(box(2000, 1, 2000), new Material('meshStandard', { physics: 'stone' }));
-  ground.position.set(0, -0.5, 0);
-  ground.physics = 'static';
-  rig.scene.add(ground);
-  return rig;
+  const rig = await jointRig()
+  const ground = new Mesh(box(2000, 1, 2000), new Material('meshStandard', { physics: 'stone' }))
+  ground.position.set(0, -0.5, 0)
+  ground.physics = 'static'
+  rig.scene.add(ground)
+  return rig
 }
 
 /**
@@ -92,9 +92,9 @@ export async function flatRig() {
  * facing −z. `options` goes over its spec.
  */
 export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOptions> = {}) {
-  const rig = await flatRig();
-  const { body, wheels, vehicle: driven } = placeVehicle(rig, kind, options);
-  rig.run(90);
+  const rig = await flatRig()
+  const { body, wheels, vehicle: driven } = placeVehicle(rig, kind, options)
+  rig.run(90)
   return {
     ...rig,
     body,
@@ -104,35 +104,35 @@ export async function vehicleRig(kind: VehicleKind, options: Partial<VehicleOpti
     vehicle: driven,
     /** Drives with `input` for `seconds`. */
     hold(input: Partial<VehicleInput>, seconds: number) {
-      driven.drive({ ...RELEASED, ...input });
-      rig.run(Math.round(seconds * 60));
+      driven.drive({ ...RELEASED, ...input })
+      rig.run(Math.round(seconds * 60))
     },
     /** The body's roll about its forward axis, radians: its right side's rise. */
     roll() {
-      const [x, y, z, w] = rig.turn(body);
-      return Math.asin(2 * (x * y + w * z));
+      const [x, y, z, w] = rig.turn(body)
+      return Math.asin(2 * (x * y + w * z))
     },
     /** Steers with `input` for `seconds`: the turn's lateral acceleration `v × yaw rate` over g,
      *  as a lean `atan(a / g)`, radians. */
     turning(input: Partial<VehicleInput>, seconds: number) {
-      const yaw = rig.yaw(body);
-      driven.drive({ ...RELEASED, ...input });
-      rig.run(Math.round(seconds * 60));
+      const yaw = rig.yaw(body)
+      driven.drive({ ...RELEASED, ...input })
+      rig.run(Math.round(seconds * 60))
       const turned = Math.abs(
         Math.atan2(Math.sin(rig.yaw(body) - yaw), Math.cos(rig.yaw(body) - yaw)),
-      );
-      return Math.atan((driven.speed * turned) / seconds / 9.81);
+      )
+      return Math.atan((driven.speed * turned) / seconds / 9.81)
     },
     /** How far the body's up leans from the world's, radians. */
     tilt() {
-      const [x, , z] = rig.turn(body);
-      return 2 * Math.asin(Math.min(1, Math.hypot(x, z)));
+      const [x, , z] = rig.turn(body)
+      return 2 * Math.asin(Math.min(1, Math.hypot(x, z)))
     },
-  };
+  }
 }
 
 /** A vehicle rig (`vehicleRig`). */
-export type VehicleRig = Awaited<ReturnType<typeof vehicleRig>>;
+export type VehicleRig = Awaited<ReturnType<typeof vehicleRig>>
 
 /** A car of `options` from standstill: `watch` read after every step of `seconds` of `input`. */
 export async function driveCar(
@@ -141,10 +141,10 @@ export async function driveCar(
   seconds: number,
   watch: (rig: VehicleRig) => void = () => {},
 ) {
-  const rig = await vehicleRig('car', options);
+  const rig = await vehicleRig('car', options)
   for (let s = 0; s < seconds * 60; s++) {
-    rig.hold(input, 1 / 60);
-    watch(rig);
+    rig.hold(input, 1 / 60)
+    watch(rig)
   }
-  return rig;
+  return rig
 }

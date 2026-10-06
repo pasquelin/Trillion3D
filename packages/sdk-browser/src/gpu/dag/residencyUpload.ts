@@ -1,10 +1,10 @@
-import type { ResidencyChanges } from '../core/selection.ts';
-import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts';
-import { childBase, residentBase, residentWords } from './layout.ts';
-import { grown } from '../../page/cut/sparseInts.ts';
-import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
-import { createDagReadiness } from './readiness.ts';
-import { writeParts, type DagParts } from './split.ts';
+import type { ResidencyChanges } from '../core/selection.ts'
+import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts'
+import { childBase, residentBase, residentWords } from './layout.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
+import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
+import { createDagReadiness } from './readiness.ts'
+import { writeParts, type DagParts } from './split.ts'
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
@@ -22,21 +22,21 @@ export function updateResidencyBits(
   touched: Int32Array,
 ) {
   let count = 0,
-    last = -1;
+    last = -1
   const apply = (j: number) => {
     const word = j >>> 5,
       mask = 1 << (j & 31),
-      current = bits[base + word];
-    const value = next(j);
-    if (((current & mask) !== 0) === value) return;
-    bits[base + word] = value ? current | mask : current & ~mask;
-    if (word === last) return;
-    touched[count++] = word;
-    last = word;
-  };
-  if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i]);
-  else for (let j = 0; j < pageCount; j++) apply(j);
-  return count;
+      current = bits[base + word]
+    const value = next(j)
+    if (((current & mask) !== 0) === value) return
+    bits[base + word] = value ? current | mask : current & ~mask
+    if (word === last) return
+    touched[count++] = word
+    last = word
+  }
+  if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i])
+  else for (let j = 0; j < pageCount; j++) apply(j)
+  return count
 }
 
 /**
@@ -47,28 +47,28 @@ export function updateResidencyBits(
  * catalogue.
  */
 export function createDagResidencyUpload(resources: {
-  device: GPUDevice;
-  packed: PackedDag;
-  coldParts: DagParts;
-  nodeParts: DagParts;
+  device: GPUDevice
+  packed: PackedDag
+  coldParts: DagParts
+  nodeParts: DagParts
 }) {
   const { device, packed, coldParts, nodeParts } = resources,
-    pageCount = packed.pageCount;
-  const readiness = createDagReadiness(packed);
+    pageCount = packed.pageCount
+  const readiness = createDagReadiness(packed)
   // The bits extend the cold records in their buffer: one view, mirror and write source.
   const bits = new Uint32Array(
     packed.pageCones.buffer,
     packed.pageCones.byteOffset,
     packed.pageCones.length,
-  );
+  )
   /** Words or nodes the last apply changed, and the ranges that cover them. */
-  let touched = new Int32Array(8);
-  const ranges = new Int32Array(RESIDENCY_RULE.cap * 2);
-  const changed = { pages: new Int32Array(8), count: 0, sorted: true };
+  let touched = new Int32Array(8)
+  const ranges = new Int32Array(RESIDENCY_RULE.cap * 2)
+  const changed = { pages: new Int32Array(8), count: 0, sorted: true }
   const sets = [
     { values: readiness.isReady, base: residentBase(pageCount) },
     { values: readiness.isChildReady, base: childBase(pageCount) },
-  ];
+  ]
   /** One write per contiguous range of the `count` sorted ranks of `touched`, `stride` words each
    *  from `base`: a thousand small writes are not worth the single one they replace. */
   const upload = (
@@ -78,10 +78,10 @@ export function createDagResidencyUpload(resources: {
     stride: number,
     count: number,
   ) => {
-    const spans = coalesceRanges(touched, count, ranges, RESIDENCY_RULE);
+    const spans = coalesceRanges(touched, count, ranges, RESIDENCY_RULE)
     for (let r = 0; r < spans; r++) {
       const from = (base + ranges[r * 2] * stride) * 4,
-        bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4;
+        bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4
       writeParts(
         device,
         target,
@@ -89,14 +89,14 @@ export function createDagResidencyUpload(resources: {
         source.buffer as ArrayBuffer,
         source.byteOffset + from,
         bytes,
-      );
+      )
     }
-  };
+  }
   // Nothing is resident yet: both bit sets and every node count are written whole, once, from the
   // readiness's state with nothing resident; from then on only what moves is.
-  const words = new Int32Array(Math.max(1, residentWords(pageCount)));
+  const words = new Int32Array(Math.max(1, residentWords(pageCount)))
   for (const { values, base } of sets)
-    updateResidencyBits(values, pageCount, bits, base, undefined, words);
+    updateResidencyBits(values, pageCount, bits, base, undefined, words)
   const whole = (target: DagParts, source: Float32Array, from: number, words: number) =>
     writeParts(
       device,
@@ -105,22 +105,22 @@ export function createDagResidencyUpload(resources: {
       source.buffer as ArrayBuffer,
       source.byteOffset + from * 4,
       words * 4,
-    );
-  whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount));
-  whole(nodeParts, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
+    )
+  whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount))
+  whole(nodeParts, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS)
   const apply = (
     next: ArrayLike<number>,
     changes?: ResidencyChanges,
     moved?: (page: number) => void,
   ) => {
-    const settled = readiness.apply(next, changes);
-    if (!settled.pages.length && !settled.nodes.length) return false;
-    if (moved) for (const page of settled.pages) moved(page);
-    const most = Math.max(settled.pages.length, settled.nodes.length);
-    if (changed.pages.length < most) changed.pages = grown(changed.pages, most);
-    if (touched.length < most) touched = grown(touched, most);
-    changed.pages.set(settled.pages);
-    changed.count = settled.pages.length;
+    const settled = readiness.apply(next, changes)
+    if (!settled.pages.length && !settled.nodes.length) return false
+    if (moved) for (const page of settled.pages) moved(page)
+    const most = Math.max(settled.pages.length, settled.nodes.length)
+    if (changed.pages.length < most) changed.pages = grown(changed.pages, most)
+    if (touched.length < most) touched = grown(touched, most)
+    changed.pages.set(settled.pages)
+    changed.count = settled.pages.length
     for (const { values, base } of sets)
       upload(
         coldParts,
@@ -128,11 +128,11 @@ export function createDagResidencyUpload(resources: {
         base,
         1,
         updateResidencyBits(values, pageCount, bits, base, changed, touched),
-      );
-    touched.set(settled.nodes);
-    upload(nodeParts, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
-    return true;
-  };
+      )
+    touched.set(settled.nodes)
+    upload(nodeParts, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length)
+    return true
+  }
   return Object.defineProperties(apply, {
     /** Bytes of the host tables: the readiness and this upload's change lists. */
     hostBytes: {
@@ -143,8 +143,8 @@ export function createDagResidencyUpload(resources: {
     isReady: { value: readiness.isReady },
     isChildReady: { value: readiness.isChildReady },
   }) as typeof apply & {
-    readonly hostBytes: number;
-    readonly isReady: (page: number) => boolean;
-    readonly isChildReady: (page: number) => boolean;
-  };
+    readonly hostBytes: number
+    readonly isReady: (page: number) => boolean
+    readonly isChildReady: (page: number) => boolean
+  }
 }

@@ -3,29 +3,29 @@ import {
   CHARACTER_WORDS,
   GROUND,
   OP,
-} from '../../../sdk-core/src/physics/index.ts';
-import { arc } from '../../../sdk-core/src/collision/characterMove.ts';
+} from '../../../sdk-core/src/physics/index.ts'
+import { arc } from '../../../sdk-core/src/collision/characterMove.ts'
 import {
   createDrive,
   driveAtRest,
   driveTick,
-} from '../../../sdk-core/src/collision/characterDrive.ts';
+} from '../../../sdk-core/src/collision/characterDrive.ts'
 import {
   RESHAPING,
   type CharacterInput,
   type CharacterSettings,
-} from '../../../sdk-core/src/collision/characterSettings.ts';
+} from '../../../sdk-core/src/collision/characterSettings.ts'
 
 /** What the page hears of the character after a tick (`PhysicsResults.character`). */
 export interface CharacterReport {
   /** Metres per second relative to what the body stands on. Its feet come apart, as a record
    *  drawn as the bodies are (`PhysicsResults.feet`). */
-  velocity: [number, number, number];
-  grounded: boolean;
+  velocity: [number, number, number]
+  grounded: boolean
   /** The downward speed of the tick's landing, m/s; -1 when it did not land. */
-  landed: number;
+  landed: number
   /** Jumps the tick took. */
-  jumps: number;
+  jumps: number
 }
 
 /**
@@ -49,114 +49,114 @@ export function createCharacterDriver() {
     events = { onJump: () => jumps++ },
     // The step's CHARACTER_MOVE, written in place: the worker copies it before the next.
     move = new Uint32Array(CHARACTER_MOVE_WORDS),
-    moveFloats = new Float32Array(move.buffer);
+    moveFloats = new Float32Array(move.buffer)
   let settings: CharacterSettings | null = null,
     presses = 0,
     landed = -1,
     jumps = 0,
     settling = false,
-    reported = true;
+    reported = true
 
   const create = (at: ArrayLike<number>) => {
     const s = settings!,
       words = new Uint32Array(CHARACTER_WORDS),
-      floats = new Float32Array(words.buffer);
-    words[0] = OP.character;
-    floats.set([s.capsuleRadius, s.capsuleHeight, s.maxSlope, s.stepHeight, s.mass], 1);
-    floats.set([s.pushStrength, at[0], at[1], at[2]], 6);
-    feet.set(at);
-    [drive.grounded, drive.sinceGround, settling] = [false, Infinity, true];
-    drive.velocity.fill(0);
-    return words;
-  };
+      floats = new Float32Array(words.buffer)
+    words[0] = OP.character
+    floats.set([s.capsuleRadius, s.capsuleHeight, s.maxSlope, s.stepHeight, s.mass], 1)
+    floats.set([s.pushStrength, at[0], at[1], at[2]], 6)
+    feet.set(at)
+    ;[drive.grounded, drive.sinceGround, settling] = [false, Infinity, true]
+    drive.velocity.fill(0)
+    return words
+  }
   const still = () =>
     driveAtRest(drive, input) &&
     ground.every((v) => v === 0) &&
-    drive.sinceJump > settings!.jumpBuffer;
+    drive.sinceJump > settings!.jumpBuffer
 
   return {
     /** The page's body: `next` settings (null removes it), `at` its feet when it is put there.
      *  Returns the words to run before the next step, or null when nothing changes in the module. */
     configure(next: CharacterSettings | null, at: ArrayLike<number> | null) {
       const reshaped =
-        !next || !settings || RESHAPING.some((name) => next[name] !== settings![name]);
-      settings = next;
+        !next || !settings || RESHAPING.some((name) => next[name] !== settings![name])
+      settings = next
       if (!next) {
         // The next body counts its jump presses from zero.
-        presses = 0;
-        const words = new Uint32Array(CHARACTER_WORDS);
-        words[0] = OP.character;
-        return words;
+        presses = 0
+        const words = new Uint32Array(CHARACTER_WORDS)
+        words[0] = OP.character
+        return words
       }
-      return at || reshaped ? create(at ?? feet) : null;
+      return at || reshaped ? create(at ?? feet) : null
     },
     /** The page's keys: the wish, sprint, and how many times jump was pressed since it began. */
     press(next: CharacterInput, pressed: number) {
-      Object.assign(input, next);
-      if (pressed > presses) drive.sinceJump = 0;
-      presses = pressed;
+      Object.assign(input, next)
+      if (pressed > presses) drive.sinceJump = 0
+      presses = pressed
     },
     /** Whether the body asks for steps: moving, wishing, a jump pending or its floor moving. */
     moving: () => settings !== null && !still(),
     /** The CHARACTER_MOVE of a step of `h` seconds, or null when the body is still and nothing
      *  else moves (`awake` false). */
     command(h: number, awake: boolean): Uint32Array | null {
-      if (!settings) return null;
-      const moves = driveTick(drive, settings, input, h, true, events, step);
-      if (!moves && !awake && still()) return null;
-      const v = drive.velocity;
+      if (!settings) return null
+      const moves = driveTick(drive, settings, input, h, true, events, step)
+      if (!moves && !awake && still()) return null
+      const v = drive.velocity
       // A jump leaves with the floor's velocity: momentum from a platform is kept in the air.
-      if (step.jumped) for (let k = 0; k < 3; k++) v[k] += ground[k];
-      const carried = drive.grounded ? ground : null;
-      let vy = carried ? carried[1] : v[1];
+      if (step.jumped) for (let k = 0; k < 3; k++) v[k] += ground[k]
+      const carried = drive.grounded ? ground : null
+      let vy = carried ? carried[1] : v[1]
       if (!drive.grounded) {
-        const [dy, end] = arc(v[1], h, settings.gravity, settings.fallGravity);
-        [vy, v[1]] = [dy / h, end];
+        const [dy, end] = arc(v[1], h, settings.gravity, settings.fallGravity)
+        ;[vy, v[1]] = [dy / h, end]
       }
-      move[0] = OP.characterMove;
-      moveFloats[1] = (moves ? step.dx / h : 0) + (carried?.[0] ?? (step.jumped ? ground[0] : 0));
-      moveFloats[2] = vy;
-      moveFloats[3] = (moves ? step.dz / h : 0) + (carried?.[2] ?? (step.jumped ? ground[2] : 0));
-      move[4] = drive.grounded ? 1 : 0;
-      return move;
+      move[0] = OP.characterMove
+      moveFloats[1] = (moves ? step.dx / h : 0) + (carried?.[0] ?? (step.jumped ? ground[0] : 0))
+      moveFloats[2] = vy
+      moveFloats[3] = (moves ? step.dz / h : 0) + (carried?.[2] ?? (step.jumped ? ground[2] : 0))
+      move[4] = drive.grounded ? 1 : 0
+      return move
     },
     /** Reads the module's state after a step of `h` seconds (`jolt_character`). */
     read(state: Float32Array, h: number) {
-      if (!settings || !state[0]) return;
-      const floor = state[4] === GROUND.floor;
+      if (!settings || !state[0]) return
+      const floor = state[4] === GROUND.floor
       for (let k = 0; k < 3; k++) {
-        motion[k] = h > 0 ? (state[1 + k] - feet[k]) / h : 0;
-        velocity[k] = motion[k] - (drive.grounded ? ground[k] : 0);
+        motion[k] = h > 0 ? (state[1 + k] - feet[k]) / h : 0
+        velocity[k] = motion[k] - (drive.grounded ? ground[k] : 0)
       }
-      feet.set(state.subarray(1, 4));
-      const v = drive.velocity;
+      feet.set(state.subarray(1, 4))
+      const v = drive.velocity
       if (!drive.grounded && floor && v[1] <= 0) {
         // Landed: the velocity is the floor's own from now on.
-        if (!settling) landed = Math.max(landed, -v[1]);
-        [drive.grounded, v[1], settling] = [true, 0, false];
-        for (let k = 0; k < 3; k += 2) v[k] -= state[5 + k];
+        if (!settling) landed = Math.max(landed, -v[1])
+        ;[drive.grounded, v[1], settling] = [true, 0, false]
+        for (let k = 0; k < 3; k += 2) v[k] -= state[5 + k]
       } else if (drive.grounded && !floor) {
         // Walked off: the floor's velocity carries the body into the air.
-        drive.grounded = false;
-        for (let k = 0; k < 3; k++) v[k] += ground[k];
-      } else if (!drive.grounded && h > 0) v[1] = Math.min(v[1], motion[1]);
-      ground.set(state.subarray(5, 8));
+        drive.grounded = false
+        for (let k = 0; k < 3; k++) v[k] += ground[k]
+      } else if (!drive.grounded && h > 0) v[1] = Math.min(v[1], motion[1])
+      ground.set(state.subarray(5, 8))
       // The floor's friction bounds the next steps' start and stop; none leaves the last.
-      if (state[8] >= 0) drive.floor = state[8];
-      reported = false;
+      if (state[8] >= 0) drive.floor = state[8]
+      reported = false
     },
     /** What the page hears after a tick, once per state read; null when nothing new. */
     report(): CharacterReport | null {
-      if (!settings || reported) return null;
-      reported = true;
+      if (!settings || reported) return null
+      reported = true
       const out: CharacterReport = {
         velocity: [velocity[0], velocity[1], velocity[2]],
         grounded: drive.grounded,
         landed,
         jumps,
-      };
-      [landed, jumps] = [-1, 0];
-      return out;
+      }
+      ;[landed, jumps] = [-1, 0]
+      return out
     },
-  };
+  }
 }

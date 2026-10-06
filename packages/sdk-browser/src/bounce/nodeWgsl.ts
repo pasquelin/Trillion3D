@@ -1,21 +1,21 @@
-import { PROXY_LEAF_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts';
+import { PROXY_LEAF_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import {
   PROXY_CHILD_WORDS,
   PROXY_NODE_FLOATS,
   PROXY_NODE_WORDS,
-} from '../../../sdk-core/src/index.ts';
+} from '../../../sdk-core/src/index.ts'
 
 /** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
  *  owner ranges and transforms. Only the bounds, quantized children and owner poses change. */
 /** Rank of the first layout word: node count, then the three start ranks. */
-export const PROXY_LAYOUT_WORD = 4;
+export const PROXY_LAYOUT_WORD = 4
 /** Revision of the owner poses. */
-export const PROXY_REVISION_WORD = 12;
+export const PROXY_REVISION_WORD = 12
 /** Visited nodes a ray may take, derived from the tree (`proxy.ts`), after the revision word. */
-export const PROXY_STEPS_WORD = PROXY_REVISION_WORD + 1;
+export const PROXY_STEPS_WORD = PROXY_REVISION_WORD + 1
 
 /** Binding rank of the resident proxy in the deferred-resolution layout. */
-export const RESIDENT_PROXY_BINDING = 13;
+export const RESIDENT_PROXY_BINDING = 13
 
 /**
  * Declaration of the resident proxy at the binding slot the calling pass gives it. The three
@@ -36,7 +36,7 @@ struct ResidentProxy{
  revision:u32,steps:u32,pad1:u32,pad2:u32,pad3:u32,
  words:array<u32>,
 }
-@group(0) @binding(${binding}) var<storage,read> proxy:ResidentProxy;`;
+@group(0) @binding(${binding}) var<storage,read> proxy:ResidentProxy;`
 
 /**
  * What a proxy node carries, and how a ray reads it: a triangle's vertices, a node's exact
@@ -96,7 +96,7 @@ fn proxyChild(node:u32,slot:u32,frame:Box)->ProxyChild{
   Box(frame.low+span*vec3f(f32(low&255u),f32((low>>8u)&255u),f32((low>>16u)&255u)),
       frame.low+span*vec3f(f32((low>>24u)&255u),f32(high&255u),f32((high>>8u)&255u))),
   proxy.words[base+2u],(high>>16u)&255u,(high>>24u)!=0u,(high&${PROXY_LEAF_OWNED}u)!=0u);
-}`;
+}`
 
 /**
  * Linear albedo of a proxy triangle, unpacked from its four bytes. Split from the traversal:
@@ -107,4 +107,4 @@ export const PROXY_ALBEDO_WGSL = `
 fn proxyAlbedoOf(index:u32)->vec3f{
  let packed=proxyAlbedo[index];
  return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
-}`;
+}`

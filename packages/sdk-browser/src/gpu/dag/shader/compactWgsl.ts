@@ -1,5 +1,5 @@
-import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts';
-import { SELECTION_HEADER_WORDS } from '../layout.ts';
+import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
+import { SELECTION_HEADER_WORDS } from '../layout.ts'
 
 /**
  * Compaction of the drawable-page list, done by the GPU.
@@ -70,4 +70,4 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  let at=off+rank;if(at>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[views[0u].listCap+HEAD+at]=i;
 }
-`;
+`

@@ -1,81 +1,81 @@
-import type { Primitive } from '../../../../sdk-core/src/index.ts';
-import type { HostMesh } from '../../host/resources.ts';
-import type { PageSurface } from '../../page/surface.ts';
-import type { MatrixElements } from '../../math/matrixElements.ts';
-import type { PlacementOf } from '../../placement/rows.ts';
-import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
-import type { BlendLighting } from '../core/bindEntries.ts';
-import type { BlendOverdraw } from './overdraw.ts';
-import type { TransparentCompaction } from '../transparent/compact.ts';
-import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts';
-import type { TransparentTable } from '../transparent/table.ts';
-import type { BlendExpand } from './expand.ts';
-import type { OrderStep } from './orderSteps.ts';
-import { createWaterBounds } from '../water/bounds.ts';
-import type { WaterPass } from '../water/waterPass.ts';
-import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
-import { BLEND_VIEW_SIZE } from './uniforms.ts';
-import { createBlendHierarchy } from './hierarchy.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import type { FloatAtlas } from '../core/floatAtlas.ts';
+import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { HostMesh } from '../../host/resources.ts'
+import type { PageSurface } from '../../page/surface.ts'
+import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { PlacementOf } from '../../placement/rows.ts'
+import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
+import type { BlendLighting } from '../core/bindEntries.ts'
+import type { BlendOverdraw } from './overdraw.ts'
+import type { TransparentCompaction } from '../transparent/compact.ts'
+import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts'
+import type { TransparentTable } from '../transparent/table.ts'
+import type { BlendExpand } from './expand.ts'
+import type { OrderStep } from './orderSteps.ts'
+import { createWaterBounds } from '../water/bounds.ts'
+import type { WaterPass } from '../water/waterPass.ts'
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
+import { BLEND_VIEW_SIZE } from './uniforms.ts'
+import { createBlendHierarchy } from './hierarchy.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import type { FloatAtlas } from '../core/floatAtlas.ts'
 
 export type BlendGpuItem = {
   /** Whole-copy static inputs and computed outputs in the existing float pool. */
-  deformation?: Primitive['deformation'];
-  deformInput?: number;
-  deformOutput?: number;
-  deformBounds?: Float64Array;
+  deformation?: Primitive['deformation']
+  deformInput?: number
+  deformOutput?: number
+  deformBounds?: Float64Array
   /** The material transmits: the item is drawn in the transmission pass, not in the blend. */
-  transmissive?: boolean;
+  transmissive?: boolean
   /** Own positions; absent for a paged item that reads its quantized pages. */
-  position?: GPUBuffer;
+  position?: GPUBuffer
   /** Own index buffer of an unpaged primitive; a paged one reads the page cache instead. */
-  index?: GPUBuffer;
-  uv?: GPUBuffer;
+  index?: GPUBuffer
+  uv?: GPUBuffer
   /** Its normal atlas, or the float pool's (`../core/floatAtlas.ts`, #1410). */
-  normal?: FloatAtlas;
-  surface: PageSurface;
-  count: number;
-  matrix: MatrixElements;
+  normal?: FloatAtlas
+  surface: PageSurface
+  count: number
+  matrix: MatrixElements
   /** The row posing the item when its mesh is placed by rows: skipped while it is parked. */
-  placement?: PlacementOf;
+  placement?: PlacementOf
   /** True while the host hides the source mesh or one of its ancestors: skipped as a parked
    *  row's item is (`placement/hidden.ts`). */
-  hidden?: boolean;
-  sourceMesh?: HostMesh;
-  sourceGeometry: Geometry;
+  hidden?: boolean
+  sourceMesh?: HostMesh
+  sourceGeometry: Geometry
   /** World box of the item, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`); absent, the item is not rejected. */
-  bounds?: Float64Array;
+  bounds?: Float64Array
   /** Buffer this box occupies, allocated once for the item when the frustum can reject it.
    *  Absent, the item never has a box; present, `bounds` points at it or is `undefined` because
    *  the bounds obtained were not usable (`worlds.ts`). */
-  worldBox?: Float64Array;
+  worldBox?: Float64Array
   /** Material flags (`../../visibility/types.ts`) in the low sixteen bits; above them the one-based water
    *  rank of a transmissive item, zero for a blend (`../water/surfaceWgsl.ts`). */
-  flags: number;
-  group?: GPUBindGroup;
-  paged?: boolean;
+  flags: number
+  group?: GPUBindGroup
+  paged?: boolean
   /** Rank of a paged item in the transparent table: the base its instances are written at. */
-  pagedIndex?: number;
+  pagedIndex?: number
   /** Base of its cluster list in the transparent table, zero for an unpaged item. */
-  tableBase?: number;
+  tableBase?: number
   /** First vertex of its geometry in the concatenated buffers, zero for an unpaged item. */
-  vertexBase?: number;
+  vertexBase?: number
   /** Square of the eye-to-world-box-centre distance and its source rank, which breaks equal keys:
    *  the fallback pass's sort (`orderVisibleBlend`). Required: `refreshEyeKeys` sets them on
    *  every item before that sort, and the comparator reads a number, never a maybe — a defaulted
    *  value would rank an item “by eye” instead of being seen. */
-  orderKey: number;
-  orderRank: number;
-};
+  orderKey: number
+  orderRank: number
+}
 
 /** Reused transparent draw lists and GPU resources for one backend instance. */
 export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
-  const view = new Float32Array(BLEND_VIEW_SIZE / 4);
-  const blendGpu: BlendGpuItem[] = [];
-  const visibleBlend: BlendGpuItem[] = [];
+  const view = new Float32Array(BLEND_VIEW_SIZE / 4)
+  const blendGpu: BlendGpuItem[] = []
+  const visibleBlend: BlendGpuItem[] = []
   const state = {
     blendGpu,
     visibleBlend,
@@ -208,6 +208,6 @@ export function createWebgpuBlendState() {
     planModes: [] as Blending[],
     /** Bind group ALL paged items share. */
     pagedGroup: undefined as GPUBindGroup | undefined,
-  };
-  return state;
+  }
+  return state
 }

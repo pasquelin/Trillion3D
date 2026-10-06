@@ -1,9 +1,9 @@
-import { families } from '../../../host/families.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred/program.ts';
+import { families } from '../../../host/families.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { AccumulatedImage, ComposedImage } from '../../../lighting/deferred/program.ts'
 
 /** The revision an image drawn while the chain compiles keeps: no chain's, which count from 0. */
-const COMPILING = -1;
+const COMPILING = -1
 
 /**
  * The world's effect chain on this image (`../../effects/webgpuEffects.ts`): the passes that
@@ -23,39 +23,39 @@ export function encodeEffects(
   accumulated: AccumulatedImage | undefined,
 ): ComposedImage | undefined {
   const chain = rt.context.effects,
-    { gpu, run } = rt;
-  if (!chain) return accumulated;
-  gpu.effectsRevision = chain.revision;
-  const passes = chain.stage('before-tone-mapping');
+    { gpu, run } = rt
+  if (!chain) return accumulated
+  gpu.effectsRevision = chain.revision
+  const passes = chain.stage('before-tone-mapping')
   // A diagnostic view or a capture draws without the chain, which keeps its targets meanwhile.
-  if (passes.length && (run.diagnostic !== 'beauty' || rt.capture.capturing)) return accumulated;
-  const input = accumulated?.color ?? gpu.hdrView;
-  if ((!passes.length && !gpu.effects) || !input) return accumulated;
+  if (passes.length && (run.diagnostic !== 'beauty' || rt.capture.capturing)) return accumulated
+  const input = accumulated?.color ?? gpu.hdrView
+  if ((!passes.length && !gpu.effects) || !input) return accumulated
   // Its code, which the frame waited for (`../../../host/families.ts`), arrived.
   gpu.effects ??= families.effects
     .get()
     ?.createWebgpuEffects(device, (error) =>
       rt.diag.diagnosticFailure('effects-unavailable', error),
-    );
-  if (!gpu.effects) return accumulated;
+    )
+  if (!gpu.effects) return accumulated
   // After the resolve: at the display's size.
-  const [width, height] = gpu.displaySize;
+  const [width, height] = gpu.displaySize
   // The composition blends the last bloom in once its programs are compiled (#963): same image.
   const fuse =
     passes.at(-1)?.kind === 'bloom' &&
     !!gpu.deferred?.composesBloom((error) =>
       rt.diag.diagnosticFailure('bloom-composition-unavailable', error),
-    );
-  const output = gpu.effects.encode(encoder, passes, input, width, height, fuse);
-  if (gpu.effects.loading) gpu.effectsRevision = COMPILING;
-  run.gpuDrawCalls += gpu.effects.draws;
-  const bloom = gpu.effects.blend;
-  if (output === input && !bloom) return accumulated;
-  return { color: output, share: accumulated?.share, bloom };
+    )
+  const output = gpu.effects.encode(encoder, passes, input, width, height, fuse)
+  if (gpu.effects.loading) gpu.effectsRevision = COMPILING
+  run.gpuDrawCalls += gpu.effects.draws
+  const bloom = gpu.effects.blend
+  if (output === input && !bloom) return accumulated
+  return { color: output, share: accumulated?.share, bloom }
 }
 
 /** True when the last encoded image lacks the chain as the page holds it — changed since, or
  *  still compiling: a held frame would miss it. The chain runs after the resolve, so neither
  *  moves the accumulation. */
 export const effectsMoved = (rt: WebgpuPagesRuntime) =>
-  !!rt.context.effects && rt.context.effects.revision !== rt.gpu.effectsRevision;
+  !!rt.context.effects && rt.context.effects.revision !== rt.gpu.effectsRevision

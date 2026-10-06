@@ -6,38 +6,38 @@
  * anything that must be unpredictable.
  */
 
-import { ease } from './opening.ts';
+import { ease } from './opening.ts'
 
 /** A sequence of numbers in [0, 1) from a seed. */
-export type Random = () => number;
+export type Random = () => number
 
 /** The example pages' sequence: a linear congruential step on 32-bit integers, so a seed always
  *  gives the same numbers. */
 export function seeded(seed: number): Random {
-  let state = seed >>> 0;
-  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+  let state = seed >>> 0
+  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296
 }
 
 /** Mulberry32: a 32-bit sequence on integer arithmetic alone, so every machine draws the same
  *  numbers; the scenes modelled in code, the bench's facade and the correctness campaigns. */
 export function mulberry32(seed: number): Random {
-  let state = seed >>> 0;
+  let state = seed >>> 0
   return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let value = Math.imul(state ^ (state >>> 15), state | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
+    state = (state + 0x6d2b79f5) >>> 0
+    let value = Math.imul(state ^ (state >>> 15), state | 1)
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 /** The temple's scatter: a value in [0, 1) for `index` and channel `k`, the fraction of a scaled
  *  sine. */
 export function sineHash(index: number, k: number): number {
-  const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453;
-  return t - Math.floor(t);
+  const t = Math.sin(index * 12.9898 + k * 78.233) * 43758.5453
+  return t - Math.floor(t)
 }
 
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 /**
  * Smooth value noise in [-1, 1] in up to three dimensions: hashed values at the whole lattice
@@ -52,23 +52,23 @@ export function valueNoise(zMultiplier = 2147483647, seedMultiplier = 1597334677
       Math.imul(i, 374761393) ^
       Math.imul(j, 668265263) ^
       Math.imul(k, zMultiplier) ^
-      Math.imul(seed, seedMultiplier);
-    h = Math.imul(h ^ (h >>> 13), 1274126177);
-    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-  };
+      Math.imul(seed, seedMultiplier)
+    h = Math.imul(h ^ (h >>> 13), 1274126177)
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296
+  }
   return (x: number, y: number, z = 0, seed = 0): number => {
     const i = Math.floor(x),
       j = Math.floor(y),
-      k = Math.floor(z);
+      k = Math.floor(z)
     const u = ease.smooth(x - i),
       v = ease.smooth(y - j),
-      w = ease.smooth(z - k);
+      w = ease.smooth(z - k)
     const plane = (dk: number) =>
       lerp(
         lerp(lattice(i, j, k + dk, seed), lattice(i + 1, j, k + dk, seed), u),
         lerp(lattice(i, j + 1, k + dk, seed), lattice(i + 1, j + 1, k + dk, seed), u),
         v,
-      );
-    return lerp(plane(0), plane(1), w) * 2 - 1;
-  };
+      )
+    return lerp(plane(0), plane(1), w) * 2 - 1
+  }
 }

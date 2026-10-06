@@ -1,5 +1,5 @@
-import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
-import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts';
+import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts'
+import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts'
 
 /**
  * Placement `rank` was posed at `world`: it moved unless `world` is the pose it was last seen
@@ -15,39 +15,39 @@ export function moveRank(
   world: ArrayLike<number>,
   forced: boolean,
 ) {
-  if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED;
-  if (!forced && holdsPose(s, rank, world)) return MOVE_NONE;
-  s.poses.set(world, rank * 16);
-  s.lastMoved[rank] = s.frame;
-  if (s.moving[rank]) return MOVE_MOVING;
-  promoteRank(s, rank);
-  return MOVE_PROMOTED;
+  if (rank < 0 || rank >= s.moving.length) return MOVE_PROMOTED
+  if (!forced && holdsPose(s, rank, world)) return MOVE_NONE
+  s.poses.set(world, rank * 16)
+  s.lastMoved[rank] = s.frame
+  if (s.moving[rank]) return MOVE_MOVING
+  promoteRank(s, rank)
+  return MOVE_PROMOTED
 }
 
 /** Placement `rank` follows parent slot `lead` from now on, or none when -1. A still follower
  *  joining a slot is made moving at its parent's next move. */
 export function followLead(s: MobilityState, rank: number, lead: number) {
   if (rank >= s.leads.length) {
-    if (lead < 0) return;
-    const held = s.leads;
-    s.leads = new Int32Array(Math.max(rank + 1, 2 * held.length)).fill(-1);
-    s.leads.set(held);
+    if (lead < 0) return
+    const held = s.leads
+    s.leads = new Int32Array(Math.max(rank + 1, 2 * held.length)).fill(-1)
+    s.leads.set(held)
   }
-  s.leads[rank] = lead;
-  if (lead < 0) return;
-  if (lead >= s.leadMoved.length) growSlots(s, Math.max(lead + 1, 2 * s.leadMoved.length));
-  if (!(rank < s.moving.length && s.moving[rank])) s.leadMoving[lead] = 0;
+  s.leads[rank] = lead
+  if (lead < 0) return
+  if (lead >= s.leadMoved.length) growSlots(s, Math.max(lead + 1, 2 * s.leadMoved.length))
+  if (!(rank < s.moving.length && s.moving[rank])) s.leadMoving[lead] = 0
 }
 
 /** The per-slot arrays hold `size` slots, the ones they held kept. */
 function growSlots(s: MobilityState, size: number) {
-  const held = { leadMoved: s.leadMoved, leadMoving: s.leadMoving, leadDeclared: s.leadDeclared };
-  s.leadMoved = new Uint32Array(size);
-  s.leadMoving = new Uint8Array(size);
-  s.leadDeclared = new Uint32Array(size);
-  s.leadMoved.set(held.leadMoved);
-  s.leadMoving.set(held.leadMoving);
-  s.leadDeclared.set(held.leadDeclared);
+  const held = { leadMoved: s.leadMoved, leadMoving: s.leadMoving, leadDeclared: s.leadDeclared }
+  s.leadMoved = new Uint32Array(size)
+  s.leadMoving = new Uint8Array(size)
+  s.leadDeclared = new Uint32Array(size)
+  s.leadMoved.set(held.leadMoved)
+  s.leadMoving.set(held.leadMoving)
+  s.leadDeclared.set(held.leadDeclared)
 }
 
 /**
@@ -58,17 +58,17 @@ function growSlots(s: MobilityState, size: number) {
  * `MOVE_MOVING`.
  */
 export function moveLeadSlot(s: MobilityState, lead: number, ranks: readonly number[]) {
-  if (lead < 0 || lead >= s.leadMoved.length) return MOVE_PROMOTED;
-  s.leadMoved[lead] = s.frame;
-  if (s.leadMoving[lead]) return MOVE_MOVING;
-  let promoted = false;
+  if (lead < 0 || lead >= s.leadMoved.length) return MOVE_PROMOTED
+  s.leadMoved[lead] = s.frame
+  if (s.leadMoving[lead]) return MOVE_MOVING
+  let promoted = false
   for (const rank of ranks) {
-    if (rank >= s.moving.length || s.leads[rank] !== lead || s.moving[rank]) continue;
-    promoteRank(s, rank);
-    promoted = true;
+    if (rank >= s.moving.length || s.leads[rank] !== lead || s.moving[rank]) continue
+    promoteRank(s, rank)
+    promoted = true
   }
-  s.leadMoving[lead] = s.moving.length ? 1 : 0;
-  return promoted ? MOVE_PROMOTED : MOVE_MOVING;
+  s.leadMoving[lead] = s.moving.length ? 1 : 0
+  return promoted ? MOVE_PROMOTED : MOVE_MOVING
 }
 
 /**
@@ -85,28 +85,28 @@ export function settleMoving(
   threshold: number,
   turnedStatic: (rank: number, lead: number) => void,
 ) {
-  s.frame = (s.frame + 1) >>> 0;
+  s.frame = (s.frame + 1) >>> 0
   const frame = s.frame,
-    list = s.movingList;
-  let any = false;
+    list = s.movingList
+  let any = false
   for (let k = list.length - 1; k >= 0; k--) {
     const rank = list[k],
-      lead = rank < s.leads.length ? s.leads[rank] : -1;
-    let rest = (frame - s.lastMoved[rank]) >>> 0;
-    if (lead >= 0) rest = Math.min(rest, (frame - s.leadMoved[lead]) >>> 0);
-    if (rest <= threshold) continue;
-    s.moving[rank] = 0;
-    list[k] = list[list.length - 1];
-    list.pop();
-    touchRank(s, rank);
-    any = true;
-    if (lead < 0) turnedStatic(rank, -1);
+      lead = rank < s.leads.length ? s.leads[rank] : -1
+    let rest = (frame - s.lastMoved[rank]) >>> 0
+    if (lead >= 0) rest = Math.min(rest, (frame - s.leadMoved[lead]) >>> 0)
+    if (rest <= threshold) continue
+    s.moving[rank] = 0
+    list[k] = list[list.length - 1]
+    list.pop()
+    touchRank(s, rank)
+    any = true
+    if (lead < 0) turnedStatic(rank, -1)
     else {
-      s.leadMoving[lead] = 0;
-      if (s.leadDeclared[lead] === frame) continue;
-      s.leadDeclared[lead] = frame;
-      turnedStatic(rank, lead);
+      s.leadMoving[lead] = 0
+      if (s.leadDeclared[lead] === frame) continue
+      s.leadDeclared[lead] = frame
+      turnedStatic(rank, lead)
     }
   }
-  return any;
+  return any
 }

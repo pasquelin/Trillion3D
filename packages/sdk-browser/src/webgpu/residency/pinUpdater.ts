@@ -1,15 +1,15 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { createGpuPageCache } from '../../gpu/page/pages.ts';
-import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts';
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { createDenseKeySet } from '../cut/denseKeys.ts';
-import type { WebgpuResidencySets } from './sets.ts';
-import { createLastUse } from '../../residency/lastUse.ts';
-import { LAST_USE_WINDOW } from './lastUseWindow.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { createGpuPageCache } from '../../gpu/page/pages.ts'
+import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts'
+import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import { createDenseKeySet } from '../cut/denseKeys.ts'
+import type { WebgpuResidencySets } from './sets.ts'
+import { createLastUse } from '../../residency/lastUse.ts'
+import { LAST_USE_WINDOW } from './lastUseWindow.ts'
 
-type Cache = ReturnType<typeof createGpuPageCache>;
-type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic'];
-type Tracking = ReturnType<typeof createWebgpuPageTracking>;
+type Cache = ReturnType<typeof createGpuPageCache>
+type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic']
+type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * Keeps the complete root cover and current cut pinned while admitting new detail.
@@ -21,25 +21,25 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
  * walks the pinned set per image.
  */
 export function createWebgpuPinUpdater(options: {
-  tracking: Tracking;
-  sets: WebgpuResidencySets;
-  bootstrapUrls: Set<string>;
-  deferredDrops: Set<string>;
+  tracking: Tracking
+  sets: WebgpuResidencySets
+  bootstrapUrls: Set<string>
+  deferredDrops: Set<string>
   /** Clusters each request carries: a deferred drop names the request, not the cluster. */
-  byUrl: Map<string, PageRec[]>;
+  byUrl: Map<string, PageRec[]>
   /** The pages a page depends on (`admission.ts`): they leave after it. */
-  parentsOf: (rec: PageRec) => readonly PageRec[];
-  traceEnabled: boolean;
-  traceDiagnostic: Trace;
+  parentsOf: (rec: PageRec) => readonly PageRec[]
+  traceEnabled: boolean
+  traceDiagnostic: Trace
 }) {
-  const { tracking, sets, bootstrapUrls, deferredDrops, byUrl } = options;
-  const { traceEnabled, traceDiagnostic } = options;
+  const { tracking, sets, bootstrapUrls, deferredDrops, byUrl } = options
+  const { traceEnabled, traceDiagnostic } = options
   /** Kept keys the cache cannot pin yet: their bytes have not arrived. */
-  const waiting = createDenseKeySet();
+  const waiting = createDenseKeySet()
   /** A held key the cache has not pinned yet waits for its bytes. */
   const want = (key: number) => {
-    if (!tracking.pinned.has(key)) waiting.add(key);
-  };
+    if (!tracking.pinned.has(key)) waiting.add(key)
+  }
   const lastUse = createLastUse({
     idleWindow: LAST_USE_WINDOW,
     keyOf: tracking.keyOf,
@@ -47,87 +47,86 @@ export function createWebgpuPinUpdater(options: {
     kept: tracking.keep.has,
     onHeld: want,
     onIdle: (key) => current.touch(tracking.pageCatalog[key]),
-  });
+  })
   /** The cache of the running update, read by the callbacks built once above and below. */
-  let current: Cache;
+  let current: Cache
   /** True when the key held a slot pinned: unpinning it gives that slot back. */
   const unpin = (key: number) => {
-    waiting.remove(key);
-    if (!tracking.pinned.remove(key)) return false;
-    const url = tracking.pageCatalog[key];
-    if (traceEnabled) removed.push(url);
-    current.unpin(url);
-    return true;
-  };
+    waiting.remove(key)
+    if (!tracking.pinned.remove(key)) return false
+    const url = tracking.pageCatalog[key]
+    if (traceEnabled) removed.push(url)
+    current.unpin(url)
+    return true
+  }
   /**
    * What the pin sample publishes: the image's DELTA, never the pinned set. Copying and filtering
    * it cost four walks of the cut per image as soon as trace was requested, while pins change by a
    * handful of keys.
    */
   const added: string[] = [],
-    removed: string[] = [];
+    removed: string[] = []
   return (
     cache: Cache | undefined,
     shown: PageRec[],
     frame: number,
     drop: (key: string) => void,
   ) => {
-    if (!cache) return;
-    current = cache;
-    added.length = 0;
-    removed.length = 0;
-    const { entering, enteringPages, leaving } = sets;
-    for (let i = leaving.count - 1; i >= 0; i--) lastUse.leave(leaving.list[i], frame);
-    leaving.clear();
+    if (!cache) return
+    current = cache
+    added.length = 0
+    removed.length = 0
+    const { entering, enteringPages, leaving } = sets
+    for (let i = leaving.count - 1; i >= 0; i--) lastUse.leave(leaving.list[i], frame)
+    leaving.clear()
     for (let i = entering.count - 1; i >= 0; i--) {
-      const key = entering.list[i];
-      lastUse.use(key, enteringPages[i]);
-      want(key);
+      const key = entering.list[i]
+      lastUse.use(key, enteringPages[i])
+      want(key)
     }
-    entering.clear();
+    entering.clear()
     // A host page drop unpins behind this path's back; a key it still keeps goes back in the queue.
-    const notices = tracking.unpinned;
+    const notices = tracking.unpinned
     for (let i = 0; i < notices.length; i++) {
-      const key = notices[i];
-      if (lastUse.holds(key)) want(key);
+      const key = notices[i]
+      if (lastUse.holds(key)) want(key)
     }
-    notices.length = 0;
+    notices.length = 0
     // Residency is asked of the cache only for a key that is not pinned yet, which is a handful per
     // image once the cut has settled instead of one lookup per kept key. The kept keys still
     // missing are what asks the pool for slots; a key that only waits out its window asks none.
-    let missing = 0;
+    let missing = 0
     for (let i = waiting.count - 1; i >= 0; i--) {
-      const key = waiting.list[i];
+      const key = waiting.list[i]
       if (!tracking.pinned.has(key)) {
-        const url = tracking.pageCatalog[key];
+        const url = tracking.pageCatalog[key]
         if (!cache.get(url)) {
-          if (tracking.keep.has(key)) missing++;
-          continue;
+          if (tracking.keep.has(key)) missing++
+          continue
         }
         // A root-cover page evicted by a resize comes back in the held tier it had.
-        cache.pin(url, bootstrapUrls.has(url) ? 'held' : 'pinned');
-        tracking.markPinned(key);
-        if (traceEnabled) added.push(url);
+        cache.pin(url, bootstrapUrls.has(url) ? 'held' : 'pinned')
+        tracking.markPinned(key)
+        if (traceEnabled) added.push(url)
       }
-      waiting.remove(key);
+      waiting.remove(key)
     }
     // Released oldest first, each where it went when it went idle: the cache then reclaims the
     // released pages in their last-use order. What the image still misses beyond the unpinned
     // slots is the pressure: the window gives way to it (`../../residency/lastUse.ts`).
-    lastUse.release(frame, unpin, missing - cache.unpinnedSlots());
+    lastUse.release(frame, unpin, missing - cache.unpinnedSlots())
     // Kept keys are clusters; a deferred drop names the request that carries them. The question is
     // therefore asked request by request — a handful — and not by copying the kept set into two
     // string tables on every image where a drop waits, which the cluster count of a city makes
     // impractical: the catalogue already says which clusters a request carries.
     for (const key of deferredDrops) {
-      const recs = byUrl.get(key);
-      let kept = false;
+      const recs = byUrl.get(key)
+      let kept = false
       if (recs)
-        for (let i = 0; i < recs.length && !kept; i++)
-          kept = lastUse.holds(tracking.keyOf(recs[i]));
-      if (!kept) drop(key);
+        for (let i = 0; i < recs.length && !kept; i++) kept = lastUse.holds(tracking.keyOf(recs[i]))
+      if (!kept) drop(key)
     }
-    if (!traceEnabled || (!added.length && !removed.length)) return;
+    if (!traceEnabled || (!added.length && !removed.length)) return
     traceDiagnostic('residency-pins', 'GPU pins updated', () => ({
       frame,
       added: tracking.traceSet('pins.added', added),
@@ -136,6 +135,6 @@ export function createWebgpuPinUpdater(options: {
       bootstrap: tracking.traceSet('pins.bootstrap', [...bootstrapUrls]),
       wanted: tracking.traceKeys('pins.wanted', tracking.wanted),
       shown: tracking.traceRecs('pins.shown', shown),
-    }));
-  };
+    }))
+  }
 }

@@ -1,6 +1,6 @@
-import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts';
-import { runPageDecodeTask } from './task.ts';
-import type { PageDecodeCancel, PageDecodeRequest } from '../../../../sdk-core/src/index.ts';
+import { PAGE_DECODE_PROTOCOL } from '../../../../sdk-core/src/index.ts'
+import { runPageDecodeTask } from './task.ts'
+import type { PageDecodeCancel, PageDecodeRequest } from '../../../../sdk-core/src/index.ts'
 
 /**
  * Entry point of the decode worker. Platform adapter: this file is loaded only in a module
@@ -12,23 +12,23 @@ import type { PageDecodeCancel, PageDecodeRequest } from '../../../../sdk-core/s
  * this file needs is declared here rather than adding a whole library.
  */
 type DecodeWorkerScope = {
-  onmessage: ((event: { data: unknown }) => void) | null;
-  postMessage(message: unknown, transfer: ArrayBuffer[]): void;
-};
+  onmessage: ((event: { data: unknown }) => void) | null
+  postMessage(message: unknown, transfer: ArrayBuffer[]): void
+}
 
-const scope = globalThis as unknown as DecodeWorkerScope;
+const scope = globalThis as unknown as DecodeWorkerScope
 /** Requests cancelled before they started. A decode already begun has no stop point: it goes
  *  to its end, and it is the answer that becomes a cancel. */
-const cancelled = new Set<number>();
+const cancelled = new Set<number>()
 
 scope.onmessage = async (event) => {
-  const message = event.data as PageDecodeRequest | PageDecodeCancel;
-  if (!message || message.protocol !== PAGE_DECODE_PROTOCOL) return;
+  const message = event.data as PageDecodeRequest | PageDecodeCancel
+  if (!message || message.protocol !== PAGE_DECODE_PROTOCOL) return
   if (message.op === 'cancel') {
-    cancelled.add(message.id);
-    return;
+    cancelled.add(message.id)
+    return
   }
-  const request = message as PageDecodeRequest;
+  const request = message as PageDecodeRequest
   if (cancelled.delete(request.id)) {
     scope.postMessage(
       {
@@ -39,10 +39,10 @@ scope.onmessage = async (event) => {
         message: 'PAGE_DECODE_CANCELLED',
       },
       [],
-    );
-    return;
+    )
+    return
   }
-  const { answer, transfer } = await runPageDecodeTask(request);
-  cancelled.delete(request.id);
-  scope.postMessage(answer, transfer);
-};
+  const { answer, transfer } = await runPageDecodeTask(request)
+  cancelled.delete(request.id)
+  scope.postMessage(answer, transfer)
+}

@@ -1,16 +1,16 @@
-import { createHash } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { Page } from 'playwright';
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
-import { distribution, machineLoad } from '../summary/summary.ts';
-import { passesGpu } from './seriesPasses.ts';
-import { pageBudget, geometryPool } from './seriesPools.ts';
-import { measurePayload, runInPage } from './seriesPage.ts';
-import type { Side } from '../harness/sideOptions.ts';
-import type { Capture } from '../../../tests/kit/server/staticServer.ts';
-import type { Row, RunContext } from '../report/types.ts';
+import { createHash } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { Page } from 'playwright'
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { distribution, machineLoad } from '../summary/summary.ts'
+import { passesGpu } from './seriesPasses.ts'
+import { pageBudget, geometryPool } from './seriesPools.ts'
+import { measurePayload, runInPage } from './seriesPage.ts'
+import type { Side } from '../harness/sideOptions.ts'
+import type { Capture } from '../../../tests/kit/server/staticServer.ts'
+import type { Row, RunContext } from '../report/types.ts'
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSeries(
@@ -23,26 +23,26 @@ export async function runSeries(
   captures: Map<string, Capture>,
   suffix = '',
 ): Promise<{ row: Row; captureFile: string }> {
-  const { MANIFEST, OUT, settings, lights, poses } = ctx;
+  const { MANIFEST, OUT, settings, lights, poses } = ctx
   // The side's engine (`--engine-<side>`): how the engine and the Three witness share one run.
-  const ENGINE = side.engine;
-  const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`;
-  const start = machineLoad();
+  const ENGINE = side.engine
+  const captureFile = `${side.name}-${view}-e${pixelError}${suffix}.png`
+  const start = machineLoad()
   const result = await runInPage(
     page,
     measurePayload(side, pixelError, pose, poses, captureFile, settings, lights, MANIFEST),
-  );
-  const end = machineLoad();
-  if ('error' in result) throw new Error(`${side.name} ${view} e${pixelError} : ${result.error}`);
-  const metrics = result.metrics;
-  const capture = captures.get(captureFile);
+  )
+  const end = machineLoad()
+  if ('error' in result) throw new Error(`${side.name} ${view} e${pixelError} : ${result.error}`)
+  const metrics = result.metrics
+  const capture = captures.get(captureFile)
   if (capture)
-    await writeFile(join(OUT, captureFile), encodePng(capture.w, capture.h, capture.body, true));
-  const ids = result.selection.ids;
+    await writeFile(join(OUT, captureFile), encodePng(capture.w, capture.h, capture.body, true))
+  const ids = result.selection.ids
   await writeFile(
     join(OUT, `${captureFile.replace(/\.png$/, '')}.coupe.txt`),
     ids.join('\n') + '\n',
-  );
+  )
   const row = {
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
@@ -135,13 +135,13 @@ export async function runSeries(
     cpuBounds: result.cpuBounds ?? null,
     canvas: result.size,
     metrics,
-  };
+  }
   process.stdout.write(
     `${side.name} ${view} e${pixelError} : cpuFrame p50=${row.cpuFrameMs ? row.cpuFrameMs.p50.toFixed(2) : '—'} ` +
       `cpuSelect p50=${row.cpuSelectMs ? row.cpuSelectMs.p50.toFixed(2) : '—'} ` +
       `gpuFrame p50=${row.gpuFrameMs ? row.gpuFrameMs.p50.toFixed(2) : '—'} ` +
       `gpuIdle p50=${row.gpuIdleMs ? row.gpuIdleMs.p50.toFixed(2) : '—'} ` +
       `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'yes' : 'no'}\n`,
-  );
-  return { row, captureFile };
+  )
+  return { row, captureFile }
 }

@@ -1,5 +1,5 @@
-import { sameValues } from '../math/matrixElements.ts';
-import { keptBefore, type TickRecords } from './protocol.ts';
+import { sameValues } from '../math/matrixElements.ts'
+import { keptBefore, type TickRecords } from './protocol.ts'
 
 /** Where a thing's state a step before its newest comes from, as a tick brings it (`take`). */
 export const FROM = {
@@ -13,10 +13,10 @@ export const FROM = {
   last: 3,
   /** At rest, or new: where it is drawn now. */
   drawn: 4,
-} as const;
+} as const
 
 /** A drawn thing's two states (`createTwoSteps`): a step before its newest, and its newest. */
-type States = { from: Float32Array | Float64Array; to: Float32Array | Float64Array };
+type States = { from: Float32Array | Float64Array; to: Float32Array | Float64Array }
 
 /**
  * THE TWO STEPS EVERYTHING THE PHYSICS DRAWS IS DRAWN BETWEEN: a body's pose (`poses.ts`), a
@@ -32,41 +32,41 @@ type States = { from: Float32Array | Float64Array; to: Float32Array | Float64Arr
 export function createTwoSteps(capacity: number) {
   const listed = new Uint8Array(capacity),
     stamp = new Uint32Array(capacity),
-    moving = new Int32Array(capacity);
+    moving = new Int32Array(capacity)
   let count = 0,
     tick = 0,
-    stepped = false;
+    stepped = false
   /**
    * The tick brought `key`: `before` when it kept its state a step before, `fresh` when it is
    * another thing than the one listed under it, `same` when its newest is the one it already
    * holds. Returns where its earlier state comes from; listed but `FROM.kept`.
    */
   const take = (key: number, before: boolean, fresh: boolean, same: boolean) => {
-    if (!stepped && same) return FROM.kept;
+    if (!stepped && same) return FROM.kept
     const from = !stepped
       ? FROM.newest
       : before
         ? FROM.before
         : listed[key] && !fresh
           ? FROM.last
-          : FROM.drawn;
-    stamp[key] = tick;
-    if (!listed[key]) moving[count++] = key;
-    listed[key] = 1;
-    return from;
-  };
+          : FROM.drawn
+    stamp[key] = tick
+    if (!listed[key]) moving[count++] = key
+    listed[key] = 1
+    return from
+  }
   return {
     /** The listed keys, `count` of them. */
     moving: moving as Readonly<Int32Array>,
     get count() {
-      return count;
+      return count
     },
     /** Whether `key` is on its way. */
     listed: (key: number) => listed[key] === 1,
     /** A tick of `steps` fixed steps arrived. */
     begin(steps: number) {
-      tick++;
-      stepped = steps > 0;
+      tick++
+      stepped = steps > 0
     },
     take,
     /**
@@ -83,47 +83,47 @@ export function createTwoSteps(capacity: number) {
       fresh: boolean,
     ) {
       const same = !stepped && !fresh && sameValues(newest, state.to),
-        from = take(key, before !== null, fresh, same);
-      if (from === FROM.kept) return false;
-      if (from === FROM.before) state.from.set(before!);
-      else state.from.set(from === FROM.newest || fresh ? newest : state.to);
-      state.to.set(newest);
-      return true;
+        from = take(key, before !== null, fresh, same)
+      if (from === FROM.kept) return false
+      if (from === FROM.before) state.from.set(before!)
+      else state.from.set(from === FROM.newest || fresh ? newest : state.to)
+      state.to.set(newest)
+      return true
     },
     /** After a stepped tick, `land(key)` draws each listed key it did not bring on its newest
      *  state, and the key leaves the list. */
     end(land: (key: number) => void) {
-      if (!stepped) return;
-      let kept = 0;
+      if (!stepped) return
+      let kept = 0
       for (let i = 0; i < count; i++) {
-        const key = moving[i];
-        if (stamp[key] === tick) moving[kept++] = key;
+        const key = moving[i]
+        if (stamp[key] === tick) moving[kept++] = key
         else {
-          land(key);
-          listed[key] = 0;
+          land(key)
+          listed[key] = 0
         }
       }
-      count = kept;
+      count = kept
     },
     /** Keeps listed the keys `alive` says still are what they were; the rest leave. */
     keep(alive: (key: number) => boolean) {
-      let kept = 0;
+      let kept = 0
       for (let i = 0; i < count; i++) {
-        const key = moving[i];
-        if (alive(key)) moving[kept++] = key;
-        else listed[key] = 0;
+        const key = moving[i]
+        if (alive(key)) moving[kept++] = key
+        else listed[key] = 0
       }
-      count = kept;
+      count = kept
     },
     /** After a frame drew the list at `t`: whether its keys are still on their way (and ask for
      *  the next frame), short of their newest or `waiting` for the next; else the list empties. */
     settle(t: number, waiting: boolean) {
-      if (t < 1 || waiting) return count > 0;
-      for (let i = 0; i < count; i++) listed[moving[i]] = 0;
-      count = 0;
-      return false;
+      if (t < 1 || waiting) return count > 0
+      for (let i = 0; i < count; i++) listed[moving[i]] = 0
+      count = 0
+      return false
     },
-  };
+  }
 }
 
 /**
@@ -142,20 +142,20 @@ export function eachRecord(
     fields: Float32Array,
   ) => void,
 ) {
-  const { words, befores } = records;
+  const { words, befores } = records
   const floats = new Float32Array(words.buffer, words.byteOffset, words.length),
-    earlier = befores && new Float32Array(befores.buffer, befores.byteOffset, befores.length);
+    earlier = befores && new Float32Array(befores.buffer, befores.byteOffset, befores.length)
   for (let at = 0; at < words.length;) {
     const from = at + head,
       end = from + words[at + 1] * item,
-      kept = earlier && keptBefore(words[at], befores![at]);
+      kept = earlier && keptBefore(words[at], befores![at])
     visit(
       words[at],
       floats.subarray(from, end),
       kept ? earlier.subarray(from, end) : null,
       floats.subarray(at, from),
-    );
-    at = end;
+    )
+    at = end
   }
 }
 
@@ -166,6 +166,6 @@ export function lerpInto(
   to: ArrayLike<number>,
   t: number,
 ) {
-  if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i];
-  else for (let i = 0; i < out.length; i++) out[i] = from[i] + (to[i] - from[i]) * t;
+  if (t === 1) for (let i = 0; i < out.length; i++) out[i] = to[i]
+  else for (let i = 0; i < out.length; i++) out[i] = from[i] + (to[i] - from[i]) * t
 }

@@ -1358,7 +1358,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Der Proxy, neu gelesen und erneut geprüft, bevor auch nur ein Strahl ihn berührt.",
-    "description": "Elf Little-Endian-Headerwörter stehen vor gemeinsamer oder einzelner Geometrie, Baumspalten und versionierten Eigentümerdaten. `docs/FORMAT.md` definiert alle Anzahlen und Spalten. Falsche Längen werden vor jedem Strahlzugriff abgewiesen."
+    "description": "Elf Little-Endian-Headerwörter stehen vor gemeinsamer oder einzelner Geometrie, Baumspalten und versionierten Eigentümerdaten. Der Compiler schreibt sie in dieser Reihenfolge (`SceneProxy::encode`). Falsche Längen werden vor jedem Strahlzugriff abgewiesen."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, zerlegt in `position`, `quaternion`, `scale`."

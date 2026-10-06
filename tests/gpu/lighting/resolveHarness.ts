@@ -5,21 +5,21 @@
  * bindings on the engine's numbers, and writes the f32 sum's bits. Only the entry points are the
  * proofs' (`narrow-resolve.gpu.ts`, `sampled-resolve.gpu.ts`).
  */
-import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts';
-import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts';
+import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
+import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import {
   CONTRACT_BINDINGS_WGSL,
   VIEW_WGSL,
-} from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts';
+} from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
 
 /** Floats of a sample: albedo and metal, normal and roughness, point and occlusion, eye
  *  direction and surface flag. */
-export const SAMPLE_FLOATS = 16;
+export const SAMPLE_FLOATS = 16
 /** The harness's two bindings, past the resolve's own. */
-export const SAMPLES_BINDING = 30;
-export const SUMS_BINDING = 31;
+export const SAMPLES_BINDING = 30
+export const SUMS_BINDING = 31
 /** The pixel every sample is shaded at: the drawn resolve's offset reads it. */
-const SAMPLE_PIXEL = [1.5, 2.5];
+const SAMPLE_PIXEL = [1.5, 2.5]
 
 export const resolveHarness = (narrow: boolean, shadowed = true, rects = true) => `
 ${VIEW_WGSL}
@@ -54,4 +54,4 @@ fn drawn(@builtin(global_invocation_id) id:vec3u){
  if(sampledList(slice.y)){lit=sampledSliceLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,N,V,s.pointAo.xyz,s.pointAo.w,slice,u32(view.viewport.w),vec2f(${SAMPLE_PIXEL.join(',')}));}
  else{lit=sliceLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,N,V,s.pointAo.xyz,s.pointAo.w,slice);}
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
-}`;
+}`

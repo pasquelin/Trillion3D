@@ -1,14 +1,14 @@
-import type { Primitive } from '../../../../sdk-core/src/index.ts';
-import { quantizationErrorOf } from './helpers.ts';
-import type { Template } from './template.ts';
-import type { PageRec } from './types.ts';
-import type { HostMesh } from '../../host/resources.ts';
-import type { PageSurface } from '../surface.ts';
+import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import { quantizationErrorOf } from './helpers.ts'
+import type { Template } from './template.ts'
+import type { PageRec } from './types.ts'
+import type { HostMesh } from '../../host/resources.ts'
+import type { PageSurface } from '../surface.ts'
 
 /** Grows a box by the grid's quantization error: the surface an engine draws from the pages is the
  *  quantized one, so every bound encloses it. No error, the box is shared as-is. */
 function widened(bounds: number[], sign: number, slack: number) {
-  return slack > 0 ? bounds.map((value) => value + sign * slack) : bounds;
+  return slack > 0 ? bounds.map((value) => value + sign * slack) : bounds
 }
 
 /**
@@ -27,11 +27,11 @@ export function createPageRecords(
 ): PageRec[] {
   // The grid moved each position by at most this much: the page boxes grow by it, so culling still
   // encloses the quantized surface an engine draws.
-  const slack = quantizationErrorOf(primitive);
+  const slack = quantizationErrorOf(primitive)
   return primitive.pages.map((page, pageIndex) => {
     const entry = template.pages[pageIndex],
       cut = entry.cut,
-      streamed = entry.placed;
+      streamed = entry.placed
     return {
       id: page.id,
       url: page.url,
@@ -66,6 +66,6 @@ export function createPageRecords(
       sourceOrder: template.sourceOrder[pageIndex],
       renderOrder: order,
       cone: page.cone,
-    };
-  });
+    }
+  })
 }

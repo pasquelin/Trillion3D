@@ -1,7 +1,7 @@
-import type { HostAttribute, HostAttributes } from '../../host/resources.ts';
-import type { WebgpuGpuState } from '../pages/state/gpu.ts';
-import { uvBufferFloats, writeVertexColors } from '../core/vertexColors.ts';
-import { createFloatAtlas, writeFloatAtlas, type FloatAtlas } from '../core/floatAtlas.ts';
+import type { HostAttribute, HostAttributes } from '../../host/resources.ts'
+import type { WebgpuGpuState } from '../pages/state/gpu.ts'
+import { uvBufferFloats, writeVertexColors } from '../core/vertexColors.ts'
+import { createFloatAtlas, writeFloatAtlas, type FloatAtlas } from '../core/floatAtlas.ts'
 
 /**
  * Vertex buffers of a transparent primitive, held by the source geometry and not by the mesh that
@@ -13,10 +13,10 @@ function upload(device: GPUDevice, data: ArrayBufferView, floor: number, tally: 
   const buffer = device.createBuffer({
     size: Math.max(floor, data.byteLength),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  });
-  device.queue.writeBuffer(buffer, 0, data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
-  tally.vertexBytes += buffer.size;
-  return buffer;
+  })
+  device.queue.writeBuffer(buffer, 0, data.buffer as ArrayBuffer, data.byteOffset, data.byteLength)
+  tally.vertexBytes += buffer.size
+  return buffer
 }
 
 /** Indices of an unpaged transparent geometry, shared by all of its placements. */
@@ -25,13 +25,13 @@ export function ensureBlendIndexBuffer(
   index: HostAttribute,
   gpu: WebgpuGpuState,
 ) {
-  const held = gpu.blendIndexBuffers.get(index);
-  if (held) return held;
-  const src = index.array;
-  const data = src instanceof Uint32Array ? src : new Uint32Array(src as ArrayLike<number>);
-  const buffer = upload(device, data, 4, gpu);
-  gpu.blendIndexBuffers.set(index, buffer);
-  return buffer;
+  const held = gpu.blendIndexBuffers.get(index)
+  if (held) return held
+  const src = index.array
+  const data = src instanceof Uint32Array ? src : new Uint32Array(src as ArrayLike<number>)
+  const buffer = upload(device, data, 4, gpu)
+  gpu.blendIndexBuffers.set(index, buffer)
+  return buffer
 }
 
 /** UVs of a transparent geometry, unfolded once for all of its instances, then its vertex colours
@@ -41,22 +41,22 @@ export function ensureBlendUvBuffer(
   attributes: HostAttributes,
   gpu: WebgpuGpuState,
 ) {
-  if (gpu.blendUvBuffers.has(attributes)) return gpu.blendUvBuffers.get(attributes);
+  if (gpu.blendUvBuffers.has(attributes)) return gpu.blendUvBuffers.get(attributes)
   const uv = attributes.uv,
     color = attributes.color,
-    count = uv?.count ?? color?.count ?? 0;
-  let buffer: GPUBuffer | undefined;
+    count = uv?.count ?? color?.count ?? 0
+  let buffer: GPUBuffer | undefined
   if (uv || color) {
-    const data = new Float32Array(uvBufferFloats(count, !!color));
+    const data = new Float32Array(uvBufferFloats(count, !!color))
     for (let i = 0; uv && i < count; i++) {
-      data[i * 2] = uv.getX(i);
-      data[i * 2 + 1] = uv.getY(i);
+      data[i * 2] = uv.getX(i)
+      data[i * 2 + 1] = uv.getY(i)
     }
-    if (color) writeVertexColors(data, count, 0, count, color);
-    buffer = upload(device, data, 8, gpu);
+    if (color) writeVertexColors(data, count, 0, count, color)
+    buffer = upload(device, data, 8, gpu)
   }
-  gpu.blendUvBuffers.set(attributes, buffer);
-  return buffer;
+  gpu.blendUvBuffers.set(attributes, buffer)
+  return buffer
 }
 
 /** Normal and tangent of a transparent geometry, seven floats a vertex in the same order as
@@ -67,37 +67,37 @@ export function ensureBlendNormalAtlas(
   attributes: HostAttributes,
   gpu: WebgpuGpuState,
 ) {
-  if (gpu.blendNormalBuffers.has(attributes)) return gpu.blendNormalBuffers.get(attributes);
+  if (gpu.blendNormalBuffers.has(attributes)) return gpu.blendNormalBuffers.get(attributes)
   const normal = attributes.normal,
-    tangent = attributes.tangent;
-  let atlas: FloatAtlas | undefined;
+    tangent = attributes.tangent
+  let atlas: FloatAtlas | undefined
   if (normal) {
-    const data = new Float32Array(normal.count * 7);
+    const data = new Float32Array(normal.count * 7)
     for (let i = 0; i < normal.count; i++) {
-      data[i * 7] = normal.getX(i);
-      data[i * 7 + 1] = normal.getY(i);
-      data[i * 7 + 2] = normal.getZ(i);
+      data[i * 7] = normal.getX(i)
+      data[i * 7 + 1] = normal.getY(i)
+      data[i * 7 + 2] = normal.getZ(i)
       if (tangent) {
-        data[i * 7 + 3] = tangent.getX(i);
-        data[i * 7 + 4] = tangent.getY(i);
-        data[i * 7 + 5] = tangent.getZ(i);
-        data[i * 7 + 6] = tangent.getW(i);
+        data[i * 7 + 3] = tangent.getX(i)
+        data[i * 7 + 4] = tangent.getY(i)
+        data[i * 7 + 5] = tangent.getZ(i)
+        data[i * 7 + 6] = tangent.getW(i)
       }
     }
-    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', data.length);
-    writeFloatAtlas(device.queue, atlas, 0, data, 0, data.length);
-    gpu.vertexBytes += atlas.bytes;
+    atlas = createFloatAtlas(device, 'Trillion3D transparent normals', data.length)
+    writeFloatAtlas(device.queue, atlas, 0, data, 0, data.length)
+    gpu.vertexBytes += atlas.bytes
   }
-  gpu.blendNormalBuffers.set(attributes, atlas);
-  return atlas;
+  gpu.blendNormalBuffers.set(attributes, atlas)
+  return atlas
 }
 
 /** Returns the transparents' shared buffers to the driver; items own none of them. */
 export function dropBlendBuffers(gpu: WebgpuGpuState) {
-  for (const buffer of gpu.blendIndexBuffers.values()) buffer.destroy();
-  for (const buffer of gpu.blendUvBuffers.values()) buffer?.destroy();
-  for (const atlas of gpu.blendNormalBuffers.values()) atlas?.texture.destroy();
-  gpu.blendIndexBuffers.clear();
-  gpu.blendUvBuffers.clear();
-  gpu.blendNormalBuffers.clear();
+  for (const buffer of gpu.blendIndexBuffers.values()) buffer.destroy()
+  for (const buffer of gpu.blendUvBuffers.values()) buffer?.destroy()
+  for (const atlas of gpu.blendNormalBuffers.values()) atlas?.texture.destroy()
+  gpu.blendIndexBuffers.clear()
+  gpu.blendUvBuffers.clear()
+  gpu.blendNormalBuffers.clear()
 }

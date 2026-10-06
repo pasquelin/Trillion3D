@@ -5,20 +5,20 @@
  * whatever they become. The other levels write only the settings their group has wired; a level
  * whose settings are not wired yet writes nothing, and reads as `max` would.
  */
-import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts';
+import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts'
 
 /** The presets, coarsest first: each sets every group to the level of its own name. */
-export const QUALITY_PRESETS = ['smooth', 'balanced', 'fine', 'max'] as const;
+export const QUALITY_PRESETS = ['smooth', 'balanced', 'fine', 'max'] as const
 /** A preset: every group at the level of its name. */
-export type QualityPreset = (typeof QUALITY_PRESETS)[number];
+export type QualityPreset = (typeof QUALITY_PRESETS)[number]
 /** A group's level: the levels share the presets' names. */
-export type QualityLevel = QualityPreset;
+export type QualityLevel = QualityPreset
 /** What one level writes: setting name to value, over the defaults. */
-type QualityLevelValues = Readonly<Record<string, RenderSettingValue>>;
+type QualityLevelValues = Readonly<Record<string, RenderSettingValue>>
 /** Every level of every group. */
 export type QualityLevels = Readonly<
   Record<QualityGroup, Readonly<Record<QualityLevel, QualityLevelValues>>>
->;
+>
 
 /** Nothing over the defaults, at every level. */
 const UNWIRED: Readonly<Record<QualityLevel, QualityLevelValues>> = {
@@ -26,12 +26,12 @@ const UNWIRED: Readonly<Record<QualityLevel, QualityLevelValues>> = {
   balanced: {},
   fine: {},
   max: {},
-};
+}
 
 /** The engine's quality table. */
 export const QUALITY_LEVELS: QualityLevels = Object.fromEntries(
   QUALITY_GROUPS.map((group) => [group, UNWIRED]),
-) as unknown as QualityLevels;
+) as unknown as QualityLevels
 
 /**
  * The resolution modes: the fraction of the display, per axis, each draws at — the public ratios
@@ -43,6 +43,6 @@ export const RESOLUTION_MODES = {
   mixed: 1 / 1.7,
   fast: 1 / 2,
   turbo: 1 / 3,
-} as const;
+} as const
 /** A resolution mode. */
-export type ResolutionMode = keyof typeof RESOLUTION_MODES;
+export type ResolutionMode = keyof typeof RESOLUTION_MODES

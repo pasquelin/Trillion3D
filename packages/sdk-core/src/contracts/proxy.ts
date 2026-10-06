@@ -14,44 +14,44 @@
  */
 
 /** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
-export const SCENE_PROXY_VERSION = 5;
+export const SCENE_PROXY_VERSION = 5
 /** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
-export const SCENE_PROXY_MAGIC = 0x58504757;
+export const SCENE_PROXY_MAGIC = 0x58504757
 /** Header integers: v3 ownership header, then shape, stored-triangle and placement counts. */
-export const SCENE_PROXY_HEADER_WORDS = 11;
+export const SCENE_PROXY_HEADER_WORDS = 11
 /** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
-export const PROXY_TRIANGLE_FLOATS = 9;
+export const PROXY_TRIANGLE_FLOATS = 9
 /** Numbers per BVH node: its exact bounds, frame of its children's quantized boxes. */
-export const PROXY_NODE_FLOATS = 6;
+export const PROXY_NODE_FLOATS = 6
 /** Children of a node: four boxes tested at once, the nearest kept for the rest. */
-export const PROXY_CHILDREN = 4;
+export const PROXY_CHILDREN = 4
 /** Integers per child: two words of quantized box and count, then the link. */
-export const PROXY_CHILD_WORDS = 3;
+export const PROXY_CHILD_WORDS = 3
 /** Integers per node: its four children concatenated. */
-export const PROXY_NODE_WORDS = PROXY_CHILDREN * PROXY_CHILD_WORDS;
+export const PROXY_NODE_WORDS = PROXY_CHILDREN * PROXY_CHILD_WORDS
 
 /** Proxy columns, as its cache object carries them and the GPU copies them. */
 export interface SceneProxyColumns {
   /** Three world vertices per triangle, `PROXY_TRIANGLE_FLOATS` numbers each. */
-  triangles: Float32Array;
+  triangles: Float32Array
   /** Linear diffuse albedo of the triangle, packed RGBA8. */
-  albedo: Uint32Array;
+  albedo: Uint32Array
   /** Exact bounds of each BVH node. */
-  nodeBounds: Float32Array;
+  nodeBounds: Float32Array
   /** The four children of each node: quantized box, triangle count, presence, link. */
-  nodeChildren: Uint32Array;
+  nodeChildren: Uint32Array
   /** Interned source-owner group of each canonical triangle. */
-  triangleGroups: Uint32Array;
+  triangleGroups: Uint32Array
   /** Owner-record offsets of each group, including the final sentinel. */
-  groupOffsets: Uint32Array;
+  groupOffsets: Uint32Array
   /** Owner records: source node rank, packed linear RGBA8 albedo. */
-  owners: Uint32Array;
+  owners: Uint32Array
   /** Original source-node world matrices, sixteen doubles per node. */
-  bindWorlds: Float64Array;
+  bindWorlds: Float64Array
   /** Source hierarchy, including partition nodes not currently instantiated by the host. */
-  sourceParents: Int32Array;
+  sourceParents: Int32Array
   /** The compiled mesh each source node places, `-1` for none: what a partition's cell node draws. */
-  sourceMeshes: Int32Array;
+  sourceMeshes: Int32Array
 }
 
 /**
@@ -62,37 +62,37 @@ export interface SceneProxyColumns {
  */
 export interface SceneProxyDescriptor {
   /** Format version. */
-  version: number;
+  version: number
   /** Where it is read. */
-  url: string;
+  url: string
   /** Fingerprint of its bytes. */
-  sha256: string;
+  sha256: string
   /** Its size. */
-  bytes: number;
+  bytes: number
   /** Geometric error of the proxy in metres: that of the cut, plus that of simplification. */
-  errorMetres: number;
+  errorMetres: number
   /** Floor of the threshold: what the specification asks before the budget widens it. */
-  errorFloorMetres: number;
+  errorFloorMetres: number
   /** Grid step that simplification took: the size of a triangle, hence of a cell. */
-  cellMetres: number;
+  cellMetres: number
   /** Published triangle budget, the one that decided the threshold actually obtained. */
-  triangleBudget: number;
+  triangleBudget: number
   /** World extent of the proxy: three lower bounds then three upper. */
-  bounds: [number, number, number, number, number, number];
+  bounds: [number, number, number, number, number, number]
   /** Triangles. */
-  triangles: number;
+  triangles: number
   /** Tree nodes. */
-  nodes: number;
+  nodes: number
   /** Interned owner groups. */
-  groups: number;
+  groups: number
   /** Owner records. */
-  owners: number;
+  owners: number
   /** Source-node matrices. */
-  instances: number;
+  instances: number
 }
 
 /** The read proxy: its descriptor and its immutable columns, with shared triangles expanded at load. */
 export interface SceneProxy extends SceneProxyDescriptor {
   /** Its columns. */
-  data: SceneProxyColumns;
+  data: SceneProxyColumns
 }

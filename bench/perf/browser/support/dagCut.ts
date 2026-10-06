@@ -2,13 +2,13 @@
 // level below. Each cluster carries its own error and that of its replacement, so the cut
 // picks exactly one per region, and a threshold twice as large picks twice as few. Everything
 // comes from the shared bench's seeded generator.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../packages/sdk-core/src/index.ts';
-import { xorshiftRandom } from '../../../core/index.ts';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { BOX_VALUES, boxEmpty, boxExpandByPoint } from '../../../../packages/sdk-core/src/index.ts'
+import { xorshiftRandom } from '../../../core/index.ts'
 import type {
   ClusterRoot,
   PageRec,
-} from '../../../../packages/sdk-browser/src/page/selection/types.ts';
+} from '../../../../packages/sdk-browser/src/page/selection/types.ts'
 
 export type DagPage = Pick<
   PageRec,
@@ -24,7 +24,7 @@ export type DagPage = Pick<
   | 'group'
   | 'source'
   | 'array'
->;
+>
 
 /**
  * `feuilles` clusters at level 0, half as many at each level until the unique cluster. Pages
@@ -37,21 +37,21 @@ export function dag({
   residentes = 1,
   extent = 3,
 }: { feuilles?: number; seed?: number; residentes?: number; extent?: number } = {}): DagPage[] {
-  const alea = xorshiftRandom(seed);
-  const levels: number[] = [];
-  for (let count = feuilles; count >= 1; count = count >> 1) levels.push(count);
-  if (levels[levels.length - 1] !== 1) levels.push(1);
-  const pages: DagPage[] = [];
+  const alea = xorshiftRandom(seed)
+  const levels: number[] = []
+  for (let count = feuilles; count >= 1; count = count >> 1) levels.push(count)
+  if (levels[levels.length - 1] !== 1) levels.push(1)
+  const pages: DagPage[] = []
   for (let level = levels.length - 1; level >= 0; level--) {
     const count = levels[level],
       rayon = extent / Math.max(1, Math.sqrt(count)),
-      error = 2 ** level * 0.01;
-    const parent = level + 1 < levels.length ? 2 ** (level + 1) * 0.01 : null;
-    const gridSide = Math.ceil(Math.sqrt(count));
+      error = 2 ** level * 0.01
+    const parent = level + 1 < levels.length ? 2 ** (level + 1) * 0.01 : null
+    const gridSide = Math.ceil(Math.sqrt(count))
     for (let i = 0; i < count; i++) {
       const cx = ((i % gridSide) / gridSide - 0.5) * extent * 2,
         cy = (Math.floor(i / gridSide) / gridSide - 0.5) * extent * 2,
-        cz = (alea() - 0.5) * 0.5;
+        cz = (alea() - 0.5) * 0.5
       pages.push({
         url: `n${level}-${i}.bin`,
         level,
@@ -65,40 +65,40 @@ export function dag({
         group: null,
         source: null,
         array: alea() < residentes ? new Uint32Array(3) : undefined,
-      });
+      })
     }
   }
-  return pages;
+  return pages
 }
 
 /** A selection root without a culling hierarchy: descent takes the pages in order. */
 export function root(pages: DagPage[]): ClusterRoot<DagPage> {
-  const world = new G.Matrix4();
-  const box = new Float64Array(BOX_VALUES);
-  boxEmpty(box, 0);
+  const world = new G.Matrix4()
+  const box = new Float64Array(BOX_VALUES)
+  boxEmpty(box, 0)
   for (const page of pages) {
-    boxExpandByPoint(box, 0, page.min[0], page.min[1], page.min[2]);
-    boxExpandByPoint(box, 0, page.max[0], page.max[1], page.max[2]);
+    boxExpandByPoint(box, 0, page.min[0], page.min[1], page.min[2])
+    boxExpandByPoint(box, 0, page.max[0], page.max[1], page.max[2])
   }
-  return { world: world, pages, worldBox: box, localBox: box };
+  return { world: world, pages, worldBox: box, localBox: box }
 }
 
 /** The camera the pool tests see a DAG through: `distance` units above `(x, y)` of its plane,
  *  looking straight at it, 60°, 16:9. */
 export function dagCamera(distance = 9, x = 0, y = 0) {
-  const cam = G.perspectiveCamera(60, 16 / 9, 0.1, 200);
-  cam.position.set(x, y, distance);
-  cam.lookAt(x, y, 0);
-  cam.updateMatrixWorld();
-  return cam;
+  const cam = G.perspectiveCamera(60, 16 / 9, 0.1, 200)
+  cam.position.set(x, y, distance)
+  cam.lookAt(x, y, 0)
+  cam.updateMatrixWorld()
+  return cam
 }
 
 /** The camera down a DAG strip from its near end, as the cut rule's tests see it: every leaf of a
  *  `length`-unit strip along +x in view, 70°, 16:9. */
 export function stripCamera(length = 256) {
-  const cam = G.perspectiveCamera(70, 16 / 9, 0.1, 4000);
-  cam.position.set(-6, 4, 0);
-  cam.lookAt(length / 2, 0, 0);
-  cam.updateMatrixWorld();
-  return cam;
+  const cam = G.perspectiveCamera(70, 16 / 9, 0.1, 4000)
+  cam.position.set(-6, 4, 0)
+  cam.lookAt(length / 2, 0, 0)
+  cam.updateMatrixWorld()
+  return cam
 }

@@ -1,16 +1,16 @@
 // A2: visMaterial and the projected triangle are cached per frame (VisibilityFrame) instead
 // of being rebuilt at each pixel. Oracle: the pre-batch-A reference in
 // `bench/oracles/browser/image-shading.ts`.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { shadeVisibility } from './shade.ts';
-import { referenceShadeVisibility } from '../image-shading.ts';
-import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
-import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts';
-import { asHostLibrary } from '../../../../packages/sdk-browser/src/host/resources.ts';
-import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
-import { rasterVisibilityIds } from './raster.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { shadeVisibility } from './shade.ts'
+import { referenceShadeVisibility } from '../image-shading.ts'
+import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts'
+import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts'
+import { asHostLibrary } from '../../../../packages/sdk-browser/src/host/resources.ts'
+import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
+import { rasterVisibilityIds } from './raster.ts'
 
 /** The oracle reads the camera by shape: the engine graph's own camera is handed to it as is. */
 const oracleShade = (
@@ -24,12 +24,12 @@ const oracleShade = (
     pages,
     asHostLibrary<Parameters<typeof referenceShadeVisibility>[2]>(cam),
     size,
-  );
+  )
 
 function bitExactPixels(a: Uint8Array, b: Uint8Array) {
-  assert.equal(a.length, b.length);
+  assert.equal(a.length, b.length)
   for (let i = 0; i < a.length; i++)
-    assert.ok(Object.is(a[i], b[i]), `pixel[${i}]: ${a[i]} ≠ ${b[i]}`);
+    assert.ok(Object.is(a[i], b[i]), `pixel[${i}]: ${a[i]} ≠ ${b[i]}`)
 }
 
 /** One quad of `material` from `min` to `max`, shaded at `size`: bit-exact against the reference. */
@@ -40,53 +40,53 @@ function assertQuadLikeReference(
   label: string,
   size: [number, number],
 ) {
-  const { page, geometry } = quad(material, min, max, label);
-  const cam = cameraAt();
-  const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size);
-  const optimised = shadeVisibility(ids, [page], identityRoots(), engineCamera(cam), size);
-  const reference = oracleShade(ids, [page], cam, size);
-  bitExactPixels(optimised, reference);
-  geometry.dispose();
-  material.dispose();
+  const { page, geometry } = quad(material, min, max, label)
+  const cam = cameraAt()
+  const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size)
+  const optimised = shadeVisibility(ids, [page], identityRoots(), engineCamera(cam), size)
+  const reference = oracleShade(ids, [page], cam, size)
+  bitExactPixels(optimised, reference)
+  geometry.dispose()
+  material.dispose()
 }
 
 test('an empty scene is pure background, bit for bit', () => {
-  const cam = cameraAt();
-  const ids = new Uint32Array(4);
-  const optimised = shadeVisibility(ids, [], identityRoots(), engineCamera(cam), [2, 2]);
-  const reference = oracleShade(ids, [], cam, [2, 2]);
-  bitExactPixels(optimised, reference);
-});
+  const cam = cameraAt()
+  const ids = new Uint32Array(4)
+  const optimised = shadeVisibility(ids, [], identityRoots(), engineCamera(cam), [2, 2])
+  const reference = oracleShade(ids, [], cam, [2, 2])
+  bitExactPixels(optimised, reference)
+})
 
 test('a MeshBasicMaterial quad shades identically, one pixel and many', () => {
-  const material = G.basicSurface({ color: 0x4488cc });
-  const { page, geometry } = quad(material, [-1, -1, -0.4], [1, 1, -0.4], 'basic');
-  const cam = cameraAt();
+  const material = G.basicSurface({ color: 0x4488cc })
+  const { page, geometry } = quad(material, [-1, -1, -0.4], [1, 1, -0.4], 'basic')
+  const cam = cameraAt()
   for (const size of [
     [1, 1],
     [9, 9],
   ] as [number, number][]) {
-    const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size);
-    const optimised = shadeVisibility(ids, [page], identityRoots(), engineCamera(cam), size);
-    const reference = oracleShade(ids, [page], cam, size);
-    bitExactPixels(optimised, reference);
+    const ids = rasterVisibilityIds([page], identityRoots(), engineCamera(cam), size)
+    const optimised = shadeVisibility(ids, [page], identityRoots(), engineCamera(cam), size)
+    const reference = oracleShade(ids, [page], cam, size)
+    bitExactPixels(optimised, reference)
   }
-  geometry.dispose();
-  material.dispose();
-});
+  geometry.dispose()
+  material.dispose()
+})
 
 test('a MeshStandardMaterial quad (reads path) shades identically', () => {
   const material = G.standardSurface({
     color: 0xaa5533,
     roughness: 0.6,
     metalness: 0.3,
-  });
-  assertQuadLikeReference(material, [-1, -1, -0.4], [1, 1, -0.4], 'standard', [11, 11]);
-});
+  })
+  assertQuadLikeReference(material, [-1, -1, -0.4], [1, 1, -0.4], 'standard', [11, 11])
+})
 
 test('a triangle whose barycentric weights straddle the accept boundary agrees at the edge pixel', () => {
   // A degenerate sliver: the shared VisibilityFrame's cached triangle should still resolve every
   // pixel exactly like a fresh per-pixel triangleAt would.
-  const material = G.basicSurface({ color: 0x112233 });
-  assertQuadLikeReference(material, [-0.02, -1, -0.4], [0.02, 1, -0.4], 'sliver', [16, 16]);
-});
+  const material = G.basicSurface({ color: 0x112233 })
+  assertQuadLikeReference(material, [-0.02, -1, -0.4], [0.02, 1, -0.4], 'sliver', [16, 16])
+})

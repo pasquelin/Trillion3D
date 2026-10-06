@@ -1,40 +1,40 @@
-import type { RenderBackend } from './types.ts';
-import type { ClusterDraw } from '../cluster/batchMesh.ts';
-import { drawnRanges, submittedDraws } from '../cluster/submissions.fixture.ts';
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../sdk-core/src/index.ts';
+import type { RenderBackend } from './types.ts'
+import type { ClusterDraw } from '../cluster/batchMesh.ts'
+import { drawnRanges, submittedDraws } from '../cluster/submissions.fixture.ts'
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../sdk-core/src/index.ts'
 
 /** Indices one submission draws, in submission order: the ranges of a batch record, the whole
  *  index of a page mesh. */
 export function drawnIndices(draw: ClusterDraw) {
-  const index = draw.geometry.index;
-  const out: number[] = [];
+  const index = draw.geometry.index
+  const out: number[] = []
   for (const [first, length] of drawnRanges(draw))
-    for (let i = first; i < first + length; i++) out.push(index ? index.array[i] : i);
-  return out;
+    for (let i = first; i < first + length; i++) out.push(index ? index.array[i] : i)
+  return out
 }
 
 /** Triangles the owner submits for the current cut. */
 export function drawnTriangles(backend: RenderBackend) {
-  let total = 0;
-  for (const draw of submittedDraws(backend)) total += drawnIndices(draw).length / 3;
-  return total;
+  let total = 0
+  for (const draw of submittedDraws(backend)) total += drawnIndices(draw).length / 3
+  return total
 }
 
 export type Cluster = {
-  id: number;
-  url: string;
-  count: number;
-  min: number[];
-  max: number[];
-  bytes: number;
-  sha256: string;
-  role?: 'exact' | 'coarse';
-  start?: number;
-};
+  id: number
+  url: string
+  count: number
+  min: number[]
+  max: number[]
+  bytes: number
+  sha256: string
+  role?: 'exact' | 'coarse'
+  start?: number
+}
 
 export function clusterSphere(page: { min: number[]; max: number[] }) {
-  const c = [0, 1, 2].map((i) => (page.min[i] + page.max[i]) / 2);
-  return [...c, Math.hypot(...[0, 1, 2].map((i) => page.max[i] - c[i])) || 1];
+  const c = [0, 1, 2].map((i) => (page.min[i] + page.max[i]) / 2)
+  return [...c, Math.hypot(...[0, 1, 2].map((i) => page.max[i] - c[i])) || 1]
 }
 
 /** Level-0 clusters that nothing replaces, each one a root: the smallest legal DAG. A cluster keeps
@@ -54,7 +54,7 @@ export function dagRoots<T extends Cluster>(pages: T[], starts?: number[]) {
       source: null,
     })),
     structure: { version: 1, roots: pages.map((_, index) => index), groups: [] },
-  };
+  }
 }
 
 /** `leaves` replaced by the `coarse` clusters of error `error`, beside the untouched `roots`. */
@@ -64,8 +64,8 @@ export function dagLevel<T extends Cluster>(
   error: number,
   roots: T[] = [],
 ) {
-  const sphere = coarse.length ? clusterSphere(coarse[0]) : [0, 0, 0, 1];
-  const byId = (page: T) => page.id;
+  const sphere = coarse.length ? clusterSphere(coarse[0]) : [0, 0, 0, 1]
+  const byId = (page: T) => page.id
   return {
     pages: [
       ...leaves.map((page) => ({
@@ -112,10 +112,10 @@ export function dagLevel<T extends Cluster>(
         ? [{ level: 1, error, sphere, children: leaves.map(byId), outputs: coarse.map(byId) }]
         : [],
     },
-  };
+  }
 }
 
-export const DAG = { errorModel: 'dag-group-qem-v3', clusterStrategy: 'dag-groups' as const };
+export const DAG = { errorModel: 'dag-group-qem-v3', clusterStrategy: 'dag-groups' as const }
 
 /** The identity fields a cluster manifest carries, filled once for every backend test. */
 export const MANIFEST_IDENTITY = {
@@ -127,4 +127,4 @@ export const MANIFEST_IDENTITY = {
   selectedTriangles: 0,
   selectedNodes: 0,
   totalNodes: 0,
-};
+}

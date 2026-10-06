@@ -14,15 +14,15 @@
  *      number of times.
  * The rows then follow through `updatePlacements`, as any row does. Nothing is prepared again.
  */
-import { BOX_VALUES } from '../../../sdk-core/src/index.ts';
-import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
-import { forgetRowRoots } from './update.ts';
-import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts';
+import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
+import type { PageRec, ClusterRoot } from '../page/selection/types.ts'
+import { forgetRowRoots } from './update.ts'
+import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts'
 
 /** A root posed by `placement`, whose world is a view on its row: its pages read both from it. */
 function pose(root: ClusterRoot<PageRec>, placement: PlacementOf) {
-  root.world = placementWorld(placement.rows, placement.index);
-  root.placement = placement;
+  root.world = placementWorld(placement.rows, placement.index)
+  root.placement = placement
 }
 
 /** A parked root for row `index` of `rows`, cloned from `template`: shared clusters and tables,
@@ -37,9 +37,9 @@ function rowRoot(template: ClusterRoot<PageRec>, rows: PlacementRows, index: num
     stretch: undefined,
     stretchKey: undefined,
     parked: true,
-  };
-  pose(root, { rows, index });
-  return root;
+  }
+  pose(root, { rows, index })
+  return root
 }
 
 /**
@@ -54,17 +54,17 @@ export function growPlaced<T extends { readonly placement?: PlacementOf }>(
   rebind: (item: T, placement: PlacementOf) => void,
   clone: (template: T, placement: PlacementOf) => T,
 ) {
-  let template: T | undefined;
+  let template: T | undefined
   for (const item of items)
     if (item.placement?.rows === from) {
-      rebind(item, { rows: to, index: item.placement.index });
-      template ??= item;
+      rebind(item, { rows: to, index: item.placement.index })
+      template ??= item
     }
-  const added: { item: T; template: T }[] = [];
+  const added: { item: T; template: T }[] = []
   if (template)
     for (let index = from.capacity; index < to.capacity; index++)
-      added.push({ item: clone(template, { rows: to, index }), template });
-  return added;
+      added.push({ item: clone(template, { rows: to, index }), template })
+  return added
 }
 
 /** `growPlaced` on a root list: the roots of `from` read `to`, and one parked root per new row is
@@ -77,7 +77,7 @@ export function growRowRoots(
 ) {
   const added = growPlaced(roots, from, to, pose, (template, { rows, index }) =>
     rowRoot(template, rows, index),
-  );
-  forgetRowRoots(roots);
-  return added;
+  )
+  forgetRowRoots(roots)
+  return added
 }

@@ -1,16 +1,16 @@
-import { useWords } from '../i18n.ts';
-import type { Locale } from '../../content/locale.ts';
-import { exampleTitle, mosaicEntries, thumbnailOf } from '../examples/list.ts';
-import { DocPage, SITE_NAME } from '../layout/DocPage.tsx';
-import { LinkButton } from '../ui/Button.tsx';
-import { Mosaic } from '../ui/Mosaic.tsx';
-import { routeHref } from './routes.ts';
+import { useWords } from '../i18n.ts'
+import type { Locale } from '../../content/locale.ts'
+import { exampleTitle, mosaicEntries, thumbnailOf } from '../examples/list.ts'
+import { DocPage, SITE_NAME } from '../layout/DocPage.tsx'
+import { LinkButton } from '../ui/Button.tsx'
+import { Mosaic } from '../ui/Mosaic.tsx'
+import { routeHref } from './routes.ts'
 
 /** The home is the gallery: the title and where to start (the course, the reference, the scene
  * editor) on one row, then every ready example as a picture that opens it — the flagships
  * large. */
 export function Home({ locale }: { locale: Locale }) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   return (
     <DocPage
       title={SITE_NAME}
@@ -43,5 +43,5 @@ export function Home({ locale }: { locale: Locale }) {
         }))}
       />
     </DocPage>
-  );
+  )
 }

@@ -9,33 +9,33 @@
  *  matrix, sixteen numbers column-major, `null` for identities. */
 export interface TableSkin {
   /** Its name. */
-  name: string;
+  name: string
   /** Its joints, as node ranks; a vertex's joint index is a rank in this list. */
-  joints: readonly number[];
+  joints: readonly number[]
   /** The root of its skeleton, when the file names one. */
-  skeleton: number | null;
+  skeleton: number | null
   /** Sixteen numbers a joint: what takes the mesh from its bind pose into the joint's frame. */
-  inverseBindMatrices: readonly number[] | null;
+  inverseBindMatrices: readonly number[] | null
 }
 
 /** One channel of a clip: the node it moves, what it drives and its keys. */
 export interface TableChannel {
   /** The node it moves, as a rank of the node table. */
-  node: number;
+  node: number
   /** What it drives: the node's pose parts, or its mesh's morph weights. */
-  path: 'translation' | 'rotation' | 'scale' | 'weights';
+  path: 'translation' | 'rotation' | 'scale' | 'weights'
   /** How the value goes from one key to the next. */
-  interpolation: 'LINEAR' | 'STEP' | 'CUBICSPLINE';
+  interpolation: 'LINEAR' | 'STEP' | 'CUBICSPLINE'
   /** When each key happens, in seconds. */
-  times: readonly number[];
+  times: readonly number[]
   /** The value at each key; a cubic spline's is in-tangent, value, out-tangent. */
-  values: readonly number[];
+  values: readonly number[]
 }
 
 /** A clip of the file: its name and its channels. */
 export interface TableAnimation {
   /** Its name. */
-  name: string;
+  name: string
   /** Its channels. */
-  channels: readonly TableChannel[];
+  channels: readonly TableChannel[]
 }

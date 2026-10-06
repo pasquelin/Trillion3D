@@ -1,17 +1,17 @@
-import { cameraView, ease, glideCamera, opening } from './opening.ts';
-import type { CirclingWorld, Opening, View } from './opening.ts';
+import { cameraView, ease, glideCamera, opening } from './opening.ts'
+import type { CirclingWorld, Opening, View } from './opening.ts'
 
 /** A named part of a tour: the camera flies `seconds` to its view, then holds it `hold` seconds. */
 interface Pose extends View {
-  name: string;
-  seconds: number;
-  hold: number;
+  name: string
+  seconds: number
+  hold: number
 }
 
 /** A tour under way: an opening, and the part the camera is in. */
 interface Tour extends Opening {
   /** The pose flown to or held now; `null` once the tour has ended or the viewer took over. */
-  readonly part: string | null;
+  readonly part: string | null
 }
 
 /**
@@ -22,23 +22,23 @@ interface Tour extends Opening {
  */
 export function tour(world: CirclingWorld, poses: readonly Pose[], curve = ease.inOut): Tour {
   let start: number[] = [],
-    part: string | null = null;
+    part: string | null = null
   const glide = opening(world, (time) => {
-    if (time === 0) start = cameraView(world);
+    if (time === 0) start = cameraView(world)
     let from = start,
-      at = time;
+      at = time
     for (const pose of poses) {
-      const to = [...pose.position, ...pose.target];
+      const to = [...pose.position, ...pose.target]
       if (at < pose.seconds + pose.hold) {
-        glideCamera(world, from, to, curve(pose.seconds ? at / pose.seconds : 1));
-        part = pose.name;
-        return true;
+        glideCamera(world, from, to, curve(pose.seconds ? at / pose.seconds : 1))
+        part = pose.name
+        return true
       }
-      [from, at] = [to, at - pose.seconds - pose.hold];
+      ;[from, at] = [to, at - pose.seconds - pose.hold]
     }
-    return false;
-  });
+    return false
+  })
   return Object.defineProperties(glide, {
     part: { get: () => (glide.gliding ? part : null) },
-  }) as Tour;
+  }) as Tour
 }

@@ -2,10 +2,10 @@ import {
   composeMatrix4Batch,
   frustumKeepsBoxBatch,
   transformPointsBatch,
-} from '../../../../sdk-core/src/index.ts';
+} from '../../../../sdk-core/src/index.ts'
 
 /** The float arrays a batch reads and writes. */
-export type FloatBatch = Float32Array | Float64Array;
+export type FloatBatch = Float32Array | Float64Array
 
 /**
  * The `batch` family: a thousand matrices at once instead of a loop, over the core's batched
@@ -25,7 +25,7 @@ export const batch = {
     m: FloatBatch | { elements: FloatBatch },
     count: number,
   ) {
-    transformPointsBatch(out, 'elements' in m ? m.elements : m, points, count);
+    transformPointsBatch(out, 'elements' in m ? m.elements : m, points, count)
   },
   /**
    * `out[i] = T(positions[i]) · R(quaternions[i]) · S(scales[i])` for `count` poses.
@@ -42,7 +42,7 @@ export const batch = {
     scales: Float32Array,
     count: number,
   ) {
-    composeMatrix4Batch(out, positions, quaternions, scales, count);
+    composeMatrix4Batch(out, positions, quaternions, scales, count)
   },
   /**
    * `out[i] = 1` where the `i`-th box (six numbers) is not outside the frustum.
@@ -57,6 +57,6 @@ export const batch = {
     boxes: Float32Array,
     count: number,
   ) {
-    frustumKeepsBoxBatch(out, frustum.planes, boxes, count);
+    frustumKeepsBoxBatch(out, frustum.planes, boxes, count)
   },
-};
+}

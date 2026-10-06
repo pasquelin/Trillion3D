@@ -1,11 +1,11 @@
-import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
+import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts'
 
 /** What the compiler knew of a primitive beside its vertices, which sets its grids: the finest
  *  error its DAG published and the largest world scale that places it. A world's drawn triangles
  *  have neither — no DAG, a metre per unit —; a compiled primitive cut again in session both. */
-export type GridInputs = { finestError: number; scale: number };
+export type GridInputs = { finestError: number; scale: number }
 
-const DRAWN: GridInputs = { finestError: 0, scale: 0 };
+const DRAWN: GridInputs = { finestError: 0, scale: 0 }
 
 /**
  * The position grid exponent of a primitive of widest `extent` the engine cuts at run time: the
@@ -19,9 +19,9 @@ export async function positionGridExponent(
   blended: boolean,
   inputs: GridInputs = DRAWN,
 ): Promise<number | null> {
-  const wasm = await prepareSdkWasm();
-  if (!wasm || typeof wasm.position_grid_exponent !== 'function') return null;
-  return wasm.position_grid_exponent(extent, Number(blended), inputs.finestError, inputs.scale);
+  const wasm = await prepareSdkWasm()
+  if (!wasm || typeof wasm.position_grid_exponent !== 'function') return null
+  return wasm.position_grid_exponent(extent, Number(blended), inputs.finestError, inputs.scale)
 }
 
 /**
@@ -30,7 +30,7 @@ export async function positionGridExponent(
  * grid that span fits (#875). `null` when the module is not there.
  */
 export async function textureGridExponent(span: number, blended: boolean) {
-  const wasm = await prepareSdkWasm();
-  if (!wasm || typeof wasm.texture_grid_exponent !== 'function') return null;
-  return wasm.texture_grid_exponent(span, Number(blended));
+  const wasm = await prepareSdkWasm()
+  if (!wasm || typeof wasm.texture_grid_exponent !== 'function') return null
+  return wasm.texture_grid_exponent(span, Number(blended))
 }

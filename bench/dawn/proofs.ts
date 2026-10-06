@@ -11,34 +11,34 @@
 // The proofs are discovered by a rule, never by a hand-held list: a file one forgets to add does
 // not run, and nothing says so. What cannot run here is declared below with its reason — excluded
 // out loud, never in silence.
-import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
-import { join, sep } from 'node:path';
-import { isUnitTest } from '../../scripts/unit-tests.ts';
-import { entryPath, underNodeTest } from '../core/entryPoint.ts';
-import { LOCK_OWNER, takeBenchLock } from './lock.ts';
+import { spawnSync } from 'node:child_process'
+import { readdirSync } from 'node:fs'
+import { join, sep } from 'node:path'
+import { isUnitTest } from '../../scripts/unit-tests.ts'
+import { entryPath, underNodeTest } from '../core/entryPoint.ts'
+import { LOCK_OWNER, takeBenchLock } from './lock.ts'
 
 /** The repository, which proof paths are relative to. */
-const ROOT = join(import.meta.dirname, '..', '..');
+const ROOT = join(import.meta.dirname, '..', '..')
 
 /** Where the proofs live, one folder per engine area; `kit/` holds what they share. */
-export const PROOFS = 'tests/gpu';
+export const PROOFS = 'tests/gpu'
 /** How a proof's file name ends — on Dawn, or in Chrome (`CHROME_SUFFIX`): any other file under
  *  `tests/gpu` is a module a proof loads. */
-export const PROOF_SUFFIX = '.gpu.ts';
-export const CHROME_SUFFIX = '.chrome.ts';
+export const PROOF_SUFFIX = '.gpu.ts'
+export const CHROME_SUFFIX = '.chrome.ts'
 /** The flag that runs the Chrome proofs instead of the Dawn ones. */
-export const CHROME = '--chrome';
+export const CHROME = '--chrome'
 
 /** A setup the runner does not provide: the proof is sound, the machine is not ready. */
-export const SETUP = 'setup';
+export const SETUP = 'setup'
 /** An engine defect: the proof fails because it is right. Each one carries a TODO line. */
-export const REGRESSION = 'regression';
+export const REGRESSION = 'regression'
 /**
  * The proof holds a hand copy of a contract that the source evolved without it. The engine is
  * correct, the duplicate drifted: it is repaired by reading the contract instead of recopying it.
  */
-export const STALE_DUPLICATE = 'stale duplicate';
+export const STALE_DUPLICATE = 'stale duplicate'
 
 /**
  * Proofs the bench does not launch, by their path under `tests/gpu` without the suffix, and why —
@@ -100,7 +100,7 @@ export const EXCLUDED = new Map<string, [string, string]>([
     'partition/conservative-partition',
     [SETUP, 'port to Dawn unfinished: its only run hung with a promise still pending'],
   ],
-]);
+])
 
 /** Every proof on disk ending in `suffix`, excluded ones included, as repository paths: the
  *  folder's reference. */
@@ -109,40 +109,40 @@ export function listProofFiles(suffix = PROOF_SUFFIX) {
     .map((file) => file.split(sep).join('/'))
     .filter((file) => file.endsWith(suffix))
     .sort()
-    .map((file) => `${PROOFS}/${file}`);
+    .map((file) => `${PROOFS}/${file}`)
 }
 
 /** A proof's name in `EXCLUDED`: its path under `tests/gpu`, without the suffix. */
 export const proofName = (path: string, suffix = PROOF_SUFFIX) =>
-  path.slice(PROOFS.length + 1, -suffix.length);
+  path.slice(PROOFS.length + 1, -suffix.length)
 
 /** The proofs the bench launches: every one on disk, minus what is declared excluded. */
 export function listProofs(suffix = PROOF_SUFFIX) {
-  return listProofFiles(suffix).filter((path) => !EXCLUDED.has(proofName(path, suffix)));
+  return listProofFiles(suffix).filter((path) => !EXCLUDED.has(proofName(path, suffix)))
 }
 
 /** What the command did not prove, stated before launching anything. */
 export function reportedExclusions(suffix = PROOF_SUFFIX) {
-  const names = new Set(listProofFiles(suffix).map((path) => proofName(path, suffix)));
+  const names = new Set(listProofFiles(suffix).map((path) => proofName(path, suffix)))
   return [...EXCLUDED]
     .filter(([name]) => names.has(name))
-    .map(([name, [kind, reason]]) => `  ${kind} — ${name} : ${reason}`);
+    .map(([name, [kind, reason]]) => `  ${kind} — ${name} : ${reason}`)
 }
 
 /** `node` arguments: the flags, then the requested targets or the full list. */
 export function proofArgs(cliArgs: string[] = [], suffix = PROOF_SUFFIX): string[] {
-  const flags = ['--experimental-strip-types', '--test', '--test-concurrency=1'];
-  if (cliArgs.length > 0) return [...flags, ...cliArgs];
-  return [...flags, ...listProofs(suffix)];
+  const flags = ['--experimental-strip-types', '--test', '--test-concurrency=1']
+  if (cliArgs.length > 0) return [...flags, ...cliArgs]
+  return [...flags, ...listProofs(suffix)]
 }
 
 /** How every refusal starts, for the tests that count them. */
-export const DAWN_REFUSED = 'Dawn refused';
+export const DAWN_REFUSED = 'Dawn refused'
 
 /** Whether `path` is a proof the bench runs, ending in `suffix`, a declared exclusion included,
  *  so it can still be run on its own. */
 export const isProof = (path: string, suffix = PROOF_SUFFIX) =>
-  path.startsWith(`${PROOFS}/`) && !path.startsWith(`${PROOFS}/kit/`) && path.endsWith(suffix);
+  path.startsWith(`${PROOFS}/`) && !path.startsWith(`${PROOFS}/kit/`) && path.endsWith(suffix)
 
 /**
  * Throws when the GPU would open from an import instead of a run: with no entry file (`node -e`,
@@ -151,35 +151,35 @@ export const isProof = (path: string, suffix = PROOF_SUFFIX) =>
  * whether the process runs under `node --test`; the guard's own tests set it.
  */
 export function assertProofEntryPoint(entry = process.argv[1], testRun = underNodeTest()) {
-  const path = entryPath(entry);
-  if (path && !isUnitTest(path) && (!testRun || isProof(path))) return;
+  const path = entryPath(entry)
+  if (path && !isUnitTest(path) && (!testRun || isProof(path))) return
   throw new Error(
     `${DAWN_REFUSED}: the entry point ${entry || '(none)'} is no explicit run, or is a unit ` +
       'test. Importing a proof never opens the GPU; run it on its own ' +
       '(`pnpm run test:gpu <file>`).',
-  );
+  )
 }
 
 /** Runs the proofs — the Chrome ones after `CHROME` —, holding the machine's bench lock while
  *  they run. */
 export async function runProofs(args = process.argv.slice(2)) {
-  const chrome = args[0] === CHROME;
-  const [suffix, targets] = chrome ? [CHROME_SUFFIX, args.slice(1)] : [PROOF_SUFFIX, args];
-  takeBenchLock(chrome ? 'Chrome proofs' : 'GPU proofs');
+  const chrome = args[0] === CHROME
+  const [suffix, targets] = chrome ? [CHROME_SUFFIX, args.slice(1)] : [PROOF_SUFFIX, args]
+  takeBenchLock(chrome ? 'Chrome proofs' : 'GPU proofs')
   // Cooked under the lock: a compile beside a measurement would disturb it.
-  const { compileSiteCaches, TEST_SCENES } = await import('../../scripts/site-caches.ts');
-  compileSiteCaches(true, TEST_SCENES);
-  const excluded = reportedExclusions(suffix);
+  const { compileSiteCaches, TEST_SCENES } = await import('../../scripts/site-caches.ts')
+  compileSiteCaches(true, TEST_SCENES)
+  const excluded = reportedExclusions(suffix)
   if (targets.length === 0 && excluded.length > 0)
-    console.log(`${excluded.length} proofs excluded:\n${excluded.join('\n')}\n`);
+    console.log(`${excluded.length} proofs excluded:\n${excluded.join('\n')}\n`)
   // The proofs open the GPU under this run's lock (`installProofGpu`), never beside it.
   const result = spawnSync(process.execPath, proofArgs(targets, suffix), {
     stdio: 'inherit',
     cwd: ROOT,
     env: { ...process.env, [LOCK_OWNER]: String(process.pid) },
-  });
-  if (result.error) throw result.error;
-  process.exit(result.status ?? 1);
+  })
+  if (result.error) throw result.error
+  process.exit(result.status ?? 1)
 }
 
-if (import.meta.main) await runProofs();
+if (import.meta.main) await runProofs()

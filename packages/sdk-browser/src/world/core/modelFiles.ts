@@ -1,9 +1,9 @@
-import { importedLightsUrl } from '../../lighting/importedLights.ts';
-import { worldRootsPlan } from '../../scene/worldRoots.ts';
-import { sceneTablesUrl } from '../../scene/tables.ts';
+import { importedLightsUrl } from '../../lighting/importedLights.ts'
+import { worldRootsPlan } from '../../scene/worldRoots.ts'
+import { sceneTablesUrl } from '../../scene/tables.ts'
 
 /** The document a world's model draws. */
-export const SCENE_FILE = 'source.gltf';
+export const SCENE_FILE = 'source.gltf'
 
 /**
  * The files a model load reads once its manifest is, at the length the manifest declares each,
@@ -16,7 +16,7 @@ export function plannedFiles(
   base: string,
   manifest: object,
 ) {
-  const read = [sceneTablesUrl(base), importedLightsUrl(base)];
-  const files = read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : []));
-  return new Map([...files, ...worldRootsPlan(declared, base, manifest)] as [string, number][]);
+  const read = [sceneTablesUrl(base), importedLightsUrl(base)]
+  const files = read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : []))
+  return new Map([...files, ...worldRootsPlan(declared, base, manifest)] as [string, number][])
 }

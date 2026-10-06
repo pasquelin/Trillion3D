@@ -1,6 +1,6 @@
-import type { VisMaterial } from '../types.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
-import { SHADOWLESS_ROOT } from './shadowlessRoot.ts';
+import type { VisMaterial } from '../types.ts'
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
 
 /**
  * THE SPRITE: where a corner of a sprite's quad (`drawnSprite`, sdk-core `drawnSprite.ts`) stands
@@ -29,7 +29,7 @@ export const SPRITE_WGSL = `fn spriteAt(toClip:mat4x4f,place:mat4x4f,corner:vec2
  let r=normalize(vec3f(toClip[0].x,toClip[1].x,toClip[2].x));
  let u=normalize(vec3f(toClip[0].y,toClip[1].y,toClip[2].y));
  return vec4f(center.xyz+(c*a.x-s*a.y)*r+(s*a.x+c*a.y)*u,1.0);
-}`;
+}`
 
 /** The same corner in the WebGL2 program (`../../webgl/cluster/shaders.ts`). */
 export const SPRITE_GLSL = `vec4 spriteAt(mat4 toClip,mat4 place,vec2 corner,vec2 sprite){
@@ -40,7 +40,7 @@ export const SPRITE_GLSL = `vec4 spriteAt(mat4 toClip,mat4 place,vec2 corner,vec
  vec3 r=normalize(vec3(toClip[0].x,toClip[1].x,toClip[2].x));
  vec3 u=normalize(vec3(toClip[0].y,toClip[1].y,toClip[2].y));
  return vec4(center.xyz+(c*a.x-s*a.y)*r+(s*a.x+c*a.y)*u,1.0);
-}`;
+}`
 
 /** Writes the two words every raster reads of a surface (`sprite`, above) into `out` at `at`:
  *  zeros on a surface that draws no sprite. */
@@ -49,8 +49,8 @@ export function writeSpriteWords(
   at: number,
   sprite: VisMaterial['sprite'],
 ) {
-  out[at] = sprite?.rotation ?? 0;
-  out[at + 1] = !sprite ? 0 : sprite.sizeAttenuation ? 1 : -1;
+  out[at] = sprite?.rotation ?? 0
+  out[at + 1] = !sprite ? 0 : sprite.sizeAttenuation ? 1 : -1
 }
 
 /**
@@ -61,36 +61,36 @@ export function writeSpriteWords(
  * test each of them reads.
  */
 export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
-  surface?.sprite?.sizeAttenuation === false;
+  surface?.sprite?.sizeAttenuation === false
 
 /** The root mark's bit on every sprite (`ClusterRoot.mark`): a sprite casts no shadow, so the
  *  shadow raster leaves its rows out and the sun's scene box leaves it out. */
-const SPRITE_ROOT = 1;
+const SPRITE_ROOT = 1
 /** The root mark's bit on a never-culled sprite (`neverCulled`): no camera cut rejects it. */
-export const SPRITE_UNCULLED = 2;
+export const SPRITE_UNCULLED = 2
 /** The bits of a root that casts no shadow: what the shadow raster's rows test
  *  (`../../webgpu/shadow/bounds.ts`). */
-export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT;
+export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT
 /** The root mark's bit on a root the camera draws as its impostor card (#1335): every camera cut
  *  leaves its clusters to the card (`drawsCard`), the shadow raster still draws them, so the card's
  *  object casts its whole mesh's shadow. */
-export const CARD_ROOT = 8;
+export const CARD_ROOT = 8
 /** Sets or clears `root`'s card bit; true when its mark changed. */
 export function markCard(root: { mark?: number }, card: boolean) {
   const before = root.mark ?? 0,
-    mark = card ? before | CARD_ROOT : before & ~CARD_ROOT;
-  root.mark = mark || undefined;
-  return mark !== before;
+    mark = card ? before | CARD_ROOT : before & ~CARD_ROOT
+  root.mark = mark || undefined
+  return mark !== before
 }
 /** `mark` with its shadowless bit set when `shadowless`, cleared otherwise. */
 export const withShadowless = (mark: number, shadowless: boolean) =>
-  shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT;
+  shadowless ? mark | SHADOWLESS_ROOT : mark & ~SHADOWLESS_ROOT
 /** Sets or clears `root`'s shadowless bit; true when its mark changed. */
 export function markShadowless(root: { mark?: number }, shadowless: boolean) {
   const before = root.mark ?? 0,
-    mark = withShadowless(before, shadowless);
-  root.mark = mark || undefined;
-  return mark !== before;
+    mark = withShadowless(before, shadowless)
+  root.mark = mark || undefined
+  return mark !== before
 }
 
 /**
@@ -99,7 +99,7 @@ export function markShadowless(root: { mark?: number }, shadowless: boolean) {
  * frame word (`markOf`) — beside its shadowless bit. 0 on any surface that draws no sprite.
  */
 export const spriteMark = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
-  !surface?.sprite ? 0 : SPRITE_ROOT | (neverCulled(surface) ? SPRITE_UNCULLED : 0);
+  !surface?.sprite ? 0 : SPRITE_ROOT | (neverCulled(surface) ? SPRITE_UNCULLED : 0)
 
 /** `SPRITE_WGSL` on the CPU, statement for statement: the software raster's sprite corner. Both
  *  matrices are column-major; writes the point, `w` one, into `out` and returns it. */
@@ -112,20 +112,20 @@ export function spriteAt(
   sprite: NonNullable<VisMaterial['sprite']>,
 ) {
   let ax = cornerX * hypot3(place[0], place[1], place[2]),
-    ay = cornerY * hypot3(place[4], place[5], place[6]);
+    ay = cornerY * hypot3(place[4], place[5], place[6])
   if (!sprite.sizeAttenuation) {
-    const w = toClip[3] * place[12] + toClip[7] * place[13] + toClip[11] * place[14] + toClip[15];
-    ax *= w;
-    ay *= w;
+    const w = toClip[3] * place[12] + toClip[7] * place[13] + toClip[11] * place[14] + toClip[15]
+    ax *= w
+    ay *= w
   }
   const c = Math.cos(sprite.rotation),
-    s = Math.sin(sprite.rotation);
+    s = Math.sin(sprite.rotation)
   const r = hypot3(toClip[0], toClip[4], toClip[8]),
-    u = hypot3(toClip[1], toClip[5], toClip[9]);
+    u = hypot3(toClip[1], toClip[5], toClip[9])
   const x = c * ax - s * ay,
-    y = s * ax + c * ay;
+    y = s * ax + c * ay
   for (let i = 0; i < 3; i++)
-    out[i] = place[12 + i] + (x * toClip[4 * i]) / r + (y * toClip[4 * i + 1]) / u;
-  out[3] = 1;
-  return out;
+    out[i] = place[12 + i] + (x * toClip[4 * i]) / r + (y * toClip[4 * i + 1]) / u
+  out[3] = 1
+  return out
 }

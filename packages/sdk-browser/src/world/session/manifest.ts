@@ -1,8 +1,8 @@
-import { loadClusterManifest } from '../../scene/manifestLoad.ts';
-import type { ClusterManifest, AssetScope } from '../../../../sdk-core/src/index.ts';
-import type { createDiagnosticChannel } from '../../diagnostic/channel.ts';
+import { loadClusterManifest } from '../../scene/manifestLoad.ts'
+import type { ClusterManifest, AssetScope } from '../../../../sdk-core/src/index.ts'
+import type { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 
-type Diagnose = (phase: string, message: string, context?: Record<string, unknown>) => void;
+type Diagnose = (phase: string, message: string, context?: Record<string, unknown>) => void
 
 export async function loadExplorerManifest(
   manifestUrl: string,
@@ -11,13 +11,13 @@ export async function loadExplorerManifest(
   diagnose: Diagnose,
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
 ) {
-  let metadataUrl: string;
-  let metadata: ClusterManifest;
-  let loadedBase: string;
+  let metadataUrl: string
+  let metadata: ClusterManifest
+  let loadedBase: string
   try {
-    const loaded = await loadClusterManifest(manifestUrl, scope, signal);
-    ({ metadata, metadataUrl } = loaded);
-    loadedBase = loaded.base;
+    const loaded = await loadClusterManifest(manifestUrl, scope, signal)
+    ;({ metadata, metadataUrl } = loaded)
+    loadedBase = loaded.base
     diagnose('manifest', 'Manifeste lu', {
       kind: 'preparation',
       phase: 'manifest',
@@ -25,7 +25,7 @@ export async function loadExplorerManifest(
       manifestUrl,
       metadataUrl,
       ...loaded.timing,
-    });
+    })
   } catch (error) {
     diagnose('error', 'Manifest or cache preparation failed', {
       kind: 'error',
@@ -33,10 +33,10 @@ export async function loadExplorerManifest(
       error: String(error),
       scope,
       manifestUrl,
-    });
-    diagnosticChannel.flushSync();
-    diagnosticChannel.close();
-    throw error;
+    })
+    diagnosticChannel.flushSync()
+    diagnosticChannel.close()
+    throw error
   }
-  return { metadata, metadataUrl, loadedBase };
+  return { metadata, metadataUrl, loadedBase }
 }

@@ -8,24 +8,24 @@
  */
 export interface FrameRevisions {
   /** World matrices, materials, source geometry, lights: everything the scene carries. */
-  scene: number;
+  scene: number
   /** Camera, projection, resolution and quality settings: everything the viewpoint carries. */
-  view: number;
+  view: number
   /** Page arrival or eviction, texture upload, residency, buffers. */
-  resources: number;
+  resources: number
 }
 
-export const createFrameRevisions = (): FrameRevisions => ({ scene: 1, view: 1, resources: 1 });
+export const createFrameRevisions = (): FrameRevisions => ({ scene: 1, view: 1, resources: 1 })
 
 export const bumpScene = (revisions: FrameRevisions) => {
-  revisions.scene++;
-};
+  revisions.scene++
+}
 export const bumpView = (revisions: FrameRevisions) => {
-  revisions.view++;
-};
+  revisions.view++
+}
 export const bumpResources = (revisions: FrameRevisions) => {
-  revisions.resources++;
-};
+  revisions.resources++
+}
 
 /**
  * Witness of a held frame: the three revisions of the last frame produced, and the signature of
@@ -41,33 +41,33 @@ export const bumpResources = (revisions: FrameRevisions) => {
  * that names what it changed, and `same` becomes false at the same time.
  */
 export function createFrameHold(values: number) {
-  const held = new Float64Array(values);
+  const held = new Float64Array(values)
   /** Where the caller writes the signature of the frame it has just produced. */
-  const sample = new Float64Array(values);
+  const sample = new Float64Array(values)
   let scene = -1,
     view = -1,
     resources = -1,
-    stable = false;
+    stable = false
   // No frame retained: the three kept revisions are `-1`, which no counter reaches.
   const same = (revisions: FrameRevisions) =>
-    scene === revisions.scene && view === revisions.view && resources === revisions.resources;
+    scene === revisions.scene && view === revisions.view && resources === revisions.resources
   return {
     sample,
     /** True when the revisions have not moved since the retained frame. */
     same,
     /** True when the last two retained frames produced exactly the same work. */
     get stable() {
-      return stable;
+      return stable
     },
     /** Stores the frame that has just been produced: its revisions and its signature. */
     keep(revisions: FrameRevisions) {
-      let repeated = same(revisions);
-      for (let i = 0; repeated && i < values; i++) repeated = held[i] === sample[i];
-      stable = repeated;
-      held.set(sample);
-      scene = revisions.scene;
-      view = revisions.view;
-      resources = revisions.resources;
+      let repeated = same(revisions)
+      for (let i = 0; repeated && i < values; i++) repeated = held[i] === sample[i]
+      stable = repeated
+      held.set(sample)
+      scene = revisions.scene
+      view = revisions.view
+      resources = revisions.resources
     },
-  };
+  }
 }

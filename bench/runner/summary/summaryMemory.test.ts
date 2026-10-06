@@ -1,9 +1,9 @@
 // Summary memory section: a total per side and per view, three named families, the rest
 // by difference, the heaviest labels, and nothing invented when registry is missing.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { memoire } from './summaryMemory.ts';
-import type { Report, Row, Series } from '../report/types.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { memoire } from './summaryMemory.ts'
+import type { Report, Row, Series } from '../report/types.ts'
 
 const series = (view: string, sides: Record<string, Partial<Row>>): Series => ({
   view,
@@ -12,10 +12,10 @@ const series = (view: string, sides: Record<string, Partial<Row>>): Series => ({
   index: 0,
   pose: { position: [0, 0, 0], target: [0, 0, 0], fov: 55, near: 0.1, far: 100 },
   sides: sides as Record<string, Row>,
-});
+})
 
 /** A minimal report: only the series `memoire()` reads. */
-const rapport = (series: Series[]): Report => ({ series }) as Report;
+const rapport = (series: Series[]): Report => ({ series }) as Report
 
 test('each side of each view has its row, and the rest is the difference', () => {
   const lignes = memoire(
@@ -39,18 +39,18 @@ test('each side of each view has its row, and the rest is the difference', () =>
         },
       }),
     ]),
-  );
+  )
   assert.equal(
     lignes[2],
     '| ground | e1 | after | 7.500 GB | 6.689 GB | 0.400 GB / 536.9 MB (scene) | 275.7 MB | 0.136 GB |',
-  );
-  assert.equal(lignes[3], '');
+  )
+  assert.equal(lignes[3], '')
   assert.equal(
     lignes[4],
     '- ground · e1 · after, heaviest: Trillion3D material atlas rgba8unorm classe 0 4252.6 MB, ' +
       'Trillion3D geometry page cache 300.0 MB, unlabelled 0.0 MB',
-  );
-});
+  )
+})
 
 test('a side without registry is unmeasured, never zero, and an unknown format is stated', () => {
   const lignes = memoire(
@@ -66,19 +66,19 @@ test('a side without registry is unmeasured, never zero, and an unknown format i
         },
       }),
     ]),
-  );
+  )
   assert.equal(
     lignes[2],
     '| overview | e1 | before | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',
-  );
+  )
   assert.equal(
     lignes[3],
     '| overview | e1 | after | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
-  );
-  assert.equal(lignes.length, 6);
+  )
+  assert.equal(lignes.length, 6)
   assert.match(
     lignes[5],
     /^- overview · e1 · after, heaviest: Trillion3D HDR lighting 0.0 MB — 2 texture/,
-  );
-  assert.match(lignes[5], /this total is not a proof$/);
-});
+  )
+  assert.match(lignes[5], /this total is not a proof$/)
+})

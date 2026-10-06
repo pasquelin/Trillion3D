@@ -1,16 +1,16 @@
-import { feedbackAttachment } from '../pages/prepare/attachments.ts';
-import { blendEntries } from './identity.ts';
-import { createBlendOverdraw } from './overdraw.ts';
-import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts';
-import type { BlendGpuItem } from './state.ts';
-import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts';
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
-import { planItem, planPipeline } from './plan.ts';
-import { itemKept } from './expandCpu.ts';
-import { routedFilter, type DisplayFilter } from './displayFilter.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
-import { directLightResources } from '../pages/prepare/lightResources.ts';
+import { feedbackAttachment } from '../pages/prepare/attachments.ts'
+import { blendEntries } from './identity.ts'
+import { createBlendOverdraw } from './overdraw.ts'
+import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts'
+import type { BlendGpuItem } from './state.ts'
+import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts'
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import { planItem, planPipeline } from './plan.ts'
+import { itemKept } from './expandCpu.ts'
+import { routedFilter, type DisplayFilter } from './displayFilter.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
+import { directLightResources } from '../pages/prepare/lightResources.ts'
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -24,7 +24,7 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
     entries: item
       ? blendEntries(rt, item)
       : (rt.blendState.identity.entries[0] ??= blendEntries(rt)),
-  });
+  })
 }
 
 /**
@@ -61,43 +61,43 @@ export function drawBlendRuns(
     slotOwns = blendState.slotOwns[slice],
     main = blendState.mainPipeline[slice],
     count = blendState.runCount[slice],
-    args = blendState.argsBuffer!;
-  if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group);
-  if (filter) pass.setBindGroup(2, filter.maskGroup);
-  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined);
+    args = blendState.argsBuffer!
+  if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group)
+  if (filter) pass.setBindGroup(2, filter.maskGroup)
+  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined)
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
-    encoded = 0;
-  const base = blendState.planRegions[slice].args * 4;
+    encoded = 0
+  const base = blendState.planRegions[slice].args * 4
   for (let slot = 0; slot < count; slot++) {
-    const own = slotOwns[slot];
+    const own = slotOwns[slot]
     let pipelineRank = main,
-      item: BlendGpuItem | undefined;
+      item: BlendGpuItem | undefined
     if (own >= 0) {
-      const entry = seeds[ownSeeds[own]];
-      if (!itemKept(blendState.keepPacked, planItem(entry))) continue;
-      pipelineRank = planPipeline(entry);
-      item = items[planItem(entry)];
+      const entry = seeds[ownSeeds[own]]
+      if (!itemKept(blendState.keepPacked, planItem(entry))) continue
+      pipelineRank = planPipeline(entry)
+      item = items[planItem(entry)]
     }
-    if (pipelines.skips?.(pipelineRank)) continue;
-    encoded++;
+    if (pipelines.skips?.(pipelineRank)) continue
+    encoded++
     if (boundPipeline !== pipelineRank) {
-      boundPipeline = pipelineRank;
+      boundPipeline = pipelineRank
       // The blend pass compiles a mode first written after it was built (`pipelines.ts`).
-      const pipeline = pipelines.at(boundPipeline, !!filter, share);
-      if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
-      pass.setPipeline(pipeline);
+      const pipeline = pipelines.at(boundPipeline, !!filter, share)
+      if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`)
+      pass.setPipeline(pipeline)
     }
     const group =
       item && !item.paged
         ? (item.group ??= blendBindGroup(rt, device, item))
-        : blendState.pagedGroup!;
+        : blendState.pagedGroup!
     // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
     // group is set once for the whole list, and again only for an unpaged item's own buffers.
-    if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group));
-    pass.drawIndirect(args, base + slot * 16);
+    if (group !== boundGroup) pass.setBindGroup(0, (boundGroup = group))
+    pass.drawIndirect(args, base + slot * 16)
   }
-  return encoded;
+  return encoded
 }
 
 /**
@@ -122,19 +122,19 @@ export function drawBlendPass(
       ? routedFilter(gpu.displayFilter)
       : gpu.displayFilter?.active
         ? gpu.displayFilter
-        : undefined;
+        : undefined
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
-  if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
+  if (!blendState.runCount[slice] || !blendState.argsBuffer) return false
   // Lit with the code the frame's lights need, on the opaque resolve's key (`pipelines.ts`).
-  const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt));
-  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter, pipelines.mask);
-  const share = activeAsIsShare(rt);
+  const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt))
+  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter, pipelines.mask)
+  const share = activeAsIsShare(rt)
   // A debug view or the temporal pass turning the share on starts its compile (`reach.ts`).
-  pipelines.reach({ share: !!share, filtered: !!filter });
+  pipelines.reach({ share: !!share, filtered: !!filter })
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
-    : undefined;
+    : undefined
   const pass = encoder.beginRenderPass({
     label: transmissive ? 'Trillion3D transmission' : 'Trillion3D transparents',
     occlusionQuerySet: overdraw?.set,
@@ -152,15 +152,15 @@ export function drawBlendPass(
       ...(filter ? filter.attachments() : []),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
-  });
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
-  overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, pipelines, filter, !!share);
-  overdraw?.end(pass);
-  pass.end();
-  overdraw?.after(encoder);
-  countBlendDraws(rt, encoded, transmissive);
-  return true;
+  })
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  overdraw?.begin(pass, transmissive)
+  const encoded = drawBlendRuns(rt, device, pass, slice, pipelines, filter, !!share)
+  overdraw?.end(pass)
+  pass.end()
+  overdraw?.after(encoder)
+  countBlendDraws(rt, encoded, transmissive)
+  return true
 }
 
 /** The display mask: the blends' filtering surfaces alone, depth-tested, before the blend pass. */
@@ -171,24 +171,24 @@ function drawDisplayMask(
   filter: DisplayFilter,
   mask: BlendModePipelines['mask'],
 ) {
-  const { gpu, run } = rt;
+  const { gpu, run } = rt
   const pass = encoder.beginRenderPass({
     label: 'Trillion3D display mask',
     colorAttachments: [...Array<null>(mask.slot).fill(null), filter.maskAttachment()],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
-  });
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
-  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 0, mask);
-  pass.end();
+  })
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 0, mask)
+  pass.end()
 }
 
 /** Frame counters of a transparent pass: draws, and the unpaged triangles it submits. */
 export function countBlendDraws(rt: WebgpuPagesRuntime, encoded: number, transmissive: boolean) {
-  const { run, blendState } = rt;
-  run.gpuDrawCalls += encoded;
-  run.blendDrawCalls += encoded;
+  const { run, blendState } = rt
+  run.gpuDrawCalls += encoded
+  run.blendDrawCalls += encoded
   run.blendUnpagedTriangles += transmissive
     ? blendState.transmissionTriangles
-    : blendState.blendTriangles;
-  run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles;
+    : blendState.blendTriangles
+  run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles
 }

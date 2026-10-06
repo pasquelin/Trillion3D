@@ -1,19 +1,19 @@
-import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts';
-import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pageWgsl.ts';
+import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pageWgsl.ts'
 
 /** The binding of the float pool's normal atlas (`../webgpu/core/floatAtlas.ts`, #1410). */
-export const DEFORMATION_NORMALS = 2;
+export const DEFORMATION_NORMALS = 2
 import {
   DEFORM_ADDRESS,
   DEFORM_IN_POOL,
   FLAG_CLUSTER_PAGE,
   FLAG_DYNAMIC,
-} from '../visibility/types.ts';
-import { DEFORM_WGSL } from './deformWgsl.ts';
-import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts';
+} from '../visibility/types.ts'
+import { DEFORM_WGSL } from './deformWgsl.ts'
+import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts'
 
 /** Lanes of the stage's group: a row of at most as many vertices deforms them in one pass. */
-export const DEFORMATION_LANES = 64;
+export const DEFORMATION_LANES = 64
 
 /** One invocation per vertex, one group per resident placement; results share its cache slot. */
 export const DEFORMATION_COMPUTE_WGSL = `${PAGE_INFO_STRUCT_WGSL}
@@ -65,7 +65,7 @@ fn deform(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) la
   storeDeformed(at+3u,before,whole);
   storeDeformed(at+6u,deformNormal(page,h,v,n),whole);
  }
-}`;
+}`
 
 /** The stage's binding contract, reused by GPU probes: buffers, the normal atlas at its rank. */
 export const deformationBindings = (): GPUBindGroupLayoutEntry[] =>
@@ -79,4 +79,4 @@ export const deformationBindings = (): GPUBindGroupLayoutEntry[] =>
             type: binding === 5 ? 'uniform' : binding <= 1 ? 'storage' : 'read-only-storage',
           } as const,
         }),
-  }));
+  }))

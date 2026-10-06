@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { shaderRun } from './shaderRun.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { shaderRun } from './shaderRun.fixture.ts'
 
 test('a component is assigned in place, a value held by two names is two values', () => {
   const { f } = shaderRun<{ f: (s: Record<string, number>) => unknown }>(
@@ -13,10 +13,10 @@ test('a component is assigned in place, a value held by two names is two values'
 }`,
     ['f'],
     {},
-  );
-  const s = { x: 0 };
+  )
+  const s = { x: 0 }
   // origin keeps 1 while p becomes 4; a structure's member `x` is its key, not a component, and a
   // copy of the structure is written apart.
-  assert.deepEqual(f(s), [5, 7, 2, 15]);
-  assert.deepEqual(s, { x: 9 });
-});
+  assert.deepEqual(f(s), [5, 7, 2, 15])
+  assert.deepEqual(s, { x: 9 })
+})

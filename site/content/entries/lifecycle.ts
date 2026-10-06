@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** What the reference adds by hand to the compiler and job entries: a longer text and an example. */
 export const LIFECYCLE: EntryNote[] = [
@@ -31,4 +31,4 @@ const summary = await prepareMany(jobs, { workers: 2, onEvent: createBatchProgre
     example: `const capabilities = await detectCapabilities('webgpu', canvas);
 console.log(capabilities.tier, capabilities.renderer, capabilities.reason);`,
   },
-];
+]

@@ -1,46 +1,46 @@
-import { mathBatchMetrics, prepareMathBatch } from '../../math/batchState.ts';
-import { materialTextures, meshes as objects } from '../../scene/meshes.ts';
-import { hostTextureWritten } from '../../host/textureImport.ts';
-import { families } from '../../host/families.ts';
+import { mathBatchMetrics, prepareMathBatch } from '../../math/batchState.ts'
+import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
+import { hostTextureWritten } from '../../host/textureImport.ts'
+import { families } from '../../host/families.ts'
 import {
   DEFAULT_HEIGHT,
   DEFAULT_PAGE_WORKERS,
   DEFAULT_WIDTH,
   devicePixels,
-} from '../../backend/common.ts';
-import type { BackendChoice } from '../../backend/defaultBackends.ts';
-import type { BackendContext } from '../../backend/types.ts';
-import type { createExplorerPageSources } from './pageSources.ts';
-import type { ExplorerSession } from './session.ts';
-import type { WebglSurface } from '../../webgl/core/surface.ts';
-import { prepareExplorerWebglSurface } from '../render/webglHost.ts';
+} from '../../backend/common.ts'
+import type { BackendChoice } from '../../backend/defaultBackends.ts'
+import type { BackendContext } from '../../backend/types.ts'
+import type { createExplorerPageSources } from './pageSources.ts'
+import type { ExplorerSession } from './session.ts'
+import type { WebglSurface } from '../../webgl/core/surface.ts'
+import { prepareExplorerWebglSurface } from '../render/webglHost.ts'
 type Inputs = {
-  choice: BackendChoice;
+  choice: BackendChoice
   /** The chosen engine presents its own surface: the host composes nothing (`directWebgpu`). */
-  directGpu: boolean;
-  manifestUrl: string;
-  metadataUrl: string;
-  sceneFile: string;
-  base: string;
-  source: BackendContext['source'];
-  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
+  directGpu: boolean
+  manifestUrl: string
+  metadataUrl: string
+  sceneFile: string
+  base: string
+  source: BackendContext['source']
+  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>
   resources: {
-    webglSurface?: WebglSurface;
-    gpuDevice?: GPUDevice;
-  };
-};
+    webglSurface?: WebglSurface
+    gpuDevice?: GPUDevice
+  }
+}
 /** The anisotropy the context allows, read from the context's own extension. */
 function maxAnisotropy(gl: WebGL2RenderingContext) {
-  const extension = gl.getExtension('EXT_texture_filter_anisotropic');
-  return extension ? (gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number) : 0;
+  const extension = gl.getExtension('EXT_texture_filter_anisotropic')
+  return extension ? (gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT) as number) : 0
 }
 export async function configureExplorer(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session;
-  const { choice, directGpu, manifestUrl, metadataUrl, sceneFile, base } = inputs;
-  const { source, pageSources, resources } = inputs;
-  const { autonomous } = choice;
-  const { pages, geometryPages, cacheCap } = pageSources;
-  const batchCompute = prepareMathBatch(options.mathPath ?? 'auto');
+  const { canvas, options, scope, metadata, diagnosticChannel, diagnose } = session
+  const { choice, directGpu, manifestUrl, metadataUrl, sceneFile, base } = inputs
+  const { source, pageSources, resources } = inputs
+  const { autonomous } = choice
+  const { pages, geometryPages, cacheCap } = pageSources
+  const batchCompute = prepareMathBatch(options.mathPath ?? 'auto')
   if (!directGpu) {
     // The engine's surface is the session's only WebGL2 resource: the composition host builds
     // its programs and targets on it later.
@@ -52,17 +52,17 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
           kind: 'lifecycle',
           scope,
         }),
-    });
+    })
   } else {
-    canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio);
-    canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio);
+    canvas.width = devicePixels(options.width ?? DEFAULT_WIDTH, options.pixelRatio)
+    canvas.height = devicePixels(options.height ?? DEFAULT_HEIGHT, options.pixelRatio)
   }
-  await batchCompute;
+  await batchCompute
   // The provenance table, a family loaded with the scene when a channel listens (`familyUse.ts`);
   // unheard, the record is dropped unread and nothing loads it.
   const sdk = diagnosticChannel.enabled
     ? (await families.measurement.load().catch(() => null))?.SDK_BUILD_PROVENANCE
-    : null;
+    : null
   diagnose('configuration', 'Active explorer configuration', {
     kind: 'configuration',
     scope,
@@ -89,15 +89,15 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       compilerVersion: metadata.compilerVersion ?? null,
       sourceGltfUrl: new URL(sceneFile, base).href,
     },
-  });
+  })
   if (options.detail === 'maximum' && resources.webglSurface) {
-    const maximum = maxAnisotropy(resources.webglSurface.context);
+    const maximum = maxAnisotropy(resources.webglSurface.context)
     for (const mesh of objects(source))
       for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material])
         for (const texture of materialTextures(material)) {
-          texture.anisotropy = maximum;
-          texture.needsUpdate = true;
+          texture.anisotropy = maximum
+          texture.needsUpdate = true
         }
-    hostTextureWritten();
+    hostTextureWritten()
   }
 }

@@ -1,21 +1,21 @@
-import { Section } from '../ui/Text.tsx';
-import { useState } from 'react';
-import { useWords } from '../i18n.ts';
-import { Select } from '../ui/Input.tsx';
-import { Tabs } from '../ui/Tabs.tsx';
-import { viewName, runName, engineName } from './model/names.ts';
-import { Card } from '../ui/Card.tsx';
-import { sceneName, runOf } from './model/presentation.ts';
-import { MetricCharts } from './MetricCharts.tsx';
-import type { Report } from './model/types.ts';
-import type { MetricKey } from './model/metrics.ts';
-import type { Dictionary } from '../../content/i18n/dictionary.ts';
-import type { Locale } from '../../content/locale.ts';
+import { Section } from '../ui/Text.tsx'
+import { useState } from 'react'
+import { useWords } from '../i18n.ts'
+import { Select } from '../ui/Input.tsx'
+import { Tabs } from '../ui/Tabs.tsx'
+import { viewName, runName, engineName } from './model/names.ts'
+import { Card } from '../ui/Card.tsx'
+import { sceneName, runOf } from './model/presentation.ts'
+import { MetricCharts } from './MetricCharts.tsx'
+import type { Report } from './model/types.ts'
+import type { MetricKey } from './model/metrics.ts'
+import type { Dictionary } from '../../content/i18n/dictionary.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface ExperimentsProps {
-  report: Report;
-  scene: string;
-  locale: Locale;
+  report: Report
+  scene: string
+  locale: Locale
 }
 
 /** The kinds of experiment, each titled by `experiments.<id>`: the runs its pattern names, and
@@ -25,21 +25,21 @@ const GROUPS: [keyof Dictionary['experiments'], RegExp, MetricKey[]][] = [
   ['lights', /light|shadow|bounce|unlit/, ['gpu', 'sync', 'cpu', 'calls']],
   ['execution', /^(still|aa-off|profile-off|isolation|visible|math-)/, ['gpu', 'cpu', 'cadence']],
   ['memory', /./, ['gpu', 'cpu', 'geometry', 'textures', 'textureBudget', 'triangles']],
-];
+]
 
 export function Experiments({ report, scene, locale }: ExperimentsProps) {
-  const t = useWords(locale);
-  const [selected, setSelected] = useState('ground');
-  const [quality, setQuality] = useState('1');
+  const t = useWords(locale)
+  const [selected, setSelected] = useState('ground')
+  const [quality, setQuality] = useState('1')
   const records = report.records.filter(
     (r) => r.scene === scene && !['three-nu', 'three-lod'].includes(runOf(report, r)),
-  );
-  const views = [...new Set(records.map((r) => r.view))];
-  const view = views.includes(selected) ? selected : views[0];
+  )
+  const views = [...new Set(records.map((r) => r.view))]
+  const view = views.includes(selected) ? selected : views[0]
   const qualities = [
     ...new Set(records.filter((r) => r.view === view).map((r) => String(r.quality))),
-  ];
-  const activeQuality = qualities.includes(quality) ? quality : qualities[0];
+  ]
+  const activeQuality = qualities.includes(quality) ? quality : qualities[0]
   return (
     <Card title={sceneName(scene)}>
       <Tabs
@@ -75,8 +75,8 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                     String(r.quality) === activeQuality &&
                     GROUPS.findIndex(([, pattern]) => pattern.test(runOf(report, r))) ===
                       groupIndex,
-                );
-                if (!rows.length) return null;
+                )
+                if (!rows.length) return null
                 return (
                   <Section level={3} spacious key={group} title={t(`experiments.${group}`)}>
                     <MetricCharts
@@ -88,12 +88,12 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                       }
                     />
                   </Section>
-                );
+                )
               })}
             </>
           ),
         }))}
       />
     </Card>
-  );
+  )
 }

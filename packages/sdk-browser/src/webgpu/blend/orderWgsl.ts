@@ -1,7 +1,7 @@
-import { COMPUTE } from '../../gpu/core/computeBindings.ts';
-import { PLAN_SHIFT } from './planEntry.ts';
-import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts';
-import { DOUBLE_WGSL } from './doubleWgsl.ts';
+import { COMPUTE } from '../../gpu/core/computeBindings.ts'
+import { PLAN_SHIFT } from './planEntry.ts'
+import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
+import { DOUBLE_WGSL } from './doubleWgsl.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -29,24 +29,24 @@ import { DOUBLE_WGSL } from './doubleWgsl.ts';
 /** Entries a workgroup sorts in its memory, and its threads, one per compare-exchange: 256 is
  *  WebGPU's default maximum of invocations per workgroup, and 512 entries of 16 bytes take 8 KiB of
  *  workgroup memory, half the default limit. */
-export const SORT_BLOCK = 512;
-const SORT_THREADS = SORT_BLOCK / 2;
+export const SORT_BLOCK = 512
+const SORT_THREADS = SORT_BLOCK / 2
 /** Threads of the slot kernel's groups. */
-export const SLOT_GROUP = 64;
+export const SLOT_GROUP = 64
 /** Words of an item's key record (`keyRecords.ts`): six doubles, then its flags and its own rank. */
-export const KEY_RECORD_WORDS = 16;
-export const KEY_HAS_BOX = 1;
+export const KEY_RECORD_WORDS = 16
+export const KEY_HAS_BOX = 1
 /** Own rank of an item the GPU keys itself. */
-export const NOT_OWN = 0xffffffff;
+export const NOT_OWN = 0xffffffff
 /** Words of the frame data before the own keys: the eye, four doubles. */
-export const FRAME_EYE_WORDS = 8;
+export const FRAME_EYE_WORDS = 8
 /** Words of the frame data a scene of `items` items, `entries` entries a pass, can send at most:
  *  the eye, a key per item, a seed and a slot per entry of each pass (`order.ts`). */
 export const orderFrameWords = (items: number, entries: number) =>
-  FRAME_EYE_WORDS + 2 * items + 2 * EXPAND_PASSES * entries;
+  FRAME_EYE_WORDS + 2 * items + 2 * EXPAND_PASSES * entries
 
 /** The kernel's three entry points: a block sort or merge, a step across blocks, the slots. */
-export const BLEND_ORDER_ENTRIES = ['sortBlendBlocks', 'sortBlendStep', 'placeBlendSlots'] as const;
+export const BLEND_ORDER_ENTRIES = ['sortBlendBlocks', 'sortBlendStep', 'placeBlendSlots'] as const
 
 /** The uniform words of one dispatch, at its dynamic offset: written once per plan (`orderSteps.ts`). */
 const ORDER_UNI_FIELDS = [
@@ -65,13 +65,13 @@ const ORDER_UNI_FIELDS = [
   'fresh',
   'last',
   'ownKeyBase',
-] as const;
-export const ORDER_UNI_WORDS = 16;
+] as const
+export const ORDER_UNI_WORDS = 16
 export const ORDER_UNI = Object.fromEntries(
   ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),
-) as Record<(typeof ORDER_UNI_FIELDS)[number], number>;
+) as Record<(typeof ORDER_UNI_FIELDS)[number], number>
 const orderUniformWgsl = () =>
-  `struct OrderUni{${ORDER_UNI_FIELDS.map((name) => `${name}:u32,`).join('')}}`;
+  `struct OrderUni{${ORDER_UNI_FIELDS.map((name) => `${name}:u32,`).join('')}}`
 
 /** Group-0 binding of each buffer the order kernel reads, under its WGSL name. */
 export const ORDER_BINDING = {
@@ -81,13 +81,13 @@ export const ORDER_BINDING = {
   frame: 3,
   sorted: 4,
   placed: 5,
-} as const;
-const B = ORDER_BINDING;
+} as const
+const B = ORDER_BINDING
 
 /** Group-0 layout entries of the order kernel, read from the names above: the uniform at its
  *  dynamic offset, then its five storage buffers. */
 export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
-  const storage = (type: GPUBufferBindingType) => ({ visibility: COMPUTE, buffer: { type } });
+  const storage = (type: GPUBufferBindingType) => ({ visibility: COMPUTE, buffer: { type } })
   return [
     {
       binding: B.uni,
@@ -99,7 +99,7 @@ export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
     { binding: B.frame, ...storage('read-only-storage') },
     { binding: B.sorted, ...storage('storage') },
     { binding: B.placed, ...storage('storage') },
-  ];
+  ]
 }
 
 export const BLEND_ORDER_SHADER = `${orderUniformWgsl()}
@@ -235,4 +235,4 @@ fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u){
  }
  if(k==uni.ownCount-1u){writeRun(slot+1u,at+1u,uni.entryCount-at-1u);}
 }
-`;
+`

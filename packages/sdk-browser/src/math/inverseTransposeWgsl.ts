@@ -1,5 +1,5 @@
-import { SINGULAR_DETERMINANT_WGSL } from '../../../sdk-core/src/index.ts';
-import { inverseTransposeKernel } from './inverseTransposeKernel.ts';
+import { SINGULAR_DETERMINANT_WGSL } from '../../../sdk-core/src/index.ts'
+import { inverseTransposeKernel } from './inverseTransposeKernel.ts'
 
 /**
  * 3×3 inverse-transpose in WGSL, written once for the whole engine: the DAG selection kernel
@@ -60,7 +60,7 @@ const PREP_SHIPPED = ` let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
  let finite=(t>0.0)&&(bitcast<u32>(t)&0x7f800000u)!=0x7f800000u;
  let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let det=dot(a,cross(b,c));let z=vec3f(0.0);
- return InvT3(mat3x3f(select(z,cross(b,c),finite),select(z,cross(c,a),finite),select(z,cross(a,b),finite)),1.0/(det*t),finite&&abs(det)>${SINGULAR_DETERMINANT_WGSL});`;
+ return InvT3(mat3x3f(select(z,cross(b,c),finite),select(z,cross(c,a),finite),select(z,cross(a,b),finite)),1.0/(det*t),finite&&abs(det)>${SINGULAR_DETERMINANT_WGSL});`
 
 /** Shipped kernel: this is the one, and only this one, that production shaders insert. */
-export const INVERSE_TRANSPOSE_WGSL = inverseTransposeKernel(PREP_SHIPPED, 'carried');
+export const INVERSE_TRANSPOSE_WGSL = inverseTransposeKernel(PREP_SHIPPED, 'carried')

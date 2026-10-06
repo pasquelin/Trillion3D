@@ -1,7 +1,7 @@
-import { coneCullsPage } from '../../../page/cone/cone.fixture.ts';
-import { SELECTION_NONE as NONE } from '../../core/selection.ts';
-import type { PackedDag } from '../types.ts';
-import { CLUSTER_NEVER } from '../clusterFlags.ts';
+import { coneCullsPage } from '../../../page/cone/cone.fixture.ts'
+import { SELECTION_NONE as NONE } from '../../core/selection.ts'
+import type { PackedDag } from '../types.ts'
+import { CLUSTER_NEVER } from '../clusterFlags.ts'
 import {
   bandError,
   bandSphere,
@@ -12,11 +12,11 @@ import {
   hasBoxOf,
   ownerOf,
   worldOf,
-} from '../records.fixture.ts';
-import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
-import { dagScratch, projectedError } from './math.fixture.ts';
-import { drawsCluster } from '../../../page/cut/rule.ts';
-import type { MatrixElements } from '../../../math/matrixElements.ts';
+} from '../records.fixture.ts'
+import { copyMatrix4, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
+import { dagScratch, projectedError } from './math.fixture.ts'
+import { drawsCluster } from '../../../page/cut/rule.ts'
+import type { MatrixElements } from '../../../math/matrixElements.ts'
 
 /** The cut rule as the oracle applies it on page `page`: `drawsCluster`'s operands, then the page. */
 export type CutRuleAt = (
@@ -26,59 +26,59 @@ export type CutRuleAt = (
   childResident: boolean,
   threshold: number,
   page: number,
-) => boolean;
+) => boolean
 
 type PredicateContext = {
-  packed: PackedDag;
+  packed: PackedDag
   /** Unique decoder, opened once per evaluation and shared with the rest of the oracle. */
-  records: DagRecords;
-  nodeFlags: Uint8Array;
-  planes: Float64Array[];
-  views: number[][];
-  stretches: number[];
-  focal: number;
-  near: number;
-  perspective: number;
+  records: DagRecords
+  nodeFlags: Uint8Array
+  planes: Float64Array[]
+  views: number[][]
+  stretches: number[]
+  focal: number
+  near: number
+  perspective: number
   /** The camera of the render frame, homogeneous (`DagViewFrames.viewPoint`). */
-  viewPoint: Float64Array;
+  viewPoint: Float64Array
   /** The cut rule applied: `drawsCluster`, or the kernel's WGSL call site run in Node by the
    *  rule's tests, which reads the page's residency itself. */
-  rule?: CutRuleAt;
-};
+  rule?: CutRuleAt
+}
 
 /** The scratch world under the host-matrix shape the cone test reads. */
-const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world };
+const SCRATCH_WORLD: MatrixElements = { elements: dagScratch.world }
 
 export function createDagOraclePredicates(context: PredicateContext) {
-  const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context;
-  const { perspective, viewPoint } = context;
-  const { worlds } = packed;
+  const { packed, records, nodeFlags, planes, views, stretches, focal, near } = context
+  const { perspective, viewPoint } = context
+  const { worlds } = packed
   const coneRejects = (index: number, w: number) => {
-    if (!hasBoxOf(records, index)) return false;
-    const { cone, min, max } = dagScratch;
-    coneInto(records, index, cone);
-    boxInto(records, index, min, max);
+    if (!hasBoxOf(records, index)) return false
+    const { cone, min, max } = dagScratch
+    coneInto(records, index, cone)
+    boxInto(records, index, min, max)
     // Kernel world matrices are those of the render frame, whose uniforms `cameraWorld` is the
     // origin: a perspective camera is at zero there. The oracle therefore reads the view point
     // of that frame — putting the world position here would mix an absolute operand with
     // relative boxes, and the cone would decide wrongly.
-    copyMatrix4(dagScratch.world, worlds, 0, w * 16);
-    return coneCullsPage(cone, SCRATCH_WORLD, min, max, viewPoint);
-  };
+    copyMatrix4(dagScratch.world, worlds, 0, w * 16)
+    return coneCullsPage(cone, SCRATCH_WORLD, min, max, viewPoint)
+  }
   const visible = (index: number) => {
     // The owner node lives in the cold, outside what each frame pass rereads.
-    const node = ownerOf(records, index);
-    if (flagsOf(records, index) & CLUSTER_NEVER) return false;
-    if (node !== NONE && nodeFlags[node]) return false;
-    const { min, max } = dagScratch;
-    boxInto(records, index, min, max);
-    const w = worldOf(records, index);
-    return !frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2]);
-  };
+    const node = ownerOf(records, index)
+    if (flagsOf(records, index) & CLUSTER_NEVER) return false
+    if (node !== NONE && nodeFlags[node]) return false
+    const { min, max } = dagScratch
+    boxInto(records, index, min, max)
+    const w = worldOf(records, index)
+    return !frustumExcludesBox(planes[w], min[0], min[1], min[2], max[0], max[1], max[2])
+  }
   const bandPixels = (index: number, at: number) => {
     const w = worldOf(records, index),
       sphere = bandSphere(records, index, at),
-      { hot } = records;
+      { hot } = records
     return projectedError(
       bandError(records, index, at),
       hot[sphere],
@@ -90,11 +90,11 @@ export function createDagOraclePredicates(context: PredicateContext) {
       focal,
       near,
       perspective,
-    );
-  };
+    )
+  }
   /** The cut rule (`../../../page/cut/rule.ts`) on page `index`, under the residency given. */
-  const rule = context.rule ?? drawsCluster;
+  const rule = context.rule ?? drawsCluster
   const draws = (index: number, threshold: number, ready: boolean, childReady: boolean) =>
-    rule(ready, bandPixels(index, 1), bandPixels(index, 0), childReady, threshold, index);
-  return { coneRejects, visible, bandPixels, draws };
+    rule(ready, bandPixels(index, 1), bandPixels(index, 0), childReady, threshold, index)
+  return { coneRejects, visible, bandPixels, draws }
 }

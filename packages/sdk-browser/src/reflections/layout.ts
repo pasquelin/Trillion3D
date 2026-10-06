@@ -1,8 +1,8 @@
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 
-const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>();
+const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>()
 export function reflectionLayout(device: GPUDevice) {
-  let layout = layouts.get(device);
+  let layout = layouts.get(device)
   if (!layout) {
     layout = device.createBindGroupLayout({
       entries: [
@@ -24,10 +24,10 @@ export function reflectionLayout(device: GPUDevice) {
           texture: { sampleType: 'unfilterable-float' },
         },
       ],
-    });
-    layouts.set(device, layout);
+    })
+    layouts.set(device, layout)
   }
-  return layout;
+  return layout
 }
 
 /** The rough trace's third group: the record it writes of each texel's pixel (`sampleWgsl.ts`). */
@@ -41,11 +41,11 @@ export const reflectionOwnerLayout = oncePerDevice((device) =>
       },
     ],
   }),
-);
+)
 
 /** The bindings of the rough reflection resolve (`resolveWgsl.ts`). */
 export function reflectionResolveLayout(device: GPUDevice) {
-  const visibility = GPUShaderStage.FRAGMENT;
+  const visibility = GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
     entries: [
       ...Array.from({ length: 8 }, (_, binding) => ({
@@ -67,5 +67,5 @@ export function reflectionResolveLayout(device: GPUDevice) {
       // The trace's records of its texels' pixels (`sampleWgsl.ts`).
       { binding: 12, visibility, texture: { sampleType: 'uint' } },
     ],
-  });
+  })
 }

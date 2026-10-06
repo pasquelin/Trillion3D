@@ -1,4 +1,4 @@
-import type { Step } from './restartOracle.fixture.ts';
+import type { Step } from './restartOracle.fixture.ts'
 
 /** The scripted sequences whose restart frames, counters and phases the oracle pins. */
 export const SEQUENCES: Record<string, Step[]> = {
@@ -128,4 +128,4 @@ export const SEQUENCES: Record<string, Step[]> = {
     'q',
     'q',
   ],
-};
+}

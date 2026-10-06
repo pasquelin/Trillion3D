@@ -1,14 +1,14 @@
-import { Badge } from '../ui/Badge.tsx';
-import { showFallbackImage } from '../ui/Thumbnail.tsx';
-import { examplePlaceholder } from './list.ts';
+import { Badge } from '../ui/Badge.tsx'
+import { showFallbackImage } from '../ui/Thumbnail.tsx'
+import { examplePlaceholder } from './list.ts'
 
 interface ExampleCardProps {
-  title: string;
-  href: string;
+  title: string
+  href: string
   /** The example's settled render. */
-  thumbnail: string;
+  thumbnail: string
   /** A compact state/capability label for a written example parked on the engine. */
-  state?: string;
+  state?: string
 }
 
 /** A written example as the home's mosaic draws a tile: its render at 16:10, growing a little
@@ -38,7 +38,7 @@ export function ExampleCard({ title, href, thumbnail, state }: ExampleCardProps)
       )}
       <TileTitle title={title} />
     </a>
-  );
+  )
 }
 
 /** The title at the bottom of a tile, over a dark gradient. */
@@ -47,7 +47,7 @@ function TileTitle({ title }: { title: string }) {
     <span className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 to-transparent px-3 pb-2 pt-8 text-sm font-medium text-white">
       <span className="line-clamp-2">{title}</span>
     </span>
-  );
+  )
 }
 
 /** An example not written yet: a tile the size of the others, the shared placeholder render, a
@@ -70,5 +70,5 @@ export function ComingCard({ title, label }: { title: string; label: string }) {
       </span>
       <TileTitle title={title} />
     </div>
-  );
+  )
 }

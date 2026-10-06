@@ -3,7 +3,7 @@ name: Pull request body
 # Its own workflow, and its own required check: editing a body re-reads the body, and never replays
 # the code gates of `quality.yml`. `synchronize` is listed because a required check is recorded per
 # commit: a new head with no run of this workflow would never become mergeable. A draft is not
-# asked for its Lead verification; `ready_for_review` and `converted_to_draft` re-read the body
+# asked for its Verification; `ready_for_review` and `converted_to_draft` re-read the body
 # when that state changes.
 on:
   pull_request:
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: package.json
-      - name: Issue closed, local review filled, lead verified and issue proved once ready
+      - name: Issue closed, local review filled, verified and issue proved once ready
         env:
           BODY: ${{ github.event.pull_request.body }}
           PR_DRAFT: ${{ github.event.pull_request.draft }}

@@ -2,17 +2,17 @@
 // capability detection (`detectCapabilities`) and published in `measure.json` and `resume.md`.
 // Imported by URL in the page (`probeLimits`), by Node to run it (`readLimits`) and for the report
 // (`limitsLines`): no Node module here.
-import type { Page } from 'playwright';
-import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type { Page } from 'playwright'
+import type * as SdkBrowser from '../../witnesses/measurement.ts'
 
 /** The numeric limits of a `GPUSupportedLimits`, by name: its attributes are enumerable. */
 function numbers(limits: object) {
-  const read: Record<string, number> = {};
+  const read: Record<string, number> = {}
   for (const name in limits) {
-    const value = (limits as Record<string, unknown>)[name];
-    if (typeof value === 'number') read[name] = value;
+    const value = (limits as Record<string, unknown>)[name]
+    if (typeof value === 'number') read[name] = value
   }
-  return read;
+  return read
 }
 
 /**
@@ -24,7 +24,7 @@ export function limitsOf(
   webgl: { extensions: string[] } | null,
   webgpu: { features: ReadonlySet<string>; adapter: object; defaults: object } | null,
 ) {
-  const defaults = numbers(webgpu?.defaults ?? {});
+  const defaults = numbers(webgpu?.defaults ?? {})
   return {
     webgl2: webgl && {
       halfFloatColor: webgl.extensions.includes('EXT_color_buffer_half_float'),
@@ -39,30 +39,30 @@ export function limitsOf(
         adapter,
       })),
     },
-  };
+  }
 }
-export type LimitsProbe = ReturnType<typeof limitsOf>;
+export type LimitsProbe = ReturnType<typeof limitsOf>
 /** What a run records: the probe, or why it failed. */
-export type LimitsRecord = LimitsProbe | { failed: string };
+export type LimitsRecord = LimitsProbe | { failed: string }
 
 /** Runs in the page: detects both renderers, then asks a device with no limit for the defaults. */
 export async function probeLimits(sdkUrl: string): Promise<LimitsProbe> {
-  const sdk = (await import(sdkUrl)) as typeof SdkBrowser;
-  const canvas = document.createElement('canvas');
+  const sdk = (await import(sdkUrl)) as typeof SdkBrowser
+  const canvas = document.createElement('canvas')
   const [webgl, { adapter }] = await Promise.all([
     sdk.detectCapabilities('webgl', canvas),
     sdk.detectCapabilities('webgpu', canvas),
-  ]);
+  ])
   // A device asked with no limit holds the defaults; one refused leaves them unknown (`null`).
-  const device = await adapter?.requestDevice().catch(() => undefined);
+  const device = await adapter?.requestDevice().catch(() => undefined)
   const probe = limitsOf(
     webgl.renderer ? webgl : null,
     adapter
       ? { features: adapter.features, adapter: adapter.limits, defaults: device?.limits ?? {} }
       : null,
-  );
-  device?.destroy();
-  return probe;
+  )
+  device?.destroy()
+  return probe
 }
 
 /** Runs the probe in `page`, which imports this module from the bench's `/runner/`. */
@@ -73,18 +73,18 @@ export const readLimits = (page: Page, sdkUrl: string): Promise<LimitsRecord> =>
         ((await import(module)) as { probeLimits: typeof probeLimits }).probeLimits(url),
       { module: '/runner/harness/limits.ts', url: sdkUrl },
     )
-    .catch((error: unknown) => ({ failed: String(error) }));
+    .catch((error: unknown) => ({ failed: String(error) }))
 
-const yes = (value: boolean) => (value ? 'yes' : 'no');
+const yes = (value: boolean) => (value ? 'yes' : 'no')
 
 /** The probe in `resume.md`: capabilities, then the adapter's WebGPU limits beyond the default. */
 export function limitsLines(probe: LimitsRecord | undefined) {
-  if (!probe) return [];
+  if (!probe) return []
   // A failed probe is said, never fatal: the run it rides with goes on.
-  if ('failed' in probe) return ['## Browser limits', '', `Probe failed: ${probe.failed}`, ''];
-  const { webgl2, webgpu } = probe;
+  if ('failed' in probe) return ['## Browser limits', '', `Probe failed: ${probe.failed}`, '']
+  const { webgl2, webgpu } = probe
   // An unknown default (the device was refused) is not counted as raised.
-  const raised = webgpu?.limits.filter((l) => l.default !== null && l.adapter !== l.default) ?? [];
+  const raised = webgpu?.limits.filter((l) => l.default !== null && l.adapter !== l.default) ?? []
   return [
     '## Browser limits',
     '',
@@ -103,5 +103,5 @@ export function limitsLines(probe: LimitsRecord | undefined) {
           '',
         ]
       : []),
-  ];
+  ]
 }

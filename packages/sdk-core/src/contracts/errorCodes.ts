@@ -1,4 +1,4 @@
-import { EngineError } from './cache.ts';
+import { EngineError } from './cache.ts'
 
 /**
  * Every code an `EngineError` may carry, by family: the words a page may test. What each family
@@ -57,17 +57,17 @@ export const ENGINE_ERROR_CODES: readonly (readonly string[])[] = [
   ['NO_VEHICLE'],
   ['GUIDE_CEILING'],
   ['REFERENCE_SHADOWS_REDUCED', 'REFERENCE_INTERACTIVE'],
-];
+]
 
-const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flat());
+const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flat())
 
 /** An object as text, never `[object Object]`: its JSON, or its kind when JSON refuses it. */
 function textOf(cause: unknown) {
-  if (typeof cause !== 'object' || cause === null) return String(cause);
+  if (typeof cause !== 'object' || cause === null) return String(cause)
   try {
-    return JSON.stringify(cause) ?? typeof cause;
+    return JSON.stringify(cause) ?? typeof cause
   } catch {
-    return `${cause.constructor?.name ?? 'Object'} (cannot be written out)`;
+    return `${cause.constructor?.name ?? 'Object'} (cannot be written out)`
   }
 }
 
@@ -79,19 +79,19 @@ function textOf(cause: unknown) {
  * `fallback`; the error thrown is kept in `details.cause`.
  */
 export function engineErrorOf(cause: unknown, fallback: string, message: string): EngineError {
-  const { name, code, details, message: said } = Object(cause) as Partial<EngineError>;
-  const known = typeof code === 'string' && documented.has(code) ? code : undefined;
+  const { name, code, details, message: said } = Object(cause) as Partial<EngineError>
+  const known = typeof code === 'string' && documented.has(code) ? code : undefined
   const engine =
-    cause instanceof EngineError || (name === 'EngineError' && typeof code === 'string');
+    cause instanceof EngineError || (name === 'EngineError' && typeof code === 'string')
   if (engine && known)
     return cause instanceof EngineError
       ? cause
-      : new EngineError(known, String(said), { ...details, cause });
+      : new EngineError(known, String(said), { ...details, cause })
   const words =
     cause instanceof Error
       ? cause.message
       : (known ??
-        (typeof said === 'string' ? said : typeof code === 'string' ? code : textOf(cause)));
-  const named = known ?? (!engine && documented.has(words) ? words : fallback);
-  return new EngineError(named, `${message}: ${words}`, { cause });
+        (typeof said === 'string' ? said : typeof code === 'string' ? code : textOf(cause)))
+  const named = known ?? (!engine && documented.has(words) ? words : fallback)
+  return new EngineError(named, `${message}: ${words}`, { cause })
 }

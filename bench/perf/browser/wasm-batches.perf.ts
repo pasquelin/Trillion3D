@@ -1,32 +1,32 @@
 // Performance bench: batched computation in WebAssembly (WASM against JavaScript).
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { measure, rapport } from '../../core/index.ts';
-import type { MeasureCase } from '../../core/index.ts';
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { measure, rapport } from '../../core/index.ts'
+import type { MeasureCase } from '../../core/index.ts'
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts'
 import {
   prepareMathBatch,
   mathBatchMetrics,
-} from '../../../packages/sdk-browser/src/math/batchState.ts';
+} from '../../../packages/sdk-browser/src/math/batchState.ts'
 import {
   createBoxTransformLot,
   createMultiplyLot,
-} from '../../../packages/sdk-browser/src/math/batchRuntime.ts';
-import type { MathLot } from '../../../packages/sdk-browser/src/math/batchLot.ts';
-import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.ts';
+} from '../../../packages/sdk-browser/src/math/batchRuntime.ts'
+import type { MathLot } from '../../../packages/sdk-browser/src/math/batchLot.ts'
+import { TAILLES, fillsBoxes, remplitMatrices } from './support/wasmBatchCases.ts'
 
 await prepareSdkWasm(
   readFileSync(
     join(import.meta.dirname, '../../../packages/sdk-browser/src/page/decode/pageCodec.wasm'),
   ),
-);
-await prepareMathBatch('auto');
+)
+await prepareMathBatch('auto')
 
-const state = mathBatchMetrics();
+const state = mathBatchMetrics()
 test('the WebAssembly module is loaded and its compute contract accepted', () =>
-  assert.equal(state.wasmAvailable, true, state.unavailableReason ?? ''));
+  assert.equal(state.wasmAvailable, true, state.unavailableReason ?? ''))
 
 // Each lot keeps its own buffer type end to end: `cree` and `remplit` are called together,
 // never mixed across the two operations, so the pair stays type-correlated per call.
@@ -35,33 +35,33 @@ async function benchLot<T extends MathLot & { readonly out: Float64Array }>(
   cree: (n: number) => Promise<T>,
   remplit: (lot: T, n: number) => void,
 ) {
-  const cas: MeasureCase<T>[] = [];
+  const cas: MeasureCase<T>[] = []
   for (const n of TAILLES) {
-    const lot = await cree(n);
-    remplit(lot, n);
-    cas.push({ name: `${n} elements`, input: lot, size: n });
+    const lot = await cree(n)
+    remplit(lot, n)
+    cas.push({ name: `${n} elements`, input: lot, size: n })
   }
   return measure({
     name: `lots-wasm ${operation}`,
     fichier: 'packages/sdk-browser/src/math/batchRuntime.ts',
     cas,
     calculation: async (lot) => {
-      await prepareMathBatch('wasm');
-      lot.run();
-      return lot.out.slice(0, lot.out.length);
+      await prepareMathBatch('wasm')
+      lot.run()
+      return lot.out.slice(0, lot.out.length)
     },
     expected: async (lot) => {
-      await prepareMathBatch('js');
-      lot.run();
-      return lot.out.slice(0, lot.out.length);
+      await prepareMathBatch('js')
+      lot.run()
+      return lot.out.slice(0, lot.out.length)
     },
     options: { tours: 20, budgetMs: 1000 },
-  });
+  })
 }
 
 const results = [
   await benchLot('boxTransformBatch', createBoxTransformLot, fillsBoxes),
   await benchLot('multiplyMatrix4Batch', createMultiplyLot, remplitMatrices),
-];
+]
 
-rapport('lots-wasm', results, 'batched WebAssembly compute yields the same bits as JavaScript');
+rapport('lots-wasm', results, 'batched WebAssembly compute yields the same bits as JavaScript')

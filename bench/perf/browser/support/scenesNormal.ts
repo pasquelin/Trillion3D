@@ -12,10 +12,10 @@
 //
 // Attributes are in single precision, like imported geometry: both sides therefore
 // read the same rounded values, and any delta can only come from the algebra.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts';
-import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts';
-import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 
 /** Hostile poses, column-major: shear, singular and cancelling row included. */
 const POSES = [
@@ -29,7 +29,7 @@ const POSES = [
   [Infinity, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1],
   [1e16, 1, 1, 0, -1e16, 1, 1, 0, 3, 1, 1, 0, 0, 0, 0, 1],
   [1, -1, -1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-];
+]
 
 /** Vertex-normal triplets: unit, zero, signed, non-finite, all-ones, very spread. */
 const NORMALS = [
@@ -40,7 +40,7 @@ const NORMALS = [
   [1e-38, 1e-38, 1e-38, 0.5, 0.5, 0.5, -0.5, 0.5, -0.5],
   [1, 1, 1, 1, 1, 1, 1, 1, 1],
   [1e16, 1, 1, 1e16, 1, 1, 1e16, 1, 1],
-];
+]
 
 /** Tangent triplets `(x, y, z, w)`: `w` carries the bitangent sign. */
 const TANGENTS = [
@@ -48,21 +48,21 @@ const TANGENTS = [
   [0, 0, 0, -1, 1, 0, 0, -1, 0, 1, 0, 1],
   [-0, 0, -0, 0, NaN, 0, 0, 1, Infinity, 0, 0, -1],
   [1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1],
-];
+]
 
 /** Texture coordinates: flat (degenerate), ordinary, and non-finite. */
 const UVS = [
   [0, 0, 1, 0, 0, 1],
   [0.25, 0.25, 0.25, 0.25, 0.25, 0.25],
   [-0, 0, NaN, 1, 2, Infinity],
-];
+]
 
 /** World vertices: an ordinary triangle, a flat triangle, a non-finite triangle. */
 const TRIANGLES = [
   [0, 0, 0, 1, 0, 0, 0, 1, 0],
   [2, 3, 4, 2, 3, 4, 2, 3, 4],
   [-0, 0, 0, 1e30, 0, 0, 0, NaN, 0],
-];
+]
 
 /** Hostile barycentric weights: signed zero, NaN, infinities, denormal. */
 const WEIGHT = [
@@ -71,7 +71,7 @@ const WEIGHT = [
   [0, -0, NaN],
   [Infinity, -Infinity, 1],
   [5e-324, 1, -1],
-];
+]
 
 /** The retained fittings: `[NORMALS, TANGENTS, UVS]`, the last all-ones. */
 const GARNITURES: [number, number, number][] = [
@@ -82,22 +82,22 @@ const GARNITURES: [number, number, number][] = [
   [4, 0, 2],
   [5, 3, 0],
   [6, 3, 0],
-];
+]
 
 const attribut = (valeurs: number[], size: number) =>
-  new G.BufferAttribute(Float32Array.from(valeurs), size);
+  new G.BufferAttribute(Float32Array.from(valeurs), size)
 
 /** The four attribute sets of a fitting: with tangents, without, without normals, without UV. */
 function attributs([n, t, u]: [number, number, number]): G.Geometry['attributes'][] {
   const normal = () => attribut(NORMALS[n], 3),
     tangent = () => attribut(TANGENTS[t], 4),
-    uv = () => attribut(UVS[u], 2);
+    uv = () => attribut(UVS[u], 2)
   return [
     { normal: normal(), tangent: tangent(), uv: uv() },
     { normal: normal(), uv: uv() },
     { uv: uv() },
     { normal: normal(), tangent: tangent() },
-  ];
+  ]
 }
 
 /** A projected vertex as the rasterizer yields it: only the world position is read here, so
@@ -110,32 +110,32 @@ const vertex = (v: number[], at: number) => ({
   worldX: v[at],
   worldY: v[at + 1],
   worldZ: v[at + 2],
-});
+})
 
 /**
  * The full product: each pose, each fitting, each triangle, each weight set. Vertex
  * indices rotate so the three corners do not always read the same row.
  */
 export interface Repere {
-  page: VisPage;
-  tri: NonNullable<ReturnType<typeof triangleAt>>;
-  bary: { w0: number; w1: number; w2: number };
+  page: VisPage
+  tri: NonNullable<ReturnType<typeof triangleAt>>
+  bary: { w0: number; w1: number; w2: number }
 }
 
 export function reperes(): Repere[] {
-  const lot: Repere[] = [];
+  const lot: Repere[] = []
   for (const pose of POSES) {
-    const matrix = new G.Matrix4().fromArray(pose);
+    const matrix = new G.Matrix4().fromArray(pose)
     for (const garniture of GARNITURES)
       for (const attributes of attributs(garniture))
         for (let v = 0; v < TRIANGLES.length; v++) {
-          const coins = TRIANGLES[v];
+          const coins = TRIANGLES[v]
           const page = {
             array: new Uint32Array([0, 1, 2]),
             attributes,
             matrix,
             material: surfaceOf([]),
-          };
+          }
           const tri = {
             a: vertex(coins, 0),
             b: vertex(coins, 3),
@@ -146,14 +146,14 @@ export function reperes(): Repere[] {
             i0: 0,
             i1: (v + 1) % 3,
             i2: (v + 2) % 3,
-          };
+          }
           for (const w of WEIGHT)
             lot.push({
               page,
               tri,
               bary: { w0: w[0], w1: w[1], w2: w[2] },
-            });
+            })
         }
   }
-  return lot;
+  return lot
 }

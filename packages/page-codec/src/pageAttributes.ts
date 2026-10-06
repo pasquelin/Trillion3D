@@ -5,23 +5,23 @@
 
 /** One source attribute as a mesh loader hands it: `array` holds `itemSize` floats per vertex. */
 export interface PageAttribute {
-  itemSize: number;
-  array: ArrayLike<number>;
+  itemSize: number
+  array: ArrayLike<number>
 }
 
 /** The attributes a page can be built from; `POSITION` is required at run time. */
 export interface PageAttributes {
-  POSITION?: PageAttribute;
-  NORMAL?: PageAttribute;
-  TEXCOORD_0?: PageAttribute;
-  TEXCOORD_1?: PageAttribute;
-  COLOR_0?: PageAttribute;
+  POSITION?: PageAttribute
+  NORMAL?: PageAttribute
+  TEXCOORD_0?: PageAttribute
+  TEXCOORD_1?: PageAttribute
+  COLOR_0?: PageAttribute
   /** Four joints and four weights a vertex, read only with each other (#357). */
-  [key: `JOINTS_${number}`]: PageAttribute | undefined;
-  [key: `WEIGHTS_${number}`]: PageAttribute | undefined;
+  [key: `JOINTS_${number}`]: PageAttribute | undefined
+  [key: `WEIGHTS_${number}`]: PageAttribute | undefined
 }
 
-export type OptionalAttributeName = 'NORMAL' | 'TEXCOORD_0' | 'TEXCOORD_1' | 'COLOR_0';
+export type OptionalAttributeName = 'NORMAL' | 'TEXCOORD_0' | 'TEXCOORD_1' | 'COLOR_0'
 
 /** Source attribute, presence bit and the field of the page cell it fills. */
 export const ATTRIBUTES: readonly [OptionalAttributeName, number, number][] = [
@@ -29,14 +29,14 @@ export const ATTRIBUTES: readonly [OptionalAttributeName, number, number][] = [
   ['TEXCOORD_0', 2, 2],
   ['TEXCOORD_1', 2, 4],
   ['COLOR_0', 4, 8],
-];
+]
 
 /** One unique vertex of the page, before it is packed into streams. */
 export interface PageCell {
-  p: number[];
-  n: number;
-  uv: [number[], number[]];
-  c: number[];
+  p: number[]
+  n: number
+  uv: [number[], number[]]
+  c: number[]
   /** Its deformation fields (`pageDeform.ts`), empty when the page carries none. */
-  d?: number[];
+  d?: number[]
 }

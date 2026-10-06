@@ -1,4 +1,4 @@
-import type { ChapterCode } from './code.ts';
+import type { ChapterCode } from './code.ts'
 
 /** The course's physics chapters, in order: falling bodies, the character among them, joints
  *  and vehicles. */
@@ -92,4 +92,4 @@ world.controls.kind = 'vehicle';
 world.onFrame(() => console.log(driven.speed, driven.gear, driven.rpm));`,
     ],
   },
-];
+]

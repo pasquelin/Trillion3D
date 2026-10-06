@@ -1,6 +1,6 @@
-import { COMPUTE } from '../core/computeBindings.ts';
-import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
-import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts';
+import { COMPUTE } from '../core/computeBindings.ts'
+import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
+import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -40,8 +40,8 @@ import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from '
  * `@binding(6)` while `restBits` and `slotUsed` entered at 7 and 8.
  */
 export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
-  const lecture = { type: 'read-only-storage' } as const;
-  const ecriture = { type: 'storage' } as const;
+  const lecture = { type: 'read-only-storage' } as const
+  const ecriture = { type: 'storage' } as const
   return [
     { binding: 0, visibility: COMPUTE, buffer: lecture },
     { binding: 1, visibility: COMPUTE, buffer: { type: 'uniform' } },
@@ -52,12 +52,12 @@ export function drawBindEntries(): GPUBindGroupLayoutEntry[] {
     { binding: 6, visibility: COMPUTE, buffer: lecture },
     { binding: 7, visibility: COMPUTE, buffer: lecture },
     { binding: 8, visibility: COMPUTE, buffer: lecture },
-  ];
+  ]
 }
 
 export const drawShader = (layerSlots: number) => {
-  const slots = slotCount(layerSlots);
-  const top = Math.max(0, Math.max(1, layerSlots) - 1);
+  const slots = slotCount(layerSlots)
+  const top = Math.max(0, Math.max(1, layerSlots) - 1)
   return `${DRAW_ITEM_WGSL}
 struct Uniforms{count:u32,corners:u32,slotCap:u32,groupCount:u32,selectionEnabled:u32,selectionOffset:u32,perRow:u32,pad1:u32,}
 @group(0) @binding(0) var<storage, read> items:array<DrawItem>;
@@ -163,5 +163,5 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  let stride=uni.corners/3u;
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
-`;
-};
+`
+}

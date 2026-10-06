@@ -1,15 +1,15 @@
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
-import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
-import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
-import { residentProxyWgsl } from './nodeWgsl.ts';
-import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
-import { SURFACE_RAY_WGSL } from './reflectWgsl.ts';
-import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
-import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
-import { PROBE_TEXELS } from './atlas.ts';
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
+import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
+import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
+import { residentProxyWgsl } from './nodeWgsl.ts'
+import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
+import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
+import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts'
+import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { PROBE_TEXELS } from './atlas.ts'
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
-const BOUNCE_WORKGROUP = 64;
+const BOUNCE_WORKGROUP = 64
 
 /**
  * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its
@@ -29,7 +29,7 @@ fn queuedProbe(entry:u32)->QueuedProbe{
  let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
  let cell=base+(((ranked-base)%side)+side)%side;
  return QueuedProbe(level,rank,cell,probeOf(level,cell),true);
-}`;
+}`
 
 /**
  * Update of the cascade irradiance probes.
@@ -175,7 +175,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let keptNegative=select(vec3f(0.0),probeAt(probe,PROBE_DISTANCE_NEGATIVE).xyz,held);
  probeStore(probe,PROBE_DISTANCE_POSITIVE,vec4f(mix(keptPositive,meanPositive,blend),0.0));
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
-}`;
+}`
 
 /**
  * The snapshot's follow-up, in the bounce pass after the update: every texel the update may have
@@ -200,8 +200,8 @@ fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  if(!queued.valid){return;}
  let at=vec2u(queued.probe.x+id.x%PROBE_VECTORS,queued.probe.y);
  textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
-}`;
+}`
 
 /** Workgroups of the snapshot's follow-up for a queue of `entries` probes: a thread a texel. */
 export const snapshotGroups = (entries: number) =>
-  Math.ceil((entries * PROBE_TEXELS) / BOUNCE_WORKGROUP);
+  Math.ceil((entries * PROBE_TEXELS) / BOUNCE_WORKGROUP)

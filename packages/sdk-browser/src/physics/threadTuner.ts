@@ -1,8 +1,8 @@
-import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
+import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts'
 
 /** Measures a count is kept after a probe away from it was slower, before the next probe.
  *  Declared, not derived: half a minute of simulation, it only spaces the probes out. */
-const HOLD = 30;
+const HOLD = 30
 
 /**
  * The threads a step splits its work over (`jolt_concurrency`), following the steps' cost
@@ -12,32 +12,32 @@ const HOLD = 30;
  */
 export function createThreadTuner(threads: number, step = PHYSICS_STEP) {
   /** Fixed steps of one measure: a simulated second, whose mean outlasts a single step's spread. */
-  const measure = Math.max(1, Math.round(1 / step));
+  const measure = Math.max(1, Math.round(1 / step))
   let count = threads,
     direction = -1,
     hold = 0,
     steps = 0,
     sum = 0,
-    probe: { from: number; mean: number } | null = null;
+    probe: { from: number; mean: number } | null = null
   return {
     /** Adds a fixed step's milliseconds; returns the count the next steps take. */
     step(ms: number) {
-      sum += ms;
-      if (++steps < measure) return count;
-      const mean = sum / steps;
-      steps = sum = 0;
+      sum += ms
+      if (++steps < measure) return count
+      const mean = sum / steps
+      steps = sum = 0
       if (probe && (count < probe.from ? mean > probe.mean : mean >= probe.mean)) {
-        [count, direction, hold, probe] = [probe.from, -direction, HOLD, null];
-        return count;
+        ;[count, direction, hold, probe] = [probe.from, -direction, HOLD, null]
+        return count
       }
-      probe = null;
-      if (hold > 0) hold--;
+      probe = null
+      if (hold > 0) hold--
       else {
-        if (count + direction < 1 || count + direction > threads) direction = -direction;
-        const next = count + direction;
-        if (next >= 1 && next <= threads) [probe, count] = [{ from: count, mean }, next];
+        if (count + direction < 1 || count + direction > threads) direction = -direction
+        const next = count + direction
+        if (next >= 1 && next <= threads) [probe, count] = [{ from: count, mean }, next]
       }
-      return count;
+      return count
     },
-  };
+  }
 }

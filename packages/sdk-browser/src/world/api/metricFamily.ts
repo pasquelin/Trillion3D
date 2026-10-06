@@ -1,17 +1,17 @@
-import { gpuPassBlockTotals } from '../../diagnostic/gpuPasses.ts';
-import { lastFrameOf, sessionOf } from '../core/worldSession.ts';
-import { NOT_DRAWN } from '../core/worldFrames.ts';
+import { gpuPassBlockTotals } from '../../diagnostic/gpuPasses.ts'
+import { lastFrameOf, sessionOf } from '../core/worldSession.ts'
+import { NOT_DRAWN } from '../core/worldFrames.ts'
 
 /**
  * GPU pass durations of the last frame, grouped by block (`gpuPassBlockTotals`).
  * @param world - The world to read.
  */
-const gpuPasses = (world: object) => gpuPassBlockTotals(lastFrameOf(world)?.gpuPassMs ?? null);
+const gpuPasses = (world: object) => gpuPassBlockTotals(lastFrameOf(world)?.gpuPassMs ?? null)
 /**
  * CPU bounds of the frames since the last reset (`webgpu/pages/render/cpuSteps.ts`), read once.
  * @param world - The world to read.
  */
-const cpuSteps = (world: object) => sessionOf(world).cpuSteps();
+const cpuSteps = (world: object) => sessionOf(world).cpuSteps()
 
 /** The `metric` family: what the image cost, as measured, never estimated. */
 export const metric = {
@@ -31,6 +31,6 @@ export const metric = {
       cpuSteps: () => cpuSteps(world),
       gpuPasses: () => gpuPasses(world),
       report: () => sessionOf(world).getReport(),
-    };
+    }
   },
-};
+}

@@ -1,16 +1,16 @@
-import { useWords } from '../i18n.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { readingName } from './model/presentation.ts';
-import { formatValue } from './model/metrics.ts';
-import type { ReportRecord } from './model/types.ts';
-import type { Dictionary } from '../../content/i18n/dictionary.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { readingName } from './model/presentation.ts'
+import { formatValue } from './model/metrics.ts'
+import type { ReportRecord } from './model/types.ts'
+import type { Dictionary } from '../../content/i18n/dictionary.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface ConditionsProps {
-  a: ReportRecord;
-  b?: ReportRecord | null;
-  locale: Locale;
+  a: ReportRecord
+  b?: ReportRecord | null
+  locale: Locale
 }
 
 /** The settings a reading states, each named by `conditions.<key>`, with its unit. */
@@ -28,16 +28,16 @@ const FIELDS: [keyof Dictionary['conditions'], string?][] = [
   ['shadowBudgetMs', 'ms'],
   ['geometryPoolBytes', 'MiB'],
   ['texturePoolBytes', 'MiB'],
-];
+]
 
 export function Conditions({ a, b, locale }: ConditionsProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   const value = (record: ReportRecord | null | undefined, key: string, unit?: string) => {
-    const raw = record?.settings?.[key];
-    if (typeof raw === 'boolean') return t(raw ? 'report.yes' : 'report.no');
-    if (typeof raw !== 'number') return t('report.unknown');
-    return formatValue(unit === 'MiB' ? raw / 1048576 : raw, locale, unit);
-  };
+    const raw = record?.settings?.[key]
+    if (typeof raw === 'boolean') return t(raw ? 'report.yes' : 'report.no')
+    if (typeof raw !== 'number') return t('report.unknown')
+    return formatValue(unit === 'MiB' ? raw / 1048576 : raw, locale, unit)
+  }
   return (
     <Section level={3} title={t('report.protocol')}>
       <Table>
@@ -59,5 +59,5 @@ export function Conditions({ a, b, locale }: ConditionsProps) {
         </tbody>
       </Table>
     </Section>
-  );
+  )
 }

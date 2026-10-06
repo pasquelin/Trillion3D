@@ -1,28 +1,28 @@
-import type { RenderBackend } from '../../backend/types.ts';
-import { createExplorerCapture } from '../capture/capture.ts';
-import { createExplorerCaptureView } from '../capture/view.ts';
-import { createExplorerHostState } from './hostState.ts';
-import { createExplorerHostFrame } from './hostFrame.ts';
-import { createExplorerLifecycle } from '../session/lifecycle.ts';
-import { frameWaits } from '../session/familyUse.ts';
-import type { ExplorerResources, prepareExplorer } from '../session/prepare.ts';
-import type { ExplorerSession } from '../session/session.ts';
+import type { RenderBackend } from '../../backend/types.ts'
+import { createExplorerCapture } from '../capture/capture.ts'
+import { createExplorerCaptureView } from '../capture/view.ts'
+import { createExplorerHostState } from './hostState.ts'
+import { createExplorerHostFrame } from './hostFrame.ts'
+import { createExplorerLifecycle } from '../session/lifecycle.ts'
+import { frameWaits } from '../session/familyUse.ts'
+import type { ExplorerResources, prepareExplorer } from '../session/prepare.ts'
+import type { ExplorerSession } from '../session/session.ts'
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
+type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 type Inputs = {
-  prepared: Prepared;
-  resources: ExplorerResources;
-  backends: RenderBackend[];
-};
+  prepared: Prepared
+  resources: ExplorerResources
+  backends: RenderBackend[]
+}
 
 export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, metadata, scope, signal, diagnose } = session;
-  const { prepared, resources, backends } = inputs;
+  const { canvas, options, metadata, scope, signal, diagnose } = session
+  const { prepared, resources, backends } = inputs
   const { source, pageSources, directGpu, viewport, context, camera, center, bounds, radius } =
-    prepared;
-  const { geometryUrls, streamer } = pageSources;
-  const { gpuDevice, webglSurface } = resources;
-  const host = createExplorerHostState(prepared, options, backends, canvas, webglSurface, signal);
+    prepared
+  const { geometryUrls, streamer } = pageSources
+  const { gpuDevice, webglSurface } = resources
+  const host = createExplorerHostState(prepared, options, backends, canvas, webglSurface, signal)
   const {
     state,
     beautyMaterials,
@@ -33,14 +33,14 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     disposeComposition,
     check,
     setPose,
-  } = host;
+  } = host
   /** The frame composes two engines in a layout (`render.ts`): the measurement's compositor. */
-  const comparing = () => state.comparisonLayout !== 'single' && !state.measuring;
+  const comparing = () => state.comparisonLayout !== 'single' && !state.measuring
   const { render, profiler, streaming, followCells } = createExplorerHostFrame(session, {
     prepared,
     host,
     backends,
-  });
+  })
   const capture = createExplorerCapture({
     canvas,
     camera,
@@ -51,14 +51,14 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     check,
     diagnose,
     compose,
-  });
+  })
   const captureView = createExplorerCaptureView({
     camera,
     context: webglSurface?.context,
     active: () => state.active,
     check,
     compose,
-  });
+  })
   const { dispose, flush, awaitPages } = createExplorerLifecycle(session, {
     check,
     state,
@@ -74,7 +74,7 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     webglSurface,
     camera,
     geometryUrls,
-  });
+  })
   return {
     options,
     camera,
@@ -89,15 +89,15 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     familiesPending: () => frameWaits(options, state.diagnostic, comparing()),
     async pendingFrame() {
       // A frame that waited for a family on its way is drawn once it has arrived.
-      const families = frameWaits(options, state.diagnostic, comparing());
-      const loading = streaming.promise;
-      await Promise.all([families, loading]);
-      if (state.disposed) return false;
-      const pending = await state.active.pendingFrame?.();
+      const families = frameWaits(options, state.diagnostic, comparing())
+      const loading = streaming.promise
+      await Promise.all([families, loading])
+      if (state.disposed) return false
+      const pending = await state.active.pendingFrame?.()
       // Cells asked within reach are placed by the frames after their read, camera still or not.
-      const cells = await followCells?.pending();
-      const arriving = !!families || !!loading || !!streaming.promise;
-      return arriving || streaming.arrivals.pending > 0 || !!pending || !!cells;
+      const cells = await followCells?.pending()
+      const arriving = !!families || !!loading || !!streaming.promise
+      return arriving || streaming.arrivals.pending > 0 || !!pending || !!cells
     },
     /** The interactive loop's frame began: whether the engine holds it to measure the display. */
     measureFrame: () => state.active.measureFrame?.() === true,
@@ -124,16 +124,16 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
     profiler,
     state,
     setActive: (backend: RenderBackend) => {
-      state.active = backend;
+      state.active = backend
     },
     setDiagnostic: (mode: typeof state.diagnostic) => {
-      state.diagnostic = mode;
+      state.diagnostic = mode
     },
     setCapturingSurface: (value: boolean) => {
-      state.capturingSurface = value;
+      state.capturingSurface = value
     },
     setMeasuring: (value: boolean) => {
-      state.measuring = value;
+      state.measuring = value
     },
     setComparison: (
       layout: typeof state.comparisonLayout,
@@ -141,13 +141,13 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
       wipe?: number,
       toggle?: 0 | 1,
     ) => {
-      state.comparisonLayout = layout;
-      if (pair) state.comparisonPair = pair;
-      if (wipe !== undefined) state.wipe = wipe;
-      if (toggle !== undefined) state.toggle = toggle;
+      state.comparisonLayout = layout
+      if (pair) state.comparisonPair = pair
+      if (wipe !== undefined) state.wipe = wipe
+      if (toggle !== undefined) state.toggle = toggle
     },
-  };
+  }
 }
 
 /** What the host runtime hands the public API: one alias types both ends. */
-export type ExplorerRuntimeSurface = ReturnType<typeof createExplorerHostRuntime>;
+export type ExplorerRuntimeSurface = ReturnType<typeof createExplorerHostRuntime>

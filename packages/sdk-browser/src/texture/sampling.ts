@@ -1,12 +1,12 @@
-import type { Texture, TextureFilter } from '../../../sdk-core/src/index.ts';
+import type { Texture, TextureFilter } from '../../../sdk-core/src/index.ts'
 import {
   AFFINE,
   grantedAnisotropy,
   mipFiltered,
   uvTransformed,
-} from '../../../sdk-core/src/texture/contract.ts';
-import { wrapNibble } from '../visibility/wrapModes.ts';
-import { MAX_ANISOTROPY } from './maxAnisotropy.ts';
+} from '../../../sdk-core/src/texture/contract.ts'
+import { wrapNibble } from '../visibility/wrapModes.ts'
+import { MAX_ANISOTROPY } from './maxAnisotropy.ts'
 
 /**
  * How a texture is sampled on WebGPU, carried in its header of the page table
@@ -50,10 +50,10 @@ export const SAMPLE_MAG_NEAREST = 1,
    *  repeating texture at the default filters keeps the default read. */
   SAMPLE_WRAP_SHIFT = 10,
   /** The filter bits: a texture whose bits are all zero takes the default read. */
-  SAMPLE_FILTER_MASK = (1 << SAMPLE_WRAP_SHIFT) - 1;
+  SAMPLE_FILTER_MASK = (1 << SAMPLE_WRAP_SHIFT) - 1
 
 /** Header words of a texture's UV transform: the affine 2 × 3 part. */
-export const TRANSFORM_WORDS = 6;
+export const TRANSFORM_WORDS = 6
 
 /** Base filter and mip rule of each filter name; a filter without `mip` reads no chain
  *  (`mipFiltered`), its level set below. */
@@ -64,11 +64,11 @@ const MIN_BITS: Record<TextureFilter, number> = {
   'nearest-mip-linear': SAMPLE_MIN_NEAREST,
   'linear-mip-nearest': SAMPLE_MIP_NEAREST,
   'linear-mip-linear': 0,
-};
+}
 
 /** Where `samplingWords` writes: one array, reused, read back by its caller before the next call. */
 const scratch = new Uint32Array(1 + TRANSFORM_WORDS),
-  scratchFloats = new Float32Array(scratch.buffer);
+  scratchFloats = new Float32Array(scratch.buffer)
 
 /**
  * A texture's filter word with its addressing nibble, then its transform's six floats as their
@@ -76,8 +76,8 @@ const scratch = new Uint32Array(1 + TRANSFORM_WORDS),
  * follows the rule both GPU paths share (`grantedAnisotropy`), clamped to its ceiling.
  */
 export function samplingWords(texture: Texture, compiled: boolean): Uint32Array {
-  const anisotropy = Math.round(grantedAnisotropy(texture, MAX_ANISOTROPY));
-  const m = texture.transform;
+  const anisotropy = Math.round(grantedAnisotropy(texture, MAX_ANISOTROPY))
+  const m = texture.transform
   scratch[0] =
     (texture.magFilter === 'nearest' ? SAMPLE_MAG_NEAREST : 0) |
     MIN_BITS[texture.minFilter] |
@@ -87,7 +87,7 @@ export function samplingWords(texture: Texture, compiled: boolean): Uint32Array 
     (texture.magFilter !== 'nearest' && texture.minFilter.startsWith('nearest-mip')
       ? SAMPLE_MAG_HALF
       : 0) |
-    (wrapNibble(texture) << SAMPLE_WRAP_SHIFT);
-  for (let i = 0; i < TRANSFORM_WORDS; i++) scratchFloats[1 + i] = m[AFFINE[i]];
-  return scratch;
+    (wrapNibble(texture) << SAMPLE_WRAP_SHIFT)
+  for (let i = 0; i < TRANSFORM_WORDS; i++) scratchFloats[1 + i] = m[AFFINE[i]]
+  return scratch
 }

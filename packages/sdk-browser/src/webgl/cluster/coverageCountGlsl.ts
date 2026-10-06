@@ -1,4 +1,4 @@
-import { COVERAGE_CUT_GLSL, COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
+import { COVERAGE_CUT_GLSL, COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts'
 
 /** Four points per texel of a level, one per filtered sample of its square (`cutBin`), its alpha
  *  bytes level 0's own or a level's medians from the copy of the one above (`halved`): on the
@@ -20,4 +20,4 @@ void main(){
  int texel=gl_VertexID>>2;ivec2 p=ivec2(texel%size.x,texel/size.x);quarter=uint(gl_VertexID&3);
  uvec4 a=uvec4(alphaAt(p),alphaAt(p+ivec2(1,0)),alphaAt(p+ivec2(0,1)),alphaAt(p+ivec2(1,1)));
  gl_Position=vec4((float(cutBin(a,quarter,cutoff))+.5)/128.-1.,(float(texel&15)+.5)/8.-1.,0.,1.);gl_PointSize=1.;
-}`;
+}`

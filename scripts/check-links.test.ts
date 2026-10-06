@@ -1,56 +1,56 @@
-import { decodeLinkComponent } from '../site/content/uri.ts';
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { checkLinks } from './check-links.ts';
+import { decodeLinkComponent } from '../site/content/uri.ts'
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { checkLinks } from './check-links.ts'
 
 test('reports a broken link in an ordinary file but ignores the same broken link under tests/assets', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-check-links-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-check-links-'))
   try {
-    await mkdir(join(directory, 'docs'), { recursive: true });
-    await mkdir(join(directory, 'tests/assets', 'gltf', 'Foo'), { recursive: true });
-    await writeFile(join(directory, 'docs', 'broken.md'), '[dead link](./does-not-exist.md)\n');
+    await mkdir(join(directory, 'docs'), { recursive: true })
+    await mkdir(join(directory, 'tests/assets', 'gltf', 'Foo'), { recursive: true })
+    await writeFile(join(directory, 'docs', 'broken.md'), '[dead link](./does-not-exist.md)\n')
     await writeFile(
       join(directory, 'tests/assets', 'gltf', 'Foo', 'upstream-LICENSE.md'),
       '[dead link](./does-not-exist.md)\n',
-    );
+    )
 
-    const result = checkLinks(directory);
+    const result = checkLinks(directory)
 
-    assert.equal(result.errors.length, 1);
-    assert.match(result.errors[0][0], /docs[\\/]broken\.md$/);
+    assert.equal(result.errors.length, 1)
+    assert.match(result.errors[0][0], /docs[\\/]broken\.md$/)
     assert.equal(
       result.errors.some((e) => e[0].includes('tests/assets')),
       false,
-    );
+    )
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    await rm(directory, { recursive: true, force: true })
   }
-});
+})
 
 test('a `:line` or `:line:column` suffix designates a location in the file, not another file', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-check-links-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trillion3d-check-links-'))
   try {
-    await mkdir(join(directory, 'docs'), { recursive: true });
-    await writeFile(join(directory, 'docs', 'a.ts'), 'export {};\n');
+    await mkdir(join(directory, 'docs'), { recursive: true })
+    await writeFile(join(directory, 'docs', 'a.ts'), 'export {};\n')
     await writeFile(
       join(directory, 'docs', 'lignes.md'),
       '[ligne](./a.ts:42) [colonne](./a.ts:42:7) [absent](./b.ts:3)\n',
-    );
+    )
 
-    const result = checkLinks(directory);
+    const result = checkLinks(directory)
 
-    assert.equal(result.localFileLinks, 3);
+    assert.equal(result.localFileLinks, 3)
     assert.deepEqual(
       result.errors.map((e) => e[1]),
       ['./b.ts:3'],
-    );
+    )
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    await rm(directory, { recursive: true, force: true })
   }
-});
+})
 
 test('links decode UTF-8 once and preserve malformed escapes verbatim', () => {
   for (const [encoded, decoded] of [
@@ -62,5 +62,5 @@ test('links decode UTF-8 once and preserve malformed escapes verbatim', () => {
     ['%E0%A4%A', '%E0%A4%A'],
     ['valid%20then%', 'valid%20then%'],
   ])
-    assert.equal(decodeLinkComponent(encoded), decoded);
-});
+    assert.equal(decodeLinkComponent(encoded), decoded)
+})

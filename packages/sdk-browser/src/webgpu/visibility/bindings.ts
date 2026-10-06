@@ -1,7 +1,7 @@
-import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts';
-import { entriesReady } from '../core/bindIdentity.ts';
-import { liveResources } from '../core/liveEntries.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts'
+import { entriesReady } from '../core/bindIdentity.ts'
+import { liveResources } from '../core/liveEntries.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -1) {
   return visBindEntries(
@@ -18,32 +18,32 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -
       instances: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.instanceBuffer),
       slotOffsets: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.slotOffsetsBuffer),
     }),
-  );
+  )
 }
 
 /** The descriptors used to create the groups are also their identity, including atlas tables.
  *  Slot groups differ from the representative slot 0 by their uniform offset alone. */
 function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
   const { vis } = rt,
-    identity = vis.visIdentity;
-  identity.entries[0] ??= visibilityEntries(rt, false);
-  identity.entries[1] ??= visibilityEntries(rt, true);
-  identity.entries[2] ??= visibilityEntries(rt, false, 0);
-  if (!identity.entriesMoved(vis.visBindGroupLayout)) return;
-  vis.visBindGroup = undefined;
-  vis.visHizBindGroup = undefined;
-  vis.visSlotGroups.fill(undefined);
-  vis.rasterGroups.fill(undefined);
+    identity = vis.visIdentity
+  identity.entries[0] ??= visibilityEntries(rt, false)
+  identity.entries[1] ??= visibilityEntries(rt, true)
+  identity.entries[2] ??= visibilityEntries(rt, false, 0)
+  if (!identity.entriesMoved(vis.visBindGroupLayout)) return
+  vis.visBindGroup = undefined
+  vis.visHizBindGroup = undefined
+  vis.visSlotGroups.fill(undefined)
+  vis.rasterGroups.fill(undefined)
 }
 
 /** Binds row visibility inputs once for untested and Hi-Z-tested passes, on `rt.vis`. */
 export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  voidStaleVisibilityGroups(rt);
+  voidStaleVisibilityGroups(rt)
   const { vis } = rt,
     layout = vis.visBindGroupLayout,
     direct = vis.visIdentity.entries[0],
-    hiz = vis.visIdentity.entries[1];
-  if (!layout || !entriesReady(direct)) return;
-  vis.visBindGroup ??= device.createBindGroup({ layout, entries: direct });
-  if (entriesReady(hiz)) vis.visHizBindGroup ??= device.createBindGroup({ layout, entries: hiz });
+    hiz = vis.visIdentity.entries[1]
+  if (!layout || !entriesReady(direct)) return
+  vis.visBindGroup ??= device.createBindGroup({ layout, entries: direct })
+  if (entriesReady(hiz)) vis.visHizBindGroup ??= device.createBindGroup({ layout, entries: hiz })
 }

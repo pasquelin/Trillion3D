@@ -9,15 +9,15 @@
  * `x` is too small for that ratio to keep its precision. The density's exponent is capped where
  * the fog is total anyway, so no pixel reads an infinity, even with the camera deep inside.
  */
-import { FOG_MODE } from '../../../sdk-core/src/scene/core/fog.ts';
+import { FOG_MODE } from '../../../sdk-core/src/scene/core/fog.ts'
 
-const LINEAR = 'clamp((law.y-d)/max(law.y-law.x,1e-6),0.0,1.0)';
-const densityAt = (height: string) => `exp(min(-law.y*(${height}-law.z),80.0))`;
-const EXPONENTIAL = 'exp(-law.x*d*mean)';
+const LINEAR = 'clamp((law.y-d)/max(law.y-law.x,1e-6),0.0,1.0)'
+const densityAt = (height: string) => `exp(min(-law.y*(${height}-law.z),80.0))`
+const EXPONENTIAL = 'exp(-law.x*d*mean)'
 /** Beyond this falloff times rise, the closed form holds its precision in 32-bit floats. */
-const CLOSED_FORM = 'x>1e-3';
+const CLOSED_FORM = 'x>1e-3'
 /** The density at the ray's lower end: the eye's height, or the point's `dy` from it. */
-const LOWER = densityAt('min(eyeY,eyeY+dy)');
+const LOWER = densityAt('min(eyeY,eyeY+dy)')
 
 /** `fogTransmittance`, then `fogged`: a lit colour at the world point `P` seen from `eye`, mixed
  *  into the fog of the contract buffer (`DirectLights.fog`); no fog leaves it as it is. */
@@ -33,7 +33,7 @@ fn fogged(rgb:vec3f,P:vec3f,eye:vec3f)->vec3f{
  if(fog[0].w==${FOG_MODE.none}.0){return rgb;}
  let offset=P-eye;
  return mix(fog[0].rgb,rgb,fogTransmittance(fog[1],fog[0].w,length(offset),offset.y,eye.y));
-}`;
+}`
 
 /** The same two functions for the WebGL2 program, in view space: the eye at the origin, a point's
  *  rise read through `viewRotation` (`../webgl/cluster/probe.ts`), the eye's height in `fogLaw.w`
@@ -46,4 +46,4 @@ float fogTransmittance(vec4 law,float mode,float d,float dy,float eyeY){
  return ${EXPONENTIAL};
 }
 vec3 fogged(vec3 rgb){if(fogColor.w==${FOG_MODE.none}.0)return rgb;vec3 offset=viewPosition*viewRotation;
- return mix(fogColor.rgb,rgb,fogTransmittance(fogLaw,fogColor.w,length(viewPosition),offset.y,fogLaw.w));}`;
+ return mix(fogColor.rgb,rgb,fogTransmittance(fogLaw,fogColor.w,length(viewPosition),offset.y,fogLaw.w));}`

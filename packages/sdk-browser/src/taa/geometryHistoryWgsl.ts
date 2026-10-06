@@ -26,7 +26,7 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
  range=geometryTap(range,kept.x,bits.x,identity);
  range=geometryTap(range,kept.y,bits.y,identity);
  return range.y<range.x||!geometryDepthAccepts(expected,range.x-slack,range.y+slack);
-}`;
+}`
 
 /** Same closest-surface selection for native and reconstructed display pixels. Reversed depth
  * makes the largest depth the foreground; its identity and motion travel together. `w` is the
@@ -53,7 +53,7 @@ fn closestSurface(coord:vec2i,last:vec2i)->vec4f{
  let above=vec3f(upLeft.w,upLeft.z,upRight.z);let middle=vec3f(upLeft.x,upLeft.y,upRight.y);
  let below=vec3f(downLeft.x,downLeft.y,downRight.y);
  return nearestOf(coord,last,above,middle,below);
-}`;
+}`
 
 /** The nearest of the 3×3 depths `above`, `middle` and `below` around `coord`, and the surface's
  *  depth step (`closestSurfaceWgsl`). */
@@ -71,4 +71,4 @@ fn nearestOf(coord:vec2i,last:vec2i,above:vec3f,middle:vec3f,below:vec3f)->vec4f
  let west=middle.x;let east=middle.z;let north=above.y;let south=below.y;
  let slope=max(min(abs(west-centre),abs(east-centre)),min(abs(north-centre),abs(south-centre)));
  return vec4f(vec2f(near),nearDepth,slope);
-}`;
+}`

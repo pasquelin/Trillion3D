@@ -2,6 +2,10 @@ use super::*;
 
 type GltfBuffers = (Binary, Vec<usize>, Vec<(String, String)>);
 
+/// The document's buffers as one binary, each started on a 4-byte boundary, with each buffer's
+/// offset in it and the digest of each sidecar read; `flatten_buffer_views` then points every view
+/// at buffer 0. A sidecar's digest must match its `runtime.sidecars[]` entry when a manifest
+/// declares one; a GLB's BIN chunk carries no sidecar digest.
 pub(super) fn concat_gltf_buffers(
     dir: &Path,
     g: &Value,

@@ -1,7 +1,7 @@
-import { writeCourtyardTextures } from './courtyard-textures.ts';
-import { SceneGltf } from './gltf-scene.ts';
-import { disc, lathe, merge, moved, pairs } from './mesh.ts';
-import { box } from './solids.ts';
+import { writeCourtyardTextures } from './courtyard-textures.ts'
+import { SceneGltf } from './gltf-scene.ts'
+import { disc, lathe, merge, moved, pairs } from './mesh.ts'
+import { box } from './solids.ts'
 
 /**
  * `compressed-textures`: a courtyard of glazed tiles and brick around a marble fountain, every
@@ -22,7 +22,7 @@ export async function writeCourtyard(directory: string) {
       normalTexture: textures['bricks-normal'],
     }),
     marble = gltf.material('marble', [1, 1, 1], { roughness: 0.25, texture: textures.marble }),
-    water = gltf.material('water', [0.16, 0.36, 0.42], { roughness: 0.05, metallic: 0.2 });
+    water = gltf.material('water', [0.16, 0.36, 0.42], { roughness: 0.05, metallic: 0.2 })
   // Metres: the floor repeats its eight tiles every two metres, the walls their bricks every 2.4.
   const [side, high, thick] = [16, 4.2, 0.5],
     brickScale = 1 / 2.4,
@@ -30,7 +30,7 @@ export async function writeCourtyard(directory: string) {
       moved(box(side + thick * 2, high, thick, brickScale), [0, high / 2, -side / 2 - thick / 2]),
       moved(box(thick, high, side, brickScale), [-side / 2 - thick / 2, high / 2, 0]),
       moved(box(thick, high, side, brickScale), [side / 2 + thick / 2, high / 2, 0]),
-    ]);
+    ])
   // The fountain: a basin on a foot, a column, a bowl and a finial, all turned.
   const fountain = lathe(
       pairs([
@@ -47,7 +47,7 @@ export async function writeCourtyard(directory: string) {
       ]),
       48,
       { repeat: [1, 1.2] },
-    );
+    )
   const meshes = [
       gltf.mesh('floor', [[moved(box(side, 0.2, side, 0.5), [0, -0.1, 0]), tiles]]),
       gltf.mesh('walls', [[walls, brick]]),
@@ -55,12 +55,12 @@ export async function writeCourtyard(directory: string) {
       gltf.mesh('water', [[disc(2.45, 0.48, 96), water]]),
     ],
     columnMesh = gltf.mesh('column', [[column, marble]]),
-    children = meshes.map((mesh) => gltf.node({ mesh }));
+    children = meshes.map((mesh) => gltf.node({ mesh }))
   for (const x of [-1, 1])
     for (const z of [-6, -2, 2, 6])
-      children.push(gltf.node({ mesh: columnMesh, translation: [x * 6.6, 0, z] }));
+      children.push(gltf.node({ mesh: columnMesh, translation: [x * 6.6, 0, z] }))
   for (const x of [-4, 0, 4])
-    children.push(gltf.node({ mesh: columnMesh, translation: [x, 0, -6.6] }));
-  gltf.node({ name: 'courtyard', scale: [0.5, 0.5, 0.5], children }, true);
-  await gltf.write(directory, 'courtyard');
+    children.push(gltf.node({ mesh: columnMesh, translation: [x, 0, -6.6] }))
+  gltf.node({ name: 'courtyard', scale: [0.5, 0.5, 0.5], children }, true)
+  await gltf.write(directory, 'courtyard')
 }

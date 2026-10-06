@@ -1,6 +1,6 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts';
-import { grown } from '../../page/cut/sparseInts.ts';
-import type { FrameClock } from '../../page/integration/frameBudget.ts';
+import { sortPages } from '../../../../sdk-core/src/index.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
+import type { FrameClock } from '../../page/integration/frameBudget.ts'
 
 /**
  * Pages that claim the write of a row record and have not yet received it.
@@ -16,45 +16,45 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts';
  * catalogue when pages join it in place (`../../placement/webgpuGrowth.ts`).
  */
 export function createWebgpuRowClaims(pageCount: number) {
-  let marks = new Uint8Array(Math.max(1, pageCount));
-  let pages = new Int32Array(Math.max(1, pageCount));
-  let count = 0;
+  let marks = new Uint8Array(Math.max(1, pageCount))
+  let pages = new Int32Array(Math.max(1, pageCount))
+  let count = 0
   return {
     get pages() {
-      return pages;
+      return pages
     },
     get count() {
-      return count;
+      return count
     },
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
       if (page >= marks.length) {
-        marks = grown(marks, page + 1, marks.length);
-        pages = grown(pages, marks.length, count);
+        marks = grown(marks, page + 1, marks.length)
+        pages = grown(pages, marks.length, count)
       }
-      if (marks[page]) return;
-      marks[page] = 1;
-      pages[count++] = page;
+      if (marks[page]) return
+      marks[page] = 1
+      pages[count++] = page
     },
     /** Sorts the list by increasing page index, the order the residency journal requires. */
     sort() {
-      sortPages(pages, count);
+      sortPages(pages, count)
     },
     /** Drops the first `served` pages, already served, and keeps the rest in its order. */
     consume(served: number) {
-      for (let i = 0; i < served; i++) marks[pages[i]] = 0;
-      if (served < count) pages.copyWithin(0, served, count);
-      count -= served;
+      for (let i = 0; i < served; i++) marks[pages[i]] = 0
+      if (served < count) pages.copyWithin(0, served, count)
+      count -= served
     },
     /** Nothing waits any more: the table has just been rebuilt as a block. */
     clear() {
-      for (let i = 0; i < count; i++) marks[pages[i]] = 0;
-      count = 0;
+      for (let i = 0; i < count; i++) marks[pages[i]] = 0
+      count = 0
     },
-  };
+  }
 }
 
-export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>;
+export type WebgpuRowClaims = ReturnType<typeof createWebgpuRowClaims>
 
 /**
  * Serves the queue in increasing page order within `budget`, the frame's one integration budget
@@ -74,30 +74,30 @@ export function serveClaims(
   place: (page: number) => boolean,
   budget?: FrameClock,
 ) {
-  if (!claims.count) return 0;
-  claims.sort();
-  budget?.resume();
+  if (!claims.count) return 0
+  claims.sort()
+  budget?.resume()
   let served = 0,
-    denied = 0;
+    denied = 0
   try {
     while (served < claims.count) {
-      const page = claims.pages[served];
+      const page = claims.pages[served]
       if (!release(page)) {
-        served++;
-        continue;
+        served++
+        continue
       }
       if (!place(page)) {
-        denied = claims.count - served;
-        break;
+        denied = claims.count - served
+        break
       }
-      served++;
-      budget?.spend();
-      if (budget && !budget.admits()) break;
+      served++
+      budget?.spend()
+      if (budget && !budget.admits()) break
     }
   } finally {
     // Balanced on every path: what runs after the rows is not integration.
-    budget?.pause();
+    budget?.pause()
   }
-  claims.consume(served);
-  return denied;
+  claims.consume(served)
+  return denied
 }

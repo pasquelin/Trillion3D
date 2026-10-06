@@ -1,22 +1,22 @@
-import { useWords } from '../i18n.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { formatValue } from './model/metrics.ts';
-import type { CutAnalysis, CutRow } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { formatValue } from './model/metrics.ts'
+import type { CutAnalysis, CutRow } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface CutProps {
-  analysis?: CutAnalysis;
-  locale: Locale;
+  analysis?: CutAnalysis
+  locale: Locale
 }
 
 export function Cut({ analysis, locale }: CutProps) {
-  const t = useWords(locale);
-  if (!analysis) return null;
+  const t = useWords(locale)
+  if (!analysis) return null
   const tables: [string, CutRow[]][] = [
     ['Primitive', analysis.byPrimitive],
     ['DAG', analysis.byLevel],
-  ];
+  ]
   return (
     <Section level={3} title={t('report.cutTitle')}>
       <p>
@@ -50,5 +50,5 @@ export function Cut({ analysis, locale }: CutProps) {
         </Table>
       ))}
     </Section>
-  );
+  )
 }

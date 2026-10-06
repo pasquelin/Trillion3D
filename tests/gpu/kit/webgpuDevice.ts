@@ -3,7 +3,7 @@
 // binds — so the engine is proved on the device a page gives it, never on WebGPU's default limits,
 // which it exceeds (eighteen sampled textures in a fragment stage where the default grants sixteen).
 
-import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/session/gpuDevice.ts';
+import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/session/gpuDevice.ts'
 
 /**
  * Opens the engine's device, hooks collection of uncaptured errors, and returns what is needed to
@@ -21,10 +21,10 @@ export async function openGpuDevice(
   features: GPUFeatureName[] = [],
   requiredLimits: Record<string, number> = {},
 ) {
-  const adapter = await navigator.gpu?.requestAdapter();
-  if (!adapter) return null;
-  const device = await requestExplorerDevice(adapter);
-  const held = device.limits as unknown as Record<string, number>;
+  const adapter = await navigator.gpu?.requestAdapter()
+  if (!adapter) return null
+  const device = await requestExplorerDevice(adapter)
+  const held = device.limits as unknown as Record<string, number>
   // A `min…` limit is an alignment: the device holds it when its own is no larger.
   const lacking = [
     ...features.filter((name) => adapter.features.has(name) && !device.features.has(name)),
@@ -33,36 +33,36 @@ export async function openGpuDevice(
         ([name, value]) => !(name.startsWith('min') ? held[name] <= value : held[name] >= value),
       )
       .map(([name, value]) => `${name} ${value}`),
-  ];
+  ]
   if (lacking.length) {
-    device.destroy();
-    throw new Error(`the engine's device lacks what the proof needs: ${lacking.join(', ')}`);
+    device.destroy()
+    throw new Error(`the engine's device lacks what the proof needs: ${lacking.join(', ')}`)
   }
-  const errors: string[] = [];
-  device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
+  const errors: string[] = []
+  device.addEventListener('uncapturederror', (event) => errors.push(event.error.message))
   return {
     device,
     errors,
     async compile(code: string) {
-      const module = device.createShaderModule({ code });
+      const module = device.createShaderModule({ code })
       const compilation = (await module.getCompilationInfo()).messages
         .filter((message) => message.type === 'error')
-        .map((message) => message.message);
-      return { module, compilation };
+        .map((message) => message.message)
+      return { module, compilation }
     },
     async fermer() {
-      await device.queue.onSubmittedWorkDone();
-      const info = adapter.info ?? {};
+      await device.queue.onSubmittedWorkDone()
+      const info = adapter.info ?? {}
       const fields = (['vendor', 'architecture', 'device', 'description'] as const).map(
         (c) => info[c],
-      );
-      device.destroy();
+      )
+      device.destroy()
       return {
         court: `${fields[0]} ${fields[1]}`,
         complet: fields.filter(Boolean).join(' / '),
-      };
+      }
     },
-  };
+  }
 }
 
 /**
@@ -76,9 +76,9 @@ export async function openGpuModule(
   | { compilation: string[]; errors: string[]; module?: undefined }
   | { gpu: NonNullable<Awaited<ReturnType<typeof openGpuDevice>>>; module: GPUShaderModule }
 > {
-  const gpu = await openGpuDevice();
-  if (!gpu) return { unavailable: 'no WebGPU adapter' };
-  const { module, compilation } = await gpu.compile(code);
-  if (compilation.length) return { compilation, errors: gpu.errors };
-  return { gpu, module };
+  const gpu = await openGpuDevice()
+  if (!gpu) return { unavailable: 'no WebGPU adapter' }
+  const { module, compilation } = await gpu.compile(code)
+  if (compilation.length) return { compilation, errors: gpu.errors }
+  return { gpu, module }
 }

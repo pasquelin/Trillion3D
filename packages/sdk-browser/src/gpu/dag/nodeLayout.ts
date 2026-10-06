@@ -14,6 +14,6 @@ export const NODE_MIN = 0,
   NODE_FLOOR_SPHERE = 16,
   NODE_FLOOR = 20,
   /** Clusters of the subtree whose finer group is not resident (`../../page/cut/readiness.ts`). */
-  NODE_OPEN = 21;
+  NODE_OPEN = 21
 /** The two pad words that bring the node to ninety-six bytes, vec4-aligned. */
-export const NODE_PAD = 22;
+export const NODE_PAD = 22

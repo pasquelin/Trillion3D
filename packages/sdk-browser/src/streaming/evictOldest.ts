@@ -11,12 +11,12 @@ export function evictOldest(
   kept: (key: string) => boolean,
   evict: (key: string) => void,
 ) {
-  let evicted = 0;
+  let evicted = 0
   for (const key of order) {
-    if (!over()) break;
-    if (kept(key)) continue;
-    evict(key);
-    evicted++;
+    if (!over()) break
+    if (kept(key)) continue
+    evict(key)
+    evicted++
   }
-  return evicted;
+  return evicted
 }

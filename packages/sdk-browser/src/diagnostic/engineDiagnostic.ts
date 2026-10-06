@@ -1,4 +1,4 @@
-import type { BackendDiagnostic } from '../backend/types.ts';
+import type { BackendDiagnostic } from '../backend/types.ts'
 
 /** One engine diagnostic to the host's observer, versioned: an error the observer throws is its
  *  own, never the frame's. */
@@ -9,7 +9,7 @@ export function sendEngineDiagnostic(
   details: Record<string, unknown>,
 ) {
   try {
-    onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } });
+    onDiagnostic?.({ phase, message, context: { pipelineVersion: 1, ...details } })
   } catch {
     /* Observers do not control rendering. */
   }
@@ -24,19 +24,19 @@ export const coverageBudgetEvent = (
   slots: number,
   fallbackRetained: boolean,
   pixelError: number,
-) => ({ version: 1, limited, requiredSlots, slots, fallbackRetained, pixelError });
+) => ({ version: 1, limited, requiredSlots, slots, fallbackRetained, pixelError })
 
 export const sendCoverageBudget = (
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
   event: Record<string, unknown>,
-) => sendEngineDiagnostic(onDiagnostic, 'coverage-budget', 'Admission of the requested cut', event);
+) => sendEngineDiagnostic(onDiagnostic, 'coverage-budget', 'Admission of the requested cut', event)
 
 /** A diagnostic whose detail is built only when it is heard. */
 export type LazyDiagnostic = (
   phase: string,
   message: string,
   detail: () => Record<string, unknown>,
-) => void;
+) => void
 /** The emitter that tells `report`, or `undefined` when nobody listens. Callers write
  *  `emit?.(phase, message, () => detail)`: with no listener the call short-circuits before its
  *  arguments, so neither the detail nor the closure that builds it is ever allocated — a request
@@ -47,8 +47,8 @@ export const lazyDiagnostic = (
   report &&
   ((phase, message, detail) => {
     try {
-      report({ phase, message, context: detail() });
+      report({ phase, message, context: detail() })
     } catch {
       /* Observers cannot alter streaming. */
     }
-  });
+  })

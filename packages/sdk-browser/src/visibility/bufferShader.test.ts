@@ -1,48 +1,48 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as G from '../host/graph/graph.fixture.ts';
-import { VIS_SHADER, type VisPage } from './buffer.ts';
-import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts';
-import { camera, quadPages, centerId } from './buffer.fixture.ts';
-import { engineCamera } from '../camera/camera.fixture.ts';
-import { surfaceOf } from '../page/surface.ts';
-import { identityRoots } from '../page/selection/placements.fixture.ts';
-import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts';
-import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as G from '../host/graph/graph.fixture.ts'
+import { VIS_SHADER, type VisPage } from './buffer.ts'
+import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
+import { camera, quadPages, centerId } from './buffer.fixture.ts'
+import { engineCamera } from '../camera/camera.fixture.ts'
+import { surfaceOf } from '../page/surface.ts'
+import { identityRoots } from '../page/selection/placements.fixture.ts'
+import { rasterVisibilityIds } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { unpackVisibilityId } from '../../../../bench/oracles/browser/cpu-image/ids.ts'
 
 test('MeshStandardMaterial pure metal retains the punctual specular highlight', () => {
   const metalMat = G.standardSurface({
     color: 0xffd700,
     metalness: 1.0,
     roughness: 0.1,
-  });
-  const { pages, geometry } = quadPages(metalMat);
+  })
+  const { pages, geometry } = quadPages(metalMat)
   const cam = camera(),
-    size: [number, number] = [16, 16];
-  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
-  const shaded = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size);
-  const o = (((16 / 2) | 0) * 16 + ((16 / 2) | 0)) * 4;
+    size: [number, number] = [16, 16]
+  const ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size)
+  const shaded = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size)
+  const o = (((16 / 2) | 0) * 16 + ((16 / 2) | 0)) * 4
   // The directional source still contributes a tinted specular highlight.
-  assert.ok(shaded[o] > 0);
-  assert.ok(shaded[o + 1] > 0);
-  geometry.dispose();
-  metalMat.dispose();
-});
+  assert.ok(shaded[o] > 0)
+  assert.ok(shaded[o + 1] > 0)
+  geometry.dispose()
+  metalMat.dispose()
+})
 
 test('vis shader instances pages from the page table', () => {
-  assert.match(VIS_SHADER, /@builtin\(instance_index\)/);
-  assert.match(VIS_SHADER, /pages\s*:\s*array<PageInfo>/);
-  assert.match(VIS_SHADER, /vertexIndex\s*>=\s*page\.indexCount/);
-  assert.doesNotMatch(VIS_SHADER, /uni\.pageOffset/);
-  assert.match(VIS_SHADER, /@group\(0\) @binding\(2\) var<storage,\s*read> pages/);
-  assert.match(VIS_SHADER, /@group\(0\) @binding\(4\) var<uniform> uni/);
-  assert.match(VIS_SHADER, /@group\(0\) @binding\(6\) var colorPool/);
-  assert.match(VIS_SHADER, /fn maskKeep/);
-  assert.match(VIS_SHADER, /discard;/);
-  assert.match(VIS_SHADER, /textureSampleLevel/);
-  assert.doesNotMatch(VIS_SHADER, /textureSample\s*\(/);
-  assert.doesNotMatch(VIS_SHADER, /@group\(0\) @binding\(2\) var<uniform>/);
-});
+  assert.match(VIS_SHADER, /@builtin\(instance_index\)/)
+  assert.match(VIS_SHADER, /pages\s*:\s*array<PageInfo>/)
+  assert.match(VIS_SHADER, /vertexIndex\s*>=\s*page\.indexCount/)
+  assert.doesNotMatch(VIS_SHADER, /uni\.pageOffset/)
+  assert.match(VIS_SHADER, /@group\(0\) @binding\(2\) var<storage,\s*read> pages/)
+  assert.match(VIS_SHADER, /@group\(0\) @binding\(4\) var<uniform> uni/)
+  assert.match(VIS_SHADER, /@group\(0\) @binding\(6\) var colorPool/)
+  assert.match(VIS_SHADER, /fn maskKeep/)
+  assert.match(VIS_SHADER, /discard;/)
+  assert.match(VIS_SHADER, /textureSampleLevel/)
+  assert.doesNotMatch(VIS_SHADER, /textureSample\s*\(/)
+  assert.doesNotMatch(VIS_SHADER, /@group\(0\) @binding\(2\) var<uniform>/)
+})
 
 test('MASK alpha-test punches a visbuffer hole before shading', () => {
   const map = G.dataTexture(
@@ -50,48 +50,48 @@ test('MASK alpha-test punches a visbuffer hole before shading', () => {
     2,
     2,
     G.HOST_FORMAT_RGBA,
-  );
-  map.magFilter = G.HOST_FILTER_NEAREST;
-  map.minFilter = G.HOST_FILTER_NEAREST;
-  map.flipY = false;
-  map.needsUpdate = true;
-  const mask = G.basicSurface({ color: 0xffffff, map, alphaTest: 0.5 });
-  const solid = G.basicSurface({ color: 0x00ff00 });
-  const geometry = new G.Geometry();
+  )
+  map.magFilter = G.HOST_FILTER_NEAREST
+  map.minFilter = G.HOST_FILTER_NEAREST
+  map.flipY = false
+  map.needsUpdate = true
+  const mask = G.basicSurface({ color: 0xffffff, map, alphaTest: 0.5 })
+  const solid = G.basicSurface({ color: 0x00ff00 })
+  const geometry = new G.Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute(
       [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1],
       3,
     ),
-  );
+  )
   geometry.setAttribute(
     'uv',
     G.floatAttribute([0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0, 0, 1, 0, 1, 1, 0, 1], 2),
-  );
+  )
   const far: VisPage = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
     material: surfaceOf(solid),
     clusterId: 'far',
-  };
+  }
   const near: VisPage = {
     array: new Uint32Array([4, 5, 6, 4, 6, 7]),
     attributes: geometry.attributes,
     material: surfaceOf(mask),
     clusterId: 'near',
-  };
+  }
   const cam = camera(),
-    ids = rasterVisibilityIds([far, near], identityRoots(), engineCamera(cam), [16, 16]);
-  const unpacked = unpackVisibilityId(centerId(ids, 16, 16));
-  assert.ok(unpacked);
-  assert.equal(unpacked.pageIndex, 0);
-  assert.notEqual(unpacked.pageIndex, 1);
-  geometry.dispose();
-  mask.dispose();
-  solid.dispose();
-  map.dispose();
-});
+    ids = rasterVisibilityIds([far, near], identityRoots(), engineCamera(cam), [16, 16])
+  const unpacked = unpackVisibilityId(centerId(ids, 16, 16))
+  assert.ok(unpacked)
+  assert.equal(unpacked.pageIndex, 0)
+  assert.notEqual(unpacked.pageIndex, 1)
+  geometry.dispose()
+  mask.dispose()
+  solid.dispose()
+  map.dispose()
+})
 
 test('standard-material irradiance matches the reference linear capture without an invented environment', () => {
   // Captured from a reference render on the same quad/lights, before display tone mapping.
@@ -101,21 +101,21 @@ test('standard-material irradiance matches the reference linear capture without 
     [0x808080, 1, 0.5, [52, 52, 52]],
     [0x993322, 0, 0.5, [137, 50, 37]],
   ] as const) {
-    const material = G.standardSurface({ color, metalness, roughness });
-    const { pages, geometry } = quadPages(material);
-    const cam = camera();
-    cam.position.z = 3;
-    cam.updateMatrixWorld();
+    const material = G.standardSurface({ color, metalness, roughness })
+    const { pages, geometry } = quadPages(material)
+    const cam = camera()
+    cam.position.z = 3
+    cam.updateMatrixWorld()
     const size: [number, number] = [64, 64],
-      ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size);
+      ids = rasterVisibilityIds(pages, identityRoots(), engineCamera(cam), size)
     const pixels = shadeVisibility(ids, pages, identityRoots(), engineCamera(cam), size),
-      offset = (32 * 64 + 32) * 4;
+      offset = (32 * 64 + 32) * 4
     for (let c = 0; c < 3; c++)
       assert.ok(
         Math.abs(pixels[offset + c] - expected[c]) <= 2,
         `color ${color}, metal ${metalness}, channel ${c}: ${pixels[offset + c]} vs ${expected[c]}`,
-      );
-    geometry.dispose();
-    material.dispose();
+      )
+    geometry.dispose()
+    material.dispose()
   }
-});
+})

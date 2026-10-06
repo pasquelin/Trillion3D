@@ -2,8 +2,8 @@ import {
   type CommandWriter,
   type PhysicsHost,
   physicsMatterOf,
-} from '../../../../sdk-core/src/physics/index.ts';
-import { flagsOf, type Bodied } from '../bodies.ts';
+} from '../../../../sdk-core/src/physics/index.ts'
+import { flagsOf, type Bodied } from '../bodies.ts'
 
 /**
  * What a session's bodies call when the page changes one (`mesh.physics`): each change becomes a
@@ -18,37 +18,37 @@ export function createSessionHost(
 ): PhysicsHost {
   return {
     rebuild(body) {
-      rebuild(meshes()[body._index] ?? null);
-      invalidate();
+      rebuild(meshes()[body._index] ?? null)
+      invalidate()
     },
     tune(body) {
-      const mesh = meshes()[body._index];
-      if (!mesh) return;
-      const matter = physicsMatterOf(mesh.material);
-      writer.gravityScale(body._index, body.gravityScale);
+      const mesh = meshes()[body._index]
+      if (!mesh) return
+      const matter = physicsMatterOf(mesh.material)
+      writer.gravityScale(body._index, body.gravityScale)
       writer.material(
         body._index,
         body.friction ?? matter.friction,
         body.restitution ?? matter.restitution,
-      );
-      invalidate();
+      )
+      invalidate()
     },
     velocity(body) {
-      writer.velocity(body._index, body.velocity.elements);
-      invalidate();
+      writer.velocity(body._index, body.velocity.elements)
+      invalidate()
     },
     impulse(body, x, y, z) {
-      writer.impulse(body._index, [x, y, z]);
-      invalidate();
+      writer.impulse(body._index, [x, y, z])
+      invalidate()
     },
     wake(body) {
-      writer.wake(body._index);
-      invalidate();
+      writer.wake(body._index)
+      invalidate()
     },
     listened(body) {
-      const mesh = meshes()[body._index];
-      if (mesh) writer.flags(body._index, flagsOf(mesh));
-      invalidate();
+      const mesh = meshes()[body._index]
+      if (mesh) writer.flags(body._index, flagsOf(mesh))
+      invalidate()
     },
-  };
+  }
 }

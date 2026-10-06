@@ -1,28 +1,28 @@
 // Benchmark for batch 4: shading normal.
-import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts';
-import * as THREE from 'three';
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { shadingNormal } from '../../oracles/browser/cpu-image/shadingNormal.ts';
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
-import { referenceShadingNormal } from '../../oracles/browser/shading-normals.ts';
-import { reperes } from './support/scenesNormal.ts';
-import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts';
-import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts';
+import { importHostTexture } from '../../../packages/sdk-browser/src/host/textureImport.ts'
+import * as THREE from 'three'
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { shadingNormal } from '../../oracles/browser/cpu-image/shadingNormal.ts'
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
+import { referenceShadingNormal } from '../../oracles/browser/shading-normals.ts'
+import { reperes } from './support/scenesNormal.ts'
+import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts'
+import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts'
 
-const alea = xorshiftRandom(0x4e07);
+const alea = xorshiftRandom(0x4e07)
 
 function normalsMap(depart: number) {
   const data = new Uint8Array(8 * 8 * 4),
-    tire = xorshiftRandom(depart);
-  for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255;
-  const map = new G.GraphTexture();
-  map.image = { data, width: 8, height: 8 };
-  map.wrapS = G.HOST_WRAP_REPEAT;
-  map.wrapT = THREE.ClampToEdgeWrapping;
-  return importHostTexture(map);
+    tire = xorshiftRandom(depart)
+  for (let i = 0; i < data.length; i++) data[i] = Math.floor(tire() * 256) & 255
+  const map = new G.GraphTexture()
+  map.image = { data, width: 8, height: 8 }
+  map.wrapS = G.HOST_WRAP_REPEAT
+  map.wrapT = THREE.ClampToEdgeWrapping
+  return importHostTexture(map)
 }
 
-const CARTE = normalsMap(0x51);
+const CARTE = normalsMap(0x51)
 const matieres = [
   { carte: false, doubleSided: false, backSide: false, normalScale: 1, normalScaleY: 1 },
   { carte: true, doubleSided: false, backSide: false, normalScale: 1.25, normalScaleY: -0.75 },
@@ -47,19 +47,19 @@ const matieres = [
   thickness: 0,
   attenuationDistance: 0,
   attenuationColor: [1, 1, 1],
-}));
+}))
 
 interface Item {
-  page: VisPage;
-  tri: NonNullable<ReturnType<typeof triangleAt>>;
-  bary: { w0: number; w1: number; w2: number };
-  uv: [number, number];
-  mat: VisMaterial;
-  screenFace: number;
+  page: VisPage
+  tri: NonNullable<ReturnType<typeof triangleAt>>
+  bary: { w0: number; w1: number; w2: number }
+  uv: [number, number]
+  mat: VisMaterial
+  screenFace: number
 }
 
 function preparerLot(): Item[] {
-  const lot: Item[] = [];
+  const lot: Item[] = []
   for (const repere of reperes())
     for (const mat of matieres)
       for (const screenFace of [1, -1])
@@ -70,11 +70,11 @@ function preparerLot(): Item[] {
           uv: [alea() * 3 - 1, alea() * 3 - 1],
           mat,
           screenFace,
-        });
-  return lot;
+        })
+  return lot
 }
 
-const lot = preparerLot();
+const lot = preparerLot()
 const passe =
   <N>(
     normal: (
@@ -88,16 +88,16 @@ const passe =
     lit: (n: N, c: number) => number,
   ) =>
   (items: Item[]) => {
-    const output = new Float64Array(items.length * 3);
+    const output = new Float64Array(items.length * 3)
     for (let i = 0; i < items.length; i++) {
-      const p = items[i];
-      const n = normal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace);
-      output[i * 3] = lit(n, 0);
-      output[i * 3 + 1] = lit(n, 1);
-      output[i * 3 + 2] = lit(n, 2);
+      const p = items[i]
+      const n = normal(p.page, p.tri, p.bary, p.uv, p.mat, p.screenFace)
+      output[i * 3] = lit(n, 0)
+      output[i * 3 + 1] = lit(n, 1)
+      output[i * 3 + 2] = lit(n, 2)
     }
-    return output;
-  };
+    return output
+  }
 
 const res = await measure({
   name: 'shadingNormal hostile frames',
@@ -110,7 +110,7 @@ const res = await measure({
   calculation: passe(shadingNormal, (n, c) => n[c]),
   expected: passe(referenceShadingNormal, (n, c) => (c === 0 ? n.x : c === 1 ? n.y : n.z)),
   options: { tours: 60, budgetMs: 1500 },
-});
+})
 
 await stress({
   name: 'shadingNormal extremes',
@@ -119,6 +119,6 @@ await stress({
     { name: 'first', input: lot[0] },
     { name: 'last', input: lot[lot.length - 1] },
   ],
-});
+})
 
-rapport('normale-ombrage', [res], 'shadingNormal returns exact same components');
+rapport('normale-ombrage', [res], 'shadingNormal returns exact same components')

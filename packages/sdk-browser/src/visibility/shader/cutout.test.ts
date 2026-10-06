@@ -1,12 +1,12 @@
 // #55: the cutout is the hard threshold in every raster and every image, as it was before the
 // stipple (9893b51d9). The stippled threshold (#529, #556) turned the leaves of a still, temporally
 // antialiased image into blotches (measure ko); it is gone, and nothing reads a stipple word.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { MASK_KEEP_WGSL } from './pageWgsl.ts';
-import { VIS_SHADER } from './visWgsl.ts';
-import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts';
-import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { MASK_KEEP_WGSL } from './pageWgsl.ts'
+import { VIS_SHADER } from './visWgsl.ts'
+import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
+import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
 
 test('the cutout is the hard threshold: the test of 9893b51d9, with the dash, vertex alpha and opacity', () => {
   // 9893b51d9 read `maskAlpha(...)>=page.baseColor.w` after the flag test. Since then #359 cuts a
@@ -24,14 +24,14 @@ test('the cutout is the hard threshold: the test of 9893b51d9, with the dash, ve
  if(coloured){alpha*=vertexAlpha;}
  return alpha>=page.baseColor.w;
 }`,
-  );
-});
+  )
+})
 
 test('every raster calls it as before the stipple, and no shader reads a stipple', () => {
   // The call sites themselves are pinned by `maskVertexAlpha.test.ts`. Camera: the fragment's own
   // derivatives. Compute raster: the shared analytic perspective-correct derivatives.
-  assert.equal(VIS_SHADER.split('let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);').length, 3);
-  assert.match(ENGINE_SHADERS.RASTER!, /uvGradients/);
+  assert.equal(VIS_SHADER.split('let gx=dpdx(in.tc.xy);let gy=dpdy(in.tc.xy);').length, 3)
+  assert.match(ENGINE_SHADERS.RASTER!, /uvGradients/)
   for (const [name, source] of Object.entries(ENGINE_SHADERS))
-    assert.doesNotMatch(source, /stipple/i, name);
-});
+    assert.doesNotMatch(source, /stipple/i, name)
+})

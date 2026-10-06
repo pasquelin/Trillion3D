@@ -1,6 +1,6 @@
-import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
-import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts';
-import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts';
+import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
+import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts'
+import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
@@ -12,14 +12,14 @@ export async function createDagStages(
   module: GPUShaderModule,
   split: boolean,
 ) {
-  const width = groupWidth(device.limits);
+  const width = groupWidth(device.limits)
   const set = {
     ...(split && { SPLIT: 1 }),
     ...(width !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: width }),
-  };
-  const constants = Object.keys(set).length ? set : undefined;
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
-  const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`);
+  }
+  const constants = Object.keys(set).length ? set : undefined
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+  const levels = Array.from({ length: LEVEL_QUEUES }, (_, q) => `dagLevel${q}`)
   const stage = await buildComputeStages(
     device,
     pipelineLayout,
@@ -39,8 +39,8 @@ export async function createDagStages(
       'dagCutKeep',
     ],
     constants,
-  );
-  const levelPipelines = levels.map((level) => stage[level]);
+  )
+  const levelPipelines = levels.map((level) => stage[level])
   return {
     preparePipeline: stage.dagPrepare,
     clearDrawnPipeline: stage.dagClearDrawn,
@@ -55,5 +55,5 @@ export async function createDagStages(
     evictPipeline: stage.dagListEvictions,
     differencePipeline: stage.dagCutDifference,
     keepPipeline: stage.dagCutKeep,
-  };
+  }
 }

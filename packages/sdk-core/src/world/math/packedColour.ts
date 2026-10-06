@@ -15,9 +15,9 @@ export function clearValueOf(clearColor: number) {
     g: ((clearColor >> 8) & 0xff) / 0xff,
     b: (clearColor & 0xff) / 0xff,
     a: 1,
-  };
+  }
 }
 
 /** `#rrggbb` of three bytes: how a colour is written for a person to read. */
 export const rgbHex = (red: number, green: number, blue: number) =>
-  `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+  `#${[red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('')}`

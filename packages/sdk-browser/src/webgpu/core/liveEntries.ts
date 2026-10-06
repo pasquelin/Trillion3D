@@ -1,4 +1,4 @@
-const none = () => undefined;
+const none = () => undefined
 
 /** Entry descriptors read live resources; their arrays, bindings and readers are allocated once. */
 export function bufferEntry(
@@ -11,16 +11,16 @@ export function bufferEntry(
     binding,
     resource: {
       get buffer() {
-        return buffer()!;
+        return buffer()!
       },
       get offset() {
-        return offset();
+        return offset()
       },
       get size() {
-        return size();
+        return size()
       },
     },
-  };
+  }
 }
 export function resourceEntry(
   binding: number,
@@ -29,14 +29,14 @@ export function resourceEntry(
   return {
     binding,
     get resource() {
-      return resource()!;
+      return resource()!
     },
-  };
+  }
 }
 /** Resolve each resource from its owner when read, including after the owner replaces it. */
 export function liveResources<T>(readers: { [K in keyof T]: () => T[K] | undefined }): T {
-  const resources = {};
+  const resources = {}
   for (const key of Object.keys(readers) as (keyof T)[])
-    Object.defineProperty(resources, key, { get: readers[key] });
-  return resources as T;
+    Object.defineProperty(resources, key, { get: readers[key] })
+  return resources as T
 }

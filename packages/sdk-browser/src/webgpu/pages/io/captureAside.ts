@@ -1,19 +1,19 @@
-import { copyDrawnFromShown } from '../helpers.ts';
-import type { HostCamera } from '../../../camera/world.ts';
-import { encodeDraws } from '../render/encodeDraws.ts';
-import { renderWebgpuPages } from '../render/render.ts';
-import { grantFrameTargets } from '../prepare/targetGrant.ts';
-import { poolFundingPending } from '../prepare/targetFunding.ts';
-import { deviceAnswer } from '../../frame/deviceAnswer.ts';
-import { grantPending } from '../../../gpu/core/errorScope.ts';
-import { createWebgpuView, type WebgpuView } from '../state/view.ts';
-import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { copyDrawnFromShown } from '../helpers.ts'
+import type { HostCamera } from '../../../camera/world.ts'
+import { encodeDraws } from '../render/encodeDraws.ts'
+import { renderWebgpuPages } from '../render/render.ts'
+import { grantFrameTargets } from '../prepare/targetGrant.ts'
+import { poolFundingPending } from '../prepare/targetFunding.ts'
+import { deviceAnswer } from '../../frame/deviceAnswer.ts'
+import { grantPending } from '../../../gpu/core/errorScope.ts'
+import { createWebgpuView, type WebgpuView } from '../state/view.ts'
+import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Targets asked of the device, or pools funded again beside them (#1362), while a capture draws:
  *  it waits for them and draws again, never reading pages a funding moved. */
 const targetsMoving = (rt: WebgpuPagesRuntime) =>
-  rt.gpu.targetGrant !== undefined || poolFundingPending(rt) !== undefined;
+  rt.gpu.targetGrant !== undefined || poolFundingPending(rt) !== undefined
 
 /**
  * Runs `work` in a view of its own at `width × height`, once the device has answered for what the
@@ -26,31 +26,31 @@ export async function captureAside<T>(
   size: { width: number; height: number },
   work: () => Promise<T>,
 ) {
-  const { capture } = rt;
+  const { capture } = rt
   // The capture asks no shadow memory of its own: the frames make the virtual shadow maps they
   // draw (`../render/vsm/vsmEncode.ts`), and the capture waits for them to settle
   // (`shadowsUnsettled`).
-  capture.capturing = true;
-  const view = createWebgpuView(size.width, size.height);
-  let drawn = false;
+  capture.capturing = true
+  const view = createWebgpuView(size.width, size.height)
+  let drawn = false
   try {
-    await deviceAnswer(rt);
-    await rt.services.residency.pending;
-    await rt.gpu.device?.queue.onSubmittedWorkDone();
+    await deviceAnswer(rt)
+    await rt.services.residency.pending
+    await rt.gpu.device?.queue.onSubmittedWorkDone()
     // The main view's grant in flight settles before the switch, on the main view.
-    await grantPending(rt.gpu.targetGrant);
-    await poolFundingPending(rt);
+    await grantPending(rt.gpu.targetGrant)
+    await poolFundingPending(rt)
     // A session closed meanwhile draws nothing.
-    rt.context.signal?.throwIfAborted();
-    useWebgpuView(rt, view);
-    drawn = true;
-    return await work();
+    rt.context.signal?.throwIfAborted()
+    useWebgpuView(rt, view)
+    drawn = true
+    return await work()
   } finally {
     // Drawn, the view is released, even after a dispose switched back; never drawn, it made nothing.
     try {
-      if (drawn) await releaseSettledCapture(rt, view);
+      if (drawn) await releaseSettledCapture(rt, view)
     } finally {
-      capture.capturing = false;
+      capture.capturing = false
     }
   }
 }
@@ -63,19 +63,19 @@ export async function renderForCapture(
   camera: HostCamera,
   aspect?: number,
 ) {
-  await grantFrameTargets(rt, rt.gpu.device!);
-  rt.capture.surfaceRenderAllowed = true;
+  await grantFrameTargets(rt, rt.gpu.device!)
+  rt.capture.surfaceRenderAllowed = true
   try {
-    renderWebgpuPages(rt, camera, aspect);
+    renderWebgpuPages(rt, camera, aspect)
     // Selection can reveal a first mirror after the initial target grant. Finish that grant
     // and draw its targets before any capture reads them or returns to the original view.
     if (targetsMoving(rt)) {
-      await grantFrameTargets(rt, rt.gpu.device!);
-      renderWebgpuPages(rt, camera, aspect);
-      if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_RENDER');
+      await grantFrameTargets(rt, rt.gpu.device!)
+      renderWebgpuPages(rt, camera, aspect)
+      if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_RENDER')
     }
   } finally {
-    rt.capture.surfaceRenderAllowed = false;
+    rt.capture.surfaceRenderAllowed = false
   }
 }
 
@@ -90,19 +90,19 @@ export async function drawResidentCut(
   gpuDevice: GPUDevice,
   hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
 ) {
-  const { run, services } = rt;
-  await services.residency.pending;
-  hooks.admitted?.();
-  await services.ensureResident(run.shown, run.frame, services.residency.nextJobId());
-  if (!run.shown.every(services.poolHolds)) throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE');
-  copyDrawnFromShown(run);
-  hooks.beforeEncode?.();
-  run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
+  const { run, services } = rt
+  await services.residency.pending
+  hooks.admitted?.()
+  await services.ensureResident(run.shown, run.frame, services.residency.nextJobId())
+  if (!run.shown.every(services.poolHolds)) throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE')
+  copyDrawnFromShown(run)
+  hooks.beforeEncode?.()
+  run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam)
   if (targetsMoving(rt)) {
-    await grantFrameTargets(rt, gpuDevice);
-    hooks.beforeEncode?.();
-    run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
-    if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE');
+    await grantFrameTargets(rt, gpuDevice)
+    hooks.beforeEncode?.()
+    run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam)
+    if (targetsMoving(rt)) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE')
   }
 }
 
@@ -110,9 +110,9 @@ export async function drawResidentCut(
  * view, never against the restored main view's mutable GPU state. Cleanup holds on rejection. */
 export async function releaseSettledCapture(rt: WebgpuPagesRuntime, view: WebgpuView) {
   try {
-    await grantPending(rt.views.active === view ? rt.gpu.targetGrant : view.gpu.targetGrant);
-    await poolFundingPending(rt);
+    await grantPending(rt.views.active === view ? rt.gpu.targetGrant : view.gpu.targetGrant)
+    await poolFundingPending(rt)
   } finally {
-    releaseWebgpuView(rt, view);
+    releaseWebgpuView(rt, view)
   }
 }

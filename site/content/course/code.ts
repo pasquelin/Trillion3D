@@ -1,4 +1,4 @@
-import { PHYSICS_CHAPTERS } from './physicsCode.ts';
+import { PHYSICS_CHAPTERS } from './physicsCode.ts'
 
 /**
  * The course, in order: each chapter names the example that shows its result and the few lines
@@ -6,11 +6,11 @@ import { PHYSICS_CHAPTERS } from './physicsCode.ts';
  * overlay; the code is the same in every language.
  */
 export interface ChapterCode {
-  id: string;
+  id: string
   /** The ready example (`site/examples/<example>.html`) the chapter shows live. */
-  example: string;
+  example: string
   /** One or more short blocks: a terminal command, then the page's code, for instance. */
-  code: string[];
+  code: string[]
 }
 
 export const CHAPTERS: ChapterCode[] = [
@@ -140,4 +140,4 @@ world.onFrame(({ delta }) => {
 });`,
     ],
   },
-];
+]

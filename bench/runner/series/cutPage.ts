@@ -11,25 +11,25 @@
  * enough to exhaust the driver — while `pages` has only two and renders the same meshes. The two
  * sources are not compared; the report says which one served.
  */
-import type * as SdkBrowser from '../../witnesses/measurement.ts';
-import type { CutSelection } from '../report/types.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts'
+import type { CutSelection } from '../report/types.ts'
 
-type Backend = SdkBrowser.RenderBackend & { selectedPageIds?: () => Iterable<string> };
+type Backend = SdkBrowser.RenderBackend & { selectedPageIds?: () => Iterable<string> }
 
 export function lireCoupe(
   explorer: Awaited<ReturnType<typeof SdkBrowser.openMeasuredWorld>>,
   engineId: string,
 ): CutSelection {
   const backend = explorer.backends.find((candidate) => candidate.id === engineId) as
-    Backend | undefined;
+    Backend | undefined
   if (backend && typeof backend.selectedPageIds === 'function')
-    return { source: 'selectedPageIds', ids: [...backend.selectedPageIds()].sort() };
-  if (!backend || !backend.scene) return { source: null, ids: [] };
-  explorer.setDiagnostic('pages');
+    return { source: 'selectedPageIds', ids: [...backend.selectedPageIds()].sort() }
+  if (!backend || !backend.scene) return { source: null, ids: [] }
+  explorer.setDiagnostic('pages')
   const ids = (backend.scene.children as readonly { userData?: { clusterId?: unknown } }[])
     .map((child) => child.userData && child.userData.clusterId)
     .filter((id): id is string => typeof id === 'string')
-    .sort();
-  explorer.setDiagnostic('beauty');
-  return { source: 'clusterId', ids };
+    .sort()
+  explorer.setDiagnostic('beauty')
+  return { source: 'clusterId', ids }
 }

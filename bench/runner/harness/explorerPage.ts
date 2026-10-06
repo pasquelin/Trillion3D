@@ -5,14 +5,14 @@ import type {
   BackendFactory,
   MeasuredWorld,
   MeasuredWorldOptions,
-} from '../../witnesses/measurement.ts';
-import type { MeasureViewOptions } from './measureOptions.ts';
-import type { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts';
+} from '../../witnesses/measurement.ts'
+import type { MeasureViewOptions } from './measureOptions.ts'
+import type { Group } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
 /** The witness light group, of the engine's graph, and its store-tracking function. */
 export interface WitnessLighting {
-  group: Group;
-  suivre: (explorer: MeasuredWorld) => unknown;
+  group: Group
+  suivre: (explorer: MeasuredWorld) => unknown
 }
 
 /**
@@ -80,5 +80,5 @@ export function explorerOptions(
     ...(options.renderScale ? { renderScale: options.renderScale } : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
-  };
+  }
 }

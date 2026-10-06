@@ -4,8 +4,8 @@ import type {
   Material,
   Mesh,
   Object3D,
-} from '../../../packages/sdk-browser/src/index.ts';
-import type { Engine } from './session.ts';
+} from '../../../packages/sdk-browser/src/index.ts'
+import type { Engine } from './session.ts'
 
 /** The shapes the Add menu builds, each with the first arguments of its family call named. */
 export const SHAPES = {
@@ -15,11 +15,11 @@ export const SHAPES = {
   cone: ['radius', 'height', 'radialSegments', 'heightSegments'],
   torus: ['radius', 'tube', 'radialSegments', 'tubularSegments', 'arc'],
   plane: ['width', 'height', 'widthSegments', 'heightSegments'],
-} as const;
-type Shape = keyof typeof SHAPES;
-export const LIGHTS = ['point', 'spot', 'directional', 'ambient'] as const;
-type LightKind = (typeof LIGHTS)[number];
-export type AddKind = Shape | LightKind | 'group';
+} as const
+type Shape = keyof typeof SHAPES
+export const LIGHTS = ['point', 'spot', 'directional', 'ambient'] as const
+type LightKind = (typeof LIGHTS)[number]
+export type AddKind = Shape | LightKind | 'group'
 
 /** The first size the Add menu gives each shape: about one unit across, standing on the grid. */
 const FIRST_SIZE: Record<Shape, number[]> = {
@@ -29,46 +29,46 @@ const FIRST_SIZE: Record<Shape, number[]> = {
   cone: [0.5, 1, 32],
   torus: [0.5, 0.2, 16, 48],
   plane: [4, 4],
-};
+}
 /** Where each light starts, and how strong: above the grid, aimed at its centre. */
 const FIRST_LIGHT: Record<LightKind, { intensity: number; position: [number, number, number] }> = {
   point: { intensity: 10, position: [0, 2, 0] },
   spot: { intensity: 20, position: [2, 4, 2] },
   directional: { intensity: 3, position: [3, 5, 2] },
   ambient: { intensity: 0.3, position: [0, 0, 0] },
-};
+}
 
-type Build = (...args: unknown[]) => Geometry;
+type Build = (...args: unknown[]) => Geometry
 /** The geometry family member that built `type`, or undefined for a shape the family lacks. */
 export const shapeBuilder = (engine: Engine, type: string) =>
-  (engine.geometry as unknown as Record<string, Build | undefined>)[type];
+  (engine.geometry as unknown as Record<string, Build | undefined>)[type]
 
-export const isMesh = (node: Object3D): node is Mesh => (node as Mesh).isMesh === true;
-export const isLight = (node: Object3D): node is Light => (node as Light).isLight === true;
+export const isMesh = (node: Object3D): node is Mesh => (node as Mesh).isMesh === true
+export const isLight = (node: Object3D): node is Light => (node as Light).isLight === true
 /** The one material of a mesh the inspector edits; a mesh wearing one per group has none. */
 export const materialOf = (node: Object3D) =>
-  isMesh(node) && !Array.isArray(node.material) ? (node.material as Material) : null;
+  isMesh(node) && !Array.isArray(node.material) ? (node.material as Material) : null
 
 /** A new object of `kind`, named `name`: a shape in a material of its own (built from `size`, or
  *  from the first size the Add menu gives it), a light, a group. */
 export function build(engine: Engine, kind: AddKind, name: string, size?: number[]): Object3D {
-  let node: Object3D;
-  if (kind === 'group') node = engine.object.group();
+  let node: Object3D
+  if (kind === 'group') node = engine.object.group()
   else if (kind in FIRST_LIGHT) {
-    const first = FIRST_LIGHT[kind as LightKind];
-    node = engine.light[kind as LightKind]({ ...first, castShadow: kind !== 'ambient' });
+    const first = FIRST_LIGHT[kind as LightKind]
+    node = engine.light[kind as LightKind]({ ...first, castShadow: kind !== 'ambient' })
   } else {
-    const shape = kind as Shape;
+    const shape = kind as Shape
     const matter = engine.material.meshStandard({
       color: '#b8c4d6',
       roughness: 0.6,
       side: shape === 'plane' ? 'double' : 'front',
-    });
-    node = engine.object.mesh(shapeBuilder(engine, shape)!(...(size ?? FIRST_SIZE[shape])), matter);
+    })
+    node = engine.object.mesh(shapeBuilder(engine, shape)!(...(size ?? FIRST_SIZE[shape])), matter)
     // A plane lies on the grid, a solid stands on it.
-    if (shape === 'plane') node.rotation.x = -Math.PI / 2;
-    else node.position.y = shape === 'torus' ? 0.2 : 0.5;
+    if (shape === 'plane') node.rotation.x = -Math.PI / 2
+    else node.position.y = shape === 'torus' ? 0.2 : 0.5
   }
-  node.name = name;
-  return node;
+  node.name = name
+  return node
 }

@@ -1,8 +1,8 @@
 // The descent kernel from BEFORE the "persistent selection" batch, and the shipped cut shader
 // with it in place (`DAG_SELECTION_SHADER_BEFORE`), split out of `cut-dispatches.ts` to keep it
 // under the file line budget. See that file for the oracle's buffers and encoding.
-import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
-import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts';
+import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts'
+import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts'
 
 const DAG_LEVEL_WGSL_BEFORE = `fn queueCounter(q:u32)->u32{return liveCounter()+2u+q*2u;}
 fn queueGroups(q:u32)->u32{return queueCounter(q)+1u;}
@@ -55,13 +55,13 @@ fn levelStep(src:u32,s:u32){
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
-`;
+`
 
 /** A function of the shipped descent, verbatim: from its `fn` to the next doc, `fn` or stage. */
 function shippedFn(name: string) {
-  const found = new RegExp(`^fn ${name}\\(.*?(?=\\n(?:/\\*\\*|fn |@))`, 'ms').exec(DAG_LEVEL_WGSL);
-  if (!found) throw new Error(`levelWgsl.ts no longer defines ${name}`);
-  return found[0];
+  const found = new RegExp(`^fn ${name}\\(.*?(?=\\n(?:/\\*\\*|fn |@))`, 'ms').exec(DAG_LEVEL_WGSL)
+  if (!found) throw new Error(`levelWgsl.ts no longer defines ${name}`)
+  return found[0]
 }
 
 /** Taken from the shipped descent, not copied: the flags layout (`queueBase`, `candBase`: for a
@@ -73,14 +73,14 @@ fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){spanAppend(queueCounter(1u-src),queueGroups(1u-src),queueBase(1u-src),node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
-`;
+`
 
 /** The frozen descent's own text, read on the camera's block: the shipped shader binds one block
  *  per view, and a camera is view 0 (`viewsWgsl.ts`). */
-export const DESCENT_BEFORE = DAG_LEVEL_WGSL_BEFORE.replaceAll('uni.', 'views[0u].');
+export const DESCENT_BEFORE = DAG_LEVEL_WGSL_BEFORE.replaceAll('uni.', 'views[0u].')
 
 /** The shipped cut shader with this descent in place of its own: the module the oracle compiles. */
 export const DAG_SELECTION_SHADER_BEFORE = DAG_SELECTION_SHADER.replace(
   DAG_LEVEL_WGSL,
   DESCENT_BEFORE + BEFORE_SHIMS,
-);
+)

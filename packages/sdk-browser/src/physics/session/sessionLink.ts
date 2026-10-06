@@ -1,7 +1,7 @@
-import type { CommandWriter } from '../../../../sdk-core/src/physics/index.ts';
-import type { ToPhysics } from '../protocol.ts';
-import type { startPhysicsWorker } from '../sessionWorker.ts';
-import { along, type createStepClock } from '../stepClock.ts';
+import type { CommandWriter } from '../../../../sdk-core/src/physics/index.ts'
+import type { ToPhysics } from '../protocol.ts'
+import type { startPhysicsWorker } from '../sessionWorker.ts'
+import { along, type createStepClock } from '../stepClock.ts'
 
 /**
  * What the session's page side tracks of its worker, fields of one object (`session.ts`).
@@ -35,10 +35,10 @@ export function createSessionState() {
     namedAt: -Infinity,
     asked: 0,
     waterAt: 0,
-  };
+  }
 }
 
-export type SessionState = ReturnType<typeof createSessionState>;
+export type SessionState = ReturnType<typeof createSessionState>
 
 /** The page's end of the worker's channel: what is sent, and what the frames' clock reads of it. */
 export function createWorkerLink(
@@ -50,35 +50,35 @@ export function createWorkerLink(
 ) {
   const wake = () => {
     // Woken from rest, the simulation stands where the frames' clock does: nothing moved since.
-    if (!s.live) s.reached = clock.steps;
-    [s.live, s.sent, s.redraw] = [true, true, true];
-    s.wakes++;
-  };
+    if (!s.live) s.reached = clock.steps
+    ;[s.live, s.sent, s.redraw] = [true, true, true]
+    s.wakes++
+  }
   const send = (message: ToPhysics, transfer: Transferable[] = []) => {
-    worker.postMessage(message, transfer);
-    wake();
-  };
+    worker.postMessage(message, transfer)
+    wake()
+  }
   return {
     send,
     /** The worker stands at the page's step `at`, at rest after the first `heard` waking
      *  messages. */
     rested(heard: number, at: number) {
-      s.reached = Math.max(s.reached, at);
-      if (heard === s.wakes) [s.live, s.redraw] = [false, true];
+      s.reached = Math.max(s.reached, at)
+      if (heard === s.wakes) [s.live, s.redraw] = [false, true]
     },
     /** The fraction of a step the frame's time stands at (`along`), as everything is drawn. */
     at: () => along(clock.drawn, s.reached, step, s.live),
     /** The steps of the frame's time `steps` (none: the clock stands still), its clock now at
      *  `clock.steps`. */
     advance(steps: number) {
-      worker.postMessage({ type: 'advance', to: clock.steps, steps });
-      s.sent = false;
+      worker.postMessage({ type: 'advance', to: clock.steps, steps })
+      s.sent = false
     },
     flush() {
-      const words = s.ready && writer.length ? writer.take() : null;
-      if (words) send({ type: 'commands', words }, [words.buffer]);
+      const words = s.ready && writer.length ? writer.take() : null
+      if (words) send({ type: 'commands', words }, [words.buffer])
     },
-  };
+  }
 }
 
-export type WorkerLink = ReturnType<typeof createWorkerLink>;
+export type WorkerLink = ReturnType<typeof createWorkerLink>

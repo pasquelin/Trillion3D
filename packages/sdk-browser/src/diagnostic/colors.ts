@@ -1,5 +1,5 @@
-import { hslToLinearRgb } from '../../../sdk-core/src/index.ts';
-import { Color } from '../../../sdk-core/src/world/math/color.ts';
+import { hslToLinearRgb } from '../../../sdk-core/src/index.ts'
+import { Color } from '../../../sdk-core/src/world/math/color.ts'
 
 /**
  * The numbers a diagnostic view paints with, computed here and nowhere else: the seed of an
@@ -11,33 +11,33 @@ import { Color } from '../../../sdk-core/src/world/math/color.ts';
  *  Neighbour of `clusterHash` (../visibility/math.ts), which walks code points rather than
  *  UTF-16 units: same ×31 polynomial, two walks, two results outside the basic plane. */
 export function hashId(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0;
-  return h;
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (Math.imul(h, 31) + id.charCodeAt(i)) >>> 0
+  return h
 }
 
 /** Golden-ratio hue of an id, so neighbouring ids get distant colours. */
 export function clusterHue(id: string) {
-  return (hashId(id) * 0.61803398875) % 1;
+  return (hashId(id) * 0.61803398875) % 1
 }
 
 /** Three linear components reread immediately: a cluster colour allocates nothing more. */
-const tint = new Float64Array(3);
+const tint = new Float64Array(3)
 
 /** The colour a diagnostic paints a cluster with: its hue, in linear components. */
 export function clusterColor(id: string, saturation = 0.75) {
-  hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55);
-  return new Color().setRGB(tint[0], tint[1], tint[2]);
+  hslToLinearRgb(tint, 0, clusterHue(id), saturation, 0.55)
+  return new Color().setRGB(tint[0], tint[1], tint[2])
 }
 
 /** Error is measured in screen pixels; green is exact, yellow approaches the cut threshold, red exceeds it. */
 export function screenErrorRatio(error: number, threshold: number) {
-  if (!(error > 0)) return 0;
-  if (!Number.isFinite(error) || !(threshold > 0)) return 1;
-  return Math.max(0, Math.min(1, error / threshold));
+  if (!(error > 0)) return 0
+  if (!Number.isFinite(error) || !(threshold > 0)) return 1
+  return Math.max(0, Math.min(1, error / threshold))
 }
 
 export function screenErrorColor(error: number, threshold: number): [number, number, number] {
-  const ratio = screenErrorRatio(error, threshold);
-  return [ratio, 1 - ratio, 0.12];
+  const ratio = screenErrorRatio(error, threshold)
+  return [ratio, 1 - ratio, 0.12]
 }

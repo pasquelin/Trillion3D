@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
 
 /**
  * The WebGL2 pages as the shared residency reads them: a small integer per URL, memoised on each
@@ -9,30 +9,30 @@ import type { PageRec } from '../../page/selection/selection.ts';
 export function createPageKeys() {
   const keys = new Map<string, number>(),
     urls: (string | undefined)[] = [],
-    free: number[] = [];
+    free: number[] = []
   return {
     keyOf(rec: PageRec) {
-      const memo = rec.keyIndex;
-      if (memo !== undefined && urls[memo] === rec.url) return memo;
-      let key = keys.get(rec.url);
+      const memo = rec.keyIndex
+      if (memo !== undefined && urls[memo] === rec.url) return memo
+      let key = keys.get(rec.url)
       if (key === undefined) {
-        key = free.pop() ?? urls.length;
-        keys.set(rec.url, key);
-        urls[key] = rec.url;
+        key = free.pop() ?? urls.length
+        keys.set(rec.url, key)
+        urls[key] = rec.url
       }
-      return (rec.keyIndex = key);
+      return (rec.keyIndex = key)
     },
     find: (url: string) => keys.get(url),
     urlOf: (key: number) => urls[key]!,
     /** The page is no longer held: its key is reused. */
     free(key: number) {
-      keys.delete(urls[key]!);
-      urls[key] = undefined;
-      free.push(key);
+      keys.delete(urls[key]!)
+      urls[key] = undefined
+      free.push(key)
     },
     /** Keys in use: the pages held. */
     get size() {
-      return keys.size;
+      return keys.size
     },
-  };
+  }
 }

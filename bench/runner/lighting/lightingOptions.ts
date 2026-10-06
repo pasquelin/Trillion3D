@@ -24,5 +24,5 @@ export function lightingSettings(
     // `--moving-node <node>` moves a named node in a small circle each frame.
     movingNode: flags.get('moving-node') ?? null,
     movingNodeRadius: number('moving-node-radius', 1),
-  };
+  }
 }

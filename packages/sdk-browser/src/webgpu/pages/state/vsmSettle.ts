@@ -1,4 +1,4 @@
-import type { VsmFramePlan } from '../../../vsm/frameSetup.ts';
+import type { VsmFramePlan } from '../../../vsm/frameSetup.ts'
 
 /**
  * WHETHER THE VIRTUAL SHADOW MAPS HAVE SETTLED, and their contents' version, from their own state:
@@ -13,18 +13,18 @@ import type { VsmFramePlan } from '../../../vsm/frameSetup.ts';
  */
 export interface VsmSettle {
   /** Last frame that could draw pages not yet shown. */
-  causeFrame: number;
+  causeFrame: number
   /** Frame of the latest count read back, and the pages it drew. */
-  landedFrame: number;
-  landedRendered: number;
+  landedFrame: number
+  landedRendered: number
   /** Pages drawn so far, every count read back summed: the maps' contents version. */
-  renderedTotal: number;
+  renderedTotal: number
   /** The global resolution bias the last plan used (budget feedback). */
-  lodBias: number;
+  lodBias: number
   /** Frame of each count copy in flight. */
-  readonly stamps: Map<GPUBuffer, number>;
+  readonly stamps: Map<GPUBuffer, number>
   /** The frame of the last `finishVsmFrame`. */
-  frame: number;
+  frame: number
 }
 
 export const createVsmSettle = (): VsmSettle => ({
@@ -35,7 +35,7 @@ export const createVsmSettle = (): VsmSettle => ({
   lodBias: Number.NaN,
   stamps: new Map(),
   frame: 0,
-});
+})
 
 /**
  * Frame `frame`'s plan is done: notes a cause when it invalidated pages (`invalidations` threads),
@@ -49,39 +49,39 @@ export function noteVsmFrame(
   lodBias: number,
   rendered: boolean,
 ) {
-  settle.frame = frame;
-  let cause = invalidations > 0 || !rendered || lodBias !== settle.lodBias;
-  settle.lodBias = lodBias;
+  settle.frame = frame
+  let cause = invalidations > 0 || !rendered || lodBias !== settle.lodBias
+  settle.lodBias = lodBias
   for (const light of plan.lights)
-    if (light.shouldRender && (light.entry.isUncached || light.entry.isInvalidated())) cause = true;
-  if (cause) settle.causeFrame = frame;
+    if (light.shouldRender && (light.entry.isUncached || light.entry.isInvalidated())) cause = true
+  if (cause) settle.causeFrame = frame
   // A frame with no map draws nothing and reads no count: it is its own answer.
   if (plan.overflow || plan.projectionCount === 0) {
-    settle.landedFrame = frame;
-    settle.landedRendered = 0;
+    settle.landedFrame = frame
+    settle.landedRendered = 0
   }
 }
 
 /** The count copy `staging` of frame `frame` was recorded. */
 export const stampVsmStats = (settle: VsmSettle, staging: GPUBuffer, frame: number) =>
-  settle.stamps.set(staging, frame);
+  settle.stamps.set(staging, frame)
 
 /** The count copy `staging` landed: `rendered` pages were drawn in its frame. */
 export function landVsmStats(settle: VsmSettle, staging: GPUBuffer, rendered: number) {
-  const frame = settle.stamps.get(staging) ?? -1;
-  settle.stamps.delete(staging);
-  settle.renderedTotal += rendered;
-  if (frame < settle.landedFrame) return;
-  settle.landedFrame = frame;
-  settle.landedRendered = rendered;
+  const frame = settle.stamps.get(staging) ?? -1
+  settle.stamps.delete(staging)
+  settle.renderedTotal += rendered
+  if (frame < settle.landedFrame) return
+  settle.landedFrame = frame
+  settle.landedRendered = rendered
 }
 
 /** Frames a device without the counters (`countersOn` false) waits after a cause. */
-const BLIND_FRAMES = 4;
+const BLIND_FRAMES = 4
 
 /** True while the maps can still change what the image shows (see `VsmSettle`). */
 export function vsmUnsettled(settle: VsmSettle, countersOn: boolean, transmissionShort: boolean) {
-  if (transmissionShort) return true;
-  if (!countersOn) return settle.frame - settle.causeFrame < BLIND_FRAMES;
-  return settle.landedFrame < settle.causeFrame || settle.landedRendered > 0;
+  if (transmissionShort) return true
+  if (!countersOn) return settle.frame - settle.causeFrame < BLIND_FRAMES
+  return settle.landedFrame < settle.causeFrame || settle.landedRendered > 0
 }

@@ -5,11 +5,11 @@
  * names them as a session holds them, apart from `graphNodes.ts`: a resource is not a node of
  * the graph, it is what the nodes point at.
  */
-import type { GraphSurface } from '../graph/surface.ts';
-import type { GraphTexture } from '../graph/texture.ts';
+import type { GraphSurface } from '../graph/surface.ts'
+import type { GraphTexture } from '../graph/texture.ts'
 
 /** A surface of the walked graph. */
-export type HostGraphMaterial = GraphSurface;
+export type HostGraphMaterial = GraphSurface
 
 /** A texture of the walked graph. */
-export type HostGraphTexture = GraphTexture;
+export type HostGraphTexture = GraphTexture

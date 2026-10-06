@@ -1,20 +1,20 @@
-import { decomposeMatrix4, invertMatrix4 } from '../../../sdk-core/src/index.ts';
-import { copyElements, type HostNodeMatrix, type MatrixElements } from '../math/matrixElements.ts';
+import { decomposeMatrix4, invertMatrix4 } from '../../../sdk-core/src/index.ts'
+import { copyElements, type HostNodeMatrix, type MatrixElements } from '../math/matrixElements.ts'
 import {
   writeEngineCamera,
   type CameraOptics,
   type EngineCamera,
   type OrthographicBox,
-} from './engineCamera.ts';
-import type { ControlVector } from './controls/types.ts';
-import type { HostRotation } from '../host/scene/graphNodes.ts';
+} from './engineCamera.ts'
+import type { ControlVector } from './controls/types.ts'
+import type { HostRotation } from '../host/scene/graphNodes.ts'
 
 export {
   createEngineCamera,
   defaultEngineCamera,
   holdCameraWorld,
   type EngineCamera,
-} from './engineCamera.ts';
+} from './engineCamera.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;
@@ -58,7 +58,7 @@ export {
  * neither opens nor closes any gate: it reaches no revision.
  */
 
-export type { CameraMotion } from './motion.ts';
+export type { CameraMotion } from './motion.ts'
 
 /**
  * THE CAMERA THE HOST HANDS TO THE ENGINE, named by shape and by this file alone.
@@ -81,44 +81,44 @@ export type { CameraMotion } from './motion.ts';
  */
 export type HostCamera = {
   /** Incremented by the host when a discontinuous pose must discard temporal history. */
-  temporalRevision?: number;
+  temporalRevision?: number
   /** LOCAL pose, as the host stores it: what its controls write, never what a frame reads. */
-  readonly position: ControlVector;
-  /** How it is turned. */ readonly quaternion: HostRotation;
+  readonly position: ControlVector
+  /** How it is turned. */ readonly quaternion: HostRotation
   /** Optics the host declares; the engine composes its own projection from them. */
-  fov: number;
-  /** Width over height. */ aspect: number;
-  /** Nearest distance. */ near: number;
-  /** Farthest distance. */ far: number;
-  /** Magnification. */ zoom: number;
+  fov: number
+  /** Width over height. */ aspect: number
+  /** Nearest distance. */ near: number
+  /** Farthest distance. */ far: number
+  /** Magnification. */ zoom: number
   /** The box an orthographic camera sees; absent or null for a perspective one. */
-  orthographic?: OrthographicBox | null;
+  orthographic?: OrthographicBox | null
   /** False when the host poses the camera by matrix: `matrix` IS the pose and nothing
    *  recomposes it from the three local fields. */
-  matrixAutoUpdate: boolean;
+  matrixAutoUpdate: boolean
   /** LOCAL matrix, the other face of the pose: what a restore puts back beside the three fields. */
-  readonly matrix: HostNodeMatrix;
-  /** Its world matrix. */ readonly matrixWorld: MatrixElements;
+  readonly matrix: HostNodeMatrix
+  /** Its world matrix. */ readonly matrixWorld: MatrixElements
   /** Projection in the HOST's depth convention, finite far plane included. The engine composes
    *  its own (`engineCamera.ts`) and reads this one only for a draw the host renderer owns. */
-  readonly projectionMatrix: MatrixElements;
+  readonly projectionMatrix: MatrixElements
   /** Its inverse, which the host renderer keeps beside it and hands its own shaders. */
-  readonly projectionMatrixInverse?: MatrixElements;
+  readonly projectionMatrixInverse?: MatrixElements
   /** Updates its world matrix. */
-  updateWorldMatrix(ancestors: boolean, descendants: boolean): void;
-  /** Updates its world matrix, children too. */ updateMatrixWorld(force?: boolean): void;
-  /** Rebuilds its projection. */ updateProjectionMatrix(): void;
-  /** Turns it toward a point. */ lookAt(target: ControlVector): void;
+  updateWorldMatrix(ancestors: boolean, descendants: boolean): void
+  /** Updates its world matrix, children too. */ updateMatrixWorld(force?: boolean): void
+  /** Rebuilds its projection. */ updateProjectionMatrix(): void
+  /** Turns it toward a point. */ lookAt(target: ControlVector): void
   /** A view of its own the host keeps — the pose a measurement campaign comes back to. */
-  clone(): HostCamera;
-};
+  clone(): HostCamera
+}
 /** The matrices and depth range a host draws a frame with, as the engine hands them over. */
 export type HostDrawCamera = Pick<HostCamera, 'near' | 'far'> & {
-  /** The projection. */ projection: Float32Array;
-  /** The camera's world matrix. */ world: Float64Array;
-  /** The view matrix. */ view: Float64Array;
-  /** Where the eye is. */ eye: Float32Array;
-};
+  /** The projection. */ projection: Float32Array
+  /** The camera's world matrix. */ world: Float64Array
+  /** The view matrix. */ view: Float64Array
+  /** Where the eye is. */ eye: Float32Array
+}
 export const createHostDrawCamera = (): HostDrawCamera => ({
   projection: new Float32Array(16),
   world: new Float64Array(16),
@@ -126,18 +126,18 @@ export const createHostDrawCamera = (): HostDrawCamera => ({
   eye: new Float32Array(3),
   near: 0,
   far: 0,
-});
+})
 
 /** What resolving a world pose asks of a host object, and nothing more: a camera, a rig, a node. */
-export type HostResolvable = { updateWorldMatrix(ancestors: boolean, descendants: boolean): void };
+export type HostResolvable = { updateWorldMatrix(ancestors: boolean, descendants: boolean): void }
 
 export function resolveCameraWorld<T extends HostResolvable>(camera: T): T {
-  camera.updateWorldMatrix(true, false);
-  return camera;
+  camera.updateWorldMatrix(true, false)
+  return camera
 }
 
 /** Optics of the camera being read, rewritten in place: a frame allocates nothing here. */
-const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 };
+const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 }
 
 /**
  * Copies the host camera into the engine camera, ancestors resolved. The POSE comes from
@@ -156,16 +156,16 @@ export function readCameraWorld(
    *  renders the SAME camera aside, at the shape of the surface it writes into. */
   aspect = camera.aspect,
 ): EngineCamera {
-  resolveCameraWorld(camera);
-  copyElements(into.world, camera.matrixWorld.elements);
-  optics.fov = camera.fov;
-  optics.aspect = aspect;
-  optics.near = camera.near;
-  optics.far = camera.far;
-  optics.zoom = camera.zoom;
-  optics.orthographic = camera.orthographic;
-  optics.viewTile = (camera as { viewTile?: CameraOptics['viewTile'] }).viewTile ?? null;
-  return writeEngineCamera(into, optics);
+  resolveCameraWorld(camera)
+  copyElements(into.world, camera.matrixWorld.elements)
+  optics.fov = camera.fov
+  optics.aspect = aspect
+  optics.near = camera.near
+  optics.far = camera.far
+  optics.zoom = camera.zoom
+  optics.orthographic = camera.orthographic
+  optics.viewTile = (camera as { viewTile?: CameraOptics['viewTile'] }).viewTile ?? null
+  return writeEngineCamera(into, optics)
 }
 
 /**
@@ -175,18 +175,18 @@ export function readCameraWorld(
  * writes on the camera it was handed.
  */
 export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
-  resolveCameraWorld(camera);
-  into.projection.set(camera.projectionMatrix.elements);
-  into.world.set(camera.matrixWorld.elements);
-  invertMatrix4(into.view, into.world);
-  for (let k = 0; k < 3; k++) into.eye[k] = into.world[12 + k]; // No `subarray` view per frame.
-  ({ near: into.near, far: into.far } = camera);
-  return into;
+  resolveCameraWorld(camera)
+  into.projection.set(camera.projectionMatrix.elements)
+  into.world.set(camera.matrixWorld.elements)
+  invertMatrix4(into.view, into.world)
+  for (let k = 0; k < 3; k++) into.eye[k] = into.world[12 + k] // No `subarray` view per frame.
+  ;({ near: into.near, far: into.far } = camera)
+  return into
 }
 
 const poseTranslation = new Float64Array(3),
   poseRotation = new Float64Array(4),
-  poseScale = new Float64Array(3);
+  poseScale = new Float64Array(3)
 
 /**
  * World pose that traces and diagnostics publish, read from the engine camera: the eye is
@@ -195,9 +195,9 @@ const poseTranslation = new Float64Array(3),
  * pose is that of the drawn frame, ancestors included, because `readCameraWorld` resolved it first.
  */
 export function enginePose(cam: EngineCamera) {
-  decomposeMatrix4(cam.world, poseTranslation, poseRotation, poseScale);
+  decomposeMatrix4(cam.world, poseTranslation, poseRotation, poseScale)
   return {
     position: [cam.eye[0], cam.eye[1], cam.eye[2]],
     quaternion: [poseRotation[0], poseRotation[1], poseRotation[2], poseRotation[3]],
-  };
+  }
 }

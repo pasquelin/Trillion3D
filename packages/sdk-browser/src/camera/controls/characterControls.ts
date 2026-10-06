@@ -1,20 +1,20 @@
-import { createChangeGate, createControlBase } from './base.ts';
-import { axisOf, trackKeys, type KeyAxis } from './input.ts';
-import { controlPose } from './pose.ts';
-import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts';
+import { createChangeGate, createControlBase } from './base.ts'
+import { axisOf, trackKeys, type KeyAxis } from './input.ts'
+import { controlPose } from './pose.ts'
+import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts'
 import {
   createCharacterBody,
   type CharacterBody,
   type CharacterBodyFactory,
-} from '../../../../sdk-core/src/collision/characterBody.ts';
-import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts';
+} from '../../../../sdk-core/src/collision/characterBody.ts'
+import { createCharacterEye } from '../../../../sdk-core/src/collision/characterEye.ts'
 import {
   HUMAN_BODY,
   type CharacterSettings,
-} from '../../../../sdk-core/src/collision/characterSettings.ts';
-import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts';
-import type { CameraControlBase, ControlCamera } from './types.ts';
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+} from '../../../../sdk-core/src/collision/characterSettings.ts'
+import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts'
+import type { CameraControlBase, ControlCamera } from './types.ts'
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
 /**
  * A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls,
@@ -37,23 +37,23 @@ import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
  */
 export interface CharacterCameraControls extends CameraControlBase, PersonHead, CharacterSettings {
   /** The body's velocity in metres per second, live: `[x, y, z]`, y up. */
-  readonly velocity: Readonly<Float64Array>;
+  readonly velocity: Readonly<Float64Array>
   /** Whether the feet are on a floor. */
-  readonly onGround: boolean;
+  readonly onGround: boolean
   /** The stride's phase in radians, in [0, 2π): one foot strikes at 0, the other at π. */
-  readonly stride: number;
+  readonly stride: number
   /** Called on landing with the downward speed, in metres per second: a sound, a shake. */
-  onLand: ((impact: number) => void) | null;
+  onLand: ((impact: number) => void) | null
   /** Called when the body leaves the ground on a jump. */
-  onJump: (() => void) | null;
+  onJump: (() => void) | null
   /**
    * What the body collides with — the world's colliders as a triangle tree, or any world that
    * answers the same seam (`CharacterCollision`). `null` walks level where the body stands, never
    * falls. Unused while the world's physics runs: physics replaces the body with its own.
    */
-  collision: CharacterCollision | null;
+  collision: CharacterCollision | null
   /** Lives `delta` seconds; returns whether the camera moved, and emits `change` when it did. */
-  update(delta?: number): boolean;
+  update(delta?: number): boolean
 }
 
 const STRAFE: KeyAxis = [
@@ -65,22 +65,22 @@ const STRAFE: KeyAxis = [
     ['KeyS', 'ArrowDown'],
   ],
   SPRINT = ['ShiftLeft', 'ShiftRight'],
-  JUMP = 'Space';
+  JUMP = 'Space'
 
 export function createCharacterCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): CharacterCameraControls {
   const pose = controlPose(camera),
-    base = createControlBase();
+    base = createControlBase()
   const at = new Float64Array(3),
     written = new Float64Array(3).fill(NaN),
     orientation = new Float64Array(4),
-    moved = new Float64Array(7);
-  const gate = createChangeGate(base, 7);
-  const input = { wishX: 0, wishZ: 0, sprint: false };
+    moved = new Float64Array(7)
+  const gate = createChangeGate(base, 7)
+  const input = { wishX: 0, wishZ: 0, sprint: false }
   let world: CharacterCollision | null = null,
-    physics: CharacterBodyFactory | null = null;
+    physics: CharacterBodyFactory | null = null
   const api: CharacterCameraControls = {
     ...base.api,
     ...HUMAN_BODY,
@@ -89,46 +89,46 @@ export function createCharacterCameraControls(
     onLand: null,
     onJump: null,
     get velocity() {
-      return body.velocity;
+      return body.velocity
     },
     get onGround() {
-      return body.onGround;
+      return body.onGround
     },
     get stride() {
-      return eye.stride;
+      return eye.stride
     },
     get collision() {
-      return world;
+      return world
     },
     set collision(next) {
-      world = next;
-      triangles.setWorld(next);
+      world = next
+      triangles.setWorld(next)
     },
     locked: () => head.locked(),
     lock: () => head.lock(),
     unlock: () => head.unlock(),
     update(delta = 0) {
-      pose.readPosition(at);
+      pose.readPosition(at)
       if (!at.every((value, k) => value === written[k]))
-        body.place(at[0], at[1] - api.eyeHeight, at[2]);
-      const yaw = head.turn(orientation);
+        body.place(at[0], at[1] - api.eyeHeight, at[2])
+      const yaw = head.turn(orientation)
       const strafe = axisOf(keys, ...STRAFE),
-        advance = axisOf(keys, ...ADVANCE);
+        advance = axisOf(keys, ...ADVANCE)
       const sin = Math.sin(yaw),
         cos = Math.cos(yaw),
-        length = hypot2(strafe, advance) || 1;
-      input.wishX = (cos * strafe - sin * advance) / length;
-      input.wishZ = (-sin * strafe - cos * advance) / length;
-      input.sprint = SPRINT.some((code) => keys.has(code));
-      const feet = body.advance(delta, input, events);
-      written.set(feet);
-      written[1] += api.eyeHeight + eye.offset(delta, body.velocity, body.onGround);
-      pose.write(written, orientation);
-      moved.set(written);
-      moved.set(orientation, 3);
-      return gate(moved);
+        length = hypot2(strafe, advance) || 1
+      input.wishX = (cos * strafe - sin * advance) / length
+      input.wishZ = (-sin * strafe - cos * advance) / length
+      input.sprint = SPRINT.some((code) => keys.has(code))
+      const feet = body.advance(delta, input, events)
+      written.set(feet)
+      written[1] += api.eyeHeight + eye.offset(delta, body.velocity, body.onGround)
+      pose.write(written, orientation)
+      moved.set(written)
+      moved.set(orientation, 3)
+      return gate(moved)
     },
-  };
+  }
   /**
    * `physics`, kept off the public type: what makes the body of the world's physics, when it
    * runs (`world.controls` hands it over) — Jolt's virtual character in the physics worker, which
@@ -138,35 +138,35 @@ export function createCharacterCameraControls(
   Object.defineProperty(api, 'physics', {
     get: () => physics,
     set(next: CharacterBodyFactory | null) {
-      if (next === physics) return;
-      const [x, y, z] = body.feet;
-      body.dispose?.();
-      physics = next;
-      body = next ? next(api) : triangles;
-      body.place(x, y, z);
+      if (next === physics) return
+      const [x, y, z] = body.feet
+      body.dispose?.()
+      physics = next
+      body = next ? next(api) : triangles
+      body.place(x, y, z)
     },
-  });
-  const triangles = createCharacterBody(api);
-  let body: CharacterBody = triangles;
-  base.undo(() => body.dispose?.());
+  })
+  const triangles = createCharacterBody(api)
+  let body: CharacterBody = triangles
+  base.undo(() => body.dispose?.())
   // A paused controller lets go of its keys: a body elsewhere must hear it.
-  base.onPause(() => body.advance(0, { wishX: 0, wishZ: 0, sprint: false }));
-  const eye = createCharacterEye(api);
+  base.onPause(() => body.advance(0, { wishX: 0, wishZ: 0, sprint: false }))
+  const eye = createCharacterEye(api)
   const events = {
     onLand: (impact: number) => (eye.land(impact), api.onLand?.(impact)),
     onJump: () => api.onJump?.(),
-  };
-  const head = createHead(pose, surface, base, api);
-  let jumpHeld = false;
+  }
+  const head = createHead(pose, surface, base, api)
+  let jumpHeld = false
   const keys = trackKeys(
     surface,
     base,
     () => {
-      if (keys.has(JUMP) && !jumpHeld) body.pressJump();
-      jumpHeld = keys.has(JUMP);
-      base.emit();
+      if (keys.has(JUMP) && !jumpHeld) body.pressJump()
+      jumpHeld = keys.has(JUMP)
+      base.emit()
     },
     [STRAFE, ADVANCE, SPRINT, [JUMP]],
-  );
-  return api;
+  )
+  return api
 }

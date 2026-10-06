@@ -1,8 +1,8 @@
 /** Serve one built site tree with production paths and no framework dependency. */
-import { pathToFileURL } from 'node:url';
-import { isCacheObject } from '../compress-cache-objects.ts';
-import { buildSite, SITE_OUTPUT } from './site.ts';
-import { listen, staticServer, type StaticOptions } from '../static-server.ts';
+import { pathToFileURL } from 'node:url'
+import { isCacheObject } from '../compress-cache-objects.ts'
+import { buildSite, SITE_OUTPUT } from './site.ts'
+import { listen, staticServer, type StaticOptions } from '../static-server.ts'
 
 /** A static server over `root`: the built site by default, any site-shaped tree otherwise;
  *  `extra` adds the development server's answer and transform (`docs/dev.ts`). */
@@ -22,21 +22,21 @@ export function createDocsServer(
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
     },
-  });
+  })
 }
 
 /** The loopback port of the local site, unless `PORT` names another. */
-export const DOCS_PORT = Number(process.env.PORT ?? 4177);
+export const DOCS_PORT = Number(process.env.PORT ?? 4177)
 
-let built: Promise<void> | undefined;
+let built: Promise<void> | undefined
 /** Builds the site once per process (nothing is committed), then listens on the loopback port. */
 export async function startDocsServer(port = 0) {
-  await (built ??= buildSite());
-  const server = createDocsServer();
-  return { server, port: await listen(server, port) };
+  await (built ??= buildSite())
+  const server = createDocsServer()
+  return { server, port: await listen(server, port) }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const { port } = await startDocsServer(DOCS_PORT);
-  console.log(`Learning portal: http://127.0.0.1:${port}`);
+  const { port } = await startDocsServer(DOCS_PORT)
+  console.log(`Learning portal: http://127.0.0.1:${port}`)
 }

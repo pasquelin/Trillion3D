@@ -6,15 +6,15 @@
  * compares one integer instead of rereading those numbers.
  */
 export interface WriteRevision {
-  revision: number;
+  revision: number
 }
 
 /** Hook of one host node: the revisions its writes bump. Empty once every watch has left. */
 export interface Hook {
-  revisions: WriteRevision[];
+  revisions: WriteRevision[]
 }
 
 export function bump(hook: Hook) {
-  const list = hook.revisions;
-  for (let i = 0; i < list.length; i++) list[i].revision++;
+  const list = hook.revisions
+  for (let i = 0; i < list.length; i++) list[i].revision++
 }

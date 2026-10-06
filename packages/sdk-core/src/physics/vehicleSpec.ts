@@ -69,50 +69,50 @@
 /** What a vehicle is made of: its engine, gearbox, suspension, steering and brakes, every
  *  default a real machine's (`VEHICLE_SPECS`). */
 export interface VehicleSpec {
-  /** Engine peak torque per kilogram of the body, N·m/kg. */ torquePerKg: number;
-  /** The engine's idle, rpm. */ idleRPM: number;
-  /** The engine's redline, rpm. */ maxRPM: number;
+  /** Engine peak torque per kilogram of the body, N·m/kg. */ torquePerKg: number
+  /** The engine's idle, rpm. */ idleRPM: number
+  /** The engine's redline, rpm. */ maxRPM: number
   /** Up to five points `[rpm / maxRPM, torque / peak]`, rpm fractions rising. */
-  torqueCurve: readonly (readonly [number, number])[];
-  /** Up to six forward gear ratios, first gear first. */ gears: readonly number[];
-  /** The reverse gear's ratio. */ reverse: number;
-  /** The final drive's ratio (a tracked vehicle's sprocket reduction). */ finalDrive: number;
-  /** The gearbox shifts up past this, rpm. */ shiftUpRPM: number;
-  /** And down below this, rpm. */ shiftDownRPM: number;
+  torqueCurve: readonly (readonly [number, number])[]
+  /** Up to six forward gear ratios, first gear first. */ gears: readonly number[]
+  /** The reverse gear's ratio. */ reverse: number
+  /** The final drive's ratio (a tracked vehicle's sprocket reduction). */ finalDrive: number
+  /** The gearbox shifts up past this, rpm. */ shiftUpRPM: number
+  /** And down below this, rpm. */ shiftDownRPM: number
   /** Clutch torque per rad/s of slip, N·m·s; cars and motorcycles only, refused on a tracked
    *  vehicle: its engine drives its tracks without a clutch (the tracked controller). */
-  clutch: number;
-  /** Ride frequency, Hz. */ suspensionFrequency: number;
-  /** Damping ratio, 0 (none) to 1 (critical). */ suspensionDamping: number;
+  clutch: number
+  /** Ride frequency, Hz. */ suspensionFrequency: number
+  /** Damping ratio, 0 (none) to 1 (critical). */ suspensionDamping: number
   /** Wheel travel from full droop to full bump, m; longer than the sag of the ride frequency on
    *  Earth, `9.81 / (2π suspensionFrequency)²`, or refused: past it the body rests on its bump
    *  stops. */
-  suspensionTravel: number;
+  suspensionTravel: number
   /** Each anti-roll bar's stiffness over its axle's spring stiffness; 0 is none. Cars only,
    *  refused on a motorcycle (its two wheels share no axle) and a tracked vehicle (its wheels
    *  carry no bars). */
-  antiRoll: number;
+  antiRoll: number
   /** The full-lock turning radius, m; refused on a tracked vehicle, which steers by its
    *  tracks. */
-  turnRadius: number;
-  /** Seconds from centre to full lock. */ steerTime: number;
-  /** The friction the brakes lock the wheels at. */ brakeGrip: number;
+  turnRadius: number
+  /** Seconds from centre to full lock. */ steerTime: number
+  /** The friction the brakes lock the wheels at. */ brakeGrip: number
   /** A car's driven wheels; refused on a motorcycle (its rear wheel drives) and a tracked
    *  vehicle (the rearmost wheel of each track drives). */
-  drive: 'front' | 'rear' | 'all';
+  drive: 'front' | 'rear' | 'all'
   /** A tracked vehicle's inner track speed while steering on the move, over the outer's; at a
    *  standstill it pivots, its inner track reversed, whatever this ratio. Refused on a car or a
    *  motorcycle. */
-  trackTurn: number;
+  trackTurn: number
   /** A motorcycle's greatest lean, radians; refused on a car or a tracked vehicle. */
-  maxLean: number;
+  maxLean: number
 }
 
 /** The shift points of a gearbox (see SHIFTS). */
 function shifts(peakPowerRPM: number, maxRPM: number, gears: readonly number[]) {
-  const up = Math.min(peakPowerRPM, 0.9 * maxRPM);
-  const step = Math.min(...gears.slice(1).map((ratio, i) => ratio / gears[i]));
-  return { shiftUpRPM: up, shiftDownRPM: up * step * 0.9 };
+  const up = Math.min(peakPowerRPM, 0.9 * maxRPM)
+  const step = Math.min(...gears.slice(1).map((ratio, i) => ratio / gears[i]))
+  return { shiftUpRPM: up, shiftDownRPM: up * step * 0.9 }
 }
 
 const COMMON = {
@@ -125,20 +125,20 @@ const COMMON = {
   trackTurn: 0.6,
   maxLean: (45 * Math.PI) / 180,
   clutch: 10,
-} as const;
+} as const
 
-const CAR_GEARS = [2.66, 1.78, 1.3, 1.0, 0.74, 0.5];
-const BIKE_GEARS = [2.27, 1.63, 1.3, 1.09, 0.96, 0.88];
-const TRACK_GEARS = [4, 3, 2, 1];
+const CAR_GEARS = [2.66, 1.78, 1.3, 1.0, 0.74, 0.5]
+const BIKE_GEARS = [2.27, 1.63, 1.3, 1.09, 0.96, 0.88]
+const TRACK_GEARS = [4, 3, 2, 1]
 
 /** The machine each kind of vehicle starts as. */
 export interface VehicleSpecs {
   /** A Chevrolet Corvette C5: rear-wheel drive, 0.32 N·m per kilogram, six gears. */
-  car: VehicleSpec;
+  car: VehicleSpec
   /** A Yamaha XJ900 and its rider: 0.26 N·m per kilogram, six gears. */
-  motorcycle: VehicleSpec;
+  motorcycle: VehicleSpec
   /** An M1 Abrams: a gas turbine, 0.083 N·m per kilogram, four gears. */
-  tracked: VehicleSpec;
+  tracked: VehicleSpec
 }
 
 /** The three machines a vehicle starts as, by kind. */
@@ -195,4 +195,4 @@ export const VEHICLE_SPECS: Readonly<VehicleSpecs> = Object.freeze({
     suspensionFrequency: 1,
     suspensionTravel: 0.3,
   }),
-});
+})

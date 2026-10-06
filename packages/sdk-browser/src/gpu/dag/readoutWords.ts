@@ -9,21 +9,21 @@
  * That is the condition for the readout to one day stop carrying LISTS: a total
  * held by the GPU survives the disappearance of the list it was the sum of.
  */
-export const SELECTION_HEADER_WORDS = 8;
+export const SELECTION_HEADER_WORDS = 8
 
 /** Word of `out` where the eviction queue's header starts, behind the drawn list. */
-export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
+export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap)
 
 /** Victims one readback hands the cache, a chosen margin over what one frame's 1 ms admission share
  *  (`STREAMING_FRAME_MS`) commits; the next readback brings the next burst, whatever the pool. */
-export const EVICTION_BURST = 1024;
+export const EVICTION_BURST = 1024
 
 /** Word of `out` where the cut's difference starts, behind the eviction queue's burst and in what
  *  the frame copies (`shader/differenceWgsl.ts`): for each rank of the camera's requests then of
  *  the drawn pages, a list of `listCap` each, the rank its page held in the kept list. */
 export const differenceWord = (listCap: number) =>
-  evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST;
+  evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST
 
 /** Word of `out` where the camera's requests wait for their sort, behind the difference, outside
  *  what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) => differenceWord(listCap) + 2 * listCap;
+export const stagedRequestsWord = (listCap: number) => differenceWord(listCap) + 2 * listCap

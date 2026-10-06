@@ -1,29 +1,29 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createDrawOrder, type OrderedNode } from './drawOrder.ts';
-import { depthOf } from './meshDepth.ts';
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
-import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createDrawOrder, type OrderedNode } from './drawOrder.ts'
+import { depthOf } from './meshDepth.ts'
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts'
 
 /** The screen the depths are read through: the identity, so a node's depth is its centre's z
  *  over its matrix's w (`node` below). */
-const SCREEN = IDENTITY_ELEMENTS;
-const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e308, -1e308, 5e-324];
+const SCREEN = IDENTITY_ELEMENTS
+const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e308, -1e308, 5e-324]
 
 /** A test's node: its own bounding sphere, which its depth reads first, and maybe a number. */
 type Node = OrderedNode & {
-  readonly boundingSphere: { readonly center: { x: number; y: number; z: number } };
-  readonly serial?: number;
-};
+  readonly boundingSphere: { readonly center: { x: number; y: number; z: number } }
+  readonly serial?: number
+}
 
 /** A test node's creation number: its own, the engine's side table holding none of these. */
-const serialOfNode = (n: OrderedNode) => (n as Node).serial;
+const serialOfNode = (n: OrderedNode) => (n as Node).serial
 
 /** A node whose depth is `z / w` (`w` = ±1 gives ±0 from a zero `z`). */
 function node(z: number, w: number, renderOrder: number, material: object, serial?: number): Node {
-  const elements = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, w]);
-  const sphere = { center: { x: 0, y: 0, z }, radius: 1 };
-  return { boundingSphere: sphere, matrixWorld: { elements }, renderOrder, material, serial };
+  const elements = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, w])
+  const sphere = { center: { x: 0, y: 0, z }, radius: 1 }
+  return { boundingSphere: sphere, matrixWorld: { elements }, renderOrder, material, serial }
 }
 
 /**
@@ -31,38 +31,38 @@ function node(z: number, w: number, renderOrder: number, material: object, seria
  * surfaces numbered inside the opaque comparator, every key read from the node at each comparison.
  */
 function frozenOrder() {
-  const ranks = new WeakMap<object, number>();
-  let nextRank = 0;
+  const ranks = new WeakMap<object, number>()
+  let nextRank = 0
   const rankOf = (mesh: Node) => {
-    const surface = mesh.material as object;
-    let rank = ranks.get(surface);
-    if (rank === undefined) ranks.set(surface, (rank = nextRank++));
-    return rank;
-  };
-  const depths = new Map<Node, number>();
-  const depth = (n: Node) => depths.get(n)!;
-  const made = (n: Node) => serialOfNode(n) ?? 0;
+    const surface = mesh.material as object
+    let rank = ranks.get(surface)
+    if (rank === undefined) ranks.set(surface, (rank = nextRank++))
+    return rank
+  }
+  const depths = new Map<Node, number>()
+  const depth = (n: Node) => depths.get(n)!
+  const made = (n: Node) => serialOfNode(n) ?? 0
   const frontToBack = (a: Node, b: Node) =>
     a.renderOrder - b.renderOrder ||
     rankOf(a) - rankOf(b) ||
     depth(a) - depth(b) ||
-    made(a) - made(b);
+    made(a) - made(b)
   const backToFront = (a: Node, b: Node) =>
-    a.renderOrder - b.renderOrder || depth(b) - depth(a) || made(a) - made(b);
+    a.renderOrder - b.renderOrder || depth(b) - depth(a) || made(a) - made(b)
   return (opaque: Node[], seeThrough: Node[], screen: ArrayLike<number>) => {
-    depths.clear();
-    for (const n of opaque) depths.set(n, depthOf(n, screen));
-    for (const n of seeThrough) depths.set(n, depthOf(n, screen));
-    opaque.sort(frontToBack);
-    seeThrough.sort(backToFront);
-  };
+    depths.clear()
+    for (const n of opaque) depths.set(n, depthOf(n, screen))
+    for (const n of seeThrough) depths.set(n, depthOf(n, screen))
+    opaque.sort(frontToBack)
+    seeThrough.sort(backToFront)
+  }
 }
 
 /** One frame's lists: few distinct keys so ties are common, the edge values mixed in when asked. */
 function frame(next: () => number, count: number, surfaces: object[], edges: boolean) {
-  const pick = <T>(values: readonly T[]) => values[Math.floor(next() * values.length)];
+  const pick = <T>(values: readonly T[]) => values[Math.floor(next() * values.length)]
   const value = (spread: number) =>
-    edges && next() < 0.3 ? pick(EDGES) : Math.floor(next() * spread) - spread / 2;
+    edges && next() < 0.3 ? pick(EDGES) : Math.floor(next() * spread) - spread / 2
   const make = () =>
     node(
       value(8),
@@ -70,90 +70,88 @@ function frame(next: () => number, count: number, surfaces: object[], edges: boo
       edges && next() < 0.1 ? pick(EDGES) : Math.floor(next() * 3),
       pick(surfaces),
       next() < 0.2 ? undefined : Math.floor(next() * count),
-    );
-  return [Array.from({ length: count }, make), Array.from({ length: Math.floor(count / 3) }, make)];
+    )
+  return [Array.from({ length: count }, make), Array.from({ length: Math.floor(count / 3) }, make)]
 }
 
 /** The first place two orders of the same nodes differ, or -1. */
 const firstDifference = (actual: readonly Node[], expected: readonly Node[]) =>
-  actual.length === expected.length ? actual.findIndex((n, i) => n !== expected[i]) : 0;
+  actual.length === expected.length ? actual.findIndex((n, i) => n !== expected[i]) : 0
 
 /** Sorts the same frames with both orders, the surfaces growing between frames, and compares. */
 function compare(seed: number, sizes: readonly number[], edges: boolean) {
   const next = random(seed),
     flat = createDrawOrder(serialOfNode),
     frozen = frozenOrder(),
-    surfaces: object[] = [];
+    surfaces: object[] = []
   for (const size of sizes) {
-    for (let i = 0; i < 1 + Math.floor(next() * 4); i++) surfaces.push({});
-    const [opaque, seeThrough] = frame(next, size, surfaces, edges);
-    const [expectedOpaque, expectedSeeThrough] = [opaque.slice(), seeThrough.slice()];
-    frozen(expectedOpaque, expectedSeeThrough, SCREEN);
-    flat(opaque, seeThrough, SCREEN);
-    assert.equal(firstDifference(opaque, expectedOpaque), -1, `opaque, seed ${seed}`);
-    assert.equal(firstDifference(seeThrough, expectedSeeThrough), -1, `see-through, seed ${seed}`);
+    for (let i = 0; i < 1 + Math.floor(next() * 4); i++) surfaces.push({})
+    const [opaque, seeThrough] = frame(next, size, surfaces, edges)
+    const [expectedOpaque, expectedSeeThrough] = [opaque.slice(), seeThrough.slice()]
+    frozen(expectedOpaque, expectedSeeThrough, SCREEN)
+    flat(opaque, seeThrough, SCREEN)
+    assert.equal(firstDifference(opaque, expectedOpaque), -1, `opaque, seed ${seed}`)
+    assert.equal(firstDifference(seeThrough, expectedSeeThrough), -1, `see-through, seed ${seed}`)
   }
 }
 
 // #920 (audit CPU-10): the flat keys sort the draws exactly as the node comparators did.
 test('the flat keys give the same order as the node comparators on random frames', () => {
   for (let seed = 1; seed <= 40; seed++)
-    compare(seed, [0, 1, 2, 7, 33, 150, 150, 40, 600, 600], false);
-});
+    compare(seed, [0, 1, 2, 7, 33, 150, 150, 40, 600, 600], false)
+})
 
 test('the flat keys give the same order with NaN, ±0, ±Inf and extreme depths and orders', () => {
-  for (let seed = 100; seed <= 140; seed++) compare(seed, [3, 17, 64, 64, 300, 64], true);
-});
+  for (let seed = 100; seed <= 140; seed++) compare(seed, [3, 17, 64, 64, 300, 64], true)
+})
 
 test('the flat keys give the same order on a large list, then on a shorter one', () => {
-  compare(7, [20_000, 5, 12_000], true);
-});
+  compare(7, [20_000, 5, 12_000], true)
+})
 
 test('a -0 depth sorts as the node comparators sort it', () => {
   const surface = {},
     zero = node(0, 1, 0, surface, 2),
-    negativeZero = node(0, -1, 0, surface, 1);
-  assert.ok(Object.is(depthOf(negativeZero, SCREEN), -0), 'the fixture reads -0');
+    negativeZero = node(0, -1, 0, surface, 1)
+  assert.ok(Object.is(depthOf(negativeZero, SCREEN), -0), 'the fixture reads -0')
   const lists = [zero, negativeZero],
-    expected = lists.slice();
-  frozenOrder()(expected, [], SCREEN);
-  createDrawOrder(serialOfNode)(lists, [], SCREEN);
-  assert.deepEqual(lists, expected);
-  assert.deepEqual(lists, [negativeZero, zero], 'equal depths: the creation number decides');
-});
+    expected = lists.slice()
+  frozenOrder()(expected, [], SCREEN)
+  createDrawOrder(serialOfNode)(lists, [], SCREEN)
+  assert.deepEqual(lists, expected)
+  assert.deepEqual(lists, [negativeZero, zero], 'equal depths: the creation number decides')
+})
 
 // #1198: sponza sorted its 1 465 pages from scratch every frame, 0.44 ms of its CPU frame.
 test('a list sorted again under a camera that moved a little is walked once, in the same order', () => {
   const next = random(3),
     surfaces = [{}, {}, {}, {}],
-    pages = Array.from({ length: 1465 }, (_, i) =>
-      node(next() * 100, 1, 0, surfaces[i % 4], i + 1),
-    );
+    pages = Array.from({ length: 1465 }, (_, i) => node(next() * 100, 1, 0, surfaces[i % 4], i + 1))
   const order = createDrawOrder(serialOfNode),
     frozen = frozenOrder(),
-    native = Array.prototype.sort;
-  let compared = 0;
+    native = Array.prototype.sort
+  let compared = 0
   const sortCounted = function (this: unknown[], compare?: (a: unknown, b: unknown) => number) {
-    return native.call(this, (a, b) => (compared++, compare!(a, b)));
-  };
+    return native.call(this, (a, b) => (compared++, compare!(a, b)))
+  }
   const sorted = (screen: ArrayLike<number>) => {
     const expected = pages.slice(),
-      list = pages.slice();
-    frozen(expected, [], screen);
-    compared = 0;
-    Array.prototype.sort = sortCounted as typeof native;
+      list = pages.slice()
+    frozen(expected, [], screen)
+    compared = 0
+    Array.prototype.sort = sortCounted as typeof native
     try {
-      order(list, [], screen);
+      order(list, [], screen)
     } finally {
-      Array.prototype.sort = native;
+      Array.prototype.sort = native
     }
-    assert.equal(firstDifference(list, expected), -1);
-    return compared;
-  };
+    assert.equal(firstDifference(list, expected), -1)
+    return compared
+  }
   const first = sorted(SCREEN),
-    moved = Float64Array.from(SCREEN);
-  moved[14] = 0.01; // every depth moves alike: the order holds
-  const again = sorted(moved);
-  assert.ok(first > 10_000, `${first} comparisons from scratch`);
-  assert.ok(again < 1465 * 2, `${again} comparisons from the last order`);
-});
+    moved = Float64Array.from(SCREEN)
+  moved[14] = 0.01 // every depth moves alike: the order holds
+  const again = sorted(moved)
+  assert.ok(first > 10_000, `${first} comparisons from scratch`)
+  assert.ok(again < 1465 * 2, `${again} comparisons from the last order`)
+})

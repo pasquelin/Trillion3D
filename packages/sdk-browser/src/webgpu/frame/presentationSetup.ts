@@ -1,4 +1,4 @@
-import { createGpuPresenter } from '../../gpu/core/presentation.ts';
+import { createGpuPresenter } from '../../gpu/core/presentation.ts'
 
 /**
  * Presentation surface of the WebGPU engine. With a host canvas, the engine configures it and
@@ -12,6 +12,6 @@ export function prepareWebgpuPresentation(
   gpuCanvas: HTMLCanvasElement | undefined,
 ) {
   const outputCanvas =
-    gpuCanvas ?? (typeof document !== 'undefined' ? document.createElement('canvas') : undefined);
-  return outputCanvas ? createGpuPresenter(device, outputCanvas) : undefined;
+    gpuCanvas ?? (typeof document !== 'undefined' ? document.createElement('canvas') : undefined)
+  return outputCanvas ? createGpuPresenter(device, outputCanvas) : undefined
 }

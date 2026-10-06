@@ -1,38 +1,38 @@
-import type { SceneLightStore } from '../../../sdk-core/src/index.ts';
-import { DEFAULT_TONE_MAPPING } from '../../../sdk-core/src/scene/core/environment.ts';
-import { DEFAULT_CLEAR_COLOR } from '../backend/common.ts';
-import type { BackendContext } from '../backend/types.ts';
-import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
+import type { SceneLightStore } from '../../../sdk-core/src/index.ts'
+import { DEFAULT_TONE_MAPPING } from '../../../sdk-core/src/scene/core/environment.ts'
+import { DEFAULT_CLEAR_COLOR } from '../backend/common.ts'
+import type { BackendContext } from '../backend/types.ts'
+import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts'
 import {
   attachContractLights,
   CONTRACT_LIGHTS_LIGHTING,
   type ContractShadows,
-} from './contractLights.ts';
-import { Color } from '../../../sdk-core/src/world/math/color.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+} from './contractLights.ts'
+import { Color } from '../../../sdk-core/src/world/math/color.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** The render scene the contract writes into. */
-type RenderScene = Parameters<typeof attachContractLights>[0];
+type RenderScene = Parameters<typeof attachContractLights>[0]
 
 /** The clear colour a WebGL2 engine's graph carries, the one its draw clears with: written in
  *  place once a colour is there, nothing allocated. */
 const paint = (scene: RenderScene, clearColor: number) => {
-  if (scene.background) scene.background.setHex(clearColor);
-  else scene.background = new Color().setHex(clearColor);
-};
+  if (scene.background) scene.background.setHex(clearColor)
+  else scene.background = new Color().setHex(clearColor)
+}
 
 /** What sets that colour during the session, then tells `changed` the held frame is stale: the
  *  engine's resource revision, never its scene one — nothing else is walked again. */
 export const graphBackground = (scene: RenderScene, changed: () => void) => (hex: number) => {
-  paint(scene, hex);
-  changed();
-};
+  paint(scene, hex)
+  changed()
+}
 
 /** The display graph a WebGL2 engine draws: its clear colour, then the source-graph lights
  *  copied onto it, each aiming at its own target, placed in the same graph. */
 export function installLighting(scene: RenderScene, clearColor: number, source: Object3D) {
-  paint(scene, clearColor);
-  return installSceneLighting(scene, source);
+  paint(scene, clearColor)
+  return installSceneLighting(scene, source)
 }
 
 /**
@@ -48,7 +48,7 @@ export function contractLightingApi(
   sceneChanged: () => void,
   shadowsRefused?: ContractShadows,
 ) {
-  const contract = attachContractLights(scene, store, source, sceneChanged, shadowsRefused);
+  const contract = attachContractLights(scene, store, source, sceneChanged, shadowsRefused)
   return {
     ...sceneLightingApi(source, sceneChanged),
     /** The image comes out in real light as soon as either light set carries one. */
@@ -57,7 +57,7 @@ export function contractLightingApi(
     sceneToneMapping: () => store?.environment?.toneMapping ?? DEFAULT_TONE_MAPPING,
     refreshSceneLights: contract.apply,
     lighting: CONTRACT_LIGHTS_LIGHTING,
-  };
+  }
 }
 
 /**
@@ -73,7 +73,7 @@ export function createContractLighting(
     scene,
     context.clearColor ?? DEFAULT_CLEAR_COLOR,
     context.sceneLighting ?? context.source,
-  );
+  )
   return {
     lighting: source,
     api: contractLightingApi(
@@ -83,5 +83,5 @@ export function createContractLighting(
       sceneChanged,
       context.shadowsRefused,
     ),
-  };
+  }
 }

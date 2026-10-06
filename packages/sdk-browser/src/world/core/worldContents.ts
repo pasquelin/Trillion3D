@@ -1,15 +1,15 @@
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { createWorldCuts, firstMaterial, type Cut } from './worldCuts.ts';
-import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts';
-import { createWorldBatches } from './worldBatches.ts';
-import { createWorldPoses, shownUnder } from './worldPoses.ts';
-import type { LoadedModel } from './loadedModel.ts';
-import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
-import { createWorldMembers } from './worldMembers.ts';
-import { noticeFolds, type WorldNotices } from '../diagnostic/worldNotices.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import { createWorldCuts, firstMaterial, type Cut } from './worldCuts.ts'
+import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts'
+import { createWorldBatches } from './worldBatches.ts'
+import { createWorldPoses, shownUnder } from './worldPoses.ts'
+import type { LoadedModel } from './loadedModel.ts'
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts'
+import { createWorldMembers } from './worldMembers.ts'
+import { noticeFolds, type WorldNotices } from '../diagnostic/worldNotices.ts'
 
-type Resolved = { cut: Cut; entry: MaterialEntry } | null;
+type Resolved = { cut: Cut; entry: MaterialEntry } | null
 
 /**
  * What a world's scene draws, held as tables: each mesh resolved to its geometry resource and
@@ -23,104 +23,104 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
   const cuts = createWorldCuts(notices),
     materials = createWorldMaterials(),
     poses = createWorldPoses(),
-    batches = createWorldBatches(poses.touch);
-  const members = createWorldMembers(scene);
-  const resolved = new Map<Mesh, Resolved>();
+    batches = createWorldBatches(poses.touch)
+  const members = createWorldMembers(scene)
+  const resolved = new Map<Mesh, Resolved>()
   const stale = new Set<Mesh>(),
-    unseated = new Set<Mesh>();
-  let openedModels = new Set<LoadedModel>();
+    unseated = new Set<Mesh>()
+  let openedModels = new Set<LoadedModel>()
   /** Moves whenever a seat may have changed (`SceneLink.seatEpoch`). */
-  let seatEpoch = 0;
+  let seatEpoch = 0
   const forget = (mesh: Mesh) => {
-    seatEpoch++;
-    resolved.delete(mesh);
-    unseated.delete(mesh);
-    cuts.leave(mesh);
-    batches.unseat(mesh);
-  };
+    seatEpoch++
+    resolved.delete(mesh)
+    unseated.delete(mesh)
+    cuts.leave(mesh)
+    batches.unseat(mesh)
+  }
   /** Resolves the meshes that entered the scene or were written; forgets those that left.
    *  True when a light entered or left with them. */
   async function resolve() {
-    const { added, removed, lights } = members.take();
-    removed.forEach(forget);
-    const reading = [...new Set([...added, ...stale])].filter((mesh) => members.meshes.has(mesh));
-    stale.clear();
+    const { added, removed, lights } = members.take()
+    removed.forEach(forget)
+    const reading = [...new Set([...added, ...stale])].filter((mesh) => members.meshes.has(mesh))
+    stale.clear()
     // Every resource is read at once; the meshes are then seated in the order they came. A read
     // that throws leaves them all to the next resolution.
     const read = await Promise.all(reading.map((mesh) => cuts.of(mesh))).catch((error) => {
-      reading.forEach((mesh) => stale.add(mesh));
-      throw error;
-    });
+      reading.forEach((mesh) => stale.add(mesh))
+      throw error
+    })
     reading.forEach((mesh, i) => {
-      const cut = read[i];
-      if (!members.meshes.has(mesh)) return forget(mesh);
-      resolved.set(mesh, cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)) });
-      unseated.add(mesh);
-    });
+      const cut = read[i]
+      if (!members.meshes.has(mesh)) return forget(mesh)
+      resolved.set(mesh, cut && { cut, entry: materials.entryOf(firstMaterial(mesh.material)) })
+      unseated.add(mesh)
+    })
     // What the tables folded is said once, with the count of the burst that folded it.
-    const folded = { geometries: cuts.counts.duplicates, materials: materials.counts.duplicates };
-    noticeFolds(notices, folded);
-    return lights;
+    const folded = { geometries: cuts.counts.duplicates, materials: materials.counts.duplicates }
+    noticeFolds(notices, folded)
+    return lights
   }
   /** Writes a seated mesh's world matrix and flag into its row. */
   const writeRow = (mesh: Mesh) => {
-    mesh.updateWorldMatrix(true, false);
-    poses.writeSeat(mesh, batches.seats.get(mesh)!, shownUnder(mesh, scene));
-  };
+    mesh.updateWorldMatrix(true, false)
+    poses.writeSeat(mesh, batches.seats.get(mesh)!, shownUnder(mesh, scene))
+  }
   /**
    * Seats the meshes waiting in batches the session holds, their rows grown in place where the
    * session takes it (`grow`), each grown buffer's every row then sent again, and each mesh seated
    * writes its row.
    */
   function growHeld(grow?: PlacementGrowth) {
-    const seated: Mesh[] = [];
+    const seated: Mesh[] = []
     for (const batch of batches.growHeld((mesh) => seated.push(mesh), grow))
-      poses.touchRange(batch, 0, batch.rows!.capacity - 1);
-    seated.forEach(writeRow);
+      poses.touchRange(batch, 0, batch.rows!.capacity - 1)
+    seated.forEach(writeRow)
   }
   /** Seats the meshes resolved since the last call, writing the rows that were free, then — on a
    *  session that grows its buffers, `grow` — those a full or mounted buffer made wait. A blended or
    *  transmissive surface takes a row like any other: the session draws each row of it as its own
    *  blended draw, ordered by depth. */
   function seat(grow?: PlacementGrowth) {
-    seatEpoch++;
-    growHeld(grow); // a mount drawn seats its meshes before any moves on: each shows every mount
-    const seating = [...unseated];
-    unseated.clear();
+    seatEpoch++
+    growHeld(grow) // a mount drawn seats its meshes before any moves on: each shows every mount
+    const seating = [...unseated]
+    unseated.clear()
     for (const mesh of seating) {
-      const entry = resolved.get(mesh);
-      if (entry === undefined) continue;
+      const entry = resolved.get(mesh)
+      if (entry === undefined) continue
       if (batches.mounting(mesh)) {
-        unseated.add(mesh);
-        continue;
+        unseated.add(mesh)
+        continue
       }
       if (!entry) {
-        batches.unseat(mesh);
-        continue;
+        batches.unseat(mesh)
+        continue
       }
-      if (batches.seat(mesh, entry.cut, entry.entry)) writeRow(mesh);
+      if (batches.seat(mesh, entry.cut, entry.entry)) writeRow(mesh)
     }
-    growHeld(grow);
+    growHeld(grow)
   }
   const same = <T>(a: ReadonlySet<T>, b: Iterable<T>) => {
-    let n = 0;
-    for (const item of b) if (!a.has(item) || ++n > a.size) return false;
-    return n === a.size;
-  };
+    let n = 0
+    for (const item of b) if (!a.has(item) || ++n > a.size) return false
+    return n === a.size
+  }
   return {
     cuts,
     /** The row each seated mesh holds. */
     seats: batches.seats,
     poses,
     get seatEpoch() {
-      return seatEpoch;
+      return seatEpoch
     },
     resolve,
     seat,
     /** A mesh's geometry or material was written: it is read again on the next resolve. */
     stale: (mesh: Mesh) => stale.add(mesh),
     get staleCount() {
-      return stale.size;
+      return stale.size
     },
     /** The material entries repainted in place since the last call (`worldMaterials.ts`). */
     repainted: materials.takeRepainted,
@@ -134,21 +134,21 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     vacant: batches.vacant,
     /** Sizes the batches and gathers what the next session opens on; marks it opened. */
     plan() {
-      seatEpoch++;
-      const kept = batches.reopen();
-      scene.updateMatrixWorld();
+      seatEpoch++
+      const kept = batches.reopen()
+      scene.updateMatrixWorld()
       for (const batch of kept)
         batch.owners.forEach(
           (mesh, row) => mesh && poses.writeSeat(mesh, { batch, row }, shownUnder(mesh, scene)),
-        );
-      poses.settle();
-      openedModels = new Set(members.models);
+        )
+      poses.settle()
+      openedModels = new Set(members.models)
       const used = new Set<MaterialEntry>(
         [...resolved.values()].flatMap((r) => (r ? [r.entry] : [])),
-      );
-      materials.keep(used);
-      return { batches: kept, models: [...members.models] };
+      )
+      materials.keep(used)
+      return { batches: kept, models: [...members.models] }
     },
     shown: (node: Object3D) => shownUnder(node, scene),
-  };
+  }
 }

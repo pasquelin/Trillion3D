@@ -1,9 +1,9 @@
-import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
-import { BLEND_MODES } from '../../scene/materialBlending.ts';
-import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
-import { displayMaskLayout, MASK_FORMAT } from './displayFilter.ts';
-import { displayRoute, filtersDisplay } from './equations.ts';
-import { pipelinesByMode, stageDescriptors } from './stagePipelines.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
+import { BLEND_MODES } from '../../scene/materialBlending.ts'
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { displayMaskLayout, MASK_FORMAT } from './displayFilter.ts'
+import { displayRoute, filtersDisplay } from './equations.ts'
+import { pipelinesByMode, stageDescriptors } from './stagePipelines.ts'
 
 /**
  * The blend pass's pipelines in an image with display layers (`displayFilter.ts`): each mode's
@@ -18,7 +18,7 @@ export function createRoutedPipelines(
   feedback: boolean,
   targets: (mode: Blending) => (GPUColorTargetState | null)[],
 ) {
-  const suffix = feedback ? '' : 'WithoutFeedback';
+  const suffix = feedback ? '' : 'WithoutFeedback'
   const filtered = pipelinesByMode(device, (mode) =>
     stageDescriptors(
       device,
@@ -33,8 +33,8 @@ export function createRoutedPipelines(
       false,
       displayMaskLayout(device),
     ),
-  );
-  const slot = feedback ? 3 : 2;
+  )
+  const slot = feedback ? 3 : 2
   const culls = stageDescriptors(
     device,
     module,
@@ -45,7 +45,7 @@ export function createRoutedPipelines(
       targets: [...Array(slot).fill(null), { format: MASK_FORMAT }],
     },
     false,
-  ).map((stage) => preparedPipeline(device, stage));
+  ).map((stage) => preparedPipeline(device, stage))
   return {
     filtered,
     mask: {
@@ -54,7 +54,7 @@ export function createRoutedPipelines(
       skips: (rank: number) => !filtersDisplay(BLEND_MODES[Math.floor(rank / 3)]),
     },
     async precompile(modes: readonly Blending[]) {
-      await Promise.all([filtered.precompile(modes), ...culls.map((cull) => cull.prepare())]);
+      await Promise.all([filtered.precompile(modes), ...culls.map((cull) => cull.prepare())])
     },
-  };
+  }
 }

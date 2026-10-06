@@ -1,6 +1,6 @@
 /** The two lines' colours, shared by the sparkline and the CSS. */
 export const GPU_COLOUR = '#60a5fa',
-  CPU_COLOUR = '#e879f9';
+  CPU_COLOUR = '#e879f9'
 
 /** The panel's stylesheet. */
 export const STYLE = `
@@ -56,4 +56,4 @@ export const STYLE = `
 .t3s-row[data-sec=cpu] .t3s-bar{background:var(--cpu)}
 .t3s-row[data-sec=shadows] .t3s-bar{background:#facc15}
 .t3s-row[data-sec=cadence] .t3s-bar{background:var(--ok)}
-`;
+`

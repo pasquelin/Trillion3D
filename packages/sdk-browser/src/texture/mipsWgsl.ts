@@ -1,6 +1,6 @@
-import { FULLSCREEN_XY_WGSL } from '../math/fullscreenTriangle.ts';
-import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts';
-import { cellReductionWgsl } from './cellReduction.ts';
+import { FULLSCREEN_XY_WGSL } from '../math/fullscreenTriangle.ts'
+import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
+import { cellReductionWgsl } from './cellReduction.ts'
 
 // The mip chain's kernels: the reduction of one level (`mips.ts`) and the coverage counts of a
 // coverage chain (`coverageMips.ts`).
@@ -53,7 +53,7 @@ export const MIP_SHADER = `
   let a=vec4f(s0.w,s1.w,s2.w,s3.w);
   let byAlpha=(s0.rgb*s0.w+s1.rgb*s1.w+s2.rgb*s2.w+s3.rgb*s3.w)/dot(a,vec4f(1.0));
   return vec4f(select(mean.rgb,byAlpha,weighted&&any(a!=vec4f(s0.w))),reducedAlpha(a,extent.z,extent.w));
- }`;
+ }`
 
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files the
@@ -103,4 +103,4 @@ export const COVERAGE_WGSL = `
   for(var b=c;b<256u;b++){covered+=atomicLoad(&cover[b]);}
   let n0=sizeOf(0u);let nk=sizeOf(level.base.z);
   atomicStore(&cover[level.base.z*256u],pick(c,covered,vec2u(n0.x*n0.y,nk.x*nk.y)));
- }`;
+ }`

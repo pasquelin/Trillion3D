@@ -1,4 +1,4 @@
-import type { VisMaterial } from '../types.ts';
+import type { VisMaterial } from '../types.ts'
 
 /** A lit, white, rough dielectric, front-sided and without maps, unless `overrides` say otherwise. */
 export function litMaterial(overrides: Partial<VisMaterial> = {}): VisMaterial {
@@ -20,5 +20,5 @@ export function litMaterial(overrides: Partial<VisMaterial> = {}): VisMaterial {
     attenuationDistance: 0,
     attenuationColor: [1, 1, 1],
     ...overrides,
-  };
+  }
 }

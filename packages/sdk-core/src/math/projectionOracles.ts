@@ -11,16 +11,16 @@
  * `elements` is a column-major 4x4 as stored by a 3D library: indices 0,1,2 / 4,5,6 / 8,9,10.
  */
 export function maxStretch(elements: ArrayLike<number>): number {
-  if (elements.length < 11) throw new Error('Matrice invalide');
+  if (elements.length < 11) throw new Error('Matrice invalide')
   const a = elements[0],
     b = elements[4],
-    c = elements[8];
+    c = elements[8]
   const d = elements[1],
     e = elements[5],
-    f = elements[9];
+    f = elements[9]
   const g = elements[2],
     h = elements[6],
-    i = elements[10];
+    i = elements[10]
   if (
     !Number.isFinite(a) ||
     !Number.isFinite(b) ||
@@ -32,30 +32,30 @@ export function maxStretch(elements: ArrayLike<number>): number {
     !Number.isFinite(h) ||
     !Number.isFinite(i)
   )
-    throw new Error('Invalid matrix');
+    throw new Error('Invalid matrix')
   const m00 = a * a + d * d + g * g,
     m11 = b * b + e * e + h * h,
-    m22 = c * c + f * f + i * i;
+    m22 = c * c + f * f + i * i
   const m01 = a * b + d * e + g * h,
     m02 = a * c + d * f + g * i,
-    m12 = b * c + e * f + h * i;
-  const offDiagonal = m01 * m01 + m02 * m02 + m12 * m12;
-  if (offDiagonal <= 0) return Math.sqrt(Math.max(m00, m11, m22, 0));
-  const mean = (m00 + m11 + m22) / 3;
+    m12 = b * c + e * f + h * i
+  const offDiagonal = m01 * m01 + m02 * m02 + m12 * m12
+  if (offDiagonal <= 0) return Math.sqrt(Math.max(m00, m11, m22, 0))
+  const mean = (m00 + m11 + m22) / 3
   const spread = Math.sqrt(
     ((m00 - mean) ** 2 + (m11 - mean) ** 2 + (m22 - mean) ** 2 + 2 * offDiagonal) / 6,
-  );
-  if (!(spread > 0)) return Math.sqrt(Math.max(mean, 0));
+  )
+  if (!(spread > 0)) return Math.sqrt(Math.max(mean, 0))
   const b00 = (m00 - mean) / spread,
     b11 = (m11 - mean) / spread,
-    b22 = (m22 - mean) / spread;
+    b22 = (m22 - mean) / spread
   const b01 = m01 / spread,
     b02 = m02 / spread,
-    b12 = m12 / spread;
+    b12 = m12 / spread
   const determinant =
-    b00 * (b11 * b22 - b12 * b12) - b01 * (b01 * b22 - b12 * b02) + b02 * (b01 * b12 - b11 * b02);
-  const angle = Math.acos(Math.min(1, Math.max(-1, determinant / 2))) / 3;
-  return Math.sqrt(Math.max(mean + 2 * spread * Math.cos(angle), 0));
+    b00 * (b11 * b22 - b12 * b12) - b01 * (b01 * b22 - b12 * b02) + b02 * (b01 * b12 - b11 * b02)
+  const angle = Math.acos(Math.min(1, Math.max(-1, determinant / 2))) / 3
+  return Math.sqrt(Math.max(mean + 2 * spread * Math.cos(angle), 0))
 }
 
 /** Normal-cone reject for back-face culling. */
@@ -68,8 +68,8 @@ export function coneRejects(axisDotView: number, angle: number, directionSpread 
     directionSpread < 0 ||
     directionSpread > Math.PI
   ) {
-    throw new Error('Invalid cone');
+    throw new Error('Invalid cone')
   }
-  const totalAngle = angle + directionSpread;
-  return totalAngle < Math.PI / 2 && axisDotView < -Math.sin(totalAngle);
+  const totalAngle = angle + directionSpread
+  return totalAngle < Math.PI / 2 && axisDotView < -Math.sin(totalAngle)
 }

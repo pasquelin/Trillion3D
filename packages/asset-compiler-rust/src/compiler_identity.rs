@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn the_runtime_names_the_same_error_model() {
         let contract = include_str!("../../sdk-core/src/contracts/base.ts");
-        let line = format!("export const DAG_ERROR_MODEL = '{DAG_ERROR_MODEL}';");
+        let line = format!("export const DAG_ERROR_MODEL = '{DAG_ERROR_MODEL}'");
         assert!(
             contract.contains(&line),
             "sdk-core does not declare {DAG_ERROR_MODEL}"

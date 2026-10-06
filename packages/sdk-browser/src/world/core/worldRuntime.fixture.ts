@@ -1,29 +1,29 @@
-import assert from 'node:assert/strict';
-import { after } from 'node:test';
-import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import type { SceneLight } from '../../../../sdk-core/src/index.ts';
-import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
-import type { Scene } from './scene.ts';
-import { createWorldRuntime } from './worldRuntime.ts';
+import assert from 'node:assert/strict'
+import { after } from 'node:test'
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import type { SceneLight } from '../../../../sdk-core/src/index.ts'
+import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts'
+import type { Scene } from './scene.ts'
+import { createWorldRuntime } from './worldRuntime.ts'
 
-const saved = { location: Reflect.get(globalThis, 'location') };
-Reflect.set(globalThis, 'location', new URL('http://engine.test/'));
-Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event);
+const saved = { location: Reflect.get(globalThis, 'location') }
+Reflect.set(globalThis, 'location', new URL('http://engine.test/'))
+Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event)
 /** Every reopen a content change caused in these tests' runtimes: each one a defect (#837). */
-const contentReopens: unknown[] = [];
+const contentReopens: unknown[] = []
 const stopListening = listenWorldNotices(({ phase, context }) => {
-  if (phase === 'session-reopen' && context?.defect) contentReopens.push(context);
-});
+  if (phase === 'session-reopen' && context?.defect) contentReopens.push(context)
+})
 /** The content reopens heard since the last call, for a test that asks one on purpose: taken,
  *  they are no longer counted a defect of these tests. */
-export const takeContentReopens = () => contentReopens.splice(0);
+export const takeContentReopens = () => contentReopens.splice(0)
 after(() => {
-  stopListening();
-  assert.deepEqual(contentReopens, [], 'a content change reopened a session');
-  Reflect.set(globalThis, 'location', saved.location);
-});
+  stopListening()
+  assert.deepEqual(contentReopens, [], 'a content change reopened a session')
+  Reflect.set(globalThis, 'location', saved.location)
+})
 
-export type Open = NonNullable<Parameters<typeof createWorldRuntime>[0]['open']>;
+export type Open = NonNullable<Parameters<typeof createWorldRuntime>[0]['open']>
 
 /** A runtime on a canvas stand-in, whose every failure is handed to `failed`. */
 export const runtimeOf = (
@@ -46,7 +46,7 @@ export const runtimeOf = (
     drawn: () => false,
     display: () => ({ exposure: 1, toneMapping: 'aces' }),
     diagnostic: { notices: createWorldNotices(), failed, opening },
-  });
+  })
 
 /** A session stand-in: what the runtime writes into it — lights, view, environment — is kept. */
 export function sessionStandIn() {
@@ -54,7 +54,7 @@ export function sessionStandIn() {
     view: 'auto',
     lights: [] as SceneLight[],
     irradiance: undefined as number[] | undefined,
-  };
+  }
   const session = {
     camera: {
       position: { set() {} },
@@ -79,6 +79,6 @@ export function sessionStandIn() {
     familiesPending: (): Promise<void> | undefined => undefined,
     measureFrame: () => false,
     dispose() {},
-  };
-  return { session, written };
+  }
+  return { session, written }
 }

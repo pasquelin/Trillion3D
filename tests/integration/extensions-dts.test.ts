@@ -1,30 +1,30 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readdir, readFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 async function walk(dir: string, files: string[] = []): Promise<string[]> {
-  let entries;
+  let entries
   try {
-    entries = await readdir(dir, { withFileTypes: true });
+    entries = await readdir(dir, { withFileTypes: true })
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return files;
-    throw error;
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return files
+    throw error
   }
   for (const entry of entries) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) await walk(path, files);
-    else if (entry.name.endsWith('.d.ts') || entry.name.endsWith('.d.mts')) files.push(path);
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) await walk(path, files)
+    else if (entry.name.endsWith('.d.ts') || entry.name.endsWith('.d.mts')) files.push(path)
   }
-  return files;
+  return files
 }
 
 test('Generated declarations import emitted JS modules, not TS sources', async () => {
-  const files = await walk(fileURLToPath(new URL('../../dist/', import.meta.url)));
-  assert.ok(files.length, 'dist/ must exist; run pnpm run build');
+  const files = await walk(fileURLToPath(new URL('../../dist/', import.meta.url)))
+  assert.ok(files.length, 'dist/ must exist; run pnpm run build')
   for (const file of files) {
-    const text = await readFile(file, 'utf8');
-    assert.equal(/from ['"]\.[^'"]+\.(?:ts|mts)['"]/.test(text), false, file);
+    const text = await readFile(file, 'utf8')
+    assert.equal(/from ['"]\.[^'"]+\.(?:ts|mts)['"]/.test(text), false, file)
   }
-});
+})

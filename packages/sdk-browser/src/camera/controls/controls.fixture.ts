@@ -1,5 +1,5 @@
-import { createOrbitCameraControls } from './orbitControls.ts';
-import type { ControlCamera, ControlVector } from './types.ts';
+import { createOrbitCameraControls } from './orbitControls.ts'
+import type { ControlCamera, ControlVector } from './types.ts'
 
 /**
  * A camera and a surface with no DOM behind them, so the five controllers are proved on a
@@ -12,8 +12,8 @@ function fixtureVector(x = 0, y = 0, z = 0): ControlVector {
     y,
     z,
     set(nx, ny, nz) {
-      [v.x, v.y, v.z] = [nx, ny, nz];
-      return v;
+      ;[v.x, v.y, v.z] = [nx, ny, nz]
+      return v
     },
     copy: (other) => v.set(other.x, other.y, other.z),
     clone: () => fixtureVector(v.x, v.y, v.z),
@@ -21,22 +21,22 @@ function fixtureVector(x = 0, y = 0, z = 0): ControlVector {
     sub: (other) => v.set(v.x - other.x, v.y - other.y, v.z - other.z),
     length: () => Math.hypot(v.x, v.y, v.z),
     setLength(length) {
-      const scale = length / (v.length() || 1);
-      return v.set(v.x * scale, v.y * scale, v.z * scale);
+      const scale = length / (v.length() || 1)
+      return v.set(v.x * scale, v.y * scale, v.z * scale)
     },
     distanceTo: (other) => Math.hypot(v.x - other.x, v.y - other.y, v.z - other.z),
     fromArray: (array, offset = 0) =>
       v.set(Number(array[offset]), Number(array[offset + 1]), Number(array[offset + 2])),
-  };
-  return v;
+  }
+  return v
 }
 
 /** A pointer position in client pixels. */
-type Point = { x: number; y: number };
+type Point = { x: number; y: number }
 
 export interface FixtureCamera extends ControlCamera {
   /** How many times the controller made the matrices current. */
-  updates: number;
+  updates: number
 }
 
 export function fixtureCamera(x = 0, y = 0, z = 10): FixtureCamera {
@@ -46,55 +46,55 @@ export function fixtureCamera(x = 0, y = 0, z = 10): FixtureCamera {
     z: 0,
     w: 1,
     set(qx: number, qy: number, qz: number, qw: number) {
-      Object.assign(quaternion, { x: qx, y: qy, z: qz, w: qw });
-      return quaternion;
+      Object.assign(quaternion, { x: qx, y: qy, z: qz, w: qw })
+      return quaternion
     },
-  };
+  }
   return {
     position: fixtureVector(x, y, z),
     quaternion,
     fov: 50,
     updates: 0,
     updateMatrixWorld(this: FixtureCamera) {
-      this.updates++;
+      this.updates++
     },
-  };
+  }
 }
 
-type Recorded = { type: string; handler: EventListener; capture: boolean };
+type Recorded = { type: string; handler: EventListener; capture: boolean }
 
 /** An event target that remembers what is still listening to it, and calls its capture
  *  listeners first, until one stops the event (`stopImmediatePropagation`). */
 function recordingTarget() {
-  const live: Recorded[] = [];
+  const live: Recorded[] = []
   const target = {
     addEventListener(type: string, handler: EventListener, options?: AddEventListenerOptions) {
-      live.push({ type, handler, capture: options?.capture === true });
+      live.push({ type, handler, capture: options?.capture === true })
     },
     removeEventListener(type: string, handler: EventListener) {
-      const at = live.findIndex((entry) => entry.type === type && entry.handler === handler);
-      if (at >= 0) live.splice(at, 1);
+      const at = live.findIndex((entry) => entry.type === type && entry.handler === handler)
+      if (at >= 0) live.splice(at, 1)
     },
-  };
+  }
   const fire = (type: string, event: Record<string, unknown>) => {
-    let stopped = false;
+    let stopped = false
     const payload = {
       preventDefault() {},
       stopImmediatePropagation: () => (stopped = true),
       ...event,
-    } as unknown as Event;
-    const ordered = [...live].sort((a, b) => Number(b.capture) - Number(a.capture));
-    for (const entry of ordered) if (!stopped && entry.type === type) entry.handler(payload);
-  };
-  return { target, live, fire };
+    } as unknown as Event
+    const ordered = [...live].sort((a, b) => Number(b.capture) - Number(a.capture))
+    for (const entry of ordered) if (!stopped && entry.type === type) entry.handler(payload)
+  }
+  return { target, live, fire }
 }
 
 export function fixtureSurface(height = 400) {
   const view = recordingTarget(),
     document = recordingTarget(),
-    window = recordingTarget();
-  let locked: unknown = null;
-  const captured = new Set<number>();
+    window = recordingTarget()
+  let locked: unknown = null
+  const captured = new Set<number>()
   const element = {
     ...view.target,
     clientHeight: height,
@@ -105,25 +105,25 @@ export function fixtureSurface(height = 400) {
     getBoundingClientRect: () => ({ left: 0, top: 0, width: height, height }),
     style: { touchAction: 'pan-y' },
     setPointerCapture(pointerId: number) {
-      captured.add(pointerId);
+      captured.add(pointerId)
     },
     releasePointerCapture(pointerId: number) {
-      captured.delete(pointerId);
+      captured.delete(pointerId)
     },
     requestPointerLock() {
-      locked = element;
+      locked = element
     },
     ownerDocument: {
       ...document.target,
       defaultView: window.target,
       get pointerLockElement() {
-        return locked;
+        return locked
       },
       exitPointerLock() {
-        locked = null;
+        locked = null
       },
     },
-  };
+  }
   return {
     element: element as unknown as HTMLElement,
     /** Listeners still installed across the surface, its document and its window. */
@@ -136,7 +136,7 @@ export function fixtureSurface(height = 400) {
     key: document.fire,
     blur: window.fire,
     lock: () => element.requestPointerLock(),
-  };
+  }
 }
 
 /** A press, a straight drag of `(dx, dy)` pixels in one move, and a release. */
@@ -146,16 +146,16 @@ export function fixtureDrag(
   dy: number,
   event: Record<string, unknown> = {},
 ) {
-  const start = { pointerId: 1, button: 0, clientX: 100, clientY: 100, shiftKey: false, ...event };
-  surface.fire('pointerdown', start);
+  const start = { pointerId: 1, button: 0, clientX: 100, clientY: 100, shiftKey: false, ...event }
+  surface.fire('pointerdown', start)
   surface.fire('pointermove', {
     ...start,
     clientX: start.clientX + dx,
     clientY: start.clientY + dy,
     movementX: dx,
     movementY: dy,
-  });
-  surface.fire('pointerup', start);
+  })
+  surface.fire('pointerup', start)
 }
 
 /** Two pointers pressed at `from`, moved one after the other to `to`, and released. */
@@ -164,28 +164,28 @@ export function fixturePinch(
   from: readonly [Point, Point],
   to: readonly [Point, Point],
 ) {
-  const ids = [1, 2] as const;
+  const ids = [1, 2] as const
   const fire = (type: string, at: readonly [Point, Point]) =>
     ids.forEach((pointerId, i) =>
       surface.fire(type, { pointerId, button: 0, clientX: at[i].x, clientY: at[i].y }),
-    );
-  fire('pointerdown', from);
-  fire('pointermove', to);
-  fire('pointerup', to);
+    )
+  fire('pointerdown', from)
+  fire('pointermove', to)
+  fire('pointerup', to)
 }
 
 /** Rounded, and `+ 0` so a negative zero reads as the zero a reader expects. */
-export const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0;
+export const round = (value: number, digits = 6) => Number(value.toFixed(digits)) + 0
 /** Where a camera stands, rounded. */
 export const at = ({ position }: { position: { x: number; y: number; z: number } }) =>
-  [round(position.x), round(position.y), round(position.z)] as const;
+  [round(position.x), round(position.y), round(position.z)] as const
 
 /** An orbit `distance` away on +Z of a 400-pixel surface, with its emissions counted. */
 export function fixtureOrbit(distance = 10) {
   const camera = fixtureCamera(0, 0, distance),
-    surface = fixtureSurface(400);
-  const controls = createOrbitCameraControls(camera, surface.element);
-  let changes = 0;
-  controls.addEventListener('change', () => changes++);
-  return { camera, surface, controls, changes: () => changes };
+    surface = fixtureSurface(400)
+  const controls = createOrbitCameraControls(camera, surface.element)
+  let changes = 0
+  controls.addEventListener('change', () => changes++)
+  return { camera, surface, controls, changes: () => changes }
 }

@@ -1,4 +1,4 @@
-import { shaderLanguage } from '../math/shaderLanguage.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts'
 
 /** Up to four mip cells enclose a cone section; integrate their covered areas.
  * The depth range rejects empty or disjoint cells, rather than treating the
@@ -73,5 +73,5 @@ fn reflectionConeCell(at:vec2f,footprint:vec2f,level:i32,limits:vec2f,receiver:v
  return sum/max(total,1.0);
 }`,
     language,
-  );
+  )
 }

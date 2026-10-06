@@ -2,17 +2,17 @@
 // the texts the engine assembles into its shading — run as they are on Dawn. Each case also carries
 // the true world normal, in f64: the same lighting formula is evaluated twice on the GPU, with the
 // rendered normal then with the true one, so the luminance gap rests on no CPU copy of the BRDF.
-import assert from 'node:assert/strict';
+import assert from 'node:assert/strict'
 import {
   NORMAL_TRANSFORM_WGSL,
   STANDARD_LIGHTING_WGSL,
-} from '../../../packages/sdk-browser/src/lighting/standardLighting.ts';
-import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
-import { runOnDawn } from '../kit/onDawn.ts';
-import { openGpuModule } from '../kit/webgpuDevice.ts';
-import type { GpuRow, LitCase } from './lightingNormalCases.ts';
+} from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { runOnDawn } from '../kit/onDawn.ts'
+import { openGpuModule } from '../kit/webgpuDevice.ts'
+import type { GpuRow, LitCase } from './lightingNormalCases.ts'
 
-const WORKGROUP = 64;
+const WORKGROUP = 64
 
 /**
  * `xformNormal` SUBSTITUTIONS, to put the PROOF itself to the test.
@@ -30,7 +30,7 @@ export const SUBSTITUTIONS = {
   flipped: '-N',
   /** N → 0: the lost normal, which `normalize` turns into NaN and a zero angle once passed. */
   lost: 'vec3f(0.0,0.0,0.0)',
-};
+}
 
 /** A fixed view and albedo: only the normal's orientation changes from case to case. */
 const lightingWgsl = (transform: string, substitution: string) => `
@@ -52,39 +52,39 @@ fn probed(N:vec3f)->vec3f{return ${substitution};}
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(truth,0.0);
-}`;
+}`
 
-type Input = { shader: string; data: Float32Array<ArrayBuffer>; count: number };
+type Input = { shader: string; data: Float32Array<ArrayBuffer>; count: number }
 
 /** On Dawn: one pipeline, every case at once, the output read back. */
 async function run({ shader, data, count }: Input) {
-  const opened = await openGpuModule(shader);
-  if (!opened.module) throw new Error(JSON.stringify(opened));
-  const { gpu, module } = opened;
-  const { device, errors } = gpu;
+  const opened = await openGpuModule(shader)
+  if (!opened.module) throw new Error(JSON.stringify(opened))
+  const { gpu, module } = opened
+  const { device, errors } = gpu
   const pipeline = device.createComputePipeline({
     layout: 'auto',
     compute: { module, entryPoint: 'normals' },
-  });
-  const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
-  const input = device.createBuffer({ size: data.length * 4, usage: STORAGE });
-  device.queue.writeBuffer(input, 0, data);
-  const bytes = count * 3 * 16;
-  const output = device.createBuffer({ size: bytes, usage: STORAGE });
+  })
+  const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+  const input = device.createBuffer({ size: data.length * 4, usage: STORAGE })
+  device.queue.writeBuffer(input, 0, data)
+  const bytes = count * 3 * 16
+  const output = device.createBuffer({ size: bytes, usage: STORAGE })
   const group = device.createBindGroup({
     layout: pipeline.getBindGroupLayout(0),
     entries: [input, output].map((buffer, binding) => ({ binding, resource: { buffer } })),
-  });
-  const encoder = device.createCommandEncoder();
-  const pass = encoder.beginComputePass();
-  pass.setPipeline(pipeline);
-  pass.setBindGroup(0, group);
-  pass.dispatchWorkgroups(Math.ceil(count / WORKGROUP));
-  pass.end();
-  device.queue.submit([encoder.finish()]);
-  const values = Array.from(new Float32Array((await readGpuBuffer(device, output, bytes))!.buffer));
-  const adapter = (await gpu.fermer()).court;
-  return { adapter, values, errors };
+  })
+  const encoder = device.createCommandEncoder()
+  const pass = encoder.beginComputePass()
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, group)
+  pass.dispatchWorkgroups(Math.ceil(count / WORKGROUP))
+  pass.end()
+  device.queue.submit([encoder.finish()])
+  const values = Array.from(new Float32Array((await readGpuBuffer(device, output, bytes))!.buffer))
+  const adapter = (await gpu.fermer()).court
+  return { adapter, values, errors }
 }
 
 /**
@@ -100,10 +100,10 @@ export async function lightNormals(
   cases: LitCase[],
   { transform = NORMAL_TRANSFORM_WGSL, substitution = SUBSTITUTIONS.none } = {},
 ): Promise<{ adapter: string; rows: GpuRow[] }> {
-  const shader = lightingWgsl(transform, substitution);
-  const count = (text: string) => shader.split(text).length - 1;
-  assert.equal(count(`return ${substitution};`), 1, `substitution "${substitution}" not applied`);
-  assert.equal(count('probed(xformNormal('), 1, 'xformNormal is no longer the probed output');
+  const shader = lightingWgsl(transform, substitution)
+  const count = (text: string) => shader.split(text).length - 1
+  assert.equal(count(`return ${substitution};`), 1, `substitution "${substitution}" not applied`)
+  assert.equal(count('probed(xformNormal('), 1, 'xformNormal is no longer the probed output')
   const data = Float32Array.from(
     cases.flatMap((c) => [
       ...c.world,
@@ -114,13 +114,13 @@ export async function lightNormals(
       ...c.light,
       ...[c.metal, c.roughness, 0, 0],
     ]),
-  );
-  const { adapter, values, errors } = await runOnDawn(run, { shader, data, count: cases.length });
-  assert.deepEqual(errors, [], 'WebGPU errors while lighting');
+  )
+  const { adapter, values, errors } = await runOnDawn(run, { shader, data, count: cases.length })
+  assert.deepEqual(errors, [], 'WebGPU errors while lighting')
   const rows = cases.map((_, i) => ({
     rendered: values.slice(i * 12, i * 12 + 3),
     litRendered: values.slice(i * 12 + 4, i * 12 + 7),
     litTrue: values.slice(i * 12 + 8, i * 12 + 11),
-  }));
-  return { adapter, rows };
+  }))
+  return { adapter, rows }
 }

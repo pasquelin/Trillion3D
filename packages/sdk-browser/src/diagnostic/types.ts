@@ -3,22 +3,22 @@
  * the record the host collector queues, and how much of it a caller wants. Separate from the
  * engine contract of `../backend/types.ts` — this is what comes back out, not what is offered.
  */
-export type DiagnosticDetail = 'summary' | 'trace';
+export type DiagnosticDetail = 'summary' | 'trace'
 
 /** One thing a renderer noticed, reported on a diagnostic channel. */
 export type BackendDiagnostic = {
   /** The step it happened in. */
-  phase: string;
+  phase: string
   /** Words for a person to read. */
-  message: string;
+  message: string
   /** Facts about it. */
-  context: Record<string, unknown>;
+  context: Record<string, unknown>
   /** Added by the host collector; optional for standalone backend consumers. */
-  sequence?: number;
+  sequence?: number
   /** The session it came from. */
-  sessionId?: string;
+  sessionId?: string
   /** When it was queued. */
-  queuedAt?: number;
+  queuedAt?: number
   /** When it was made. */
-  createdAt?: number;
-};
+  createdAt?: number
+}

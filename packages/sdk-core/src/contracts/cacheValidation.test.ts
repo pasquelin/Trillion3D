@@ -1,5 +1,5 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   assertCacheIdentity,
   assertCachePointer,
@@ -12,8 +12,8 @@ import {
   primitiveIsDrawable,
   primitiveUsesClusterErrors,
   UNSPLIT_PASS,
-} from '../index.ts';
-import { MANIFEST_BINARY_VERSION } from '../manifest/binaryFormat.ts';
+} from '../index.ts'
+import { MANIFEST_BINARY_VERSION } from '../manifest/binaryFormat.ts'
 test('a cache whose pages carry their own cluster errors requires the DAG error model', () => {
   const page = (
     id: number,
@@ -36,7 +36,7 @@ test('a cache whose pages carry their own cluster errors requires the DAG error 
     sphere,
     parentError,
     parentSphere,
-  });
+  })
   const metadata = {
     schema: FORMAT_VERSION,
     status: 'ready',
@@ -58,22 +58,22 @@ test('a cache whose pages carry their own cluster errors requires the DAG error 
         ],
       },
     ],
-  };
+  }
   assert.throws(
     () => assertCacheIdentity(metadata),
     (error: unknown) => error instanceof EngineError && error.code === 'STALE_CACHE',
-  );
+  )
   assert.throws(
     () => assertCacheIdentity({ ...metadata, errorModel: 'bounds-diagonal-boundary-v1' }),
     (error: unknown) => error instanceof EngineError && error.code === 'STALE_CACHE',
-  );
-  assertCacheIdentity({ ...metadata, errorModel: DAG_ERROR_MODEL });
-  assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), true);
+  )
+  assertCacheIdentity({ ...metadata, errorModel: DAG_ERROR_MODEL })
+  assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), true)
   assert.equal(
     pageCarriesClusterError({ ...metadata.primitives[0].pages[0], sphere: undefined }),
     false,
-  );
-});
+  )
+})
 test('a host checks a pointer and a cache through the SDK, without naming a single format field', () => {
   assert.equal(
     assertCachePointer(
@@ -86,11 +86,11 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
       'full',
     ),
     'key/clusters.json',
-  );
+  )
   assert.equal(
     assertCachePointer({ status: 'ready', url: 'key/clusters.json' }, 'full'),
     'key/clusters.json',
-  );
+  )
   for (const [pointer, code] of [
     [{}, 'INVALID_POINTER'],
     [{ status: 'ready' }, 'INVALID_POINTER'],
@@ -102,7 +102,7 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     assert.throws(
       () => assertCachePointer(pointer, 'full'),
       (error: unknown) => error instanceof EngineError && error.code === code,
-    );
+    )
   // A slim manifest carries no page: an availability probe never downloads the columns, so the
   // checks it can run are exactly these, and `assertCacheIdentity` stays on the decoded manifest.
   const slim = {
@@ -116,8 +116,8 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     selectedTriangles: 10046405,
     primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters' }],
     binary: { version: MANIFEST_BINARY_VERSION, url: 'clusters.bin', sha256: 'x', bytes: 8 },
-  };
-  assert.equal(assertCacheReady(slim, 'full'), 10046405);
+  }
+  assert.equal(assertCacheReady(slim, 'full'), 10046405)
   assert.equal(
     assertCacheReady(
       {
@@ -130,7 +130,7 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
       'full',
     ),
     10046405,
-  );
+  )
   for (const [metadata, code] of [
     ['not an object', 'INVALID_CACHE'],
     [{ ...slim, primitives: undefined }, 'INVALID_CACHE'],
@@ -153,8 +153,8 @@ test('a host checks a pointer and a cache through the SDK, without naming a sing
     assert.throws(
       () => assertCacheReady(metadata, 'full'),
       (error: unknown) => error instanceof EngineError && error.code === code,
-    );
-});
+    )
+})
 test('an unsplit primitive has no error band, and the cache remains readable', () => {
   // The compiler keeps outside the DAG any primitive required by a material property — transmission
   // in KHR_materials_transmission, skinning, morph targets. It then has
@@ -170,10 +170,10 @@ test('an unsplit primitive has no error band, and the cache remains readable', (
     selectedNodes: 1,
     totalNodes: 1,
     primitives: [{ mesh: 0, primitive: 0, pass: UNSPLIT_PASS, pages: [] }],
-  };
-  assertCacheIdentity(metadata);
-  assert.equal(primitiveIsDrawable(metadata.primitives[0]), true);
-  assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), false);
+  }
+  assertCacheIdentity(metadata)
+  assert.equal(primitiveIsDrawable(metadata.primitives[0]), true)
+  assert.equal(primitiveUsesClusterErrors(metadata.primitives[0]), false)
   // It does not open the door: an unsplit primitive that still carries pages
   // comes from a compiler this runtime cannot read, and it is rejected like a DAG without error band.
   const withPages = {
@@ -188,13 +188,13 @@ test('an unsplit primitive has no error band, and the cache remains readable', (
         ],
       },
     ],
-  };
+  }
   assert.throws(
     () => assertCacheIdentity(withPages),
     (error: unknown) =>
       error instanceof EngineError &&
       error.code === 'STALE_CACHE' &&
       error.details.pass === UNSPLIT_PASS,
-  );
-  assert.equal(primitiveIsDrawable(withPages.primitives[0]), false);
-});
+  )
+  assert.equal(primitiveIsDrawable(withPages.primitives[0]), false)
+})

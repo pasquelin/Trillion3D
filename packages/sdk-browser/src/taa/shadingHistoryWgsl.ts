@@ -1,28 +1,28 @@
 /** The most images a moving pixel's history holds. */
-export const HISTORY_SAMPLES_MAX = 16;
+export const HISTORY_SAMPLES_MAX = 16
 /** The fewest it keeps after a full shading rejection: the current image and one. */
-const HISTORY_SAMPLES_REJECTED = 2;
+const HISTORY_SAMPLES_REJECTED = 2
 /** The share of the image a ghosting update of the flicker history takes, and the fade of its
  *  totals every image: 5 %. */
-const FLICKER_GHOSTING = 0.05;
+const FLICKER_GHOSTING = 0.05
 /** A gradient is kept in eight bits: what lies within this is its rounding. */
-const GRADIENT_EPSILON = 1 / 127;
+const GRADIENT_EPSILON = 1 / 127
 /** The most flickers the history counts, within its eight bits. */
-const FLICKER_COUNT_MAX = 20;
+const FLICKER_COUNT_MAX = 20
 /** Half a step of a 10-bit display: below it no change is seen. */
-const DISPLAY_STEP = 0.5 / 1024;
+const DISPLAY_STEP = 0.5 / 1024
 /** The centre's weight in the 3×3 blur (1, ½, ¼ for centre, sides, corners). */
-const BLUR_CENTRE = 0.25;
+const BLUR_CENTRE = 0.25
 /** A luma flicker of `e` may be a channel's of `3e`: luma is the mean of three channels, so a
  *  channel's box widens by three times the error. */
-export const LUMA_TO_CHANNEL = 3;
+export const LUMA_TO_CHANNEL = 3
 /** The measurement curve's perceptual offset: `x / (x + 0.17)`, squared. */
-const CURVE_OFFSET = 0.17;
+const CURVE_OFFSET = 0.17
 /** Flicker periods the count must hold before its error shows, in images. */
-const FLICKER_PERIOD = 2;
+const FLICKER_PERIOD = 2
 /** Camera parallax, in pixels of a 1920-wide image an image, past which a pixel no longer counts
  *  its flickers: ten pixels an image at 60 Hz, five at the 120 Hz the engine draws for. */
-const PARALLAX_LIMIT = 5;
+const PARALLAX_LIMIT = 5
 
 /**
  * The flicker measure's rates are counted in images, never timed: a resolve is then a function of
@@ -32,10 +32,10 @@ const PARALLAX_LIMIT = 5;
  * would make it, so no more moving pixels widen their box. `1 − 0.95^P`, the flicker count's
  * fade-in rate: a period of two images.
  */
-export const FLICKER_COUNT_RATE = 1 - (1 - FLICKER_GHOSTING) ** FLICKER_PERIOD;
+export const FLICKER_COUNT_RATE = 1 - (1 - FLICKER_GHOSTING) ** FLICKER_PERIOD
 
 /** The inverse of the parallax limit, in display pixels an image, on a display `width` wide. */
-export const flickerParallax = (width: number) => 1 / (PARALLAX_LIMIT * (width / 1920));
+export const flickerParallax = (width: number) => 1 / (PARALLAX_LIMIT * (width / 1920))
 
 /**
  * The shading measures of a pixel's history: a luma measured in a perceptual space — exposed
@@ -143,8 +143,8 @@ fn shadingStill(here:vec4f,before:vec4f,animated:bool)->f32{
   moving=max(moving,saturate(parallax*view.moire.y-0.5));
  }
  return 1.0-moving;
-}`;
+}`
 
 /** The gradient in the share target's eight bits: `g · 127/255 + 127/255`, so zero is
  *  kept exactly and a step is 1/127. */
-export const gradientOut = (gradient: string) => `${gradient}*${127 / 255}+${127 / 255}`;
+export const gradientOut = (gradient: string) => `${gradient}*${127 / 255}+${127 / 255}`

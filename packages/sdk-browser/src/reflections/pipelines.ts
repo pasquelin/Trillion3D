@@ -1,12 +1,12 @@
-import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
-import { reflectionLayout, reflectionOwnerLayout, reflectionResolveLayout } from './layout.ts';
-import { withScreenReflections } from './screenWgsl.ts';
-import { withReflectionSourceOutput } from './sourceOutputWgsl.ts';
-import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './sourceWgsl.ts';
-import { stochasticReflectionShader } from './sampleWgsl.ts';
-import { REFLECTION_RESOLVE_WGSL } from './resolveWgsl.ts';
-import { reflectionBoundsPipelines } from './boundsPyramid.ts';
+import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
+import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts'
+import { reflectionLayout, reflectionOwnerLayout, reflectionResolveLayout } from './layout.ts'
+import { withScreenReflections } from './screenWgsl.ts'
+import { withReflectionSourceOutput } from './sourceOutputWgsl.ts'
+import { REFLECTION_SOURCE_WGSL, reflectionSourceLayout } from './sourceWgsl.ts'
+import { stochasticReflectionShader } from './sampleWgsl.ts'
+import { REFLECTION_RESOLVE_WGSL } from './resolveWgsl.ts'
+import { reflectionBoundsPipelines } from './boundsPyramid.ts'
 
 /** The source reprojects the last image's unfogged colour, which the final pass writes as its
  * second target (`sourceOutputWgsl.ts`): no pass here lights a surface but the final one. Source
@@ -20,8 +20,8 @@ export async function reflectionPipelines(
   layout: GPUBindGroupLayout,
   { unboundedReflections = false }: { unboundedReflections?: boolean } = {},
 ) {
-  const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }];
-  const resolveLayout = reflectionResolveLayout(device);
+  const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }]
+  const resolveLayout = reflectionResolveLayout(device)
   // Each module is checked where its text is named: the shader sweep reads the call
   // (`engineShaders.test.ts`).
   const program = async (
@@ -29,7 +29,7 @@ export async function reflectionPipelines(
     bind: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
     entryPoint: string,
     into = targets,
-  ) => makeFullscreenPipeline(device, await module, bind, entryPoint, into);
+  ) => makeFullscreenPipeline(device, await module, bind, entryPoint, into)
   const [trace, resolve, source, final, bounds] = await Promise.all([
     program(
       createCheckedShaderModule(
@@ -64,6 +64,6 @@ export async function reflectionPipelines(
     ),
     // The depth bounds' reductions, once a device, whatever the lighting (`boundsPyramid.ts`).
     reflectionBoundsPipelines(device),
-  ]);
-  return { trace, resolve, resolveLayout, source, final, bounds };
+  ])
+  return { trace, resolve, resolveLayout, source, final, bounds }
 }

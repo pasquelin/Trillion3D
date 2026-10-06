@@ -1,15 +1,15 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
 interface StatSlotProps extends ComponentPropsWithoutRef<'div'> {
-  [key: `data-${string}`]: unknown;
+  [key: `data-${string}`]: unknown
 }
 
 interface StatProps {
-  title: ReactNode;
-  children: ReactNode;
-  description?: ReactNode;
-  valueProps?: StatSlotProps;
-  descriptionProps?: StatSlotProps;
+  title: ReactNode
+  children: ReactNode
+  description?: ReactNode
+  valueProps?: StatSlotProps
+  descriptionProps?: StatSlotProps
 }
 
 export function StatGroup({ children, className = '', ...props }: ComponentPropsWithoutRef<'div'>) {
@@ -17,7 +17,7 @@ export function StatGroup({ children, className = '', ...props }: ComponentProps
     <div className={`stats stats-grid bg-base-300 shadow-sm ${className}`} {...props}>
       {children}
     </div>
-  );
+  )
 }
 
 export function Stat({
@@ -39,5 +39,5 @@ export function Stat({
         </div>
       )}
     </div>
-  );
+  )
 }

@@ -49,7 +49,7 @@
 /** Descent queues, in rotation: level `L` reads `L % LEVEL_QUEUES`, writes `(L+1) % …`
  *  and zeroes `(L+2) % …`, which it neither reads nor writes. Three is the smallest
  *  count that makes those three indices distinct. */
-export const LEVEL_QUEUES = 3;
+export const LEVEL_QUEUES = 3
 
 export const DAG_LEVEL_WGSL = `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
 fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
@@ -147,4 +147,4 @@ fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id.x,id.y,n.x));}
 @compute @workgroup_size(64)
 fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id.x,id.y,n.x));}
-`;
+`

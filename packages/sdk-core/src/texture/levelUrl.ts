@@ -1,16 +1,16 @@
-import { EngineError } from '../contracts/cache.ts';
+import { EngineError } from '../contracts/cache.ts'
 import {
   PREVIEW_LAYOUT_FILES,
   PREVIEW_LOSSLESS_FORMAT,
   previewAtlasName,
   type TextureBlockFormat,
   type TextureLayout,
-} from '../manifest/binaryFormat.ts';
+} from '../manifest/binaryFormat.ts'
 
 /** What a level file holds: the lossless PNG, or the blocks of one family in one layout. */
 export type TextureLevelFormat =
   | typeof PREVIEW_LOSSLESS_FORMAT
-  | (typeof PREVIEW_LAYOUT_FILES)[TextureBlockFormat][Exclude<TextureLayout, 'lossless'>];
+  | (typeof PREVIEW_LAYOUT_FILES)[TextureBlockFormat][Exclude<TextureLayout, 'lossless'>]
 
 /** The level file a chain's layout in a family names: the lossless one when it kept none. */
 export function textureLevelFormat(
@@ -19,7 +19,7 @@ export function textureLevelFormat(
 ): TextureLevelFormat {
   return family === undefined || layout === 'lossless'
     ? PREVIEW_LOSSLESS_FORMAT
-    : PREVIEW_LAYOUT_FILES[family][layout];
+    : PREVIEW_LAYOUT_FILES[family][layout]
 }
 
 /**
@@ -36,23 +36,23 @@ export function textureLevelUrl(
   level: number,
   format: TextureLevelFormat,
 ) {
-  const kind = previewAtlasName(atlas);
+  const kind = previewAtlasName(atlas)
   if (kind === undefined)
-    throw new EngineError('INVALID_CACHE', 'A texture level names an unknown atlas', { atlas });
+    throw new EngineError('INVALID_CACHE', 'A texture level names an unknown atlas', { atlas })
   if (!/^[0-9a-f]{64}$/.test(sha256) || !Number.isInteger(level) || level < 0)
     throw new EngineError('INVALID_CACHE', 'A texture level has an invalid address', {
       sha256,
       level,
-    });
+    })
   for (const field of ['{sha}', '{kind}', '{level}', '{format}'])
     if (!template.includes(field))
       throw new EngineError('INVALID_CACHE', 'The texture level template lacks a field', {
         template,
         field,
-      });
+      })
   return template
     .replace('{sha}', sha256)
     .replace('{kind}', kind)
     .replace('{level}', String(level))
-    .replace('{format}', format);
+    .replace('{format}', format)
 }

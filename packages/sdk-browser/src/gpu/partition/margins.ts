@@ -4,7 +4,7 @@
  * `u = 2⁻²⁴` is the relative half-ulp of single precision: a round-to-nearest moves a value by at
  * most `u` times itself.
  */
-const U = 2 ** -24;
+const U = 2 ** -24
 
 /**
  * Factor that bounds the error of a four-term dot product, relative to the sum of those terms'
@@ -16,7 +16,7 @@ const U = 2 ** -24;
  * terms, and an FMA contraction — which the WGSL compiler may do — can only shrink the real
  * error, never grow it past this bound.
  */
-export const ERR_K = 8 * U;
+export const ERR_K = 8 * U
 
 /**
  * Cost of rounding the INPUTS of the dot product, relative to the corners' world magnitude.
@@ -33,7 +33,7 @@ export const ERR_K = 8 * U;
  * the occlusion test lost all reject power. Relative to the camera and in two words, the terms
  * are on the order of the cluster size, and so is the bound.
  */
-export const INPUT_K = 4 * U;
+export const INPUT_K = 4 * U
 
 /**
  * Cost of the sole passage from NDC to screen, in texels, relative to the target's largest side:
@@ -41,7 +41,7 @@ export const INPUT_K = 4 * U;
  * the subtract-from-1 bounds its own gap by `2u`. Four `u` cover both. The error `v` itself
  * carries already entered `v` before this conversion.
  */
-export const SCREEN_SLACK_K = 4 * U;
+export const SCREEN_SLACK_K = 4 * U
 
 /**
  * Factor that RAISES the depth bound before it travels to the kernel.
@@ -53,7 +53,7 @@ export const SCREEN_SLACK_K = 4 * U;
  * precision. Single-precision multiplication is monotonic, so an input greater than or equal to
  * the CPU's yields an output greater than or equal to the CPU's.
  */
-export const DEPTH_GROW = (1 + 2 ** -23) * (1 + U);
+export const DEPTH_GROW = (1 + 2 ** -23) * (1 + U)
 
 /**
  * A WGSL `f32` literal of the constant: the single-precision value nearest it, written with the
@@ -62,6 +62,6 @@ export const DEPTH_GROW = (1 + 2 ** -23) * (1 + U);
  * neighbours, and the shader parsed one ulp where the margin declares two.
  */
 export const wgslFloat = (value: number) => {
-  const text = Math.fround(value).toPrecision(9);
-  return text.includes('.') || text.includes('e') ? text : `${text}.0`;
-};
+  const text = Math.fround(value).toPrecision(9)
+  return text.includes('.') || text.includes('e') ? text : `${text}.0`
+}

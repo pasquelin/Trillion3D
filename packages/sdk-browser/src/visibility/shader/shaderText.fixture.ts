@@ -6,36 +6,36 @@
  * `normalize`, `floor`, `cos`, `sin`, `min`, `max`, `abs`, `sqrt`, the vector constructors and other
  * texts' functions. The tests measure what the real text does, in WGSL and GLSL, not a copy of its formula; the cut rule reads `../../page/cut/wgslPredicate.fixture.ts`.
  */
-type Value = number | number[] | number[][] | boolean;
-type Call = (...args: Value[]) => Value;
+type Value = number | number[] | number[][] | boolean
+type Call = (...args: Value[]) => Value
 /** A run's arguments, its locals and the functions a caller named (`runShaderText`). */
-type Scope = Record<string, Value | Call>;
-const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>?:![\]])/y;
+type Scope = Record<string, Value | Call>
+const TOKEN = /\s*(\d+\.?\d*|[A-Za-z_]\w*|&&|\|\||==|!=|<=|>=|[-+*/(),.<>?:![\]])/y
 
 function tokens(text: string) {
-  const out: string[] = [];
-  TOKEN.lastIndex = 0;
+  const out: string[] = []
+  TOKEN.lastIndex = 0
   while (/\S/.test(text.slice(TOKEN.lastIndex))) {
-    const found = TOKEN.exec(text);
-    if (!found) throw new Error(`unread shader text: ${text.slice(TOKEN.lastIndex)}`);
-    out.push(found[1]);
+    const found = TOKEN.exec(text)
+    if (!found) throw new Error(`unread shader text: ${text.slice(TOKEN.lastIndex)}`)
+    out.push(found[1])
   }
-  return out;
+  return out
 }
 
 const lift = (a: Value, b: Value, f: (x: number, y: number) => number): Value => {
   if (Array.isArray(a) || Array.isArray(b)) {
-    const size = Array.isArray(a) ? a.length : (b as number[]).length;
-    const at = (v: Value, i: number) => (Array.isArray(v) ? (v[i] as number) : (v as number));
-    return Array.from({ length: size }, (_, i) => f(at(a, i), at(b, i)));
+    const size = Array.isArray(a) ? a.length : (b as number[]).length
+    const at = (v: Value, i: number) => (Array.isArray(v) ? (v[i] as number) : (v as number))
+    return Array.from({ length: size }, (_, i) => f(at(a, i), at(b, i)))
   }
-  return f(a as number, b as number);
-};
+  return f(a as number, b as number)
+}
 /** A column-major matrix times a vector: the sum of its columns, each by one coordinate. */
 const product = (m: number[][], v: number[]) =>
-  m[0].map((_, row) => m.reduce((sum, column, c) => sum + column[row] * v[c], 0));
-const isMatrix = (v: Value): v is number[][] => Array.isArray(v) && Array.isArray(v[0]);
-const AXES = 'xyzw';
+  m[0].map((_, row) => m.reduce((sum, column, c) => sum + column[row] * v[c], 0))
+const isMatrix = (v: Value): v is number[][] => Array.isArray(v) && Array.isArray(v[0])
+const AXES = 'xyzw'
 const CALLS: Record<string, Call> = {
   select: (a, b, c) => (c ? b : a),
   length: (v) => Math.hypot(...(v as number[])),
@@ -47,27 +47,20 @@ const CALLS: Record<string, Call> = {
   max: (a, b) => lift(a, b, Math.max),
   abs: (v) => lift(v, v, Math.abs),
   sqrt: (v) => Math.sqrt(v as number),
-};
-const vector = (...args: Value[]) => args.flat() as number[];
+}
+const vector = (...args: Value[]) => args.flat() as number[]
 
 /** Evaluates one expression of the shader text over the named values. */
 function evaluate(text: string, scope: Scope): Value {
-  const list = tokens(text);
-  let at = 0;
+  const list = tokens(text)
+  let at = 0
   const peek = () => list[at],
     take = (want?: string) => {
-      const token = list[at++];
-      if (want && token !== want) throw new Error(`expected ${want}, read ${token}`);
-      return token;
-    };
-  const LEVELS = [
-    ['?'],
-    ['||'],
-    ['&&'],
-    ['==', '!=', '<', '>', '<=', '>='],
-    ['+', '-'],
-    ['*', '/'],
-  ];
+      const token = list[at++]
+      if (want && token !== want) throw new Error(`expected ${want}, read ${token}`)
+      return token
+    }
+  const LEVELS = [['?'], ['||'], ['&&'], ['==', '!=', '<', '>', '<=', '>='], ['+', '-'], ['*', '/']]
   const APPLY: Record<string, (a: Value, b: Value) => Value> = {
     '||': (a, b) => !!a || !!b,
     '&&': (a, b) => !!a && !!b,
@@ -81,88 +74,88 @@ function evaluate(text: string, scope: Scope): Value {
     '-': (a, b) => lift(a, b, (x, y) => x - y),
     '*': (a, b) => (isMatrix(a) ? product(a, b as number[]) : lift(a, b, (x, y) => x * y)),
     '/': (a, b) => lift(a, b, (x, y) => x / y),
-  };
+  }
   const level = (rank: number): Value => {
-    if (rank === LEVELS.length) return unary();
-    let left = level(rank + 1);
+    if (rank === LEVELS.length) return unary()
+    let left = level(rank + 1)
     while (LEVELS[rank].includes(peek())) {
-      const op = take();
+      const op = take()
       if (op === '?') {
-        const yes = level(0);
-        take(':');
-        const no = level(0);
-        left = left ? yes : no;
-      } else left = APPLY[op](left, level(rank + 1));
+        const yes = level(0)
+        take(':')
+        const no = level(0)
+        left = left ? yes : no
+      } else left = APPLY[op](left, level(rank + 1))
     }
-    return left;
-  };
+    return left
+  }
   const unary = (): Value => {
     if (peek() === '-') {
-      take();
-      return lift(0, unary(), (x, y) => x - y);
+      take()
+      return lift(0, unary(), (x, y) => x - y)
     }
-    let value = primary();
+    let value = primary()
     while (peek() === '.' || peek() === '[') {
       if (take() === '[') {
-        value = (value as number[][])[level(0) as number];
-        take(']');
-        continue;
+        value = (value as number[][])[level(0) as number]
+        take(']')
+        continue
       }
-      const picked = [...take()].map((axis) => (value as number[])[AXES.indexOf(axis)]);
-      value = picked.length === 1 ? picked[0] : picked;
+      const picked = [...take()].map((axis) => (value as number[])[AXES.indexOf(axis)])
+      value = picked.length === 1 ? picked[0] : picked
     }
-    return value;
-  };
+    return value
+  }
   const primary = (): Value => {
-    const token = take();
+    const token = take()
     if (token === '(') {
-      const inner = level(0);
-      take(')');
-      return inner;
+      const inner = level(0)
+      take(')')
+      return inner
     }
-    if (/^\d/.test(token)) return Number(token);
+    if (/^\d/.test(token)) return Number(token)
     if (peek() !== '(') {
-      if (!(token in scope)) throw new Error(`unknown name ${token}`);
-      return scope[token] as Value;
+      if (!(token in scope)) throw new Error(`unknown name ${token}`)
+      return scope[token] as Value
     }
-    take('(');
-    const args: Value[] = [];
+    take('(')
+    const args: Value[] = []
     while (peek() !== ')') {
-      args.push(level(0));
-      if (peek() === ',') take();
+      args.push(level(0))
+      if (peek() === ',') take()
     }
-    take(')');
-    const own = scope[token];
-    return (typeof own === 'function' ? own : (CALLS[token] ?? vector))(...args);
-  };
-  const value = level(0);
-  if (at !== list.length) throw new Error(`unread tokens in ${text}`);
-  return value;
+    take(')')
+    const own = scope[token]
+    return (typeof own === 'function' ? own : (CALLS[token] ?? vector))(...args)
+  }
+  const value = level(0)
+  if (at !== list.length) throw new Error(`unread tokens in ${text}`)
+  return value
 }
 
 /** Splits at the commas outside parentheses. */
 function topLevel(text: string) {
-  const parts: string[] = [];
+  const parts: string[] = []
   let depth = 0,
-    start = 0;
-  [...text].forEach((c, i) => {
-    depth += c === '(' ? 1 : c === ')' ? -1 : 0;
-    if (c !== ',' || depth !== 0) return;
-    parts.push(text.slice(start, i));
-    start = i + 1;
-  });
-  return [...parts, text.slice(start)];
+    start = 0
+  ;[...text].forEach((c, i) => {
+    depth += c === '(' ? 1 : c === ')' ? -1 : 0
+    if (c !== ',' || depth !== 0) return
+    parts.push(text.slice(start, i))
+    start = i + 1
+  })
+  return [...parts, text.slice(start)]
 }
 
 /** Runs one declaration or assignment — `a*=b` included — into `scope`. */
 function assign(statement: string, scope: Scope) {
-  const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '');
+  const declared = statement.replace(/^(let|var|float|vec[234])\s+/, '')
   for (const part of topLevel(declared)) {
-    const [name, ...expression] = part.split('=');
+    const [name, ...expression] = part.split('=')
     const value = evaluate(expression.join('='), scope),
       target = name.trim().replace(/[-+*/]$/, ''),
-      op = name.trim().slice(target.length);
-    scope[target] = op ? evaluate(`${target}${op}(${expression.join('=')})`, scope) : value;
+      op = name.trim().slice(target.length)
+    scope[target] = op ? evaluate(`${target}${op}(${expression.join('=')})`, scope) : value
   }
 }
 
@@ -170,31 +163,31 @@ function assign(statement: string, scope: Scope) {
  *  `lineDash` whether the pixel is drawn, `spriteAt` a sprite's corner, `guideCorner` a guide's
  *  through the `lineClip` of `calls`. */
 export function runShaderText<Result = number[]>(source: string, calls: Scope = {}) {
-  const open = source.indexOf('{');
-  const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')));
-  const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1]);
-  const body = source.slice(open + 1, source.lastIndexOf('}'));
+  const open = source.indexOf('{')
+  const params = topLevel(source.slice(source.indexOf('(') + 1, source.indexOf(')')))
+  const names = params.map((p) => p.trim().split(/[\s:]+/)[p.includes(':') ? 0 : 1])
+  const body = source.slice(open + 1, source.lastIndexOf('}'))
   const statements = body
     .split(/;|\n/)
     .map((s) => s.trim())
-    .filter((s) => s && s !== '}');
+    .filter((s) => s && s !== '}')
   return (...args: Value[]): Result => {
-    const scope: Scope = { ...calls };
-    names.forEach((name, i) => (scope[name] = args[i]));
+    const scope: Scope = { ...calls }
+    names.forEach((name, i) => (scope[name] = args[i]))
     for (const statement of statements) {
-      const guarded = statement.match(/^if\((.*)\)\{?return (.*?)\}?$/);
+      const guarded = statement.match(/^if\((.*)\)\{?return (.*?)\}?$/)
       if (guarded) {
-        if (evaluate(guarded[1], scope)) return evaluate(guarded[2], scope) as Result;
-        continue;
+        if (evaluate(guarded[1], scope)) return evaluate(guarded[2], scope) as Result
+        continue
       }
-      const when = statement.match(/^if\((.*?)\)\{?(.*?)\}?$/);
+      const when = statement.match(/^if\((.*?)\)\{?(.*?)\}?$/)
       if (when) {
-        if (evaluate(when[1], scope)) assign(when[2], scope);
-        continue;
+        if (evaluate(when[1], scope)) assign(when[2], scope)
+        continue
       }
-      if (statement.startsWith('return ')) return evaluate(statement.slice(7), scope) as Result;
-      assign(statement, scope);
+      if (statement.startsWith('return ')) return evaluate(statement.slice(7), scope) as Result
+      assign(statement, scope)
     }
-    throw new Error('the line function returned nothing');
-  };
+    throw new Error('the line function returned nothing')
+  }
 }

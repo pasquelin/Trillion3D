@@ -1,4 +1,4 @@
-import type { World } from '../core/world.ts';
+import type { World } from '../core/world.ts'
 
 /**
  * The `budget` family: the fixed envelopes the engine does not exceed. `memory(world)` is what the
@@ -27,4 +27,4 @@ export const budget = {
    * @param bytes - Bytes for texture tiles.
    */
   texturePool: (bytes: number) => ({ texturePool: bytes }),
-};
+}

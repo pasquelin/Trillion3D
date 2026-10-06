@@ -1,4 +1,4 @@
-import { SELECTION_LIST_CAP } from '../layout.ts';
+import { SELECTION_LIST_CAP } from '../layout.ts'
 
 /**
  * Cold record of a cluster, the working table and page residency, read by word in one buffer.
@@ -34,4 +34,4 @@ fn trianglesOf(r:u32)->u32{return coldAt(coldBase()+r*COLD+12u);}
  *  \`resident(c)\` then \`resident(childGroup(c))\` (\`../../../page/cut/readiness.ts\`). */
 fn isResident(i:u32)->bool{return (coldAt(views[0u].clusterCount+(i>>5u))&(1u<<(i&31u)))!=0u;}
 fn childResident(i:u32)->bool{return (coldAt(views[0u].clusterCount+residentWords()+(i>>5u))&(1u<<(i&31u)))!=0u;}
-`;
+`

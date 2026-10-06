@@ -7,109 +7,109 @@
  * by its texels, a box by its sizes), each with fixed defaults, so a test reads in one line and the
  * engine receives only objects of its own graph.
  */
-import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
-import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts';
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import { resolveCameraWorld } from '../../camera/world.ts';
-import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { GraphSurface, type GraphSurfaceFamily } from './surface.ts';
-import { GraphTexture } from './texture.ts';
-import { numbered } from './serial.ts';
-import type { HostAttributes } from '../resources.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
+import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts'
+import { box, plane, sphere } from '../../../../sdk-core/src/world/geometry/basic.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { resolveCameraWorld } from '../../camera/world.ts'
+import { HOST_FILTER_NEAREST, HOST_FORMAT_RGBA } from '../surfaceConstants.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import { GraphSurface, type GraphSurfaceFamily } from './surface.ts'
+import { GraphTexture } from './texture.ts'
+import { numbered } from './serial.ts'
+import type { HostAttributes } from '../resources.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 
-export { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
-export { Color } from '../../../../sdk-core/src/world/math/color.ts';
-export { Euler } from '../../../../sdk-core/src/world/math/euler.ts';
-export { Matrix3, Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
-export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
-export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
-export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-export * from '../surfaceConstants.ts';
+export { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
+export { Color } from '../../../../sdk-core/src/world/math/color.ts'
+export { Euler } from '../../../../sdk-core/src/world/math/euler.ts'
+export { Matrix3, Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+export { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
+export { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
+export { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+export * from '../surfaceConstants.ts'
 export {
   BufferAttribute,
   InterleavedBufferAttribute,
   InterleavedBuffer,
-} from '../../../../sdk-core/src/world/buffer/attribute.ts';
-export { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-export { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-export { Light } from '../../../../sdk-core/src/world/light/light.ts';
-export { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-export { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
-export type { HostMesh } from '../resources.ts';
-export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-export { Scene } from '../../world/core/scene.ts';
-export { GraphSurface } from './surface.ts';
-export { GraphTexture } from './texture.ts';
-export * from './graphLights.fixture.ts';
+} from '../../../../sdk-core/src/world/buffer/attribute.ts'
+export { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+export { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+export { Light } from '../../../../sdk-core/src/world/light/light.ts'
+export { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+export { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts'
+export type { HostMesh } from '../resources.ts'
+export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+export { Scene } from '../../world/core/scene.ts'
+export { GraphSurface } from './surface.ts'
+export { GraphTexture } from './texture.ts'
+export * from './graphLights.fixture.ts'
 
 /** The faces a surface draws, as a surface's `side` holds them (`../../scene/materialSide.ts`). */
 export const FRONT_SIDE = 0,
   BACK_SIDE = 1,
-  DOUBLE_SIDE = 2;
+  DOUBLE_SIDE = 2
 
 /** The parameters a surface is declared with. */
-export type SurfaceParameters = Record<string, unknown>;
+export type SurfaceParameters = Record<string, unknown>
 
 /** The depth test that passes only strictly nearer. */
-export const DEPTH_LESS = 2;
+export const DEPTH_LESS = 2
 
 /** An empty geometry of the host's, as a loaded scene's is (`Geometry._owner`). */
-const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as const });
+const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as const })
 
 /** A drawn node: an empty geometry and an unlit surface unless given. */
 export const mesh = (
   geometry: Geometry = hostGeometry(),
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
-) => numbered(new Mesh(geometry, material));
+) => numbered(new Mesh(geometry, material))
 
 /** A drawn triangle — three indices, positions and normals — in `surface`, never culled: what a
  *  draw test submits once per pass. */
 export function triangleMesh(surface: GraphSurface) {
-  const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
-  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
-  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = numbered(new Mesh(geometry, surface));
-  made.frustumCulled = false;
-  return made;
+  const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1))
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
+  geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3))
+  const made = numbered(new Mesh(geometry, surface))
+  made.frustumCulled = false
+  return made
 }
 
 /** The host attributes of a triangle in the z = 0 plane: indexed positions only. */
 export function triangleAttributes() {
-  const geometry = new Geometry();
-  geometry.setAttribute('position', floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
-  geometry.setIndex(indices([0, 1, 2]));
-  return geometry.attributes as HostAttributes;
+  const geometry = new Geometry()
+  geometry.setAttribute('position', floatAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3))
+  geometry.setIndex(indices([0, 1, 2]))
+  return geometry.attributes as HostAttributes
 }
 
 /** A surface of each family a scene declares. */
-export const basicSurface = (parameters?: SurfaceParameters) => surface('basic', parameters);
-export const standardSurface = (parameters?: SurfaceParameters) => surface('standard', parameters);
-export const physicalSurface = (parameters?: SurfaceParameters) => surface('physical', parameters);
+export const basicSurface = (parameters?: SurfaceParameters) => surface('basic', parameters)
+export const standardSurface = (parameters?: SurfaceParameters) => surface('standard', parameters)
+export const physicalSurface = (parameters?: SurfaceParameters) => surface('physical', parameters)
 
 /** A surface whose colours may be given as a number or a CSS name. */
 function surface(family: GraphSurfaceFamily, parameters: SurfaceParameters = {}) {
-  const made = new GraphSurface(family);
-  const colours: SurfaceParameters = {};
+  const made = new GraphSurface(family)
+  const colours: SurfaceParameters = {}
   for (const [key, value] of Object.entries(parameters))
     colours[key] =
       (made[key] as Color | undefined)?.isColor && typeof value !== 'object'
         ? new Color(value as ColorInput)
-        : value;
-  return new GraphSurface(family, colours);
+        : value
+  return new GraphSurface(family, colours)
 }
 
 /** Numbers stored as 32-bit floats, `itemSize` per vertex. */
 export const floatAttribute = (values: ArrayLike<number>, itemSize: number, normalized = false) =>
-  new BufferAttribute(new Float32Array(values), itemSize, normalized);
+  new BufferAttribute(new Float32Array(values), itemSize, normalized)
 
 /** A perspective eye by its optics. */
 export const perspectiveCamera = (fov = 50, aspect = 1, near = 0.1, far = 2000) =>
-  numbered(new Camera('perspective', { fov, aspect, near, far }));
+  numbered(new Camera('perspective', { fov, aspect, near, far }))
 
 /** An orthographic eye by the box it sees. */
 export const orthographicCamera = (
@@ -119,7 +119,7 @@ export const orthographicCamera = (
   bottom = -1,
   near = 0.1,
   far = 2000,
-) => numbered(new Camera('orthographic', { near, far, left, right, top, bottom }));
+) => numbered(new Camera('orthographic', { near, far, left, right, top, bottom }))
 
 /** A texture of raw texels: read as they are, nearest, no mips, rows not flipped. */
 export function dataTexture(
@@ -128,20 +128,20 @@ export function dataTexture(
   height = 1,
   format = HOST_FORMAT_RGBA,
 ) {
-  const texture = new GraphTexture({ data, width, height });
-  Object.assign(texture, { kind: 'texels', format });
-  texture.magFilter = texture.minFilter = HOST_FILTER_NEAREST;
-  texture.generateMipmaps = false;
-  texture.flipY = false;
-  texture.needsUpdate = true;
-  return texture;
+  const texture = new GraphTexture({ data, width, height })
+  Object.assign(texture, { kind: 'texels', format })
+  texture.magFilter = texture.minFilter = HOST_FILTER_NEAREST
+  texture.generateMipmaps = false
+  texture.flipY = false
+  texture.needsUpdate = true
+  return texture
 }
 
 /** A texture drawn on a canvas, uploaded at its first use. */
 export function canvasTexture(canvas: unknown) {
-  const texture = new GraphTexture(canvas);
-  texture.needsUpdate = true;
-  return texture;
+  const texture = new GraphTexture(canvas)
+  texture.needsUpdate = true
+  return texture
 }
 
 /**
@@ -149,47 +149,47 @@ export function canvasTexture(canvas: unknown) {
  * floats per vertex, a 16- or 32-bit triangle list, and its groups.
  */
 function graphGeometry(source: Geometry) {
-  const geometry = hostGeometry();
+  const geometry = hostGeometry()
   for (const [name, attribute] of Object.entries(source.attributes))
-    geometry.setAttribute(name, floatAttribute(attribute.array, attribute.itemSize));
-  if (source.index) geometry.setIndex(indices(Array.from(source.index.array)));
-  for (const group of source.groups) geometry.groups.push({ ...group });
-  return geometry;
+    geometry.setAttribute(name, floatAttribute(attribute.array, attribute.itemSize))
+  if (source.index) geometry.setIndex(indices(Array.from(source.index.array)))
+  for (const group of source.groups) geometry.groups.push({ ...group })
+  return geometry
 }
 
 /** A box centred on the origin. */
-export const boxGeometry = (...sizes: Parameters<typeof box>) => graphGeometry(box(...sizes));
+export const boxGeometry = (...sizes: Parameters<typeof box>) => graphGeometry(box(...sizes))
 /** A rectangle in the `xy` plane, facing `+z`. */
-export const planeGeometry = (...sizes: Parameters<typeof plane>) => graphGeometry(plane(...sizes));
+export const planeGeometry = (...sizes: Parameters<typeof plane>) => graphGeometry(plane(...sizes))
 /** A sphere, its poles on `y`. */
 export const sphereGeometry = (...sizes: Parameters<typeof sphere>) =>
-  graphGeometry(sphere(...sizes));
+  graphGeometry(sphere(...sizes))
 
 /** A triangle list stored in 16-bit while every vertex fits, else 32-bit. */
 export const indices = (list: readonly number[]) =>
   new BufferAttribute(
     list.some((i) => i >= 65535) ? new Uint32Array(list) : new Uint16Array(list),
     1,
-  );
+  )
 
 /** The three numbers of a vector, in order. */
-export const xyz = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z];
+export const xyz = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z]
 
 /** The four numbers of a rotation, in order. */
-export const xyzw = (q: { x: number; y: number; z: number; w: number }) => [q.x, q.y, q.z, q.w];
+export const xyzw = (q: { x: number; y: number; z: number; w: number }) => [q.x, q.y, q.z, q.w]
 
 /** Where a node stands in the world, its chain resolved first. */
 export function worldPosition(node: Object3D, target = new Vector3()) {
-  return target.setFromMatrixPosition(resolveCameraWorld(node).matrixWorld);
+  return target.setFromMatrixPosition(resolveCameraWorld(node).matrixWorld)
 }
 
 /** The first node of the subtree with that name, the root included. */
 export function byName(root: Object3D, name: string) {
-  let found: Object3D | undefined;
+  let found: Object3D | undefined
   root.traverse((node) => {
-    if (!found && node.name === name) found = node;
-  });
-  return found;
+    if (!found && node.name === name) found = node
+  })
+  return found
 }
-export * from './kinds.ts';
-export { numbered, serialOf } from './serial.ts';
+export * from './kinds.ts'
+export { numbered, serialOf } from './serial.ts'

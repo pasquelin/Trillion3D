@@ -4,5 +4,5 @@
  * that order, and tests and benches check insertion against it.
  */
 export function sortStreamJobs(queue: { priority: number; order: number }[]) {
-  queue.sort((a, b) => a.priority - b.priority || a.order - b.order);
+  queue.sort((a, b) => a.priority - b.priority || a.order - b.order)
 }

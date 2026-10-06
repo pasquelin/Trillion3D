@@ -1,9 +1,9 @@
-import { closeTextureLevel, textureLevelBytes, type TextureLevel } from './levelReader.ts';
-import { evictOldest } from '../streaming/evictOldest.ts';
+import { closeTextureLevel, textureLevelBytes, type TextureLevel } from './levelReader.ts'
+import { evictOldest } from '../streaming/evictOldest.ts'
 
 /** The decoded texture levels' share of the page cache, at most: three quarters, 192 MiB at the
  *  default CPU total. */
-export const textureLevelShare = (pageCacheBytes: number) => Math.floor((pageCacheBytes * 3) / 4);
+export const textureLevelShare = (pageCacheBytes: number) => Math.floor((pageCacheBytes * 3) / 4)
 
 /**
  * The decoded baked levels tiles are cut from (`heldLevels.ts`), by id, the least recently
@@ -18,14 +18,14 @@ export function createTextureLevelStore(
   budgetBytes: number,
   { roomBeside = () => Infinity, onHeld }: { roomBeside?: () => number; onHeld?: () => void } = {},
 ) {
-  const held = new Map<string, { level: TextureLevel; bytes: number }>();
+  const held = new Map<string, { level: TextureLevel; bytes: number }>()
   const drop = (id: string) => {
-    const entry = held.get(id);
-    if (!entry) return;
-    held.delete(id);
-    store.bytes -= entry.bytes;
-    closeTextureLevel(entry.level);
-  };
+    const entry = held.get(id)
+    if (!entry) return
+    held.delete(id)
+    store.bytes -= entry.bytes
+    closeTextureLevel(entry.level)
+  }
   const store = {
     bytes: 0,
     budgetBytes,
@@ -33,11 +33,11 @@ export function createTextureLevelStore(
     has: (id: string) => held.has(id),
     /** The level held under `id`, marked read last: it leaves last. */
     get(id: string) {
-      const entry = held.get(id);
-      if (!entry) return undefined;
-      held.delete(id);
-      held.set(id, entry);
-      return entry.level;
+      const entry = held.get(id)
+      if (!entry) return undefined
+      held.delete(id)
+      held.set(id, entry)
+      return entry.level
     },
     /** Bytes one level may take: the share, within what is left beside. */
     room: () => Math.min(store.budgetBytes, roomBeside()),
@@ -46,42 +46,42 @@ export function createTextureLevelStore(
      *  when it cannot fit (`room`). A level already held — read meanwhile by the session a device
      *  loss replaced — stays, marked read last, and the copy closes: its bytes are counted once. */
     take(id: string, level: TextureLevel, key: string | undefined) {
-      if (key === undefined || key !== store.key || store.get(id)) return closeTextureLevel(level);
+      if (key === undefined || key !== store.key || store.get(id)) return closeTextureLevel(level)
       const bytes = textureLevelBytes(level),
-        room = store.room();
-      if (bytes > room) return closeTextureLevel(level);
-      store.shedTo(room - bytes);
-      held.set(id, { level, bytes });
-      store.bytes += bytes;
-      onHeld?.();
+        room = store.room()
+      if (bytes > room) return closeTextureLevel(level)
+      store.shedTo(room - bytes)
+      held.set(id, { level, bytes })
+      store.bytes += bytes
+      onHeld?.()
     },
     /** Drops the least recently read levels until the rest fit in `limit`; the bytes freed. */
     shedTo(limit: number) {
-      const before = store.bytes;
+      const before = store.bytes
       evictOldest(
         held.keys(),
         () => store.bytes > limit,
         () => false,
         drop,
-      );
-      return before - store.bytes;
+      )
+      return before - store.bytes
     },
     /** A new share, applied at once, within what is left beside. */
     resize(bytes: number) {
-      store.budgetBytes = bytes;
-      store.shedTo(store.room());
+      store.budgetBytes = bytes
+      store.shedTo(store.room())
     },
     /** Keeps only the levels of the cook `next`, as its scene opens (the proxy's `keepOnly`). */
     keepOnly(next: string | undefined) {
-      if (next === store.key) return;
-      store.key = next;
-      store.shedTo(0);
+      if (next === store.key) return
+      store.key = next
+      store.shedTo(0)
     },
     /** Closes everything: the owner is gone, and a read landing after keeps nothing. */
     close: () => store.keepOnly(undefined),
-  };
-  return store;
+  }
+  return store
 }
 
 /** What a page cache keeps of the decoded texture levels (`createTextureLevelStore`). */
-export type TextureLevelStore = ReturnType<typeof createTextureLevelStore>;
+export type TextureLevelStore = ReturnType<typeof createTextureLevelStore>

@@ -1,17 +1,17 @@
 // An engine whose every `frameSettled` condition is true, for the held-frame tests.
-import { createFrameGateCore } from '../../frame/gateCore.ts';
-import { HOLD_SIGNATURE_VALUES } from './signature.ts';
-import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
-import { createScaleControl } from '../../frame/scaleControl.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { createFrameGateCore } from '../../frame/gateCore.ts'
+import { HOLD_SIGNATURE_VALUES } from './signature.ts'
+import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts'
+import { createScaleControl } from '../../frame/scaleControl.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
  *  lot: that is what hold must not republish. */
 export function heldFrame() {
-  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
-  gate.hold.keep(gate.revisions);
-  gate.hold.keep(gate.revisions);
+  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES)
+  gate.hold.keep(gate.revisions)
+  gate.hold.keep(gate.revisions)
   const run = {
     gate,
     frameHeld: false,
@@ -39,7 +39,7 @@ export function heldFrame() {
     lodLevel: 2,
     blendFrustumRejected: 11,
     cpuHizCounted: false,
-  };
+  }
   const timing = {
     frameEncoder: undefined,
     lastGpuPassMs: {
@@ -55,7 +55,7 @@ export function heldFrame() {
     rowFilled: false,
     cpuSample: { version: 1 },
     partitionCounts: {},
-  };
+  }
   const rt = {
     run,
     views: { active: {} },
@@ -98,7 +98,7 @@ export function heldFrame() {
     },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
-  } as unknown as WebgpuPagesRuntime;
-  const { device } = fakeDevice();
-  return { rt, run, timing, device };
+  } as unknown as WebgpuPagesRuntime
+  const { device } = fakeDevice()
+  return { rt, run, timing, device }
 }

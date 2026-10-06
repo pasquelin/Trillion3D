@@ -1,12 +1,12 @@
-import type { Locale } from '../../../content/locale.ts';
-import { isObject, readPath } from './contract.ts';
-import type { ReportRecord, TimingStat } from './types.ts';
+import type { Locale } from '../../../content/locale.ts'
+import { isObject, readPath } from './contract.ts'
+import type { ReportRecord, TimingStat } from './types.ts'
 
 export interface MetricDefinition {
-  unit: string;
-  path: string;
-  stat?: boolean;
-  divisor?: number;
+  unit: string
+  path: string
+  stat?: boolean
+  divisor?: number
 }
 
 /** Stable metric IDs, units and source paths; no presentation text in campaign data. */
@@ -24,25 +24,25 @@ export const METRICS = {
   pool: { unit: 'MiB', path: 'metrics.texturePoolBytes', divisor: 1048576 },
   calls: { unit: '', path: 'metrics.drawCalls' },
   preparation: { unit: 'ms', path: 'preparationMs' },
-} satisfies Record<string, MetricDefinition>;
-export type MetricKey = keyof typeof METRICS;
+} satisfies Record<string, MetricDefinition>
+export type MetricKey = keyof typeof METRICS
 /** The keys of `METRICS`, in declaration order: `Object.keys` alone gives `string[]`. */
-export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[];
+export const METRIC_KEYS = Object.keys(METRICS) as MetricKey[]
 
 export function metricValue(
   record: ReportRecord | null | undefined,
   key: MetricKey,
   percentile: keyof TimingStat = 'p50',
 ): number | null {
-  const metric: MetricDefinition = METRICS[key];
+  const metric: MetricDefinition = METRICS[key]
   const source: unknown =
     key === 'gpu'
       ? (record?.data?.stageProfile?.gpuImageMs ?? record?.data?.gpuFrameMs)
-      : readPath(record?.data, metric.path);
-  const value: unknown = metric.stat && isObject(source) ? source[percentile] : source;
-  return typeof value === 'number' && Number.isFinite(value) ? value / (metric.divisor ?? 1) : null;
+      : readPath(record?.data, metric.path)
+  const value: unknown = metric.stat && isObject(source) ? source[percentile] : source
+  return typeof value === 'number' && Number.isFinite(value) ? value / (metric.divisor ?? 1) : null
 }
 export function formatValue(value: number | null | undefined, locale: Locale, unit = ''): string {
-  if (value === null || value === undefined) return '—';
-  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: unit ? 2 : 0 }).format(value)}${unit ? ` ${unit}` : ''}`;
+  if (value === null || value === undefined) return '—'
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: unit ? 2 : 0 }).format(value)}${unit ? ` ${unit}` : ''}`
 }

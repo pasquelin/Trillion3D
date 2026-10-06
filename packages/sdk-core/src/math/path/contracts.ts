@@ -7,47 +7,47 @@
  */
 
 /** The two paths carried. JavaScript is the baseline and the fallback; Wasm is the accelerated one. */
-export type MathPath = 'js' | 'wasm';
+export type MathPath = 'js' | 'wasm'
 /** What a host asks for: a path imposed for a campaign, or arbitration by measurement. */
-export type MathPathMode = MathPath | 'auto';
+export type MathPathMode = MathPath | 'auto'
 
 /** Version of this report's contract. A host that does not know it does not read the fields. */
-export const MATH_PATH_CONTRACT = 1;
+export const MATH_PATH_CONTRACT = 1
 
 /** Report of a named batch operation. */
 export interface MathPathOperation {
   /** The path the next execution will play, `null` until none has taken place. */
-  path: MathPath | null;
+  path: MathPath | null
   /** Sliding median of duration per element, in nanoseconds; `null` if unmeasured. */
-  jsNsPerElement: number | null;
+  jsNsPerElement: number | null
   /** WebAssembly time per element. */
-  wasmNsPerElement: number | null;
+  wasmNsPerElement: number | null
   /** Executions retained in each median. */
-  jsSamples: number;
+  jsSamples: number
   /** WebAssembly samples. */
-  wasmSamples: number;
+  wasmSamples: number
   /** Switches decided since the start of the session. */
-  switches: number;
+  switches: number
   /** Elements processed since the start of the session, all paths combined. */
-  elements: number;
+  elements: number
 }
 
 /** Governor state for the whole session. */
 export interface MathPathMetrics {
   /** Contract version. */
-  contract: number;
+  contract: number
   /** The mode asked. */
-  mode: MathPathMode;
+  mode: MathPathMode
   /** The WebAssembly module is loaded, at the right contract version. */
-  wasmAvailable: boolean;
+  wasmAvailable: boolean
   /** The module was compiled with `simd128`; `null` until a module is loaded. */
-  wasmSimd: boolean | null;
+  wasmSimd: boolean | null
   /** Thread clock resolution, in milliseconds; `null` until it has been estimated. */
-  clockResolutionMs: number | null;
+  clockResolutionMs: number | null
   /** True when the clock is too coarse to time one execution: executions are timed in pooled batches. */
-  clockCoarse: boolean;
+  clockCoarse: boolean
   /** Why the WebAssembly path is not playable, or `null` when it is. */
-  unavailableReason: string | null;
+  unavailableReason: string | null
   /** Each operation. */
-  operations: Record<string, MathPathOperation>;
+  operations: Record<string, MathPathOperation>
 }

@@ -17,42 +17,42 @@
 
 /** The largest of three magnitudes, a NaN skipped as the builtin skips it (NaN compares false). */
 function largest(ax: number, ay: number, az: number) {
-  let max = 0;
-  if (ax > max) max = ax;
-  if (ay > max) max = ay;
-  if (az > max) max = az;
-  return max;
+  let max = 0
+  if (ax > max) max = ax
+  if (ay > max) max = ay
+  if (az > max) max = az
+  return max
 }
 
 /** `Math.hypot(x, y)`, bit for bit. */
 export function hypot2(x: number, y: number): number {
   const ax = Math.abs(x),
-    ay = Math.abs(y);
-  const max = largest(ax, ay, 0);
-  if (max === Infinity) return Infinity;
-  if (x !== x || y !== y) return NaN;
-  if (max === 0) return 0;
+    ay = Math.abs(y)
+  const max = largest(ax, ay, 0)
+  if (max === Infinity) return Infinity
+  if (x !== x || y !== y) return NaN
+  if (max === 0) return 0
   const a = ax / max,
-    b = ay / max;
-  return Math.sqrt(a * a + b * b) * max;
+    b = ay / max
+  return Math.sqrt(a * a + b * b) * max
 }
 
 /** `Math.hypot(x, y, z)`, bit for bit. */
 export function hypot3(x: number, y: number, z: number): number {
   const ax = Math.abs(x),
     ay = Math.abs(y),
-    az = Math.abs(z);
-  const max = largest(ax, ay, az);
-  if (max === Infinity) return Infinity;
-  if (x !== x || y !== y || z !== z) return NaN;
-  if (max === 0) return 0;
+    az = Math.abs(z)
+  const max = largest(ax, ay, az)
+  if (max === Infinity) return Infinity
+  if (x !== x || y !== y || z !== z) return NaN
+  if (max === 0) return 0
   const a = ax / max,
     b = ay / max,
-    c = az / max;
-  const sum = a * a + b * b;
+    c = az / max
+  const sum = a * a + b * b
   // `(sum - a²) - b²`: what the rounding of `sum` lost, taken back from the third square.
-  const compensation = sum - a * a - b * b;
-  return Math.sqrt(sum + (c * c - compensation)) * max;
+  const compensation = sum - a * a - b * b
+  return Math.sqrt(sum + (c * c - compensation)) * max
 }
 
 /** `Math.hypot(x, y, z, w)`, bit for bit: a quaternion's length. */
@@ -60,20 +60,20 @@ export function hypot4(x: number, y: number, z: number, w: number): number {
   const ax = Math.abs(x),
     ay = Math.abs(y),
     az = Math.abs(z),
-    aw = Math.abs(w);
-  let max = largest(ax, ay, az);
-  if (aw > max) max = aw;
-  if (max === Infinity) return Infinity;
-  if (x !== x || y !== y || z !== z || w !== w) return NaN;
-  if (max === 0) return 0;
+    aw = Math.abs(w)
+  let max = largest(ax, ay, az)
+  if (aw > max) max = aw
+  if (max === Infinity) return Infinity
+  if (x !== x || y !== y || z !== z || w !== w) return NaN
+  if (max === 0) return 0
   const a = ax / max,
     b = ay / max,
     c = az / max,
-    d = aw / max;
+    d = aw / max
   const sum = a * a + b * b,
     compensation = sum - a * a - b * b,
     summand = c * c - compensation,
-    third = sum + summand;
+    third = sum + summand
   // The third step's loss, `(third - sum) - summand`, taken back from the fourth square.
-  return Math.sqrt(third + (d * d - (third - sum - summand))) * max;
+  return Math.sqrt(third + (d * d - (third - sum - summand))) * max
 }

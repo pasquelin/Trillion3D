@@ -1,8 +1,8 @@
-import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { frameCostAuditEnabled } from '../../frame/costAudit.ts';
-import { familiesArriving } from '../../host/families.ts';
-import { frameFamilies, type Held } from './frameFamilies.ts';
-import type { MeasuredWorldOptions } from './options.ts';
+import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import { frameCostAuditEnabled } from '../../frame/costAudit.ts'
+import { familiesArriving } from '../../host/families.ts'
+import { frameFamilies, type Held } from './frameFamilies.ts'
+import type { MeasuredWorldOptions } from './options.ts'
 
 /**
  * What the next frame waits for, as for any resource of its scene: the families it draws with
@@ -11,7 +11,7 @@ import type { MeasuredWorldOptions } from './options.ts';
  * nothing steps ahead of it: the first frame drawn is the one `develop` drew first.
  */
 export const frameWaits = (held: Held, diagnostic: DiagnosticMode, comparing = false) =>
-  familiesArriving(frameFamilies(held, diagnostic, comparing));
+  familiesArriving(frameFamilies(held, diagnostic, comparing))
 
 /**
  * The families a session opening on `options` loads with its scene (`prepare.ts`): those its
@@ -19,7 +19,7 @@ export const frameWaits = (held: Held, diagnostic: DiagnosticMode, comparing = f
  * the frame audit is on. Started at once, awaited before the session opens.
  */
 export function sessionFamilies(options: MeasuredWorldOptions, listened: boolean) {
-  const names = [...frameFamilies(options, 'beauty')];
-  if (listened || frameCostAuditEnabled()) names.push('measurement');
-  return familiesArriving(names);
+  const names = [...frameFamilies(options, 'beauty')]
+  if (listened || frameCostAuditEnabled()) names.push('measurement')
+  return familiesArriving(names)
 }

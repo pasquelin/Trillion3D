@@ -1,5 +1,5 @@
-import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts';
-import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
+import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts'
+import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import {
   FLAG_CLIP,
   FLAG_HISTORY,
@@ -16,7 +16,7 @@ import {
   ST_TESTED,
   ST_TESTED_TRIANGLES,
   TESTED_U32,
-} from './contract.ts';
+} from './contract.ts'
 
 /**
  * Occluder/tested split and packing of the Hi-Z test bounds, per resident row.
@@ -89,4 +89,4 @@ fn classifyRow(i:u32){
   tallyAdd(${ST_OVERSIZED_TRIANGLES}u,item.triangles);
  }
 }
-`;
+`

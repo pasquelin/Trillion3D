@@ -1,15 +1,15 @@
-import { EngineError, IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
-import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { poseSourceOf } from '../world/core/helperMark.ts';
+import { EngineError, IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
+import { Color, type ColorInput } from '../../../sdk-core/src/world/math/color.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { poseSourceOf } from '../world/core/helperMark.ts'
 import {
   followNode,
   objectPieces,
   placeGuide,
   type FollowedEntry,
   type GuidePiece,
-} from './guideObject.ts';
-import { packGuides } from './guidePack.ts';
+} from './guideObject.ts'
+import { packGuides } from './guidePack.ts'
 
 /**
  * Most vertices the guides of one world hold together: two per segment, one per point. Declared,
@@ -17,50 +17,50 @@ import { packGuides } from './guidePack.ts';
  * whatever a page asks — a grid of 16 000 lines fits, a point cloud of a scanned city does not,
  * and belongs in the scene.
  */
-export const GUIDE_VERTEX_CEILING = 65536;
+export const GUIDE_VERTEX_CEILING = 65536
 
 /** One set of guides a page drew; each setter answers the handle. */
 export interface GuideHandle {
   /** Whether it is drawn; `setVisible` writes it. */
-  readonly visible: boolean;
+  readonly visible: boolean
   /** Shows or hides it, its vertices still counted against the ceiling. */
-  setVisible(on: boolean): GuideHandle;
+  setVisible(on: boolean): GuideHandle
   /** Places it: sixteen column-major numbers, or a matrix; a guide `add` drew then stops
    *  following its node. */
-  setTransform(matrix: ArrayLike<number> | { elements: ArrayLike<number> }): GuideHandle;
+  setTransform(matrix: ArrayLike<number> | { elements: ArrayLike<number> }): GuideHandle
   /** Takes it out of the world, its vertices given back; a second call does nothing. */
-  remove(): void;
+  remove(): void
 }
 
 /** Line segments to draw. */
 export interface GuideLines {
   /** Two ends per segment, three numbers each. */
-  positions: ArrayLike<number>;
+  positions: ArrayLike<number>
   /** Their colour; white by default. */
-  color?: ColorInput;
+  color?: ColorInput
   /** Width on the screen, in CSS pixels, as every line of the engine. @defaultValue 1 */
-  width?: number;
+  width?: number
 }
 /** Dots to draw. */
 export interface GuidePoints {
   /** Three numbers per dot. */
-  positions: ArrayLike<number>;
+  positions: ArrayLike<number>
   /** Their colour; white by default. */
-  color?: ColorInput;
+  color?: ColorInput
   /** Side of each square dot on the screen, in CSS pixels. @defaultValue 4 */
-  size?: number;
+  size?: number
 }
 
 /** The guides of one world, as a page draws them: `world.guides`. */
 export interface Guides {
   /** Most vertices the guides hold together (`GUIDE_VERTEX_CEILING`). */
-  readonly ceiling: number;
+  readonly ceiling: number
   /** Vertices held now, two per segment and one per dot, hidden guides included. */
-  readonly vertexCount: number;
+  readonly vertexCount: number
   /** Draws line segments, two ends each; refused above the ceiling (`GUIDE_CEILING`). */
-  lines(lines: GuideLines): GuideHandle;
+  lines(lines: GuideLines): GuideHandle
   /** Draws square dots, one position each; refused above the ceiling (`GUIDE_CEILING`). */
-  points(points: GuidePoints): GuideHandle;
+  points(points: GuidePoints): GuideHandle
   /**
    * Draws the line and point meshes of `object` — every `helper` builds them —, in their material
    * colours; its triangles are not guides and are skipped. The guide follows the object — a light
@@ -68,12 +68,12 @@ export interface Guides {
    * otherwise.
    * @param options - `width` of its lines and `size` of its dots, in CSS pixels.
    */
-  add(object: Object3D, options?: { width?: number; size?: number }): GuideHandle;
+  add(object: Object3D, options?: { width?: number; size?: number }): GuideHandle
   /** Removes every guide. */
-  clear(): void;
+  clear(): void
 }
 
-const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).getHex();
+const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).getHex()
 
 /**
  * The guides of one world: lines and points a page draws ABOUT its scene — an axis, a grid, a
@@ -82,66 +82,66 @@ const hexOf = (color: ColorInput | undefined) => new Color(color ?? 0xffffff).ge
  * while the set is empty: `revision` and `visibleInstances` are what a pass reads first.
  */
 export function createGuideSet(onChange: () => void = () => {}) {
-  const entries = new Set<FollowedEntry>();
+  const entries = new Set<FollowedEntry>()
   let vertices = 0,
     revision = 0,
     packedAt = -1,
-    packed = packGuides([]);
+    packed = packGuides([])
   const changed = () => {
-    revision++;
-    onChange();
-  };
+    revision++
+    onChange()
+  }
   const open = (pieces: GuidePiece[], node?: Object3D): GuideHandle => {
-    const count = pieces.reduce((sum, piece) => sum + piece.vertices, 0);
+    const count = pieces.reduce((sum, piece) => sum + piece.vertices, 0)
     if (vertices + count > GUIDE_VERTEX_CEILING)
       throw new EngineError(
         'GUIDE_CEILING',
         `Guides would hold ${vertices + count} vertices, above the ceiling of ${GUIDE_VERTEX_CEILING}`,
         { held: vertices, asked: count, ceiling: GUIDE_VERTEX_CEILING },
-      );
+      )
     const entry: FollowedEntry = {
       pieces,
       vertices: count,
       matrix: Float64Array.from(IDENTITY_MATRIX4),
       visible: true,
       node,
-    };
-    entries.add(entry);
-    vertices += count;
-    followNode(entry);
-    changed();
+    }
+    entries.add(entry)
+    vertices += count
+    followNode(entry)
+    changed()
     const handle: GuideHandle = {
       get visible() {
-        return entry.visible;
+        return entry.visible
       },
       setVisible(on) {
-        if (entry.visible === on || !entries.has(entry)) return handle;
-        entry.visible = on;
-        changed();
-        return handle;
+        if (entry.visible === on || !entries.has(entry)) return handle
+        entry.visible = on
+        changed()
+        return handle
       },
       setTransform(matrix) {
-        entry.node = undefined;
-        const next = 'elements' in matrix ? matrix.elements : matrix;
-        if (placeGuide(entry, next) && entries.has(entry)) changed();
-        return handle;
+        entry.node = undefined
+        const next = 'elements' in matrix ? matrix.elements : matrix
+        if (placeGuide(entry, next) && entries.has(entry)) changed()
+        return handle
       },
       remove() {
-        if (!entries.delete(entry)) return;
-        vertices -= entry.vertices;
-        changed();
+        if (!entries.delete(entry)) return
+        vertices -= entry.vertices
+        changed()
       },
-    };
-    return handle;
-  };
+    }
+    return handle
+  }
   return {
     ceiling: GUIDE_VERTEX_CEILING,
     get vertexCount() {
-      return vertices;
+      return vertices
     },
     /** Moves at every change, a followed node's move included: what a held frame compares. */
     get revision() {
-      return revision;
+      return revision
     },
     /**
      * Moves each shown guide that follows a node to where the node stands now: called once per
@@ -150,45 +150,45 @@ export function createGuideSet(onChange: () => void = () => {}) {
      * let go (`followNode`).
      */
     follow() {
-      for (const entry of entries) if (entry.visible && followNode(entry)) revision++;
+      for (const entry of entries) if (entry.visible && followNode(entry)) revision++
     },
     lines({ positions, color, width = 1 }: GuideLines) {
       const ends = Float64Array.from(positions).subarray(
         0,
         positions.length - (positions.length % 6),
-      );
-      return open([{ ends, color: hexOf(color), width, vertices: ends.length / 3 }]);
+      )
+      return open([{ ends, color: hexOf(color), width, vertices: ends.length / 3 }])
     },
     points({ positions, color, size = 4 }: GuidePoints) {
       const n = Math.floor(positions.length / 3),
-        ends = new Float64Array(n * 6);
+        ends = new Float64Array(n * 6)
       for (let i = 0; i < n; i++)
-        for (let c = 0; c < 3; c++) ends[i * 6 + c] = ends[i * 6 + 3 + c] = positions[i * 3 + c];
-      return open([{ ends, color: hexOf(color), width: size, vertices: n }]);
+        for (let c = 0; c < 3; c++) ends[i * 6 + c] = ends[i * 6 + 3 + c] = positions[i * 3 + c]
+      return open([{ ends, color: hexOf(color), width: size, vertices: n }])
     },
     add(object: Object3D, options: { width?: number; size?: number } = {}) {
-      object.updateWorldMatrix(true, true);
-      const pieces = objectPieces(object, options.width ?? 1, options.size ?? 4);
-      return open(pieces, poseSourceOf(object));
+      object.updateWorldMatrix(true, true)
+      const pieces = objectPieces(object, options.width ?? 1, options.size ?? 4)
+      return open(pieces, poseSourceOf(object))
     },
     clear() {
-      if (!entries.size) return;
-      entries.clear();
-      vertices = 0;
-      changed();
+      if (!entries.size) return
+      entries.clear()
+      vertices = 0
+      changed()
     },
     /** Instances drawn now: zero when nothing is shown, and then no pass runs. */
     visibleInstances() {
-      return this.pack().count;
+      return this.pack().count
     },
     /** The visible guides as instances (`packGuides`), packed again only when `revision` moved. */
     pack() {
-      if (packedAt === revision) return packed;
-      packedAt = revision;
-      return (packed = packGuides(entries));
+      if (packedAt === revision) return packed
+      packedAt = revision
+      return (packed = packGuides(entries))
     },
-  };
+  }
 }
 
 /** The guides of one world with what its passes read: the packing and its revision. */
-export type GuideSet = ReturnType<typeof createGuideSet>;
+export type GuideSet = ReturnType<typeof createGuideSet>

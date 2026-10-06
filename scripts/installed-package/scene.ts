@@ -1,11 +1,11 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { Run } from './contracts.ts';
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import type { Run } from './contracts.ts'
 
 const COLUMNS = 96,
-  ROWS = 48;
+  ROWS = 48
 /** Triangles of the installed scene at full detail: two per grid cell, each placed once. */
-export const INSTALLED_SCENE_TRIANGLES = COLUMNS * ROWS * 2;
+export const INSTALLED_SCENE_TRIANGLES = COLUMNS * ROWS * 2
 
 function writeInstalledScene(
   directory: string,
@@ -13,31 +13,31 @@ function writeInstalledScene(
   columns = COLUMNS,
   rows = ROWS,
 ): string {
-  mkdirSync(directory, { recursive: true });
-  const lines: string[] = [];
+  mkdirSync(directory, { recursive: true })
+  const lines: string[] = []
   for (let row = 0; row <= rows; row++)
     for (let column = 0; column <= columns; column++)
-      lines.push(`v ${column / columns - 0.5} ${row / rows - 0.5} ${(variant * column) / columns}`);
-  const stride = columns + 1;
+      lines.push(`v ${column / columns - 0.5} ${row / rows - 0.5} ${(variant * column) / columns}`)
+  const stride = columns + 1
   for (let row = 0; row < rows; row++) {
     for (let column = 0; column < columns; column++) {
-      if (column % 32 === 0) lines.push(`o installed-proof-grid-${row}-${Math.floor(column / 32)}`);
+      if (column % 32 === 0) lines.push(`o installed-proof-grid-${row}-${Math.floor(column / 32)}`)
       const a = row * stride + column + 1,
         b = a + 1,
         c = a + stride,
-        d = c + 1;
-      lines.push(`f ${a} ${b} ${d}`, `f ${a} ${d} ${c}`);
+        d = c + 1
+      lines.push(`f ${a} ${b} ${d}`, `f ${a} ${d} ${c}`)
     }
   }
-  const source = join(directory, 'scene.obj');
-  writeFileSync(source, `${lines.join('\n')}\n`);
-  return source;
+  const source = join(directory, 'scene.obj')
+  writeFileSync(source, `${lines.join('\n')}\n`)
+  return source
 }
 
 /** The native CLI's own JSON report, read once at the boundary where it is produced. */
 export interface CompiledScene {
-  status: string;
-  [key: string]: unknown;
+  status: string
+  [key: string]: unknown
 }
 
 /** Compiles a generated scene with the installed CLI, which finds the compiler in the platform
@@ -49,14 +49,14 @@ export function compileInstalledScene({
   name,
   variant,
 }: {
-  fixture: string;
-  run: Run;
-  pnpm: string;
-  name: string;
-  variant: number;
+  fixture: string
+  run: Run
+  pnpm: string
+  name: string
+  variant: number
 }): CompiledScene {
-  const sourceFile = writeInstalledScene(join(fixture, `native-source-${name}`), variant);
-  const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env;
+  const sourceFile = writeInstalledScene(join(fixture, `native-source-${name}`), variant)
+  const { TRILLION3D_COMPILER_BIN: _named, ...environment } = process.env
   const stdout = run(
     pnpm,
     [
@@ -73,8 +73,8 @@ export function compileInstalledScene({
     ],
     fixture,
     environment,
-  );
-  const result = JSON.parse(stdout) as CompiledScene;
-  if (result.status !== 'ready') throw new Error(`installed CLI did not prepare ${name}`);
-  return result;
+  )
+  const result = JSON.parse(stdout) as CompiledScene
+  if (result.status !== 'ready') throw new Error(`installed CLI did not prepare ${name}`)
+  return result
 }

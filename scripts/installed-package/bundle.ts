@@ -1,45 +1,45 @@
-import { cpSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
-import type { Metafile } from 'esbuild';
+import { cpSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
+import type { Metafile } from 'esbuild'
 import {
   proveBundledInstalledBrowser as runBundledBrowser,
   proveInstalledBrowser,
-} from './browser-modes.ts';
-import type { InstalledBrowserProof } from './browser-result.ts';
-import type { Run } from './contracts.ts';
-import { missingBeside } from './beside.ts';
-import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './cdn.ts';
+} from './browser-modes.ts'
+import type { InstalledBrowserProof } from './browser-result.ts'
+import type { Run } from './contracts.ts'
+import { missingBeside } from './beside.ts'
+import { proveCdnBrowser, unpackCdn, type UnpackedCdn } from './cdn.ts'
 
-const sceneCaches = ['native-cache-primer', 'native-cache-replay'];
+const sceneCaches = ['native-cache-primer', 'native-cache-replay']
 
 interface BundleAsset {
-  path: string;
-  size: number;
+  path: string
+  size: number
 }
 
 function filesAt(root: string, directory = root): BundleAsset[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
+    const path = join(directory, entry.name)
     return entry.isDirectory()
       ? filesAt(root, path)
-      : [{ path: path.slice(root.length + 1), size: statSync(path).size }];
-  });
+      : [{ path: path.slice(root.length + 1), size: statSync(path).size }]
+  })
 }
 
 export interface EmittedBrowserBundle {
-  outputRoot: string;
-  assets: BundleAsset[];
-  metafile: Metafile;
+  outputRoot: string
+  assets: BundleAsset[]
+  metafile: Metafile
   /** The package's own CDN bundle, as the archive ships it, checked (#1353). */
-  cdn: UnpackedCdn;
+  cdn: UnpackedCdn
 }
 
 export interface BrowserModesOptions {
-  fixture: string;
-  packageName: string;
-  browserEntry: string;
-  bundler: string;
-  run: Run;
+  fixture: string
+  packageName: string
+  browserEntry: string
+  bundler: string
+  run: Run
 }
 
 /** Bundles the installed package for the browser, its modules beside the chunks that fetch
@@ -50,20 +50,20 @@ export function emitInstalledBrowserBundle({
   bundler,
   run,
 }: BrowserModesOptions): EmittedBrowserBundle {
-  const outputRoot = join(fixture, 'browser-output');
-  const packageRoot = join(fixture, 'node_modules', packageName);
-  const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode');
-  const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration');
-  const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics');
-  const mathRoot = join(packageRoot, 'dist/sdk-browser/src/math');
-  const explorer = join(fixture, 'explorer.ts');
-  const metafile = join(outputRoot, 'metafile.json');
-  mkdirSync(outputRoot, { recursive: true });
+  const outputRoot = join(fixture, 'browser-output')
+  const packageRoot = join(fixture, 'node_modules', packageName)
+  const decodeRoot = join(packageRoot, 'dist/sdk-browser/src/page/decode')
+  const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration')
+  const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics')
+  const mathRoot = join(packageRoot, 'dist/sdk-browser/src/math')
+  const explorer = join(fixture, 'explorer.ts')
+  const metafile = join(outputRoot, 'metafile.json')
+  mkdirSync(outputRoot, { recursive: true })
   writeFileSync(
     explorer,
     `import { createWorld,pose,metric,capture,readPagedManifest,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES } from '${packageName}';\n` +
       `globalThis.__installedSdk={createWorld,pose,metric,capture,readPagedManifest,hierarchyUpdateBatch,HIERARCHY_ROOT,MATRIX_VALUES,POSITION_VALUES,QUATERNION_VALUES};\n`,
-  );
+  )
   run(
     bundler,
     [
@@ -84,65 +84,65 @@ export function emitInstalledBrowserBundle({
       `--metafile=${metafile}`,
     ],
     fixture,
-  );
+  )
   // Each WebAssembly module beside the chunk that fetches it by its own URL.
   const modules = [
     join(decodeRoot, 'pageCodec.wasm'),
     join(physicsRoot, 'joltPhysics.wasm'),
     join(physicsRoot, 'joltPhysicsThreads.wasm'),
-  ];
+  ]
   for (const { path } of filesAt(outputRoot)) {
-    if (!path.endsWith('.js')) continue;
-    const text = readFileSync(join(outputRoot, path), 'utf8');
+    if (!path.endsWith('.js')) continue
+    const text = readFileSync(join(outputRoot, path), 'utf8')
     for (const wasm of modules.filter((file) => text.includes(basename(file))))
-      cpSync(wasm, join(dirname(join(outputRoot, path)), basename(wasm)));
+      cpSync(wasm, join(dirname(join(outputRoot, path)), basename(wasm)))
   }
   for (const name of sceneCaches)
-    cpSync(join(fixture, name), join(outputRoot, name), { recursive: true });
-  cpSync(join(fixture, 'common-worker.js'), join(outputRoot, 'common-worker.js'));
-  const assets = filesAt(outputRoot);
+    cpSync(join(fixture, name), join(outputRoot, name), { recursive: true })
+  cpSync(join(fixture, 'common-worker.js'), join(outputRoot, 'common-worker.js'))
+  const assets = filesAt(outputRoot)
   const entries = [
     'explorer.js',
     'pageDecodeWorker.js',
     'pageIntegrationWorker.js',
     'physicsWorker.js',
     'animationWorker.js',
-  ];
+  ]
   for (const required of entries)
     if (!assets.some(({ path }) => path === required))
-      throw new Error(`browser bundle did not emit ${required}`);
+      throw new Error(`browser bundle did not emit ${required}`)
   const chunks = assets
     .filter(({ path }) => path.endsWith('.js'))
-    .map(({ path }) => ({ path, text: readFileSync(join(outputRoot, path), 'utf8') }));
+    .map(({ path }) => ({ path, text: readFileSync(join(outputRoot, path), 'utf8') }))
   const missing = missingBeside(
     chunks,
     assets.map(({ path }) => path),
-  );
-  if (missing.length) throw new Error(`browser bundle: ${missing.join('; ')}`);
+  )
+  if (missing.length) throw new Error(`browser bundle: ${missing.join('; ')}`)
   return {
     outputRoot,
     assets,
     metafile: JSON.parse(readFileSync(metafile, 'utf8')) as Metafile,
     cdn: unpackCdn(fixture, run),
-  };
+  }
 }
 
 async function proveBundledInstalledOutput(
   options: BrowserModesOptions,
 ): Promise<{ bundle: EmittedBrowserBundle; proof: InstalledBrowserProof }> {
-  const bundle = emitInstalledBrowserBundle(options);
+  const bundle = emitInstalledBrowserBundle(options)
   const proof = await runBundledBrowser({
     outputRoot: bundle.outputRoot,
     manifestUrl: '/native-cache-primer/native/slice/manifest.json',
     replayUrl: '/native-cache-replay/native/slice/manifest.json',
-  });
-  return { bundle, proof };
+  })
+  return { bundle, proof }
 }
 
 export interface InstalledBrowserModesProof {
-  direct: InstalledBrowserProof;
-  bundled: { bundle: EmittedBrowserBundle; proof: InstalledBrowserProof };
-  cdn: InstalledBrowserProof & { physicsRequests: string[]; familyRequests: string[] };
+  direct: InstalledBrowserProof
+  bundled: { bundle: EmittedBrowserBundle; proof: InstalledBrowserProof }
+  cdn: InstalledBrowserProof & { physicsRequests: string[]; familyRequests: string[] }
 }
 
 export async function proveInstalledBrowserModes(
@@ -151,35 +151,35 @@ export async function proveInstalledBrowserModes(
   const urls = {
     manifestUrl: '/native-cache-primer/native/slice/manifest.json',
     replayUrl: '/native-cache-replay/native/slice/manifest.json',
-  };
+  }
   const direct = await proveInstalledBrowser({
     fixture: options.fixture,
     packageName: options.packageName,
     browserEntry: options.browserEntry,
     ...urls,
-  });
-  const bundled = await proveBundledInstalledOutput(options);
+  })
+  const bundled = await proveBundledInstalledOutput(options)
   if (direct.capture.sha256 !== bundled.proof.capture.sha256)
-    throw new Error('direct and bundled installed browser captures differ');
-  bundled.proof.capture.differentPixelsFromDirect = 0;
+    throw new Error('direct and bundled installed browser captures differ')
+  bundled.proof.capture.differentPixelsFromDirect = 0
   // The CDN bundle draws what the unbundled entry draws, byte for byte (class 1, #1353).
   const cdn = await proveCdnBrowser({
     fixture: options.fixture,
     packageName: options.packageName,
     unpacked: bundled.bundle.cdn,
     ...urls,
-  });
+  })
   if (direct.capture.sha256 !== cdn.capture.sha256)
-    throw new Error('direct and CDN installed browser captures differ');
-  cdn.capture.differentPixelsFromDirect = 0;
-  return { direct, bundled, cdn };
+    throw new Error('direct and CDN installed browser captures differ')
+  cdn.capture.differentPixelsFromDirect = 0
+  return { direct, bundled, cdn }
 }
 
 export function browserEvidence(run: InstalledBrowserModesProof | null) {
-  if (!run) return null;
+  if (!run) return null
   return {
     modules: run.direct,
     bundle: { ...run.bundled.proof, assets: run.bundled.bundle.assets },
     cdn: run.cdn,
-  };
+  }
 }

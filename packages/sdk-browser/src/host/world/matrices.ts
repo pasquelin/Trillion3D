@@ -1,5 +1,5 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { EngineError } from '../../../../sdk-core/src/index.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
  * Read frontier of the host graph.
@@ -15,7 +15,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 
 /** Whole subtree of `node` updated IN THE HOST SCENE, for its own readers. */
 export function resolveHostSubtree(node: Object3D) {
-  node.updateMatrixWorld(true);
+  node.updateMatrixWorld(true)
 }
 
 /**
@@ -34,5 +34,5 @@ export function assertFiniteTransform(elements: ArrayLike<number>, nodeName: str
         nodeName,
         index,
         value: elements[index],
-      });
+      })
 }

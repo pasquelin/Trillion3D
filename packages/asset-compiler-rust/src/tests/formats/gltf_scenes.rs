@@ -91,7 +91,7 @@ fn the_children_of_the_scene_roots_follow() {
 }
 
 // Behaviour: without `scene` or `scenes`, the document excludes no one — every
-// root, therefore every node, is compiled. That is the contract in `docs/COMPILER.md`.
+// root, therefore every node, is compiled. That is the contract of `compiler_nodes::scene_roots`.
 #[test]
 fn without_scenes_every_root_is_compiled() {
     let (root, options) = scenes_fixture(None, None);

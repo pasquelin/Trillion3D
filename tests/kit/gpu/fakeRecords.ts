@@ -1,81 +1,81 @@
 /** What `fakeDevice()` records and the options it takes, apart so the device stays readable. */
 
 export type Numbers =
-  Float32Array | Float64Array | Int32Array | Uint32Array | Uint16Array | Uint8Array;
+  Float32Array | Float64Array | Int32Array | Uint32Array | Uint16Array | Uint8Array
 
 /** A buffer as the fake creates it: its descriptor, and a mapped range made on first read. */
 export type FakeBuffer = {
-  label?: string;
-  size: number;
-  usage: number;
-  mapAsync(): Promise<void>;
-  getMappedRange(): ArrayBuffer;
-  unmap(): void;
-  destroy(): void;
-};
+  label?: string
+  size: number
+  usage: number
+  mapAsync(): Promise<void>
+  getMappedRange(): ArrayBuffer
+  unmap(): void
+  destroy(): void
+}
 /** A texture as the fake creates it: its descriptor with its size read out, a view that carries
  *  its format. */
 export type FakeTexture = GPUTextureDescriptor & {
-  width: number;
-  height: number;
-  depthOrArrayLayers: number;
-  mipLevelCount: number;
-  createView(): { format: GPUTextureFormat };
-  destroy(): void;
-};
+  width: number
+  height: number
+  depthOrArrayLayers: number
+  mipLevelCount: number
+  createView(): { format: GPUTextureFormat }
+  destroy(): void
+}
 /** One `queue.writeBuffer`: `data` is a copy taken at the call, an `ArrayBuffer` as bytes. */
 export type FakeWrite = {
-  buffer: GPUBuffer;
-  offset: number;
-  data: Numbers;
-  dataOffset: number;
-  size?: number;
-};
+  buffer: GPUBuffer
+  offset: number
+  data: Numbers
+  dataOffset: number
+  size?: number
+}
 /** One `copyBufferToBuffer` an encoder recorded, in the order it was encoded. */
 export type FakeCopy = {
-  from: GPUBuffer;
-  fromOffset: number;
-  to: GPUBuffer;
-  toOffset: number;
-  size: number;
-};
+  from: GPUBuffer
+  fromOffset: number
+  to: GPUBuffer
+  toOffset: number
+  size: number
+}
 /** One `copyTextureToTexture` an encoder recorded, in the order it was encoded. */
 export type FakeTextureCopy = {
-  from: GPUTexelCopyTextureInfo;
-  to: GPUTexelCopyTextureInfo;
-  size: GPUExtent3D;
-};
-export type LostInfo = { reason: string; message: string };
+  from: GPUTexelCopyTextureInfo
+  to: GPUTexelCopyTextureInfo
+  size: GPUExtent3D
+}
+export type LostInfo = { reason: string; message: string }
 
 /** The window of `data` a write sent: `dataOffset` and `size` count elements of `data`. */
 export const written = ({ data, dataOffset, size }: FakeWrite) =>
-  data.subarray(dataOffset, size === undefined ? undefined : dataOffset + size);
+  data.subarray(dataOffset, size === undefined ? undefined : dataOffset + size)
 
 /** Applies the writes to `bytes`, the buffer's own copy, in order, then forgets them. */
 export function replayWrites(bytes: ArrayBuffer, writes: FakeWrite[]) {
   for (const write of writes.splice(0)) {
-    const data = written(write);
+    const data = written(write)
     new Uint8Array(bytes, write.offset, data.byteLength).set(
       new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
-    );
+    )
   }
 }
 
 export const copyOf = (data: BufferSource): Numbers =>
-  data instanceof ArrayBuffer ? new Uint8Array(data.slice(0)) : (data as Numbers).slice();
+  data instanceof ArrayBuffer ? new Uint8Array(data.slice(0)) : (data as Numbers).slice()
 
 /** A buffer or texture creation `refuse` is asked about, and how it fails: `'throw'` throws
  *  `NO_MEMORY` at the call; `'oom'` returns the resource and leaves an out-of-memory error in the
  *  innermost error scope open, as a driver does. */
-type Refusal = 'throw' | 'oom' | undefined;
+type Refusal = 'throw' | 'oom' | undefined
 export type FakeDeviceOptions = {
   /** The device's `limits`, absent when not given. */
-  limits?: Record<string, number>;
-  refuse?: (descriptor: GPUBufferDescriptor | GPUTextureDescriptor) => Refusal;
+  limits?: Record<string, number>
+  refuse?: (descriptor: GPUBufferDescriptor | GPUTextureDescriptor) => Refusal
   /** `false`: the device has no compute pipelines, as a device without compute. */
-  compute?: boolean;
+  compute?: boolean
   /** Every buffer's `mapAsync` settles when this does; at once when not given. */
-  mapping?: Promise<void>;
+  mapping?: Promise<void>
   /** The features the device granted; none when not given. */
-  features?: readonly GPUFeatureName[];
-};
+  features?: readonly GPUFeatureName[]
+}

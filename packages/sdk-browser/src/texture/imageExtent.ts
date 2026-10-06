@@ -6,14 +6,14 @@
  */
 export function pictureSize(image: unknown): [number, number] {
   const picture = image as {
-    videoWidth?: number;
-    videoHeight?: number;
-    displayWidth?: number;
-    displayHeight?: number;
-    width?: number;
-    height?: number;
-  } | null;
+    videoWidth?: number
+    videoHeight?: number
+    displayWidth?: number
+    displayHeight?: number
+    width?: number
+    height?: number
+  } | null
   const width = picture?.videoWidth ?? picture?.displayWidth ?? picture?.width ?? 1,
-    height = picture?.videoHeight ?? picture?.displayHeight ?? picture?.height ?? 1;
-  return [Math.max(1, width), Math.max(1, height)];
+    height = picture?.videoHeight ?? picture?.displayHeight ?? picture?.height ?? 1
+  return [Math.max(1, width), Math.max(1, height)]
 }

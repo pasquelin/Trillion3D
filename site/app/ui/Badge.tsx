@@ -1,7 +1,7 @@
-import type { ComponentPropsWithoutRef } from 'react';
+import type { ComponentPropsWithoutRef } from 'react'
 
 export type BadgeTone =
-  'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error' | 'neutral';
+  'primary' | 'secondary' | 'accent' | 'info' | 'success' | 'warning' | 'error' | 'neutral'
 
 const tones: Record<BadgeTone, string> = {
   primary: 'badge-primary',
@@ -12,13 +12,13 @@ const tones: Record<BadgeTone, string> = {
   warning: 'badge-warning',
   error: 'badge-error',
   neutral: 'badge-neutral',
-};
+}
 
 interface Look {
-  tone?: BadgeTone;
-  soft?: boolean;
-  size?: 'sm' | 'md';
-  mono?: boolean;
+  tone?: BadgeTone
+  soft?: boolean
+  size?: 'sm' | 'md'
+  mono?: boolean
 }
 
 const look = ({ tone, soft = false, size = 'md', mono = false }: Look) =>
@@ -30,7 +30,7 @@ const look = ({ tone, soft = false, size = 'md', mono = false }: Look) =>
     mono ? 'font-mono' : '',
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(' ')
 
 /** The DaisyUI badge: a short label beside a title or a value. Omit `tone` for a plain badge. */
 export function Badge({
@@ -46,5 +46,5 @@ export function Badge({
       className={[look({ tone, soft, size, mono }), className].filter(Boolean).join(' ')}
       {...props}
     />
-  );
+  )
 }

@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { camera, type CameraParameters } from './index.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { camera, type CameraParameters } from './index.ts'
 
 /**
  * Cameras pinned across the valid optics (`referenceProjection.ts`), each with the 16 doubles of
@@ -8,7 +8,7 @@ import { camera, type CameraParameters } from './index.ts';
  * so that each reads back as the same double: the numbers this matrix held before it was derived
  * from the view volume. `Object.is` holds them bit for bit, and −0 apart from 0.
  */
-type Pinned = [CameraParameters, number[]][];
+type Pinned = [CameraParameters, number[]][]
 
 // prettier-ignore
 const PERSPECTIVE: Pinned = [
@@ -71,7 +71,7 @@ const PERSPECTIVE: Pinned = [
   [{ fov: 100, aspect: 0.4, near: 0.15, far: 150.15, zoom: 0.333 },
     [0.6985504429550855, 0, 0, 0, 0, 0.27942017718203421, 0, 0, 0, 0, -1.002, -1,
      0, 0, -0.30030000000000001, 0]],
-];
+]
 
 // The box centred or off its axis, flipped (y down), fitted to the picture's aspect or not.
 // prettier-ignore
@@ -122,14 +122,14 @@ const ORTHOGRAPHIC: Pinned = [
   [{ left: -7.7, right: 3.3, top: 4.4, bottom: -1.1, near: 0.3, far: 30.3, zoom: 0.45, aspect: 3 },
     [0.081818181818181818, 0, 0, 0, 0, 0.16363636363636364, 0, 0, 0, 0, -0.066666666666666666, 0,
      0.17999999999999994, -0.27000000000000007, -1.02, 1]],
-];
+]
 
 /** The entries of `elements` that are not the very doubles `expected` lists, −0 written out. */
-const show = (x: number) => (Object.is(x, -0) ? '-0' : `${x}`);
+const show = (x: number) => (Object.is(x, -0) ? '-0' : `${x}`)
 const differing = (elements: ArrayLike<number>, expected: number[]) =>
   expected.flatMap((value, i) =>
     Object.is(elements[i], value) ? [] : [`[${i}] ${show(elements[i])}, not ${show(value)}`],
-  );
+  )
 
 for (const [projection, pinned] of [
   ['perspective', PERSPECTIVE],
@@ -137,15 +137,15 @@ for (const [projection, pinned] of [
 ] as const)
   test(`a pinned ${projection} camera composes the very doubles, fresh or rewritten in place`, () => {
     for (const [optics, expected] of pinned) {
-      const fresh = camera[projection](optics);
+      const fresh = camera[projection](optics)
       // The same optics written after a first read recompose the matrix read, in place.
-      const written = camera[projection]();
-      const matrix = written.projectionMatrix;
-      Object.assign(written, optics);
-      assert.equal(written.projectionMatrix, matrix);
+      const written = camera[projection]()
+      const matrix = written.projectionMatrix
+      Object.assign(written, optics)
+      assert.equal(written.projectionMatrix, matrix)
       for (const eye of [fresh, written]) {
-        const wrong = differing(eye.projectionMatrix.elements, expected);
-        assert.deepEqual(wrong, [], JSON.stringify(optics));
+        const wrong = differing(eye.projectionMatrix.elements, expected)
+        assert.deepEqual(wrong, [], JSON.stringify(optics))
       }
     }
-  });
+  })

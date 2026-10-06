@@ -12,9 +12,9 @@
  *  feedback word,
  *  one padding word, then the depth ramp (`writeDepthRamp`, `../../camera/depthConvention.ts`) at
  *  `DEPTH_RAMP_WORD`. */
-export const DEPTH_RAMP_WORD = 24;
-export const SHADE_UNIFORM_WORDS = DEPTH_RAMP_WORD + 4;
-export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4;
+export const DEPTH_RAMP_WORD = 24
+export const SHADE_UNIFORM_WORDS = DEPTH_RAMP_WORD + 4
+export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4
 
 export const SHADE_REQUEST_WGSL = `
 /** A class reading any map asks for its tiles: a normal map alone is still a texture to stream. */
@@ -36,4 +36,4 @@ fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->u32{
   }
  }
  return shadePick(requestPick(pos,choices,uni.feedback),false,page,uv,ddx,ddy);
-}`;
+}`

@@ -1,6 +1,6 @@
-import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
-import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts';
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
+import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts'
+import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts'
+import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
 
 /**
  * WHERE EACH PAGE OF A DYNAMIC CUT HAS ITS VERTICES (#573), measured page by page as they are
@@ -19,20 +19,20 @@ export function createPageMotion(cut: PageCutPayload, rest: Float32Array) {
     first = new Uint32Array(count + 1),
     low = new Uint32Array(count).fill(0xffffffff),
     high = new Uint32Array(count),
-    own: number[] = [];
+    own: number[] = []
   for (let k = 0; k < count; k++) {
     for (const v of new Uint32Array(cut.pages[k].index)) {
-      if (seen[v] === k) continue;
-      seen[v] = k;
-      own.push(v);
-      low[k] = Math.min(low[k], v);
-      high[k] = Math.max(high[k], v);
+      if (seen[v] === k) continue
+      seen[v] = k
+      own.push(v)
+      low[k] = Math.min(low[k], v)
+      high[k] = Math.max(high[k], v)
     }
-    first[k + 1] = own.length;
+    first[k + 1] = own.length
   }
-  const vertices = Uint32Array.from(own);
+  const vertices = Uint32Array.from(own)
   const boxes = new Float64Array(count * BOX_VALUES),
-    reaches = new Float64Array(count);
+    reaches = new Float64Array(count)
   /** Page `k`'s box and reach at `p`. */
   const measurePage = (k: number, p: ArrayLike<number>) => {
     let x0 = Infinity,
@@ -41,33 +41,33 @@ export function createPageMotion(cut: PageCutPayload, rest: Float32Array) {
       x1 = -Infinity,
       y1 = -Infinity,
       z1 = -Infinity,
-      reach = 0;
+      reach = 0
     // Branchless: a vertex's place in its page's box is no pattern a branch predicts.
     for (let i = first[k], end = first[k + 1]; i < end; i++) {
       const v = vertices[i] * 3,
         x = p[v],
         y = p[v + 1],
-        z = p[v + 2];
-      x0 = Math.min(x0, x);
-      x1 = Math.max(x1, x);
-      y0 = Math.min(y0, y);
-      y1 = Math.max(y1, y);
-      z0 = Math.min(z0, z);
-      z1 = Math.max(z1, z);
-      reach = Math.max(reach, Math.abs(x - rest[v]));
-      reach = Math.max(reach, Math.abs(y - rest[v + 1]));
-      reach = Math.max(reach, Math.abs(z - rest[v + 2]));
+        z = p[v + 2]
+      x0 = Math.min(x0, x)
+      x1 = Math.max(x1, x)
+      y0 = Math.min(y0, y)
+      y1 = Math.max(y1, y)
+      z0 = Math.min(z0, z)
+      z1 = Math.max(z1, z)
+      reach = Math.max(reach, Math.abs(x - rest[v]))
+      reach = Math.max(reach, Math.abs(y - rest[v + 1]))
+      reach = Math.max(reach, Math.abs(z - rest[v + 2]))
     }
-    const b = k * BOX_VALUES;
-    reaches[k] = reach;
-    boxes[b] = x0;
-    boxes[b + 1] = y0;
-    boxes[b + 2] = z0;
-    boxes[b + 3] = x1;
-    boxes[b + 4] = y1;
-    boxes[b + 5] = z1;
-  };
-  for (let k = 0; k < count; k++) measurePage(k, rest);
+    const b = k * BOX_VALUES
+    reaches[k] = reach
+    boxes[b] = x0
+    boxes[b + 1] = y0
+    boxes[b + 2] = z0
+    boxes[b + 3] = x1
+    boxes[b + 4] = y1
+    boxes[b + 5] = z1
+  }
+  for (let k = 0; k < count; k++) measurePage(k, rest)
   return {
     /** Each page's box where its vertices were last measured: its rest box until they move. */
     boxes,
@@ -77,14 +77,14 @@ export function createPageMotion(cut: PageCutPayload, rest: Float32Array) {
      */
     measure(positions: ArrayLike<number>, ranges: readonly VertexRange[]) {
       for (const { name, from, count: n } of ranges) {
-        if (name !== 'position') continue;
+        if (name !== 'position') continue
         for (let k = 0; k < count; k++)
-          if (low[k] < from + n && high[k] >= from) measurePage(k, positions);
+          if (low[k] < from + n && high[k] >= from) measurePage(k, positions)
       }
-      let reach = 0;
-      for (let k = 0; k < count; k++) reach = Math.max(reach, reaches[k]);
-      return reach;
+      let reach = 0
+      for (let k = 0; k < count; k++) reach = Math.max(reach, reaches[k])
+      return reach
     },
-  };
+  }
 }
-export type PageMotion = ReturnType<typeof createPageMotion>;
+export type PageMotion = ReturnType<typeof createPageMotion>

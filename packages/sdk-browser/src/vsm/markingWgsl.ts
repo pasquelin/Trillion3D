@@ -16,26 +16,26 @@
  * What the engine's view uniform lacks (the +z-forward view-to-clip matrix, the depth-from-device-Z
  * coefficients, the origin shift, the view rect) comes in `VsmMarkingParams` (`markingPass.ts`).
  */
-import { VSM_CONSTANTS_WGSL } from './constants.ts';
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_STRUCTS_WGSL } from './pageTableWgsl.ts';
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
-import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts';
-import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/shaders.ts';
-import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
-import { TILE_SLICE_WGSL, pixelCellWgsl } from '../lighting/direct/lightingWgsl.ts';
-import { SUBSURFACE_FLAG } from '../scene/subsurface.ts';
-import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts';
-import type { VsmLayout } from './layout.ts';
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
+import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/shaders.ts'
+import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
+import { TILE_SLICE_WGSL, pixelCellWgsl } from '../lighting/direct/lightingWgsl.ts'
+import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** The group side of the page marks from pixels pass. */
-export const VSM_MARK_PIXELS_GROUP_XY = 8;
+export const VSM_MARK_PIXELS_GROUP_XY = 8
 /** The group side of the per-page shaders. */
-export const VSM_PER_PAGE_GROUP_XY = 8;
+export const VSM_PER_PAGE_GROUP_XY = 8
 /** Byte size of `VsmMarkingParams`. */
-export const VSM_MARKING_PARAMS_BYTES = 160;
+export const VSM_MARKING_PARAMS_BYTES = 160
 /** Byte size of one `VsmMapWalkParams` slot (uniform dynamic-offset alignment). */
-export const VSM_PER_PAGE_DISPATCH_STRIDE = 256;
+export const VSM_PER_PAGE_DISPATCH_STRIDE = 256
 
 /**
  * The marking passes' own parameters (the page marks generation, coarse marking and page rect
@@ -63,7 +63,7 @@ struct VsmMarkingParams{
  coarseLocal:u32,
  _pad:u32,
 }
-`;
+`
 
 const COMMON_WGSL =
   VSM_CONSTANTS_WGSL +
@@ -71,33 +71,33 @@ const COMMON_WGSL =
   VSM_HANDLE_WGSL +
   VSM_STRUCTS_WGSL +
   VSM_PAGE_ADDRESS_WGSL +
-  VSM_PROJECTION_DATA_WGSL;
+  VSM_PROJECTION_DATA_WGSL
 
 // ---- Page table reset ------------------------------------------------------------------------
 
 /** What a page table clear variant clears: one of the 2D tables, its mip count and sample stride. */
-export type VsmClearTarget = 'pageRequests' | 'pageTable' | 'pageMarks' | 'receiverCover';
+export type VsmClearTarget = 'pageRequests' | 'pageTable' | 'pageMarks' | 'receiverCover'
 
 /** The tables one walk of the maps' pages clears, by the maps it walks: every map (`all`) — the
  *  request flags, the page table and flags, and a receiver cover that holds every map's —, and a
  *  receiver cover that holds the suns' alone, which walks the suns' maps (`directionalOnly`). */
 export function vsmMarkingClears(layout: VsmLayout) {
-  const all: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks'];
-  if (layout.coverMode === 'local') all.push('receiverCover');
+  const all: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks']
+  if (layout.coverMode === 'local') all.push('receiverCover')
   const directionalOnly: VsmClearTarget[] =
-    layout.coverMode === 'directional' ? ['receiverCover'] : [];
-  return { all, directionalOnly };
+    layout.coverMode === 'directional' ? ['receiverCover'] : []
+  return { all, directionalOnly }
 }
 
 /** The mips and sample stride of each table as the marking pass allocates it. */
 function vsmClearTargetShape(target: VsmClearTarget, layout: VsmLayout) {
   switch (target) {
     case 'pageMarks':
-      return { numMips: layout.markMips, sampleStride: 1 };
+      return { numMips: layout.markMips, sampleStride: 1 }
     case 'receiverCover':
-      return { numMips: layout.coverMips, sampleStride: 2 };
+      return { numMips: layout.coverMips, sampleStride: 2 }
     default:
-      return { numMips: 1, sampleStride: 1 };
+      return { numMips: 1, sampleStride: 1 }
   }
 }
 
@@ -106,7 +106,7 @@ export const VSM_CLEAR_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 0 },
   { resource: 'projectionData', binding: 1 },
   { resource: 'perPageIds', binding: 2 },
-];
+]
 
 /**
  * The per-page dispatch setup. Needs `vsmPerPageIds`,
@@ -149,7 +149,7 @@ fn vsmMapWalkOf(dispatchThreadId:vec3u)->VsmMapWalk{
  return s;
 }
 fn vsmPagesAcross(mipLevel:u32)->u32{return VSM_LEVEL0_PAGES>>mipLevel;}
-`;
+`
 
 /**
  * The clears of several tables in one walk of each map's pages (`targets`, each its own `numMips`
@@ -159,24 +159,24 @@ fn vsmPagesAcross(mipLevel:u32)->u32{return VSM_LEVEL0_PAGES>>mipLevel;}
  */
 export function vsmResetPageTableWgsl(targets: readonly VsmClearTarget[], layout: VsmLayout) {
   const tables = targets.map((target, n) => {
-    const { numMips, sampleStride } = vsmClearTargetShape(target, layout);
-    const size = target === 'receiverCover' ? 'vsm.coverSize' : 'vsm.pageTableSize';
+    const { numMips, sampleStride } = vsmClearTargetShape(target, layout)
+    const size = target === 'receiverCover' ? 'vsm.coverSize' : 'vsm.pageTableSize'
     const mipOffset =
       target === 'pageMarks'
         ? 'vsmMarkMipOffset(m)'
         : target === 'receiverCover'
           ? 'vsmCoverMipOffset(m)'
-          : '0u';
-    const store = `vsmClearStore${n}`;
+          : '0u'
+    const store = `vsmClearStore${n}`
     const body =
       sampleStride === 2
         ? [
             `let a${n}=po.tableXY*2u;`,
             ...[0, 1].flatMap((y) => [0, 1].map((x) => `${store}(a${n}+vec2u(${x}u,${y}u),0u);`)),
           ]
-        : [`${store}(po.tableXY,0u);`];
+        : [`${store}(po.tableXY,0u);`]
     for (let h = 1; h < numMips; h++)
-      body.push(`vsmClearMip${n}(${h}u,lo,page,${sampleStride}u,mipLevel);`);
+      body.push(`vsmClearMip${n}(${h}u,lo,page,${sampleStride}u,mipLevel);`)
     return {
       declarations: `@group(0) @binding(${4 + n}) var<storage,read_write> vsmClearDest${n}:array<u32>;
 /** Texel t of mip m of ${target}; a texel past the mip is dropped, as a storage texture drops it. */
@@ -192,8 +192,8 @@ fn vsmClearMip${n}(pyramidLevel:u32,levelOffset:VsmTableLevel,pageCoord:vec2u,sa
  if(all(pageCoord<vec2u(levelDim))){${store}(pyramidFirst+pageCoord,pyramidLevel);}
 }`,
       body: body.map((line) => `    ${line}`).join('\n'),
-    };
-  });
+    }
+  })
   return `${COMMON_WGSL}
 ${vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout)}
 @group(0) @binding(3) var<uniform> vsmPerPage:VsmMapWalkParams;
@@ -215,7 +215,7 @@ ${tables.map((t) => t.body).join('\n')}
   }
  }
 }
-`;
+`
 }
 
 // ---- Page rect init --------------------------------------------------------------------------
@@ -225,7 +225,7 @@ export const VSM_INIT_RECT_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'staleRects', binding: 1, access: 'read_write' },
   { resource: 'mappedRects', binding: 2, access: 'read_write' },
   { resource: 'poolLists', binding: 3, access: 'read_write' },
-];
+]
 
 /** The page rect bounds init, entry `vsmInitPageRects`, 256 threads. Binding 4: params. */
 export const vsmPageRectInitWgsl = (layout: VsmLayout) => `${COMMON_WGSL}
@@ -256,7 +256,7 @@ fn vsmSetPageListCount(pageList:u32,newCount:i32){
   vsmSetPageListCount(VSM_PAGES_REQUESTED,0);
  }
 }
-`;
+`
 
 // ---- Marking helpers ----------------------------------------
 
@@ -269,7 +269,7 @@ fn vsmRequestPage(entryCell:VsmTableCell,flags:u32){
  let t=entryCell.tableXY;
  if(all(t<vsm.pageTableSize)){vsmPageRequestsStore(vsmTableIndex(t),flags);}
 }
-`;
+`
 const VSM_FILL_COVER_WGSL = /* wgsl */ `
 fn vsmCoverStore0(t:vec2u,v:u32){if(vsmCoverInBounds(t,0u)){vsmReceiverCoverStore(vsmCoverIndex(t,0u),v);}}
 fn vsmFillCover(entryCell:VsmTableCell){
@@ -279,7 +279,7 @@ fn vsmFillCover(entryCell:VsmTableCell){
  vsmCoverStore0(a+vec2u(0u,1u),0xFFFFu);
  vsmCoverStore0(a+vec2u(1u,1u),0xFFFFu);
 }
-`;
+`
 
 // ---- Coarse marking --------------------------------------------------------------------------
 
@@ -288,7 +288,7 @@ export const VSM_COARSE_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'projectionData', binding: 1 },
   { resource: 'pageRequests', binding: 2, access: 'read_write' },
   { resource: 'receiverCover', binding: 3, access: 'read_write' },
-];
+]
 
 /** The coarse page marking, entry `vsmMarkCoarse`, 256 threads. Binding 4: params. */
 export const vsmCoarseMarkingWgsl = (layout: VsmLayout) => `${COMMON_WGSL}
@@ -343,7 +343,7 @@ ${VSM_FILL_COVER_WGSL}
   if(pd.useCover){vsmFillCover(entryCell);}
  }
 }
-`;
+`
 
 // ---- Page marking from pixels ----------------------------------------------------------------
 
@@ -353,7 +353,7 @@ export const VSM_PIXELS_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'projectionData', binding: 1 },
   { resource: 'pageRequests', binding: 2, access: 'read_write' },
   { resource: 'receiverCover', binding: 3, access: 'atomic' },
-];
+]
 
 /**
  * The page marking and the projection helpers it calls, against the primary
@@ -437,7 +437,7 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
  let mipLevel=vsmMarkLocalMipLevel(vsmProjectionOf(handle),shiftedPosition,sceneDepth);
  vsmMarkPage(handle,mipLevel,shiftedPosition,hasMargin,marginOffset,false);
 }
-`;
+`
 
 /**
  * The page marks from pixels, entry `vsmMarkPagesFromPixels`, 8x8, input
@@ -538,4 +538,4 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
   }
  }
 }
-`;
+`

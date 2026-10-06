@@ -1,9 +1,9 @@
 // What a pass serves: fresh feedback in weight order, or what the previous pass deferred; fresh
 // feedback replaces the backlog, since it names what the image looks at now.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createTileRequests } from './requests.ts';
-import { createTileCounters } from './counters.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createTileRequests } from './requests.ts'
+import { createTileCounters } from './counters.ts'
 
 /** An atlas of `entries` streamed tiles, none resident, keyed by the feedback index it is given —
  *  a real page table subtracts its own offset first. */
@@ -13,10 +13,10 @@ const atlas = (entries: number, retired = false) =>
     pages: { entries, tileOf: (index: number) => ({ slot: 1, level: 0, tx: index, ty: 0 }) },
     servedLevel: () => 2,
     touch: () => false,
-  }) as never;
+  }) as never
 
 function requests(feedback: Array<Uint32Array | undefined>) {
-  const counters = createTileCounters();
+  const counters = createTileCounters()
   return {
     counters,
     queue: createTileRequests({
@@ -25,12 +25,12 @@ function requests(feedback: Array<Uint32Array | undefined>) {
       data: atlas(2),
       counters,
     }),
-  };
+  }
 }
 
 test('fresh feedback is served heaviest first, across both atlases, and counted', () => {
-  const { queue, counters } = requests([new Uint32Array([1, 0, 3, 2, 0])]);
-  const wanted = queue.take(1);
+  const { queue, counters } = requests([new Uint32Array([1, 0, 3, 2, 0])])
+  const wanted = queue.take(1)
   assert.deepEqual(
     wanted.map((r) => [r.weight, r.key.tx]),
     [
@@ -38,52 +38,52 @@ test('fresh feedback is served heaviest first, across both atlases, and counted'
       [2, 3],
       [1, 0],
     ],
-  );
-  assert.equal(counters.requested, 3);
-  assert.equal(counters.missingAverage, 2, 'each named tile is two levels coarser than asked');
-});
+  )
+  assert.equal(counters.requested, 3)
+  assert.equal(counters.missingAverage, 2, 'each named tile is two levels coarser than asked')
+})
 
 test('a deferred remainder is offered again until fresh feedback replaces it', () => {
   const { queue } = requests([
     new Uint32Array([1, 2, 3, 0, 0]),
     undefined,
     new Uint32Array([0, 0, 0, 0, 9]),
-  ]);
-  const first = queue.take(1);
-  queue.defer(first, 1);
-  assert.equal(queue.deferred, 2);
-  const second = queue.take(2);
-  assert.equal(queue.frame, 1, 'a replay is placed at the frame of the feedback that named it');
+  ])
+  const first = queue.take(1)
+  queue.defer(first, 1)
+  assert.equal(queue.deferred, 2)
+  const second = queue.take(2)
+  assert.equal(queue.frame, 1, 'a replay is placed at the frame of the feedback that named it')
   assert.deepEqual(
     second.map((r) => r.weight),
     [2, 1],
     'no feedback: the backlog, still in weight order',
-  );
-  queue.defer(second, 2);
-  assert.equal(queue.deferred, 0);
-  queue.defer(first, 0);
-  assert.equal(queue.deferred, 3);
-  const third = queue.take(3);
-  assert.equal(queue.frame, 3);
+  )
+  queue.defer(second, 2)
+  assert.equal(queue.deferred, 0)
+  queue.defer(first, 0)
+  assert.equal(queue.deferred, 3)
+  const third = queue.take(3)
+  assert.equal(queue.frame, 3)
   assert.deepEqual(
     third.map((r) => r.weight),
     [9],
     'fresh feedback wins over the backlog',
-  );
-  assert.equal(queue.deferred, 0, 'the backlog fresh feedback replaced is gone at once');
-});
+  )
+  assert.equal(queue.deferred, 0, 'the backlog fresh feedback replaced is gone at once')
+})
 
 test('feedback from an image before a drop never requests retired texture tiles', () => {
-  const counters = createTileCounters();
+  const counters = createTileCounters()
   const queue = createTileRequests({
     feedback: { take: () => new Uint32Array([9, 3]) } as never,
     color: atlas(1, true),
     data: atlas(1),
     counters,
-  });
+  })
   assert.deepEqual(
     queue.take(1).map((request) => request.weight),
     [3],
-  );
-  assert.equal(counters.requested, 1);
-});
+  )
+  assert.equal(counters.requested, 1)
+})

@@ -12,7 +12,7 @@
 
 /** Nodes of the tree over `count` entries, `leaf` at most per leaf. */
 export const centreTreeNodes = (count: number, leaf: number) =>
-  2 * Math.max(1, Math.ceil(count / leaf)) - 1;
+  2 * Math.max(1, Math.ceil(count / leaf)) - 1
 
 /**
  * Builds the tree over `order[0, count)`, entry ranks whose centre `r` is `centres[3r..3r+3)`,
@@ -29,41 +29,41 @@ export function buildCentreTree(
   counts: Int32Array,
   visit?: (node: number, start: number, end: number) => void,
 ) {
-  let nodes = 0;
+  let nodes = 0
   const build = (start: number, end: number): number => {
-    const node = nodes++;
-    visit?.(node, start, end);
+    const node = nodes++
+    visit?.(node, start, end)
     if (end - start <= leaf) {
-      links[node] = start;
-      counts[node] = end - start;
-      return node;
+      links[node] = start
+      counts[node] = end - start
+      return node
     }
     // The left half takes a whole number of full leaves: every leaf but the last is full.
     const axis = longestAxis(centres, order, start, end),
-      middle = start + leaf * Math.ceil((end - start) / (2 * leaf));
-    selectMedian(order, centres, axis, start, end, middle);
-    build(start, middle);
-    links[node] = build(middle, end);
-    return node;
-  };
-  build(0, count);
-  return nodes;
+      middle = start + leaf * Math.ceil((end - start) / (2 * leaf))
+    selectMedian(order, centres, axis, start, end, middle)
+    build(start, middle)
+    links[node] = build(middle, end)
+    return node
+  }
+  build(0, count)
+  return nodes
 }
 
 function longestAxis(centres: Float32Array, order: Uint32Array, start: number, end: number) {
   let axis = 0,
-    widest = -1;
+    widest = -1
   for (let k = 0; k < 3; k++) {
     let low = Infinity,
-      high = -Infinity;
+      high = -Infinity
     for (let i = start; i < end; i++) {
-      const value = centres[3 * order[i] + k];
-      low = Math.min(low, value);
-      high = Math.max(high, value);
+      const value = centres[3 * order[i] + k]
+      low = Math.min(low, value)
+      high = Math.max(high, value)
     }
-    if (high - low > widest) [widest, axis] = [high - low, k];
+    if (high - low > widest) [widest, axis] = [high - low, k]
   }
-  return axis;
+  return axis
 }
 
 /** Rearranges `order[start..end)` so `order[middle]` has the median centre on `axis`, the
@@ -76,24 +76,24 @@ function selectMedian(
   end: number,
   middle: number,
 ) {
-  const key = (i: number) => centres[3 * order[i] + axis];
+  const key = (i: number) => centres[3 * order[i] + axis]
   let low = start,
-    high = end - 1;
+    high = end - 1
   while (low < high) {
-    const pivot = key((low + high) >> 1);
+    const pivot = key((low + high) >> 1)
     let i = low,
-      j = high;
+      j = high
     while (i <= j) {
-      while (key(i) < pivot) i++;
-      while (key(j) > pivot) j--;
+      while (key(i) < pivot) i++
+      while (key(j) > pivot) j--
       if (i <= j) {
-        [order[i], order[j]] = [order[j], order[i]];
-        i++;
-        j--;
+        ;[order[i], order[j]] = [order[j], order[i]]
+        i++
+        j--
       }
     }
-    if (middle <= j) high = j;
-    else if (middle >= i) low = i;
-    else return;
+    if (middle <= j) high = j
+    else if (middle >= i) low = i
+    else return
   }
 }

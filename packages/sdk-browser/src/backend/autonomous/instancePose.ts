@@ -1,15 +1,15 @@
-import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
-import { setHostPose } from '../../host/pagePose.ts';
-import { copyElements } from '../../math/matrixElements.ts';
-import type { HostNodeMatrix, MatrixElements } from '../../math/matrixElements.ts';
-import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts';
-import type { PageDraws } from './pageDraws.ts';
+import { multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { setHostPose } from '../../host/pagePose.ts'
+import { copyElements } from '../../math/matrixElements.ts'
+import type { HostNodeMatrix, MatrixElements } from '../../math/matrixElements.ts'
+import type { PageRec, ClusterRoot } from '../../page/selection/selection.ts'
+import type { PageDraws } from './pageDraws.ts'
 
 /** The two buffers the composition works in, allocated once: the core multiplies `Float64Array`
  *  alone — one caller passing another container makes its forty-eight accesses polymorphic for
  *  every caller — so a model pose is copied in, and the product copied back out. */
 const model = new Float64Array(16),
-  product = new Float64Array(16);
+  product = new Float64Array(16)
 
 /** `pose = transform · model`, sixteen floats in and sixteen floats out: no host library
  *  composes anything here, and the result is the plain product, bit for bit.
@@ -21,16 +21,16 @@ const model = new Float64Array(16),
  *  path can read them as constants. Widening the records themselves would carry a mutable
  *  matrix through the cut, the rows and the raster, to serve one writer. */
 function placeInto(pose: HostNodeMatrix, transform: Float64Array, from: MatrixElements) {
-  copyElements(model, from.elements);
-  multiplyMatrix4(product, transform, model);
-  copyElements(pose.elements, product);
+  copyElements(model, from.elements)
+  multiplyMatrix4(product, transform, model)
+  copyElements(pose.elements, product)
 }
 
 /** An instance's own copy of a model pose: storage of the engine's, never a host matrix. */
 export function composedPose(transform: Float64Array, from: MatrixElements): MatrixElements {
-  const pose = { elements: new Float64Array(16) };
-  placeInto(pose, transform, from);
-  return pose;
+  const pose = { elements: new Float64Array(16) }
+  placeInto(pose, transform, from)
+  return pose
 }
 
 /**
@@ -44,14 +44,14 @@ export function deplaceInstance(
   transform: Float64Array,
   draws: PageDraws,
 ) {
-  const { roots } = instance;
+  const { roots } = instance
   for (let i = 0; i < roots.length; i++) {
-    const { world, pages, packedBase = -1 } = roots[i];
-    placeInto(world, transform, baseRoots[i].world);
+    const { world, pages, packedBase = -1 } = roots[i]
+    placeInto(world, transform, baseRoots[i].world)
     // This root's own instances, by packed rank: its pages' records serve every row (#1235).
     for (let p = 0; packedBase >= 0 && p < pages.length; p++) {
-      const mesh = draws.at(packedBase + p)?.mesh;
-      if (mesh) setHostPose(mesh, world);
+      const mesh = draws.at(packedBase + p)?.mesh
+      if (mesh) setHostPose(mesh, world)
     }
   }
 }

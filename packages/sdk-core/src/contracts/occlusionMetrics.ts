@@ -17,22 +17,22 @@ export interface OcclusionFrameMetrics {
    * None is estimated: `null` on an engine that does not test occlusion, on a device whose
    * verdicts cannot be reread, and as long as no frame has been counted.
    */
-  hizTestedClusters?: number | null;
+  hizTestedClusters?: number | null
   /** Clusters hidden. */
-  hizRejectedClusters?: number | null;
+  hizRejectedClusters?: number | null
   /** Clusters too big to test. */
-  hizOversizedClusters?: number | null;
+  hizOversizedClusters?: number | null
   /** Triangles tested. */
-  hizTestedTriangles?: number | null;
+  hizTestedTriangles?: number | null
   /** Triangles hidden. */
-  hizRejectedTriangles?: number | null;
+  hizRejectedTriangles?: number | null
   /** Triangles too big to test. */
-  hizOversizedTriangles?: number | null;
+  hizOversizedTriangles?: number | null
   /**
    * The frame the six counters above describe. It is the current frame where the oracle counts
    * on the CPU, and an earlier frame on the GPU path, whose counters are reread
    * periodically; without it, a reader cannot tell a count of this frame from a
    * count the last sampled frame left behind. `null` when there is none.
    */
-  hizCountedFrame?: number | null;
+  hizCountedFrame?: number | null
 }

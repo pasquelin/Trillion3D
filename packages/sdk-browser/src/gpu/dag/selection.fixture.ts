@@ -1,14 +1,14 @@
-import type { PackedDag } from './selection.ts';
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import type { MapFaults } from '../../../../../tests/kit/gpu/mockBuffers.ts';
-import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
+import type { PackedDag } from './selection.ts'
+import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import type { MapFaults } from '../../../../../tests/kit/gpu/mockBuffers.ts'
+import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts'
 
 /**
  * The kit's device (`mockGpu`) running the DAG selection on the CPU double of its kernel, with
  * the counts the selection tests read.
  */
 export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
-  const gpu = mockGpu({ packed, ...faults });
+  const gpu = mockGpu({ packed, ...faults })
   return {
     device: gpu.device,
     uniformWrites: () => gpu.writes.filter(({ size }) => size === DAG_UNIFORM_BYTES).length,
@@ -24,5 +24,5 @@ export function mockDagDevice(packed: PackedDag, faults: MapFaults = {}) {
           offset / 4,
           new Uint32Array(bytes.buffer)[0],
         ]),
-  };
+  }
 }

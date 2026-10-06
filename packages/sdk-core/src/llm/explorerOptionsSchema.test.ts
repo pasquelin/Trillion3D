@@ -1,20 +1,20 @@
-import assert from 'node:assert/strict';
-import test from 'node:test';
-import { Ajv } from 'ajv';
-import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
-import { BOUNCE_SETTINGS } from '../bounce/contracts.ts';
-import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts';
-import type { MathPathMode } from '../math/path/contracts.ts';
-import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts';
-import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts';
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { Ajv } from 'ajv'
+import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
+import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
+import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts'
+import type { MathPathMode } from '../math/path/contracts.ts'
+import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts'
+import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts'
 import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
-} from '../../../sdk-browser/src/residency/pools.ts';
-import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/residency/textureTransferDefaults.ts';
+} from '../../../sdk-browser/src/residency/pools.ts'
+import { DEFAULT_TEXTURE_UPLOAD_MS } from '../../../sdk-browser/src/residency/textureTransferDefaults.ts'
 
-const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA);
-const explorer = { manifestUrl: '/assets/model/manifest.json' };
+const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
+const explorer = { manifestUrl: '/assets/model/manifest.json' }
 
 test('explorer arguments accept a complete host request and keep host extensions', () => {
   assert.equal(
@@ -44,16 +44,16 @@ test('explorer arguments accept a complete host request and keep host extensions
       hostExtension: 'kept',
     }),
     true,
-  );
-});
+  )
+})
 
 test('explorer arguments name every choice the engine takes and refuse the rest', () => {
   for (const mathPath of ['auto', 'js', 'wasm'] satisfies MathPathMode[])
-    assert.equal(validate({ ...explorer, mathPath }), true, mathPath);
+    assert.equal(validate({ ...explorer, mathPath }), true, mathPath)
   for (const screenError of SCREEN_ERROR_VARIANTS)
-    assert.equal(validate({ ...explorer, screenError }), true, screenError);
-  assert.equal(validate({}), false);
-  assert.equal(validate({ manifestUrl: false }), false);
+    assert.equal(validate({ ...explorer, screenError }), true, screenError)
+  assert.equal(validate({}), false)
+  assert.equal(validate({ manifestUrl: false }), false)
   for (const field of [
     'interactive',
     'temporalAntialiasing',
@@ -63,7 +63,7 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     'autonomousGeometry',
     'stageProfile',
   ])
-    assert.equal(validate({ ...explorer, [field]: 'true' }), false, field);
+    assert.equal(validate({ ...explorer, [field]: 'true' }), false, field)
   for (const field of [
     'scope',
     'mathPath',
@@ -72,7 +72,7 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     'preload',
     'diagnosticDetail',
   ])
-    assert.equal(validate({ ...explorer, [field]: 'unknown' }), false, field);
+    assert.equal(validate({ ...explorer, [field]: 'unknown' }), false, field)
   for (const patch of [
     { geometryPoolBytes: 1 },
     { geometryPoolBytes: 'bytes' },
@@ -89,29 +89,29 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     { replicaCount: '4' },
     { clearColor: 0.5 },
   ])
-    assert.equal(validate({ ...explorer, ...patch }), false, JSON.stringify(patch));
-});
+    assert.equal(validate({ ...explorer, ...patch }), false, JSON.stringify(patch))
+})
 
 test('an explorer request naming only its manifest is completed with the engine defaults', () => {
-  const request: Record<string, unknown> = { ...explorer };
-  assert.equal(new Ajv({ useDefaults: true }).compile(EXPLORER_OPTIONS_SCHEMA)(request), true);
-  assert.equal(request.geometryPoolBytes, DEFAULT_GEOMETRY_POOL_BUDGET);
-  assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET);
-  assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS);
-  assert.equal(request.bounceBudgetMs, BOUNCE_SETTINGS.budgetMs);
+  const request: Record<string, unknown> = { ...explorer }
+  assert.equal(new Ajv({ useDefaults: true }).compile(EXPLORER_OPTIONS_SCHEMA)(request), true)
+  assert.equal(request.geometryPoolBytes, DEFAULT_GEOMETRY_POOL_BUDGET)
+  assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET)
+  assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS)
+  assert.equal(request.bounceBudgetMs, BOUNCE_SETTINGS.budgetMs)
   for (const [key, property] of Object.entries(EXPLORER_OPTIONS_SCHEMA.properties)) {
-    if (property.default === undefined) continue;
-    assert.notEqual(request[key], undefined, key);
+    if (property.default === undefined) continue
+    assert.notEqual(request[key], undefined, key)
     // Each default, alone, passes the checks of its own field.
-    assert.equal(validate({ ...explorer, [key]: request[key] }), true, key);
+    assert.equal(validate({ ...explorer, [key]: request[key] }), true, key)
   }
-});
+})
 
 test('a switch the host leaves out is set in the engine as the schema advertises it', () => {
   const advertised = Object.entries(EXPLORER_OPTIONS_SCHEMA.properties).filter(
     ([, property]) => property.type === 'boolean' && property.default !== undefined,
-  );
-  assert.deepEqual(advertised.map(([key]) => key).sort(), [...EXPLORER_SWITCH_NAMES].sort());
+  )
+  assert.deepEqual(advertised.map(([key]) => key).sort(), [...EXPLORER_SWITCH_NAMES].sort())
   for (const [key, property] of advertised)
-    assert.equal(explorerSwitch({}, key as ExplorerSwitch), property.default, key);
-});
+    assert.equal(explorerSwitch({}, key as ExplorerSwitch), property.default, key)
+})

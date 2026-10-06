@@ -1,64 +1,64 @@
-import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts';
-import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts';
-import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts';
-import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts';
-import { DAG_ARM_SHADER } from '../dag/shader/armWgsl.ts';
-import { withScreenErrorVariant } from '../dag/shader/error.ts';
-import { drawShader } from '../draw/shader.ts';
-import { HIZ_SHADER } from '../hiz/shader.ts';
-import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts';
-import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts';
-import { PARTITION_SHADER } from '../partition/shader.ts';
-import { RESOLVE, rasterSource } from '../raster/shader.ts';
-import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
-import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from '../../placement/gpuComposeWgsl.ts';
-import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts';
-import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
-import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts';
-import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts';
-import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts';
-import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts';
-import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
-import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts';
+import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
+import { PRESENT_AT_SHADER, PRESENT_SHADER } from './presentWgsl.ts'
+import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
+import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
+import { DAG_ARM_SHADER } from '../dag/shader/armWgsl.ts'
+import { withScreenErrorVariant } from '../dag/shader/error.ts'
+import { drawShader } from '../draw/shader.ts'
+import { HIZ_SHADER } from '../hiz/shader.ts'
+import { MATERIAL_TILES_SHADER } from '../../visibility/shader/materialTilesWgsl.ts'
+import { SHADE_CACHE_SHADER, SHADE_TRIS_SHADER } from '../../visibility/shader/shadeCacheWgsl.ts'
+import { PARTITION_SHADER } from '../partition/shader.ts'
+import { RESOLVE, rasterSource } from '../raster/shader.ts'
+import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts'
+import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL } from '../../placement/gpuComposeWgsl.ts'
+import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER } from '../../bounce/probeWgsl.ts'
+import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts'
+import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShareWgsl.ts'
+import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts'
+import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
+import { BLOOM_WGSL } from '../../webgpu/effects/bloomWgsl.ts'
+import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
+import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts'
 import {
   CONTRACT_COMPOSITIONS,
   contractLightingShader,
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
-} from '../../lighting/deferred/shaders.ts';
-import { withScreenReflections } from '../../reflections/screenWgsl.ts';
-import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts';
-import { taaShader } from '../../taa/shaderWgsl.ts';
-import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts';
-import { COVERAGE_WGSL, MIP_SHADER } from '../../texture/mipsWgsl.ts';
-import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
-import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
-import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts';
-import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts';
-import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
-import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts';
-import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
-import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts';
-import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts';
-import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
+} from '../../lighting/deferred/shaders.ts'
+import { withScreenReflections } from '../../reflections/screenWgsl.ts'
+import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts'
+import { taaShader } from '../../taa/shaderWgsl.ts'
+import { taaUpscaleShader } from '../../taa/upscaleWgsl.ts'
+import { COVERAGE_WGSL, MIP_SHADER } from '../../texture/mipsWgsl.ts'
+import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts'
+import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts'
+import { BLEND_ORDER_SHADER } from '../../webgpu/blend/orderWgsl.ts'
+import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterWgsl.ts'
+import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts'
+import { REDUCE_WGSL } from '../../webgpu/tile/reduceWgsl.ts'
+import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts'
+import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
+import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
+import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts'
 import {
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
   PARTICLE_ROUTED_WGSL,
-} from '../../webgpu/particles/particlesWgsl.ts';
-import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts';
-import { blendShader } from '../../webgpu/blend/shader.ts';
+} from '../../webgpu/particles/particlesWgsl.ts'
+import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts'
+import { blendShader } from '../../webgpu/blend/shader.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   TAA_SHADER,
-} from './shaderTexts.fixture.ts';
-import '../../impostor/lent.fixture.ts';
-import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts';
-import { shadeWithoutFeedbackCode } from '../../webgpu/visibility/shaders.ts';
-import { vsmVariants } from './engineShaders.vsm.fixture.ts';
-import { reflectionShaders } from './engineShaders.reflections.fixture.ts';
+} from './shaderTexts.fixture.ts'
+import '../../impostor/lent.fixture.ts'
+import { cardPassWgsl } from '../../webgpu/impostor/cardWgsl.ts'
+import { shadeWithoutFeedbackCode } from '../../webgpu/visibility/shaders.ts'
+import { vsmVariants } from './engineShaders.vsm.fixture.ts'
+import { reflectionShaders } from './engineShaders.reflections.fixture.ts'
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -69,7 +69,7 @@ import { reflectionShaders } from './engineShaders.reflections.fixture.ts';
  */
 
 const compositions = (label: string, sources: Record<string, string>) =>
-  Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
+  Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]))
 
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
@@ -178,4 +178,4 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PARTICLE_ROUTED_WGSL,
   CARD_PASS_WGSL: cardPassWgsl(),
   ...vsmVariants(),
-};
+}

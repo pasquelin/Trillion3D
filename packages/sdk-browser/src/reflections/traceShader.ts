@@ -1,4 +1,4 @@
-import { shaderLanguage } from '../math/shaderLanguage.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts'
 /** The ray from `P` along `R`, clipped to the view (`reflectionExit`) and projected: `start` and
  *  `delta` in pixels, depth `a.z` to `b.z`, `size` the drawn one; clipped away, a miss. The
  *  walk every mirror and rough ray takes (`screenReflection`) and the cone's (`coneShader.ts`)
@@ -14,7 +14,7 @@ export const REFLECTION_SEGMENT = `
  var a:vec3f=c.xyz/c.w;var b:vec3f=e.xyz/e.w;
  var start:vec2f=(a.xy*0.5+vec2f(0.5))*size;
  var delta:vec2f=(b.xy-a.xy)*0.5*size;
-`;
+`
 
 /** The surface of a pixel, written once for both graphics APIs, for the opaque walk below and the
  *  depth bounds (the blended march's `translucentReflectionMarch` keeps its own plane,
@@ -103,15 +103,15 @@ fn reflectionPixelBounds(p:vec2i)->vec2f{
  var low:f32=min(0.0,min(ends.x,ends.y))+min(0.0,min(ends.z,ends.w));
  var high:f32=max(0.0,max(ends.x,ends.y))+max(0.0,max(ends.z,ends.w));
  return vec2f(z+low,z+high);
-}`;
+}`
 
 /** A pyramid cell's side at `level`, the cell holding `pixel` there and the climb's (`into`): its
  *  coordinates shifted right by the level, the floor of their quotient by 2^level for any sign —
  *  what the walk divided by `exp2` and floored before, exactly: two divisions and two floors fewer
  *  a step. */
-const CELL = 'vec2f(f32(pixel.x>>u32(level)),f32(pixel.y>>u32(level)))';
-const side = 'f32(1<<u32(level))';
-const into = `var into:vec2f=${CELL};`;
+const CELL = 'vec2f(f32(pixel.x>>u32(level)),f32(pixel.y>>u32(level)))'
+const side = 'f32(1<<u32(level))'
+const into = `var into:vec2f=${CELL};`
 
 /** Screen-space pixel DDA, written from the projected-segment equations.
  * Clip the homogeneous ray to all six planes before division. Depth is linear along
@@ -243,16 +243,16 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  return vec4f(0.0);
 }
 fn screenReflection(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} return reflectionHiZWalk(start,delta,a.z,b.z,size);
-}`;
+}`
 
 /** One arithmetic source for both graphics APIs; declarations alone change language. */
 export function screenTraceShader(language: 'wgsl' | 'glsl') {
-  return shaderLanguage(trace, language);
+  return shaderLanguage(trace, language)
 }
 
 /** The pixel's surface alone (`PLANE`: `reflectionPixelBounds` and what it reads), for a program
  *  that builds the depth bounds (`boundsPyramidWgsl.ts`, `pyramidGl.ts`) rather than walks them;
  *  it supplies the depth, size and clear depth. */
 export function reflectionPlaneShader(language: 'wgsl' | 'glsl') {
-  return shaderLanguage(PLANE, language);
+  return shaderLanguage(PLANE, language)
 }

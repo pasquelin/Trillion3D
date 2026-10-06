@@ -1,5 +1,5 @@
-import { type CameraMotion } from '../../camera/world.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { type CameraMotion } from '../../camera/world.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
 
 /**
  * What one camera owns on the WebGL2 path: the cut it draws, the cut it wants, what it asks the
@@ -9,17 +9,17 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * (`poolOrder.ts`, `residency.ts`).
  */
 export type WebglViewState = {
-  shown: PageRec[];
+  shown: PageRec[]
   /** The packed rank of each shown page, rank by rank (#1235): one record serves many placements. */
-  shownPacked: number[];
-  desired: PageRec[];
+  shownPacked: number[]
+  desired: PageRec[]
   /** The packed rank of each desired page, rank by rank. */
-  desiredPacked: number[];
-  requested: PageRec[];
-  motion: CameraMotion;
+  desiredPacked: number[]
+  requested: PageRec[]
+  motion: CameraMotion
   /** The main view's is the host's own array, which a resize writes. */
-  viewport: [number, number] | undefined;
-};
+  viewport: [number, number] | undefined
+}
 
 export const VIEW_KEYS = [
   'shown',
@@ -29,4 +29,4 @@ export const VIEW_KEYS = [
   'requested',
   'motion',
   'viewport',
-] as const satisfies readonly (keyof WebglViewState)[];
+] as const satisfies readonly (keyof WebglViewState)[]

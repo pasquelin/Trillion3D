@@ -1,28 +1,28 @@
-import { useWords } from '../i18n.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { readingName } from './model/presentation.ts';
-import { Cut } from './Cut.tsx';
-import { formatValue } from './model/metrics.ts';
-import { Alert } from '../ui/Alert.tsx';
-import type { Report, ReportRecord, TimingStat } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { readingName } from './model/presentation.ts'
+import { Cut } from './Cut.tsx'
+import { formatValue } from './model/metrics.ts'
+import { Alert } from '../ui/Alert.tsx'
+import type { Report, ReportRecord, TimingStat } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface DetailsProps {
-  record?: ReportRecord | null;
-  report: Report;
-  locale: Locale;
-  label?: string;
+  record?: ReportRecord | null
+  report: Report
+  locale: Locale
+  label?: string
 }
 
 interface TimingsProps {
-  title: string;
-  rows?: [string, TimingStat | null][];
-  locale: Locale;
+  title: string
+  rows?: [string, TimingStat | null][]
+  locale: Locale
 }
 
 function Timings({ title, rows, locale }: TimingsProps) {
-  if (!rows?.length) return null;
+  if (!rows?.length) return null
   return (
     <Section level={3} title={title}>
       <Table>
@@ -44,13 +44,13 @@ function Timings({ title, rows, locale }: TimingsProps) {
         </tbody>
       </Table>
     </Section>
-  );
+  )
 }
 
 export function Details({ record, report, locale, label }: DetailsProps) {
-  const t = useWords(locale);
-  if (!record) return null;
-  const run = report.runs.find((item) => item.id === record.runId);
+  const t = useWords(locale)
+  if (!record) return null
+  const run = report.runs.find((item) => item.id === record.runId)
   const fields: [string, string | number | boolean | null | undefined][] = [
     [t('report.commit'), record.commit],
     [t('report.date'), run?.startedAt ? new Date(run.startedAt).toLocaleString(locale) : null],
@@ -60,7 +60,7 @@ export function Details({ record, report, locale, label }: DetailsProps) {
     [t('report.method'), record.gpuMethod],
     [t('report.assetKey'), record.assetKey],
     [t('report.canvas'), record.canvas ? JSON.stringify(record.canvas) : null],
-  ];
+  ]
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4 [&_dd]:break-all">
       <h3 className="text-lg font-semibold">{readingName(record, locale)}</h3>
@@ -89,5 +89,5 @@ export function Details({ record, report, locale, label }: DetailsProps) {
         {t('report.source')} · {label}
       </a>
     </div>
-  );
+  )
 }

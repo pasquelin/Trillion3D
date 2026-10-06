@@ -13,18 +13,18 @@
 // top-down reject. The replacement error ceiling only drops a too-fine subtree; the
 // own-error floor, which packing derives from the pages and stores in the node, also drops the too-
 // coarse — nothing from the compiler, nothing from the format.
-import test from 'node:test';
-import { asHostLibrary } from '../../host/resources.ts';
-import assert from 'node:assert/strict';
-import * as G from '../../host/graph/graph.fixture.ts';
-import { packDagSelection } from './pack.ts';
-import { cameraSelectionUniforms } from '../core/selection.ts';
-import { engineCamera } from '../../camera/camera.fixture.ts';
-import { descenteComptee } from './cutFrontier.fixture.ts';
-import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
-import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
+import test from 'node:test'
+import { asHostLibrary } from '../../host/resources.ts'
+import assert from 'node:assert/strict'
+import * as G from '../../host/graph/graph.fixture.ts'
+import { packDagSelection } from './pack.ts'
+import { cameraSelectionUniforms } from '../core/selection.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { descenteComptee } from './cutFrontier.fixture.ts'
+import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 
-const pages = scenePages(16384, 8);
+const pages = scenePages(16384, 8)
 /**
  * Two hierarchies, because top-down reject is not the same on both: the one packing
  * gives a primitive without a manifest (`flatHierarchy`, page slices in array order)
@@ -36,16 +36,16 @@ function montage(byLevels: boolean) {
     pages,
     Array.from({ length: 12 }, () => new G.Matrix4()),
     byLevels,
-  );
+  )
   // Packing derives page bounds and stores the floor in the node
   // (`packNodes.ts`): counted descent reads it where the GPU reads it, not beside it.
-  return { roots, packed: packDagSelection(roots) };
+  return { roots, packed: packDagSelection(roots) }
 }
 const MONTAGES = [
   ['packing hierarchy', montage(false)],
   ['compiler hierarchy (one node per level)', montage(true)],
-] as const;
-const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
+] as const
+const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
 
 /** One frame: camera set, world matrices rebased on the eye, then counted descent. */
 function image(
@@ -55,32 +55,32 @@ function image(
   displacement: number,
   plancher: boolean,
 ) {
-  const { roots, packed } = m;
+  const { roots, packed } = m
   for (let w = 0; w < roots.length; w++)
     asHostLibrary<G.Matrix4>(roots[w].world).makeTranslation(
       (w % 4) * 6.5 - 9.75 + displacement,
       Math.floor(w / 4) * 6.5 - 6.5,
       0,
-    );
-  cam.position.set(x, 0, z);
-  cam.lookAt(x, 0, 0);
-  cam.updateMatrixWorld();
-  const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, [1280, 720]);
-  packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
-  return descenteComptee(packed, uniforms, plancher);
+    )
+  cam.position.set(x, 0, z)
+  cam.lookAt(x, 0, 0)
+  cam.updateMatrixWorld()
+  const uniforms = cameraSelectionUniforms(engineCamera(cam), 1, [1280, 720])
+  packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld)
+  return descenteComptee(packed, uniforms, plancher)
 }
 
 type Poser = (
   m: (typeof MONTAGES)[number][1],
   i: number,
   plancher: boolean,
-) => ReturnType<typeof image>;
+) => ReturnType<typeof image>
 const REGIMES: Array<[string, Poser]> = [
   ['pose immobile', (m, _i, b) => image(m, 0, 16, 0, b)],
   ['sliding camera', (m, i, b) => image(m, i * 0.25, 16, 0, b)],
   ['camera jump', (m, i, b) => image(m, (i % 2 ? 1 : -1) * 9, i % 2 ? 40 : 14, 0, b)],
   ['animated scene', (m, i, b) => image(m, 0, 16, (i % 5) * 0.4, b)],
-];
+]
 
 test('the descent frontier is what no exact persistence can save', () => {
   const lignes = MONTAGES.flatMap(([hierarchie, m]) =>
@@ -92,23 +92,23 @@ test('the descent frontier is what no exact persistence can save', () => {
         candidats = 0,
         plancherCoupe = 0,
         candidatesWithFloor = 0,
-        tooCoarse = 0;
+        tooCoarse = 0
       for (let i = 0; i < 8; i++) {
-        const count = poser(m, i, false);
-        visites += count.visites;
-        internes += count.internes;
-        feuilles += count.frontiereFeuilles;
-        rejected += count.rejectedFrontier;
-        candidats += count.candidats;
-        tooCoarse += count.tooCoarse;
+        const count = poser(m, i, false)
+        visites += count.visites
+        internes += count.internes
+        feuilles += count.frontiereFeuilles
+        rejected += count.rejectedFrontier
+        candidats += count.candidats
+        tooCoarse += count.tooCoarse
         // Same frame, same camera, with top-down reject: that is the ONLY difference.
-        const withFloor = poser(m, i, true);
-        plancherCoupe += withFloor.plancherCoupe;
-        candidatesWithFloor += withFloor.candidats;
+        const withFloor = poser(m, i, true)
+        plancherCoupe += withFloor.plancherCoupe
+        candidatesWithFloor += withFloor.candidats
       }
-      const frontiere = feuilles + rejected;
-      assert.equal(visites, internes + frontiere, 'a visited node is internal or on the frontier');
-      assert.ok(candidats > 0, `${nom} must see geometry`);
+      const frontiere = feuilles + rejected
+      assert.equal(visites, internes + frontiere, 'a visited node is internal or on the frontier')
+      assert.ok(candidats > 0, `${nom} must see geometry`)
       return {
         hierarchie,
         regime: nom,
@@ -133,9 +133,9 @@ test('the descent frontier is what no exact persistence can save', () => {
         candidatesRestantesPourCent: Number(
           (100 * (candidatesWithFloor / Math.max(1, candidats))).toFixed(1),
         ),
-      };
+      }
     }),
-  );
+  )
   console.log(
     JSON.stringify(
       {
@@ -146,7 +146,7 @@ test('the descent frontier is what no exact persistence can save', () => {
       null,
       2,
     ),
-  );
+  )
   for (const ligne of lignes) {
     // The frontier is almost all of descent: in an eight-child tree internals are about
     // a seventh of what they carry, a bit more near the root where nodes are not full.
@@ -154,13 +154,13 @@ test('the descent frontier is what no exact persistence can save', () => {
     assert.ok(
       ligne.internesParImage * 6 <= ligne.frontiereParImage,
       `${ligne.regime}: internals ${ligne.internesParImage} for a frontier of ${ligne.frontiereParImage}`,
-    );
-    assert.ok(ligne.plafondPourCent < 5, `${ligne.regime}: ceiling ${ligne.plafondPourCent} %`);
+    )
+    assert.ok(ligne.plafondPourCent < 5, `${ligne.regime}: ceiling ${ligne.plafondPourCent} %`)
     // Top-down reject is SAFE: it never drops anything but a candidate that is actually too coarse.
     assert.ok(
       ligne.candidatesRetireesParImage <= ligne.tooCoarseCandidatesPerImage,
       `${ligne.regime}: ${ligne.candidatesRetireesParImage} dropped for ${ligne.tooCoarseCandidatesPerImage} too coarse`,
-    );
+    )
     // And it HOLDS, on every pose. The threshold is there so a reject that would stop
     // happening fails loudly: that is how a bound indexed on the wrong pose slipped in
     // here — it raised nothing, it returned zero for eleven poses out of twelve, and the
@@ -168,6 +168,6 @@ test('the descent frontier is what no exact persistence can save', () => {
     assert.ok(
       ligne.partDuVisePourCent > 50,
       `${ligne.regime}: the floor only drops ${ligne.partDuVisePourCent} % of its target`,
-    );
+    )
   }
-});
+})

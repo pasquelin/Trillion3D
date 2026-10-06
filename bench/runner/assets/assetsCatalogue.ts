@@ -4,10 +4,10 @@
 // from the official repository at the commit `git clone --depth 1` returns, and never edited here:
 // a source folder under `.measure/assets/<scene>/` is read-only, the compiled cache it feeds goes to
 // `.measure/assets/<scene>-derived/` (`README.md` § Assets).
-import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
-export const SAMPLE_REPOSITORY = 'https://github.com/KhronosGroup/glTF-Sample-Assets';
+export const SAMPLE_REPOSITORY = 'https://github.com/KhronosGroup/glTF-Sample-Assets'
 
 /**
  * What each model is kept for. The bench's reference scenes are the first two (`scene.ts`); the
@@ -28,18 +28,18 @@ export const SAMPLE_MODELS: Record<string, string> = {
   AlphaBlendModeTest: 'the three alpha modes side by side',
   CesiumMan: 'a skinned character walking its clip: the GPU deformation stage (#357)',
   AnimatedMorphCube: 'morph targets played by a clip: the GPU deformation stage (#357)',
-};
+}
 
 /** `SciFiHelmet` → `sci-fi-helmet`, `ABeautifulGame` → `abeautiful-game`. */
-export const kebab = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+export const kebab = (name: string) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
 
 /** Scene folder name of each catalogue model, in catalogue order. */
-export const catalogueScenes = () => Object.keys(SAMPLE_MODELS).map(kebab);
+export const catalogueScenes = () => Object.keys(SAMPLE_MODELS).map(kebab)
 
 /** The `.gltf` a source folder carries, or `null`: a folder is a scene only once it has one. */
 export function sceneGltfFile(directory: string) {
-  if (!existsSync(directory)) return null;
-  return readdirSync(directory).find((file) => file.endsWith('.gltf')) ?? null;
+  if (!existsSync(directory)) return null
+  return readdirSync(directory).find((file) => file.endsWith('.gltf')) ?? null
 }
 
 /**
@@ -48,14 +48,14 @@ export function sceneGltfFile(directory: string) {
  * facade scene (`scenes/facade.ts`), or a model someone dropped in by hand.
  */
 export function scenesOnDisk(assets: string) {
-  if (!existsSync(assets)) return [];
-  const known = catalogueScenes();
+  if (!existsSync(assets)) return []
+  const known = catalogueScenes()
   const found = readdirSync(assets, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && !entry.name.endsWith('-derived'))
     .map((entry) => entry.name)
-    .filter((name) => sceneGltfFile(join(assets, name)) !== null);
+    .filter((name) => sceneGltfFile(join(assets, name)) !== null)
   return [
     ...known.filter((name) => found.includes(name)),
     ...found.filter((name) => !known.includes(name)).sort(),
-  ];
+  ]
 }

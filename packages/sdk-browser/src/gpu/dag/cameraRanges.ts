@@ -1,9 +1,9 @@
-import { storageBufferCap } from '../../residency/pools.ts';
-import { FRAME_VEC4, PRIMITIVE_VEC4 } from './types.ts';
+import { storageBufferCap } from '../../residency/pools.ts'
+import { FRAME_VEC4, PRIMITIVE_VEC4 } from './types.ts'
 
 /** Bytes one primitive holds in a camera cut's `frames`: the host's row, then what `dagPrepare`
  *  derives (`shader/primitiveWgsl.ts`), which the host never writes. */
-export const PRIMITIVE_BYTES = (FRAME_VEC4 + PRIMITIVE_VEC4) * 16;
+export const PRIMITIVE_BYTES = (FRAME_VEC4 + PRIMITIVE_VEC4) * 16
 
 /**
  * THE RANGES A CAMERA CUT'S `frames` IS SPLIT IN on this device. Each primitive holds
@@ -19,9 +19,9 @@ export function cameraFrameRanges(
   limits: Parameters<typeof storageBufferCap>[0],
   worldCount: number,
 ) {
-  const per = Math.max(1, Math.floor(storageBufferCap(limits) / PRIMITIVE_BYTES));
-  const ranges: { first: number; count: number }[] = [];
+  const per = Math.max(1, Math.floor(storageBufferCap(limits) / PRIMITIVE_BYTES))
+  const ranges: { first: number; count: number }[] = []
   for (let first = 0; first < worldCount; first += per)
-    ranges.push({ first, count: Math.min(per, worldCount - first) });
-  return ranges;
+    ranges.push({ first, count: Math.min(per, worldCount - first) })
+  return ranges
 }

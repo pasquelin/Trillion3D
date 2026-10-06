@@ -4,15 +4,15 @@
 import {
   DEPTH_LAYER_BIAS_UNITS,
   MAX_DEPTH_LAYER,
-} from '../../../packages/sdk-core/src/lod/depthLayer.ts';
+} from '../../../packages/sdk-core/src/lod/depthLayer.ts'
 
 export function referenceDepthLayerUnits(layer: number | undefined) {
-  if (!layer || !Number.isFinite(layer) || layer <= 0) return 0;
-  return Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS;
+  if (!layer || !Number.isFinite(layer) || layer <= 0) return 0
+  return Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS
 }
 
 export function referenceBiasedDepthBits(bits: number, layer: number | undefined) {
-  const units = referenceDepthLayerUnits(layer);
-  if (units === 0) return bits >>> 0;
-  return Math.min(0x3f800000, (bits >>> 0) + units) >>> 0;
+  const units = referenceDepthLayerUnits(layer)
+  if (units === 0) return bits >>> 0
+  return Math.min(0x3f800000, (bits >>> 0) + units) >>> 0
 }

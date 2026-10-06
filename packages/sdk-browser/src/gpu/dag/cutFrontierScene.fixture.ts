@@ -3,15 +3,15 @@
  * hierarchy packing gives them. No host-library dependency — the world matrix
  * comes from the caller — `tests/integration/engine-without-three.test.ts` forbids it here.
  */
-import { flatHierarchy } from './hierarchy.ts';
-import { CULL_STRIDE, type DagRoot } from './types.ts';
+import { flatHierarchy } from './hierarchy.ts'
+import { CULL_STRIDE, type DagRoot } from './types.ts'
 
 /** A page of level `level`, placed on a grid, with its replacement's error band. */
 function page(level: number, i: number, gridSide: number, extent: number) {
-  const rayon = extent / gridSide;
+  const rayon = extent / gridSide
   const cx = ((i % gridSide) / gridSide - 0.5) * extent * 2,
-    cy = (Math.floor(i / gridSide) / gridSide - 0.5) * extent * 2;
-  const parent = level + 1 < 8 ? 2 ** (level + 1) * 0.01 : null;
+    cy = (Math.floor(i / gridSide) / gridSide - 0.5) * extent * 2
+  const parent = level + 1 < 8 ? 2 ** (level + 1) * 0.01 : null
   return {
     url: `n${level}-${i}`,
     level,
@@ -25,18 +25,18 @@ function page(level: number, i: number, gridSide: number, extent: number) {
     lodError: 2 ** level * 0.01,
     parentError: parent,
     parentSphere: parent === null ? null : [cx, cy, 0, rayon * 2],
-  };
+  }
 }
 
 /** `levels` detail levels, each half as populated as the previous. */
 export function scenePages(feuilles: number, levels: number) {
-  const pages: ReturnType<typeof page>[] = [];
+  const pages: ReturnType<typeof page>[] = []
   for (let level = levels - 1; level >= 0; level--) {
     const count = Math.max(1, feuilles >> level),
-      gridSide = Math.ceil(Math.sqrt(count));
-    for (let i = 0; i < count; i++) pages.push(page(level, i, gridSide, 3));
+      gridSide = Math.ceil(Math.sqrt(count))
+    for (let i = 0; i < count; i++) pages.push(page(level, i, gridSide, 3))
   }
-  return pages;
+  return pages
 }
 
 /**
@@ -51,51 +51,51 @@ export function scenePages(feuilles: number, levels: number) {
  * `cullingBounds` and `hierarchyLevelSizes` both require.
  */
 function hierarchyByLevels(pages: ReturnType<typeof page>[]) {
-  const STRIDE = CULL_STRIDE;
-  const tranches: number[][] = [];
+  const STRIDE = CULL_STRIDE
+  const tranches: number[][] = []
   for (let i = 0, debut = 0; i <= pages.length; i++)
     if (i === pages.length || pages[i].level !== pages[debut].level) {
-      tranches.push([debut, i]);
-      debut = i;
+      tranches.push([debut, i])
+      debut = i
     }
   const blocs = tranches.map(([de, a]) => ({
     tree: flatHierarchy(pages.slice(de, a)),
     premierePage: de,
-  }));
-  let total = 1;
+  }))
+  let total = 1
   const bases = blocs.map((bloc) => {
-    const base = total;
-    total += bloc.tree.nodes.length / STRIDE - 1;
-    return base;
-  });
-  const nodes = new Float64Array((total + blocs.length) * STRIDE);
-  const corps = 1 + blocs.length;
+    const base = total
+    total += bloc.tree.nodes.length / STRIDE - 1
+    return base
+  })
+  const nodes = new Float64Array((total + blocs.length) * STRIDE)
+  const corps = 1 + blocs.length
   for (let a = 0; a < 3; a++) {
-    nodes[a] = Infinity;
-    nodes[3 + a] = -Infinity;
+    nodes[a] = Infinity
+    nodes[3 + a] = -Infinity
   }
   // The root spans every level, the coarsest included, whose clusters nothing replaces:
   // its ceiling certifies nothing, as `flatHierarchy` would say of it.
-  nodes[10] = -1;
-  nodes[11] = 1;
-  nodes[12] = blocs.length;
+  nodes[10] = -1
+  nodes[11] = 1
+  nodes[12] = blocs.length
   for (let k = 0; k < blocs.length; k++) {
-    const { tree, premierePage } = blocs[k];
-    const count = tree.nodes.length / STRIDE;
-    const place = (j: number) => (j === 0 ? 1 + k : corps - 1 + bases[k] + j - 1);
+    const { tree, premierePage } = blocs[k]
+    const count = tree.nodes.length / STRIDE
+    const place = (j: number) => (j === 0 ? 1 + k : corps - 1 + bases[k] + j - 1)
     for (let j = 0; j < count; j++) {
       const de = j * STRIDE,
-        vers = place(j) * STRIDE;
-      for (let v = 0; v < STRIDE; v++) nodes[vers + v] = tree.nodes[de + v];
-      nodes[vers + 11] = tree.nodes[de + 12] ? place(tree.nodes[de + 11]) : 0;
-      nodes[vers + 13] = tree.nodes[de + 13] + premierePage;
+        vers = place(j) * STRIDE
+      for (let v = 0; v < STRIDE; v++) nodes[vers + v] = tree.nodes[de + v]
+      nodes[vers + 11] = tree.nodes[de + 12] ? place(tree.nodes[de + 11]) : 0
+      nodes[vers + 13] = tree.nodes[de + 13] + premierePage
       for (let a = 0; a < 3; a++) {
-        if (j === 0 && tree.nodes[de + a] < nodes[a]) nodes[a] = tree.nodes[de + a];
-        if (j === 0 && tree.nodes[de + 3 + a] > nodes[3 + a]) nodes[3 + a] = tree.nodes[de + 3 + a];
+        if (j === 0 && tree.nodes[de + a] < nodes[a]) nodes[a] = tree.nodes[de + a]
+        if (j === 0 && tree.nodes[de + 3 + a] > nodes[3 + a]) nodes[3 + a] = tree.nodes[de + 3 + a]
       }
     }
   }
-  return { nodes, stride: STRIDE };
+  return { nodes, stride: STRIDE }
 }
 
 /** Scene poses. The world matrix comes from the caller: this module does not know the
@@ -107,6 +107,6 @@ export function sceneRoots(
   worlds: DagRoot['world'][],
   byLevels = false,
 ): DagRoot[] {
-  const culling = byLevels ? hierarchyByLevels(pages) : flatHierarchy(pages);
-  return worlds.map((world) => ({ world, pages: pages as DagRoot['pages'], culling }));
+  const culling = byLevels ? hierarchyByLevels(pages) : flatHierarchy(pages)
+  return worlds.map((world) => ({ world, pages: pages as DagRoot['pages'], culling }))
 }

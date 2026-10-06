@@ -1,10 +1,10 @@
-import { DRAW_ITEM_WGSL } from '../draw/contract.ts';
-import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from '../core/boxProjectWgsl.ts';
-import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts';
-import { PARTITION_CLASSIFY_WGSL } from './classifyWgsl.ts';
-import { PARTITION_CLEAR_WGSL } from './clearWgsl.ts';
-import { PARTITION_PROJECT_WGSL } from './projectWgsl.ts';
-import { PARTITION_BINDING as B, STATE_TALLY_WGSL } from './contract.ts';
+import { DRAW_ITEM_WGSL } from '../draw/contract.ts'
+import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from '../core/boxProjectWgsl.ts'
+import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
+import { PARTITION_CLASSIFY_WGSL } from './classifyWgsl.ts'
+import { PARTITION_CLEAR_WGSL } from './clearWgsl.ts'
+import { PARTITION_PROJECT_WGSL } from './projectWgsl.ts'
+import { PARTITION_BINDING as B, STATE_TALLY_WGSL } from './contract.ts'
 
 /**
  * GPU partition module: three kernels on the same buffers.
@@ -40,4 +40,4 @@ ${HIZ_HIDDEN_WGSL}
 ${PARTITION_CLEAR_WGSL}
 ${PARTITION_PROJECT_WGSL}
 ${PARTITION_CLASSIFY_WGSL}
-`;
+`

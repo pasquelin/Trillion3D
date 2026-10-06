@@ -1,30 +1,30 @@
-import type { wholeDeformationPool } from '../../deformation/wholePool.ts';
-import type { BlendGpuItem } from '../blend/state.ts';
-import type { HostAttributes } from '../../host/resources.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { GeometryBlock } from '../row/pageRowMaterial.ts';
-import type { SessionDeformation } from '../../deformation/session.ts';
-import { pooledOutputs } from '../../deformation/slotLayout.ts';
-import { createVertexPool } from './geometryPool.ts';
-type GeometryBlocks = Map<HostAttributes, GeometryBlock>;
-type WholeTable = { table: GPUBuffer; count: number } | undefined;
+import type { wholeDeformationPool } from '../../deformation/wholePool.ts'
+import type { BlendGpuItem } from '../blend/state.ts'
+import type { HostAttributes } from '../../host/resources.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { GeometryBlock } from '../row/pageRowMaterial.ts'
+import type { SessionDeformation } from '../../deformation/session.ts'
+import { pooledOutputs } from '../../deformation/slotLayout.ts'
+import { createVertexPool } from './geometryPool.ts'
+type GeometryBlocks = Map<HostAttributes, GeometryBlock>
+type WholeTable = { table: GPUBuffer; count: number } | undefined
 /** The whole copies a pool holds after its vertices (`wholeDeformationPool`, deformation's code). */
 type WholePool = (...args: Parameters<typeof wholeDeformationPool>) => Pick<
   ReturnType<typeof wholeDeformationPool>,
   'placed' | 'floats' | 'rows'
 > & {
-  upload: (...args: Parameters<ReturnType<typeof wholeDeformationPool>['upload']>) => WholeTable;
-};
+  upload: (...args: Parameters<ReturnType<typeof wholeDeformationPool>['upload']>) => WholeTable
+}
 /** A session that deforms nothing places no whole copy: no float, and nothing to upload. */
-const noWholeCopy: WholePool = () => ({ placed: [], floats: 0, rows: 0, upload: () => undefined });
+const noWholeCopy: WholePool = () => ({ placed: [], floats: 0, rows: 0, upload: () => undefined })
 /** What a growth of the pool hands the runtime: the wider buffers and the re-placed block. */
 export type VertexPoolGrowth = {
-  concatPos: GPUBuffer;
-  concatUv: GPUBuffer;
+  concatPos: GPUBuffer
+  concatUv: GPUBuffer
   /** The normal atlas's view (`floatAtlas.ts`, #1410). */
-  concatNrm: GPUTextureView;
-  wholeDeformation: WholeTable;
-};
+  concatNrm: GPUTextureView
+  wholeDeformation: WholeTable
+}
 
 /**
  * Packs, once, the source geometry the passes still read as floats: that of the clusters no
@@ -45,50 +45,49 @@ export function prepareWebgpuGeometry(
   grown?: (update: VertexPoolGrowth) => void,
   wholePool: WholePool = noWholeCopy,
 ) {
-  const sourced = new Map<HostAttributes, boolean>();
+  const sourced = new Map<HostAttributes, boolean>()
   for (const rec of allPages)
-    if (!rec.geometryPage)
-      sourced.set(rec.attributes, rec.sourceMesh?.geometry.usage === 'dynamic');
-  const whole = wholePool(items, deformation, pooledOutputs(allPages));
-  for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false);
+    if (!rec.geometryPage) sourced.set(rec.attributes, rec.sourceMesh?.geometry.usage === 'dynamic')
+  const whole = wholePool(items, deformation, pooledOutputs(allPages))
+  for (const item of whole.placed) sourced.set(item.sourceGeometry.attributes, false)
   let vertices = 0,
     room = 0,
-    coloured = false;
+    coloured = false
   for (const [attributes, dynamic] of sourced) {
-    const n = attributes.position?.count ?? 0;
-    vertices += n;
-    if (dynamic) room += n;
-    coloured ||= !!attributes.color;
+    const n = attributes.position?.count ?? 0
+    vertices += n
+    if (dynamic) room += n
+    coloured ||= !!attributes.color
   }
-  const capacity = Math.max(1, vertices + room);
+  const capacity = Math.max(1, vertices + room)
   // The deformation records ride after the positions (#357): the passes read them through the
   // binding they already read the positions through.
-  const deformFloats = deformation?.floats ?? 0;
-  const blockOf = (attributes: HostAttributes) => geometryBlocks.get(attributes)!;
-  let wholeDeformation: VertexPoolGrowth['wholeDeformation'];
+  const deformFloats = deformation?.floats ?? 0
+  const blockOf = (attributes: HostAttributes) => geometryBlocks.get(attributes)!
+  let wholeDeformation: VertexPoolGrowth['wholeDeformation']
   /** Places the deformation block after `count` vertices and points the whole copies at it: a
    *  growth's table replaces the one placed before it, which is freed. */
   const placeWhole = (count: number) => {
-    deformation?.place(count * 3);
-    wholeDeformation?.table.destroy();
+    deformation?.place(count * 3)
+    wholeDeformation?.table.destroy()
     wholeDeformation = whole.rows
       ? whole.upload(device, vertexPool.concatPos, count * 3 + deformFloats, blockOf)
-      : undefined;
+      : undefined
     for (const item of whole.placed) {
-      item.uv = vertexPool.concatUv;
-      item.normal = vertexPool.normalAtlas;
+      item.uv = vertexPool.concatUv
+      item.normal = vertexPool.normalAtlas
     }
-  };
+  }
   /** A growth of the pool: the deformation block moves after the wider vertices (#1293). */
   const regrow = (count: number) => {
-    placeWhole(count);
+    placeWhole(count)
     grown?.({
       concatPos: vertexPool.concatPos,
       concatUv: vertexPool.concatUv,
       concatNrm: vertexPool.concatNrm,
       wholeDeformation,
-    });
-  };
+    })
+  }
   const vertexPool = createVertexPool(
     device,
     capacity,
@@ -96,9 +95,9 @@ export function prepareWebgpuGeometry(
     geometryBlocks,
     deformFloats + whole.floats,
     regrow,
-  );
-  vertexPool.pack(sourced);
-  placeWhole(capacity);
-  const { concatPos, concatUv, concatNrm } = vertexPool;
-  return { concatPos, concatUv, concatNrm, vertexPool, wholeDeformation };
+  )
+  vertexPool.pack(sourced)
+  placeWhole(capacity)
+  const { concatPos, concatUv, concatNrm } = vertexPool
+  return { concatPos, concatUv, concatNrm, vertexPool, wholeDeformation }
 }

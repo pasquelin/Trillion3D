@@ -1,14 +1,14 @@
-import { HIZ_BOUNDS_VALUES } from './corners.ts';
-import { hizRejectsFlat } from './occlusion.ts';
-import { boundsFor, projectBoxesFlat } from './projection.ts';
-import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } from './counts.ts';
-import type { HizPage, HizPyramid } from './types.ts';
-import { neverCulled } from '../visibility/shader/spriteWgsl.ts';
-import type { EngineCamera } from '../camera/world.ts';
-import type { PageLocations } from '../page/selection/placements.ts';
+import { HIZ_BOUNDS_VALUES } from './corners.ts'
+import { hizRejectsFlat } from './occlusion.ts'
+import { boundsFor, projectBoxesFlat } from './projection.ts'
+import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } from './counts.ts'
+import type { HizPage, HizPyramid } from './types.ts'
+import { neverCulled } from '../visibility/shader/spriteWgsl.ts'
+import type { EngineCamera } from '../camera/world.ts'
+import type { PageLocations } from '../page/selection/placements.ts'
 
 /** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
-const discardedCounts = createHizCounts();
+const discardedCounts = createHizCounts()
 
 export function filterUnoccluded<T extends HizPage>(
   pages: T[],
@@ -20,7 +20,7 @@ export function filterUnoccluded<T extends HizPage>(
   bias = 0,
   kept?: T[],
 ) {
-  resetHizCounts(discardedCounts);
+  resetHizCounts(discardedCounts)
   return countUnoccluded(
     pages,
     locations,
@@ -31,7 +31,7 @@ export function filterUnoccluded<T extends HizPage>(
     keptIndices,
     bias,
     kept,
-  );
+  )
 }
 
 /**
@@ -54,29 +54,29 @@ export function countUnoccluded<T extends HizPage & { array?: ArrayLike<number> 
   bias = 0,
   keptInto?: T[],
 ) {
-  const kept: T[] = keptInto ?? [];
-  if (keptInto) keptInto.length = 0;
-  const bounds = boundsFor(pages.length);
-  if (keptIndices) keptIndices.length = 0;
-  projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds);
+  const kept: T[] = keptInto ?? []
+  if (keptInto) keptInto.length = 0
+  const bounds = boundsFor(pages.length)
+  if (keptIndices) keptIndices.length = 0
+  projectBoxesFlat(pages, locations, pages.length, cam, viewport, bounds)
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i],
-      base = i * HIZ_BOUNDS_VALUES;
-    const triangles = page.array ? Math.floor(page.array.length / 3) : 0;
-    counts.tested++;
-    counts.testedTriangles += triangles;
+      base = i * HIZ_BOUNDS_VALUES
+    const triangles = page.array ? Math.floor(page.array.length / 3) : 0
+    counts.tested++
+    counts.testedTriangles += triangles
     if (hizOversizedFlat(bounds, base)) {
-      counts.oversized++;
-      counts.oversizedTriangles += triangles;
+      counts.oversized++
+      counts.oversizedTriangles += triangles
     }
     // A page never culled has no world bound its quad keeps to: no pyramid rejects it.
     if (!neverCulled(page.material) && hizRejectsFlat(pyramid, bounds, base, bias)) {
-      counts.rejected++;
-      counts.rejectedTriangles += triangles;
-      continue;
+      counts.rejected++
+      counts.rejectedTriangles += triangles
+      continue
     }
-    kept.push(page);
-    keptIndices?.push(i);
+    kept.push(page)
+    keptIndices?.push(i)
   }
-  return kept;
+  return kept
 }

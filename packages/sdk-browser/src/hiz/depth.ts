@@ -1,5 +1,5 @@
-import { hizBuildFlat } from '../../../sdk-core/src/index.ts';
-import type { HizPyramid } from './types.ts';
+import { hizBuildFlat } from '../../../sdk-core/src/index.ts'
+import type { HizPyramid } from './types.ts'
 
 /**
  * Visbuffer Hi-Z pyramid: far background, reduce toward farthest. The pyramid is flat: one buffer
@@ -12,6 +12,6 @@ export function buildHizPyramid(
   height: number,
   into?: HizPyramid,
 ): HizPyramid {
-  if (width < 1 || height < 1 || depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE');
-  return hizBuildFlat(depth, width, height, into);
+  if (width < 1 || height < 1 || depth.length < width * height) throw new Error('HIZ_DEPTH_SIZE')
+  return hizBuildFlat(depth, width, height, into)
 }

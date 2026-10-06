@@ -4,19 +4,19 @@
 // and additions, `updateWorldMatrix` on any node, `lookAt`, reads and frames in the middle. Each
 // frame ends with a root update and a snapshot of every live node: stale matrices must be stale
 // on both sides, identically.
-import { alea, cameraAuHasard, dans, pose, subtree, tire } from './hierarchyScenarios.ts';
-import type { HierarchyOp, Vec3 } from './hierarchyScenarios.ts';
+import { alea, cameraAuHasard, dans, pose, subtree, tire } from './hierarchyScenarios.ts'
+import type { HierarchyOp, Vec3 } from './hierarchyScenarios.ts'
 
 const HAUTS: Vec3[] = [
   [0, 1, 0],
   [0, 0, 1],
   [1, 0, 0],
   [0, -1, 0],
-];
+]
 
 /** A hand-set local matrix: a roughly composed pose, sometimes sheared. */
 const matriceAuHasard = (): number[] =>
-  Array.from({ length: 16 }, (_, i) => (i === 15 ? 1 : dans(4)));
+  Array.from({ length: 16 }, (_, i) => (i === 15 ? 1 : dans(4)))
 
 /**
  * `taille` nodes under root 0 (never removed nor moved), `images` frames of one to eight actions,
@@ -26,72 +26,72 @@ export function liveScenario(size: number, images: number, rareteHostile: number
   const ops: HierarchyOp[] = [],
     parents: number[] = [],
     liveNodes: boolean[] = [],
-    cameras = new Set<number>();
-  let prochain = 0;
+    cameras = new Set<number>()
+  let prochain = 0
   const add = (parent: number) => {
-    const id = prochain++;
-    const camera = alea() < 0.08 ? cameraAuHasard() : null;
-    const [p, q, s] = pose(rareteHostile);
-    ops.push(['add', id, parent, p, q, s, camera]);
-    parents[id] = parent;
-    liveNodes[id] = true;
-    if (camera) cameras.add(id);
-    return id;
-  };
+    const id = prochain++
+    const camera = alea() < 0.08 ? cameraAuHasard() : null
+    const [p, q, s] = pose(rareteHostile)
+    ops.push(['add', id, parent, p, q, s, camera])
+    parents[id] = parent
+    liveNodes[id] = true
+    if (camera) cameras.add(id)
+    return id
+  }
   const liveNode = (outsideRoot: boolean): number => {
-    if (outsideRoot && !liveNodes.some((v, id) => v && id)) add(0);
+    if (outsideRoot && !liveNodes.some((v, id) => v && id)) add(0)
     for (;;) {
-      const id = Math.floor(alea() * prochain);
-      if (liveNodes[id] && !(outsideRoot && id === 0)) return id;
+      const id = Math.floor(alea() * prochain)
+      if (liveNodes[id] && !(outsideRoot && id === 0)) return id
     }
-  };
-  add(-1);
-  for (let n = 1; n < size; n++) add(liveNode(false));
-  ops.push(['maj', 0, true]);
+  }
+  add(-1)
+  for (let n = 1; n < size; n++) add(liveNode(false))
+  ops.push(['maj', 0, true])
   for (let image = 0; image < images; image++) {
-    const actions = 1 + Math.floor(alea() * 8);
+    const actions = 1 + Math.floor(alea() * 8)
     for (let a = 0; a < actions; a++) {
-      const r = alea();
+      const r = alea()
       if (r < 0.3) {
-        const [p, q, s] = pose(rareteHostile);
+        const [p, q, s] = pose(rareteHostile)
         ops.push([
           'pose',
           liveNode(false),
           alea() < 0.8 ? p : null,
           alea() < 0.6 ? q : null,
           alea() < 0.5 ? s : null,
-        ]);
-      } else if (r < 0.38) ops.push(['local', liveNode(false), matriceAuHasard()]);
-      else if (r < 0.45) ops.push(['auto', liveNode(false), alea() < 0.6]);
+        ])
+      } else if (r < 0.38) ops.push(['local', liveNode(false), matriceAuHasard()])
+      else if (r < 0.45) ops.push(['auto', liveNode(false), alea() < 0.6])
       else if (r < 0.52) {
-        const id = liveNode(true);
-        let parent = alea() < 0.15 ? -1 : liveNode(false);
-        if (parent >= 0 && subtree(parents, liveNodes, id).includes(parent)) parent = -1;
-        ops.push(['rattache', id, parent]);
-        parents[id] = parent;
+        const id = liveNode(true)
+        let parent = alea() < 0.15 ? -1 : liveNode(false)
+        if (parent >= 0 && subtree(parents, liveNodes, id).includes(parent)) parent = -1
+        ops.push(['rattache', id, parent])
+        parents[id] = parent
       } else if (r < 0.56) {
         const id = liveNode(true),
-          retires = subtree(parents, liveNodes, id);
-        ops.push(['retire', id, retires]);
+          retires = subtree(parents, liveNodes, id)
+        ops.push(['retire', id, retires])
         for (const n of retires) {
-          liveNodes[n] = false;
-          cameras.delete(n);
+          liveNodes[n] = false
+          cameras.delete(n)
         }
-      } else if (r < 0.62) add(liveNode(false));
-      else if (r < 0.72) ops.push(['updateWorld', liveNode(false), alea() < 0.5, alea() < 0.5]);
+      } else if (r < 0.62) add(liveNode(false))
+      else if (r < 0.72) ops.push(['updateWorld', liveNode(false), alea() < 0.5, alea() < 0.5])
       else if (r < 0.8)
-        ops.push(['vise', liveNode(false), [dans(60), dans(60), dans(60)], tire(HAUTS)]);
-      else if (r < 0.88) ops.push(['lis', liveNode(false)]);
-      else if (r < 0.94 && cameras.size) ops.push(['image', tire([...cameras]), alea() < 0.5]);
-      else ops.push(['maj', liveNode(false), alea() < 0.3]);
+        ops.push(['vise', liveNode(false), [dans(60), dans(60), dans(60)], tire(HAUTS)])
+      else if (r < 0.88) ops.push(['lis', liveNode(false)])
+      else if (r < 0.94 && cameras.size) ops.push(['image', tire([...cameras]), alea() < 0.5])
+      else ops.push(['maj', liveNode(false), alea() < 0.3])
     }
-    ops.push(['maj', 0, alea() < 0.2], ['instantane', 0]);
+    ops.push(['maj', 0, alea() < 0.2], ['instantane', 0])
   }
-  return ops;
+  return ops
 }
 
 const M1 = [0.8, 0.1, -0.5, 0, -0.2, 1.5, 0.3, 0, 0.4, -0.6, 0.9, 0, 3, -7, 2, 1],
-  M2 = [-1, 0, 0, 0, 0, 2, 0.5, 0, 0, -0.25, 1, 0, -4, 1, 9, 1];
+  M2 = [-1, 0, 0, 0, 0, 2, 0.5, 0, 0, -0.25, 1, 0, -4, 1, 9, 1]
 const root = (id: number, parent = -1): HierarchyOp => [
   'add',
   id,
@@ -100,7 +100,7 @@ const root = (id: number, parent = -1): HierarchyOp => [
   [0.1, 0.7, -0.1, 0.7],
   [2, 1, -1],
   null,
-];
+]
 
 /**
  * The reference marking rules, played on purpose rather than left to chance: the
@@ -160,5 +160,5 @@ export function marquages(): HierarchyOp[] {
     ['rattache', 0, 3],
     ['maj', 3, true],
     ['instantane', 0],
-  ];
+  ]
 }

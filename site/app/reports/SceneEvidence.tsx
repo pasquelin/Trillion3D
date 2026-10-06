@@ -1,42 +1,42 @@
-import { useState } from 'react';
-import { useWords } from '../i18n.ts';
-import { SceneNotice } from './SceneNotice.tsx';
-import { ImageCard } from '../ui/ImageCard.tsx';
-import { ModalTrigger } from '../ui/Modal.tsx';
-import { Card } from '../ui/Card.tsx';
-import { Select } from '../ui/Input.tsx';
-import { Tabs } from '../ui/Tabs.tsx';
-import { pairedImages, sceneName, runOf } from './model/presentation.ts';
-import { engineName, runName, viewName } from './model/names.ts';
-import { Evidence } from './Evidence.tsx';
-import type { Report, ReportRecord } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useState } from 'react'
+import { useWords } from '../i18n.ts'
+import { SceneNotice } from './SceneNotice.tsx'
+import { ImageCard } from '../ui/ImageCard.tsx'
+import { ModalTrigger } from '../ui/Modal.tsx'
+import { Card } from '../ui/Card.tsx'
+import { Select } from '../ui/Input.tsx'
+import { Tabs } from '../ui/Tabs.tsx'
+import { pairedImages, sceneName, runOf } from './model/presentation.ts'
+import { engineName, runName, viewName } from './model/names.ts'
+import { Evidence } from './Evidence.tsx'
+import type { Report, ReportRecord } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface SceneEvidenceProps {
-  report: Report;
-  scene: string;
-  locale: Locale;
+  report: Report
+  scene: string
+  locale: Locale
 }
 
 /** The kinds of capture, in tab order; each is named by `report.families.<id>`. */
-const FAMILIES = ['engines', 'drawing', 'lighting', 'single'] as const;
+const FAMILIES = ['engines', 'drawing', 'lighting', 'single'] as const
 
 function family(name: string): string {
-  if (/light|shadow/.test(name)) return 'lighting';
-  return name.startsWith('three-') ? 'engines' : 'drawing';
+  if (/light|shadow/.test(name)) return 'lighting'
+  return name.startsWith('three-') ? 'engines' : 'drawing'
 }
 
 interface CaptureGroupsProps {
-  report: Report;
-  locale: Locale;
-  pairs: [ReportRecord, ReportRecord][];
-  singles: ReportRecord[];
-  name: string;
+  report: Report
+  locale: Locale
+  pairs: [ReportRecord, ReportRecord][]
+  singles: ReportRecord[]
+  name: string
 }
 
 function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsProps) {
-  const t = useWords(locale);
-  const engines = pairs.length > 0 && pairs.every(([a]) => family(runOf(report, a)) === 'engines');
+  const t = useWords(locale)
+  const engines = pairs.length > 0 && pairs.every(([a]) => family(runOf(report, a)) === 'engines')
   return (
     <>
       <p>
@@ -78,37 +78,37 @@ function CaptureGroups({ report, locale, pairs, singles, name }: CaptureGroupsPr
           ))}
       </div>
     </>
-  );
+  )
 }
 
 export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
-  const t = useWords(locale);
-  const [selected, setSelected] = useState('engines');
-  const [chosenRun, setChosenRun] = useState('');
-  const records = report.records.filter((r) => r.scene === scene);
-  const pairs = pairedImages(records);
-  const paired = new Set(pairs.flat().map((r) => r.id));
-  const singles = records.filter((r) => r.image && !paired.has(r.id));
+  const t = useWords(locale)
+  const [selected, setSelected] = useState('engines')
+  const [chosenRun, setChosenRun] = useState('')
+  const records = report.records.filter((r) => r.scene === scene)
+  const pairs = pairedImages(records)
+  const paired = new Set(pairs.flat().map((r) => r.id))
+  const singles = records.filter((r) => r.image && !paired.has(r.id))
   const groups = FAMILIES.map((id) => ({
     id,
     label: t(`report.families.${id}`),
     pairs: pairs.filter(([a]) => family(runOf(report, a)) === id),
     singles: id === 'single' ? singles : [],
-  })).filter((group) => group.pairs.length || group.singles.length);
-  const active = groups.find((group) => group.id === selected) ?? groups[0];
-  if (!active) return null;
+  })).filter((group) => group.pairs.length || group.singles.length)
+  const active = groups.find((group) => group.id === selected) ?? groups[0]
+  if (!active) return null
   const names = [
     ...new Set([
       ...active.pairs.map(([a]) => runOf(report, a)),
       ...active.singles.map((r) => runOf(report, r)),
     ]),
-  ];
-  const name = names.includes(chosenRun) ? chosenRun : names[0];
+  ]
+  const name = names.includes(chosenRun) ? chosenRun : names[0]
   function choiceLabel(run: string) {
-    const record = active.pairs.find(([a]) => runOf(report, a) === run)?.[0];
+    const record = active.pairs.find(([a]) => runOf(report, a) === run)?.[0]
     return active.id === 'engines' && record
       ? `${engineName(record.engine)} · ${record.canvas?.width ?? '—'} × ${record.canvas?.height ?? '—'}`
-      : runName(run, locale);
+      : runName(run, locale)
   }
   return (
     <Card title={sceneName(scene)}>
@@ -121,8 +121,8 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
         label={t('report.comparisonType')}
         value={selected}
         onChange={(id) => {
-          setSelected(id);
-          setChosenRun('');
+          setSelected(id)
+          setChosenRun('')
         }}
         accessory={
           <div className="w-60 max-w-full">
@@ -155,5 +155,5 @@ export function SceneEvidence({ report, scene, locale }: SceneEvidenceProps) {
         }))}
       />
     </Card>
-  );
+  )
 }

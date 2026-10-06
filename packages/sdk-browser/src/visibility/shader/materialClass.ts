@@ -7,39 +7,39 @@ import {
   FLAG_HAS_UV,
   FLAG_MASK,
   FLAG_SAMPLED,
-} from '../types.ts';
-import { CLASS_FEATURE } from './classWords.ts';
-export type MaterialClassFeature = keyof typeof CLASS_FEATURE;
+} from '../types.ts'
+import { CLASS_FEATURE } from './classWords.ts'
+export type MaterialClassFeature = keyof typeof CLASS_FEATURE
 /** Keys addressable: one more bit than the highest feature. */
-export const MATERIAL_CLASS_KEYS = 8192;
+export const MATERIAL_CLASS_KEYS = 8192
 
 /** Map slots of a row, as `../../webgpu/row/pageRow.ts` resolves them: zero is the absence of a texture. */
 type MaterialClassMaps = {
-  rough: number;
-  metal: number;
-  ao: number;
-  emissive: number;
-  normal: number;
-};
+  rough: number
+  metal: number
+  ao: number
+  emissive: number
+  normal: number
+}
 
 /** Class key of a row: its resolve-relevant flags, and which maps it reads. */
 export function materialClassKey(flags: number, maps: MaterialClassMaps) {
-  const f = CLASS_FEATURE;
-  let key = 0;
-  if (flags & FLAG_HAS_UV) key |= f.HAS_UV;
-  if (flags & FLAG_HAS_MAP) key |= f.HAS_MAP;
-  if (flags & FLAG_MASK) key |= f.HAS_MASK;
-  if (maps.rough) key |= f.HAS_ROUGH;
-  if (maps.metal) key |= f.HAS_METAL;
-  if (maps.ao) key |= f.HAS_AO;
-  if (maps.emissive) key |= f.HAS_EMISSIVE;
-  if (maps.normal) key |= f.HAS_NORMAL_MAP;
-  if (flags & FLAG_HAS_NORMAL) key |= f.HAS_VERTEX_NORMAL;
-  if (flags & FLAG_DOUBLE) key |= f.DOUBLE_SIDED;
-  if (flags & FLAG_HAS_TANGENT) key |= f.HAS_TANGENT;
-  if (flags & FLAG_SAMPLED) key |= f.HAS_SAMPLING;
-  if (flags & FLAG_HAS_COLOR) key |= f.HAS_VERTEX_COLOR;
-  return key;
+  const f = CLASS_FEATURE
+  let key = 0
+  if (flags & FLAG_HAS_UV) key |= f.HAS_UV
+  if (flags & FLAG_HAS_MAP) key |= f.HAS_MAP
+  if (flags & FLAG_MASK) key |= f.HAS_MASK
+  if (maps.rough) key |= f.HAS_ROUGH
+  if (maps.metal) key |= f.HAS_METAL
+  if (maps.ao) key |= f.HAS_AO
+  if (maps.emissive) key |= f.HAS_EMISSIVE
+  if (maps.normal) key |= f.HAS_NORMAL_MAP
+  if (flags & FLAG_HAS_NORMAL) key |= f.HAS_VERTEX_NORMAL
+  if (flags & FLAG_DOUBLE) key |= f.DOUBLE_SIDED
+  if (flags & FLAG_HAS_TANGENT) key |= f.HAS_TANGENT
+  if (flags & FLAG_SAMPLED) key |= f.HAS_SAMPLING
+  if (flags & FLAG_HAS_COLOR) key |= f.HAS_VERTEX_COLOR
+  return key
 }
 
 /**
@@ -70,4 +70,4 @@ fn classAdmits(id:u32)->bool{
  let pageIndex=(id>>8u)-1u;
  if(pageIndex>=uni.pageCount){return false;}
  return SINGLE_CLASS||pages[pageIndex].materialClass==CLASS_KEY;
-}`;
+}`

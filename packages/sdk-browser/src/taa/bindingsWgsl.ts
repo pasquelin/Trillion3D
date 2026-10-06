@@ -1,5 +1,5 @@
-import { readOnly } from '../webgpu/core/bindLayout.ts';
-import * as layer from './layers.ts';
+import { readOnly } from '../webgpu/core/bindLayout.ts'
+import * as layer from './layers.ts'
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
@@ -21,14 +21,14 @@ export const TAA_BINDINGS = {
   uvs: 18,
   geometryHistory: 19,
   shadingHistory: 20,
-} as const;
+} as const
 
 /** The pass's bind group layout: one entry per binding above. A flagless resolve (OMB-11) neither
  *  binds nor reads the flags; a `filtered` one binds the layers'. The reactive value and the share
  *  target — the as-is share history beside the flicker gradient, still weight and count — are
  *  bound in every resolve (`historyWgsl.ts`). */
 export function createTaaLayout(device: GPUDevice, asIs = true, blended = false, filtered = false) {
-  const stage = GPUShaderStage.FRAGMENT;
+  const stage = GPUShaderStage.FRAGMENT
   const entries: GPUBindGroupLayoutEntry[] = [
     {
       binding: TAA_BINDINGS.current,
@@ -71,16 +71,16 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false,
       visibility: stage,
       buffer: readOnly,
     })),
-  ];
-  const kept = asIs ? entries : entries.filter(({ binding }) => binding !== TAA_BINDINGS.flags);
+  ]
+  const kept = asIs ? entries : entries.filter(({ binding }) => binding !== TAA_BINDINGS.flags)
   return device.createBindGroupLayout({
     entries: [...kept, ...layer.layerEntries(filtered)],
-  });
+  })
 }
 
 /** Uniform bytes: two matrices, two quadruplets, the nine weights in three, then the render grid,
  *  the jitter, the eye, the scene's exposure, the camera's parallax and the flicker rates. */
-export const TAA_VIEW_BYTES = 304;
+export const TAA_VIEW_BYTES = 304
 
 /**
  * Pass uniform. `prevViewProj` and `invViewProj` are REPORTED TO THIS FRAME'S EYE and
@@ -101,7 +101,7 @@ export const TAA_VIEW_BYTES = 304;
  * count's fade-in rate and the parallax limit's inverse (`FLICKER_COUNT_RATE`, `flickerParallax`), a render pixel's
  * width in the world at a clip w of one (`shadingStill`).
  */
-export const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`;
+export const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`
 
 export const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.current}) var current:texture_2d<f32>;
@@ -119,6 +119,6 @@ export const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.texelSampler}) var texelSampler:sampler;
 @group(0) @binding(${TAA_BINDINGS.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${TAA_BINDINGS.positions}) var<storage,read> positions:array<f32>;
-@group(0) @binding(${TAA_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;`;
+@group(0) @binding(${TAA_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;`
 export const shareBindingsWgsl = (blended: boolean) => `
-@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<${blended ? 'f32' : 'u32'}>;`;
+@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<${blended ? 'f32' : 'u32'}>;`

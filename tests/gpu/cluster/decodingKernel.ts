@@ -3,37 +3,37 @@
 // shadow and resolve stages call — `pageHeader`, `pageCorner`, `pagePosition`, `pageUv` over a
 // page-table row —, then a readback. The page sits at a non-zero word offset, as in the engine's
 // pool: the addressing is proved too, not only the arithmetic.
-import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts';
-import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts';
-import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts';
+import { COTANGENT_FRAME_WGSL } from '../../../packages/sdk-browser/src/cluster/decodeWgsl.ts'
+import { PAGE_GEOMETRY_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageGeometryWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/pageWgsl.ts'
 import {
   ROW_FLAGS_WORD,
   ROW_INDEX_WORDS,
-} from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
+} from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts'
 import {
   FLAG_CLUSTER_PAGE,
   PAGE_INFO_STRIDE,
-} from '../../../packages/sdk-browser/src/visibility/buffer.ts';
-import { runOnDawn } from '../kit/onDawn.ts';
-import { openGpuDevice } from '../kit/webgpuDevice.ts';
+} from '../../../packages/sdk-browser/src/visibility/buffer.ts'
+import { runOnDawn } from '../kit/onDawn.ts'
+import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** Word the page sits at in its slot: never zero, so an accessor that forgot the offset fails. */
-const SLOT_WORDS = 13;
+const SLOT_WORDS = 13
 /** Words of a page-table row, and the two the decode reads: its flags, and its slot offset —
  *  `PageInfo.pageOffset`, the word before its index count. */
 const ROW_WORDS = PAGE_INFO_STRIDE / 4,
-  ROW_OFFSET_WORD = ROW_INDEX_WORDS - 1;
+  ROW_OFFSET_WORD = ROW_INDEX_WORDS - 1
 
 /** Words a decoded vertex occupies in the readback: position, normal, uv, uv1, colour. */
-export const VERTEX_WORDS = 14;
+export const VERTEX_WORDS = 14
 /** Words a triangle occupies: its three corners, then the tangent and bitangent of its frame. */
-export const TRIANGLE_WORDS = 9;
+export const TRIANGLE_WORDS = 9
 
 /** A page ready to upload: its encoded bytes and the vertex and index counts its header carries. */
 export interface ClusterPage {
-  bytes: Uint8Array<ArrayBuffer>;
-  vertexCount: number;
-  indexCount: number;
+  bytes: Uint8Array<ArrayBuffer>
+  vertexCount: number
+  indexCount: number
 }
 
 export const CLUSTER_DECODING_SHADER = `${PAGE_INFO_STRUCT_WGSL}
@@ -70,16 +70,16 @@ fn put(at:u32,v:f32){out[at]=bitcast<u32>(v);}
   put(base+3u,frame.T.x);put(base+4u,frame.T.y);put(base+5u,frame.T.z);
   put(base+6u,frame.B.x);put(base+7u,frame.B.y);put(base+8u,frame.B.z);
  }
-}`;
+}`
 
 /** One pipeline, every page decoded in turn, each page's output words read back. */
 async function decodePages(pages: ClusterPage[]) {
-  const gpu = await openGpuDevice();
-  if (!gpu) throw new Error('WebGPU must be available');
-  const { device } = gpu;
-  const { module, compilation } = await gpu.compile(CLUSTER_DECODING_SHADER);
-  if (compilation.length) throw new Error(`the decode does not compile: ${compilation}`);
-  const read = { type: 'read-only-storage' } as const;
+  const gpu = await openGpuDevice()
+  if (!gpu) throw new Error('WebGPU must be available')
+  const { device } = gpu
+  const { module, compilation } = await gpu.compile(CLUSTER_DECODING_SHADER)
+  if (compilation.length) throw new Error(`the decode does not compile: ${compilation}`)
+  const read = { type: 'read-only-storage' } as const
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: read },
@@ -88,29 +88,29 @@ async function decodePages(pages: ClusterPage[]) {
       { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: read },
       { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: read },
     ],
-  });
+  })
   const pipeline = device.createComputePipeline({
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: { module, entryPoint: 'decode' },
-  });
+  })
   const storage = (size: number, usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST) =>
-    device.createBuffer({ size, usage });
+    device.createBuffer({ size, usage })
   // One row, saying the slot holds a quantized page and where in the pool it starts.
-  const row = new Uint32Array(ROW_WORDS);
-  row[ROW_FLAGS_WORD] = FLAG_CLUSTER_PAGE;
-  row[ROW_OFFSET_WORD] = SLOT_WORDS;
-  const table = storage(row.byteLength);
-  device.queue.writeBuffer(table, 0, row);
+  const row = new Uint32Array(ROW_WORDS)
+  row[ROW_FLAGS_WORD] = FLAG_CLUSTER_PAGE
+  row[ROW_OFFSET_WORD] = SLOT_WORDS
+  const table = storage(row.byteLength)
+  device.queue.writeBuffer(table, 0, row)
   // The source float buffers the accessors never read on a quantized row: bound, and empty.
   const positions = storage(4),
-    uvs = storage(4);
-  const words = [];
+    uvs = storage(4)
+  const words = []
   for (const { bytes, vertexCount, indexCount } of pages) {
-    const pool = storage(SLOT_WORDS * 4 + bytes.byteLength);
-    device.queue.writeBuffer(pool, SLOT_WORDS * 4, bytes);
-    const outputBytes = (vertexCount * VERTEX_WORDS + (indexCount / 3) * TRIANGLE_WORDS) * 4;
-    const output = storage(outputBytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC);
-    const target = storage(outputBytes, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ);
+    const pool = storage(SLOT_WORDS * 4 + bytes.byteLength)
+    device.queue.writeBuffer(pool, SLOT_WORDS * 4, bytes)
+    const outputBytes = (vertexCount * VERTEX_WORDS + (indexCount / 3) * TRIANGLE_WORDS) * 4
+    const output = storage(outputBytes, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC)
+    const target = storage(outputBytes, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ)
     const group = device.createBindGroup({
       layout,
       entries: [
@@ -120,24 +120,24 @@ async function decodePages(pages: ClusterPage[]) {
         { binding: 3, resource: { buffer: positions } },
         { binding: 4, resource: { buffer: uvs } },
       ],
-    });
-    const encoder = device.createCommandEncoder();
-    const pass = encoder.beginComputePass();
-    pass.setBindGroup(0, group);
-    pass.setPipeline(pipeline);
-    pass.dispatchWorkgroups(Math.ceil(Math.max(vertexCount, indexCount / 3) / 64));
-    pass.end();
-    encoder.copyBufferToBuffer(output, 0, target, 0, outputBytes);
-    device.queue.submit([encoder.finish()]);
-    await target.mapAsync(GPUMapMode.READ);
-    words.push(new Uint32Array(target.getMappedRange().slice(0)));
-    target.unmap();
-    for (const buffer of [pool, output, target]) buffer.destroy();
+    })
+    const encoder = device.createCommandEncoder()
+    const pass = encoder.beginComputePass()
+    pass.setBindGroup(0, group)
+    pass.setPipeline(pipeline)
+    pass.dispatchWorkgroups(Math.ceil(Math.max(vertexCount, indexCount / 3) / 64))
+    pass.end()
+    encoder.copyBufferToBuffer(output, 0, target, 0, outputBytes)
+    device.queue.submit([encoder.finish()])
+    await target.mapAsync(GPUMapMode.READ)
+    words.push(new Uint32Array(target.getMappedRange().slice(0)))
+    target.unmap()
+    for (const buffer of [pool, output, target]) buffer.destroy()
   }
-  for (const buffer of [table, positions, uvs]) buffer.destroy();
-  const { court: adapter } = await gpu.fermer();
-  return { adapter, words, errors: gpu.errors };
+  for (const buffer of [table, positions, uvs]) buffer.destroy()
+  const { court: adapter } = await gpu.fermer()
+  return { adapter, words, errors: gpu.errors }
 }
 
 /** Decodes each page on the GPU: the adapter, and the output words of each page, in order. */
-export const decodeOnGpu = (pages: ClusterPage[]) => runOnDawn(decodePages, pages);
+export const decodeOnGpu = (pages: ClusterPage[]) => runOnDawn(decodePages, pages)

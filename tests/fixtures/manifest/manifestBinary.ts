@@ -1,23 +1,23 @@
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts';
-import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts';
-import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts'
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts'
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts'
 import {
   levelBlockBytes,
   previewFirstLevel,
   previewGeometry,
-} from '../../../packages/sdk-core/src/texture/previewLevels.ts';
+} from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 
 export const TEMPLATES = {
   url: 'clusters.bin',
   pageUrl: '../../objects/{sha}.bin',
   geometryUrl: '../../objects/{sha}.bin',
   bundleUrl: '../../objects/{sha}.bin',
-};
-export const sha = (c: string) => c.repeat(64);
-const url = (c: string) => `../../objects/${sha(c)}.bin`;
+}
+export const sha = (c: string) => c.repeat(64)
+const url = (c: string) => `../../objects/${sha(c)}.bin`
 
 /** Source dimensions of the fixture's single progressive-level entry. */
-const PREVIEW_SIZE: [number, number] = [32, 16];
+const PREVIEW_SIZE: [number, number] = [32, 16]
 
 /** The tail of a `width`×`height` source, each level `bytesOf` its dimensions, every byte
  *  deterministic and level-distinct so a round trip that mixed up two levels would show here. */
@@ -32,7 +32,7 @@ function previewTail(
       new Uint8Array(bytesOf(w, h)).map(
         (_byte, i) => (i + index + seed) % 256,
       ) as Uint8Array<ArrayBuffer>,
-  );
+  )
 }
 /** One progressive level pyramid: the lossless RGBA8 tail, and the same tail in each block
  *  family's blocks — RGBA in the BC family, two channels in ASTC — as the sidecar carries them. */
@@ -44,7 +44,7 @@ export function previewLevels(width: number, height: number, seed: number) {
       bc7: previewTail(width, height, seed + 1, levelBlockBytes),
       astc: previewTail(width, height, seed + 2, levelBlockBytes),
     },
-  };
+  }
 }
 
 /** Every optional field in both of its shapes: a round trip that misses one would show here. */
@@ -101,7 +101,7 @@ export function manifest(): ClusterManifest {
       streamOffset: 48,
       cone: { axis: [0, 0, 1], angle: Math.PI },
     },
-  ];
+  ]
   // The sparse shape: a cluster band and nothing else — no group, no bundle, no packed geometry.
   const sparsePages = [
     {
@@ -119,7 +119,7 @@ export function manifest(): ClusterManifest {
       parentSphere: null,
       cone: { axis: [1, 0, 0], angle: 0.5 },
     },
-  ];
+  ]
   return {
     schema: CLUSTERED_BLEND_FORMAT_VERSION,
     formatVersion: CLUSTERED_BLEND_FORMAT_VERSION,
@@ -194,5 +194,5 @@ export function manifest(): ClusterManifest {
         streams: null,
       },
     ],
-  } as ClusterManifest;
+  } as ClusterManifest
 }

@@ -1,50 +1,50 @@
-import { Object3D } from '../object/object3d.ts';
-import { readVec3, type Vec3Input } from '../math/vector3.ts';
-import { Ray } from '../math/volumes.ts';
-import { Matrix4 } from '../math/matrix4.ts';
-import { referenceProjection } from './referenceProjection.ts';
-import { drawnView, perspectiveSlope } from '../../math/primitives/camera.ts';
+import { Object3D } from '../object/object3d.ts'
+import { readVec3, type Vec3Input } from '../math/vector3.ts'
+import { Ray } from '../math/volumes.ts'
+import { Matrix4 } from '../math/matrix4.ts'
+import { referenceProjection } from './referenceProjection.ts'
+import { drawnView, perspectiveSlope } from '../../math/primitives/camera.ts'
 
-const view = new Float64Array(4);
+const view = new Float64Array(4)
 
 /** A named view: where the eye is, what it looks at, and optionally its field. */
 export interface CameraPose {
   /** Where the eye stands. */
-  position: Vec3Input;
+  position: Vec3Input
   /** The point the eye looks at. */
-  target: Vec3Input;
+  target: Vec3Input
   /** How wide the eye sees, top to bottom, in degrees. */
-  fov?: number;
+  fov?: number
 }
 
 /** What `camera.perspective` and `camera.orthographic` accept. */
 export interface CameraParameters {
   /** How wide a perspective camera sees, top to bottom, in degrees. */
-  fov?: number;
+  fov?: number
   /** The closest distance the camera draws. */
-  near?: number;
+  near?: number
   /** The farthest distance the camera draws. */
-  far?: number;
+  far?: number
   /** Width divided by height of the picture. */
-  aspect?: number;
+  aspect?: number
   /** Magnification: 2 shows everything twice as big. */
-  zoom?: number;
+  zoom?: number
   /** Left edge of an orthographic camera's view box. */
-  left?: number;
+  left?: number
   /** Right edge of an orthographic camera's view box. */
-  right?: number;
+  right?: number
   /** Top edge of an orthographic camera's view box. */
-  top?: number;
+  top?: number
   /** Bottom edge of an orthographic camera's view box. */
-  bottom?: number;
+  bottom?: number
   /** An orthographic camera keeps its box's height and centre and takes its width from the
    *  picture's shape, so a resized canvas never stretches the drawing. Off by default. */
-  fitAspect?: boolean;
+  fitAspect?: boolean
 }
 
 /** The optics a camera declares; a write redraws the frame, nothing more to call. */
-const OPTICS = ['fov', 'near', 'far', 'aspect', 'zoom', 'left', 'right', 'top', 'bottom'] as const;
-type Optic = (typeof OPTICS)[number];
+const OPTICS = ['fov', 'near', 'far', 'aspect', 'zoom', 'left', 'right', 'top', 'bottom'] as const
+type Optic = (typeof OPTICS)[number]
 
 /**
  * The eye a world draws from: a node of the scene, looking down its `-z`, and the optics the
@@ -52,38 +52,38 @@ type Optic = (typeof OPTICS)[number];
  */
 export class Camera extends Object3D {
   /** Always `true`: tells a camera apart from any other object. */
-  readonly isCamera = true as const;
+  readonly isCamera = true as const
   /** The optics' values, behind the properties of the same names. */
-  readonly _optics: Record<Optic, number>;
+  readonly _optics: Record<Optic, number>
   /** Field of view top to bottom, in degrees; a write redraws. */
-  declare fov: number;
+  declare fov: number
   /** Nearest distance drawn. */
-  declare near: number;
+  declare near: number
   /** Farthest distance drawn. */
-  declare far: number;
+  declare far: number
   /** Width over height of the picture. */
-  declare aspect: number;
+  declare aspect: number
   /** Magnification of the view. */
-  declare zoom: number;
+  declare zoom: number
   /** Left edge of the orthographic box. */
-  declare left: number;
+  declare left: number
   /** Right edge of the orthographic box. */
-  declare right: number;
+  declare right: number
   /** Top edge of the orthographic box. */
-  declare top: number;
+  declare top: number
   /** Bottom edge of the orthographic box. */
-  declare bottom: number;
-  private _fitAspect: boolean;
+  declare bottom: number
+  private _fitAspect: boolean
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
-  readonly projection: 'perspective' | 'orthographic';
+  readonly projection: 'perspective' | 'orthographic'
   /** The matrices a renderer reads, made at their first read (`projectionMatrix`). */
-  declare private _projectionMatrix?: Matrix4;
-  declare private _matrixWorldInverse?: Matrix4;
+  declare private _projectionMatrix?: Matrix4
+  declare private _matrixWorldInverse?: Matrix4
   constructor(projection: 'perspective' | 'orthographic', p: CameraParameters = {}) {
-    super();
-    this.projection = projection;
-    this.type = projection === 'perspective' ? 'PerspectiveCamera' : 'OrthographicCamera';
+    super()
+    this.projection = projection
+    this.type = projection === 'perspective' ? 'PerspectiveCamera' : 'OrthographicCamera'
     this._optics = {
       fov: p.fov ?? 50,
       near: p.near ?? 0.1,
@@ -94,47 +94,47 @@ export class Camera extends Object3D {
       right: p.right ?? 1,
       top: p.top ?? 1,
       bottom: p.bottom ?? -1,
-    };
-    this._fitAspect = p.fitAspect ?? false;
+    }
+    this._fitAspect = p.fitAspect ?? false
   }
   /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
   get fitAspect() {
-    return this._fitAspect;
+    return this._fitAspect
   }
   set fitAspect(value: boolean) {
-    this._fitAspect = value;
-    this.updateProjectionMatrix();
+    this._fitAspect = value
+    this.updateProjectionMatrix()
   }
   protected override get looksDownNegativeZ() {
-    return true;
+    return true
   }
   protected override blank(): this {
-    return new Camera(this.projection) as this;
+    return new Camera(this.projection) as this
   }
   /** Takes `source`'s node values and, from a camera, its optics; its own `projection` stays. */
   override copy(source: Object3D, recursive = true) {
-    super.copy(source, recursive);
-    if (!(source instanceof Camera)) return this;
-    (this as { _optics: Camera['_optics'] })._optics = { ...source._optics };
-    this._fitAspect = source.fitAspect;
-    this.updateProjectionMatrix();
-    return this;
+    super.copy(source, recursive)
+    if (!(source instanceof Camera)) return this
+    ;(this as { _optics: Camera['_optics'] })._optics = { ...source._optics }
+    this._fitAspect = source.fitAspect
+    this.updateProjectionMatrix()
+    return this
   }
   /** Composes `projectionMatrix` again; every optic write already does, and redraws. */
   updateProjectionMatrix() {
-    if (this._projectionMatrix) referenceProjection(this._projectionMatrix, this);
-    this._link?.pose(this);
+    if (this._projectionMatrix) referenceProjection(this._projectionMatrix, this)
+    this._link?.pose(this)
   }
   /** The projection the optics compose onto the clip cube, depth −1 on the near plane to 1 on a
    *  finite far plane, for a renderer that draws with it; every optic write composes it again.
    *  The world draws with its own (`engineCamera.ts`). */
   get projectionMatrix(): Matrix4 {
-    return (this._projectionMatrix ??= referenceProjection(new Matrix4(), this));
+    return (this._projectionMatrix ??= referenceProjection(new Matrix4(), this))
   }
   /** The inverse of the world matrix as last composed, taken at each read: the view a renderer
    *  reads. */
   get matrixWorldInverse(): Matrix4 {
-    return (this._matrixWorldInverse ??= new Matrix4()).copy(this.matrixWorld).invert();
+    return (this._matrixWorldInverse ??= new Matrix4()).copy(this.matrixWorld).invert()
   }
   /**
    * The world ray through a point of the picture, in the engine's own projection
@@ -144,35 +144,35 @@ export class Camera extends Object3D {
    * @param aspect - Width over height of the picture drawn. @param out - The ray written.
    */
   rayThrough(x: number, y: number, aspect: number, out = new Ray()) {
-    this.updateWorldMatrix(true, false);
-    const m = this.matrixWorld;
+    this.updateWorldMatrix(true, false)
+    const m = this.matrixWorld
     if (this.projection === 'perspective') {
-      const t = perspectiveSlope(this.fov, this.zoom);
-      out.origin.setFromMatrixPosition(m);
-      out.direction.set(x * t * aspect, y * t, -1);
+      const t = perspectiveSlope(this.fov, this.zoom)
+      out.origin.setFromMatrixPosition(m)
+      out.direction.set(x * t * aspect, y * t, -1)
     } else {
-      const [cx, cy, w, h] = drawnView(this, aspect, this.zoom, view);
-      out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m);
-      out.direction.set(0, 0, -1);
+      const [cx, cy, w, h] = drawnView(this, aspect, this.zoom, view)
+      out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m)
+      out.direction.set(0, 0, -1)
     }
-    out.direction.transformDirection(m);
-    return out;
+    out.direction.transformDirection(m)
+    return out
   }
   /** Puts the eye at `pose.position`, looking at `pose.target`, at the field it names. */
   set(pose: CameraPose) {
-    if (pose.fov !== undefined) this.fov = pose.fov;
-    this.position.set(...readVec3(pose.position));
-    this.lookAt(...readVec3(pose.target));
+    if (pose.fov !== undefined) this.fov = pose.fov
+    this.position.set(...readVec3(pose.position))
+    this.lookAt(...readVec3(pose.target))
   }
 }
 
 for (const optic of OPTICS)
   Object.defineProperty(Camera.prototype, optic, {
     get(this: Camera) {
-      return this._optics[optic];
+      return this._optics[optic]
     },
     set(this: Camera, value: number) {
-      this._optics[optic] = value;
-      this.updateProjectionMatrix();
+      this._optics[optic] = value
+      this.updateProjectionMatrix()
     },
-  });
+  })

@@ -2,6 +2,6 @@
 export const integers =
   (size: number, unsigned: boolean) =>
   (...args: Array<number | number[]>) => {
-    const flat = args.flat().map((x) => (unsigned ? Math.trunc(x) >>> 0 : Math.trunc(x)));
-    return flat.length === 1 ? new Array<number>(size).fill(flat[0]) : flat;
-  };
+    const flat = args.flat().map((x) => (unsigned ? Math.trunc(x) >>> 0 : Math.trunc(x)))
+    return flat.length === 1 ? new Array<number>(size).fill(flat[0]) : flat
+  }

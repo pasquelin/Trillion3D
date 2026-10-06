@@ -1,20 +1,20 @@
-import { readGpuImage } from '../../../gpu/core/presentation.ts';
-import { collectPendingUrls } from '../../../page/selection/selection.ts';
-import { awaitedPages } from '../../row/pageSlots.ts';
-import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts';
-import { fallbackToCpuCut } from '../io/drops.ts';
-import { directLightingState } from './encodeLights.ts';
-import { bounceState } from '../state/bounce.ts';
-import { renderWebgpuPages } from './render.ts';
-import { settlePose } from '../../tile/converge.ts';
-import { deviceAnswer } from '../../frame/deviceAnswer.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts';
+import { readGpuImage } from '../../../gpu/core/presentation.ts'
+import { collectPendingUrls } from '../../../page/selection/selection.ts'
+import { awaitedPages } from '../../row/pageSlots.ts'
+import { outputColorDiagnostic } from '../../../diagnostic/presentationDiagnostic.ts'
+import { fallbackToCpuCut } from '../io/drops.ts'
+import { directLightingState } from './encodeLights.ts'
+import { bounceState } from '../state/bounce.ts'
+import { renderWebgpuPages } from './render.ts'
+import { settlePose } from '../../tile/converge.ts'
+import { deviceAnswer } from '../../frame/deviceAnswer.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { sendCoverageBudget } from '../../../diagnostic/engineDiagnostic.ts'
 
 function reportProgress(rt: WebgpuPagesRuntime) {
-  const { run, gpu, blendState, diag, services, context } = rt;
-  if (performance.now() - run.lastProgressMs < 2000) return;
-  run.lastProgressMs = performance.now();
+  const { run, gpu, blendState, diag, services, context } = rt
+  if (performance.now() - run.lastProgressMs < 2000) return
+  run.lastProgressMs = performance.now()
   diag.engineDiagnostic('render-progress', 'GPU render progress', {
     frame: run.frame,
     coverage: {
@@ -45,31 +45,31 @@ function reportProgress(rt: WebgpuPagesRuntime) {
     surfaceVersion: gpu.surfaces?.version ?? null,
     presentation: context.gpuCanvas ? 'direct' : 'composed',
     imageReadbackDuringRender: false,
-  });
+  })
 }
 
 /** Reads the settled image back once per submission, logging the first readback's colours. */
 async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { run, gpu, capture, diag, context } = rt,
-    { clearColor } = run;
+    { clearColor } = run
   if (!capture.capturePending) {
     const revision = run.imageRevision,
       [width, height] = gpu.displaySize,
-      texture = gpu.displayTexture!;
+      texture = gpu.displayTexture!
     capture.capturePending = readGpuImage(gpuDevice, texture, width, height, context.signal)
       .then((pixels) => {
-        if (run.lost || revision !== run.imageRevision) return;
-        capture.capturedPixels = pixels;
-        capture.capturedRevision = revision;
-        if (run.outputDiagnosticLogged) return;
-        run.outputDiagnosticLogged = true;
-        const colors = outputColorDiagnostic(pixels, width, height, clearColor, 'bottom-left');
+        if (run.lost || revision !== run.imageRevision) return
+        capture.capturedPixels = pixels
+        capture.capturedRevision = revision
+        if (run.outputDiagnosticLogged) return
+        run.outputDiagnosticLogged = true
+        const colors = outputColorDiagnostic(pixels, width, height, clearColor, 'bottom-left')
         diag.engineDiagnostic('first-readback', 'First explicit readback of the WebGPU target', {
           width,
           height,
           origin: 'bottom-left',
           ...colors,
-        });
+        })
         diag.engineDiagnostic('presentation-capture', 'Explicit capture of the WebGPU render', {
           width,
           height,
@@ -77,18 +77,18 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
           imageRevision: revision,
           surface: 'webgpu-color-target',
           ...colors,
-        });
+        })
       })
       .finally(() => {
-        capture.capturePending = undefined;
-      });
+        capture.capturePending = undefined
+      })
   }
-  await capture.capturePending;
-  if (run.lost) throw new Error('WEBGPU_LOST');
+  await capture.capturePending
+  if (run.lost) throw new Error('WEBGPU_LOST')
   if (capture.capturedRevision !== run.imageRevision)
-    throw new Error('CAPTURE_CHANGED_DURING_FLUSH');
+    throw new Error('CAPTURE_CHANGED_DURING_FLUSH')
   if (capture.captureStreamingDeferrals && !capture.captureDeferralLogged) {
-    capture.captureDeferralLogged = true;
+    capture.captureDeferralLogged = true
     diag.engineDiagnostic(
       'capture-streaming-deferred',
       'Streaming update deferred to the next render during capture',
@@ -97,7 +97,7 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         deferredUpdates: capture.captureStreamingDeferrals,
         pagesRetained: true,
       },
-    );
+    )
   }
 }
 
@@ -106,48 +106,48 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  *  pages takes no picture, and a view the world's loop keeps redrawing never holds one still. */
 export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?: boolean } = {}) {
   const { run, gpu, capture, timing, diag, services } = rt,
-    gpuDevice = gpu.device;
+    gpuDevice = gpu.device
   // The held-image witness is NOT removed by default: a host that drains every image would then
   // never have a held image. Every drain that actually changes the image announces it itself — a
   // texture that arrives and a page that enters or leaves residency increment the resource
   // revision, an abandoned selection removes the witness. What remains is adoption of a readback,
   // which is replayed here after the host has taken its lists: it is removed below, and only when
   // it has changed something.
-  await Promise.resolve();
+  await Promise.resolve()
   const redraw = () => {
-    if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera);
-  };
+    if (run.lastCamera && !capture.capturing && !run.lost) renderWebgpuPages(rt, run.lastCamera)
+  }
   // A frame held on a device answer (`holdWebgpuFrame`) drew nothing, no cut to adopt below: the
   // answer is waited for and the pose drawn, as `pendingWebgpuFrame` does. The lit program is one
   // (#1362): a drained pose is a lit pose. A redraw may ask again (a view resized meanwhile); a
   // refused grant stays settled, a failed compile is no longer awaited, so the loop ends.
   for (let answer = deviceAnswer(rt); answer; answer = deviceAnswer(rt)) {
-    await answer;
-    redraw();
+    await answer
+    redraw()
   }
   // Texture tiles are part of preparing a pose, not of a per-image decoration: a surface read at
   // a coarse level will change when its tile arrives. `render` only admits a byte budget per
   // image; the barrier converges the rest here, outside the measured loop, then drains the shadow
   // maps, and starts again as long as a drain redrew something (`settlePose`): a drained pose is
   // a pose served as well as the pool can give, whose shadow describes the image.
-  await settlePose(rt, gpuDevice, options.image !== false);
-  await services.bootstrapState.ensure();
-  await services.residency.pending;
+  await settlePose(rt, gpuDevice, options.image !== false)
+  await services.bootstrapState.ensure()
+  await services.residency.pending
   if (run.coverageBudgetEvent) {
-    sendCoverageBudget(rt.context.onDiagnostic, run.coverageBudgetEvent);
-    run.coverageBudgetEvent = undefined;
+    sendCoverageBudget(rt.context.onDiagnostic, run.coverageBudgetEvent)
+    run.coverageBudgetEvent = undefined
   }
-  await timing.gpuTiming?.flush();
-  reportProgress(rt);
+  await timing.gpuTiming?.flush()
+  reportProgress(rt)
   if (run.gpuSelection) {
     try {
-      await run.gpuSelection.flush();
-      if (run.gpuSelection.failed()) fallbackToCpuCut(rt, 'selection readback failed');
+      await run.gpuSelection.flush()
+      if (run.gpuSelection.failed()) fallbackToCpuCut(rt, 'selection readback failed')
       // Origin of the resource change: adoption of a readback rewrote the cut lists.
-      else if (run.gpuFrameActive && services.adoptGpuCut()) run.gate.resourcesChanged();
+      else if (run.gpuFrameActive && services.adoptGpuCut()) run.gate.resourcesChanged()
     } catch (error) {
-      diag.diagnosticFailure('gpu-selection-flush-failed', error);
-      fallbackToCpuCut(rt, 'selection drain failed');
+      diag.diagnosticFailure('gpu-selection-flush-failed', error)
+      fallbackToCpuCut(rt, 'selection drain failed')
     }
   }
   if (
@@ -158,6 +158,6 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
     run.imageRevision > 0 &&
     capture.capturedRevision !== run.imageRevision
   )
-    await readBackImage(rt, gpuDevice);
-  await Promise.resolve();
+    await readBackImage(rt, gpuDevice)
+  await Promise.resolve()
 }

@@ -1,23 +1,23 @@
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
-} from '../../../packages/sdk-core/src/scene/core/environment.ts';
+} from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import type {
   BackendContext,
   HostDrawOutput,
-} from '../../../packages/sdk-browser/src/backend/types.ts';
-import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
-import { ClusterBatches, type BatchPage } from './batches/batches.ts';
-import { clusterRefusal } from '../../../packages/sdk-browser/src/webgl/cluster/refusal.ts';
-import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
-import { degradedHearer } from '../../../packages/sdk-browser/src/world/diagnostic/materialNotices.ts';
-import { clusterWebglCompatibility } from './clusterCompatibility.ts';
-import { keptClusterScene } from './keptClusterScene.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts'
+import { ClusterBatches, type BatchPage } from './batches/batches.ts'
+import { clusterRefusal } from '../../../packages/sdk-browser/src/webgl/cluster/refusal.ts'
+import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts'
+import { degradedHearer } from '../../../packages/sdk-browser/src/world/diagnostic/materialNotices.ts'
+import { clusterWebglCompatibility } from './clusterCompatibility.ts'
+import { keptClusterScene } from './keptClusterScene.ts'
 
-type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
+type HostScene = ConstructorParameters<typeof ClusterBatches>[0]
 type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number] & {
-  userData: Record<string, unknown>;
-};
+  userData: Record<string, unknown>
+}
 
 /**
  * The batches of a prepared scene and their one draw owner. A scene the owner cannot draw in
@@ -37,19 +37,19 @@ export function createExactPagesClusterBatches(
   blendCopies: readonly SceneCopy[],
   context: Pick<BackendContext, 'webglContext' | 'materialDegraded' | 'onDiagnostic'>,
 ) {
-  const gl = context.webglContext;
-  const reason = gl && clusterWebglCompatibility(gl, pages, blendCopies, keptClusterScene(scene));
-  const refusal = reason ? clusterRefusal(reason) : undefined;
-  const owner = gl && !refusal ? new WebglClusterOwner(gl, degradedHearer(context)) : undefined;
+  const gl = context.webglContext
+  const reason = gl && clusterWebglCompatibility(gl, pages, blendCopies, keptClusterScene(scene))
+  const refusal = reason ? clusterRefusal(reason) : undefined
+  const owner = gl && !refusal ? new WebglClusterOwner(gl, degradedHearer(context)) : undefined
   for (const copy of blendCopies) {
-    copy.userData.sourceGeometry = copy.geometry;
-    copy.userData.sourceMaterial = copy.material;
+    copy.userData.sourceGeometry = copy.geometry
+    copy.userData.sourceMaterial = copy.material
   }
-  const batches = new ClusterBatches(scene, pages, owner, blendCopies);
+  const batches = new ClusterBatches(scene, pages, owner, blendCopies)
   const drawHostGeometry = (camera: HostDrawCamera, output: HostDrawOutput) => {
-    if (refusal) throw refusal;
-    if (owner) owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
-    batches.draw(camera, output.toneMapped, true);
-  };
-  return { batches, refusal, drawHostGeometry };
+    if (refusal) throw refusal
+    if (owner) owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING]
+    batches.draw(camera, output.toneMapped, true)
+  }
+  return { batches, refusal, drawHostGeometry }
 }

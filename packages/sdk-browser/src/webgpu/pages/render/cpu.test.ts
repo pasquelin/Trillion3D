@@ -2,39 +2,39 @@
 // and only for an image that draws. Publishing earlier made the cache hold — and forbade it from
 // reclaiming — a cut the image never drew, while the pinned coverage it needs first was still in
 // flight.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
 import {
   collectClusterPages,
   createSelectionResult,
   type PageRec,
-} from '../../../page/selection/selection.ts';
-import { blendFixture, camera } from '../../../page/selection/blend.fixture.ts';
-import { engineCamera } from '../../../camera/camera.fixture.ts';
-import { createHizCounts } from '../../../hiz/hiz.ts';
-import { renderCpuCut } from './cpu.ts';
-import { createHeldResidency } from '../../../page/cut/held.ts';
-import { postPackedBases } from '../../../page/selection/placements.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+} from '../../../page/selection/selection.ts'
+import { blendFixture, camera } from '../../../page/selection/blend.fixture.ts'
+import { engineCamera } from '../../../camera/camera.fixture.ts'
+import { createHizCounts } from '../../../hiz/hiz.ts'
+import { renderCpuCut } from './cpu.ts'
+import { createHeldResidency } from '../../../page/cut/held.ts'
+import { postPackedBases } from '../../../page/selection/placements.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** An engine reduced to what the CPU cut walks before drawing. */
 function banc(options: { ready: boolean; resident: boolean }) {
-  const fixture = blendFixture();
+  const fixture = blendFixture()
   const { roots, allPages } = collectClusterPages(
     fixture.source,
     fixture.metadata,
     fixture.indices,
     fixture.associations,
-  );
+  )
   // The layout a WebGPU engine runs before any cut: every page ranks in the packed catalogue, and
   // `recordOf` is how the CPU path reads a published rank back (`.worktrees`).
-  const placement = postPackedBases(roots);
-  const residents = new Map(options.resident ? allPages.map((page) => [page.url, page]) : []);
+  const placement = postPackedBases(roots)
+  const residents = new Map(options.resident ? allPages.map((page) => [page.url, page]) : [])
   /** What `run.desired` carried before the image: the cut the previous image published. The bench
    *  camera only keeps `near`, so `far` alone says without ambiguity "nothing has moved". */
-  const tenue = [allPages.find((page) => page.url === 'far')!];
-  const journal: string[] = [];
+  const tenue = [allPages.find((page) => page.url === 'far')!]
+  const journal: string[] = []
   const run = {
     gate: { resourcesChanged: () => journal.push('ressources') },
     shown: [] as PageRec[],
@@ -70,7 +70,7 @@ function banc(options: { ready: boolean; resident: boolean }) {
     temporalHizState: {},
     cpuHizCounts: createHizCounts(),
     cpuHizCounted: false,
-  };
+  }
   const rt = {
     run,
     // The main view alone.
@@ -114,82 +114,82 @@ function banc(options: { ready: boolean; resident: boolean }) {
         _shown: ArrayLike<number>,
         count = wanted.length,
       ) => {
-        journal.push('publication');
-        run.desired.length = 0;
-        for (let i = 0; i < count; i++) run.desired.push(allPages[wanted[i]]!);
+        journal.push('publication')
+        run.desired.length = 0
+        for (let i = 0; i < count; i++) run.desired.push(allPages[wanted[i]]!)
       },
       residency: {
         queueCutResidency: () => {
-          journal.push('file');
+          journal.push('file')
           // The image stops here: everything that follows needs a device.
-          throw new Error('BENCH_STOP');
+          throw new Error('BENCH_STOP')
         },
       },
     },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, run, journal, tenue, cam: engineCamera(camera()) };
+  } as unknown as WebgpuPagesRuntime
+  return { rt, run, journal, tenue, cam: engineCamera(camera()) }
 }
 
-const image = (b: ReturnType<typeof banc>) => renderCpuCut(b.rt, b.cam, 0, 0, 0);
+const image = (b: ReturnType<typeof banc>) => renderCpuCut(b.rt, b.cam, 0, 0, 0)
 
 test('bootstrap in progress makes the CPU cut hold nothing', () => {
-  const b = banc({ ready: false, resident: false });
-  image(b);
-  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'neither publish nor queue');
-  assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
-});
+  const b = banc({ ready: false, resident: false })
+  image(b)
+  assert.deepEqual(b.journal, ['ressources', 'oubli'], 'neither publish nor queue')
+  assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image')
+})
 
 test('another view’s CPU cut breaks its own hold alone, the main view’s readback kept', () => {
-  const b = banc({ ready: false, resident: false });
-  Object.assign(b.rt, { views: { main: {}, active: {} } });
-  Object.assign(b.run.gate, { viewReplaced: () => b.journal.push('view') });
-  image(b);
-  assert.deepEqual(b.journal, ['view'], 'neither the shared resources nor the readback');
-});
+  const b = banc({ ready: false, resident: false })
+  Object.assign(b.rt, { views: { main: {}, active: {} } })
+  Object.assign(b.run.gate, { viewReplaced: () => b.journal.push('view') })
+  image(b)
+  assert.deepEqual(b.journal, ['view'], 'neither the shared resources nor the readback')
+})
 
 test('nothing resident yet: the image draws no hole, and still asks for its cut', () => {
   // Coverage ready, but no resident page: no cluster is drawn in place of what is missing, and the
   // requested cut is published so the pool loads it — no throw, no pinned-only substitute.
-  const b = banc({ ready: true, resident: false });
-  assert.throws(() => image(b), /BENCH_STOP/, 'the bench stops at the queue, for lack of a device');
-  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file']);
-  assert.deepEqual(b.run.shown, [], 'nothing resident is drawn');
+  const b = banc({ ready: true, resident: false })
+  assert.throws(() => image(b), /BENCH_STOP/, 'the bench stops at the queue, for lack of a device')
+  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file'])
+  assert.deepEqual(b.run.shown, [], 'nothing resident is drawn')
   assert.deepEqual(
     b.run.desired.map((page) => page.url),
     ['near'],
-  );
-});
+  )
+})
 
 test('an image that passes its guards publishes its cut, just before queuing residency', () => {
-  const b = banc({ ready: true, resident: true });
-  assert.throws(() => image(b), /BENCH_STOP/, 'the bench stops at the queue, for lack of a device');
-  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file'], 'in that order');
+  const b = banc({ ready: true, resident: true })
+  assert.throws(() => image(b), /BENCH_STOP/, 'the bench stops at the queue, for lack of a device')
+  assert.deepEqual(b.journal, ['ressources', 'oubli', 'publication', 'file'], 'in that order')
   assert.deepEqual(
     b.run.desired.map((page) => page.url),
     ['near'],
     'and it is the chosen cut that is published, not the previous one',
-  );
-});
+  )
+})
 
 test("the cache's changes reach the cut's residency before the cut reads it", () => {
-  const b = banc({ ready: false, resident: false });
-  const services = b.rt.services as unknown as Record<string, unknown>;
-  services.syncResidency = () => b.journal.push('sync');
+  const b = banc({ ready: false, resident: false })
+  const services = b.rt.services as unknown as Record<string, unknown>
+  services.syncResidency = () => b.journal.push('sync')
   services.heldResidency = createHeldResidency({
     isResident: () => (b.journal.push('lecture'), false),
-  });
-  image(b);
-  const synced = b.journal.indexOf('sync');
-  assert.ok(synced >= 0, 'the mirror is synced');
-  assert.ok(synced < b.journal.indexOf('lecture'), 'before the first residency the cut reads');
-});
+  })
+  image(b)
+  const synced = b.journal.indexOf('sync')
+  assert.ok(synced >= 0, 'the mirror is synced')
+  assert.ok(synced < b.journal.indexOf('lecture'), 'before the first residency the cut reads')
+})
 
 test('the drawn packed ranks are written into the array the GPU adopter and the rows hold', () => {
   // Rebinding `run.drawnPacked` would leave them reading a list no image writes any more (#1235).
   const b = banc({ ready: true, resident: true }),
-    held = b.run.drawnPacked;
-  assert.throws(() => image(b), /BENCH_STOP/);
-  assert.equal(b.run.drawnPacked, held, 'the same array');
-  assert.deepEqual(held, b.run.shownPacked, 'holding what the image draws');
-  assert.ok(held.length > 0);
-});
+    held = b.run.drawnPacked
+  assert.throws(() => image(b), /BENCH_STOP/)
+  assert.equal(b.run.drawnPacked, held, 'the same array')
+  assert.deepEqual(held, b.run.shownPacked, 'holding what the image draws')
+  assert.ok(held.length > 0)
+})

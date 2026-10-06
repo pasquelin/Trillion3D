@@ -1,20 +1,20 @@
-import type { PageSource } from '../../../../sdk-core/src/index.ts';
-import { createGpuPageCache, httpPageSource } from '../../gpu/page/pages.ts';
-import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
-import { DEFAULT_PAGE_WORKERS } from '../../backend/common.ts';
+import type { PageSource } from '../../../../sdk-core/src/index.ts'
+import { createGpuPageCache, httpPageSource } from '../../gpu/page/pages.ts'
+import { decodeGeometryPage } from '../../page/decode/geometryPage.ts'
+import { DEFAULT_PAGE_WORKERS } from '../../backend/common.ts'
 
 /** Where pages are read from, and the address they are read against. */
 export type WorldPageSource = PageSource & {
   /** The address every page is read against. */
-  readonly baseUrl: string;
-};
+  readonly baseUrl: string
+}
 
 /** How a model's pages are fetched: from which source, by how many workers at once. */
 export interface PageStreamer {
   /** Where the pages are read from. */
-  readonly source: WorldPageSource;
+  readonly source: WorldPageSource
   /** How many workers fetch and decode pages at once. */
-  readonly workers: number;
+  readonly workers: number
 }
 
 /**
@@ -49,4 +49,4 @@ export const page = {
    */
   decode: (bytes: ArrayBuffer | Uint8Array) =>
     decodeGeometryPage(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)),
-};
+}

@@ -3,24 +3,24 @@
  *  page). An interval longer than `PAUSE_MS` is a pause, not a frame (under 10 fps). */
 const REFRESH_WINDOW = 120,
   WINDOW_MS = 1000,
-  PAUSE_MS = 100;
+  PAUSE_MS = 100
 /** Share of the period an interval may stray from a whole number of periods (timer jitter), and
  *  the shortest period sought: no display refreshes faster than 500 Hz. */
-export const GRID_TOLERANCE = 0.1;
-const SHORTEST_PERIOD_MS = 2;
+export const GRID_TOLERANCE = 0.1
+const SHORTEST_PERIOD_MS = 2
 /** A timer rounded to whole milliseconds (Safari, a page not cross-origin isolated) strays by up
  *  to this much, 8 or 9 ms at 120 Hz; a period under this many roundings is not sought, since
  *  its grid would then cover almost any interval. */
 const COARSE_MS = 1,
-  COARSE_PERIODS = 4;
+  COARSE_PERIODS = 4
 /** Intervals that must sit together for their value to be a period — a lone late or early frame
  *  is none —, and the share of the window a period must hold on its grid. */
-export const SUPPORT = 3;
-const ON_GRID = 0.9;
+export const SUPPORT = 3
+const ON_GRID = 0.9
 
 /** How far an interval may stray from a whole number of `period`s, a timer rounded to
  *  `resolution` ms. */
-const slack = (period: number, resolution: number) => Math.max(GRID_TOLERANCE * period, resolution);
+const slack = (period: number, resolution: number) => Math.max(GRID_TOLERANCE * period, resolution)
 
 /**
  * The period the first `length` ascending `gaps` hold, near `period`: where nine in ten of them are
@@ -29,18 +29,18 @@ const slack = (period: number, resolution: number) => Math.max(GRID_TOLERANCE * 
  * first misses past the tenth, so a window no grid holds costs little.
  */
 function fit(gaps: Float64Array, length: number, period: number, resolution: number) {
-  const tolerance = slack(period, resolution);
+  const tolerance = slack(period, resolution)
   let misses = (1 - ON_GRID) * length,
     time = 0,
-    refreshes = 0;
+    refreshes = 0
   for (let i = 0; i < length; i++) {
-    const n = Math.max(1, Math.round(gaps[i] / period));
+    const n = Math.max(1, Math.round(gaps[i] / period))
     if (Math.abs(gaps[i] - n * period) <= tolerance) {
-      time += gaps[i];
-      refreshes += n;
-    } else if (--misses < 0) return Number.NaN;
+      time += gaps[i]
+      refreshes += n
+    } else if (--misses < 0) return Number.NaN
   }
-  return time / refreshes;
+  return time / refreshes
 }
 
 /** Writes into `into.cadence` the period of the first `length` ascending `gaps`: from the shortest
@@ -53,20 +53,20 @@ function gridPeriod(
   resolution: number,
   into: { cadence: number },
 ) {
-  const shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution);
+  const shortest = Math.max(SHORTEST_PERIOD_MS, COARSE_PERIODS * resolution)
   for (let i = 0, j = 0; i < length; i = j) {
-    while (j < length && gaps[j] <= gaps[i] + slack(gaps[i], resolution)) j++;
-    if (j - i < SUPPORT) continue;
-    const base = gaps[(i + j - 1) >> 1];
+    while (j < length && gaps[j] <= gaps[i] + slack(gaps[i], resolution)) j++
+    if (j - i < SUPPORT) continue
+    const base = gaps[(i + j - 1) >> 1]
     for (let k = 1; base / k >= shortest; k++) {
-      const period = fit(gaps, length, base / k, resolution);
+      const period = fit(gaps, length, base / k, resolution)
       if (!Number.isNaN(period)) {
-        into.cadence = period;
-        return true;
+        into.cadence = period
+        return true
       }
     }
   }
-  return false;
+  return false
 }
 
 /**
@@ -97,8 +97,8 @@ export function createRefreshClock(fallback: number) {
     ends = new Float64Array(REFRESH_WINDOW),
     /** The last frame's timestamp and the timer's rounding — whole milliseconds until a
      *  timestamp shows a fraction —, ms. */
-    at = { last: Number.NaN, resolution: COARSE_MS };
-  let count = 0;
+    at = { last: Number.NaN, resolution: COARSE_MS }
+  let count = 0
   /** What the clock reads, as fields its readers load in place: a number read through a getter
    *  or a return is boxed anew at each read. */
   const clock = {
@@ -113,47 +113,47 @@ export function createRefreshClock(fallback: number) {
     settled: false,
     /** Another display: the window restarts, the refresh held until a new one is found. */
     reset() {
-      at.last = Number.NaN;
-      count = 0;
-      clock.cadence = Number.NaN;
-      clock.settled = false;
+      at.last = Number.NaN
+      count = 0
+      clock.cadence = Number.NaN
+      clock.settled = false
     },
     /** A frame began at `now`, ms (the rAF timestamp); `gap` the interval since the last. */
     tick(now: number) {
-      const gap = (clock.gap = now - at.last);
-      at.last = now;
-      if (now % 1 !== 0) at.resolution = 0;
-      if (!(gap > 0 && gap < PAUSE_MS)) return;
+      const gap = (clock.gap = now - at.last)
+      at.last = now
+      if (now % 1 !== 0) at.resolution = 0
+      if (!(gap > 0 && gap < PAUSE_MS)) return
       // Out: the intervals that ended a second ago or more, then, the window full, the oldest.
       let n = 0,
-        oldest = -1;
+        oldest = -1
       for (let i = 0; i < count; i++)
         if (ends[i] > now - WINDOW_MS) {
-          gaps[n] = gaps[i];
-          ends[n] = ends[i];
-          if (oldest < 0 || ends[n] < ends[oldest]) oldest = n;
-          n++;
+          gaps[n] = gaps[i]
+          ends[n] = ends[i]
+          if (oldest < 0 || ends[n] < ends[oldest]) oldest = n
+          n++
         }
       if (n === REFRESH_WINDOW) {
-        n--;
-        gaps.copyWithin(oldest, oldest + 1, REFRESH_WINDOW);
-        ends.copyWithin(oldest, oldest + 1, REFRESH_WINDOW);
+        n--
+        gaps.copyWithin(oldest, oldest + 1, REFRESH_WINDOW)
+        ends.copyWithin(oldest, oldest + 1, REFRESH_WINDOW)
       }
       // In: the new interval, after the ones not longer.
-      let i = n;
+      let i = n
       for (; i > 0 && gaps[i - 1] > gap; i--) {
-        gaps[i] = gaps[i - 1];
-        ends[i] = ends[i - 1];
+        gaps[i] = gaps[i - 1]
+        ends[i] = ends[i - 1]
       }
-      gaps[i] = gap;
-      ends[i] = now;
-      count = n + 1;
-      if (!gridPeriod(gaps, count, at.resolution, clock)) return;
+      gaps[i] = gap
+      ends[i] = now
+      count = n + 1
+      if (!gridPeriod(gaps, count, at.resolution, clock)) return
       if (!clock.settled || clock.cadence <= (1 + GRID_TOLERANCE) * clock.display)
-        clock.display = clock.cadence;
-      clock.settled = true;
+        clock.display = clock.cadence
+      clock.settled = true
     },
-  };
+  }
   // Read-only to its readers: only `tick` and `reset` write it.
-  return clock as Readonly<typeof clock>;
+  return clock as Readonly<typeof clock>
 }

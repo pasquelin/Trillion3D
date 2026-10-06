@@ -17,7 +17,7 @@
  */
 
 /** Float count for the six planes of a frustum. */
-export const FRUSTUM_PLANE_VALUES = 24;
+export const FRUSTUM_PLANE_VALUES = 24
 
 /** Stores one plane at `at`, scaled to a unit normal when `unit` is set: one division by the
  *  normal's length, then four products. Everything is computed in double precision before the
@@ -34,16 +34,16 @@ function storePlane(
   unit: boolean,
 ) {
   if (unit) {
-    const reciprocal = 1 / Math.sqrt(a * a + b * b + c * c);
-    a *= reciprocal;
-    b *= reciprocal;
-    c *= reciprocal;
-    d *= reciprocal;
+    const reciprocal = 1 / Math.sqrt(a * a + b * b + c * c)
+    a *= reciprocal
+    b *= reciprocal
+    c *= reciprocal
+    d *= reciprocal
   }
-  out[at] = a;
-  out[at + 1] = b;
-  out[at + 2] = c;
-  out[at + 3] = d;
+  out[at] = a
+  out[at + 1] = b
+  out[at + 2] = c
+  out[at + 3] = d
 }
 
 function storeClipBounds(out: Float32Array | Float64Array, m: ArrayLike<number>, unit: boolean) {
@@ -51,25 +51,25 @@ function storeClipBounds(out: Float32Array | Float64Array, m: ArrayLike<number>,
   const x0 = m[0],
     x1 = m[4],
     x2 = m[8],
-    x3 = m[12];
+    x3 = m[12]
   const y0 = m[1],
     y1 = m[5],
     y2 = m[9],
-    y3 = m[13];
+    y3 = m[13]
   const z0 = m[2],
     z1 = m[6],
     z2 = m[10],
-    z3 = m[14];
+    z3 = m[14]
   const w0 = m[3],
     w1 = m[7],
     w2 = m[11],
-    w3 = m[15];
-  storePlane(out, 0, w0 - x0, w1 - x1, w2 - x2, w3 - x3, unit); // x <= w
-  storePlane(out, 4, w0 + x0, w1 + x1, w2 + x2, w3 + x3, unit); // -w <= x
-  storePlane(out, 8, w0 + y0, w1 + y1, w2 + y2, w3 + y3, unit); // -w <= y
-  storePlane(out, 12, w0 - y0, w1 - y1, w2 - y2, w3 - y3, unit); // y <= w
-  storePlane(out, 16, z0, z1, z2, z3, unit); // z >= 0, FAR
-  storePlane(out, 20, w0 - z0, w1 - z1, w2 - z2, w3 - z3, unit); // z <= w, NEAR
+    w3 = m[15]
+  storePlane(out, 0, w0 - x0, w1 - x1, w2 - x2, w3 - x3, unit) // x <= w
+  storePlane(out, 4, w0 + x0, w1 + x1, w2 + x2, w3 + x3, unit) // -w <= x
+  storePlane(out, 8, w0 + y0, w1 + y1, w2 + y2, w3 + y3, unit) // -w <= y
+  storePlane(out, 12, w0 - y0, w1 - y1, w2 - y2, w3 - y3, unit) // y <= w
+  storePlane(out, 16, z0, z1, z2, z3, unit) // z >= 0, FAR
+  storePlane(out, 20, w0 - z0, w1 - z1, w2 - z2, w3 - z3, unit) // z <= w, NEAR
 }
 
 /**
@@ -78,7 +78,7 @@ function storeClipBounds(out: Float32Array | Float64Array, m: ArrayLike<number>,
  * a signed distance. A degenerate matrix yields NaN or infinite planes without throwing.
  */
 export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: ArrayLike<number>) {
-  storeClipBounds(out, m, true);
+  storeClipBounds(out, m, true)
 }
 
 /**
@@ -87,7 +87,7 @@ export function frustumPlanesFromMatrix(out: Float32Array | Float64Array, m: Arr
  * the exact clip test, where normalizing would shift rounding.
  */
 export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
-  storeClipBounds(out, m, false);
+  storeClipBounds(out, m, false)
 }
 
 /**
@@ -107,6 +107,6 @@ export function frustumFarPlane(
   far: number,
   normalize: boolean,
 ) {
-  if (!Number.isFinite(far)) return;
-  storePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize);
+  if (!Number.isFinite(far)) return
+  storePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize)
 }

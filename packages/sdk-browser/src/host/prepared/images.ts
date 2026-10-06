@@ -9,101 +9,101 @@
  * instead (`../../texture/skip.ts`). An image that
  * cannot be read or decoded is no image — its textures are left empty — as the loader left them.
  */
-import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
-import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts';
-import type { ByteMeter } from '../../cluster/byteMeter.ts';
-import { checked } from '../../cluster/checked.ts';
+import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
+import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts'
+import type { ByteMeter } from '../../cluster/byteMeter.ts'
+import { checked } from '../../cluster/checked.ts'
 
 /** Decode options of the host loader: pixels as the file stores them. */
-const BITMAP: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
+const BITMAP: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }
 
 /** An image element holding `url`, decoded: the path of a platform without `createImageBitmap`. */
 async function element(url: string) {
-  const image = new Image();
-  if (!url.startsWith('data:')) image.crossOrigin = 'anonymous';
-  image.src = url;
-  await image.decode();
-  return image;
+  const image = new Image()
+  if (!url.startsWith('data:')) image.crossOrigin = 'anonymous'
+  image.src = url
+  await image.decode()
+  return image
 }
 
 async function decodeAddress(url: string, signal: AbortSignal | undefined, meter: ByteMeter) {
-  if (typeof createImageBitmap !== 'function') return element(url);
-  const response = await checked(url, signal);
+  if (typeof createImageBitmap !== 'function') return element(url)
+  const response = await checked(url, signal)
   // Metered once accepted: a refused body is never read, so its length never joins the total.
-  return createImageBitmap(await meter.read(response, url).blob(), BITMAP);
+  return createImageBitmap(await meter.read(response, url).blob(), BITMAP)
 }
 
 /** A failed read of the document's binary, told apart from an image that cannot be decoded. */
 class UnreadBinary extends Error {
   constructor(cause: unknown) {
-    super('the scene binary could not be read', { cause });
+    super('the scene binary could not be read', { cause })
   }
 }
 
 async function decodeBytes(bytes: Uint8Array<ArrayBuffer>, type: string) {
-  const blob = new Blob([bytes], { type });
-  if (typeof createImageBitmap === 'function') return createImageBitmap(blob, BITMAP);
-  const url = URL.createObjectURL(blob);
+  const blob = new Blob([bytes], { type })
+  if (typeof createImageBitmap === 'function') return createImageBitmap(blob, BITMAP)
+  const url = URL.createObjectURL(blob)
   try {
-    return await element(url);
+    return await element(url)
   } finally {
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(url)
   }
 }
 
 type Inputs = {
-  document: TableDocument;
+  document: TableDocument
   /** Address of the published document: relative image addresses resolve against it. */
-  documentUrl: string;
+  documentUrl: string
   /** Reads the document's binary, which embedded images are views of, once. */
-  binary: () => Promise<ArrayBuffer>;
+  binary: () => Promise<ArrayBuffer>
   /** Ranks of the images whose chain the cache baked. */
-  skipped: ReadonlySet<number>;
-  signal: AbortSignal | undefined;
+  skipped: ReadonlySet<number>
+  signal: AbortSignal | undefined
   /** Wraps each read the way the session counts resources for its progress. */
-  track: <T>(resource: string, read: Promise<T>) => Promise<T>;
+  track: <T>(resource: string, read: Promise<T>) => Promise<T>
   /** Counts the bytes of each image read as they arrive. */
-  meter: ByteMeter;
-};
+  meter: ByteMeter
+}
 
 /**
  * The decoded image of each rank of the document, read on first request — only the images a worn
  * surface samples cross the network — or `null` when it could not be read.
  */
 export function preparedImages(inputs: Inputs) {
-  const { document, documentUrl, binary, skipped, signal, track, meter } = inputs;
+  const { document, documentUrl, binary, skipped, signal, track, meter } = inputs
   const read = async (rank: number): Promise<unknown> => {
     if (skipped.has(rank))
-      return track(PLACEHOLDER_IMAGE, decodeAddress(PLACEHOLDER_IMAGE, signal, meter));
-    const image = document.images[rank];
+      return track(PLACEHOLDER_IMAGE, decodeAddress(PLACEHOLDER_IMAGE, signal, meter))
+    const image = document.images[rank]
     if (image.uri !== null) {
-      const url = new URL(image.uri, documentUrl).href;
-      return track(url, decodeAddress(url, signal, meter));
+      const url = new URL(image.uri, documentUrl).href
+      return track(url, decodeAddress(url, signal, meter))
     }
-    if (image.view === null) throw new Error(`image ${rank} names no source`);
-    const view = document.views[image.view];
+    if (image.view === null) throw new Error(`image ${rank} names no source`)
+    const view = document.views[image.view]
     // A binary that cannot be read fails its reader, as the loader failed the scene: it is no
     // missing image, and it is read again at the next need (`readOnce`).
     const buffer = await binary().catch((error: unknown) => {
-      throw new UnreadBinary(error);
-    });
-    return decodeBytes(new Uint8Array(buffer, view.offset, view.length), image.mimeType ?? '');
-  };
-  const held = new Map<number, Promise<unknown>>();
+      throw new UnreadBinary(error)
+    })
+    return decodeBytes(new Uint8Array(buffer, view.offset, view.length), image.mimeType ?? '')
+  }
+  const held = new Map<number, Promise<unknown>>()
   return (rank: number): Promise<unknown> => {
-    let image = held.get(rank);
+    let image = held.get(rank)
     if (!image) {
       image = read(rank).catch((error: unknown) => {
         if (error instanceof UnreadBinary) {
-          held.delete(rank);
-          throw error.cause;
+          held.delete(rank)
+          throw error.cause
         }
-        signal?.throwIfAborted();
-        console.error('Trillion3D: could not read image', rank, error);
-        return null;
-      });
-      held.set(rank, image);
+        signal?.throwIfAborted()
+        console.error('Trillion3D: could not read image', rank, error)
+        return null
+      })
+      held.set(rank, image)
     }
-    return image;
-  };
+    return image
+  }
 }

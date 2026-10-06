@@ -1,6 +1,6 @@
-import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
-import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
-import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
+import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
+import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 
 /**
  * Material tiles: the material classification (#1369). Each class pass drew a full-screen
@@ -15,19 +15,19 @@ import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts';
  * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and it draws the full-screen triangle, as
  * before (`classTriangle`, `shadeDeclWgsl.ts`).
  */
-const MATERIAL_TILE_SIZE = 32;
+const MATERIAL_TILE_SIZE = 32
 /** Tiles on one axis of `pixels`: `materialTilesX`'s count. */
-export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE);
-export const MATERIAL_TILE_SLOTS = 64;
+export const materialTilesOn = (pixels: number) => Math.ceil(pixels / MATERIAL_TILE_SIZE)
+export const MATERIAL_TILE_SLOTS = 64
 /** Lanes of a tile's workgroup per axis: a lane reads the tile's pixels that many apart. */
-const LANES = 8;
+const LANES = 8
 
 const CONSTANTS_WGSL = `const MATERIAL_TILE_SIZE:u32=${MATERIAL_TILE_SIZE}u;
 const MATERIAL_TILE_SLOTS:u32=${MATERIAL_TILE_SLOTS}u;
 /** Tiles on a row of the image \`size\`: the dispatch's and the draw's one count. */
 fn materialTilesX(size:vec2u)->u32{return (size.x+MATERIAL_TILE_SIZE-1u)/MATERIAL_TILE_SIZE;}
 /** Where slot \`slot\`'s list starts in \`classTiles\`: the one layout the lists are written and read in. */
-fn tileListStart(slot:u32)->u32{return slot*(arrayLength(&classTiles)/MATERIAL_TILE_SLOTS);}`;
+fn tileListStart(slot:u32)->u32{return slot*(arrayLength(&classTiles)/MATERIAL_TILE_SLOTS);}`
 
 /**
  * The class draws' vertex stage, in the resolve's module: quad corner `i` of tile `n` of the
@@ -49,7 +49,7 @@ fn materialTileCorner(tile:u32,i:u32,tilesX:u32)->vec2u{
  if(slot>=MATERIAL_TILE_SLOTS){return classTriangle(i);}
  let pixel=vec2f(materialTileCorner(classTiles[tileListStart(slot)+n],i,materialTilesX(vec2u(uni.viewport))));
  return vec4f(pixel.x/uni.viewport.x*2.0-1.0,1.0-pixel.y/uni.viewport.y*2.0,0.0,1.0);
-}`;
+}`
 
 /**
  * The classification, one workgroup per tile: each lane marks the slots of its pixels in two
@@ -98,4 +98,4 @@ fn pixelSlot(id:u32)->u32{
  let at=atomicAdd(&tileDraws[index*4u+1u],1u);
  if(at==0u){atomicStore(&tileDraws[index*4u],6u);}
  classTiles[tileListStart(index)+at]=group.y*materialTilesX(size)+group.x;
-}`;
+}`

@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { Worker as NodeWorker } from 'node:worker_threads';
+import { readFile } from 'node:fs/promises'
+import { Worker as NodeWorker } from 'node:worker_threads'
 import {
   CAST,
   CAST_WORDS,
@@ -8,17 +8,17 @@ import {
   MISS,
   PHYSICS_STEP,
   type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts';
-import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts';
-import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { createPhysicsBodies } from './bodies.ts';
-import { createCharacterDriver } from './characterDriver.ts';
-import { openJolt, startJolt } from './joltModule.ts';
-import { physicsRaycast, type PhysicsRaycastOptions } from './raycast.ts';
-import type { PhysicsSession } from './session/session.ts';
-import { engineIdOf } from './simulatedIds.ts';
-import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts';
+} from '../../../sdk-core/src/physics/index.ts'
+import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts'
+import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { createPhysicsBodies } from './bodies.ts'
+import { createCharacterDriver } from './characterDriver.ts'
+import { openJolt, startJolt } from './joltModule.ts'
+import { physicsRaycast, type PhysicsRaycastOptions } from './raycast.ts'
+import type { PhysicsSession } from './session/session.ts'
+import { engineIdOf } from './simulatedIds.ts'
+import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts'
 
 /** A committed module started for the tests: 64 bodies and 64 MB unless told otherwise, in fixed
  *  steps of `step` seconds (`startJolt`). */
@@ -27,13 +27,13 @@ export async function startModule(
   pool: { count: number; spawn: SpawnJoltThread } | null = null,
   step = PHYSICS_STEP,
 ) {
-  const file = pool ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
-  const bytes = await readFile(new URL(file, import.meta.url));
-  const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget };
-  const opened = await openJolt(bytes, full.memoryBytes, pool);
-  const jolt = startJolt(opened, full, pool?.count ?? 1, step);
+  const file = pool ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm'
+  const bytes = await readFile(new URL(file, import.meta.url))
+  const full = { ...DEFAULT_PHYSICS_BUDGET, bodies: 64, memoryBytes: 64 << 20, ...budget }
+  const opened = await openJolt(bytes, full.memoryBytes, pool)
+  const jolt = startJolt(opened, full, pool?.count ?? 1, step)
   /** A diagnostic count the module keeps since it started: the joints some work has visited. */
-  const count = (name: string) => () => (opened.exports[name] as () => number)();
+  const count = (name: string) => () => (opened.exports[name] as () => number)()
   /** By the gear linking, the step's path carry, the step's breaking, and the bodies placed
    *  against the view (`jolt_*_visits`). */
   const visits = {
@@ -41,48 +41,48 @@ export async function startModule(
     path: count('jolt_path_visits'),
     break: count('jolt_break_visits'),
     place: count('jolt_place_visits'),
-  };
+  }
   /** The module's own exports and memory, for a test that writes its buffers itself. */
-  return { ...jolt, visits, raw: opened };
+  return { ...jolt, visits, raw: opened }
 }
 
 /** One of the threaded module's threads run in a Node worker. */
 export function nodeThread(start: JoltThreadStart) {
-  const loader = new URL('./joltThreads.ts', import.meta.url).href;
+  const loader = new URL('./joltThreads.ts', import.meta.url).href
   return new NodeWorker(
     `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
     { eval: true, workerData: start },
-  );
+  )
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
 export async function startThreaded(count: number, budget: Partial<PhysicsBudget> = {}) {
-  const threads: NodeWorker[] = [];
-  const spawn = (start: JoltThreadStart) => threads.push(nodeThread(start));
-  const jolt = await startModule(budget, { count, spawn });
-  return { jolt, threads, close: () => Promise.all(threads.map((thread) => thread.terminate())) };
+  const threads: NodeWorker[] = []
+  const spawn = (start: JoltThreadStart) => threads.push(nodeThread(start))
+  const jolt = await startModule(budget, { count, spawn })
+  return { jolt, threads, close: () => Promise.all(threads.map((thread) => thread.terminate())) }
 }
 
 /** A started test module. */
-export type Module = Awaited<ReturnType<typeof startModule>>;
+export type Module = Awaited<ReturnType<typeof startModule>>
 
 /** The last step's events: `[type, a, b, impulse]` each. */
 export function events(jolt: Module) {
   const words = jolt.events(),
-    floats = new Float32Array(words.buffer, words.byteOffset, words.length);
+    floats = new Float32Array(words.buffer, words.byteOffset, words.length)
   return Array.from({ length: words.length / EVENT_WORDS }, (_, r) => {
-    const at = r * EVENT_WORDS;
-    return [words[at], words[at + 1], words[at + 2], floats[at + 3]];
-  });
+    const at = r * EVENT_WORDS
+    return [words[at], words[at + 1], words[at + 2], floats[at + 3]]
+  })
 }
 
 /** A ray down at `x` through the module, straight: its hit words. */
 export function castDown(jolt: Module, x: number) {
-  const query = new Uint32Array(CAST_WORDS);
-  query[0] = CAST.ray;
-  query[10] = MISS;
-  new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1);
-  return jolt.cast(query);
+  const query = new Uint32Array(CAST_WORDS)
+  query[0] = CAST.ray
+  query[10] = MISS
+  new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1)
+  return jolt.cast(query)
 }
 
 /** `world.raycast(ray, options)` asked of `jolt`, its bodies those of `bodies`: the hit named. */
@@ -92,20 +92,20 @@ export function moduleRaycast(jolt: Module, bodies: ReturnType<typeof createPhys
     objectOf: bodies.meshOf,
     engineIdOf: (node: Object3D) => engineIdOf(bodies, node),
     materialOf: () => -1,
-  };
+  }
   return (ray: Ray, options: PhysicsRaycastOptions) =>
-    physicsRaycast(session as unknown as PhysicsSession, ray, options, 1000);
+    physicsRaycast(session as unknown as PhysicsSession, ray, options, 1000)
 }
 
 /** The human character made standing at `feet` in `jolt`, in the one step that adds the bodies
  *  `words` writes: its driver, read once. */
 export function standCharacter(jolt: Module, words: Uint32Array, feet: number[]) {
-  const driver = createCharacterDriver();
-  const made = driver.configure({ ...HUMAN_BODY }, feet)!;
-  const all = new Uint32Array(words.length + made.length);
-  all.set(words);
-  all.set(made, words.length);
-  jolt.step(all, 0);
-  driver.read(jolt.character(), 0);
-  return driver;
+  const driver = createCharacterDriver()
+  const made = driver.configure({ ...HUMAN_BODY }, feet)!
+  const all = new Uint32Array(words.length + made.length)
+  all.set(words)
+  all.set(made, words.length)
+  jolt.step(all, 0)
+  driver.read(jolt.character(), 0)
+  return driver
 }

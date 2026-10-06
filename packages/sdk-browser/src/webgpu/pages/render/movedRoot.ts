@@ -1,21 +1,21 @@
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import { invalidateTemporalPyramid } from '../io/drops.ts';
-import type { ClusterRoot } from '../../../page/selection/types.ts';
-import type { PageRec } from '../../../page/selection/selection.ts';
-import type { WebgpuPagesLayout } from '../prepare/layout.ts';
+import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { invalidateTemporalPyramid } from '../io/drops.ts'
+import type { ClusterRoot } from '../../../page/selection/types.ts'
+import type { PageRec } from '../../../page/selection/selection.ts'
+import type { WebgpuPagesLayout } from '../prepare/layout.ts'
 
-const ROW_WORDS = PAGE_INFO_STRIDE / 4;
+const ROW_WORDS = PAGE_INFO_STRIDE / 4
 
 /** What a moved root rewrites: its rows, the memos its world feeds, the temporal pyramid. */
 export type MovedRootTarget = {
-  layout: Pick<WebgpuPagesLayout, 'rows'>;
-  run: Parameters<typeof invalidateTemporalPyramid>[0];
+  layout: Pick<WebgpuPagesLayout, 'rows'>
+  run: Parameters<typeof invalidateTemporalPyramid>[0]
   blendState: {
-    occlusionEpoch: number;
-    occlusionMoved?: { from: number; to: number };
-    table?: { readonly entryOfPage: Int32Array };
-  };
-};
+    occlusionEpoch: number
+    occlusionMoved?: { from: number; to: number }
+    table?: { readonly entryOfPage: Int32Array }
+  }
+}
 
 /**
  * The world of one placement moved: only what reads it follows. Its resident rows get their world
@@ -31,9 +31,9 @@ export type MovedRootTarget = {
  */
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
   // A root whose box follows it stales its region alone, at its caller (`staleTemporalBox`).
-  if (!root.worldBox || !root.localBox) invalidateTemporalPyramid(rt.run);
-  root.windingEpoch = undefined;
-  return markRootRows(rt, root, 0, root.pages.length - 1, root.world.elements);
+  if (!root.worldBox || !root.localBox) invalidateTemporalPyramid(rt.run)
+  root.windingEpoch = undefined
+  return markRootRows(rt, root, 0, root.pages.length - 1, root.world.elements)
 }
 
 /** A blended root's pages `from` to `to`, from packed rank `base`, moved: a pose sends every
@@ -46,16 +46,16 @@ function reboundCorners(
   pose: boolean,
 ) {
   const { blendState } = rt,
-    { table, occlusionMoved: moved } = blendState;
+    { table, occlusionMoved: moved } = blendState
   if (pose || !table || !moved || base < 0) {
-    blendState.occlusionEpoch = -1;
-    return;
+    blendState.occlusionEpoch = -1
+    return
   }
   for (let page = from; page <= to; page++) {
-    const entry = table.entryOfPage[base + page] ?? -1;
-    if (entry < 0) continue;
-    moved.from = Math.min(moved.from, entry);
-    moved.to = Math.max(moved.to, entry);
+    const entry = table.entryOfPage[base + page] ?? -1
+    if (entry < 0) continue
+    moved.from = Math.min(moved.from, entry)
+    moved.to = Math.max(moved.to, entry)
   }
 }
 
@@ -77,20 +77,20 @@ export function markRootRows(
 ) {
   const { rows } = rt.layout,
     floats = rows.pageTableFloats,
-    base = root.packedBase ?? -1;
-  if (to >= from && root.pages[0]?.transparent) reboundCorners(rt, base, from, to, !!world);
-  let rewritten = 0;
+    base = root.packedBase ?? -1
+  if (to >= from && root.pages[0]?.transparent) reboundCorners(rt, base, from, to, !!world)
+  let rewritten = 0
   for (let page = from; page <= to; page++) {
     const index = base + page,
-      transparent = !!root.pages[page].transparent;
+      transparent = !!root.pages[page].transparent
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
-    const row = transparent ? rows.blendRowOf[index] : rows.rowOfPage[index];
-    if (!floats || row < 0) continue;
+    const row = transparent ? rows.blendRowOf[index] : rows.rowOfPage[index]
+    if (!floats || row < 0) continue
     // A rank the CPU cut left behind may name another page since: only a row that is this page's.
-    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue;
-    if (world) floats.set(world, row * ROW_WORDS);
-    rows.markRowWords(row);
-    rewritten++;
+    if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
+    if (world) floats.set(world, row * ROW_WORDS)
+    rows.markRowWords(row)
+    rewritten++
   }
-  return rewritten;
+  return rewritten
 }

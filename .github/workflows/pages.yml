@@ -1,23 +1,12 @@
 name: Site
 
 # The documentation portal, built from the sources into dist/site and deployed to the site's own
-# server (docs/LEARNING_PORTAL.md, "Deploy"). A pull request that touches anything the build reads
-# only builds it — the engine packages, the build scripts and the dependencies; a push to main, or a
-# manual run asked to deploy, also publishes it. The required `validate` check builds the site too
-# (`build:docs`, `scripts/validate-steps.ts`). The open world is cooked and published by its own
+# server (docs/LEARNING_PORTAL.md, "Deploy"), on a push to main or a manual run asked to deploy. A
+# pull request's site is built by the required `validate` check (`build:docs`,
+# `scripts/validate-steps.ts`); the audience tag only the published build adds is proved by
+# `scripts/docs/measurement.test.ts`. The open world is cooked and published by its own
 # repository, pasquelin/Trillion3D-openworld, under `openworld/`, which this deploy leaves alone.
 on:
-  pull_request:
-    paths:
-      - 'site/**'
-      - 'packages/**'
-      - 'scripts/docs/**'
-      - 'scripts/docs/build.ts'
-      - 'scripts/site-caches.ts'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '.github/actions/node/**'
-      - '.github/workflows/pages.yml'
   push:
     branches: [main]
   workflow_dispatch:
@@ -39,10 +28,10 @@ jobs:
       floor: ${{ steps.plan.outputs.floor }}
     steps:
       # A deploying run compiles the scene caches, with the native compiler that links the pinned
-      # Jolt; a pull request builds the site without them.
+      # Jolt.
       - uses: actions/checkout@v7
         with:
-          submodules: ${{ github.event_name != 'pull_request' }}
+          submodules: true
       - uses: ./.github/actions/node
       # Whether this run publishes, decided once: only main is ever published.
       # The file-count floor of a sound output: the build copies every tracked served static of

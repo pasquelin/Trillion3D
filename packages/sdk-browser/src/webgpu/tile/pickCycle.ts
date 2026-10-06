@@ -1,4 +1,4 @@
-import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts';
+import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 
 /**
  * Names a pixel's position picks among on an ordinary image (`requestPick`): one of the maps
@@ -8,4 +8,4 @@ import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts';
  * each pixel stepping through the picks as it speaks. A convergence image names every pick of every
  * pixel at once (`everyPick`, `requestWgsl.ts`).
  */
-export const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
+export const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS

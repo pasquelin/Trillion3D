@@ -8,40 +8,40 @@
  * these functions re-derive an entry's geometry from its source dimensions alone, so the
  * reader can reject an entry whose written numbers disagree with them.
  */
-import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryFormat.ts';
+import { PREVIEW_BLOCK_BYTES, PREVIEW_BLOCK_SIDE } from '../manifest/binaryFormat.ts'
 
 /** Largest side a level carried by the sidecar may have. */
-export const PREVIEW_BASE = 64;
+export const PREVIEW_BASE = 64
 
 /** Dimensions of level `level` of a `width`×`height` image. */
 export function previewLevelSize(width: number, height: number, level: number): [number, number] {
-  const shift = Math.min(level, 31);
-  return [Math.max(1, width >>> shift), Math.max(1, height >>> shift)];
+  const shift = Math.min(level, 31)
+  return [Math.max(1, width >>> shift), Math.max(1, height >>> shift)]
 }
 
 /** Finest level carried: the first of which neither side exceeds `PREVIEW_BASE`. */
 export function previewFirstLevel(width: number, height: number) {
-  let level = 0;
+  let level = 0
   while (level < 31) {
-    const [w, h] = previewLevelSize(width, height, level);
-    if (w <= PREVIEW_BASE && h <= PREVIEW_BASE) break;
-    level++;
+    const [w, h] = previewLevelSize(width, height, level)
+    if (w <= PREVIEW_BASE && h <= PREVIEW_BASE) break
+    level++
   }
-  return level;
+  return level
 }
 
 /** Last level carried: the one where both sides are one texel. */
 export function previewLastLevel(width: number, height: number) {
-  return 31 - Math.clz32(Math.max(1, width, height));
+  return 31 - Math.clz32(Math.max(1, width, height))
 }
 
 /** Blocks along `texels`, the last one padded by the edge when the side is not a multiple. */
-export const blocksAcross = (texels: number) => Math.ceil(texels / PREVIEW_BLOCK_SIDE);
+export const blocksAcross = (texels: number) => Math.ceil(texels / PREVIEW_BLOCK_SIDE)
 
 /** Bytes of a `width`×`height` level once block-compressed: whole 4×4 blocks of sixteen bytes,
  *  a side that is not a multiple of four padded by its edge — the same in both block formats. */
 export function levelBlockBytes(width: number, height: number) {
-  return blocksAcross(width) * blocksAcross(height) * PREVIEW_BLOCK_BYTES;
+  return blocksAcross(width) * blocksAcross(height) * PREVIEW_BLOCK_BYTES
 }
 
 /**
@@ -53,22 +53,22 @@ export function levelBlockBytes(width: number, height: number) {
  */
 export function previewGeometry(width: number, height: number) {
   const firstLevel = previewFirstLevel(width, height),
-    lastLevel = previewLastLevel(width, height);
-  const sizes: [number, number][] = [];
+    lastLevel = previewLastLevel(width, height)
+  const sizes: [number, number][] = []
   let pixelBytes = 0,
-    blockBytes = 0;
+    blockBytes = 0
   for (let level = firstLevel; level <= lastLevel; level++) {
-    const size = previewLevelSize(width, height, level);
-    sizes.push(size);
-    pixelBytes += size[0] * size[1] * 4;
-    blockBytes += levelBlockBytes(...size);
+    const size = previewLevelSize(width, height, level)
+    sizes.push(size)
+    pixelBytes += size[0] * size[1] * 4
+    blockBytes += levelBlockBytes(...size)
   }
-  return { firstLevel, levelCount: lastLevel - firstLevel + 1, sizes, pixelBytes, blockBytes };
+  return { firstLevel, levelCount: lastLevel - firstLevel + 1, sizes, pixelBytes, blockBytes }
 }
 
 /** Block-compressed bytes of every carried level, concatenated from finest to coarsest. */
 export function previewBlockBytes(width: number, height: number) {
-  return previewGeometry(width, height).blockBytes;
+  return previewGeometry(width, height).blockBytes
 }
 
 /**
@@ -77,5 +77,5 @@ export function previewBlockBytes(width: number, height: number) {
  * the source image. This is the only read of `bakedLevels` against the repo's `firstLevel`.
  */
 export function previewIsWhole(preview: { firstLevel: number; bakedLevels: number }) {
-  return preview.bakedLevels === preview.firstLevel;
+  return preview.bakedLevels === preview.firstLevel
 }

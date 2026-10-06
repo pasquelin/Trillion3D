@@ -1,16 +1,16 @@
-import * as layer from './layers.ts';
-import { FLAG_DYNAMIC } from '../visibility/types.ts';
-import { REACTIVE_MAX } from './reactive.ts';
-import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts';
+import * as layer from './layers.ts'
+import { FLAG_DYNAMIC } from '../visibility/types.ts'
+import { REACTIVE_MAX } from './reactive.ts'
+import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
 
 /** The samples a history read a display pixel or more away keeps beside the current one. */
-const MOVING_SAMPLES = 4;
+const MOVING_SAMPLES = 4
 
 /** `text` in a resolve that carries the as-is share, `none` in the flagless one. */
 export const shareText =
   (asIs: boolean) =>
   (text: string, none = '') =>
-    asIs ? text : none;
+    asIs ? text : none
 
 /**
  * History read while the image moves: Catmull-Rom on the 4×4 texels around the point, in five
@@ -38,7 +38,7 @@ fn historyCatmullRom(uv:vec2f)->vec4f{
  sum+=textureSampleLevel(history,historySampler,vec2f(t12.x,t3.y),0.0)*(w12.x*w3.y);
  let total=w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y;
  return max(sum/total,vec4f(0.0));
-}`;
+}`
 
 /**
  * What a pixel takes of the page record its identifier names, which it reads once: the identity
@@ -52,7 +52,7 @@ fn pageOf(id:u32)->TaaPage{
  if(id==0u){return TaaPage(0u,0.0);}
  let page=pages[(id>>8u)-1u];
  return TaaPage(page.placement+1u,select(0.0,1.0,(page.flags&${FLAG_DYNAMIC}u)!=0u&&page.deformOutput==0u));
-}`;
+}`
 
 /**
  * The history texel a pixel's shading measures are read from: the nearest to its reprojected point,
@@ -65,7 +65,7 @@ fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
  // 0x5bd1e995u: odd 32-bit constant with well-spread bits that flips the seed for the second coordinate, so it is decorrelated from the first; any odd value with well-spread bits would serve, this one is declared, not tuned.
  let offset=vec2f(hashUnit(seed),hashUnit(seed^0x5bd1e995u))*0.999-0.4995;
  return clamp(vec2i(floor(uv*view.viewport.xy+offset)),vec2i(0),vec2i(view.viewport.xy)-vec2i(1));
-}`;
+}`
 
 /**
  * The most samples a moving pixel's history keeps, the current one included (a history at the
@@ -81,7 +81,7 @@ fn historyCap(uv:vec2f,coord:vec2i,now:f32,kept:f32)->f32{
  let speed=length(uv*view.viewport.xy-vec2f(coord)-0.5);
  let contrast=abs(now-kept)/max(max(now,kept),1e-6);
  return 1.0+${HISTORY_SAMPLES_MAX}.0*max(1.0-${1 - MOVING_SAMPLES / HISTORY_SAMPLES_MAX}*saturate(speed),contrast);
-}`;
+}`
 
 /**
  * The current image's share of a moving pixel (#816's blend, point 6): today's `alpha` times
@@ -93,7 +93,7 @@ export const CURRENT_SHARE_WGSL = `
 fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  if(fresh){return 1.0;}
  return max(alpha*reach,min(rho,${REACTIVE_MAX}));
-}`;
+}`
 
 /**
  * What both resolves close with, once `previous` (and the points it came from, `here` and
@@ -138,7 +138,7 @@ export const taaHistoryBlend = (
   centrePage = 'pageOf(textureLoad(ids,centre,0).r)',
   reactive = true,
 ) => {
-  const share = shareText(asIs);
+  const share = shareText(asIs)
   return ` if(previous.w==0.0){return ${layer.taaOut(asIs, filtered, false, still)};}
  let moving=view.jitter.z!=0.0;
  let uncovered=moving&&geometryUncovered(previous.xy,previous.z,geometry.x,depthSlack);
@@ -172,11 +172,11 @@ ${share(`  if(shareLo!=shareHi${still ? '||!moving' : ''}){sharePast=${PAST_SHAR
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(sharePast.r,shareLo,shareHi);\n')} let tone=select(0.0,view.tsr.x,moving);let wc=alpha/(1.0+lumaNow*tone);
  let wh=(1.0-alpha)/(1.0+clamped.x*tone);
-${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true, still)};`;
-};
+${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true, still)};`
+}
 
 /** The share target, its as-is share and still weight, read at the reprojected point. */
-const PAST_SHARE = 'textureSampleLevel(shareHistory,historySampler,previous.xy,0.0)';
+const PAST_SHARE = 'textureSampleLevel(shareHistory,historySampler,previous.xy,0.0)'
 
 /**
  * A still pixel of an image drawn below the display (#1343): its average is weighed by how near
@@ -190,4 +190,4 @@ const PAST_SHARE = 'textureSampleLevel(shareHistory,historySampler,previous.xy,0
  * target read at the point.
  */
 const stillAverage = (sharePast: string) =>
-  `let held=${sharePast}.b;count=${layer.stillWeightIn('held')}+stillTotal;alpha=select(0.0,stillTotal/count,count>0.0);`;
+  `let held=${sharePast}.b;count=${layer.stillWeightIn('held')}+stillTotal;alpha=select(0.0,stillTotal/count,count>0.0);`

@@ -1,25 +1,23 @@
 # Gaze-driven texture network reading
 
-Run the benchmark's camera-session mode on an existing compiled test scene:
+`bench.ts --gaze-network` counts the bytes Chrome transfers while the camera moves, instead of
+timing:
 
 ```sh
-TRILLION3D_ASSETS=/path/to/this-repository/.mesure/assets \
-  node bench/runner/bench.ts --engine webgpu --textures cache --gaze-network \
-  --scene sponza --views overview,ground --images 60 --pixelError 1 \
-  --out .mesure/out/41-gaze-network
+node bench/runner/bench.ts --engine webgpu --textures cache --gaze-network \
+  --scene sponza --views overview,ground --images 60 --pixelError 1 --out .mesure/out/gaze-network
 ```
 
-`TRILLION3D_ASSETS` is needed only from a worktree whose `.mesure/assets/` is empty: point it at
-this repository's existing assets. The mode takes the usual before and after sides and writes
-`gazeNetwork` readings to `measure.json` and a table to `resume.md`.
+It needs a compiled cache scene, `--textures cache` and the WebGPU page engine on every side, and
+does not run with `--reference`. From a worktree whose `.mesure/assets/` is empty, set
+`TRILLION3D_ASSETS` to the main checkout's. The readings go to `gazeNetwork` in `measure.json` and
+a "Gaze-driven network transfer" table in `resume.md`.
 
-Each reading opens a fresh browser, plays the chosen trajectory at one pose per animation frame,
-then lets requests already issued finish for up to ten seconds. It does not call `awaitPages`,
-`flush`, or the still-image convergence barrier. Chrome's `Network.loadingFinished` encoded data
-length counts actual transfer bytes, including response overhead; a response served from browser
-cache counts as zero. `textureBytes` covers baked files under `/textures/`; `otherBytes` covers
-manifest, geometry, modules, and other traffic. Failed and unfinished requests, plus redirects
-whose transfer size Chrome did not report, are reported separately. Any nonzero count marks the
-byte reading incomplete; do not use it as a bandwidth verdict.
-
-Network transfer only: frame time and fidelity come from the ordinary benchmark and image proof.
+Each reading opens a fresh browser, plays the trajectory at one pose per animation frame, then lets
+requests already issued finish for up to ten seconds; no `awaitPages`, `flush` or convergence
+barrier. Chrome's `Network.loadingFinished` encoded data length counts actual transfer bytes,
+response overhead included; a response served from browser cache counts zero. `textureBytes` covers
+baked files under `/textures/`; `otherBytes` the manifest, geometry, modules and the rest. Failed
+and unfinished requests, and redirects whose size Chrome did not report, are counted apart: any
+nonzero count marks the reading incomplete, never a bandwidth verdict. Frame time and fidelity come
+from the other benches.

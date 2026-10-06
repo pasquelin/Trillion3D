@@ -1,8 +1,8 @@
-import type { PageRec } from './selection.ts';
-import type { ClusterRoot } from './types.ts';
-import type { PlacementIndex } from './placements.ts';
+import type { PageRec } from './selection.ts'
+import type { ClusterRoot } from './types.ts'
+import type { PlacementIndex } from './placements.ts'
 
-const NONE: readonly PageRec[] = [];
+const NONE: readonly PageRec[] = []
 
 /**
  * The pages a cluster depends on: the clusters of the group that replaces it, read from the
@@ -19,13 +19,13 @@ export function createPageParents(
     const packed = rankOf(rec),
       root = packed < 0 ? undefined : roots[placement.rootOfPacked[packed]],
       structure = root?.structure,
-      group = rec.group;
+      group = rec.group
     if (!root || !structure || group == null || group < 0 || group >= structure.groupCount)
-      return NONE;
-    const { outputOffsets, outputs } = structure;
-    const parents: PageRec[] = [];
+      return NONE
+    const { outputOffsets, outputs } = structure
+    const parents: PageRec[] = []
     for (let i = outputOffsets[group]; i < outputOffsets[group + 1]; i++)
-      parents.push(root.pages[outputs[i]]);
-    return parents;
-  };
+      parents.push(root.pages[outputs[i]])
+    return parents
+  }
 }

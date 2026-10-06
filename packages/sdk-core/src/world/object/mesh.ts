@@ -1,19 +1,19 @@
-import { Object3D } from './object3d.ts';
-import { Geometry } from '../geometry/geometry.ts';
-import { Material } from '../material/material.ts';
-import type { Box3 } from '../math/box3.ts';
-import { ObjectPhysics } from '../../physics/objectPhysics.ts';
-import type { PhysicsOption } from '../../physics/options.ts';
-import type { Skeleton } from '../animation/skeleton.ts';
-import type { WaterSurface } from '../../fluids/waterSurface.ts';
+import { Object3D } from './object3d.ts'
+import { Geometry } from '../geometry/geometry.ts'
+import { Material } from '../material/material.ts'
+import type { Box3 } from '../math/box3.ts'
+import { ObjectPhysics } from '../../physics/objectPhysics.ts'
+import type { PhysicsOption } from '../../physics/options.ts'
+import type { Skeleton } from '../animation/skeleton.ts'
+import type { WaterSurface } from '../../fluids/waterSurface.ts'
 
 /** How the triangles a mesh draws are read from its geometry. */
 export type Primitive =
-  'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite';
+  'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite'
 
 /** What a mesh in a world hears: a holder whose changes it is told of, when the holder tells any
  *  (the engine's own surfaces tell nothing). */
-type Heard = { readonly _listeners?: Set<() => void> };
+type Heard = { readonly _listeners?: Set<() => void> }
 
 /**
  * Shape and matter placed in the scene. Replacing either, or writing into either, reaches the
@@ -23,91 +23,91 @@ type Heard = { readonly _listeners?: Set<() => void> };
 export class Mesh<M extends object = Material> extends Object3D {
   /** Always `true`: tells a mesh apart from any other object. */
   get isMesh(): true {
-    return true;
+    return true
   }
   // Written only when a morph exists or a body is set: a mesh holds its shape and matter alone.
   /** The weight of each morph target, when the geometry declares any. */
-  declare morphTargetInfluences?: number[];
+  declare morphTargetInfluences?: number[]
   /** The rank of each morph target by its name. */
-  declare morphTargetDictionary?: Record<string, number>;
+  declare morphTargetDictionary?: Record<string, number>
   /** The bones it bends by, when its geometry carries `skinIndex` and `skinWeight`: the GPU
    *  moves each vertex by its joints every frame (#357). */
-  declare skeleton?: Skeleton;
+  declare skeleton?: Skeleton
   /** The water surface whose waves carry it (`world.physics.waterSurface`): each vertex, a rest
    *  point of the plane at the surface's level, is moved on the GPU where the waves carry that
    *  point — the numbers buoyancy reads (#357, #422). Unset, a mesh that lies flat on the world's
    *  water at its level is carried by it, and set to it; `null`, never. */
-  declare waves?: WaterSurface | null;
-  declare private _physics?: ObjectPhysics | null;
+  declare waves?: WaterSurface | null
+  declare private _physics?: ObjectPhysics | null
   /** What the geometry and materials call while the mesh is in a world; made on its first entry. */
-  declare private _heard?: () => void;
-  private _geometry: Geometry;
-  private _material: M | M[];
+  declare private _heard?: () => void
+  private _geometry: Geometry
+  private _material: M | M[]
 
   /** How the geometry's vertices are read: triangles, points or lines. */
-  readonly primitive: Primitive;
+  readonly primitive: Primitive
   constructor(
     geometry: Geometry = new Geometry(),
     material: M | M[] = new Material('meshBasic') as unknown as M,
     primitive: Primitive = 'triangles',
   ) {
-    super();
-    this.castShadow = true;
-    this.primitive = primitive;
-    this.type = primitive === 'triangles' ? 'Mesh' : primitive;
-    this._geometry = geometry;
-    this._material = material;
-    this.updateMorphTargets();
+    super()
+    this.castShadow = true
+    this.primitive = primitive
+    this.type = primitive === 'triangles' ? 'Mesh' : primitive
+    this._geometry = geometry
+    this._material = material
+    this.updateMorphTargets()
   }
   /** Tells the world this mesh is in that its content changed. */
   private heard() {
-    this._link?.content(this);
+    this._link?.content(this)
   }
   /** Its geometry and materials start telling it their changes (`on`), or stop. */
   private hear(on: boolean) {
-    const heard = (this._heard ??= () => this.heard());
-    const materials = Array.isArray(this._material) ? this._material : [this._material];
+    const heard = (this._heard ??= () => this.heard())
+    const materials = Array.isArray(this._material) ? this._material : [this._material]
     for (const holder of [this._geometry, ...materials] as Heard[])
-      if (on) holder._listeners?.add(heard);
-      else holder._listeners?.delete(heard);
+      if (on) holder._listeners?.add(heard)
+      else holder._listeners?.delete(heard)
   }
   /** Only a mesh in a world is heard: out of one, nothing it holds keeps a reference to it. */
   protected override linked(inWorld: boolean) {
-    this.hear(inWorld);
+    this.hear(inWorld)
   }
   /** One zero weight per morph target of the first morphed attribute, named by rank. */
   updateMorphTargets() {
-    const morphs = this._geometry.morphAttributes;
-    const first = Object.keys(morphs)[0];
-    if (first === undefined) return;
-    const influences: number[] = (this.morphTargetInfluences = []);
-    const dictionary: Record<string, number> = (this.morphTargetDictionary = {});
+    const morphs = this._geometry.morphAttributes
+    const first = Object.keys(morphs)[0]
+    if (first === undefined) return
+    const influences: number[] = (this.morphTargetInfluences = [])
+    const dictionary: Record<string, number> = (this.morphTargetDictionary = {})
     morphs[first].forEach((target, rank) => {
-      influences.push(0);
-      dictionary[target.name || String(rank)] = rank;
-    });
+      influences.push(0)
+      dictionary[target.name || String(rank)] = rank
+    })
   }
   /** The mesh's shape; set another geometry to change it. */
   get geometry() {
-    return this._geometry;
+    return this._geometry
   }
   set geometry(geometry: Geometry) {
-    this.wear(() => (this._geometry = geometry));
+    this.wear(() => (this._geometry = geometry))
   }
   /** The mesh's material, or one per group; set another to change it. */
   get material(): M | M[] {
-    return this._material;
+    return this._material
   }
   set material(material: M | M[]) {
-    this.wear(() => (this._material = material));
+    this.wear(() => (this._material = material))
   }
   /** Puts on another geometry or material: heard from the new one when in a world, which is told. */
   private wear(change: () => void) {
-    const inWorld = !!this._link;
-    if (inWorld) this.hear(false);
-    change();
-    if (inWorld) this.hear(true);
-    this.heard();
+    const inWorld = !!this._link
+    if (inWorld) this.hear(false)
+    change()
+    if (inWorld) this.hear(true)
+    this.heard()
   }
   /**
    * The mesh as a body of the world's physics, `null` when it is none. Set `'static'`,
@@ -116,36 +116,36 @@ export class Mesh<M extends object = Material> extends Object3D {
    * @example box.physics = 'dynamic'; box.physics.applyImpulse(0, 5, 0);
    */
   get physics(): ObjectPhysics | null {
-    return this._physics ?? null;
+    return this._physics ?? null
   }
   set physics(option: PhysicsOption | ObjectPhysics | null) {
     this._physics =
-      option === null || option instanceof ObjectPhysics ? option : new ObjectPhysics(option);
-    this.heard();
+      option === null || option instanceof ObjectPhysics ? option : new ObjectPhysics(option)
+    this.heard()
   }
   /** A shallow clone shares this mesh's geometry and material, and keeps its primitive. */
   protected override blank(): this {
-    return new Mesh(this.geometry, this.material, this.primitive) as this;
+    return new Mesh(this.geometry, this.material, this.primitive) as this
   }
   // The copy: the morph weights copied, the geometry and skeleton shared, the
   // materials listed anew.
   override copy(source: Object3D, recursive = true) {
-    super.copy(source, recursive);
+    super.copy(source, recursive)
     // A bare node or a group gives its transform alone: it wears no shape and no matter.
-    if (!(source instanceof Mesh)) return this;
-    const mesh = source as Mesh<M>;
-    if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice();
-    if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary };
+    if (!(source instanceof Mesh)) return this
+    const mesh = source as Mesh<M>
+    if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice()
+    if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary }
     // The skeleton is shared: a copy bends by the same bones.
-    if (mesh.skeleton) this.skeleton = mesh.skeleton;
-    if (mesh.waves) this.waves = mesh.waves;
-    const worn = mesh.material;
+    if (mesh.skeleton) this.skeleton = mesh.skeleton
+    if (mesh.waves) this.waves = mesh.waves
+    const worn = mesh.material
     if (Array.isArray(worn) || worn !== this._material)
-      this.material = Array.isArray(worn) ? worn.slice() : worn;
-    if (mesh.geometry !== this._geometry) this.geometry = mesh.geometry;
-    return this;
+      this.material = Array.isArray(worn) ? worn.slice() : worn
+    if (mesh.geometry !== this._geometry) this.geometry = mesh.geometry
+    return this
   }
   override localBounds(): Box3 | null {
-    return this._geometry.boundingBox ?? this._geometry.computeBoundingBox();
+    return this._geometry.boundingBox ?? this._geometry.computeBoundingBox()
   }
 }

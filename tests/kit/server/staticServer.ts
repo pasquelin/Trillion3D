@@ -1,27 +1,27 @@
 // The bench harness server, on the one static server: the harness page, the RGBA captures the page
 // posts, and page modules served as TypeScript stripped of their types, without a build step.
-import { readFileSync } from 'node:fs';
-import type { IncomingMessage, Server, ServerResponse } from 'node:http';
-import { transformSync } from 'esbuild';
+import { readFileSync } from 'node:fs'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
+import { transformSync } from 'esbuild'
 import {
   contentType,
   listen,
   reply,
   staticServer,
   type Mount,
-} from '../../../scripts/static-server.ts';
+} from '../../../scripts/static-server.ts'
 
-const TYPESCRIPT = /\.m?ts$/;
+const TYPESCRIPT = /\.m?ts$/
 
 /** One RGBA capture the page posted, or `null` when its byte count did not match `w × h × 4`. */
-export type Capture = { body: Buffer; w: number; h: number } | null;
+export type Capture = { body: Buffer; w: number; h: number } | null
 
 /** The bare specifiers every harness page resolves. */
 const LIBRARIES = {
   three: '/vendor/three/build/three.module.js',
   'three/addons/': '/vendor/three/examples/jsm/',
   meshoptimizer: '/vendor/meshoptimizer/index.module.js',
-};
+}
 
 /** The harness page: an import map — the libraries, then `imports` — and nothing else. Everything
  *  else comes from `evaluate`. */
@@ -29,12 +29,12 @@ const page = (imports: Record<string, string>) =>
   `<!doctype html><meta charset="utf-8"><title>Trillion3D measurement bench</title>
 <script type="importmap">${JSON.stringify({ imports: { ...LIBRARIES, ...imports } })}</script>
 <style>html,body{margin:0;background:#2a303c}</style>
-`;
+`
 
 /** `source`, the TypeScript module read from `file`, as the ES module a browser runs. */
 function stripTypes(source: string, file: string): string {
   return transformSync(source, { loader: 'ts', format: 'esm', target: 'es2022', sourcefile: file })
-    .code;
+    .code
 }
 
 function takeCapture(
@@ -43,17 +43,17 @@ function takeCapture(
   captures: Map<string, Capture>,
   res: ServerResponse,
 ) {
-  const parts: Buffer[] = [];
-  req.on('data', (chunk: Buffer) => parts.push(chunk));
+  const parts: Buffer[] = []
+  req.on('data', (chunk: Buffer) => parts.push(chunk))
   req.on('end', () => {
-    const body = Buffer.concat(parts);
+    const body = Buffer.concat(parts)
     const w = Number(url.searchParams.get('w')),
-      h = Number(url.searchParams.get('h'));
-    const complete = body.length === w * h * 4;
-    captures.set(url.searchParams.get('file') ?? '', complete ? { body, w, h } : null);
-    reply(res, complete ? 200 : 400, undefined, String(body.length));
-  });
-  return true;
+      h = Number(url.searchParams.get('h'))
+    const complete = body.length === w * h * 4
+    captures.set(url.searchParams.get('file') ?? '', complete ? { body, w, h } : null)
+    reply(res, complete ? 200 : 400, undefined, String(body.length))
+  })
+  return true
 }
 
 /**
@@ -66,7 +66,7 @@ const ISOLATION = {
   'cross-origin-opener-policy': 'same-origin',
   'cross-origin-embedder-policy': 'require-corp',
   'cross-origin-resource-policy': 'same-origin',
-};
+}
 
 /** Listens on `port`, serves `mounts`, stores captures in `captures`. `isolation` sets COOP and
  *  COEP on each response; `imports` adds to the page's import map; `compress` names the files sent
@@ -79,14 +79,14 @@ export async function startServer({
   imports = {},
   compress,
 }: {
-  port?: number;
-  mounts: Mount[];
-  captures?: Map<string, Capture>;
-  isolation?: boolean;
-  imports?: Record<string, string>;
-  compress?: (file: string) => boolean;
+  port?: number
+  mounts: Mount[]
+  captures?: Map<string, Capture>
+  isolation?: boolean
+  imports?: Record<string, string>
+  compress?: (file: string) => boolean
 }): Promise<{ server: Server; port: number }> {
-  const html = page(imports);
+  const html = page(imports)
   const server = staticServer({
     mounts,
     compress,
@@ -97,14 +97,14 @@ export async function startServer({
         : undefined,
     answer: (req, res, url) => {
       if (req.method === 'POST' && url.pathname === '/capture')
-        return takeCapture(req, url, captures, res);
+        return takeCapture(req, url, captures, res)
       // The browser asks for a tab icon this harness does not have: answer rather than
       // let a 404 pollute page errors.
-      if (url.pathname === '/favicon.ico') return reply(res, 204);
+      if (url.pathname === '/favicon.ico') return reply(res, 204)
       if (url.pathname === '/' || url.pathname === '/index.html')
-        return reply(res, 200, contentType('.html'), html);
-      return false;
+        return reply(res, 200, contentType('.html'), html)
+      return false
     },
-  });
-  return { server, port: await listen(server, port) };
+  })
+  return { server, port: await listen(server, port) }
 }

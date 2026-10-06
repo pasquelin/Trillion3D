@@ -1,33 +1,33 @@
-import { useRef } from 'react';
-import type { ReactNode } from 'react';
+import { useRef } from 'react'
+import type { ReactNode } from 'react'
 
 interface LinkDropdownItem {
-  href: string;
-  label: string;
+  href: string
+  label: string
   /** The language the link's page is in, when it is one. */
-  hrefLang?: string;
-  current: boolean;
+  hrefLang?: string
+  current: boolean
   /** A picture before the label: a language's flag. */
-  icon?: ReactNode;
+  icon?: ReactNode
 }
 
 interface LinkDropdownProps {
   /** What the closed menu shows. */
-  children: ReactNode;
+  children: ReactNode
   /** What the menu offers, for assistive technology. */
-  label: string;
-  items: LinkDropdownItem[];
-  className?: string;
+  label: string
+  items: LinkDropdownItem[]
+  className?: string
 }
 
 /** A DaisyUI dropdown of links: a small button that opens a list of places to go, each after its
  *  icon if it has one, the current one marked; a label too long for the list ends in an
  *  ellipsis. */
 export function LinkDropdown({ children, label, items, className = '' }: LinkDropdownProps) {
-  const menu = useRef<HTMLDetailsElement | null>(null);
+  const menu = useRef<HTMLDetailsElement | null>(null)
   const close = () => {
-    if (menu.current) menu.current.open = false;
-  };
+    if (menu.current) menu.current.open = false
+  }
   return (
     <details ref={menu} className="dropdown dropdown-end">
       <summary
@@ -53,5 +53,5 @@ export function LinkDropdown({ children, label, items, className = '' }: LinkDro
         ))}
       </ul>
     </details>
-  );
+  )
 }

@@ -1,26 +1,26 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createDeformationFrame } from './frame.ts';
-import { deformationRuntime } from './deformationRuntime.fixture.ts';
-import { deformedOf } from './source.ts';
-import { updateWebgpuDeformation } from './webgpuFrame.ts';
-import { growClusterBox } from '../webgpu/shadow/bounds.ts';
-import { packClusterSpheres } from '../webgpu/shadow/spheres.ts';
-import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
-import type { EngineCamera } from '../camera/world.ts';
-import type { PageRec } from '../page/selection/selection.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createDeformationFrame } from './frame.ts'
+import { deformationRuntime } from './deformationRuntime.fixture.ts'
+import { deformedOf } from './source.ts'
+import { updateWebgpuDeformation } from './webgpuFrame.ts'
+import { growClusterBox } from '../webgpu/shadow/bounds.ts'
+import { packClusterSpheres } from '../webgpu/shadow/spheres.ts'
+import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
+import type { EngineCamera } from '../camera/world.ts'
+import type { PageRec } from '../page/selection/selection.ts'
 
 test('deformation refreshes only its caster rows and grows CPU/GPU light and occlusion bounds', () => {
   const world = new Matrix4(),
-    weights = [0];
+    weights = [0]
   const frame = createDeformationFrame([
     deformedOf(
       { morphTargetInfluences: weights },
       { deformation: { joints: [], targets: [100] } },
       world,
     ),
-  ]);
-  const rec = { min: [-1, -1, -1], max: [1, 1, 1] } as unknown as PageRec;
+  ])
+  const rec = { min: [-1, -1, -1], max: [1, 1, 1] } as unknown as PageRec
   const root = {
     world,
     pages: [rec],
@@ -29,33 +29,33 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
     packedBase: 0,
     localBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
     worldBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
-  };
-  const dirty: number[] = [];
+  }
+  const dirty: number[] = []
   const { rt, changed } = deformationRuntime(world, frame, [root], {
     pageTableFloats: new Float32Array(64),
     packedCount: 2,
     rowOfPage: [0],
     packedPageIndex: [0, 1],
     markRowWords: (row: number) => dirty.push(row),
-  });
-  const camera = { projection: world.elements } as EngineCamera;
-  updateWebgpuDeformation(rt, camera);
-  assert.equal(frame.moving[0], 0, 'first upload does not invent TAA velocity');
-  assert.equal(changed.length, 1, 'first deformation initializes its shadow region');
-  weights[0] = 1;
-  updateWebgpuDeformation(rt, camera);
-  assert.deepEqual(dirty, [0], 'the unrelated caster is left alone');
-  const sphere = packClusterSpheres([rec], [root], new Float32Array(8), 0, 0, () => 0);
-  assert.ok(sphere[3] >= 101, 'the GPU cull and shadow occlusion sphere contains maximum reach');
-  const box = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]);
-  growClusterBox(rec, [root], box, 0);
-  assert.ok(box[0] <= -101 && box[3] >= 101, 'CPU light selection contains the same displacement');
-  assert.deepEqual(changed.at(-1), [-101, -101, -101, 101, 101, 101]);
-  dirty.length = 0;
-  updateWebgpuDeformation(rt, camera);
-  assert.deepEqual(dirty, [], 'unchanged reach uploads no caster rows');
-  weights[0] = 0;
-  updateWebgpuDeformation(rt, camera);
-  assert.deepEqual(dirty, [0], 'shrinking reach refreshes the sphere too');
-  assert.deepEqual(changed.at(-1), [-101, -101, -101, 101, 101, 101], 'old shadows are erased');
-});
+  })
+  const camera = { projection: world.elements } as EngineCamera
+  updateWebgpuDeformation(rt, camera)
+  assert.equal(frame.moving[0], 0, 'first upload does not invent TAA velocity')
+  assert.equal(changed.length, 1, 'first deformation initializes its shadow region')
+  weights[0] = 1
+  updateWebgpuDeformation(rt, camera)
+  assert.deepEqual(dirty, [0], 'the unrelated caster is left alone')
+  const sphere = packClusterSpheres([rec], [root], new Float32Array(8), 0, 0, () => 0)
+  assert.ok(sphere[3] >= 101, 'the GPU cull and shadow occlusion sphere contains maximum reach')
+  const box = new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity])
+  growClusterBox(rec, [root], box, 0)
+  assert.ok(box[0] <= -101 && box[3] >= 101, 'CPU light selection contains the same displacement')
+  assert.deepEqual(changed.at(-1), [-101, -101, -101, 101, 101, 101])
+  dirty.length = 0
+  updateWebgpuDeformation(rt, camera)
+  assert.deepEqual(dirty, [], 'unchanged reach uploads no caster rows')
+  weights[0] = 0
+  updateWebgpuDeformation(rt, camera)
+  assert.deepEqual(dirty, [0], 'shrinking reach refreshes the sphere too')
+  assert.deepEqual(changed.at(-1), [-101, -101, -101, 101, 101, 101], 'old shadows are erased')
+})

@@ -1,7 +1,7 @@
-import { referenceBiasedDepthBits as biasedDepthBits } from '../../../../bench/oracles/core/coplanar-layers.ts';
+import { referenceBiasedDepthBits as biasedDepthBits } from '../../../../bench/oracles/core/coplanar-layers.ts'
 
 const scratch = new Float32Array(1),
-  scratchWords = new Uint32Array(scratch.buffer);
+  scratchWords = new Uint32Array(scratch.buffer)
 
 /**
  * How much the bound is raised before it is rounded to single precision.
@@ -14,7 +14,7 @@ const scratch = new Float32Array(1),
  * `x(1 + 2⁻²⁴)(1 − 2⁻⁵³)` and its rounding at least `x(1 + 2⁻⁴⁸)(1 − 2⁻⁵³)`, hence strictly
  * more than `x`. One multiplier and one rounding, no per-box bit manipulation.
  */
-const GROW = 1 + 2 ** -24;
+const GROW = 1 + 2 ** -24
 
 /**
  * Depth bound a box carries to the occlusion kernel: an OVERESTIMATE of what the cluster will
@@ -32,10 +32,10 @@ const GROW = 1 + 2 ** -24;
  * nothing needs correcting.
  */
 export function hizNearestBound(nearest: number, depthLayer: number) {
-  if (!(nearest > 0)) return nearest;
-  const above = Math.fround(nearest * GROW);
-  if (!depthLayer) return above;
-  scratch[0] = above;
-  scratchWords[0] = biasedDepthBits(scratchWords[0], depthLayer);
-  return scratch[0];
+  if (!(nearest > 0)) return nearest
+  const above = Math.fround(nearest * GROW)
+  if (!depthLayer) return above
+  scratch[0] = above
+  scratchWords[0] = biasedDepthBits(scratchWords[0], depthLayer)
+  return scratch[0]
 }

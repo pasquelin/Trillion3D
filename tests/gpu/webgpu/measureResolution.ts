@@ -7,5 +7,5 @@
  * to 4K by their temporal super-sampling; ours accumulates at native resolution and upsamples
  * nothing. It is the internal render that is the same size, not the output.
  */
-export const MEASURE_WIDTH = 2496;
-export const MEASURE_HEIGHT = 1404;
+export const MEASURE_WIDTH = 2496
+export const MEASURE_HEIGHT = 1404

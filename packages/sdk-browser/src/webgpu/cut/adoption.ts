@@ -1,8 +1,8 @@
-import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts';
-import { sameSelectionUniforms } from '../../gpu/core/selection.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { copyPages, copyPacked } from '../pages/helpers.ts';
-import type { CutDelta } from './delta.ts';
+import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts'
+import { sameSelectionUniforms } from '../../gpu/core/selection.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { copyPages, copyPacked } from '../pages/helpers.ts'
+import type { CutDelta } from './delta.ts'
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -13,30 +13,30 @@ import type { CutDelta } from './delta.ts';
  * survived the previous frame, not a rebuilt set.
  */
 export function createWebgpuCutAdopter(options: {
-  selection: () => GpuSelection | undefined;
-  desired: PageRec[];
+  selection: () => GpuSelection | undefined
+  desired: PageRec[]
   /** The packed rank of each desired page, rank by rank (#1235), parallel to `desired`. */
-  desiredPacked: number[];
-  shown: PageRec[];
+  desiredPacked: number[]
+  shown: PageRec[]
   /** The packed rank of each shown page, rank by rank (#1235). */
-  shownPacked: number[];
-  drawn: PageRec[];
+  shownPacked: number[]
+  drawn: PageRec[]
   /** The packed rank of each drawn page, rank by rank. */
-  drawnPacked: number[];
-  uniforms: SelectionUniforms;
-  delta: CutDelta;
+  drawnPacked: number[]
+  uniforms: SelectionUniforms
+  delta: CutDelta
   /** The drawable cut as a difference, kept apart because it is not the cut that was asked for. */
-  drawnDelta: CutDelta;
+  drawnDelta: CutDelta
   /** Records this difference writes: `shown` is a copy of them, when the frame adopts it. */
-  drawnPages: readonly PageRec[];
+  drawnPages: readonly PageRec[]
   /** Called once per readback, and only there: the difference is applied exactly once. */
-  onCutDelta: () => void;
-  onDrawnDelta: () => void;
+  onCutDelta: () => void
+  onDrawnDelta: () => void
   /** Called when `drawn` has just been remade from `shown`: the frame no longer has to remake it. */
-  onDrawnMirrored: () => void;
+  onDrawnMirrored: () => void
   /** Called with the view ahead's requests of each new readback, and empty once the camera is
    *  still — its readback may be the last of the move, adopted as the still camera's cut. */
-  onAhead: (ids: readonly number[]) => void;
+  onAhead: (ids: readonly number[]) => void
 }) {
   const metrics = {
     /** True when the frame reread the shown list it already held: `desired` and `shown` are those of
@@ -59,104 +59,104 @@ export function createWebgpuCutAdopter(options: {
     transparentTriangles: 0,
     frustumRejected: 0,
     lodLevel: 0,
-  };
-  let lastCut: GpuCut | null = null;
+  }
+  let lastCut: GpuCut | null = null
   /** Shown list `shown` and `drawn` are made from, or `null` when they come from elsewhere. */
-  let shownCut: GpuCut | null = null;
+  let shownCut: GpuCut | null = null
   /** Age of the drawable id sequence: it advances every time a shown list publishes another one,
    *  adopted or not. `shownSeq` is that of the sequence `shown` is actually made from: a shown list
    *  applied then rejected — different uniforms — separates them, and that is
    *  what forbids holding `shown` on a sequence the frame never adopted. */
   let drawnSeq = 0,
-    shownSeq = -1;
+    shownSeq = -1
   /** Whether the last list offered ahead was the one of a still camera: empty. */
-  let offeredStill = false;
+  let offeredStill = false
   const offerAhead = (cut: GpuCut) => {
-    offeredStill = !options.uniforms.ahead;
-    options.onAhead(offeredStill ? [] : (cut.result.aheadPageIds ?? []));
-  };
+    offeredStill = !options.uniforms.ahead
+    options.onAhead(offeredStill ? [] : (cut.result.aheadPageIds ?? []))
+  }
   const adopt = () => {
-    metrics.cutHeld = false;
-    metrics.listsRewritten = false;
-    metrics.truncated = false;
+    metrics.cutHeld = false
+    metrics.listsRewritten = false
+    metrics.truncated = false
     const selection = options.selection(),
-      cut = selection?.peek();
-    if (!cut?.result.drawablePageIds) return false;
+      cut = selection?.peek()
+    if (!cut?.result.drawablePageIds) return false
     // Before any difference: a truncated list describes less than the cut, and the difference taken
     // from it would EXIT pages the cut still holds.
     if (cut.result.truncated) {
-      metrics.truncated = true;
-      return false;
+      metrics.truncated = true
+      return false
     }
-    const { desired, shown, drawn, delta, drawnDelta } = options;
+    const { desired, shown, drawn, delta, drawnDelta } = options
     // A new readback offers its requests ahead; a held one only empties them once the camera stops.
-    const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill);
+    const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill)
     if (cut === lastCut) {
-      delta.hold();
-      drawnDelta.hold();
+      delta.hold()
+      drawnDelta.hold()
     } else {
       // Each list read off the ranks its readback claims in the list held, then held: the
       // readbacks after it claim theirs in it (`../../gpu/dag/differenceChain.ts`).
       const { pageIds, drawablePageIds } = cut.result,
-        claims = selection?.adopt(cut);
-      delta.apply(pageIds, pageIds.length, claims?.asked);
-      drawnDelta.apply(drawablePageIds, drawablePageIds.length, claims?.drawn);
-      lastCut = cut;
+        claims = selection?.adopt(cut)
+      delta.apply(pageIds, pageIds.length, claims?.asked)
+      drawnDelta.apply(drawablePageIds, drawablePageIds.length, claims?.drawn)
+      lastCut = cut
     }
     // The packed ranks of the desired cut, rank by rank beside its records (#1235): held or applied,
     // the difference names the instances it keeps.
-    copyPacked(options.desiredPacked, delta.ids, delta.count);
-    if (offer) offerAhead(cut);
-    if (drawnDelta.changed) drawnSeq++;
+    copyPacked(options.desiredPacked, delta.ids, delta.count)
+    if (offer) offerAhead(cut)
+    if (drawnDelta.changed) drawnSeq++
     // A difference is applied where it is computed. An image that adopts nothing — no readback has
     // landed — must not replay the previous one, which would count every page twice.
-    options.onCutDelta();
-    options.onDrawnDelta();
-    metrics.listsRewritten = delta.changed || drawnDelta.changed;
+    options.onCutDelta()
+    options.onDrawnDelta()
+    metrics.listsRewritten = delta.changed || drawnDelta.changed
     // A cut from poses a placement has left since draws and counts as a camera's late cut does —
     // the frame's own mask decides the draw —, but no image is held on it: the next readback,
     // cut under the poses in place, may still ask for pages.
-    metrics.cutHeld = !metrics.listsRewritten && cut.worldRevision === selection?.worldRevision;
-    metrics.visible = desired.length;
-    if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false;
+    metrics.cutHeld = !metrics.listsRewritten && cut.worldRevision === selection?.worldRevision
+    metrics.visible = desired.length
+    if (!sameSelectionUniforms(cut.uniforms, options.uniforms)) return false
     // `shown` is a function of the drawable id sequence alone: a new shown list that republishes
     // the SAME sequence `shown` is made from yields the same records, at the same ranks, and neither
     // `shown` nor its copy `drawn` is remade. The comparison is on the age of the adopted sequence,
     // not on the last applied difference: a shown list applied then rejected advanced the age
     // without writing anything. A null `shownCut` means these lists come from elsewhere.
-    const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq);
+    const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq)
     if (!held) {
       // The difference has just written these records by reading the sequence once; rereading them a
       // second time in the catalogue, at sparse ranks, would yield exactly the same array.
-      copyPages(shown, options.drawnPages);
-      copyPages(drawn, shown);
-      copyPacked(options.shownPacked, drawnDelta.ids, drawnDelta.count);
-      copyPacked(options.drawnPacked, drawnDelta.ids, drawnDelta.count);
-      options.onDrawnMirrored();
-      shownCut = cut;
-      shownSeq = drawnSeq;
+      copyPages(shown, options.drawnPages)
+      copyPages(drawn, shown)
+      copyPacked(options.shownPacked, drawnDelta.ids, drawnDelta.count)
+      copyPacked(options.drawnPacked, drawnDelta.ids, drawnDelta.count)
+      options.onDrawnMirrored()
+      shownCut = cut
+      shownSeq = drawnSeq
     }
     // The GPU counted the triangles where the verdict is given, in `dagMask`, and shipped them in
     // the shown-list header (`../../gpu/dag/shader/totalsWgsl.ts`): they describe the cut, not the
     // list that reports it, and the CPU sums nothing. The CPU cut sets its own
     // (`../pages/render/cpu.ts`).
-    metrics.ready = true;
-    metrics.selectedTriangles = cut.result.selectedTriangles;
-    metrics.drawnTriangles = cut.result.drawnTriangles;
-    metrics.transparentTriangles = cut.result.transparentTriangles;
-    metrics.frustumRejected = cut.result.frustumRejected;
-    metrics.lodLevel = cut.result.lodLevel;
-    return true;
-  };
+    metrics.ready = true
+    metrics.selectedTriangles = cut.result.selectedTriangles
+    metrics.drawnTriangles = cut.result.drawnTriangles
+    metrics.transparentTriangles = cut.result.transparentTriangles
+    metrics.frustumRejected = cut.result.frustumRejected
+    metrics.lodLevel = cut.result.lodLevel
+    return true
+  }
   /**
    * Forgets the held shown list: another cut wrote the arrays this adopter maintains. The
    * differences themselves are not dropped — whoever wrote those arrays published them through
    * them, and dropping them would re-request a cut the cache already holds.
    */
   const forgetReadback = () => {
-    lastCut = null;
-    shownCut = null;
-    shownSeq = -1;
-  };
-  return { adopt, metrics, forgetReadback };
+    lastCut = null
+    shownCut = null
+    shownSeq = -1
+  }
+  return { adopt, metrics, forgetReadback }
 }

@@ -25,7 +25,7 @@ export function drawsCluster(
   childResident: boolean,
   threshold: number,
 ) {
-  return resident && parentPixels > threshold && (ownPixels <= threshold || !childResident);
+  return resident && parentPixels > threshold && (ownPixels <= threshold || !childResident)
 }
 
 /** The rule in WGSL, for the kernel that draws (`dagMask`): `drawsCompared` on the two comparisons
@@ -36,4 +36,4 @@ export const CUT_RULE_WGSL = `fn drawsCluster(resident:bool,parentPixels:f32,own
 fn drawsCompared(resident:bool,parentAbove:bool,ownWithin:bool,childResident:bool)->bool{
  return resident&&parentAbove&&(ownWithin||!childResident);
 }
-`;
+`

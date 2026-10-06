@@ -1,16 +1,16 @@
-import type { WebgpuTileAtlas } from './atlas.ts';
-import type { TileTexture } from './tileTexture.ts';
-import { levelSize } from '../../texture/tiles.ts';
-import { sourceSize } from '../../texture/pictureSize.ts';
-import { tailSlotOf, tileKeyOf } from './ids.ts';
-import { copyTailFromTexture, copyTileFromTexture, tileRegion } from './write.ts';
+import type { WebgpuTileAtlas } from './atlas.ts'
+import type { TileTexture } from './tileTexture.ts'
+import { levelSize } from '../../texture/tiles.ts'
+import { sourceSize } from '../../texture/pictureSize.ts'
+import { tailSlotOf, tileKeyOf } from './ids.ts'
+import { copyTailFromTexture, copyTileFromTexture, tileRegion } from './write.ts'
 
 /** True when a texture's source still has the size its tiles were laid out at; a cooked chain,
  *  read from the cache, always has. */
 export function pictureFits({ layout, source }: TileTexture) {
-  if (source.kind !== 'host') return true;
-  const [width, height] = sourceSize(source.map);
-  return width === layout.width && height === layout.height;
+  if (source.kind !== 'host') return true
+  const [width, height] = sourceSize(source.map)
+  return width === layout.width && height === layout.height
 }
 
 /**
@@ -26,16 +26,16 @@ export function copyLiveTexture(
   slot: number,
   source: GPUTexture,
 ) {
-  const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
-  const { layout } = atlas.textures[slot];
-  const pool = atlas.poolOf(slot);
+  const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' })
+  const { layout } = atlas.textures[slot]
+  const pool = atlas.poolOf(slot)
   for (const index of pool.occupied()) {
     const id = pool.keyOf(index),
-      tailOf = tailSlotOf(id);
+      tailOf = tailSlotOf(id)
     if (tailOf === undefined) {
-      const { slot: owner, level, tx, ty } = tileKeyOf(id);
-      if (owner !== slot) continue;
-      const [width, height] = levelSize(layout.width, layout.height, level);
+      const { slot: owner, level, tx, ty } = tileKeyOf(id)
+      if (owner !== slot) continue
+      const [width, height] = levelSize(layout.width, layout.height, level)
       copyTileFromTexture(
         encoder,
         pool.texture,
@@ -43,7 +43,7 @@ export function copyLiveTexture(
         source,
         level,
         tileRegion(width, height, tx, ty),
-      );
+      )
     } else if (tailOf === slot)
       copyTailFromTexture(
         encoder,
@@ -53,7 +53,7 @@ export function copyLiveTexture(
         [layout.width, layout.height],
         layout.tail,
         layout.last,
-      );
+      )
   }
-  device.queue.submit([encoder.finish()]);
+  device.queue.submit([encoder.finish()])
 }

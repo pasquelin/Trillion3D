@@ -9,30 +9,30 @@ import {
   BOX_CORNER_VALUES,
   HIZ_BOUNDS_VALUES,
   projectCornersInto,
-} from '../../../packages/sdk-browser/src/hiz/corners.ts';
-import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts';
-import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts';
-import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.ts';
-import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts';
+} from '../../../packages/sdk-browser/src/hiz/corners.ts'
+import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts'
+import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts'
+import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.ts'
+import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts'
 
-const scratch = new Float64Array(HIZ_BOUNDS_VALUES);
+const scratch = new Float64Array(HIZ_BOUNDS_VALUES)
 
 export function emptyOcclusionTotals() {
-  return { rejected: 0, examined: 0, violations: 0, clippedByReference: 0, offScreen: 0, poses: 0 };
+  return { rejected: 0, examined: 0, violations: 0, clippedByReference: 0, offScreen: 0, poses: 0 }
 }
-export type OcclusionTotals = ReturnType<typeof emptyOcclusionTotals>;
+export type OcclusionTotals = ReturnType<typeof emptyOcclusionTotals>
 
 /** Checks one frame's audit, adds what it found to `total`, and returns its first violations.
  *  The reference pyramid is built once per pose, from the depth read back. */
 export function checkOcclusionAudit(audit: TransparentOcclusionAudit, total: OcclusionTotals) {
   // One depth convention (`depthConvention.ts`): reference and kernel read the same
   // view-projection, so their bounds compare directly.
-  const pyramid = buildHizPyramid(audit.depth, audit.width, audit.height);
-  total.poses++;
-  total.examined += audit.examined;
-  const violations = [];
+  const pyramid = buildHizPyramid(audit.depth, audit.width, audit.height)
+  total.poses++
+  total.examined += audit.examined
+  const violations = []
   for (const [i, entry] of audit.rejected.entries()) {
-    total.rejected++;
+    total.rejected++
     projectCornersInto(
       audit.corners,
       i * BOX_CORNER_VALUES,
@@ -43,13 +43,13 @@ export function checkOcclusionAudit(audit: TransparentOcclusionAudit, total: Occ
       audit.height,
       scratch,
       0,
-    );
+    )
     // A box the reference says the near plane clips must never have been rejected.
     if (scratch[5] !== 0) {
-      total.clippedByReference++;
-      total.violations++;
-      if (violations.length < 5) violations.push({ entry, cause: 'clipped by the near plane' });
-      continue;
+      total.clippedByReference++
+      total.violations++
+      if (violations.length < 5) violations.push({ entry, cause: 'clipped by the near plane' })
+      continue
     }
     // The reference rectangle holds the cluster's whole footprint: if it misses the viewport, the
     // cluster covers no pixel and removing it changes nothing — and the reference never rejects
@@ -58,20 +58,20 @@ export function checkOcclusionAudit(audit: TransparentOcclusionAudit, total: Occ
       Math.max(scratch[0], 0) > Math.min(scratch[2], audit.width - 1) ||
       Math.max(scratch[1], 0) > Math.min(scratch[3], audit.height - 1)
     ) {
-      total.offScreen++;
-      continue;
+      total.offScreen++
+      continue
     }
-    scratch[4] = hizNearestBound(scratch[4], audit.layer);
+    scratch[4] = hizNearestBound(scratch[4], audit.layer)
     if (!hizRejectsFlat(pyramid, scratch, 0)) {
-      total.violations++;
+      total.violations++
       if (violations.length < 5)
         violations.push({
           entry,
           cause: 'visible to the reference',
           nearest: scratch[4],
           rect: [scratch[0], scratch[1], scratch[2], scratch[3]],
-        });
+        })
     }
   }
-  return violations;
+  return violations
 }

@@ -1,7 +1,7 @@
-import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
-import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts';
-import { DEFORM_IN_POOL } from '../visibility/types.ts';
-import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts';
+import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts'
+import { DEFORM_IN_POOL } from '../visibility/types.ts'
+import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 
 /**
  * THE GPU DEFORMATION STAGE (#357), in WGSL: a page vertex moved by its placement's record
@@ -136,4 +136,4 @@ fn deformNormal(page:PageInfo,h:ClusterHeader,vertex:u32,rest:vec3f)->vec3f{
   n=transpose(mat3x3f(m[0].xyz,m[1].xyz,m[2].xyz))*deformWaves(a.wave,a.waves,world,false,true);
  }
  return normalize(n);
-}`;
+}`

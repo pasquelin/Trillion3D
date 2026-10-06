@@ -1,16 +1,16 @@
-import { useWords } from '../i18n.ts';
-import { apiIndex } from '../layout/menus.ts';
-import { DocPage } from '../layout/DocPage.tsx';
-import { usePortal } from '../layout/PortalContext.ts';
-import { Card } from '../ui/Card.tsx';
-import { LinkMenu } from '../ui/List.tsx';
-import { Inline } from '../ui/Prose.tsx';
+import { useWords } from '../i18n.ts'
+import { apiIndex } from '../layout/menus.ts'
+import { DocPage } from '../layout/DocPage.tsx'
+import { usePortal } from '../layout/PortalContext.ts'
+import { Card } from '../ui/Card.tsx'
+import { LinkMenu } from '../ui/List.tsx'
+import { Inline } from '../ui/Prose.tsx'
 
 /** The API reference's landing page, one column: every family, every name in it and what it
  * does. */
 export function ApiIndex() {
-  const { route, entries } = usePortal();
-  const t = useWords(route.locale);
+  const { route, entries } = usePortal()
+  const t = useWords(route.locale)
   return (
     <DocPage eyebrow={t('nav.api')} title={t('api.title')} lead={t('api.lead')}>
       {apiIndex(entries, route).map((group) => (
@@ -24,5 +24,5 @@ export function ApiIndex() {
         </Card>
       ))}
     </DocPage>
-  );
+  )
 }

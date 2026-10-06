@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
 
 /**
  * The address one pool slot is held, pinned and read under, for one cluster record.
@@ -11,7 +11,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * forward draw decodes the same page (`../blend/shader.ts`).
  */
 export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
-  rec.geometryPage?.url ?? rec.url;
+  rec.geometryPage?.url ?? rec.url
 
 /**
  * Starts the read of a cluster's geometry page ahead of its admission (`../residency/admission.ts`)
@@ -25,9 +25,9 @@ export const readGeometryAhead =
     read: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>,
   ) =>
   (rec: PageRec, signal: AbortSignal, priority?: number) => {
-    const url = geometryUrls.get(pageAddress(rec));
-    if (url !== undefined) read(url, signal, priority).catch(() => {});
-  };
+    const url = geometryUrls.get(pageAddress(rec))
+    if (url !== undefined) read(url, signal, priority).catch(() => {})
+  }
 
 /**
  * What the geometry pool holds for the scene, walked once from the catalogue.
@@ -52,29 +52,29 @@ export const readGeometryAhead =
 export function describePageSlots(allPages: readonly PageRec[]) {
   const geometryUrls = new Map<string, string>(),
     seenUrls = new Set<string>(),
-    homes = new Map<string, number>();
+    homes = new Map<string, number>()
   let pageBytes = 4,
     maxCorners = 1,
     fromGeometryPage = 0,
     fromSourceGeometry = 0,
-    transparentClusters = 0;
+    transparentClusters = 0
   for (const page of allPages) {
     const geometry = page.geometryPage,
-      address = pageAddress(page);
+      address = pageAddress(page)
     if (seenUrls.has(address) && geometryUrls.get(address) !== geometry?.url)
-      throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${address}`);
-    seenUrls.add(address);
+      throw new Error(`CLUSTER_PAGE_DISAGREEMENT: ${address}`)
+    seenUrls.add(address)
     if (geometry) {
-      geometryUrls.set(address, geometry.url);
-      fromGeometryPage++;
-    } else if (page.transparent) transparentClusters++;
-    else fromSourceGeometry++;
-    const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes);
-    const padded = n + (n % 4 ? 4 - (n % 4) : 0);
-    if (padded > pageBytes) pageBytes = padded;
-    if (padded > (homes.get(address) ?? 0)) homes.set(address, padded);
-    const corners = geometry ? geometry.indexCount : page.triangles * 3;
-    if (corners > maxCorners) maxCorners = corners;
+      geometryUrls.set(address, geometry.url)
+      fromGeometryPage++
+    } else if (page.transparent) transparentClusters++
+    else fromSourceGeometry++
+    const n = geometry ? geometry.bytes : (page.array?.byteLength ?? page.indexBytes)
+    const padded = n + (n % 4 ? 4 - (n % 4) : 0)
+    if (padded > pageBytes) pageBytes = padded
+    if (padded > (homes.get(address) ?? 0)) homes.set(address, padded)
+    const corners = geometry ? geometry.indexCount : page.triangles * 3
+    if (corners > maxCorners) maxCorners = corners
   }
   return {
     geometryUrls,
@@ -84,7 +84,7 @@ export function describePageSlots(allPages: readonly PageRec[]) {
     fromGeometryPage,
     fromSourceGeometry,
     transparentClusters,
-  };
+  }
 }
 
 /**
@@ -95,22 +95,22 @@ export function describePageSlots(allPages: readonly PageRec[]) {
  * index page is never requested, never downloaded and never held on the CPU — the only number the
  * row ever wanted from it, the corner count, the geometry page declares itself.
  */
-export const awaitsPageBytes = (rec: PageRec) => !rec.geometryPage && !rec.array;
+export const awaitsPageBytes = (rec: PageRec) => !rec.geometryPage && !rec.array
 
 /** True while a record, or a bundle it is installed after (`PageRec.dependencies`), still waits
  *  for its bytes: the pool cannot admit it before them. */
 export const awaitsClosure = (rec: PageRec) => {
-  if (awaitsPageBytes(rec)) return true;
-  const dependencies = rec.dependencies;
+  if (awaitsPageBytes(rec)) return true
+  const dependencies = rec.dependencies
   if (dependencies)
-    for (let i = 0; i < dependencies.length; i++) if (awaitsPageBytes(dependencies[i])) return true;
-  return false;
-};
+    for (let i = 0; i < dependencies.length; i++) if (awaitsPageBytes(dependencies[i])) return true
+  return false
+}
 
 /** The records of `pages` whose bytes, or those of their closure, are still awaited, collected
  *  into `into`: what the host is asked to fetch, and what an image is still missing. */
 export function awaitedPages(pages: readonly PageRec[], into: PageRec[]) {
-  into.length = 0;
-  for (let i = 0; i < pages.length; i++) if (awaitsClosure(pages[i])) into.push(pages[i]);
-  return into;
+  into.length = 0
+  for (let i = 0; i < pages.length; i++) if (awaitsClosure(pages[i])) into.push(pages[i])
+  return into
 }

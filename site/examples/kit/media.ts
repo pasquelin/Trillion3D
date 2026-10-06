@@ -9,16 +9,16 @@ export function playPickedVideo(
   video: HTMLVideoElement,
   picked: (name: string) => void = () => {},
 ) {
-  let address: string | null = null;
+  let address: string | null = null
   picker.addEventListener('change', () => {
-    const [file] = picker.files ?? [];
-    if (!file) return;
-    const playing = !video.paused;
-    if (address) URL.revokeObjectURL(address);
-    address = URL.createObjectURL(file);
-    video.srcObject = null;
-    video.src = address;
-    if (playing) video.play().catch(() => {});
-    picked(file.name);
-  });
+    const [file] = picker.files ?? []
+    if (!file) return
+    const playing = !video.paused
+    if (address) URL.revokeObjectURL(address)
+    address = URL.createObjectURL(file)
+    video.srcObject = null
+    video.src = address
+    if (playing) video.play().catch(() => {})
+    picked(file.name)
+  })
 }

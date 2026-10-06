@@ -1,4 +1,4 @@
-import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
 
 /**
  * How far each dynamic geometry's vertices lie from where its pages are bounded (#573,
@@ -12,23 +12,23 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
  */
 export function createDynamicReach(roots: readonly ClusterRoot<PageRec>[], revision: () => number) {
   let listed = -1,
-    byAttributes = new Map<object, ClusterRoot<PageRec>[]>();
+    byAttributes = new Map<object, ClusterRoot<PageRec>[]>()
   return {
     /** `attributes`' vertices lie up to `reach` from where their pages are bounded. */
     note(attributes: object, reach: number) {
-      const now = revision();
+      const now = revision()
       if (listed !== now) {
-        listed = now;
-        byAttributes = new Map();
+        listed = now
+        byAttributes = new Map()
         for (const root of roots) {
-          const own = root.pages[0]?.attributes;
-          if (!own) continue;
-          const list = byAttributes.get(own);
-          if (list) list.push(root);
-          else byAttributes.set(own, [root]);
+          const own = root.pages[0]?.attributes
+          if (!own) continue
+          const list = byAttributes.get(own)
+          if (list) list.push(root)
+          else byAttributes.set(own, [root])
         }
       }
-      for (const root of byAttributes.get(attributes) ?? []) root.reach = reach;
+      for (const root of byAttributes.get(attributes) ?? []) root.reach = reach
     },
-  };
+  }
 }

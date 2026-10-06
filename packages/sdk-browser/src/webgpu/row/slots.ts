@@ -1,14 +1,14 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts';
-import { createWebgpuRowWriters } from './writers.ts';
-import { createWebgpuRowClaims, serveClaims } from './claims.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
-import { rowHasGeometry, type createPageRowWriter } from './pageRow.ts';
-import { awaitsPageBytes } from './pageSlots.ts';
-import type { createWebgpuRowState } from './state.ts';
-import type { FrameClock } from '../../page/integration/frameBudget.ts';
-type Rows = ReturnType<typeof createWebgpuRowState>;
-type Writer = ReturnType<typeof createPageRowWriter>;
+import { sortPages } from '../../../../sdk-core/src/index.ts'
+import { createWebgpuRowWriters } from './writers.ts'
+import { createWebgpuRowClaims, serveClaims } from './claims.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { rowHasGeometry, type createPageRowWriter } from './pageRow.ts'
+import { awaitsPageBytes } from './pageSlots.ts'
+import type { createWebgpuRowState } from './state.ts'
+import type { FrameClock } from '../../page/integration/frameBudget.ts'
+type Rows = ReturnType<typeof createWebgpuRowState>
+type Writer = ReturnType<typeof createPageRowWriter>
 /**
  * Ranks of the row table, held page by page.
  *
@@ -38,30 +38,30 @@ export function createWebgpuRowSlots(
   onResidenceChange: (rec: PageRec, page: number) => void,
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
-  const { recordOf } = createPageCatalogue(packedPages);
+  const { recordOf } = createPageCatalogue(packedPages)
   /** Ranks this pass gave back, waiting for a taker or a fill: never more than the table holds. */
-  const free = { rows: new Int32Array(Math.max(1, rows.blendFirst)), count: 0 };
+  const free = { rows: new Int32Array(Math.max(1, rows.blendFirst)), count: 0 }
   /** Pages that claim a record and wait their turn, from one image to the next. */
-  const claims = createWebgpuRowClaims(packedPages.length);
+  const claims = createWebgpuRowClaims(packedPages.length)
   const {
     assign,
     moveRow,
     state: written,
-  } = createWebgpuRowWriters(rows, packedPages, writePageRow);
+  } = createWebgpuRowWriters(rows, packedPages, writePageRow)
   let count = 0,
     candidates = 0,
     denied = 0,
     epoch = -1,
-    revision = -1;
+    revision = -1
   /** True when a page's rank really carries its current place in the cache. */
   const rowWritten = (page: number) => {
-    const row = rows.rowOfPage[page];
+    const row = rows.rowOfPage[page]
     return (
       row >= 0 &&
       rows.rowOffsetWords[row] === rows.residentOffsetWords[page] &&
       rows.rowEpoch[row] === rows.tableEpoch
-    );
-  };
+    )
+  }
 
   /**
    * Residency flag of a page, and the candidate count that follows it. Idempotent: a page named
@@ -71,14 +71,14 @@ export function createWebgpuRowSlots(
    * claim a visibility-buffer row: it draws in the blend pass, so it does not count.
    */
   const setResident = (page: number, resident: boolean) => {
-    const value = resident ? 1 : 0;
-    if (rows.residentFlags[page] === value) return;
-    const rec = recordOf(page)!;
-    rows.residentFlags[page] = value;
-    rows.noteResidencyChange(page);
-    onResidenceChange(rec, page);
-    if (!rec.transparent) candidates += resident ? 1 : -1;
-  };
+    const value = resident ? 1 : 0
+    if (rows.residentFlags[page] === value) return
+    const rec = recordOf(page)!
+    rows.residentFlags[page] = value
+    rows.noteResidencyChange(page)
+    onResidenceChange(rec, page)
+    if (!rec.transparent) candidates += resident ? 1 : -1
+  }
 
   /**
    * Re-reads what the cache just did with a page and takes back the rank it no longer deserves.
@@ -87,18 +87,18 @@ export function createWebgpuRowSlots(
    */
   const release = (page: number) => {
     const rec = recordOf(page)!,
-      offsetWords = rows.residentOffsetWords[page];
-    const resident = offsetWords >= 0 && !awaitsPageBytes(rec);
-    const wantsRow = resident && !rec.transparent && rowHasGeometry(rec, rows.pagePositions[page]);
-    setResident(page, resident && (!wantsRow || rowWritten(page)));
-    if (wantsRow) return !rows.residentFlags[page];
-    const row = rows.rowOfPage[page];
-    if (row < 0) return false;
-    rows.rowOfPage[page] = -1;
-    free.rows[free.count++] = row;
-    written.changed = true;
-    return false;
-  };
+      offsetWords = rows.residentOffsetWords[page]
+    const resident = offsetWords >= 0 && !awaitsPageBytes(rec)
+    const wantsRow = resident && !rec.transparent && rowHasGeometry(rec, rows.pagePositions[page])
+    setResident(page, resident && (!wantsRow || rowWritten(page)))
+    if (wantsRow) return !rows.residentFlags[page]
+    const row = rows.rowOfPage[page]
+    if (row < 0) return false
+    rows.rowOfPage[page] = -1
+    free.rows[free.count++] = row
+    written.changed = true
+    return false
+  }
 
   /**
    * Writes a page's record: at its rank if it is still its own, otherwise at a freed rank or at
@@ -107,14 +107,14 @@ export function createWebgpuRowSlots(
    */
   const place = (page: number) => {
     const offsetWords = rows.residentOffsetWords[page],
-      row = rows.rowOfPage[page];
-    if (row >= 0) assign(row, page, offsetWords);
-    else if (free.count) assign(free.rows[--free.count], page, offsetWords);
-    else if (count < rows.blendFirst) assign(count++, page, offsetWords);
-    else return false;
-    setResident(page, true);
-    return true;
-  };
+      row = rows.rowOfPage[page]
+    if (row >= 0) assign(row, page, offsetWords)
+    else if (free.count) assign(free.rows[--free.count], page, offsetWords)
+    else if (count < rows.blendFirst) assign(count++, page, offsetWords)
+    else return false
+    setResident(page, true)
+    return true
+  }
 
   /**
    * The end of the table fills ranks no page took back. Holes are walked from lowest to highest
@@ -122,23 +122,23 @@ export function createWebgpuRowSlots(
    * row is therefore moved at most once.
    */
   const closeFreeRows = () => {
-    if (!free.count) return;
-    sortPages(free.rows, free.count);
-    const kept = count - free.count;
+    if (!free.count) return
+    sortPages(free.rows, free.count)
+    const kept = count - free.count
     let source = count - 1,
-      high = free.count - 1;
+      high = free.count - 1
     for (let i = 0; i < free.count; i++) {
-      const hole = free.rows[i];
-      if (hole >= kept) break;
+      const hole = free.rows[i]
+      if (hole >= kept) break
       while (high >= 0 && free.rows[high] === source) {
-        source--;
-        high--;
+        source--
+        high--
       }
-      moveRow(source--, hole);
+      moveRow(source--, hole)
     }
-    count = kept;
-    free.count = 0;
-  };
+    count = kept
+    free.count = 0
+  }
 
   /**
    * The whole table rebuilt from the catalogue: rank order there is page order. The only remaining
@@ -146,55 +146,55 @@ export function createWebgpuRowSlots(
    * is too long, which no longer exists.
    */
   const rebuild = () => {
-    rows.rowOfPage.fill(-1);
-    count = 0;
-    free.count = 0;
-    written.changed = true;
-    claims.clear();
+    rows.rowOfPage.fill(-1)
+    count = 0
+    free.count = 0
+    written.changed = true
+    claims.clear()
     for (let page = 0; page < packedPages.length; page++) {
-      if (!release(page) || place(page)) continue;
+      if (!release(page) || place(page)) continue
       // The table is full: the page keeps its claim and will take it back when a rank frees.
-      denied++;
-      claims.add(page);
+      denied++
+      claims.add(page)
     }
-  };
+  }
 
   /** What the image owes the row table: the pages the cache named, and what the record queue
    *  left behind, within the frame's `budget`; absent, every owed record (a barrier image). */
   const apply = (budget?: FrameClock) => {
-    if (free.rows.length < rows.blendFirst) free.rows = new Int32Array(rows.blendFirst);
-    written.changed = false;
-    denied = 0;
-    const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch;
-    if (full) rebuild();
+    if (free.rows.length < rows.blendFirst) free.rows = new Int32Array(rows.blendFirst)
+    written.changed = false
+    denied = 0
+    const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch
+    if (full) rebuild()
     else {
       // Departures first, arrivals next: a rank freed by a late-named page must be able to serve
       // an early-named page, otherwise an arrival overflows in front of a table that is about to
       // empty. Pages are seen in catalogue order, as reconstruction would see them.
-      sortPages(rows.touched.pages, rows.touched.count);
+      sortPages(rows.touched.pages, rows.touched.count)
       for (let i = 0; i < rows.touched.count; i++) {
-        const page = rows.touched.pages[i];
-        if (release(page)) claims.add(page);
+        const page = rows.touched.pages[i]
+        if (release(page)) claims.add(page)
       }
-      denied = serveClaims(claims, release, place, budget);
-      closeFreeRows();
+      denied = serveClaims(claims, release, place, budget)
+      closeFreeRows()
     }
-    rows.clearTouched();
+    rows.clearTouched()
     // Departures and arrivals each name themselves in their order: GPU selection wants them sorted.
-    rows.sortResidencyChanges();
-    epoch = rows.tableEpoch;
-    revision = ++rows.rowsRevision;
-    if (written.changed || rows.packedCount !== count) rows.rowsChanged = true;
-    rows.rowCount = count;
-    rows.packedCount = count;
-    rows.candidateCount = candidates;
-    rows.candidateOverflow = denied;
-  };
+    rows.sortResidencyChanges()
+    epoch = rows.tableEpoch
+    revision = ++rows.rowsRevision
+    if (written.changed || rows.packedCount !== count) rows.rowsChanged = true
+    rows.rowCount = count
+    rows.packedCount = count
+    rows.candidateCount = candidates
+    rows.candidateOverflow = denied
+  }
   return {
     apply,
     /** Records still owed: the next image must come back even if the cache moved nothing. */
     get pending() {
-      return claims.count;
+      return claims.count
     },
-  };
+  }
 }

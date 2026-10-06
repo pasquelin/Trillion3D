@@ -11,12 +11,12 @@
 // (`LIGHTING_RATES`).
 //
 //   node bench/runner/lighting/lightGridCount.ts [--width 3456] [--height 2234] [--range 4]
-import { parseArgs } from 'node:util';
-import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
-import { reaches, tilePassWork, walkGrid } from './lightGridWalk.ts';
-import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
-import type { Light } from './lightTileCity.ts';
+import { parseArgs } from 'node:util'
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
+import { reaches, tilePassWork, walkGrid } from './lightGridWalk.ts'
+import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
+import type { Light } from './lightTileCity.ts'
 
 /**
  * The rates the model prices the counts at, each from a number measured on develop:
@@ -40,7 +40,7 @@ export const LIGHTING_RATES = {
   texelPs: 8.86,
   inRangePs: 27.8,
   outOfRangePs: 10.6,
-};
+}
 
 /**
  * The resolve's G-buffer accesses per covered pixel of a surface that neither emits nor has an
@@ -53,12 +53,12 @@ export const LIGHTING_RATES = {
 export const RESOLVE_GBUFFER = {
   before: { flags: 1, baseMetal: 8, depth: 4, normalRough: 8, emissiveAo: 8, colour: 8 },
   after: { flags: 1, baseMetal: 8, depth: 4, normalRough: 8, colour: 8 },
-};
+}
 /** Texels and bytes of a side of `RESOLVE_GBUFFER`. */
 export const gbufferAccesses = (side: Record<string, number>) => ({
   texels: Object.keys(side).length,
   bytes: Object.values(side).reduce((a, b) => a + b, 0),
-});
+})
 
 /** Milliseconds the rates give the grid pass, the resolve's light work and its G-buffer accesses
  *  of a `countGrid`, `side` the G-buffer's. */
@@ -66,30 +66,30 @@ export function lightingModel(
   { covered, listed, reach, work }: ReturnType<typeof countGrid>,
   side: keyof typeof RESOLVE_GBUFFER = 'after',
 ) {
-  const r = LIGHTING_RATES;
+  const r = LIGHTING_RATES
   const tilePass =
     ((work.columnTests + 2 * work.solves) * r.pairNs * 1e3 +
       2 * (work.entries + work.cells) * r.texelPs) /
-    1e9;
-  const lightWork = (reach * r.inRangePs + (listed - reach) * r.outOfRangePs) / 1e9;
-  const gbuffer = (covered * gbufferAccesses(RESOLVE_GBUFFER[side]).texels * r.texelPs) / 1e9;
-  return { tilePass, lightWork, gbuffer, lighting: tilePass + lightWork + gbuffer };
+    1e9
+  const lightWork = (reach * r.inRangePs + (listed - reach) * r.outOfRangePs) / 1e9
+  const gbuffer = (covered * gbufferAccesses(RESOLVE_GBUFFER[side]).texels * r.texelPs) / 1e9
+  return { tilePass, lightWork, gbuffer, lighting: tilePass + lightWork + gbuffer }
 }
 
 /** Over the covered pixels of `view`: the lights their cells list, those reaching them, those
  *  missed; and the grid pass's work. */
 export function countGrid(view: TileView, depths: Float32Array, lights: Light[]) {
-  const sums = { covered: 0, listed: 0, reach: 0, missed: 0 };
+  const sums = { covered: 0, listed: 0, reach: 0, missed: 0 }
   const work = walkGrid(view, depths, lights, (p, listed, within) => {
-    sums.covered++;
-    sums.listed += listed.length;
+    sums.covered++
+    sums.listed += listed.length
     for (const rank of within) {
-      if (!reaches(p, lights[rank])) continue;
-      sums.reach++;
-      sums.missed += +!listed.includes(rank);
+      if (!reaches(p, lights[rank])) continue
+      sums.reach++
+      sums.missed += +!listed.includes(rank)
     }
-  });
-  return { ...sums, work };
+  })
+  return { ...sums, work }
 }
 
 async function main() {
@@ -99,14 +99,14 @@ async function main() {
       height: { type: 'string', default: '2234' },
       range: { type: 'string', default: '4' },
     },
-  });
-  const [width, height, range] = [values.width, values.height, values.range].map(Number);
-  const lights = atriumLamps(200, range);
+  })
+  const [width, height, range] = [values.width, values.height, values.range].map(Number)
+  const lights = atriumLamps(200, range)
   const rows = ATRIUM_POSES.map(({ eye, yaw, pitch }, pose) => {
-    const view = camera(eye, yaw, pitch, 60, width, height);
-    const s = countGrid(view, atriumDepth(view), lights);
-    const ms = Object.entries(lightingModel(s)).map(([k, v]) => [`${k} ms`, v.toFixed(3)]);
-    ms.push(['develop gbuffer ms', lightingModel(s, 'before').gbuffer.toFixed(3)]);
+    const view = camera(eye, yaw, pitch, 60, width, height)
+    const s = countGrid(view, atriumDepth(view), lights)
+    const ms = Object.entries(lightingModel(s)).map(([k, v]) => [`${k} ms`, v.toFixed(3)])
+    ms.push(['develop gbuffer ms', lightingModel(s, 'before').gbuffer.toFixed(3)])
     return {
       pose,
       covered: s.covered,
@@ -115,13 +115,13 @@ async function main() {
       missed: s.missed,
       ...s.work,
       ...Object.fromEntries(ms),
-    };
-  });
-  console.log(`200 lamps of range ${range} m, ${width} × ${height}: lights per covered pixel`);
-  console.table(rows);
-  console.log("Develop's tile pass (#924) at the same size:", tilePassWork(width, height, 200));
-  const [before, after] = [RESOLVE_GBUFFER.before, RESOLVE_GBUFFER.after].map(gbufferAccesses);
-  console.log('G-buffer per covered pixel, develop then now:', before, after);
+    }
+  })
+  console.log(`200 lamps of range ${range} m, ${width} × ${height}: lights per covered pixel`)
+  console.table(rows)
+  console.log("Develop's tile pass (#924) at the same size:", tilePassWork(width, height, 200))
+  const [before, after] = [RESOLVE_GBUFFER.before, RESOLVE_GBUFFER.after].map(gbufferAccesses)
+  console.log('G-buffer per covered pixel, develop then now:', before, after)
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) await main()

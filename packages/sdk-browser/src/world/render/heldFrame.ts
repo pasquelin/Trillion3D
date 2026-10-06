@@ -1,5 +1,5 @@
-import { boundToContext } from '../../webgl/core/contextBound.ts';
-import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
+import { boundToContext } from '../../webgl/core/contextBound.ts'
+import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts'
 
 /**
  * Held frame of an engine that draws on the host surface.
@@ -18,46 +18,46 @@ import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 export function createHeldFrame(gl: WebGL2RenderingContext) {
   let width = 0,
     height = 0,
-    kept = false;
+    kept = false
   const copy = boundToContext(
     gl,
     () => createWebglRenderTarget(gl, width, height, { depth: false }),
     (target) => target.dispose(),
-  );
+  )
   /** Whole-buffer copy between the drawing buffer and the kept texture, in either direction. */
   const blit = (read: WebGLFramebuffer | null, draw: WebGLFramebuffer | null) => {
-    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read);
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw);
-    gl.disable(gl.SCISSOR_TEST);
-    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  };
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, read)
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, draw)
+    gl.disable(gl.SCISSOR_TEST)
+    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.COLOR_BUFFER_BIT, gl.NEAREST)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  }
   return {
     /** True when a complete frame has been kept at the current drawing-buffer size, and the
      *  context that holds it is alive: a lost one lost the copy with it. */
     holds(drawingWidth: number, drawingHeight: number) {
-      return kept && drawingWidth === width && drawingHeight === height && copy.alive();
+      return kept && drawingWidth === width && drawingHeight === height && copy.alive()
     },
     /** Keeps the complete frame that was just drawn, by copying the drawing buffer. */
     keep(drawingWidth: number, drawingHeight: number) {
       if (drawingWidth !== width || drawingHeight !== height) {
-        copy.dispose();
-        width = drawingWidth;
-        height = drawingHeight;
+        copy.dispose()
+        width = drawingWidth
+        height = drawingHeight
       }
-      const target = copy.current();
-      if (!target) return;
-      blit(null, target.framebuffer);
-      kept = true;
+      const target = copy.current()
+      if (!target) return
+      blit(null, target.framebuffer)
+      kept = true
     },
     /** Puts the kept frame back on the drawing buffer: one copy, nothing of the scene. */
     present() {
-      const source = copy.current();
-      if (source) blit(source.framebuffer, null);
+      const source = copy.current()
+      if (source) blit(source.framebuffer, null)
     },
     dispose() {
-      copy.dispose();
-      kept = false;
+      copy.dispose()
+      kept = false
     },
-  };
+  }
 }

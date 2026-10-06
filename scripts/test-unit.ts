@@ -1,13 +1,13 @@
-import { generateApiFiles } from './generate-api-reference.ts';
-import { repositoryFiles } from './repository-files.ts';
-import { compileSiteCaches, TEST_SCENES } from './site-caches.ts';
-import { isUnitTest, runUnitTests } from './unit-tests.ts';
+import { generateApiFiles } from './generate-api-reference.ts'
+import { repositoryFiles } from './repository-files.ts'
+import { compileSiteCaches, TEST_SCENES } from './site-caches.ts'
+import { isUnitTest, runUnitTests } from './unit-tests.ts'
 
-const found = repositoryFiles();
-if (!found) throw new Error('Not a Git repository.');
-const files = found.filter(isUnitTest);
-if (!files.length) throw new Error('No maintained unit tests found.');
-await generateApiFiles();
-compileSiteCaches(true, TEST_SCENES);
+const found = repositoryFiles()
+if (!found) throw new Error('Not a Git repository.')
+const files = found.filter(isUnitTest)
+if (!files.length) throw new Error('No maintained unit tests found.')
+await generateApiFiles()
+compileSiteCaches(true, TEST_SCENES)
 // One heavy step on the machine, capped locally (`scripts/heavy-lock.ts`, `testRunFlags`).
-runUnitTests(files);
+runUnitTests(files)

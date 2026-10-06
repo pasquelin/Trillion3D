@@ -1,12 +1,12 @@
-import { FULLSCREEN_VERTEX } from '../core/fullscreenPass.ts';
-import { allocated } from '../core/allocation.ts';
-import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
-import { createWebglProgram } from '../core/program.ts';
+import { FULLSCREEN_VERTEX } from '../core/fullscreenPass.ts'
+import { allocated } from '../core/allocation.ts'
+import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts'
+import { createWebglProgram } from '../core/program.ts'
 import {
   bindWebglTexture,
   createWebglRenderTarget,
   type WebglRenderTarget,
-} from '../core/renderTarget.ts';
+} from '../core/renderTarget.ts'
 
 /**
  * The display chain's last links after the effects: premultiplied linear radiance over the
@@ -27,16 +27,16 @@ void main(){ivec2 at=ivec2(gl_FragCoord.xy);gl_FragDepth=texelFetch(depth,at,0).
 if(v.a<=0.0){color=vec4(background,1.0);return;}
 float a=min(v.a,1.0);vec3 c=v.rgb/a;
 if(toneMapped)c=mix(toneMap(c),c,clamp(texelFetch(untoned,at,0).r/a,0.0,1.0));
-color=vec4(linearToSrgb(c)*a+background*(1.0-a),1.0);}`;
+color=vec4(linearToSrgb(c)*a+background*(1.0-a),1.0);}`
 
 /** What one display chain needs besides the passes: the curve and the encoded background. */
 export type WebglEffectOutput = {
-  toneMapped: boolean;
+  toneMapped: boolean
   /** Rank of the scene's curve (`TONE_MAPPING_RANK`). */
-  toneCurve: number;
+  toneCurve: number
   /** The background, sRGB-encoded. */
-  background: readonly [number, number, number];
-};
+  background: readonly [number, number, number]
+}
 
 /**
  * The target the engine draws the scene into for the chain: half-float radiance, a 24-bit depth
@@ -44,68 +44,68 @@ export type WebglEffectOutput = {
  * marks the coverage of the surfaces the curve skips. All three are cleared together.
  */
 export function createWebglSceneTarget(gl: WebGL2RenderingContext, w: number, h: number) {
-  const target = createWebglRenderTarget(gl, w, h, { hdr: true, depth: false });
+  const target = createWebglRenderTarget(gl, w, h, { hdr: true, depth: false })
   /** A texture the size of the image, read texel for texel, attached at `attachment`. */
   const attach = (attachment: number, format: number, layout: number, type: number) => {
-    const texture = gl.createTexture()!;
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, format, w, h, 0, layout, type, null);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, texture, 0);
-    return texture;
-  };
+    const texture = gl.createTexture()!
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, w, h, 0, layout, type, null)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.bindTexture(gl.TEXTURE_2D, null)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, target.framebuffer)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, attachment, gl.TEXTURE_2D, texture, 0)
+    return texture
+  }
   const untoned = attach(gl.COLOR_ATTACHMENT1, gl.R8, gl.RED, gl.UNSIGNED_BYTE),
-    depth = attach(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT);
+    depth = attach(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT)
   // Refused: marked `refused`, so its owner makes it again at its next draw.
-  let refused = false;
-  allocated(gl, 'target', () => (refused = true));
-  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+  let refused = false
+  allocated(gl, 'target', () => (refused = true))
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1])
   return {
     target,
     untoned,
     depth,
     /** The context refused its storage (`../core/allocation.ts`): made again, never drawn. */
     get refused() {
-      return refused || target.width !== w;
+      return refused || target.width !== w
     },
     dispose() {
-      gl.deleteTexture(untoned);
-      gl.deleteTexture(depth);
-      target.dispose();
+      gl.deleteTexture(untoned)
+      gl.deleteTexture(depth)
+      target.dispose()
     },
-  };
+  }
 }
-export type WebglSceneTarget = ReturnType<typeof createWebglSceneTarget>;
+export type WebglSceneTarget = ReturnType<typeof createWebglSceneTarget>
 
 /** The output program: draws `image`, the chain's last target, into the bound framebuffer. */
 export function createWebglOutput(gl: WebGL2RenderingContext) {
-  const program = createWebglProgram(gl, FULLSCREEN_VERTEX, OUTPUT_FRAGMENT);
-  const at = (name: string) => gl.getUniformLocation(program, name);
-  gl.useProgram(program);
-  gl.uniform1i(at('image'), 0);
-  gl.uniform1i(at('untoned'), 1);
-  gl.uniform1i(at('depth'), 2);
-  const [toneMapped, toneCurve, background] = ['toneMapped', 'toneCurve', 'background'].map(at);
-  const read = (unit: number, texture: WebGLTexture) => bindWebglTexture(gl, unit, texture);
+  const program = createWebglProgram(gl, FULLSCREEN_VERTEX, OUTPUT_FRAGMENT)
+  const at = (name: string) => gl.getUniformLocation(program, name)
+  gl.useProgram(program)
+  gl.uniform1i(at('image'), 0)
+  gl.uniform1i(at('untoned'), 1)
+  gl.uniform1i(at('depth'), 2)
+  const [toneMapped, toneCurve, background] = ['toneMapped', 'toneCurve', 'background'].map(at)
+  const read = (unit: number, texture: WebGLTexture) => bindWebglTexture(gl, unit, texture)
   return {
     draw(image: WebglRenderTarget, scene: WebglSceneTarget, out: WebglEffectOutput) {
-      gl.useProgram(program);
-      gl.uniform1i(toneMapped, out.toneMapped ? 1 : 0);
-      gl.uniform1i(toneCurve, out.toneCurve);
-      gl.uniform3f(background, out.background[0], out.background[1], out.background[2]);
-      read(2, scene.depth);
-      read(1, scene.untoned);
-      read(0, image.texture);
+      gl.useProgram(program)
+      gl.uniform1i(toneMapped, out.toneMapped ? 1 : 0)
+      gl.uniform1i(toneCurve, out.toneCurve)
+      gl.uniform3f(background, out.background[0], out.background[1], out.background[2])
+      read(2, scene.depth)
+      read(1, scene.untoned)
+      read(0, image.texture)
       // Every pixel takes the scene's depth, whatever the destination held.
-      gl.enable(gl.DEPTH_TEST);
-      gl.depthFunc(gl.ALWAYS);
-      gl.depthMask(true);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      gl.enable(gl.DEPTH_TEST)
+      gl.depthFunc(gl.ALWAYS)
+      gl.depthMask(true)
+      gl.drawArrays(gl.TRIANGLES, 0, 3)
     },
     dispose: () => gl.deleteProgram(program),
-  };
+  }
 }

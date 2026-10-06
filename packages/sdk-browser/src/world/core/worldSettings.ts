@@ -3,14 +3,14 @@
  * is the constant the engine reads today, referenced, never copied. A switch with no constant of
  * its own defaults to what the engine does without it: the pass drawn, the bounce off.
  */
-import { LOD_QUALITY } from '../../../../sdk-core/src/lod/policy.ts';
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts';
+import { LOD_QUALITY } from '../../../../sdk-core/src/lod/policy.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import {
   createRenderSettings,
   type QualityGroup,
   type RenderSettingEntry,
-} from '../../../../sdk-core/src/runtime/renderSettings.ts';
-import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts';
+} from '../../../../sdk-core/src/runtime/renderSettings.ts'
+import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import {
   VSM_CACHE_ON,
   VSM_POOL_PAGES,
@@ -30,29 +30,29 @@ import {
   VSM_COVER_SUN,
   VSM_COVER_LOCAL,
   VSM_MASK_MAX_RAYS,
-} from '../../vsm/constants.ts';
+} from '../../vsm/constants.ts'
 
 /** A count of the shadow maps' uniform block: an `i32` word, at least one. */
-const COUNT = [1, 2 ** 31 - 1] as const;
+const COUNT = [1, 2 ** 31 - 1] as const
 /** A light's rays: as many as its shadow mask lane counts (`VSM_MASK_MAX_RAYS`). */
-const RAYS = [1, VSM_MASK_MAX_RAYS] as const;
+const RAYS = [1, VSM_MASK_MAX_RAYS] as const
 /** Any finite number. */
-const FINITE = [-Number.MAX_VALUE, Number.MAX_VALUE] as const;
+const FINITE = [-Number.MAX_VALUE, Number.MAX_VALUE] as const
 
-type Apply = RenderSettingEntry['apply'];
+type Apply = RenderSettingEntry['apply']
 /** Who may write a setting, and what its change throws away: by default anyone, and nothing. */
-type Extra = { editorOnly?: boolean; invalidates?: RenderSettingEntry['invalidates'] };
+type Extra = { editorOnly?: boolean; invalidates?: RenderSettingEntry['invalidates'] }
 const base = (group: QualityGroup, apply: Apply, extra: Extra = {}) => ({
   apply,
   group,
   editorOnly: extra.editorOnly ?? false,
   invalidates: extra.invalidates ?? 'none',
-});
+})
 const flag = (value: boolean, group: QualityGroup, apply: Apply, extra?: Extra) => ({
   kind: 'flag' as const,
   default: value,
   ...base(group, apply, extra),
-});
+})
 const count = (
   value: number,
   range: readonly [number, number],
@@ -64,17 +64,17 @@ const count = (
   default: value,
   range,
   ...base(group, apply, extra),
-});
+})
 /** A float of the shadows, any finite value. */
 const shadowFloat = (value: number, apply: Apply, extra?: Extra) => ({
   kind: 'float' as const,
   default: value,
   range: FINITE,
   ...base('shadows', apply, extra),
-});
-const editor = { editorOnly: true };
-const cache = { invalidates: 'shadowCache' } as const;
-const editorCache = { ...editor, ...cache };
+})
+const editor = { editorOnly: true }
+const cache = { invalidates: 'shadowCache' } as const
+const editorCache = { ...editor, ...cache }
 
 /** Every render setting of the engine, by name. */
 const WORLD_SETTINGS = {
@@ -125,9 +125,9 @@ const WORLD_SETTINGS = {
     values: [0, 1, 2],
     ...base('shadows', 'pipeline', editor),
   },
-} as const satisfies Readonly<Record<string, RenderSettingEntry>>;
+} as const satisfies Readonly<Record<string, RenderSettingEntry>>
 
 /** A world's registry over the engine's settings. */
-export const createWorldSettings = () => createRenderSettings(WORLD_SETTINGS);
+export const createWorldSettings = () => createRenderSettings(WORLD_SETTINGS)
 /** A world's settings registry. */
-export type WorldSettings = ReturnType<typeof createWorldSettings>;
+export type WorldSettings = ReturnType<typeof createWorldSettings>

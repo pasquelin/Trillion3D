@@ -1,20 +1,20 @@
-import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
-import { CommandWriter, type PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { emptyPhysicsStats } from '../protocol.ts';
-import { createSessionBodies } from './sessionBodies.ts';
-import { createSessionControls } from './sessionControls.ts';
-import { createSessionFrame } from './sessionFrame.ts';
-import { createSessionState, createWorkerLink } from './sessionLink.ts';
-import { listenToWorker } from './sessionMessages.ts';
-import type { SessionParts, WantedPhysics } from './sessionParts.ts';
-import { startPhysicsWorker } from '../sessionWorker.ts';
-import { createPhysicsVehicles } from '../vehicles.ts';
-import { createSoftVertices } from '../softBodies.ts';
-import { createTileStreamer } from '../tiles.ts';
-import { createPhysicsView } from '../view.ts';
-import { createCharacterPort, createPhysicsCharacter } from '../physicsCharacter.ts';
-import { createStepClock, physicsStep } from '../stepClock.ts';
+import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
+import { CommandWriter, type PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { emptyPhysicsStats } from '../protocol.ts'
+import { createSessionBodies } from './sessionBodies.ts'
+import { createSessionControls } from './sessionControls.ts'
+import { createSessionFrame } from './sessionFrame.ts'
+import { createSessionState, createWorkerLink } from './sessionLink.ts'
+import { listenToWorker } from './sessionMessages.ts'
+import type { SessionParts, WantedPhysics } from './sessionParts.ts'
+import { startPhysicsWorker } from '../sessionWorker.ts'
+import { createPhysicsVehicles } from '../vehicles.ts'
+import { createSoftVertices } from '../softBodies.ts'
+import { createTileStreamer } from '../tiles.ts'
+import { createPhysicsView } from '../view.ts'
+import { createCharacterPort, createPhysicsCharacter } from '../physicsCharacter.ts'
+import { createStepClock, physicsStep } from '../stepClock.ts'
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is
@@ -32,18 +32,18 @@ export function createPhysicsSession(
   /** The joints and vehicles `world.physics.add` holds: made once their bodies are simulated. */
   wanted: WantedPhysics,
 ) {
-  const writer = new CommandWriter();
-  const step = physicsStep();
-  const clock = createStepClock(step);
-  const stale = new Set<Object3D>();
-  const s = createSessionState();
+  const writer = new CommandWriter()
+  const step = physicsStep()
+  const clock = createStepClock(step)
+  const stale = new Set<Object3D>()
+  const s = createSessionState()
   const { poses, bodies, joints, retire } = createSessionBodies(
     { writer, budget, root, step, stale, s, invalidate },
     wanted,
-  );
-  const worker = startPhysicsWorker(budget, step);
-  const link = createWorkerLink(s, worker, writer, clock, step);
-  let onReady = () => {};
+  )
+  const worker = startPhysicsWorker(budget, step)
+  const link = createWorkerLink(s, worker, writer, clock, step)
+  let onReady = () => {}
   const parts: SessionParts = {
     root,
     budget,
@@ -70,8 +70,8 @@ export function createPhysicsSession(
     retire,
     started: new Promise<void>((resolve) => (onReady = resolve)),
     onReady: () => onReady(),
-  };
-  listenToWorker(parts);
+  }
+  listenToWorker(parts)
   return {
     stats: parts.stats,
     writer,
@@ -79,8 +79,8 @@ export function createPhysicsSession(
     characterBody: createPhysicsCharacter.bind(null, parts.character),
     ...createSessionControls(parts),
     ...createSessionFrame(parts),
-  };
+  }
 }
 
 /** What `createPhysicsSession` returns. */
-export type PhysicsSession = ReturnType<typeof createPhysicsSession>;
+export type PhysicsSession = ReturnType<typeof createPhysicsSession>

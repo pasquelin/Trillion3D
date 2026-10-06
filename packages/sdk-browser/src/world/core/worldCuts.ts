@@ -1,18 +1,18 @@
 import {
   drawnTriangles,
   type DrawnTriangles,
-} from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
-import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts';
-import { sha256Hex } from '../../streaming/sha256Hex.ts';
-import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts';
-import { packDrawn } from '../page/runtimeCut.ts';
-import type { CutWay } from '../page/runtimePack.ts';
-import { composesWithBackground } from '../../scene/materialBlending.ts';
-import { createWorldDynamic, type DynamicHeld } from './worldDynamic.ts';
-import type { WorldNotices } from '../diagnostic/worldNotices.ts';
+} from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
+import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
+import { sha256Hex } from '../../streaming/sha256Hex.ts'
+import { cutRuntimePrimitive, type RuntimePrimitive } from '../page/runtimePrimitive.ts'
+import { packDrawn } from '../page/runtimeCut.ts'
+import type { CutWay } from '../page/runtimePack.ts'
+import { composesWithBackground } from '../../scene/materialBlending.ts'
+import { createWorldDynamic, type DynamicHeld } from './worldDynamic.ts'
+import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 
 /**
  * A geometry resource: triangles cut into pages once, whatever number of geometry objects carry
@@ -20,16 +20,16 @@ import type { WorldNotices } from '../diagnostic/worldNotices.ts';
  * now; `held` says a session still reads its pages. It is released when both are gone.
  */
 export type Cut = {
-  readonly key: string;
-  readonly drawn: DrawnTriangles;
-  readonly runtime: RuntimePrimitive;
-  readonly users: Set<Mesh>;
-  held: boolean;
+  readonly key: string
+  readonly drawn: DrawnTriangles
+  readonly runtime: RuntimePrimitive
+  readonly users: Set<Mesh>
+  held: boolean
   /** A dynamic geometry's resource (#573): its vertices are rewritten in place (`worldDynamic.ts`). */
-  readonly dynamic?: DynamicHeld;
-};
+  readonly dynamic?: DynamicHeld
+}
 
-export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m[0] : m);
+export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m[0] : m)
 
 /**
  * What decides a mesh's triangles, beside its geometry: how it reads it, the material fields
@@ -43,43 +43,43 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
  * equal on these draw the same pages, whatever else they wear.
  */
 function readingOf(mesh: Mesh) {
-  const material = firstMaterial(mesh.material);
-  const center = mesh instanceof Sprite ? mesh.center : undefined;
+  const material = firstMaterial(mesh.material)
+  const center = mesh instanceof Sprite ? mesh.center : undefined
   const options = {
     size: material.size as number | undefined,
     wireframe: material.wireframe === true,
     flat: material.flatShading === true,
     dashed: material.kind === 'lineDashed',
     center: center ? ([center.x, center.y] as const) : undefined,
-  };
+  }
   // Drawn blended as its surface is (`worldSurface.ts`): a mode that composes with the background
   // blends whatever `transparent` says.
-  const blended = material.transparent === true || composesWithBackground(material.blending);
-  const cut: CutWay = { held: !!mesh.waves };
-  const key = [mesh.primitive, blended, cut.held, ...Object.values(options)].join('|');
-  return { key, options, blended, cut };
+  const blended = material.transparent === true || composesWithBackground(material.blending)
+  const cut: CutWay = { held: !!mesh.waves }
+  const key = [mesh.primitive, blended, cut.held, ...Object.values(options)].join('|')
+  return { key, options, blended, cut }
 }
 
 /** Drawn triangles, packed once (`packDrawn`): the digest of that buffer is their content key,
  *  and the buffer itself is what the cut is handed — then yielded, and dropped here. */
 type Content = {
-  key: string;
-  drawn: DrawnTriangles;
-  blended: boolean;
+  key: string
+  drawn: DrawnTriangles
+  blended: boolean
   /** How the cut takes them beside their content (`CutWay`). */
-  cut: CutWay;
-  packed: ArrayBuffer | null;
-};
-
-async function readContent(drawn: DrawnTriangles, blended: boolean, cut: CutWay): Promise<Content> {
-  const packed = packDrawn(drawn, blended, cut);
-  // Line quads are drawn widened and a sprite's quad turned to the camera: neither shares a
-  // resource with the same bytes read as faces.
-  const kind = drawn.lines ? 'lines:' : drawn.spriteRadius !== undefined ? 'sprite:' : '';
-  return { key: kind + (await sha256Hex(packed)), drawn, blended, cut, packed };
+  cut: CutWay
+  packed: ArrayBuffer | null
 }
 
-type Reading = { version: number; read: Promise<Content | null> };
+async function readContent(drawn: DrawnTriangles, blended: boolean, cut: CutWay): Promise<Content> {
+  const packed = packDrawn(drawn, blended, cut)
+  // Line quads are drawn widened and a sprite's quad turned to the camera: neither shares a
+  // resource with the same bytes read as faces.
+  const kind = drawn.lines ? 'lines:' : drawn.spriteRadius !== undefined ? 'sprite:' : ''
+  return { key: kind + (await sha256Hex(packed)), drawn, blended, cut, packed }
+}
+
+type Reading = { version: number; read: Promise<Content | null> }
 
 /**
  * The geometry table of a world. A mesh's triangles are read (`drawnTriangles`) once per geometry
@@ -89,93 +89,93 @@ type Reading = { version: number; read: Promise<Content | null> };
  * many cuts it made. A dynamic geometry is read by `dynamic` instead, and never hashed (#573).
  */
 export function createWorldCuts(notices?: WorldNotices) {
-  const byKey = new Map<string, Promise<Cut | null>>();
-  const readings = new WeakMap<Geometry, Map<string, Reading>>();
-  const drawnBy = new Map<Mesh, Cut>();
-  const counts = { duplicates: 0, cuts: 0 };
-  const dynamic = createWorldDynamic(notices, counts);
+  const byKey = new Map<string, Promise<Cut | null>>()
+  const readings = new WeakMap<Geometry, Map<string, Reading>>()
+  const drawnBy = new Map<Mesh, Cut>()
+  const counts = { duplicates: 0, cuts: 0 }
+  const dynamic = createWorldDynamic(notices, counts)
   const release = (cut: Cut) => {
-    if (cut.users.size || cut.held) return;
-    cut.runtime.urls.forEach((url) => URL.revokeObjectURL(url));
-    byKey.delete(cut.key);
-    dynamic.forget(cut);
-  };
+    if (cut.users.size || cut.held) return
+    cut.runtime.urls.forEach((url) => URL.revokeObjectURL(url))
+    byKey.delete(cut.key)
+    dynamic.forget(cut)
+  }
   const leave = (mesh: Mesh) => {
-    const cut = drawnBy.get(mesh);
-    if (!cut) return;
-    drawnBy.delete(mesh);
-    cut.users.delete(mesh);
-    release(cut);
-  };
+    const cut = drawnBy.get(mesh)
+    if (!cut) return
+    drawnBy.delete(mesh)
+    cut.users.delete(mesh)
+    release(cut)
+  }
   /** The resource of a content, cut when the table holds none; a geometry object that is not
    *  the first to bring this content is counted as folded. */
   const resourceOf = (content: Content, fresh: boolean) => {
     const { key, drawn, blended, cut } = content,
-      packed = content.packed;
-    content.packed = null;
-    let pending = byKey.get(key);
+      packed = content.packed
+    content.packed = null
+    let pending = byKey.get(key)
     if (pending) {
-      if (fresh) counts.duplicates++;
-      return pending;
+      if (fresh) counts.duplicates++
+      return pending
     }
     // A content read again after its resource was released packs its triangles again.
-    counts.cuts++;
+    counts.cuts++
     pending = cutRuntimePrimitive(packed ?? packDrawn(drawn, blended, cut), drawn).then(
       (runtime) => ({ key, drawn, runtime, users: new Set<Mesh>(), held: false }),
       // A failed cut leaves no trace: the next mesh with this content tries again.
       () => {
-        if (byKey.get(key) === pending) byKey.delete(key);
-        return null;
+        if (byKey.get(key) === pending) byKey.delete(key)
+        return null
       },
-    );
-    byKey.set(key, pending);
-    return pending;
-  };
+    )
+    byKey.set(key, pending)
+    return pending
+  }
   /** `mesh` draws `cut`, or nothing: it leaves the resource it drew before. */
   const wear = (mesh: Mesh, cut: Cut | null) => {
-    if (drawnBy.get(mesh) !== cut) leave(mesh);
-    cut?.users.add(mesh);
-    if (cut) drawnBy.set(mesh, cut);
-    return cut;
-  };
-  const made = (cut: Cut) => void byKey.set(cut.key, Promise.resolve(cut));
+    if (drawnBy.get(mesh) !== cut) leave(mesh)
+    cut?.users.add(mesh)
+    if (cut) drawnBy.set(mesh, cut)
+    return cut
+  }
+  const made = (cut: Cut) => void byKey.set(cut.key, Promise.resolve(cut))
   return {
     counts,
     dynamic,
     /** The resource `mesh` draws, cut if no resource of its content exists; null when it draws
      *  no triangle. The mesh is counted among its users until it leaves. */
     async of(mesh: Mesh): Promise<Cut | null> {
-      const { key: way, options, blended, cut } = readingOf(mesh);
+      const { key: way, options, blended, cut } = readingOf(mesh)
       if (dynamic.wants(mesh))
-        return wear(mesh, await dynamic.of(mesh, way, options, blended, made));
-      const ways = readings.get(mesh.geometry) ?? new Map<string, Reading>();
-      readings.set(mesh.geometry, ways);
-      let reading = ways.get(way);
-      const fresh = !reading || reading.version !== mesh.geometry.version;
+        return wear(mesh, await dynamic.of(mesh, way, options, blended, made))
+      const ways = readings.get(mesh.geometry) ?? new Map<string, Reading>()
+      readings.set(mesh.geometry, ways)
+      let reading = ways.get(way)
+      const fresh = !reading || reading.version !== mesh.geometry.version
       if (fresh) {
-        const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options);
-        const read = drawn ? readContent(drawn, blended, cut) : Promise.resolve(null);
-        reading = { version: mesh.geometry.version, read };
-        ways.set(way, reading);
+        const drawn = drawnTriangles(mesh.geometry, mesh.primitive, options)
+        const read = drawn ? readContent(drawn, blended, cut) : Promise.resolve(null)
+        reading = { version: mesh.geometry.version, read }
+        ways.set(way, reading)
         // A read that failed (no digest on this origin) is forgotten: the next asks again.
-        read.catch(() => ways.get(way)?.read === read && ways.delete(way));
+        read.catch(() => ways.get(way)?.read === read && ways.delete(way))
       }
-      const content = await reading!.read;
-      return wear(mesh, content ? await resourceOf(content, fresh) : null);
+      const content = await reading!.read
+      return wear(mesh, content ? await resourceOf(content, fresh) : null)
     },
     /** The mesh no longer draws: its resource loses a user. */
     leave,
     /** A session reads `cut`'s pages, or no longer does. */
     hold(cut: Cut, held: boolean) {
-      cut.held = held;
-      release(cut);
+      cut.held = held
+      release(cut)
     },
     dispose() {
-      for (const mesh of [...drawnBy.keys()]) leave(mesh);
+      for (const mesh of [...drawnBy.keys()]) leave(mesh)
       for (const pending of byKey.values())
         void pending.then((cut) => {
-          if (cut) this.hold(cut, false);
-        });
+          if (cut) this.hold(cut, false)
+        })
     },
-  };
+  }
 }

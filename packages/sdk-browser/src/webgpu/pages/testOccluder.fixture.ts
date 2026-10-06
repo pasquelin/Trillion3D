@@ -1,25 +1,25 @@
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
-import * as G from '../../host/graph/graph.fixture.ts';
-import assert from 'node:assert/strict';
-import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts';
-import { webgpuPagesBackend } from './pages.ts';
-import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts';
-import { engineCamera } from '../../camera/camera.fixture.ts';
-import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts';
-import { camera, quadScene } from './testScenes.fixture.ts';
-import type { Placements } from '../../page/selection/placements.ts';
-import type { RasterView } from './runtime.ts';
+import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import * as G from '../../host/graph/graph.fixture.ts'
+import assert from 'node:assert/strict'
+import { compareImages, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/shade.ts'
+import { webgpuPagesBackend } from './pages.ts'
+import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts'
+import { camera, quadScene } from './testScenes.fixture.ts'
+import type { Placements } from '../../page/selection/placements.ts'
+import type { RasterView } from './runtime.ts'
 import {
   backendRasterRgba,
   backendVisibilityIds,
-} from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts';
-import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts';
-import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts';
+} from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
+import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
+import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
 
 export function occluderScene() {
-  const geometry = new G.Geometry();
+  const geometry = new G.Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute(
@@ -29,12 +29,12 @@ export function occluderScene() {
       ],
       3,
     ),
-  );
-  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]));
+  )
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]))
   const material = G.basicSurface({ color: 0xff0000 }),
     mesh = G.mesh(geometry, material),
-    source = new G.Group();
-  source.add(mesh);
+    source = new G.Group()
+  source.add(mesh)
   const pages = dagRoots([
     {
       id: 0,
@@ -54,7 +54,7 @@ export function occluderScene() {
       bytes: 24,
       sha256: 'x',
     },
-  ]).pages;
+  ]).pages
   const metadata = {
     errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
@@ -67,20 +67,20 @@ export function occluderScene() {
         structure: { version: 1, roots: [0, 1], groups: [] },
       },
     ],
-  };
+  }
   const indices = new Map([
     ['front', new Uint32Array([0, 1, 2, 0, 2, 3])],
     ['back', new Uint32Array([4, 5, 6, 4, 6, 7])],
-  ]);
-  const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]]);
-  return { geometry, material, source, metadata, indices, associations };
+  ])
+  const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
+  return { geometry, material, source, metadata, indices, associations }
 }
 
 /** The quad, with its two clusters replaced by a single coarse cluster of the given screen error. */
 export function coarseQuadScene(error = 1) {
-  const fixture = quadScene();
-  const leaves = fixture.metadata.primitives[0].pages;
-  const level = dagLevel(leaves, [{ ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }], error);
+  const fixture = quadScene()
+  const leaves = fixture.metadata.primitives[0].pages
+  const level = dagLevel(leaves, [{ ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }], error)
   return {
     ...fixture,
     metadata: {
@@ -91,30 +91,30 @@ export function coarseQuadScene(error = 1) {
       string,
       Uint32Array,
     ][]),
-  };
+  }
 }
 
 /** The GPU image of the occluder scene equals the CPU raster of the cut, and only the front page
  *  survives in the visibility identifiers. */
 export function assertOccluderImage(
   backend: ReturnType<typeof webgpuPagesBackend> & {
-    rasterView(): RasterView;
+    rasterView(): RasterView
   },
   shown: PageRec[],
   roots: Placements,
   camera: G.Camera,
   viewport: [number, number],
 ) {
-  const cam = readCameraWorld(createEngineCamera(), camera);
+  const cam = readCameraWorld(createEngineCamera(), camera)
   const visPages = shown
     .filter((page) => page.array)
-    .map((page) => ({ ...page, array: page.array! }));
+    .map((page) => ({ ...page, array: page.array! }))
   // One placement: every shown page is placed by root 0 (#1235).
   const locations = {
     roots,
     packed: visPages.map((_, i) => i),
     rootOfPacked: new Int32Array(visPages.length),
-  };
+  }
   assert.equal(
     compareImages(
       backendRasterRgba(backend.rasterView()),
@@ -127,14 +127,14 @@ export function assertOccluderImage(
       ),
     ).maxChannelError,
     0,
-  );
+  )
   const drawn = new Set(
     [...backendVisibilityIds(backend.rasterView())].flatMap((id) => {
-      const unpacked = unpackVisibilityId(id);
-      return unpacked ? [unpacked.pageIndex] : [];
+      const unpacked = unpackVisibilityId(id)
+      return unpacked ? [unpacked.pageIndex] : []
     }),
-  );
-  assert.deepEqual([...drawn].sort(), [0]);
+  )
+  assert.deepEqual([...drawn].sort(), [0])
 }
 
 /** Two coarse quads a hundred units apart, as two primitives of one source, each drawn by `quad`:
@@ -144,10 +144,10 @@ export function twoCoarseQuadsScene(
   quad: () => ReturnType<typeof coarseQuadScene> = coarseQuadScene,
 ) {
   const a = quad(),
-    b = quad();
-  const mesh = b.source.children[0] as G.HostMesh;
-  mesh.position.x = 100;
-  a.source.add(mesh);
+    b = quad()
+  const mesh = b.source.children[0] as G.HostMesh
+  mesh.position.x = 100
+  a.source.add(mesh)
   const primitive = {
     ...b.metadata.primitives[0],
     mesh: 1,
@@ -155,7 +155,7 @@ export function twoCoarseQuadsScene(
       ...page,
       url: 'b' + page.url,
     })),
-  };
+  }
   return {
     source: a.source,
     metadata: { primitives: [...a.metadata.primitives, primitive] },
@@ -166,11 +166,11 @@ export function twoCoarseQuadsScene(
     associations: new Map([...a.associations, [mesh, { meshes: 1, primitives: 0 }]]),
     dispose() {
       for (const scene of [a, b]) {
-        scene.geometry.dispose();
-        scene.material.dispose();
+        scene.geometry.dispose()
+        scene.material.dispose()
       }
     },
-  };
+  }
 }
 
 /** The occluder scene on a pages backend over `device`, four resident pages, prepared with
@@ -182,7 +182,7 @@ export async function preparedOccluderRun(
   device: GPUDevice,
   viewport: [number, number],
 ) {
-  const { source, indices, associations } = scene;
+  const { source, indices, associations } = scene
   const backend = webgpuPagesBackend({
     source,
     metadata,
@@ -191,10 +191,10 @@ export async function preparedOccluderRun(
     gpuDevice: device,
     maxResidentPages: 4,
     viewport,
-  });
-  const cam = camera();
-  const cpu = selectVisiblePages(roots, engineCamera(cam), { pixelError: 0, viewport });
-  await backend.prepare();
-  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false);
-  return { backend, cam, cpu };
+  })
+  const cam = camera()
+  const cpu = selectVisiblePages(roots, engineCamera(cam), { pixelError: 0, viewport })
+  await backend.prepare()
+  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false)
+  return { backend, cam, cpu }
 }

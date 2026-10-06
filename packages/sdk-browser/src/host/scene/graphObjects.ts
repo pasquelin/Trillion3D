@@ -7,14 +7,14 @@
  * with its controls, and a mesh copy sharing the geometry and the surface of the mesh it comes
  * from. Nothing else happens here: every number arrives computed.
  */
-import { numbered } from '../graph/serial.ts';
-import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import type { HostCamera } from '../../camera/world.ts';
-import type { ControlVector } from '../../camera/controls/types.ts';
-import type { HostBox, HostMesh } from '../resources.ts';
+import { numbered } from '../graph/serial.ts'
+import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import type { HostCamera } from '../../camera/world.ts'
+import type { ControlVector } from '../../camera/controls/types.ts'
+import type { HostBox, HostMesh } from '../resources.ts'
 
 /** The camera the explorer frames its scene with, at the optics the framing computed. */
 export const hostFramingCamera = (
@@ -22,16 +22,16 @@ export const hostFramingCamera = (
   aspect: number,
   near: number,
   far: number,
-): HostCamera => numbered(new Camera('perspective', { fov, aspect, near, far }));
+): HostCamera => numbered(new Camera('perspective', { fov, aspect, near, far }))
 
 /** A point the host reads and its controls aim at: the scene centre, the home offset. */
-export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z);
+export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z)
 
 /** The world box the explorer publishes, from the six numbers the core computed. */
 export const hostBox = (flat: ArrayLike<number>): HostBox =>
-  new Box3(new Vector3(flat[0], flat[1], flat[2]), new Vector3(flat[3], flat[4], flat[5]));
+  new Box3(new Vector3(flat[0], flat[1], flat[2]), new Vector3(flat[3], flat[4], flat[5]))
 
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */
 export const hostMeshCopy = (mesh: HostMesh): HostMesh =>
-  numbered(new Mesh(mesh.geometry, mesh.material));
+  numbered(new Mesh(mesh.geometry, mesh.material))

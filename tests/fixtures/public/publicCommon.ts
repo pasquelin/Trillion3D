@@ -8,7 +8,7 @@ import {
   type SceneNodeOptions,
   type SceneRoot,
   type SceneState,
-} from 'trillion3d';
+} from 'trillion3d'
 
 export const home: CameraPose = {
   position: [2, 1, 2],
@@ -16,15 +16,15 @@ export const home: CameraPose = {
   fov: 55,
   near: 0.1,
   far: 100,
-};
-export const statusOf = <T>(snapshot: JobSnapshot<T>) => snapshot.status;
-const sceneOptions: SceneNodeOptions = { id: 'typed-root' };
-const scene: SceneRoot = createSceneRoot(sceneOptions);
-const child: SceneNode = scene.createNode({ id: 'typed-child' });
-export const sceneRootOf = (state: SceneState) => state.root;
+}
+export const statusOf = <T>(snapshot: JobSnapshot<T>) => snapshot.status
+const sceneOptions: SceneNodeOptions = { id: 'typed-root' }
+const scene: SceneRoot = createSceneRoot(sceneOptions)
+const child: SceneNode = scene.createNode({ id: 'typed-child' })
+export const sceneRootOf = (state: SceneState) => state.root
 
 // @ts-expect-error Camera vectors have exactly three coordinates.
-const invalidPose: CameraPose = { ...home, position: [0, 1] };
+const invalidPose: CameraPose = { ...home, position: [0, 1] }
 
 export const commonContract = {
   HIERARCHY_ROOT,
@@ -32,4 +32,4 @@ export const commonContract = {
   hierarchyUpdateBatch,
   invalidPose,
   scene,
-};
+}

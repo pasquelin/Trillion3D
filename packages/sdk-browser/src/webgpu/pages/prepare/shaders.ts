@@ -1,9 +1,9 @@
-import { ACES_WGSL } from '../../../lighting/toneMappingWgsl.ts';
-import { TRIANGLE_PALETTE_WGSL } from '../../../diagnostic/trianglePalette.ts';
-import { clusterDecodeWgsl } from '../../../cluster/decodeWgsl.ts';
-import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../../visibility/shader/lineWgsl.ts';
-import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts';
-import { SRGB_ENCODE_WGSL } from '../../../texture/srgbEncode.ts';
+import { ACES_WGSL } from '../../../lighting/toneMappingWgsl.ts'
+import { TRIANGLE_PALETTE_WGSL } from '../../../diagnostic/trianglePalette.ts'
+import { clusterDecodeWgsl } from '../../../cluster/decodeWgsl.ts'
+import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from '../../../visibility/shader/lineWgsl.ts'
+import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts'
+import { SRGB_ENCODE_WGSL } from '../../../texture/srgbEncode.ts'
 
 /** The surface colour carries its alpha: the opaque draw writes 1 there, a transparent one its
  *  opacity, which the blend pipeline of its mode reads (`BLEND_EQUATIONS`).
@@ -16,11 +16,11 @@ import { SRGB_ENCODE_WGSL } from '../../../texture/srgbEncode.ts';
  *  coordinate carries. `sprite` turns a sprite's quad to face the camera (`spriteAt`), as every
  *  raster does; zero draws the triangles as they are. */
 const FALLBACK_WIREFRAME = 1,
-  FALLBACK_CLUSTER_PAGE = 2;
+  FALLBACK_CLUSTER_PAGE = 2
 
 /** The `mode` word of a fallback draw, from the image's diagnostic and where the slot's geometry is. */
 export const fallbackMode = (diagnostic: string | undefined, clusterPage: boolean) =>
-  (diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) | (clusterPage ? FALLBACK_CLUSTER_PAGE : 0);
+  (diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) | (clusterPage ? FALLBACK_CLUSTER_PAGE : 0)
 
 export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,identity:u32,lineWidth:f32,pixelRatio:f32,viewport:vec2f,dash:vec2f,sprite:vec2f,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
@@ -68,4 +68,4 @@ ${TRIANGLE_PALETTE_WGSL}
  if(!lineDash(in.lineDistance,uni.dash)){discard;}
  return vec4f(linearToSrgb(aces(in.color.xyz)),in.color.w);
 }
-`;
+`

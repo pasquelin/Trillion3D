@@ -1,9 +1,9 @@
-import type { GpuFrameMs, GpuPassTimings } from '../../../../sdk-core/src/index.ts';
+import type { GpuFrameMs, GpuPassTimings } from '../../../../sdk-core/src/index.ts'
 
 /** Why an image has no `frameMs` (`GpuTimingSample`). */
-export type FrameMsReason = 'truncated' | 'no-valid-pair' | 'failed';
+export type FrameMsReason = 'truncated' | 'no-valid-pair' | 'failed'
 /** Timed passes by the state their timestamp pair read in: usable, unwritten or unreadable. */
-export type TimingPairs = { valid: number; unwritten: number; invalid: number };
+export type TimingPairs = { valid: number; unwritten: number; invalid: number }
 
 /**
  * GPU durations pass by pass, from `timestamp-query`. One image may span several command encoders —
@@ -33,19 +33,19 @@ export type TimingPairs = { valid: number; unwritten: number; invalid: number };
  * images — uploads and copies outside a timed pass — counts in it.
  */
 export type GpuTimingSample = GpuPassTimings & {
-  frameMs: GpuFrameMs;
-  submittedMs: GpuFrameMs;
+  frameMs: GpuFrameMs
+  submittedMs: GpuFrameMs
   /** Why `frameMs` is null, and null when it is not. */
-  frameMsReason: FrameMsReason | null;
+  frameMsReason: FrameMsReason | null
   /** The image's timed passes by the state their timestamp pair read in. */
-  pairs: TimingPairs;
-  hostGapMs: number | null;
-  idleBetweenMs: number | null;
-  [key: string]: unknown;
-};
+  pairs: TimingPairs
+  hostGapMs: number | null
+  idleBetweenMs: number | null
+  [key: string]: unknown
+}
 
 /**
  * Nanoseconds to milliseconds. Both GPU timers — WebGPU timestamps and the WebGL2 duration query —
  * return nanoseconds and publish milliseconds; one division, so one published unit.
  */
-export const nanosecondsToMs = (nanoseconds: number) => nanoseconds / 1e6;
+export const nanosecondsToMs = (nanoseconds: number) => nanoseconds / 1e6

@@ -23,27 +23,27 @@
  * (`aheadDue.ts`), the sooner first — then by its error. The host reads the requests in that order
  * and ranks nothing.
  */
-export const REQUEST_PAGE_BITS = 22;
-export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS;
+export const REQUEST_PAGE_BITS = 22
+export const REQUEST_PAGE_MAX = 1 << REQUEST_PAGE_BITS
 /** The whole priority field: the ten bits above the page. */
-export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1;
+export const REQUEST_PRIORITY_MAX = (1 << (32 - REQUEST_PAGE_BITS)) - 1
 /** The priority bit of a request ahead of the camera: the field's top bit. */
-export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1;
+export const REQUEST_AHEAD = (REQUEST_PRIORITY_MAX + 1) >> 1
 /** The highest error step of the visible tier. */
-export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1;
+export const REQUEST_STEP_MAX = REQUEST_AHEAD - 1
 /** Quantization step: sixteen steps per error doubling, as before the tier bit, over thirty-two
  *  doublings — four billion pixels, past any finite error a screen projects; the near plane
  *  reached is `Infinity`, the tier's highest step. */
-export const REQUEST_PRIORITY_SCALE = 16;
+export const REQUEST_PRIORITY_SCALE = 16
 /** A request ahead splits its nine bits: three for its deadline, eight steps of the horizon — about
  *  two frames each at 60 Hz over the published 250 ms —, six for its error, two steps per doubling
  *  over the same thirty-two doublings. */
 export const REQUEST_DUE_STEPS = 8,
   REQUEST_AHEAD_ERROR_BITS = 6,
-  REQUEST_AHEAD_SCALE = 2;
-export const AHEAD_ERROR_MAX = (1 << REQUEST_AHEAD_ERROR_BITS) - 1;
+  REQUEST_AHEAD_SCALE = 2
+export const AHEAD_ERROR_MAX = (1 << REQUEST_AHEAD_ERROR_BITS) - 1
 
 export const packRequest = (page: number, priority: number) =>
-  ((priority << REQUEST_PAGE_BITS) | page) >>> 0;
-export const requestPage = (word: number) => word & (REQUEST_PAGE_MAX - 1);
-export const requestPriority = (word: number) => word >>> REQUEST_PAGE_BITS;
+  ((priority << REQUEST_PAGE_BITS) | page) >>> 0
+export const requestPage = (word: number) => word & (REQUEST_PAGE_MAX - 1)
+export const requestPriority = (word: number) => word >>> REQUEST_PAGE_BITS

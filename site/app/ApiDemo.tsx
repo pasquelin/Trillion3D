@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useWords } from './i18n.ts';
-import { formatNumber, localizedCanvasContext } from '../demos/kit.ts';
-import { localizeDemoText } from '../content/i18n/canvas.ts';
-import { Canvas } from './ui/Canvas.tsx';
-import { Card } from './ui/Card.tsx';
-import { Alert } from './ui/Alert.tsx';
-import { Badge } from './ui/Badge.tsx';
-import { Table } from './ui/Table.tsx';
-import { Field, Form, Range } from './ui/Input.tsx';
-import type { Locale } from '../content/locale.ts';
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useWords } from './i18n.ts'
+import { formatNumber, localizedCanvasContext } from '../demos/kit.ts'
+import { localizeDemoText } from '../content/i18n/canvas.ts'
+import { Canvas } from './ui/Canvas.tsx'
+import { Card } from './ui/Card.tsx'
+import { Alert } from './ui/Alert.tsx'
+import { Badge } from './ui/Badge.tsx'
+import { Table } from './ui/Table.tsx'
+import { Field, Form, Range } from './ui/Input.tsx'
+import type { Locale } from '../content/locale.ts'
 import type {
   DemoControlDef,
   DemoDef,
@@ -16,20 +16,20 @@ import type {
   DemoViewItem,
   DrawingView,
   MatrixView,
-} from '../demos/kit.ts';
+} from '../demos/kit.ts'
 
 const text = (value: unknown, locale: Locale): string =>
-  localizeDemoText(String(value ?? ''), locale);
+  localizeDemoText(String(value ?? ''), locale)
 
 interface DemoControlProps {
-  control: DemoControlDef;
-  value: number;
-  locale: Locale;
-  onChange: (value: number) => void;
+  control: DemoControlDef
+  value: number
+  locale: Locale
+  onChange: (value: number) => void
 }
 
 function DemoControl({ control, value, locale, onChange }: DemoControlProps) {
-  const label = text(control.label, locale);
+  const label = text(control.label, locale)
   return (
     <Field label={label} className="w-48">
       <Range
@@ -42,13 +42,13 @@ function DemoControl({ control, value, locale, onChange }: DemoControlProps) {
       />
       <output className="font-mono text-xs text-right">{formatNumber(value)}</output>
     </Field>
-  );
+  )
 }
 
 function Matrix({ view }: { view: MatrixView }) {
   const rows = Array.from({ length: 4 }, (_, row) =>
     Array.from({ length: 4 }, (_, column) => view.values[column * 4 + row]),
-  );
+  )
   return (
     <Table compact>
       <tbody>
@@ -63,21 +63,21 @@ function Matrix({ view }: { view: MatrixView }) {
         ))}
       </tbody>
     </Table>
-  );
+  )
 }
 
 function Drawing({ view, locale }: { view: DrawingView; locale: Locale }) {
-  const canvas = useRef<HTMLCanvasElement | null>(null);
+  const canvas = useRef<HTMLCanvasElement | null>(null)
   useEffect(() => {
-    const element = canvas.current;
-    if (!element) return;
-    element.width = Math.max(1, element.clientWidth);
-    element.height = view.height;
-    const ctx = element.getContext('2d');
+    const element = canvas.current
+    if (!element) return
+    element.width = Math.max(1, element.clientWidth)
+    element.height = view.height
+    const ctx = element.getContext('2d')
     if (ctx) {
-      view.paint(localizedCanvasContext(ctx, locale), element.width, element.height);
+      view.paint(localizedCanvasContext(ctx, locale), element.width, element.height)
     }
-  }, [view, locale]);
+  }, [view, locale])
   return (
     <Canvas
       canvasRef={canvas}
@@ -85,18 +85,18 @@ function Drawing({ view, locale }: { view: DrawingView; locale: Locale }) {
       className="border border-base-300 bg-base-200"
       style={{ height: view.height }}
     />
-  );
+  )
 }
 
 function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
-  let body;
+  let body
   if (view.kind === 'matrix') {
     body = (
       <>
         <Matrix view={view} />
         {view.note && <p className="text-xs opacity-60">{text(view.note, locale)}</p>}
       </>
-    );
+    )
   } else if (view.kind === 'values') {
     body = (
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
@@ -107,14 +107,14 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
           </div>
         ))}
       </dl>
-    );
+    )
   } else if (view.kind === 'verdict') {
     body = (
       <Alert tone={view.ok ? 'success' : 'error'}>
         <Badge size="sm">{text(view.ok ? 'kept' : 'rejected', locale)}</Badge>
         <span>{text(view.text, locale)}</span>
       </Alert>
-    );
+    )
   } else if (view.kind === 'swatch') {
     body = (
       <div className="flex flex-wrap gap-3">
@@ -128,24 +128,24 @@ function DemoView({ view, locale }: { view: DemoViewItem; locale: Locale }) {
           </div>
         ))}
       </div>
-    );
+    )
   } else {
-    body = <Drawing view={view} locale={locale} />;
+    body = <Drawing view={view} locale={locale} />
   }
   return (
     <Card className="min-w-0" title={view.title ? text(view.title, locale) : undefined}>
       {body}
     </Card>
-  );
+  )
 }
 
 export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Locale }) {
-  const t = useWords(locale);
-  const controls = demo.controls ?? [];
+  const t = useWords(locale)
+  const controls = demo.controls ?? []
   const initial = (): DemoState =>
-    Object.fromEntries(controls.map((control) => [control.name, control.value]));
-  const [state, setState] = useState(initial);
-  const views = useMemo(() => demo.run(state) ?? [], [demo, state]);
+    Object.fromEntries(controls.map((control) => [control.name, control.value]))
+  const [state, setState] = useState(initial)
+  const views = useMemo(() => demo.run(state) ?? [], [demo, state])
   return (
     <section className="api-demo">
       {controls.length > 0 && (
@@ -169,5 +169,5 @@ export function ApiDemo({ demo, locale = 'en' }: { demo: DemoDef; locale?: Local
         ))}
       </div>
     </section>
-  );
+  )
 }

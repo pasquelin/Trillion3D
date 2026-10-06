@@ -4,7 +4,7 @@ import {
   frustumPlanesFromMatrix,
   multiplyMatrix4,
   viewToRenderOrigin,
-} from '../../../sdk-core/src/index.ts';
+} from '../../../sdk-core/src/index.ts'
 
 /**
  * THE CAMERA HALF OF THE RENDER FRAME (`../../../sdk-core/src/math/primitives/renderOrigin.ts` carries the rule and
@@ -23,11 +23,11 @@ import {
  */
 export interface RenderOriginFrame {
   /** The view stripped of its translation: the camera's orientation, set at the frame origin. */
-  viewRelative: Float64Array;
+  viewRelative: Float64Array
   /** Projection × relative view. */
-  viewProjectionRelative: Float64Array;
+  viewProjectionRelative: Float64Array
   /** The six frustum planes of `viewProjectionRelative`, laid out like `frustumPlanesFromMatrix`. */
-  planesRelative: Float64Array;
+  planesRelative: Float64Array
 }
 
 export function createRenderOriginFrame(): RenderOriginFrame {
@@ -35,7 +35,7 @@ export function createRenderOriginFrame(): RenderOriginFrame {
     viewRelative: new Float64Array(16),
     viewProjectionRelative: new Float64Array(16),
     planesRelative: new Float64Array(FRUSTUM_PLANE_VALUES),
-  };
+  }
 }
 
 /**
@@ -50,11 +50,11 @@ export function updateRenderOriginFrame(
   projection: Float64Array,
   far = Infinity,
 ) {
-  viewToRenderOrigin(frame.viewRelative, view);
-  multiplyMatrix4(frame.viewProjectionRelative, projection, frame.viewRelative);
-  frustumPlanesFromMatrix(frame.planesRelative, frame.viewProjectionRelative);
-  frustumFarPlane(frame.planesRelative, 16, frame.viewRelative, far, true);
-  return frame;
+  viewToRenderOrigin(frame.viewRelative, view)
+  multiplyMatrix4(frame.viewProjectionRelative, projection, frame.viewRelative)
+  frustumPlanesFromMatrix(frame.planesRelative, frame.viewProjectionRelative)
+  frustumFarPlane(frame.planesRelative, 16, frame.viewRelative, far, true)
+  return frame
 }
 
 /**
@@ -62,13 +62,13 @@ export function updateRenderOriginFrame(
  * set — three `NaN`s — differs from everything, including itself: the first frame rebases.
  */
 export function sameRenderOrigin(a: ArrayLike<number>, b: ArrayLike<number>) {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
 }
 
 /** Copies the three matrices of an engine camera into another, without recomputing anything. */
 export function holdRenderOriginFrame(into: RenderOriginFrame, from: RenderOriginFrame) {
-  into.viewRelative.set(from.viewRelative);
-  into.viewProjectionRelative.set(from.viewProjectionRelative);
-  into.planesRelative.set(from.planesRelative);
-  return into;
+  into.viewRelative.set(from.viewRelative)
+  into.viewProjectionRelative.set(from.viewProjectionRelative)
+  into.planesRelative.set(from.planesRelative)
+  return into
 }

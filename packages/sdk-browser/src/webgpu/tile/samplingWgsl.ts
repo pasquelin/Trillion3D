@@ -1,11 +1,11 @@
-import { SAMPLING_FOOTPRINT_WGSL } from '../../texture/samplingFootprint.ts';
+import { SAMPLING_FOOTPRINT_WGSL } from '../../texture/samplingFootprint.ts'
 import {
   WRAP_S_MIRROR,
   WRAP_S_REPEAT,
   WRAP_T_MIRROR,
   WRAP_T_REPEAT,
-} from '../../visibility/wrapModes.ts';
-import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts';
+} from '../../visibility/wrapModes.ts'
+import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
 
 /**
  * The shader side of a texture's sampling words (`sampling.ts`), inside `TILE_POOL_WGSL`
@@ -44,7 +44,7 @@ fn foldLine(r:TileRead,wrap:u32,size:vec2f,seam:vec2f)->FoldedLine{
  let x=foldAxis(r.uv.x,reach.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u);
  let y=foldAxis(r.uv.y,reach.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u);
  return FoldedLine(vec2f(x.x,y.x),vec2f(x.y,y.y)*x.z*y.z);
-}`;
+}`
 
 /** The footprint read of atlas `k` through the texture's filter rule, and through its UV
  *  transform when it has one, whose words the transform flag alone fetches. */
@@ -77,7 +77,7 @@ fn ${k}Line(s:TileSlot,c:vec2f,step:vec2f,n:u32,level:u32,nearest:bool)->vec4f{
   sum+=${k}Tap(s.tap,${k}Place(s,uv,level,w,nearest));
  }
  return sum/f32(n);
-}`;
+}`
 
 /**
  * Public atlas read, `name(slot, uv, ddx, ddy, sampled)`: the header is read once, then each level
@@ -97,7 +97,7 @@ fn ${k}Line(s:TileSlot,c:vec2f,step:vec2f,n:u32,level:u32,nearest:bool)->vec4f{
  * shadow passes, which only compares a threshold — takes one tap at the isotropic level.
  */
 export const atlasReadWgsl = (name: string, k: string, out: string, anisotropic: boolean) => {
-  const at = `${name}At`;
+  const at = `${name}At`
   const taps = anisotropic
     ? `fn ${name}Taps(s:TileSlot,r:TileRead)->${out}{
  let n=r.taps;
@@ -114,7 +114,7 @@ export const atlasReadWgsl = (name: string, k: string, out: string, anisotropic:
  return mix(a,${k}Line(s,line.uv,step,n,u32(l0)+1u,r.nearest),t);
 }
 `
-    : '';
+    : ''
   return `${taps}fn ${name}Sampled(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->${out}{
  let r=${k}Footprint(slot,s,uv,ddx,ddy,${anisotropic});
 ${
@@ -128,5 +128,5 @@ fn ${name}(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->${out}{
  let s=${k}Slot(slot);
  if(sampled){return ${name}Sampled(slot,s,uv,ddx,ddy);}
  return ${at}(s,uv,slotLod(s,ddx,ddy),false);
-}`;
-};
+}`
+}

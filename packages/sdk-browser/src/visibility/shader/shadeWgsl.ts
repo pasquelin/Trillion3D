@@ -1,7 +1,7 @@
-import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts';
-import { SHADE_MODE } from './shadeMode.ts';
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
-import { lecture, lectureDonnee, siCarte } from './maps.ts';
+import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
+import { SHADE_MODE } from './shadeMode.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { lecture, lectureDonnee, siCarte } from './maps.ts'
 import {
   AS_IS_FLAG,
   FOG_FREE_SURFACE_FLAG,
@@ -9,10 +9,10 @@ import {
   MODEL_SHIFT,
   NORMAL_VIEW_COLOR_WGSL,
   SURFACE_MODEL,
-} from '../../scene/surfaceModel.ts';
-import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
-import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts';
-import { FLAG_FOG_FREE } from '../types.ts';
+} from '../../scene/surfaceModel.ts'
+import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
+import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
+import { FLAG_FOG_FREE } from '../types.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -167,4 +167,4 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  storeReceiver(pos.xy,rcvOffset,rcvPlane);
  return surface;
 }
-`;
+`

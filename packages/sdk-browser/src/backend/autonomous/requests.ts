@@ -1,8 +1,8 @@
-import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
-import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts';
-import type { HeldResidency } from '../../page/cut/held.ts';
-import { floorFirst } from '../../residency/minimumCapacity.ts';
-import { createPageDraws, type PageDraws } from './pageDraws.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts'
+import { createGroupClosure, type GroupClosure } from '../../page/cut/groupClosure.ts'
+import type { HeldResidency } from '../../page/cut/held.ts'
+import { floorFirst } from '../../residency/minimumCapacity.ts'
+import { createPageDraws, type PageDraws } from './pageDraws.ts'
 
 /**
  * What the WebGL2 pool is asked for: the wanted cut closed over its groups (`groupClosure.ts`),
@@ -31,41 +31,41 @@ export function createAutonomousRequests(
     laidOut = -1,
     placements = -1,
     /** Where the requests are written: the drawn view's, rewritten at each `of`. */
-    requested: PageRec[] = [];
-  const seen = new Set<string>();
+    requested: PageRec[] = []
+  const seen = new Set<string>()
   const layOut = () => {
-    draws.layOut(roots);
-    closure = createGroupClosure(roots, draws.placement, draws.pages as PageRec[]);
-    held?.track(roots);
-    laidOut = revision();
-    placements = roots.length;
-  };
+    draws.layOut(roots)
+    closure = createGroupClosure(roots, draws.placement, draws.pages as PageRec[])
+    held?.track(roots)
+    laidOut = revision()
+    placements = roots.length
+  }
   const visit = (_id: number, rec: PageRec) => {
-    if (seen.has(rec.url)) return;
-    seen.add(rec.url);
-    requested.push(rec);
-  };
+    if (seen.has(rec.url)) return
+    seen.add(rec.url)
+    requested.push(rec)
+  }
   /** Lays the placements out again when they changed since the last layout; true when it did. */
   const follow = () => {
-    if (closure && laidOut === revision() && placements === roots.length) return false;
-    layOut();
-    return true;
-  };
+    if (closure && laidOut === revision() && placements === roots.length) return false
+    layOut()
+    return true
+  }
   return {
     /** Bytes of the closure's tables, sized by what the last cuts closed over. */
     get hostBytes() {
-      return closure?.hostBytes ?? 0;
+      return closure?.hostBytes ?? 0
     },
     follow,
     /** Writes the pages the wanted instances (`wantedIds` packed) close over into `into`, one per
      *  URL, in `floorFirst` order. */
     of(wantedIds: ArrayLike<number>, into: PageRec[]) {
-      follow();
-      requested = into;
-      requested.length = 0;
-      seen.clear();
-      closure!.closeOver(wantedIds, visit);
-      return requested.sort(floorFirst);
+      follow()
+      requested = into
+      requested.length = 0
+      seen.clear()
+      closure!.closeOver(wantedIds, visit)
+      return requested.sort(floorFirst)
     },
-  };
+  }
 }

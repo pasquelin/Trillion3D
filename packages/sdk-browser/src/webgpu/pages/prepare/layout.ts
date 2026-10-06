@@ -1,39 +1,39 @@
-import type { PageRec } from '../../../page/selection/selection.ts';
-import { createWebgpuRowState } from '../../row/state.ts';
-import { pageAddress } from '../../row/pageSlots.ts';
-import { CORNER_VALUES } from '../../../gpu/partition/contract.ts';
-import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts';
-import { createCornerUploadHold } from '../../visibility/corners.ts';
-import { createDrawItemWordsHold } from '../../visibility/itemWords.ts';
-import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
-import { boundTableRows, CUT_ROWS, cutsOnCpu, VIEW_ROWS } from '../../row/tableRows.ts';
-import type { WebgpuPagesSetup } from './setup.ts';
-import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
-import { postPackedBases } from '../../../page/selection/placements.ts';
-import { createPackedPages, createPageCatalogue } from './catalogue.ts';
-import { createPackedInstances } from '../../row/instances.ts';
+import type { PageRec } from '../../../page/selection/selection.ts'
+import { createWebgpuRowState } from '../../row/state.ts'
+import { pageAddress } from '../../row/pageSlots.ts'
+import { CORNER_VALUES } from '../../../gpu/partition/contract.ts'
+import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts'
+import { createCornerUploadHold } from '../../visibility/corners.ts'
+import { createDrawItemWordsHold } from '../../visibility/itemWords.ts'
+import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts'
+import { boundTableRows, CUT_ROWS, cutsOnCpu, VIEW_ROWS } from '../../row/tableRows.ts'
+import type { WebgpuPagesSetup } from './setup.ts'
+import type { BoxTransformLot } from '../../../math/batchRuntime.ts'
+import { postPackedBases } from '../../../page/selection/placements.ts'
+import { createPackedPages, createPageCatalogue } from './catalogue.ts'
+import { createPackedInstances } from '../../row/instances.ts'
 
-export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
+export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>
 
 /** How many packed pages share each pool address, and the most at one: the rows a slot feeds. */
-export type PoolCopies = { byAddress: Map<string, number>; max: number };
+export type PoolCopies = { byAddress: Map<string, number>; max: number }
 
 /** Counts `pages` into `copies`, `by` more placements each. */
 function countCopies(copies: PoolCopies, pages: readonly PageRec[], by: number) {
   for (const page of pages) {
     const address = pageAddress(page),
-      n = (copies.byAddress.get(address) ?? 0) + by;
-    copies.byAddress.set(address, n);
-    copies.max = Math.max(copies.max, n);
+      n = (copies.byAddress.get(address) ?? 0) + by
+    copies.byAddress.set(address, n)
+    copies.max = Math.max(copies.max, n)
   }
-  return copies;
+  return copies
 }
 
 /** The placements of each primitive among `roots`, a primitive being its shared `pages` array. */
 function placementsByPrimitive(roots: readonly { readonly pages: readonly PageRec[] }[]) {
-  const counts = new Map<readonly PageRec[], number>();
-  for (const { pages } of roots) counts.set(pages, (counts.get(pages) ?? 0) + 1);
-  return counts;
+  const counts = new Map<readonly PageRec[], number>()
+  for (const { pages } of roots) counts.set(pages, (counts.get(pages) ?? 0) + 1)
+  return counts
 }
 
 /** Counts the pages of `roots` into `copies`: each primitive page once, by its placement count —
@@ -43,8 +43,8 @@ export function countRootCopies(
   roots: readonly { readonly pages: readonly PageRec[] }[],
 ) {
   for (const [pages, placements] of placementsByPrimitive(roots))
-    countCopies(copies, pages, placements);
-  return copies;
+    countCopies(copies, pages, placements)
+  return copies
 }
 
 /**
@@ -65,9 +65,9 @@ export function askedTableRows(
   limits: GPUSupportedLimits | undefined,
   viewRows: number,
 ) {
-  const resident = slots * maxCopies;
-  const draw = Math.max(1, Math.min(VIS_MAX_PAGES, opaque || 1, resident, viewRows));
-  return boundTableRows(limits, draw, Math.min(blended, resident, viewRows));
+  const resident = slots * maxCopies
+  const draw = Math.max(1, Math.min(VIS_MAX_PAGES, opaque || 1, resident, viewRows))
+  return boundTableRows(limits, draw, Math.min(blended, resident, viewRows))
 }
 
 /** The geometry of the drawing path: the packed opaque pages, the row table sized to the slot
@@ -76,15 +76,15 @@ export function askedTableRows(
  *  others (`../../../placement/webgpuGrowth.ts`); the table itself grows in place when a larger
  *  pool or those placements ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
-  const { roots, bootstrap, cap: slots, pageBytes } = setup;
+  const { roots, bootstrap, cap: slots, pageBytes } = setup
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
-    transparentRoots = roots.filter((root) => root.pages[0]?.transparent);
+    transparentRoots = roots.filter((root) => root.pages[0]?.transparent)
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
   // GPU selection, the residency and the page budget read all of it; only the drawing path splits,
   // because a transparent cluster is blended in source order instead of entering the visibility
   // buffer. Placements grown in place append their opaque pages after the transparent ones: a
   // page's kind is read from the page, never from its rank.
-  const selectionRoots = [...opaqueRoots, ...transparentRoots];
+  const selectionRoots = [...opaqueRoots, ...transparentRoots]
   // One record serves every placement of its primitive (#1235): the packed order is the INSTANCES
   // — a (placement, page) pair —, and the per-placement tables say which root each packed rank
   // belongs to. Every reader finds a page's world, row and winding through `placement`, never on
@@ -92,14 +92,14 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // No list holds one entry per instance: a rank resolves through `placement` to its root and the
   // root's shared `pages` (`createPackedPages`): an instance reads the pages of its geometry from
   // its own base.
-  const placement = postPackedBases(selectionRoots);
-  const packedPages = createPackedPages(selectionRoots, placement);
-  const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
-  const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
-  const gpuWanted: PageRec[] = bootstrap;
-  const copies = countRootCopies({ byAddress: new Map(), max: 1 }, selectionRoots);
+  const placement = postPackedBases(selectionRoots)
+  const packedPages = createPackedPages(selectionRoots, placement)
+  const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0)
+  const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16)
+  const gpuWanted: PageRec[] = bootstrap
+  const copies = countRootCopies({ byAddress: new Map(), max: 1 }, selectionRoots)
   // A scene the GPU cut cannot hold opens with the rows of a view, and its cut grows them.
-  const viewRows = cutsOnCpu(packedPages.length) ? CUT_ROWS : VIEW_ROWS;
+  const viewRows = cutsOnCpu(packedPages.length) ? CUT_ROWS : VIEW_ROWS
   const { drawSlots, blendSlots, bounded } = askedTableRows(
     opaquePageCount,
     packedPages.length - opaquePageCount,
@@ -107,12 +107,12 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     copies.max,
     limits,
     viewRows,
-  );
+  )
   // The one catalogue over `packedPages`: its `recordOf` is how a consumer resolves the packed
   // ranks the cut publishes, and the row state indexes it once (`./catalogue.ts`).
-  const catalogue = createPageCatalogue(packedPages);
-  const instances = createPackedInstances(selectionRoots, placement);
-  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances);
+  const catalogue = createPageCatalogue(packedPages)
+  const instances = createPackedInstances(selectionRoots, placement)
+  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, instances)
   return {
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */
@@ -126,7 +126,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
      *  the session, read-only here, which a growth rewrites in place (`postPackedBases(roots, into)`)
      *  so the readers built once — the closure, the page parents, the held residency — follow it. */
     get placement() {
-      return placement;
+      return placement
     },
     opaquePageCount,
     /** The pool addresses' placements, which rows grown in place add to. */
@@ -139,7 +139,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     /** The visibility rows, as the table stands: it grows in place (`growTables.ts`), so every
      *  reader of the table's size reads it here, at each use. */
     get drawSlots() {
-      return rows.blendFirst;
+      return rows.blendFirst
     },
     rows,
     /** The rows the scene asked when one binding of the device held fewer, else null. */
@@ -147,7 +147,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     /** The growth of the tables under way, which the next one waits for (`growTables.ts`). */
     growing: undefined as Promise<unknown> | undefined,
     ...rowScratch(drawSlots, pageBytes),
-  };
+  }
 }
 
 /** The per-row scratch arrays of a table of `drawSlots` visibility rows, and the witnesses of what
@@ -164,5 +164,5 @@ export function rowScratch(drawSlots: number, pageBytes: number) {
     /** Draw rows, held from one image to the next: only a changing row rewrites them. */
     drawItemWords: new Uint32Array(drawSlots * DRAW_ITEM_U32),
     itemWordsHold: createDrawItemWordsHold(drawSlots),
-  };
+  }
 }

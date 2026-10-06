@@ -1,230 +1,230 @@
-import { TransformNode } from './transformNode.ts';
-import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
-import { copyObject, findByName } from './objectCopy.ts';
-import { bindPose, readPose, releasePose } from './objectPose.ts';
-import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
-import { noteNodeWrite } from '../../scene/core/nodeEdits.ts';
-import * as read from '../../math/transform-tree/read.ts';
-import { Vector3 } from '../math/vector3.ts';
-import { Euler } from '../math/euler.ts';
-import { Quaternion } from '../math/quaternion.ts';
-import { Matrix4 } from '../math/matrix4.ts';
-import type { Box3 } from '../math/box3.ts';
-import type { SceneLink } from './sceneLink.ts';
-export type { SceneLink } from './sceneLink.ts';
+import { TransformNode } from './transformNode.ts'
+import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts'
+import { copyObject, findByName } from './objectCopy.ts'
+import { bindPose, readPose, releasePose } from './objectPose.ts'
+import { lookAtNode } from '../../math/transform-tree/lookAt.ts'
+import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
+import * as read from '../../math/transform-tree/read.ts'
+import { Vector3 } from '../math/vector3.ts'
+import { Euler } from '../math/euler.ts'
+import { Quaternion } from '../math/quaternion.ts'
+import { Matrix4 } from '../math/matrix4.ts'
+import type { Box3 } from '../math/box3.ts'
+import type { SceneLink } from './sceneLink.ts'
+export type { SceneLink } from './sceneLink.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
   turn = new Quaternion(),
   along = new Vector3(),
   applied = new Matrix4(),
-  at = new Float64Array(4);
+  at = new Float64Array(4)
 
 /** A node of the scene, as a page writes it: `position`, `rotation`, `quaternion` and `scale` are
  *  live values whose writes land in the engine's transform tree, and reach the world it is in. */
 export class Object3D extends TransformNode {
-  /** Always `true`: tells a scene node apart. */ readonly isObject3D = true as const;
-  /** The kind of node: `'Mesh'`, `'Group'`… */ type = 'Object3D';
-  /** Where the node stands, from its parent. */ readonly position = new Vector3();
-  /** How the node is turned, as three angles. */ readonly rotation = new Euler();
-  /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion();
-  /** How the node is stretched on each axis. */ readonly scale = new Vector3(1, 1, 1);
-  /** Which way is up for `lookAt`. */ readonly up = new Vector3(0, 1, 0);
-  /** Whether shadows fall on the node. */ receiveShadow = false;
-  /** Drawing order among see-through things. */ renderOrder = 0;
-  /** Whether a renderer may skip it outside the view. */ frustumCulled = true;
-  /** Free room for the page's own data. */ userData: Record<string, unknown> = {};
-  private _linkedTo: SceneLink | null = null;
+  /** Always `true`: tells a scene node apart. */ readonly isObject3D = true as const
+  /** The kind of node: `'Mesh'`, `'Group'`… */ type = 'Object3D'
+  /** Where the node stands, from its parent. */ readonly position = new Vector3()
+  /** How the node is turned, as three angles. */ readonly rotation = new Euler()
+  /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion()
+  /** How the node is stretched on each axis. */ readonly scale = new Vector3(1, 1, 1)
+  /** Which way is up for `lookAt`. */ readonly up = new Vector3(0, 1, 0)
+  /** Whether shadows fall on the node. */ receiveShadow = false
+  /** Drawing order among see-through things. */ renderOrder = 0
+  /** Whether a renderer may skip it outside the view. */ frustumCulled = true
+  /** Free room for the page's own data. */ userData: Record<string, unknown> = {}
+  private _linkedTo: SceneLink | null = null
   constructor() {
-    const slot = reserveSlot();
-    super(slot.state, slot.id, slot.index, slot.visible);
-    collectSlot(this, slot);
-    bindPose(this, slot.state.tree);
+    const slot = reserveSlot()
+    super(slot.state, slot.id, slot.index, slot.visible)
+    collectSlot(this, slot)
+    bindPose(this, slot.state.tree)
   }
   /** The world this node is drawn by; set on attach, cleared on detach. */ get _link() {
-    return this._linkedTo;
+    return this._linkedTo
   }
   set _link(link: SceneLink | null) {
-    if (!this._linkedTo !== !link) this.linked(!!link);
-    this._linkedTo = link;
+    if (!this._linkedTo !== !link) this.linked(!!link)
+    this._linkedTo = link
   }
   /** It entered a world (`true`) or left one. */ protected linked(_inWorld: boolean) {}
   /** A node's transform tree, for an owner placing nodes by the thousand (`_link.posed`). */
   static _treeOf(node: Object3D) {
-    return node.state.tree;
+    return node.state.tree
   }
   /** Whether the node and its children are drawn. */ override get visible() {
-    return super.visible;
+    return super.visible
   }
   override set visible(value: boolean) {
-    const was = super.visible;
-    super.visible = value;
-    if (super.visible !== was) this._link?.pose(this);
+    const was = super.visible
+    super.visible = value
+    if (super.visible !== was) this._link?.pose(this)
   }
-  private _castShadow = false;
+  private _castShadow = false
   /** Whether the node casts shadows: a mesh does unless set `false`, a light only when set `true`.
    *  A mesh set `false` still receives the shadows of others. */
   get castShadow() {
-    return this._castShadow;
+    return this._castShadow
   }
   set castShadow(value: boolean) {
-    if (value === this._castShadow) return;
-    noteNodeWrite();
-    this._castShadow = value;
-    this._link?.shadow?.(this);
+    if (value === this._castShadow) return
+    noteNodeWrite()
+    this._castShadow = value
+    this._link?.shadow?.(this)
   }
   override get parent(): Object3D | null {
-    return super.parent as Object3D | null;
+    return super.parent as Object3D | null
   }
   override get children(): readonly Object3D[] {
-    return super.children as readonly Object3D[];
+    return super.children as readonly Object3D[]
   }
   /** A viewer looks down `-z`: cameras and lights say so. */
   protected get looksDownNegativeZ() {
-    return false;
+    return false
   }
   /** Makes objects children of this node. The world hears every parent whose children changed —
    *  a moved object's former one too —, those an add made before a refusal included. */
   override add(...objects: Object3D[]) {
-    const link = this._link;
+    const link = this._link
     try {
       for (const object of objects) {
-        if (object === this) continue;
-        const former = object.parent;
+        if (object === this) continue
+        const former = object.parent
         // Every refusal — a ring, a stale node, another root — comes before anything moves.
-        super.add(object);
+        super.add(object)
         if (former && former !== this) {
-          const left = former._link;
+          const left = former._link
           // The world it left hears it go; one in this same world hears its former parent changed.
-          if (left !== link) object.traverse((node) => (node._link = null));
-          left?.structure(former);
+          if (left !== link) object.traverse((node) => (node._link = null))
+          left?.structure(former)
         }
         // A node entering the world is read whole again: what it gained while out of it included.
         object.traverse((node) => {
-          if (node._link === link) return;
-          node._link = link;
-          link?.entered?.(node);
-        });
+          if (node._link === link) return
+          node._link = link
+          link?.entered?.(node)
+        })
       }
     } finally {
-      link?.structure(this);
+      link?.structure(this)
     }
-    return this;
+    return this
   }
   /** Takes children off this node; its world hears it, a refusal on the way or not. */
   override remove(...objects: Object3D[]) {
     try {
       for (const object of objects) {
-        if (object.parent !== this) continue;
-        super.remove(object);
-        object.traverse((node) => (node._link = null));
+        if (object.parent !== this) continue
+        super.remove(object)
+        object.traverse((node) => (node._link = null))
       }
     } finally {
-      this._link?.structure(this);
+      this._link?.structure(this)
     }
-    return this;
+    return this
   }
   /** Adds `child` where it stands (`SceneNode.attach`). */
   override attach(child: Object3D) {
-    if (child === this) return this;
-    super.attach(child);
-    readPose(child, this.state.tree);
-    return this;
+    if (child === this) return this
+    super.attach(child)
+    readPose(child, this.state.tree)
+    return this
   }
   /** Frees it and all below it now, not when collected; off its world. */ override destroy() {
-    this.removeFromParent();
+    this.removeFromParent()
     this.traverse((node) => {
-      uncollectSlot(node);
-      releasePose(node, this.state.tree);
-    });
-    super.destroy();
+      uncollectSlot(node)
+      releasePose(node, this.state.tree)
+    })
+    super.destroy()
   }
   /** Takes the node off its parent. */ removeFromParent() {
-    this.parent?.remove(this);
-    return this;
+    this.parent?.remove(this)
+    return this
   }
   /** A node of this class with the same values, and copies of its children unless told not to. */
   override clone(recursive = true): this {
-    return this.blank().copy(this, recursive);
+    return this.blank().copy(this, recursive)
   }
   /** An empty node of this class, what `clone` fills: a class whose constructor takes arguments
    *  says how to make one. */
   protected blank(): this {
-    return new (this.constructor as new () => this)();
+    return new (this.constructor as new () => this)()
   }
   /** Takes `source`'s values, and copies of its children unless told not to. */
   override copy(source: Object3D, recursive = true) {
-    return copyObject(this, source, recursive);
+    return copyObject(this, source, recursive)
   }
   /** Takes every child off this node. */ override clear() {
-    return this.remove(...this.children);
+    return this.remove(...this.children)
   }
   /** Calls `fn` on this node and all below it. */ traverse(fn: (node: Object3D) => void) {
-    fn(this);
-    for (const child of this.children) child.traverse(fn);
+    fn(this)
+    for (const child of this.children) child.traverse(fn)
   }
   /** Calls `fn` on each visible node from here down. */
   traverseVisible(fn: (node: Object3D) => void) {
-    if (!this.visible) return;
-    fn(this);
-    for (const child of this.children) child.traverseVisible(fn);
+    if (!this.visible) return
+    fn(this)
+    for (const child of this.children) child.traverseVisible(fn)
   }
   /** The first node below with this name. */ getObjectByName(name: string): Object3D | undefined {
-    return findByName(this, name);
+    return findByName(this, name)
   }
   /** Composes the local matrix from the pose. */
   updateMatrix() {
-    this.matrix.compose(this.position, this.quaternion, this.scale);
-    this.matrixWorldNeedsUpdate = true;
+    this.matrix.compose(this.position, this.quaternion, this.scale)
+    this.matrixWorldNeedsUpdate = true
   }
   /** Applies `m` on top of the node's pose, then reads the pose back out of the product. */
   applyMatrix4(m: { elements: ArrayLike<number> }) {
-    if (this.matrixAutoUpdate) this.updateMatrix();
-    this.matrix.premultiply(applied.fromArray(m.elements));
-    this.matrix.decompose(this.position, this.quaternion, this.scale);
+    if (this.matrixAutoUpdate) this.updateMatrix()
+    this.matrix.premultiply(applied.fromArray(m.elements))
+    this.matrix.decompose(this.position, this.quaternion, this.scale)
   }
   /** Turns the node toward a world point (`lookAtNode`): `+z` at it, `-z` for a viewer. */
   lookAt(x: number | { x: number; y: number; z: number }, y = 0, z = 0) {
-    if (typeof x === 'number') aim.set(x, y, z);
-    else aim.copy(x);
-    const tree = this.state.tree;
-    this.takeChainStorage();
-    lookAtNode(tree, this.index, aim.x, aim.y, aim.z, this.up.elements, this.looksDownNegativeZ);
-    readPose(this, tree);
+    if (typeof x === 'number') aim.set(x, y, z)
+    else aim.copy(x)
+    const tree = this.state.tree
+    this.takeChainStorage()
+    lookAtNode(tree, this.index, aim.x, aim.y, aim.z, this.up.elements, this.looksDownNegativeZ)
+    readPose(this, tree)
   }
   /** Turns the node around `axis` by `angle` radians. */
   rotateOnAxis(axis: { x: number; y: number; z: number }, angle: number) {
-    this.quaternion.multiply(turn.setFromAxisAngle(axis, angle));
-    return this;
+    this.quaternion.multiply(turn.setFromAxisAngle(axis, angle))
+    return this
   }
   /** Turns the node around its own x axis. */ rotateX(angle: number) {
-    return this.rotateOnAxis({ x: 1, y: 0, z: 0 }, angle);
+    return this.rotateOnAxis({ x: 1, y: 0, z: 0 }, angle)
   }
   /** Turns the node around its own y axis. */ rotateY(angle: number) {
-    return this.rotateOnAxis({ x: 0, y: 1, z: 0 }, angle);
+    return this.rotateOnAxis({ x: 0, y: 1, z: 0 }, angle)
   }
   /** Turns the node around its own z axis. */ rotateZ(angle: number) {
-    return this.rotateOnAxis({ x: 0, y: 0, z: 1 }, angle);
+    return this.rotateOnAxis({ x: 0, y: 0, z: 1 }, angle)
   }
   /** Moves the node along its own `axis`. */
   translateOnAxis(axis: { x: number; y: number; z: number }, distance: number) {
-    along.set(axis.x, axis.y, axis.z).applyQuaternion(this.quaternion);
-    this.position.addScaledVector(along, distance);
-    return this;
+    along.set(axis.x, axis.y, axis.z).applyQuaternion(this.quaternion)
+    this.position.addScaledVector(along, distance)
+    return this
   }
   /** The way the node faces in the world. */ getWorldDirection(out = new Vector3()) {
-    this.takeChainStorage();
-    const d = read.nodeWorldDirection(at, this.state.tree, this.index, this.looksDownNegativeZ);
-    return out.set(d[0], d[1], d[2]);
+    this.takeChainStorage()
+    const d = read.nodeWorldDirection(at, this.state.tree, this.index, this.looksDownNegativeZ)
+    return out.set(d[0], d[1], d[2])
   }
   /** The box of this node's own content, local frame; a plain node holds none. */
   localBounds(): Box3 | null {
-    return null;
+    return null
   }
 }
 
 /** A node that only groups others. */
 export class Group extends Object3D {
-  /** Always `true`: tells a group apart. */ readonly isGroup = true as const;
-  /** The kind of node, `'Group'`. */ override type = 'Group';
+  /** Always `true`: tells a group apart. */ readonly isGroup = true as const
+  /** The kind of node, `'Group'`. */ override type = 'Group'
 }

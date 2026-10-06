@@ -1,15 +1,15 @@
-import { exampleAddress, useWords } from '../i18n.ts';
-import { entrySummary } from '../../content/model.ts';
-import type { CourseChapter, PortalEntry } from '../../content/model.ts';
-import type { Locale } from '../../content/locale.ts';
-import { DocPage } from '../layout/DocPage.tsx';
-import { routeHref } from '../portal/routes.ts';
-import { usePagerKeys } from '../hooks/usePagerKeys.ts';
-import { CodeBlock } from '../ui/CodeBlock.tsx';
-import { Pager } from '../ui/Pager.tsx';
-import { Inline, Prose, Steps } from '../ui/Prose.tsx';
-import { RenderFrame } from '../ui/RenderFrame.tsx';
-import { Section, TextLink } from '../ui/Text.tsx';
+import { exampleAddress, useWords } from '../i18n.ts'
+import { entrySummary } from '../../content/model.ts'
+import type { CourseChapter, PortalEntry } from '../../content/model.ts'
+import type { Locale } from '../../content/locale.ts'
+import { DocPage } from '../layout/DocPage.tsx'
+import { routeHref } from '../portal/routes.ts'
+import { usePagerKeys } from '../hooks/usePagerKeys.ts'
+import { CodeBlock } from '../ui/CodeBlock.tsx'
+import { Pager } from '../ui/Pager.tsx'
+import { Inline, Prose, Steps } from '../ui/Prose.tsx'
+import { RenderFrame } from '../ui/RenderFrame.tsx'
+import { Section, TextLink } from '../ui/Text.tsx'
 
 /**
  * One chapter of the course: the steps, the few lines of code, the example live to change across
@@ -17,12 +17,12 @@ import { Section, TextLink } from '../ui/Text.tsx';
  * and on the ← and → keys.
  */
 export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
-  const t = useWords(locale);
-  const chapter: CourseChapter = entry.chapter!;
-  const { words, previous, next } = chapter;
-  const title = entry.title || entry.id;
-  const example = routeHref({ locale, area: 'examples', id: chapter.example });
-  usePagerKeys(previous?.href, next.href);
+  const t = useWords(locale)
+  const chapter: CourseChapter = entry.chapter!
+  const { words, previous, next } = chapter
+  const title = entry.title || entry.id
+  const example = routeHref({ locale, area: 'examples', id: chapter.example })
+  usePagerKeys(previous?.href, next.href)
   return (
     <DocPage
       data-chapter={entry.id}
@@ -55,5 +55,5 @@ export function Chapter({ entry, locale }: { entry: PortalEntry; locale: Locale 
       </Section>
       <Pager label={words.navigation} previous={previous} next={next} />
     </DocPage>
-  );
+  )
 }

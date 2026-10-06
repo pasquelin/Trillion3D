@@ -1,24 +1,21 @@
 // Pure oracles for A3 and A4, side-effect free: `occlusion.perf.ts` measures them, unit tests
 // import them as reference.
-import * as THREE from 'three';
-import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
-import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
-import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts';
-import {
-  HIZ_BOUNDS_VALUES,
-  projectBoxInto,
-} from '../../../packages/sdk-browser/src/hiz/corners.ts';
-import { hizOversized, type HizCounts } from '../../../packages/sdk-browser/src/hiz/counts.ts';
-import type { HizPage, HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts';
-import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
-import { hizRejects, type HizBounds } from './hizRejects.ts';
+import * as THREE from 'three'
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
+import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts'
+import { perspectiveProjection } from '../../../packages/sdk-core/src/index.ts'
+import { HIZ_BOUNDS_VALUES, projectBoxInto } from '../../../packages/sdk-browser/src/hiz/corners.ts'
+import { hizOversized, type HizCounts } from '../../../packages/sdk-browser/src/hiz/counts.ts'
+import type { HizPage, HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
+import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts'
+import { hizRejects, type HizBounds } from './hizRejects.ts'
 
 /** A page with the world of its root, which pages carried before #1226. */
-type Placed = HizPage & { matrix: MatrixElements };
+type Placed = HizPage & { matrix: MatrixElements }
 
 const viewProjScratch = new THREE.Matrix4(),
-  projScratch = new THREE.Matrix4();
-const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES);
+  projScratch = new THREE.Matrix4()
+const boundsScratch = new Float64Array(HIZ_BOUNDS_VALUES)
 /** `packages/sdk-browser/src/hiz/projection.ts:65-92` before batch A: an `HizBounds` object allocated per box per frame. */
 function referenceProjectBoxToScreen(
   min: readonly number[],
@@ -27,10 +24,10 @@ function referenceProjectBoxToScreen(
   cam: THREE.PerspectiveCamera,
   viewport: [number, number],
 ): HizBounds {
-  cam.updateMatrixWorld();
+  cam.updateMatrixWorld()
   // Engine projection, not host: reversed depth, infinite far plane.
-  perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom);
-  const viewProj = viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse);
+  perspectiveProjection(projScratch.elements, cam.fov, cam.aspect, cam.near, cam.zoom)
+  const viewProj = viewProjScratch.multiplyMatrices(projScratch, cam.matrixWorldInverse)
   projectBoxInto(
     min,
     max,
@@ -42,10 +39,10 @@ function referenceProjectBoxToScreen(
     viewport[1],
     boundsScratch,
     0,
-  );
-  const b = boundsScratch;
-  if (b[5] !== 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0, nearestDepth: 0, clipsNear: true };
-  return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3], nearestDepth: b[4], clipsNear: false };
+  )
+  const b = boundsScratch
+  if (b[5] !== 0) return { minX: 0, minY: 0, maxX: 0, maxY: 0, nearestDepth: 0, clipsNear: true }
+  return { minX: b[0], minY: b[1], maxX: b[2], maxY: b[3], nearestDepth: b[4], clipsNear: false }
 }
 
 /** `packages/sdk-browser/src/hiz/split.ts:70-91` before batch A: `.map` of objects, `.sort` by comparator, two `.filter`.
@@ -55,20 +52,20 @@ export function referenceSplitOccluders<T extends Placed>(
   camera: Camera,
   viewport: [number, number],
 ) {
-  const cam = threeCamera(camera) as THREE.PerspectiveCamera;
+  const cam = threeCamera(camera) as THREE.PerspectiveCamera
   const ranked = pages.map((page, index) => {
-    const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
-    return { page, index, nearest: bounds.nearestDepth, clipsNear: bounds.clipsNear };
-  });
-  ranked.sort((a, b) => b.nearest - a.nearest || a.index - b.index);
+    const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport)
+    return { page, index, nearest: bounds.nearestDepth, clipsNear: bounds.clipsNear }
+  })
+  ranked.sort((a, b) => b.nearest - a.nearest || a.index - b.index)
   const inFront = ranked.filter((item) => !item.clipsNear),
-    crossing = ranked.filter((item) => item.clipsNear);
-  if (!inFront.length) return { occluders: [], rest: pages };
-  const mid = Math.max(1, Math.floor(inFront.length / 2));
+    crossing = ranked.filter((item) => item.clipsNear)
+  if (!inFront.length) return { occluders: [], rest: pages }
+  const mid = Math.max(1, Math.floor(inFront.length / 2))
   return {
     occluders: inFront.slice(0, mid).map((item) => item.page),
     rest: [...inFront.slice(mid), ...crossing].map((item) => item.page),
-  };
+  }
 }
 
 /** `packages/sdk-browser/src/hiz/occlusion.ts:152-178` before batch A: un-cached projection, allocation per page. */
@@ -80,23 +77,23 @@ export function referenceCountUnoccluded<T extends Placed & { array?: ArrayLike<
   counts: HizCounts,
   bias = 0,
 ) {
-  const cam = threeCamera(camera) as THREE.PerspectiveCamera;
-  const kept: T[] = [];
+  const cam = threeCamera(camera) as THREE.PerspectiveCamera
+  const kept: T[] = []
   for (const page of pages) {
-    const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport);
-    const triangles = page.array ? Math.floor(page.array.length / 3) : 0;
-    counts.tested++;
-    counts.testedTriangles += triangles;
+    const bounds = referenceProjectBoxToScreen(page.min, page.max, page.matrix, cam, viewport)
+    const triangles = page.array ? Math.floor(page.array.length / 3) : 0
+    counts.tested++
+    counts.testedTriangles += triangles
     if (hizOversized(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY, bounds.clipsNear)) {
-      counts.oversized++;
-      counts.oversizedTriangles += triangles;
+      counts.oversized++
+      counts.oversizedTriangles += triangles
     }
     if (hizRejects(pyramid, bounds, bias)) {
-      counts.rejected++;
-      counts.rejectedTriangles += triangles;
-      continue;
+      counts.rejected++
+      counts.rejectedTriangles += triangles
+      continue
     }
-    kept.push(page);
+    kept.push(page)
   }
-  return kept;
+  return kept
 }

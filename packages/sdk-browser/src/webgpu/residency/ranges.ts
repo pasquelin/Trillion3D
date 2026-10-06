@@ -7,11 +7,11 @@
  */
 export type RangeRule = { gap: number; cap: number } & (
   { overflow: 'whole' } | { overflow: 'narrowest'; steps: Int32Array }
-);
+)
 
 /** Residency flushes: skipped pages closer than 64 share a write, and past 32 ranges everything is
  *  written at once — thousands of small writes cost more than the one they replace. */
-export const RESIDENCY_RULE: RangeRule = { gap: 64, cap: 32, overflow: 'whole' };
+export const RESIDENCY_RULE: RangeRule = { gap: 64, cap: 32, overflow: 'whole' }
 
 /**
  * Groups the `count` increasing, distinct indices of `sorted` into ranges under `rule`, written
@@ -25,31 +25,31 @@ export function coalesceRanges(
   into: Int32Array,
   rule: RangeRule,
 ) {
-  const { gap, cap } = rule;
-  if (count <= 0) return 0;
+  const { gap, cap } = rule
+  if (count <= 0) return 0
   let join = gap,
-    far = 0;
+    far = 0
   for (let i = 1; i < count; i++) {
-    const step = sorted[i] - sorted[i - 1];
-    if (step <= gap) continue;
-    if (rule.overflow === 'narrowest') rule.steps[far] = step;
+    const step = sorted[i] - sorted[i - 1]
+    if (step <= gap) continue
+    if (rule.overflow === 'narrowest') rule.steps[far] = step
     else if (far + 1 >= cap) {
-      into[0] = sorted[0];
-      into[1] = sorted[count - 1];
-      return 1;
+      into[0] = sorted[0]
+      into[1] = sorted[count - 1]
+      return 1
     }
-    far++;
+    far++
   }
   if (rule.overflow === 'narrowest' && far >= cap)
-    join = rule.steps.subarray(0, far).sort()[far - cap];
+    join = rule.steps.subarray(0, far).sort()[far - cap]
   let ranges = 0,
-    from = sorted[0];
+    from = sorted[0]
   for (let i = 1; i <= count; i++) {
-    if (i < count && sorted[i] - sorted[i - 1] <= join) continue;
-    into[ranges * 2] = from;
-    into[ranges * 2 + 1] = sorted[i - 1];
-    ranges++;
-    if (i < count) from = sorted[i];
+    if (i < count && sorted[i] - sorted[i - 1] <= join) continue
+    into[ranges * 2] = from
+    into[ranges * 2 + 1] = sorted[i - 1]
+    ranges++
+    if (i < count) from = sorted[i]
   }
-  return ranges;
+  return ranges
 }

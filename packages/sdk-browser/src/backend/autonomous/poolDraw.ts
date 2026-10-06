@@ -1,7 +1,7 @@
-import { pageDeformationBytes } from '../../deformation/textureBytes.ts';
-import { sessionGeometryPool } from '../../residency/sessionPool.ts';
-import type { PoolEnvironment } from './pool.ts';
-import type { GeometryPool } from '../../residency/pools.ts';
+import { pageDeformationBytes } from '../../deformation/textureBytes.ts'
+import { sessionGeometryPool } from '../../residency/sessionPool.ts'
+import type { PoolEnvironment } from './pool.ts'
+import type { GeometryPool } from '../../residency/pools.ts'
 
 /**
  * The pool drawn from the budget (`sessionGeometryPool`): slots of the catalogue's largest decoded
@@ -23,16 +23,13 @@ export function drawGeometryPool(
     | 'coverRevision'
   >,
 ) {
-  const { budgetBytes, ceilingBytes, maxResidentPages, rootUrls, copies, coverRevision } = env;
+  const { budgetBytes, ceilingBytes, maxResidentPages, rootUrls, copies, coverRevision } = env
   // A page's decoded size is the bytes it holds resident: its indices and its float attributes.
-  let pageBytes = 1;
-  const shares = new Map<string, number>();
+  let pageBytes = 1
+  const shares = new Map<string, number>()
   for (const [url, descriptor] of env.descriptors) {
-    pageBytes = Math.max(
-      pageBytes,
-      descriptor.uncompressedBytes + pageDeformationBytes(descriptor),
-    );
-    shares.set(url, 0);
+    pageBytes = Math.max(pageBytes, descriptor.uncompressedBytes + pageDeformationBytes(descriptor))
+    shares.set(url, 0)
   }
   const drawSession = () =>
     sessionGeometryPool(
@@ -45,25 +42,25 @@ export function drawGeometryPool(
       },
       budgetBytes,
       ceilingBytes,
-    );
+    )
   const weighShares = () => {
-    for (const url of shares.keys()) shares.set(url, rootUrls.has(url) ? 0 : copies.of(url));
-  };
+    for (const url of shares.keys()) shares.set(url, rootUrls.has(url) ? 0 : copies.of(url))
+  }
   let session = drawSession(),
     pool = session.pool,
-    drawnFor = coverRevision();
-  weighShares();
+    drawnFor = coverRevision()
+  weighShares()
   const current = () => {
-    const revision = coverRevision();
+    const revision = coverRevision()
     if (revision !== drawnFor) {
-      drawnFor = revision;
-      session = drawSession();
-      pool = session.poolFor(pool.budgetBytes);
-      weighShares();
+      drawnFor = revision
+      session = drawSession()
+      pool = session.poolFor(pool.budgetBytes)
+      weighShares()
     }
-    return pool;
-  };
-  const drawFor = (bytes: number) => (current(), session.poolFor(bytes));
+    return pool
+  }
+  const drawFor = (bytes: number) => (current(), session.poolFor(bytes))
   return {
     /** The pool as drawn now. */
     current,
@@ -75,11 +72,11 @@ export function drawGeometryPool(
     /** Another budget, under the session ceiling; an invalid one is refused before anything
      *  changes. */
     resize(bytes: number) {
-      pool = drawFor(bytes);
+      pool = drawFor(bytes)
     },
     /** A pool `drawFor` drew, adopted. */
     adopt(drawn: GeometryPool) {
-      pool = drawn;
+      pool = drawn
     },
-  };
+  }
 }

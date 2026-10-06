@@ -1,8 +1,8 @@
-import { createControlBase } from './base.ts';
-import { axisOf, trackKeys, type KeyAxis } from './input.ts';
-import { controlPose } from './pose.ts';
-import type { VehicleDriver, VehicleInput } from '../../../../sdk-core/src/physics/vehicle.ts';
-import type { CameraControlBase, ControlCamera } from './types.ts';
+import { createControlBase } from './base.ts'
+import { axisOf, trackKeys, type KeyAxis } from './input.ts'
+import { controlPose } from './pose.ts'
+import type { VehicleDriver, VehicleInput } from '../../../../sdk-core/src/physics/vehicle.ts'
+import type { CameraControlBase, ControlCamera } from './types.ts'
 
 /**
  * A VEHICLE'S PEDALS AND WHEEL on the keyboard, by `KeyboardEvent.code` so every layout plays the
@@ -18,7 +18,7 @@ export interface VehicleCameraControls extends CameraControlBase {
    * one it replaces, like the one in place when the controls are disposed or paused, hears its
    * keys let go.
    */
-  vehicle: VehicleDriver | null;
+  vehicle: VehicleDriver | null
 }
 
 const WHEEL: KeyAxis = [
@@ -27,49 +27,49 @@ const WHEEL: KeyAxis = [
   ],
   THROTTLE = ['KeyW', 'ArrowUp'],
   BRAKE = ['KeyS', 'ArrowDown'],
-  HANDBRAKE = 'Space';
+  HANDBRAKE = 'Space'
 
 /** Every key let go. */
-const RELEASED: Readonly<VehicleInput> = { throttle: 0, brake: 0, steer: 0, handbrake: false };
+const RELEASED: Readonly<VehicleInput> = { throttle: 0, brake: 0, steer: 0, handbrake: false }
 
 export function createVehicleCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): VehicleCameraControls {
   const base = createControlBase(),
-    input: VehicleInput = { ...RELEASED };
-  let vehicle: VehicleDriver | null = null;
+    input: VehicleInput = { ...RELEASED }
+  let vehicle: VehicleDriver | null = null
   /** A vehicle let go of hears its keys released, unless none was held. */
   const release = () => {
     if (input.throttle || input.brake || input.steer || input.handbrake)
-      vehicle?.drive({ ...RELEASED });
-  };
+      vehicle?.drive({ ...RELEASED })
+  }
   const api: VehicleCameraControls = {
     ...base.api,
     object: controlPose(camera).object,
     get vehicle() {
-      return vehicle;
+      return vehicle
     },
     set vehicle(next) {
-      if (next === vehicle) return;
-      release();
-      vehicle = next;
-      vehicle?.drive(input);
+      if (next === vehicle) return
+      release()
+      vehicle = next
+      vehicle?.drive(input)
     },
-  };
-  base.undo(release);
+  }
+  base.undo(release)
   const keys = trackKeys(
     surface,
     base,
     () => {
       // The pedals and the wheel the keys (`KeyboardEvent.code`) ask for.
-      input.throttle = THROTTLE.some((code) => keys.has(code)) ? 1 : 0;
-      input.brake = BRAKE.some((code) => keys.has(code)) ? 1 : 0;
-      input.steer = axisOf(keys, ...WHEEL);
-      input.handbrake = keys.has(HANDBRAKE);
-      vehicle?.drive(input);
+      input.throttle = THROTTLE.some((code) => keys.has(code)) ? 1 : 0
+      input.brake = BRAKE.some((code) => keys.has(code)) ? 1 : 0
+      input.steer = axisOf(keys, ...WHEEL)
+      input.handbrake = keys.has(HANDBRAKE)
+      vehicle?.drive(input)
     },
     [WHEEL, THROTTLE, BRAKE, [HANDBRAKE]],
-  );
-  return api;
+  )
+  return api
 }

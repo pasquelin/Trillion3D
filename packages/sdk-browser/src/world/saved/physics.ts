@@ -1,28 +1,25 @@
-import { ObjectPhysics } from '../../../../sdk-core/src/physics/objectPhysics.ts';
-import type {
-  PhysicsBodyOptions,
-  PhysicsOption,
-} from '../../../../sdk-core/src/physics/options.ts';
-import type { SoftBodyOptions } from '../../../../sdk-core/src/physics/soft.ts';
-import { notSavable } from './format.ts';
+import { ObjectPhysics } from '../../../../sdk-core/src/physics/objectPhysics.ts'
+import type { PhysicsBodyOptions, PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
+import type { SoftBodyOptions } from '../../../../sdk-core/src/physics/soft.ts'
+import { notSavable } from './format.ts'
 
 /** `value`, or `undefined` where it is `fallback`: a default is left out. */
-const kept = <T>(value: T, fallback: T) => (value === fallback ? undefined : value);
+const kept = <T>(value: T, fallback: T) => (value === fallback ? undefined : value)
 
 /** The body a declaration of `type` alone makes, once per type: the defaults it is compared to. */
-const unsetBodies = new Map<ObjectPhysics['type'], ObjectPhysics>();
+const unsetBodies = new Map<ObjectPhysics['type'], ObjectPhysics>()
 const unsetOf = (type: ObjectPhysics['type']) => {
-  let unset = unsetBodies.get(type);
-  if (!unset) unsetBodies.set(type, (unset = new ObjectPhysics({ type })));
-  return unset;
-};
+  let unset = unsetBodies.get(type)
+  if (!unset) unsetBodies.set(type, (unset = new ObjectPhysics({ type })))
+  return unset
+}
 
 /** Refuses a number JSON cannot hold (`Infinity` would come back `null`: another body), by name. */
 function refuseInfinite(value: unknown, name: string) {
   if (typeof value === 'number' && !Number.isFinite(value))
-    notSavable(`a body's ${name} of ${value}`, { [name]: value });
+    notSavable(`a body's ${name} of ${value}`, { [name]: value })
   if (value && typeof value === 'object')
-    for (const [key, part] of Object.entries(value)) refuseInfinite(part, `${name}.${key}`);
+    for (const [key, part] of Object.entries(value)) refuseInfinite(part, `${name}.${key}`)
 }
 
 /**
@@ -33,18 +30,18 @@ function refuseInfinite(value: unknown, name: string) {
  * `Infinity` among them. Any other number JSON cannot hold is refused (`SCENE_NOT_SAVABLE`).
  */
 export function savedPhysics(body: ObjectPhysics): PhysicsOption {
-  const { type, soft, damping } = body;
-  const unset = unsetOf(type);
-  const still = unset.damping;
+  const { type, soft, damping } = body
+  const unset = unsetOf(type)
+  const still = unset.damping
   const common = {
     mass: kept(body.mass, unset.mass),
     gravityScale: kept(body.gravityScale, unset.gravityScale),
     friction: kept(body.friction, unset.friction),
     restitution: kept(body.restitution, unset.restitution),
-  };
-  let declared: PhysicsOption;
+  }
+  let declared: PhysicsOption
   if (soft) {
-    const { stretch, bend, pressure } = unset.soft!;
+    const { stretch, bend, pressure } = unset.soft!
     declared = {
       type: soft.type,
       pins: soft.pins.length ? soft.pins : undefined,
@@ -53,7 +50,7 @@ export function savedPhysics(body: ObjectPhysics): PhysicsOption {
       pressure: kept(soft.pressure, pressure),
       damping: damping.linear === still.linear ? undefined : { linear: damping.linear },
       ...common,
-    } satisfies SoftBodyOptions;
+    } satisfies SoftBodyOptions
   } else
     declared = {
       type: type as PhysicsBodyOptions['type'],
@@ -64,7 +61,7 @@ export function savedPhysics(body: ObjectPhysics): PhysicsOption {
       damping:
         damping.linear === still.linear && damping.angular === still.angular ? undefined : damping,
       ...common,
-    } satisfies PhysicsBodyOptions;
-  for (const [name, value] of Object.entries(declared)) refuseInfinite(value, name);
-  return declared;
+    } satisfies PhysicsBodyOptions
+  for (const [name, value] of Object.entries(declared)) refuseInfinite(value, name)
+  return declared
 }

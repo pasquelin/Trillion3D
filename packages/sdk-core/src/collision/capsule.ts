@@ -1,6 +1,6 @@
-import { closestSegmentTriangle, triangleNormal } from './closest.ts';
-import { gatherTrianglesInBox, overlapsTriangle } from './triangleQuery.ts';
-import type { TriangleTree } from './triangleTree.ts';
+import { closestSegmentTriangle, triangleNormal } from './closest.ts'
+import { gatherTrianglesInBox, overlapsTriangle } from './triangleQuery.ts'
+import type { TriangleTree } from './triangleTree.ts'
 
 /**
  * AN UPRIGHT CAPSULE against a triangle tree: the narrow phase of the character body. The
@@ -13,11 +13,11 @@ import type { TriangleTree } from './triangleTree.ts';
  */
 export interface Capsule {
   /** The lowest point, world space; `push` moves it. */
-  readonly feet: Float64Array;
+  readonly feet: Float64Array
   /** Radius of the body, metres. */
-  radius: number;
+  radius: number
   /** Height from the feet to the top of the head, metres; at least two radii. */
-  height: number;
+  height: number
 }
 
 /**
@@ -26,20 +26,20 @@ export interface Capsule {
  */
 export interface CapsuleContact {
   /** Unit direction out of the surface into the capsule: the way out. */
-  readonly normal: Float64Array;
+  readonly normal: Float64Array
   /**
    * Unit normal of the surface itself, on the capsule's side. It differs from `normal` when
    * the capsule touches an edge or a corner: it says which face that edge belongs to.
    */
-  readonly surface: Float64Array;
+  readonly surface: Float64Array
   /** The touched point of the surface, world space. */
-  readonly point: Float64Array;
+  readonly point: Float64Array
   /** How far the capsule is inside the surface along `normal`, > 0. */
-  depth: number;
+  depth: number
 }
 
 /** Answers one contact, typically by moving the capsule's `feet` out of it. */
-export type CapsulePush = (contact: CapsuleContact) => void;
+export type CapsulePush = (contact: CapsuleContact) => void
 
 const segment = new Float64Array(6),
   closest = new Float64Array(6),
@@ -51,25 +51,25 @@ const segment = new Float64Array(6),
     depth: 0,
   },
   min = new Float64Array(3),
-  max = new Float64Array(3);
+  max = new Float64Array(3)
 
 /** The triangles of the last box a capsule gathered on a tree, grown by two radii past its pass's
  *  box, and that box. */
-type Gathered = { list: Int32Array; count: number; min: Float64Array; max: Float64Array };
+type Gathered = { list: Int32Array; count: number; min: Float64Array; max: Float64Array }
 
 /** Per tree and capsule, what it gathered last: the following passes of a step (and of the next
  *  frames, while the capsule stays inside) filter it instead of walking the tree again, and two
  *  capsules on one tree never take each other's box. Weak: a dropped tree or capsule takes its
  *  list with it. */
-const gathered = new WeakMap<TriangleTree, WeakMap<Capsule, Gathered>>();
+const gathered = new WeakMap<TriangleTree, WeakMap<Capsule, Gathered>>()
 
 function placeSegment(capsule: Capsule) {
   const { feet, radius } = capsule,
-    reach = Math.max(capsule.height - radius, radius);
-  segment[0] = segment[3] = feet[0];
-  segment[2] = segment[5] = feet[2];
-  segment[1] = feet[1] + radius;
-  segment[4] = feet[1] + reach;
+    reach = Math.max(capsule.height - radius, radius)
+  segment[0] = segment[3] = feet[0]
+  segment[2] = segment[5] = feet[2]
+  segment[1] = feet[1] + radius
+  segment[4] = feet[1] + reach
 }
 
 /**
@@ -78,15 +78,15 @@ function placeSegment(capsule: Capsule) {
  * can carry it.
  */
 export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsulePush) {
-  const { radius } = capsule;
-  placeSegment(capsule);
+  const { radius } = capsule
+  placeSegment(capsule)
   for (let k = 0; k < 3; k++) {
-    min[k] = Math.min(segment[k], segment[3 + k]) - 2 * radius;
-    max[k] = Math.max(segment[k], segment[3 + k]) + 2 * radius;
+    min[k] = Math.min(segment[k], segment[3 + k]) - 2 * radius
+    max[k] = Math.max(segment[k], segment[3 + k]) + 2 * radius
   }
-  let onTree = gathered.get(tree);
-  if (!onTree) gathered.set(tree, (onTree = new WeakMap()));
-  let near = onTree.get(capsule);
+  let onTree = gathered.get(tree)
+  if (!onTree) gathered.set(tree, (onTree = new WeakMap()))
+  let near = onTree.get(capsule)
   if (!near)
     onTree.set(
       capsule,
@@ -96,7 +96,7 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
         min: new Float64Array(3),
         max: new Float64Array(3),
       }),
-    );
+    )
   // Inside the gathered box (NaN never is), the list filtered by the box test is the tree's visit
   // of `[min, max]`, same triangles in the same order.
   if (!(
@@ -108,44 +108,44 @@ export function capsulePass(tree: TriangleTree, capsule: Capsule, push: CapsuleP
     max[2] <= near.max[2]
   )) {
     for (let k = 0; k < 3; k++) {
-      near.min[k] = min[k] - 2 * radius;
-      near.max[k] = max[k] + 2 * radius;
+      near.min[k] = min[k] - 2 * radius
+      near.max[k] = max[k] + 2 * radius
     }
-    near.count = gatherTrianglesInBox(tree, near.min, near.max, near);
+    near.count = gatherTrianglesInBox(tree, near.min, near.max, near)
   }
-  let touched = false;
-  const { list, count } = near;
+  let touched = false
+  const { list, count } = near
   for (let i = 0; i < count; i++) {
-    const at = list[i];
-    if (!overlapsTriangle(tree.triangles, at, min, max)) continue;
-    placeSegment(capsule);
-    const squared = closestSegmentTriangle(closest, segment, tree.triangles, at);
-    if (squared >= radius * radius) continue;
-    const depth = squared > 0 ? separate(Math.sqrt(squared), radius) : pierced(tree, at, radius);
-    if (!(depth > 0)) continue;
-    faceOf(tree, at);
-    touched = true;
-    contact.depth = depth;
-    push(contact);
+    const at = list[i]
+    if (!overlapsTriangle(tree.triangles, at, min, max)) continue
+    placeSegment(capsule)
+    const squared = closestSegmentTriangle(closest, segment, tree.triangles, at)
+    if (squared >= radius * radius) continue
+    const depth = squared > 0 ? separate(Math.sqrt(squared), radius) : pierced(tree, at, radius)
+    if (!(depth > 0)) continue
+    faceOf(tree, at)
+    touched = true
+    contact.depth = depth
+    push(contact)
   }
-  return touched;
+  return touched
 }
 
 /** The segment passes near the triangle: it leaves along the line between the two closest
  *  points, by what is missing to the radius. */
 function separate(distance: number, radius: number) {
-  for (let k = 0; k < 3; k++) normal[k] = (closest[k] - closest[3 + k]) / distance;
-  return radius - distance;
+  for (let k = 0; k < 3; k++) normal[k] = (closest[k] - closest[3 + k]) / distance
+  return radius - distance
 }
 
 /** The triangle's unit normal into `contact.surface`, turned to the capsule's side. */
 function faceOf(tree: TriangleTree, at: number) {
   const face = contact.surface,
-    length = Math.sqrt(triangleNormal(face, tree.triangles, at));
-  if (length === 0) face.set(normal);
+    length = Math.sqrt(triangleNormal(face, tree.triangles, at))
+  if (length === 0) face.set(normal)
   else {
-    const side = face[0] * normal[0] + face[1] * normal[1] + face[2] * normal[2] < 0 ? -1 : 1;
-    for (let k = 0; k < 3; k++) face[k] *= side / length;
+    const side = face[0] * normal[0] + face[1] * normal[1] + face[2] * normal[2] < 0 ? -1 : 1
+    for (let k = 0; k < 3; k++) face[k] *= side / length
   }
 }
 
@@ -154,17 +154,17 @@ function faceOf(tree: TriangleTree, at: number) {
  * side needs the shorter push — the side its ends mostly lie on.
  */
 function pierced(tree: TriangleTree, at: number, radius: number) {
-  const v = tree.triangles;
-  const length = Math.sqrt(triangleNormal(normal, v, at));
-  if (length === 0) return 0;
-  for (let k = 0; k < 3; k++) normal[k] /= length;
+  const v = tree.triangles
+  const length = Math.sqrt(triangleNormal(normal, v, at))
+  if (length === 0) return 0
+  for (let k = 0; k < 3; k++) normal[k] /= length
   const side = (s: number) =>
     (segment[s] - v[at]) * normal[0] +
     (segment[s + 1] - v[at + 1]) * normal[1] +
-    (segment[s + 2] - v[at + 2]) * normal[2];
+    (segment[s + 2] - v[at + 2]) * normal[2]
   const low = Math.min(side(0), side(3)),
-    high = Math.max(side(0), side(3));
-  if (radius - low <= radius + high) return radius - low;
-  for (let k = 0; k < 3; k++) normal[k] = -normal[k];
-  return radius + high;
+    high = Math.max(side(0), side(3))
+  if (radius - low <= radius + high) return radius - low
+  for (let k = 0; k < 3; k++) normal[k] = -normal[k]
+  return radius + high
 }

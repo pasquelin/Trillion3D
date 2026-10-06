@@ -15,15 +15,15 @@ export interface TextureFrameMetrics {
    * depends on the budget and on which lanes the scene's chains take; `textureResidentBytes` is
    * the occupied share, pinned tails included, at each lane's own texel cost.
    */
-  texturePoolBytes?: number | null;
+  texturePoolBytes?: number | null
   /** Format of the texture pool. */
-  texturePoolFormat?: string | null;
+  texturePoolFormat?: string | null
   /** Layers in the pool. */
-  texturePoolLayers?: number | null;
+  texturePoolLayers?: number | null
   /** Tiles held. */
-  textureTilesResident?: number | null;
+  textureTilesResident?: number | null
   /** Bytes held. */
-  textureResidentBytes?: number | null;
+  textureResidentBytes?: number | null
   /**
    * Image feedback: what the pixels asked for at the last sample. `textureTilesRequested`:
    * distinct named tiles; `textureTilesAtLevel`: those served at the very level the pixel
@@ -32,15 +32,15 @@ export interface TextureFrameMetrics {
    * and not yet served at the end of the pass; `textureTilesDeferred`: the share of them the
    * pass's budget pushed to the next pass, their coarser level shown meanwhile.
    */
-  textureTilesRequested?: number | null;
+  textureTilesRequested?: number | null
   /** Tiles at the level asked. */
-  textureTilesAtLevel?: number | null;
+  textureTilesAtLevel?: number | null
   /** Levels still missing. */
-  textureMissingLevels?: number | null;
+  textureMissingLevels?: number | null
   /** Tiles on their way. */
-  textureTilesPending?: number | null;
+  textureTilesPending?: number | null
   /** Tiles put off to a later frame. */
-  textureTilesDeferred?: number | null;
+  textureTilesDeferred?: number | null
   /**
    * The streamer, since the start of the session. `textureTilesServed`: tiles copied into the pool.
    * `textureTilesEvicted`: slots taken back from a less-watched tile. `textureTilesRefused`:
@@ -51,31 +51,31 @@ export interface TextureFrameMetrics {
    * its budget; `textureUploadPeakMs`: the worst budgeted pass since the start — a stutter is a
    * peak, never a median.
    */
-  textureTilesServed?: number | null;
+  textureTilesServed?: number | null
   /** Tiles removed. */
-  textureTilesEvicted?: number | null;
+  textureTilesEvicted?: number | null
   /** Tiles refused. */
-  textureTilesRefused?: number | null;
+  textureTilesRefused?: number | null
   /** Bytes sent last frame. */
-  textureBytesLastFrame?: number | null;
+  textureBytesLastFrame?: number | null
   /** Time spent sending tiles. */
-  textureUploadMs?: number | null;
+  textureUploadMs?: number | null
   /** Longest send in one frame. */
-  textureUploadPeakMs?: number | null;
+  textureUploadPeakMs?: number | null
   /**
    * The sources. `textureLevelReads`: baked levels being read in the cache. `textureLevelsDecoded`:
    * baked levels decoded since the start. `textureLevelCacheBytes`: host bytes of decoded
    * levels held to cut further tiles from them, within the CPU total. `textureScratchBuilds`:
    * work textures built for a texture without a baked chain, the whole source each time.
    */
-  textureLevelReads?: number | null;
+  textureLevelReads?: number | null
   /** Levels decoded. */
-  textureLevelsDecoded?: number | null;
+  textureLevelsDecoded?: number | null
   /** Bytes of decoded levels kept. */
-  textureLevelCacheBytes?: number | null;
+  textureLevelCacheBytes?: number | null
   /** Scratch textures built. */
-  textureScratchBuilds?: number | null;
+  textureScratchBuilds?: number | null
   /** Bytes the live textures keep: one working texture each, of its own size. Deducted from
    *  `texturePoolBytes`. */
-  textureLiveBytes?: number | null;
+  textureLiveBytes?: number | null
 }

@@ -1,4 +1,4 @@
-import type { ExportEntry, ExportRow } from './sdk-api-model.ts';
+import type { ExportEntry, ExportRow } from './sdk-api-model.ts'
 
 function gap(
   name: string,
@@ -15,12 +15,12 @@ function gap(
     identity: `documented:${module}:${name}`,
     disposition: 'newly exposed',
     consumers: [consumer],
-  };
+  }
 }
 
-const CAMERA = 'site/content/entries/camera.ts';
-const ENUMS = 'site/content/entries/enumsRuntime.ts';
-const MATRIX = 'site/content/entries/matrix.ts';
+const CAMERA = 'site/content/entries/camera.ts'
+const ENUMS = 'site/content/entries/enumsRuntime.ts'
+const MATRIX = 'site/content/entries/matrix.ts'
 
 export const DOCUMENTED_GAPS: ExportRow[] = [
   gap('CameraOptics', 'type', 'packages/sdk-browser/src/camera/engineCamera.ts', 'browser', CAMERA),
@@ -85,4 +85,4 @@ export const DOCUMENTED_GAPS: ExportRow[] = [
     'browser',
     CAMERA,
   ),
-];
+]

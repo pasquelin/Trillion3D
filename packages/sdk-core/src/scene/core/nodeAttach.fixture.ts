@@ -5,9 +5,9 @@ export function mismatch(
   expected: ArrayLike<number>,
   tolerance = 1e-12,
 ) {
-  if (actual.length !== expected.length) return `length ${actual.length} vs ${expected.length}`;
+  if (actual.length !== expected.length) return `length ${actual.length} vs ${expected.length}`
   for (let i = 0; i < expected.length; i++)
     if (!(Math.abs(actual[i] - expected[i]) <= tolerance))
-      return `[${i}]: ${actual[i]} vs ${expected[i]}`;
-  return null;
+      return `[${i}]: ${actual[i]} vs ${expected[i]}`
+  return null
 }

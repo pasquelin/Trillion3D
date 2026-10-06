@@ -1,7 +1,7 @@
 // The kernel's verdict on a cut node and its floor, in JavaScript over the frames of `math.fixture.ts`.
-import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
-import { errorFloorAt, viewDepthOf } from '../../../page/selection/projection.ts';
-import { DAG_NODE_FLOATS } from '../types.ts';
+import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
+import { errorFloorAt, viewDepthOf } from '../../../page/selection/projection.ts'
+import { DAG_NODE_FLOATS } from '../types.ts'
 import {
   NODE_CEIL,
   NODE_CHILD_COUNT,
@@ -12,8 +12,8 @@ import {
   NODE_OPEN,
   NODE_SPHERE,
   NODE_WORLD,
-} from '../nodeLayout.ts';
-import { projectedError, type DagViewFrames } from './math.fixture.ts';
+} from '../nodeLayout.ts'
+import { projectedError, type DagViewFrames } from './math.fixture.ts'
 
 /** Kernel verdict on a cut node (`../shader/levelWgsl.ts`, `levelStep`): `-1` rejected —
  *  outside the trunk, or whose subtree replacement is not yet too coarse —, otherwise
@@ -25,7 +25,7 @@ export function dagNodeVerdict(
   n: number,
 ) {
   const base = n * DAG_NODE_FLOATS,
-    w = ints[base + NODE_WORLD];
+    w = ints[base + NODE_WORLD]
   if (
     frustumExcludesBox(
       f.planes[w],
@@ -37,8 +37,8 @@ export function dagNodeVerdict(
       nodes[base + NODE_MAX + 2],
     )
   )
-    return -1;
-  const ceil = nodes[base + NODE_CEIL];
+    return -1
+  const ceil = nodes[base + NODE_CEIL]
   if (
     ceil >= 0 &&
     projectedError(
@@ -54,8 +54,8 @@ export function dagNodeVerdict(
       f.perspective,
     ) <= f.pixelError
   )
-    return -1;
-  return ints[base + NODE_CHILD_COUNT];
+    return -1
+  return ints[base + NODE_CHILD_COUNT]
 }
 
 /**
@@ -71,8 +71,8 @@ export function dagNodeFloor(
   n: number,
 ) {
   const base = n * DAG_NODE_FLOATS,
-    w = ints[base + NODE_WORLD];
-  if (ints[base + NODE_OPEN] !== 0) return 0;
+    w = ints[base + NODE_WORLD]
+  if (ints[base + NODE_OPEN] !== 0) return 0
   return errorFloorAt(
     nodes[base + NODE_FLOOR],
     viewDepthOf(
@@ -85,5 +85,5 @@ export function dagNodeFloor(
     f.stretches[w],
     f.focal,
     f.perspective,
-  );
+  )
 }

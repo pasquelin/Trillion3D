@@ -5,15 +5,15 @@ import {
   perspectiveProjection,
   updateCameraFrame,
   type CameraFrame,
-} from '../../../sdk-core/src/index.ts';
-import { drawnView } from '../../../sdk-core/src/math/primitives/camera.ts';
+} from '../../../sdk-core/src/index.ts'
+import { drawnView } from '../../../sdk-core/src/math/primitives/camera.ts'
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,
   updateRenderOriginFrame,
   type RenderOriginFrame,
-} from './renderOrigin.ts';
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+} from './renderOrigin.ts'
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
 
 /**
  * The engine camera: the numbers of a frame, in owned buffers rewritten in place.
@@ -22,69 +22,69 @@ import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
  */
 export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** World matrix of the camera, column-major. */
-  world: Float64Array;
+  world: Float64Array
   /** Engine projection, composed from the optics the host declared: reversed depth, infinite
    *  far plane (`depthConvention.ts`). This is NOT the host camera's matrix. */
-  projection: Float64Array;
+  projection: Float64Array
   /** Eye position in the world: the translation of `world`. It is not named `position`,
    *  which everywhere else means the LOCAL pose the contract forbids reading. */
-  eye: Float64Array;
+  eye: Float64Array
   /** Nearest distance drawn. */
-  near: number;
+  near: number
   /** Farthest distance drawn. */
-  far: number;
+  far: number
   /** Vertical field in degrees and aspect ratio, as the host declares them. */
-  fov: number;
+  fov: number
   /** Width over height. */
-  aspect: number;
+  aspect: number
   /** The projection's clip-w weight: a point at view depth d has w = perspective·d +
    *  (1 − perspective) — 1 under a perspective projection, 0 under an orthographic one. What
    *  a screen error divides by (`screenErrorBound.ts`). */
-  perspective: number;
+  perspective: number
   /** The camera as ONE homogeneous point: `(eye, 1)` under a perspective projection, `(back, 0)`
    *  — the unit direction toward the camera — under an orthographic one. The vector from a
    *  point P toward the camera is `viewPoint.xyz − P·viewPoint.w` for both: the view vector of
    *  the shading and the normal-cone test read it, never the eye alone. */
-  viewPoint: Float64Array;
+  viewPoint: Float64Array
 }
 
 /** The box an orthographic camera sees, in its own frame, before its zoom. */
 export type OrthographicBox = {
-  /** Left edge. */ left: number;
-  /** Right edge. */ right: number;
-  /** Top edge. */ top: number;
-  /** Bottom edge. */ bottom: number;
+  /** Left edge. */ left: number
+  /** Right edge. */ right: number
+  /** Top edge. */ top: number
+  /** Bottom edge. */ bottom: number
   /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
-  fitAspect?: boolean;
-};
-const seen = new Float64Array(4);
+  fitAspect?: boolean
+}
+const seen = new Float64Array(4)
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
   /** Field of view, in degrees. */
-  fov: number;
+  fov: number
   /** Width over height. */
-  aspect: number;
+  aspect: number
   /** Nearest distance drawn. */
-  near: number;
+  near: number
   /** Farthest distance drawn. */
-  far: number;
+  far: number
   /** Magnification. */
-  zoom: number;
+  zoom: number
   /** The view box of an orthographic camera. */
-  orthographic?: OrthographicBox | null;
+  orthographic?: OrthographicBox | null
   /** A tile of a wider view this camera draws. Absent draws the view whole. */
   viewTile?: {
-    /** Scale of the x axis: the full view's pixels over the tile's. */ scaleX: number;
-    /** Scale of the y axis, equal to `scaleX`: a tile's pixels are square. */ scaleY: number;
-    /** NDC shift after the scale, the tile's centre onto its target's. */ offsetX: number;
-    /** NDC shift along y, as `offsetX` along x. */ offsetY: number;
-  } | null;
-};
+    /** Scale of the x axis: the full view's pixels over the tile's. */ scaleX: number
+    /** Scale of the y axis, equal to `scaleX`: a tile's pixels are square. */ scaleY: number
+    /** NDC shift after the scale, the tile's centre onto its target's. */ offsetX: number
+    /** NDC shift along y, as `offsetX` along x. */ offsetY: number
+  } | null
+}
 /** A sub-rectangle of a wider view drawn into a target of its own (#1281). */
-export type ViewTile = NonNullable<CameraOptics['viewTile']>;
+export type ViewTile = NonNullable<CameraOptics['viewTile']>
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
-const DEFAULT_OPTICS: CameraOptics = { fov: 50, aspect: 1, near: 0.1, far: 2000, zoom: 1 };
+const DEFAULT_OPTICS: CameraOptics = { fov: 50, aspect: 1, near: 0.1, far: 2000, zoom: 1 }
 /** A new engine camera at its default pose and optics. */
 export function createEngineCamera(): EngineCamera {
   return {
@@ -99,7 +99,7 @@ export function createEngineCamera(): EngineCamera {
     aspect: 1,
     perspective: 1,
     viewPoint: new Float64Array(4),
-  };
+  }
 }
 
 /**
@@ -110,26 +110,25 @@ export function createEngineCamera(): EngineCamera {
  * frustum far plane); it enters no depth.
  */
 export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): EngineCamera {
-  into.near = optics.near;
-  into.far = optics.far;
-  into.fov = optics.fov;
-  into.aspect = optics.aspect;
-  const box = optics.orthographic;
+  into.near = optics.near
+  into.far = optics.far
+  into.fov = optics.fov
+  into.aspect = optics.aspect
+  const box = optics.orthographic
   if (box) {
-    const [x, y, w, h] = drawnView(box, optics.aspect, optics.zoom || 1, seen);
-    orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far);
-  } else
-    perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom);
-  applyViewTile(into.projection, optics.viewTile, box);
-  updateCameraFrame(into, into.projection, into.world, into.far);
+    const [x, y, w, h] = drawnView(box, optics.aspect, optics.zoom || 1, seen)
+    orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far)
+  } else perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom)
+  applyViewTile(into.projection, optics.viewTile, box)
+  updateCameraFrame(into, into.projection, into.world, into.far)
   // The render frame is set here, in the same pass: what leaves in single precision will read
   // the view without translation, never an absolute view accompanied by relative worlds.
-  updateRenderOriginFrame(into, into.view, into.projection, into.far);
-  into.eye[0] = into.world[12];
-  into.eye[1] = into.world[13];
-  into.eye[2] = into.world[14];
-  writeViewPoint(into, box ? 0 : 1);
-  return into;
+  updateRenderOriginFrame(into, into.view, into.projection, into.far)
+  into.eye[0] = into.world[12]
+  into.eye[1] = into.world[13]
+  into.eye[2] = into.world[14]
+  writeViewPoint(into, box ? 0 : 1)
+  return into
 }
 
 /** Scales and shifts `projection` so a tile of a wider view fills its target (#1281). */
@@ -138,17 +137,17 @@ function applyViewTile(
   tile: ViewTile | null | undefined,
   orthographic: OrthographicBox | null | undefined,
 ) {
-  if (!tile) return;
-  const { scaleX, scaleY, offsetX, offsetY } = tile;
-  projection[0] *= scaleX;
-  projection[5] *= scaleY;
+  if (!tile) return
+  const { scaleX, scaleY, offsetX, offsetY } = tile
+  projection[0] *= scaleX
+  projection[5] *= scaleY
   // A perspective column 2 is read at w = −z, so takes +offset; an orthographic one at w = 1, −.
   if (orthographic) {
-    projection[12] = projection[12] * scaleX - offsetX;
-    projection[13] = projection[13] * scaleY - offsetY;
+    projection[12] = projection[12] * scaleX - offsetX
+    projection[13] = projection[13] * scaleY - offsetY
   } else {
-    projection[8] = projection[8] * scaleX + offsetX;
-    projection[9] = projection[9] * scaleY + offsetY;
+    projection[8] = projection[8] * scaleX + offsetX
+    projection[9] = projection[9] * scaleY + offsetY
   }
 }
 
@@ -157,23 +156,23 @@ function applyViewTile(
 function writeViewPoint(into: EngineCamera, perspective: number) {
   const w = into.world,
     length = hypot3(w[8], w[9], w[10]) || 1,
-    flat = (1 - perspective) / length;
-  into.perspective = perspective;
+    flat = (1 - perspective) / length
+  into.perspective = perspective
   for (let axis = 0; axis < 3; axis++)
-    into.viewPoint[axis] = into.eye[axis] * perspective + w[8 + axis] * flat;
-  into.viewPoint[3] = perspective;
+    into.viewPoint[axis] = into.eye[axis] * perspective + w[8 + axis] * flat
+  into.viewPoint[3] = perspective
 }
 
-let defaultEngine: EngineCamera | undefined;
+let defaultEngine: EngineCamera | undefined
 /** Engine camera at the origin with `DEFAULT_OPTICS`: the fallback of oracles the host calls
  *  before the first frame, where the engine has not yet copied any camera. */
 export function defaultEngineCamera() {
   if (!defaultEngine) {
-    defaultEngine = createEngineCamera();
-    defaultEngine.world.set(IDENTITY_MATRIX4);
-    writeEngineCamera(defaultEngine, DEFAULT_OPTICS);
+    defaultEngine = createEngineCamera()
+    defaultEngine.world.set(IDENTITY_MATRIX4)
+    writeEngineCamera(defaultEngine, DEFAULT_OPTICS)
   }
-  return defaultEngine;
+  return defaultEngine
 }
 
 /**
@@ -183,18 +182,18 @@ export function defaultEngineCamera() {
  * derived matrices are already set on the source.
  */
 export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineCamera {
-  into.world.set(from.world);
-  into.projection.set(from.projection);
-  into.view.set(from.view);
-  into.viewProjection.set(from.viewProjection);
-  into.planes.set(from.planes);
-  holdRenderOriginFrame(into, from);
-  into.eye.set(from.eye);
-  into.near = from.near;
-  into.far = from.far;
-  into.fov = from.fov;
-  into.aspect = from.aspect;
-  into.perspective = from.perspective;
-  into.viewPoint.set(from.viewPoint);
-  return into;
+  into.world.set(from.world)
+  into.projection.set(from.projection)
+  into.view.set(from.view)
+  into.viewProjection.set(from.viewProjection)
+  into.planes.set(from.planes)
+  holdRenderOriginFrame(into, from)
+  into.eye.set(from.eye)
+  into.near = from.near
+  into.far = from.far
+  into.fov = from.fov
+  into.aspect = from.aspect
+  into.perspective = from.perspective
+  into.viewPoint.set(from.viewPoint)
+  return into
 }

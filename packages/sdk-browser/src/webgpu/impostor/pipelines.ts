@@ -1,8 +1,8 @@
-import { core } from '../../impostor/borrowed.ts';
-import { cardPassWgsl } from './cardWgsl.ts';
+import { core } from '../../impostor/borrowed.ts'
+import { cardPassWgsl } from './cardWgsl.ts'
 
 /** The pass label the GPU timings and the tests name the card surfaces by. */
-export const IMPOSTOR_PASS = 'Trillion3D impostor cards';
+export const IMPOSTOR_PASS = 'Trillion3D impostor cards'
 
 /**
  * The card pipelines (#1335) and their two group layouts: the image's (view uniform, card records)
@@ -13,14 +13,14 @@ export const IMPOSTOR_PASS = 'Trillion3D impostor cards';
  */
 async function makeCardPipelines(device: GPUDevice) {
   const FRAGMENT = GPUShaderStage.FRAGMENT,
-    VERTEX = GPUShaderStage.VERTEX;
+    VERTEX = GPUShaderStage.VERTEX
   const imageLayout = device.createBindGroupLayout({
     label: 'Trillion3D impostor image',
     entries: [
       { binding: 0, visibility: VERTEX | FRAGMENT, buffer: { type: 'uniform' } },
       { binding: 1, visibility: VERTEX | FRAGMENT, buffer: { type: 'read-only-storage' } },
     ],
-  });
+  })
   const atlasLayout = device.createBindGroupLayout({
     label: 'Trillion3D impostor atlas',
     entries: [
@@ -31,9 +31,9 @@ async function makeCardPipelines(device: GPUDevice) {
       })),
       { binding: 3, visibility: FRAGMENT, sampler: { type: 'filtering' as const } },
     ],
-  });
-  const module = device.createShaderModule({ label: IMPOSTOR_PASS, code: cardPassWgsl() });
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, atlasLayout] });
+  })
+  const module = device.createShaderModule({ label: IMPOSTOR_PASS, code: cardPassWgsl() })
+  const layout = device.createPipelineLayout({ bindGroupLayouts: [imageLayout, atlasLayout] })
   const make = (
     label: string,
     entryPoint: string,
@@ -47,14 +47,14 @@ async function makeCardPipelines(device: GPUDevice) {
       fragment: { module, entryPoint, targets },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil,
-    });
+    })
   const visibility = (hiz: boolean) =>
     make(
       `${IMPOSTOR_PASS} visibility`,
       hiz ? 'card_vis_hiz_fs' : 'card_vis_fs',
       core.visTargets(hiz),
       core.VIS_DEPTH,
-    );
+    )
   // Compiled together, off the thread (#1362).
   const [pipeline, ids, hiz] = await Promise.all([
     make(
@@ -69,20 +69,20 @@ async function makeCardPipelines(device: GPUDevice) {
     ),
     visibility(false),
     visibility(true),
-  ]);
+  ])
   return {
     imageLayout,
     atlasLayout,
     pipeline,
     /** The visibility stage's pipeline, with the pyramid's level 0 when `hiz`. */
     visPipeline: (withHiz: boolean) => (withHiz ? hiz : ids),
-  };
+  }
 }
 
-const checked = new WeakMap<GPUDevice, Awaited<ReturnType<typeof makeCardPipelines>>>();
+const checked = new WeakMap<GPUDevice, Awaited<ReturnType<typeof makeCardPipelines>>>()
 
 /** The device's card pipelines, those its prepare checked (`prepareImpostorPipelines`). */
-export const cardPipelines = (device: GPUDevice) => checked.get(device)!;
+export const cardPipelines = (device: GPUDevice) => checked.get(device)!
 
 /**
  * THE CARD PIPELINES CHECKED BEFORE THE FIRST IMAGE (#1336): compiled under the device's validation
@@ -96,10 +96,10 @@ export async function prepareImpostorPipelines(
   onFailure: (phase: string, error: unknown) => void,
 ) {
   try {
-    checked.set(device, await core.scoped(device, () => makeCardPipelines(device)));
-    return true;
+    checked.set(device, await core.scoped(device, () => makeCardPipelines(device)))
+    return true
   } catch (error) {
-    onFailure('impostor-card-program-failed', error);
-    return false;
+    onFailure('impostor-card-program-failed', error)
+    return false
   }
 }

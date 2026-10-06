@@ -30,14 +30,14 @@ const WGSL_OWN = new Set(
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
     'trunc unpack2x16float unpack2x16snorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
-);
+)
 
 /** Every name the module declares: its functions, structures, aliases, constants and variables,
  *  module-scope or local, and, once member names and case colons are gone, every name a type
  *  follows — a parameter or a typed declaration. */
 function declaredNames(code: string) {
-  const declares = /\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)|(\w+)\s*:/g;
-  return new Set([...code.matchAll(declares)].map((m) => m[1] ?? m[2]));
+  const declares = /\b(?:fn|struct|alias|const|let|var(?:\s*<[^>]*>)?|override)\s+(\w+)|(\w+)\s*:/g
+  return new Set([...code.matchAll(declares)].map((m) => m[1] ?? m[2]))
 }
 
 /** The names `source` uses and declares nowhere, sorted: comments, directives (`enable`,
@@ -50,12 +50,12 @@ export function unresolvedNames(source: string) {
     .replace(/\b(?:enable|requires)\s[^;]*;|^diagnostic\s*\([^()]*\);/gm, '')
     .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)|@\w+/g, '')
     .replace(/(\bstruct\s+\w+\s*\{)([^}]*)\}/g, (_, head: string, body: string) => {
-      return `${head}${body.replace(/\w+\s*:/g, ':')}}`;
+      return `${head}${body.replace(/\w+\s*:/g, ':')}}`
     })
-    .replace(/\b(case\b[^:{]*|default\s*):/g, '$1');
-  const declared = declaredNames(code);
-  const used = new Set([...code.matchAll(/(?<![\w.])([A-Za-z_]\w*)/g)].map((m) => m[1]));
-  return [...used].filter((name) => !declared.has(name) && !WGSL_OWN.has(name)).sort();
+    .replace(/\b(case\b[^:{]*|default\s*):/g, '$1')
+  const declared = declaredNames(code)
+  const used = new Set([...code.matchAll(/(?<![\w.])([A-Za-z_]\w*)/g)].map((m) => m[1]))
+  return [...used].filter((name) => !declared.has(name) && !WGSL_OWN.has(name)).sort()
 }
 
 /** The words WGSL reserves for later use, which no name may be: a device refuses a module that
@@ -77,7 +77,7 @@ const WGSL_RESERVED = new Set(
     'union unless unorm unsafe unsized use using varying virtual volatile wgsl where with ' +
     'writeonly yield'
   ).split(/\s+/),
-);
+)
 
 /** The reserved words (`WGSL_RESERVED`) `source` takes as names, sorted: a device refuses the
  *  module (`'from' is a reserved keyword`). Comments, directives and the arguments of built-in,
@@ -86,9 +86,9 @@ export function reservedNames(source: string) {
   const code = source
     .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
     .replace(/\b(?:enable|requires)\s[^;]*;|^diagnostic\s*\([^()]*\);/gm, '')
-    .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)/g, '');
-  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]));
-  return [...names].filter((name) => WGSL_RESERVED.has(name)).sort();
+    .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)/g, '')
+  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
+  return [...names].filter((name) => WGSL_RESERVED.has(name)).sort()
 }
 
 /** The words GLSL ES 3.00 reserves for future use, which a WebGL2 shader may not name: a compiler
@@ -107,12 +107,12 @@ const GLSL_ES_RESERVED = new Set(
     'usamplerBuffer sampler2DMS isampler2DMS usampler2DMS sampler2DMSArray isampler2DMSArray ' +
     'usampler2DMSArray sizeof cast namespace using'
   ).split(/\s+/),
-);
+)
 
 /** The reserved words (`GLSL_ES_RESERVED`) a GLSL text takes as names, sorted; comments and
  *  preprocessor lines are none. */
 export function glslReservedNames(source: string) {
-  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$|^\s*#.*$/gm, '');
-  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]));
-  return [...names].filter((name) => GLSL_ES_RESERVED.has(name)).sort();
+  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$|^\s*#.*$/gm, '')
+  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
+  return [...names].filter((name) => GLSL_ES_RESERVED.has(name)).sort()
 }

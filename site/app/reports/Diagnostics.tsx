@@ -1,20 +1,20 @@
-import { useWords } from '../i18n.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { readingName } from './model/presentation.ts';
-import { DIAGNOSTICS, diagnosticValue } from './model/diagnostics.ts';
-import { formatValue } from './model/metrics.ts';
-import type { ReportRecord } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { readingName } from './model/presentation.ts'
+import { DIAGNOSTICS, diagnosticValue } from './model/diagnostics.ts'
+import { formatValue } from './model/metrics.ts'
+import type { ReportRecord } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface DiagnosticsProps {
-  a: ReportRecord;
-  b?: ReportRecord | null;
-  locale: Locale;
+  a: ReportRecord
+  b?: ReportRecord | null
+  locale: Locale
 }
 
 export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   return (
     <>
       {DIAGNOSTICS.map((group) => (
@@ -49,5 +49,5 @@ export function Diagnostics({ a, b, locale }: DiagnosticsProps) {
         </Section>
       ))}
     </>
-  );
+  )
 }

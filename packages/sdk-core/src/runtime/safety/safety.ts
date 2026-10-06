@@ -1,54 +1,54 @@
-import { judgeEvidence } from './safetyEvidence.ts';
+import { judgeEvidence } from './safetyEvidence.ts'
 /** How much of the engine a machine may run: everything, a reduced set, or the basics. */
-export type CapabilityTier = 'full' | 'degraded' | 'baseline';
+export type CapabilityTier = 'full' | 'degraded' | 'baseline'
 /** What the safety policy decided, and why. */
 export interface SafetyDecision {
   /** The level granted. */
-  tier: CapabilityTier;
+  tier: CapabilityTier
   /** Whether the feature is on. */
-  enabled: boolean;
+  enabled: boolean
   /** Why. */
-  reason: string;
+  reason: string
   /** When it last changed. */
-  changedAt: number;
+  changedAt: number
   /** How many times it changed. */
-  revision: number;
+  revision: number
 }
 /** What a feature cost, measured on this machine. */
 export interface MeasuredCosts {
   /** Where it was measured. */
-  contextKey: string;
+  contextKey: string
   /** Always `'measured'`: never a guess. */
-  provenance: 'measured';
+  provenance: 'measured'
   /** CPU time. */
-  cpuMs: number;
+  cpuMs: number
   /** GPU time. */
-  gpuMs: number | null;
+  gpuMs: number | null
   /** Delay it added. */
-  latencyMs: number;
+  latencyMs: number
   /** Memory it used. */
-  memoryBytes: number | null;
+  memoryBytes: number | null
   /** Evictions it caused per second. */
-  evictionsPerSecond: number | null;
+  evictionsPerSecond: number | null
 }
 /** When the safety policy turns a feature off or back on. */
 export interface SafetyConfig {
   /** Samples needed before deciding. */
-  minimumSamples: number;
+  minimumSamples: number
   /** Shortest time between two changes. */
-  minimumPeriodMs: number;
+  minimumPeriodMs: number
   /** Cost ratio that turns it off. */
-  disableRatio: number;
+  disableRatio: number
   /** Cost ratio that turns it back on. */
-  enableRatio: number;
+  enableRatio: number
   /** Bad samples in a row before turning off. */
-  consecutiveViolations: number;
+  consecutiveViolations: number
   /** Memory ceiling, finite and at least 0. */
-  memoryBudgetBytes?: number;
+  memoryBudgetBytes?: number
   /** Eviction ceiling per second, finite and at least 0. */
-  maxEvictionsPerSecond?: number;
+  maxEvictionsPerSecond?: number
   /** Whether GPU time must be measured. */
-  requireGpuTiming?: boolean;
+  requireGpuTiming?: boolean
 }
 /** Policy evaluates evidence; it never fabricates a reference or samples a clock itself. */
 export function createSafetyPolicy(config: SafetyConfig) {
@@ -67,7 +67,7 @@ export function createSafetyPolicy(config: SafetyConfig) {
       (ceiling) => ceiling === undefined || (Number.isFinite(ceiling) && ceiling >= 0),
     )
   )
-    throw new Error('INVALID_SAFETY_POLICY');
+    throw new Error('INVALID_SAFETY_POLICY')
   let decision: SafetyDecision = {
       tier: 'baseline',
       enabled: false,
@@ -77,7 +77,7 @@ export function createSafetyPolicy(config: SafetyConfig) {
     },
     good = 0,
     bad = 0,
-    lastTime = -Infinity;
+    lastTime = -Infinity
   // Each reason belongs to one state (only the benefit reason is enabled): comparing reasons is enough.
   const transition = (enabled: boolean, reason: string, now: number) => {
     if (decision.reason !== reason)
@@ -87,38 +87,38 @@ export function createSafetyPolicy(config: SafetyConfig) {
         reason,
         changedAt: now,
         revision: decision.revision + 1,
-      };
-    return decision;
-  };
+      }
+    return decision
+  }
   return {
     getDecision: () => decision,
     trip(reason: 'error' | 'oom' | 'device-lost' | 'thrashing' | 'quality-failed', now: number) {
-      if (!Number.isFinite(now) || now < lastTime) throw new Error('INVALID_CLOCK');
-      lastTime = now;
-      good = bad = 0;
-      return transition(false, `Circuit breaker: ${reason}`, now);
+      if (!Number.isFinite(now) || now < lastTime) throw new Error('INVALID_CLOCK')
+      lastTime = now
+      good = bad = 0
+      return transition(false, `Circuit breaker: ${reason}`, now)
     },
     observe(reference: MeasuredCosts, candidate: MeasuredCosts, now: number) {
-      if (!Number.isFinite(now) || now < lastTime) throw new Error('INVALID_CLOCK');
-      lastTime = now;
-      const verdict = judgeEvidence(reference, candidate, config);
+      if (!Number.isFinite(now) || now < lastTime) throw new Error('INVALID_CLOCK')
+      lastTime = now
+      const verdict = judgeEvidence(reference, candidate, config)
       if ('veto' in verdict) {
-        good = bad = 0;
-        return transition(false, verdict.veto, now);
+        good = bad = 0
+        return transition(false, verdict.veto, now)
       }
-      const { harmful, beneficial } = verdict;
-      bad = harmful ? bad + 1 : 0;
-      good = beneficial ? good + 1 : 0;
-      if (now - decision.changedAt < config.minimumPeriodMs) return decision;
+      const { harmful, beneficial } = verdict
+      bad = harmful ? bad + 1 : 0
+      good = beneficial ? good + 1 : 0
+      if (now - decision.changedAt < config.minimumPeriodMs) return decision
       if (decision.enabled && bad >= config.consecutiveViolations) {
-        bad = good = 0;
-        return transition(false, 'Measured cost exceeds reference', now);
+        bad = good = 0
+        return transition(false, 'Measured cost exceeds reference', now)
       }
       if (!decision.enabled && good >= config.minimumSamples) {
-        bad = good = 0;
-        return transition(true, 'Measured benefit within configured budgets', now);
+        bad = good = 0
+        return transition(true, 'Measured benefit within configured budgets', now)
       }
-      return decision;
+      return decision
     },
-  };
+  }
 }

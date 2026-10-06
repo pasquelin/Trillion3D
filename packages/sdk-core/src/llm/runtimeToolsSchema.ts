@@ -1,13 +1,13 @@
-import type { Trillion3dTool } from './types.ts';
-import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts';
-import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts';
-import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts';
+import type { Trillion3dTool } from './types.ts'
+import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
+import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts'
+import { DIAGNOSTICS, type DiagnosticMode } from '../runtime/diagnostics.ts'
 
 /** The view modes this engine can show: the others `setDiagnostic` refuses. Pure, so a bundle
  *  that never reads the tools drops it. */
 const AVAILABLE_DIAGNOSTICS = /* @__PURE__ */ (Object.keys(DIAGNOSTICS) as DiagnosticMode[]).filter(
   (mode) => DIAGNOSTICS[mode].available,
-);
+)
 
 /**
  * Complete catalog of tools and runtime functions available to control Trillion3D from an LLM.
@@ -175,4 +175,4 @@ export const TRILLION3D_RUNTIME_TOOLS: Trillion3dTool[] = [
       additionalProperties: false,
     },
   },
-];
+]

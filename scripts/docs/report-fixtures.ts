@@ -1,7 +1,7 @@
-import { REPORT_VERSION } from '../../site/app/reports/model/contract.ts';
-import type { Report, ReportRecord } from '../../site/app/reports/model/types.ts';
+import { REPORT_VERSION } from '../../site/app/reports/model/contract.ts'
+import type { Report, ReportRecord } from '../../site/app/reports/model/types.ts'
 
-type ReportRun = Report['runs'][number];
+type ReportRun = Report['runs'][number]
 
 /** A minimal but complete run, for tests that only care about a couple of its fields. */
 export const baseRun: ReportRun = {
@@ -13,7 +13,7 @@ export const baseRun: ReportRun = {
   startedAt: null,
   finishedAt: null,
   commit: null,
-};
+}
 
 /** A minimal but complete record, satisfying `ReportRecord`'s full shape so tests can spread
  * it and override only the handful of fields the component under test actually reads. */
@@ -42,11 +42,11 @@ export const baseRecord: ReportRecord = {
   identicalCut: null,
   data: {},
   image: null,
-};
+}
 
 export const baseReport: Report = {
   formatVersion: REPORT_VERSION,
   id: 'report',
   runs: [],
   records: [],
-};
+}

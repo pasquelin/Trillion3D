@@ -4,7 +4,7 @@
 // makes one chunk of it. A session that deforms awaits it at prepare (`prepare.ts`). The records a
 // session keeps (`session.ts`) and WebGL2's deformation, which its one cluster program compiles
 // for every scene (`../webgl/cluster/shaders.ts`), stay in the core.
-export { createDeformationCompute } from './compute.ts';
-export { updateWebgpuDeformation } from './webgpuFrame.ts';
-export { encodeDeformation } from './encode.ts';
-export { wholeDeformationPool } from './wholePool.ts';
+export { createDeformationCompute } from './compute.ts'
+export { updateWebgpuDeformation } from './webgpuFrame.ts'
+export { encodeDeformation } from './encode.ts'
+export { wholeDeformationPool } from './wholePool.ts'

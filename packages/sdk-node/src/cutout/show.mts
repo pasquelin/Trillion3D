@@ -1,12 +1,12 @@
-import { writeFile, mkdir, access, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { dirname, join, basename } from 'node:path';
-import type { CutoutModel, CutoutReviewOptions } from '../compiler/contracts.ts';
-import type { PendingCutout } from './sheet.mts';
-import { alphaOf, embeddedImages, type EmbeddedImages, type Thumbnail } from './thumb.mts';
-import { drawFile, drawThumbnail, link, type ImageKind } from './draw.mts';
-import { encodePng } from './png.mts';
-import { type Answer, answerOf } from './answer.mts';
+import { writeFile, mkdir, access, readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join, basename } from 'node:path'
+import type { CutoutModel, CutoutReviewOptions } from '../compiler/contracts.ts'
+import type { PendingCutout } from './sheet.mts'
+import { alphaOf, embeddedImages, type EmbeddedImages, type Thumbnail } from './thumb.mts'
+import { drawFile, drawThumbnail, link, type ImageKind } from './draw.mts'
+import { encodePng } from './png.mts'
+import { type Answer, answerOf } from './answer.mts'
 
 /**
  * What the two words mean, recalled before the first question and on demand.
@@ -20,7 +20,7 @@ export const LEGENDE = [
   '  in the black-and-white picture, almost everything is white or black; grey follows only the edge.',
   '  A BLEND lets light through everywhere: it is grey across its whole surface.',
   '  When in doubt, answer blend: nothing changes.',
-];
+]
 
 /**
  * The picture to show and to offer, sharpest first: the texture's own file when the scene links one,
@@ -37,34 +37,34 @@ export async function pictureOf(
   thumbnail: Thumbnail | undefined,
   embedded: EmbeddedImages,
 ): Promise<string | null> {
-  const source = join(dirname(model.source), pending.image);
+  const source = join(dirname(model.source), pending.image)
   if (
     await access(source).then(
       () => true,
       () => false,
     )
   )
-    return source;
+    return source
   // Image bytes are opened only for an EMBEDDED texture, never for a scene that links its files:
   // a model's `source.bin` weighs tens of megabytes.
   const own =
-    thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail, embedded);
-  const bytes = own ?? (thumbnail && encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba));
-  if (!bytes) return null;
-  const directory = join(tmpdir(), 'trillion3d-decoupes');
-  await mkdir(directory, { recursive: true });
-  const target = join(directory, `${pending.sha256.slice(0, 16)}.png`);
-  await writeFile(target, bytes);
-  return target;
+    thumbnail?.sourceBufferView === undefined ? null : await embeddedOf(model, thumbnail, embedded)
+  const bytes = own ?? (thumbnail && encodePng(thumbnail.width, thumbnail.height, thumbnail.rgba))
+  if (!bytes) return null
+  const directory = join(tmpdir(), 'trillion3d-decoupes')
+  await mkdir(directory, { recursive: true })
+  const target = join(directory, `${pending.sha256.slice(0, 16)}.png`)
+  await writeFile(target, bytes)
+  return target
 }
 
 async function embeddedOf(model: CutoutModel, thumbnail: Thumbnail, embedded: EmbeddedImages) {
-  let images = embedded.get(model.cache);
+  let images = embedded.get(model.cache)
   if (!images) {
-    images = embeddedImages(model.cache, model.scope);
-    embedded.set(model.cache, images);
+    images = embeddedImages(model.cache, model.scope)
+    embedded.set(model.cache, images)
   }
-  return (await images)(thumbnail.sourceBufferView ?? -1);
+  return (await images)(thumbnail.sourceBufferView ?? -1)
 }
 
 /**
@@ -83,46 +83,46 @@ export async function show(
   pending: PendingCutout,
   pictures: { thumbnail: Thumbnail | undefined; picture: string | null },
 ) {
-  const { thumbnail, picture } = pictures;
-  const measure = pending.measure;
+  const { thumbnail, picture } = pictures
+  const measure = pending.measure
   const facts = [
     `${measure.betweenPercent ?? '?'} % of pixels between the two, of which ${measure.atContourPercent ?? '?'} % at the edge`,
     `${measure.absentPercent ?? '?'} % empty · ${pending.blendPrimitives} blended primitive(s)`,
     `${pending.models.join(', ')}`,
     `proposal: ${pending.proposal ? 'CUTOUT' : 'BLEND'}`,
-  ];
-  stream.write(`\n  ${rank}  ${basename(pending.image)}\n`);
+  ]
+  stream.write(`\n  ${rank}  ${basename(pending.image)}\n`)
   if (thumbnail) {
     // A terminal without an image protocol cannot use these bytes: they are not read.
-    const file = picture && kind !== 'blocks' ? await readFile(picture).catch(() => null) : null;
-    const colour = (file && drawFile(file, kind)) ?? drawThumbnail(thumbnail, kind);
-    const alpha = drawThumbnail(alphaOf(thumbnail), kind);
+    const file = picture && kind !== 'blocks' ? await readFile(picture).catch(() => null) : null
+    const colour = (file && drawFile(file, kind)) ?? drawThumbnail(thumbnail, kind)
+    const alpha = drawThumbnail(alphaOf(thumbnail), kind)
     for (let row = 0; row < Math.max(colour.length, alpha.length); row++)
-      stream.write(`  ${colour[row] ?? ''}  ${alpha[row] ?? ''}\n`);
+      stream.write(`  ${colour[row] ?? ''}  ${alpha[row] ?? ''}\n`)
   }
-  for (const fact of facts) stream.write(`    ${fact}\n`);
-  if (picture) stream.write(`    ${link('view full size', picture)}\n`);
+  for (const fact of facts) stream.write(`    ${fact}\n`)
+  if (picture) stream.write(`    ${link('view full size', picture)}\n`)
   stream.write(
     '    [Enter] accept   [d] cutout   [v] blend   [t] accept remaining   [?] reminder   [q] quit\n',
-  );
+  )
 }
 
 /** One key, without an Enter to validate it, with the terminal left exactly as it was found. */
 async function keypress(input: NodeJS.ReadStream = process.stdin): Promise<string> {
-  const wasRaw = input.isRaw;
-  input.setRawMode?.(true);
-  input.resume();
+  const wasRaw = input.isRaw
+  input.setRawMode?.(true)
+  input.resume()
   try {
     return await new Promise<string>((resolve) => {
       const onData = (data: Buffer) => {
-        input.off('data', onData);
-        resolve(data.toString('utf8'));
-      };
-      input.on('data', onData);
-    });
+        input.off('data', onData)
+        resolve(data.toString('utf8'))
+      }
+      input.on('data', onData)
+    })
   } finally {
-    input.setRawMode?.(wasRaw ?? false);
-    input.pause();
+    input.setRawMode?.(wasRaw ?? false)
+    input.pause()
   }
 }
 
@@ -132,7 +132,7 @@ export async function askAnswer(
   input: NodeJS.ReadStream = process.stdin,
 ): Promise<Answer> {
   for (;;) {
-    const answer = answerOf(await keypress(input), proposal);
-    if (answer) return answer;
+    const answer = answerOf(await keypress(input), proposal)
+    if (answer) return answer
   }
 }

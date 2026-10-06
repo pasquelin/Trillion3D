@@ -1,4 +1,4 @@
-import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts';
+import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
 
 /**
  * What the frame's kernels count from zero, zeroed by the first dispatch of the partition's pass,
@@ -15,9 +15,9 @@ fn clearRows(@builtin(global_invocation_id) id:vec3u){
  if(i<(uni.rows+31u)/32u){atomicStore(&restBits[i],0u);}
  if(i<arrayLength(&slotUsed)){atomicStore(&slotUsed[i],0u);}
 }
-`;
+`
 
 /** Threads `clearRows` needs for `rows` rows and `slotWords` slot counts: one per word of the
  *  longest of the three. */
 export const partitionClearThreads = (rows: number, slotWords: number) =>
-  Math.max(STATE_WORDS, Math.ceil(rows / 32), slotWords);
+  Math.max(STATE_WORDS, Math.ceil(rows / 32), slotWords)

@@ -1,10 +1,10 @@
-import type { BackendDiagnostic } from '../types.ts';
-import { takeOutOfMemory } from '../../webgl/core/allocation.ts';
-import { outOfMemoryContext } from '../../residency/outOfMemory.ts';
-import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
+import type { BackendDiagnostic } from '../types.ts'
+import { takeOutOfMemory } from '../../webgl/core/allocation.ts'
+import { outOfMemoryContext } from '../../residency/outOfMemory.ts'
+import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 
 /** The pools a refusal shrinks nothing of: sized or sent again at their next use. */
-const UNSHRUNK = ['target', 'texture'] as const;
+const UNSHRUNK = ['target', 'texture'] as const
 
 /**
  * The autonomous WebGL2 frame's answer to the allocations its context refused since the last one
@@ -15,27 +15,27 @@ const UNSHRUNK = ['target', 'texture'] as const;
  * refused, the images drawn since drew without it: `redraw` draws this one again.
  */
 export function createRefusalAnswer(options: {
-  gl: () => WebGL2RenderingContext | null | undefined;
-  pool: { outOfMemory(): boolean };
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
-  redraw: () => void;
+  gl: () => WebGL2RenderingContext | null | undefined
+  pool: { outOfMemory(): boolean }
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+  redraw: () => void
 }) {
-  const { pool, onDiagnostic, redraw } = options;
+  const { pool, onDiagnostic, redraw } = options
   return () => {
-    const gl = options.gl();
-    const geometry = takeOutOfMemory(gl, 'geometry');
-    if (geometry) pool.outOfMemory();
-    let refused = geometry;
+    const gl = options.gl()
+    const geometry = takeOutOfMemory(gl, 'geometry')
+    if (geometry) pool.outOfMemory()
+    let refused = geometry
     for (const pool of UNSHRUNK)
       if (takeOutOfMemory(gl, pool)) {
-        refused = true;
+        refused = true
         sendEngineDiagnostic(
           onDiagnostic,
           'gpu-out-of-memory',
           `WebGL2 refused a ${pool === 'target' ? 'frame target' : 'map'}`,
           outOfMemoryContext(pool, null),
-        );
+        )
       }
-    if (refused) redraw();
-  };
+    if (refused) redraw()
+  }
 }

@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** Batch math: `n` elements per call on flat buffers, the governor that arbitrates the paths. */
 
@@ -38,4 +38,4 @@ export const BATCHES: EntryNote[] = [
     id: 'srgbToLinearBatch',
     replaces: 'a loop of Color.convertSRGBToLinear, convertLinearToSRGB',
   },
-];
+]

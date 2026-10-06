@@ -5,11 +5,11 @@ import {
   taaShareTap,
   texelReads,
   type TexelReads,
-} from './shaderWgsl.ts';
-import { shareText, taaHistoryBlend } from './historyWgsl.ts';
-import { BLACKMAN_HARRIS_WGSL } from './filterWeights.ts';
-import { layerWgsl, taaOut } from './layers.ts';
-import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts';
+} from './shaderWgsl.ts'
+import { shareText, taaHistoryBlend } from './historyWgsl.ts'
+import { BLACKMAN_HARRIS_WGSL } from './filterWeights.ts'
+import { layerWgsl, taaOut } from './layers.ts'
+import { LANCZOS2_WGSL } from './lanczos2Wgsl.ts'
 
 /** The 2×2 render texels nearest the display pixel, the box the Lanczos sum is clamped to: read
  *  again after the 3×3 — the cache's texels —, in its row order, so its box holds no registers
@@ -18,7 +18,7 @@ const ringWgsl = (read: TexelReads) => ` for(var j=0;j<4;j++){
   let ring=${read.color('clamp(low+vec2i(j&1,j>>1),vec2i(0),last)')};
   ringLo=min(ringLo,ring);ringHi=max(ringHi,ring);
  }
-`;
+`
 
 /** A still image's taps, weighed by the Blackman-Harris window of one display pixel, in the 3×3's
  *  order: a loop of their own, run only at rest, so the moving image's loop carries no branch. */
@@ -28,7 +28,7 @@ const stillTapsWgsl = (
   let at=clamp(base+vec2i(dx,dy),vec2i(0),last);
   let hit=blackmanHarris(length(vec2f(at)+sampled)*toDisplay);still+=${read.color('at')}*hit;stillTotal+=hit;
  }}}
-`;
+`
 
 /**
  * Temporal resolve of a frame drawn below the display (depth dilation, Lanczos-2 reconstruction and a
@@ -56,7 +56,7 @@ export const taaUpscaleShader = (
   reactive = true,
 ) => {
   const share = shareText(asIs),
-    read = texelReads(blended);
+    read = texelReads(blended)
   return `${taaPrelude(asIs, blended, filtered)}
 ${LANCZOS2_WGSL}
 ${BLACKMAN_HARRIS_WGSL}
@@ -93,5 +93,5 @@ ${MEASURES_WGSL}
  if(view.params.y==0.0){return ${taaOut(asIs, filtered, false, true)};}
  let here=pixelPoint(coord,nearDepth);let before=pointBefore(here,nearId);let previous=previousProjected(before);
 ${taaHistoryBlend(asIs, filtered, true, 'nearPage', reactive)}
-}`;
-};
+}`
+}

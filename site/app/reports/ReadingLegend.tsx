@@ -1,16 +1,16 @@
-import { useWords } from '../i18n.ts';
-import { engineTone } from './model/assessment.ts';
-import { engineName } from './model/names.ts';
-import { Badge } from '../ui/Badge.tsx';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { engineTone } from './model/assessment.ts'
+import { engineName } from './model/names.ts'
+import { Badge } from '../ui/Badge.tsx'
+import type { Locale } from '../../content/locale.ts'
 
 interface ReadingLegendProps {
-  locale: Locale;
-  engines?: boolean;
+  locale: Locale
+  engines?: boolean
 }
 
 export function ReadingLegend({ locale, engines = false }: ReadingLegendProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   if (engines)
     return (
       <div className="grid grid-cols-1 gap-2 text-sm">
@@ -23,7 +23,7 @@ export function ReadingLegend({ locale, engines = false }: ReadingLegendProps) {
         </div>
         <p>{t('report.engineColors')}</p>
       </div>
-    );
+    )
   return (
     <div className="grid grid-cols-1 gap-2 text-sm">
       <div className="flex flex-wrap gap-2">
@@ -39,5 +39,5 @@ export function ReadingLegend({ locale, engines = false }: ReadingLegendProps) {
       </div>
       <p>{t('report.timingColors')}</p>
     </div>
-  );
+  )
 }

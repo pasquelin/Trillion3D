@@ -1,21 +1,21 @@
-import { createChangeGate, createControlBase } from './base.ts';
-import { pivotControlsApi, trackPivotGestures } from './pivot.ts';
-import { controlPose, readVector, writeVector } from './pose.ts';
+import { createChangeGate, createControlBase } from './base.ts'
+import { pivotControlsApi, trackPivotGestures } from './pivot.ts'
+import { controlPose, readVector, writeVector } from './pose.ts'
 import {
   clampAzimuth,
   dollyDistance,
   orbitOrientation,
   panOffset,
   pixelWorldScale,
-} from './math.ts';
+} from './math.ts'
 import {
   clampNumber,
   fromSpherical,
   POLAR_EPSILON,
   RADIUS_EPSILON,
   toSpherical,
-} from '../../../../sdk-core/src/world/math/spherical.ts';
-import type { ControlCamera, PivotCameraControls } from './types.ts';
+} from '../../../../sdk-core/src/world/math/spherical.ts'
+import type { ControlCamera, PivotCameraControls } from './types.ts'
 
 /**
  * ORBIT, the turntable: the camera turns around `target` at a distance the host bounds, world
@@ -38,24 +38,24 @@ export interface OrbitCameraControls extends PivotCameraControls {
    * Smallest polar angle, in radians from straight up: `0` lets the camera look straight
    * down. The pole itself stays out of reach, where the azimuth would stop being defined.
    */
-  minPolarAngle: number;
+  minPolarAngle: number
   /** Largest polar angle, in radians from straight up: `Math.PI / 2` keeps it above the ground. */
-  maxPolarAngle: number;
+  maxPolarAngle: number
   /**
    * Start of the arc of azimuth allowed, in radians from +Z towards +X; unlimited at
    * `-Infinity`. Only a pair of finite bounds narrower than a full turn holds the camera.
    */
-  minAzimuthAngle: number;
+  minAzimuthAngle: number
   /** End of that arc; unlimited at `Infinity`. It may be smaller than `minAzimuthAngle`. */
-  maxAzimuthAngle: number;
+  maxAzimuthAngle: number
   /**
    * Radians per second the camera turns around `target` on its own, azimuth from +Z towards +X;
    * 0, the default, holds it still. The turn is integrated by `update(delta)`, and it stops for
    * good at the first press or wheel notch on the surface: the viewer has taken the camera.
    */
-  autoRotate: number;
+  autoRotate: number
   /** As the pivot's `update()`, with the seconds `autoRotate` turns over; 0 by default. */
-  update(delta?: number): boolean;
+  update(delta?: number): boolean
 }
 
 /** An orbit's default angle limits and turn, which `world.controls` keeps as its own. */
@@ -65,14 +65,14 @@ export const ORBIT_DEFAULTS = {
   minAzimuthAngle: -Infinity,
   maxAzimuthAngle: Infinity,
   autoRotate: 0,
-};
+}
 
 export function createOrbitCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): OrbitCameraControls {
   const pose = controlPose(camera),
-    base = createControlBase();
+    base = createControlBase()
   const position = new Float64Array(3),
     center = new Float64Array(3),
     offset = new Float64Array(3),
@@ -82,24 +82,24 @@ export function createOrbitCameraControls(
     pan = new Float64Array(3),
     moved = new Float64Array(6),
     bounds = new Float64Array(6),
-    applied = new Float64Array(6);
-  let posed = false;
-  const gate = createChangeGate(base, 6);
-  const height = () => surface.clientHeight || 1;
+    applied = new Float64Array(6)
+  let posed = false
+  const gate = createChangeGate(base, 6)
+  const height = () => surface.clientHeight || 1
   const sample = () => {
-    pose.readPosition(position);
-    readVector(center, api.target);
-    for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i];
-    toSpherical(spherical, offset);
-  };
+    pose.readPosition(position)
+    readVector(center, api.target)
+    for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i]
+    toSpherical(spherical, offset)
+  }
   const readBounds = () => {
-    bounds[0] = api.minDistance;
-    bounds[1] = api.maxDistance;
-    bounds[2] = api.minPolarAngle;
-    bounds[3] = api.maxPolarAngle;
-    bounds[4] = api.minAzimuthAngle;
-    bounds[5] = api.maxAzimuthAngle;
-  };
+    bounds[0] = api.minDistance
+    bounds[1] = api.maxDistance
+    bounds[2] = api.minPolarAngle
+    bounds[3] = api.maxPolarAngle
+    bounds[4] = api.minAzimuthAngle
+    bounds[5] = api.maxAzimuthAngle
+  }
   /**
    * Whether the sampled pose — position and orientation — is the one last written, under the
    * bounds it was written with; a host that only turned the camera is aimed back at the target.
@@ -107,75 +107,75 @@ export function createOrbitCameraControls(
    * ULP to either side of it, and a still scene would emit on every `update()`.
    */
   const still = () => {
-    readBounds();
-    if (!posed) return false;
+    readBounds()
+    if (!posed) return false
     for (let i = 0; i < 3; i++)
-      if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false;
-    for (let i = 0; i < 6; i++) if (bounds[i] !== applied[i]) return false;
-    return pose.readOrientation(facing).every((value, i) => value === orientation[i]);
-  };
+      if (position[i] !== moved[i] || center[i] !== moved[3 + i]) return false
+    for (let i = 0; i < 6; i++) if (bounds[i] !== applied[i]) return false
+    return pose.readOrientation(facing).every((value, i) => value === orientation[i])
+  }
   const apply = () => {
-    readBounds();
-    applied.set(bounds);
-    posed = true;
-    const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON);
-    spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far);
-    spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle);
+    readBounds()
+    applied.set(bounds)
+    posed = true
+    const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
+    spherical[0] = clampNumber(spherical[0], Math.max(api.minDistance, RADIUS_EPSILON), far)
+    spherical[1] = clampAzimuth(spherical[1], api.minAzimuthAngle, api.maxAzimuthAngle)
     spherical[2] = clampNumber(
       spherical[2],
       Math.max(api.minPolarAngle, POLAR_EPSILON),
       Math.min(api.maxPolarAngle, Math.PI - POLAR_EPSILON),
-    );
-    fromSpherical(offset, spherical);
-    for (let i = 0; i < 3; i++) position[i] = center[i] + offset[i];
-    pose.write(position, orbitOrientation(orientation, spherical));
-    writeVector(api.target, center);
-    moved.set(position);
-    moved.set(center, 3);
-    return gate(moved);
-  };
+    )
+    fromSpherical(offset, spherical)
+    for (let i = 0; i < 3; i++) position[i] = center[i] + offset[i]
+    pose.write(position, orbitOrientation(orientation, spherical))
+    writeVector(api.target, center)
+    moved.set(position)
+    moved.set(center, 3)
+    return gate(moved)
+  }
   const rotate = (dx: number, dy: number) => {
-    sample();
-    spherical[1] -= (2 * Math.PI * dx * api.rotateSpeed) / height();
-    spherical[2] -= (2 * Math.PI * dy * api.rotateSpeed) / height();
-    apply();
-  };
+    sample()
+    spherical[1] -= (2 * Math.PI * dx * api.rotateSpeed) / height()
+    spherical[2] -= (2 * Math.PI * dy * api.rotateSpeed) / height()
+    apply()
+  }
   const panBy = (dx: number, dy: number) => {
-    if (!api.enablePan) return;
-    sample();
-    orbitOrientation(orientation, spherical);
+    if (!api.enablePan) return
+    sample()
+    orbitOrientation(orientation, spherical)
     panOffset(
       pan,
       orientation,
       dx,
       dy,
       pixelWorldScale(spherical[0], pose.fov(), height(), pose.zoom()),
-    );
-    for (let i = 0; i < 3; i++) center[i] += pan[i];
-    apply();
-  };
+    )
+    for (let i = 0; i < 3; i++) center[i] += pan[i]
+    apply()
+  }
   const dolly = (steps: number) => {
-    if (!api.enableZoom) return;
-    sample();
-    spherical[0] = dollyDistance(spherical[0], steps, api.zoomSpeed);
-    apply();
-  };
-  let spinning = true;
+    if (!api.enableZoom) return
+    sample()
+    spherical[0] = dollyDistance(spherical[0], steps, api.zoomSpeed)
+    apply()
+  }
+  let spinning = true
   const update = (delta = 0) => {
-    sample();
-    const turn = spinning ? api.autoRotate * Math.max(0, delta) : 0;
-    if (turn) spherical[1] += turn;
-    else if (still()) return false;
-    return apply();
-  };
+    sample()
+    const turn = spinning ? api.autoRotate * Math.max(0, delta) : 0
+    if (turn) spherical[1] += turn
+    else if (still()) return false
+    return apply()
+  }
   // Unbounded angles by default: only the poles are out of reach.
   const api: OrbitCameraControls = Object.assign(pivotControlsApi(base, pose, update), {
     ...ORBIT_DEFAULTS,
     update,
-  });
-  const interrupt = () => void (spinning = false);
-  base.listen(surface, 'pointerdown', interrupt);
-  base.listen(surface, 'wheel', interrupt);
+  })
+  const interrupt = () => void (spinning = false)
+  base.listen(surface, 'pointerdown', interrupt)
+  base.listen(surface, 'wheel', interrupt)
   // A wheel notch is 5 % of the distance.
   trackPivotGestures(
     surface,
@@ -183,6 +183,6 @@ export function createOrbitCameraControls(
     (dx, dy, button, event) => (button === 0 && !event.shiftKey ? rotate(dx, dy) : panBy(dx, dy)),
     panBy,
     dolly,
-  );
-  return api;
+  )
+  return api
 }

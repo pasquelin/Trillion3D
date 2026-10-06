@@ -1,8 +1,8 @@
-import { cellReductionWgsl } from '../texture/cellReduction.ts';
-import { reflectionPlaneShader } from './traceShader.ts';
+import { cellReductionWgsl } from '../texture/cellReduction.ts'
+import { reflectionPlaneShader } from './traceShader.ts'
 
 /** Threads of a reduction workgroup on each axis. */
-export const BOUNDS_WORKGROUP = 8;
+export const BOUNDS_WORKGROUP = 8
 
 /** Level 0's source: the depth, each pixel the range its surface reaches over it
  *  (`reflectionPixelBounds`, the walks' own), `z ± ½(|∂x|+|∂y|)` on the axes its neighbours
@@ -13,7 +13,7 @@ fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(source,p,0);}
 fn reflectionSize()->vec2f{return vec2f(extent.xy);}
 fn reflectionClearDepth()->f32{return 0.0;}
 ${reflectionPlaneShader('wgsl')}
-fn mipRead(p:vec2i)->vec4f{return vec4f(reflectionPixelBounds(p),0.0,1.0);}`;
+fn mipRead(p:vec2i)->vec4f{return vec4f(reflectionPixelBounds(p),0.0,1.0);}`
 
 /**
  * One level of the reflection's nearest/farthest depth pyramid (`boundsPyramid.ts`): a texel is
@@ -31,7 +31,7 @@ ${cellReductionWgsl(true)}
 @compute @workgroup_size(${BOUNDS_WORKGROUP},${BOUNDS_WORKGROUP}) fn reduceBounds(@builtin(global_invocation_id) id:vec3u){
  if(any(id.xy>=max(extent.xy/2u,vec2u(1u)))){return;}
  textureStore(ranges,vec2i(id.xy),cellReduction(vec2i(id.xy)));
-}`;
+}`
 
-export const REFLECTION_BOUNDS_DEPTH_WGSL = boundsKernel(true);
-export const REFLECTION_BOUNDS_LEVEL_WGSL = boundsKernel(false);
+export const REFLECTION_BOUNDS_DEPTH_WGSL = boundsKernel(true)
+export const REFLECTION_BOUNDS_LEVEL_WGSL = boundsKernel(false)

@@ -25,26 +25,26 @@ import {
   VSM_COUNT_WANTED,
   VSM_COUNT_STATIC_KEPT,
   VSM_PAGE_KEEP_FRAMES,
-} from './constants.ts';
+} from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_COVER_GATHER_WGSL,
   VSM_STRUCTS_WGSL,
-} from './pageTableWgsl.ts';
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts';
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
-import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts';
-import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts';
-import type { VsmLayout } from './layout.ts';
+} from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
+import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Bind group indices of every page management kernel. */
-export const VSM_PM_GROUP_RESOURCES = 0;
-export const VSM_PM_GROUP_PARAMS = 1;
-export const VSM_PM_GROUP_PER_PAGE = 2;
+export const VSM_PM_GROUP_RESOURCES = 0
+export const VSM_PM_GROUP_PARAMS = 1
+export const VSM_PM_GROUP_PER_PAGE = 2
 /** Byte size of `VsmPmParams`; slots are 256 bytes apart. */
-export const VSM_PM_PARAMS_BYTES = 8;
+export const VSM_PM_PARAMS_BYTES = 8
 
 /**
  * Loose parameters of the physical page kernels (update, address remap, ...): the next-map entries
@@ -56,21 +56,21 @@ struct VsmPmParams{
  hasPrevFrame:u32,
 }
 @group(${VSM_PM_GROUP_PARAMS}) @binding(0) var<uniform> vsmPm:VsmPmParams;
-`;
+`
 
 interface VsmPmKernelOptions {
   /** Compile the statistics counters into the kernels (needs `res.stats` bound; one more storage buffer). */
-  stats?: boolean;
+  stats?: boolean
 }
 
 /** One compute kernel: its WGSL module, entry point and group-0 bindings. */
 export interface VsmPmKernel {
-  label: string;
-  entryPoint: string;
-  specs: VsmBindingSpec[];
+  label: string
+  entryPoint: string
+  specs: VsmBindingSpec[]
   /** Uses group 2 (per-page dispatcher). */
-  perPage: boolean;
-  code: string;
+  perPage: boolean
+  code: string
 }
 
 /**
@@ -83,8 +83,8 @@ export function vsmPmModule(
   body: string,
   options: { perPage?: boolean; stats?: boolean; coverGather?: boolean } = {},
 ) {
-  const hasProjection = specs.some((s) => s.resource === 'projectionData');
-  const statsSpec = specs.find((s) => s.resource === 'stats');
+  const hasProjection = specs.some((s) => s.resource === 'projectionData')
+  const statsSpec = specs.find((s) => s.resource === 'stats')
   return [
     VSM_CONSTANTS_WGSL,
     VSM_UNIFORMS_WGSL,
@@ -103,7 +103,7 @@ export function vsmPmModule(
         : 'fn vsmCount(i:u32){}'
       : '',
     body,
-  ].join('\n');
+  ].join('\n')
 }
 
 /** Appends the stats binding at `binding` when enabled. */
@@ -112,7 +112,7 @@ function withStats(
   stats: boolean | undefined,
   binding: number,
 ): VsmBindingSpec[] {
-  return stats ? [...specs, { resource: 'stats', binding, access: 'atomic' }] : specs;
+  return stats ? [...specs, { resource: 'stats', binding, access: 'atomic' }] : specs
 }
 
 const STAT_WGSL = /* wgsl */ `
@@ -121,7 +121,7 @@ const VSM_COUNT_STATIC_KEPT:u32=${VSM_COUNT_STATIC_KEPT}u;
 const VSM_COUNT_DYNAMIC_KEPT:u32=${VSM_COUNT_DYNAMIC_KEPT}u;
 const VSM_COUNT_CLEARED:u32=${VSM_COUNT_CLEARED}u;
 const VSM_COUNT_GRANTED:u32=${VSM_COUNT_GRANTED}u;
-`;
+`
 
 /** List access over an atomic `vsmPoolLists` binding. */
 const LISTS_WGSL = /* wgsl */ `
@@ -168,7 +168,7 @@ fn pmPop(list:u32)->i32{
  if(offset<0i){return -1i;}
  return atomicLoad(&vsmPoolLists[start+u32(offset)]);
 }
-`;
+`
 
 /** Moves last frame's pool pages to this frame's map ids and page addresses, before the marking pass;
  *  without a previous frame (`vsmPm.hasPrevFrame`) every page is emptied. */
@@ -178,7 +178,7 @@ function carryPages(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
     { resource: 'nextMaps', binding: 2 },
     { resource: 'pageRequests', binding: 3, prev: true },
-  ];
+  ]
   const body = /* wgsl */ `
 @compute @workgroup_size(VSM_GROUP_WIDTH)
 fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
@@ -220,14 +220,14 @@ fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
   vsmPoolPageInfo[poolIndex].flags=0u;
  }
 }
-`;
+`
   return {
     label: 'CarryPages',
     entryPoint: 'vsmCarryPages',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /** Sorts the pool: each page in last frame's age order is kept, aged out or emptied, and the
@@ -246,7 +246,7 @@ function sortPool(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     ],
     o.stats,
     8,
-  );
+  )
   const body = /* wgsl */ `
 ${STAT_WGSL}
 ${LISTS_WGSL}
@@ -340,14 +340,14 @@ fn vsmSortPool(@builtin(global_invocation_id) index:vec3u){
  // The age order keeps its ranks; a page that left it reads -1.
  pmSetListItem(VSM_PAGES_BY_AGE,byAgeIndex,select(i32(poolIndex),-1i,leftList));
 }
-`;
+`
   return {
     label: 'SortPool',
     entryPoint: 'vsmSortPool',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body, { stats: !!o.stats }),
-  };
+  }
 }
 
 /** Compacts the available pages, then appends the empty ones after them: allocated before the pages
@@ -356,7 +356,7 @@ function packFreePages(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [
     { resource: 'uniforms', binding: 0 },
     { resource: 'poolLists', binding: 1, access: 'atomic' },
-  ];
+  ]
   const body = /* wgsl */ `
 ${LISTS_WGSL}
 var<workgroup> pmScan:array<i32,PM_PACK_THREADS>;
@@ -392,14 +392,14 @@ fn vsmPackFreePages(@builtin(local_invocation_index) groupIndex:u32){
  // The compacted list's count is every lane's \`totalCount\`: the empty pages go after it.
  pmAppendList(VSM_PAGES_EMPTY,VSM_PAGES_FREE,totalCount,groupIndex);
 }
-`;
+`
   return {
     label: 'PackFreePages',
     entryPoint: 'vsmPackFreePages',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /** Maps the newly requested pages onto available physical pages, driven by the per-page dispatcher. */
@@ -416,7 +416,7 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     ],
     o.stats,
     7,
-  );
+  )
   const body = /* wgsl */ `
 ${STAT_WGSL}
 ${LISTS_WGSL}
@@ -473,14 +473,14 @@ fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u){
   }
  }
 }
-`;
+`
   return {
     label: 'GrantPages',
     entryPoint: 'vsmGrantPages',
     specs,
     perPage: true,
     code: vsmPmModule(layout, specs, body, { perPage: true, stats: !!o.stats }),
-  };
+  }
 }
 
 /** Lists the pages to clear. Args (16, pages, 1): see header. */
@@ -494,7 +494,7 @@ function listClears(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     ],
     o.stats,
     4,
-  );
+  )
   const body = /* wgsl */ `
 ${STAT_WGSL}
 /** Emits one page slot per call (16 tile groups each). */
@@ -533,14 +533,14 @@ fn vsmListClears(@builtin(global_invocation_id) id:vec3u){
   vsmPoolPageInfo[poolIndex].flags=pageInfo.flags|clearedFlags;
  }
 }
-`;
+`
   return {
     label: 'ListClears',
     entryPoint: 'vsmListClears',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body, { stats: !!o.stats }),
-  };
+  }
 }
 
 /** Tile setup of the 16-tiles-per-page kernels (16x16 threads, 32x32 texels per tile). */
@@ -570,7 +570,7 @@ fn pmTileOf(groupIndex:u32,listedPage:u32)->PmTile{
  return r;
 }
 fn pmTileOffset(s:PmTile)->vec2u{return (s.poolPage<<vec2u(VSM_LOG2_PAGE))+s.tileOrigin;}
-`;
+`
 
 /** Clears or initialises the listed pages, one tile per group. */
 function clearPages(layout: VsmLayout): VsmPmKernel {
@@ -579,7 +579,7 @@ function clearPages(layout: VsmLayout): VsmPmKernel {
     { resource: 'poolPageInfo', binding: 1 },
     { resource: 'pagesToClear', binding: 2 },
     { resource: 'pagePool', binding: 3, access: 'read_write' },
-  ];
+  ]
   const body = /* wgsl */ `
 ${TILE_WGSL}
 @compute @workgroup_size(16,16)
@@ -599,14 +599,14 @@ fn vsmClearPages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workg
   for(var k=0u;k<4u;k++){vsmPoolStore(firstTexel+o[k],slice,0u);}
  }
 }
-`;
+`
   return {
     label: 'ClearPages',
     entryPoint: 'vsmClearPages',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /** The status feedback → `res.feedback` = [VSM_FEEDBACK_POOL, free pages (i32), pressure bias (f32 bits), scene frame]. */
@@ -615,7 +615,7 @@ function poolFeedback(layout: VsmLayout): VsmPmKernel {
     { resource: 'uniforms', binding: 0 },
     { resource: 'poolLists', binding: 1, access: 'atomic' },
     { resource: 'feedback', binding: 2, access: 'read_write' },
-  ];
+  ]
   const body = /* wgsl */ `
 ${LISTS_WGSL}
 @compute @workgroup_size(PM_PACK_THREADS)
@@ -634,14 +634,14 @@ fn vsmPoolFeedback(@builtin(local_invocation_index) lane:u32){
  let requested=pmListCount(VSM_PAGES_REQUESTED);
  pmAppendList(VSM_PAGES_FREE,VSM_PAGES_REQUESTED,requested,lane);
 }
-`;
+`
   return {
     label: 'PoolFeedback',
     entryPoint: 'vsmPoolFeedback',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /**
@@ -665,7 +665,7 @@ function foldRasterMarks(layout: VsmLayout): VsmPmKernel {
     { resource: 'projectionData', binding: 5 },
     { resource: 'mergeArgs', binding: 6, access: 'atomic' },
     { resource: 'pagesToMerge', binding: 7, access: 'read_write' },
-  ];
+  ]
   const body = /* wgsl */ `
 // Folds this frame's dirty flags into the page's metadata; the frame clears them before its raster
 // (\`vsmEncode.ts\`).
@@ -712,14 +712,14 @@ fn vsmFoldRasterMarks(@builtin(global_invocation_id) id:vec3u){
   vsmPagesToMergeStore(slot,id.x);
  }
 }
-`;
+`
   return {
     label: 'FoldRasterMarks',
     entryPoint: 'vsmFoldRasterMarks',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /**
@@ -734,7 +734,7 @@ function tileDepthsBuild(layout: VsmLayout): VsmPmKernel {
     { resource: 'pagesForTiles', binding: 1 },
     { resource: 'tileDepths', binding: 2, access: 'read_write' },
     { resource: 'pagePool', binding: 3 },
-  ];
+  ]
   const body = /* wgsl */ `
 ${TILE_WGSL}
 var<workgroup> pmTileDepth:array<atomic<u32>,16>;
@@ -759,14 +759,14 @@ fn vsmTileDepthsBuild(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(
   vsmTileDepthsStore(vsmTileDepthIndex(texel),atomicLoad(&pmTileDepth[lane]));
  }
 }
-`;
+`
   return {
     label: 'TileDepthsBuild',
     entryPoint: 'vsmTileDepthsBuild',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /** Merges the static pages into the dynamic ones: dynamic = max(dynamic, static). */
@@ -775,7 +775,7 @@ function mergeStatic(layout: VsmLayout): VsmPmKernel {
     { resource: 'uniforms', binding: 0 },
     { resource: 'pagesToMerge', binding: 1 },
     { resource: 'pagePool', binding: 2, access: 'read_write' },
-  ];
+  ]
   const body = /* wgsl */ `
 ${TILE_WGSL}
 fn pmMergeTexel(p:vec2u){
@@ -792,14 +792,14 @@ fn vsmMergeStatic(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(work
  pmMergeTexel(firstTexel+vec2u(0u,1u));
  pmMergeTexel(firstTexel+vec2u(1u,1u));
 }
-`;
+`
   return {
     label: 'MergeStatic',
     entryPoint: 'vsmMergeStatic',
     specs,
     perPage: false,
     code: vsmPmModule(layout, specs, body),
-  };
+  }
 }
 
 /** Every page management kernel for `layout`. */
@@ -815,5 +815,5 @@ export function vsmPhysicalPageKernels(layout: VsmLayout, options: VsmPmKernelOp
     foldRasterMarks: foldRasterMarks(layout),
     mergeStatic: mergeStatic(layout),
     tileDepthsBuild: tileDepthsBuild(layout),
-  };
+  }
 }

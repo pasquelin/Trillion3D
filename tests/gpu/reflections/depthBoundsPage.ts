@@ -1,18 +1,18 @@
 import {
   createReflectionBoundsPyramid,
   reflectionBoundsPipelines,
-} from '../../../packages/sdk-browser/src/reflections/boundsPyramid.ts';
-import { levelSize, mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts';
-import { openGpuDevice } from '../kit/webgpuDevice.ts';
+} from '../../../packages/sdk-browser/src/reflections/boundsPyramid.ts'
+import { levelSize, mipLevelCountFor } from '../../../packages/sdk-browser/src/texture/tiles.ts'
+import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** The engine's depth bounds pyramid over three drawn depth attachments, the last level of each
  *  read back: odd borders, and cleared texels that hold no depth. */
 export async function run() {
-  const opened = await openGpuDevice();
-  if (!opened) throw new Error('no WebGPU adapter');
-  const { device, errors } = opened;
-  const values: number[][] = [];
-  const reductions = await reflectionBoundsPipelines(device);
+  const opened = await openGpuDevice()
+  if (!opened) throw new Error('no WebGPU adapter')
+  const { device, errors } = opened
+  const values: number[][] = []
+  const reductions = await reflectionBoundsPipelines(device)
   for (const [width, height] of [
     [7, 5],
     [9, 1],
@@ -22,9 +22,9 @@ export async function run() {
       size: [width, height],
       format: 'depth32float',
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-    });
-    const [w, h] = levelSize(width, height, 1);
-    const levels = mipLevelCountFor(w, h);
+    })
+    const [w, h] = levelSize(width, height, 1)
+    const levels = mipLevelCountFor(w, h)
     const bounds = device.createTexture({
       size: [w, h],
       format: 'rg32float',
@@ -33,7 +33,7 @@ export async function run() {
         GPUTextureUsage.STORAGE_BINDING |
         GPUTextureUsage.TEXTURE_BINDING |
         GPUTextureUsage.COPY_SRC,
-    });
+    })
     const module = device.createShaderModule({
       code: `
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
@@ -44,23 +44,23 @@ export async function run() {
   if(p.x>${width - 1}.0&&p.y>${height - 1}.0){return 0.875;}
   return 0.0;
  }`,
-    });
+    })
     const pipeline = device.createRenderPipeline({
       layout: 'auto',
       vertex: { module, entryPoint: 'vs' },
       fragment: { module, entryPoint: 'fs', targets: [] },
       depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'always' },
-    });
+    })
     const chain = createReflectionBoundsPyramid(device, bounds, {
       view: depth.createView(),
       width,
       height,
-    });
+    })
     const readback = device.createBuffer({
       size: 256,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-    });
-    const encoder = device.createCommandEncoder();
+    })
+    const encoder = device.createCommandEncoder()
     const pass = encoder.beginRenderPass({
       colorAttachments: [],
       depthStencilAttachment: {
@@ -69,25 +69,25 @@ export async function run() {
         depthLoadOp: 'clear',
         depthStoreOp: 'store',
       },
-    });
-    pass.setPipeline(pipeline);
-    pass.draw(3);
-    pass.end();
-    chain.encode(encoder, reductions);
+    })
+    pass.setPipeline(pipeline)
+    pass.draw(3)
+    pass.end()
+    chain.encode(encoder, reductions)
     encoder.copyTextureToBuffer(
       { texture: bounds, mipLevel: levels - 1 },
       { buffer: readback, bytesPerRow: 256 },
       [1, 1],
-    );
-    device.queue.submit([encoder.finish()]);
-    await readback.mapAsync(GPUMapMode.READ);
-    values.push(Array.from(new Float32Array(readback.getMappedRange()).slice(0, 2)));
-    readback.unmap();
-    readback.destroy();
-    chain.dispose();
-    bounds.destroy();
-    depth.destroy();
+    )
+    device.queue.submit([encoder.finish()])
+    await readback.mapAsync(GPUMapMode.READ)
+    values.push(Array.from(new Float32Array(readback.getMappedRange()).slice(0, 2)))
+    readback.unmap()
+    readback.destroy()
+    chain.dispose()
+    bounds.destroy()
+    depth.destroy()
   }
-  await opened.fermer();
-  return { values, errors };
+  await opened.fermer()
+  return { values, errors }
 }

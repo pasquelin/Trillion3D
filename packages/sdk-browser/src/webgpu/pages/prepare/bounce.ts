@@ -1,12 +1,12 @@
-import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts';
-import { syncPageProxy } from './proxyMotion.ts';
-import { bounceProbeBytes } from '../../../bounce/limits.ts';
-import { createGpuBounceProbes } from '../../../bounce/probes.ts';
-import { grantCapability } from '../io/drops.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { BOUNCE_SETTINGS, type SceneProxy } from '../../../../../sdk-core/src/index.ts'
+import { syncPageProxy } from './proxyMotion.ts'
+import { bounceProbeBytes } from '../../../bounce/limits.ts'
+import { createGpuBounceProbes } from '../../../bounce/probes.ts'
+import { grantCapability } from '../io/drops.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** What the capability declares while bouncing light is not rigged on this device. */
-export const BOUNCE_CAPABILITY = 'global illumination and surface cache';
+export const BOUNCE_CAPABILITY = 'global illumination and surface cache'
 /** Named approximations of the bounce, published in the diagnostic (P5). */
 const BOUNCE_APPROXIMATIONS = [
   'the cascades interpolate irradiance between eight probes, so a detail smaller than a cell is lost',
@@ -22,10 +22,10 @@ const BOUNCE_APPROXIMATIONS = [
   'a probe buried in a surface or lost in open sky goes to sleep and is skipped until a light changes',
   'the millisecond budget follows a timestamp read several frames late, and only every third or twelfth frame',
   'a point no cascade level reaches gets exactly zero bounce, never a guess',
-];
+]
 
 /** Why there is no bounce while the host has not asked for it: the one reason a toggle lifts. */
-const BOUNCE_OFF = 'the bounce is off by default; create the explorer with bounce: true';
+const BOUNCE_OFF = 'the bounce is off by default; create the explorer with bounce: true'
 
 /**
  * Turns bouncing light on or off during the session. Off, the grid stops being updated and read,
@@ -33,11 +33,11 @@ const BOUNCE_OFF = 'the bounce is off by default; create the explorer with bounc
  * read again as it stands — no program, table or pool is rebuilt either way.
  */
 export function setWebgpuBounce(rt: WebgpuPagesRuntime, on: boolean) {
-  const { bounce } = rt;
-  if (bounce.wanted === on) return;
-  bounce.wanted = on;
-  if (on && bounce.reason === BOUNCE_OFF) bounce.reason = null;
-  rt.run.gate.resourcesChanged();
+  const { bounce } = rt
+  if (bounce.wanted === on) return
+  bounce.wanted = on
+  if (on && bounce.reason === BOUNCE_OFF) bounce.reason = null
+  rt.run.gate.resourcesChanged()
 }
 
 /**
@@ -53,15 +53,15 @@ export function setWebgpuBounce(rt: WebgpuPagesRuntime, on: boolean) {
  * silence.
  */
 export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { bounce, lights, context } = rt;
-  if (bounce.probes || bounce.pending || bounce.reason) return;
-  if (!bounce.wanted) bounce.reason = BOUNCE_OFF;
+  const { bounce, lights, context } = rt
+  if (bounce.probes || bounce.pending || bounce.reason) return
+  if (!bounce.wanted) bounce.reason = BOUNCE_OFF
   else if (!context.readSceneProxy)
-    bounce.reason = 'the cache carries no resident proxy; recompile it with this compiler';
-  else if (!lights.buffer) bounce.reason = 'the declared-light buffer is unavailable';
+    bounce.reason = 'the cache carries no resident proxy; recompile it with this compiler'
+  else if (!lights.buffer) bounce.reason = 'the declared-light buffer is unavailable'
   if (bounce.reason) {
-    publish(rt);
-    return;
+    publish(rt)
+    return
   }
   bounce.pending = context.readSceneProxy!()
     .then((proxy: SceneProxy) =>
@@ -69,32 +69,32 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     )
     .then((probes) => {
       if (rt.gpu.device !== device) {
-        probes.dispose();
-        return;
+        probes.dispose()
+        return
       }
       try {
-        syncPageProxy(rt, probes, true);
+        syncPageProxy(rt, probes, true)
       } catch (error) {
-        probes.dispose();
-        throw error;
+        probes.dispose()
+        throw error
       }
-      bounce.probes = probes;
-      grantCapability(rt.capabilities, BOUNCE_CAPABILITY);
-      rt.run.gate.resourcesChanged();
-      publish(rt);
+      bounce.probes = probes
+      grantCapability(rt.capabilities, BOUNCE_CAPABILITY)
+      rt.run.gate.resourcesChanged()
+      publish(rt)
     })
     .catch((error: unknown) => {
-      if (rt.gpu.device !== device) return;
-      bounce.reason = `bounce unavailable: ${String(error)}`;
-      rt.diag.diagnosticFailure('bounce-unavailable', error);
-      publish(rt);
-    });
+      if (rt.gpu.device !== device) return
+      bounce.reason = `bounce unavailable: ${String(error)}`
+      rt.diag.diagnosticFailure('bounce-unavailable', error)
+      publish(rt)
+    })
 }
 
 /** What the bounce actually obtained: proxy size, grid, budget. Never an estimate. */
 function publish(rt: WebgpuPagesRuntime) {
   const { bounce, diag } = rt,
-    probes = bounce.probes;
+    probes = bounce.probes
   diag.engineDiagnostic('bounce-lighting', 'Bouncing light rigged', {
     version: 1,
     settings: { ...BOUNCE_SETTINGS },
@@ -124,5 +124,5 @@ function publish(rt: WebgpuPagesRuntime) {
     sweepFrames: probes?.sweepFrames ?? null,
     unavailable: bounce.reason,
     approximations: BOUNCE_APPROXIMATIONS,
-  });
+  })
 }

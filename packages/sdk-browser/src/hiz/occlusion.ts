@@ -1,10 +1,10 @@
-import { hizHides } from './hides.ts';
-import { HIZ_KERNEL_TEXELS } from './counts.ts';
-import type { HizPyramid } from './types.ts';
+import { hizHides } from './hides.ts'
+import { HIZ_KERNEL_TEXELS } from './counts.ts'
+import type { HizPyramid } from './types.ts'
 
 // The test kernel is a power of two: `firstLevel` depends on that to bound the search.
-const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS);
-if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS');
+const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS)
+if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS')
 
 /**
  * First mip level that can still fit in the kernel, for a side of `span` texels.
@@ -15,16 +15,16 @@ if (!Number.isInteger(KERNEL_LOG2)) throw new Error('HIZ_KERNEL_TEXELS');
  * then evaluates the same predicate as before, on the same integers.
  */
 function firstLevel(span: number) {
-  if (span < HIZ_KERNEL_TEXELS) return 0;
-  const level = 31 - Math.clz32(span) - (KERNEL_LOG2 - 1);
-  return level > 0 ? level : 0;
+  if (span < HIZ_KERNEL_TEXELS) return 0
+  const level = 31 - Math.clz32(span) - (KERNEL_LOG2 - 1)
+  return level > 0 ? level : 0
 }
 
 /**
  * Values `hizTestRect` writes: the mip the box answers from, then the level-0 rectangle that mip is
  * read over, inclusive on both ends.
  */
-export const HIZ_TEST_VALUES = 5;
+export const HIZ_TEST_VALUES = 5
 
 /**
  * The part of a screen rectangle that can ever paint a pixel, and the mip that covers it exactly.
@@ -67,27 +67,27 @@ export function hizTestRect(
     height < 1 ||
     levels < 1
   )
-    return false;
+    return false
   const x0 = minX < 0 ? 0 : minX,
     y0 = minY < 0 ? 0 : minY,
     x1 = maxX > width - 1 ? width - 1 : maxX,
-    y1 = maxY > height - 1 ? height - 1 : maxY;
-  if (x1 < x0 || y1 < y0) return false;
+    y1 = maxY > height - 1 ? height - 1 : maxY
+  if (x1 < x0 || y1 < y0) return false
   for (let level = firstLevel(x1 - x0 > y1 - y0 ? x1 - x0 : y1 - y0); level < levels; level++) {
-    const scale = 2 ** level;
+    const scale = 2 ** level
     if (
       Math.floor(x1 / scale) - Math.floor(x0 / scale) < HIZ_KERNEL_TEXELS &&
       Math.floor(y1 / scale) - Math.floor(y0 / scale) < HIZ_KERNEL_TEXELS
     ) {
-      into[0] = level;
-      into[1] = x0;
-      into[2] = y0;
-      into[3] = x1;
-      into[4] = y1;
-      return true;
+      into[0] = level
+      into[1] = x0
+      into[2] = y0
+      into[3] = x1
+      into[4] = y1
+      return true
     }
   }
-  return false;
+  return false
 }
 
 /** `hizTestRect` over the flat bounds layout `projectBoxesFlat` writes. */
@@ -109,10 +109,10 @@ function hizTestRectFlat(
     height,
     levels,
     into,
-  );
+  )
 }
 
-const rejectScratch = new Int32Array(HIZ_TEST_VALUES);
+const rejectScratch = new Int32Array(HIZ_TEST_VALUES)
 
 /** `hizRejects` on the flat layout `projectBoxesFlat` writes. */
 export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: number, bias = 0) {
@@ -126,7 +126,7 @@ export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: 
       rejectScratch,
     )
   )
-    return false;
+    return false
   return hizHides(
     pyramid,
     rejectScratch[0],
@@ -136,5 +136,5 @@ export function hizRejectsFlat(pyramid: HizPyramid, bounds: Float64Array, base: 
     rejectScratch[4],
     bounds[base + 4],
     bias,
-  );
+  )
 }

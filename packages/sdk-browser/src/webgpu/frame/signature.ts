@@ -1,7 +1,7 @@
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** Number of values in the frame signature; see `sampleWebgpuFrame`. */
-export const HOLD_SIGNATURE_VALUES = 20;
+export const HOLD_SIGNATURE_VALUES = 20
 
 /**
  * Everything a frame produced that can be observed, in twenty numbers.
@@ -16,25 +16,25 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   const { run, timing } = rt,
     { rows } = rt.layout,
     counts = timing.partitionCounts,
-    hiz = rt.vis.gpuPartition?.counts();
-  into[0] = rows.tableEpoch;
-  into[1] = rows.rowsEpoch;
-  into[2] = rows.packedCount;
-  into[3] = rows.rowCount;
-  into[4] = run.cutEpoch;
-  into[5] = run.pageArrayEpoch;
-  into[6] = run.visible;
-  into[7] = run.selectedTriangles;
-  into[8] = run.submittedTriangles;
-  into[9] = run.drawnTriangles;
-  into[10] = run.frustumRejected;
-  into[11] = run.lodLevel;
-  into[12] = run.gpuDrawCalls;
-  into[13] = run.blendDrawCalls;
-  into[14] = run.blendSubmittedTriangles;
-  into[15] = run.blendFrustumRejected;
-  into[16] = counts.occluders;
-  into[17] = counts.tested;
-  into[18] = counts.previousOccluders;
-  into[19] = hiz ? hiz.rejected : -1;
+    hiz = rt.vis.gpuPartition?.counts()
+  into[0] = rows.tableEpoch
+  into[1] = rows.rowsEpoch
+  into[2] = rows.packedCount
+  into[3] = rows.rowCount
+  into[4] = run.cutEpoch
+  into[5] = run.pageArrayEpoch
+  into[6] = run.visible
+  into[7] = run.selectedTriangles
+  into[8] = run.submittedTriangles
+  into[9] = run.drawnTriangles
+  into[10] = run.frustumRejected
+  into[11] = run.lodLevel
+  into[12] = run.gpuDrawCalls
+  into[13] = run.blendDrawCalls
+  into[14] = run.blendSubmittedTriangles
+  into[15] = run.blendFrustumRejected
+  into[16] = counts.occluders
+  into[17] = counts.tested
+  into[18] = counts.previousOccluders
+  into[19] = hiz ? hiz.rejected : -1
 }

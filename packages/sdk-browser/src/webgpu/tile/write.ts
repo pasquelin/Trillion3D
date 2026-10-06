@@ -5,7 +5,7 @@ import {
   TILE_PITCH,
   TILE_SIZE,
   type TilePlace,
-} from '../../texture/tiles.ts';
+} from '../../texture/tiles.ts'
 
 /**
  * Gestures that post texels into a pool tile. Three sources, one draw: the tile receives its 128×128
@@ -19,21 +19,21 @@ import {
  */
 export type TileRegion = {
   /** Origin and dimensions of the rectangle read in the source level. */
-  sx: number;
-  sy: number;
-  width: number;
-  height: number;
+  sx: number
+  sy: number
+  width: number
+  height: number
   /** Where this rectangle lands in the tile cell, gutter included. */
-  dx: number;
-  dy: number;
-};
+  dx: number
+  dy: number
+}
 
 /** Rectangle of a tile in its level, gutter included, clipped at the image edge. */
 export function tileRegion(levelWidth: number, levelHeight: number, tx: number, ty: number) {
   const x0 = Math.max(0, tx * TILE_SIZE - TILE_BORDER),
-    y0 = Math.max(0, ty * TILE_SIZE - TILE_BORDER);
+    y0 = Math.max(0, ty * TILE_SIZE - TILE_BORDER)
   const x1 = Math.min(levelWidth, (tx + 1) * TILE_SIZE + TILE_BORDER),
-    y1 = Math.min(levelHeight, (ty + 1) * TILE_SIZE + TILE_BORDER);
+    y1 = Math.min(levelHeight, (ty + 1) * TILE_SIZE + TILE_BORDER)
   return {
     sx: x0,
     sy: y0,
@@ -41,18 +41,18 @@ export function tileRegion(levelWidth: number, levelHeight: number, tx: number, 
     height: y1 - y0,
     dx: x0 - tx * TILE_SIZE + TILE_BORDER,
     dy: y0 - ty * TILE_SIZE + TILE_BORDER,
-  };
+  }
 }
 
 /** Origin of a pool cell, in texels. */
 export const cellOrigin = (place: TilePlace) =>
-  [place.x * TILE_PITCH, place.y * TILE_PITCH] as const;
+  [place.x * TILE_PITCH, place.y * TILE_PITCH] as const
 /** Origin of the `rank`-th queue level in its cell, border included. */
 export const tailOrigin = (place: TilePlace, rank: number): GPUOrigin3D => [
   place.x * TILE_PITCH + TILE_BORDER + tailOffset(rank),
   place.y * TILE_PITCH + TILE_BORDER,
   place.layer,
-];
+]
 
 /** Writes packed RGBA8 texels at an origin of a texture. */
 export function writeRgba(
@@ -68,7 +68,7 @@ export function writeRgba(
     pixels as Uint8Array<ArrayBuffer>,
     { bytesPerRow: width * 4, rowsPerImage: height },
     { width, height },
-  );
+  )
 }
 
 export function writeTileFromBitmap(
@@ -78,12 +78,12 @@ export function writeTileFromBitmap(
   bitmap: ImageBitmap,
   region: TileRegion,
 ) {
-  const [ox, oy] = cellOrigin(place);
+  const [ox, oy] = cellOrigin(place)
   queue.copyExternalImageToTexture(
     { source: bitmap, origin: [region.sx, region.sy] },
     { texture: pool, origin: [ox + region.dx, oy + region.dy, place.layer] },
     [region.width, region.height],
-  );
+  )
 }
 
 export function copyTileFromTexture(
@@ -94,12 +94,12 @@ export function copyTileFromTexture(
   level: number,
   region: TileRegion,
 ) {
-  const [ox, oy] = cellOrigin(place);
+  const [ox, oy] = cellOrigin(place)
   encoder.copyTextureToTexture(
     { texture: source, mipLevel: level, origin: [region.sx, region.sy, 0] },
     { texture: pool, origin: [ox + region.dx, oy + region.dy, place.layer] },
     [region.width, region.height, 1],
-  );
+  )
 }
 
 /** Queue levels, from the first to 1×1, each at its place in the tile. */
@@ -112,10 +112,10 @@ export function writeTailFromBytes(
   levels: readonly Uint8Array[],
 ) {
   levels.forEach((pixels, rank) => {
-    const [width, height] = levelSize(size[0], size[1], tail + rank);
-    if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES');
-    writeRgba(queue, pool, tailOrigin(place, rank), pixels, width, height);
-  });
+    const [width, height] = levelSize(size[0], size[1], tail + rank)
+    if (pixels.byteLength !== width * height * 4) throw new Error('TEXTURE_TAIL_BYTES')
+    writeRgba(queue, pool, tailOrigin(place, rank), pixels, width, height)
+  })
 }
 
 export function copyTailFromTexture(
@@ -128,11 +128,11 @@ export function copyTailFromTexture(
   last: number,
 ) {
   for (let level = tail; level <= last; level++) {
-    const [width, height] = levelSize(size[0], size[1], level);
+    const [width, height] = levelSize(size[0], size[1], level)
     encoder.copyTextureToTexture(
       { texture: source, mipLevel: level, origin: [0, 0, 0] },
       { texture: pool, origin: tailOrigin(place, level - tail) },
       [width, height, 1],
-    );
+    )
   }
 }

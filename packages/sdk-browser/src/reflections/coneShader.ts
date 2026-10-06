@@ -1,5 +1,5 @@
-import { shaderLanguage } from '../math/shaderLanguage.ts';
-import { REFLECTION_SEGMENT } from './traceShader.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts'
+import { REFLECTION_SEGMENT } from './traceShader.ts'
 
 /** Screen-space cone tracing.
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite
@@ -121,5 +121,5 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
  return vec4f(0.0);
 }`,
     language,
-  ).replace('all(pixel==ivec2(floor(start)))', 'all(equal(pixel,ivec2(floor(start))))');
+  ).replace('all(pixel==ivec2(floor(start)))', 'all(equal(pixel,ivec2(floor(start))))')
 }

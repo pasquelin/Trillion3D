@@ -1,35 +1,35 @@
-import { wantsReflections } from '../../../reflections/gpu.ts';
-import { requestFrameTargets } from '../prepare/targetGrant.ts';
-import { followCutRows } from '../prepare/growTables.ts';
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
-import { screenErrorRatio } from '../../../diagnostic/colors.ts';
-import { drawWebgpuFallback } from '../../frame/fallbackDraw.ts';
-import { viewProj } from '../helpers.ts';
-import { taaRenderMatrix } from '../../../taa/frame.ts';
-import { ensureUniform } from '../prepare/pipelineFor.ts';
+import { wantsReflections } from '../../../reflections/gpu.ts'
+import { requestFrameTargets } from '../prepare/targetGrant.ts'
+import { followCutRows } from '../prepare/growTables.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import { projectedPageError, rootOf } from '../../../page/selection/selection.ts'
+import { screenErrorRatio } from '../../../diagnostic/colors.ts'
+import { drawWebgpuFallback } from '../../frame/fallbackDraw.ts'
+import { viewProj } from '../helpers.ts'
+import { taaRenderMatrix } from '../../../taa/frame.ts'
+import { ensureUniform } from '../prepare/pipelineFor.ts'
 import {
   abandonFrameEncoder,
   openFrameEncoder,
   createRenderEncoder,
   encodeClear,
   submitColorCopy,
-} from './encoder.ts';
-import { encodeBlend, prepareBlend } from './encodeBlend.ts';
-import { ensurePageTable } from './pageTable.ts';
-import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
-import { encodeVis } from './encodeVis.ts';
-import { dropVis } from '../io/drops.ts';
-import { uploadRowCorners } from '../../visibility/corners.ts';
-import { refreshDrawItemWords } from '../../visibility/itemWords.ts';
-import { visLayerTop } from '../../visibility/uniforms.ts';
-import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts';
-import { uploadRowLods } from '../../shadow/rowLods.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { displayApart } from '../state/renderScale.ts';
-import type { EngineCamera } from '../../../camera/world.ts';
-import { uploadDirtyRows } from './dirtyRows.ts';
-import { castingLights } from './vsm/vsmPlan.ts';
+} from './encoder.ts'
+import { encodeBlend, prepareBlend } from './encodeBlend.ts'
+import { ensurePageTable } from './pageTable.ts'
+import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
+import { encodeVis } from './encodeVis.ts'
+import { dropVis } from '../io/drops.ts'
+import { uploadRowCorners } from '../../visibility/corners.ts'
+import { refreshDrawItemWords } from '../../visibility/itemWords.ts'
+import { visLayerTop } from '../../visibility/uniforms.ts'
+import { uploadClusterSpheres, uploadDirtyRowMobility } from '../../shadow/bounds.ts'
+import { uploadRowLods } from '../../shadow/rowLods.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { displayApart } from '../state/renderScale.ts'
+import type { EngineCamera } from '../../../camera/world.ts'
+import { uploadDirtyRows } from './dirtyRows.ts'
+import { castingLights } from './vsm/vsmPlan.ts'
 
 /**
  * The caster rows' shadow data — world spheres, mobility words, detail — exists and follows the
@@ -43,19 +43,19 @@ import { castingLights } from './vsm/vsmPlan.ts';
  */
 function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { lights, layout } = rt,
-    { rows, selectionRoots } = layout;
-  if (!lights.pageLayout) return;
+    { rows, selectionRoots } = layout
+  if (!lights.pageLayout) return
   if (!castingLights(rt)) {
-    const worldOf = (rank: number) => selectionRoots[rank].world.elements;
-    lights.mobility.ensure(selectionRoots.length, rows.casterSlots, worldOf);
-    lights.rowsFollowed = false;
-    return;
+    const worldOf = (rank: number) => selectionRoots[rank].world.elements
+    lights.mobility.ensure(selectionRoots.length, rows.casterSlots, worldOf)
+    lights.rowsFollowed = false
+    return
   }
-  if (!lights.rowsFollowed && rows.casterSlots > 0) rows.markRowWords(0, rows.casterSlots - 1);
-  lights.rowsFollowed = true;
-  uploadClusterSpheres(rt, device);
-  uploadDirtyRowMobility(rt, device);
-  uploadRowLods(rt, device);
+  if (!lights.rowsFollowed && rows.casterSlots > 0) rows.markRowWords(0, rows.casterSlots - 1)
+  lights.rowsFollowed = true
+  uploadClusterSpheres(rt, device)
+  uploadDirtyRowMobility(rt, device)
+  uploadRowLods(rt, device)
 }
 
 /**
@@ -65,57 +65,57 @@ function followShadowRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
  * the visibility pass comes back on the same targets (#198). Each costs the rows that changed.
  */
 export function followDirtyRows(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw);
-  followShadowRows(rt, device);
-  uploadRowCorners(rt);
-  uploadDirtyRows(rt);
+  refreshDrawItemWords(rt, visLayerTop(rt.vis), rt.vis.gpuDraw)
+  followShadowRows(rt, device)
+  uploadRowCorners(rt)
+  uploadDirtyRows(rt)
 }
 
 /** The visibility pass can encode this image. */
 const visReady = ({ vis }: WebgpuPagesRuntime) =>
-  vis.visEnabled && !!vis.visPipelineBack && !!vis.shadeClasses && !!vis.visView;
+  vis.visEnabled && !!vis.visPipelineBack && !!vis.shadeClasses && !!vis.visView
 
 /** Encodes and submits one image of the drawn cut; returns the triangles it submitted. */
 export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
   const { gpu, vis, run, timing, blendState, capture, context, diag } = rt,
     { rows } = rt.layout,
-    { viewport } = rt.setup;
-  run.gpuDrawCalls = 0;
-  run.gpuComputeDispatches = 0;
-  run.blendDrawCalls = 0;
-  run.blendFrustumRejected = 0;
-  timing.transparentEncodeMs = 0;
-  timing.transparentSelectMs = 0;
-  timing.transparentPrepareMs = 0;
-  timing.transparentDrawMs = 0;
-  timing.transparentSpanUploadBytes = 0;
+    { viewport } = rt.setup
+  run.gpuDrawCalls = 0
+  run.gpuComputeDispatches = 0
+  run.blendDrawCalls = 0
+  run.blendFrustumRejected = 0
+  timing.transparentEncodeMs = 0
+  timing.transparentSelectMs = 0
+  timing.transparentPrepareMs = 0
+  timing.transparentDrawMs = 0
+  timing.transparentSpanUploadBytes = 0
   // The visibility path draws without a display colour of its own (`ownsDisplayColor`); the
   // fallback draws at the display's size, where it has one.
-  if (!gpu.bindGroupLayout || !gpu.cache || !gpu.depthView) return 0;
+  if (!gpu.bindGroupLayout || !gpu.cache || !gpu.depthView) return 0
   // Frustum planes and view-projection are those image entry posted: the engine has one depth
   // convention (`../../../camera/depthConvention.ts`), so nothing is converted along the path.
-  blendState.blendPlanes.set(cam.planes);
+  blendState.blendPlanes.set(cam.planes)
   // The render matrix carries temporal-antialiasing jitter; the camera knows nothing of it.
-  viewProj.set(taaRenderMatrix(rt, cam));
-  ensurePageTable(rt, device);
+  viewProj.set(taaRenderMatrix(rt, cam))
+  ensurePageTable(rt, device)
   if (!run.gpuFrameActive) {
-    run.cameraRows = rt.services.syncRowsFromCut();
+    run.cameraRows = rt.services.syncRowsFromCut()
     // The rows this cut selected size the table, the placements never do (#1232).
-    followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked));
+    followCutRows(rt, Math.max(rt.services.rowsAsked(), rt.services.blendCasters.asked))
   } else if (run.rowsSyncedFrame !== run.frame) {
-    rt.services.syncRows(!run.textureConverging);
-    run.rowsSyncedFrame = run.frame;
+    rt.services.syncRows(!run.textureConverging)
+    run.rowsSyncedFrame = run.frame
   }
   if (gpu.reflection && gpu.reflection.active !== wantsReflections(rt)) {
-    abandonFrameEncoder(rt);
-    void requestFrameTargets(rt, device);
-    return 0;
+    abandonFrameEncoder(rt)
+    void requestFrameTargets(rt, device)
+    return 0
   }
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
-    const rowWords = PAGE_INFO_STRIDE / 4;
+    const rowWords = PAGE_INFO_STRIDE / 4
     for (let row = 0; row < rows.packedCount; row++) {
-      const rec = rows.packedRecs[row];
-      if (!rec) continue;
+      const rec = rows.packedRecs[row]
+      if (!rec) continue
       rows.pageTableFloats[row * rowWords + 56] = screenErrorRatio(
         projectedPageError(
           rec,
@@ -127,44 +127,44 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
           viewport,
         ),
         run.diagnosticPixelError,
-      );
-      rows.markRowWords(row);
+      )
+      rows.markRowWords(row)
     }
   }
   if (vis.deformationCompute)
-    vis.deformationCode!.encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device));
+    vis.deformationCode!.encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device))
   if (visReady(rt)) {
     try {
-      return encodeVis(rt, device, cam);
+      return encodeVis(rt, device, cam)
     } catch (error) {
-      abandonFrameEncoder(rt);
-      timing.gpuTiming?.cancelUnsubmitted();
-      diag.diagnosticFailure('visibility-render-failed', error);
-      if (vis.deformation?.any) throw error;
-      dropVis(rt);
-      run.gpuDrawCalls = 0;
-      if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error;
+      abandonFrameEncoder(rt)
+      timing.gpuTiming?.cancelUnsubmitted()
+      diag.diagnosticFailure('visibility-render-failed', error)
+      if (vis.deformation?.any) throw error
+      dropVis(rt)
+      run.gpuDrawCalls = 0
+      if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error
     }
   }
   // The fallback draws into the colour target: targets drawn below the display are remade at its
   // size first, never presenting a display colour this image did not write.
   if (displayApart(gpu)) {
-    abandonFrameEncoder(rt);
-    void requestFrameTargets(rt, device);
-    return 0;
+    abandonFrameEncoder(rt)
+    void requestFrameTargets(rt, device)
+    return 0
   }
-  if (!gpu.pipelineBack) return 0;
-  followDirtyRows(rt, device);
+  if (!gpu.pipelineBack) return 0
+  followDirtyRows(rt, device)
   if (!rows.packedCount) {
-    const encoder = createRenderEncoder(rt, device);
-    encodeClear(rt, encoder);
-    submitFallback(rt, device, encoder, cam, 0);
-    return run.blendSubmittedTriangles;
+    const encoder = createRenderEncoder(rt, device)
+    encodeClear(rt, encoder)
+    submitFallback(rt, device, encoder, cam, 0)
+    return run.blendSubmittedTriangles
   }
-  ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length));
-  const { encoder, vertices } = drawWebgpuFallback(rt, device);
-  submitFallback(rt, device, encoder, cam, rows.packedCount);
-  return vertices / 3 + run.blendSubmittedTriangles;
+  ensureUniform(rt, device, Math.max(1, rows.packedCount + blendState.blendGpu.length))
+  const { encoder, vertices } = drawWebgpuFallback(rt, device)
+  submitFallback(rt, device, encoder, cam, rows.packedCount)
+  return vertices / 3 + run.blendSubmittedTriangles
 }
 
 /**
@@ -178,9 +178,9 @@ function submitFallback(
   cam: EngineCamera,
   uniformBase: number,
 ) {
-  const [width, height] = rt.gpu.targetSize;
+  const [width, height] = rt.gpu.targetSize
   // No composition follows: the water word may not borrow the display colour (`encodeWaterPass`).
-  encodeBlend(rt, device, encoder, uniformBase, false, prepareBlend(rt, device, encoder, false));
-  if (guidesShown(rt)) encodeWebgpuGuides(rt, encoder, cam);
-  submitColorCopy(rt, device, encoder, height, width);
+  encodeBlend(rt, device, encoder, uniformBase, false, prepareBlend(rt, device, encoder, false))
+  if (guidesShown(rt)) encodeWebgpuGuides(rt, encoder, cam)
+  submitColorCopy(rt, device, encoder, height, width)
 }

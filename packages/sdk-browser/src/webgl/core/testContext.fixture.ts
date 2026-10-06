@@ -5,33 +5,33 @@
  * replaces the recording of the calls it names by the given functions: a queried extension or
  * parameter, say.
  */
-type RecordedCall = { name: string; args: unknown[] };
+type RecordedCall = { name: string; args: unknown[] }
 
 export function createTestContext(
   options: { lost?: boolean; answers?: Record<string, unknown> } = {},
 ) {
-  const calls: RecordedCall[] = [];
-  const listeners = new Map<string, Set<EventListener>>();
-  let objects = 0;
+  const calls: RecordedCall[] = []
+  const listeners = new Map<string, Set<EventListener>>()
+  let objects = 0
   const canvas = {
     width: 8,
     height: 4,
     addEventListener(type: string, listener: EventListener) {
-      (listeners.get(type) ?? listeners.set(type, new Set()).get(type)!).add(listener);
+      ;(listeners.get(type) ?? listeners.set(type, new Set()).get(type)!).add(listener)
     },
     removeEventListener(type: string, listener: EventListener) {
-      listeners.get(type)?.delete(listener);
+      listeners.get(type)?.delete(listener)
     },
     /** Fires one event and drops its `once` listeners, as the browser does. */
     dispatch(type: string) {
-      const set = listeners.get(type);
+      const set = listeners.get(type)
       for (const listener of [...(set ?? [])]) {
-        set?.delete(listener);
-        listener(new Event(type));
+        set?.delete(listener)
+        listener(new Event(type))
       }
     },
-  };
-  const state = { lost: options.lost === true };
+  }
+  const state = { lost: options.lost === true }
   const fixed: Record<string, unknown> = {
     canvas,
     drawingBufferWidth: canvas.width,
@@ -46,25 +46,25 @@ export function createTestContext(
     checkFramebufferStatus: () => 'FRAMEBUFFER_COMPLETE',
     // Recorded like any call; the viewport covers the drawing buffer, as a fresh context's does.
     getParameter: (name: string) => {
-      calls.push({ name: 'getParameter', args: [name] });
-      if (name === 'COLOR_WRITEMASK') return [true, true, true, true];
-      return name === 'VIEWPORT' ? new Int32Array([0, 0, canvas.width, canvas.height]) : undefined;
+      calls.push({ name: 'getParameter', args: [name] })
+      if (name === 'COLOR_WRITEMASK') return [true, true, true, true]
+      return name === 'VIEWPORT' ? new Int32Array([0, 0, canvas.width, canvas.height]) : undefined
     },
     ...options.answers,
-  };
+  }
   const gl = new Proxy(
     {},
     {
       get: (_target, name: string) => {
-        if (name in fixed) return fixed[name];
-        if (/^[A-Z0-9_]+$/.test(name)) return name;
+        if (name in fixed) return fixed[name]
+        if (/^[A-Z0-9_]+$/.test(name)) return name
         return (...args: unknown[]) => {
-          calls.push({ name, args });
-          return name.startsWith('create') ? { [name]: ++objects } : undefined;
-        };
+          calls.push({ name, args })
+          return name.startsWith('create') ? { [name]: ++objects } : undefined
+        }
       },
     },
-  ) as unknown as WebGL2RenderingContext;
+  ) as unknown as WebGL2RenderingContext
   return {
     gl,
     calls,
@@ -73,5 +73,5 @@ export function createTestContext(
     names: () => calls.map((call) => call.name),
     /** The recorded calls of one name, arguments only. */
     of: (name: string) => calls.filter((call) => call.name === name).map((call) => call.args),
-  };
+  }
 }

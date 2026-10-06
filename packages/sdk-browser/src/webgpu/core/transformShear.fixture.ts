@@ -2,22 +2,22 @@
 // `WebgpuPagesRuntime` reduced to what `setWebgpuTransform` reads and writes, a selection root, and
 // two small comparison helpers. Extracted from `transformShear.test.ts` so
 // `transformFiniteTransform.test.ts` reuses them without copying.
-import { SHADOW_CHANGE_BOXES } from '../../../../sdk-core/src/scene/light-shadow/changes.ts';
-import assert from 'node:assert/strict';
-import * as G from '../../host/graph/graph.fixture.ts';
-import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts';
-import { createWebgpuRunState } from '../pages/state/run.ts';
-import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts';
-import { createShadowMobility } from '../shadow/mobility.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
+import { SHADOW_CHANGE_BOXES } from '../../../../sdk-core/src/scene/light-shadow/changes.ts'
+import assert from 'node:assert/strict'
+import * as G from '../../host/graph/graph.fixture.ts'
+import { BOX_VALUES, boxTransform } from '../../../../sdk-core/src/index.ts'
+import { createWebgpuRunState } from '../pages/state/run.ts'
+import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts'
+import { createShadowMobility } from '../shadow/mobility.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 
 /** Two non-orthogonal axes: `y` pushes `x`. No TRS decomposition yields this matrix. */
 export function cisaillee(facteur = 3, tx = 0) {
-  return new G.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+  return new G.Matrix4().set(1, facteur, 0, tx, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
 }
 
-export const versGpu = (m: G.Matrix4) => new Float32Array(m.elements);
+export const versGpu = (m: G.Matrix4) => new Float32Array(m.elements)
 
 export function proche(
   obtenu: ArrayLike<number>,
@@ -29,16 +29,16 @@ export function proche(
     assert.ok(
       Math.abs(obtenu[i] - attendu[i]) <= tolerance,
       `${quoi}[${i}]: ${obtenu[i]} instead of ${attendu[i]}`,
-    );
+    )
 }
 
 /** Host scene AND the engine's world-matrix index, the one a move recomputes. */
 export function scene(name = 'target') {
   const source = new G.Object3D(),
-    mesh = G.mesh();
-  mesh.name = name;
-  source.add(mesh);
-  return { source, mesh, worlds: hostWorldPlacements(source) };
+    mesh = G.mesh()
+  mesh.name = name
+  source.add(mesh)
+  return { source, mesh, worlds: hostWorldPlacements(source) }
 }
 
 /** A minimal selection root: what the transform reprojects and what it sends. The matrix it carries
@@ -46,14 +46,14 @@ export function scene(name = 'target') {
 export function selectionRoot(mesh: G.Object3D, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
     worldBox = new Float64Array(BOX_VALUES),
-    world = worlds.of(mesh);
-  boxTransform(worldBox, 0, localBox, 0, world.elements);
+    world = worlds.of(mesh)
+  boxTransform(worldBox, 0, localBox, 0, world.elements)
   return {
     world,
     pages: [{ sourceMesh: mesh } as unknown as PageRec],
     worldBox,
     localBox,
-  } as ClusterRoot<PageRec>;
+  } as ClusterRoot<PageRec>
 }
 
 export function runtime(
@@ -69,9 +69,9 @@ export function runtime(
     },
     // Engine image state, as the runtime carries it: `setWebgpuTransform` increments the scene revision
     // there and aligns `worldsRevision`. A partial state would hide that contract.
-    run = createWebgpuRunState();
-  run.noOccluderHistory = false;
-  run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState;
+    run = createWebgpuRunState()
+  run.noOccluderHistory = false
+  run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState
   const rt = {
     setup: { source, worlds },
     layout,
@@ -85,6 +85,6 @@ export function runtime(
       },
       mobility: createShadowMobility(),
     },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, layout, run, motions, worlds };
+  } as unknown as WebgpuPagesRuntime
+  return { rt, layout, run, motions, worlds }
 }

@@ -1,8 +1,8 @@
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 /** A texture device that notes copies, by their origins, and destroyed textures. */
 export function textureDevice() {
-  const { device, textures, textureCopies, destroyed } = fakeDevice();
+  const { device, textures, textureCopies, destroyed } = fakeDevice()
   return {
     gpu: device,
     copies: () =>
@@ -12,5 +12,5 @@ export function textureDevice() {
         size: size as number[],
       })),
     destroyed: () => destroyed.filter((resource) => textures.includes(resource as never)).length,
-  };
+  }
 }

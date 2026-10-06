@@ -1,4 +1,4 @@
-import type { measureView } from './screenErrorMeasure.ts';
+import type { measureView } from './screenErrorMeasure.ts'
 
 /** A held, error-free view must contain measured surfaces in both directions. */
 export function screenErrorPass(
@@ -16,5 +16,5 @@ export function screenErrorPass(
     Number.isFinite(measured.forward.max) &&
     Number.isFinite(measured.reverse.max) &&
     Math.max(measured.forward.max, measured.reverse.max) <= pixelError + 0.1
-  );
+  )
 }

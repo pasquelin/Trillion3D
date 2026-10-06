@@ -1,7 +1,7 @@
-import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
-import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
-import { shaderFailed } from '../core/shaderModule.ts';
-import { DAG_ARM_SHADER } from './shader/armWgsl.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
+import { shaderFailed } from '../core/shaderModule.ts'
+import { DAG_ARM_SHADER } from './shader/armWgsl.ts'
 
 /**
  * The arming kernel of a cut (`shader/armWgsl.ts`) on its `work` and `args`, whose group words —
@@ -15,9 +15,9 @@ export async function createDagArm(
   args: GPUBuffer,
   words: { drawnGroups: number; candGroups: number; liveGroups: number },
 ) {
-  const module = device.createShaderModule({ code: DAG_ARM_SHADER });
-  if (await shaderFailed(module)) return undefined;
-  const layout = bounceLayout(device, ['read-only-storage', 'storage']);
+  const module = device.createShaderModule({ code: DAG_ARM_SHADER })
+  if (await shaderFailed(module)) return undefined
+  const layout = bounceLayout(device, ['read-only-storage', 'storage'])
   const pipeline = await buildComputePipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     compute: {
@@ -29,6 +29,6 @@ export async function createDagArm(
         LIVE_GROUPS: words.liveGroups,
       },
     },
-  });
-  return { armPipeline: pipeline, armGroup: bounceGroup(device, layout, [work, args]) };
+  })
+  return { armPipeline: pipeline, armGroup: bounceGroup(device, layout, [work, args]) }
 }

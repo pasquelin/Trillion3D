@@ -1,18 +1,18 @@
-import { visLayerTop } from './uniforms.ts';
-import { taaRenderMatrix } from '../../taa/frame.ts';
-import type { PartitionFrame } from '../../gpu/partition/uniform.ts';
-import type { EngineCamera } from '../../camera/world.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { visLayerTop } from './uniforms.ts'
+import { taaRenderMatrix } from '../../taa/frame.ts'
+import type { PartitionFrame } from '../../gpu/partition/uniform.ts'
+import type { EngineCamera } from '../../camera/world.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
-const noLevels: Array<{ offset: number; width: number }> = [];
-const noMatrix = new Float64Array(16);
+const noLevels: Array<{ offset: number; width: number }> = []
+const noMatrix = new Float64Array(16)
 
 /**
  * Partition input, filled every image in the SAME object: `encode` writes it into the uniform and
  * copies into its own arrays what the audit keeps, so nothing here needs to be new. The anchor is a
  * tuple held the same way, so the camera pose allocates nothing.
  */
-const anchor: [number, number, number] = [0, 0, 0];
+const anchor: [number, number, number] = [0, 0, 0]
 const frame: PartitionFrame = {
   view: noMatrix,
   viewProj: noMatrix,
@@ -26,7 +26,7 @@ const frame: PartitionFrame = {
   hasRest: false,
   viewMoved: true,
   counting: false,
-};
+}
 
 /**
  * Occluder/tested partition of the image, encoded for the GPU.
@@ -57,46 +57,46 @@ export function encodeWebgpuPartition(
 ) {
   const { layout, run, vis, gpu, timing } = rt,
     { rows } = layout,
-    partition = vis.gpuPartition;
+    partition = vis.gpuPartition
   const twoPass =
-    useIndirect && !!partition && !!vis.gpuHiz && !!vis.visHizRestBack && rows.packedCount >= 2;
-  const counts = timing.partitionCounts;
-  counts.rows = rows.packedCount;
-  if (!partition) return { twoPass: false };
-  const start = performance.now();
-  frame.view = cam.view;
+    useIndirect && !!partition && !!vis.gpuHiz && !!vis.visHizRestBack && rows.packedCount >= 2
+  const counts = timing.partitionCounts
+  counts.rows = rows.packedCount
+  if (!partition) return { twoPass: false }
+  const start = performance.now()
+  frame.view = cam.view
   // The render matrix, temporal-antialiasing jitter included: the pyramid the occlusion test reads
   // was rasterised with it, and its margins are to the ulp.
-  frame.viewProj = taaRenderMatrix(rt, cam);
+  frame.viewProj = taaRenderMatrix(rt, cam)
   // Projection anchor: the eye in the world. Corners enter the kernel only by their offset from it,
   // which keeps the error bound tight whatever the model size.
-  anchor[0] = cam.eye[0];
-  anchor[1] = cam.eye[1];
-  anchor[2] = cam.eye[2];
-  frame.near = cam.near;
-  frame.rows = rows.packedCount;
-  frame.width = gpu.targetSize[0];
-  frame.height = gpu.targetSize[1];
-  frame.levels = twoPass ? vis.gpuHiz!.levels() : noLevels;
-  frame.layerTop = visLayerTop(vis);
-  frame.hasRest = twoPass;
+  anchor[0] = cam.eye[0]
+  anchor[1] = cam.eye[1]
+  anchor[2] = cam.eye[2]
+  frame.near = cam.near
+  frame.rows = rows.packedCount
+  frame.width = gpu.targetSize[0]
+  frame.height = gpu.targetSize[1]
+  frame.levels = twoPass ? vis.gpuHiz!.levels() : noLevels
+  frame.layerTop = visLayerTop(vis)
+  frame.hasRest = twoPass
   // A moved view, a moved world or a dropped history free the rows the test kept: what stood
   // still no longer does, and each of them may leave the occluders again.
-  frame.viewMoved = run.hizViewMoved || run.noOccluderHistory;
+  frame.viewMoved = run.hizViewMoved || run.noOccluderHistory
   // The sampled frame: its kernels count, and its counters are copied (`encodeCounts`).
-  frame.counting = partition.countsDue(run.frame);
-  partition.beginFrame(encoder, frame);
-  run.noOccluderHistory = false;
+  frame.counting = partition.countsDue(run.frame)
+  partition.beginFrame(encoder, frame)
+  run.noOccluderHistory = false
   // What encoding the partition costs the CPU: one uniform and three dispatches, never a resident
   // row. Projection and the split have no CPU bound left at all.
-  timing.lastPartitionMs = performance.now() - start;
+  timing.lastPartitionMs = performance.now() - start
   // The image's counts are those the GPU wrote, reread one image in fifteen. They therefore describe
   // a previous image, never this one, and stay at zero before the first sample.
-  const sample = partition.counts();
-  counts.occluders = sample ? sample.occluders : 0;
-  counts.tested = sample ? sample.tested : 0;
-  counts.previousOccluders = sample ? sample.historyOccluders : 0;
-  counts.pyramidWithdrawn = sample ? sample.withdrawn : 0;
-  counts.sampledFrame = sample ? sample.frame : -1;
-  return { twoPass };
+  const sample = partition.counts()
+  counts.occluders = sample ? sample.occluders : 0
+  counts.tested = sample ? sample.tested : 0
+  counts.previousOccluders = sample ? sample.historyOccluders : 0
+  counts.pyramidWithdrawn = sample ? sample.withdrawn : 0
+  counts.sampledFrame = sample ? sample.frame : -1
+  return { twoPass }
 }

@@ -1,12 +1,12 @@
-import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts';
+import type { EffectKind, EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
 import {
   countKinds,
   EFFECT_KINDS as KINDS,
   effectPassTargets,
   effectTargetBytes,
   type EffectPassOf,
-} from '../../effects/targets.ts';
-import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts';
+} from '../../effects/targets.ts'
+import { type FusedBlend, type Kinds, WEBGPU_KINDS } from './webgpuKinds.ts'
 
 /**
  * The WebGPU side of `world.effects`: the passes that run before tone mapping, between the
@@ -23,97 +23,97 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
   const made: Partial<Kinds> = {},
     pending = new Map<EffectKind, Promise<void>>(),
     counts = {} as Record<EffectKind, number>,
-    nth = {} as Record<EffectKind, number>;
+    nth = {} as Record<EffectKind, number>
   let failed = false,
     disposed = false,
     draws = 0,
     blend: FusedBlend | undefined,
     width = 0,
-    height = 0;
+    height = 0
   const targets: GPUTexture[] = [],
-    views: GPUTextureView[] = [];
+    views: GPUTextureView[] = []
   const load = <K extends EffectKind>(kind: K) => {
-    if (failed || pending.has(kind)) return;
+    if (failed || pending.has(kind)) return
     const loaded = WEBGPU_KINDS[kind](device).then(
       (implementation) => {
         // Arrived after the chain was disposed (a closed session, a lost device): freed, unsaid.
-        if (disposed) return implementation.dispose();
-        made[kind] = implementation;
-        pending.delete(kind);
+        if (disposed) return implementation.dispose()
+        made[kind] = implementation
+        pending.delete(kind)
       },
       (error) => {
-        if (disposed) return;
-        failed = true;
-        pending.delete(kind);
-        fail(error);
+        if (disposed) return
+        failed = true
+        pending.delete(kind)
+        fail(error)
       },
-    );
-    pending.set(kind, loaded);
-  };
+    )
+    pending.set(kind, loaded)
+  }
   /** Draws `pass` with its kind's implementation; the chain holds built-ins only (`EffectKind`). */
   const encodePass = <K extends EffectKind>(
     encoder: GPUCommandEncoder,
     pass: EffectPassOf<K>,
     input: GPUTextureView,
     output: GPUTextureView | undefined,
-  ) => made[pass.kind as K]!.encode(encoder, pass, nth[pass.kind]++, input, output);
+  ) => made[pass.kind as K]!.encode(encoder, pass, nth[pass.kind]++, input, output)
   const release = () => {
-    for (const target of targets) target.destroy();
-    targets.length = views.length = 0;
-    for (const kind of KINDS) made[kind]?.resize(0, 0, 0);
-    width = height = 0;
-  };
+    for (const target of targets) target.destroy()
+    targets.length = views.length = 0
+    for (const kind of KINDS) made[kind]?.resize(0, 0, 0)
+    width = height = 0
+  }
   const ensure = (count: number, w: number, h: number) => {
-    if (w !== width || h !== height) release();
-    width = w;
-    height = h;
-    while (targets.length > count) targets.pop()!.destroy();
-    views.length = targets.length;
+    if (w !== width || h !== height) release()
+    width = w
+    height = h
+    while (targets.length > count) targets.pop()!.destroy()
+    views.length = targets.length
     while (targets.length < count) {
       const target = device.createTexture({
         label: `Trillion3D effect target ${targets.length}`,
         size: { width: w, height: h },
         format: 'rgba16float',
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
-      });
-      targets.push(target);
-      views.push(target.createView());
+      })
+      targets.push(target)
+      views.push(target.createView())
     }
-    for (const kind of KINDS) made[kind]?.resize(w, h, counts[kind]);
-  };
+    for (const kind of KINDS) made[kind]?.resize(w, h, counts[kind])
+  }
   /** Counts the passes of each kind; false while a kind they need is not compiled. */
   const readyFor = (passes: readonly EffectPass[]) => {
-    countKinds(passes, counts);
-    for (const kind of KINDS) nth[kind] = 0;
-    let ready = !failed;
+    countKinds(passes, counts)
+    for (const kind of KINDS) nth[kind] = 0
+    let ready = !failed
     for (const kind of KINDS)
       if (counts[kind] && !made[kind]) {
-        load(kind);
-        ready = false;
+        load(kind)
+        ready = false
       }
-    return ready;
-  };
+    return ready
+  }
   return {
     /** True while programs compile: the image drawn meanwhile lacks the chain. */
     get loading() {
-      return pending.size > 0;
+      return pending.size > 0
     },
     /** Resolves once every program in compilation has arrived or failed. */
     settled: () => Promise.all(pending.values()),
     /** Bytes of every target the chain holds: the pass targets and each kind's own. */
     get bytes() {
-      let bytes = effectTargetBytes(width, height, targets.length, false);
-      for (const kind of KINDS) bytes += made[kind]?.bytes ?? 0;
-      return bytes;
+      let bytes = effectTargetBytes(width, height, targets.length, false)
+      for (const kind of KINDS) bytes += made[kind]?.bytes ?? 0
+      return bytes
     },
     /** Render passes the last `encode` drew: zero when it drew none. */
     get draws() {
-      return draws;
+      return draws
     },
     /** The last pass's blend the last `encode` left to the composition, which then reads the
      *  image returned through it. */
     get blend() {
-      return blend;
+      return blend
     },
     /** Encodes `passes` over `input`, an image of `w` × `h`, and returns what composition reads:
      *  `input` itself when there is nothing to draw. With `fuse`, the last pass leaves its blend
@@ -126,36 +126,36 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
       h: number,
       fuse = false,
     ) {
-      draws = 0;
-      blend = undefined;
+      draws = 0
+      blend = undefined
       if (!passes.length) {
-        release();
-        return input;
+        release()
+        return input
       }
-      if (!readyFor(passes)) return input;
-      const fuses = fuse && 'blend' in made[passes[passes.length - 1].kind]!;
-      const last = passes.length - (fuses ? 1 : 0);
-      ensure(effectPassTargets(last), w, h);
+      if (!readyFor(passes)) return input
+      const fuses = fuse && 'blend' in made[passes[passes.length - 1].kind]!
+      const last = passes.length - (fuses ? 1 : 0)
+      ensure(effectPassTargets(last), w, h)
       let view = input,
-        written = 0;
+        written = 0
       for (let index = 0; index < passes.length; index++) {
         const pass = passes[index] as EffectPassOf<EffectKind>,
           output = index < last ? views[written % 2] : undefined,
-          drawn = encodePass(encoder, pass, view, output);
-        if (!drawn) continue;
-        draws += drawn;
-        if (!output) blend = made[pass.kind]!.blend;
-        else view = output;
-        written++;
+          drawn = encodePass(encoder, pass, view, output)
+        if (!drawn) continue
+        draws += drawn
+        if (!output) blend = made[pass.kind]!.blend
+        else view = output
+        written++
       }
-      return view;
+      return view
     },
     dispose() {
-      disposed = true;
-      release();
-      for (const kind of KINDS) made[kind]?.dispose();
+      disposed = true
+      release()
+      for (const kind of KINDS) made[kind]?.dispose()
     },
-  };
+  }
 }
 
-export type WebgpuEffects = ReturnType<typeof createWebgpuEffects>;
+export type WebgpuEffects = ReturnType<typeof createWebgpuEffects>

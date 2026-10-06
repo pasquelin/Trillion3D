@@ -6,13 +6,13 @@ import {
   SPEC_PAGE_INDEX,
   SPEC_STREAM_OFFSET,
   SPEC_TRIANGLES,
-} from '../../../../sdk-core/src/index.ts';
-import type { ArrivalPlan } from './host.ts';
+} from '../../../../sdk-core/src/index.ts'
+import type { ArrivalPlan } from './host.ts'
 
 /** What a record owes the spec: its place in the bundle, its size, its page rank. */
-type SpecRec = { streamOffset?: number; triangles: number };
+type SpecRec = { streamOffset?: number; triangles: number }
 /** What an arrival writes on a record: its view of the bundle and what it weighs. */
-type ArrivalRec = SpecRec & { array?: Uint32Array; indexBytes: number };
+type ArrivalRec = SpecRec & { array?: Uint32Array; indexBytes: number }
 
 /**
  * Spec of a request: three integers per record, taken from the catalogue alone.
@@ -25,24 +25,24 @@ export function createArrivalSpecs<T extends SpecRec>(
   byUrl: ReadonlyMap<string, T[]>,
   pageIndexOf: (rec: T) => number | undefined,
 ) {
-  const cache = new Map<string, Int32Array>();
+  const cache = new Map<string, Int32Array>()
   return (url: string) => {
     const known = cache.get(url),
-      recs = byUrl.get(url);
-    if (!recs) return undefined;
+      recs = byUrl.get(url)
+    if (!recs) return undefined
     // A list placements grew since (`placement/growth.ts`) is specified anew.
-    if (known?.length === recs.length * PAGE_SPEC_STRIDE) return known;
-    const specs = new Int32Array(recs.length * PAGE_SPEC_STRIDE);
+    if (known?.length === recs.length * PAGE_SPEC_STRIDE) return known
+    const specs = new Int32Array(recs.length * PAGE_SPEC_STRIDE)
     for (let i = 0; i < recs.length; i++) {
       const rec = recs[i],
-        spec = i * PAGE_SPEC_STRIDE;
-      specs[spec + SPEC_STREAM_OFFSET] = rec.streamOffset ?? -1;
-      specs[spec + SPEC_TRIANGLES] = rec.triangles;
-      specs[spec + SPEC_PAGE_INDEX] = pageIndexOf(rec) ?? -1;
+        spec = i * PAGE_SPEC_STRIDE
+      specs[spec + SPEC_STREAM_OFFSET] = rec.streamOffset ?? -1
+      specs[spec + SPEC_TRIANGLES] = rec.triangles
+      specs[spec + SPEC_PAGE_INDEX] = pageIndexOf(rec) ?? -1
     }
-    cache.set(url, specs);
-    return specs;
-  };
+    cache.set(url, specs)
+    return specs
+  }
 }
 
 /**
@@ -58,16 +58,16 @@ export function applyArrivalPlan<T extends ArrivalRec>(
   array: Uint32Array,
   plan: ArrivalPlan | undefined,
 ) {
-  if (!plan || plan.count !== recs.length) return false;
-  const { slices } = plan;
+  if (!plan || plan.count !== recs.length) return false
+  const { slices } = plan
   for (let i = 0; i < recs.length; i++) {
     const slice = i * PAGE_SLICE_STRIDE,
       from = slices[slice + SLICE_OFFSET_WORDS],
-      words = slices[slice + SLICE_WORDS];
-    if (from + words > array.length) return false;
-    const view = from === 0 && words === array.length ? array : array.subarray(from, from + words);
-    recs[i].array = view;
-    recs[i].indexBytes = view.byteLength;
+      words = slices[slice + SLICE_WORDS]
+    if (from + words > array.length) return false
+    const view = from === 0 && words === array.length ? array : array.subarray(from, from + words)
+    recs[i].array = view
+    recs[i].indexBytes = view.byteLength
   }
-  return true;
+  return true
 }

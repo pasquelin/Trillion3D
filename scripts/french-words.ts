@@ -22,13 +22,13 @@ export const FRENCH_WORDS = new Set(
   resultat resultats saine saturees serie seuil seulement soleil somme sommet sommets tangentes
   temoin temoins tenue texte totaux toute toutes tronque trop uniforme variante variantes
   vecteur vecteurs verifie verite vide vitre vivant vrai vraie vue vues`.split(/\s+/),
-);
+)
 
 /** A French string that must stay: why it cannot be renamed yet, and the files it is excepted in
  *  (every file when absent). */
 export interface FrenchException {
-  reason: string;
-  files?: RegExp;
+  reason: string
+  files?: RegExp
 }
 
 const PERF_FORMAT: FrenchException = {
@@ -38,11 +38,11 @@ const PERF_FORMAT: FrenchException = {
     "`site/examples/kit/verdict.ts`, and stored in each machine's `.mesure/baselines`: listed " +
     'until renamed together with its readers',
   files: /^(?:bench\/(?:core|perf|oracles|runner\/perf)\/|site\/examples\/kit\/)/,
-};
+}
 
 /** The format's keys holding a counted word, excepted only where they are keys (`.key`, `key:`,
  *  `key?:`, `'key'`) in the files of the format: the same word elsewhere is counted. */
-const PERF_KEYS = ['medianeMs', 'temoin', 'ecartTemoin', 'ecartBaseline', 'fichier', 'resultats'];
+const PERF_KEYS = ['medianeMs', 'temoin', 'ecartTemoin', 'ecartBaseline', 'fichier', 'resultats']
 
 /** The French strings that must stay, not counted. Each is matched literally, never inside a longer
  *  name. */
@@ -66,6 +66,6 @@ export const FRENCH_EXCEPTIONS: Record<string, FrenchException> = {
   'atlas-couleur': {
     reason:
       'a fixture folder and file name (`tests/fixtures/formats/previews/atlas-couleur`) read by the ' +
-      'texture preview tests of the asset compiler and by `scripts/texture-coverage-levels.test.ts`',
+      'texture preview tests of the asset compiler',
   },
-};
+}

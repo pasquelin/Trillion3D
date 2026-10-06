@@ -3,11 +3,11 @@
  * reads a host object, so this module names no rendering library — the host-library objects a
  * witness publishes live in the witness library.
  */
-import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts';
+import { MAX_PREFETCH_HORIZON_MS } from './prefetchHorizon.ts'
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
  *  rewrites it. */
 export const pixelRatioOf = (options: { pixelRatio?: number }) =>
-  options.pixelRatio ?? DEFAULT_PIXEL_RATIO;
+  options.pixelRatio ?? DEFAULT_PIXEL_RATIO
 
 export const DEFAULT_FOV = 55,
   DEFAULT_PIXEL_RATIO = 1,
@@ -43,7 +43,7 @@ export const DEFAULT_FOV = 55,
    */
   PREFETCH_HORIZON_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
-  DEFAULT_CLEAR_COLOR = 0x171d28;
+  DEFAULT_CLEAR_COLOR = 0x171d28
 /**
  * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
  * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a
@@ -53,14 +53,14 @@ export const DEFAULT_FOV = 55,
 export const prefetchHorizonMs = (roundTripMs?: number) =>
   roundTripMs! > 0
     ? Math.min(PREFETCH_HORIZON_MS + roundTripMs!, MAX_PREFETCH_HORIZON_MS)
-    : PREFETCH_HORIZON_MS;
+    : PREFETCH_HORIZON_MS
 /**
  * Device pixels of a logical dimension, at the ratio the host has set. Canvas creation and
  * resize both compute it: two separate truncations would have ended up with a canvas of one
  * size and a viewport of another.
  */
 export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
-  Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
+  Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO))
 /** The adapter's own limits the session's device asks for, each up to the ceiling beside it: WebGPU
  *  grants the portable defaults otherwise.
  *  - `Infinity`, all the adapter offers: a virtual shadow page pool is as wide as
@@ -85,10 +85,10 @@ export const WEBGPU_REQUIRED_LIMITS = {
   maxComputeInvocationsPerWorkgroup: Infinity,
   maxStorageTexturesPerShaderStage: Infinity,
   maxSampledTexturesPerShaderStage: 18,
-} as const satisfies Partial<Record<keyof GPUSupportedLimits, number>>;
+} as const satisfies Partial<Record<keyof GPUSupportedLimits, number>>
 /**
  * True when the work under `signal` was cancelled: an error then is its cancellation, whatever its
  * name — no failure is diagnosed, nothing falls back. An `AbortError` under a live signal is a
  * failure like any other.
  */
-export const isCancelled = (signal: AbortSignal | undefined) => signal?.aborted === true;
+export const isCancelled = (signal: AbortSignal | undefined) => signal?.aborted === true

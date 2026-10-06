@@ -9,8 +9,8 @@ import {
   PARTITION_PASS,
   PARTICLE_DRAW_PASS,
   TAA_PASS,
-} from './passLabels.ts';
-import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLabels.ts';
+} from './passLabels.ts'
+import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLabels.ts'
 
 /**
  * The two blocks of a frame that can be set against a published profile, and nothing else.
@@ -20,13 +20,13 @@ import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from '../webgpu/water/passLa
  * through the buffer — putting any of those in a block would inflate a comparison instead of
  * serving it, so they stay outside AND named, each pass keeping its duration.
  */
-export type GpuPassBlock = 'visibility' | 'materials' | 'other';
+export type GpuPassBlock = 'visibility' | 'materials' | 'other'
 
 /** A shadow page's GPU cost: choosing its casters, then drawing them. Sampling is in `lighting`. */
-type ShadowPart = 'cull' | 'raster';
+type ShadowPart = 'cull' | 'raster'
 
 /** A pass's row: its stage and block, plus its shadow part when it serves shadow pages. */
-export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: ShadowPart];
+export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: ShadowPart]
 
 /**
  * Profile stage, comparison block and shadow part of each GPU pass, read from the label the pass
@@ -77,7 +77,7 @@ export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D HDR composition + present': ['present', 'other'],
   'Trillion3D direct present': ['present', 'other'],
   'Trillion3D explicit capture': ['present', 'other'],
-});
+})
 
 /** Shadow part of a pass, by its label. A pass that serves no shadow page is `other`. */
-export const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other';
+export const gpuShadowPartOf = (name: string) => PASSES[name]?.[2] ?? 'other'

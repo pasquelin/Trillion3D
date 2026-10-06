@@ -4,15 +4,15 @@
  * A format missing from the table throws, so a new target cannot be counted as free.
  */
 export function colorBytesPerSample(formats: readonly (GPUTextureFormat | undefined)[]) {
-  let total = 0;
+  let total = 0
   for (const format of formats) {
-    if (!format) continue;
-    const entry = COLOR_TARGET_COST[format];
-    if (!entry) throw new Error(`no colour byte cost for ${format}`);
-    const [cost, alignment] = entry;
-    total = Math.ceil(total / alignment) * alignment + cost;
+    if (!format) continue
+    const entry = COLOR_TARGET_COST[format]
+    if (!entry) throw new Error(`no colour byte cost for ${format}`)
+    const [cost, alignment] = entry
+    total = Math.ceil(total / alignment) * alignment + cost
   }
-  return total;
+  return total
 }
 
 /**
@@ -29,4 +29,4 @@ const COLOR_TARGET_COST: Partial<Record<GPUTextureFormat, [cost: number, alignme
   r32float: [4, 4],
   rg32uint: [8, 4],
   rgba16float: [8, 2],
-};
+}

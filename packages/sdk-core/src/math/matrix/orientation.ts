@@ -3,7 +3,7 @@
  * GPU, no DOM. Stored here alongside `maxStretch`, it tests without a browser and the CPU
  * visbuffer rasterizer no longer needs to import it from a `webgpu*` module.
  */
-import { linearPartDeterminant } from './matrix4.ts';
+import { linearPartDeterminant } from './matrix4.ts'
 
 /**
  * Does the transformation flip orientation? The determinant of the 3x3 of a world matrix
@@ -20,5 +20,5 @@ import { linearPartDeterminant } from './matrix4.ts';
  * same products, same sums, same order, hence the same sign down to identical bits.
  */
 export function matrixWindingCw(elements: ArrayLike<number>) {
-  return linearPartDeterminant(elements) < 0;
+  return linearPartDeterminant(elements) < 0
 }

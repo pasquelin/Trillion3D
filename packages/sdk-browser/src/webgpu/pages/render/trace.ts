@@ -1,7 +1,7 @@
-import type { PageRec } from '../../../page/selection/selection.ts';
-import { urlsOf } from '../helpers.ts';
-import { enginePose, type EngineCamera } from '../../../camera/world.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import type { PageRec } from '../../../page/selection/selection.ts'
+import { urlsOf } from '../helpers.ts'
+import { enginePose, type EngineCamera } from '../../../camera/world.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Every full frame snapshot starts from the same identity: backend, frame, submission, pose and
  *  the CPU sample; callers append only what their selection path knows. */
@@ -20,7 +20,7 @@ export function frameTraceSnapshot<T extends object>(
     selection,
     cpu: rt.timing.cpuSample,
     ...rest,
-  };
+  }
 }
 
 /** The CPU path never consults a GPU readback; every trace of it says so with the same reason. */
@@ -29,24 +29,24 @@ function cpuSelectionDecision(rt: WebgpuPagesRuntime) {
     source: 'cpu' as const,
     decision: 'fallback',
     reason: rt.capture.capturing ? 'surface-capture' : 'gpu-selection-unavailable',
-  };
+  }
 }
 
 export function traceCpuSelection(
   rt: WebgpuPagesRuntime,
   chosen: {
-    shown: PageRec[];
-    wanted?: PageRec[];
-    visible: number;
-    selectedTriangles: number;
-    frustumRejected: number;
-    lodLevel: number;
+    shown: PageRec[]
+    wanted?: PageRec[]
+    visible: number
+    selectedTriangles: number
+    frustumRejected: number
+    lodLevel: number
   },
   elapsedMs: number,
 ) {
   const { run, diag } = rt,
-    { tracking } = rt.setup;
-  if (!diag.traceEnabled) return;
+    { tracking } = rt.setup
+  if (!diag.traceEnabled) return
   diag.traceDiagnostic('cpu-selection', 'CPU reference selection', () => ({
     frame: run.frame,
     submission: run.imageRevision,
@@ -59,7 +59,7 @@ export function traceCpuSelection(
     frustumRejected: chosen.frustumRejected,
     lodLevel: chosen.lodLevel,
     reason: cpuSelectionDecision(rt).reason,
-  }));
+  }))
 }
 
 /** The frame snapshot of an image that could not draw: the bootstrap cover is not resident yet. */
@@ -69,8 +69,8 @@ export function traceCpuFrameWaiting(
   requested: Set<string>,
 ) {
   const { run, timing, diag } = rt,
-    { tracking, bootstrap, slots } = rt.setup;
-  if (!diag.traceEnabled) return;
+    { tracking, bootstrap, slots } = rt.setup
+  if (!diag.traceEnabled) return
   diag.traceDiagnostic('frame', 'Frame snapshot waiting for GPU coverage', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
@@ -87,14 +87,14 @@ export function traceCpuFrameWaiting(
       },
       gpuTiming: timing.gpuTiming?.stats() ?? { supported: false, reason: 'not-initialized' },
     }),
-  );
+  )
 }
 
 /** The complete frame snapshot of a CPU-cut image, after its submission. */
 export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const { run, timing, diag, blendState } = rt,
-    { tracking, bootstrap, bootstrapUrls, slots } = rt.setup;
-  if (!diag.traceEnabled) return;
+    { tracking, bootstrap, bootstrapUrls, slots } = rt.setup
+  if (!diag.traceEnabled) return
   diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
@@ -121,5 +121,5 @@ export function traceCpuFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
       },
       drawCalls: run.gpuDrawCalls,
     }),
-  );
+  )
 }

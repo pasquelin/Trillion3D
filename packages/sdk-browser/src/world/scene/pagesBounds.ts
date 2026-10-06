@@ -1,14 +1,14 @@
-import { meshes as objects } from '../../scene/meshes.ts';
-import type { HostBoundedNode } from '../../host/scene/graphNodes.ts';
-import type { HostMesh } from '../../host/resources.ts';
-import { primitiveFinder } from '../../scene/primitiveLookup.ts';
-import { emptyWorldBox, hostBoundsLot } from '../../host/world/bounds.ts';
-import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts';
-import { boxUnionCollector } from '../../math/batchBoxes.ts';
-import type { BackendContext } from '../../backend/types.ts';
-import { hostWorldPlacements } from '../../host/world/placements.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { meshes as objects } from '../../scene/meshes.ts'
+import type { HostBoundedNode } from '../../host/scene/graphNodes.ts'
+import type { HostMesh } from '../../host/resources.ts'
+import { primitiveFinder } from '../../scene/primitiveLookup.ts'
+import { emptyWorldBox, hostBoundsLot } from '../../host/world/bounds.ts'
+import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts'
+import { boxUnionCollector } from '../../math/batchBoxes.ts'
+import type { BackendContext } from '../../backend/types.ts'
+import { hostWorldPlacements } from '../../host/world/placements.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
  * World bounds of the exact pages of a prepared scene: what framing and replication read from
@@ -21,23 +21,23 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  */
 
 /** A manifest page carries exact bounds, or is only a coarse approximation. */
-type ManifestPage = ClusterManifest['primitives'][number]['pages'][number];
-const exacte = (item: ManifestPage) => (item.role ?? 'exact') === 'exact';
+type ManifestPage = ClusterManifest['primitives'][number]['pages'][number]
+const exacte = (item: ManifestPage) => (item.role ?? 'exact') === 'exact'
 
 /** Manifest bounds written flat, six floats from `at`. */
 function ecritPage(out: Float64Array, at: number, item: ManifestPage) {
-  out[at] = item.min[0];
-  out[at + 1] = item.min[1];
-  out[at + 2] = item.min[2];
-  out[at + 3] = item.max[0];
-  out[at + 4] = item.max[1];
-  out[at + 5] = item.max[2];
+  out[at] = item.min[0]
+  out[at + 1] = item.min[1]
+  out[at + 2] = item.min[2]
+  out[at + 3] = item.max[0]
+  out[at + 4] = item.max[1]
+  out[at + 5] = item.max[2]
 }
 
 /** The box a mesh placed by rows holds for every row (`host/prepared/placed.ts`): its pages
  *  bound one placement, and its own pose places none. */
 function placedBox(mesh: HostMesh, associations: BackendContext['associations']) {
-  return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined;
+  return associations.get(mesh)?.placements ? (mesh as HostBoundedNode).boundingBox : undefined
 }
 
 /** Exact pages of `source`: the EXACT size the box lot must carry. A mesh placed by rows counts
@@ -47,14 +47,14 @@ function exactPagesCount(
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
 ) {
-  const primitiveOf = primitiveFinder(metadata.primitives);
-  let n = 0;
+  const primitiveOf = primitiveFinder(metadata.primitives)
+  let n = 0
   for (const mesh of objects(source)) {
-    const primitive = primitiveOf(associations.get(mesh));
-    if (placedBox(mesh, associations)) n++;
-    else if (primitive) for (const item of primitive.pages) if (exacte(item)) n++;
+    const primitive = primitiveOf(associations.get(mesh))
+    if (placedBox(mesh, associations)) n++
+    else if (primitive) for (const item of primitive.pages) if (exacte(item)) n++
   }
-  return n;
+  return n
 }
 
 /** The lot that carries these pages, or `null` when there are none: a reservation, not a frame. */
@@ -63,8 +63,8 @@ async function pagesLot(
   associations: BackendContext['associations'],
   metadata: ClusterManifest,
 ) {
-  const n = exactPagesCount(source, associations, metadata);
-  return n ? await createBoxTransformLot(n) : null;
+  const n = exactPagesCount(source, associations, metadata)
+  return n ? await createBoxTransformLot(n) : null
 }
 
 /** Scene-bounds buffer, at the exact size of the compute that follows: exact pages of an
@@ -75,7 +75,7 @@ export function sceneBoundsLot(
   metadata: ClusterManifest,
   autonomous: boolean,
 ) {
-  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source);
+  return autonomous ? pagesLot(source, associations, metadata) : hostBoundsLot(source)
 }
 
 /** World bounds of the exact pages of every mesh of `source`, flat `[minX..maxZ]`: a mesh placed
@@ -90,29 +90,29 @@ export function pagesBounds(
   into = emptyWorldBox(),
   lot?: BoxTransformLot | null,
 ) {
-  const primitiveOf = primitiveFinder(metadata.primitives);
-  const union = boxUnionCollector(into, lot, exactPagesCount(source, associations, metadata));
-  const worlds = hostWorldPlacements(source);
+  const primitiveOf = primitiveFinder(metadata.primitives)
+  const union = boxUnionCollector(into, lot, exactPagesCount(source, associations, metadata))
+  const worlds = hostWorldPlacements(source)
   for (const mesh of objects(source)) {
-    const primitive = primitiveOf(associations.get(mesh));
-    const placed = placedBox(mesh, associations);
+    const primitive = primitiveOf(associations.get(mesh))
+    const placed = placedBox(mesh, associations)
     if (!primitive && !placed) {
-      onMissing(mesh);
-      continue;
+      onMissing(mesh)
+      continue
     }
     // The world matrix is the one the engine computed for this mesh, read once.
-    const world = worlds.of(mesh).elements;
+    const world = worlds.of(mesh).elements
     if (placed) {
-      const { min, max } = placed;
-      union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at);
-      union.pose(world);
-      continue;
+      const { min, max } = placed
+      union.boxes.set([min.x, min.y, min.z, max.x, max.y, max.z], union.at)
+      union.pose(world)
+      continue
     }
     for (const item of primitive!.pages)
       if (exacte(item)) {
-        ecritPage(union.boxes, union.at, item);
-        union.pose(world);
+        ecritPage(union.boxes, union.at, item)
+        union.pose(world)
       }
   }
-  return union.ferme();
+  return union.ferme()
 }

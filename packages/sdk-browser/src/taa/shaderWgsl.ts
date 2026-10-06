@@ -1,8 +1,8 @@
-import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
-import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
-import * as layer from './layers.ts';
-import { BINDINGS_WGSL, shareBindingsWgsl, VIEW_WGSL } from './bindingsWgsl.ts';
-import { TAA_DEFORM_WGSL } from './deformWgsl.ts';
+import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
+import * as layer from './layers.ts'
+import { BINDINGS_WGSL, shareBindingsWgsl, VIEW_WGSL } from './bindingsWgsl.ts'
+import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
 import {
   CATMULL_ROM_WGSL,
   CURRENT_SHARE_WGSL,
@@ -11,37 +11,37 @@ import {
   PAGE_OF_WGSL,
   shareText,
   taaHistoryBlend,
-} from './historyWgsl.ts';
-import { YCOCG_WGSL } from './ycocgWgsl.ts';
-import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
-import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts';
+} from './historyWgsl.ts'
+import { YCOCG_WGSL } from './ycocgWgsl.ts'
+import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts'
+import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import {
   GEOMETRY_HISTORY_WGSL,
   NEAREST_OF_WGSL,
   closestSurfaceWgsl,
-} from './geometryHistoryWgsl.ts';
-import { AS_IS_FLAG } from '../scene/surfaceModel.ts';
+} from './geometryHistoryWgsl.ts'
+import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 
 /** One neighbour's luma into the 3×3 blur (1, ½, ¼ for centre, sides and corners, over sixteen) and
  *  into the luma's slopes across it (a Sobel pair, over eight), in both resolves: the blurred luma
  *  the flicker measure compares, and the spread of the blurred lumas over the 3×3 the slopes give
  *  (`shadingMoire`). Taken from the YCoCg luma the box already holds: no work per texel but this. */
 export const BLUR_TAP_WGSL = `  blur+=y.x*vec3f(f32((2-abs(dx))*(2-abs(dy))),f32(dx*(2-abs(dy))),f32(dy*(2-abs(dx))));
-`;
+`
 
 /** How a resolve reads a render texel `at`: the colour, the as-is weight (a blended share's value,
  *  or whether the flags say as-is) and the identifier. */
 export interface TexelReads {
-  color: (at: string) => string;
-  flag: (at: string) => string;
-  id: (at: string) => string;
+  color: (at: string) => string
+  flag: (at: string) => string
+  id: (at: string) => string
 }
 export const texelReads = (blended: boolean): TexelReads => ({
   color: (at) => `textureLoad(current,${at},0)`,
   flag: (at) =>
     blended ? `textureLoad(flags,${at},0).r` : `f32(textureLoad(flags,${at},0).r==${AS_IS_FLAG}u)`,
   id: (at) => `textureLoad(ids,${at},0).r`,
-});
+})
 
 /**
  * Where this pixel was on the previous frame, in history texture coordinates, and whether that
@@ -78,9 +78,9 @@ fn previousSample(coord:vec2i,depthValue:f32,id:u32)->vec4f{
 }
 fn previousUv(coord:vec2i,depthValue:f32,id:u32)->vec3f{
  let p=previousSample(coord,depthValue,id);return vec3f(p.xy,p.w);
-}`;
+}`
 
-const TAA_REPROJECT_WGSL = taaReprojectWgsl();
+const TAA_REPROJECT_WGSL = taaReprojectWgsl()
 
 /**
  * Temporal resolve. The current image is refiltered on its 3×3 neighbours with the uniform
@@ -100,7 +100,7 @@ const TAA_REPROJECT_WGSL = taaReprojectWgsl();
  */
 export const taaShader = (asIs: boolean, blended = false, filtered = false, reactive = true) => {
   const share = shareText(asIs),
-    read = texelReads(blended);
+    read = texelReads(blended)
   return `${taaPrelude(asIs, blended, filtered)}
 @fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
@@ -123,8 +123,8 @@ ${MEASURES_WGSL}
  if(view.params.y==0.0){return ${layer.taaOut(asIs, filtered)};}
  let here=pixelPoint(coord,nearDepth);let before=pointBefore(here,id);let previous=previousProjected(before);
 ${taaHistoryBlend(asIs, filtered, false, 'page', reactive)}
-}`;
-};
+}`
+}
 
 /** What both resolves measure once their 3×3 is read and `filtered` known (`shadingHistoryWgsl.ts`):
  *  the image's luma, linear and in the measurement curve, the blurred luma and the box of the
@@ -133,19 +133,19 @@ ${taaHistoryBlend(asIs, filtered, false, 'page', reactive)}
 export const MEASURES_WGSL = ` let lumaNow=toYcocg(filtered.rgb).x;let now=shadingLuma(lumaNow);
  let blurLuma=blur.x/16.0;let blurSpread=(abs(blur.y)+abs(blur.z))/8.0;
  let blurred=shadingLuma(blurLuma);let blurRange=vec2f(shadingLuma(blurLuma-blurSpread),shadingLuma(blurLuma+blurSpread));
- var moire=shadingPack(shadingFresh(blurred));var historyCount=1.0;var gradient=0.0;`;
+ var moire=shadingPack(shadingFresh(blurred));var historyCount=1.0;var gradient=0.0;`
 
 /** One neighbour's as-is share, weighed like its colour, in both resolves, read through `read`;
  *  nothing in the flagless one. */
 export const taaShareTap = (asIs: boolean, read: TexelReads) =>
   shareText(asIs)(
     `  let asIs=${read.flag('at')};\n  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`,
-  );
+  )
 
 /** What both resolves open with: bindings, uniform, the full-screen triangle, YCoCg, reprojection,
  *  the history's own functions (`historyWgsl.ts`) and their output (`taaOut`, `layers.ts`). */
 export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) => {
-  const at = (location: number) => `@location(${location}) `;
+  const at = (location: number) => `@location(${location}) `
   return `
 ${PAGE_INFO_STRUCT_WGSL}
 ${VIEW_WGSL}
@@ -162,5 +162,5 @@ ${GEOMETRY_HISTORY_WGSL}
 ${SHADING_HISTORY_WGSL}
 ${NEAREST_OF_WGSL}${closestSurfaceWgsl}
 ${CURRENT_SHARE_WGSL}
-struct TaaOut{${at(0)}color:vec4f,${at(1)}share:vec4f,${at(2)}geometry:vec2u,${at(3)}moire:u32,${filtered ? `${at(4)}tint:vec4f,${at(5)}add:vec4f,` : ''}}`;
-};
+struct TaaOut{${at(0)}color:vec4f,${at(1)}share:vec4f,${at(2)}geometry:vec2u,${at(3)}moire:u32,${filtered ? `${at(4)}tint:vec4f,${at(5)}add:vec4f,` : ''}}`
+}

@@ -1,12 +1,12 @@
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { onDemand } from './onDemand.ts';
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import { onDemand } from './onDemand.ts'
 
 /** Who hears a family's final refusal (`FAMILY_LOAD_FAILED`): each open world, on its error
  *  channel (`world.diagnostic.error`, `worldHandles.ts`), until it closes. */
-export const familyRefusals = new Set<(error: EngineError) => void>();
-const told = (error: EngineError) => familyRefusals.forEach((listener) => listener(error));
+export const familyRefusals = new Set<(error: EngineError) => void>()
+const told = (error: EngineError) => familyRefusals.forEach((listener) => listener(error))
 /** One family of the table: its name, the one loader (`onDemand.ts`), its refusal told. */
-const family = <M>(name: string, load: () => Promise<M>) => onDemand(name, load, told);
+const family = <M>(name: string, load: () => Promise<M>) => onDemand(name, load, told)
 
 /**
  * The engine's optional families (#1353), each the code of one module the CDN bundle makes a chunk
@@ -42,19 +42,19 @@ export const families = {
   worldStream: family('world stream', () => import('../scene/worldPageServe.ts')),
   /** The impostor draw of both renderers: card plan, pipelines or program, atlas feed. */
   impostors: family('impostors', () => import('../impostor/impostorCode.ts')),
-};
-export type FamilyName = keyof typeof families;
+}
+export type FamilyName = keyof typeof families
 
 /**
  * Starts every family of `names`; answers a promise that settles once each round in flight is over —
  * arrived, or refused and told —, `undefined` when all have arrived.
  */
 export function familiesArriving(names: Iterable<FamilyName>): Promise<void> | undefined {
-  let waits: Promise<void>[] | undefined;
+  let waits: Promise<void>[] | undefined
   for (const name of names) {
-    const family = families[name];
-    family.get();
-    if (!family.arrived) (waits ??= []).push(family.settled());
+    const family = families[name]
+    family.get()
+    if (!family.arrived) (waits ??= []).push(family.settled())
   }
-  return waits && Promise.all(waits).then(() => undefined);
+  return waits && Promise.all(waits).then(() => undefined)
 }

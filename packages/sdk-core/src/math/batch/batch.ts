@@ -1,7 +1,7 @@
-import { BOX_VALUES, boxTransform, boxUnion } from '../primitives/box.ts';
-import { MATRIX_VALUES } from './strides.ts';
-import { multiplyMatrix4 } from '../matrix/matrix4.ts';
-import { composeMatrix4 } from '../matrix/matrix4Trs.ts';
+import { BOX_VALUES, boxTransform, boxUnion } from '../primitives/box.ts'
+import { MATRIX_VALUES } from './strides.ts'
+import { multiplyMatrix4 } from '../matrix/matrix4.ts'
+import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
 
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
@@ -24,20 +24,20 @@ export {
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-} from './strides.ts';
-export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './culling.ts';
+} from './strides.ts'
+export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from './culling.ts'
 export {
   composeMatrix4Batch,
   decomposeMatrix4Batch,
   invertMatrix4Batch,
   normalMatrix3Batch,
-} from './transforms.ts';
+} from './transforms.ts'
 export {
   transformDirectionsBatch,
   transformPointsBatch,
   transformPointsByMatricesBatch,
-} from './points.ts';
-export { linearToSrgbBatch, srgbToLinearBatch } from './color.ts';
+} from './points.ts'
+export { linearToSrgbBatch, srgbToLinearBatch } from './color.ts'
 
 /**
  * `n` boxes transformed by `n` matrices: `out[i] = boxTransform(boxes[i], mats[i])`. `out` and
@@ -50,8 +50,8 @@ export function boxTransformBatch(
   n: number,
 ) {
   for (let i = 0; i < n; i++) {
-    const at = i * BOX_VALUES;
-    boxTransform(out, at, boxes, at, mats[i]);
+    const at = i * BOX_VALUES
+    boxTransform(out, at, boxes, at, mats[i])
   }
 }
 
@@ -62,7 +62,7 @@ export function multiplyMatrix4Batch(
   b: readonly Float64Array[],
   n: number,
 ) {
-  for (let i = 0; i < n; i++) multiplyMatrix4(out[i], a[i], b[i]);
+  for (let i = 0; i < n; i++) multiplyMatrix4(out[i], a[i], b[i])
 }
 
 /**
@@ -73,7 +73,7 @@ export function multiplyMatrix4Batch(
  */
 export function boxUnionBatch(into: Float64Array, boxes: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {
-    const at = i * BOX_VALUES;
+    const at = i * BOX_VALUES
     boxUnion(
       into,
       0,
@@ -83,11 +83,11 @@ export function boxUnionBatch(into: Float64Array, boxes: ArrayLike<number>, n: n
       boxes[at + 3],
       boxes[at + 4],
       boxes[at + 5],
-    );
+    )
   }
 }
 
-const scratchUnionBox = new Float64Array(BOX_VALUES);
+const scratchUnionBox = new Float64Array(BOX_VALUES)
 
 /**
  * Transforms `n` boxes by `n` matrices and unites them into `into` in a single pass without allocation.
@@ -101,8 +101,8 @@ export function boxTransformUnionBatch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    const at = i * BOX_VALUES;
-    boxTransform(scratchUnionBox, 0, boxes, at, mats[i]);
+    const at = i * BOX_VALUES
+    boxTransform(scratchUnionBox, 0, boxes, at, mats[i])
     boxUnion(
       into,
       0,
@@ -112,7 +112,7 @@ export function boxTransformUnionBatch(
       scratchUnionBox[3],
       scratchUnionBox[4],
       scratchUnionBox[5],
-    );
+    )
   }
 }
 
@@ -127,7 +127,7 @@ export function boxTransformUnionBatch(
  * matrix is its local matrix. The rule is identical on both sides: no input, however
  * hostile, can cause them to diverge.
  */
-export const HIERARCHY_ROOT = 0xffffffff;
+export const HIERARCHY_ROOT = 0xffffffff
 
 /** Computes the world matrices of a whole hierarchy in one pass, parents first. */
 export function hierarchyUpdateBatch(
@@ -140,11 +140,11 @@ export function hierarchyUpdateBatch(
   local: Float64Array,
 ) {
   for (let i = 0; i < n; i++) {
-    composeMatrix4(local, positions[i], rotations[i], scales[i]);
+    composeMatrix4(local, positions[i], rotations[i], scales[i])
     const parent = parents[i],
-      world = worldViews[i];
+      world = worldViews[i]
     // Single loop: `TypedArray.prototype.set` on a view costs a native call.
-    if (parent >= i) for (let k = 0; k < MATRIX_VALUES; k++) world[k] = local[k];
-    else multiplyMatrix4(world, worldViews[parent], local);
+    if (parent >= i) for (let k = 0; k < MATRIX_VALUES; k++) world[k] = local[k]
+    else multiplyMatrix4(world, worldViews[parent], local)
   }
 }

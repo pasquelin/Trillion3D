@@ -1,23 +1,23 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { startInteractiveExplorer } from './interactive.ts';
-import type { MeasuredWorldOptions } from './options.ts';
-import { frameQueue } from '../render/frameQueue.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { startInteractiveExplorer } from './interactive.ts'
+import type { MeasuredWorldOptions } from './options.ts'
+import { frameQueue } from '../render/frameQueue.fixture.ts'
 
-const listeners = { addEventListener() {}, removeEventListener() {} };
+const listeners = { addEventListener() {}, removeEventListener() {} }
 /** The window's frames, a queue the test runs. */
 const queued = (frames: ReturnType<typeof frameQueue>) => ({
   requestAnimationFrame: frames.request,
   cancelAnimationFrame: frames.cancel,
-});
+})
 
 /** Starts the loop on a stub window and a canvas of `width` × `height` CSS pixels. */
 function start(
   explorer: object,
   schedule: {
-    requestAnimationFrame: (callback: () => void) => unknown;
-    cancelAnimationFrame: (id: number) => void;
-    reportError?: (error: unknown) => void;
+    requestAnimationFrame: (callback: () => void) => unknown
+    cancelAnimationFrame: (id: number) => void
+    reportError?: (error: unknown) => void
   },
   {
     width = 4,
@@ -25,11 +25,11 @@ function start(
     pixelRatio = 1,
     config = { ownControls: false, pixelRatio: 1 },
   }: {
-    width?: number;
-    height?: number;
-    pixelRatio?: number;
+    width?: number
+    height?: number
+    pixelRatio?: number
     /** The host's options the loop reads; the rest of a world's options stays out of it. */
-    config?: Partial<MeasuredWorldOptions>;
+    config?: Partial<MeasuredWorldOptions>
   } = {},
 ) {
   const view = {
@@ -37,8 +37,8 @@ function start(
     ...listeners,
     matchMedia: () => listeners,
     devicePixelRatio: pixelRatio,
-  };
-  const canvas = { clientWidth: width, clientHeight: height, ownerDocument: { defaultView: view } };
+  }
+  const canvas = { clientWidth: width, clientHeight: height, ownerDocument: { defaultView: view } }
   const runtime = {
     canvas,
     options: { width, height, pixelRatio },
@@ -48,7 +48,7 @@ function start(
     landings: () => undefined,
     familiesPending: () => undefined,
     measureFrame: () => false,
-  };
+  }
   const invalidate = startInteractiveExplorer(
     explorer as never,
     runtime as never,
@@ -57,140 +57,140 @@ function start(
       emit() {},
       diagnose() {},
     },
-  );
-  return { canvas, invalidate };
+  )
+  return { canvas, invalidate }
 }
 
 test('a frame that throws after the first stops the loop and says so on the console and to the page', (t) => {
-  const logged = t.mock.method(console, 'error', () => {});
+  const logged = t.mock.method(console, 'error', () => {})
   const frames = frameQueue(),
-    reported: unknown[] = [];
-  let drawn = 0;
+    reported: unknown[] = []
+  let drawn = 0
   const explorer = {
     render() {
-      if (++drawn > 1) throw new Error('WEBGPU_LOST');
-      return {};
+      if (++drawn > 1) throw new Error('WEBGPU_LOST')
+      return {}
     },
     resize() {},
-  };
+  }
   // Reported as an uncaught error is, the page's own watcher names it (#772).
-  const reportError = (error: unknown) => void reported.push(error);
+  const reportError = (error: unknown) => void reported.push(error)
   start(
     explorer,
     { ...queued(frames), reportError },
     { config: { ownControls: false, pixelRatio: 1, onFrame() {} } },
-  );
-  assert.ok(frames.run());
-  assert.equal(drawn, 2);
-  assert.equal(frames.size, 0, 'no frame after it');
-  assert.equal(logged.mock.callCount(), 1);
-  assert.match(String(logged.mock.calls[0].arguments[0]), /Automatic rendering stopped/);
-  assert.match(String(logged.mock.calls[0].arguments[1]), /WEBGPU_LOST/);
-  assert.match(String(reported), /WEBGPU_LOST/);
-});
+  )
+  assert.ok(frames.run())
+  assert.equal(drawn, 2)
+  assert.equal(frames.size, 0, 'no frame after it')
+  assert.equal(logged.mock.callCount(), 1)
+  assert.match(String(logged.mock.calls[0].arguments[0]), /Automatic rendering stopped/)
+  assert.match(String(logged.mock.calls[0].arguments[1]), /WEBGPU_LOST/)
+  assert.match(String(reported), /WEBGPU_LOST/)
+})
 
 test('the first image is drawn at start even for a host with no frame hook', async () => {
-  let frames = 0;
+  let frames = 0
   start(
     { render: () => (frames++, {}), resize() {} },
     { requestAnimationFrame: () => 0, cancelAnimationFrame() {} },
-  );
-  assert.equal(frames, 1);
-});
+  )
+  assert.equal(frames, 1)
+})
 
 test('a canvas whose box grows after start is resized and scheduled a frame (#492)', (t) => {
-  let observed: (() => void) | undefined;
+  let observed: (() => void) | undefined
   Object.assign(globalThis, {
     ResizeObserver: class {
       constructor(callback: () => void) {
-        observed = callback;
+        observed = callback
       }
       observe() {}
       disconnect() {}
     },
-  });
-  t.after(() => Reflect.deleteProperty(globalThis, 'ResizeObserver'));
-  const frames = frameQueue();
-  const sizes: number[][] = [];
+  })
+  t.after(() => Reflect.deleteProperty(globalThis, 'ResizeObserver'))
+  const frames = frameQueue()
+  const sizes: number[][] = []
   // The box the lesson's canvas had when its world opened: 488 × 20 px.
   const { canvas } = start(
     { render: () => ({}), resize: (w: number, h: number) => sizes.push([w, h]) },
     queued(frames),
     { width: 488, height: 20, pixelRatio: 2, config: { ownControls: false, interactive: true } },
-  );
-  assert.ok(frames.run());
-  canvas.clientHeight = 300;
-  observed!();
-  assert.deepEqual(sizes, [[488, 300]]);
-  assert.equal(frames.size, 1, 'the grown box schedules a frame');
-});
+  )
+  assert.ok(frames.run())
+  canvas.clientHeight = 300
+  observed!()
+  assert.deepEqual(sizes, [[488, 300]])
+  assert.equal(frames.size, 1, 'the grown box schedules a frame')
+})
 
 test('a capture, colour or surface, asks the idle loop for the view it put back (#349)', async () => {
-  const frames = frameQueue();
-  let taken: Promise<Uint8Array> = Promise.resolve(new Uint8Array(4));
+  const frames = frameQueue()
+  let taken: Promise<Uint8Array> = Promise.resolve(new Uint8Array(4))
   const explorer = {
     render: () => ({}),
     resize() {},
     captureView: () => taken,
     captureSurfaceView: () => taken,
-  };
-  start(explorer, queued(frames));
-  assert.ok(frames.run());
-  await new Promise((wake) => setImmediate(wake));
-  assert.equal(frames.size, 0, 'the loop is idle');
-  await explorer.captureView();
-  assert.equal(frames.size, 1, 'a colour capture asks a frame');
-  assert.ok(frames.run());
-  await new Promise((wake) => setImmediate(wake));
-  await explorer.captureSurfaceView();
-  assert.equal(frames.size, 1, 'a surface capture asks a frame');
-  assert.ok(frames.run());
-  await new Promise((wake) => setImmediate(wake));
-  taken = Promise.reject(new Error('CAPTURE_NOT_READY'));
-  await assert.rejects(explorer.captureView(), /CAPTURE_NOT_READY/);
-  assert.equal(frames.size, 1, 'a failed capture put the view back too');
-});
+  }
+  start(explorer, queued(frames))
+  assert.ok(frames.run())
+  await new Promise((wake) => setImmediate(wake))
+  assert.equal(frames.size, 0, 'the loop is idle')
+  await explorer.captureView()
+  assert.equal(frames.size, 1, 'a colour capture asks a frame')
+  assert.ok(frames.run())
+  await new Promise((wake) => setImmediate(wake))
+  await explorer.captureSurfaceView()
+  assert.equal(frames.size, 1, 'a surface capture asks a frame')
+  assert.ok(frames.run())
+  await new Promise((wake) => setImmediate(wake))
+  taken = Promise.reject(new Error('CAPTURE_NOT_READY'))
+  await assert.rejects(explorer.captureView(), /CAPTURE_NOT_READY/)
+  assert.equal(frames.size, 1, 'a failed capture put the view back too')
+})
 
 test('the frame a capture asks waits while the next capture draws (#349)', async (t) => {
-  const logged = t.mock.method(console, 'error', () => {});
-  const frames = frameQueue();
-  const turn = () => new Promise((wake) => setImmediate(wake));
+  const logged = t.mock.method(console, 'error', () => {})
+  const frames = frameQueue()
+  const turn = () => new Promise((wake) => setImmediate(wake))
   // An image drawn during a capture is refused, as the engines refuse it.
   let busy = false,
     drawn = 0,
-    finish = () => {};
+    finish = () => {}
   const taking = () => {
-    busy = true;
+    busy = true
     return new Promise<Uint8Array>(
       (done) => (finish = () => ((busy = false), done(new Uint8Array(4)))),
-    );
-  };
+    )
+  }
   const explorer = {
     render() {
-      if (busy) throw new Error('SURFACE_CAPTURE_BUSY');
-      drawn++;
-      return {};
+      if (busy) throw new Error('SURFACE_CAPTURE_BUSY')
+      drawn++
+      return {}
     },
     resize() {},
     captureView: taking,
     captureSurfaceView: taking,
-  };
-  start(explorer, queued(frames));
-  assert.ok(frames.run());
-  await turn();
-  const first = explorer.captureView();
-  finish();
-  await first;
-  assert.equal(frames.size, 1, 'the first capture asks the view back');
-  const second = explorer.captureSurfaceView();
-  assert.ok(frames.run());
-  await turn();
-  assert.equal(logged.mock.callCount(), 0, 'the loop still runs');
-  assert.equal(frames.size, 0, 'no frame is spent while the capture draws');
-  finish();
-  await second;
-  assert.equal(frames.size, 1, 'the second capture asks the view back');
-  const before = drawn;
-  assert.ok(frames.run());
-  assert.equal(drawn, before + 1, 'the view is drawn again');
-});
+  }
+  start(explorer, queued(frames))
+  assert.ok(frames.run())
+  await turn()
+  const first = explorer.captureView()
+  finish()
+  await first
+  assert.equal(frames.size, 1, 'the first capture asks the view back')
+  const second = explorer.captureSurfaceView()
+  assert.ok(frames.run())
+  await turn()
+  assert.equal(logged.mock.callCount(), 0, 'the loop still runs')
+  assert.equal(frames.size, 0, 'no frame is spent while the capture draws')
+  finish()
+  await second
+  assert.equal(frames.size, 1, 'the second capture asks the view back')
+  const before = drawn
+  assert.ok(frames.run())
+  assert.equal(drawn, before + 1, 'the view is drawn again')
+})

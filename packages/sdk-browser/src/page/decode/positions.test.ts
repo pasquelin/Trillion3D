@@ -3,16 +3,16 @@
 // the WebAssembly module decodes it alike. Develop's outcome of every case — the SHA-256 of the
 // decoded block, or the refusal — and its page bytes are frozen below, measured on develop
 // `a563999f0` with this same harness (`positions.fixture.ts`).
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
-import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts';
-import { decodeGeometryPage } from './geometryPage.ts';
-import { readGeometryPageHeader } from './geometryPageHeader.ts';
-import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts';
-import { cases, outcome } from './positions.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts'
+import { decodeGeometryPage } from './geometryPage.ts'
+import { readGeometryPageHeader } from './geometryPageHeader.ts'
+import { decodeGeometryPageWasm, prepareSdkWasm } from './geometryPageWasm.ts'
+import { cases, outcome } from './positions.fixture.ts'
 
 const DEVELOP: [string, string, number][] = [
   ['random 0', 'ce4e9d777c652ce7', 132],
@@ -64,43 +64,43 @@ const DEVELOP: [string, string, number][] = [
   ['65,538 vertices', 'PAGE_VERTEX_LIMIT', 0],
   ['widest range', '20228dfc9efe4e82', 124],
   ['range past 24 bits', 'PAGE_ATTRIBUTE_RANGE', 0],
-];
+]
 
 test('every page decodes to the block develop decoded, with only the format-7 header overhead; flat-shaded pages in fewer', () => {
-  const all = cases();
-  assert.equal(all.length, DEVELOP.length);
-  let [before, after, flatBefore, flatAfter] = [0, 0, 0, 0];
+  const all = cases()
+  assert.equal(all.length, DEVELOP.length)
+  let [before, after, flatBefore, flatAfter] = [0, 0, 0, 0]
   all.forEach(([name, mesh], i) => {
     const [digest, bytes] = outcome(mesh),
-      [was, outcomeWas, bytesWas] = DEVELOP[i];
-    assert.equal(name, was);
-    assert.equal(digest, outcomeWas, name);
+      [was, outcomeWas, bytesWas] = DEVELOP[i]
+    assert.equal(name, was)
+    assert.equal(digest, outcomeWas, name)
     // Format 7 adds one u32 influence-count word; decoded static attributes stay identical.
-    const headerGrowth = bytesWas ? (CLUSTER_HEADER_WORDS - 24) * 4 : 0;
-    assert.ok(bytes <= bytesWas + headerGrowth, `${name}: ${bytes} > ${bytesWas + headerGrowth}`);
-    [before, after] = [before + bytesWas, after + bytes];
+    const headerGrowth = bytesWas ? (CLUSTER_HEADER_WORDS - 24) * 4 : 0
+    assert.ok(bytes <= bytesWas + headerGrowth, `${name}: ${bytes} > ${bytesWas + headerGrowth}`)
+    ;[before, after] = [before + bytesWas, after + bytes]
     if (mesh.indices.every((corner, k) => corner === k))
-      [flatBefore, flatAfter] = [flatBefore + bytesWas, flatAfter + bytes];
-  });
-  console.log(`pages ${before} -> ${after} bytes; flat-shaded ${flatBefore} -> ${flatAfter}`);
-  assert.ok(flatAfter < flatBefore);
-});
+      [flatBefore, flatAfter] = [flatBefore + bytesWas, flatAfter + bytes]
+  })
+  console.log(`pages ${before} -> ${after} bytes; flat-shaded ${flatBefore} -> ${flatAfter}`)
+  assert.ok(flatAfter < flatBefore)
+})
 
 test('a flat-shaded page decodes alike in JavaScript and WebAssembly; a stray link is refused', async () => {
-  const module = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'));
-  assert.ok(await prepareSdkWasm(module));
-  const [, mesh] = cases().find(([name]) => name === '65,535 vertices')!;
-  const { data } = encodeGeometryPage(mesh.indices, mesh.attributes, mesh.exponent);
-  const { vertexCount, positionCount, linkBits, streams } = readGeometryPageHeader(data);
-  assert.ok(positionCount < vertexCount, `${positionCount} positions for ${vertexCount} vertices`);
+  const module = readFileSync(join(import.meta.dirname, 'pageCodec.wasm'))
+  assert.ok(await prepareSdkWasm(module))
+  const [, mesh] = cases().find(([name]) => name === '65,535 vertices')!
+  const { data } = encodeGeometryPage(mesh.indices, mesh.attributes, mesh.exponent)
+  const { vertexCount, positionCount, linkBits, streams } = readGeometryPageHeader(data)
+  assert.ok(positionCount < vertexCount, `${positionCount} positions for ${vertexCount} vertices`)
   const js = decodeGeometryPage(data as Uint8Array, 1 << 28),
-    wasm = await decodeGeometryPageWasm((data as Uint8Array).slice(), 1 << 28);
-  assert.deepEqual(new Uint8Array(wasm.indices.buffer), new Uint8Array(js.indices.buffer));
+    wasm = await decodeGeometryPageWasm((data as Uint8Array).slice(), 1 << 28)
+  assert.deepEqual(new Uint8Array(wasm.indices.buffer), new Uint8Array(js.indices.buffer))
   // The first link set to its widest rank, past the stored positions: refused on both sides.
-  assert.ok(2 ** linkBits > positionCount);
+  assert.ok(2 ** linkBits > positionCount)
   const forged = (data as Uint8Array).slice(),
-    first = new DataView(forged.buffer, (CLUSTER_HEADER_WORDS + streams.links) * 4, 4);
-  first.setUint32(0, first.getUint32(0, true) | (2 ** linkBits - 1), true);
+    first = new DataView(forged.buffer, (CLUSTER_HEADER_WORDS + streams.links) * 4, 4)
+  first.setUint32(0, first.getUint32(0, true) | (2 ** linkBits - 1), true)
   for (const decode of [decodeGeometryPage, decodeGeometryPageWasm])
-    await assert.rejects(async () => decode(forged.slice(), 1 << 28), /GEOMETRY_PAGE_BOUNDS/);
-});
+    await assert.rejects(async () => decode(forged.slice(), 1 << 28), /GEOMETRY_PAGE_BOUNDS/)
+})

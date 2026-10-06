@@ -1,11 +1,11 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 
 /** Lanes of a column's workgroup: a batch of lights, one each. */
-export const GRID_LANES = 64;
+export const GRID_LANES = 64
 /** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
-const GRID_CACHE = 512;
-const SLICES = LIGHT_SETTINGS.gridSlices;
+const GRID_CACHE = 512
+const SLICES = LIGHT_SETTINGS.gridSlices
 
 /**
  * The lists of a column's cells (#1369), in two walks of its kept lights, each a batch of 64 at a
@@ -142,4 +142,4 @@ fn dealRoom(span:vec2u,before:u32,start:u32){
   cursor[slice]=select(TILE_NO_SLICE,next,start!=TILE_NO_SLICE);
   next+=counts[slice]&~TILE_SHADOWED;
  }
-}`;
+}`

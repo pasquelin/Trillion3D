@@ -14,4 +14,4 @@ fn shadingPointOffset(P:vec3f,bary:vec3f,p0:vec3f,p1:vec3f,p2:vec3f,n0:vec3f,n1:
  let face=cross(p1-p0,p2-p0);
  if(dot(offset,face)*dot(face,n0+n1+n2)<=0.0){return vec3f(0.0);}
  return offset;
-}`;
+}`

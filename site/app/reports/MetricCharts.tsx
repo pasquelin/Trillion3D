@@ -1,26 +1,26 @@
-import { useWords } from '../i18n.ts';
-import { assessment, engineTone } from './model/assessment.ts';
-import { engineName } from './model/names.ts';
-import { missingMetric } from './model/availability.ts';
-import { METRICS, metricValue, formatValue } from './model/metrics.ts';
-import { recordLabel, runOf } from './model/presentation.ts';
-import { ChartGrid } from '../ui/ChartGrid.tsx';
-import { BarChart } from '../ui/BarChart.tsx';
-import { Collapse } from '../ui/Collapse.tsx';
-import { Table } from '../ui/Table.tsx';
-import type { Report, ReportRecord } from './model/types.ts';
-import type { MetricKey } from './model/metrics.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { assessment, engineTone } from './model/assessment.ts'
+import { engineName } from './model/names.ts'
+import { missingMetric } from './model/availability.ts'
+import { METRICS, metricValue, formatValue } from './model/metrics.ts'
+import { recordLabel, runOf } from './model/presentation.ts'
+import { ChartGrid } from '../ui/ChartGrid.tsx'
+import { BarChart } from '../ui/BarChart.tsx'
+import { Collapse } from '../ui/Collapse.tsx'
+import { Table } from '../ui/Table.tsx'
+import type { Report, ReportRecord } from './model/types.ts'
+import type { MetricKey } from './model/metrics.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface MetricChartsProps {
-  records: ReportRecord[];
-  report: Report;
-  locale: Locale;
-  metrics: MetricKey[];
-  compact?: boolean;
-  labelRecord?: (record: ReportRecord) => string;
-  colorByEngine?: boolean;
-  columns?: number;
+  records: ReportRecord[]
+  report: Report
+  locale: Locale
+  metrics: MetricKey[]
+  compact?: boolean
+  labelRecord?: (record: ReportRecord) => string
+  colorByEngine?: boolean
+  columns?: number
 }
 
 export function MetricCharts({
@@ -33,16 +33,16 @@ export function MetricCharts({
   colorByEngine = false,
   columns = 2,
 }: MetricChartsProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   const label = (r: ReportRecord) =>
     labelRecord
       ? labelRecord(r)
       : compact
         ? engineName(r.engine).replace(' · WebGPU', '')
-        : recordLabel(report, r, locale);
+        : recordLabel(report, r, locale)
   const missing = metrics.flatMap((key) =>
     records.filter((r) => metricValue(r, key) === null).map((r) => ({ key, record: r })),
-  );
+  )
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <ChartGrid columns={columns}>
@@ -66,7 +66,7 @@ export function MetricCharts({
                     : t(`report.assessment.${assessment(r, key).code}`),
               }))}
             />
-          );
+          )
         })}
       </ChartGrid>
       {missing.length > 0 && (
@@ -92,5 +92,5 @@ export function MetricCharts({
         </Collapse>
       )}
     </div>
-  );
+  )
 }

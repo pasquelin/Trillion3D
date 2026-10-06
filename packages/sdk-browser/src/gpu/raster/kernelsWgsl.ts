@@ -14,10 +14,10 @@ import {
   TILE,
   TILE_ROWS,
   rasterEntry,
-} from './contract.ts';
-import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts';
-import { wgslFloat } from '../partition/margins.ts';
+} from './contract.ts'
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
+import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
+import { wgslFloat } from '../partition/margins.ts'
 
 /** The twelve entry points: four size classes, each in the frame's three modes. */
 const entryPoints = () =>
@@ -26,7 +26,7 @@ const entryPoints = () =>
       (mode) =>
         `@compute @workgroup_size(${TILE},${TILE}) fn ${rasterEntry(klass, mode)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_id) l:vec3u){${['fineGroup', 'coarseGroup', 'largeGroup', 'hugeGroup'][index]}(g,l,${mode}u);}`,
     ),
-  ).join('\n');
+  ).join('\n')
 
 /**
  * Compute-raster kernels: clearing the frame, binning triangles by class, turning counts into
@@ -190,4 +190,4 @@ fn hugeGroup(group:vec3u,lane:vec3u,mode:u32){
  }
 }
 ${entryPoints()}
-`;
+`

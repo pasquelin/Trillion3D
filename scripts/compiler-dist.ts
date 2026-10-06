@@ -9,17 +9,17 @@
  *
  *   node scripts/compiler-dist.ts <record.json>
  */
-import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { join, parse, resolve } from 'node:path';
-import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts';
-import { rustHost, rustTool } from './build-wasm.ts';
-import { compileReferenceScenes, referenceHashes, type HashRecord } from './compiler-hashes.ts';
+import { execFileSync } from 'node:child_process'
+import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { join, parse, resolve } from 'node:path'
+import { compilerFileName, compilerPackage } from '../packages/sdk-node/src/compiler/platform.mts'
+import { rustHost, rustTool } from './build-wasm.ts'
+import { compileReferenceScenes, referenceHashes, type HashRecord } from './compiler-hashes.ts'
 
-const ROOT = resolve(import.meta.dirname, '..');
-const CRATE = join(ROOT, 'packages/asset-compiler-rust');
+const ROOT = resolve(import.meta.dirname, '..')
+const CRATE = join(ROOT, 'packages/asset-compiler-rust')
 /** The Rust target of this machine, which the build names so that the flags reach no build script. */
-const TARGET = rustHost();
+const TARGET = rustHost()
 /**
  * Where the passes build. On Windows, a short folder at the runner's temporary one or the drive's
  * root, not the crate's `target`: MSBuild, which builds the physics cook, cannot write a path
@@ -28,9 +28,9 @@ const TARGET = rustHost();
 const TARGETS =
   process.platform === 'win32'
     ? join(process.env.RUNNER_TEMP ?? parse(ROOT).root, 't3d')
-    : join(CRATE, 'target');
+    : join(CRATE, 'target')
 /** A path as the flags carry it: forward slashes, which every platform's toolchain reads. */
-const slashed = (path: string) => path.replaceAll('\\', '/');
+const slashed = (path: string) => path.replaceAll('\\', '/')
 
 /**
  * Builds the compiler with `flags` added to this target's own (`.cargo/config.toml`: Cargo joins
@@ -38,7 +38,7 @@ const slashed = (path: string) => path.replaceAll('\\', '/');
  * dependencies built with its own flags, and apart from `pnpm run build:native`.
  */
 function build(folder: string, flags: string[]): string {
-  const directory = join(TARGETS, folder);
+  const directory = join(TARGETS, folder)
   execFileSync(
     'cargo',
     [
@@ -48,28 +48,28 @@ function build(folder: string, flags: string[]): string {
       ...['--config', `target.${TARGET}.rustflags=${JSON.stringify(flags)}`],
     ],
     { stdio: 'inherit' },
-  );
-  return join(directory, TARGET, 'dist', compilerFileName(process.platform));
+  )
+  return join(directory, TARGET, 'dist', compilerFileName(process.platform))
 }
 
-const [output] = process.argv.slice(2);
-const platform = `${process.platform}-${process.arch}`;
+const [output] = process.argv.slice(2)
+const platform = `${process.platform}-${process.arch}`
 if (!output || !compilerPackage(process.platform, process.arch))
-  throw new Error(`usage: node scripts/compiler-dist.ts <record.json>, on a built platform`);
-const profiles = join(TARGETS, 'pgo', TARGET);
-rmSync(profiles, { recursive: true, force: true });
-mkdirSync(profiles, { recursive: true });
-compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${slashed(profiles)}`]));
-const merged = join(profiles, 'merged.profdata');
-execFileSync(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], { stdio: 'inherit' });
-const compiler = build('dist', [`-Cprofile-use=${slashed(merged)}`]);
+  throw new Error(`usage: node scripts/compiler-dist.ts <record.json>, on a built platform`)
+const profiles = join(TARGETS, 'pgo', TARGET)
+rmSync(profiles, { recursive: true, force: true })
+mkdirSync(profiles, { recursive: true })
+compileReferenceScenes(build('pgo-generate', [`-Cprofile-generate=${slashed(profiles)}`]))
+const merged = join(profiles, 'merged.profdata')
+execFileSync(rustTool('llvm-profdata'), ['merge', '-o', merged, profiles], { stdio: 'inherit' })
+const compiler = build('dist', [`-Cprofile-use=${slashed(merged)}`])
 const record: HashRecord = {
   compiler: platform,
   bytes: statSync(compiler).size,
   files: referenceHashes(compiler),
-};
-const shipped = join(ROOT, 'packages/compiler', platform, 'bin');
-mkdirSync(shipped, { recursive: true });
-copyFileSync(compiler, join(shipped, compilerFileName(process.platform)));
-writeFileSync(output, `${JSON.stringify(record, null, 2)}\n`);
-console.log(`${compilerPackage(process.platform, process.arch)}: ${record.bytes} bytes`);
+}
+const shipped = join(ROOT, 'packages/compiler', platform, 'bin')
+mkdirSync(shipped, { recursive: true })
+copyFileSync(compiler, join(shipped, compilerFileName(process.platform)))
+writeFileSync(output, `${JSON.stringify(record, null, 2)}\n`)
+console.log(`${compilerPackage(process.platform, process.arch)}: ${record.bytes} bytes`)

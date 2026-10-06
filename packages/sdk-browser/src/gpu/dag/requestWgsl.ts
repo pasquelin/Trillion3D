@@ -7,7 +7,7 @@ import {
   REQUEST_PAGE_BITS,
   REQUEST_PRIORITY_SCALE,
   REQUEST_STEP_MAX,
-} from './request.ts';
+} from './request.ts'
 
 /**
  * The quantization of `request.ts` in WGSL, mirrored bit for bit by `request.fixture.ts`. WGSL `log2` and JavaScript `Math.log2` need not return the same
@@ -31,4 +31,4 @@ fn aheadPriority(pixels:f32,due:f32)->u32{
 fn packRequest(page:u32,priority:u32)->u32{return (priority<<PAGE_BITS)|page;}
 fn requestPage(word:u32)->u32{return word&((1u<<PAGE_BITS)-1u);}
 fn requestWordRank(word:u32)->u32{return (word>>PAGE_BITS)^REQUEST_AHEAD;}
-`;
+`

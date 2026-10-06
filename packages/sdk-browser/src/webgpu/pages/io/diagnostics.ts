@@ -1,6 +1,6 @@
-import type { BackendDiagnostic } from '../../../backend/types.ts';
-import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts';
-import { isCancelled } from '../../../backend/common.ts';
+import type { BackendDiagnostic } from '../../../backend/types.ts'
+import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts'
+import { isCancelled } from '../../../backend/common.ts'
 
 /**
  * The backend's diagnostic channel. What the session says once its `signal` is aborted — the
@@ -13,24 +13,24 @@ export function createWebgpuDiagnostics(
   traceEnabled: boolean,
   signal?: AbortSignal,
 ) {
-  type TraceDiagnostic = { phase: string; message: string; context: Record<string, unknown> };
-  const traceQueue: TraceDiagnostic[] = [];
-  const maxTraceQueue = 65536;
+  type TraceDiagnostic = { phase: string; message: string; context: Record<string, unknown> }
+  const traceQueue: TraceDiagnostic[] = []
+  const maxTraceQueue = 65536
   let droppedTraceDiagnostics = 0,
-    traceLossPending = 0;
-  let traceScheduled = false;
+    traceLossPending = 0
+  let traceScheduled = false
   const drainTraceNow = () => {
-    const batch = traceQueue.splice(0);
+    const batch = traceQueue.splice(0)
     for (const event of batch) {
       try {
-        onDiagnostic?.(event);
+        onDiagnostic?.(event)
       } catch {
         /* Host collectors do not control rendering. */
       }
     }
     if (traceLossPending) {
-      const dropped = traceLossPending;
-      traceLossPending = 0;
+      const dropped = traceLossPending
+      traceLossPending = 0
       try {
         onDiagnostic?.({
           phase: 'diagnostic-loss',
@@ -41,33 +41,33 @@ export function createWebgpuDiagnostics(
             dropped,
             queueLimit: maxTraceQueue,
           },
-        });
+        })
       } catch {
         /* Host collectors do not control rendering. */
       }
     }
-  };
+  }
   const flushTraceQueue = () => {
-    if (traceScheduled || !traceQueue.length) return;
-    traceScheduled = true;
+    if (traceScheduled || !traceQueue.length) return
+    traceScheduled = true
     queueMicrotask(() => {
-      traceScheduled = false;
-      drainTraceNow();
-      if (traceQueue.length) flushTraceQueue();
-    });
-  };
+      traceScheduled = false
+      drainTraceNow()
+      if (traceQueue.length) flushTraceQueue()
+    })
+  }
   const traceDiagnostic = (
     phase: string,
     message: string,
     details: Record<string, unknown> | (() => Record<string, unknown>),
   ) => {
-    if (!traceEnabled) return;
+    if (!traceEnabled) return
     if (traceQueue.length >= maxTraceQueue) {
-      droppedTraceDiagnostics++;
-      traceLossPending++;
-      return;
+      droppedTraceDiagnostics++
+      traceLossPending++
+      return
     }
-    const payload = typeof details === 'function' ? details() : details;
+    const payload = typeof details === 'function' ? details() : details
     traceQueue.push({
       phase,
       message,
@@ -77,29 +77,29 @@ export function createWebgpuDiagnostics(
         ...payload,
         droppedDiagnostics: droppedTraceDiagnostics || undefined,
       },
-    });
-    flushTraceQueue();
-  };
+    })
+    flushTraceQueue()
+  }
   const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) => {
-    if (!isCancelled(signal)) sendEngineDiagnostic(onDiagnostic, phase, message, details);
-  };
+    if (!isCancelled(signal)) sendEngineDiagnostic(onDiagnostic, phase, message, details)
+  }
   const loggedFailures = new Set<string>(),
-    failureOccurrences = new Map<string, number>();
+    failureOccurrences = new Map<string, number>()
   const diagnosticFailure = (phase: string, error: unknown) => {
-    if (isCancelled(signal)) return;
+    if (isCancelled(signal)) return
     const objectError =
       error && typeof error === 'object'
         ? (error as { message?: unknown; name?: unknown; stack?: unknown; cause?: unknown })
-        : undefined;
+        : undefined
     const details = {
       error: objectError?.message !== undefined ? String(objectError.message) : String(error),
       backend: 'webgpu-page-raster',
-    };
-    const occurrence = (failureOccurrences.get(phase) ?? 0) + 1;
-    failureOccurrences.set(phase, occurrence);
+    }
+    const occurrence = (failureOccurrences.get(phase) ?? 0) + 1
+    failureOccurrences.set(phase, occurrence)
     // A failed path is said on the console too, once per kind: with no diagnostic channel open —
     // the default — it would otherwise leave a blank or degraded image and nothing to read.
-    if (occurrence === 1) console.warn(`[trillion3d] WebGPU ${phase}: ${details.error}`);
+    if (occurrence === 1) console.warn(`[trillion3d] WebGPU ${phase}: ${details.error}`)
     if (traceEnabled) {
       traceDiagnostic(phase, 'WebGPU path failed', () => ({
         ...details,
@@ -108,14 +108,14 @@ export function createWebgpuDiagnostics(
         cause:
           objectError?.cause === undefined ? undefined : String(objectError.cause).slice(0, 2048),
         occurrence,
-      }));
-      return;
+      }))
+      return
     }
-    if (loggedFailures.has(phase)) return;
-    loggedFailures.add(phase);
-    engineDiagnostic(phase, 'WebGPU path failed', details);
-  };
+    if (loggedFailures.has(phase)) return
+    loggedFailures.add(phase)
+    engineDiagnostic(phase, 'WebGPU path failed', details)
+  }
   /** Whether a diagnostic channel listens: what it hears is then measured (`endCpuFrame`). */
-  const listened = !!onDiagnostic;
-  return { traceDiagnostic, engineDiagnostic, diagnosticFailure, drainTraceNow, listened };
+  const listened = !!onDiagnostic
+  return { traceDiagnostic, engineDiagnostic, diagnosticFailure, drainTraceNow, listened }
 }

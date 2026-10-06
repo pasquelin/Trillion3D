@@ -1,6 +1,6 @@
-import { build } from 'esbuild';
-import { externalEngine, PROGRAM_TEXT } from './external-engine.ts';
-import { inlineModules } from './inline-modules.ts';
+import { build } from 'esbuild'
+import { externalEngine, PROGRAM_TEXT } from './external-engine.ts'
+import { inlineModules } from './inline-modules.ts'
 
 /**
  * Bundles the React portal, `site/app/main.tsx`, as `portal.js` in `outdir`, with the areas the
@@ -23,5 +23,5 @@ export async function buildPortal(root: string, outdir: string) {
     loader: PROGRAM_TEXT,
     supported: { 'template-literal': false },
     logLevel: 'warning',
-  });
+  })
 }

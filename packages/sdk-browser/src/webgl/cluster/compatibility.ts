@@ -1,1 +1,1 @@
-export { clusterMaterialReason } from '../../host/surfaceGate.ts';
+export { clusterMaterialReason } from '../../host/surfaceGate.ts'

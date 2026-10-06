@@ -1,40 +1,40 @@
-import type { HostDiagnosticGeometry } from '../../../packages/sdk-browser/src/host/resources.ts';
-import { geometryBytes } from '../../../packages/sdk-browser/src/scene/meshes.ts';
-import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
-import type { WitnessPage as PageRec } from './pose.ts';
-import type { ExactPagesRenderState } from './render.ts';
-import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts';
-import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
-import { ClusterBatches } from './batches/batches.ts';
-import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
+import type { HostDiagnosticGeometry } from '../../../packages/sdk-browser/src/host/resources.ts'
+import { geometryBytes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
+import { disposeTriangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts'
+import type { WitnessPage as PageRec } from './pose.ts'
+import type { ExactPagesRenderState } from './render.ts'
+import type { WebglFrameGate } from '../../../packages/sdk-browser/src/webgl/core/frameGate.ts'
+import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts'
+import { ClusterBatches } from './batches/batches.ts'
+import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts'
 
 /** A transparent copy the host renderer draws whole, as its triangles are counted. */
 type CountedCopy = {
   readonly geometry: {
-    getIndex(): { readonly count: number } | null;
-    getAttribute(name: string): { readonly count: number } | undefined;
-  };
-  readonly userData: Record<string, unknown>;
-};
+    getIndex(): { readonly count: number } | null
+    getAttribute(name: string): { readonly count: number } | undefined
+  }
+  readonly userData: Record<string, unknown>
+}
 
 type MetricsContext = {
-  batches: ClusterBatches;
-  blendCopies: readonly CountedCopy[];
-  metricsSeen: Set<ArrayBufferView>;
-  attached: PageRec[];
-  counters: { pagesDetached: number };
-  materials: { disposeMaterials: () => void };
-  allPages: PageRec[];
-  disposeGeometry(geometry: Geometry): void;
+  batches: ClusterBatches
+  blendCopies: readonly CountedCopy[]
+  metricsSeen: Set<ArrayBufferView>
+  attached: PageRec[]
+  counters: { pagesDetached: number }
+  materials: { disposeMaterials: () => void }
+  allPages: PageRec[]
+  disposeGeometry(geometry: Geometry): void
   /** The display graph the pages hang on, emptied with the engine. */
-  scene: { clear(): void };
+  scene: { clear(): void }
   /** The frame gate, released with the scene: the host graph keeps no hook of this engine. */
-  gate: WebglFrameGate;
-  readonly diagnostic: DiagnosticMode;
+  gate: WebglFrameGate
+  readonly diagnostic: DiagnosticMode
   /** What the current frame decided, read as-is: the sample does not copy field by field what
    *  the render state already carries. */
-  state: ExactPagesRenderState;
-};
+  state: ExactPagesRenderState
+}
 
 export function createExactPagesMetrics(ctx: MetricsContext) {
   const {
@@ -49,18 +49,18 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
     scene,
     gate,
     state,
-  } = ctx;
+  } = ctx
   return {
     metrics() {
-      const batched = batches.metrics;
+      const batched = batches.metrics
       // Beauty mode: counters come from the batches, without walking geometries. Diagnostic mode:
       // one geometry per page, we fall back on the detailed count.
-      let bytes = batched.allocationBytes;
+      let bytes = batched.allocationBytes
       if (ctx.diagnostic !== 'beauty') {
-        metricsSeen.clear();
-        bytes = 0;
+        metricsSeen.clear()
+        bytes = 0
         for (const rec of attached)
-          if (rec.geometry) bytes += geometryBytes(rec.geometry as Geometry, metricsSeen);
+          if (rec.geometry) bytes += geometryBytes(rec.geometry as Geometry, metricsSeen)
       }
       const transparentSubmittedTriangles = blendCopies.reduce(
         (sum, copy) =>
@@ -68,7 +68,7 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
           (copy.geometry.getIndex()?.count ?? copy.geometry.getAttribute('position')?.count ?? 0) /
             3,
         0,
-      );
+      )
       return {
         cpuSelectMs: state.cpuSelectMs,
         cpuSelectNodesTested: state.cpuSelectNodesTested,
@@ -95,20 +95,20 @@ export function createExactPagesMetrics(ctx: MetricsContext) {
         transmissionBackdropBytes: batched.backdropBytes,
         cpuSubmitMs: batched.cpuSubmitMs,
         frameHeld: state.frameHeld,
-      };
+      }
     },
     dispose() {
-      materials.disposeMaterials();
-      batches.dispose();
+      materials.disposeMaterials()
+      batches.dispose()
       for (const rec of allPages) {
-        if (rec.geometry) disposeGeometry(rec.geometry);
-        rec.geometry = undefined;
-        rec.mesh = undefined;
+        if (rec.geometry) disposeGeometry(rec.geometry)
+        rec.geometry = undefined
+        rec.mesh = undefined
       }
       for (const copy of blendCopies)
-        disposeTriangleGeometry(copy.userData.sourceGeometry as HostDiagnosticGeometry);
-      scene.clear();
-      gate.release();
+        disposeTriangleGeometry(copy.userData.sourceGeometry as HostDiagnosticGeometry)
+      scene.clear()
+      gate.release()
     },
-  };
+  }
 }

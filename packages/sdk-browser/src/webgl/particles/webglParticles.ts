@@ -1,18 +1,18 @@
-import { PARTICLE_FLOATS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
-import { boundToContext } from '../core/contextBound.ts';
-import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../core/fullscreenPass.ts';
-import { createWebglProgram } from '../core/program.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
+import { boundToContext } from '../core/contextBound.ts'
+import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../core/fullscreenPass.ts'
+import { createWebglProgram } from '../core/program.ts'
 import {
   bindWebglTexture,
   createWebglRenderTarget,
   floatTargets,
   type WebglRenderTarget,
-} from '../core/renderTarget.ts';
-import { createPoolStates, refuseAll, usedSlots } from '../../particles/poolStates.ts';
-import { createWebglParticleDraw } from './webglParticleDraw.ts';
-import { PARTICLE_ROW } from '../../particles/particleRow.ts';
+} from '../core/renderTarget.ts'
+import { createPoolStates, refuseAll, usedSlots } from '../../particles/poolStates.ts'
+import { createWebglParticleDraw } from './webglParticleDraw.ts'
+import { PARTICLE_ROW } from '../../particles/particleRow.ts'
 const TEXELS = 2 * PARTICLE_ROW,
-  FLOAT = { depth: false, float: true };
+  FLOAT = { depth: false, float: true }
 
 /** The WGSL step texel by texel: the slot's particle, or the record the ring gives it this image,
  *  moved when alive by the same exact constant-acceleration step; the half of it this texel holds
@@ -41,9 +41,9 @@ void main() {
     p.xyz += (v.xyz + .5 * gain) * uStep.w; v.xyz += gain; p.w += uStep.w;
   }
   color = (t & 1) == 0 ? p : v;
-}`;
+}`
 
-type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: WebglRenderTarget };
+type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: WebglRenderTarget }
 
 /**
  * The WebGL2 particle step: each pool's state in two 32-bit float targets drawn in turn by one
@@ -63,96 +63,96 @@ export function createWebglParticles(
     createPoolStates<PoolState>(
       (pool) => {
         const target = (records: number) =>
-          createWebglRenderTarget(gl, TEXELS, Math.ceil(records / PARTICLE_ROW), FLOAT);
-        const [read, write, staged] = [pool.capacity, pool.capacity, pool.emitPerFrame].map(target);
-        return { targets: [read, write], staged };
+          createWebglRenderTarget(gl, TEXELS, Math.ceil(records / PARTICLE_ROW), FLOAT)
+        const [read, write, staged] = [pool.capacity, pool.capacity, pool.emitPerFrame].map(target)
+        return { targets: [read, write], staged }
       },
       ({ targets, staged }) => [...targets, staged].forEach((target) => target.dispose()),
-    );
+    )
   const held = boundToContext(
     gl,
     () => {
-      const program = createWebglProgram(gl, FULLSCREEN_VERTEX, PARTICLES_GLSL);
-      const at = (name: string) => gl.getUniformLocation(program, name);
-      gl.useProgram(program);
-      gl.uniform1i(at('state'), 0);
-      gl.uniform1i(at('staged'), 1);
-      gl.useProgram(null);
-      const vao = gl.createVertexArray()!;
-      return { program, vao, step: at('uStep'), ring: at('uRing'), made: poolStates() };
+      const program = createWebglProgram(gl, FULLSCREEN_VERTEX, PARTICLES_GLSL)
+      const at = (name: string) => gl.getUniformLocation(program, name)
+      gl.useProgram(program)
+      gl.uniform1i(at('state'), 0)
+      gl.uniform1i(at('staged'), 1)
+      gl.useProgram(null)
+      const vao = gl.createVertexArray()!
+      return { program, vao, step: at('uStep'), ring: at('uRing'), made: poolStates() }
     },
     ({ program, vao, made }) => {
-      made.dispose();
-      gl.deleteProgram(program);
-      gl.deleteVertexArray(vao);
+      made.dispose()
+      gl.deleteProgram(program)
+      gl.deleteVertexArray(vao)
     },
-  );
+  )
   /** Uploads the image's `count` records from the pool's staging: whole rows, then the rest. */
   const upload = (pool: ParticlePool, count: number) => {
     const full = Math.floor(count / PARTICLE_ROW),
       rest = count % PARTICLE_ROW,
-      { FLOAT, RGBA, TEXTURE_2D } = gl;
-    if (full) gl.texSubImage2D(TEXTURE_2D, 0, 0, 0, TEXELS, full, RGBA, FLOAT, pool.staging, 0);
+      { FLOAT, RGBA, TEXTURE_2D } = gl
+    if (full) gl.texSubImage2D(TEXTURE_2D, 0, 0, 0, TEXELS, full, RGBA, FLOAT, pool.staging, 0)
     if (rest) {
-      const from = full * PARTICLE_ROW * PARTICLE_FLOATS;
-      gl.texSubImage2D(TEXTURE_2D, 0, 0, full, 2 * rest, 1, RGBA, FLOAT, pool.staging, from);
+      const from = full * PARTICLE_ROW * PARTICLE_FLOATS
+      gl.texSubImage2D(TEXTURE_2D, 0, 0, full, 2 * rest, 1, RGBA, FLOAT, pool.staging, from)
     }
-  };
-  const latest = (pool: ParticlePool) => held.current()?.made.peek(pool)?.targets[0].texture;
-  const drawn = createWebglParticleDraw(gl, TEXELS, latest, refused);
+  }
+  const latest = (pool: ParticlePool) => held.current()?.made.peek(pool)?.targets[0].texture
+  const drawn = createWebglParticleDraw(gl, TEXELS, latest, refused)
   return {
     draw: drawn.draw,
     bytes: drawn.bytes,
     /** Steps `pools`; returns the draws made. On a context without 32-bit float targets the
      *  pools are refused, `refused` hearing `PARTICLES_UNSUPPORTED` once; nothing throws. */
     run(pools: readonly ParticlePool[]) {
-      const live = held.current();
-      if (!live) return 0;
+      const live = held.current()
+      if (!live) return 0
       if (!floatTargets(gl)) {
         // It asks no frame of its own; told once per refusal, the session goes on.
         if (refuseAll(pools))
           refused(
             'PARTICLES_UNSUPPORTED: WebGL2 particles render 32-bit floats, and this context ' +
               'does not grant EXT_color_buffer_float',
-          );
-        return 0;
+          )
+        return 0
       }
-      let draws = 0;
-      const drawRefused = drawn.refused();
+      let draws = 0
+      const drawRefused = drawn.refused()
       for (const pool of pools) {
-        pool.refused = drawRefused; // stepped here unless its draw refused it, as on WebGPU
-        const { first, count, dt } = pool.flush();
-        if (!count && !dt) continue;
-        const { targets, staged } = live.made.of(pool);
+        pool.refused = drawRefused // stepped here unless its draw refused it, as on WebGPU
+        const { first, count, dt } = pool.flush()
+        if (!count && !dt) continue
+        const { targets, staged } = live.made.of(pool)
         if (!draws++) {
-          setFullscreenPassState(gl);
-          gl.useProgram(live.program);
-          gl.bindVertexArray(live.vao);
+          setFullscreenPassState(gl)
+          gl.useProgram(live.program)
+          gl.bindVertexArray(live.vao)
           // Records as they are: an image upload may have left flipping or premultiplying on.
-          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
+          gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
         }
-        bindWebglTexture(gl, 1, staged.texture);
-        if (count) upload(pool, count);
+        bindWebglTexture(gl, 1, staged.texture)
+        if (count) upload(pool, count)
         // Read the last state, write the other target over the rows emitted into; then swap.
-        gl.bindFramebuffer(gl.FRAMEBUFFER, targets[1].framebuffer);
-        gl.viewport(0, 0, TEXELS, Math.ceil(usedSlots(pool) / PARTICLE_ROW));
-        bindWebglTexture(gl, 0, targets[0].texture);
-        const a = pool.acceleration;
-        gl.uniform4f(live.step, a[0], a[1], a[2], dt);
-        gl.uniform3i(live.ring, first, count, pool.capacity);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
-        targets.reverse();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, targets[1].framebuffer)
+        gl.viewport(0, 0, TEXELS, Math.ceil(usedSlots(pool) / PARTICLE_ROW))
+        bindWebglTexture(gl, 0, targets[0].texture)
+        const a = pool.acceleration
+        gl.uniform4f(live.step, a[0], a[1], a[2], dt)
+        gl.uniform3i(live.ring, first, count, pool.capacity)
+        gl.drawArrays(gl.TRIANGLES, 0, 3)
+        targets.reverse()
       }
       if (draws) {
-        gl.bindVertexArray(null);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.useProgram(null);
-        gl.enable(gl.DITHER);
+        gl.bindVertexArray(null)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.useProgram(null)
+        gl.enable(gl.DITHER)
       }
-      live.made.keep(pools);
-      return draws;
+      live.made.keep(pools)
+      return draws
     },
     dispose: () => (held.dispose(), drawn.dispose()),
-  };
+  }
 }

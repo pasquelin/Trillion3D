@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as THREE from 'three';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as THREE from 'three'
 import {
   HOST_BLENDING_ADDITIVE,
   HOST_BLENDING_MULTIPLY,
@@ -25,7 +25,7 @@ import {
   HOST_WRAP_CLAMP_TO_EDGE,
   HOST_WRAP_MIRRORED_REPEAT,
   HOST_WRAP_REPEAT,
-} from '../../../../../../packages/sdk-browser/src/host/surfaceConstants.ts';
+} from '../../../../../../packages/sdk-browser/src/host/surfaceConstants.ts'
 
 // The engine path no longer names the host library to compare a sampler state or a blend
 // equation; this test does, so that the names above stay the host's own numbers.
@@ -81,5 +81,5 @@ test('the engine names the host surface constants by the values the host declare
       THREE.LinearSRGBColorSpace,
       THREE.NoColorSpace,
     ],
-  );
-});
+  )
+})

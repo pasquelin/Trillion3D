@@ -1,5 +1,5 @@
-import { shaderRun } from '../texture/shaderRun.fixture.ts';
-import { DEFORM_WGSL } from './deformWgsl.ts';
+import { shaderRun } from '../texture/shaderRun.fixture.ts'
+import { DEFORM_WGSL } from './deformWgsl.ts'
 
 /** Runs the shipped wave shader against the frame's deformation records. */
 export const waveShader = (positions: Float32Array) =>
@@ -10,5 +10,5 @@ export const waveShader = (positions: Float32Array) =>
       p: number[],
       previous: boolean,
       normal: boolean,
-    ) => number[];
-  }>(DEFORM_WGSL, ['deformWaves'], { positions, cos: Math.cos }).deformWaves;
+    ) => number[]
+  }>(DEFORM_WGSL, ['deformWaves'], { positions, cos: Math.cos }).deformWaves

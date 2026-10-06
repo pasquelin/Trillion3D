@@ -1,10 +1,10 @@
 // Synchronous triangles batch: "coverage" column displays `selected − drawn − uncovered`,
 // expected at zero, and a dash as soon as one of three counters is missing — never an inferred
 // value. Split from `summary/summary.test.ts` to keep both files under the line budget.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { resume } from './summary.ts';
-import { baseSide, rapport } from './summaryTestFixtures.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { resume } from './summary.ts'
+import { baseSide, rapport } from './summaryTestFixtures.ts'
 
 test('coverage column displays selected − drawn − uncovered, and drawnTriangles next to it', () => {
   const text = resume(
@@ -14,10 +14,10 @@ test('coverage column displays selected − drawn − uncovered, and drawnTriang
       drawnTriangles: 800,
       uncoveredTriangles: 100,
     }),
-  );
-  assert.match(text, /\| drawnTriangles \| coverage \|/, 'the two headers in that order');
-  assert.match(text, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, then computed coverage');
-});
+  )
+  assert.match(text, /\| drawnTriangles \| coverage \|/, 'the two headers in that order')
+  assert.match(text, /\| 900 \| 800 \| 0 \|/, 'selected, drawn, then computed coverage')
+})
 
 test('coverage is a dash as soon as a single counter of the three is missing', () => {
   const sansSelected = resume(
@@ -27,7 +27,7 @@ test('coverage is a dash as soon as a single counter of the three is missing', (
       drawnTriangles: 800,
       uncoveredTriangles: 100,
     }),
-  );
+  )
   const sansDrawn = resume(
     rapport({
       ...baseSide,
@@ -35,7 +35,7 @@ test('coverage is a dash as soon as a single counter of the three is missing', (
       drawnTriangles: null,
       uncoveredTriangles: 100,
     }),
-  );
+  )
   const sansUncovered = resume(
     rapport({
       ...baseSide,
@@ -43,13 +43,13 @@ test('coverage is a dash as soon as a single counter of the three is missing', (
       drawnTriangles: 800,
       uncoveredTriangles: null,
     }),
-  );
+  )
   // All three cells (selected, drawn, coverage) together: dash for coverage, never
   // a subtraction where a `null` operand was treated as zero.
-  assert.match(sansSelected, /\| — \| 800 \| — \|/);
-  assert.match(sansDrawn, /\| 900 \| — \| — \|/);
-  assert.match(sansUncovered, /\| 900 \| 800 \| — \|/);
-});
+  assert.match(sansSelected, /\| — \| 800 \| — \|/)
+  assert.match(sansDrawn, /\| 900 \| — \| — \|/)
+  assert.match(sansUncovered, /\| 900 \| 800 \| — \|/)
+})
 
 test('a non-zero coverage is displayed as is, without being reduced to a dash', () => {
   const text = resume(
@@ -59,6 +59,6 @@ test('a non-zero coverage is displayed as is, without being reduced to a dash', 
       drawnTriangles: 750,
       uncoveredTriangles: 100,
     }),
-  );
-  assert.match(text, /\| 50 \|/, 'selected − drawn − uncovered = 50, a real hole in the relation');
-});
+  )
+  assert.match(text, /\| 50 \|/, 'selected − drawn − uncovered = 50, a real hole in the relation')
+})

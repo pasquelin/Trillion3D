@@ -1,6 +1,6 @@
-import { EngineError, type TexturePreview } from '../contracts/index.ts';
-import * as format from './binaryFormat.ts';
-import { levelBlockBytes, type previewGeometry } from '../texture/previewLevels.ts';
+import { EngineError, type TexturePreview } from '../contracts/index.ts'
+import * as format from './binaryFormat.ts'
+import { levelBlockBytes, type previewGeometry } from '../texture/previewLevels.ts'
 
 // The rules of one texture-preview entry that the reader (`binaryPreview.ts`) and the writer share.
 
@@ -9,7 +9,7 @@ export function levelLengths(geometry: ReturnType<typeof previewGeometry>) {
   return {
     rgba: geometry.sizes.map(([w, h]) => w * h * 4),
     blocks: geometry.sizes.map(([w, h]) => levelBlockBytes(w, h)),
-  };
+  }
 }
 
 /** What both write and read require of an entry — integer (texture, atlas) pair
@@ -22,14 +22,14 @@ export function checkEntryHeader(
   previous: number,
   firstLevel: number,
 ) {
-  const { texture, atlas, width, height, bakedLevels } = header;
+  const { texture, atlas, width, height, bakedLevels } = header
   if (format.previewAtlasName(atlas) === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown atlas', {
       entry,
       atlas,
-    });
+    })
   // Keyed by the atlas that samples the chain: one colour entry per texture, plain or coverage.
-  const key = texture * 2 + format.previewAtlasOf(atlas);
+  const key = texture * 2 + format.previewAtlasOf(atlas)
   if (!Number.isInteger(texture) || key <= previous)
     throw new EngineError(
       'INVALID_CACHE',
@@ -39,13 +39,13 @@ export function checkEntryHeader(
         texture,
         atlas,
       },
-    );
+    )
   if (!(width > 0) || !(height > 0))
     throw new EngineError('INVALID_CACHE', 'A texture preview declares an empty source image', {
       entry,
       width,
       height,
-    });
+    })
   if (!Number.isInteger(bakedLevels) || bakedLevels < 0 || bakedLevels > firstLevel)
     throw new EngineError(
       'INVALID_CACHE',
@@ -54,6 +54,6 @@ export function checkEntryHeader(
         entry,
         bakedLevels,
       },
-    );
-  return key;
+    )
+  return key
 }

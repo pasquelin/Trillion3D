@@ -8,13 +8,13 @@ import {
   MODE_ID,
   RASTER_CLASSES,
   rasterEntry,
-} from './contract.ts';
-import { RESOLVE, rasterSource } from './shader.ts';
-import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from '../../webgpu/core/bindLayout.ts';
-import { createRasterBindings } from './bindings.ts';
-import { createRasterResolves } from './resolve.ts';
-import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts';
-import type { GpuRasterInput } from './types.ts';
+} from './contract.ts'
+import { RESOLVE, rasterSource } from './shader.ts'
+import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from '../../webgpu/core/bindLayout.ts'
+import { createRasterBindings } from './bindings.ts'
+import { createRasterResolves } from './resolve.ts'
+import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
+import type { GpuRasterInput } from './types.ts'
 
 /**
  * Compute raster of the opaque and masked cut.
@@ -31,21 +31,21 @@ export function createGpuRaster(
   // One storage buffer for the image and for the lists: the compute stage is allowed only eight
   // buffers on the poorest device WebGPU guarantees, and the raster uses them all.
   const targetBytes = Math.max(8, width * height * 8),
-    listOffset = targetBytes;
+    listOffset = targetBytes
   const work = device.createBuffer({
     label: 'Trillion3D raster target and lists',
     size: listOffset + Math.max(4, (LIST_HEADER + 2 * capacity) * 4),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-  });
+  })
   // Dispatch words are copied out of the lists instead of being written by a binding, so no
   // pass holds the buffer it launches from.
   const indirect = device.createBuffer({
     label: 'Trillion3D raster dispatch',
     size: DISPATCH_WORDS * 4,
     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
-  });
-  const b = SMALL_BINDINGS;
-  const compute = GPUShaderStage.COMPUTE;
+  })
+  const b = SMALL_BINDINGS
+  const compute = GPUShaderStage.COMPUTE
   const computeLayout = device.createBindGroupLayout({
     entries: [
       { binding: b.indices, visibility: compute, buffer: readOnly },
@@ -59,39 +59,39 @@ export function createGpuRaster(
       { binding: b.work, visibility: compute, buffer: { type: 'storage' } },
       { binding: b.selectionMask, visibility: compute, buffer: readOnly },
     ],
-  });
-  const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) });
-  const computePipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [computeLayout] });
+  })
+  const computeModule = device.createShaderModule({ code: rasterSource(capacity, listOffset / 4) })
+  const computePipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [computeLayout] })
   // Asked, compiled off the thread from now, the frames held on them: the raster is made at a
   // frame's entry (`../../webgpu/frame/framePipelines.ts`), and the frame that draws it finds them.
   const pipelineFor = (entryPoint: string) =>
     preparedComputePipeline(device, {
       layout: computePipelineLayout,
       compute: { module: computeModule, entryPoint },
-    }).ask();
+    }).ask()
   const clear = pipelineFor('clear'),
     bin = pipelineFor('bin'),
-    plan = pipelineFor('plan');
+    plan = pipelineFor('plan')
   /** One pipeline per class and per mode: the mode does not travel by a uniform, it IS the
    *  entry point, so no dispatch rereads a word to know what it does. */
   const raster = RASTER_CLASSES.map((klass) =>
     [MODE_DEPTH_OCCLUDER, MODE_DEPTH_REST, MODE_ID].map((mode) =>
       pipelineFor(rasterEntry(klass, mode)),
     ),
-  );
-  const resolves = createRasterResolves(device, RESOLVE, work, targetBytes);
-  const bindings = createRasterBindings(device, computeLayout, work);
-  let group: GPUBindGroup | undefined;
+  )
+  const resolves = createRasterResolves(device, RESOLVE, work, targetBytes)
+  const bindings = createRasterBindings(device, computeLayout, work)
+  let group: GPUBindGroup | undefined
   /** The four indirect dispatches of a mode, in a single compute pass. */
   const encodeMode = (encoder: GPUCommandEncoder, mode: number, label: string) => {
-    const pass = encoder.beginComputePass({ label });
-    pass.setBindGroup(0, group!);
+    const pass = encoder.beginComputePass({ label })
+    pass.setBindGroup(0, group!)
     for (let klass = 0; klass < RASTER_CLASSES.length; klass++) {
-      pass.setPipeline(raster[klass]![mode]!.get());
-      pass.dispatchWorkgroupsIndirect(indirect, klass * 12);
+      pass.setPipeline(raster[klass]![mode]!.get())
+      pass.dispatchWorkgroupsIndirect(indirect, klass * 12)
     }
-    pass.end();
-  };
+    pass.end()
+  }
   return {
     width,
     height,
@@ -102,43 +102,43 @@ export function createGpuRaster(
      * encoded.
      */
     encodeOccluders(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      group = bindings(input);
-      encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES);
+      group = bindings(input)
+      encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES)
       const rows = Math.max(1, input.pageRows),
         spanY = Math.min(rows, DISPATCH_SPAN),
-        spanZ = Math.ceil(rows / DISPATCH_SPAN);
-      const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' });
-      binning.setBindGroup(0, group);
-      binning.setPipeline(clear.get());
-      binning.dispatchWorkgroups(Math.ceil((width * height) / 64));
-      binning.setPipeline(bin.get());
-      binning.dispatchWorkgroups(Math.max(1, Math.ceil(input.maxTriangles / 64)), spanY, spanZ);
-      binning.setPipeline(plan.get());
-      binning.dispatchWorkgroups(1);
-      binning.end();
-      encoder.copyBufferToBuffer(work, listOffset + 24, indirect, 0, DISPATCH_WORDS * 4);
+        spanZ = Math.ceil(rows / DISPATCH_SPAN)
+      const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' })
+      binning.setBindGroup(0, group)
+      binning.setPipeline(clear.get())
+      binning.dispatchWorkgroups(Math.ceil((width * height) / 64))
+      binning.setPipeline(bin.get())
+      binning.dispatchWorkgroups(Math.max(1, Math.ceil(input.maxTriangles / 64)), spanY, spanZ)
+      binning.setPipeline(plan.get())
+      binning.dispatchWorkgroups(1)
+      binning.end()
+      encoder.copyBufferToBuffer(work, listOffset + 24, indirect, 0, DISPATCH_WORDS * 4)
       // One pass per raster dispatch: two consecutive dispatches already see each other's
       // writes, so every class has written its depth before any chooses an identifier. An
       // identifier chosen before a class has written its depth would name a losing triangle.
-      encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'Trillion3D raster occluder depth');
-      if (input.tested) resolves.encodeHiz(encoder, input, width, height);
-      return 3 + RASTER_CLASSES.length;
+      encodeMode(encoder, MODE_DEPTH_OCCLUDER, 'Trillion3D raster occluder depth')
+      if (input.tested) resolves.encodeHiz(encoder, input, width, height)
+      return 3 + RASTER_CLASSES.length
     },
     /** Surviving tested half, after the pyramid verdict. */
     encodeRest(encoder: GPUCommandEncoder) {
-      encodeMode(encoder, MODE_DEPTH_REST, 'Trillion3D raster tested depth');
-      return RASTER_CLASSES.length;
+      encodeMode(encoder, MODE_DEPTH_REST, 'Trillion3D raster tested depth')
+      return RASTER_CLASSES.length
     },
     /** Identifier resolve over everything that was drawn, and the frame closed. */
     encodeIds(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      encodeMode(encoder, MODE_ID, 'Trillion3D raster identifiers');
-      resolves.encodeFinal(encoder, input, width, height);
-      return RASTER_CLASSES.length;
+      encodeMode(encoder, MODE_ID, 'Trillion3D raster identifiers')
+      resolves.encodeFinal(encoder, input, width, height)
+      return RASTER_CLASSES.length
     },
     dispose() {
-      work.destroy();
-      indirect.destroy();
+      work.destroy()
+      indirect.destroy()
     },
-  };
+  }
 }
-export type GpuRaster = ReturnType<typeof createGpuRaster>;
+export type GpuRaster = ReturnType<typeof createGpuRaster>

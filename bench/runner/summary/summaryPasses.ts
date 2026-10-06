@@ -1,33 +1,33 @@
-import type { summarize } from '../../../packages/sdk-core/src/index.ts';
-import type { GpuPassBlockTotals } from '../../../packages/sdk-browser/src/gpu/core/passBlocks.ts';
+import type { summarize } from '../../../packages/sdk-core/src/index.ts'
+import type { GpuPassBlockTotals } from '../../../packages/sdk-browser/src/gpu/core/passBlocks.ts'
 
 /** p50/p95/p99 of a series, or `null` if it was empty. */
-export type Distribution = ReturnType<typeof summarize>;
+export type Distribution = ReturnType<typeof summarize>
 
 /** `p50 / p95` of a distribution, or "unmeasured": a dash would not be distinct from a zero. */
 export const p50p95 = (d: { p50: number; p95: number } | null) =>
-  d ? `${d.p50.toFixed(3)} / ${d.p95.toFixed(3)}` : 'unmeasured';
+  d ? `${d.p50.toFixed(3)} / ${d.p95.toFixed(3)}` : 'unmeasured'
 const BLOCS: [keyof GpuPassBlockTotals, string][] = [
   ['visibilityMs', 'Visibility buffer'],
   ['materialsMs', 'Materials pass'],
   ['otherMs', 'The rest'],
-];
+]
 
 /** One GPU pass and its block, summarised over the readings of a series. */
 interface PasseGpu {
-  name: string;
-  bloc: string | null;
-  gpuMs: Distribution;
+  name: string
+  bloc: string | null
+  gpuMs: Distribution
   /** Its own share of the image, an overlap counted once on the pass submitted first; null where
    *  the device reports none (WebGL2). */
-  ownMs: Distribution;
+  ownMs: Distribution
 }
 
 /** GPU passes and their comparable blocks, summarised over a series' readings. */
 export interface PassesGpu {
-  releves: number;
-  blocs: Record<string, Distribution>;
-  passes: PasseGpu[];
+  releves: number
+  blocs: Record<string, Distribution>
+  passes: PasseGpu[]
 }
 
 /**
@@ -37,7 +37,7 @@ export interface PassesGpu {
  * share: passes the device overlaps add up past the image, their own shares to it once.
  */
 export function passes(passesGpu: PassesGpu | null) {
-  if (!passesGpu) return ['- GPU passes: no reading', ''];
+  if (!passesGpu) return ['- GPU passes: no reading', '']
   return [
     `- Comparable blocks over ${passesGpu.releves} readings, GPU ms p50/p95: ` +
       BLOCS.map(([k, label]) => `${label} ${p50p95(passesGpu.blocs[k])}`).join(' · '),
@@ -48,5 +48,5 @@ export function passes(passesGpu: PassesGpu | null) {
       (p) => `| ${p.name} | ${p50p95(p.gpuMs)} | ${p50p95(p.ownMs)} | ${p.bloc} |`,
     ),
     '',
-  ];
+  ]
 }

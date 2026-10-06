@@ -1,8 +1,8 @@
-import { WRAP_MAP } from '../../visibility/wrapModes.ts';
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts';
-import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts';
+import { WRAP_MAP } from '../../visibility/wrapModes.ts'
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts'
+import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
 
-const STRIDE_MASK = FEEDBACK_STRIDE - 1;
+const STRIDE_MASK = FEEDBACK_STRIDE - 1
 
 /**
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
@@ -34,7 +34,7 @@ const tileRequestIndexWgsl = (
  let word=${k}Pages[entry];
  if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
  return entry-${k}Pages[2]+${k}Pages[0]+1u;
-}`;
+}`
 
 /**
  * Whether a pixel speaks this image (`feedbackPhase`) and what it names: the rule every pass that
@@ -56,9 +56,9 @@ fn pickOf(px:u32,choices:u32)->RequestPick{
 }
 fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u),choices);}
 /** Pick \`turn\` of a pixel: \`choices*PICK_TURNS\` turns in a row name each of them once. */
-fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`;
+fn everyPick(pos:vec2f,choices:u32,turn:u32)->RequestPick{return pickOf(u32(pos.x)+u32(pos.y)+turn,choices);}`
 
-const m = WRAP_MAP;
+const m = WRAP_MAP
 /**
  * Tile rank a pixel asks for, plus one, or zero: `colorRequestIndex(slot, uv, ddx, ddy, next,
  * along, aniso, sampled, missing)` and `dataRequestIndex(...)`, `next` choosing the blend's second level.
@@ -89,4 +89,4 @@ fn mapRequest(p:RequestPick,missing:bool,color:vec2u,data:vec4u,uv:vec2f,ddx:vec
  if(slot==0u){return 0u;}
  if(isColor){return colorRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);}
  return dataRequestIndex(slot,uv,ddx,ddy,p.next,p.along,true,sampled,missing);
-}`;
+}`

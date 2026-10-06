@@ -1,13 +1,13 @@
-import { deformationTextureBytes, geometryDeformationBytes } from './textureBytes.ts';
-import { rootOf } from '../page/selection/placements.ts';
-import { checkSoftSourceIds } from './wholeInputs.ts';
-import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
-import type { BlendCopy } from '../cluster/blendCopyContract.ts';
-import type { EngineCamera } from '../camera/world.ts';
-import type { ClusterRoot } from '../page/selection/types.ts';
-import type { PageRec } from '../page/selection/selection.ts';
-import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { createSessionDeformation } from './session.ts';
+import { deformationTextureBytes, geometryDeformationBytes } from './textureBytes.ts'
+import { rootOf } from '../page/selection/placements.ts'
+import { checkSoftSourceIds } from './wholeInputs.ts'
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
+import type { BlendCopy } from '../cluster/blendCopyContract.ts'
+import type { EngineCamera } from '../camera/world.ts'
+import type { ClusterRoot } from '../page/selection/types.ts'
+import type { PageRec } from '../page/selection/selection.ts'
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
+import { createSessionDeformation } from './session.ts'
 
 /**
  * A WebGL2 session's deformation (#357): the records of its roots (`session.ts`), which the
@@ -28,37 +28,37 @@ export function createWebglDeformation(
       words: frame.words,
       bases: frame.bases,
       get version() {
-        return frame.revision;
+        return frame.revision
       },
     },
-    deformedGeometries = new Set<Geometry>();
+    deformedGeometries = new Set<Geometry>()
   // Per placement, on the root: its pages are shared by every placement of the primitive (#1235).
-  for (const root of roots) root.deformRecord = session.wordOfWorld(root.world);
+  for (const root of roots) root.deformRecord = session.wordOfWorld(root.world)
   for (const copy of copies) {
-    const ids = copy.deformation?.softSourceIds;
+    const ids = copy.deformation?.softSourceIds
     if (ids && !copy.geometry.attributes.skinIndex) {
       checkSoftSourceIds(
         copy.geometry.attributes.position?.count ?? 0,
         ids,
         copy.deformation?.softVertices,
-      );
+      )
       const joints = new Float32Array(ids.length * 4),
-        weights = new Float32Array(ids.length * 4);
+        weights = new Float32Array(ids.length * 4)
       ids.forEach((id, v) => {
-        joints.fill(id, v * 4, v * 4 + 4);
-        weights[v * 4] = 1;
-      });
-      copy.geometry.setAttribute('skinIndex', new BufferAttribute(joints, 4));
-      copy.geometry.setAttribute('skinWeight', new BufferAttribute(weights, 4));
+        joints.fill(id, v * 4, v * 4 + 4)
+        weights[v * 4] = 1
+      })
+      copy.geometry.setAttribute('skinIndex', new BufferAttribute(joints, 4))
+      copy.geometry.setAttribute('skinWeight', new BufferAttribute(weights, 4))
     }
-    const record = session.wordOfWorld(copy.matrix);
-    if (!record) continue;
-    Object.assign(copy, { deformRecord: record, frustumCulled: false });
-    deformedGeometries.add(copy.geometry);
+    const record = session.wordOfWorld(copy.matrix)
+    if (!record) continue
+    Object.assign(copy, { deformRecord: record, frustumCulled: false })
+    deformedGeometries.add(copy.geometry)
   }
   // Records and whole copies are fixed with the session: so are the bytes they pin.
-  let bytes = session.any ? deformationTextureBytes(frame.block.length / 4) : 0;
-  for (const geometry of deformedGeometries) bytes += geometryDeformationBytes(geometry);
+  let bytes = session.any ? deformationTextureBytes(frame.block.length / 4) : 0
+  for (const geometry of deformedGeometries) bytes += geometryDeformationBytes(geometry)
   return {
     /** Control records and whole-copy sources are pinned in the same geometry budget. */
     bytes: () => bytes,
@@ -68,11 +68,11 @@ export function createWebglDeformation(
     wordOf: (_rec: PageRec, rank: number) => session.wordOfWorld(rootOf(roots, rank).world),
     pending: () => session.any && frame.pending(),
     update(cam: EngineCamera, viewport: readonly number[] | undefined, pixelError: number) {
-      if (!session.any) return;
-      session.update(cam, viewport, pixelError);
-      for (let i = 0; i < roots.length; i++) if (frame.bases[i]) roots[i].reach = frame.reach[i];
+      if (!session.any) return
+      session.update(cam, viewport, pixelError)
+      for (let i = 0; i < roots.length; i++) if (frame.bases[i]) roots[i].reach = frame.reach[i]
     },
-  };
+  }
 }
 
-export type WebglDeformation = ReturnType<typeof createWebglDeformation>;
+export type WebglDeformation = ReturnType<typeof createWebglDeformation>

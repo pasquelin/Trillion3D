@@ -29,4 +29,4 @@ fn directIrradiance(P:vec3f,N:vec3f,reach:f32)->vec3f{
  }
  return total;
 }
-`;
+`

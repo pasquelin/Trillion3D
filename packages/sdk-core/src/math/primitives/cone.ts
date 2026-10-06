@@ -1,5 +1,5 @@
-import { coneRejects } from '../projectionOracles.ts';
-import { hypot3 } from './hypot.ts';
+import { coneRejects } from '../projectionOracles.ts'
+import { hypot3 } from './hypot.ts'
 
 /**
  * Cone rejection tolerances, shared by the processor mirror (`packages/sdk-browser/src/page/cone/cone.ts`) and the shader
@@ -8,17 +8,17 @@ import { hypot3 } from './hypot.ts';
  * ≥ `HALF_PI` never rejects. The `_WGSL` variants are the text inserted into the shader, like
  * `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`).
  */
-export const CONE_LENGTH_RATIO = 1.0001;
+export const CONE_LENGTH_RATIO = 1.0001
 /** How far from square two columns may be and still count as square. */
-export const CONE_ORTHO_EPS = 1e-4;
+export const CONE_ORTHO_EPS = 1e-4
 /** A quarter turn, in radians. */
-export const HALF_PI = Math.PI / 2;
+export const HALF_PI = Math.PI / 2
 /** `CONE_LENGTH_RATIO` as shader text. */
-export const CONE_LENGTH_RATIO_WGSL = CONE_LENGTH_RATIO.toString();
+export const CONE_LENGTH_RATIO_WGSL = CONE_LENGTH_RATIO.toString()
 /** `CONE_ORTHO_EPS` as shader text. */
-export const CONE_ORTHO_EPS_WGSL = CONE_ORTHO_EPS.toExponential();
+export const CONE_ORTHO_EPS_WGSL = CONE_ORTHO_EPS.toExponential()
 /** `HALF_PI` as shader text. */
-export const HALF_PI_WGSL = HALF_PI.toString();
+export const HALF_PI_WGSL = HALF_PI.toString()
 
 /**
  * Half-angle under which a sphere is seen from a homogeneous view point `(p, w)`: `asin(r / d)`,
@@ -36,10 +36,10 @@ function sphereSpreadAngle(
   pz: number,
   pw: number,
 ) {
-  const d = hypot3(px - cx * pw, py - cy * pw, pz - cz * pw);
-  if (!(d > radius * pw)) return Math.PI;
-  const t = (radius * pw) / d;
-  return Math.asin(t < 0 ? 0 : t > 1 ? 1 : t);
+  const d = hypot3(px - cx * pw, py - cy * pw, pz - cz * pw)
+  if (!(d > radius * pw)) return Math.PI
+  const t = (radius * pw) / d
+  return Math.asin(t < 0 ? 0 : t > 1 ? 1 : t)
 }
 
 /**
@@ -69,45 +69,45 @@ export function boxConeRejects(
   eyeZ: number,
   eyeW = 1,
 ) {
-  const e = world;
+  const e = world
   const lx = (min[0] + max[0]) * 0.5,
     ly = (min[1] + max[1]) * 0.5,
-    lz = (min[2] + max[2]) * 0.5;
-  const w = 1 / (e[3] * lx + e[7] * ly + e[11] * lz + e[15]);
+    lz = (min[2] + max[2]) * 0.5
+  const w = 1 / (e[3] * lx + e[7] * ly + e[11] * lz + e[15])
   const cx = (e[0] * lx + e[4] * ly + e[8] * lz + e[12]) * w,
     cy = (e[1] * lx + e[5] * ly + e[9] * lz + e[13]) * w,
-    cz = (e[2] * lx + e[6] * ly + e[10] * lz + e[14]) * w;
+    cz = (e[2] * lx + e[6] * ly + e[10] * lz + e[14]) * w
   const a0 = axis[0],
     a1 = axis[1],
-    a2 = axis[2];
+    a2 = axis[2]
   let ax = normal[0] * a0 + normal[3] * a1 + normal[6] * a2,
     ay = normal[1] * a0 + normal[4] * a1 + normal[7] * a2,
-    az = normal[2] * a0 + normal[5] * a1 + normal[8] * a2;
-  const al = Math.sqrt(ax * ax + ay * ay + az * az);
-  if (!(al > 0)) return false;
-  const inverse = 1 / al;
-  ax *= inverse;
-  ay *= inverse;
-  az *= inverse;
+    az = normal[2] * a0 + normal[5] * a1 + normal[8] * a2
+  const al = Math.sqrt(ax * ax + ay * ay + az * az)
+  if (!(al > 0)) return false
+  const inverse = 1 / al
+  ax *= inverse
+  ay *= inverse
+  az *= inverse
   const vx = eyeX - cx * eyeW,
     vy = eyeY - cy * eyeW,
-    vz = eyeZ - cz * eyeW;
+    vz = eyeZ - cz * eyeW
   // A cluster whose axis does not point away from the camera is never rejected: `coneRejects`
   // needs `dot < -sin(angle + spread) <= 0`, and `dot` has the sign of this very numerator
   // (same operands, same order, divided by a positive length). The three lengths and the
   // arcsine below are therefore only paid by clusters that can still be rejected: the verdict
   // is the same, bit for bit, for every input (NaN included: it rejected nothing either).
-  const toward = ax * vx + ay * vy + az * vz;
-  if (!(toward < 0)) return false;
-  const vl = hypot3(vx, vy, vz);
-  if (!(vl > 0)) return false;
+  const toward = ax * vx + ay * vy + az * vz
+  if (!(toward < 0)) return false
+  const vl = hypot3(vx, vy, vz)
+  if (!(vl > 0)) return false
   const radius =
-    hypot3((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale;
-  const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW);
-  const dot = Math.min(1, Math.max(-1, toward / vl));
+    hypot3((max[0] - min[0]) * 0.5, (max[1] - min[1]) * 0.5, (max[2] - min[2]) * 0.5) * scale
+  const spread = sphereSpreadAngle(cx, cy, cz, radius, eyeX, eyeY, eyeZ, eyeW)
+  const dot = Math.min(1, Math.max(-1, toward / vl))
   try {
-    return coneRejects(dot, angle, spread);
+    return coneRejects(dot, angle, spread)
   } catch {
-    return false;
+    return false
   }
 }

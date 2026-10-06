@@ -1,8 +1,8 @@
-import { POOL_LAYER_SIDE, TILE_PITCH } from '../../texture/tiles.ts';
-import { createWebgpuTilePool, type TilePoolOptions, type WebgpuTilePool } from './pool.ts';
-import type { WebgpuTilePageTable } from './pageTable.ts';
-import { cellOrigin } from './write.ts';
-import { tailSlotOf, tileKeyOf } from './ids.ts';
+import { POOL_LAYER_SIDE, TILE_PITCH } from '../../texture/tiles.ts'
+import { createWebgpuTilePool, type TilePoolOptions, type WebgpuTilePool } from './pool.ts'
+import type { WebgpuTilePageTable } from './pageTable.ts'
+import { cellOrigin } from './write.ts'
+import { tailSlotOf, tileKeyOf } from './ids.ts'
 
 /**
  * An atlas pool changes layers WITHOUT losing what it holds. Surviving layers are copied in one
@@ -23,54 +23,54 @@ export function resizeTileAtlas(
   resident: Map<number, number>,
   onEvicted?: (slot: number) => void,
 ): { pool: WebgpuTilePool; evicted: number } {
-  const next = createWebgpuTilePool(device, options);
+  const next = createWebgpuTilePool(device, options)
   const encoder = device.createCommandEncoder({
     label: `Trillion3D texture pool ${options.kind} ${options.lane} resize`,
-  });
-  const kept = Math.min(pool.layers, next.layers);
+  })
+  const kept = Math.min(pool.layers, next.layers)
   encoder.copyTextureToTexture({ texture: pool.texture }, { texture: next.texture }, [
     POOL_LAYER_SIDE,
     POOL_LAYER_SIDE,
     kept,
-  ]);
-  const displaced: number[] = [];
+  ])
+  const displaced: number[] = []
   for (const index of pool.occupied()) {
-    const id = pool.keyOf(index);
+    const id = pool.keyOf(index)
     if (index < next.tiles)
-      next.adopt(index, id, pool.lastUseOf(index), tailSlotOf(id) !== undefined);
-    else displaced.push(index);
+      next.adopt(index, id, pool.lastUseOf(index), tailSlotOf(id) !== undefined)
+    else displaced.push(index)
   }
-  const pinned = (index: number) => Number(pool.pinnedOf(index));
-  displaced.sort((a, b) => pinned(b) - pinned(a) || pool.lastUseOf(b) - pool.lastUseOf(a));
-  let evicted = 0;
+  const pinned = (index: number) => Number(pool.pinnedOf(index))
+  displaced.sort((a, b) => pinned(b) - pinned(a) || pool.lastUseOf(b) - pool.lastUseOf(a))
+  let evicted = 0
   for (const index of displaced) {
     const id = pool.keyOf(index),
       tail = tailSlotOf(id),
-      target = next.acquire(id, pool.lastUseOf(index), pool.pinnedOf(index));
+      target = next.acquire(id, pool.lastUseOf(index), pool.pinnedOf(index))
     if (target === undefined) {
       // The tails hold the lowest places, pinned first into a fresh pool, and the floor keeps them
       // all (`texturePoolFor`): only a pool drawn under it displaces one, never cleared as a tile.
-      if (tail !== undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR');
-      evictTile(pool, index, { pages, resident }, onEvicted);
-      evicted++;
-      continue;
+      if (tail !== undefined) throw new Error('TEXTURE_POOL_UNDER_FLOOR')
+      evictTile(pool, index, { pages, resident }, onEvicted)
+      evicted++
+      continue
     }
     const from = pool.placeOf(index),
-      place = next.placeOf(target);
+      place = next.placeOf(target)
     encoder.copyTextureToTexture(
       { texture: pool.texture, origin: [...cellOrigin(from), from.layer] },
       { texture: next.texture, origin: [...cellOrigin(place), place.layer] },
       [TILE_PITCH, TILE_PITCH, 1],
-    );
-    if (tail !== undefined) pages.setTail(tail, place, tap);
+    )
+    if (tail !== undefined) pages.setTail(tail, place, tap)
     else {
-      resident.set(id, target);
-      pages.setTile(tileKeyOf(id), place);
+      resident.set(id, target)
+      pages.setTile(tileKeyOf(id), place)
     }
   }
-  device.queue.submit([encoder.finish()]);
-  pool.destroy();
-  return { pool: next, evicted };
+  device.queue.submit([encoder.finish()])
+  pool.destroy()
+  return { pool: next, evicted }
 }
 
 /** Gives the streamed tile at `index` of `pool` back: the table and `resident` forget it, and
@@ -82,9 +82,9 @@ export function evictTile(
   onEvicted?: (slot: number) => void,
 ) {
   const id = pool.keyOf(index),
-    key = tileKeyOf(id);
-  table.pages.clearTile(key);
-  table.resident.delete(id);
-  pool.release(index);
-  onEvicted?.(key.slot);
+    key = tileKeyOf(id)
+  table.pages.clearTile(key)
+  table.resident.delete(id)
+  pool.release(index)
+  onEvicted?.(key.slot)
 }

@@ -1,13 +1,13 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { inReferenceOrder } from './lightOrder.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { inReferenceOrder } from './lightOrder.ts'
 
 /** A light of one kind, named by `name`, casting a shadow or not. */
 const light = (name: string, kind: 'point' | 'spot' | 'sun' | 'rect', castShadow = false) => ({
   name,
   castShadow,
   kind: kind === 'sun' ? 'directional' : kind,
-});
+})
 
 // Issue #275: the engine files its lights after a stable sort that puts the shadow casters
 // first; within a kind the engine's program writes them in that same order.
@@ -21,9 +21,9 @@ test('the direct lights are filed by kind, the shadow casters first within a kin
     light('spot-a', 'spot'),
     light('point-c', 'point'),
     light('spot-b', 'spot', true),
-  ];
-  const order: string[] = [];
-  inReferenceOrder(lights, (visited) => order.push(visited.name));
+  ]
+  const order: string[] = []
+  inReferenceOrder(lights, (visited) => order.push(visited.name))
   assert.deepEqual(order, [
     'point-b',
     'point-a',
@@ -33,5 +33,5 @@ test('the direct lights are filed by kind, the shadow casters first within a kin
     'sun-b',
     'sun-a',
     'rect-a',
-  ]);
-});
+  ])
+})

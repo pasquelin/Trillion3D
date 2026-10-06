@@ -8,56 +8,56 @@
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../partition/plan.ts`).
  */
-import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts';
-import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
-import type { RenderBackend } from '../../backend/types.ts';
-import type { FrameBudget } from '../../page/integration/frameBudget.ts';
-import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
-import type { PartitionCells } from '../../partition/cells.ts';
-import { cellReach } from '../../partition/plan.ts';
-import { lensSlope } from '../../partition/superRoots.ts';
-import { cellHoldings } from '../../partition/cellPages.ts';
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
-import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
-import { createPartitionMounts } from './partitionMounts.ts';
-import { patientTask } from '../../page/decode/host.ts';
-import { cellRows, type CellRows } from '../../partition/cellDecode.ts';
-import type { PageBody } from '../../partition/cellIndex.ts';
+import { EngineError, maxStretch } from '../../../../sdk-core/src/index.ts'
+import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
+import type { RenderBackend } from '../../backend/types.ts'
+import type { FrameBudget } from '../../page/integration/frameBudget.ts'
+import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts'
+import type { PartitionCells } from '../../partition/cells.ts'
+import { cellReach } from '../../partition/plan.ts'
+import { lensSlope } from '../../partition/superRoots.ts'
+import { cellHoldings } from '../../partition/cellPages.ts'
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts'
+import { createPartitionMounts } from './partitionMounts.ts'
+import { patientTask } from '../../page/decode/host.ts'
+import { cellRows, type CellRows } from '../../partition/cellDecode.ts'
+import type { PageBody } from '../../partition/cellIndex.ts'
 
-type Streamer = ReturnType<typeof createPageStreamer>;
+type Streamer = ReturnType<typeof createPageStreamer>
 
 /** Where a camera's eye stands in the world, and its reach there: the frustum its world matrix
  *  poses, which a scaled camera — or one under a scaled rig — stretches by up to its largest
  *  singular value (`maxStretch`). */
 function viewOf(camera: HostCamera) {
-  const elements = resolveCameraWorld(camera).matrixWorld.elements;
+  const elements = resolveCameraWorld(camera).matrixWorld.elements
   return {
     eye: [elements[12], elements[13], elements[14]],
     reach: cellReach(camera) * maxStretch(elements),
-  };
+  }
 }
 
 /** The cut's lens `backend` projects with while it packs the world DAG, else none (#1332). */
 function lensOf(backend: RenderBackend, camera: HostCamera) {
-  const cut = backend.worldCut?.();
-  return cut && { ...cut, slope: lensSlope(camera) };
+  const cut = backend.worldCut?.()
+  return cut && { ...cut, slope: lensSlope(camera) }
 }
 
 /** The file of the partition at `url` read by the decode pool, off the main thread (#575): `cells`,
  *  a cell file into its rows; `cellPage`, a page of the cell index. A refusal keeps its code — a page
  *  of another version stays `UNSUPPORTED_SCENE_TABLES` — and names the file. */
 function refused(answer: Awaited<ReturnType<typeof patientTask>>, url: string): never {
-  const message = answer.ok ? 'PAGE_DECODE_FAILED' : answer.message;
-  const code = (!answer.ok && answer.refusal) || 'INVALID_SCENE_TABLES';
-  throw new EngineError(code, message, { url });
+  const message = answer.ok ? 'PAGE_DECODE_FAILED' : answer.message
+  const code = (!answer.ok && answer.refusal) || 'INVALID_SCENE_TABLES'
+  throw new EngineError(code, message, { url })
 }
 async function decodeCell(bytes: Uint8Array, url: string): Promise<CellRows> {
-  const answer = await patientTask('cells', bytes, url);
-  return answer.ok && answer.cells ? cellRows(answer.cells) : refused(answer, url);
+  const answer = await patientTask('cells', bytes, url)
+  return answer.ok && answer.cells ? cellRows(answer.cells) : refused(answer, url)
 }
 async function decodePage(bytes: Uint8Array, url: string): Promise<PageBody> {
-  const answer = await patientTask('cellPage', bytes, url);
-  return answer.ok && answer.cellPage ? answer.cellPage : refused(answer, url);
+  const answer = await patientTask('cellPage', bytes, url)
+  return answer.ok && answer.cellPage ? answer.cellPage : refused(answer, url)
 }
 
 /**
@@ -72,33 +72,33 @@ export async function primePartitions(
   owned: boolean,
   signal?: AbortSignal,
 ) {
-  const { eye, reach } = viewOf(camera);
+  const { eye, reach } = viewOf(camera)
   const io = {
     read: (url: string) => streamer.readBytes(url, signal),
     decode: decodeCell,
     decodePage,
     admit: streamer.admit,
-  };
-  const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, io, owned)));
-  return bytes.reduce((sum, value) => sum + value, 0);
+  }
+  const bytes = await Promise.all(partitions.map((cells) => cells.prime(eye, reach, io, owned)))
+  return bytes.reduce((sum, value) => sum + value, 0)
 }
 
 type Inputs = {
-  partitions: readonly PartitionCells[];
-  streamer: Streamer;
-  camera: HostCamera;
-  active: () => RenderBackend;
+  partitions: readonly PartitionCells[]
+  streamer: Streamer
+  camera: HostCamera
+  active: () => RenderBackend
   /** The session's one integration budget per frame (`BackendContext.frameBudget`): cells spend
    *  from it before the arrival drain and the engine's row records spend the rest. */
-  budget: FrameBudget;
+  budget: FrameBudget
   /** What the session opened on (`partitionMounts.ts`). */
-  opened?: Parameters<typeof createPartitionMounts>[0]['opened'];
+  opened?: Parameters<typeof createPartitionMounts>[0]['opened']
   /** Asked once the camera's view, or a parent's stretch, outgrew the rows sized at open on an
    *  engine that grows no buffer in place, or a mesh the view read cannot be mounted in place
    *  (`partitionMounts.ts`): the owner opens the session again. Absent, a cell past those rows
    *  waits. */
-  renew?: () => void;
-};
+  renew?: () => void
+}
 
 /**
  * The step a frame runs before it draws, or `null` when the scene is not partitioned. Its
@@ -108,35 +108,35 @@ type Inputs = {
  * camera is drawn again until they all are.
  */
 export function createPartitionFrame(inputs: Inputs) {
-  const { partitions, streamer, camera, active, renew, budget } = inputs;
-  if (!partitions.length) return null;
-  const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew });
-  const manifests = partitions.map((cells) => cellHoldings(cells).manifest);
+  const { partitions, streamer, camera, active, renew, budget } = inputs
+  if (!partitions.length) return null
+  const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew })
+  const manifests = partitions.map((cells) => cellHoldings(cells).manifest)
   let reads: Promise<void>[] = [],
-    later = false;
+    later = false
   const request = (urls: readonly string[], ahead: boolean) => {
     // A read that fails is said by the streamer's own diagnostics; the cell is asked again later.
-    const priority = ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE;
+    const priority = ahead ? PRIORITY_PREFETCH : PRIORITY_VISIBLE
     const read = streamer.request(urls, { priority }).then(
       () => {},
       () => {},
-    );
-    if (!ahead) reads.push(read);
-  };
+    )
+    if (!ahead) reads.push(read)
+  }
   const pending = async () => {
     const asked = reads,
       turned = [
         ...mounts.asked(),
         ...manifests.flatMap((manifest) => manifest.reads()),
         ...partitions.flatMap((cells) => cells.decodes()),
-      ];
-    reads = [];
-    await Promise.all([...asked, ...turned]);
-    return later || turned.length > 0 || mounts.stale();
-  };
+      ]
+    reads = []
+    await Promise.all([...asked, ...turned])
+    return later || turned.length > 0 || mounts.stale()
+  }
   const step = () => {
-    mounts.sync();
-    const backend = active();
+    mounts.sync()
+    const backend = active()
     const io: Parameters<PartitionCells['frame']>[2] = {
       bytes: (url: string) => streamer.getBytes(url),
       decode: decodeCell,
@@ -154,10 +154,10 @@ export function createPartitionFrame(inputs: Inputs) {
       outgrown: renew,
       // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
       lens: lensOf(backend, camera),
-    };
-    const { eye, reach } = viewOf(camera);
-    later = false;
-    for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later;
-  };
-  return Object.assign(step, { pending });
+    }
+    const { eye, reach } = viewOf(camera)
+    later = false
+    for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
+  }
+  return Object.assign(step, { pending })
 }

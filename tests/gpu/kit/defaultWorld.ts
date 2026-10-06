@@ -1,8 +1,8 @@
 // A world opened on the engine's own choice of backend, wherever the proof's page runs — on Dawn,
 // or in Chrome on a machine without WebGPU: one opening, so both machines are proved on the same.
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
-import type { openMeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts';
-import type { SceneLight } from '../../../packages/sdk-core/src/index.ts';
+import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { openMeasuredWorld } from '../../../packages/sdk-browser/src/measurement/measurement.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/index.ts'
 
 /**
  * `manifestUrl` opened on `canvas` by `open` (the page's own import of `openMeasuredWorld`: on Dawn
@@ -17,7 +17,7 @@ export async function openDefaultWorld(
   manifestUrl: string,
   lights: readonly SceneLight[],
 ) {
-  const choices: BackendDiagnostic[] = [];
+  const choices: BackendDiagnostic[] = []
   const world = await open(canvas, {
     manifestUrl,
     scope: 'full',
@@ -27,14 +27,14 @@ export async function openDefaultWorld(
     temporalAntialiasing: false,
     pixelError: 0,
     onDiagnostic: (event) => void (event.phase === 'backend-choice' && choices.push(event)),
-  });
+  })
   try {
-    for (const light of lights) world.addLight(light);
-    world.setPose(world.pointsOfInterest()[0].pose);
-    await world.awaitPages();
+    for (const light of lights) world.addLight(light)
+    world.setPose(world.pointsOfInterest()[0].pose)
+    await world.awaitPages()
   } catch (error) {
-    world.dispose();
-    throw error;
+    world.dispose()
+    throw error
   }
   return {
     world,
@@ -44,5 +44,5 @@ export async function openDefaultWorld(
       mounted: world.backends.map((one) => one.id),
       choice: choices[0]?.context ?? null,
     }),
-  };
+  }
 }

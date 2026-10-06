@@ -1,14 +1,14 @@
-import { projectedErrorAt, viewDepth, viewLateral } from './projection.ts';
+import { projectedErrorAt, viewDepth, viewLateral } from './projection.ts'
 
 export type ClusterCut = {
-  lodError?: number;
-  level?: number;
-  sphere?: number[];
-  parentError?: number | null;
-  parentSphere?: number[] | null;
-  group?: number | null;
-  source?: number | null;
-};
+  lodError?: number
+  level?: number
+  sphere?: number[]
+  parentError?: number | null
+  parentSphere?: number[] | null
+  group?: number | null
+  source?: number | null
+}
 /** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`;
  *  `sound` as in `projectedErrorAt`; the sphere grown by `reach`, a deformation's (#357). */
 export function projectedClusterError(
@@ -26,8 +26,8 @@ export function projectedClusterError(
   // One extra guard over `projectedErrorAt`, which is left the projection: a missing sphere.
   // The other two stay here, before the projection's two square roots, because the most common
   // cut case is precisely a cluster with zero error.
-  if (error === 0) return 0;
-  if (error == null || error === Infinity || !sphere) return Infinity;
+  if (error === 0) return 0
+  if (error == null || error === Infinity || !sphere) return Infinity
   return projectedErrorAt(
     error,
     viewLateral(sphere, offset, e),
@@ -38,7 +38,7 @@ export function projectedClusterError(
     near,
     perspective,
     sound,
-  );
+  )
 }
 /**
  * A cluster's own and replacement screen errors, in pixels, written to `out` as `[own, parent]`:
@@ -64,22 +64,12 @@ export function clusterPixels(
 ) {
   const sphere = rec.sphere,
     own = (rec.lodError ?? 0) + ((rec.level ?? 0) > 0 ? 2 * reach : 0),
-    parent = rec.parentError == null ? rec.parentError : rec.parentError + 2 * reach;
+    parent = rec.parentError == null ? rec.parentError : rec.parentError + 2 * reach
   if (sphere && own !== 0 && own !== Infinity && rec.parentSphere == null) {
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
-      radius = sphere[3] + reach;
-    out[0] = projectedErrorAt(
-      own,
-      lateral,
-      depth,
-      radius,
-      stretch,
-      focal,
-      near,
-      perspective,
-      sound,
-    );
+      radius = sphere[3] + reach
+    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective, sound)
     out[1] = projectedErrorAt(
       parent,
       lateral,
@@ -90,21 +80,10 @@ export function clusterPixels(
       near,
       perspective,
       sound,
-    );
-    return out;
+    )
+    return out
   }
-  out[0] = projectedClusterError(
-    own,
-    sphere,
-    0,
-    e,
-    stretch,
-    focal,
-    near,
-    perspective,
-    sound,
-    reach,
-  );
+  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective, sound, reach)
   out[1] = projectedClusterError(
     parent,
     rec.parentSphere ?? sphere,
@@ -116,6 +95,6 @@ export function clusterPixels(
     perspective,
     sound,
     reach,
-  );
-  return out;
+  )
+  return out
 }

@@ -1,32 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { useWords } from '../i18n.ts';
-import { useDrawer } from '../hooks/useDrawer.ts';
-import { useSearchShortcut } from '../hooks/useSearchShortcut.ts';
-import { hasSidebar, isEdgeToEdge } from '../portal/routes.ts';
-import { Header } from './Header.tsx';
-import { usePortal } from './PortalContext.ts';
-import { SearchModal } from './SearchModal.tsx';
-import { Sidebar } from './Sidebar.tsx';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useWords } from '../i18n.ts'
+import { useDrawer } from '../hooks/useDrawer.ts'
+import { useSearchShortcut } from '../hooks/useSearchShortcut.ts'
+import { hasSidebar, isEdgeToEdge } from '../portal/routes.ts'
+import { Header } from './Header.tsx'
+import { usePortal } from './PortalContext.ts'
+import { SearchModal } from './SearchModal.tsx'
+import { Sidebar } from './Sidebar.tsx'
 
 /** The frame of every page, the height of the screen: the header, then the sidebar of the current
  * area and the page, each scrolling on its own; the site search over them. */
 export function Shell({ children }: { children: ReactNode }) {
-  const { route } = usePortal();
-  const t = useWords(route.locale);
-  const drawer = useDrawer();
-  const [searching, setSearching] = useState(false);
-  const openSearch = useCallback(() => setSearching(true), []);
-  useSearchShortcut(openSearch);
-  const main = useRef<HTMLElement | null>(null);
+  const { route } = usePortal()
+  const t = useWords(route.locale)
+  const drawer = useDrawer()
+  const [searching, setSearching] = useState(false)
+  const openSearch = useCallback(() => setSearching(true), [])
+  useSearchShortcut(openSearch)
+  const main = useRef<HTMLElement | null>(null)
   // A new page opens at its top: the content area is what scrolls, never the window. The address
   // decides, not the route object: the portal rebuilds that one when the API reference finishes
   // loading, a moment after the page opened, and the reader would be sent back to the top.
-  const { locale, area, id } = route;
+  const { locale, area, id } = route
   useEffect(() => {
     // A block: `scrollTo` returns a promise in current browsers, which an effect must not return.
-    main.current?.scrollTo({ top: 0, behavior: 'instant' });
-  }, [locale, area, id]);
+    main.current?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [locale, area, id])
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <a
@@ -34,8 +34,8 @@ export function Shell({ children }: { children: ReactNode }) {
         href="#main-content"
         onClick={(event) => {
           // The hash names routes: the link moves the focus instead of the address.
-          event.preventDefault();
-          document.getElementById('main-content')?.focus();
+          event.preventDefault()
+          document.getElementById('main-content')?.focus()
         }}
       >
         {t('actions.skip')}
@@ -56,5 +56,5 @@ export function Shell({ children }: { children: ReactNode }) {
       </div>
       <SearchModal open={searching} onClose={() => setSearching(false)} />
     </div>
-  );
+  )
 }

@@ -1,17 +1,17 @@
-import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { BackendDiagnostic } from '../types.ts';
-import { drawGeometryPool } from './poolDraw.ts';
-import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
+import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
+import type { BackendDiagnostic } from '../types.ts'
+import { drawGeometryPool } from './poolDraw.ts'
+import type { GeometryPool, PoolClamp } from '../../residency/pools.ts'
 import {
   coverageBudgetEvent,
   sendCoverageBudget,
   sendEngineDiagnostic,
-} from '../../diagnostic/engineDiagnostic.ts';
-import { createResidentOrder } from './poolOrder.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { createUnionFit, type Ranked } from './poolUnion.ts';
-import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts';
-import { type WebglViewState } from './viewKeys.ts';
+} from '../../diagnostic/engineDiagnostic.ts'
+import { createResidentOrder } from './poolOrder.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { createUnionFit, type Ranked } from './poolUnion.ts'
+import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts'
+import { type WebglViewState } from './viewKeys.ts'
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -19,43 +19,43 @@ import { type WebglViewState } from './viewKeys.ts';
  * with the root cover's revision (`coverRevision`).
  */
 export type PageCopies = {
-  of(url: string): number;
+  of(url: string): number
   /** Copies the root cover holds, those with the pages its groups replace — the pool's floor
    *  (`../../residency/minimumCapacity.ts`) —, and those the whole scene would. */
-  root(): number;
-  floor(): number;
-  scene(): number;
-};
+  root(): number
+  floor(): number
+  scene(): number
+}
 
 export type PoolEnvironment = {
   /** The host's budget, and the most `resize` may ask for; the defaults when it names none. */
-  budgetBytes?: number;
-  fixedBytes?: () => number;
-  ceilingBytes?: number;
+  budgetBytes?: number
+  fixedBytes?: () => number
+  ceilingBytes?: number
   /** The page ceiling of the display graph, which bounds the slots as it does on WebGPU. */
-  maxResidentPages?: number;
-  descriptors: ReadonlyMap<string, GeometryPageDescriptor>;
+  maxResidentPages?: number
+  descriptors: ReadonlyMap<string, GeometryPageDescriptor>
   /** Pages of the root cover, held outside the order and never evicted. */
-  rootUrls: ReadonlySet<string>;
-  copies: PageCopies;
+  rootUrls: ReadonlySet<string>
+  copies: PageCopies
   /** Moves when an instance, grown rows or a replaced page change what the root cover holds. */
-  coverRevision: () => number;
+  coverRevision: () => number
   /** Decoded bytes the pages hold, which the geometry store keeps. */
-  state: { readonly allocationBytes: number };
+  state: { readonly allocationBytes: number }
   /** Decoded bytes nothing may evict — the root cover and the pages the host replaced —, read
    *  only once the pages hold more than the pool. */
-  floorBytes: () => number;
+  floorBytes: () => number
   /** The pages each page depends on (`../../residency/pageParents.ts`). */
-  parentsOf: (rec: PageRec) => readonly PageRec[];
+  parentsOf: (rec: PageRec) => readonly PageRec[]
   /** Gives a page's geometry back; a held page is never named. */
-  drop: (url: string) => void;
+  drop: (url: string) => void
   /** The views not drawn now (`views.ts`): what they ask for and draw joins the drawn view's, the
    *  union under the one budget. None when the backend has one view. */
-  others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[];
+  others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[]
   /** The drawn view is a capture (`views.ts`): its requests are ranked before the union's. */
-  captureDrawn?: () => boolean;
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
-};
+  captureDrawn?: () => boolean
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+}
 
 /**
  * The WebGL2 geometry pool: the same fixed budget in bytes as the WebGPU pool, drawn by the same
@@ -75,12 +75,12 @@ export type PoolEnvironment = {
  */
 export function createGeometryBudget(env: PoolEnvironment) {
   const { rootUrls, copies, state, parentsOf, drop, floorBytes, onDiagnostic } = env,
-    others = env.others ?? [];
+    others = env.others ?? []
   const drawn = drawGeometryPool(env),
     current = drawn.current,
-    shares = drawn.shares;
+    shares = drawn.shares
   let limited = false,
-    event: Record<string, unknown> | undefined;
+    event: Record<string, unknown> | undefined
   // What the pool may hold above its slots: only what nothing may evict.
   const resident = createResidentOrder({
     state,
@@ -90,30 +90,30 @@ export function createGeometryBudget(env: PoolEnvironment) {
     pageBytes: () => current().pageBytes,
     floorBytes,
     others,
-  });
+  })
   let used = 0,
-    room = 0;
-  const union = createUnionFit(shares, others);
+    room = 0
+  const union = createUnionFit(shares, others)
   /** Charges `requested` in its order, the root cover held beforehand, against the slots it leaves;
    *  returns how many fit. Sets `used` and `room`, never the verdict. With other views, what they
    *  ask for joins it in one ranking under the same slots (`poolUnion.ts`). */
   const fit = (requested: readonly Ranked[]) => {
-    const { slots, clamp } = current();
-    room = clamp === 'scene' ? Infinity : slots;
-    used = copies.root();
+    const { slots, clamp } = current()
+    room = clamp === 'scene' ? Infinity : slots
+    used = copies.root()
     if (others.length) {
-      const admitted = union.fit(requested, room, used, env.captureDrawn?.() ?? false);
-      used = union.used;
-      return admitted;
+      const admitted = union.fit(requested, room, used, env.captureDrawn?.() ?? false)
+      used = union.used
+      return admitted
     }
     // One view: the admission as it was before views, kept apart from the union's walk.
-    let admitted = requested.length;
+    let admitted = requested.length
     for (let i = 0; i < requested.length; i++) {
-      used += shares.get(requested[i].url) ?? 0;
-      if (used > room && admitted === requested.length) admitted = i;
+      used += shares.get(requested[i].url) ?? 0
+      if (used > room && admitted === requested.length) admitted = i
     }
-    return admitted;
-  };
+    return admitted
+  }
   return {
     /**
      * Admits `requested` in its order while the copies it charges fit the slots the root cover
@@ -121,49 +121,49 @@ export function createGeometryBudget(env: PoolEnvironment) {
      * waits for `flush`. `pixelError` is the host's threshold the cut was drawn at.
      */
     admit(requested: readonly Ranked[], pixelError: number) {
-      const admitted = fit(requested);
+      const admitted = fit(requested)
       if (used > room !== limited) {
-        limited = !limited;
-        event = coverageBudgetEvent(limited, used, current().slots, true, pixelError);
+        limited = !limited
+        event = coverageBudgetEvent(limited, used, current().slots, true, pixelError)
       }
-      return admitted;
+      return admitted
     },
     /** How many of `requested` fit the pool as drawn now, the verdict left to the next `admit`. */
     fit,
     /** The pool as drawn from the budget; its `allocatedBytes` is the most it may hold. */
     get held(): GeometryPool {
-      return current();
+      return current()
     },
     /** Why the pool does not make the budget: the drawn pool's reason. */
     get clamp(): PoolClamp {
-      return current().clamp;
+      return current().clamp
     },
     /** The cut the image asked for did not fit the slots, as of the last admission. */
     get coverageBudgetLimited() {
-      return limited;
+      return limited
     },
     /** Publishes the verdict the last images changed, as `coverage-budget`. */
     flush() {
-      if (!event) return;
-      sendCoverageBudget(onDiagnostic, event);
-      event = undefined;
+      if (!event) return
+      sendCoverageBudget(onDiagnostic, event)
+      event = undefined
     },
     /** A page has arrived, or arrived again; the root cover is held outside the order. */
     arrived(url: string) {
-      if (!rootUrls.has(url)) resident.arrived(url);
+      if (!rootUrls.has(url)) resident.arrived(url)
     },
     left: resident.left,
     follow: resident.follow,
     trim: resident.trim,
     /** Keys the residency holds: its tables follow the view (`poolOrder.ts`). */
     get keyCount() {
-      return resident.keyCount;
+      return resident.keyCount
     },
     /** Another budget, mid-session, under the session ceiling; returns the pages evicted at once.
      *  An invalid budget is refused before anything changes. */
     resize(budgetBytes: number) {
-      drawn.resize(budgetBytes);
-      return resident.shed();
+      drawn.resize(budgetBytes)
+      return resident.shed()
     },
     /**
      * The context refused a geometry allocation (`../../webgl/core/allocation.ts`): the pool is
@@ -173,13 +173,13 @@ export function createGeometryBudget(env: PoolEnvironment) {
      */
     outOfMemory() {
       const before = current(),
-        smaller = halvedPool(before, drawn.drawFor);
-      const refused = outOfMemoryContext('geometry', before.allocatedBytes, smaller);
-      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused geometry', refused);
-      if (!smaller) return false;
-      drawn.adopt(smaller);
-      resident.shed();
-      return true;
+        smaller = halvedPool(before, drawn.drawFor)
+      const refused = outOfMemoryContext('geometry', before.allocatedBytes, smaller)
+      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused geometry', refused)
+      if (!smaller) return false
+      drawn.adopt(smaller)
+      resident.shed()
+      return true
     },
-  };
+  }
 }

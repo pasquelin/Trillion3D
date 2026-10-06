@@ -6,9 +6,9 @@ export function shadowJitterWords<T extends { [word: number]: number } = number[
   at = 0,
   phase = 0,
 ): T {
-  into[at] = jitter ? jitter[0] : 0;
-  into[at + 1] = jitter ? -jitter[1] : 0;
-  into[at + 2] = 0;
-  into[at + 3] = phase;
-  return into;
+  into[at] = jitter ? jitter[0] : 0
+  into[at + 1] = jitter ? -jitter[1] : 0
+  into[at + 2] = 0
+  into[at + 3] = phase
+  return into
 }

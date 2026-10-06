@@ -1,13 +1,13 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
-import { ensurerOptions, lruCache, placement } from './residentEnsurer.fixture.ts';
-import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts';
-import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts';
-import { createCutDelta } from '../cut/delta.ts';
-import { createCutPending } from '../cut/pending.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { createWebgpuResidentEnsurer } from './residentEnsurer.ts'
+import { ensurerOptions, lruCache, placement } from './residentEnsurer.fixture.ts'
+import { linkBundleDependencies } from '../../page/selection/bundleDependencies.ts'
+import { RequestStamps, collectPendingUrls } from '../../page/selection/selection.ts'
+import { createCutDelta } from '../cut/delta.ts'
+import { createCutPending } from '../cut/pending.ts'
 
 /** A pool of `slots` that journals every load, and an ensurer over it. */
 function ensurerOver(
@@ -15,104 +15,102 @@ function ensurerOver(
   pages: PageRec[],
   options: Partial<Parameters<typeof createWebgpuResidentEnsurer>[0]> = {},
 ) {
-  const tracking = createWebgpuPageTracking(pages);
+  const tracking = createWebgpuPageTracking(pages)
   const cache = lruCache(slots),
-    loads: string[] = [];
-  const load = cache.load;
+    loads: string[] = []
+  const load = cache.load
   cache.load = async (url: string, signal?: AbortSignal, tier?: 'held' | 'pinned') => (
     loads.push(url),
     load(url, signal, tier)
-  );
-  const ensure = createWebgpuResidentEnsurer({ ...ensurerOptions(tracking, cache), ...options });
+  )
+  const ensure = createWebgpuResidentEnsurer({ ...ensurerOptions(tracking, cache), ...options })
   const want = (...wanted: PageRec[]) => {
-    for (const page of wanted) tracking.wanted.add(tracking.keyOf(page), page);
-    return ensure(wanted, 1, 1);
-  };
-  return { cache, loads, want };
+    for (const page of wanted) tracking.wanted.add(tracking.keyOf(page), page)
+    return ensure(wanted, 1, 1)
+  }
+  return { cache, loads, want }
 }
 
 test('a requested page brings its missing dependencies, each loaded before what depends on it', async () => {
-  const { pages, parentsOf } = placement();
-  const [, , a, b] = pages;
-  const { cache, loads, want } = ensurerOver(8, pages, { parentsOf });
-  await want(a, b);
-  assert.deepEqual(loads, ['r', 'm', 'a', 'b'], 'the closure first, then the pages, once each');
-  assert.deepEqual([...cache.pins].sort(), ['a', 'b'], 'only what the image holds is pinned');
-});
+  const { pages, parentsOf } = placement()
+  const [, , a, b] = pages
+  const { cache, loads, want } = ensurerOver(8, pages, { parentsOf })
+  await want(a, b)
+  assert.deepEqual(loads, ['r', 'm', 'a', 'b'], 'the closure first, then the pages, once each')
+  assert.deepEqual([...cache.pins].sort(), ['a', 'b'], 'only what the image holds is pinned')
+})
 
 test('a root-cover page admitted by the ensurer is pinned in the held tier', async () => {
-  const { pages, parentsOf } = placement();
-  const [root, , a] = pages;
+  const { pages, parentsOf } = placement()
+  const [root, , a] = pages
   const tracking = createWebgpuPageTracking(pages),
     cache = lruCache(8),
-    base = ensurerOptions(tracking, cache);
-  base.bootstrapKey[tracking.keyOf(root)] = 1;
-  const ensure = createWebgpuResidentEnsurer({ ...base, parentsOf });
-  tracking.wanted.add(tracking.keyOf(a), a);
-  await ensure([a], 1, 1);
-  assert.deepEqual([...cache.held], ['r'], 'the cover keeps its tier ahead of ordinary pins');
-  assert.ok(cache.pins.has('a') && !cache.held.has('a'));
-});
+    base = ensurerOptions(tracking, cache)
+  base.bootstrapKey[tracking.keyOf(root)] = 1
+  const ensure = createWebgpuResidentEnsurer({ ...base, parentsOf })
+  tracking.wanted.add(tracking.keyOf(a), a)
+  await ensure([a], 1, 1)
+  assert.deepEqual([...cache.held], ['r'], 'the cover keeps its tier ahead of ordinary pins')
+  assert.ok(cache.pins.has('a') && !cache.held.has('a'))
+})
 
 test('a page whose parent is outside the cut brings its bundle, then both load in order', async () => {
-  const { pages, parentsOf } = placement();
-  const [r, m, a] = pages;
+  const { pages, parentsOf } = placement()
+  const [r, m, a] = pages
   // Bundles: 0 holds the root, 1 the mid cluster, 2 the leaves; each lists what it follows.
-  const streams = { pages: [[], [0], [0, 1]].map((dependencies) => ({ dependencies })) };
-  const primitive = { pages: [0, 1, 2, 2].map((stream) => ({ stream })), streams };
+  const streams = { pages: [[], [0], [0, 1]].map((dependencies) => ({ dependencies })) }
+  const primitive = { pages: [0, 1, 2, 2].map((stream) => ({ stream })), streams }
   pages.forEach((page, index) => {
-    page.streamUrl = `bundle-${[0, 1, 2, 2][index]}`;
-    page.requestIndex = [0, 1, 2, 2][index];
-    if (page !== r) page.array = undefined;
-  });
-  linkBundleDependencies(primitive as never, pages);
+    page.streamUrl = `bundle-${[0, 1, 2, 2][index]}`
+    page.requestIndex = [0, 1, 2, 2][index]
+    if (page !== r) page.array = undefined
+  })
+  linkBundleDependencies(primitive as never, pages)
   // Each record's first packed rank: its place in the catalogue (#1235).
-  const rankOf = (rec: PageRec) => pages.indexOf(rec);
+  const rankOf = (rec: PageRec) => pages.indexOf(rec)
   const delta = createCutDelta(pages, []),
-    pending = createCutPending(pages, delta, undefined, undefined, rankOf);
-  const requested = () => collectPendingUrls(pending.records, [], new RequestStamps(3));
+    pending = createCutPending(pages, delta, undefined, undefined, rankOf)
+  const requested = () => collectPendingUrls(pending.records, [], new RequestStamps(3))
   const arrive = (url: string, bytes: Uint32Array | undefined) =>
-    pages.forEach(
-      (page, id) => page.streamUrl === url && ((page.array = bytes), pending.touch(id)),
-    );
+    pages.forEach((page, id) => page.streamUrl === url && ((page.array = bytes), pending.touch(id)))
   // Only the leaf is in the cut: its parent's bundle is requested with it, parents first.
-  delta.apply([2]);
-  pending.apply();
-  assert.deepEqual(requested(), ['bundle-1', 'bundle-2']);
+  delta.apply([2])
+  pending.apply()
+  assert.deepEqual(requested(), ['bundle-1', 'bundle-2'])
   // The leaf's bytes alone do not complete it: the parent is still asked for.
-  arrive('bundle-2', new Uint32Array(1));
-  assert.deepEqual(requested(), ['bundle-1']);
-  arrive('bundle-1', new Uint32Array(1));
-  assert.equal(pending.count, 0);
+  arrive('bundle-2', new Uint32Array(1))
+  assert.deepEqual(requested(), ['bundle-1'])
+  arrive('bundle-1', new Uint32Array(1))
+  assert.equal(pending.count, 0)
   // The parent's bytes leaving puts the leaf's request back.
-  arrive('bundle-1', undefined);
-  assert.deepEqual(requested(), ['bundle-1']);
-  arrive('bundle-1', new Uint32Array(1));
-  const { loads, want } = ensurerOver(8, pages, { parentsOf, hasBytes: (rec) => !!rec.array });
-  await want(a);
-  assert.deepEqual(loads, ['r', 'm', 'a'], 'the parent fetched outside the cut loads first');
-  assert.equal(m.dependencies?.[0], r);
-});
+  arrive('bundle-1', undefined)
+  assert.deepEqual(requested(), ['bundle-1'])
+  arrive('bundle-1', new Uint32Array(1))
+  const { loads, want } = ensurerOver(8, pages, { parentsOf, hasBytes: (rec) => !!rec.array })
+  await want(a)
+  assert.deepEqual(loads, ['r', 'm', 'a'], 'the parent fetched outside the cut loads first')
+  assert.equal(m.dependencies?.[0], r)
+})
 
 test('a page whose dependency does not fit is never admitted', async () => {
-  const { pages, parentsOf } = placement();
-  const [, , a] = pages;
+  const { pages, parentsOf } = placement()
+  const [, , a] = pages
   // A pool full of pinned pages refuses the root: nothing below it enters either.
-  const full = ensurerOver(1, pages, { parentsOf });
-  await full.cache.load('held');
-  full.cache.pin('held');
-  await full.want(a);
-  assert.equal(full.cache.get('a'), undefined);
-  assert.equal(full.cache.get('m'), undefined);
-});
+  const full = ensurerOver(1, pages, { parentsOf })
+  await full.cache.load('held')
+  full.cache.pin('held')
+  await full.want(a)
+  assert.equal(full.cache.get('a'), undefined)
+  assert.equal(full.cache.get('m'), undefined)
+})
 
 test('a shadow caster enters the pool after its dependencies too', async () => {
-  const { pages, parentsOf } = placement();
-  const [, , , b] = pages;
+  const { pages, parentsOf } = placement()
+  const [, , , b] = pages
   const { loads, want } = ensurerOver(8, pages, {
     parentsOf,
     lowerTiers: () => [{ pages: [b], has: () => true, revision: 0 }],
-  });
-  await want();
-  assert.deepEqual(loads, ['r', 'm', 'b']);
-});
+  })
+  await want()
+  assert.deepEqual(loads, ['r', 'm', 'b'])
+})

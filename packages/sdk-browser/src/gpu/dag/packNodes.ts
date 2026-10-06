@@ -1,5 +1,5 @@
-import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts';
-import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts';
+import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
+import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import {
   NODE_MIN,
   NODE_FIRST_CHILD,
@@ -14,7 +14,7 @@ import {
   NODE_FLOOR,
   NODE_OPEN,
   NODE_PAD,
-} from './nodeLayout.ts';
+} from './nodeLayout.ts'
 
 /**
  * The cut node as the GPU reads it, and the subtree error FLOOR it now carries.
@@ -35,9 +35,9 @@ import {
  */
 /** Largest f32: the shader cannot write an infinite constant, and its floor reads
  *  this value where the CPU bound returns infinity. Both reject the same subtree. */
-const INF32 = 3.4e38;
+const INF32 = 3.4e38
 
-type Culling = NonNullable<DagRoot['culling']>;
+type Culling = NonNullable<DagRoot['culling']>
 
 /** Primitive bounds: those the host already derived, otherwise ours. The same
  *  node array always comes with the same pages — a placement copies the envelope,
@@ -47,13 +47,13 @@ export function cullingBoundsFor(
   pages: DagRoot['pages'],
   cache: Map<Float64Array, Float64Array>,
 ) {
-  if (culling.bounds) return culling.bounds;
-  let values = cache.get(culling.nodes);
+  if (culling.bounds) return culling.bounds
+  let values = cache.get(culling.nodes)
   if (!values) {
-    values = cullingBounds(culling, pages);
-    cache.set(culling.nodes, values);
+    values = cullingBounds(culling, pages)
+    cache.set(culling.nodes, values)
   }
-  return values;
+  return values
 }
 
 /**
@@ -69,38 +69,38 @@ export function packCullingNodes(
   place: { world: number; nodeBase: number; pageBase: number },
   owner: Uint32Array,
 ) {
-  if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE');
-  const { world, nodeBase, pageBase } = place;
-  const count = culling.nodes.length / culling.stride;
-  if (bounds.length !== count * BOUND_STRIDE) throw new Error('GPU_DAG_CULLING_BOUNDS');
+  if (culling.stride < CULL_STRIDE) throw new Error('GPU_DAG_CULLING_STRIDE')
+  const { world, nodeBase, pageBase } = place
+  const count = culling.nodes.length / culling.stride
+  if (bounds.length !== count * BOUND_STRIDE) throw new Error('GPU_DAG_CULLING_BOUNDS')
   for (let n = 0; n < count; n++) {
     const src = n * culling.stride,
       dst = (nodeBase + n) * DAG_NODE_FLOATS,
-      at = n * BOUND_STRIDE;
+      at = n * BOUND_STRIDE
     for (let a = 0; a < 3; a++) {
-      nodes[dst + NODE_MIN + a] = culling.nodes[src + a];
-      nodes[dst + NODE_MAX + a] = culling.nodes[src + 3 + a];
+      nodes[dst + NODE_MIN + a] = culling.nodes[src + a]
+      nodes[dst + NODE_MAX + a] = culling.nodes[src + 3 + a]
     }
     for (let a = 0; a < 4; a++) {
-      nodes[dst + NODE_SPHERE + a] = culling.nodes[src + 6 + a];
-      nodes[dst + NODE_FLOOR_SPHERE + a] = bounds[at + OWN_SPHERE + a];
+      nodes[dst + NODE_SPHERE + a] = culling.nodes[src + 6 + a]
+      nodes[dst + NODE_FLOOR_SPHERE + a] = bounds[at + OWN_SPHERE + a]
     }
-    nodes[dst + NODE_CEIL] = culling.nodes[src + 10];
-    nodeInts[dst + NODE_FIRST_CHILD] = nodeBase + culling.nodes[src + 11];
-    nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + 12];
-    nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + 13];
-    nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14];
-    nodeInts[dst + NODE_WORLD] = world;
-    const floor = bounds[at + OWN_FLOOR];
-    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32;
-    nodeInts[dst + NODE_OPEN] = 0;
-    nodeInts[dst + NODE_PAD] = 0;
-    nodeInts[dst + NODE_PAD + 1] = 0;
+    nodes[dst + NODE_CEIL] = culling.nodes[src + 10]
+    nodeInts[dst + NODE_FIRST_CHILD] = nodeBase + culling.nodes[src + 11]
+    nodeInts[dst + NODE_CHILD_COUNT] = culling.nodes[src + 12]
+    nodeInts[dst + NODE_FIRST_PAGE] = pageBase + culling.nodes[src + 13]
+    nodeInts[dst + NODE_PAGE_COUNT] = culling.nodes[src + 14]
+    nodeInts[dst + NODE_WORLD] = world
+    const floor = bounds[at + OWN_FLOOR]
+    nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32
+    nodeInts[dst + NODE_OPEN] = 0
+    nodeInts[dst + NODE_PAD] = 0
+    nodeInts[dst + NODE_PAD + 1] = 0
     if (!culling.nodes[src + 12]) {
       const first = culling.nodes[src + 13],
-        pages = culling.nodes[src + 14];
-      for (let i = 0; i < pages && first + i < owner.length; i++) owner[first + i] = nodeBase + n;
+        pages = culling.nodes[src + 14]
+      for (let i = 0; i < pages && first + i < owner.length; i++) owner[first + i] = nodeBase + n
     }
   }
-  return count;
+  return count
 }

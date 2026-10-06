@@ -17,26 +17,26 @@
  * rank maps in script low.
  */
 
-export const VSM_BLUE_NOISE_SIZE = 64;
-export const VSM_BLUE_NOISE_SLICES = 64;
+export const VSM_BLUE_NOISE_SIZE = 64
+export const VSM_BLUE_NOISE_SLICES = 64
 
-const GOLDEN = 0.6180339887498949;
+const GOLDEN = 0.6180339887498949
 /** The step of the additive 2D sequence, (1/p, 1/p²), p the plastic number: its points spread
  *  evenly over the unit square. The pair's slices walk it, and so do the rays' noise offsets
  *  (`vsmAdditive2d`, `traceWgsl.ts`). */
-export const VSM_PLASTIC_STEP = [0.7548776662466927, 0.5698402909980532] as const;
-const [R2X, R2Y] = VSM_PLASTIC_STEP;
+export const VSM_PLASTIC_STEP = [0.7548776662466927, 0.5698402909980532] as const
+const [R2X, R2Y] = VSM_PLASTIC_STEP
 
 /** A small deterministic generator of uniform numbers in [0, 1) from a 32-bit seed. */
 function prng(seed: number) {
-  let a = seed >>> 0;
+  let a = seed >>> 0
   return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 /** The rank map of an n×n torus (n a power of two), values (rank + 0.5)/n² in (0, 1). */
@@ -45,20 +45,20 @@ function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
     mask = n - 1,
     shift = Math.log2(n),
     R = Math.min(n >> 1, Math.ceil(4 * sigma)),
-    side = 2 * R + 1;
-  const kernel = new Float64Array(side * side);
+    side = 2 * R + 1
+  const kernel = new Float64Array(side * side)
   for (let dy = -R; dy <= R; dy++)
     for (let dx = -R; dx <= R; dx++)
-      kernel[(dy + R) * side + dx + R] = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
+      kernel[(dy + R) * side + dx + R] = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma))
   const splat = (energy: Float64Array, i: number, sign: number) => {
     const x = i & mask,
-      y = i >>> shift;
+      y = i >>> shift
     for (let dy = -R; dy <= R; dy++) {
       const row = ((y + dy) & mask) * n,
-        k = (dy + R) * side + R;
-      for (let dx = -R; dx <= R; dx++) energy[row + ((x + dx) & mask)] += sign * kernel[k + dx];
+        k = (dy + R) * side + R
+      for (let dx = -R; dx <= R; dx++) energy[row + ((x + dx) & mask)] += sign * kernel[k + dx]
     }
-  };
+  }
   /**
    * A pattern and its energy, with each row's tightest cluster (first set texel of greatest
    * energy) and largest void (first unset texel of least energy). The first row whose extremum
@@ -68,153 +68,153 @@ function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
    */
   const extrema = (pattern: Uint8Array, energy: Float64Array) => {
     const clusters = new Int32Array(n),
-      voids = new Int32Array(n);
+      voids = new Int32Array(n)
     const scan = (r: number) => {
       let cluster = -1,
         high = -Infinity,
         hole = -1,
-        low = Infinity;
+        low = Infinity
       for (let i = r * n, end = i + n; i < end; i++) {
-        const e = energy[i];
+        const e = energy[i]
         if (pattern[i]) {
           if (e > high) {
-            high = e;
-            cluster = i;
+            high = e
+            cluster = i
           }
         } else if (e < low) {
-          low = e;
-          hole = i;
+          low = e
+          hole = i
         }
       }
-      clusters[r] = cluster;
-      voids[r] = hole;
-    };
-    for (let r = 0; r < n; r++) scan(r);
+      clusters[r] = cluster
+      voids[r] = hole
+    }
+    for (let r = 0; r < n; r++) scan(r)
     return {
       flip(i: number, set: 0 | 1) {
-        pattern[i] = set;
-        splat(energy, i, set ? 1 : -1);
-        const y = i >>> shift;
-        for (let dy = -R; dy <= R; dy++) scan((y + dy) & mask);
+        pattern[i] = set
+        splat(energy, i, set ? 1 : -1)
+        const y = i >>> shift
+        for (let dy = -R; dy <= R; dy++) scan((y + dy) & mask)
       },
       tightestCluster() {
         let best = -1,
-          e = -Infinity;
+          e = -Infinity
         for (let r = 0; r < n; r++) {
-          const i = clusters[r];
+          const i = clusters[r]
           if (i >= 0 && energy[i] > e) {
-            e = energy[i];
-            best = i;
+            e = energy[i]
+            best = i
           }
         }
-        return best;
+        return best
       },
       largestVoid() {
         let best = -1,
-          e = Infinity;
+          e = Infinity
         for (let r = 0; r < n; r++) {
-          const i = voids[r];
+          const i = voids[r]
           if (i >= 0 && energy[i] < e) {
-            e = energy[i];
-            best = i;
+            e = energy[i]
+            best = i
           }
         }
-        return best;
+        return best
       },
-    };
-  };
-
-  // Initial binary pattern: 10% random minority pixels, relaxed until stable.
-  const random = prng(seed);
-  const pattern = new Uint8Array(N),
-    energy = new Float64Array(N);
-  const ones = Math.max(1, Math.floor(N / 10));
-  for (let placed = 0; placed < ones;) {
-    const i = Math.floor(random() * N);
-    if (pattern[i]) continue;
-    pattern[i] = 1;
-    splat(energy, i, 1);
-    placed++;
-  }
-  {
-    const torus = extrema(pattern, energy);
-    for (let guard = 0; guard < 16 * N; guard++) {
-      const c = torus.tightestCluster();
-      torus.flip(c, 0);
-      const v = torus.largestVoid();
-      torus.flip(v, 1);
-      if (v === c) break;
     }
   }
 
-  const rank = new Int32Array(N);
+  // Initial binary pattern: 10% random minority pixels, relaxed until stable.
+  const random = prng(seed)
+  const pattern = new Uint8Array(N),
+    energy = new Float64Array(N)
+  const ones = Math.max(1, Math.floor(N / 10))
+  for (let placed = 0; placed < ones;) {
+    const i = Math.floor(random() * N)
+    if (pattern[i]) continue
+    pattern[i] = 1
+    splat(energy, i, 1)
+    placed++
+  }
+  {
+    const torus = extrema(pattern, energy)
+    for (let guard = 0; guard < 16 * N; guard++) {
+      const c = torus.tightestCluster()
+      torus.flip(c, 0)
+      const v = torus.largestVoid()
+      torus.flip(v, 1)
+      if (v === c) break
+    }
+  }
+
+  const rank = new Int32Array(N)
   // Phase 1: ranks below the prototype's count, removing the tightest clusters.
   {
-    const torus = extrema(pattern.slice(), energy.slice());
+    const torus = extrema(pattern.slice(), energy.slice())
     for (let r = ones - 1; r >= 0; r--) {
-      const c = torus.tightestCluster();
-      torus.flip(c, 0);
-      rank[c] = r;
+      const c = torus.tightestCluster()
+      torus.flip(c, 0)
+      rank[c] = r
     }
   }
   // Phases 2 and 3: the rest, filling the largest voids.
   {
-    const torus = extrema(pattern.slice(), energy.slice());
+    const torus = extrema(pattern.slice(), energy.slice())
     for (let r = ones; r < N; r++) {
-      const v = torus.largestVoid();
-      torus.flip(v, 1);
-      rank[v] = r;
+      const v = torus.largestVoid()
+      torus.flip(v, 1)
+      rank[v] = r
     }
   }
-  const out = new Float64Array(N);
-  for (let i = 0; i < N; i++) out[i] = (rank[i] + 0.5) / N;
-  return out;
+  const out = new Float64Array(N)
+  for (let i = 0; i < N; i++) out[i] = (rank[i] + 0.5) / N
+  return out
 }
 
-let cachedTexels: Uint8Array | undefined;
+let cachedTexels: Uint8Array | undefined
 
 /** RGBA8 texels of the 64 × (64·64) texture (r scalar, g/b vec2, a = 255). Computed once. */
 function vsmBlueNoiseTexels(): Uint8Array {
-  if (cachedTexels) return cachedTexels;
+  if (cachedTexels) return cachedTexels
   const n = VSM_BLUE_NOISE_SIZE,
-    slices = VSM_BLUE_NOISE_SLICES;
+    slices = VSM_BLUE_NOISE_SLICES
   const a = vsmVoidAndCluster(n, 0x5eed0001),
     b = vsmVoidAndCluster(n, 0x5eed0002),
-    c = vsmVoidAndCluster(n, 0x5eed0003);
-  const q = (v: number) => Math.round((v - Math.floor(v)) * 255);
-  const out = new Uint8Array(n * n * slices * 4);
+    c = vsmVoidAndCluster(n, 0x5eed0003)
+  const q = (v: number) => Math.round((v - Math.floor(v)) * 255)
+  const out = new Uint8Array(n * n * slices * 4)
   for (let t = 0; t < slices; t++)
     for (let i = 0; i < n * n; i++) {
-      const o = (t * n * n + i) * 4;
-      out[o] = q(a[i] + t * GOLDEN);
-      out[o + 1] = q(b[i] + t * R2X);
-      out[o + 2] = q(c[i] + t * R2Y);
-      out[o + 3] = 255;
+      const o = (t * n * n + i) * 4
+      out[o] = q(a[i] + t * GOLDEN)
+      out[o + 1] = q(b[i] + t * R2X)
+      out[o + 2] = q(c[i] + t * R2Y)
+      out[o + 3] = 255
     }
-  return (cachedTexels = out);
+  return (cachedTexels = out)
 }
 
 /** Bytes of the blue-noise texture (`createVsmBlueNoiseTexture`). */
 export const VSM_BLUE_NOISE_BYTES =
-  VSM_BLUE_NOISE_SIZE * VSM_BLUE_NOISE_SIZE * VSM_BLUE_NOISE_SLICES * 4;
+  VSM_BLUE_NOISE_SIZE * VSM_BLUE_NOISE_SIZE * VSM_BLUE_NOISE_SLICES * 4
 
 /** A blue-noise texture, uploaded: the projection's of one set (`projectionPass.ts`). */
 export function createVsmBlueNoiseTexture(device: GPUDevice): GPUTexture {
   const n = VSM_BLUE_NOISE_SIZE,
-    h = n * VSM_BLUE_NOISE_SLICES;
+    h = n * VSM_BLUE_NOISE_SLICES
   const t = device.createTexture({
     label: 'vsm.blueNoise',
     size: [n, h],
     format: 'rgba8unorm',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-  });
+  })
   device.queue.writeTexture(
     { texture: t },
     vsmBlueNoiseTexels() as Uint8Array<ArrayBuffer>,
     { bytesPerRow: n * 4 },
     [n, h],
-  );
-  return t;
+  )
+  return t
 }
 
 /**
@@ -231,4 +231,4 @@ fn vsmNoiseTexel(pixelAt:vec2u,frameIndex:u32)->vec4f{
 }
 fn vsmNoiseOne(pixelAt:vec2u,frameIndex:u32)->f32{return vsmNoiseTexel(pixelAt,frameIndex).r;}
 fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}
-`;
+`

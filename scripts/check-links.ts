@@ -1,81 +1,81 @@
 #!/usr/bin/env node
-import { decodeLinkComponent as decode } from '../site/content/uri.ts';
+import { decodeLinkComponent as decode } from '../site/content/uri.ts'
 // Zero-dependency Markdown link checker. Walks every *.md file in the repo
 // (hidden files included), checks relative links/images/hrefs resolve to a
 // real file, and that a fragment into another Markdown file names a real
 // heading anchor or an explicit id/name. Runtime routes (/api/...) are
 // reported separately, never checked. Same behavior as the retired
 // scripts/check-links.py, so `pnpm run check:links` needs no Python.
-import { repositoryFiles } from './repository-files.ts';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, extname, join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { repositoryFiles } from './repository-files.ts'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { dirname, extname, join, relative, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', 'tests/assets']);
+const sdkRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const excludedDirs = new Set(['.git', '.idea', 'node_modules', 'dist', 'target', 'tests/assets'])
 
-type LinkError = [file: string, target: string, reason: 'missing file' | 'missing anchor'];
-type RuntimeRoute = [file: string, target: string];
+type LinkError = [file: string, target: string, reason: 'missing file' | 'missing anchor']
+type RuntimeRoute = [file: string, target: string]
 
 interface CheckLinksResult {
-  localFileLinks: number;
-  errors: LinkError[];
-  runtimeRoutesNotChecked: RuntimeRoute[];
+  localFileLinks: number
+  errors: LinkError[]
+  runtimeRoutesNotChecked: RuntimeRoute[]
 }
 
 function findMarkdownFiles(root: string): string[] {
-  const maintained = repositoryFiles(root);
+  const maintained = repositoryFiles(root)
   if (maintained)
-    return maintained.filter((file) => file.endsWith('.md')).map((file) => join(root, file));
-  const results: string[] = [];
+    return maintained.filter((file) => file.endsWith('.md')).map((file) => join(root, file))
+  const results: string[] = []
   const walk = (dir: string) => {
-    let entries;
+    let entries
     try {
-      entries = readdirSync(dir, { withFileTypes: true });
+      entries = readdirSync(dir, { withFileTypes: true })
     } catch {
-      return;
+      return
     }
     for (const entry of entries) {
-      const full = join(dir, entry.name);
+      const full = join(dir, entry.name)
       // Name alone is not enough: an exclusion can carry a path (`tests/assets`), and corpus
       // outside the repo must not be traversed under the pretext that it is named `assets`.
-      if (excludedDirs.has(entry.name) || excludedDirs.has(relative(root, full))) continue;
-      if (entry.isDirectory()) walk(full);
-      else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full);
+      if (excludedDirs.has(entry.name) || excludedDirs.has(relative(root, full))) continue
+      if (entry.isDirectory()) walk(full)
+      else if (entry.isFile() && entry.name.endsWith('.md')) results.push(full)
     }
-  };
-  walk(root);
-  return results;
+  }
+  walk(root)
+  return results
 }
 
 // Strip fenced code blocks (``` or ~~~, 3+ marks) so links inside samples never count.
 function prose(text: string): string {
-  return text.replace(/^\s*(`{3,}|~{3,}).*?^\s*\1\s*$/gms, '');
+  return text.replace(/^\s*(`{3,}|~{3,}).*?^\s*\1\s*$/gms, '')
 }
 
 /** The anchor GitHub gives a Markdown heading. */
 export function slug(heading: string): string {
-  let s = heading.replace(/<[^>]*>/g, '');
-  s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
-  const lowered = s.toLowerCase();
-  let out = '';
+  let s = heading.replace(/<[^>]*>/g, '')
+  s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  const lowered = s.toLowerCase()
+  let out = ''
   for (const c of lowered)
-    if (c === '-' || c === '_' || c === ' ' || /\p{L}|\p{N}/u.test(c)) out += c;
-  return out.replace(/ /g, '-');
+    if (c === '-' || c === '_' || c === ' ' || /\p{L}|\p{N}/u.test(c)) out += c
+  return out.replace(/ /g, '-')
 }
 
 function anchors(path: string): Set<string> {
-  const s = prose(readFileSync(path, 'utf8'));
-  const result = new Set<string>();
-  for (const m of s.matchAll(/(?:id|name)=["']([^"']+)/g)) result.add(m[1]);
-  const counts: Record<string, number> = {};
+  const s = prose(readFileSync(path, 'utf8'))
+  const result = new Set<string>()
+  for (const m of s.matchAll(/(?:id|name)=["']([^"']+)/g)) result.add(m[1])
+  const counts: Record<string, number> = {}
   for (const m of s.matchAll(/^#{1,6}\s+(.+?)\s*#*$/gm)) {
-    const key = slug(m[1]);
-    const n = counts[key] ?? 0;
-    counts[key] = n + 1;
-    result.add(n ? `${key}-${n}` : key);
+    const key = slug(m[1])
+    const n = counts[key] ?? 0
+    counts[key] = n + 1
+    result.add(n ? `${key}-${n}` : key)
   }
-  return result;
+  return result
 }
 
 // Minimal stand-in for urllib.parse.urlsplit on the plain relative/absolute
@@ -83,82 +83,82 @@ function anchors(path: string): Set<string> {
 // filtered out by the caller before this runs).
 function splitTarget(t: string): { path: string; fragment: string } {
   let path = t,
-    fragment = '';
-  const hash = path.indexOf('#');
+    fragment = ''
+  const hash = path.indexOf('#')
   if (hash !== -1) {
-    fragment = path.slice(hash + 1);
-    path = path.slice(0, hash);
+    fragment = path.slice(hash + 1)
+    path = path.slice(0, hash)
   }
-  const query = path.indexOf('?');
-  if (query !== -1) path = path.slice(0, query);
+  const query = path.indexOf('?')
+  if (query !== -1) path = path.slice(0, query)
   // `path.ts:42` or `path.ts:42:7`: line and column designate a location inside the file,
   // not another file. Only the path must exist.
-  path = path.replace(/(:\d+){1,2}$/, '');
-  return { path, fragment };
+  path = path.replace(/(:\d+){1,2}$/, '')
+  return { path, fragment }
 }
 
-const hasScheme = (t: string): boolean => /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(t);
+const hasScheme = (t: string): boolean => /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(t)
 const exists = (path: string): boolean => {
   try {
-    statSync(path);
-    return true;
+    statSync(path)
+    return true
   } catch {
-    return false;
+    return false
   }
-};
+}
 
 /** A relative link, image or href of a maintained Markdown page, resolved to the path it names. */
 interface LocalLink {
-  file: string;
-  target: string;
-  dest: string;
-  fragment: string;
+  file: string
+  target: string
+  dest: string
+  fragment: string
 }
 
 /** Every link of the repository's Markdown prose: the local ones resolved, the runtime routes apart. */
 export function markdownLinks(root = sdkRoot): { local: LocalLink[]; runtime: RuntimeRoute[] } {
-  const local: LocalLink[] = [];
-  const runtime: RuntimeRoute[] = [];
+  const local: LocalLink[] = []
+  const runtime: RuntimeRoute[] = []
   for (const file of findMarkdownFiles(root)) {
-    const s = prose(readFileSync(file, 'utf8'));
+    const s = prose(readFileSync(file, 'utf8'))
     const targets = [
       ...[...s.matchAll(/\]\(\s*(<[^>]+>|[^\s)]+)(?:\s+["'][^\n]*?["'])?\s*\)/g)].map((m) => m[1]),
       ...[...s.matchAll(/^\s*\[[^\]]+\]:\s*(\S+)/gm)].map((m) => m[1]),
       ...[...s.matchAll(/(?:href|src)=["']([^"']+)/g)].map((m) => m[1]),
-    ];
+    ]
     for (let t of targets) {
-      t = t.replace(/^[<>]+/, '').replace(/[<>]+$/, '');
-      if (hasScheme(t) || t.startsWith('//')) continue;
+      t = t.replace(/^[<>]+/, '').replace(/[<>]+$/, '')
+      if (hasScheme(t) || t.startsWith('//')) continue
       if (t.startsWith('/api/')) {
-        runtime.push([file, t]);
-        continue;
+        runtime.push([file, t])
+        continue
       }
-      const { path, fragment } = splitTarget(t);
-      const dest = path ? resolve(dirname(file), decode(path)) : file;
-      local.push({ file, target: t, dest, fragment });
+      const { path, fragment } = splitTarget(t)
+      const dest = path ? resolve(dirname(file), decode(path)) : file
+      local.push({ file, target: t, dest, fragment })
     }
   }
-  return { local, runtime };
+  return { local, runtime }
 }
 
 export function checkLinks(root: string): CheckLinksResult {
-  const bad: LinkError[] = [];
-  const { local, runtime } = markdownLinks(root);
+  const bad: LinkError[] = []
+  const { local, runtime } = markdownLinks(root)
   for (const { file, target, dest, fragment } of local) {
     if (!exists(dest)) {
-      bad.push([file, target, 'missing file']);
-      continue;
+      bad.push([file, target, 'missing file'])
+      continue
     }
     if (fragment && extname(dest).toLowerCase() === '.md' && !anchors(dest).has(decode(fragment)))
-      bad.push([file, target, 'missing anchor']);
+      bad.push([file, target, 'missing anchor'])
   }
-  return { localFileLinks: local.length, errors: bad, runtimeRoutesNotChecked: runtime };
+  return { localFileLinks: local.length, errors: bad, runtimeRoutesNotChecked: runtime }
 }
 
 function main(): void {
-  const result = checkLinks(sdkRoot);
-  console.log(JSON.stringify(result, null, 2));
-  process.exitCode = result.errors.length ? 1 : 0;
+  const result = checkLinks(sdkRoot)
+  console.log(JSON.stringify(result, null, 2))
+  process.exitCode = result.errors.length ? 1 : 0
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main()

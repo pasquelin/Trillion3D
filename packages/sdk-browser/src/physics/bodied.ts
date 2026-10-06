@@ -10,13 +10,13 @@
  * flags, its poses.
  */
 
-import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** A mesh the simulation holds a body for. */
-export type Bodied = Mesh & { physics: NonNullable<Mesh['physics']> };
+export type Bodied = Mesh & { physics: NonNullable<Mesh['physics']> }
 
 /** Whether `node` is a mesh with physics set. A world may hold objects of any kind, and only the
  *  ones the simulation was given a body for are stepped, posed and read back. */
 export const hasBody = (node: Object3D): node is Bodied =>
-  (node as { physics?: unknown }).physics != null;
+  (node as { physics?: unknown }).physics != null

@@ -1,4 +1,4 @@
-import type { WrapMode } from '../../../sdk-core/src/index.ts';
+import type { WrapMode } from '../../../sdk-core/src/index.ts'
 
 /**
  * CPU mirror of `wrapAxis`, just above: the two texels a linear filter mixes on an axis of `size`
@@ -9,23 +9,23 @@ import type { WrapMode } from '../../../sdk-core/src/index.ts';
  * TypeScript.
  */
 export function wrapLinear(t: number, size: number, wrap: WrapMode): [number, number, number] {
-  const repeat = wrap === 'repeat';
-  const p = wrap === 'mirror' ? t - 2 * Math.floor(t / 2) : 0;
+  const repeat = wrap === 'repeat'
+  const p = wrap === 'mirror' ? t - 2 * Math.floor(t / 2) : 0
   const c = repeat
     ? t - Math.floor(t)
     : wrap === 'clamp'
       ? Math.min(1, Math.max(0, t))
       : p > 1
         ? 2 - p
-        : p;
-  const demi = 0.5 / size;
+        : p
+  const demi = 0.5 / size
   if (repeat && (c < demi || c > 1 - demi)) {
     const u = c * size + 0.5,
-      g = u - Math.floor(u);
-    return c < demi ? [0, size - 1, 1 - g] : [size - 1, 0, g];
+      g = u - Math.floor(u)
+    return c < demi ? [0, size - 1, 1 - g] : [size - 1, 0, g]
   }
   const centre = c * size - 0.5,
-    bas = Math.floor(centre);
-  const borne = (i: number) => Math.min(size - 1, Math.max(0, i));
-  return [borne(bas), borne(bas + 1), centre - bas];
+    bas = Math.floor(centre)
+  const borne = (i: number) => Math.min(size - 1, Math.max(0, i))
+  return [borne(bas), borne(bas + 1), centre - bas]
 }

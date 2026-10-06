@@ -1,16 +1,16 @@
-import { BufferAttribute, InterleavedBuffer } from './attribute.ts';
-import type { BufferTypedArray } from './elements.ts';
+import { BufferAttribute, InterleavedBuffer } from './attribute.ts'
+import type { BufferTypedArray } from './elements.ts'
 
 export {
   BufferAttribute,
   InterleavedBuffer,
   InterleavedBufferAttribute,
   type VertexAttribute,
-} from './attribute.ts';
-export { VertexElements, type BufferTypedArray } from './elements.ts';
+} from './attribute.ts'
+export { VertexElements, type BufferTypedArray } from './elements.ts'
 
 /** Numbers a buffer is written from. */
-export type BufferNumbers = ArrayLike<number> | ArrayBufferView;
+export type BufferNumbers = ArrayLike<number> | ArrayBufferView
 
 const make =
   <T extends BufferTypedArray>(Kind: { new (values: ArrayLike<number>): T }, type = Kind.name) =>
@@ -20,7 +20,7 @@ const make =
       itemSize,
       false,
       type,
-    );
+    )
 
 /** The `buffer` family: an attribute of each numeric kind, and the interleaved pack. */
 export const buffer = {
@@ -78,4 +78,4 @@ export const buffer = {
    * @param stride - Numbers per vertex.
    */
   interleaved: (array: Float32Array, stride: number) => new InterleavedBuffer(array, stride),
-};
+}

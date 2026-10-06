@@ -1,135 +1,135 @@
-import type { ComposeState } from '../../placement/gpuCompose.ts';
-import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
-import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts';
-import { TAA_CAPABILITIES } from '../../taa/capability.ts';
-import { BOUNCE_CAPABILITY } from './prepare/bounce.ts';
-import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts';
-import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts';
-import { createWebgpuDiagnostics } from './io/diagnostics.ts';
-import { createWebgpuBlendState } from '../blend/state.ts';
-import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './prepare/setup.ts';
-import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './prepare/layout.ts';
-import { createWebgpuGpuState, type WebgpuGpuState } from './state/gpu.ts';
-import { createWebgpuVisState, type WebgpuVisState } from './state/vis.ts';
-import { createWebgpuLightState, type WebgpuLightState } from './state/lights.ts';
-import { createWebgpuBounceState, type WebgpuBounceState } from './state/bounce.ts';
-import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
-import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
-import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
-import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts';
-import type { PresentRect } from '../../gpu/core/presentAt.ts';
-import type { EngineCamera, HostCamera } from '../../camera/world.ts';
+import type { ComposeState } from '../../placement/gpuCompose.ts'
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { BOUNCE_SETTINGS, type Texture } from '../../../../sdk-core/src/index.ts'
+import { TAA_CAPABILITIES } from '../../taa/capability.ts'
+import { BOUNCE_CAPABILITY } from './prepare/bounce.ts'
+import type { BackendCapabilities, BackendContext, RenderBackend } from '../../backend/types.ts'
+import { createWebgpuPagesServices, type WebgpuPagesServices } from './services.ts'
+import { createWebgpuDiagnostics } from './io/diagnostics.ts'
+import { createWebgpuBlendState } from '../blend/state.ts'
+import { createWebgpuPagesSetup, type WebgpuDiagnostics } from './prepare/setup.ts'
+import { createWebgpuPagesLayout, type WebgpuPagesLayout } from './prepare/layout.ts'
+import { createWebgpuGpuState, type WebgpuGpuState } from './state/gpu.ts'
+import { createWebgpuVisState, type WebgpuVisState } from './state/vis.ts'
+import { createWebgpuLightState, type WebgpuLightState } from './state/lights.ts'
+import { createWebgpuBounceState, type WebgpuBounceState } from './state/bounce.ts'
+import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts'
+import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts'
+import { createWebgpuViews, type WebgpuViews } from './state/view.ts'
+import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts'
+import type { PresentRect } from '../../gpu/core/presentAt.ts'
+import type { EngineCamera, HostCamera } from '../../camera/world.ts'
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
   type WebgpuTimingState,
-} from './state/timing.ts';
-import type { HostCpuProfile } from '../../host/cpuProfile.ts';
-import type { WebgpuPagesSetup } from './prepare/setup.ts';
-import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
-import type { VisPage } from '../../visibility/types.ts';
-import type { PageLocations } from '../../page/selection/placements.ts';
-import { type SpatialFeedback } from './diagnostic/spatialCounts.ts';
+} from './state/timing.ts'
+import type { HostCpuProfile } from '../../host/cpuProfile.ts'
+import type { WebgpuPagesSetup } from './prepare/setup.ts'
+import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts'
+import type { VisPage } from '../../visibility/types.ts'
+import type { PageLocations } from '../../page/selection/placements.ts'
+import { type SpatialFeedback } from './diagnostic/spatialCounts.ts'
 
 export type RasterView = {
-  pages: VisPage[];
-  locations: PageLocations;
-  cam: EngineCamera;
-  size: [number, number];
-  pixelRatio: number;
-  clearColor: number;
-};
+  pages: VisPage[]
+  locations: PageLocations
+  cam: EngineCamera
+  size: [number, number]
+  pixelRatio: number
+  clearColor: number
+}
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
-    flush(): Promise<void>;
-    setFeedbackTargetAb(target: boolean): Promise<void>;
-    feedbackAbResidency(): Promise<ResidencyIdentity>;
-    captureFeedbackAb(): Promise<Uint8Array>;
-    feedbackAbSpatial(): Promise<SpatialFeedback>;
+    flush(): Promise<void>
+    setFeedbackTargetAb(target: boolean): Promise<void>
+    feedbackAbResidency(): Promise<ResidencyIdentity>
+    captureFeedbackAb(): Promise<Uint8Array>
+    feedbackAbSpatial(): Promise<SpatialFeedback>
     /** What the CPU raster oracles read of the last image (`io/hostApi.ts`). */
-    rasterView(): RasterView;
-    selectedPageIds(): string[];
+    rasterView(): RasterView
+    selectedPageIds(): string[]
     /** The drawn clusters as `mesh/primitive/page`: unique where two clusters share one index
      *  page, whose URL `selectedPageIds` returns for both. */
-    selectedClusterIds(): string[];
+    selectedClusterIds(): string[]
     /** Internal: a texture taken by the atlas after open (`io/appendTexture.ts`); its slot. */
-    appendTexture(texture: Texture, kind: 'color' | 'data'): Promise<number>;
+    appendTexture(texture: Texture, kind: 'color' | 'data'): Promise<number>
     /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
     addView(
       rect: PresentRect,
-    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>;
-  };
+    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>
+  }
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */
-export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>;
+export type WebgpuPagesCore = Omit<WebgpuPagesRuntime, 'services'>
 
-export const UNTEXTURED_MATERIALS = 'Untextured source color; double-sided when the material is';
+export const UNTEXTURED_MATERIALS = 'Untextured source color; double-sided when the material is'
 export const VIS_FEATURES = [
   'visibility buffer',
   'textured PBR maps',
   'occlusion culling',
   'temporal occlusion culling',
-];
+]
 
 /** The shared state of one WebGPU page-raster backend, handed to every module that implements a
  *  part of it. `setup` and `layout` change only as placements grow in place
  *  (`../../placement/webgpuGrowth.ts`); the other groups do as they draw. */
 export interface WebgpuPagesRuntime {
-  context: BackendContext;
+  context: BackendContext
   /** Opt-in, same-session frame-target measurement; absent from production sessions. */
-  feedbackAB?: FeedbackAbState;
+  feedbackAB?: FeedbackAbState
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
-  closer: AbortController;
-  signal: AbortSignal;
-  diag: WebgpuDiagnostics;
-  setup: WebgpuPagesSetup;
-  layout: WebgpuPagesLayout;
-  gpu: WebgpuGpuState;
-  vis: WebgpuVisState;
+  closer: AbortController
+  signal: AbortSignal
+  diag: WebgpuDiagnostics
+  setup: WebgpuPagesSetup
+  layout: WebgpuPagesLayout
+  gpu: WebgpuGpuState
+  vis: WebgpuVisState
   /** Contract lights, their per-tile lists and their shadow maps. */
-  lights: WebgpuLightState;
+  lights: WebgpuLightState
   /** Resident proxy and probe grid of bouncing light. */
-  bounce: WebgpuBounceState;
-  run: WebgpuRunState;
-  capture: WebgpuCaptureState;
+  bounce: WebgpuBounceState
+  run: WebgpuRunState
+  capture: WebgpuCaptureState
   /** Every camera-bound field above belongs to `views.active`; `./state/viewSwitch.ts` switches. */
-  views: WebgpuViews;
-  timing: WebgpuTimingState;
+  views: WebgpuViews
+  timing: WebgpuTimingState
   /** The render scale the page asked, its controller, and the scale of the image drawn. */
-  scale: ScaleControl;
-  capabilities: BackendCapabilities;
-  blendState: ReturnType<typeof createWebgpuBlendState>;
+  scale: ScaleControl
+  capabilities: BackendCapabilities
+  blendState: ReturnType<typeof createWebgpuBlendState>
   /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
    *  built once, so an image hands over no new closure. */
-  watchedSources: () => unknown[];
+  watchedSources: () => unknown[]
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
-  services: WebgpuPagesServices;
+  services: WebgpuPagesServices
   /** POC: placements composed on the GPU under a moved parent (`../../placement/gpuCompose.ts`). */
-  compose?: ComposeState;
+  compose?: ComposeState
 }
 
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
-  const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary';
-  const closer = new AbortController();
-  const signal = context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal;
+  const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary'
+  const closer = new AbortController()
+  const signal = context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal
   const diag = {
     ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled, signal),
     traceEnabled,
-  };
-  const setup = createWebgpuPagesSetup(context, diag);
-  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits);
+  }
+  const setup = createWebgpuPagesSetup(context, diag)
+  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits)
   // A page table past one binding holds what the binding does, said: a page left without a row
   // draws through its nearest resident ancestor (`../row/tableRows.ts`).
   if (layout.pageTableBound)
     diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
       kind: 'warning',
       ...layout.pageTableBound,
-    });
-  const vis = createWebgpuVisState();
-  const run = createWebgpuRunState(context.clearColor);
-  const blendState = createWebgpuBlendState();
-  const lights = createWebgpuLightState(context.sceneLights);
+    })
+  const vis = createWebgpuVisState()
+  const run = createWebgpuRunState(context.clearColor)
+  const blendState = createWebgpuBlendState()
+  const lights = createWebgpuLightState(context.sceneLights)
   const capabilities: BackendCapabilities = {
     renderer: 'WebGPU page raster',
     materials: UNTEXTURED_MATERIALS,
@@ -154,8 +154,8 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'visibility buffer',
       'direct WebGPU present',
     ],
-  };
-  const gpu = createWebgpuGpuState(setup.viewport);
+  }
+  const gpu = createWebgpuGpuState(setup.viewport)
   const core: WebgpuPagesCore = {
     context,
     closer,
@@ -184,6 +184,6 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       ...layout.selectionRoots.map((root) => root.pages[0]),
       ...blendState.blendGpu,
     ],
-  };
-  return { ...core, services: createWebgpuPagesServices(core) };
+  }
+  return { ...core, services: createWebgpuPagesServices(core) }
 }

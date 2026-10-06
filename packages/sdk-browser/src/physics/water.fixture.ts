@@ -1,16 +1,16 @@
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
+import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts'
 import {
   CommandWriter,
   LAYER,
   MOTION,
   POSE_WORDS,
   SHAPE,
-} from '../../../sdk-core/src/physics/index.ts';
-import type { BodyRecord, CompoundPart } from '../../../sdk-core/src/physics/bodyRecord.ts';
-import type { JoltModule } from './joltModule.ts';
-import { createWaterStep } from './water.ts';
+} from '../../../sdk-core/src/physics/index.ts'
+import type { BodyRecord, CompoundPart } from '../../../sdk-core/src/physics/bodyRecord.ts'
+import type { JoltModule } from './joltModule.ts'
+import { createWaterStep } from './water.ts'
 
-const TURN = [0, 0, 0, 1];
+const TURN = [0, 0, 0, 1]
 /** A dynamic body for the ADD command: engine id `id` (generation 1), at `position`. */
 export function floater(
   id: number,
@@ -31,11 +31,11 @@ export function floater(
     restitution: 0,
     gravityScale: 1,
     ...shape,
-  };
+  }
 }
 
 /** A cube of half side `half`. */
-export const cube = (half: number) => ({ shape: SHAPE.box, size: [half, half, half] as const });
+export const cube = (half: number) => ({ shape: SHAPE.box, size: [half, half, half] as const })
 /** A raft: two pontoons under a deck, one compound body. */
 export const raft = () => {
   const part = (y: number, z: number, size: CompoundPart['size']): CompoundPart => ({
@@ -43,24 +43,24 @@ export const raft = () => {
     size,
     position: [0, y, z],
     quaternion: TURN,
-  });
+  })
   const parts = [
     part(-0.2, -1, [1.5, 0.25, 0.3]),
     part(-0.2, 1, [1.5, 0.25, 0.3]),
     part(0.15, 0, [1.5, 0.05, 1.3]),
-  ];
-  return { shape: SHAPE.compound, size: [0, 0, 0] as const, parts };
-};
+  ]
+  return { shape: SHAPE.compound, size: [0, 0, 0] as const, parts }
+}
 
 /**
  * The fluids bench's floating bodies: `count` on a grid 6 m apart, at the water's rest height:
  * wooden cubes, with every tenth a 10 m plank (sliced), a raft (compound) or a cork ball.
  */
 export function floatingBodies(count: number) {
-  const side = Math.ceil(Math.sqrt(count));
+  const side = Math.ceil(Math.sqrt(count))
   return Array.from({ length: count }, (_, i) => {
-    const at = [(i % side) * 6, 0.2, Math.floor(i / side) * 6];
-    const kind = i % 10;
+    const at = [(i % side) * 6, 0.2, Math.floor(i / side) * 6]
+    const kind = i % 10
     const shape =
       kind === 7
         ? { shape: SHAPE.box, size: [5, 0.2, 0.5] as const }
@@ -68,17 +68,17 @@ export function floatingBodies(count: number) {
           ? raft()
           : kind === 9
             ? { shape: SHAPE.sphere, size: [0.5, 0, 0] as const }
-            : cube(0.5);
-    return floater(i, at, kind === 9 ? 250 : 600, shape);
-  });
+            : cube(0.5)
+    return floater(i, at, kind === 9 ? 250 : 600, shape)
+  })
 }
 
 /** The fluids bench's floating scene (`floatingBodies`), as the ADD commands after gravity. */
 export function floatingScene(count: number) {
-  const writer = new CommandWriter();
-  writer.gravity([0, -9.81, 0]);
-  for (const body of floatingBodies(count)) writer.add(body);
-  return writer.take();
+  const writer = new CommandWriter()
+  writer.gravity([0, -9.81, 0])
+  for (const body of floatingBodies(count)) writer.add(body)
+  return writer.take()
 }
 
 /**
@@ -86,20 +86,20 @@ export function floatingScene(count: number) {
  * pose words and the milliseconds of every step.
  */
 export function runWater(jolt: JoltModule, water: WaterSpec, scene: Uint32Array, steps: number) {
-  const step = createWaterStep();
-  step.set(water, 0);
-  jolt.step(scene, 0);
-  const last = new Map<number, number[]>();
-  const ms: number[] = [];
+  const step = createWaterStep()
+  step.set(water, 0)
+  jolt.step(scene, 0)
+  const last = new Map<number, number[]>()
+  const ms: number[] = []
   for (let s = 0; s < steps; s++) {
-    const t = performance.now();
-    const count = step.step(jolt, null, 1 / 60, s);
-    ms.push(performance.now() - t);
-    const words = jolt.poses(count);
+    const t = performance.now()
+    const count = step.step(jolt, null, 1 / 60, s)
+    ms.push(performance.now() - t)
+    const words = jolt.poses(count)
     for (let r = 0; r < count; r++) {
-      const record = Array.from(words.subarray(r * POSE_WORDS, (r + 1) * POSE_WORDS));
-      last.set(record[0] & 0x00ffffff, record);
+      const record = Array.from(words.subarray(r * POSE_WORDS, (r + 1) * POSE_WORDS))
+      last.set(record[0] & 0x00ffffff, record)
     }
   }
-  return { last, ms };
+  return { last, ms }
 }

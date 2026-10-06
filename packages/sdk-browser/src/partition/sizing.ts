@@ -16,37 +16,37 @@
  * A reach past it, or a parent scaled down or stretched more unevenly, asks a wider rung: the rows
  * grow in place where the engine takes it, else the owner opens the session again (`cells.ts`).
  */
-import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { Stretch } from './boxes.ts';
-import { KEEP } from './plan.ts';
+import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
+import type { Stretch } from './boxes.ts'
+import { KEEP } from './plan.ts'
 
 /** The rounding a recomposed world matrix carries, far above a double's and far below any scale a
  *  page sets: a parent turned and moved back asks no wider rung. */
-const SLACK = 2 ** -20;
+const SLACK = 2 ** -20
 
 /** The side of the cube, in each parent's frame, that holds every box a frame of `reach`, in the
  *  root's frame, can hold under it, the widest cell's diagonal `cube` and each parent's `stretch`
  *  given; `Infinity` under a flattened parent. */
 export function heldSide(reach: number, cube: number, stretch: ReadonlyMap<number, Stretch>) {
-  const keep = reach * (1 + KEEP);
-  let side = 2 * keep;
+  const keep = reach * (1 + KEEP)
+  let side = 2 * keep
   for (const [least, most] of stretch.values()) {
     const low = least * (1 - SLACK),
-      high = most * (1 + SLACK);
+      high = most * (1 + SLACK)
     side = Math.max(
       side,
       low > 0 ? (2 * (keep + Math.sqrt(3) * high * (cube / 2))) / low : Infinity,
-    );
+    )
   }
-  return side;
+  return side
 }
 
 /** The first rung whose side holds `side`: `RUNGS` past the ladder, where every node is a row. */
 export function rungOf(side: number, cube: number) {
-  if (!(side < Infinity)) return RUNGS;
-  let rung = Math.max(0, Math.ceil(2 * Math.log2(side / cube)));
-  while (rung < RUNGS && cube * 2 ** (rung / 2) < side) rung++;
-  return Math.min(rung, RUNGS);
+  if (!(side < Infinity)) return RUNGS
+  let rung = Math.max(0, Math.ceil(2 * Math.log2(side / cube)))
+  while (rung < RUNGS && cube * 2 ** (rung / 2) < side) rung++
+  return Math.min(rung, RUNGS)
 }
 
 /** The rows of each mesh at `rung`: every node the partition places past the ladder. */
@@ -56,4 +56,4 @@ export const rowsAt = (partition: TablePartition, rung: number) =>
       mesh,
       rung < RUNGS ? Math.min(total, partition.rows.get(mesh)![rung]) : total,
     ]),
-  );
+  )

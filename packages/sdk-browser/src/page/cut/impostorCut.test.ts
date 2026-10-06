@@ -3,25 +3,24 @@
 // `planImpostors` yields for it, while its mark keeps no shadow bit: the object keeps its
 // mesh's shadow. A root without the bit — WebGL2, any pre-impostor cache — is cut as before. Fails
 // on develop: the card bit and its reading are new.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/index.ts';
-import { collectClusterPages, selectVisiblePages } from '../selection/selection.ts';
-import { dagFixture, frontCamera } from '../selection/dag.fixture.ts';
-import { createEngineCamera, readCameraWorld } from '../../camera/world.ts';
-import { pixelScaleOf } from '../../streaming/priority.ts';
-import { CASTS_NO_SHADOW, markCard } from '../../visibility/shader/spriteWgsl.ts';
-import { drawsCard } from './select.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/index.ts'
+import { collectClusterPages, selectVisiblePages } from '../selection/selection.ts'
+import { dagFixture, frontCamera } from '../selection/dag.fixture.ts'
+import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
+import { pixelScaleOf } from '../../streaming/priority.ts'
+import { CASTS_NO_SHADOW, markCard } from '../../visibility/shader/spriteWgsl.ts'
+import { drawsCard } from './select.ts'
 
 /** The engine camera of a host camera, as frame entry reads it (`readCameraWorld`). */
-const engineOf = (cam: ReturnType<typeof frontCamera>) =>
-  readCameraWorld(createEngineCamera(), cam);
+const engineOf = (cam: ReturnType<typeof frontCamera>) => readCameraWorld(createEngineCamera(), cam)
 
-const VIEWPORT: [number, number] = [1280, 720];
-const FOCAL = 1117;
+const VIEWPORT: [number, number] = [1280, 720]
+const FOCAL = 1117
 /** The compiled mesh number of the fixture's one root. Deliberately not 0: it differs from the
  *  root's rank, so a cut keying `switched` by mesh instead of rank would not suppress it. */
-const MESH = 3;
+const MESH = 3
 /** A baked atlas for the fixture's one mesh: at the engine's runtime focal its switch depth falls
  *  between the near (5 m) and far (200 m) cameras below. */
 const section: ImpostorSection = {
@@ -55,26 +54,26 @@ const section: ImpostorSection = {
       },
     },
   ],
-};
+}
 
 /** The fixture's one root, keyed to the baked mesh; its world is the identity, so the camera's own
  *  distance sets the view depth the switch reads. */
 function impostorRoots() {
-  const fixture = dagFixture();
+  const fixture = dagFixture()
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
     fixture.indices,
     fixture.associations,
-  );
-  for (const root of roots) root.mesh = MESH;
-  return { fixture, roots };
+  )
+  for (const root of roots) root.mesh = MESH
+  return { fixture, roots }
 }
 
 /** The focal length in pixels the engine's one `pixelScaleOf` reads off the camera's projection. */
 function focalPixels(cam: ReturnType<typeof frontCamera>) {
-  const scale = pixelScaleOf(engineOf(cam).projection, VIEWPORT, [0, 0]);
-  return Math.max(scale[0], scale[1]);
+  const scale = pixelScaleOf(engineOf(cam).projection, VIEWPORT, [0, 0])
+  return Math.max(scale[0], scale[1])
 }
 
 /** A plan as a backend builds it: the engine camera's world-to-view and the pixel focal. */
@@ -82,31 +81,31 @@ function planFor(
   cam: ReturnType<typeof frontCamera>,
   roots: ReturnType<typeof impostorRoots>['roots'],
 ) {
-  return planImpostors(roots, section, engineOf(cam).view, focalPixels(cam));
+  return planImpostors(roots, section, engineOf(cam).view, focalPixels(cam))
 }
 
 test('a switched root is left to its card by the camera cut, its shadow kept', () => {
-  const { fixture, roots } = impostorRoots();
+  const { fixture, roots } = impostorRoots()
   const near = frontCamera(5),
-    far = frontCamera(200, 5000);
+    far = frontCamera(200, 5000)
   // The far camera switches the root; the near one draws it whole, so the switch is the view's.
-  const plan = planFor(far, roots);
-  assert.deepEqual([...plan.switched], [1], 'the far root switches');
-  assert.equal(plan.cards.length, 1);
-  assert.equal(plan.cards[0]?.mesh, MESH, 'the card reports the mesh, the mark sits on the root');
-  assert.deepEqual([...planFor(near, roots).switched], [0], 'the near root does not');
-  const options = { pixelError: 0, viewport: VIEWPORT };
-  const whole = selectVisiblePages(roots, engineOf(far), options);
-  assert.ok(whole.shown.length > 0, 'the root draws whole without its card bit');
-  assert.equal(markCard(roots[0], true), true, 'the switch marks the root');
-  const carded = selectVisiblePages(roots, engineOf(far), options);
-  assert.deepEqual(carded.shown, [], 'the switched root shows no cluster');
-  assert.deepEqual(carded.wanted, [], 'the switched root wants no cluster');
+  const plan = planFor(far, roots)
+  assert.deepEqual([...plan.switched], [1], 'the far root switches')
+  assert.equal(plan.cards.length, 1)
+  assert.equal(plan.cards[0]?.mesh, MESH, 'the card reports the mesh, the mark sits on the root')
+  assert.deepEqual([...planFor(near, roots).switched], [0], 'the near root does not')
+  const options = { pixelError: 0, viewport: VIEWPORT }
+  const whole = selectVisiblePages(roots, engineOf(far), options)
+  assert.ok(whole.shown.length > 0, 'the root draws whole without its card bit')
+  assert.equal(markCard(roots[0], true), true, 'the switch marks the root')
+  const carded = selectVisiblePages(roots, engineOf(far), options)
+  assert.deepEqual(carded.shown, [], 'the switched root shows no cluster')
+  assert.deepEqual(carded.wanted, [], 'the switched root wants no cluster')
   // The card bit is no shadow bit: the object keeps its shadow.
-  assert.equal(drawsCard(roots[0].mark), true);
-  assert.equal((roots[0].mark ?? 0) & CASTS_NO_SHADOW, 0, 'the object keeps its shadow');
-  assert.equal(markCard(roots[0], false), true);
-  assert.equal(roots[0].mark, undefined, 'cleared, the mark is as before');
-  assert.ok(selectVisiblePages(roots, engineOf(far), options).shown.length > 0);
-  fixture.geometry.dispose();
-});
+  assert.equal(drawsCard(roots[0].mark), true)
+  assert.equal((roots[0].mark ?? 0) & CASTS_NO_SHADOW, 0, 'the object keeps its shadow')
+  assert.equal(markCard(roots[0], false), true)
+  assert.equal(roots[0].mark, undefined, 'cleared, the mark is as before')
+  assert.ok(selectVisiblePages(roots, engineOf(far), options).shown.length > 0)
+  fixture.geometry.dispose()
+})

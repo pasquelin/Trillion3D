@@ -1,31 +1,31 @@
-import type { ReactNode } from 'react';
-import { ReadingLegend } from './ReadingLegend.tsx';
-import { sceneName } from './model/presentation.ts';
-import { useReports } from './useReports.ts';
-import { Alert } from '../ui/Alert.tsx';
-import { DocPage } from '../layout/DocPage.tsx';
-import { useWords } from '../i18n.ts';
-import { TextLink } from '../ui/Text.tsx';
-import { Collapse } from '../ui/Collapse.tsx';
-import { SceneReport } from './SceneReport.tsx';
-import { SceneEvidence } from './SceneEvidence.tsx';
-import { Experiments } from './Experiments.tsx';
-import { Profiles } from './Profiles.tsx';
-import { CampaignRuns } from './CampaignRuns.tsx';
-import { AllReadings } from './AllReadings.tsx';
-import { Findings } from './Findings.tsx';
-import { References } from './References.tsx';
-import type { PortalRoute } from '../portal/routes.ts';
+import type { ReactNode } from 'react'
+import { ReadingLegend } from './ReadingLegend.tsx'
+import { sceneName } from './model/presentation.ts'
+import { useReports } from './useReports.ts'
+import { Alert } from '../ui/Alert.tsx'
+import { DocPage } from '../layout/DocPage.tsx'
+import { useWords } from '../i18n.ts'
+import { TextLink } from '../ui/Text.tsx'
+import { Collapse } from '../ui/Collapse.tsx'
+import { SceneReport } from './SceneReport.tsx'
+import { SceneEvidence } from './SceneEvidence.tsx'
+import { Experiments } from './Experiments.tsx'
+import { Profiles } from './Profiles.tsx'
+import { CampaignRuns } from './CampaignRuns.tsx'
+import { AllReadings } from './AllReadings.tsx'
+import { Findings } from './Findings.tsx'
+import { References } from './References.tsx'
+import type { PortalRoute } from '../portal/routes.ts'
 
 interface ReportProps {
-  route: PortalRoute;
+  route: PortalRoute
 }
 
 export function Report({ route }: ReportProps) {
-  const [campaign, active = 'overview'] = route.id.split('/');
-  const state = useReports(campaign);
-  const locale = route.locale;
-  const t = useWords(locale);
+  const [campaign, active = 'overview'] = route.id.split('/')
+  const state = useReports(campaign)
+  const locale = route.locale
+  const t = useWords(locale)
   if (!state.report)
     return (
       <DocPage title={t('report.title')}>
@@ -35,10 +35,10 @@ export function Report({ route }: ReportProps) {
           )}
         </Alert>
       </DocPage>
-    );
-  const { report, sources } = state;
-  const scenes = [...new Set(report.records.map((r) => r.scene))];
-  const props = { report, locale };
+    )
+  const { report, sources } = state
+  const scenes = [...new Set(report.records.map((r) => r.scene))]
+  const props = { report, locale }
   const content: Record<string, () => ReactNode> = {
     overview: () => (
       <>
@@ -76,7 +76,7 @@ export function Report({ route }: ReportProps) {
     detail: () => <Profiles {...props} />,
     'all-values': () => <AllReadings {...props} sources={sources} />,
     references: () => <References locale={locale} />,
-  };
+  }
   return (
     <DocPage
       title={t('report.title')}
@@ -85,5 +85,5 @@ export function Report({ route }: ReportProps) {
     >
       {(Object.hasOwn(content, active) ? content[active] : content.overview)()}
     </DocPage>
-  );
+  )
 }

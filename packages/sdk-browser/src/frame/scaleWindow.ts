@@ -1,5 +1,5 @@
-import type { RenderScaleBounds } from './renderScaleOption.ts';
-import { HEADROOM, THRESHOLD } from './scaleTargets.ts';
+import type { RenderScaleBounds } from './renderScaleOption.ts'
+import { HEADROOM, THRESHOLD } from './scaleTargets.ts'
 
 /**
  * The state of the render scale controller (`scaleControl.ts`), fields of one object stored in
@@ -43,42 +43,42 @@ export function createScaleWindow(bounds: RenderScaleBounds) {
     measured: false,
     timed: false,
     fresh: false,
-  };
+  }
 }
 
-export type ScaleWindow = ReturnType<typeof createScaleWindow>;
+export type ScaleWindow = ReturnType<typeof createScaleWindow>
 
 /** The interactive loop held the display frame that began: it draws nothing. */
 export function holdFrame(w: ScaleWindow) {
-  w.held++;
-  w.holding = true;
+  w.held++
+  w.holding = true
 }
 
 /** The window's costs start again. */
 export function clearCosts(w: ScaleWindow) {
-  w.count = w.mean = w.m2 = w.first = w.second = 0;
+  w.count = w.mean = w.m2 = w.first = w.second = 0
 }
 
 /** A window starts: nothing measured since the last move. */
 export function restartWindow(w: ScaleWindow) {
-  w.frames = w.moving = w.misses = 0;
-  clearCosts(w);
+  w.frames = w.moving = w.misses = 0
+  clearCosts(w)
 }
 
 /** The threshold of the current cost unit is known from nothing: `τ` at most the refresh with
  *  GPU times, unbounded in areas. */
 function unknownThreshold(w: ScaleWindow, refreshMs: number) {
-  w.lo = 0;
-  w.hi = w.timed ? refreshMs : Infinity;
-  w.trial = HEADROOM * w.hi;
+  w.lo = 0
+  w.hi = w.timed ? refreshMs : Infinity
+  w.trial = HEADROOM * w.hi
 }
 
 /** The threshold is known again from nothing, in both cost units: another display, refresh or
  *  bounds. */
 export function forgetThreshold(w: ScaleWindow, refreshMs: number) {
-  unknownThreshold(w, refreshMs);
-  w.otherLo = w.otherHi = w.otherTrial = Number.NaN;
-  restartWindow(w);
+  unknownThreshold(w, refreshMs)
+  w.otherLo = w.otherHi = w.otherTrial = Number.NaN
+  restartWindow(w)
 }
 
 /** The costs change unit — the timer gave times again, or none for `HISTORY` images —: the
@@ -86,62 +86,62 @@ export function forgetThreshold(w: ScaleWindow, refreshMs: number) {
 export function swapUnit(w: ScaleWindow, refreshMs: number) {
   const lo = w.otherLo,
     hi = w.otherHi,
-    trial = w.otherTrial;
-  w.otherLo = w.lo;
-  w.otherHi = w.hi;
-  w.otherTrial = w.trial;
-  if (Number.isNaN(lo)) unknownThreshold(w, refreshMs);
+    trial = w.otherTrial
+  w.otherLo = w.lo
+  w.otherHi = w.hi
+  w.otherTrial = w.trial
+  if (Number.isNaN(lo)) unknownThreshold(w, refreshMs)
   else {
-    w.lo = lo;
-    w.hi = hi;
-    w.trial = trial;
+    w.lo = lo
+    w.hi = hi
+    w.trial = trial
   }
-  restartWindow(w);
+  restartWindow(w)
 }
 
 /** A cost of an image, ms (or area), at the current scale. */
 export function sampleCost(w: ScaleWindow, cost: number) {
-  w.count++;
-  const d = cost - w.mean;
-  w.mean += d / w.count;
-  w.m2 += d * (cost - w.mean);
+  w.count++
+  const d = cost - w.mean
+  w.mean += d / w.count
+  w.m2 += d * (cost - w.mean)
   if (cost > w.first) {
-    w.second = w.first;
-    w.first = cost;
-  } else if (cost > w.second) w.second = cost;
+    w.second = w.first
+    w.first = cost
+  } else if (cost > w.second) w.second = cost
 }
 
 /** The cost the scale fits: the second costliest of the window, or its one. */
-export const fittedCost = (w: ScaleWindow) => (w.count > 1 ? w.second : w.first);
+export const fittedCost = (w: ScaleWindow) => (w.count > 1 ? w.second : w.first)
 
 /** The smallest relative rise of the scale: the threshold, or half the costs' relative spread. */
 const noiseOf = (w: ScaleWindow) =>
   Math.max(
     THRESHOLD,
     w.count > 1 && w.mean > 0 ? Math.sqrt(w.m2 / (w.count - 1)) / (2 * w.mean) : 0,
-  );
+  )
 
 /** The scale moves to fit the window's cost to `w.trial`; whether it moved. `learn`: a verdict
  *  on the trial was just given, and the next trial is chosen first. `still`: the last image was a
  *  still one, the scale then only lowers. */
 export function fitScale(w: ScaleWindow, learn: boolean, still: boolean) {
-  const step = noiseOf(w);
+  const step = noiseOf(w)
   if (learn) {
-    const mid = (w.lo + w.hi) / 2;
-    w.trial = w.lo < HEADROOM * w.hi ? HEADROOM * w.hi : mid > w.lo * (1 + step) ** 2 ? mid : w.lo;
+    const mid = (w.lo + w.hi) / 2
+    w.trial = w.lo < HEADROOM * w.hi ? HEADROOM * w.hi : mid > w.lo * (1 + step) ** 2 ? mid : w.lo
   }
-  const cost = fittedCost(w);
-  const fits = w.s * Math.sqrt(w.trial / cost);
-  let next = Math.min(w.max, Math.max(w.bounds.min, fits));
-  if (still) next = Math.min(next, w.s);
+  const cost = fittedCost(w)
+  const fits = w.s * Math.sqrt(w.trial / cost)
+  let next = Math.min(w.max, Math.max(w.bounds.min, fits))
+  if (still) next = Math.min(next, w.s)
   // A fit a bound clamps goes exactly to the bound, whatever the threshold: the threshold is
   // for the noise, and a scale 0.8 % from the floor would never reach it. Else a drop is taken
   // past the threshold — a cost over the target misses, however the costs spread, a scene that
   // turned heavier spreads them most — and a rise past the noise.
-  const bound = fits <= w.bounds.min || fits >= w.max;
+  const bound = fits <= w.bounds.min || fits >= w.max
   if (!(bound ? next !== w.s : Math.abs(next / w.s - 1) > (next < w.s ? THRESHOLD : step)))
-    return false;
-  w.s = next;
-  restartWindow(w);
-  return true;
+    return false
+  w.s = next
+  restartWindow(w)
+  return true
 }

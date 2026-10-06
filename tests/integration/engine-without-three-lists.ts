@@ -12,7 +12,7 @@
  * source: no file there names the host library.
  */
 export const PUBLIC_FAMILIES =
-  /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/api\/\w+Family\.ts$|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/;
+  /^(?:placement\/|world\/(?:core|batch|budget|capability|controls|helper|loader|metric|page|pose|saved|texture)\/|world\/api\/\w+Family\.ts$|world\/(?:capture|diagnostic)\/(?:index|worldNotices)\.ts$)/
 
 /**
  * A module specifier of the host library, in a source, in emitted code or in a declaration: the
@@ -20,7 +20,7 @@ export const PUBLIC_FAMILIES =
  * multi-line `import {…}\nfrom 'three'`, a bare `import 'three'`, a dynamic `import('three')`,
  * an `export … from 'three'` and any `three/…` subpath (`three/addons/…`) are all caught.
  */
-export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(?:\/[^'"]*)?['"]/;
+export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(?:\/[^'"]*)?['"]/
 
 // NO `sdk-browser` FILE IMPORTS THE HOST LIBRARY.
 //
@@ -61,7 +61,7 @@ export const NAMES_THREE = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]three(
 // The keys are paths under `packages/sdk-browser/`, extension dropped. The benches are not keyed:
 // every file under `BENCH_READS_DECLARATION` reads it, since a bench builds the page records the
 // engine path then reads and the witness repaints from them.
-export const BENCH_READS_DECLARATION = /^bench\/(?:witnesses|oracles|perf)\//;
+export const BENCH_READS_DECLARATION = /^bench\/(?:witnesses|oracles|perf)\//
 
 export const DECLARATION: Record<string, string> = {
   'page/selection/types': 'contract: it declares the field on a page record',
@@ -77,4 +77,4 @@ export const DECLARATION: Record<string, string> = {
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
   'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
   'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
-};
+}

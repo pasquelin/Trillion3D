@@ -1,43 +1,43 @@
 // Absolute measurement of an engine calculation, on named cases, against an oracle.
 // This file only measures and compares: table, fragments, baselines and path
 // checking of cited files are managed by `report.ts`.
-import { chronometre, type Reglages } from './chrono.ts';
-import { gap } from './diff.ts';
-import type { Counter } from './ulp.ts';
+import { chronometre, type Reglages } from './chrono.ts'
+import { gap } from './diff.ts'
+import type { Counter } from './ulp.ts'
 import {
   resultRow,
   type Measurement,
   type ResultRow,
-} from '../../site/examples/kit/measureTypes.ts';
+} from '../../site/examples/kit/measureTypes.ts'
 
 /** One named input to measure, or to verify only when `measure` is `false`. */
 export interface MeasureCase<Entree = unknown> {
-  name: string;
-  input: Entree;
-  size?: number | null;
-  measure?: boolean;
+  name: string
+  input: Entree
+  size?: number | null
+  measure?: boolean
 }
 
 interface Verdict {
-  correct: boolean | null;
-  difference: string | null;
-  motif: string | null;
+  correct: boolean | null
+  difference: string | null
+  motif: string | null
 }
 
 /** Parameters of `measure`: the calculation, its oracle, and the settings it measures under. */
 export interface MeasureParams<Entree = unknown, Sortie = unknown> {
-  name: string;
-  fichier: string | string[];
-  cas: MeasureCase<Entree>[];
-  options?: Partial<Reglages>;
-  calculation: (input: Entree) => Sortie | Promise<Sortie>;
-  expected?: (input: Entree) => Sortie | Promise<Sortie>;
-  temoin?: (input: Entree) => unknown;
-  differences?: (ref: Sortie, obt: Sortie, path: string) => Counter;
+  name: string
+  fichier: string | string[]
+  cas: MeasureCase<Entree>[]
+  options?: Partial<Reglages>
+  calculation: (input: Entree) => Sortie | Promise<Sortie>
+  expected?: (input: Entree) => Sortie | Promise<Sortie>
+  temoin?: (input: Entree) => unknown
+  differences?: (ref: Sortie, obt: Sortie, path: string) => Counter
   /** Reads, untimed, what a call left — its result or the state it wrote — for the oracle check:
    *  the timed call then runs the engine alone, with no copy or allocation of its output. */
-  lecture?: (input: Entree, sortie: Sortie) => unknown;
-  motif?: string | null;
+  lecture?: (input: Entree, sortie: Sortie) => unknown
+  motif?: string | null
 }
 
 /**
@@ -47,27 +47,27 @@ export interface MeasureParams<Entree = unknown, Sortie = unknown> {
  * before that side is called again, so reusing its array changes no comparison.
  */
 export function parElement<E, R>(f: (element: E, index: number) => R) {
-  const sortie: R[] = [];
+  const sortie: R[] = []
   return (list: readonly E[]) => {
-    sortie.length = list.length;
-    for (let i = 0; i < list.length; i++) sortie[i] = f(list[i], i);
-    return sortie;
-  };
+    sortie.length = list.length
+    for (let i = 0; i < list.length; i++) sortie[i] = f(list[i], i)
+    return sortie
+  }
 }
 
 export function xorshiftRandom(depart: number) {
-  let state = depart >>> 0 || 0x9e3779b9;
+  let state = depart >>> 0 || 0x9e3779b9
   return () => {
-    state = (state ^ (state << 13)) >>> 0;
-    state = (state ^ (state >>> 17)) >>> 0;
-    state = (state ^ (state << 5)) >>> 0;
-    return state / 4294967296;
-  };
+    state = (state ^ (state << 13)) >>> 0
+    state = (state ^ (state >>> 17)) >>> 0
+    state = (state ^ (state << 5)) >>> 0
+    return state / 4294967296
+  }
 }
 
-const countText = (c: Counter) => `${c.count} discrepancy(ies), ${c.ulpMax} ULP at most`;
+const countText = (c: Counter) => `${c.count} discrepancy(ies), ${c.ulpMax} ULP at most`
 
-type VerifyConf<Entree, Sortie> = Omit<MeasureParams<Entree, Sortie>, 'name' | 'fichier' | 'cas'>;
+type VerifyConf<Entree, Sortie> = Omit<MeasureParams<Entree, Sortie>, 'name' | 'fichier' | 'cas'>
 
 /**
  * Compares a case to its oracle. Without `differences`, equality is strict bitwise; with, the
@@ -80,16 +80,16 @@ async function verifyCase<Entree, Sortie>(
   item: MeasureCase<Entree>,
   { calculation, expected, differences, lecture, motif }: VerifyConf<Entree, Sortie>,
 ): Promise<Verdict> {
-  if (!expected) return { correct: null, difference: null, motif: motif ?? null };
-  const lit = (sortie: Sortie) => (lecture ? lecture(item.input, sortie) : sortie);
-  const ref = lit(await expected(item.input));
-  const obt = lit(await calculation(item.input));
+  if (!expected) return { correct: null, difference: null, motif: motif ?? null }
+  const lit = (sortie: Sortie) => (lecture ? lecture(item.input, sortie) : sortie)
+  const ref = lit(await expected(item.input))
+  const obt = lit(await calculation(item.input))
   if (!differences) {
-    const diff = gap(ref, obt, item.name);
-    return { correct: diff === null, difference: diff, motif: motif ?? null };
+    const diff = gap(ref, obt, item.name)
+    return { correct: diff === null, difference: diff, motif: motif ?? null }
   }
-  const count = countText(differences(ref as Sortie, obt as Sortie, item.name));
-  return { correct: null, difference: null, motif: motif ? `${count} ; ${motif}` : count };
+  const count = countText(differences(ref as Sortie, obt as Sortie, item.name))
+  return { correct: null, difference: null, motif: motif ? `${count} ; ${motif}` : count }
 }
 
 /**
@@ -107,15 +107,15 @@ export async function measure<Entree = unknown, Sortie = unknown>({
   options = {},
   ...conf
 }: MeasureParams<Entree, Sortie>): Promise<Measurement> {
-  const reglages: Reglages = { warmup: 20, tours: 200, budgetMs: 1000, ...options };
-  const results: ResultRow[] = [];
+  const reglages: Reglages = { warmup: 20, tours: 200, budgetMs: 1000, ...options }
+  const results: ResultRow[] = []
 
   for (const item of cas) {
-    const verdict = await verifyCase(item, conf);
+    const verdict = await verifyCase(item, conf)
 
     if (item.measure === false) {
-      results.push(resultRow({ ...verdict, name: item.name, size: item.size ?? null }));
-      continue;
+      results.push(resultRow({ ...verdict, name: item.name, size: item.size ?? null }))
+      continue
     }
 
     const {
@@ -127,8 +127,8 @@ export async function measure<Entree = unknown, Sortie = unknown>({
       item.input,
       reglages,
       conf.temoin as ((input: unknown) => unknown) | undefined,
-    );
-    const taille = item.size ?? null;
+    )
+    const taille = item.size ?? null
     results.push({
       name: item.name,
       size: taille,
@@ -138,7 +138,7 @@ export async function measure<Entree = unknown, Sortie = unknown>({
       temoin: t,
       ecartTemoin: gapWitness,
       ...verdict,
-    });
+    })
   }
-  return { name, fichier: file, resultats: results };
+  return { name, fichier: file, resultats: results }
 }

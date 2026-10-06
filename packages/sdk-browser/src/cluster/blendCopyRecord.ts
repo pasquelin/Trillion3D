@@ -1,15 +1,15 @@
-import type { HostMesh } from '../host/resources.ts';
-import type { BlendCopy } from './blendCopyContract.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
-import type { PageSurface } from '../page/surface.ts';
-import type { PlacementOf } from '../placement/rows.ts';
+import type { HostMesh } from '../host/resources.ts'
+import type { BlendCopy } from './blendCopyContract.ts'
+import type { MatrixElements } from '../math/matrixElements.ts'
+import type { PageSurface } from '../page/surface.ts'
+import type { PlacementOf } from '../placement/rows.ts'
 
 /** The source mesh a transparent copy stands for, read by shape: the geometry it draws and the
  *  culling the host declared on it. Nothing else of the mesh crosses. */
 type BlendSourceMesh = HostMesh & {
-  readonly geometry: BlendCopy['geometry'];
-  readonly frustumCulled?: boolean;
-};
+  readonly geometry: BlendCopy['geometry']
+  readonly frustumCulled?: boolean
+}
 
 /**
  * The engine's own draw record for a transparent surface.
@@ -35,7 +35,7 @@ export function createBlendCopyRecord(
   surface: PageSurface,
   placement?: PlacementOf,
 ): BlendCopy {
-  const source = mesh as BlendSourceMesh;
+  const source = mesh as BlendSourceMesh
   return {
     geometry: source.geometry,
     surface,
@@ -44,5 +44,5 @@ export function createBlendCopyRecord(
     frustumCulled: !!source.frustumCulled,
     renderOrder,
     userData: { sourceMesh: mesh },
-  };
+  }
 }

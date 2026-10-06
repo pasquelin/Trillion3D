@@ -1,6 +1,6 @@
 // The WebGL2 particle draw's shaders (`webglParticleDraw.ts`), the WGSL draw's twin.
-import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
-import { DISC_CORNERS } from '../../particles/drawWords.ts';
+import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts'
+import { DISC_CORNERS } from '../../particles/drawWords.ts'
 
 /** The WGSL draw (`webgpuParticleDraw.ts`) texel by texel, `texels` a row. `m` holds the draw
  *  words' two matrices and `look` the rest: eye and size, colour, softness. */
@@ -26,7 +26,7 @@ void main() {
   gl_Position = m[0] * vec4(local, 1.);
   life = 1. - p.w / w.w;
   shown = linearOut ? look[1].rgb : linearToSrgb(toneMap(look[1].rgb));
-}`;
+}`
 
 /** The colour `shown` comes from the vertex stage, flat: linear radiance for the effect chain,
  *  otherwise through the engine's display chain, once per vertex rather than per fragment. Both
@@ -46,4 +46,4 @@ void main() {
   float soft = abs(scene.w) > 1e-20 ? clamp(behind / look[2].x, 0., 1.) : 1.;
   float k = clamp(1. - dot(corner, corner), 0., 1.) * soft * life * look[1].a;
   fragColor = vec4(shown, 1.) * k; untoned = vec4(0., 0., 0., k); // toned, blended as the colour
-}`;
+}`

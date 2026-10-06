@@ -1,66 +1,66 @@
-import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { createObservatory, observatoryMaterials, observatorySky } from './scene.ts';
+import { mkdir, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { createObservatory, observatoryMaterials, observatorySky } from './scene.ts'
 
 interface GltfBufferView {
-  buffer: number;
-  byteOffset: number;
-  byteLength: number;
-  target: number;
+  buffer: number
+  byteOffset: number
+  byteLength: number
+  target: number
 }
 
 interface GltfAccessor {
-  bufferView: number;
-  componentType: number;
-  type: 'SCALAR' | 'VEC3';
-  count: number;
-  min?: number[];
-  max?: number[];
+  bufferView: number
+  componentType: number
+  type: 'SCALAR' | 'VEC3'
+  count: number
+  min?: number[]
+  max?: number[]
 }
 
 interface GltfPrimitive {
-  material: number;
-  attributes: { POSITION: number; NORMAL: number };
-  indices: number;
+  material: number
+  attributes: { POSITION: number; NORMAL: number }
+  indices: number
 }
 
 interface GltfMaterial {
-  name: string;
-  doubleSided: boolean;
+  name: string
+  doubleSided: boolean
   pbrMetallicRoughness: {
-    baseColorFactor: [number, number, number, number];
-    metallicFactor: number;
-    roughnessFactor: number;
-  };
+    baseColorFactor: [number, number, number, number]
+    metallicFactor: number
+    roughnessFactor: number
+  }
 }
 
 interface GltfMeshNode {
-  name: string;
-  mesh: number;
+  name: string
+  mesh: number
 }
 
 interface GltfLightNode {
-  name: string;
-  rotation: number[];
-  extensions: { KHR_lights_punctual: { light: number } };
+  name: string
+  rotation: number[]
+  extensions: { KHR_lights_punctual: { light: number } }
 }
 
 interface GltfDocument {
-  asset: { version: string; generator: string; copyright: string };
-  scene: number;
-  scenes: { nodes: number[] }[];
-  nodes: [GltfMeshNode, GltfLightNode];
-  extensionsUsed: string[];
+  asset: { version: string; generator: string; copyright: string }
+  scene: number
+  scenes: { nodes: number[] }[]
+  nodes: [GltfMeshNode, GltfLightNode]
+  extensionsUsed: string[]
   extensions: {
     KHR_lights_punctual: {
-      lights: { name: string; type: string; color: number[]; intensity: number }[];
-    };
-  };
-  meshes: [{ name: string; primitives: GltfPrimitive[] }];
-  materials: GltfMaterial[];
-  buffers: [{ uri: string; byteLength: number }];
-  bufferViews: GltfBufferView[];
-  accessors: GltfAccessor[];
+      lights: { name: string; type: string; color: number[]; intensity: number }[]
+    }
+  }
+  meshes: [{ name: string; primitives: GltfPrimitive[] }]
+  materials: GltfMaterial[]
+  buffers: [{ uri: string; byteLength: number }]
+  bufferViews: GltfBufferView[]
+  accessors: GltfAccessor[]
 }
 
 /** Serialize authored surfaces as separate material primitives, with no external resources, and
@@ -106,19 +106,19 @@ export async function writeObservatory(directory: string) {
     buffers: [{ uri: 'geometry.bin', byteLength: 0 }],
     bufferViews: [],
     accessors: [],
-  };
-  const chunks: Buffer[] = [];
+  }
+  const chunks: Buffer[] = []
   function attribute(values: number[], size: number, index = false) {
-    const data = index ? Uint32Array.from(values) : Float32Array.from(values);
-    const bufferView = gltf.bufferViews.length;
+    const data = index ? Uint32Array.from(values) : Float32Array.from(values)
+    const bufferView = gltf.bufferViews.length
     gltf.bufferViews.push({
       buffer: 0,
       byteOffset: gltf.buffers[0].byteLength,
       byteLength: data.byteLength,
       target: index ? 34963 : 34962,
-    });
-    gltf.buffers[0].byteLength += data.byteLength;
-    chunks.push(Buffer.from(data.buffer));
+    })
+    gltf.buffers[0].byteLength += data.byteLength
+    chunks.push(Buffer.from(data.buffer))
     const bounds =
       index || size !== 3
         ? {}
@@ -129,31 +129,31 @@ export async function writeObservatory(directory: string) {
             max: [0, 1, 2].map((axis) =>
               values.reduce((a, x, i) => (i % 3 === axis ? Math.max(a, x) : a), -Infinity),
             ),
-          };
+          }
     gltf.accessors.push({
       bufferView,
       componentType: index ? 5125 : 5126,
       type: size === 1 ? 'SCALAR' : 'VEC3',
       count: values.length / size,
       ...bounds,
-    });
-    return gltf.accessors.length - 1;
+    })
+    return gltf.accessors.length - 1
   }
   for (const [material, mesh] of createObservatory().surfaces) {
     gltf.meshes[0].primitives.push({
       material,
       attributes: { POSITION: attribute(mesh.positions, 3), NORMAL: attribute(mesh.normals, 3) },
       indices: attribute(mesh.indices, 1, true),
-    });
+    })
   }
   const rotation = gltf.nodes[1].rotation,
-    length = Math.hypot(...rotation);
-  gltf.nodes[1].rotation = rotation.map((value) => value / length);
-  await mkdir(directory, { recursive: true });
+    length = Math.hypot(...rotation)
+  gltf.nodes[1].rotation = rotation.map((value) => value / length)
+  await mkdir(directory, { recursive: true })
   await Promise.all([
     writeFile(resolve(directory, 'geometry.gltf'), JSON.stringify(gltf)),
     writeFile(resolve(directory, 'geometry.bin'), Buffer.concat(chunks)),
     writeFile(resolve(directory, 'sky.json'), JSON.stringify(observatorySky)),
-  ]);
-  return gltf;
+  ])
+  return gltf
 }

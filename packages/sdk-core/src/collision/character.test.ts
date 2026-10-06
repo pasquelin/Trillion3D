@@ -1,35 +1,35 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { box } from '../world/geometry/basic.ts';
-import { Mesh } from '../world/object/mesh.ts';
-import { meshCollision } from './meshTriangles.ts';
-import { createCharacterBody } from './characterBody.ts';
-import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts';
-import { createDrive } from './characterDrive.ts';
-import { MAX_CHARACTER_DELTA } from './characterDelta.ts';
-import { gripOf } from './grip.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { box } from '../world/geometry/basic.ts'
+import { Mesh } from '../world/object/mesh.ts'
+import { meshCollision } from './meshTriangles.ts'
+import { createCharacterBody } from './characterBody.ts'
+import { HUMAN_BODY, type CharacterInput, type CharacterSettings } from './characterSettings.ts'
+import { createDrive } from './characterDrive.ts'
+import { MAX_CHARACTER_DELTA } from './characterDelta.ts'
+import { gripOf } from './grip.ts'
 
 /** An axis-aligned block from its two corners, as a mesh the collision world reads. */
 function block(x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
-  const mesh = new Mesh(box(x1 - x0, y1 - y0, z1 - z0));
-  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
-  return mesh;
+  const mesh = new Mesh(box(x1 - x0, y1 - y0, z1 - z0))
+  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+  return mesh
 }
 
 /** A sole's push on the floor a body stands on without physics, m/s², and the legs' rate. */
 const push = gripOf(createDrive().floor) * HUMAN_BODY.gravity,
-  rateOf = (time: number) => -Math.log(0.05) / time;
-const FLOOR = () => block(-50, -1, -50, 50, 0, 50);
-const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
-const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };
+  rateOf = (time: number) => -Math.log(0.05) / time
+const FLOOR = () => block(-50, -1, -50, 50, 0, 50)
+const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false }
+const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false }
 
 /** A body of the default human over `blocks`, feet at `(x, y, z)`. */
 function body(blocks: Mesh[], x = 0, y = 0, z = 0, changes: Partial<CharacterSettings> = {}) {
-  const settings = { ...HUMAN_BODY, ...changes };
-  const made = createCharacterBody(settings);
-  made.setWorld(meshCollision(blocks));
-  made.place(x, y, z);
-  return made;
+  const settings = { ...HUMAN_BODY, ...changes }
+  const made = createCharacterBody(settings)
+  made.setWorld(meshCollision(blocks))
+  made.place(x, y, z)
+  return made
 }
 
 /** Lives `seconds` in frames of `frame` seconds; returns the last drawn feet. */
@@ -39,162 +39,162 @@ function live(
   input: CharacterInput,
   frame = 1 / 60,
 ) {
-  let feet = made.feet;
-  for (let t = 0; t < seconds - 1e-9; t += frame) feet = made.advance(frame, input);
-  return [...feet];
+  let feet = made.feet
+  for (let t = 0; t < seconds - 1e-9; t += frame) feet = made.advance(frame, input)
+  return [...feet]
 }
 
 test('a body falls, lands on the floor and reports the impact once', () => {
-  const made = body([FLOOR()], 0, 2, 0);
-  const impacts: number[] = [];
-  for (let i = 0; i < 120; i++) made.advance(1 / 60, STILL, { onLand: (v) => impacts.push(v) });
-  assert.ok(Math.abs(made.feet[1]) < 1e-6, `feet at ${made.feet[1]}`);
-  assert.equal(made.onGround, true);
-  assert.equal(impacts.length, 1);
+  const made = body([FLOOR()], 0, 2, 0)
+  const impacts: number[] = []
+  for (let i = 0; i < 120; i++) made.advance(1 / 60, STILL, { onLand: (v) => impacts.push(v) })
+  assert.ok(Math.abs(made.feet[1]) < 1e-6, `feet at ${made.feet[1]}`)
+  assert.equal(made.onGround, true)
+  assert.equal(impacts.length, 1)
   // Free fall from 2 m under the falling gravity: sqrt(2 g h), within one tick of gravity.
-  assert.ok(Math.abs(impacts[0] - Math.sqrt(2 * HUMAN_BODY.fallGravity * 2)) < 0.15);
-});
+  assert.ok(Math.abs(impacts[0] - Math.sqrt(2 * HUMAN_BODY.fallGravity * 2)) < 0.15)
+})
 
 test('a slow page walks as fast; a stall resumes where it stopped, 0.25 s later at most', () => {
-  const made = body([FLOOR()]);
-  live(made, 1, EAST);
-  let before = made.feet[0];
+  const made = body([FLOOR()])
+  live(made, 1, EAST)
+  let before = made.feet[0]
   // Five frames a second: every tick is lived, at the walking speed.
-  for (let k = 0; k < 5; k++) made.advance(0.2, EAST);
-  const walked = made.feet[0] - before;
-  assert.ok(Math.abs(walked - HUMAN_BODY.walkSpeed) < 0.05, `walked ${walked} m in 1 s at 5 fps`);
-  before = made.feet[0];
-  made.advance(10, EAST);
-  const most = MAX_CHARACTER_DELTA * HUMAN_BODY.walkSpeed;
-  assert.ok(made.feet[0] - before <= most + 1e-9, `moved ${made.feet[0] - before} in one call`);
-});
+  for (let k = 0; k < 5; k++) made.advance(0.2, EAST)
+  const walked = made.feet[0] - before
+  assert.ok(Math.abs(walked - HUMAN_BODY.walkSpeed) < 0.05, `walked ${walked} m in 1 s at 5 fps`)
+  before = made.feet[0]
+  made.advance(10, EAST)
+  const most = MAX_CHARACTER_DELTA * HUMAN_BODY.walkSpeed
+  assert.ok(made.feet[0] - before <= most + 1e-9, `moved ${made.feet[0] - before} in one call`)
+})
 
 test('a wall stops the body, which slides along it', () => {
-  const made = body([FLOOR(), block(1, 0, -20, 1.2, 3, 20)]);
-  const feet = live(made, 3, { wishX: Math.SQRT1_2, wishZ: Math.SQRT1_2, sprint: false });
-  assert.ok(feet[0] <= 1 - HUMAN_BODY.capsuleRadius + 1e-6, `through the wall at ${feet[0]}`);
-  assert.ok(feet[2] > 5, `no slide: z = ${feet[2]}`);
-  assert.ok(Math.abs(feet[1]) < 1e-6);
-});
+  const made = body([FLOOR(), block(1, 0, -20, 1.2, 3, 20)])
+  const feet = live(made, 3, { wishX: Math.SQRT1_2, wishZ: Math.SQRT1_2, sprint: false })
+  assert.ok(feet[0] <= 1 - HUMAN_BODY.capsuleRadius + 1e-6, `through the wall at ${feet[0]}`)
+  assert.ok(feet[2] > 5, `no slide: z = ${feet[2]}`)
+  assert.ok(Math.abs(feet[1]) < 1e-6)
+})
 
 test('a walker climbs a 0.3 m ledge but not a 0.6 m one', () => {
-  const low = live(body([FLOOR(), block(1, 0, -5, 20, 0.3, 5)]), 2, EAST);
-  assert.ok(Math.abs(low[1] - 0.3) < 1e-6 && low[0] > 2, `low ledge: ${low}`);
-  const high = live(body([FLOOR(), block(1, 0, -5, 20, 0.6, 5)]), 2, EAST);
-  assert.ok(Math.abs(high[1]) < 1e-6 && high[0] < 1, `high ledge: ${high}`);
-});
+  const low = live(body([FLOOR(), block(1, 0, -5, 20, 0.3, 5)]), 2, EAST)
+  assert.ok(Math.abs(low[1] - 0.3) < 1e-6 && low[0] > 2, `low ledge: ${low}`)
+  const high = live(body([FLOOR(), block(1, 0, -5, 20, 0.6, 5)]), 2, EAST)
+  assert.ok(Math.abs(high[1]) < 1e-6 && high[0] < 1, `high ledge: ${high}`)
+})
 
 test('a jump reaches v² / 2g and lands after the rise and the heavier fall', () => {
-  const made = body([FLOOR()]);
-  live(made, 0.5, STILL);
-  made.pressJump();
+  const made = body([FLOOR()])
+  live(made, 0.5, STILL)
+  made.pressJump()
   let apex = 0,
-    air = 0;
+    air = 0
   for (let i = 0; i < 1200; i++, air += made.onGround ? 0 : 1 / 1200)
-    apex = Math.max(apex, made.advance(1 / 1200, STILL)[1]);
-  const { jumpSpeed, gravity, fallGravity } = HUMAN_BODY;
-  const expected = jumpSpeed ** 2 / (2 * gravity);
-  assert.ok(Math.abs(expected - 0.5) < 1e-9, `standing jump of ${expected} m`);
-  assert.ok(Math.abs(apex - expected) / expected < 0.01, `apex ${apex}, expected ${expected}`);
-  const flight = jumpSpeed / gravity + Math.sqrt((2 * expected) / fallGravity);
+    apex = Math.max(apex, made.advance(1 / 1200, STILL)[1])
+  const { jumpSpeed, gravity, fallGravity } = HUMAN_BODY
+  const expected = jumpSpeed ** 2 / (2 * gravity)
+  assert.ok(Math.abs(expected - 0.5) < 1e-9, `standing jump of ${expected} m`)
+  assert.ok(Math.abs(apex - expected) / expected < 0.01, `apex ${apex}, expected ${expected}`)
+  const flight = jumpSpeed / gravity + Math.sqrt((2 * expected) / fallGravity)
   // Landing is read at the end of a tick: the air time is known within one tick.
-  assert.ok(Math.abs(air - flight) <= 1 / 120 + 1e-6, `air ${air}, expected ${flight}`);
-  assert.ok(air > 0.55 && air < 0.65 && made.onGround, `air ${air}`);
-});
+  assert.ok(Math.abs(air - flight) <= 1 / 120 + 1e-6, `air ${air}, expected ${flight}`)
+  assert.ok(air > 0.55 && air < 0.65 && made.onGround, `air ${air}`)
+})
 
 test("a key starts the jog at the floor's push, and is seen in the first frame", () => {
-  const made = body([FLOOR()]);
-  live(made, 0.5, STILL);
+  const made = body([FLOOR()])
+  live(made, 0.5, STILL)
   const frame = 1 / 60,
     v = HUMAN_BODY.walkSpeed,
-    rate = rateOf(HUMAN_BODY.responseTime);
+    rate = rateOf(HUMAN_BODY.responseTime)
   // From rest the sole pushes at μ g, the whole first frame: `push t² / 2`.
   const first = made.advance(frame, EAST)[0],
-    ran = (t: number) => (push * t * t) / 2;
+    ran = (t: number) => (push * t * t) / 2
   // Drawn at the present: at most one tick of the fixed step late, under one frame.
-  assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`);
-  let t = frame;
-  for (; made.velocity[0] < 0.95 * v; t += frame) made.advance(frame, EAST);
+  assert.ok(first >= ran(frame - 1 / 120) - 1e-9 && first <= ran(frame) + 1e-9, `first ${first}`)
+  let t = frame
+  for (; made.velocity[0] < 0.95 * v; t += frame) made.advance(frame, EAST)
   // The push closes the gap down to push / rate, the legs' exponential the rest.
-  const expected = (v - push / rate) / push + Math.log(push / rate / (0.05 * v)) / rate;
-  assert.ok(Math.abs(t - expected) <= frame, `jog reached after ${t} s, expected ${expected}`);
-});
+  const expected = (v - push / rate) / push + Math.log(push / rate / (0.05 * v)) / rate
+  assert.ok(Math.abs(t - expected) <= frame, `jog reached after ${t} s, expected ${expected}`)
+})
 
 test('20 m/s never tunnels through a 0.1 m wall, even at 30 Hz', () => {
-  const made = body([FLOOR(), block(2, 0, -5, 2.1, 3, 5)], 0, 0, 0, { walkSpeed: 20 });
-  const feet = live(made, 1, EAST, 1 / 30);
-  assert.ok(feet[0] < 2, `tunnelled to ${feet[0]}`);
-});
+  const made = body([FLOOR(), block(2, 0, -5, 2.1, 3, 5)], 0, 0, 0, { walkSpeed: 20 })
+  const feet = live(made, 1, EAST, 1 / 30)
+  assert.ok(feet[0] < 2, `tunnelled to ${feet[0]}`)
+})
 
 test('released keys glide v² / (2 μ g) on the declared stone floor, then it stays still', () => {
-  const made = body([FLOOR()]);
-  const moving = live(made, 2, EAST);
-  const stopped = live(made, 3, STILL);
+  const made = body([FLOOR()])
+  const moving = live(made, 2, EAST)
+  const stopped = live(made, 3, STILL)
   const glide = stopped[0] - moving[0],
     v = HUMAN_BODY.walkSpeed,
-    rate = rateOf(HUMAN_BODY.stopTime);
+    rate = rateOf(HUMAN_BODY.stopTime)
   // The legs' exponential closes the last push / rate, a centimetre more; the body is drawn up
   // to one tick behind the one it lives. 0.79 m on stone.
-  const expected = (v * v) / (2 * push);
+  const expected = (v * v) / (2 * push)
   assert.ok(
     glide >= expected - 1e-3 && glide <= expected + push / rate ** 2 + v / 120,
     `glide ${glide}, expected ${expected}`,
-  );
-  assert.deepEqual([...made.velocity], [0, 0, 0]);
-  assert.deepEqual(live(made, 1, STILL), stopped);
-});
+  )
+  assert.deepEqual([...made.velocity], [0, 0, 0])
+  assert.deepEqual(live(made, 1, STILL), stopped)
+})
 
 test('the motion is the same at 30 Hz and at 144 Hz', () => {
   const run = (frame: number) => {
-    const made = body([FLOOR(), block(4, 0, -20, 20, 0.3, 20)], 0, 1, 0);
-    live(made, 1, EAST, frame);
-    made.pressJump();
-    return live(made, 1, { wishX: Math.SQRT1_2, wishZ: -Math.SQRT1_2, sprint: true }, frame);
-  };
+    const made = body([FLOOR(), block(4, 0, -20, 20, 0.3, 20)], 0, 1, 0)
+    live(made, 1, EAST, frame)
+    made.pressJump()
+    return live(made, 1, { wishX: Math.SQRT1_2, wishZ: -Math.SQRT1_2, sprint: true }, frame)
+  }
   const slow = run(1 / 30),
-    fast = run(1 / 144);
-  const travel = Math.hypot(fast[0], fast[2]);
-  const gap = Math.hypot(slow[0] - fast[0], slow[1] - fast[1], slow[2] - fast[2]);
-  assert.ok(gap / travel <= 0.02, `gap ${gap} over ${travel}: ${slow} vs ${fast}`);
-});
+    fast = run(1 / 144)
+  const travel = Math.hypot(fast[0], fast[2])
+  const gap = Math.hypot(slow[0] - fast[0], slow[1] - fast[1], slow[2] - fast[2])
+  assert.ok(gap / travel <= 0.02, `gap ${gap} over ${travel}: ${slow} vs ${fast}`)
+})
 
 /** A slab `angle` radians steep whose top face passes through the origin, rising towards +X. */
 function ramp(angle: number) {
-  const mesh = new Mesh(box(40, 1, 40));
-  mesh.rotation.z = angle;
-  mesh.position.set(0.5 * Math.sin(angle), -0.5 * Math.cos(angle), 0);
-  return mesh;
+  const mesh = new Mesh(box(40, 1, 40))
+  mesh.rotation.z = angle
+  mesh.position.set(0.5 * Math.sin(angle), -0.5 * Math.cos(angle), 0)
+  return mesh
 }
 
 test('a slope under maxSlope holds a standing body; a steeper one slides it down', () => {
-  const gentle = body([ramp(Math.PI / 6)], 0, 0, 0);
-  live(gentle, 1, STILL);
-  assert.equal(gentle.onGround, true);
-  assert.ok(Math.abs(gentle.feet[0]) < 1e-6, `slid to ${gentle.feet[0]}`);
-  const steep = body([ramp(Math.PI / 3)], 0, 0.5, 0);
-  live(steep, 1, STILL);
-  assert.equal(steep.onGround, false);
-  assert.ok(steep.feet[0] < -1, `held at ${steep.feet[0]}`);
-});
+  const gentle = body([ramp(Math.PI / 6)], 0, 0, 0)
+  live(gentle, 1, STILL)
+  assert.equal(gentle.onGround, true)
+  assert.ok(Math.abs(gentle.feet[0]) < 1e-6, `slid to ${gentle.feet[0]}`)
+  const steep = body([ramp(Math.PI / 3)], 0, 0.5, 0)
+  live(steep, 1, STILL)
+  assert.equal(steep.onGround, false)
+  assert.ok(steep.feet[0] < -1, `held at ${steep.feet[0]}`)
+})
 
 test('a jump is granted coyoteTime after an edge, and kept jumpBuffer before a landing', () => {
   // Off the edge of a block, then a press within the coyote time: the body still jumps.
-  const late = body([block(-20, -1, -5, 0, 0, 5)], -1);
-  let jumps = 0;
-  const count = { onJump: () => jumps++ };
-  for (let i = 0; i < 600 && late.onGround; i++) late.advance(1 / 240, EAST, count);
-  late.advance(HUMAN_BODY.coyoteTime / 2, STILL, count);
-  late.pressJump();
-  late.advance(1 / 240, STILL, count);
-  assert.equal(jumps, 1);
+  const late = body([block(-20, -1, -5, 0, 0, 5)], -1)
+  let jumps = 0
+  const count = { onJump: () => jumps++ }
+  for (let i = 0; i < 600 && late.onGround; i++) late.advance(1 / 240, EAST, count)
+  late.advance(HUMAN_BODY.coyoteTime / 2, STILL, count)
+  late.pressJump()
+  late.advance(1 / 240, STILL, count)
+  assert.equal(jumps, 1)
   // A press made in the air, just before the landing, jumps as the feet touch.
-  const early = body([FLOOR()], 0, 0.05, 0);
-  early.pressJump();
-  live(early, 0.3, STILL);
-  assert.ok(early.feet[1] > 0.2, `no buffered jump: ${early.feet[1]}`);
-});
+  const early = body([FLOOR()], 0, 0.05, 0)
+  early.pressJump()
+  live(early, 0.3, STILL)
+  assert.ok(early.feet[1] > 0.2, `no buffered jump: ${early.feet[1]}`)
+})
 
 test('a body with no thickness still walks, in one part a tick', () => {
-  const [x] = live(body([FLOOR()], 0, 0, 0, { capsuleRadius: 0 }), 1, EAST);
-  assert.ok(x > 0 && Number.isFinite(x));
-});
+  const [x] = live(body([FLOOR()], 0, 0, 0, { capsuleRadius: 0 }), 1, EAST)
+  assert.ok(x > 0 && Number.isFinite(x))
+})

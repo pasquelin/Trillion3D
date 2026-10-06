@@ -1,19 +1,19 @@
-import { useRef, useState } from 'react';
-import { useWords } from '../i18n.ts';
-import { SITE_NAME } from '../layout/DocPage.tsx';
-import { usePortal } from '../layout/PortalContext.ts';
-import { Panel } from '../ui/Panel.tsx';
-import { RenderFrame } from '../ui/RenderFrame.tsx';
-import { Toast, useToast } from '../ui/Toast.tsx';
-import { Segmented, Toolbar, ToolbarDivider } from '../ui/Toolbar.tsx';
-import { EditorStats } from './EditorStats.tsx';
-import { Inspector } from './Inspector.tsx';
-import { MenuBar } from './MenuBar.tsx';
-import { Outliner } from './Outliner.tsx';
-import { TransformTools } from './TransformTools.tsx';
-import { useEditor } from './useEditor.ts';
+import { useRef, useState } from 'react'
+import { useWords } from '../i18n.ts'
+import { SITE_NAME } from '../layout/DocPage.tsx'
+import { usePortal } from '../layout/PortalContext.ts'
+import { Panel } from '../ui/Panel.tsx'
+import { RenderFrame } from '../ui/RenderFrame.tsx'
+import { Toast, useToast } from '../ui/Toast.tsx'
+import { Segmented, Toolbar, ToolbarDivider } from '../ui/Toolbar.tsx'
+import { EditorStats } from './EditorStats.tsx'
+import { Inspector } from './Inspector.tsx'
+import { MenuBar } from './MenuBar.tsx'
+import { Outliner } from './Outliner.tsx'
+import { TransformTools } from './TransformTools.tsx'
+import { useEditor } from './useEditor.ts'
 
-type Side = 'outliner' | 'inspector';
+type Side = 'outliner' | 'inspector'
 
 /**
  * The scene editor, the whole width under the header: its bar of menus and tools, then the
@@ -22,14 +22,14 @@ type Side = 'outliner' | 'inspector';
  * goes through the engine's public API; the page draws nothing and moves nothing itself.
  */
 export function SceneEditor() {
-  const { locale } = usePortal().route;
-  const t = useWords(locale);
-  const canvas = useRef<HTMLCanvasElement | null>(null);
-  const [toast, showToast] = useToast();
-  const [side, setSide] = useState<Side>('outliner');
-  const editor = useEditor(canvas, locale, showToast);
-  const title = t('editor.title');
-  const shownBelow = (panel: Side) => (side === panel ? '' : 'max-lg:hidden');
+  const { locale } = usePortal().route
+  const t = useWords(locale)
+  const canvas = useRef<HTMLCanvasElement | null>(null)
+  const [toast, showToast] = useToast()
+  const [side, setSide] = useState<Side>('outliner')
+  const editor = useEditor(canvas, locale, showToast)
+  const title = t('editor.title')
+  const shownBelow = (panel: Side) => (side === panel ? '' : 'max-lg:hidden')
   return (
     <section className="flex min-h-full flex-col lg:h-full">
       <title>{`${title} · ${SITE_NAME}`}</title>
@@ -79,5 +79,5 @@ export function SceneEditor() {
       </div>
       <Toast message={toast} />
     </section>
-  );
+  )
 }

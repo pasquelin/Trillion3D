@@ -6,29 +6,29 @@
  * creation received, `labels` the label each carried at that moment.
  */
 export function asWebgpuDevice(members: Record<string, unknown>) {
-  let settle: (info: { reason: string; message: string }) => void = () => {};
-  const lost = new Promise<{ reason: string; message: string }>((resolve) => (settle = resolve));
+  let settle: (info: { reason: string; message: string }) => void = () => {}
+  const lost = new Promise<{ reason: string; message: string }>((resolve) => (settle = resolve))
   const given: Array<{ label?: string } | undefined> = [],
     labels: Array<string | undefined> = [],
-    scopes: Array<object | null> = [];
-  const target = new EventTarget();
+    scopes: Array<object | null> = []
+  const target = new EventTarget()
   const device = Object.assign(target, members, {
     lost,
     pushErrorScope: () => void scopes.push(null),
     popErrorScope: async () => {
-      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError');
-      return scopes.pop() ?? null;
+      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
+      return scopes.pop() ?? null
     },
-  }) as unknown as Record<string, unknown>;
+  }) as unknown as Record<string, unknown>
   for (const key of Object.keys(members)) {
-    const make = members[key];
-    if (!key.startsWith('create') || typeof make !== 'function') continue;
+    const make = members[key]
+    if (!key.startsWith('create') || typeof make !== 'function') continue
     device[key] = function (this: unknown, descriptor?: { label?: string }) {
-      if (this !== device) throw new TypeError('Illegal invocation');
-      given.push(descriptor);
-      labels.push(descriptor?.label);
-      return make(descriptor);
-    };
+      if (this !== device) throw new TypeError('Illegal invocation')
+      given.push(descriptor)
+      labels.push(descriptor?.label)
+      return make(descriptor)
+    }
   }
   return {
     device: device as unknown as GPUDevice,
@@ -39,14 +39,14 @@ export function asWebgpuDevice(members: Record<string, unknown>) {
      *  otherwise; returns whether a listener cancelled it. */
     raise(message: string, error: object = { message }) {
       if (scopes.length) {
-        scopes[scopes.length - 1] ??= error;
-        return false;
+        scopes[scopes.length - 1] ??= error
+        return false
       }
-      const event = Object.assign(new Event('uncapturederror', { cancelable: true }), { error });
-      return !target.dispatchEvent(event);
+      const event = Object.assign(new Event('uncapturederror', { cancelable: true }), { error })
+      return !target.dispatchEvent(event)
     },
     lose: (reason = 'destroyed') => settle({ reason, message: reason }),
-  };
+  }
 }
 
 /** An owner of a device claim (`claimGpuDevice`) that records what reaches it. */
@@ -54,7 +54,7 @@ export function deviceOwner() {
   const errors: string[] = [],
     reasons: string[] = [],
     closed: string[] = [],
-    losses: string[] = [];
+    losses: string[] = []
   return {
     errors,
     reasons,
@@ -63,8 +63,8 @@ export function deviceOwner() {
     error: (message: string, reason: string) => (errors.push(message), reasons.push(reason)),
     closedError: (message: string) => closed.push(message),
     lost: (info: { reason: string }) => losses.push(info.reason),
-  };
+  }
 }
 
 /** A label as the engine wrote it, without the session tag `sessionHandle.ts` joins to it. */
-export const untag = (label: string | undefined) => label?.replace(/ ?@t3d:\d+$/, '') || undefined;
+export const untag = (label: string | undefined) => label?.replace(/ ?@t3d:\d+$/, '') || undefined

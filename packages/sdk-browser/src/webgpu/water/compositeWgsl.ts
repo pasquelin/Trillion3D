@@ -1,30 +1,30 @@
 import {
   BOUNDED_SCREEN_REFLECTION_WGSL,
   SCREEN_REFLECTION_WGSL,
-} from '../../reflections/screenWgsl.ts';
+} from '../../reflections/screenWgsl.ts'
 import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
   surfaceBindingsWgsl,
   VIEW_WGSL,
   WORLD_AT_WGSL,
-} from '../../lighting/deferred/shaders.ts';
-import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts';
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
+} from '../../lighting/deferred/shaders.ts'
+import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
   declaredLightingWgsl,
-} from '../../lighting/direct/lightingWgsl.ts';
-import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts';
-import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
-import { BOUNCE_SURFACE_BINDING, bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts';
-import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts';
-import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
-import { BLEND_VIEW_WGSL } from '../blend/shader.ts';
-import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts';
-import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts';
-import { VOLUME_LAW_WGSL } from '../transparent/volumeLaw.ts';
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
+} from '../../lighting/direct/lightingWgsl.ts'
+import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts'
+import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
+import { BOUNCE_SURFACE_BINDING, bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts'
+import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
+import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
+import { BLEND_VIEW_WGSL } from '../blend/shader.ts'
+import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
+import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
+import { VOLUME_LAW_WGSL } from '../transparent/volumeLaw.ts'
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
 
 /** Bindings of the composite: the deferred bounce layout as-is — surfaces and depth, the view,
  *  the contract, the probe grid, the proxy — then what only water reads: the frozen backdrop, the
@@ -54,7 +54,7 @@ export const WATER_BINDINGS = {
   shadowTransmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
   shadowTranslucentDepth: CONTRACT_SHADOW_BINDINGS.translucentDepth,
   surface: BOUNCE_SURFACE_BINDING,
-};
+}
 
 /**
  * Fullscreen composite of the water pass. A pixel the surface stage wrote is lit once here: the
@@ -194,4 +194,4 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
 }
 
 ${unbounded ? SCREEN_REFLECTION_WGSL : BOUNDED_SCREEN_REFLECTION_WGSL}
-`;
+`

@@ -1,23 +1,23 @@
-import { bumpResources, bumpScene, bumpView, createFrameRevisions } from './revisions.ts';
-import { trackViewCamera } from './viewCamera.ts';
-import { createViewHold, type ViewHold } from './viewRevision.ts';
-import { createHostSceneWatch, type WatchedSources } from '../host/scene/watch.ts';
+import { bumpResources, bumpScene, bumpView, createFrameRevisions } from './revisions.ts'
+import { trackViewCamera } from './viewCamera.ts'
+import { createViewHold, type ViewHold } from './viewRevision.ts'
+import { createHostSceneWatch, type WatchedSources } from '../host/scene/watch.ts'
 import {
   createEngineCamera,
   readCameraWorld,
   type CameraMotion,
   type EngineCamera,
   type HostCamera,
-} from '../camera/world.ts';
-import { resolvePixelError } from '../page/selection/selection.ts';
-import type { HostWorldPlacements } from '../host/world/placements.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+} from '../camera/world.ts'
+import { resolvePixelError } from '../page/selection/selection.ts'
+import type { HostWorldPlacements } from '../host/world/placements.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
-export type FrameGateCore = ReturnType<typeof createFrameGateCore>;
+export type FrameGateCore = ReturnType<typeof createFrameGateCore>
 
 /** What frame entry rereads from the source graph, or what to reread it from when the list itself
  *  is rebuilt only on a scene change: the call then has nothing to build per frame. */
-type FrameGateSources = WatchedSources | (() => WatchedSources);
+type FrameGateSources = WatchedSources | (() => WatchedSources)
 
 /**
  * Frame gate shared by both engines: the three revisions, the view origin, the reread of the graph
@@ -25,50 +25,50 @@ type FrameGateSources = WatchedSources | (() => WatchedSources);
  * of this engine carries.
  */
 export function createFrameGateCore(holdValues: number) {
-  const revisions = createFrameRevisions();
-  let own = createViewHold(holdValues, revisions.view);
-  const sceneWatch = createHostSceneWatch();
+  const revisions = createFrameRevisions()
+  let own = createViewHold(holdValues, revisions.view)
+  const sceneWatch = createHostSceneWatch()
   // Camera the engine owns: frame entry copies the host's into it, once, and everything downstream
   // reads it. Allocated here, never per frame.
-  const cam = createEngineCamera();
+  const cam = createEngineCamera()
   /** Rebuilds the watched set; declared once, so a frame that reads the scene allocates nothing. */
   const observe = (source: Object3D, drawn: FrameGateSources) =>
-    sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
+    sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn)
   let worldsRevision = 0,
     watchRevision = -1,
     pixelError = 0,
     // A host write no world pass has read yet: announced by the scan, or unread when the engine wrote.
-    hostPosesOwed = false;
+    hostPosesOwed = false
   const gate = {
     revisions,
     /** Discontinuities belong to this view; continuous motion preserves image history. */
     get temporalRevision() {
-      return own.temporalRevision;
+      return own.temporalRevision
     },
     /** The drawn view's held-frame witness: each view keeps its own (`useViewHold`). */
     get hold() {
-      return own.hold;
+      return own.hold
     },
     /** Switches this view's hold and revision; scene/resources remain shared across all views. */
     useViewHold(next: ViewHold | undefined) {
-      const from = own;
-      from.view = revisions.view;
-      own = next ?? createViewHold(holdValues, revisions.view);
-      revisions.view = own.view;
-      return from;
+      const from = own
+      from.view = revisions.view
+      own = next ?? createViewHold(holdValues, revisions.view)
+      revisions.view = own.view
+      return from
     },
     /** Copied engine camera of the drawn view (`../webgpu/pages/state/viewSwitch.ts`). */
     cam,
     /** Quality threshold `enterFrame` has just resolved for the current frame. */
     get pixelError() {
-      return pixelError;
+      return pixelError
     },
     /** The scene moved: matrices, materials, instances, lights, diagnostic view. What the engine
      *  wrote into the source graph on the way is announced by this revision: the watch does not
      *  announce it a second time, and the next `readScene` reads the list anew under it. */
     sceneChanged() {
-      bumpScene(revisions);
-      sceneWatch.settle();
+      bumpScene(revisions)
+      sceneWatch.settle()
     },
     /**
      * A POSE moved, and the shape of the scene did not: the engine wrote the local pose of a node
@@ -82,9 +82,9 @@ export function createFrameGateCore(holdValues: number) {
       // image it does not exist yet; after a reshape already announced it no longer names the
       // right nodes. Settling either would drop the rebuild `readScene` still owes: the node the
       // reshape brought in would never be hooked, and every host write on it lost for good.
-      const current = watchRevision === revisions.scene;
-      gate.sceneChanged();
-      if (current) watchRevision = revisions.scene;
+      const current = watchRevision === revisions.scene
+      gate.sceneChanged()
+      if (current) watchRevision = revisions.scene
     },
     /**
      * Resources moved: a page's bytes, residency, replaced geometry, and anything that arrives
@@ -108,7 +108,7 @@ export function createFrameGateCore(holdValues: number) {
         viewport ? viewport[0] : -1,
         viewport ? viewport[1] : -1,
         error,
-      );
+      )
     },
     /**
      * Declares the scene changed when the host wrote the source nodes directly — a pose, a
@@ -122,16 +122,16 @@ export function createFrameGateCore(holdValues: number) {
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
     readScene(source: Object3D, drawn: FrameGateSources) {
-      if (watchRevision !== revisions.scene) observe(source, drawn);
-      const verdict = sceneWatch.take();
+      if (watchRevision !== revisions.scene) observe(source, drawn)
+      const verdict = sceneWatch.take()
       if (verdict) {
-        bumpScene(revisions);
-        hostPosesOwed = true;
+        bumpScene(revisions)
+        hostPosesOwed = true
         // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
         // the host can write it again, so no write falls between the reshape and the rebuild.
-        if (verdict === 'reshaped') observe(source, drawn);
+        if (verdict === 'reshaped') observe(source, drawn)
       }
-      watchRevision = revisions.scene;
+      watchRevision = revisions.scene
     },
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => own.hold.stable && own.hold.same(revisions),
@@ -140,11 +140,11 @@ export function createFrameGateCore(holdValues: number) {
      *  true: a host write, whose moved nodes nobody named, is owed a whole rewrite of the rows. A
      *  frame nothing announced runs no pass: what is listed waits for the next. */
     updateWorlds(worlds: HostWorldPlacements) {
-      if (worldsRevision === revisions.scene) return false;
-      worldsRevision = revisions.scene;
-      hostPosesOwed = false;
-      worlds.refresh();
-      return true;
+      if (worldsRevision === revisions.scene) return false
+      worldsRevision = revisions.scene
+      hostPosesOwed = false
+      worlds.refresh()
+      return true
     },
     /**
      * To call before the engine writes a pose of its own, and before it announces the move: the
@@ -155,19 +155,19 @@ export function createFrameGateCore(holdValues: number) {
      * integers when the host wrote nothing, which is every image a model moves.
      */
     engineWriting() {
-      if (sceneWatch.pending()) hostPosesOwed = true;
+      if (sceneWatch.pending()) hostPosesOwed = true
     },
     /** The rows already carry the current revision's matrices: written by the engine's own move,
      *  on the only roots it moved — unless a host write is owed. */
     noteWorldsUpdated() {
-      if (!hostPosesOwed) worldsRevision = revisions.scene;
+      if (!hostPosesOwed) worldsRevision = revisions.scene
     },
     /** The engine moved poses in place: the three steps above, `engineWriting` first so an
      *  unread host pose write stays owed. */
     engineMovedInPlace() {
-      gate.engineWriting();
-      gate.sceneMoved();
-      gate.noteWorldsUpdated();
+      gate.engineWriting()
+      gate.sceneMoved()
+      gate.noteWorldsUpdated()
     },
     /** Lets go of the source graph: its writes no longer reach this gate. */
     release: () => sceneWatch.release(),
@@ -191,14 +191,14 @@ export function createFrameGateCore(holdValues: number) {
       /** Aspect ratio the image is drawn at, when a second view renders aside at its own. */
       aspect?: number,
     ) {
-      readCameraWorld(gate.cam, camera, aspect);
+      readCameraWorld(gate.cam, camera, aspect)
       if (trackViewCamera(own, camera, gate.cam, viewport?.[0] ?? -1, viewport?.[1] ?? -1))
-        bumpView(revisions);
-      pixelError = resolvePixelError(context, gate.cam, motion);
-      gate.viewChanged(gate.cam, viewport, pixelError);
-      gate.readScene(source, drawn);
-      return gate.held();
+        bumpView(revisions)
+      pixelError = resolvePixelError(context, gate.cam, motion)
+      gate.viewChanged(gate.cam, viewport, pixelError)
+      gate.readScene(source, drawn)
+      return gate.held()
     },
-  };
-  return gate;
+  }
+  return gate
 }

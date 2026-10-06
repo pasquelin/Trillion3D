@@ -1,6 +1,6 @@
-import { directLightResources } from '../pages/prepare/lightResources.ts';
-import type { BlendLighting } from '../core/bindEntries.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { directLightResources } from '../pages/prepare/lightResources.ts'
+import type { BlendLighting } from '../core/bindEntries.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /**
  * Lighting resources the blend pass binds: exactly those the opaque resolve just resolved,
@@ -11,7 +11,7 @@ export function blendLightResources(
   rt: WebgpuPagesRuntime,
   contract = directLightResources(rt),
 ): BlendLighting {
-  const { placeholders } = rt.gpu.deferred!;
+  const { placeholders } = rt.gpu.deferred!
   return {
     directLights: contract.lights!,
     shadowData: contract.vsm?.pageTable ?? placeholders.vsmPageTable,
@@ -25,5 +25,5 @@ export function blendLightResources(
     tileLights: contract.tiles ?? placeholders.tiles,
     proxy: contract.proxy ?? placeholders.proxy,
     surfaceCache: contract.surfaceCache ?? placeholders.surfaceCache,
-  };
+  }
 }

@@ -1,11 +1,11 @@
-import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
-import { updateWholeDeformationBounds } from './wholeBounds.ts';
-import { worldStretch } from '../page/cut/logic.ts';
-import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts';
-import type { EngineCamera } from '../camera/world.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { markReach } from './halfFloat.ts';
-import { updateWavePages } from './wavePages.ts';
+import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
+import { updateWholeDeformationBounds } from './wholeBounds.ts'
+import { worldStretch } from '../page/cut/logic.ts'
+import { noteDeformed } from '../webgpu/pages/render/movedGeometry.ts'
+import type { EngineCamera } from '../camera/world.ts'
+import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { markReach } from './halfFloat.ts'
+import { updateWavePages } from './wavePages.ts'
 
 /**
  * Brings the session's GPU deformation to this image (#357), once its poses are uploaded: each
@@ -25,24 +25,24 @@ export function updateWebgpuDeformation(
 ) {
   const deformation = rt.vis.deformation,
     device = rt.gpu.device,
-    pool = rt.vis.concatPos;
-  if (!deformation?.any || !device || !pool) return false;
+    pool = rt.vis.concatPos
+  if (!deformation?.any || !device || !pool) return false
   const roots = rt.layout.selectionRoots,
-    frame = deformation.frame;
-  const moved = deformation.update(cam, rt.setup.viewport, rt.run.gate.pixelError);
+    frame = deformation.frame
+  const moved = deformation.update(cam, rt.setup.viewport, rt.run.gate.pixelError)
   for (let i = 0; i < roots.length; i++) {
-    if (!frame.bases[i]) continue;
+    if (!frame.bases[i]) continue
     const root = roots[i],
-      before = root.reach ?? 0;
-    root.reach = frame.reach[i];
-    const grew = before !== root.reach;
-    rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach));
-    if (grew) moveRootRows(rt, root);
+      before = root.reach ?? 0
+    root.reach = frame.reach[i]
+    const grew = before !== root.reach
+    rt.run.gpuSelection?.markWorld(i, markReach(root.mark ?? 0, root.reach))
+    if (grew) moveRootRows(rt, root)
     if (frame.dirty[i] || grew)
-      noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root));
+      noteDeformed(rt, i, Math.max(before, root.reach) * worldStretch(root))
   }
-  updateWavePages(rt, frame);
-  updateWholeDeformationBounds(rt, deformation, worldsMoved);
-  if (moved) device.queue.writeBuffer(pool, deformation.base * 4, frame.block);
-  return moved;
+  updateWavePages(rt, frame)
+  updateWholeDeformationBounds(rt, deformation, worldsMoved)
+  if (moved) device.queue.writeBuffer(pool, deformation.base * 4, frame.block)
+  return moved
 }

@@ -28,16 +28,16 @@ const PACKED =
   'seashell fff5ee sienna a0522d silver c0c0c0 skyblue 87ceeb slateblue 6a5acd slategray 708090 ' +
   'slategrey 708090 snow fffafa springgreen 00ff7f steelblue 4682b4 tan d2b48c teal 008080 ' +
   'thistle d8bfd8 tomato ff6347 turquoise 40e0d0 violet ee82ee wheat f5deb3 white ffffff ' +
-  'whitesmoke f5f5f5 yellow ffff00 yellowgreen 9acd32';
+  'whitesmoke f5f5f5 yellow ffff00 yellowgreen 9acd32'
 
-let table: Map<string, number> | undefined;
+let table: Map<string, number> | undefined
 
 /** The value of a CSS colour name, case ignored; undefined for a name CSS does not define. */
 export function namedColor(name: string): number | undefined {
   if (!table) {
-    table = new Map();
-    const words = PACKED.split(' ');
-    for (let i = 0; i < words.length; i += 2) table.set(words[i], parseInt(words[i + 1], 16));
+    table = new Map()
+    const words = PACKED.split(' ')
+    for (let i = 0; i < words.length; i += 2) table.set(words[i], parseInt(words[i + 1], 16))
   }
-  return table.get(name.toLowerCase());
+  return table.get(name.toLowerCase())
 }

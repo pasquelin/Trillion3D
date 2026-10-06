@@ -30,7 +30,7 @@ export function dagWorkLayout(blockCount: number) {
   // word per page of each kept list: the rank the page held there (`differenceWgsl.ts`).
   const base = blockCount * WORK_BLOCK_WORDS,
     viewWords = base + FRAME_COUNTERS,
-    drawnGroupsMax = viewWords + VIEW_WORD_ROWS;
+    drawnGroupsMax = viewWords + VIEW_WORD_ROWS
   return {
     base,
     /** The twelve frame counters, in the order `levelWgsl.ts` names them. */
@@ -45,23 +45,23 @@ export function dagWorkLayout(blockCount: number) {
     /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
     frame: drawnGroupsMax + 1,
     words: drawnGroupsMax + 2,
-  };
+  }
 }
 
 /** Words of the frame counters: the live list's counter and argument, three queue counters, the
  *  candidates' counter and argument, the drawn log's counter and argument. */
-const FRAME_COUNTERS = 12;
+const FRAME_COUNTERS = 12
 /** First word of kept list `l`'s rank of each page, a word a page, in zones of `blockCount` words
  *  as every block zone of `work`: behind a block's drawn count, its offset and the two words of its
  *  draw mask, a bit a page (`compactWgsl.ts`). */
-export const rankBlockWord = (l: number) => 2 + SELECTION_WORKGROUP / 32 + l * SELECTION_WORKGROUP;
+export const rankBlockWord = (l: number) => 2 + SELECTION_WORKGROUP / 32 + l * SELECTION_WORKGROUP
 /** Words of `work` per block of sixty-four pages ahead of the counters: its drawn count and its
  *  offset, the draw mask, then the two kept lists' ranks. Bounded by the request's page field
  *  (`REQUEST_PAGE_MAX`): two ranks a page fit a binding. */
-export const WORK_BLOCK_WORDS = rankBlockWord(2);
+export const WORK_BLOCK_WORDS = rankBlockWord(2)
 
-import { VIEW_WORD_ROWS } from './viewsWgsl.ts';
-import { SELECTION_WORKGROUP } from '../../core/selection.ts';
+import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
+import { SELECTION_WORKGROUP } from '../../core/selection.ts'
 
 export const DAG_FLOOR_WGSL = `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
 /** GPU mirror of \`errorFloorAt\` (../../../page/selection/projection.ts): same guards, same operands, same
@@ -88,4 +88,4 @@ fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)-
  let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
  return errorFloor(error,depth,radius,stretch,focal)>views[vi].pixelError;
 }
-`;
+`

@@ -1,9 +1,9 @@
-import { createFrameGateCore } from '../../frame/gateCore.ts';
+import { createFrameGateCore } from '../../frame/gateCore.ts'
 
 /** What a WebGL image has produced that is observable: see `keep` below. */
-const WEBGL_HOLD_VALUES = 6;
+const WEBGL_HOLD_VALUES = 6
 
-export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
+export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>
 
 /**
  * Image gate of the engines rendered by a host library: the shared core (`../../frame/gateCore.ts`), and the only
@@ -14,7 +14,7 @@ export type WebglFrameGate = ReturnType<typeof createWebglFrameGate>;
  * gives it back to the pixel. What is skipped is the cut, the matrix climb and the lamp update.
  */
 export function createWebglFrameGate() {
-  const core = createFrameGateCore(WEBGL_HOLD_VALUES);
+  const core = createFrameGateCore(WEBGL_HOLD_VALUES)
   // The core is completed, never copied: spreading it would freeze the value of its accessors.
   return Object.assign(core, {
     /**
@@ -34,16 +34,16 @@ export function createWebglFrameGate() {
       lodLevel: number,
       overBudget: boolean,
     ) {
-      let digest = shown.length;
-      for (let i = 0; i < shown.length; i++) digest = (Math.imul(digest, 31) + shown[i].id) | 0;
-      const sample = core.hold.sample;
-      sample[0] = visible;
-      sample[1] = selectedTriangles;
-      sample[2] = digest;
-      sample[3] = lodLevel;
-      sample[4] = shown.length;
-      sample[5] = overBudget ? 1 : 0;
-      core.hold.keep(core.revisions);
+      let digest = shown.length
+      for (let i = 0; i < shown.length; i++) digest = (Math.imul(digest, 31) + shown[i].id) | 0
+      const sample = core.hold.sample
+      sample[0] = visible
+      sample[1] = selectedTriangles
+      sample[2] = digest
+      sample[3] = lodLevel
+      sample[4] = shown.length
+      sample[5] = overBudget ? 1 : 0
+      core.hold.keep(core.revisions)
     },
-  });
+  })
 }

@@ -1,6 +1,6 @@
-import type { Sheet } from './sheet.mts';
+import type { Sheet } from './sheet.mts'
 
-type SheetTexture = Sheet['textures'][string];
+type SheetTexture = Sheet['textures'][string]
 
 /**
  * One answer-sheet entry, shared by the cutout tests: the same shape the compiler writes, so a
@@ -13,4 +13,4 @@ export const leaf = (blendPrimitives: number): SheetTexture => ({
   blendPrimitives,
   proposal: 'cutout',
   cutout: null,
-});
+})

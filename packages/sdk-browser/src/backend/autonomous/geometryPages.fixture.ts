@@ -1,23 +1,23 @@
-import type * as G from '../../host/graph/graph.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
-import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import type * as G from '../../host/graph/graph.fixture.ts'
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
 /** The graph attributes a page carries, by their page name. */
 const NAMES = [
   ['POSITION', 'position'],
   ['NORMAL', 'normal'],
   ['TEXCOORD_0', 'uv'],
-] as const;
+] as const
 
 /** Encoded page of one geometry: its source triangles `[start, start + count)`. */
 function encodePage(geometry: G.Geometry, start: number, count: number) {
-  const attributes: PageAttributes = {};
+  const attributes: PageAttributes = {}
   for (const [page, graph] of NAMES) {
-    const attribute = geometry.getAttribute(graph);
-    if (attribute) attributes[page] = { itemSize: attribute.itemSize, array: attribute.array };
+    const attribute = geometry.getAttribute(graph)
+    if (attribute) attributes[page] = { itemSize: attribute.itemSize, array: attribute.array }
   }
-  return encodeGeometryPage(geometry.index!.array.slice(start, start + count), attributes);
+  return encodeGeometryPage(geometry.index!.array.slice(start, start + count), attributes)
 }
 
 /**
@@ -26,18 +26,18 @@ function encodePage(geometry: G.Geometry, start: number, count: number) {
  * pages by that url, and the reader that serves them.
  */
 export function pagedManifest(metadata: ClusterManifest, geometries: readonly G.Geometry[]) {
-  const encoded = new Map<string, ReturnType<typeof encodeGeometryPage>>();
+  const encoded = new Map<string, ReturnType<typeof encodeGeometryPage>>()
   const primitives = metadata.primitives.map((primitive) => ({
     ...primitive,
     pages: primitive.pages.map((page) => {
       const url = `${page.url}-geometry.bin`,
-        bytes = encodePage(geometries[primitive.mesh], page.start ?? 0, page.count);
-      encoded.set(url, bytes);
-      const { data, vertexCount, indexCount, flags, uncompressedBytes } = bytes;
-      const descriptor = { vertexCount, indexCount, flags, uncompressedBytes };
-      return { ...page, geometry: { url, sha256: 'x', bytes: data.length, ...descriptor } };
+        bytes = encodePage(geometries[primitive.mesh], page.start ?? 0, page.count)
+      encoded.set(url, bytes)
+      const { data, vertexCount, indexCount, flags, uncompressedBytes } = bytes
+      const descriptor = { vertexCount, indexCount, flags, uncompressedBytes }
+      return { ...page, geometry: { url, sha256: 'x', bytes: data.length, ...descriptor } }
     }),
-  }));
+  }))
   return {
     metadata: {
       ...metadata,
@@ -46,5 +46,5 @@ export function pagedManifest(metadata: ClusterManifest, geometries: readonly G.
     } as ClusterManifest,
     encoded,
     readGeometryPage: async (url: string) => encoded.get(url)!.data,
-  };
+  }
 }

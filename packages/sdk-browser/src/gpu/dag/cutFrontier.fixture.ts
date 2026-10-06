@@ -17,24 +17,24 @@
  * CPU cut already does (`../../page/cut/node.ts`). Nothing from the compiler, nothing from the
  * format. Both descents are launched from here so the difference is measured, not deduced.
  */
-import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
-import { dagViewFrames, projectedError } from './oracle/math.fixture.ts';
-import { dagNodeFloor, dagNodeVerdict } from './oracle/nodeVerdict.fixture.ts';
-import { bandError, bandSphere, dagRecords, worldOf } from './records.fixture.ts';
-import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './nodeLayout.ts';
-import type { SelectionUniforms } from '../core/selection.ts';
+import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
+import { dagViewFrames, projectedError } from './oracle/math.fixture.ts'
+import { dagNodeFloor, dagNodeVerdict } from './oracle/nodeVerdict.fixture.ts'
+import { bandError, bandSphere, dagRecords, worldOf } from './records.fixture.ts'
+import { NODE_FIRST_CHILD, NODE_FIRST_PAGE, NODE_PAGE_COUNT } from './nodeLayout.ts'
+import type { SelectionUniforms } from '../core/selection.ts'
 
 export type Descente = {
-  visites: number;
-  internes: number;
-  frontiereFeuilles: number;
-  rejectedFrontier: number;
-  candidats: number;
+  visites: number
+  internes: number
+  frontiereFeuilles: number
+  rejectedFrontier: number
+  candidats: number
   /** Nodes the subtree error FLOOR rejected, when `plancher` is requested. */
-  plancherCoupe: number;
+  plancherCoupe: number
   /** Candidates that are actually too coarse, page by page: what top-down rejection AIMS AT. */
-  tooCoarse: number;
-};
+  tooCoarse: number
+}
 
 /**
  * The kernel descent, replayed verdict for verdict (`shader/levelWgsl.ts`, `levelStep`), and
@@ -52,11 +52,11 @@ export function descenteComptee(
   uniforms: SelectionUniforms,
   plancher = false,
 ): Descente {
-  const { nodes } = packed;
-  const ints = new Uint32Array(nodes.buffer);
+  const { nodes } = packed
+  const ints = new Uint32Array(nodes.buffer)
   // The per-primitive prologue and the per-node verdict come from `oracle/math.fixture.ts`, written
   // once for the oracle and for this count: neither can drift from the kernel alone.
-  const frames = dagViewFrames(packed, uniforms);
+  const frames = dagViewFrames(packed, uniforms)
   const count: Descente = {
     visites: 0,
     internes: 0,
@@ -65,41 +65,41 @@ export function descenteComptee(
     candidats: 0,
     plancherCoupe: 0,
     tooCoarse: 0,
-  };
-  const records = dagRecords(packed);
-  let file: number[] = [];
-  for (const root of packed.rootNodes) if (root !== 0xffffffff) file.push(root);
+  }
+  const records = dagRecords(packed)
+  let file: number[] = []
+  for (const root of packed.rootNodes) if (root !== 0xffffffff) file.push(root)
   while (file.length) {
-    const suivante: number[] = [];
+    const suivante: number[] = []
     for (const n of file) {
-      count.visites++;
-      const children = dagNodeVerdict(frames, nodes, ints, n);
+      count.visites++
+      const children = dagNodeVerdict(frames, nodes, ints, n)
       if (children < 0) {
-        count.rejectedFrontier++;
-        continue;
+        count.rejectedFrontier++
+        continue
       }
       // The subtree error FLOOR, which the node does not yet carry as it carries its ceiling:
       // none of its clusters is fine enough, so no candidate will come out of it.
       if (plancher && dagNodeFloor(frames, nodes, ints, n) > frames.pixelError) {
-        count.plancherCoupe++;
-        count.rejectedFrontier++;
-        continue;
+        count.plancherCoupe++
+        count.rejectedFrontier++
+        continue
       }
       if (children) {
-        count.internes++;
-        const premier = ints[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD];
-        for (let c = 0; c < children; c++) suivante.push(premier + c);
-        continue;
+        count.internes++
+        const premier = ints[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
+        for (let c = 0; c < children; c++) suivante.push(premier + c)
+        continue
       }
-      count.frontiereFeuilles++;
-      const at = n * DAG_NODE_FLOATS;
-      count.candidats += ints[at + NODE_PAGE_COUNT];
+      count.frontiereFeuilles++
+      const at = n * DAG_NODE_FLOATS
+      count.candidats += ints[at + NODE_PAGE_COUNT]
       // What top-down rejection aims at: a cluster whose own error still exceeds the threshold
       // is too coarse, the cut will not take it, and the descent listed it anyway.
       for (let p = 0; p < ints[at + NODE_PAGE_COUNT]; p++) {
         const i = ints[at + NODE_FIRST_PAGE] + p,
           w = worldOf(records, i),
-          sphere = bandSphere(records, i, 0);
+          sphere = bandSphere(records, i, 0)
         if (
           projectedError(
             bandError(records, i, 0),
@@ -114,10 +114,10 @@ export function descenteComptee(
             frames.perspective,
           ) > frames.pixelError
         )
-          count.tooCoarse++;
+          count.tooCoarse++
       }
     }
-    file = suivante;
+    file = suivante
   }
-  return count;
+  return count
 }

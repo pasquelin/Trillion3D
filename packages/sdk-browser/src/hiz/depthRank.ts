@@ -1,14 +1,14 @@
 // The depth rank of the Hi-Z occluder split (`split.ts`): the boxes in front of the near plane,
 // nearest first, by a stable radix sort on their depth's sortable bits.
-import { HIZ_BOUNDS_VALUES } from './corners.ts';
+import { HIZ_BOUNDS_VALUES } from './corners.ts'
 
 let splitLow = new Uint32Array(0),
   splitHigh = new Uint32Array(0),
   splitOrder = new Uint32Array(0),
-  splitScratch = new Uint32Array(0);
-const splitCounts = new Uint32Array(256);
+  splitScratch = new Uint32Array(0)
+const splitCounts = new Uint32Array(256)
 const splitKeyDouble = new Float64Array(1),
-  splitKeyWords = new Uint32Array(splitKeyDouble.buffer);
+  splitKeyWords = new Uint32Array(splitKeyDouble.buffer)
 
 /**
  * Sortable keys of boxes that do not clip the near plane, and their count; `splitOrder[0..n-1]`
@@ -22,23 +22,23 @@ const splitKeyDouble = new Float64Array(1),
  */
 function loadKeys(count: number, bounds: Float64Array) {
   if (splitLow.length < count) {
-    splitLow = new Uint32Array(count);
-    splitHigh = new Uint32Array(count);
-    splitOrder = new Uint32Array(count);
-    splitScratch = new Uint32Array(count);
+    splitLow = new Uint32Array(count)
+    splitHigh = new Uint32Array(count)
+    splitOrder = new Uint32Array(count)
+    splitScratch = new Uint32Array(count)
   }
-  let inFront = 0;
+  let inFront = 0
   for (let i = 0; i < count; i++) {
-    if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) continue;
-    splitKeyDouble[0] = -bounds[i * HIZ_BOUNDS_VALUES + 4];
+    if (bounds[i * HIZ_BOUNDS_VALUES + 5] !== 0) continue
+    splitKeyDouble[0] = -bounds[i * HIZ_BOUNDS_VALUES + 4]
     const low = splitKeyWords[0],
-      high = splitKeyWords[1];
-    const negative = (high & 0x80000000) !== 0;
-    splitLow[i] = negative ? ~low >>> 0 : low;
-    splitHigh[i] = negative ? ~high >>> 0 : (high ^ 0x80000000) >>> 0;
-    splitOrder[inFront++] = i;
+      high = splitKeyWords[1]
+    const negative = (high & 0x80000000) !== 0
+    splitLow[i] = negative ? ~low >>> 0 : low
+    splitHigh[i] = negative ? ~high >>> 0 : (high ^ 0x80000000) >>> 0
+    splitOrder[inFront++] = i
   }
-  return inFront;
+  return inFront
 }
 
 /**
@@ -47,30 +47,30 @@ function loadKeys(count: number, bounds: Float64Array) {
  * `a.nearest-b.nearest||a.index-b.index`. `order` is reused by the next call.
  */
 export function rankByDepth(count: number, bounds: Float64Array) {
-  const inFront = loadKeys(count, bounds);
-  if (!inFront) return { inFront, order: splitOrder };
+  const inFront = loadKeys(count, bounds)
+  if (!inFront) return { inFront, order: splitOrder }
   let order = splitOrder,
-    scratch = splitScratch;
+    scratch = splitScratch
   for (let pass = 0; pass < 8; pass++) {
     const keys = pass < 4 ? splitLow : splitHigh,
-      shift = (pass & 3) * 8;
-    splitCounts.fill(0);
-    for (let i = 0; i < inFront; i++) splitCounts[(keys[order[i]] >>> shift) & 255]++;
-    let total = 0;
+      shift = (pass & 3) * 8
+    splitCounts.fill(0)
+    for (let i = 0; i < inFront; i++) splitCounts[(keys[order[i]] >>> shift) & 255]++
+    let total = 0
     for (let digit = 0; digit < 256; digit++) {
-      const n = splitCounts[digit];
-      splitCounts[digit] = total;
-      total += n;
+      const n = splitCounts[digit]
+      splitCounts[digit] = total
+      total += n
     }
     for (let i = 0; i < inFront; i++) {
-      const index = order[i];
-      scratch[splitCounts[(keys[index] >>> shift) & 255]++] = index;
+      const index = order[i]
+      scratch[splitCounts[(keys[index] >>> shift) & 255]++] = index
     }
-    const swap = order;
-    order = scratch;
-    scratch = swap;
+    const swap = order
+    order = scratch
+    scratch = swap
   }
-  splitOrder = order;
-  splitScratch = scratch;
-  return { inFront, order };
+  splitOrder = order
+  splitScratch = scratch
+  return { inFront, order }
 }

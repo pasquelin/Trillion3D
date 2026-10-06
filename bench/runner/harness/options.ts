@@ -1,29 +1,29 @@
 // Options, harness views, and server mounts for `bench.ts`.
-import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { FRAMES_PER_SEGMENT, VIEWS } from '../trajectory/poses.ts';
-import { ASSETS, applySceneFlag, sceneOf } from '../assets/scene.ts';
-import { lightingSettings } from '../lighting/lightingOptions.ts';
-import type { SideBase } from './dists.ts';
-import type { BenchSettings, LivePools } from './benchSettings.ts';
-import { residentFraction } from './poolFill.ts';
-export type { BenchSettings } from './benchSettings.ts';
+import { existsSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { FRAMES_PER_SEGMENT, VIEWS } from '../trajectory/poses.ts'
+import { ASSETS, applySceneFlag, sceneOf } from '../assets/scene.ts'
+import { lightingSettings } from '../lighting/lightingOptions.ts'
+import type { SideBase } from './dists.ts'
+import type { BenchSettings, LivePools } from './benchSettings.ts'
+import { residentFraction } from './poolFill.ts'
+export type { BenchSettings } from './benchSettings.ts'
 
-export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from '../trajectory/poses.ts';
-export { assetsManifest, sceneGltf, scenesOf } from '../assets/scene.ts';
-export { resolveSides, sdkEntryUrl } from './dists.ts';
-export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
-export { parseArgs } from './flags.ts';
-import { type Flags, parseArgs } from './flags.ts';
-import { ENGINES, equipSide } from './sideOptions.ts';
+export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from '../trajectory/poses.ts'
+export { assetsManifest, sceneGltf, scenesOf } from '../assets/scene.ts'
+export { resolveSides, sdkEntryUrl } from './dists.ts'
+export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts'
+export { parseArgs } from './flags.ts'
+import { type Flags, parseArgs } from './flags.ts'
+import { ENGINES, equipSide } from './sideOptions.ts'
 
 /** An installed package directory, searched like Node searches: root upwards.
  *  A worktree without its own `node_modules` thus finds those of the main worktree. */
 function packageDir(root: string, name: string) {
   for (let dir = root; ; dir = dirname(dir)) {
-    const candidate = join(dir, 'node_modules', name);
-    if (existsSync(candidate)) return candidate;
-    if (dirname(dir) === dir) throw new Error(`package not found: ${name}`);
+    const candidate = join(dir, 'node_modules', name)
+    if (existsSync(candidate)) return candidate
+    if (dirname(dir) === dir) throw new Error(`package not found: ${name}`)
   }
 }
 
@@ -44,29 +44,29 @@ export function resolveMounts(root: string, sides: SideBase[], resources: string
     ...sides
       .filter((side): side is SideBase & { cache: string } => Boolean(side.cache))
       .map((side) => ({ prefix: `/cache/${side.name}/`, dir: side.cache })),
-  ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }));
+  ].map((mount) => ({ ...mount, dir: resolve(mount.dir) }))
 }
 
 /** In-session memory budgets, or `null` when none requested. The live texture pool takes MiB, or
  *  `<n>%` of the texture bytes the settled pose holds resident: a pool the scene fills. */
 function live(flags: Map<string, string>, mio: (name: string) => number | null): LivePools | null {
-  const TEXTURE = 'texture-pool-live';
+  const TEXTURE = 'texture-pool-live'
   const texture = flags.get(TEXTURE),
-    fraction = texture === undefined ? undefined : residentFraction(texture);
+    fraction = texture === undefined ? undefined : residentFraction(texture)
   const budgets = {
     geometryPoolBytes: flags.has('geometry-pool-live') ? mio('geometry-pool-live') : undefined,
     texturePoolBytes: texture !== undefined && fraction === undefined ? mio(TEXTURE) : undefined,
     textureResidentFraction: fraction,
-  };
-  return Object.values(budgets).some((v) => v !== undefined) ? budgets : null;
+  }
+  return Object.values(budgets).some((v) => v !== undefined) ? budgets : null
 }
 
 /** Math calculation path forced for the campaign, or `auto`: governor arbitrates then. */
 function mathPathOf(flags: Map<string, string>) {
-  const value = flags.get('math-path') ?? 'auto';
+  const value = flags.get('math-path') ?? 'auto'
   if (value !== 'auto' && value !== 'js' && value !== 'wasm')
-    throw new Error('--math-path must be auto, js or wasm');
-  return value;
+    throw new Error('--math-path must be auto, js or wasm')
+  return value
 }
 
 /** The bench's sides by name, equipped from their flags (`--scene` first names their caches):
@@ -74,46 +74,46 @@ function mathPathOf(flags: Map<string, string>) {
  *  afterwards (`resolveSides`), so an unread flag is refused before any build. The measured scene
  *  is that of the named caches, otherwise the benchmark reference scene. */
 export function equipSides(flags: Flags, settings: BenchSettings, assets: string = ASSETS) {
-  const after = flags.get('after');
-  const before = flags.get('before');
-  applySceneFlag(flags, assets);
-  const names = before ? ['after', 'before'] : ['after'];
-  const sides = names.map((name) => equipSide({ name } as SideBase, flags, settings));
-  const scene = sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
-  return { sides, scene, after, before };
+  const after = flags.get('after')
+  const before = flags.get('before')
+  applySceneFlag(flags, assets)
+  const names = before ? ['after', 'before'] : ['after']
+  const sides = names.map((name) => equipSide({ name } as SideBase, flags, settings))
+  const scene = sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'))
+  return { sides, scene, after, before }
 }
 
 /** Validated harness options: engine, views, error thresholds, settings, output directory. */
 export function readOptions(argv: string[], root: string) {
-  const flags = parseArgs(argv);
+  const flags = parseArgs(argv)
   const number = (name: string, fallback: number) => {
-    const value = Number(flags.get(name) ?? fallback);
-    if (!Number.isFinite(value)) throw new Error(`--${name} must be a number`);
-    return value;
-  };
+    const value = Number(flags.get(name) ?? fallback)
+    if (!Number.isFinite(value)) throw new Error(`--${name} must be a number`)
+    return value
+  }
   /** An option in MiB, or `null` when omitted. */
   const mioSi = (name: string) => {
-    if (!flags.has(name)) return null;
-    const value = number(name, 0);
-    if (!(value > 0)) throw new Error(`--${name} must be a strictly positive number of MiB`);
-    return Math.round(value * 1024 * 1024);
-  };
-  const engine = flags.get('engine') ?? 'webgl';
-  if (!ENGINES[engine]) throw new Error(`--engine must be ${Object.keys(ENGINES).join(', ')}`);
+    if (!flags.has(name)) return null
+    const value = number(name, 0)
+    if (!(value > 0)) throw new Error(`--${name} must be a strictly positive number of MiB`)
+    return Math.round(value * 1024 * 1024)
+  }
+  const engine = flags.get('engine') ?? 'webgl'
+  if (!ENGINES[engine]) throw new Error(`--engine must be ${Object.keys(ENGINES).join(', ')}`)
   const views = (flags.get('views') ?? 'overview,ground,street')
     .split(',')
-    .filter(Boolean) as (keyof typeof VIEWS)[];
-  for (const view of views) if (!VIEWS[view]) throw new Error(`unknown view: ${view}`);
+    .filter(Boolean) as (keyof typeof VIEWS)[]
+  for (const view of views) if (!VIEWS[view]) throw new Error(`unknown view: ${view}`)
   const pixelErrors = String(flags.get('pixelError') ?? '0')
     .split(',')
     .filter(Boolean)
     .map((value) => {
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--pixelError invalid: ${value}`);
-      return parsed;
-    });
-  const dpr = number('dpr', 1);
-  if (!(dpr > 0)) throw new Error('--dpr must be a strictly positive number');
+      const parsed = Number(value)
+      if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--pixelError invalid: ${value}`)
+      return parsed
+    })
+  const dpr = number('dpr', 1)
+  if (!(dpr > 0)) throw new Error('--dpr must be a strictly positive number')
   const settings: BenchSettings = {
     engine,
     // A moving run covers one trajectory segment by default.
@@ -160,18 +160,18 @@ export function readOptions(argv: string[], root: string) {
     isolation: (flags.get('isolation') ?? 'off') === 'on',
     // `--math-path js|wasm` forces batch calculation path for entire campaign.
     mathPath: mathPathOf(flags),
-  };
-  const isolation = flags.get('isolation') ?? 'off';
-  if (isolation !== 'on' && isolation !== 'off') throw new Error('--isolation must be on or off');
+  }
+  const isolation = flags.get('isolation') ?? 'off'
+  if (isolation !== 'on' && isolation !== 'off') throw new Error('--isolation must be on or off')
   if (![1, 4, 9, 12].includes(settings.instances))
-    throw new Error('--instances must be 1, 4, 9 or 12');
-  if (settings.lights < 0) throw new Error('--lights must be a non-negative integer');
-  if (settings.frames < 1) throw new Error('--images must be a positive integer');
+    throw new Error('--instances must be 1, 4, 9 or 12')
+  if (settings.lights < 0) throw new Error('--lights must be a non-negative integer')
+  if (settings.frames < 1) throw new Error('--images must be a positive integer')
   if (settings.gazeNetwork && settings.textureSource !== 'cache')
-    throw new Error('--gaze-network requires --textures cache');
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
+    throw new Error('--gaze-network requires --textures cache')
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`))
   // `--resources`: base path referenced by compiled cache glTF via relative path, mounted under `/assets/`.
-  const resourcesDir = flags.get('resources');
-  return { flags, settings, views, out, resources: resourcesDir ? resolve(resourcesDir) : null };
+  const resourcesDir = flags.get('resources')
+  return { flags, settings, views, out, resources: resourcesDir ? resolve(resourcesDir) : null }
 }

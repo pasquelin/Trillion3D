@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
 
 /**
  * Whether a frame the gate held is the still frame a page waits for (`frameHeld`): as on WebGPU
@@ -7,4 +7,4 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * frame whose cut had not moved, pages missing, and its A/A drew what each run had loaded (#1016).
  */
 export const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
-  requested.every((rec) => !!rec.array);
+  requested.every((rec) => !!rec.array)

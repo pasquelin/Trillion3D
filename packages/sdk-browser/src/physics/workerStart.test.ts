@@ -2,75 +2,75 @@
 // event loop turns, and a threaded step blocks on its pool's jobs, so a step issued before every
 // pool thread has loaded could wait for good. Nothing steps, and `ready` is not sent, until each
 // thread has reported loaded; a thread that fails to load stops the start, named.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { setImmediate, setTimeout } from 'node:timers/promises';
-import type { Worker as NodeWorker } from 'node:worker_threads';
-import { JOLT_THREAD_LOADED, type JoltThreadStart } from './joltThreads.ts';
-import { nodeThread } from './module.fixture.ts';
-import { fakeWorkers, launchedWorker } from './worker.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { setImmediate, setTimeout } from 'node:timers/promises'
+import type { Worker as NodeWorker } from 'node:worker_threads'
+import { JOLT_THREAD_LOADED, type JoltThreadStart } from './joltThreads.ts'
+import { nodeThread } from './module.fixture.ts'
+import { fakeWorkers, launchedWorker } from './worker.fixture.ts'
 
-const THREADS = 4;
+const THREADS = 4
 
 /** Pool threads faked in place of `Worker`: each runs its thread for real (a Node worker) but
  *  reports loaded (`onmessage`), or fails (`onerror`), only when the test says. */
 function heldThreads() {
-  const running: NodeWorker[] = [];
+  const running: NodeWorker[] = []
   const { workers, restore } = fakeWorkers((start) =>
     running.push(nodeThread(start as JoltThreadStart)),
-  );
-  const close = () => (restore(), Promise.all(running.map((thread) => thread.terminate())));
-  return { held: workers, close };
+  )
+  const close = () => (restore(), Promise.all(running.map((thread) => thread.terminate())))
+  return { held: workers, close }
 }
 
 /** Turns the event loop until `done` holds (the module compiles meanwhile), 30 s at most. */
 async function until(done: () => boolean) {
   for (const end = Date.now() + 30_000; !done(); await setTimeout(1))
-    assert.ok(Date.now() < end, 'the worker spawned its pool threads');
+    assert.ok(Date.now() < end, 'the worker spawned its pool threads')
 }
 
 test('a threaded worker steps only once every pool thread has loaded', async (t) => {
-  const { held, close } = heldThreads();
-  t.after(close);
-  const { sent, receive, ready } = await launchedWorker(() => 0, THREADS);
-  await until(() => held.length === THREADS - 1);
+  const { held, close } = heldThreads()
+  t.after(close)
+  const { sent, receive, ready } = await launchedWorker(() => 0, THREADS)
+  await until(() => held.length === THREADS - 1)
   // A frame's commands and steps, sent before the threads load: they wait for them, in order.
-  receive({ type: 'commands', words: new Uint32Array(0) });
-  receive({ type: 'advance', to: 2, steps: 2 });
+  receive({ type: 'commands', words: new Uint32Array(0) })
+  receive({ type: 'advance', to: 2, steps: 2 })
   // Turns enough for a start that does not wait to post its ready and take its first step.
-  for (let turn = 0; turn < 20; turn++) await setImmediate();
+  for (let turn = 0; turn < 20; turn++) await setImmediate()
   // The module is started and its threads spawned, not loaded: the first step waits for them.
-  assert.equal(sent.length, 0, 'no ready and no step before the threads loaded');
-  for (const thread of held) thread.onmessage({ data: JOLT_THREAD_LOADED });
-  await ready;
-  const results = sent.filter((m) => m.type === 'results');
+  assert.equal(sent.length, 0, 'no ready and no step before the threads loaded')
+  for (const thread of held) thread.onmessage({ data: JOLT_THREAD_LOADED })
+  await ready
+  const results = sent.filter((m) => m.type === 'results')
   assert.ok(
     results.some((m) => m.steps > 0),
     'the pool steps once loaded',
-  );
-  assert.ok(!sent.some((m) => m.type === 'error'), JSON.stringify(sent));
+  )
+  assert.ok(!sent.some((m) => m.type === 'error'), JSON.stringify(sent))
   // A loaded thread that throws is named to the page, and the worker steps no more.
-  held[2].onerror({ message: 'out of stack', preventDefault() {} });
+  held[2].onerror({ message: 'out of stack', preventDefault() {} })
   assert.deepEqual(sent.at(-1), {
     type: 'error',
     code: 'PHYSICS_FAILED',
     message: 'Physics: pool thread 3 failed: out of stack',
     fatal: true,
-  });
-  const told = sent.length;
-  receive({ type: 'commands', words: new Uint32Array(0) });
-  receive({ type: 'advance', to: 3, steps: 1 });
-  assert.equal(sent.length, told, 'no step after the thread failed');
-});
+  })
+  const told = sent.length
+  receive({ type: 'commands', words: new Uint32Array(0) })
+  receive({ type: 'advance', to: 3, steps: 1 })
+  assert.equal(sent.length, told, 'no step after the thread failed')
+})
 
 test('a pool thread that fails to load stops the start, named', async (t) => {
-  const { held, close } = heldThreads();
-  t.after(close);
-  const { sent } = await launchedWorker(() => 0, THREADS);
-  await until(() => held.length === THREADS - 1);
-  held[0].onmessage({ data: JOLT_THREAD_LOADED });
-  held[1].onerror({ message: 'its script failed to parse', preventDefault() {} });
-  await until(() => sent.length > 0);
+  const { held, close } = heldThreads()
+  t.after(close)
+  const { sent } = await launchedWorker(() => 0, THREADS)
+  await until(() => held.length === THREADS - 1)
+  held[0].onmessage({ data: JOLT_THREAD_LOADED })
+  held[1].onerror({ message: 'its script failed to parse', preventDefault() {} })
+  await until(() => sent.length > 0)
   assert.deepEqual(sent, [
     {
       type: 'error',
@@ -78,19 +78,19 @@ test('a pool thread that fails to load stops the start, named', async (t) => {
       message: 'Physics: pool thread 2 did not load: its script failed to parse',
       fatal: true,
     },
-  ]);
-});
+  ])
+})
 
 test('a loaded pool thread that fails before the others load stops the start, once', async (t) => {
-  const { held, close } = heldThreads();
-  t.after(close);
-  const { sent } = await launchedWorker(() => 0, THREADS);
-  await until(() => held.length === THREADS - 1);
-  held[0].onmessage({ data: JOLT_THREAD_LOADED });
-  held[0].onerror({ message: 'out of stack', preventDefault() {} });
-  await until(() => sent.length > 0);
-  for (const thread of held.slice(1)) thread.onmessage({ data: JOLT_THREAD_LOADED });
-  for (let turn = 0; turn < 20; turn++) await setImmediate();
+  const { held, close } = heldThreads()
+  t.after(close)
+  const { sent } = await launchedWorker(() => 0, THREADS)
+  await until(() => held.length === THREADS - 1)
+  held[0].onmessage({ data: JOLT_THREAD_LOADED })
+  held[0].onerror({ message: 'out of stack', preventDefault() {} })
+  await until(() => sent.length > 0)
+  for (const thread of held.slice(1)) thread.onmessage({ data: JOLT_THREAD_LOADED })
+  for (let turn = 0; turn < 20; turn++) await setImmediate()
   assert.deepEqual(sent, [
     {
       type: 'error',
@@ -98,16 +98,16 @@ test('a loaded pool thread that fails before the others load stops the start, on
       message: 'Physics: pool thread 1 failed: out of stack',
       fatal: true,
     },
-  ]);
-});
+  ])
+})
 
 test('a physics module the server refuses stops the start, named by its address', async () => {
   const { sent } = await launchedWorker(
     () => 0,
     1,
     () => new Response(null, { status: 404 }),
-  );
-  await until(() => sent.length > 0);
+  )
+  await until(() => sent.length > 0)
   assert.deepEqual(sent, [
     {
       type: 'error',
@@ -115,5 +115,5 @@ test('a physics module the server refuses stops the start, named by its address'
       message: 'x: HTTP 404, type absent',
       fatal: true,
     },
-  ]);
-});
+  ])
+})

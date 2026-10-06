@@ -9,4 +9,4 @@ fn waterShadowFootprint(pixel:vec2f,z:f32,P:vec3f)->f32{return length(worldAt(pi
 fn waterViewDirection(P:vec3f)->vec3f{return normalize(view.camera.xyz-P*view.camera.w);}
 /** Normal \`N\` turned to the side \`V\` looks from: a single-sided surface, or a mesh with no normal
  *  attribute, can arrive turned the wrong way. */
-fn waterFacing(N:vec3f,V:vec3f)->vec3f{return select(-N,N,dot(N,V)>0.0);}`;
+fn waterFacing(N:vec3f,V:vec3f)->vec3f{return select(-N,N,dot(N,V)>0.0);}`

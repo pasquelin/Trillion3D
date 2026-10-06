@@ -13,34 +13,34 @@
 // there is none, or when the cook predates the records.
 //
 //   T3D_OPEN_WORLD=<cache>/native/full/manifest.json node --test tests/integration/open-world-load.test.ts
-import test from 'node:test';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { compiler } from './world-partition.fixture.ts';
-import { assertOpensUnderCap } from './view-rows-load.fixture.ts';
+import test from 'node:test'
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { compiler } from './world-partition.fixture.ts'
+import { assertOpensUnderCap } from './view-rows-load.fixture.ts'
 
 /** The renderer's memory cap, in MB: the JS heap and its array buffers, the mock device's own
  *  buffers out. */
-const CAP_MB = 5120;
+const CAP_MB = 5120
 /** The JS heap's own, in MB: half of the 4 GiB a Chrome renderer's V8 heap holds. */
-const HEAP_MB = 2048;
+const HEAP_MB = 2048
 
 /** The open world's cook `T3D_OPEN_WORLD` names, when it holds the world roots as records. */
 function openWorld() {
-  const manifest = process.env.T3D_OPEN_WORLD;
-  if (!manifest || !existsSync(manifest)) return undefined;
-  const { url } = JSON.parse(readFileSync(manifest, 'utf8')) as { url: string };
+  const manifest = process.env.T3D_OPEN_WORLD
+  if (!manifest || !existsSync(manifest)) return undefined
+  const { url } = JSON.parse(readFileSync(manifest, 'utf8')) as { url: string }
   return existsSync(join(dirname(manifest), dirname(url), 'world-roots.table'))
     ? manifest
-    : undefined;
+    : undefined
 }
 
-const manifest = openWorld();
+const manifest = openWorld()
 
 test(
   'the open world opens and draws its first image at the boss’s case under its memory cap',
   { skip: !existsSync(compiler) || !manifest, timeout: 300_000 },
   (t) => {
-    assertOpensUnderCap(t, manifest!, HEAP_MB, CAP_MB);
+    assertOpensUnderCap(t, manifest!, HEAP_MB, CAP_MB)
   },
-);
+)

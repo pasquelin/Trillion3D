@@ -1,28 +1,28 @@
-import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import type { PageRec } from '../../../page/selection/selection.ts';
-import type { Placements } from '../../../page/selection/placements.ts';
-import type { PageSurface } from '../../../page/surface.ts';
-import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
-import type { WebgpuLightState } from '../state/lights.ts';
-import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
-import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts';
+import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import type { PageRec } from '../../../page/selection/selection.ts'
+import type { Placements } from '../../../page/selection/placements.ts'
+import type { PageSurface } from '../../../page/surface.ts'
+import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts'
+import type { WebgpuLightState } from '../state/lights.ts'
+import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts'
+import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts'
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
-  EVERYWHERE_MAX = [1e30, 1e30, 1e30];
-const ROW_WORDS = PAGE_INFO_STRIDE / 4;
+  EVERYWHERE_MAX = [1e30, 1e30, 1e30]
+const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** The rows whose shadow reads their colour map's alpha: a cutout's, and a blended caster's. */
-const ALPHA_READERS = FLAG_MASK | FLAG_BLEND_CASTER;
+const ALPHA_READERS = FLAG_MASK | FLAG_BLEND_CASTER
 
 /** The page-table rows the invalidation reads: their words, and the record each row draws. */
 interface ShadowRowTable {
-  rowCount: number;
+  rowCount: number
   /** The blended casters' rows, `[blendFirst, casterSlots)`. */
-  blendFirst: number;
-  casterSlots: number;
-  pageTableInts: Uint32Array | undefined;
-  packedRecs: ArrayLike<PageRec | undefined>;
+  blendFirst: number
+  casterSlots: number
+  pageTableInts: Uint32Array | undefined
+  packedRecs: ArrayLike<PageRec | undefined>
   /** The packed rank each row draws (#1235): a row's root is read from it. */
-  packedPageIndex: ArrayLike<number>;
+  packedPageIndex: ArrayLike<number>
 }
 
 /**
@@ -44,19 +44,19 @@ export function shadowsFollowTextures(
   rootOfPacked: Int32Array,
   slots: ReadonlySet<number> | -1,
 ) {
-  if (!lights.store.count) return;
+  if (!lights.store.count) return
   if (slots === -1) {
-    lights.changes.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX);
-    return;
+    lights.changes.representationChanged(EVERYWHERE_MIN, EVERYWHERE_MAX)
+    return
   }
-  const ints = rows.pageTableInts;
-  if (!ints || !slots.size) return;
+  const ints = rows.pageTableInts
+  if (!ints || !slots.size) return
   shadowsFollowRows(lights, rows, roots, rootOfPacked, (row) => {
-    const base = row * ROW_WORDS;
+    const base = row * ROW_WORDS
     return (
       !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
-    );
-  });
+    )
+  })
 }
 
 /**
@@ -79,7 +79,7 @@ export function shadowsFollowSurfaces(
       rootOfPacked,
       (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
       'worldChanged',
-    );
+    )
 }
 
 /**
@@ -96,21 +96,21 @@ function shadowsFollowRows(
   stale: (row: number) => boolean,
   change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
-  for (const { box } of changeBoxes) boxEmpty(box, 0);
+  for (const { box } of changeBoxes) boxEmpty(box, 0)
   for (const [from, to] of [
     [0, rows.rowCount],
     [rows.blendFirst, rows.casterSlots],
   ])
     for (let row = from; row < to; row++) {
-      const rec = stale(row) && rows.packedRecs[row];
-      if (!rec) continue;
-      const rank = rootOfPacked[rows.packedPageIndex[row]] ?? -1;
-      const moving = row >= rows.blendFirst || recordMoves(lights, rank);
-      growClusterBox(rec, roots, changeBoxes[+moving].box, rank);
+      const rec = stale(row) && rows.packedRecs[row]
+      if (!rec) continue
+      const rank = rootOfPacked[rows.packedPageIndex[row]] ?? -1
+      const moving = row >= rows.blendFirst || recordMoves(lights, rank)
+      growClusterBox(rec, roots, changeBoxes[+moving].box, rank)
     }
   for (const moving of [false, true]) {
-    const { box, min, max } = changeBoxes[+moving];
-    if (!boxIsEmpty(box, 0)) lights.changes[change](min, max, moving);
+    const { box, min, max } = changeBoxes[+moving]
+    if (!boxIsEmpty(box, 0)) lights.changes[change](min, max, moving)
   }
 }
 
@@ -124,7 +124,7 @@ export function pumpResidentTiles(
   frame: number,
   converging: boolean,
 ) {
-  return (!converging && textures?.pump(frame).served) || 0;
+  return (!converging && textures?.pump(frame).served) || 0
 }
 
 export {
@@ -132,4 +132,4 @@ export {
   litProgramPending,
   readsAsIs,
   wantsContractLighting,
-} from './contractLight.ts';
+} from './contractLight.ts'

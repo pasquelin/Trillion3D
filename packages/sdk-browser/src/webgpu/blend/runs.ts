@@ -1,6 +1,6 @@
-import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts';
-import { PLAN_SHIFT } from './planEntry.ts';
-import { EXPAND_UNI } from './expandUniform.ts';
+import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
+import { PLAN_SHIFT } from './planEntry.ts'
+import { EXPAND_UNI } from './expandUniform.ts'
 
 /**
  * RUNS OF THE TRANSPARENT PASS: what replaces a draw per item.
@@ -34,15 +34,15 @@ import { EXPAND_UNI } from './expandUniform.ts';
  * applies (`planVertexCull`, zero when the pipeline culls). The expansion kernel, its CPU model
  * and the vertex stage read the split here.
  */
-export const INSTANCE_CULL_SHIFT = 30;
-export const INSTANCE_ITEM_MASK = (1 << INSTANCE_CULL_SHIFT) - 1;
+export const INSTANCE_CULL_SHIFT = 30
+export const INSTANCE_ITEM_MASK = (1 << INSTANCE_CULL_SHIFT) - 1
 export const instanceWord = (item: number, vertexCull: number) =>
-  (item | (vertexCull << INSTANCE_CULL_SHIFT)) >>> 0;
+  (item | (vertexCull << INSTANCE_CULL_SHIFT)) >>> 0
 
 /** Slots of a pass: one per own entry, plus a gap before each own item and after the last one
  *  when the pass has a main class. Fixed by the plan: an item's entries stay together. */
 export const slotCount = (own: number, items: number, main: boolean) =>
-  main ? own + items + 1 : own;
+  main ? own + items + 1 : own
 
 /**
  * The slot of each own entry this frame (`ownSlots`, in paint order) and the own entry each slot
@@ -56,23 +56,23 @@ export function assignOwnSlots(
   slotOwns: Int32Array,
 ) {
   let slot = 0,
-    previous = -1;
+    previous = -1
   for (let k = 0; k < ownSeeds.length; k++) {
-    const item = seeds[ownSeeds[k]] >>> PLAN_SHIFT;
-    if (main && item !== previous) slotOwns[slot++] = -1;
-    slotOwns[slot] = k;
-    ownSlots[k] = slot++;
-    previous = item;
+    const item = seeds[ownSeeds[k]] >>> PLAN_SHIFT
+    if (main && item !== previous) slotOwns[slot++] = -1
+    slotOwns[slot] = k
+    ownSlots[k] = slot++
+    previous = item
   }
-  if (main) slotOwns[slot++] = -1;
-  return slot;
+  if (main) slotOwns[slot++] = -1
+  return slot
 }
 
 /** Writes the run of slot `slot`. */
 const runAt = (out: Uint32Array, slot: number, first: number, entries: number) => {
-  out[slot * RUN_WORDS] = first;
-  out[slot * RUN_WORDS + 1] = entries;
-};
+  out[slot * RUN_WORDS] = first
+  out[slot * RUN_WORDS + 1] = entries
+}
 
 /**
  * The run of each slot, from where the paint order put each seed (`placed`) and the own entries'
@@ -86,18 +86,18 @@ export function placeBlendSlots(
   entries: number,
   main: boolean,
 ) {
-  const count = own.seeds.length;
-  if (!count && main) runAt(out, 0, 0, entries);
+  const count = own.seeds.length
+  if (!count && main) runAt(out, 0, 0, entries)
   for (let k = 0; k < count; k++) {
     const slot = own.slots[k],
-      at = placed[own.seeds[k]];
-    runAt(out, slot, at, 1);
-    if (!main) continue;
+      at = placed[own.seeds[k]]
+    runAt(out, slot, at, 1)
+    if (!main) continue
     if (!k || slot - own.slots[k - 1] > 1) {
-      const first = k ? placed[own.seeds[k - 1]] + 1 : 0;
-      runAt(out, slot - 1, first, Math.max(0, at - first));
+      const first = k ? placed[own.seeds[k - 1]] + 1 : 0
+      runAt(out, slot - 1, first, Math.max(0, at - first))
     }
-    if (k === count - 1) runAt(out, slot + 1, at + 1, entries - at - 1);
+    if (k === count - 1) runAt(out, slot + 1, at + 1, entries - at - 1)
   }
 }
 
@@ -109,14 +109,14 @@ export function blendExpandUniform(
   region: { order: number; runs: number; args: number },
   scene: { maxVertexWords: number; vertexShift: number },
 ) {
-  out[EXPAND_UNI.entryCount] = counts.entries;
-  out[EXPAND_UNI.groupCount] = Math.ceil(Math.max(1, counts.entries) / EXPAND_GROUP);
-  out[EXPAND_UNI.runCount] = counts.runs;
-  out[EXPAND_UNI.instanceBase] = counts.instanceBase;
-  out[EXPAND_UNI.argsBase] = region.args;
-  out[EXPAND_UNI.maxVertexWords] = scene.maxVertexWords;
-  out[EXPAND_UNI.vertexShift] = scene.vertexShift;
-  out[EXPAND_UNI.orderBase] = region.order;
-  out[EXPAND_UNI.runsBase] = region.runs;
-  return out;
+  out[EXPAND_UNI.entryCount] = counts.entries
+  out[EXPAND_UNI.groupCount] = Math.ceil(Math.max(1, counts.entries) / EXPAND_GROUP)
+  out[EXPAND_UNI.runCount] = counts.runs
+  out[EXPAND_UNI.instanceBase] = counts.instanceBase
+  out[EXPAND_UNI.argsBase] = region.args
+  out[EXPAND_UNI.maxVertexWords] = scene.maxVertexWords
+  out[EXPAND_UNI.vertexShift] = scene.vertexShift
+  out[EXPAND_UNI.orderBase] = region.order
+  out[EXPAND_UNI.runsBase] = region.runs
+  return out
 }

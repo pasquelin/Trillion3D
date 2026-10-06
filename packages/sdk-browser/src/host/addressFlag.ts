@@ -5,22 +5,22 @@
  */
 export function addressParam<T>(ask: (params: URLSearchParams) => T, absent: T) {
   let search: string | undefined,
-    answer = absent;
+    answer = absent
   return () => {
-    const now = typeof location === 'undefined' ? undefined : location.search;
+    const now = typeof location === 'undefined' ? undefined : location.search
     if (now !== search) {
-      search = now;
-      answer = now === undefined ? absent : ask(new URLSearchParams(now));
+      search = now
+      answer = now === undefined ? absent : ask(new URLSearchParams(now))
     }
-    return answer;
-  };
+    return answer
+  }
 }
 
 /** A yes-or-no question asked of the page's address (`addressParam`): `false` with none. */
-export const addressFlag = (ask: (params: URLSearchParams) => boolean) => addressParam(ask, false);
+export const addressFlag = (ask: (params: URLSearchParams) => boolean) => addressParam(ask, false)
 
 /** `ask`'s answer at the first question, held: everything built after it gets the same. */
 export function heldOnce<T>(ask: () => T) {
-  let held: { value: T } | undefined;
-  return () => (held ??= { value: ask() }).value;
+  let held: { value: T } | undefined
+  return () => (held ??= { value: ask() }).value
 }

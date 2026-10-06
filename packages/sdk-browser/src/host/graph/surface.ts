@@ -8,10 +8,10 @@
  * unsaid, so a field is never read as missing where a default exists. The constants
  * are the engine's named ones (`../surfaceConstants.ts`); the colours and vectors the core's.
  */
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
-import { Releasable, identity } from './resource.ts';
-import { coloured, extensions, glow, metalRough, raster, relief } from './surfaceFields.ts';
+import { Color } from '../../../../sdk-core/src/world/math/color.ts'
+import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
+import { Releasable, identity } from './resource.ts'
+import { coloured, extensions, glow, metalRough, raster, relief } from './surfaceFields.ts'
 
 /**
  * The families a surface is declared in: a scene's unlit, standard and physical ones, and the
@@ -42,18 +42,18 @@ const FAMILIES = {
   depth: {
     fields: [() => ({ map: null, alphaMap: null, displacementMap: null, wireframe: false })],
   },
-} as const;
+} as const
 
 /** The families a surface is declared in. */
-export type GraphSurfaceFamily = keyof typeof FAMILIES;
+export type GraphSurfaceFamily = keyof typeof FAMILIES
 
 /** A value written into a surface: a colour or a vector is copied into the one it holds. */
 function assign(surface: GraphSurface, key: string, value: unknown) {
-  const held = surface[key] as { isColor?: boolean; isVector2?: boolean } | undefined;
-  const given = value as { r: number; g: number; b: number; x: number; y: number };
-  if (held?.isColor && value) (held as Color).setRGB(given.r, given.g, given.b);
-  else if (held?.isVector2 && value) (held as Vector2).set(given.x, given.y);
-  else surface[key] = value;
+  const held = surface[key] as { isColor?: boolean; isVector2?: boolean } | undefined
+  const given = value as { r: number; g: number; b: number; x: number; y: number }
+  if (held?.isColor && value) (held as Color).setRGB(given.r, given.g, given.b)
+  else if (held?.isVector2 && value) (held as Vector2).set(given.x, given.y)
+  else surface[key] = value
 }
 
 /**
@@ -62,80 +62,80 @@ function assign(surface: GraphSurface, key: string, value: unknown) {
  */
 export class GraphSurface extends Releasable {
   /** A name unique to the surface. */
-  readonly uuid = identity('surface');
+  readonly uuid = identity('surface')
   /** Its name. */
-  name = '';
+  name = ''
   /** Bumped by every declared change. */
-  version = 0;
+  version = 0
   /** Free room for the data of whoever built the surface. */
-  userData: Record<string, unknown> = {};
+  userData: Record<string, unknown> = {}
   /** What the resource is; `family` says which surface. */
-  readonly kind = 'surface' as const;
+  readonly kind = 'surface' as const
   // The raster state every family carries, set by `raster` at its default values.
   /** Whether it is drawn. */
-  declare visible: boolean;
+  declare visible: boolean
   /** Which faces, as the host's constant. */
-  declare side: number;
+  declare side: number
   /** The host draws a double-sided transparent surface in one pass instead of back then front. */
-  declare forceSinglePass: boolean;
+  declare forceSinglePass: boolean
   /** Whether vertex colours tint it. */
-  declare vertexColors: boolean;
+  declare vertexColors: boolean
   /** Whether the display curve applies. */
-  declare toneMapped: boolean;
+  declare toneMapped: boolean
   /** Whether it tests depth. */
-  declare depthTest: boolean;
+  declare depthTest: boolean
   /** Whether it writes depth. */
-  declare depthWrite: boolean;
+  declare depthWrite: boolean
   /** The depth test's comparison. */
-  declare depthFunc: number;
+  declare depthFunc: number
   /** Whether it writes colour. */
-  declare colorWrite: boolean;
+  declare colorWrite: boolean
   /** Whether depth is offset. */
-  declare polygonOffset: boolean;
+  declare polygonOffset: boolean
   /** Slope part of the offset. */
-  declare polygonOffsetFactor: number;
+  declare polygonOffsetFactor: number
   /** Constant part of the offset. */
-  declare polygonOffsetUnits: number;
+  declare polygonOffsetUnits: number
   /** Whether it blends. */
-  declare transparent: boolean;
+  declare transparent: boolean
   /** How opaque it is. */
-  declare opacity: number;
+  declare opacity: number
   /** Alpha below which pixels drop. */
-  declare alphaTest: number;
+  declare alphaTest: number
   /** Whether it casts a shadow while blended; unsaid, it casts none. */
   declare transparentShadow: boolean;
-  [field: string]: unknown;
+  [field: string]: unknown
   /** The family it belongs to; a world moves a surface between standard and physical in place
    *  (`world/core/worldPhysicalSurface.ts`), which every reader takes at the next version. */
-  family: GraphSurfaceFamily;
+  family: GraphSurfaceFamily
   constructor(family: GraphSurfaceFamily, parameters: Record<string, unknown> = {}) {
-    super();
-    this.family = family;
-    const declared = FAMILIES[family];
-    Object.assign(this, raster());
-    for (const fields of declared.fields) Object.assign(this, fields());
+    super()
+    this.family = family
+    const declared = FAMILIES[family]
+    Object.assign(this, raster())
+    for (const fields of declared.fields) Object.assign(this, fields())
     for (const [key, value] of Object.entries(parameters))
-      if (value !== undefined) assign(this, key, value);
+      if (value !== undefined) assign(this, key, value)
   }
   /** `needsUpdate = true` after a change: every reader takes the fields again. */
   set needsUpdate(value: boolean) {
-    if (value) this.version++;
+    if (value) this.version++
   }
   get needsUpdate() {
-    return false;
+    return false
   }
   /** Takes every parameter of `source` and its family, colours and vectors copied, textures
    *  shared. */
   copy(source: GraphSurface) {
     for (const [key, value] of Object.entries(source))
-      if (!SKIPPED.has(key)) assign(this, key, Array.isArray(value) ? value.slice() : value);
-    return this;
+      if (!SKIPPED.has(key)) assign(this, key, Array.isArray(value) ? value.slice() : value)
+    return this
   }
   /** A surface of the same family with the same parameters. */
   clone() {
-    return new GraphSurface(this.family).copy(this);
+    return new GraphSurface(this.family).copy(this)
   }
 }
 
 /** The fields a copy leaves as they are: identity and bookkeeping. */
-const SKIPPED = new Set(['uuid', 'version', 'released', 'kind', 'userData']);
+const SKIPPED = new Set(['uuid', 'version', 'released', 'kind', 'userData'])

@@ -1,18 +1,18 @@
-import { coatedScreenReflects } from '../../../packages/sdk-browser/src/reflections/eligible.ts';
-import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
-import type { BatchPage } from './batches/batchPage.ts';
-import { clusterMaterialReason } from '../../../packages/sdk-browser/src/host/surfaceGate.ts';
-import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/shader/material.ts';
+import { coatedScreenReflects } from '../../../packages/sdk-browser/src/reflections/eligible.ts'
+import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
+import type { BatchPage } from './batches/batchPage.ts'
+import { clusterMaterialReason } from '../../../packages/sdk-browser/src/host/surfaceGate.ts'
+import { isTransmissive } from '../../../packages/sdk-browser/src/visibility/shader/material.ts'
 import {
   unsupportedClusterLight,
   type WebglClusterScene,
-} from '../../../packages/sdk-browser/src/webgl/cluster/lights.ts';
-import { backdropFormatReason } from '../../../packages/sdk-browser/src/webgl/cluster/backdrop.ts';
+} from '../../../packages/sdk-browser/src/webgl/cluster/lights.ts'
+import { backdropFormatReason } from '../../../packages/sdk-browser/src/webgl/cluster/backdrop.ts'
 
 type SceneCopy = {
-  material: BatchPage['declaration'];
-  geometry: { attributes: BatchPage['attributes'] };
-};
+  material: BatchPage['declaration']
+  geometry: { attributes: BatchPage['attributes'] }
+}
 
 /**
  * Names what keeps a scene off the autonomous path before anything is drawn. There is no other
@@ -24,29 +24,29 @@ export function clusterWebglCompatibility(
   copies: readonly SceneCopy[],
   scene: WebglClusterScene,
 ) {
-  const lightReason = unsupportedClusterLight(scene.lights);
-  if (lightReason) return lightReason;
+  const lightReason = unsupportedClusterLight(scene.lights)
+  if (lightReason) return lightReason
   // Every scene copy is the owner's; only a transmissive one reads the frozen backdrop.
-  const transmits = copies.some((copy) => isTransmissive(copy.material));
+  const transmits = copies.some((copy) => isTransmissive(copy.material))
   // Only a screen-traced receiver needs the half-float capture; a matte one reads the environment.
   const mirrors =
     copies.some((copy) => coatedScreenReflects(surfaceOf(copy.material))) ||
-    pages.some((page) => coatedScreenReflects(surfaceOf(page.declaration)));
+    pages.some((page) => coatedScreenReflects(surfaceOf(page.declaration)))
   const formatReason =
     transmits || mirrors
       ? backdropFormatReason(gl, mirrors ? 'reflections' : 'transmission')
-      : undefined;
-  if (formatReason) return formatReason;
+      : undefined
+  if (formatReason) return formatReason
   for (const copy of copies) {
     const reason = clusterMaterialReason(
       copy.material,
       copy.geometry.attributes,
       isTransmissive(copy.material),
-    );
-    if (reason) return reason;
+    )
+    if (reason) return reason
   }
   for (const page of pages) {
-    const reason = clusterMaterialReason(page.declaration, page.attributes);
-    if (reason) return reason;
+    const reason = clusterMaterialReason(page.declaration, page.attributes)
+    if (reason) return reason
   }
 }

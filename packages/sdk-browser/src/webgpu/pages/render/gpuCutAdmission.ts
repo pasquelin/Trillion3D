@@ -1,5 +1,5 @@
-import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { coverageBudgetEvent } from '../../../diagnostic/engineDiagnostic.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * Counts what the frame asks the cache for against the GPU page budget, and says when the verdict
@@ -12,13 +12,13 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  */
 export function admitGpuCut(rt: WebgpuPagesRuntime) {
   const { run, services } = rt,
-    { slots } = rt.setup;
-  const sample = run.gpuSelection?.peek();
-  if (!sample) return;
+    { slots } = rt.setup
+  const sample = run.gpuSelection?.peek()
+  if (!sample) return
   // What the image asks the cache, and what it holds — root cover, cut and drawn ancestors.
-  const { requestedCount: requested, keepCount } = services.residencySets;
-  const wasLimited = run.coverageBudgetLimited;
-  run.coverageBudgetLimited = requested > slots || keepCount > slots;
+  const { requestedCount: requested, keepCount } = services.residencySets
+  const wasLimited = run.coverageBudgetLimited
+  run.coverageBudgetLimited = requested > slots || keepCount > slots
   if (wasLimited !== run.coverageBudgetLimited)
     run.coverageBudgetEvent = coverageBudgetEvent(
       run.coverageBudgetLimited,
@@ -26,5 +26,5 @@ export function admitGpuCut(rt: WebgpuPagesRuntime) {
       slots,
       rt.services.bootstrapState.ready,
       sample.uniforms.pixelError,
-    );
+    )
 }

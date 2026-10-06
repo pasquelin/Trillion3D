@@ -4,12 +4,12 @@
 // that plans, feeds and draws the same cards. Both load it through the one `loadImpostorCode`
 // (`code.ts`), awaited where a cache with baked impostors prepares; refused, every root keeps its
 // clusters.
-export { planWebgpuImpostors } from '../webgpu/impostor/frame.ts';
+export { planWebgpuImpostors } from '../webgpu/impostor/frame.ts'
 export {
   drawImpostorVisibility,
   encodeImpostorCards,
   encodeImpostorVisibilityPass,
-} from '../webgpu/impostor/encode.ts';
-export { prepareImpostorPipelines } from '../webgpu/impostor/pipelines.ts';
-export { createWebglImpostors } from '../webgl/impostor/frame.ts';
-export { lend } from './borrowed.ts';
+} from '../webgpu/impostor/encode.ts'
+export { prepareImpostorPipelines } from '../webgpu/impostor/pipelines.ts'
+export { createWebglImpostors } from '../webgl/impostor/frame.ts'
+export { lend } from './borrowed.ts'

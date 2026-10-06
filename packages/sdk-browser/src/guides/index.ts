@@ -4,4 +4,4 @@ export {
   type GuideHandle,
   type GuideLines,
   type GuidePoints,
-} from './guideSet.ts';
+} from './guideSet.ts'

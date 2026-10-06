@@ -13,9 +13,9 @@
  * The rank travels in three bits of the page row (`MODEL_SHIFT`); the surface pass writes the
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
  */
-import type { HostShadedMaterial } from '../host/shadedMaterial.ts';
-import { INVERSE_PI } from '../lighting/shaderConstants.ts';
-import { NORMAL_VIEW_COLOR } from './normalViewColor.ts';
+import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
+import { INVERSE_PI } from '../lighting/shaderConstants.ts'
+import { NORMAL_VIEW_COLOR } from './normalViewColor.ts'
 
 export const SURFACE_MODEL = {
   standard: 0,
@@ -24,50 +24,47 @@ export const SURFACE_MODEL = {
   normal: 3,
   matcap: 4,
   depth: 5,
-} as const;
+} as const
 /** Bits of the page row's flags word that carry the model; below them, the material flags. */
-export const MODEL_SHIFT = 17;
+export const MODEL_SHIFT = 17
 /** Surface-buffer flags of the lit models the resolve shades apart: 2 stays the physical one. */
-export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const;
+export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
-export const AS_IS_FLAG = 3;
+export const AS_IS_FLAG = 3
 /** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
-export const SURFACE_MODEL_MASK = 7;
+export const SURFACE_MODEL_MASK = 7
 /** The r8 surface target's high bit carries a material's fog opt-out. */
-export const FOG_FREE_SURFACE_FLAG = 128;
+export const FOG_FREE_SURFACE_FLAG = 128
 /** The surface target's mark of an emission-and-occlusion texel other than `(0, 0, 0, 1)`
  *  (`surfaceEmission.ts`, #1369); 32 is the thin subsurface's (`subsurface.ts`). */
-export const EMISSIVE_AO_SURFACE_FLAG = 16;
+export const EMISSIVE_AO_SURFACE_FLAG = 16
 /** The forward item's model lane has one free bit after the three model bits. */
-export const FOG_FREE_MODEL_BIT = 8;
+export const FOG_FREE_MODEL_BIT = 8
 
 /** The one rule for debug views on both paths: a normal or depth surface is output untouched —
  *  no exposure, no tone mapping —: a debug view shows the raw value, never a tone-mapped one. */
 export const shownAsIs = (model: number | undefined) =>
-  model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth;
+  model === SURFACE_MODEL.normal || model === SURFACE_MODEL.depth
 
 /** The model a surface declares by its family; the physical model otherwise. */
 export function hostSurfaceModel({ family }: HostShadedMaterial): number {
-  if (family === 'lambert') return SURFACE_MODEL.diffuse;
-  if (family === 'toon') return SURFACE_MODEL.toon;
-  if (family === 'normal') return SURFACE_MODEL.normal;
-  if (family === 'matcap') return SURFACE_MODEL.matcap;
-  if (family === 'depth') return SURFACE_MODEL.depth;
-  return SURFACE_MODEL.standard;
+  if (family === 'lambert') return SURFACE_MODEL.diffuse
+  if (family === 'toon') return SURFACE_MODEL.toon
+  if (family === 'normal') return SURFACE_MODEL.normal
+  if (family === 'matcap') return SURFACE_MODEL.matcap
+  if (family === 'depth') return SURFACE_MODEL.depth
+  return SURFACE_MODEL.standard
 }
 
 /** Whether a surface carries the metal-rough parameters: a standard or a physical one. */
 export const metalRough = ({ family }: HostShadedMaterial) =>
-  family === 'standard' || family === 'physical';
+  family === 'standard' || family === 'physical'
 
 /** True when the surface's model is lit by the scene's lights: a Phong material is the standard
  *  model. */
 export const litModel = (host: HostShadedMaterial) =>
-  host.family === 'lambert' ||
-  host.family === 'toon' ||
-  metalRough(host) ||
-  host.family === 'phong';
+  host.family === 'lambert' || host.family === 'toon' || metalRough(host) || host.family === 'phong'
 
 /**
  * Why a surface declares a map that its model never reads, or `undefined`: a
@@ -77,16 +74,16 @@ export const litModel = (host: HostShadedMaterial) =>
  */
 export function unreadMapRefusal(host: HostShadedMaterial) {
   const named = (map: string) =>
-    `material ${host.family} declares a ${map} its surface model never reads`;
-  if (host.gradientMap) return named('gradientMap');
-  if (host.family === 'matcap' && host.map) return named('map');
-  if (host.normalMap && !litModel(host)) return named('normalMap');
+    `material ${host.family} declares a ${map} its surface model never reads`
+  if (host.gradientMap) return named('gradientMap')
+  if (host.family === 'matcap' && host.map) return named('map')
+  if (host.normalMap && !litModel(host)) return named('normalMap')
 }
 
 /** Whether a surface's occlusion map darkens it: a lit one does, and a plain colour one on the
  *  WebGL2 path; a matcap, normal or depth surface ignores one on both paths. */
 export const readsOcclusion = (host: HostShadedMaterial) =>
-  litModel(host) || host.family === 'basic';
+  litModel(host) || host.family === 'basic'
 
 /**
  * The roughness a Blinn–Phong exponent `n` reads as, `(2 / (n + 2))^¼`. The shaders square a
@@ -96,20 +93,20 @@ export const readsOcclusion = (host: HostShadedMaterial) =>
  * `2 / (n + 2)` narrowed it to 2.3°.
  */
 export const shininessRoughness = (shininess: number) =>
-  Math.sqrt(Math.sqrt(2 / (Math.max(0, shininess) + 2)));
+  Math.sqrt(Math.sqrt(2 / (Math.max(0, shininess) + 2)))
 
 // The formulas of the models, written once: WGSL and GLSL spell these expressions alike, so both
 // GPU paths shade a diffuse, toon or matcap surface from the same text, never a restated copy.
 /** The diffuse lobe of a lamp's `energy`, occlusion `ao` included. */
-const MODEL_DIFFUSE = `rgb*(1.0-metal)*${INVERSE_PI}*energy*ao`;
+const MODEL_DIFFUSE = `rgb*(1.0-metal)*${INVERSE_PI}*energy*ao`
 /** Toon's two bands of the cosine `nl`, 0.7 and 1. */
-const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
+const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))'
 /** A diffuse surface's cosine. */
-const DIFFUSE_COSINE = 'max(nl,0.0)';
+const DIFFUSE_COSINE = 'max(nl,0.0)'
 /** The matcap coordinate of the view-space normal `n`. */
-const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495';
-export const NORMAL_VIEW_COLOR_WGSL = `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`;
-export const NORMAL_VIEW_COLOR_GLSL = `vec3 normalViewColor(vec3 N){return ${NORMAL_VIEW_COLOR};}`;
+const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495'
+export const NORMAL_VIEW_COLOR_WGSL = `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`
+export const NORMAL_VIEW_COLOR_GLSL = `vec3 normalViewColor(vec3 N){return ${NORMAL_VIEW_COLOR};}`
 
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
@@ -123,7 +120,7 @@ fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
  let nl=dot(N,L);
  if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
  return diffuse*${DIFFUSE_COSINE};
-}`;
+}`
 
 /**
  * The same models in the WebGL2 program (`../webgl/cluster/shaders.ts`), whose `surfaceModel`
@@ -133,7 +130,7 @@ fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
 export const SURFACE_MODEL_GLSL = `
 vec3 modelLight(vec3 rgb,float metal,vec3 N,vec3 L,float energy,float ao){vec3 diffuse=${MODEL_DIFFUSE};float nl=dot(N,L);
 if(surfaceModel==${SURFACE_MODEL.toon})return diffuse*${TOON_BANDS};return diffuse*${DIFFUSE_COSINE};}
-vec2 matcapUv(vec3 n){return vec2(${MATCAP_UV});}`;
+vec2 matcapUv(vec3 n){return vec2(${MATCAP_UV});}`
 
 /**
  * The unlit models in the surface pass: the view basis read off the view-projection (its first two
@@ -147,4 +144,4 @@ fn viewNormal(N:vec3f)->vec3f{
  let up=normalize(vec3f(uni.viewProj[0].y,uni.viewProj[1].y,uni.viewProj[2].y));
  return vec3f(dot(N,right),dot(N,up),dot(N,cross(right,up)));
 }
-fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(${MATCAP_UV});}`;
+fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(${MATCAP_UV});}`

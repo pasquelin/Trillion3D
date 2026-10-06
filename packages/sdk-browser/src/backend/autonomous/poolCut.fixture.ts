@@ -1,25 +1,25 @@
-import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { BackendDiagnostic } from '../types.ts';
+import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
+import type { BackendDiagnostic } from '../types.ts'
 import {
   dag,
   dagCamera,
   root,
   type DagPage,
-} from '../../../../../bench/perf/browser/support/dagCut.ts';
-import { engineCamera } from '../../camera/camera.fixture.ts';
-import { createGeometryBudget } from './pool.ts';
-import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
-import { createRefusalAnswer } from './refusals.ts';
-import { PAGE } from './pool.fixture.ts';
-import { createImageCut } from './imageCut.ts';
-import { createWebglViews } from './views.ts';
-import { createEngineCamera } from '../../camera/world.ts';
-import { createHeldResidency } from '../../page/cut/held.ts';
-import { createPageParents } from '../../page/selection/pageParents.ts';
-import { postPackedBases } from '../../page/selection/placements.ts';
-import { rootChildren } from '../../residency/minimumCapacity.ts';
-import type { HostCamera } from '../../camera/world.ts';
-import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
+} from '../../../../../bench/perf/browser/support/dagCut.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { createGeometryBudget } from './pool.ts'
+import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts'
+import { createRefusalAnswer } from './refusals.ts'
+import { PAGE } from './pool.fixture.ts'
+import { createImageCut } from './imageCut.ts'
+import { createWebglViews } from './views.ts'
+import { createEngineCamera } from '../../camera/world.ts'
+import { createHeldResidency } from '../../page/cut/held.ts'
+import { createPageParents } from '../../page/selection/pageParents.ts'
+import { postPackedBases } from '../../page/selection/placements.ts'
+import { rootChildren } from '../../residency/minimumCapacity.ts'
+import type { HostCamera } from '../../camera/world.ts'
+import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts'
 
 /**
  * A DAG of `PAGE`-byte pages — by default 511, only its root resident — drawn by the pool, the cut
@@ -40,51 +40,51 @@ export function mount(
     rootCharged = false,
     gl,
   }: {
-    pages?: DagPage[];
-    primitives?: DagPage[][];
-    structures?: readonly (ClusterStructureIndex | undefined)[];
-    bytes?: (url: string) => number;
-    camera?: HostCamera;
-    rootCharged?: boolean;
+    pages?: DagPage[]
+    primitives?: DagPage[][]
+    structures?: readonly (ClusterStructureIndex | undefined)[]
+    bytes?: (url: string) => number
+    camera?: HostCamera
+    rootCharged?: boolean
     /** The context whose refused allocations the image answers, as `render.ts`'s frame does. */
-    gl?: WebGL2RenderingContext;
+    gl?: WebGL2RenderingContext
   } = {},
 ) {
-  const all = primitives.flat();
-  const rootPages = all.filter((page) => page.parentError == null);
-  for (const page of rootPages) page.array ??= new Uint32Array(3);
-  const byUrl = new Map(all.map((page) => [page.url, page]));
+  const all = primitives.flat()
+  const rootPages = all.filter((page) => page.parentError == null)
+  for (const page of rootPages) page.array ??= new Uint32Array(3)
+  const byUrl = new Map(all.map((page) => [page.url, page]))
   const state = { allocationBytes: 0 },
-    diagnostics: BackendDiagnostic[] = [];
-  for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url);
+    diagnostics: BackendDiagnostic[] = []
+  for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url)
   const roots = primitives.map((pages, i) => ({
     ...root(pages),
     structure: structures[i],
-  })) as unknown as ClusterRoot<PageRec>[];
+  })) as unknown as ClusterRoot<PageRec>[]
   // The per-placement tables and the packed rank of each page, as the layout posts them (#1235):
   // the cut's readiness and the pool's dependencies resolve a page through them.
   const placement = postPackedBases(roots),
-    rankOf = new Map<PageRec, number>();
+    rankOf = new Map<PageRec, number>()
   for (let r = 0; r < roots.length; r++)
     for (let p = 0; p < roots[r].pages.length; p++)
-      rankOf.set(roots[r].pages[p], placement.baseOfRoot[r] + p);
+      rankOf.set(roots[r].pages[p], placement.baseOfRoot[r] + p)
   // The pool's loads and drops below move the cut's readiness, as the page store's do.
-  const held = createHeldResidency({}, placement);
+  const held = createHeldResidency({}, placement)
   // The pool's floor holds the pages the roots' groups replace (`minimumCapacity.ts`).
-  const floorPages = rootChildren(roots);
+  const floorPages = rootChildren(roots)
   /** A page leaves: its geometry and bytes go, and the cut's readiness hears of it. */
   const drop = (url: string) => {
-    const page = byUrl.get(url)! as PageRec;
-    if (!page.array) return;
-    page.array = undefined;
-    held.moved(rankOf.get(page) ?? -1, page);
-    state.allocationBytes -= bytes(url);
-  };
-  const rootBytes = rootPages.reduce((sum, page) => sum + bytes(page.url), 0);
+    const page = byUrl.get(url)! as PageRec
+    if (!page.array) return
+    page.array = undefined
+    held.moved(rankOf.get(page) ?? -1, page)
+    state.allocationBytes -= bytes(url)
+  }
+  const rootBytes = rootPages.reduce((sum, page) => sum + bytes(page.url), 0)
   // The backend's views (`views.ts`): the image reads the drawn one, the pool the others.
   const gate = { cam: createEngineCamera(), viewReplaced: () => {} },
     views = createWebglViews([1280, 720], gate, () => {}),
-    { live } = views;
+    { live } = views
   const pool = createGeometryBudget({
     budgetBytes,
     ceilingBytes: 1000 * Math.max(...all.map((page) => bytes(page.url))),
@@ -109,50 +109,50 @@ export function mount(
     others: views.others,
     captureDrawn: views.captureDrawn,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
-  });
-  let camera = view ?? dagCamera();
+  })
+  let camera = view ?? dagCamera()
   const answerRefusals = createRefusalAnswer({
     gl: () => gl,
     pool,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
     redraw: () => {},
-  });
-  const cut = createImageCut({ roots, view: live, revision: () => 0, pool, held });
+  })
+  const cut = createImageCut({ roots, view: live, revision: () => 0, pool, held })
   /** One image at the host's `pixelError`, as `render.ts` draws it, then the pages it asked for —
    *  at most `arrivals` of them, as a streamer spreads them; returns the most the pages held
    *  meanwhile. `after` is what they held once the image trimmed them, what its frame metrics
    *  read. */
-  const frame = { after: 0, stand: 0 };
-  let last: ReturnType<typeof cut> | undefined;
+  const frame = { after: 0, stand: 0 }
+  let last: ReturnType<typeof cut> | undefined
   // The order of the host's frame (`../../world/render/draw.ts`) around `render.ts`'s, copied by
   // hand: the allocations read, out of memory, readmit, trim, cut, what it keeps, the fence.
   const image = (pixelError: number, arrivals = Infinity) => {
-    const { requested, shown } = live;
-    settleAllocations(gl);
-    answerRefusals();
-    if (cut.readmit()) pool.follow(requested, shown);
-    pool.trim();
-    const drawn = (last = cut(engineCamera(camera), pixelError));
-    frame.after = state.allocationBytes;
-    pool.follow(requested, shown);
+    const { requested, shown } = live
+    settleAllocations(gl)
+    answerRefusals()
+    if (cut.readmit()) pool.follow(requested, shown)
+    pool.trim()
+    const drawn = (last = cut(engineCamera(camera), pixelError))
+    frame.after = state.allocationBytes
+    pool.follow(requested, shown)
     // The resident pages drawn in place of missing ones: the ancestors a refinement replaces.
-    const wanted = new Set(drawn.wanted);
-    frame.stand = drawn.shown.filter((page) => !wanted.has(page)).length;
+    const wanted = new Set(drawn.wanted)
+    frame.stand = drawn.shown.filter((page) => !wanted.has(page)).length
     let most = state.allocationBytes,
-      left = arrivals;
+      left = arrivals
     for (const page of requested)
       if (!page.array && left-- > 0) {
-        page.array = new Uint32Array(3);
-        held.moved(rankOf.get(page as PageRec) ?? -1, page as PageRec);
-        state.allocationBytes += bytes(page.url);
-        pool.arrived(page.url);
-        most = Math.max(most, state.allocationBytes);
+        page.array = new Uint32Array(3)
+        held.moved(rankOf.get(page as PageRec) ?? -1, page as PageRec)
+        state.allocationBytes += bytes(page.url)
+        pool.arrived(page.url)
+        most = Math.max(most, state.allocationBytes)
       }
-    fenceAllocations(gl);
-    return most;
-  };
+    fenceAllocations(gl)
+    return most
+  }
   /** Moves the camera `distance` units from the DAG's centre, or to the camera given. */
-  const place = (at: number | HostCamera) => (camera = typeof at === 'number' ? dagCamera(at) : at);
+  const place = (at: number | HostCamera) => (camera = typeof at === 'number' ? dagCamera(at) : at)
   return {
     pool,
     state,
@@ -169,5 +169,5 @@ export function mount(
     cut: () => last!,
     drawn: () => live.shown.length,
     wanted: () => live.desired.length,
-  };
+  }
 }

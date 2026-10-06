@@ -1,17 +1,17 @@
-import { useWords } from '../i18n.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { runName } from './model/names.ts';
-import type { Report } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { runName } from './model/names.ts'
+import type { Report } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface CampaignRunsProps {
-  report: Report;
-  locale: Locale;
+  report: Report
+  locale: Locale
 }
 
 export function CampaignRuns({ report, locale }: CampaignRunsProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   return (
     <Section level={3} title={`${t('report.runs')} · ${report.runs.length}`}>
       <Table>
@@ -41,5 +41,5 @@ export function CampaignRuns({ report, locale }: CampaignRunsProps) {
         </tbody>
       </Table>
     </Section>
-  );
+  )
 }

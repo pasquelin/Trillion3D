@@ -1,3 +1,3 @@
-export type { GpuHiz } from './types.ts';
+export type { GpuHiz } from './types.ts'
 
-export { createGpuHiz } from './factory.ts';
+export { createGpuHiz } from './factory.ts'

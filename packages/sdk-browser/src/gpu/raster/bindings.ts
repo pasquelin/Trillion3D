@@ -1,10 +1,10 @@
-import { smallBindEntries, type SmallBindResources } from '../../webgpu/core/bindEntries.ts';
+import { smallBindEntries, type SmallBindResources } from '../../webgpu/core/bindEntries.ts'
 import {
   createWebgpuBindIdentity,
   type WebgpuBindIdentity,
-} from '../../webgpu/core/bindIdentity.ts';
-import { liveResources } from '../../webgpu/core/liveEntries.ts';
-import type { GpuRasterInput } from './types.ts';
+} from '../../webgpu/core/bindIdentity.ts'
+import { liveResources } from '../../webgpu/core/liveEntries.ts'
+import type { GpuRasterInput } from './types.ts'
 
 /** Each raster variant checks its actual entries, including its selection mask and work buffer. */
 export function createRasterBindings(
@@ -12,11 +12,11 @@ export function createRasterBindings(
   layout: GPUBindGroupLayout,
   work: GPUBuffer,
 ) {
-  const identities: WebgpuBindIdentity[] = [];
-  let current: GpuRasterInput;
+  const identities: WebgpuBindIdentity[] = []
+  let current: GpuRasterInput
   return (input: GpuRasterInput) => {
-    current = input;
-    const identity = (identities[input.groupKey] ??= createWebgpuBindIdentity());
+    current = input
+    const identity = (identities[input.groupKey] ??= createWebgpuBindIdentity())
     const entries = (identity.entries[0] ??= smallBindEntries(
       liveResources<SmallBindResources>({
         indices: () => current.indices,
@@ -30,11 +30,11 @@ export function createRasterBindings(
         work: () => work,
         selectionMask: () => current.selection?.maskBuffer ?? current.hizFlags,
       }),
-    ));
-    if (identity.entriesMoved(layout)) input.groups[input.groupKey] = undefined;
+    ))
+    if (identity.entriesMoved(layout)) input.groups[input.groupKey] = undefined
     return (input.groups[input.groupKey] ??= device.createBindGroup({
       layout,
       entries,
-    })) as GPUBindGroup;
-  };
+    })) as GPUBindGroup
+  }
 }

@@ -1,4 +1,4 @@
-import type { JsonSchemaObject } from './types.ts';
+import type { JsonSchemaObject } from './types.ts'
 
 /**
  * JSON Schema documenting options for native asset compilation (prepare / CLI).
@@ -55,4 +55,4 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = {
   },
   required: ['source', 'cache', 'resourceBaseUrl'],
   additionalProperties: false,
-};
+}

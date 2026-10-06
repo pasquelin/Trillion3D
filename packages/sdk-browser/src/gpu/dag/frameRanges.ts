@@ -1,17 +1,17 @@
-import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts';
-import type { PackedDag } from './types.ts';
-import { uniformStride } from '../../residency/pools.ts';
-import { FRAME_VEC4 } from './types.ts';
-import { primitiveWordAt } from './worlds.ts';
-import { dagGroupEntries } from './shader/bindings.ts';
-import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts';
+import { createWorldOrigins, WORLD_ORIGIN_BYTES } from './worldOrigins.ts'
+import type { PackedDag } from './types.ts'
+import { uniformStride } from '../../residency/pools.ts'
+import { FRAME_VEC4 } from './types.ts'
+import { primitiveWordAt } from './worlds.ts'
+import { dagGroupEntries } from './shader/bindings.ts'
+import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
-const ROW_FLOATS = FRAME_VEC4 * 4;
+const ROW_FLOATS = FRAME_VEC4 * 4
 /** Bytes of one primitive's world matrix in `worlds`. */
-const WORLD_BYTES = 64;
+const WORLD_BYTES = 64
 
 /** Bytes of one range's `frames`; a range holds at least one primitive. */
-export const framesBytes = (count: number) => count * PRIMITIVE_BYTES;
+export const framesBytes = (count: number) => count * PRIMITIVE_BYTES
 
 /**
  * A camera cut's `frames`, one buffer per range (`cameraFrameRanges`), and the uniform that tells
@@ -30,34 +30,34 @@ export function createCameraFrames(
 ) {
   const ranges = cameraFrameRanges(device.limits, worldCount),
     stride = uniformStride(device.limits),
-    per = ranges[0].count;
+    per = ranges[0].count
   const buffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG frames',
       size: framesBytes(count),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }),
-  );
+  )
   const worldBuffers = ranges.map(({ count }) =>
     own({
       label: 'Trillion3D DAG worlds',
       size: count * (WORLD_BYTES + WORLD_ORIGIN_BYTES),
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }),
-  );
-  const origins = createWorldOrigins(device, ranges, worldBuffers, sources);
+  )
+  const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
   const bounds = own({
     label: 'Trillion3D DAG frame ranges',
     size: ranges.length * stride,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const words = new Uint32Array((ranges.length * stride) / 4);
+  })
+  const words = new Uint32Array((ranges.length * stride) / 4)
   for (let r = 0; r < ranges.length; r++)
-    words.set([ranges[r].first, ranges[r].count], (r * stride) / 4);
-  device.queue.writeBuffer(bounds, 0, words);
-  const frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length);
+    words.set([ranges[r].first, ranges[r].count], (r * stride) / 4)
+  device.queue.writeBuffer(bounds, 0, words)
+  const frameInts = new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length)
   /** Words written and not yet sent: one interval, in `frameInts` indices. */
-  const pending = { from: Infinity, to: -1 };
+  const pending = { from: Infinity, to: -1 }
   const table = {
     ranges,
     buffers,
@@ -78,20 +78,20 @@ export function createCameraFrames(
             { buffer: bounds, offset: r * stride, size: 16 },
           ),
         }),
-      }));
+      }))
     },
     /** Every host row, each to its range's buffer, from its start. `dagPrepare` writes the rest. */
     writeRows() {
       for (let r = 0; r < ranges.length; r++) {
-        const { first, count } = ranges[r];
-        device.queue.writeBuffer(buffers[r], 0, frameData, first * ROW_FLOATS, count * ROW_FLOATS);
+        const { first, count } = ranges[r]
+        device.queue.writeBuffer(buffers[r], 0, frameData, first * ROW_FLOATS, count * ROW_FLOATS)
       }
     },
     /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
     writeWorlds(next: Float32Array) {
       for (let r = 0; r < ranges.length; r++) {
         const { first, count } = ranges[r],
-          bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES);
+          bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES)
         if (bytes > 0)
           device.queue.writeBuffer(
             worldBuffers[r],
@@ -99,16 +99,16 @@ export function createCameraFrames(
             next.buffer as ArrayBuffer,
             next.byteOffset + first * WORLD_BYTES,
             bytes,
-          );
+          )
       }
     },
     /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
      *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
     writeWord(w: number, slot: number, value: number) {
-      const at = primitiveWordAt(w) + slot;
-      frameInts[at] = value;
-      if (at < pending.from) pending.from = at;
-      if (at > pending.to) pending.to = at;
+      const at = primitiveWordAt(w) + slot
+      frameInts[at] = value
+      if (at < pending.from) pending.from = at
+      if (at > pending.to) pending.to = at
     },
     /**
      * The words written since the last flush, one write per range the interval crosses: the host
@@ -116,23 +116,23 @@ export function createCameraFrames(
      * before any kernel reads them (`shader/shader.ts`). Nothing when no word was written.
      */
     flushWords() {
-      const { from, to } = pending;
-      if (to < from) return;
-      pending.from = Infinity;
-      pending.to = -1;
+      const { from, to } = pending
+      if (to < from) return
+      pending.from = Infinity
+      pending.to = -1
       for (let r = Math.floor(from / ROW_FLOATS / per); r < ranges.length; r++) {
         const start = ranges[r].first * ROW_FLOATS,
-          end = start + ranges[r].count * ROW_FLOATS - 1;
-        if (start > to) break;
+          end = start + ranges[r].count * ROW_FLOATS - 1
+        if (start > to) break
         const a = Math.max(from, start),
-          b = Math.min(to, end);
-        device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1);
+          b = Math.min(to, end)
+        device.queue.writeBuffer(buffers[r], (a - start) * 4, frameInts, a, b - a + 1)
       }
     },
-  };
-  table.writeRows();
-  table.writeWorlds(worlds);
-  table.writeWorldOrigins();
-  return table;
+  }
+  table.writeRows()
+  table.writeWorlds(worlds)
+  table.writeWorldOrigins()
+  return table
 }
-export type CameraFrames = ReturnType<typeof createCameraFrames>;
+export type CameraFrames = ReturnType<typeof createCameraFrames>

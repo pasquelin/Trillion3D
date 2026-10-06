@@ -1,22 +1,22 @@
-import { pixelScaleOf } from '../streaming/priority.ts';
-import { worldStretch } from '../page/cut/logic.ts';
-import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts';
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
-import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts';
-import type { EngineCamera } from '../camera/world.ts';
-import type { ClusterRoot } from '../page/selection/types.ts';
-import type { PageRec } from '../page/selection/selection.ts';
+import { pixelScaleOf } from '../streaming/priority.ts'
+import { worldStretch } from '../page/cut/logic.ts'
+import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
+import type { EngineCamera } from '../camera/world.ts'
+import type { ClusterRoot } from '../page/selection/types.ts'
+import type { PageRec } from '../page/selection/selection.ts'
 
-type Roots = readonly ClusterRoot<PageRec>[];
+type Roots = readonly ClusterRoot<PageRec>[]
 
 /** How many pixels `reach` of root's units spans at worst, seen from `cam`: from the nearest point
  *  of its rest box the reach can bring closer. */
 function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, focal: number) {
-  const box = root.worldBox;
-  if (!box) return Infinity;
+  const box = root.worldBox
+  if (!box) return Infinity
   const x = (box[0] + box[3]) / 2,
     y = (box[1] + box[4]) / 2,
-    z = (box[2] + box[5]) / 2;
+    z = (box[2] + box[5]) / 2
   return screenErrorBound(
     reach * worldStretch(root),
     1,
@@ -26,7 +26,7 @@ function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, 
     focal,
     cam.near,
     cam.perspective,
-  );
+  )
 }
 
 /**
@@ -37,24 +37,24 @@ function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, 
  * allocates nothing.
  */
 export function createDeformationSkip() {
-  const scale: [number, number] = [1, 1];
+  const scale: [number, number] = [1, 1]
   let roots: Roots = [],
     cam: EngineCamera | undefined,
     focal = 0,
-    threshold = 0;
+    threshold = 0
   const skipped = (i: number, reach: number) =>
-    threshold > 0 && !!roots[i] && pixelsOf(roots[i], reach, cam!, focal) < threshold;
+    threshold > 0 && !!roots[i] && pixelsOf(roots[i], reach, cam!, focal) < threshold
   return (
     frameRoots: Roots,
     frameCam: EngineCamera,
     viewport: readonly number[] | undefined,
     pixelError: number,
   ) => {
-    roots = frameRoots;
-    cam = frameCam;
-    threshold = pixelError;
-    pixelScaleOf(cam.projection, viewport, scale);
-    focal = Math.max(scale[0], scale[1]);
-    return skipped;
-  };
+    roots = frameRoots
+    cam = frameCam
+    threshold = pixelError
+    pixelScaleOf(cam.projection, viewport, scale)
+    focal = Math.max(scale[0], scale[1])
+    return skipped
+  }
 }

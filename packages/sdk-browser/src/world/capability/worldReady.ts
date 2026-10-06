@@ -1,16 +1,16 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { detectCapabilities } from './capabilities.ts';
-import { requestExplorerDevice } from '../session/gpuDevice.ts';
+import { EngineError } from '../../../../sdk-core/src/index.ts'
+import { detectCapabilities } from './capabilities.ts'
+import { requestExplorerDevice } from '../session/gpuDevice.ts'
 
 /** The two ways a world can draw: WebGPU, or WebGL2 when WebGPU is missing. */
-export type WorldRenderer = 'webgpu' | 'webgl2';
+export type WorldRenderer = 'webgpu' | 'webgl2'
 
 /** The device of a granted adapter, or why none was granted: an adapter may still refuse it. */
 async function requestDevice(adapter: GPUAdapter) {
   try {
-    return { device: await requestExplorerDevice(adapter), reason: '' };
+    return { device: await requestExplorerDevice(adapter), reason: '' }
   } catch (error) {
-    return { device: null, reason: `its adapter refused a device: ${String(error)}` };
+    return { device: null, reason: `its adapter refused a device: ${String(error)}` }
   }
 }
 
@@ -26,22 +26,22 @@ export async function probeWorldRenderer(
   forced: WorldRenderer | undefined,
 ): Promise<{ renderer: WorldRenderer; gpuDevice?: GPUDevice }> {
   if (forced !== 'webgl2') {
-    const gpu = await detectCapabilities('webgpu', canvas);
+    const gpu = await detectCapabilities('webgpu', canvas)
     // The world holds its device for its whole life: every session it opens draws on it.
-    const granted = gpu.renderer && gpu.adapter ? await requestDevice(gpu.adapter) : null;
-    if (granted?.device) return { renderer: 'webgpu', gpuDevice: granted.device };
+    const granted = gpu.renderer && gpu.adapter ? await requestDevice(gpu.adapter) : null
+    if (granted?.device) return { renderer: 'webgpu', gpuDevice: granted.device }
     if (forced === 'webgpu')
       throw new EngineError(
         'WEBGPU_UNAVAILABLE',
         `The renderer "webgpu" was requested, and this machine grants none: ${granted?.reason || gpu.reason}`,
-      );
+      )
   }
-  const webgl = await detectCapabilities('webgl', canvas);
-  if (webgl.renderer) return { renderer: 'webgl2' };
+  const webgl = await detectCapabilities('webgl', canvas)
+  if (webgl.renderer) return { renderer: 'webgl2' }
   throw new EngineError(
     'NO_WEBGL2',
     forced === 'webgl2'
       ? `The renderer "webgl2" was requested, and this machine grants none: ${webgl.reason}`
       : 'This machine grants neither WebGPU nor WebGL2.',
-  );
+  )
 }

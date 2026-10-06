@@ -1,11 +1,9 @@
 {
-  "docs": "https://github.com/pasquelin/Trillion3D/blob/main/docs/messages/",
   "messages": [
     {
       "id": "T3D-E001",
       "code": "INVALID_ARGS",
       "level": "error",
-      "group": "Global",
       "message": "The compiler command line was rejected before any work started.",
       "cause": "Command line or batch file rejected before any work",
       "action": "Check the arguments against the usage line printed with the error."
@@ -14,7 +12,6 @@
       "id": "T3D-E002",
       "code": "INVALID_BATCH",
       "level": "error",
-      "group": "Global",
       "message": "The batch file was rejected before any job started.",
       "cause": "Command line or batch file rejected before any work",
       "action": "Fix the batch file: a non-empty `jobs` array, each job naming its source, cache and resource base URL."
@@ -23,7 +20,6 @@
       "id": "T3D-E003",
       "code": "INVALID_OPTIONS",
       "level": "error",
-      "group": "Global",
       "message": "A compile option is out of range.",
       "cause": "Scope, budgets, threads, base URL or simplification out of range",
       "action": "Use a scope of `slice` or `full`, positive triangle budget, thread count and RAM budget, a resource base URL, and `none` or `qem-endpoints` as simplification."
@@ -32,7 +28,6 @@
       "id": "T3D-E004",
       "code": "INVALID_GLTF",
       "level": "error",
-      "group": "Global",
       "message": "The source glTF could not be read.",
       "cause": "Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address)",
       "action": "Validate the file (for example with the Khronos glTF Validator) and export it again from its authoring tool."
@@ -41,7 +36,6 @@
       "id": "T3D-E005",
       "code": "INVALID_JSON",
       "level": "error",
-      "group": "Global",
       "message": "A JSON file of the source could not be parsed.",
       "cause": "Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address)",
       "action": "Fix the JSON syntax at the position the message names, or export the file again."
@@ -50,7 +44,6 @@
       "id": "T3D-E006",
       "code": "UNSUPPORTED_ACCESSOR",
       "level": "error",
-      "group": "Global",
       "message": "A glTF accessor uses a layout the compiler does not read.",
       "cause": "Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address)",
       "action": "Export the model again with standard accessors: float positions and unsigned integer indices."
@@ -59,7 +52,6 @@
       "id": "T3D-E007",
       "code": "BUFFER_OUT_OF_BOUNDS",
       "level": "error",
-      "group": "Global",
       "message": "A glTF accessor reads past the end of its buffer.",
       "cause": "Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address)",
       "action": "Export the model again; its binary buffer is truncated or belongs to another file."
@@ -68,7 +60,6 @@
       "id": "T3D-E008",
       "code": "SOURCE_NOT_READY",
       "level": "error",
-      "group": "Global",
       "message": "The source folder's `manifest.json` is not marked ready.",
       "cause": "Source `manifest.json` not ready, wrong format version, or files changed since it was written",
       "action": "Let the tool that writes the source folder finish, or point the compiler at the glTF file itself."
@@ -77,7 +68,6 @@
       "id": "T3D-E009",
       "code": "UNSUPPORTED_FORMAT",
       "level": "error",
-      "group": "Global",
       "message": "The source folder's `manifest.json` has a format version this compiler does not read.",
       "cause": "Source `manifest.json` not ready, wrong format version, or files changed since it was written",
       "action": "Write the source folder again with this version of Trillion3D."
@@ -86,7 +76,6 @@
       "id": "T3D-E010",
       "code": "SOURCE_HASH_MISMATCH",
       "level": "error",
-      "group": "Global",
       "message": "Source files changed after their `manifest.json` was written.",
       "cause": "Source `manifest.json` not ready, wrong format version, or files changed since it was written",
       "action": "Write the source manifest again, or restore the files it describes."
@@ -95,7 +84,6 @@
       "id": "T3D-E011",
       "code": "IMPORT_ERROR",
       "level": "error",
-      "group": "Global",
       "message": "The FBX or OBJ importer refused the file.",
       "cause": "FBX/OBJ import failed, or produced no visible mesh",
       "action": "Read the reason in the message, then export the file again from its authoring tool."
@@ -104,7 +92,6 @@
       "id": "T3D-E012",
       "code": "IMPORT_UNSUPPORTED_VERSION",
       "level": "error",
-      "group": "Global",
       "message": "The FBX or OBJ file is in a version the importer does not read.",
       "cause": "FBX/OBJ import failed, or produced no visible mesh",
       "action": "Export the file again as FBX 7 or as OBJ."
@@ -113,7 +100,6 @@
       "id": "T3D-E013",
       "code": "IMPORT_OUT_OF_MEMORY",
       "level": "error",
-      "group": "Global",
       "message": "The importer ran out of memory while reading the file.",
       "cause": "FBX/OBJ import failed, or produced no visible mesh",
       "action": "Free memory, raise the RAM budget, or split the model into smaller files."
@@ -122,7 +108,6 @@
       "id": "T3D-E014",
       "code": "IMPORT_IO_ERROR",
       "level": "error",
-      "group": "Global",
       "message": "The importer could not read the file from disk.",
       "cause": "FBX/OBJ import failed, or produced no visible mesh",
       "action": "Check that the file exists, is readable and is not being written by another program."
@@ -131,7 +116,6 @@
       "id": "T3D-E015",
       "code": "IMPORT_EMPTY",
       "level": "error",
-      "group": "Global",
       "message": "The import produced no visible mesh.",
       "cause": "FBX/OBJ import failed, or produced no visible mesh",
       "action": "Check that the file holds visible mesh geometry, not only empty nodes, cameras or lights."
@@ -140,7 +124,6 @@
       "id": "T3D-E016",
       "code": "EMPTY_SLICE",
       "level": "error",
-      "group": "Global",
       "message": "No mesh instance fits the `slice` triangle budget.",
       "cause": "No mesh instance fits the `slice` budget",
       "action": "Raise the triangle budget, or compile with the `full` scope."
@@ -149,7 +132,6 @@
       "id": "T3D-E017",
       "code": "RAM_ADMISSION_BUDGET_EXCEEDED",
       "level": "error",
-      "group": "Global",
       "message": "The estimated working memory of the compile is above its RAM budget.",
       "cause": "Estimated working set above `RAM_MB`, dense expansion of every decoded accessor counted; also a dense expansion the allocator refuses",
       "action": "Raise the RAM budget (`ramBudgetMb`), or split the model into smaller files."
@@ -158,7 +140,6 @@
       "id": "T3D-E018",
       "code": "INCOMPLETE_CLUSTER_PARTITION",
       "level": "error",
-      "group": "Global",
       "message": "An internal check on the finest clusters failed: some triangles belong to no cluster.",
       "cause": "Internal consistency check failed on level-0 clusters",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -167,7 +148,6 @@
       "id": "T3D-E019",
       "code": "INVALID_CLUSTER_PARTITION",
       "level": "error",
-      "group": "Global",
       "message": "An internal check on the finest clusters failed: a cluster is malformed.",
       "cause": "Internal consistency check failed on level-0 clusters",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -176,7 +156,6 @@
       "id": "T3D-E020",
       "code": "DAG_ERROR_NOT_MONOTONE",
       "level": "error",
-      "group": "Global",
       "message": "A cluster's simplification error is above its parent's, which would break level-of-detail selection.",
       "cause": "A cluster's error above its parent's, or a coarse cluster's normal deviation past its group's bound ([checks](COMPILER.md#invocation))",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -185,7 +164,6 @@
       "id": "T3D-E021",
       "code": "DAG_NORMAL_DEVIATION",
       "level": "error",
-      "group": "Global",
       "message": "A coarse cluster bends its normals past its group's bound.",
       "cause": "A cluster's error above its parent's, or a coarse cluster's normal deviation past its group's bound ([checks](COMPILER.md#invocation))",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -194,7 +172,6 @@
       "id": "T3D-E022",
       "code": "PAGE_DEPENDENCY_BOUND",
       "level": "error",
-      "group": "Global",
       "message": "A cluster's parents span more bundles than the dependency bound allows.",
       "cause": "A cluster whose parents alone span more bundles than `streams.dependencyBound` ([bundles](COMPILER.md#invocation)); names the mesh, the primitive and the page",
       "action": "Report it as a compiler bug, with the mesh and primitive the message names."
@@ -203,7 +180,6 @@
       "id": "T3D-E023",
       "code": "INVALID_PAGE_DEPENDENCIES",
       "level": "error",
-      "group": "Global",
       "message": "A bundle's dependency list failed its consistency check.",
       "cause": "A bundle dependency list with a cycle, missing its pages' parents, not closed, not reaching the root cover, or not empty on a pinned bundle; the message names the mesh and the primitive, then the page or the bundle ([bundles](COMPILER.md#invocation))",
       "action": "Report it as a compiler bug, with the mesh, primitive and page the message names."
@@ -212,7 +188,6 @@
       "id": "T3D-E024",
       "code": "CANCELLED",
       "level": "error",
-      "group": "Global",
       "message": "The compile stopped on a cancel request; nothing was published.",
       "cause": "Stopped on a cancel request",
       "action": "Run the compile again when you want its result."
@@ -221,7 +196,6 @@
       "id": "T3D-E025",
       "code": "CACHE_LOCKED",
       "level": "error",
-      "group": "Global",
       "message": "Another compile holds the cache folder's lock.",
       "cause": "Another compilation holds `<cache>/native/.lock`, an operating-system file lock held for the whole compile. It follows the process, not the file: released when its owner ends, killed or not, so no cache stays blocked; the file is never deleted, only the hold counts. The newcomer waits 30 s (`TRILLION3D_CACHE_LOCK_WAIT_MS`) before this refusal; a cancel during the wait ends it with `CANCELLED`",
       "action": "Wait for the other compile to end, or compile into another cache folder; `TRILLION3D_CACHE_LOCK_WAIT_MS` sets how long to wait."
@@ -230,7 +204,6 @@
       "id": "T3D-E026",
       "code": "IO_ERROR",
       "level": "error",
-      "group": "Global",
       "message": "A file could not be read or written.",
       "cause": "Filesystem or thread pool failure",
       "action": "Check the free disk space and the permissions of the source and cache folders."
@@ -239,7 +212,6 @@
       "id": "T3D-E027",
       "code": "THREAD_POOL_ERROR",
       "level": "error",
-      "group": "Global",
       "message": "The compiler could not start its worker threads.",
       "cause": "Filesystem or thread pool failure",
       "action": "Lower the thread count, or free system resources, then compile again."
@@ -248,7 +220,6 @@
       "id": "T3D-W001",
       "code": "autonomous-scene-animated",
       "level": "warn",
-      "group": "Global",
       "message": "The standalone glTF scene was not written because the source is animated.",
       "cause": "The source declares node animation, skinning or morph weights, which the autonomous glTF (accessors rebuilt from the cache's pages) cannot carry: the mode is refused for this cache (`autonomousScene: null`) rather than written frozen. Once per job; does not fail the job",
       "action": "Load the cache through the engine, which plays the animation; the standalone scene serves static models only."
@@ -257,7 +228,6 @@
       "id": "T3D-W002",
       "code": "texture-level-write-failed",
       "level": "warn",
-      "group": "Global",
       "message": "A baked texture level could not be written, so the engine loads the source image instead.",
       "cause": "A baked mip level could not be written under `native/textures/` (disk full, directory not writable); the entry keeps its sidecar tail with `bakedLevels = 0`, so the engine loads the source image. Per image; does not fail the job",
       "action": "Free disk space or make the cache folder writable, then compile again."
@@ -266,7 +236,6 @@
       "id": "T3D-E028",
       "code": "IMPORT_UNSUPPORTED_ANIMATION",
       "level": "error",
-      "group": "Global",
       "message": "The source animation uses a feature the importer does not carry.",
       "cause": "An FBX skin, curve or keyed channel outside what the glTF intermediate carries (for example several skin deformers on one mesh); refused rather than frozen.",
       "action": "Bake the animation to plain keyframes in the authoring tool and export again."
@@ -275,7 +244,6 @@
       "id": "T3D-E029",
       "code": "INDEX_OUT_OF_BOUNDS",
       "level": "error",
-      "group": "Global",
       "message": "A glTF index points outside its accessor.",
       "cause": "A triangle index, or a sparse accessor index, at or past the count of the accessor it indexes.",
       "action": "Export the model again; its index or sparse accessor data is corrupt."
@@ -284,7 +252,6 @@
       "id": "T3D-E030",
       "code": "UNSUPPORTED_ACCESSOR_TYPE",
       "level": "error",
-      "group": "Global",
       "message": "A glTF accessor has a missing or unknown type.",
       "cause": "An accessor `type` absent, or outside the ones glTF defines for the attribute that reads it.",
       "action": "Export the model again with standard accessor types (`SCALAR`, `VEC2`, `VEC3`, `VEC4`, `MAT4`)."
@@ -293,7 +260,6 @@
       "id": "T3D-E031",
       "code": "UNSUPPORTED_COMPONENT",
       "level": "error",
-      "group": "Global",
       "message": "A glTF accessor has a component type the compiler does not read.",
       "cause": "An accessor `componentType` outside the glTF list, or not allowed for the attribute that reads it.",
       "action": "Export the model again with float, normalised integer or unsigned integer components."
@@ -302,7 +268,6 @@
       "id": "T3D-E032",
       "code": "UNSUPPORTED_PRIMITIVE",
       "level": "error",
-      "group": "Global",
       "message": "A glTF primitive is not made of triangles.",
       "cause": "A primitive `mode` other than triangles (points, lines, strips or fans the reader does not expand).",
       "action": "Triangulate the mesh in its authoring tool; points and lines are not drawn."
@@ -311,7 +276,6 @@
       "id": "T3D-E033",
       "code": "INVALID_TRIANGLES",
       "level": "error",
-      "group": "Global",
       "message": "A primitive's index count is not a positive multiple of three.",
       "cause": "A triangle list whose index count is zero or not divisible by three.",
       "action": "Export the model again; its triangle list is truncated."
@@ -320,7 +284,6 @@
       "id": "T3D-E034",
       "code": "NONFINITE_POSITION",
       "level": "error",
-      "group": "Global",
       "message": "A vertex position is not a finite number.",
       "cause": "A position component that is NaN or infinite; no bounds or clusters can be built from it.",
       "action": "Clean the mesh in its authoring tool (remove NaN or infinite vertices) and export again."
@@ -329,7 +292,6 @@
       "id": "T3D-E035",
       "code": "INVALID_SOURCE",
       "level": "error",
-      "group": "Global",
       "message": "The source is missing a file it needs.",
       "cause": "A source whose runtime glTF is absent, or a compressed buffer that does not decode.",
       "action": "Point the compiler at a folder or file holding the whole model, its runtime file included."
@@ -338,7 +300,6 @@
       "id": "T3D-E036",
       "code": "SOURCE_FORMAT_UNKNOWN",
       "level": "error",
-      "group": "Global",
       "message": "No import driver accepts this source.",
       "cause": "A file or folder whose extension and content no scene driver claims.",
       "action": "Use one of the accepted formats the message lists, or convert the model to glTF."
@@ -347,7 +308,6 @@
       "id": "T3D-E037",
       "code": "SOURCE_FORMAT_AMBIGUOUS",
       "level": "error",
-      "group": "Global",
       "message": "Several import drivers claim the same source folder.",
       "cause": "A source directory holding files of several scene formats, none preferred.",
       "action": "Keep one model format per source folder, or point the compiler at the file itself."
@@ -356,7 +316,6 @@
       "id": "T3D-E038",
       "code": "INVALID_MANIFEST",
       "level": "error",
-      "group": "Global",
       "message": "A compiled manifest failed its format check.",
       "cause": "A binary manifest record whose length, count or layout contradicts its header.",
       "action": "Delete the cache folder and compile again."
@@ -365,7 +324,6 @@
       "id": "T3D-E039",
       "code": "INVALID_PAGE",
       "level": "error",
-      "group": "Global",
       "message": "A geometry page has an invalid triangle or vertex count.",
       "cause": "A page whose triangle or position count is zero or past its limit, found while encoding it.",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -374,7 +332,6 @@
       "id": "T3D-E040",
       "code": "INVALID_PAGE_ATTRIBUTE",
       "level": "error",
-      "group": "Global",
       "message": "A geometry page attribute has an invalid count or layout.",
       "cause": "A page attribute whose count or layout does not match the page it belongs to.",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -383,7 +340,6 @@
       "id": "T3D-E041",
       "code": "PAGE_ATTRIBUTE_RANGE",
       "level": "error",
-      "group": "Global",
       "message": "A page attribute spans more than its quantisation grid can hold.",
       "cause": "An attribute range past 2^24 steps of its primitive's grid.",
       "action": "Split the mesh, or scale its UVs or attributes down to a smaller range, then compile again."
@@ -392,7 +348,6 @@
       "id": "T3D-E042",
       "code": "PAGE_VERTEX_LIMIT",
       "level": "error",
-      "group": "Global",
       "message": "A geometry page holds more than 65,535 vertices.",
       "cause": "A page past the 16-bit vertex index its format uses.",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -401,7 +356,6 @@
       "id": "T3D-E043",
       "code": "PAGE_JOINT_RANGE",
       "level": "error",
-      "group": "Global",
       "message": "A skinned page names a joint past 65,535.",
       "cause": "A joint index past the 16-bit range a page stores.",
       "action": "Reduce the skeleton to at most 65,536 joints and export again."
@@ -410,7 +364,6 @@
       "id": "T3D-E044",
       "code": "PAGE_MORPH_TARGETS",
       "level": "error",
-      "group": "Global",
       "message": "A primitive has more morph targets than a page carries.",
       "cause": "A primitive's morph target count past the per-page limit.",
       "action": "Reduce the primitive's morph targets and export again."
@@ -419,7 +372,6 @@
       "id": "T3D-E045",
       "code": "SOFT_DEFORMATION",
       "level": "error",
-      "group": "Global",
       "message": "A simulated primitive also carries a skin or morph targets.",
       "cause": "A cloth, rope or soft-volume primitive that also declares joints or morph targets.",
       "action": "Keep one deformation per primitive: either the physics simulation, or the skin and morph targets."
@@ -428,7 +380,6 @@
       "id": "T3D-E046",
       "code": "PHYSICS_COOK_FAILED",
       "level": "error",
-      "group": "Global",
       "message": "The physics shape of a primitive could not be built.",
       "cause": "The native physics cook refused a primitive's collision or soft-body shape.",
       "action": "Check the mesh for degenerate or non-manifold parts, clean it, and compile again."
@@ -437,7 +388,6 @@
       "id": "T3D-E047",
       "code": "TEXTURE_ENCODE_FAILED",
       "level": "error",
-      "group": "Global",
       "message": "A baked texture level could not be encoded.",
       "cause": "The lossless encoder refused a texture level baked from a decoded image.",
       "action": "Report it as a compiler bug, with the texture if you can share it."
@@ -446,7 +396,6 @@
       "id": "T3D-E048",
       "code": "WORLD_TOP_OVER_BUDGET",
       "level": "error",
-      "group": "Global",
       "message": "The world's pinned top level is above its byte budget.",
       "cause": "The always-resident top of a world holds more bytes than its budget; the message names the heaviest cell.",
       "action": "Split the world into more cells, or simplify the objects that stay loaded everywhere."
@@ -455,7 +404,6 @@
       "id": "T3D-E049",
       "code": "INVALID_CUTOUT_DECISIONS",
       "level": "error",
-      "group": "Global",
       "message": "The cutout answer sheet in the cache folder is invalid.",
       "cause": "An answer sheet whose JSON, version or entries do not read back.",
       "action": "Fix or delete the answer sheet (`decoupes.json`), then compile again."
@@ -464,7 +412,6 @@
       "id": "T3D-E050",
       "code": "INVALID_ORACLE_JOB",
       "level": "error",
-      "group": "Global",
       "message": "The reference path tracer's job file is invalid.",
       "cause": "A `trillion3d-oracle` job missing a field or holding a value out of range (a measurement tool, not the compiler).",
       "action": "Fix the job file at the field the message names."
@@ -473,7 +420,6 @@
       "id": "T3D-E051",
       "code": "INVALID_ORACLE_SOURCE",
       "level": "error",
-      "group": "Global",
       "message": "The reference path tracer's scene is invalid.",
       "cause": "A `trillion3d-oracle` scene missing a field or holding a value out of range (a measurement tool, not the compiler).",
       "action": "Fix the scene at the field the message names."
@@ -482,7 +428,6 @@
       "id": "T3D-W003",
       "code": "DAG_FLAT",
       "level": "warn",
-      "group": "Global",
       "message": "A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance.",
       "cause": "The cluster DAG of the primitive stopped at depth 0: every group of clusters failed to simplify (seam-locked, border-locked, too small or of unusable error); the warning carries the group count per outcome and the dominant cause.",
       "action": "Look at the named cause in `clusters.json`: weld seams, remove locked borders or split UV islands in the authoring tool."
@@ -491,7 +436,6 @@
       "id": "T3D-W004",
       "code": "DAG_ROOTS",
       "level": "warn",
-      "group": "Global",
       "message": "A primitive's DAG stopped rising mid-way and left many roots, so it stays heavy in the distance.",
       "cause": "More than an eighth of a primitive's pages are roots, on a primitive of at least eight clusters: its DAG stopped mid-way.",
       "action": "Look at the named cause in `clusters.json`: weld seams, remove locked borders or split UV islands in the authoring tool."
@@ -500,7 +444,6 @@
       "id": "T3D-E052",
       "code": "ARCHIVE_PATH_ESCAPE",
       "level": "error",
-      "group": "Archives",
       "message": "An archive entry's path leaves the extraction folder.",
       "cause": "ZIP entry path leaves the extraction root (absolute path, `..`, named volume, reversed separator)",
       "action": "Rebuild the archive with relative entry paths only."
@@ -509,7 +452,6 @@
       "id": "T3D-E053",
       "code": "ARCHIVE_SYMLINK",
       "level": "error",
-      "group": "Archives",
       "message": "An archive entry is a symbolic link, which is never followed.",
       "cause": "ZIP entry is a symlink; never followed",
       "action": "Rebuild the archive with the linked files stored as plain files."
@@ -518,7 +460,6 @@
       "id": "T3D-E054",
       "code": "ARCHIVE_ENCRYPTED",
       "level": "error",
-      "group": "Archives",
       "message": "An archive entry is encrypted.",
       "cause": "ZIP entry is encrypted; refused, never bypassed",
       "action": "Rebuild the archive without encryption."
@@ -527,7 +468,6 @@
       "id": "T3D-E055",
       "code": "ARCHIVE_UNREADABLE",
       "level": "error",
-      "group": "Archives",
       "message": "The archive is truncated or corrupted.",
       "cause": "ZIP archive truncated or corrupted",
       "action": "Download or export the archive again."
@@ -536,7 +476,6 @@
       "id": "T3D-E056",
       "code": "ARCHIVE_EMPTY",
       "level": "error",
-      "group": "Archives",
       "message": "The archive holds no entry.",
       "cause": "ZIP archive carries no entry",
       "action": "Check that the archive holds the model files."
@@ -545,7 +484,6 @@
       "id": "T3D-E057",
       "code": "ARCHIVE_TOO_MANY_ENTRIES",
       "level": "error",
-      "group": "Archives",
       "message": "The archive holds more than 20,000 entries.",
       "cause": "ZIP archive exceeds 20,000 entries",
       "action": "Split the archive, or extract it and compile the model folder."
@@ -554,7 +492,6 @@
       "id": "T3D-E058",
       "code": "ARCHIVE_TOO_LARGE",
       "level": "error",
-      "group": "Archives",
       "message": "The archive unpacks to more than 8 GiB.",
       "cause": "ZIP archive exceeds 8 GiB decompressed",
       "action": "Extract the archive and compile the model folder, or split the model."
@@ -563,7 +500,6 @@
       "id": "T3D-W005",
       "code": "light-index-out-of-bounds",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A node names a light the file does not declare, so that light is left out.",
       "cause": "A node names a `KHR_lights_punctual` light the document does not declare; the lamp is left out",
       "action": "Export the scene again; its light list is inconsistent."
@@ -572,7 +508,6 @@
       "id": "T3D-W006",
       "code": "light-invalid-transform",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A light's position or orientation is not a finite number, so the light is left out.",
       "cause": "The lamp's world matrix holds a non-finite number",
       "action": "Fix the light's transform in the authoring tool and export again."
@@ -581,7 +516,6 @@
       "id": "T3D-W007",
       "code": "light-unsupported-type",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A light is neither point, spot nor directional, so it is left out.",
       "cause": "A lamp neither `point`, `spot` nor `directional`",
       "action": "Replace it with a point, spot or directional light."
@@ -590,7 +524,6 @@
       "id": "T3D-W008",
       "code": "light-non-positive-intensity",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A light's intensity is zero, negative or not a number, so it is left out.",
       "cause": "Intensity zero, negative or non-finite",
       "action": "Give the light a positive intensity."
@@ -599,7 +532,6 @@
       "id": "T3D-W009",
       "code": "light-degenerate-axis",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A spot or directional light has a transform that collapses its direction, so it is left out.",
       "cause": "A `spot` or `directional` lamp whose node transform collapses its −Z axis",
       "action": "Fix the light's rotation and scale in the authoring tool."
@@ -608,7 +540,6 @@
       "id": "T3D-I001",
       "code": "light-emitter-radius-derived",
       "level": "info",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A light's emitter radius was measured on its emissive body rather than read from the file.",
       "cause": "Counted, not rejected: `emitterRadius` measured on the emissive body bound to the lamp, not read from the source",
       "action": "Nothing to do; declare the radius in the file to choose it yourself."
@@ -617,7 +548,6 @@
       "id": "T3D-W010",
       "code": "light-emitter-radius-invalid",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A light's emitter radius is not usable, so it is omitted and the light kept.",
       "cause": "A radius, declared or measured, not finite, not strictly positive, or not strictly below `range`; the field is omitted, the lamp kept",
       "action": "Give the light a positive radius smaller than its range."
@@ -626,7 +556,6 @@
       "id": "T3D-W011",
       "code": "light-area-or-volume",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "An area or volume light was left out; only point, spot and directional lights are carried.",
       "cause": "An FBX or OBJ light of the area or volume type, which has no glTF punctual equivalent.",
       "action": "Replace it with point, spot or directional lights, or with an emissive surface."
@@ -635,7 +564,6 @@
       "id": "T3D-W012",
       "code": "material-library-missing",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A material library the model cites could not be opened, so its materials take default values.",
       "cause": "A cited material library (an OBJ `mtllib`) could not be opened; every material takes its defaults",
       "action": "Place the `.mtl` file beside the model under the name the model cites."
@@ -644,7 +572,6 @@
       "id": "T3D-W013",
       "code": "material-library-truncated",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "The material library ends in the middle of a declaration.",
       "cause": "The material library's last line is unterminated, cut mid-declaration; the incomplete value parsed is kept",
       "action": "Export the `.mtl` file again; the last value read is kept."
@@ -653,7 +580,6 @@
       "id": "T3D-W014",
       "code": "material-specular-color",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A specular colour or map was dropped; glTF's metal-roughness model has no place for it.",
       "cause": "A specular colour or map (`Ks`, `map_Ks`), which glTF's metallic-roughness model has no room for; **not** turned into metalness, a different model",
       "action": "Convert the material to metal-roughness in the authoring tool."
@@ -662,7 +588,6 @@
       "id": "T3D-W015",
       "code": "material-specular-ior",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "An index of refraction other than 1.5 was dropped.",
       "cause": "An index of refraction (`Ni`) other than glTF's default 1.5",
       "action": "Nothing carries it in glTF; set the look with roughness and metalness instead."
@@ -671,7 +596,6 @@
       "id": "T3D-W016",
       "code": "material-ambient-color",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "An ambient colour or map was dropped; glTF has no ambient term.",
       "cause": "An ambient colour or map (`Ka`, `map_Ka`) that became neither the occlusion nor the base-colour texture; glTF has no ambient term",
       "action": "Bake the ambient into the base colour or an occlusion map."
@@ -680,7 +604,6 @@
       "id": "T3D-W017",
       "code": "material-bump-map",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A bump map was dropped because a different normal map is kept.",
       "cause": "A bump map (`bump`, `map_Bump`) naming another file than the normal map kept; the normal map wins and the height map is dropped",
       "action": "Bake the bump into the normal map, or keep only one of them."
@@ -689,7 +612,6 @@
       "id": "T3D-W018",
       "code": "material-separate-opacity-texture",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "An opacity map separate from the base colour was dropped; glTF reads opacity from the base colour's alpha only.",
       "cause": "An FBX or OBJ opacity map naming another image than the base colour.",
       "action": "Put the opacity into the alpha channel of the base-colour texture."
@@ -698,7 +620,6 @@
       "id": "T3D-W019",
       "code": "material-split-metal-roughness",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "Metalness and roughness come from different maps, which glTF cannot carry.",
       "cause": "An FBX or OBJ material whose metalness and roughness maps are two files; neither is bound.",
       "action": "Pack metalness and roughness into one texture (blue and green channels)."
@@ -707,7 +628,6 @@
       "id": "T3D-W020",
       "code": "texture-offset",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A texture map's offset option was dropped.",
       "cause": "A map's `-o` or `-s` option; would need `KHR_texture_transform`, which the glTF writer does not emit",
       "action": "Bake the offset into the UVs in the authoring tool."
@@ -716,7 +636,6 @@
       "id": "T3D-W021",
       "code": "texture-scale",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A texture map's scale option was dropped.",
       "cause": "A map's `-o` or `-s` option; would need `KHR_texture_transform`, which the glTF writer does not emit",
       "action": "Bake the scale into the UVs in the authoring tool."
@@ -725,7 +644,6 @@
       "id": "T3D-W022",
       "code": "texture-bump-scale",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A bump map's strength option was dropped; glTF carries no relief strength.",
       "cause": "A map's `-bm` option; glTF carries no relief strength",
       "action": "Bake the strength into the normal map."
@@ -734,7 +652,6 @@
       "id": "T3D-W023",
       "code": "texture-embedded-format",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "An embedded texture is in an image format the importer does not read, so it is dropped.",
       "cause": "An FBX texture carried inside the file whose name gives no supported image format.",
       "action": "Embed the texture as PNG or JPEG, or place it beside the model."
@@ -743,7 +660,6 @@
       "id": "T3D-W024",
       "code": "texture-format",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A texture file is in an image format the importer does not read, so it is dropped.",
       "cause": "A referenced texture file whose extension no image driver claims.",
       "action": "Convert the texture to PNG or JPEG."
@@ -752,7 +668,6 @@
       "id": "T3D-W025",
       "code": "texture-missing",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A texture file the model cites was not found, so the material draws without it.",
       "cause": "A referenced texture file absent from the source folder.",
       "action": "Place the texture beside the model under the name the model cites."
@@ -761,7 +676,6 @@
       "id": "T3D-W026",
       "code": "texture-outside-source",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A texture file lies outside the model's folder, so it is not copied.",
       "cause": "A referenced texture path leaving the source folder.",
       "action": "Move the texture into the model's folder and point the material at it."
@@ -770,7 +684,6 @@
       "id": "T3D-W027",
       "code": "texture-procedural",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A procedural texture was dropped; only image textures are carried.",
       "cause": "An FBX or OBJ texture with no image file behind it.",
       "action": "Bake the procedural texture to an image in the authoring tool."
@@ -779,7 +692,6 @@
       "id": "T3D-W028",
       "code": "texture-uv-transform",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A texture's UV transform was dropped.",
       "cause": "An FBX texture with a translation, rotation or scale on its UVs, which the glTF writer does not carry.",
       "action": "Bake the transform into the UVs in the authoring tool."
@@ -788,7 +700,6 @@
       "id": "T3D-I002",
       "code": "node-hidden",
       "level": "info",
-      "group": "Lights and OBJ/MTL materials",
       "message": "Hidden nodes were left out of the scene.",
       "cause": "FBX or OBJ nodes marked invisible in the source; counted, not converted.",
       "action": "Make the nodes visible in the authoring tool if they should be drawn."
@@ -797,7 +708,6 @@
       "id": "T3D-W029",
       "code": "node-invalid-transform",
       "level": "warn",
-      "group": "Lights and OBJ/MTL materials",
       "message": "A node's transform is not a finite number, so the node is left out.",
       "cause": "A node whose world matrix holds NaN or infinity.",
       "action": "Fix the node's transform in the authoring tool and export again."
@@ -806,7 +716,6 @@
       "id": "T3D-E059",
       "code": "blend-header-invalid",
       "level": "error",
-      "group": "Blender",
       "message": "The file is not a readable Blender file.",
       "cause": "File starts neither with `BLENDER` nor with a gzip or Zstandard frame, or its header does not read back",
       "action": "Save the file again from Blender."
@@ -815,7 +724,6 @@
       "id": "T3D-E060",
       "code": "blend-pointer-size-unsupported",
       "level": "error",
-      "group": "Blender",
       "message": "The Blender file was written with 32-bit pointers.",
       "cause": "Written with 32-bit pointers; only 64-bit files are read",
       "action": "Open the file in a 64-bit Blender and save it again."
@@ -824,7 +732,6 @@
       "id": "T3D-E061",
       "code": "blend-endianness-unsupported",
       "level": "error",
-      "group": "Blender",
       "message": "The Blender file is big-endian.",
       "cause": "Big-endian; only little-endian files are read",
       "action": "Open the file in a current Blender and save it again."
@@ -833,7 +740,6 @@
       "id": "T3D-E062",
       "code": "blend-block-header-unsupported",
       "level": "error",
-      "group": "Blender",
       "message": "The Blender file uses a block layout this reader does not know.",
       "cause": "A block-header variant outside the one this reader describes",
       "action": "Save the file again from a current Blender, or export it to glTF."
@@ -842,7 +748,6 @@
       "id": "T3D-E063",
       "code": "blend-truncated",
       "level": "error",
-      "group": "Blender",
       "message": "The Blender file ends in the middle of a block.",
       "cause": "The file, or its compressed frame, ends inside a block",
       "action": "Save the file again from Blender; the copy is incomplete."
@@ -851,7 +756,6 @@
       "id": "T3D-E064",
       "code": "blend-too-large",
       "level": "error",
-      "group": "Blender",
       "message": "The Blender file needs more memory than the RAM budget.",
       "cause": "Needs more than the job's `ramBudgetMb`: a gzip or Zstandard file unpacking past it (the message names the least bytes needed), a block index not fitting in what is left, or a packed image or mesh taking the scene binary past it (named, with its bytes); a bare file is mapped in place, its size never counted. Also a mesh announcing more vertices or corners than this reader reads",
       "action": "Raise the RAM budget, or split the scene into smaller files."
@@ -860,7 +764,6 @@
       "id": "T3D-E065",
       "code": "blend-dna-invalid",
       "level": "error",
-      "group": "Blender",
       "message": "The Blender file's structure description is missing or unreadable.",
       "cause": "No `DNA1` block, or its self-description does not read back",
       "action": "Save the file again from Blender."
@@ -869,7 +772,6 @@
       "id": "T3D-E066",
       "code": "blend-mesh-layout-unsupported",
       "level": "error",
-      "group": "Blender",
       "message": "A Blender mesh is stored in a layout this reader does not know.",
       "cause": "A mesh in none of the known layouts — Blender 5's attribute store, the `CustomData` layers of 3.5 to 4.x, the `MVert`/`MPoly`/`MLoop` structures of 2.8 to 3.4 — (no `position`, no `.corner_vert`, or unreadable face offsets); refused, never guessed",
       "action": "Save the file again from a current Blender, or export it to glTF."
@@ -878,7 +780,6 @@
       "id": "T3D-E067",
       "code": "blend-mesh-invalid",
       "level": "error",
-      "group": "Blender",
       "message": "A Blender mesh corner points outside its vertices.",
       "cause": "A mesh corner points outside its own vertices",
       "action": "Clean up the mesh in Blender (Merge by Distance, Delete Loose) and save again."
@@ -887,7 +788,6 @@
       "id": "T3D-W030",
       "code": "blend-collection-instance-unsupported",
       "level": "warn",
-      "group": "Blender",
       "message": "An object that instances a collection was left out.",
       "cause": "An object instancing a collection; per object, does not fail the job",
       "action": "Make the instance real in Blender (Object > Apply > Make Instances Real)."
@@ -896,7 +796,6 @@
       "id": "T3D-W031",
       "code": "blend-modifier-not-applied",
       "level": "warn",
-      "group": "Blender",
       "message": "Modifiers were not applied; the base mesh is exported.",
       "cause": "Modifiers, evaluated by Blender and not stored: the base mesh is exported",
       "action": "Apply the modifiers in Blender before saving."
@@ -905,7 +804,6 @@
       "id": "T3D-W032",
       "code": "blend-mesh-missing",
       "level": "warn",
-      "group": "Blender",
       "message": "A mesh object points at no mesh data, so it is left out.",
       "cause": "A mesh object pointing at non-mesh data, or nothing",
       "action": "Fix or delete the object in Blender."
@@ -914,7 +812,6 @@
       "id": "T3D-W033",
       "code": "blend-alpha-texture-unsupported",
       "level": "warn",
-      "group": "Blender",
       "message": "An alpha input from another image or node was dropped; the declared alpha is kept.",
       "cause": "`Alpha` from an image the base colour does not carry, or a computed node; glTF reads opacity only from the base-colour texture's alpha, so the declared factor is kept",
       "action": "Put the alpha into the base-colour image's alpha channel."
@@ -923,7 +820,6 @@
       "id": "T3D-W034",
       "code": "blend-texture-channel-unsupported",
       "level": "warn",
-      "group": "Blender",
       "message": "An alpha taken from a colour channel was dropped; the declared alpha is kept.",
       "cause": "`Alpha` from a channel of the base-colour image other than its alpha; reading it there would recompose bytes, so the declared factor is kept",
       "action": "Store the alpha in the base-colour image's alpha channel."
@@ -932,7 +828,6 @@
       "id": "T3D-W035",
       "code": "blend-surface-node-unsupported",
       "level": "warn",
-      "group": "Blender",
       "message": "A material not driven by a Principled BSDF keeps only its basic values.",
       "cause": "The active `Material Output` is driven by something other than a `Principled BSDF`, or nothing; the material block's own values are kept",
       "action": "Connect a Principled BSDF to the material output."
@@ -941,7 +836,6 @@
       "id": "T3D-W036",
       "code": "blend-shader-input-unconverted",
       "level": "warn",
-      "group": "Blender",
       "message": "A shader input fed by a node other than an image was not converted; its declared value is kept.",
       "cause": "A Principled BSDF input fed by a node other than an image texture (or a normal map over one); the declared value is kept exactly",
       "action": "Bake the node setup to an image texture in Blender."
@@ -950,7 +844,6 @@
       "id": "T3D-W037",
       "code": "blend-emission-clamped",
       "level": "warn",
-      "group": "Blender",
       "message": "An emission above 1 was clamped.",
       "cause": "Emission colour × strength above 1, which `emissiveFactor` cannot carry; clamped",
       "action": "Lower the emission strength, or accept the clamp."
@@ -959,7 +852,6 @@
       "id": "T3D-W038",
       "code": "blend-image-format",
       "level": "warn",
-      "group": "Blender",
       "message": "An image in a format the image readers do not decode was dropped.",
       "cause": "An image file the image registry cannot decode; the scene continues without it",
       "action": "Convert the image to PNG or JPEG."
@@ -968,7 +860,6 @@
       "id": "T3D-W039",
       "code": "blend-image-outside-source",
       "level": "warn",
-      "group": "Blender",
       "message": "An image outside the model's folder, not packed, was not copied.",
       "cause": "An image outside the served root with no packed bytes; not copied beside the scene",
       "action": "Pack the image in Blender, or move it into the model's folder."
@@ -977,7 +868,6 @@
       "id": "T3D-W040",
       "code": "blend-object-material-override-unconverted",
       "level": "warn",
-      "group": "Blender",
       "message": "An object's material override was dropped; the mesh's own material is kept.",
       "cause": "An object replacing a mesh material slot; the mesh's material is kept",
       "action": "Assign the material to the mesh data instead of the object."
@@ -986,7 +876,6 @@
       "id": "T3D-W041",
       "code": "blend-ngon-untriangulable",
       "level": "warn",
-      "group": "Blender",
       "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
       "cause": "A face the ear-clipping cut could not finish ([Polygon faces](COMPILER.md#polygon-faces)): self-crossing, or planeless (every corner collinear, zero area); it falls back to the fan from its first corner, which may overfill its outline",
       "action": "Triangulate or fix the face in Blender (self-crossing or flat polygon)."
@@ -995,7 +884,6 @@
       "id": "T3D-I003",
       "code": "blend-extra-scenes",
       "level": "info",
-      "group": "Blender",
       "message": "The file holds more than one scene; only the active one is exported.",
       "cause": "More than one scene; only the active scene's objects are exported",
       "action": "Make the scene you want active before saving."
@@ -1004,7 +892,6 @@
       "id": "T3D-I004",
       "code": "blend-object-outside-scene",
       "level": "info",
-      "group": "Blender",
       "message": "A mesh object outside the active scene was not exported.",
       "cause": "A mesh object no collection of the active scene holds — left over, in another scene, or in a collection the active view layer excludes; not exported",
       "action": "Link the object into a collection of the active scene if it should be drawn."
@@ -1013,7 +900,6 @@
       "id": "T3D-W042",
       "code": "blend-light-type-unsupported",
       "level": "warn",
-      "group": "Blender",
       "message": "A light type other than point, sun, spot or area was left out.",
       "cause": "A lamp type not converted — the `hemi` of files before Blender 2.8, or any type outside point, sun, spot and area; not exported",
       "action": "Replace it with a point, sun, spot or area light."
@@ -1022,7 +908,6 @@
       "id": "T3D-W043",
       "code": "blend-lamp-missing",
       "level": "warn",
-      "group": "Blender",
       "message": "A light object points at no light data, so it is left out.",
       "cause": "A lamp object pointing at non-`Lamp` data, or nothing; not exported",
       "action": "Fix or delete the object in Blender."
@@ -1031,7 +916,6 @@
       "id": "T3D-W044",
       "code": "image-lossy-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A lossy WebP texture was refused, so it falls back to white.",
       "cause": "A WebP `VP8 ` (lossy) stream, refused before decoding: the fidelity policy admits WebP lossless only",
       "action": "Save the texture as lossless WebP or PNG."
@@ -1040,7 +924,6 @@
       "id": "T3D-W045",
       "code": "image-animation-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "An animated WebP or GIF texture was refused, so it falls back to white.",
       "cause": "An `ANIM`/`ANMF` chunk (WebP) or a second image descriptor (GIF): an animation is not a texture, refused rather than flattened to a chosen frame",
       "action": "Export the one frame you want as a still image."
@@ -1049,7 +932,6 @@
       "id": "T3D-W046",
       "code": "image-animation-first-frame",
       "level": "warn",
-      "group": "Images",
       "message": "An animated PNG was read as its default image only.",
       "cause": "A PNG `acTL` chunk (an APNG of several frames): the default image, the one the APNG specification places in `IDAT`, is delivered and the animation counted",
       "action": "Nothing to do if the default image is the one you want; otherwise save that frame as PNG."
@@ -1058,7 +940,6 @@
       "id": "T3D-W047",
       "code": "image-icc-profile-ignored",
       "level": "warn",
-      "group": "Images",
       "message": "An embedded colour profile was ignored; the texture is read as sRGB.",
       "cause": "An embedded colour profile — PNG `iCCP`, JPEG `ICC_PROFILE` APP2 segment, Photoshop image resource 1039 — that the sRGB output, with no colour management, does not carry; a profile naming itself sRGB counts nothing",
       "action": "Convert the texture to sRGB in an image editor."
@@ -1067,7 +948,6 @@
       "id": "T3D-W048",
       "code": "image-transfer-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A PNG gamma other than sRGB or linear was ignored; the texture is read as sRGB.",
       "cause": "A PNG `gAMA` neither 45455 (sRGB) nor 100000 (linear), with no `iCCP` or `sRGB` chunk overriding it; treated as sRGB, the convention for a silent file",
       "action": "Convert the texture to sRGB in an image editor."
@@ -1076,7 +956,6 @@
       "id": "T3D-W049",
       "code": "image-profile-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A TIFF profile or codec was declined, so the texture falls back to white.",
       "cause": "TIFF read, its profile or codec declined",
       "action": "Save the texture as PNG, or as an uncompressed 8-bit TIFF."
@@ -1085,7 +964,6 @@
       "id": "T3D-W050",
       "code": "image-depth-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A texture with more than 8 bits per channel was refused, so it falls back to white.",
       "cause": "A bit depth the `Rgba8` contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than narrowed to 8 bits",
       "action": "Save the texture at 8 bits per channel."
@@ -1094,7 +972,6 @@
       "id": "T3D-W051",
       "code": "image-too-large",
       "level": "warn",
-      "group": "Images",
       "message": "A texture is above the decoding size ceiling, so it falls back to white.",
       "cause": "Over the allocation ceiling once expanded to RGBA8 (width x height x 4, checked before any pixel is decoded); decoded by no `image`-crate plugin",
       "action": "Reduce the texture's resolution."
@@ -1103,7 +980,6 @@
       "id": "T3D-W052",
       "code": "image-float-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A floating-point image (OpenEXR or HDR) was used where an 8-bit image is expected.",
       "cause": "The `RgbaF32` variant (OpenEXR, Radiance HDR) returned to an `Rgba8`-only consumer (the RGBA8 sRGB previews); refused by name rather than tone-mapped",
       "action": "Convert the texture to an 8-bit PNG."
@@ -1112,7 +988,6 @@
       "id": "T3D-W053",
       "code": "bmp-depth-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A BMP bit depth outside the lossless list was refused, so the texture falls back to white.",
       "cause": "A BMP bit count outside those carried losslessly to RGBA8 (1, 2, 4, 8, 16, 24, 32)",
       "action": "Save the texture as PNG."
@@ -1121,7 +996,6 @@
       "id": "T3D-W054",
       "code": "bmp-bitfields-lossy",
       "level": "warn",
-      "group": "Images",
       "message": "A BMP with more than 8 bits per channel was refused, so the texture falls back to white.",
       "cause": "A `BI_BITFIELDS` mask wider than eight bits per channel (10-10-10, for instance), which decoding would narrow; refused before decoding",
       "action": "Save the texture as PNG."
@@ -1130,7 +1004,6 @@
       "id": "T3D-W055",
       "code": "bmp-embedded-codec-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A BMP wrapping a JPEG or PNG was refused, so the texture falls back to white.",
       "cause": "`BI_JPEG` or `BI_PNG`: another format wrapped, which has its own plugin; unwrapping it here would bypass the router",
       "action": "Save the texture as a plain JPEG or PNG file."
@@ -1139,7 +1012,6 @@
       "id": "T3D-W056",
       "code": "bmp-compression-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A BMP compression outside the read list was refused, so the texture falls back to white.",
       "cause": "A compression outside the read format (`BI_ALPHABITFIELDS`, the CMYK variants)",
       "action": "Save the texture as PNG."
@@ -1148,7 +1020,6 @@
       "id": "T3D-W057",
       "code": "dds-header-truncated",
       "level": "warn",
-      "group": "Images",
       "message": "A DDS texture's header is truncated, so the texture falls back to white.",
       "cause": "Shorter than `DDS_HEADER`/`DDS_PIXELFORMAT`/`DDS_HEADER_DXT10` require",
       "action": "Export the DDS texture again."
@@ -1157,7 +1028,6 @@
       "id": "T3D-W058",
       "code": "dds-header-invalid",
       "level": "warn",
-      "group": "Images",
       "message": "A DDS texture's header is out of range, so the texture falls back to white.",
       "cause": "Header out of domain (false announced size, zero dimension, absurd mip count)",
       "action": "Export the DDS texture again."
@@ -1166,7 +1036,6 @@
       "id": "T3D-W059",
       "code": "dds-codec-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A DDS codec outside the read list was refused, so the texture falls back to white.",
       "cause": "A codec outside the declared list (BC6H float, signed variants, `_TYPELESS`, 16-bit, YUV, premultiplied-alpha `DXT2`/`DXT4`)",
       "action": "Export the texture as BC1 to BC7 (8-bit), or as PNG."
@@ -1175,7 +1044,6 @@
       "id": "T3D-W060",
       "code": "dds-layout-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A DDS cube, volume, array or padded texture was refused, so it falls back to white.",
       "cause": "Not a plain surface (cube, volume, array, padded row pitch)",
       "action": "Export a plain 2D texture."
@@ -1184,7 +1052,6 @@
       "id": "T3D-W061",
       "code": "dds-data-truncated",
       "level": "warn",
-      "group": "Images",
       "message": "A DDS texture's pixel data is incomplete, so it falls back to white.",
       "cause": "Consistent header, announced pixels missing",
       "action": "Export the DDS texture again."
@@ -1193,7 +1060,6 @@
       "id": "T3D-W062",
       "code": "dds-image-too-large",
       "level": "warn",
-      "group": "Images",
       "message": "A DDS texture is above the decoding size ceiling, so it falls back to white.",
       "cause": "Over the decoder's allocation ceiling",
       "action": "Reduce the texture's resolution."
@@ -1202,7 +1068,6 @@
       "id": "T3D-W063",
       "code": "exr-header-invalid",
       "level": "warn",
-      "group": "Images",
       "message": "An OpenEXR texture's header is unreadable, so it falls back to white.",
       "cause": "OpenEXR magic present, version field or header unreadable",
       "action": "Export the OpenEXR file again."
@@ -1211,7 +1076,6 @@
       "id": "T3D-W064",
       "code": "exr-deep-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A deep OpenEXR image was refused, so the texture falls back to white.",
       "cause": "Deep data (a list of samples per pixel); flattening it would be a compositing choice",
       "action": "Flatten the image to a plain OpenEXR in the compositing tool."
@@ -1220,7 +1084,6 @@
       "id": "T3D-W065",
       "code": "exr-multipart-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A multi-part OpenEXR image was refused, so the texture falls back to white.",
       "cause": "Several parts; nothing says which is the texture",
       "action": "Export the part you want as a single-part OpenEXR."
@@ -1229,7 +1092,6 @@
       "id": "T3D-W066",
       "code": "exr-channels-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "OpenEXR channels other than R, G, B and A were refused, so the texture falls back to white.",
       "cause": "Channels other than `R`, `G`, `B` plus optional `A` — extra or other names, 32-bit integers, subsampling",
       "action": "Export the image with R, G, B and optional A channels only."
@@ -1238,7 +1100,6 @@
       "id": "T3D-W067",
       "code": "exr-image-too-large",
       "level": "warn",
-      "group": "Images",
       "message": "An OpenEXR texture is above the decoding size ceiling, so it falls back to white.",
       "cause": "Over the allocation ceiling, counted at 16 bytes per pixel",
       "action": "Reduce the texture's resolution."
@@ -1247,7 +1108,6 @@
       "id": "T3D-W068",
       "code": "exr-data-unreadable",
       "level": "warn",
-      "group": "Images",
       "message": "An OpenEXR texture's pixels are unreadable, so it falls back to white.",
       "cause": "Header in the subset, pixels unreadable (truncated file, unexpected compression, wrong chunk table)",
       "action": "Export the OpenEXR file again with a standard compression."
@@ -1256,7 +1116,6 @@
       "id": "T3D-W069",
       "code": "hdr-header-invalid",
       "level": "warn",
-      "group": "Images",
       "message": "A Radiance HDR texture's header is unreadable, so it falls back to white.",
       "cause": "Radiance HDR header missing, truncated, or without a valid resolution line",
       "action": "Export the HDR file again."
@@ -1265,7 +1124,6 @@
       "id": "T3D-W070",
       "code": "hdr-format-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A Radiance HDR pixel encoding outside RGBE was refused, so the texture falls back to white.",
       "cause": "Pixel encoding outside the subset (`32-bit_rle_xyze`, another colour space)",
       "action": "Export the image in the RGBE encoding."
@@ -1274,7 +1132,6 @@
       "id": "T3D-W071",
       "code": "hdr-orientation-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A Radiance HDR scan order other than top-down was refused, so the texture falls back to white.",
       "cause": "Scan order other than `-Y height +X width`; accepting it would flip the image",
       "action": "Export the image with the standard `-Y height +X width` orientation."
@@ -1283,7 +1140,6 @@
       "id": "T3D-W072",
       "code": "hdr-data-truncated",
       "level": "warn",
-      "group": "Images",
       "message": "A Radiance HDR texture's scanlines are incomplete, so it falls back to white.",
       "cause": "Scanlines cut short, a run overflowing its line, or a packet not advancing",
       "action": "Export the HDR file again."
@@ -1292,7 +1148,6 @@
       "id": "T3D-W073",
       "code": "hdr-image-too-large",
       "level": "warn",
-      "group": "Images",
       "message": "A Radiance HDR texture is above the decoding size ceiling, so it falls back to white.",
       "cause": "Over the allocation ceiling, counted at 16 bytes per pixel",
       "action": "Reduce the texture's resolution."
@@ -1301,7 +1156,6 @@
       "id": "T3D-W074",
       "code": "ktx2-header-truncated",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 texture's header is truncated, so it falls back to white.",
       "cause": "Shorter than its 80-byte header and level index require",
       "action": "Export the KTX2 texture again."
@@ -1310,7 +1164,6 @@
       "id": "T3D-W075",
       "code": "ktx2-header-invalid",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 texture's header is out of range, so it falls back to white.",
       "cause": "Header out of domain (bad identifier, zero width, unexpected `typeSize`, absurd level count, level starting inside the index)",
       "action": "Export the KTX2 texture again."
@@ -1319,7 +1172,6 @@
       "id": "T3D-W076",
       "code": "ktx2-format-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 pixel format outside the read list was refused, so the texture falls back to white.",
       "cause": "A `vkFormat` outside the declared list (signed BC4/BC5/EAC, BC6H float, byte orders other than RGBA, channels wider than 8 bits, ASTC footprints other than 4x4)",
       "action": "Export the texture with an 8-bit RGBA, BC or 4x4 ASTC format."
@@ -1328,7 +1180,6 @@
       "id": "T3D-W077",
       "code": "ktx2-layout-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 cube, volume, array or 1D texture was refused, so it falls back to white.",
       "cause": "Not a plain surface (1D texture, volume, layer array, cubemap)",
       "action": "Export a plain 2D texture."
@@ -1337,7 +1188,6 @@
       "id": "T3D-W078",
       "code": "ktx2-supercompression-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 supercompression other than none, BasisLZ or Zstandard was refused, so the texture falls back to white.",
       "cause": "A `supercompressionScheme` outside None, BasisLZ and Zstandard (ZLIB, unassigned numbers)",
       "action": "Export the texture with BasisLZ, Zstandard or no supercompression."
@@ -1346,7 +1196,6 @@
       "id": "T3D-W079",
       "code": "ktx2-data-truncated",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 texture's level data is incomplete, so it falls back to white.",
       "cause": "Consistent header, an announced level or its Zstandard stream incomplete",
       "action": "Export the KTX2 texture again."
@@ -1355,7 +1204,6 @@
       "id": "T3D-W080",
       "code": "ktx2-image-too-large",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 texture is above the decoding size ceiling, so it falls back to white.",
       "cause": "The image or its decompression buffer over the decoder's allocation ceiling",
       "action": "Reduce the texture's resolution."
@@ -1364,7 +1212,6 @@
       "id": "T3D-W081",
       "code": "ktx2-transcode-failed",
       "level": "warn",
-      "group": "Images",
       "message": "A Basis Universal payload could not be transcoded, so the texture falls back to white.",
       "cause": "A Basis Universal payload the transcoder refuses (codec outside its list, video with cross-frame state, corrupt stream)",
       "action": "Encode the texture again with a current Basis Universal encoder."
@@ -1373,7 +1220,6 @@
       "id": "T3D-W082",
       "code": "ktx2-orientation-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 orientation the reader cannot map was kept as stored, so the texture may appear flipped.",
       "cause": "A `KTXorientation` not reducible to the contract's (top row first, left to right): starting leftwards, or a third dimension. `rd` (the contract's) and `ru` (flipped vertically) are handled; otherwise texels stay as stored",
       "action": "Export the texture with the standard top-down, left-to-right orientation."
@@ -1382,7 +1228,6 @@
       "id": "T3D-W083",
       "code": "ktx2-swizzle-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A KTX2 channel swizzle was not applied.",
       "cause": "A `KTXswizzle` other than the identity `rgba`; not applied",
       "action": "Export the texture with its channels in RGBA order."
@@ -1391,7 +1236,6 @@
       "id": "T3D-W084",
       "code": "eac-level-short",
       "level": "warn",
-      "group": "Images",
       "message": "An EAC-compressed KTX2 level is missing blocks, so the texture falls back to white.",
       "cause": "A KTX2 level in an EAC format that does not carry all the blocks its dimensions announce.",
       "action": "Export the KTX2 texture again."
@@ -1400,7 +1244,6 @@
       "id": "T3D-W085",
       "code": "psd-header-invalid",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop file's header is out of range, so the texture falls back to white.",
       "cause": "Photoshop header out of domain (unknown version, non-zero reserved bytes, zero or over-ceiling side, channel count out of range or below its mode's colour channels)",
       "action": "Save the file again from Photoshop, or export it as PNG."
@@ -1409,7 +1252,6 @@
       "id": "T3D-W086",
       "code": "psd-depth-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop file at 1, 16 or 32 bits per channel was refused, so the texture falls back to white.",
       "cause": "1, 16 or 32 bits per channel, which `Rgba8` cannot hold; refused before decoding rather than narrowed",
       "action": "Convert the document to 8 bits per channel."
@@ -1418,7 +1260,6 @@
       "id": "T3D-W087",
       "code": "psd-color-mode-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop colour mode other than RGB or greyscale was refused, so the texture falls back to white.",
       "cause": "A mode outside RGB and greyscale (bitmap, indexed, CMYK, multichannel, duotone, Lab), whose conversion would need a profile, matrix or palette chosen in the source's stead",
       "action": "Convert the document to RGB colour mode."
@@ -1427,7 +1268,6 @@
       "id": "T3D-W088",
       "code": "psd-channels-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop file with several extra channels was refused, so the texture falls back to white.",
       "cause": "More than one plane beyond the mode's colour channels; nothing says which is transparency, a saved selection or a spot colour",
       "action": "Delete the extra channels, or export the texture as PNG."
@@ -1436,7 +1276,6 @@
       "id": "T3D-W089",
       "code": "psd-alpha-channel-ignored",
       "level": "warn",
-      "group": "Images",
       "message": "An extra Photoshop channel not declared as transparency was ignored.",
       "cause": "One extra plane not declared transparency — the signed layer count Adobe's specification uses to say \"the first alpha channel of the composite holds the document transparency\" is absent or positive: a saved selection, read and written nowhere (taking it for transparency punched holes in the texture)",
       "action": "Store transparency as a layer mask flattened into the composite, or export the texture as PNG."
@@ -1445,7 +1284,6 @@
       "id": "T3D-I005",
       "code": "psd-layers-flattened",
       "level": "info",
-      "group": "Images",
       "message": "A layered Photoshop file was read as its flattened composite.",
       "cause": "Layers present; only the flattened composite is delivered, since recomposing would redo the editor's blend modes, masks and effects",
       "action": "Nothing to do if the saved composite is the image you want."
@@ -1454,7 +1292,6 @@
       "id": "T3D-W090",
       "code": "psd-compression-unsupported",
       "level": "warn",
-      "group": "Images",
       "message": "A ZIP-compressed Photoshop composite was refused, so the texture falls back to white.",
       "cause": "A ZIP-compressed composite, outside the raw and PackBits subset",
       "action": "Save the file without ZIP compression, or export it as PNG."
@@ -1463,7 +1300,6 @@
       "id": "T3D-W091",
       "code": "psd-composite-missing",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop file has no flattened composite, so the texture falls back to white.",
       "cause": "The file stops before its merged image data; layers are not recomposed instead",
       "action": "Save the file with \"Maximize compatibility\" on, or export it as PNG."
@@ -1472,7 +1308,6 @@
       "id": "T3D-W092",
       "code": "psd-data-truncated",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop file's image data is incomplete, so the texture falls back to white.",
       "cause": "Announced planes missing, or a compressed row short of its width",
       "action": "Save the file again from Photoshop."
@@ -1481,7 +1316,6 @@
       "id": "T3D-W093",
       "code": "psd-image-too-large",
       "level": "warn",
-      "group": "Images",
       "message": "A Photoshop texture is above the decoding size ceiling, so it falls back to white.",
       "cause": "Over the decoder's allocation ceiling",
       "action": "Reduce the texture's resolution."
@@ -1490,7 +1324,6 @@
       "id": "T3D-W094",
       "code": "image-decode-failed",
       "level": "warn",
-      "group": "Images",
       "message": "A texture could not be decoded, so its texture levels are not baked.",
       "cause": "An image whose bytes the driver that recognised it could not decode (truncated or corrupt file).",
       "action": "Open the image in an image editor and save it again as PNG."
@@ -1499,7 +1332,6 @@
       "id": "T3D-W095",
       "code": "image-empty",
       "level": "warn",
-      "group": "Images",
       "message": "A texture has no pixels, so its texture levels are not baked.",
       "cause": "An image of zero width or height, or a file with no image stream.",
       "action": "Replace the texture with a non-empty image."
@@ -1508,7 +1340,6 @@
       "id": "T3D-W096",
       "code": "image-format-unknown",
       "level": "warn",
-      "group": "Images",
       "message": "A texture is in no format the image readers recognise, so its texture levels are not baked.",
       "cause": "Image bytes no image driver claims.",
       "action": "Convert the texture to PNG or JPEG."
@@ -1517,7 +1348,6 @@
       "id": "T3D-W097",
       "code": "image-missing",
       "level": "warn",
-      "group": "Images",
       "message": "A texture file the model cites was not found, so its texture levels are not baked.",
       "cause": "An image URI resolving to no readable file.",
       "action": "Place the texture file where the model's URI points."
@@ -1526,7 +1356,6 @@
       "id": "T3D-W098",
       "code": "image-out-of-bounds",
       "level": "warn",
-      "group": "Images",
       "message": "A material names an image the file does not declare, so its texture levels are not baked.",
       "cause": "A texture's image index past the glTF `images` array.",
       "action": "Export the model again; its image list is inconsistent."
@@ -1535,7 +1364,6 @@
       "id": "T3D-W099",
       "code": "image-uri-not-relative",
       "level": "warn",
-      "group": "Images",
       "message": "A texture URI is absolute or leaves the model's folder, so its texture levels are not baked.",
       "cause": "An image URI with a root, `..`, `.` or a platform separator.",
       "action": "Use a URI relative to the model file, inside its folder."
@@ -1544,7 +1372,6 @@
       "id": "T3D-W100",
       "code": "image-uri-outside-source",
       "level": "warn",
-      "group": "Images",
       "message": "A texture URI resolves outside the model's folder, so its texture levels are not baked.",
       "cause": "An image URI whose resolved path leaves the source folder.",
       "action": "Move the texture into the model's folder."
@@ -1553,7 +1380,6 @@
       "id": "T3D-W101",
       "code": "image-uri-undecodable",
       "level": "warn",
-      "group": "Images",
       "message": "A texture URI has invalid percent-encoding, so its texture levels are not baked.",
       "cause": "An image URI whose `%` escapes do not decode to UTF-8.",
       "action": "Fix the URI's escaping in the model file."
@@ -1562,7 +1388,6 @@
       "id": "T3D-W102",
       "code": "image-without-source",
       "level": "warn",
-      "group": "Images",
       "message": "A glTF image has neither a URI nor a buffer view, so its texture levels are not baked.",
       "cause": "A glTF `images` entry naming no data.",
       "action": "Export the model again with its images embedded or referenced."
@@ -1571,7 +1396,6 @@
       "id": "T3D-W103",
       "code": "image-buffer-view-invalid",
       "level": "warn",
-      "group": "Images",
       "message": "A glTF image names an invalid buffer view, so its texture levels are not baked.",
       "cause": "An image buffer view index that does not fit the published view table.",
       "action": "Export the model again with its images embedded correctly."
@@ -1580,7 +1404,6 @@
       "id": "T3D-W104",
       "code": "image-buffer-view-not-copied",
       "level": "warn",
-      "group": "Images",
       "message": "A glTF image's buffer view was not carried to the compiled source, so its texture levels are not baked.",
       "cause": "An image buffer view absent from the view map of the compiled source.",
       "action": "Report it as a compiler bug, with the model if you can share it."
@@ -1589,7 +1412,6 @@
       "id": "T3D-W105",
       "code": "image-buffer-view-out-of-bounds",
       "level": "warn",
-      "group": "Images",
       "message": "A glTF image's buffer view reads past its buffer, so its texture levels are not baked.",
       "cause": "An image buffer view whose range leaves its buffer.",
       "action": "Export the model again; its buffer is truncated."
@@ -1598,7 +1420,6 @@
       "id": "T3D-W106",
       "code": "texture-out-of-bounds",
       "level": "warn",
-      "group": "Images",
       "message": "A material names a texture the file does not declare, so its texture levels are not baked.",
       "cause": "A material texture index past the glTF `textures` array.",
       "action": "Export the model again; its texture list is inconsistent."
@@ -1607,7 +1428,6 @@
       "id": "T3D-W107",
       "code": "texture-without-image",
       "level": "warn",
-      "group": "Images",
       "message": "A glTF texture names no image, so its texture levels are not baked.",
       "cause": "A glTF `textures` entry with no `source`.",
       "action": "Export the model again with the texture's image."
@@ -1616,7 +1436,6 @@
       "id": "T3D-W108",
       "code": "texture-blocks-undecodable",
       "level": "warn",
-      "group": "Images",
       "message": "A compressed texture level did not decode back during its quality check.",
       "cause": "A block-compressed level the compiler encoded and then failed to decode for its quality check.",
       "action": "Report it as a compiler bug, with the texture if you can share it."
@@ -1625,7 +1444,6 @@
       "id": "T3D-E068",
       "code": "USDZ_LAYOUT_INVALID",
       "level": "error",
-      "group": "USD",
       "message": "The USDZ package stores an entry compressed or unaligned.",
       "cause": "A USDZ entry compressed, or its payload not on a 64-byte boundary; the AOUSD package layout requires every file stored as-is and aligned",
       "action": "Package the scene again with `usdzip` or a USD tool that writes the standard layout."
@@ -1634,7 +1452,6 @@
       "id": "T3D-E069",
       "code": "USDZ_ROOT_LAYER_MISSING",
       "level": "error",
-      "group": "USD",
       "message": "The USDZ package's first entry is not a USD layer.",
       "cause": "The package's first entry, its root layer, is not a USD layer, so it names no scene; later entries are resources, never candidate scenes",
       "action": "Package the scene again with its root `.usd`, `.usda` or `.usdc` layer first."
@@ -1643,7 +1460,6 @@
       "id": "T3D-W109",
       "code": "usd-point-instancer-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A point instancer was not expanded, so its instances are not drawn.",
       "cause": "`PointInstancer`: parallel arrays over an indexed prototype, not expanded; does not fail the job",
       "action": "Make the instances real in the authoring tool before exporting."
@@ -1652,7 +1468,6 @@
       "id": "T3D-W110",
       "code": "usd-curves-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "Curves were left out; only surfaces are drawn.",
       "cause": "`BasisCurves`, `NurbsCurves` or `HermiteCurves`: not a surface",
       "action": "Convert the curves to meshes (for example tubes) before exporting."
@@ -1661,7 +1476,6 @@
       "id": "T3D-W111",
       "code": "usd-volume-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A volume was left out; only surfaces are drawn.",
       "cause": "`Volume` or an OpenVDB/Field3D asset: not a surface",
       "action": "Convert the volume to a mesh before exporting, if it should be drawn."
@@ -1670,7 +1484,6 @@
       "id": "T3D-W112",
       "code": "usd-skel-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A skeleton or blend shape was left out; the mesh is drawn in its rest pose.",
       "cause": "`SkelRoot`, `Skeleton`, `SkelAnimation` or `BlendShape`: no skinning carried",
       "action": "Export the model as glTF or FBX to keep its skinning."
@@ -1679,7 +1492,6 @@
       "id": "T3D-I006",
       "code": "usd-camera-unsupported",
       "level": "info",
-      "group": "USD",
       "message": "A camera was left out; the host places its own.",
       "cause": "`Camera`: the host places its own",
       "action": "Nothing to do; set the camera in your application."
@@ -1688,7 +1500,6 @@
       "id": "T3D-W113",
       "code": "usd-light-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A light type with no glTF equivalent was left out.",
       "cause": "A `UsdLux` schema with no glTF punctual equivalent — `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, every `LightFilter`; sphere, disk, rect and distant lights are imported, with their declared emitter radius",
       "action": "Replace it with a sphere, disk, rect or distant light."
@@ -1697,7 +1508,6 @@
       "id": "T3D-W114",
       "code": "usd-patch-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A NURBS patch was left out; it is not tessellated.",
       "cause": "`NurbsPatch`: not tessellated",
       "action": "Convert the patch to a mesh before exporting."
@@ -1706,7 +1516,6 @@
       "id": "T3D-W115",
       "code": "usd-subdivision-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A subdivision surface was carried as its flat polygons, which changes its silhouette.",
       "cause": "A `Mesh` whose `subdivisionScheme` is not `none`: polygons carried **flat**, changing the silhouette",
       "action": "Subdivide the mesh in the authoring tool before exporting, or set its scheme to `none`."
@@ -1715,7 +1524,6 @@
       "id": "T3D-W116",
       "code": "usd-variants-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "Only the default selection of a variant set was read.",
       "cause": "A variant set; only the composed default selection is read",
       "action": "Select the variant you want as default before exporting."
@@ -1724,7 +1532,6 @@
       "id": "T3D-W117",
       "code": "usd-composition-invalid",
       "level": "warn",
-      "group": "USD",
       "message": "A reference, payload or sublayer could not be resolved.",
       "cause": "A reference, payload or sublayer left unresolved (missing file, unresolvable path)",
       "action": "Place the referenced file where the path points, or fix the path."
@@ -1733,7 +1540,6 @@
       "id": "T3D-W118",
       "code": "usd-animation-first-sample",
       "level": "warn",
-      "group": "USD",
       "message": "An animated attribute was read at its first time sample; the scene is frozen there.",
       "cause": "An attribute with no default read at its first time sample; the scene is frozen there",
       "action": "Nothing to do for a still scene; export as glTF or FBX to keep the animation."
@@ -1742,7 +1548,6 @@
       "id": "T3D-W119",
       "code": "usd-mesh-invalid",
       "level": "warn",
-      "group": "USD",
       "message": "A mesh's arrays are missing or contradictory, so it is left out.",
       "cause": "Required `Mesh` arrays missing or contradictory (`faceVertexCounts` not landing on `faceVertexIndices`)",
       "action": "Export the mesh again from its authoring tool."
@@ -1751,7 +1556,6 @@
       "id": "T3D-W120",
       "code": "usd-ngon-untriangulable",
       "level": "warn",
-      "group": "USD",
       "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
       "cause": "As `blend-ngon-untriangulable`",
       "action": "Triangulate or fix the face in the authoring tool (self-crossing or flat polygon)."
@@ -1760,7 +1564,6 @@
       "id": "T3D-W121",
       "code": "usd-xform-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A transform operation was not composed.",
       "cause": "A transform op not composed (`!resetXformStack!`, the inverse of an arbitrary matrix, an unknown op type)",
       "action": "Flatten the transform stack in the authoring tool before exporting."
@@ -1769,7 +1572,6 @@
       "id": "T3D-W122",
       "code": "usd-xform-invalid",
       "level": "warn",
-      "group": "USD",
       "message": "A transform is not a finite number, so the node stays at identity.",
       "cause": "Non-finite transform; the node stays at identity",
       "action": "Fix the node's transform in the authoring tool."
@@ -1778,7 +1580,6 @@
       "id": "T3D-W123",
       "code": "usd-surface-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A material with no UsdPreviewSurface keeps default values.",
       "cause": "A `Material` with no `UsdPreviewSurface` reachable from `outputs:surface`",
       "action": "Give the material a UsdPreviewSurface shader."
@@ -1787,7 +1588,6 @@
       "id": "T3D-W124",
       "code": "usd-texture-missing",
       "level": "warn",
-      "group": "USD",
       "message": "A texture was not found, is outside the model's folder, or is in an unread format.",
       "cause": "A texture file absent, outside the source directory, or of a format the image registry does not read",
       "action": "Place the texture in the model's folder as PNG or JPEG."
@@ -1796,7 +1596,6 @@
       "id": "T3D-W125",
       "code": "usd-opacity-texture-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "An opacity image separate from the base colour was dropped; the written opacity is kept.",
       "cause": "An `opacity` bound to an image the base colour does not carry; glTF reads alpha only in `baseColorTexture` and two images do not merge without recomposing a third, so the written opacity is kept and the image dropped",
       "action": "Put the opacity into the alpha channel of the base-colour texture."
@@ -1805,7 +1604,6 @@
       "id": "T3D-W126",
       "code": "usd-texture-channel-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A texture channel glTF does not read there was used; the map is carried as is.",
       "cause": "An input bound to a channel glTF does not read there (metal from blue, roughness from green; an opacity on the base-colour image from alpha only); the map is carried as is, the opacity falls back to its written value",
       "action": "Pack metalness in blue and roughness in green, and opacity in the base colour's alpha."
@@ -1814,7 +1612,6 @@
       "id": "T3D-W127",
       "code": "usd-texture-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A texture could not be bound as is.",
       "cause": "A texture not bindable as is: a UV set other than `st`, a `<UDIM>` pattern, or split metallic/roughness maps",
       "action": "Use the `st` UV set, no UDIM, and one texture for metalness and roughness."
@@ -1823,7 +1620,6 @@
       "id": "T3D-W128",
       "code": "usd-texture-wrap-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A wrap mode glTF lacks was replaced by repeat.",
       "cause": "A `UsdUVTexture` wrap mode glTF lacks — `black` (transparent border) or `useMetadata`; the texture repeats, USD's default",
       "action": "Use `repeat`, `mirror` or `clamp` wrap modes."
@@ -1832,7 +1628,6 @@
       "id": "T3D-W129",
       "code": "usd-texture-scale-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A texture scale or bias glTF cannot carry was dropped.",
       "cause": "A `scale` or `bias` no glTF factor carries (glTF multiplies, never adds): a non-zero `bias`, a `scale` differing across colour channels, or an alpha `scale` other than one",
       "action": "Bake the scale and bias into the texture."
@@ -1841,7 +1636,6 @@
       "id": "T3D-W130",
       "code": "usd-texture-colour-space-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A texture's colour space contradicts its role; its bytes pass through unchanged.",
       "cause": "A `sourceColorSpace` contrary to the input's role (colour declared `raw`, data declared `sRGB`); bytes pass through, never re-encoded",
       "action": "Declare colour textures `sRGB` and data textures `raw`."
@@ -1850,7 +1644,6 @@
       "id": "T3D-W131",
       "code": "usd-specular-workflow-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A specular-workflow material was read without its specular colour.",
       "cause": "A specular-workflow `UsdPreviewSurface` (`useSpecularWorkflow`, or a written `specularColor`), which metal and roughness do not carry",
       "action": "Convert the material to the metal-roughness workflow."
@@ -1859,7 +1652,6 @@
       "id": "T3D-W132",
       "code": "usd-clearcoat-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A clearcoat layer was dropped; base glTF has none.",
       "cause": "A clearcoat (`clearcoat` above zero, with its roughness): base glTF has no such layer",
       "action": "Remove the clearcoat, or accept its loss."
@@ -1868,7 +1660,6 @@
       "id": "T3D-W133",
       "code": "usd-ior-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "An index of refraction other than 1.5 was dropped.",
       "cause": "An index of refraction other than 1.5: base glTF carries none",
       "action": "Nothing carries it in glTF; set the look with roughness and metalness instead."
@@ -1877,7 +1668,6 @@
       "id": "T3D-W134",
       "code": "usd-normal-value-unsupported",
       "level": "warn",
-      "group": "USD",
       "message": "A constant normal value was dropped; the geometry's normals stay.",
       "cause": "A normal written as a value, no texture: glTF has no constant material normal, the geometry's stays",
       "action": "Use a normal map texture instead of a constant."
@@ -1886,7 +1676,6 @@
       "id": "T3D-W135",
       "code": "usd-face-invalid",
       "level": "warn",
-      "group": "USD",
       "message": "A face its arrays do not carry was dropped.",
       "cause": "A face its arrays do not carry: index outside the points or negative, under three corners, or a primvar index outside its array; dropped, never folded onto the first point",
       "action": "Clean up the mesh in the authoring tool and export again."
@@ -1895,7 +1684,6 @@
       "id": "T3D-I007",
       "code": "usd-face-hole",
       "level": "info",
-      "group": "USD",
       "message": "A face listed as a hole was removed, as OpenUSD draws it.",
       "cause": "A face in `holeIndices`, invisible in OpenUSD before any subdivision, so removed, once per face, whatever `subdivisionScheme`; a hole index outside the face table counts as `usd-face-invalid`",
       "action": "Nothing to do; remove it from `holeIndices` if it should be drawn."
@@ -1904,7 +1692,6 @@
       "id": "T3D-E070",
       "code": "alembic-hdf5-unsupported",
       "level": "error",
-      "group": "Alembic",
       "message": "The Alembic file uses the HDF5 container, which is not read.",
       "cause": "HDF5 container instead of Ogawa, refused by name; re-export as Ogawa",
       "action": "Export the file again as Alembic Ogawa."
@@ -1913,7 +1700,6 @@
       "id": "T3D-E071",
       "code": "alembic-archive-unfrozen",
       "level": "error",
-      "group": "Alembic",
       "message": "The Alembic archive was never closed by its writer.",
       "cause": "No frozen flag: the writer never closed the archive, a work in progress",
       "action": "Finish the export in the authoring tool, then compile the complete file."
@@ -1922,7 +1708,6 @@
       "id": "T3D-E072",
       "code": "alembic-version-unsupported",
       "level": "error",
-      "group": "Alembic",
       "message": "The Alembic file's format version is not read.",
       "cause": "A format version this reader does not read (a 16-bit big-endian field, `00 01` for version one)",
       "action": "Export the file again from a current authoring tool."
@@ -1931,7 +1716,6 @@
       "id": "T3D-E073",
       "code": "alembic-file-invalid",
       "level": "error",
-      "group": "Alembic",
       "message": "The Alembic file is not a readable Ogawa archive.",
       "cause": "No Ogawa header, block truncated, pointer outside the file, root group without its six blocks",
       "action": "Export the file again; it is truncated or corrupt."
@@ -1940,7 +1724,6 @@
       "id": "T3D-E074",
       "code": "alembic-size-unsupported",
       "level": "error",
-      "group": "Alembic",
       "message": "An Alembic group or block is above the reader's size ceiling.",
       "cause": "A group or data block beyond the plugin's allocation ceiling (4 Mi children, 1 GiB per block, 64 Mi face corners per mesh)",
       "action": "Split the scene into smaller files."
@@ -1949,7 +1732,6 @@
       "id": "T3D-E075",
       "code": "alembic-values-invalid",
       "level": "error",
-      "group": "Alembic",
       "message": "An Alembic transform stack does not compose.",
       "cause": "An `Xform` op stack that does not compose: an op outside the format's seven, or fewer values than it consumes",
       "action": "Export the file again from its authoring tool."
@@ -1958,7 +1740,6 @@
       "id": "T3D-E076",
       "code": "alembic-topology-invalid",
       "level": "error",
-      "group": "Alembic",
       "message": "An Alembic face points outside its positions.",
       "cause": "A face index outside the position table, or more face corners declared than indices written",
       "action": "Clean up the mesh in the authoring tool and export again."
@@ -1967,7 +1748,6 @@
       "id": "T3D-W136",
       "code": "alembic-curves-unsupported",
       "level": "warn",
-      "group": "Alembic",
       "message": "Alembic curves were left out; only meshes are drawn.",
       "cause": "An Alembic curves object; not converted.",
       "action": "Convert the curves to meshes before exporting."
@@ -1976,7 +1756,6 @@
       "id": "T3D-W137",
       "code": "alembic-points-unsupported",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic point cloud was left out; only meshes are drawn.",
       "cause": "An Alembic points object; not converted.",
       "action": "Convert the points to meshes before exporting."
@@ -1985,7 +1764,6 @@
       "id": "T3D-W138",
       "code": "alembic-nupatch-unsupported",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic NURBS patch was left out; it is not tessellated.",
       "cause": "An Alembic NURBS patch object; not converted.",
       "action": "Convert the patch to a mesh before exporting."
@@ -1994,7 +1772,6 @@
       "id": "T3D-I008",
       "code": "alembic-camera-unsupported",
       "level": "info",
-      "group": "Alembic",
       "message": "An Alembic camera was left out; the host places its own.",
       "cause": "An Alembic camera object; not converted.",
       "action": "Nothing to do; set the camera in your application."
@@ -2003,7 +1780,6 @@
       "id": "T3D-W139",
       "code": "alembic-light-unsupported",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic light was left out.",
       "cause": "An Alembic light object; not converted.",
       "action": "Add the lights in the engine, or export the scene as glTF with its lights."
@@ -2012,7 +1788,6 @@
       "id": "T3D-W140",
       "code": "alembic-object-unsupported",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic object of an unknown schema was left out.",
       "cause": "An Alembic object whose schema the reader does not know; not converted.",
       "action": "Convert the object to a mesh before exporting."
@@ -2021,7 +1796,6 @@
       "id": "T3D-W141",
       "code": "alembic-instance-unsupported",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic instance was left out.",
       "cause": "An Alembic instance object; not expanded.",
       "action": "Make the instances real in the authoring tool before exporting."
@@ -2030,7 +1804,6 @@
       "id": "T3D-W142",
       "code": "alembic-subd-as-polygons",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic subdivision surface was drawn as its flat polygons.",
       "cause": "A subdivision surface carried as its control polygons.",
       "action": "Subdivide the mesh in the authoring tool before exporting."
@@ -2039,7 +1812,6 @@
       "id": "T3D-W143",
       "code": "alembic-animation-ignored",
       "level": "warn",
-      "group": "Alembic",
       "message": "Only the first sample of an animated Alembic property was read.",
       "cause": "A property with several time samples, read at its first.",
       "action": "Nothing to do for a still scene; export as glTF or FBX to keep the animation."
@@ -2048,7 +1820,6 @@
       "id": "T3D-W144",
       "code": "alembic-normals-missing",
       "level": "warn",
-      "group": "Alembic",
       "message": "Alembic normals are missing, so they are computed.",
       "cause": "A mesh with no normals written.",
       "action": "Export the normals with the mesh if the computed ones look wrong."
@@ -2057,7 +1828,6 @@
       "id": "T3D-W145",
       "code": "alembic-normals-dropped",
       "level": "warn",
-      "group": "Alembic",
       "message": "Alembic normals are inconsistent, so they are dropped and computed.",
       "cause": "Normals whose count matches neither the vertices nor the face corners.",
       "action": "Export the mesh again with one normal per vertex or per corner."
@@ -2066,7 +1836,6 @@
       "id": "T3D-W146",
       "code": "alembic-uv-dropped",
       "level": "warn",
-      "group": "Alembic",
       "message": "Alembic UVs are inconsistent, so they are dropped.",
       "cause": "UVs whose count or indices do not match the mesh.",
       "action": "Export the mesh again with one UV per vertex or per corner."
@@ -2075,7 +1844,6 @@
       "id": "T3D-W147",
       "code": "alembic-face-in-two-facesets",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic face belongs to two face sets, so its material is ambiguous.",
       "cause": "A face listed in two face sets.",
       "action": "Assign each face to one face set."
@@ -2084,7 +1852,6 @@
       "id": "T3D-W148",
       "code": "alembic-degenerate-face",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic face with fewer than three corners was dropped.",
       "cause": "A face under three corners.",
       "action": "Clean up the mesh in the authoring tool."
@@ -2093,7 +1860,6 @@
       "id": "T3D-W149",
       "code": "alembic-ngon-untriangulable",
       "level": "warn",
-      "group": "Alembic",
       "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
       "cause": "As `blend-ngon-untriangulable`.",
       "action": "Triangulate or fix the face in the authoring tool (self-crossing or flat polygon)."
@@ -2102,7 +1868,6 @@
       "id": "T3D-W150",
       "code": "alembic-faceset-invalid",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic face set could not be read, so it is skipped.",
       "cause": "A face set with no readable face list.",
       "action": "Export the mesh again with valid face sets."
@@ -2111,7 +1876,6 @@
       "id": "T3D-W151",
       "code": "alembic-mesh-invalid",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic mesh's arrays are contradictory, so it is left out.",
       "cause": "A mesh whose counts, indices and positions disagree.",
       "action": "Export the mesh again from its authoring tool."
@@ -2120,7 +1884,6 @@
       "id": "T3D-W152",
       "code": "alembic-mesh-empty",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic mesh has no triangle, so it is left out.",
       "cause": "A mesh with no face, or only degenerate ones.",
       "action": "Delete the empty mesh or give it faces."
@@ -2129,7 +1892,6 @@
       "id": "T3D-W153",
       "code": "alembic-transform-invalid",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic transform is not a finite number, so the node stays at identity.",
       "cause": "A transform holding NaN or infinity.",
       "action": "Fix the node's transform in the authoring tool."
@@ -2138,7 +1900,6 @@
       "id": "T3D-I009",
       "code": "alembic-transform-not-inherited",
       "level": "info",
-      "group": "Alembic",
       "message": "An Alembic transform that does not inherit its parent was placed at the scene root.",
       "cause": "A transform flagged not to inherit its parent's; its subtree starts a new root.",
       "action": "Nothing to do if the object should ignore its parent's transform."
@@ -2147,7 +1908,6 @@
       "id": "T3D-W154",
       "code": "alembic-hierarchy-too-deep",
       "level": "warn",
-      "group": "Alembic",
       "message": "An Alembic hierarchy is deeper than the limit, so the deeper branch is cut.",
       "cause": "A hierarchy past the reader's depth limit.",
       "action": "Flatten the hierarchy in the authoring tool."
@@ -2156,7 +1916,6 @@
       "id": "T3D-E077",
       "code": "ma-file-invalid",
       "level": "error",
-      "group": "Maya ASCII",
       "message": "The file is not a readable Maya ASCII file.",
       "cause": "Does not open with `//Maya ASCII`, is not valid UTF-8, or stops inside a quoted string; refused, not read up to the break",
       "action": "Save the file again from Maya as Maya ASCII."
@@ -2165,7 +1924,6 @@
       "id": "T3D-E078",
       "code": "ma-size-unsupported",
       "level": "error",
-      "group": "Maya ASCII",
       "message": "The Maya ASCII file or one of its attributes is above the size ceiling.",
       "cause": "File above the 512 MiB ceiling, or an attribute index past the 16 Mi element ceiling",
       "action": "Split the scene into smaller files."
@@ -2174,7 +1932,6 @@
       "id": "T3D-W155",
       "code": "ma-command-ignored",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A MEL command outside the read subset was ignored; no command is ever run.",
       "cause": "A MEL command outside the read subset, named after the two dots. **No command is ever executed**: `python`, `eval`, `source` and every unknown one land here, their text going to the report only",
       "action": "Bake what the command builds into plain nodes before saving, or export to glTF."
@@ -2183,7 +1940,6 @@
       "id": "T3D-W156",
       "code": "ma-node-ignored",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A Maya node type that is not converted was ignored.",
       "cause": "A node type not converted — camera, light, NURBS surface, joint, script node, tool node",
       "action": "Convert the node to a mesh before saving, or add the element in the engine."
@@ -2192,7 +1948,6 @@
       "id": "T3D-W157",
       "code": "ma-attribute-unattached",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "An attribute value names no node of the file, so it is ignored.",
       "cause": "A `setAttr` with no node: no `createNode` or `select` before it, or the selection names no node of this file (Maya's defaults, `:time1` and the like, are not in the file)",
       "action": "Nothing to do for Maya defaults; otherwise save the scene again."
@@ -2201,7 +1956,6 @@
       "id": "T3D-W158",
       "code": "ma-attribute-invalid",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "An attribute value is out of range or of an unread type, so it is ignored.",
       "cause": "A `setAttr` whose values miss its index range, whose type is outside the read list, or whose index passes the element ceiling",
       "action": "Save the scene again from Maya."
@@ -2210,7 +1964,6 @@
       "id": "T3D-W159",
       "code": "ma-parent-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A parenting command was not replayed.",
       "cause": "A `parent` not replayed: not naming known mesh shapes and a known transform, or removing instead of adding",
       "action": "Parent the shapes to their transforms in Maya before saving."
@@ -2219,7 +1972,6 @@
       "id": "T3D-W160",
       "code": "ma-name-ambiguous",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A short node name is carried by several nodes; the first one written is used.",
       "cause": "A name written without a path that several nodes carry, where Maya requires the full path (`|A|M`); the first node written answers",
       "action": "Give the nodes unique names, or reference them by full path."
@@ -2228,7 +1980,6 @@
       "id": "T3D-W161",
       "code": "ma-transform-invalid",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A transform is not a finite number, so the node stays at identity.",
       "cause": "Non-finite `transform`; the node stays at identity",
       "action": "Fix the node's transform in Maya."
@@ -2237,7 +1988,6 @@
       "id": "T3D-W162",
       "code": "ma-hierarchy-too-deep",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A hierarchy is deeper than 256 levels or circular, so the branch is cut.",
       "cause": "Deeper than 256 levels, a circular parent chain included; the branch is cut there without overflowing the stack",
       "action": "Flatten the hierarchy in Maya."
@@ -2246,7 +1996,6 @@
       "id": "T3D-W163",
       "code": "ma-matrix-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A matrix attribute not written as sixteen numbers was ignored.",
       "cause": "A matrix attribute (`offsetParentMatrix`) not written as its sixteen numbers (`setAttr`'s long `xform` form); not guessed, the node keeps its other attributes' pose",
       "action": "Bake the offset parent matrix into the transform before saving."
@@ -2255,7 +2004,6 @@
       "id": "T3D-I010",
       "code": "ma-shape-intermediate",
       "level": "info",
-      "group": "Maya ASCII",
       "message": "An intermediate shape Maya never draws was left out.",
       "cause": "An intermediate shape (`.io`), a construction-history input Maya never draws; left out. A shape with `visibility` off is left out too, counted as `invisible` like an invisible transform",
       "action": "Nothing to do; delete construction history to remove it."
@@ -2264,7 +2012,6 @@
       "id": "T3D-W164",
       "code": "ma-mesh-invalid",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A mesh's arrays are contradictory, so it is left out.",
       "cause": "Contradictory `mesh` arrays: no `.vt`, a face corner outside the edge table, or an edge outside the vertex table",
       "action": "Clean up the mesh in Maya (Mesh > Cleanup) and save again."
@@ -2273,7 +2020,6 @@
       "id": "T3D-W165",
       "code": "ma-mesh-empty",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A mesh has no triangle, so it is left out.",
       "cause": "A `mesh` yielding no triangle: no face, or all degenerate",
       "action": "Delete the empty mesh or give it faces."
@@ -2282,7 +2028,6 @@
       "id": "T3D-W166",
       "code": "ma-degenerate-face",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A face with fewer than three corners was dropped.",
       "cause": "A face under three corners",
       "action": "Clean up the mesh in Maya (Mesh > Cleanup)."
@@ -2291,7 +2036,6 @@
       "id": "T3D-W167",
       "code": "ma-face-hole-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A face with a hole was left out.",
       "cause": "A face declaring a hole (`h` record), which the fan would fill; the silhouette is not guessed",
       "action": "Fill or cut the hole into regular faces in Maya."
@@ -2300,7 +2044,6 @@
       "id": "T3D-W168",
       "code": "ma-ngon-untriangulable",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
       "cause": "As `blend-ngon-untriangulable`",
       "action": "Triangulate or fix the face in Maya (self-crossing or flat polygon)."
@@ -2309,7 +2052,6 @@
       "id": "T3D-W169",
       "code": "ma-face-record-ignored",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "An undocumented face record was ignored.",
       "cause": "A `.fc` record the documentation does not describe",
       "action": "Save the scene again from Maya."
@@ -2318,7 +2060,6 @@
       "id": "T3D-W170",
       "code": "ma-face-record-invalid",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A face record attached to no face was ignored.",
       "cause": "A `.fc` record attached to no face",
       "action": "Save the scene again from Maya."
@@ -2327,7 +2068,6 @@
       "id": "T3D-W171",
       "code": "ma-uv-dropped",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "UVs were dropped from a mesh part.",
       "cause": "UVs dropped: a `mu` record with no face, a UV set past the first, a slot outside `.uvst[0].uvsp`, or a material part where only some faces carry UVs (a glTF primitive has an attribute on all its vertices or none)",
       "action": "Give every face of the mesh UVs in the first UV set."
@@ -2336,7 +2076,6 @@
       "id": "T3D-W172",
       "code": "ma-normals-dropped",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "Written normals did not match the mesh, so they are dropped and computed.",
       "cause": "`.n` counts neither one vector per vertex nor one per corner; dropped, normals computed",
       "action": "Save the mesh with one normal per vertex or per corner."
@@ -2345,7 +2084,6 @@
       "id": "T3D-I011",
       "code": "ma-normals-computed",
       "level": "info",
-      "group": "Maya ASCII",
       "message": "No normals were written, so they are computed from the edges' hardness.",
       "cause": "No normal written: computed from the geometry and each edge's hardness flag (the third number of `.ed`, a `.ma`'s only smoothing mark). A soft edge carries shading across, a hard edge splits it, one smooth fan's corners share a vertex. An edge shared by more than two faces joins nothing: incidences are counted over the whole topology, marks included, before any join, so no face or edge turns a three-face edge into a border and the file's face order does not matter",
       "action": "Nothing to do if the shading looks right; otherwise set edge hardness in Maya."
@@ -2354,7 +2092,6 @@
       "id": "T3D-W173",
       "code": "ma-face-material-invalid",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A material assignment names no face, so it is ignored.",
       "cause": "An `instObjGroups` group whose component list names no face (a vertex, an edge, an empty list)",
       "action": "Assign the material to faces in Maya."
@@ -2363,7 +2100,6 @@
       "id": "T3D-W174",
       "code": "ma-face-material-missing",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "Faces with no material beside assigned ones were kept without a material.",
       "cause": "Faces no `shadingGroup` claims beside bound faces of the same mesh; they leave in a material-less primitive, not dropped",
       "action": "Assign a material to every face of the mesh."
@@ -2372,7 +2108,6 @@
       "id": "T3D-W175",
       "code": "ma-material-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A shader other than lambert, phong, blinn or standardSurface keeps default values.",
       "cause": "A shader other than `lambert`, `phong`, `blinn`, `standardSurface`",
       "action": "Use one of those shaders."
@@ -2381,7 +2116,6 @@
       "id": "T3D-W176",
       "code": "ma-transparency-colour-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A coloured transparency was carried as one alpha, the mean of its channels.",
       "cause": "A colour transparency with unequal channels; their mean is carried as the one alpha",
       "action": "Use a grey transparency."
@@ -2390,7 +2124,6 @@
       "id": "T3D-W177",
       "code": "ma-emission-clamped",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "An emission above 1 was clamped.",
       "cause": "Emission above one, which `emissiveFactor` cannot carry; clamped",
       "action": "Lower the emission, or accept the clamp."
@@ -2399,7 +2132,6 @@
       "id": "T3D-W178",
       "code": "ma-texture-missing",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A texture was not found, is outside the model's folder, or is in an unread format.",
       "cause": "A texture file absent, outside the source directory, or of a format the image registry does not read",
       "action": "Place the texture in the model's folder as PNG or JPEG."
@@ -2408,7 +2140,6 @@
       "id": "T3D-W179",
       "code": "ma-bump-height-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A height bump map was dropped; glTF has no height map.",
       "cause": "A `bump2d` reading a height relief (`bumpInterp` 0, Maya's default): glTF has no height map, and as `normalTexture` it would light the surface from an image saying nothing of orientation; the material keeps no `normalTexture`",
       "action": "Convert the bump to a tangent-space normal map."
@@ -2417,7 +2148,6 @@
       "id": "T3D-W180",
       "code": "ma-bump-object-space-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "An object-space normal map was dropped; glTF reads tangent-space normals.",
       "cause": "A `bump2d` reading object-space normals (`bumpInterp` 2); glTF's `normalTexture` is tangent-space, and converting needs the pose at draw time",
       "action": "Bake a tangent-space normal map."
@@ -2426,7 +2156,6 @@
       "id": "T3D-W181",
       "code": "ma-texture-transform-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A texture placement (repeat, offset or rotation) was dropped.",
       "cause": "A `place2dTexture` moving the placement (`repeatUV`, `offset`, `rotateUV`, whole or per component); `KHR_texture_transform` would carry it, but this glTF writer declares no such extension",
       "action": "Bake the placement into the UVs in Maya."
@@ -2435,7 +2164,6 @@
       "id": "T3D-W182",
       "code": "ma-texture-mirror-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A texture mirroring was dropped.",
       "cause": "A `place2dTexture` mirroring (`mirrorU`, `mirrorV`); no glTF wrap mode folds so",
       "action": "Bake the mirroring into the UVs in Maya."
@@ -2444,7 +2172,6 @@
       "id": "T3D-W183",
       "code": "ma-texture-unsupported",
       "level": "warn",
-      "group": "Maya ASCII",
       "message": "A texture could not be bound as is.",
       "cause": "A texture not bindable as is: an input computed rather than from a `file` node, a lone metalness or roughness map, or an opacity from another image than the base colour",
       "action": "Use file textures, one texture for metalness and roughness, and opacity in the base colour's alpha."
@@ -2453,7 +2180,6 @@
       "id": "T3D-W184",
       "code": "unity-model-hierarchy-invalid",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced model's hierarchy does not compose, so its meshes are placed without transforms.",
       "cause": "A referenced model whose hierarchy does not compose (a child index outside the node table, a node with two parents, a tree deeper than the limit); its meshes are instanced without transforms",
       "action": "Export the model again from its authoring tool."
@@ -2462,7 +2188,6 @@
       "id": "T3D-W185",
       "code": "unity-material-clip-and-blend",
       "level": "warn",
-      "group": "Unity",
       "message": "A material declares both transparency and alpha clipping; transparency wins and the clip threshold is lost.",
       "cause": "Transparency **and** alpha clipping declared (`_Mode`, `_Surface`, `_AlphaClip`/`_AlphaCutoffEnable`): `BLEND` wins, since `MASK` would make pixels fully opaque or drop them; the threshold is lost, glTF reading `alphaCutoff` only under `MASK`",
       "action": "Choose either transparent or alpha-clipped rendering for the material."
@@ -2471,7 +2196,6 @@
       "id": "T3D-W186",
       "code": "unity-prefab-override-unplaced",
       "level": "warn",
-      "group": "Unity",
       "message": "A prefab modification aimed at an object that is not drawn on its own was ignored.",
       "cause": "A prefab-instance modification aimed at an object not rendered on its own (a model object folded into the instance root, or a second target competing for it); not mixed into another object's transform or materials",
       "action": "Apply the modification inside the prefab."
@@ -2480,7 +2204,6 @@
       "id": "T3D-W187",
       "code": "unity-prefab-material-slot-invalid",
       "level": "warn",
-      "group": "Unity",
       "message": "A prefab modification names a material slot beyond 65,536, so it is ignored.",
       "cause": "A modification aimed at a material slot beyond the 65,536 a renderer carries",
       "action": "Fix the modification in the Unity editor."
@@ -2489,7 +2212,6 @@
       "id": "T3D-W188",
       "code": "unity-file-unreadable",
       "level": "warn",
-      "group": "Unity",
       "message": "A scene, prefab or material file could not be read.",
       "cause": "A `.unity`, `.prefab` or `.mat` unreadable; the note names it",
       "action": "Save the asset again from the Unity editor with text serialization."
@@ -2498,7 +2220,6 @@
       "id": "T3D-W189",
       "code": "unity-document-unreadable",
       "level": "warn",
-      "group": "Unity",
       "message": "An object in a Unity file could not be parsed, so it is skipped.",
       "cause": "A serialized object whose body does not parse in an otherwise readable file; skipped with the reason, the rest read",
       "action": "Save the asset again from the Unity editor with text serialization."
@@ -2507,7 +2228,6 @@
       "id": "T3D-W190",
       "code": "unity-hierarchy-too-deep",
       "level": "warn",
-      "group": "Unity",
       "message": "A Unity hierarchy is deeper than the limit, so the deeper branch is not built.",
       "cause": "A transform hierarchy, nested prefabs included, deeper than the limit; the subtree is not built",
       "action": "Flatten the hierarchy in the Unity editor."
@@ -2516,7 +2236,6 @@
       "id": "T3D-W191",
       "code": "unity-invalid-transform",
       "level": "warn",
-      "group": "Unity",
       "message": "A transform value is not finite or a rotation has zero length, so identity is kept.",
       "cause": "A non-finite local transform value or a zero-length rotation; identity kept",
       "action": "Fix the transform in the Unity editor."
@@ -2525,7 +2244,6 @@
       "id": "T3D-I012",
       "code": "unity-camera",
       "level": "info",
-      "group": "Unity",
       "message": "A camera component was read as data and not drawn.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Nothing to do; set the camera in your application."
@@ -2534,7 +2252,6 @@
       "id": "T3D-W192",
       "code": "unity-light",
       "level": "warn",
-      "group": "Unity",
       "message": "A light component was not converted.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Add the lights in the engine, or export the scene as glTF with its lights."
@@ -2543,7 +2260,6 @@
       "id": "T3D-W193",
       "code": "unity-particles",
       "level": "warn",
-      "group": "Unity",
       "message": "A particle system was not converted.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Rebuild the effect in the engine."
@@ -2552,7 +2268,6 @@
       "id": "T3D-I013",
       "code": "unity-script",
       "level": "info",
-      "group": "Unity",
       "message": "A script component was read as data and not run.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Nothing to do; scripts are not part of a compiled scene."
@@ -2561,7 +2276,6 @@
       "id": "T3D-W194",
       "code": "unity-skinned-renderer",
       "level": "warn",
-      "group": "Unity",
       "message": "A skinned mesh renderer was not converted.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Export the character as FBX or glTF and compile it separately."
@@ -2570,7 +2284,6 @@
       "id": "T3D-W195",
       "code": "unity-sprite-renderer",
       "level": "warn",
-      "group": "Unity",
       "message": "A sprite renderer was not converted.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Replace the sprite with a textured quad mesh."
@@ -2579,7 +2292,6 @@
       "id": "T3D-W196",
       "code": "unity-terrain",
       "level": "warn",
-      "group": "Unity",
       "message": "A terrain was not converted.",
       "cause": "A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated",
       "action": "Export the terrain as a mesh (for example with a terrain-to-mesh tool)."
@@ -2588,7 +2300,6 @@
       "id": "T3D-W197",
       "code": "unity-mesh-local",
       "level": "warn",
-      "group": "Unity",
       "message": "A mesh stored inside the scene file was not read.",
       "cause": "A `MeshFilter` pointing at a mesh stored in the scene file; no mesh bytes are read here",
       "action": "Save the mesh as a model asset (FBX or OBJ) and reference it."
@@ -2597,7 +2308,6 @@
       "id": "T3D-W198",
       "code": "unity-builtin-mesh-unsupported",
       "level": "warn",
-      "group": "Unity",
       "message": "A built-in primitive other than the cube was not converted.",
       "cause": "An editor built-in primitive other than the cube (sphere, capsule, cylinder, plane), whose tessellation is the editor's; the note gives the `fileID`",
       "action": "Replace it with a model asset of the same shape."
@@ -2606,7 +2316,6 @@
       "id": "T3D-W199",
       "code": "unity-model-missing",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced model is not in the project.",
       "cause": "A GUID no project asset carries",
       "action": "Add the missing model asset to the project."
@@ -2615,7 +2324,6 @@
       "id": "T3D-W200",
       "code": "unity-material-missing",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced material is not in the project.",
       "cause": "A GUID no project asset carries",
       "action": "Add the missing material asset to the project."
@@ -2624,7 +2332,6 @@
       "id": "T3D-W201",
       "code": "unity-texture-missing",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced texture is not in the project.",
       "cause": "A GUID no project asset carries",
       "action": "Add the missing texture asset to the project."
@@ -2633,7 +2340,6 @@
       "id": "T3D-W202",
       "code": "unity-prefab-missing",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced prefab is not in the project.",
       "cause": "A GUID no project asset carries",
       "action": "Add the missing prefab asset to the project."
@@ -2642,7 +2348,6 @@
       "id": "T3D-W203",
       "code": "unity-material-unreadable",
       "level": "warn",
-      "group": "Unity",
       "message": "A material file holds no material.",
       "cause": "A `.mat` with no `Material` object",
       "action": "Save the material again from the Unity editor."
@@ -2651,7 +2356,6 @@
       "id": "T3D-W204",
       "code": "unity-model-format-unknown",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced model is in a format no driver reads.",
       "cause": "A referenced model no driver claims",
       "action": "Convert the model to FBX, OBJ or glTF."
@@ -2660,7 +2364,6 @@
       "id": "T3D-W205",
       "code": "unity-model-nested-scene",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced model is itself a Unity scene, which is not nested.",
       "cause": "A referenced model that is itself a Unity scene: a driver does not call itself",
       "action": "Reference the scene's content as a prefab instead."
@@ -2669,7 +2372,6 @@
       "id": "T3D-W206",
       "code": "unity-model-import-failed",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced model could not be imported; the note carries its reason.",
       "cause": "The model's driver refused it; the note carries its code and message",
       "action": "Fix the model as its own message says, then compile again."
@@ -2678,7 +2380,6 @@
       "id": "T3D-W207",
       "code": "unity-model-buffer-unreadable",
       "level": "warn",
-      "group": "Unity",
       "message": "A referenced model's imported data could not be read.",
       "cause": "The imported model's glTF, or a buffer, unreadable",
       "action": "Delete the cache folder and compile again."
@@ -2687,7 +2388,6 @@
       "id": "T3D-W208",
       "code": "unity-model-mesh-by-fileid",
       "level": "warn",
-      "group": "Unity",
       "message": "A mesh of a multi-mesh model could not be found by its id, so the whole model is placed.",
       "cause": "A `MeshFilter` naming one mesh of a multi-mesh model by a `fileID` its `.meta` does not name, or an object the model lacks; the whole model is instanced, no part guessed",
       "action": "Reimport the model in Unity so its `.meta` names every mesh."
@@ -2696,7 +2396,6 @@
       "id": "T3D-W209",
       "code": "unity-metallic-map-unconverted",
       "level": "warn",
-      "group": "Unity",
       "message": "A packed metallic-smoothness map was not converted; the factors are kept.",
       "cause": "Metal and smoothness packed in one plane (R and A, or the HDRP mask) where glTF wants G and B; converting would re-encode pixels, so the factors are kept exactly",
       "action": "Author a glTF-style map (roughness in green, metalness in blue)."
@@ -2705,7 +2404,6 @@
       "id": "T3D-W210",
       "code": "unity-texture-format",
       "level": "warn",
-      "group": "Unity",
       "message": "A texture in a format the image readers do not decode was dropped.",
       "cause": "A texture format the image registry does not claim; dropped",
       "action": "Convert the texture to PNG or JPEG."
@@ -2714,7 +2412,6 @@
       "id": "T3D-W211",
       "code": "unity-texture-outside-source",
       "level": "warn",
-      "group": "Unity",
       "message": "A texture outside the project's served folder was not copied.",
       "cause": "A texture outside the served root, which no URI names",
       "action": "Move the texture into the project folder."
@@ -2723,7 +2420,6 @@
       "id": "T3D-W212",
       "code": "unity-texture-transform",
       "level": "warn",
-      "group": "Unity",
       "message": "A texture's tiling or offset was dropped.",
       "cause": "A non-neutral UV scale or offset on a slot, which needs an extension the intermediate scene does not write yet",
       "action": "Bake the tiling and offset into the UVs or the texture."
@@ -2732,7 +2428,6 @@
       "id": "T3D-W213",
       "code": "unity-texture-wrap-unsupported",
       "level": "warn",
-      "group": "Unity",
       "message": "A wrap mode glTF lacks (Mirror Once) was replaced by repeat.",
       "cause": "A `TextureImporter` wrap mode glTF lacks (_Mirror Once_); the axis repeats",
       "action": "Use Repeat, Clamp or Mirror wrap modes."
@@ -2741,7 +2436,6 @@
       "id": "T3D-W214",
       "code": "unity-texture-filter-unsupported",
       "level": "warn",
-      "group": "Unity",
       "message": "A texture filter outside point, bilinear and trilinear was replaced by the default.",
       "cause": "A `TextureImporter` filter outside point, bilinear and trilinear; glTF default kept",
       "action": "Use point, bilinear or trilinear filtering."
@@ -2750,7 +2444,6 @@
       "id": "T3D-W215",
       "code": "unity-emission-clamped",
       "level": "warn",
-      "group": "Unity",
       "message": "An HDR emission above 1 was clamped.",
       "cause": "An emissive colour above 1 (Unity's HDR emission), `emissiveFactor` being bounded to [0, 1]",
       "action": "Lower the emission intensity, or accept the clamp."
@@ -2759,7 +2452,6 @@
       "id": "T3D-I014",
       "code": "unity-emission-keyword-off",
       "level": "info",
-      "group": "Unity",
       "message": "A material stores an emission colour but does not enable emission, so it does not glow.",
       "cause": "Keywords declared without `_EMISSION` beside a stored emissive colour: it does not emit",
       "action": "Enable Emission on the material if it should glow."
@@ -2768,7 +2460,6 @@
       "id": "T3D-W216",
       "code": "unity-prefab-added-component-unconverted",
       "level": "warn",
-      "group": "Unity",
       "message": "A component a prefab instance adds was not converted.",
       "cause": "A component a prefab instance adds to a source object; it lives in the instance's document, not folded into the source object",
       "action": "Add the component inside the prefab itself."
@@ -2777,7 +2468,6 @@
       "id": "T3D-W217",
       "code": "unity-prefab-added-object-unplaced",
       "level": "warn",
-      "group": "Unity",
       "message": "An object a prefab instance adds under an undrawn object was kept under the instance root.",
       "cause": "An object a prefab instance adds under a source object not rendered; kept under the instance root",
       "action": "Add the object inside the prefab itself."
@@ -2786,7 +2476,6 @@
       "id": "T3D-I015",
       "code": "unity-prefab-modification-ignored",
       "level": "info",
-      "group": "Unity",
       "message": "A prefab modification that changes neither geometry nor rendering was ignored.",
       "cause": "A modification changing neither geometry nor rendering, counted by property (array indices reduced to `[]`, keeping the report bounded)",
       "action": "Nothing to do."
@@ -2795,7 +2484,6 @@
       "id": "T3D-E079",
       "code": "COMPILER_PLATFORM_UNSUPPORTED",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler has no build for this operating system and processor.",
       "cause": "`process.platform` and `process.arch` name a pair outside the supported list.",
       "action": "Compile on one of the supported platforms the message lists, or set `TRILLION3D_COMPILER_BIN` to a compiler you built yourself."
@@ -2804,7 +2492,6 @@
       "id": "T3D-E080",
       "code": "COMPILER_EXECUTABLE_MISSING",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler program is missing.",
       "cause": "No compiler program where the Node adapter looked: `options.executable`, the installed platform package `@trillion3d/compiler-<platform>-<arch>` (an optional dependency of `trillion3d`; none serves a Linux on musl), or `TRILLION3D_COMPILER_BIN`.",
       "action": "Reinstall `trillion3d` with its optional dependencies, or set `TRILLION3D_COMPILER_BIN` to the path of a compiler program."
@@ -2813,7 +2500,6 @@
       "id": "T3D-E081",
       "code": "COMPILER_EXECUTABLE_NOT_EXECUTABLE",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler program exists but cannot be run.",
       "cause": "The operating system refused to start the executable (no execute permission).",
       "action": "Reinstall `trillion3d`, or make the file named by `TRILLION3D_COMPILER_BIN` executable (`chmod +x`)."
@@ -2822,7 +2508,6 @@
       "id": "T3D-E082",
       "code": "COMPILER_STALE",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler built in this checkout is older than its sources.",
       "cause": "A crate source newer than the checkout's release build; its caches would carry the previous build's key. Raised only inside a checkout of the Trillion3D repository.",
       "action": "Run `pnpm run build:native` in the checkout."
@@ -2831,7 +2516,6 @@
       "id": "T3D-E083",
       "code": "COMPILER_LINE_LIMIT",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler printed a line longer than the protocol allows, so the run was stopped.",
       "cause": "A stderr or stdout line past 4 MiB without an end of line.",
       "action": "Report it as a compiler bug."
@@ -2840,7 +2524,6 @@
       "id": "T3D-E084",
       "code": "COMPILER_NO_POINTER",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler ended without printing where its result is.",
       "cause": "Exit code 0 with no readable pointer on stdout.",
       "action": "Report it as a compiler bug, with the events it printed."
@@ -2849,7 +2532,6 @@
       "id": "T3D-E085",
       "code": "COMPILER_NOT_READY",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler reported a result that is not ready.",
       "cause": "A pointer whose `status` is not `ready` and carries no code.",
       "action": "Read the events of the run for the job's error, then compile again."
@@ -2858,7 +2540,6 @@
       "id": "T3D-E086",
       "code": "COMPILER_EXIT",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compiler stopped with an unexpected exit code and no error code.",
       "cause": "A non-zero exit with no pointer, no batch summary and no error event.",
       "action": "Report it as a compiler bug, with the exit code and the events it printed."
@@ -2867,7 +2548,6 @@
       "id": "T3D-E087",
       "code": "STRICT_WARNINGS",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The compile succeeded with warnings, which `--strict` turns into a failure.",
       "cause": "`trillion3d-compile --strict` saw at least one warning-level message; the cache is written, the exit code is 3.",
       "action": "Fix what the warnings say, or run without `--strict`."
@@ -2876,7 +2556,6 @@
       "id": "T3D-E088",
       "code": "CUTOUT_SHEET_INVALID",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "The cutout answer sheet is not one this version reads.",
       "cause": "The sheet file is not an answer sheet, or declares another version.",
       "action": "Delete the answer sheet in the cache folder and compile again to write a new one."
@@ -2885,7 +2564,6 @@
       "id": "T3D-E089",
       "code": "PNG_UNSUPPORTED",
       "level": "error",
-      "group": "Node adapter and CLI",
       "message": "A PNG image is not a whole 8-bit RGBA, non-interlaced file.",
       "cause": "The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present.",
       "action": "Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again."
@@ -2894,7 +2572,6 @@
       "id": "T3D-E090",
       "code": "FAMILY_LOAD_FAILED",
       "level": "error",
-      "group": "Browser runtime",
       "message": "An optional family of the browser engine did not load.",
       "cause": "The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it, and a session whose renderer does not arrive does not open, refused with this error.",
       "action": "Check that every chunk of the bundle is served beside the entry module and reachable; the engine asks the family again on its next use."
@@ -2903,7 +2580,6 @@
       "id": "T3D-E091",
       "code": "INVALID_WORLD_ROOTS",
       "level": "error",
-      "group": "Global",
       "message": "The world roots' table could not be written as its records.",
       "cause": "A world-roots table whose page, bundle, cluster or group names a value its fixed-size record cannot hold (a word past 32 bits, a missing field, a digest that is not 64 lowercase hexadecimal digits); the message names the field ([World super-roots](FORMAT.md#world-super-roots)).",
       "action": "Report it as a compiler bug, with the field the message names."

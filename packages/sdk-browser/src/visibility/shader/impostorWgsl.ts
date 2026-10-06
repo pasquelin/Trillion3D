@@ -31,7 +31,7 @@ fn impOctDecode(f:vec2f,hemi:f32)->vec3f{
 /** The three frame weights at grid position \`f\`: they sum to one on both triangles of a cell. */
 fn impWeights(f:vec2f)->vec3f{
  return vec3f(min(1.0-f.x,1.0-f.y),abs(f.x-f.y),min(f.x,f.y));
-}`;
+}`
 
 /**
  * The card's view, once per card (the vertex stage): the three frames the eye's direction blends,
@@ -54,7 +54,7 @@ fn impFrameNormal(frame:vec2f,frames:f32,hemi:f32)->vec3f{return impOctDecode(fr
 fn impFrameX(n:vec3f)->vec3f{
  let up=select(vec3f(0.0,1.0,0.0),vec3f(0.0,0.0,1.0),abs(n.y)>0.999);
  return normalize(cross(up,n));
-}`;
+}`
 
 /**
  * Per pixel: the ray on each frame's plane, one-step parallax, and the blend of the three frames.
@@ -93,7 +93,7 @@ fn impBlend(a:ImpTap,b:ImpTap,c:ImpTap,w:vec3f,lod:f32)->ImpBlend{
         +w.y*textureSampleLevel(impostorOrm,impostorSampler,b.uv,lod).xyz
         +w.z*textureSampleLevel(impostorOrm,impostorSampler,c.uv,lod).xyz;
  return ImpBlend(colour,normalize(packed*2.0-1.0),orm,w.x*a.point+w.y*b.point+w.z*c.point);
-}`;
+}`
 
 /** The whole octahedral read of a card: the mapping, the card's view and the per-pixel tap. */
-export const IMPOSTOR_CARD_WGSL = `${IMPOSTOR_MATH_WGSL}\n${IMPOSTOR_VIEW_WGSL}\n${IMPOSTOR_TAP_WGSL}`;
+export const IMPOSTOR_CARD_WGSL = `${IMPOSTOR_MATH_WGSL}\n${IMPOSTOR_VIEW_WGSL}\n${IMPOSTOR_TAP_WGSL}`

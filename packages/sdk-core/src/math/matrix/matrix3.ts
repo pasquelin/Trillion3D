@@ -1,5 +1,5 @@
-import type { NumberSink } from './matrix4.ts';
-import { adjugateFactor } from './singular.ts';
+import type { NumberSink } from './matrix4.ts'
+import { adjugateFactor } from './singular.ts'
 
 /**
  * `out = transpose(inverse(3×3 block of m))`, column-major on nine numbers: the matrix that carries
@@ -26,36 +26,36 @@ import { adjugateFactor } from './singular.ts';
 export function normalMatrix3<T extends NumberSink>(out: T, m: ArrayLike<number>, outOffset = 0) {
   const n11 = m[0],
     n21 = m[1],
-    n31 = m[2];
+    n31 = m[2]
   const n12 = m[4],
     n22 = m[5],
-    n32 = m[6];
+    n32 = m[6]
   const n13 = m[8],
     n23 = m[9],
-    n33 = m[10];
+    n33 = m[10]
   const t11 = n33 * n22 - n32 * n23,
     t12 = n32 * n13 - n33 * n12,
-    t13 = n23 * n12 - n22 * n13;
-  const det = n11 * t11 + n21 * t12 + n31 * t13;
+    t13 = n23 * n12 - n22 * n13
+  const det = n11 * t11 + n21 * t12 + n31 * t13
   // The factor comes from the engine's single rule: `1 / det` if the matrix is regular — the
   // previous bits —, `1` if it is singular, and nothing at all if its scale is neither finite nor
   // strictly positive. The first three cofactors are already here — the determinant
   // required them — and the other six are those of the multiplication below.
-  const detInv = adjugateFactor(m, det);
+  const detInv = adjugateFactor(m, det)
   // Zero, infinite or NaN scale: nine zeros, like the WGSL kernel which then replaces its adjugate.
   // The primitive has neither area nor normal left, and nothing non-finite goes into lighting.
   if (detInv === null) {
-    for (let i = 0; i < 9; i++) out[outOffset + i] = 0;
-    return out;
+    for (let i = 0; i < 9; i++) out[outOffset + i] = 0
+    return out
   }
-  out[outOffset] = t11 * detInv;
-  out[outOffset + 3] = (n31 * n23 - n33 * n21) * detInv;
-  out[outOffset + 6] = (n32 * n21 - n31 * n22) * detInv;
-  out[outOffset + 1] = t12 * detInv;
-  out[outOffset + 4] = (n33 * n11 - n31 * n13) * detInv;
-  out[outOffset + 7] = (n31 * n12 - n32 * n11) * detInv;
-  out[outOffset + 2] = t13 * detInv;
-  out[outOffset + 5] = (n21 * n13 - n23 * n11) * detInv;
-  out[outOffset + 8] = (n22 * n11 - n21 * n12) * detInv;
-  return out;
+  out[outOffset] = t11 * detInv
+  out[outOffset + 3] = (n31 * n23 - n33 * n21) * detInv
+  out[outOffset + 6] = (n32 * n21 - n31 * n22) * detInv
+  out[outOffset + 1] = t12 * detInv
+  out[outOffset + 4] = (n33 * n11 - n31 * n13) * detInv
+  out[outOffset + 7] = (n31 * n12 - n32 * n11) * detInv
+  out[outOffset + 2] = t13 * detInv
+  out[outOffset + 5] = (n21 * n13 - n23 * n11) * detInv
+  out[outOffset + 8] = (n22 * n11 - n21 * n12) * detInv
+  return out
 }

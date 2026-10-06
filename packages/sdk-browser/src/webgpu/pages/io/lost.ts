@@ -1,5 +1,5 @@
-import { claimGpuDevice } from '../../../gpu/core/deviceOwners.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { claimGpuDevice } from '../../../gpu/core/deviceOwners.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * The one place that declares the device lost, whatever reported it — the device's own `lost`
@@ -26,17 +26,17 @@ export function markWebgpuLost(
   rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'diag'>,
   cause?: { reason: string; message: string },
 ) {
-  const { run, gpu, diag } = rt;
-  if (run.lost) return false;
-  run.lost = true;
-  run.frameHeld = false;
-  gpu.presenter?.dispose();
-  gpu.presenter = undefined;
-  if (!cause) return true;
-  run.lostCause = `${cause.reason}: ${cause.message}`;
-  console.error(`[trillion3d] WebGPU device lost (${cause.reason}): ${cause.message}`);
-  diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause });
-  return true;
+  const { run, gpu, diag } = rt
+  if (run.lost) return false
+  run.lost = true
+  run.frameHeld = false
+  gpu.presenter?.dispose()
+  gpu.presenter = undefined
+  if (!cause) return true
+  run.lostCause = `${cause.reason}: ${cause.message}`
+  console.error(`[trillion3d] WebGPU device lost (${cause.reason}): ${cause.message}`)
+  diag.engineDiagnostic('gpu-device-lost', 'WebGPU device lost', { code: 'WEBGPU_LOST', ...cause })
+  return true
 }
 
 /**
@@ -57,9 +57,9 @@ export function claimWebgpuDevice(
         message,
       }),
     lost: (info) => {
-      if (!markWebgpuLost(rt, info)) deviceCauseAfter(rt, info);
+      if (!markWebgpuLost(rt, info)) deviceCauseAfter(rt, info)
     },
-  });
+  })
 }
 
 /**
@@ -72,14 +72,14 @@ function deviceCauseAfter(
   rt: Pick<WebgpuPagesRuntime, 'run'>,
   { reason, message }: { reason: string; message: string },
 ) {
-  const { run } = rt;
-  if (!run.lostCause || reason === 'destroyed') return;
-  run.lostCause += `; then the device, ${reason}: ${message}`;
-  console.error(`[trillion3d] WebGPU device lost after the error (${reason}): ${message}`);
+  const { run } = rt
+  if (!run.lostCause || reason === 'destroyed') return
+  run.lostCause += `; then the device, ${reason}: ${message}`
+  console.error(`[trillion3d] WebGPU device lost after the error (${reason}): ${message}`)
 }
 
 /** A preparation stops once the backend is closed (`AbortError`: cancelled) or its device lost. */
 export function throwIfStopped(rt: Pick<WebgpuPagesRuntime, 'run' | 'signal'>) {
-  rt.signal.throwIfAborted();
-  if (rt.run.lost) throw new Error('WEBGPU_LOST');
+  rt.signal.throwIfAborted()
+  if (rt.run.lost) throw new Error('WEBGPU_LOST')
 }

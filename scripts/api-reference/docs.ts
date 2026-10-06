@@ -1,21 +1,21 @@
-import ts from 'typescript';
-import { ENGINE_ERROR_CODES } from '../../packages/sdk-core/src/contracts/errorCodes.ts';
-import { ENGINE_ERROR_MEANINGS } from './errorCodeMeanings.ts';
+import ts from 'typescript'
+import { ENGINE_ERROR_CODES } from '../../packages/sdk-core/src/contracts/errorCodes.ts'
+import { ENGINE_ERROR_MEANINGS } from './errorCodeMeanings.ts'
 
 /** What the TSDoc of one symbol says: its text, `@param` lines, `@returns`, `@defaultValue` and
  *  `@example`. */
 export interface SymbolDoc {
-  text: string;
-  params: Map<string, string>;
-  returns?: string;
-  defaultValue?: string;
-  example?: string;
+  text: string
+  params: Map<string, string>
+  returns?: string
+  defaultValue?: string
+  example?: string
   /** `@errorCodes`: each code the engine's error may carry, with what it means. */
-  codes?: [string, string][];
+  codes?: [string, string][]
 }
 
 const aliased = (symbol: ts.Symbol, checker: ts.TypeChecker) =>
-  symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
+  symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol
 
 /**
  * The symbols a member may read its documentation from: itself, then the declaration a shorthand
@@ -23,37 +23,37 @@ const aliased = (symbol: ts.Symbol, checker: ts.TypeChecker) =>
  * often documented where its function is written, not in the family object.
  */
 function sources(symbol: ts.Symbol, checker: ts.TypeChecker): ts.Symbol[] {
-  const found = [symbol];
-  const declaration = symbol.valueDeclaration;
+  const found = [symbol]
+  const declaration = symbol.valueDeclaration
   if (declaration && ts.isShorthandPropertyAssignment(declaration)) {
-    const value = checker.getShorthandAssignmentValueSymbol(declaration);
-    if (value) found.push(aliased(value, checker));
+    const value = checker.getShorthandAssignmentValueSymbol(declaration)
+    if (value) found.push(aliased(value, checker))
   } else if (
     declaration &&
     ts.isPropertyAssignment(declaration) &&
     (ts.isIdentifier(declaration.initializer) ||
       ts.isPropertyAccessExpression(declaration.initializer))
   ) {
-    const value = checker.getSymbolAtLocation(declaration.initializer);
-    if (value) found.push(aliased(value, checker));
+    const value = checker.getSymbolAtLocation(declaration.initializer)
+    if (value) found.push(aliased(value, checker))
   }
-  return found;
+  return found
 }
 
 function tagText(tag: ts.JSDocTagInfo): string {
-  return ts.displayPartsToString(tag.text).trim();
+  return ts.displayPartsToString(tag.text).trim()
 }
 
 function parameterOf(tag: ts.JSDocTagInfo): [string, string] | null {
-  const name = tag.text?.find((part) => part.kind === 'parameterName')?.text;
-  if (!name) return null;
+  const name = tag.text?.find((part) => part.kind === 'parameterName')?.text
+  if (!name) return null
   const rest = (tag.text ?? [])
     .filter((part) => part.kind !== 'parameterName')
     .map((part) => part.text)
     .join('')
     .replace(/^\s*-?\s*/, '')
-    .trim();
-  return [name, rest];
+    .trim()
+  return [name, rest]
 }
 
 /**
@@ -62,13 +62,13 @@ function parameterOf(tag: ts.JSDocTagInfo): [string, string] | null {
  * `@property <name> - <text>` line.
  */
 function ownerLine(symbol: ts.Symbol, owner: ts.Symbol, checker: ts.TypeChecker): string {
-  const prefix = `${symbol.name} - `;
+  const prefix = `${symbol.name} - `
   const line = owner
     .getJsDocTags(checker)
     .filter((tag) => tag.name === 'property')
     .map(tagText)
-    .find((text) => text.startsWith(prefix));
-  return line ? line.slice(prefix.length).trim() : '';
+    .find((text) => text.startsWith(prefix))
+  return line ? line.slice(prefix.length).trim() : ''
 }
 
 /** The `@param` lines of `source`, by parameter name. */
@@ -77,7 +77,7 @@ function paramsOf(source: ts.Symbol, checker: ts.TypeChecker): [string, string][
     .getJsDocTags(checker)
     .filter((tag) => tag.name === 'param')
     .map(parameterOf)
-    .filter((pair): pair is [string, string] => pair !== null && pair[1] !== '');
+    .filter((pair): pair is [string, string] => pair !== null && pair[1] !== '')
 }
 
 /**
@@ -86,21 +86,21 @@ function paramsOf(source: ts.Symbol, checker: ts.TypeChecker): [string, string][
  * it points at does not).
  */
 export function readDoc(symbol: ts.Symbol, checker: ts.TypeChecker, owner?: ts.Symbol): SymbolDoc {
-  const found = sources(symbol, checker);
-  const params = new Map(found.flatMap((source) => paramsOf(source, checker)).reverse());
-  const tags = found.flatMap((source) => source.getJsDocTags(checker));
+  const found = sources(symbol, checker)
+  const params = new Map(found.flatMap((source) => paramsOf(source, checker)).reverse())
+  const tags = found.flatMap((source) => source.getJsDocTags(checker))
   const tag = (name: string) => {
-    const match = tags.find((candidate) => candidate.name === name);
-    return match && tagText(match);
-  };
+    const match = tags.find((candidate) => candidate.name === name)
+    return match && tagText(match)
+  }
   const codes = tags.some((candidate) => candidate.name === 'errorCodes')
     ? ENGINE_ERROR_CODES.flatMap((names) =>
         names.map((code): [string, string] => [code, ENGINE_ERROR_MEANINGS[names[0]]]),
       )
-    : [];
+    : []
   const text = found
     .map((source) => ts.displayPartsToString(source.getDocumentationComment(checker)).trim())
-    .find(Boolean);
+    .find(Boolean)
   return {
     text: text?.replace(/\s*\n\s*/g, ' ') ?? (owner ? ownerLine(symbol, owner, checker) : ''),
     params,
@@ -110,5 +110,5 @@ export function readDoc(symbol: ts.Symbol, checker: ts.TypeChecker, owner?: ts.S
     example: tag('example')
       ?.replace(/^```\w*\n?|\n?```$/g, '')
       .trim(),
-  };
+  }
 }

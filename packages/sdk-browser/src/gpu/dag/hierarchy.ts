@@ -1,6 +1,6 @@
-import { CULL_STRIDE } from './types.ts';
-import type { ClusterCut } from '../../page/selection/math.ts';
-import { BOUND_STRIDE, cullingBounds, HAS_ROOT, PARENT_SPHERE } from '../../page/cut/bounds.ts';
+import { CULL_STRIDE } from './types.ts'
+import type { ClusterCut } from '../../page/selection/math.ts'
+import { BOUND_STRIDE, cullingBounds, HAS_ROOT, PARENT_SPHERE } from '../../page/cut/bounds.ts'
 /**
  * The cut hierarchy as level-by-level descent reads it: its depth, and the one a
  * primitive without a hierarchy receives so descent is the only production path.
@@ -19,9 +19,9 @@ import { BOUND_STRIDE, cullingBounds, HAS_ROOT, PARENT_SPHERE } from '../../page
 const LEAF_PAGES = 32,
   BRANCH = 8,
   STRIDE = CULL_STRIDE,
-  INF = Infinity;
+  INF = Infinity
 
-type Built = { min: number[]; max: number[]; first: number; pages: number; children: Built[] };
+type Built = { min: number[]; max: number[]; first: number; pages: number; children: Built[] }
 
 function box(
   pages: ReadonlyArray<{ min?: number[]; max?: number[] }>,
@@ -29,13 +29,13 @@ function box(
   count: number,
 ) {
   const min = [INF, INF, INF],
-    max = [-INF, -INF, -INF];
+    max = [-INF, -INF, -INF]
   for (let i = from; i < from + count; i++) {
-    const rec = pages[i];
-    if (!rec.min || !rec.max) return { min: [-INF, -INF, -INF], max: [INF, INF, INF] };
-    expand(min, max, rec.min, rec.max);
+    const rec = pages[i]
+    if (!rec.min || !rec.max) return { min: [-INF, -INF, -INF], max: [INF, INF, INF] }
+    expand(min, max, rec.min, rec.max)
   }
-  return { min, max };
+  return { min, max }
 }
 
 /** Expands `[min, max]` to the box `[childMin, childMax]`, axis by axis. */
@@ -46,42 +46,42 @@ function expand(
   childMax: ArrayLike<number>,
 ) {
   for (let a = 0; a < 3; a++) {
-    if (childMin[a] < min[a]) min[a] = childMin[a];
-    if (childMax[a] > max[a]) max[a] = childMax[a];
+    if (childMin[a] < min[a]) min[a] = childMin[a]
+    if (childMax[a] > max[a]) max[a] = childMax[a]
   }
 }
 
 function merge(children: Built[]): Built {
   const min = [INF, INF, INF],
-    max = [-INF, -INF, -INF];
-  for (const child of children) expand(min, max, child.min, child.max);
-  return { min, max, first: 0, pages: 0, children };
+    max = [-INF, -INF, -INF]
+  for (const child of children) expand(min, max, child.min, child.max)
+  return { min, max, first: 0, pages: 0, children }
 }
 
 /** Numbering by levels, root at rank zero: a node's `firstChild` is therefore contiguous. */
 function emit(root: Built, count: number) {
-  const nodes = new Float64Array(count * STRIDE);
-  const queue: Built[] = [root];
-  let next = 1;
+  const nodes = new Float64Array(count * STRIDE)
+  const queue: Built[] = [root]
+  let next = 1
   for (let at = 0; at < queue.length; at++) {
     const node = queue[at],
-      base = at * STRIDE;
+      base = at * STRIDE
     for (let a = 0; a < 3; a++) {
-      nodes[base + a] = node.min[a];
-      nodes[base + 3 + a] = node.max[a];
+      nodes[base + a] = node.min[a]
+      nodes[base + 3 + a] = node.max[a]
     }
-    nodes[base + 10] = -1;
-    nodes[base + 11] = node.children.length ? next : 0;
-    nodes[base + 12] = node.children.length;
-    nodes[base + 13] = node.first;
-    nodes[base + 14] = node.pages;
-    for (const child of node.children) queue.push(child);
-    next += node.children.length;
+    nodes[base + 10] = -1
+    nodes[base + 11] = node.children.length ? next : 0
+    nodes[base + 12] = node.children.length
+    nodes[base + 13] = node.first
+    nodes[base + 14] = node.pages
+    for (const child of node.children) queue.push(child)
+    next += node.children.length
   }
-  return { nodes, stride: STRIDE };
+  return { nodes, stride: STRIDE }
 }
 
-type FlatPage = ClusterCut & { min?: number[]; max?: number[] };
+type FlatPage = ClusterCut & { min?: number[]; max?: number[] }
 
 /**
  * Replacement sphere and error ceiling of each node, read from the pages. The sphere is the
@@ -96,20 +96,20 @@ type FlatPage = ClusterCut & { min?: number[]; max?: number[] };
 function fillReplacement(nodes: Float64Array, pages: readonly FlatPage[], bounds: Float64Array) {
   for (let n = nodes.length / STRIDE - 1; n >= 0; n--) {
     const base = n * STRIDE,
-      at = n * BOUND_STRIDE;
-    let ceil = bounds[at + HAS_ROOT] ? -1 : 0;
+      at = n * BOUND_STRIDE
+    let ceil = bounds[at + HAS_ROOT] ? -1 : 0
     for (let c = 0; c < nodes[base + 12] && ceil >= 0; c++) {
-      const child = nodes[(nodes[base + 11] + c) * STRIDE + 10];
-      ceil = child < 0 ? -1 : Math.max(ceil, child);
+      const child = nodes[(nodes[base + 11] + c) * STRIDE + 10]
+      ceil = child < 0 ? -1 : Math.max(ceil, child)
     }
     for (let p = 0; p < nodes[base + 14] && ceil >= 0; p++) {
       const rec = pages[nodes[base + 13] + p],
         band = rec.parentSphere ?? rec.sphere,
-        error = rec.parentError as number;
-      ceil = error >= 0 && band && band.length >= 4 && band[3] >= 0 ? Math.max(ceil, error) : -1;
+        error = rec.parentError as number
+      ceil = error >= 0 && band && band.length >= 4 && band[3] >= 0 ? Math.max(ceil, error) : -1
     }
-    nodes[base + 10] = ceil;
-    if (ceil >= 0) for (let a = 0; a < 4; a++) nodes[base + 6 + a] = bounds[at + PARENT_SPHERE + a];
+    nodes[base + 10] = ceil
+    if (ceil >= 0) for (let a = 0; a < 4; a++) nodes[base + 6 + a] = bounds[at + PARENT_SPHERE + a]
   }
 }
 
@@ -117,25 +117,25 @@ function fillReplacement(nodes: Float64Array, pages: readonly FlatPage[], bounds
  *  nodes, up to a single root. A primitive with no page keeps an empty leaf root. `bounds`
  *  are the ones `cullingBounds` derives, handed to packing so it does not derive them again. */
 export function flatHierarchy(pages: readonly FlatPage[]) {
-  let level: Built[] = [];
+  let level: Built[] = []
   for (let first = 0; first < pages.length; first += LEAF_PAGES) {
-    const count = Math.min(LEAF_PAGES, pages.length - first);
-    const { min, max } = box(pages, first, count);
-    level.push({ min, max, first, pages: count, children: [] });
+    const count = Math.min(LEAF_PAGES, pages.length - first)
+    const { min, max } = box(pages, first, count)
+    level.push({ min, max, first, pages: count, children: [] })
   }
   if (!level.length)
-    level.push({ min: [0, 0, 0], max: [0, 0, 0], first: 0, pages: 0, children: [] });
-  let total = level.length;
+    level.push({ min: [0, 0, 0], max: [0, 0, 0], first: 0, pages: 0, children: [] })
+  let total = level.length
   while (level.length > 1) {
-    const up: Built[] = [];
-    for (let at = 0; at < level.length; at += BRANCH) up.push(merge(level.slice(at, at + BRANCH)));
-    total += up.length;
-    level = up;
+    const up: Built[] = []
+    for (let at = 0; at < level.length; at += BRANCH) up.push(merge(level.slice(at, at + BRANCH)))
+    total += up.length
+    level = up
   }
-  const culling = emit(level[0], total);
-  const bounds = cullingBounds(culling, pages);
-  fillReplacement(culling.nodes, pages, bounds);
-  return { ...culling, bounds };
+  const culling = emit(level[0], total)
+  const bounds = cullingBounds(culling, pages)
+  fillReplacement(culling.nodes, pages, bounds)
+  return { ...culling, bounds }
 }
 
 /**
@@ -164,20 +164,20 @@ export function flatHierarchy(pages: readonly FlatPage[]) {
  * clusters per primitive.
  */
 export function hierarchyLevelSizes(nodes: Float64Array, stride: number) {
-  const count = nodes.length / stride;
-  const sizes: number[] = [];
-  if (count < 1) return sizes;
-  let frontier = [0];
+  const count = nodes.length / stride
+  const sizes: number[] = []
+  if (count < 1) return sizes
+  let frontier = [0]
   while (frontier.length) {
-    sizes.push(frontier.length);
-    const next: number[] = [];
+    sizes.push(frontier.length)
+    const next: number[] = []
     for (const node of frontier) {
       const base = node * stride,
-        children = nodes[base + 12];
-      for (let c = 0; c < children; c++) next.push(nodes[base + 11] + c);
+        children = nodes[base + 12]
+      for (let c = 0; c < children; c++) next.push(nodes[base + 11] + c)
     }
-    if (next.length > count) throw new Error('Inconsistent culling hierarchy');
-    frontier = next;
+    if (next.length > count) throw new Error('Inconsistent culling hierarchy')
+    frontier = next
   }
-  return sizes;
+  return sizes
 }

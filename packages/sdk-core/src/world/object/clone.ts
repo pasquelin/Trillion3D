@@ -1,28 +1,28 @@
-import { Group, Object3D } from './object3d.ts';
-import { Mesh } from './mesh.ts';
-import { Sprite } from './sprite.ts';
-import { Light } from '../light/light.ts';
-import type { Material } from '../material/material.ts';
+import { Group, Object3D } from './object3d.ts'
+import { Mesh } from './mesh.ts'
+import { Sprite } from './sprite.ts'
+import { Light } from '../light/light.ts'
+import type { Material } from '../material/material.ts'
 
 /** The node classes a copy builds again; any other — a loaded model, a camera — is left out. */
-const COPIED = new Set<unknown>([Object3D, Group, Mesh, Sprite, Light]);
+const COPIED = new Set<unknown>([Object3D, Group, Mesh, Sprite, Light])
 
 /** A node of the same class and content: a mesh with a copy of its shape and materials of its
  *  own, a light with the same values and aim, a group or a bare node. */
 function copyContent(source: Object3D): Object3D {
   if (source instanceof Mesh) {
-    const worn = source.material;
-    const matter = Array.isArray(worn) ? worn.map((m) => m.clone()) : worn.clone();
+    const worn = source.material
+    const matter = Array.isArray(worn) ? worn.map((m) => m.clone()) : worn.clone()
     if (source instanceof Sprite) {
-      const sprite = new Sprite(matter as Material);
-      sprite.geometry = source.geometry.clone();
-      sprite.center.copy(source.center);
-      return sprite;
+      const sprite = new Sprite(matter as Material)
+      sprite.geometry = source.geometry.clone()
+      sprite.center.copy(source.center)
+      return sprite
     }
-    return new Mesh(source.geometry.clone(), matter, source.primitive);
+    return new Mesh(source.geometry.clone(), matter, source.primitive)
   }
-  if (source instanceof Light) return source.clone(false);
-  return source instanceof Group ? new Group() : new Object3D();
+  if (source instanceof Light) return source.clone(false)
+  return source instanceof Group ? new Group() : new Object3D()
 }
 
 /**
@@ -33,20 +33,20 @@ function copyContent(source: Object3D): Object3D {
  * `null` for it, and it is left out of a copied subtree.
  */
 export function cloneObject<T extends Object3D>(source: T): T | null {
-  if (!COPIED.has(source.constructor)) return null;
-  const copy = copyContent(source);
-  copy.name = source.name;
-  copy.position.copy(source.position);
-  copy.rotation.copy(source.rotation); // the angles as written, the quaternion following
-  copy.scale.copy(source.scale);
-  copy.visible = source.visible;
-  copy.castShadow = source.castShadow;
-  copy.receiveShadow = source.receiveShadow;
-  copy.renderOrder = source.renderOrder;
-  copy.userData = JSON.parse(JSON.stringify(source.userData));
+  if (!COPIED.has(source.constructor)) return null
+  const copy = copyContent(source)
+  copy.name = source.name
+  copy.position.copy(source.position)
+  copy.rotation.copy(source.rotation) // the angles as written, the quaternion following
+  copy.scale.copy(source.scale)
+  copy.visible = source.visible
+  copy.castShadow = source.castShadow
+  copy.receiveShadow = source.receiveShadow
+  copy.renderOrder = source.renderOrder
+  copy.userData = JSON.parse(JSON.stringify(source.userData))
   for (const child of source.children) {
-    const inner = cloneObject(child);
-    if (inner) copy.add(inner);
+    const inner = cloneObject(child)
+    if (inner) copy.add(inner)
   }
-  return copy as T;
+  return copy as T
 }

@@ -1,7 +1,7 @@
-import type { TextureFrameMetrics } from '../../../../sdk-core/src/index.ts';
-import type { WebgpuTileAtlas } from './atlas.ts';
-import type { HeldLevels } from '../../texture/heldLevels.ts';
-import type { WebgpuTilePool } from './pool.ts';
+import type { TextureFrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { WebgpuTileAtlas } from './atlas.ts'
+import type { HeldLevels } from '../../texture/heldLevels.ts'
+import type { WebgpuTilePool } from './pool.ts'
 
 /**
  * Streamer counters, held flat by the pass and returned under the metrics contract: what image
@@ -28,8 +28,8 @@ export function createTileCounters() {
     lastMs: null as number | null,
     peakMs: null as number | null,
     pass(ms: number, unbounded: boolean) {
-      this.lastMs = unbounded ? null : ms;
-      if (!unbounded && ms > (this.peakMs ?? -1)) this.peakMs = ms;
+      this.lastMs = unbounded ? null : ms
+      if (!unbounded && ms > (this.peakMs ?? -1)) this.peakMs = ms
     },
     metrics(
       atlases: readonly WebgpuTileAtlas[],
@@ -37,9 +37,9 @@ export function createTileCounters() {
       family: string,
     ) {
       const sum = (of: (atlas: WebgpuTileAtlas) => number) =>
-        atlases.reduce((total, atlas) => total + of(atlas), 0);
+        atlases.reduce((total, atlas) => total + of(atlas), 0)
       const pools = (of: (pool: WebgpuTilePool) => number) =>
-        sum((atlas) => atlas.pools.reduce((total, pool) => total + of(pool), 0));
+        sum((atlas) => atlas.pools.reduce((total, pool) => total + of(pool), 0))
       const metrics: TextureFrameMetrics = {
         texturePoolBytes: pools((pool) => pool.bytes),
         texturePoolFormat: family,
@@ -62,10 +62,10 @@ export function createTileCounters() {
         textureLevelCacheBytes: levels ? levels.bytes : null,
         textureScratchBuilds: this.scratches,
         textureLiveBytes: liveBytes,
-      };
-      return metrics;
+      }
+      return metrics
     },
-  };
+  }
 }
 
-export type TileCounters = ReturnType<typeof createTileCounters>;
+export type TileCounters = ReturnType<typeof createTileCounters>

@@ -1,5 +1,5 @@
-import type { LightingCapabilities } from '../../../sdk-core/src/index.ts';
-import type { RenderBackend } from '../backend/types.ts';
+import type { LightingCapabilities } from '../../../sdk-core/src/index.ts'
+import type { RenderBackend } from '../backend/types.ts'
 
 /**
  * What the active engine actually does with the contract's lights.
@@ -10,19 +10,19 @@ import type { RenderBackend } from '../backend/types.ts';
  * its frame. What no signature says — shadows — an engine declares itself.
  */
 export function lightingCapabilitiesOf(backend: RenderBackend): LightingCapabilities {
-  const sceneLights = !!backend.refreshSceneLights;
-  const declared = backend.lighting;
+  const sceneLights = !!backend.refreshSceneLights
+  const declared = backend.lighting
   const capabilities: LightingCapabilities = {
     sceneLights,
     lightingView: sceneLights,
     shadows: sceneLights && declared?.shadows === true,
     transforms: !!backend.setTransform,
-  };
+  }
   const reason =
     declared?.reason ??
     (sceneLights
       ? undefined
-      : `${backend.id} does not apply the contract's lights: the store accepts them, the frame does not change`);
-  if (reason) capabilities.reason = reason;
-  return capabilities;
+      : `${backend.id} does not apply the contract's lights: the store accepts them, the frame does not change`)
+  if (reason) capabilities.reason = reason
+  return capabilities
 }

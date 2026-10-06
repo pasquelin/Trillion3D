@@ -13,8 +13,8 @@
  * curve brings it into the display range (P4). Neither is a light: a scene with neither lamp nor
  * environment irradiance stays black whatever its exposure.
  */
-import type { NumberSink } from '../../math/matrix/matrix4.ts';
-import { packFog, type SceneFog } from './fog.ts';
+import type { NumberSink } from '../../math/matrix/matrix4.ts'
+import { packFog, type SceneFog } from './fog.ts'
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
 export const TONE_MAPPING_RANK = {
@@ -32,33 +32,33 @@ export const TONE_MAPPING_RANK = {
   agx: 5,
   /** The least colour change. */
   neutral: 6,
-} as const;
+} as const
 /** The name of a display curve the engine knows. */
-export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK;
+export type SceneToneMapping = keyof typeof TONE_MAPPING_RANK
 /** The display curve of a scene that names none, or declares no environment at all. */
-export const DEFAULT_TONE_MAPPING: SceneToneMapping = 'aces';
+export const DEFAULT_TONE_MAPPING: SceneToneMapping = 'aces'
 
 /** The light around a scene: exposure, display curve and light from every direction. */
 export interface SceneEnvironment {
   /** Multiplier of linear radiance, applied before the curve. */
-  exposure: number;
+  exposure: number
   /** The display curve; `DEFAULT_TONE_MAPPING` when absent. */
-  toneMapping?: SceneToneMapping;
+  toneMapping?: SceneToneMapping
   /**
    * The irradiance arriving from every direction, as 27 numbers: nine coefficients, each an RGB
    * triple, in the band order constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²`.
    * Absent, or all zero, nothing lights a surface but the declared lamps.
    */
-  irradiance?: readonly number[];
+  irradiance?: readonly number[]
   /** Distance or height fog over every surface (`SceneFog`); absent, none. */
-  fog?: SceneFog;
+  fog?: SceneFog
 }
 
 /** Coefficients of the irradiance, and the floats they take in a GPU buffer: one `vec4` each.
  *  Written as literals, like the factors below, so a bundle that reads none of them keeps none. */
-export const ENVIRONMENT_COEFFICIENTS = 9;
+export const ENVIRONMENT_COEFFICIENTS = 9
 /** Floats of the environment in the GPU buffer: the coefficients, then the fog's block. */
-export const SCENE_ENVIRONMENT_FLOATS = 44;
+export const SCENE_ENVIRONMENT_FLOATS = 44
 
 /**
  * The factors of the cosine-lobe convolution per band: the irradiance at a normal is the
@@ -79,19 +79,19 @@ export const IRRADIANCE_BAND = {
   quadraticCross: 0.8580855308097834,
   quadraticZ: 0.2477079561003757,
   quadraticDifference: 0.4290427654048917,
-} as const;
+} as const
 
 /** The 27 numbers an irradiance is summed into, read and written by index: a list, or the
  *  floats a program uploads. */
-export type IrradianceSum = NumberSink;
+export type IrradianceSum = NumberSink
 
 /** An irradiance with nothing in it, ready to receive sources. */
-export const emptyIrradiance = () => new Array<number>(ENVIRONMENT_COEFFICIENTS * 3).fill(0);
+export const emptyIrradiance = () => new Array<number>(ENVIRONMENT_COEFFICIENTS * 3).fill(0)
 
 /** Adds a uniform irradiance `rgb` — the same at every normal — to `sh`. */
 export function addUniformIrradiance<T extends IrradianceSum>(sh: T, rgb: readonly number[]) {
-  for (let c = 0; c < 3; c++) sh[c] += rgb[c] / IRRADIANCE_BAND.constant;
-  return sh;
+  for (let c = 0; c < 3; c++) sh[c] += rgb[c] / IRRADIANCE_BAND.constant
+  return sh
 }
 
 /**
@@ -105,13 +105,13 @@ export function addHemisphereIrradiance<T extends IrradianceSum>(
   ground: readonly number[],
   up: readonly number[],
 ) {
-  const axis = [up[1], up[2], up[0]];
+  const axis = [up[1], up[2], up[0]]
   for (let c = 0; c < 3; c++) {
-    sh[c] += (sky[c] + ground[c]) / 2 / IRRADIANCE_BAND.constant;
-    const slope = (sky[c] - ground[c]) / 2 / IRRADIANCE_BAND.linear;
-    for (let band = 0; band < 3; band++) sh[(band + 1) * 3 + c] += slope * axis[band];
+    sh[c] += (sky[c] + ground[c]) / 2 / IRRADIANCE_BAND.constant
+    const slope = (sky[c] - ground[c]) / 2 / IRRADIANCE_BAND.linear
+    for (let band = 0; band < 3; band++) sh[(band + 1) * 3 + c] += slope * axis[band]
   }
-  return sh;
+  return sh
 }
 
 /** Adds 27 coefficients a probe carries, scaled by `scale`. */
@@ -120,18 +120,18 @@ export function addIrradianceCoefficients<T extends IrradianceSum>(
   coefficients: ArrayLike<number>,
   scale: number,
 ) {
-  for (let i = 0; i < ENVIRONMENT_COEFFICIENTS * 3; i++) sh[i] += (coefficients[i] ?? 0) * scale;
-  return sh;
+  for (let i = 0; i < ENVIRONMENT_COEFFICIENTS * 3; i++) sh[i] += (coefficients[i] ?? 0) * scale
+  return sh
 }
 
 /** Writes an environment's irradiance into its GPU block, one `vec4` per coefficient, then its
  *  fog behind them. */
 export function packEnvironment(environment: SceneEnvironment | undefined, out: Float32Array) {
-  out.fill(0);
-  packFog(environment?.fog, out, ENVIRONMENT_COEFFICIENTS * 4);
-  const sh = environment?.irradiance;
-  if (!sh) return out;
+  out.fill(0)
+  packFog(environment?.fog, out, ENVIRONMENT_COEFFICIENTS * 4)
+  const sh = environment?.irradiance
+  if (!sh) return out
   for (let k = 0; k < ENVIRONMENT_COEFFICIENTS; k++)
-    for (let c = 0; c < 3; c++) out[k * 4 + c] = sh[k * 3 + c];
-  return out;
+    for (let c = 0; c < 3; c++) out[k * 4 + c] = sh[k * 3 + c]
+  return out
 }

@@ -1,6 +1,6 @@
-import { directLightWgsl } from '../direct/lightWgsl.ts';
-import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts';
-import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts';
+import { directLightWgsl } from '../direct/lightWgsl.ts'
+import { GRID_BOUNDS_WGSL } from './boundsWgsl.ts'
+import { GRID_COMPACT_WGSL, GRID_LANES } from './compactWgsl.ts'
 
 /**
  * THE LIGHT GRID (#1369): cells of `tileSize` pixels across and `gridSlices` slices of
@@ -86,4 +86,4 @@ fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index)
   writeSlices(lane);
   workgroupBarrier();
  }
-}`;
+}`

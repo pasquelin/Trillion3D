@@ -1,28 +1,28 @@
-import * as G from '../../host/graph/graph.fixture.ts';
-import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts';
-import { dagRoots } from '../../backend/pagesBackend.fixture.ts';
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { QUAD_MANIFEST, quadScene } from '../../backend/pagesBackendScenes.fixture.ts';
-import { webgpuPagesBackend } from './pages.ts';
-import type { BackendDiagnostic } from '../../backend/types.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import * as G from '../../host/graph/graph.fixture.ts'
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { dagRoots } from '../../backend/pagesBackend.fixture.ts'
+import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
+import { QUAD_MANIFEST, quadScene } from '../../backend/pagesBackendScenes.fixture.ts'
+import { webgpuPagesBackend } from './pages.ts'
+import type { BackendDiagnostic } from '../../backend/types.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
-const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]);
+const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */
 export const FIRST = new Uint32Array([0, 1, 2]),
-  SECOND = new Uint32Array([0, 2, 3]);
+  SECOND = new Uint32Array([0, 2, 3])
 /** Attributes a cluster's page carries beyond its positions, by glTF name. */
-type Attributes = Record<string, { itemSize: number; array: Float32Array }>;
+type Attributes = Record<string, { itemSize: number; array: Float32Array }>
 /** One cluster of the fixture: its corner list, what its page holds, and whether the cache wrote
  *  that page at all — a cluster without one keeps its index page and its float buffers. */
-export type ClusterSpec = { corners: Uint32Array; attributes?: Attributes; paged?: boolean };
+export type ClusterSpec = { corners: Uint32Array; attributes?: Attributes; paged?: boolean }
 
 /** The quad clustered as `specs` says, each cluster carrying the quantized page the compiler would
  *  have written for it. */
 export function pagedQuad(specs: readonly ClusterSpec[]) {
-  const { geometry, material, mesh, source } = quadScene(G.basicSurface({ color: 0xff0000 }));
+  const { geometry, material, mesh, source } = quadScene(G.basicSurface({ color: 0xff0000 }))
   const bytes = new Map<string, Uint8Array>(),
-    encoded: ReturnType<typeof encodeGeometryPage>[] = [];
+    encoded: ReturnType<typeof encodeGeometryPage>[] = []
   const pages = dagRoots(
     specs.map((spec, id) => {
       const page = {
@@ -33,15 +33,15 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
         max: [1, 1, 0] as number[],
         bytes: spec.corners.byteLength,
         sha256: 'x',
-      };
-      if (spec.paged === false) return page;
+      }
+      if (spec.paged === false) return page
       const geo = encodeGeometryPage(
         spec.corners,
         { POSITION: { itemSize: 3, array: POSITIONS }, ...spec.attributes },
         -6,
-      );
-      encoded[id] = geo;
-      bytes.set(`g${id}`, geo.data);
+      )
+      encoded[id] = geo
+      bytes.set(`g${id}`, geo.data)
       return {
         ...page,
         geometry: {
@@ -53,9 +53,9 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
           flags: geo.flags,
           uncompressedBytes: geo.uncompressedBytes,
         },
-      };
+      }
     }),
-  ).pages;
+  ).pages
   const metadata: ClusterManifest = {
     ...QUAD_MANIFEST,
     primitives: [
@@ -68,7 +68,7 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
         quantization: { positionExponent: -6, uvExponent: -14, maxPositionError: 0.02 },
       },
     ],
-  };
+  }
   return {
     geometry,
     material,
@@ -78,10 +78,10 @@ export function pagedQuad(specs: readonly ClusterSpec[]) {
     bytes,
     indices: new Map(specs.map((spec, id) => [String(id), spec.corners])),
     associations: new Map([[mesh, { meshes: 0, primitives: 0 }]]),
-  };
+  }
 }
 
-export type PagedQuad = ReturnType<typeof pagedQuad>;
+export type PagedQuad = ReturnType<typeof pagedQuad>
 
 /** The WebGPU backend over one such fixture, on the mock device, with its page reader. */
 export function pagedQuadBackend(
@@ -89,7 +89,7 @@ export function pagedQuadBackend(
   events: BackendDiagnostic[],
   readGeometryPage = async (url: string) => fixture.bytes.get(url)!,
 ) {
-  const gpu = mockGpu();
+  const gpu = mockGpu()
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: gpu.device,
@@ -97,13 +97,13 @@ export function pagedQuadBackend(
     viewport: [32, 32],
     readGeometryPage,
     onDiagnostic: (event: BackendDiagnostic) => events.push(event),
-  } as never);
-  return { gpu, backend };
+  } as never)
+  return { gpu, backend }
 }
 
 /** Disposes a fixture and the backend mounted on it. */
 export const disposePagedQuad = async (backend: { dispose(): unknown }, fixture: PagedQuad) => {
-  await backend.dispose();
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-};
+  await backend.dispose()
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+}

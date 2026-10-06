@@ -1,34 +1,34 @@
-import { useWords } from '../i18n.ts';
-import { SceneNotice } from './SceneNotice.tsx';
-import { Card } from '../ui/Card.tsx';
-import { Collapse } from '../ui/Collapse.tsx';
-import { Stat, StatGroup } from '../ui/Stats.tsx';
-import { formatValue, metricValue } from './model/metrics.ts';
-import { runOf, sceneName } from './model/presentation.ts';
-import type { Report } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { SceneNotice } from './SceneNotice.tsx'
+import { Card } from '../ui/Card.tsx'
+import { Collapse } from '../ui/Collapse.tsx'
+import { Stat, StatGroup } from '../ui/Stats.tsx'
+import { formatValue, metricValue } from './model/metrics.ts'
+import { runOf, sceneName } from './model/presentation.ts'
+import type { Report } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface FindingsProps {
-  report: Report;
-  locale: Locale;
+  report: Report
+  locale: Locale
 }
 
 export function Findings({ report, locale }: FindingsProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   const records = report.records.filter(
     (r) => runOf(report, r) === 'mobile' && r.view === 'ground' && r.quality === 1,
-  );
-  const missingMachine = report.records.some((r) => !r.provenance?.machine?.id);
-  const missingDpr = report.records.some((r) => !r.canvas?.dpr);
-  const failed = report.runs.filter((r) => r.status !== 'complete').length;
+  )
+  const missingMachine = report.records.some((r) => !r.provenance?.machine?.id)
+  const missingDpr = report.records.some((r) => !r.canvas?.dpr)
+  const failed = report.runs.filter((r) => r.status !== 'complete').length
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <p>{t('findings.lead')}</p>
       <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
         {records.map((r) => {
           const gpu = metricValue(r, 'gpu'),
-            cpu = metricValue(r, 'cpu');
-          const over = gpu !== null && gpu > 1000 / 60;
+            cpu = metricValue(r, 'cpu')
+          const over = gpu !== null && gpu > 1000 / 60
           return (
             <Card key={r.id} title={sceneName(r.scene)}>
               <SceneNotice note={r.sceneNote} locale={locale} />
@@ -58,7 +58,7 @@ export function Findings({ report, locale }: FindingsProps) {
                 {t('findings.texturesNote')}
               </p>
             </Card>
-          );
+          )
         })}
       </div>
       <Card title={t('findings.missingTitle')}>
@@ -74,5 +74,5 @@ export function Findings({ report, locale }: FindingsProps) {
         </Collapse>
       </Card>
     </div>
-  );
+  )
 }

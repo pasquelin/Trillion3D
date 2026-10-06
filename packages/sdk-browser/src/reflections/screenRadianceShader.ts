@@ -1,17 +1,17 @@
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
-import { shaderLanguage } from '../math/shaderLanguage.ts';
-import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts';
+import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
+import { shaderLanguage } from '../math/shaderLanguage.ts'
+import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
 
 /** How a program traces a lobe rougher than a mirror: a cone (`filtered`) beside the mirror ray
  *  (`mirror`), or its own march of the mirror ray itself (`march`), which takes neither. */
 export type ScreenLobe =
   | {
       /** The cone's colour and the share of the lobe it left to the fallback. */
-      filtered?: string;
+      filtered?: string
       /** The function that resolves the mirror ray, `(P,N,R)`: by default the full walk, a miss on
        *  the program's fallback at the roughness floor. */
-      mirror?: string;
-      march?: never;
+      mirror?: string
+      march?: never
     }
   | {
       /** The program's march of the mirror ray, `(P,R)`: a hit's colour with a non-zero alpha, or a
@@ -21,24 +21,24 @@ export type ScreenLobe =
        *  the lobe table above it (`MIRROR_TRANSITION_END`) — the walk alone traces it, never both:
        *  a hit is the walk's colour, a miss mixes by that weight the fallbacks at the roughness and
        *  at the floor. */
-      march: string;
-      filtered?: never;
-      mirror?: never;
-    };
+      march: string
+      filtered?: never
+      mirror?: never
+    }
 
 /** What differs between the programs that resolve a screen reflection. */
 export type ScreenRadiance = ScreenLobe & {
   /** The entry the program's `mirrorLighting` calls. */
-  name: string;
+  name: string
   /** True where this pass traces nothing. */
-  disabled: string;
+  disabled: string
   /** The program's reflection where no screen hit answers, at roughness `rough`. */
-  fallback: (rough: string) => string;
+  fallback: (rough: string) => string
   /** Statements run first, before any trace. */
-  head?: string;
+  head?: string
   /** The roughness the trace fades out at, from half of it on: by default the opaque cutoff. */
-  maxRoughness?: string;
-};
+  maxRoughness?: string
+}
 
 /** Screen reflections resolved per pixel in either graphics API (#1341): a roughness fade,
  *  the whole trace up to half the maximum roughness and none from it on; a missed ray, the lobe
@@ -67,7 +67,7 @@ export function screenRadianceShader(
     : {
         lobe: `var filtered:vec4f=${filtered};`,
         transition: 'if(weight>0.0){traced=mix(traced,resolvedReflectionRay(P,N,R),weight);}',
-      };
+      }
   return shaderLanguage(
     `
 fn screenReflectionFade(rough:f32)->f32{
@@ -101,5 +101,5 @@ fn ${name}(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  return mix(fallback,traced,fade);
 }`,
     language,
-  );
+  )
 }

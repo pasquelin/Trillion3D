@@ -1,10 +1,10 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { slotCount } from './draw.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { slotCount } from './draw.ts'
 import {
   prefixScan,
   prefixSerial,
-} from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts';
+} from '../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts'
 
 // The multi-lane scan shader.ts carries since #923 produces exactly the same totals
 // (indirect[slot*4+1]) and groupOffsets as the serial prefix (workgroup_size(1)) it replaced. This
@@ -18,106 +18,105 @@ function assertSameResult(
   groupCount: number,
   slots: number,
 ) {
-  const serial = prefixSerial(overflow, slotUsed, groupCounts, groupCount, slots);
-  const scan = prefixScan(overflow, slotUsed, groupCounts, groupCount, slots);
-  assert.deepEqual([...scan.totals], [...serial.totals], 'totals (indirect count) differ');
-  assert.deepEqual([...scan.offsets], [...serial.offsets], 'groupOffsets differ');
-  return serial;
+  const serial = prefixSerial(overflow, slotUsed, groupCounts, groupCount, slots)
+  const scan = prefixScan(overflow, slotUsed, groupCounts, groupCount, slots)
+  assert.deepEqual([...scan.totals], [...serial.totals], 'totals (indirect count) differ')
+  assert.deepEqual([...scan.offsets], [...serial.offsets], 'groupOffsets differ')
+  return serial
 }
 
 test('page with no triangle: every groupCount is zero, every slot marked used', () => {
   const slots = 6,
-    groupCount = 4;
-  const slotUsed = new Uint32Array(slots).fill(1);
-  const groupCounts = new Uint32Array(groupCount * slots); // all zeros
-  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots);
-  assert.deepEqual([...result.totals], new Array(slots).fill(0));
-  assert.deepEqual([...result.offsets], new Array(groupCount * slots).fill(0));
-});
+    groupCount = 4
+  const slotUsed = new Uint32Array(slots).fill(1)
+  const groupCounts = new Uint32Array(groupCount * slots) // all zeros
+  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots)
+  assert.deepEqual([...result.totals], new Array(slots).fill(0))
+  assert.deepEqual([...result.offsets], new Array(groupCount * slots).fill(0))
+})
 
 test('a single used slot among otherwise empty ones', () => {
   const slots = 6,
-    groupCount = 3;
-  const slotUsed = new Uint32Array(slots); // all zeros
-  slotUsed[4] = 1;
-  const groupCounts = new Uint32Array(groupCount * slots);
-  for (let g = 0; g < groupCount; g++) groupCounts[g * slots + 4] = g + 1; // 1,2,3
-  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots);
-  assert.equal(result.totals[4], 6);
-  for (let s = 0; s < slots; s++) if (s !== 4) assert.equal(result.totals[s], 0);
-  assert.deepEqual([...result.offsets.filter((_, i) => i % slots === 4)], [0, 1, 3]);
-});
+    groupCount = 3
+  const slotUsed = new Uint32Array(slots) // all zeros
+  slotUsed[4] = 1
+  const groupCounts = new Uint32Array(groupCount * slots)
+  for (let g = 0; g < groupCount; g++) groupCounts[g * slots + 4] = g + 1 // 1,2,3
+  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots)
+  assert.equal(result.totals[4], 6)
+  for (let s = 0; s < slots; s++) if (s !== 4) assert.equal(result.totals[s], 0)
+  assert.deepEqual([...result.offsets.filter((_, i) => i % slots === 4)], [0, 1, 3])
+})
 
 test('every slot full, more groups than slots (256 lamp-scale)', () => {
   const slots = 6,
-    groupCount = 40; // 256 items / 64 per group, rounded up
-  const slotUsed = new Uint32Array(slots).fill(1);
-  const groupCounts = new Uint32Array(groupCount * slots);
-  let seed = 1;
-  const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) % 17) as number;
-  for (let i = 0; i < groupCounts.length; i++) groupCounts[i] = rand();
-  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots);
+    groupCount = 40 // 256 items / 64 per group, rounded up
+  const slotUsed = new Uint32Array(slots).fill(1)
+  const groupCounts = new Uint32Array(groupCount * slots)
+  let seed = 1
+  const rand = () => ((seed = (seed * 1103515245 + 12345) >>> 0) % 17) as number
+  for (let i = 0; i < groupCounts.length; i++) groupCounts[i] = rand()
+  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots)
   // Each slot's total must equal the sum of its column.
   for (let slot = 0; slot < slots; slot++) {
-    let expected = 0;
-    for (let g = 0; g < groupCount; g++) expected += groupCounts[g * slots + slot];
-    assert.equal(result.totals[slot], expected);
+    let expected = 0
+    for (let g = 0; g < groupCount; g++) expected += groupCounts[g * slots + slot]
+    assert.equal(result.totals[slot], expected)
   }
-});
+})
 
 test('overflow (count > slotCap): every total is zero, no offset written', () => {
   const slots = 6,
-    groupCount = 5;
-  const slotUsed = new Uint32Array(slots).fill(1);
-  const groupCounts = new Uint32Array(groupCount * slots).fill(9);
-  const result = assertSameResult(true, slotUsed, groupCounts, groupCount, slots);
-  assert.deepEqual([...result.totals], new Array(slots).fill(0));
-  assert.deepEqual([...result.offsets], new Array(groupCount * slots).fill(0));
-});
+    groupCount = 5
+  const slotUsed = new Uint32Array(slots).fill(1)
+  const groupCounts = new Uint32Array(groupCount * slots).fill(9)
+  const result = assertSameResult(true, slotUsed, groupCounts, groupCount, slots)
+  assert.deepEqual([...result.totals], new Array(slots).fill(0))
+  assert.deepEqual([...result.offsets], new Array(groupCount * slots).fill(0))
+})
 
 test('coplanar layers: 36 slots (6 layers), masks zeroed in the middle', () => {
   const slots = 36,
-    groupCount = 6;
-  const slotUsed = new Uint32Array(slots).fill(1);
-  for (let s = 12; s < 24; s++) slotUsed[s] = 0; // the middle layer is empty
-  const groupCounts = new Uint32Array(groupCount * slots);
+    groupCount = 6
+  const slotUsed = new Uint32Array(slots).fill(1)
+  for (let s = 12; s < 24; s++) slotUsed[s] = 0 // the middle layer is empty
+  const groupCounts = new Uint32Array(groupCount * slots)
   for (let g = 0; g < groupCount; g++)
-    for (let s = 0; s < slots; s++)
-      groupCounts[g * slots + s] = slotUsed[s] ? ((g + s) % 5) + 1 : 0;
-  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots);
-  for (let s = 12; s < 24; s++) assert.equal(result.totals[s], 0);
-});
+    for (let s = 0; s < slots; s++) groupCounts[g * slots + s] = slotUsed[s] ? ((g + s) % 5) + 1 : 0
+  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots)
+  for (let s = 12; s < 24; s++) assert.equal(result.totals[s], 0)
+})
 
 test('hand-computed explicit case: two used slots, two groups', () => {
   // slot0: groups [3,2] -> total 5, offsets [0,3]
   // slot1: groups [1,4] -> total 5, offsets [5,6]  (5 = total of slot0 that precedes it)
   const slots = 2,
-    groupCount = 2;
-  const slotUsed = new Uint32Array([1, 1]);
-  const groupCounts = new Uint32Array([3, 1, 2, 4]); // [g0s0,g0s1,g1s0,g1s1]
-  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots);
-  assert.deepEqual([...result.totals], [5, 5]);
-  assert.deepEqual([...result.offsets], [0, 5, 3, 6]);
-});
+    groupCount = 2
+  const slotUsed = new Uint32Array([1, 1])
+  const groupCounts = new Uint32Array([3, 1, 2, 4]) // [g0s0,g0s1,g1s0,g1s1]
+  const result = assertSameResult(false, slotUsed, groupCounts, groupCount, slots)
+  assert.deepEqual([...result.totals], [5, 5])
+  assert.deepEqual([...result.offsets], [0, 5, 3, 6])
+})
 
 test('on a thousand random inputs: sparse empty slots, fewer groups than lanes, long runs', () => {
-  let seed = 20260915;
-  const rand = (bound: number) => ((seed = (seed * 1103515245 + 12345) >>> 0) % bound) as number;
+  let seed = 20260915
+  const rand = (bound: number) => ((seed = (seed * 1103515245 + 12345) >>> 0) % bound) as number
   for (let trial = 0; trial < 1000; trial++) {
-    const slots = slotCount(1 + rand(4));
-    const groupCount = 1 + (trial % 3 === 0 ? rand(400) : rand(64));
-    const slotUsed = new Uint32Array(slots);
-    for (let s = 0; s < slots; s++) slotUsed[s] = rand(3) === 0 ? 0 : 1;
-    const groupCounts = new Uint32Array(groupCount * slots);
+    const slots = slotCount(1 + rand(4))
+    const groupCount = 1 + (trial % 3 === 0 ? rand(400) : rand(64))
+    const slotUsed = new Uint32Array(slots)
+    for (let s = 0; s < slots; s++) slotUsed[s] = rand(3) === 0 ? 0 : 1
+    const groupCounts = new Uint32Array(groupCount * slots)
     for (let g = 0; g < groupCount; g++)
-      for (let s = 0; s < slots; s++) groupCounts[g * slots + s] = slotUsed[s] ? rand(97) : 0;
-    assertSameResult(trial % 97 === 0, slotUsed, groupCounts, groupCount, slots);
+      for (let s = 0; s < slots; s++) groupCounts[g * slots + s] = slotUsed[s] ? rand(97) : 0
+    assertSameResult(trial % 97 === 0, slotUsed, groupCounts, groupCount, slots)
   }
-});
+})
 
 test('the scan wraps at 2³² as the serial walk does', () => {
   const slots = 6,
-    groupCount = 130;
-  const groupCounts = new Uint32Array(groupCount * slots).fill(0x7fffffff);
-  assertSameResult(false, new Uint32Array(slots).fill(1), groupCounts, groupCount, slots);
-});
+    groupCount = 130
+  const groupCounts = new Uint32Array(groupCount * slots).fill(0x7fffffff)
+  assertSameResult(false, new Uint32Array(slots).fill(1), groupCounts, groupCount, slots)
+})

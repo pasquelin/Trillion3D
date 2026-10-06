@@ -1,6 +1,6 @@
-import { errorFloorAt, projectedErrorAt, viewDepth, viewLateral } from '../selection/projection.ts';
-import type { PageRecord, SelectionState } from './state.ts';
-import { OWN_CEIL, OWN_FLOOR, OWN_SPHERE, PARENT_FLOOR, PARENT_SPHERE } from './bounds.ts';
+import { errorFloorAt, projectedErrorAt, viewDepth, viewLateral } from '../selection/projection.ts'
+import type { PageRecord, SelectionState } from './state.ts'
+import { OWN_CEIL, OWN_FLOOR, OWN_SPHERE, PARENT_FLOOR, PARENT_SPHERE } from './bounds.ts'
 
 /**
  * Cut decision of a whole subtree: -1 reject, 1 accept, 0 undecided.
@@ -30,9 +30,9 @@ export function nodeDecision<T extends PageRecord>(
     e = s.flatElements,
     stretch = s.flatStretch,
     focal = s.flatFocal,
-    perspective = s.cam.perspective;
+    perspective = s.cam.perspective
   const ownRadius = values[at + OWN_SPHERE + 3],
-    ownDepth = viewDepth(values, at + OWN_SPHERE, e);
+    ownDepth = viewDepth(values, at + OWN_SPHERE, e)
   // No cluster of the subtree is fine enough: the cut takes none of them.
   const floor = errorFloorAt(
     values[at + OWN_FLOOR],
@@ -41,8 +41,8 @@ export function nodeDecision<T extends PageRecord>(
     stretch,
     focal,
     perspective,
-  );
-  if (floor > limit) return -1;
+  )
+  if (floor > limit) return -1
   // A cluster may still be too coarse: one descends.
   const ownCeil = projectedErrorAt(
     values[at + OWN_CEIL],
@@ -54,8 +54,8 @@ export function nodeDecision<T extends PageRecord>(
     s.cam.near,
     perspective,
     s.flatSound,
-  );
-  if (ownCeil > limit) return 0;
+  )
+  if (ownCeil > limit) return 0
   // All are fine enough; the cut keeps them if no replacement still covers them.
   return errorFloorAt(
     values[at + PARENT_FLOOR],
@@ -66,12 +66,12 @@ export function nodeDecision<T extends PageRecord>(
     perspective,
   ) > limit
     ? 1
-    : 0;
+    : 0
 }
 
 /** Is a subtree's floor strictly positive, without projecting it? See `nodeDecisionAtZero`. */
 function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
-  return error === Infinity || (error > 0 && values[radiusAt] >= 0);
+  return error === Infinity || (error > 0 && values[radiusAt] >= 0)
 }
 
 /**
@@ -91,7 +91,7 @@ function floorAboveZero(values: Float64Array, error: number, radiusAt: number) {
  * this one descends.
  */
 export function nodeDecisionAtZero(values: Float64Array, at: number) {
-  if (floorAboveZero(values, values[at + OWN_FLOOR], at + OWN_SPHERE + 3)) return -1;
-  if (values[at + OWN_CEIL] !== 0) return 0;
-  return floorAboveZero(values, values[at + PARENT_FLOOR], at + PARENT_SPHERE + 3) ? 1 : 0;
+  if (floorAboveZero(values, values[at + OWN_FLOOR], at + OWN_SPHERE + 3)) return -1
+  if (values[at + OWN_CEIL] !== 0) return 0
+  return floorAboveZero(values, values[at + PARENT_FLOOR], at + PARENT_SPHERE + 3) ? 1 : 0
 }

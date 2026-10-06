@@ -1,12 +1,12 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { previewIsWhole, type TexturePreview } from '../../../../sdk-core/src/index.ts';
-import { previewAtlasOf } from '../../../../sdk-core/src/texture/previewFormat.ts';
-import { WHITE_TAIL, type PoolEncoding } from '../../texture/blockFormats.ts';
-import type { TextureLevelReader } from '../../texture/levelReader.ts';
-import type { CoverageReaders } from '../../texture/coverage.ts';
-import { tileLayout } from '../../texture/tiles.ts';
-import { sourceSize } from '../../texture/pictureSize.ts';
-import type { TileTexture } from './tileTexture.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts'
+import { previewIsWhole, type TexturePreview } from '../../../../sdk-core/src/index.ts'
+import { previewAtlasOf } from '../../../../sdk-core/src/texture/previewFormat.ts'
+import { WHITE_TAIL, type PoolEncoding } from '../../texture/blockFormats.ts'
+import type { TextureLevelReader } from '../../texture/levelReader.ts'
+import type { CoverageReaders } from '../../texture/coverage.ts'
+import { tileLayout } from '../../texture/tiles.ts'
+import { sourceSize } from '../../texture/pictureSize.ts'
+import type { TileTexture } from './tileTexture.ts'
 
 /**
  * Sidecar entries filed by the scene texture they cover and the atlas that samples them: the same
@@ -15,10 +15,10 @@ import type { TileTexture } from './tileTexture.ts';
  * which names its files.
  */
 export function previewsByAtlas(previews: readonly TexturePreview[]) {
-  const filed = new Map<string, TexturePreview>();
+  const filed = new Map<string, TexturePreview>()
   for (const preview of previews)
-    filed.set(`${preview.texture}/${previewAtlasOf(preview.atlas)}`, preview);
-  return (texture: number, atlas: number) => filed.get(`${texture}/${atlas}`);
+    filed.set(`${preview.texture}/${previewAtlasOf(preview.atlas)}`, preview)
+  return (texture: number, atlas: number) => filed.get(`${texture}/${atlas}`)
 }
 
 /**
@@ -45,15 +45,15 @@ export function tileCatalogue(
   coverage?: CoverageReaders,
 ): TileTexture[] {
   const textures = maps.map((map, index): TileTexture => {
-    const preview = previewFor(index);
+    const preview = previewFor(index)
     const chain =
       preview && previewIsWhole(preview) && (preview.bakedLevels === 0 || readLevel)
         ? preview
-        : undefined;
+        : undefined
     if (chain) {
-      const layout = tileLayout(chain.width, chain.height);
+      const layout = tileLayout(chain.width, chain.height)
       if (chain.firstLevel !== layout.tail || chain.levels.length !== layout.last - layout.tail + 1)
-        throw new Error('TEXTURE_PREVIEW_GEOMETRY');
+        throw new Error('TEXTURE_PREVIEW_GEOMETRY')
       return {
         layout,
         texture: map,
@@ -62,27 +62,27 @@ export function tileCatalogue(
           layout.tail === 0
             ? { kind: 'bytes', tail: chain }
             : { kind: 'baked', sha256: chain.sha256, atlas: chain.atlas, tail: chain },
-      };
+      }
     }
-    const [width, height] = sourceSize(map);
+    const [width, height] = sourceSize(map)
     return {
       layout: tileLayout(width, height),
       texture: map,
       lane: 'lossless',
       source: { kind: 'host', map, coverage },
-    };
-  });
+    }
+  })
   // The fill takes a lane the textures already open, so its one texel costs no layer of its
   // own: the family's RGBA lane when a chain is kept there, else any lane that is open — the
   // lossless one of a host-image scene, the two-channel one of an atlas of normal maps —, and
   // the cheaper block lane only when the atlas has no texture at all.
-  const open = new Set(textures.map((texture) => texture.lane));
+  const open = new Set(textures.map((texture) => texture.lane))
   const fill: TileTexture = {
     layout: tileLayout(1, 1),
     lane: open.has(encoding.fillLane)
       ? encoding.fillLane
       : (open.values().next().value ?? encoding.fillLane),
     source: { kind: 'bytes', tail: WHITE_TAIL },
-  };
-  return [fill, ...textures];
+  }
+  return [fill, ...textures]
 }

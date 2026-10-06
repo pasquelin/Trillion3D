@@ -1,7 +1,7 @@
-import { HIZ_BOUNDS_VALUES } from './corners.ts';
+import { HIZ_BOUNDS_VALUES } from './corners.ts'
 
 /** Side of the test kernel, in texels of the mip it reads. A wider footprint answers from a coarser level. */
-export const HIZ_KERNEL_TEXELS = 16;
+export const HIZ_KERNEL_TEXELS = 16
 
 /**
  * What one image's occlusion test did, counted in clusters and in the triangles those clusters carry.
@@ -10,13 +10,13 @@ export const HIZ_KERNEL_TEXELS = 16;
  * field is a count of one image; nothing is deduced from another field.
  */
 export type HizCounts = {
-  tested: number;
-  rejected: number;
-  oversized: number;
-  testedTriangles: number;
-  rejectedTriangles: number;
-  oversizedTriangles: number;
-};
+  tested: number
+  rejected: number
+  oversized: number
+  testedTriangles: number
+  rejectedTriangles: number
+  oversizedTriangles: number
+}
 
 export function createHizCounts(): HizCounts {
   return {
@@ -26,16 +26,16 @@ export function createHizCounts(): HizCounts {
     testedTriangles: 0,
     rejectedTriangles: 0,
     oversizedTriangles: 0,
-  };
+  }
 }
 
 export function resetHizCounts(counts: HizCounts) {
-  counts.tested = 0;
-  counts.rejected = 0;
-  counts.oversized = 0;
-  counts.testedTriangles = 0;
-  counts.rejectedTriangles = 0;
-  counts.oversizedTriangles = 0;
+  counts.tested = 0
+  counts.rejected = 0
+  counts.oversized = 0
+  counts.testedTriangles = 0
+  counts.rejectedTriangles = 0
+  counts.oversizedTriangles = 0
 }
 
 /** A screen rectangle the level-0 kernel cannot cover. A near-plane crossing carries no rectangle. */
@@ -46,7 +46,7 @@ export function hizOversized(
   maxY: number,
   clipsNear: boolean,
 ) {
-  return !clipsNear && (maxX - minX >= HIZ_KERNEL_TEXELS || maxY - minY >= HIZ_KERNEL_TEXELS);
+  return !clipsNear && (maxX - minX >= HIZ_KERNEL_TEXELS || maxY - minY >= HIZ_KERNEL_TEXELS)
 }
 
 /** `hizOversized` over the flat bounds layout `projectBoxesFlat` writes. */
@@ -57,5 +57,5 @@ export function hizOversizedFlat(bounds: Float64Array, base: number) {
     bounds[base + 2],
     bounds[base + 3],
     bounds[base + HIZ_BOUNDS_VALUES - 1] !== 0,
-  );
+  )
 }

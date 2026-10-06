@@ -1,4 +1,4 @@
-import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/index.ts';
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/index.ts'
 import {
   morphWords,
   readDeformation,
@@ -6,9 +6,9 @@ import {
   type PageMorph,
   type PageSkin,
   validateRawDeformation,
-} from './geometryPageDeform.ts';
-import { bitsFor } from '../../../../page-codec/src/pageGrids.ts';
-import { field } from '../../../../page-codec/src/bits.ts';
+} from './geometryPageDeform.ts'
+import { bitsFor } from '../../../../page-codec/src/pageGrids.ts'
+import { field } from '../../../../page-codec/src/bits.ts'
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
@@ -26,47 +26,47 @@ import {
   BLOCK_CORNERS,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
-} from '../../cluster/format.ts';
+} from '../../cluster/format.ts'
 
 /** The widths of a page's corner code (`CornerCode`, `triangles.rs`). */
-type CornerCode = { indexBits: number; prefixBits: number; recordBits: number };
+type CornerCode = { indexBits: number; prefixBits: number; recordBits: number }
 
 /** Block `b`'s record, the table at word `table` of `words`: its base, its width and the bit of the
  *  corner stream its first corner lies at (`CornerCode::record`). */
 export function blockRecord(words: Uint32Array, table: number, corners: CornerCode, b: number) {
-  const { indexBits, prefixBits, recordBits } = corners;
-  const at = table * 32 + b * recordBits;
+  const { indexBits, prefixBits, recordBits } = corners
+  const at = table * 32 + b * recordBits
   return [
     field(words, at, indexBits),
     field(words, at + indexBits, WIDTH_BITS),
     field(words, at + indexBits + WIDTH_BITS, prefixBits) * BLOCK_CORNERS,
-  ];
+  ]
 }
 
 /** A vector attribute's grid: its minima, its power-of-two step and its per-component widths. */
-export type Quant = { min: number[]; exponent: number; bits: number[] };
+export type Quant = { min: number[]; exponent: number; bits: number[] }
 
 /** A quantization record from its packed word (six bits per width, the exponent in the top byte). */
 function record(word: number, min: number[]): Quant | null {
   const n = min.length,
     bits = Array.from({ length: n }, (_, c) => (word >>> (6 * c)) & 63),
-    exponent = word >> 24;
-  let repacked = (exponent & 255) << 24;
-  for (let c = 0; c < n; c++) repacked |= bits[c] << (6 * c);
+    exponent = word >> 24
+  let repacked = (exponent & 255) << 24
+  for (let c = 0; c < n; c++) repacked |= bits[c] << (6 * c)
   const sane =
     Math.abs(exponent) <= MAX_EXPONENT &&
     bits.every((b) => b <= MAX_BITS) &&
     min.every(Number.isFinite) &&
-    repacked >>> 0 === word;
-  return sane ? { min, exponent, bits } : null;
+    repacked >>> 0 === word
+  return sane ? { min, exponent, bits } : null
 }
 
 /** The header's counts, flags and grids, the magic and the version checked, the grids sane. */
 function readHeaderFields(head: DataView) {
   const w = (i: number) => head.getUint32(i * 4, true),
-    f = (i: number) => head.getFloat32(i * 4, true);
+    f = (i: number) => head.getFloat32(i * 4, true)
   if (w(0) !== CLUSTER_PAGE_MAGIC || w(1) !== GEOMETRY_PAGE_FORMAT_VERSION)
-    throw new Error('GEOMETRY_PAGE_VERSION');
+    throw new Error('GEOMETRY_PAGE_VERSION')
   const vertexCount = w(2),
     indexCount = w(3),
     flags = w(4),
@@ -76,8 +76,8 @@ function readHeaderFields(head: DataView) {
     color = record(w(15), [f(16), f(17), f(18), f(19)]),
     quantizationError = f(20),
     cornerBits = w(21),
-    positionCount = w(22);
-  if (!position || !uv || !uv2 || !color) throw new Error('GEOMETRY_PAGE_BOUNDS');
+    positionCount = w(22)
+  if (!position || !uv || !uv2 || !color) throw new Error('GEOMETRY_PAGE_BOUNDS')
   return {
     vertexCount,
     indexCount,
@@ -89,25 +89,25 @@ function readHeaderFields(head: DataView) {
     quantizationError,
     cornerBits,
     positionCount,
-  };
+  }
 }
 
-type HeaderFields = ReturnType<typeof readHeaderFields>;
+type HeaderFields = ReturnType<typeof readHeaderFields>
 
 /** The word offset of each stream, derived from the counts and widths the header declares, and
  *  the words the body holds. */
 function layoutStreams(h: HeaderFields, skin: PageSkin, morphs: readonly PageMorph[]) {
-  const { vertexCount, indexCount, flags, cornerBits, positionCount } = h;
+  const { vertexCount, indexCount, flags, cornerBits, positionCount } = h
   const indexBits = bitsFor(vertexCount - 1),
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
     recordBits = indexBits + WIDTH_BITS + prefixBits,
-    corners: CornerCode = { indexBits, prefixBits, recordBits };
-  let at = 0;
+    corners: CornerCode = { indexBits, prefixBits, recordBits }
+  let at = 0
   const stream = (present: boolean, count: number, bits: number) => {
-    const start = at;
-    if (present) at += Math.ceil((count * bits) / 32);
-    return start;
-  };
+    const start = at
+    if (present) at += Math.ceil((count * bits) / 32)
+    return start
+  }
   const blockCount = Math.ceil(indexCount / 3 / TRIANGLE_BLOCK),
     blocks = stream(true, blockCount, recordBits),
     cornerStream = stream(true, cornerBits, 1),
@@ -119,14 +119,14 @@ function layoutStreams(h: HeaderFields, skin: PageSkin, morphs: readonly PageMor
     uvs = h.uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
     uv2s = h.uv2.bits.map((b) => stream(!!(flags & FLAG_UV1), vertexCount, b)),
     colors = h.color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b)),
-    skinned = at;
-  if (flags & FLAG_SKIN) at += skinWords(skin, vertexCount);
+    skinned = at
+  if (flags & FLAG_SKIN) at += skinWords(skin, vertexCount)
   // Each target's record names the word its streams start at: recomputed here, trusted if equal.
   const placed = morphs.every((morph) => {
-    const start = at;
-    at += morphWords(morph, vertexCount);
-    return morph.start === start;
-  });
+    const start = at
+    at += morphWords(morph, vertexCount)
+    return morph.start === start
+  })
   return {
     corners,
     blockCount,
@@ -145,10 +145,10 @@ function layoutStreams(h: HeaderFields, skin: PageSkin, morphs: readonly PageMor
       colors,
       skinned,
     },
-  };
+  }
 }
 
-type StreamLayout = ReturnType<typeof layoutStreams>;
+type StreamLayout = ReturnType<typeof layoutStreams>
 
 /** The counts agree with each other, with the bound a decode may take and with the page's own
  *  byte length. */
@@ -161,10 +161,10 @@ function checkCounts(
   byteLength: number,
   maxDecodedBytes: number,
 ) {
-  const { vertexCount, indexCount, flags, cornerBits, positionCount, quantizationError } = h;
-  let floats = 3 + (flags & FLAG_SKIN ? 2 * skin.influences : 0) + 6 * morphs.length;
-  for (const [, size, bit] of OPTIONAL) if (flags & bit) floats += size;
-  const decodedBytes = vertexCount * floats * 4 + indexCount * 4;
+  const { vertexCount, indexCount, flags, cornerBits, positionCount, quantizationError } = h
+  let floats = 3 + (flags & FLAG_SKIN ? 2 * skin.influences : 0) + 6 * morphs.length
+  for (const [, size, bit] of OPTIONAL) if (flags & bit) floats += size
+  const decodedBytes = vertexCount * floats * 4 + indexCount * 4
   if (
     !vertexCount ||
     vertexCount > 65535 ||
@@ -180,8 +180,8 @@ function checkCounts(
     !layout.placed ||
     (headerWords + layout.bodyWords) * 4 !== byteLength
   )
-    throw new Error('GEOMETRY_PAGE_BOUNDS');
-  return decodedBytes;
+    throw new Error('GEOMETRY_PAGE_BOUNDS')
+  return decodedBytes
 }
 
 /** Each block's base, width and corners stay in bounds, and so does each link: the GPU reads the
@@ -193,22 +193,22 @@ function checkCornerBlocks(
   layout: StreamLayout,
 ) {
   const { vertexCount, indexCount, cornerBits, positionCount } = h,
-    { corners, streams, linked, linkBits } = layout;
+    { corners, streams, linked, linkBits } = layout
   const words = (from: number, to: number) =>
       Uint32Array.from({ length: to - from }, (_, i) =>
         head.getUint32((headerWords + from + i) * 4, true),
       ),
-    table = words(0, streams.corners);
+    table = words(0, streams.corners)
   for (let b = 0; b < layout.blockCount; b++) {
     const [base, width, start] = blockRecord(table, streams.blocks, corners, b),
-      end = start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width;
+      end = start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width
     if (base >= vertexCount || width > corners.indexBits || end > cornerBits)
-      throw new Error('GEOMETRY_PAGE_BOUNDS');
+      throw new Error('GEOMETRY_PAGE_BOUNDS')
   }
-  const linkWords = linked ? words(streams.links, streams.normal) : table;
+  const linkWords = linked ? words(streams.links, streams.normal) : table
   for (let i = 0; linked && i < vertexCount; i++)
     if (field(linkWords, i * linkBits, linkBits) >= positionCount)
-      throw new Error('GEOMETRY_PAGE_BOUNDS');
+      throw new Error('GEOMETRY_PAGE_BOUNDS')
 }
 
 /**
@@ -223,9 +223,9 @@ function checkCornerBlocks(
  * and never decodes them on the CPU — so both refuse the same bytes for the same reason.
  */
 export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 1024 * 1024) {
-  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER');
-  const head = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  const h = readHeaderFields(head);
+  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER')
+  const head = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const h = readHeaderFields(head)
   const { skin, morphs } = readDeformation(head, h.flags),
     headerWords = CLUSTER_HEADER_WORDS + morphs.length * MORPH_WORDS,
     layout = layoutStreams(h, skin, morphs),
@@ -237,8 +237,8 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
       headerWords,
       data.byteLength,
       maxDecodedBytes,
-    );
-  const { vertexCount, indexCount, flags } = h;
+    )
+  const { vertexCount, indexCount, flags } = h
   validateRawDeformation(
     head,
     headerWords,
@@ -247,8 +247,8 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     layout.streams.skinned,
     skin,
     morphs,
-  );
-  checkCornerBlocks(head, headerWords, h, layout);
+  )
+  checkCornerBlocks(head, headerWords, h, layout)
   return {
     vertexCount,
     indexCount,
@@ -267,5 +267,5 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     bodyWords: layout.bodyWords,
     decodedBytes,
     streams: layout.streams,
-  };
+  }
 }

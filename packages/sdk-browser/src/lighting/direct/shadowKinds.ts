@@ -5,19 +5,19 @@
  * lights use (`contractKey`, `../deferred/contractVariants.ts`), as the projection pass is compiled
  * with its lights' kinds (`VSM_PROJECTION_KINDS`).
  */
-export type ShadowKinds = { sun: boolean; local: boolean };
+export type ShadowKinds = { sun: boolean; local: boolean }
 
 /** Both kinds: the program every scene can be lit by. */
-export const ALL_SHADOW_KINDS: Readonly<ShadowKinds> = { sun: true, local: true };
+export const ALL_SHADOW_KINDS: Readonly<ShadowKinds> = { sun: true, local: true }
 
 /** The kinds a key names: what it leaves out (`sunless`, `localless`) is not read. */
 export const shadowKindsOf = ({
   sunless,
   localless,
 }: {
-  sunless?: boolean;
-  localless?: boolean;
-}): ShadowKinds => ({ sun: !sunless, local: !localless });
+  sunless?: boolean
+  localless?: boolean
+}): ShadowKinds => ({ sun: !sunless, local: !localless })
 
 /**
  * A shadow read's body: the sun's branch `sun` and the local light's `local` as the full program
@@ -33,4 +33,4 @@ export const byShadowKind = (
     ? sunBranch
     : local && !sun
       ? localBranch
-      : `if(directional){\n${sunBranch}\n }\n${localBranch}`;
+      : `if(directional){\n${sunBranch}\n }\n${localBranch}`

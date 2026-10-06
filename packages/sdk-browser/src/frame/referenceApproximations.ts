@@ -6,8 +6,8 @@ export const REFERENCE_APPROXIMATIONS = [
   'shadowResolution',
   'supersampling',
   'reflectionTrace',
-] as const;
+] as const
 
 /** The bounce target of the reference mode, in milliseconds: far past any frame, so the budget never
  *  lowers the probes traced below their per-frame ceiling (`createBounceBudget`). */
-export const REFERENCE_BOUNCE_BUDGET_MS = 1000;
+export const REFERENCE_BOUNCE_BUDGET_MS = 1000

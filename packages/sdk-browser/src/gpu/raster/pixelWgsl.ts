@@ -1,5 +1,5 @@
-import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
-import { wgslFloat } from '../partition/margins.ts';
+import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts'
+import { wgslFloat } from '../partition/margins.ts'
 
 /**
  * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
@@ -94,4 +94,4 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(t.triangle&0xffu));}}
  else{atomicMax(&work[offset],bits);}
 }
-`;
+`

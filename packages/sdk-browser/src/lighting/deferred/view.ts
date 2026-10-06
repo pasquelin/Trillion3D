@@ -4,27 +4,27 @@
  * the background, the contract's light parameters and the TAA jitter. One buffer, one packed
  * array, written once per image; the shader-side layout is the struct in `shaders.ts`.
  */
-import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
-import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
-import { shadowJitterWords } from './jitterWords.ts';
+import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { shadowJitterWords } from './jitterWords.ts'
 
-const DEFERRED_VIEW_BYTES = 160;
+const DEFERRED_VIEW_BYTES = 160
 /** First float of the view's `jitter` words (`VIEW_WGSL`). */
-const JITTER_WORD = 36;
+const JITTER_WORD = 36
 
 /** With no declared light: zero lights, zero tiles, exposure 1, the ACES curve, the eye unread. */
-export const ZERO_DIRECT = [0, 0, 0, 1, TONE_MAPPING_RANK.aces, 0, 0, 0] as const;
+export const ZERO_DIRECT = [0, 0, 0, 1, TONE_MAPPING_RANK.aces, 0, 0, 0] as const
 
 export function createDeferredView(device: GPUDevice) {
   const buffer = device.createBuffer({
     label: 'Trillion3D deferred view v1',
     size: DEFERRED_VIEW_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const packed = new Float32Array(DEFERRED_VIEW_BYTES / 4);
+  })
+  const packed = new Float32Array(DEFERRED_VIEW_BYTES / 4)
   const setJitter = (jitter: ArrayLike<number> | null, phase = 0) =>
-    void shadowJitterWords(jitter, packed, JITTER_WORD, phase);
-  setJitter(null);
+    void shadowJitterWords(jitter, packed, JITTER_WORD, phase)
+  setJitter(null)
   return {
     buffer,
     /** The TAA jitter of the next image `write` writes (`shadowJitterWords`). */
@@ -42,16 +42,16 @@ export function createDeferredView(device: GPUDevice) {
       direct: ArrayLike<number>,
       sampledRank: number,
     ) {
-      packed.set(inverseViewProjection as ArrayLike<number> & number[], 0);
-      packed.set(camera, 16);
-      packed.set([width, height, rawOutput ? 1 : 0, sampledRank], 20);
-      const clear = clearValueOf(clearColor);
-      packed.set([clear.r, clear.g, clear.b, clear.a], 24);
-      packed.set(direct as number[], 28);
-      device.queue.writeBuffer(buffer, 0, packed);
+      packed.set(inverseViewProjection as ArrayLike<number> & number[], 0)
+      packed.set(camera, 16)
+      packed.set([width, height, rawOutput ? 1 : 0, sampledRank], 20)
+      const clear = clearValueOf(clearColor)
+      packed.set([clear.r, clear.g, clear.b, clear.a], 24)
+      packed.set(direct as number[], 28)
+      device.queue.writeBuffer(buffer, 0, packed)
     },
     dispose() {
-      buffer.destroy();
+      buffer.destroy()
     },
-  };
+  }
 }

@@ -9,13 +9,13 @@ export type DiagnosticMode =
   | 'visibility'
   | 'pages'
   | 'texture-mip'
-  | 'overdraw';
+  | 'overdraw'
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
   /** Whether it can be shown. */
-  available: boolean;
+  available: boolean
   /** Why not. */
-  reason: string;
+  reason: string
 }
 /** Every view mode, each with whether it is available.
  *  @property beauty - The normal image. @property wireframe - One colour per triangle.
@@ -23,7 +23,7 @@ export interface DiagnosticCapability {
  *  @property screen-error - The error on screen. @property materials - One colour per material.
  *  @property visibility - The pages seen. @property pages - The pages held.
  *  @property texture-mip - The texture size read. @property overdraw - Pixels drawn again. */
-export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>;
+export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
  * @property beauty - The normal image.
@@ -67,4 +67,4 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
   },
   'texture-mip': { available: false, reason: 'Texture mip residency not instrumented' },
   overdraw: { available: false, reason: 'No fragment counter' },
-};
+}

@@ -1,8 +1,8 @@
-import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts';
-import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts';
-import { grown } from '../../../../../sdk-core/src/math/transform-tree/storage.ts';
-import type { PageRec } from '../../../page/selection/selection.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts'
+import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts'
+import { grown } from '../../../../../sdk-core/src/math/transform-tree/storage.ts'
+import type { PageRec } from '../../../page/selection/selection.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * A MOVED ROOT'S SHADOW CHANGE, CLUSTER BY CLUSTER (#1345). A root's box holds what it draws and
@@ -32,42 +32,42 @@ const was = new Float64Array(BOX_VALUES),
   now = new Float64Array(BOX_VALUES),
   nowMin = now.subarray(0, 3),
   nowMax = now.subarray(3, 6),
-  local = new Float64Array(BOX_VALUES);
+  local = new Float64Array(BOX_VALUES)
 /** Per root rank: 0, or while its move in this call is its own (`noteOwnMove`), where its last
  *  seen pose is kept in `poses`, plus one — negated once declared. */
 let own = new Int32Array(0),
   poses = new Float64Array(16),
   ranks = new Int32Array(1),
-  kept = 0;
+  kept = 0
 
 /** Whether root `rank`, about to move, declares its own change: its last seen pose is the one its
  *  world box was made at, kept for the pass (`declareOwnMove`) until `forgetOwnMoves`. */
 export function noteOwnMove(rt: WebgpuPagesRuntime, rank: number) {
-  if (rank < own.length && own[rank]) return true;
+  if (rank < own.length && own[rank]) return true
   const roots = rt.layout.selectionRoots,
     { localBox, worldBox } = roots[rank],
-    pose = rt.lights.mobility.poseOf(rank);
-  if (!localBox || !worldBox || !pose) return false;
-  boxTransform(was, 0, localBox, 0, pose);
-  if (!boxEquals(was, 0, worldBox, 0)) return false;
-  if (own.length < roots.length) own = grown(own, Int32Array, roots.length);
+    pose = rt.lights.mobility.poseOf(rank)
+  if (!localBox || !worldBox || !pose) return false
+  boxTransform(was, 0, localBox, 0, pose)
+  if (!boxEquals(was, 0, worldBox, 0)) return false
+  if (own.length < roots.length) own = grown(own, Int32Array, roots.length)
   if (kept === ranks.length) {
-    ranks = grown(ranks, Int32Array, 2 * kept);
-    poses = grown(poses, Float64Array, 2 * poses.length);
+    ranks = grown(ranks, Int32Array, 2 * kept)
+    poses = grown(poses, Float64Array, 2 * poses.length)
   }
-  poses.set(pose, kept * 16);
-  ranks[kept] = rank;
-  own[rank] = ++kept;
-  return true;
+  poses.set(pose, kept * 16)
+  ranks[kept] = rank
+  own[rank] = ++kept
+  return true
 }
 
 /** True when root `rank`'s change is its own (`declareOwnMove`), not its node's. */
-export const ownsMove = (rank: number) => rank < own.length && own[rank] !== 0;
+export const ownsMove = (rank: number) => rank < own.length && own[rank] !== 0
 
 /** The call is done: no root's change is noted any more. */
 export function forgetOwnMoves() {
-  for (let i = 0; i < kept; i++) own[ranks[i]] = 0;
-  kept = 0;
+  for (let i = 0; i < kept; i++) own[ranks[i]] = 0
+  kept = 0
 }
 
 /** `box` at `world` declared, and at the last seen pose `pose` when given: one box when the two
@@ -79,42 +79,42 @@ function declarePair(
   movingOnly: boolean,
   pose?: ArrayLike<number>,
 ) {
-  const { changes } = rt.lights;
-  boxTransform(now, 0, box, 0, world);
-  if (!pose) return changes.worldChanged(nowMin, nowMax, movingOnly);
-  boxTransform(was, 0, box, 0, pose);
-  let meet = true;
+  const { changes } = rt.lights
+  boxTransform(now, 0, box, 0, world)
+  if (!pose) return changes.worldChanged(nowMin, nowMax, movingOnly)
+  boxTransform(was, 0, box, 0, pose)
+  let meet = true
   for (let axis = 0; axis < 3; axis++)
-    meet &&= was[axis] <= now[axis + 3] && now[axis] <= was[axis + 3];
-  if (meet) boxUnionBatch(was, now, 1);
-  changes.worldChanged(wasMin, wasMax, movingOnly);
-  if (!meet) changes.worldChanged(nowMin, nowMax, movingOnly);
+    meet &&= was[axis] <= now[axis + 3] && now[axis] <= was[axis + 3]
+  if (meet) boxUnionBatch(was, now, 1)
+  changes.worldChanged(wasMin, wasMax, movingOnly)
+  if (!meet) changes.worldChanged(nowMin, nowMax, movingOnly)
 }
 
 /** Whether record `rec` bounds the same box as `prev`: a dynamic primitive's pages all hold its
  *  primitive's box, declared once. */
 function sameBox(rec: PageRec, prev: PageRec) {
   for (let axis = 0; axis < 3; axis++)
-    if (rec.min[axis] !== prev.min[axis] || rec.max[axis] !== prev.max[axis]) return false;
-  return true;
+    if (rec.min[axis] !== prev.min[axis] || rec.max[axis] !== prev.max[axis]) return false
+  return true
 }
 
 /** Whether every record of `pages` is a leaf of its primitive: none stands for others. */
 function leavesOnly(pages: readonly PageRec[]) {
-  for (const rec of pages) if ((rec.level ?? 0) > 0) return false;
-  return true;
+  for (const rec of pages) if ((rec.level ?? 0) > 0) return false
+  return true
 }
 
 /** Whether `root`'s cluster boxes are all it can draw, and the plan's list still holds them apart. */
 function clustersStandFor(rt: WebgpuPagesRuntime, rank: number) {
-  const root = rt.layout.selectionRoots[rank];
+  const root = rt.layout.selectionRoots[rank]
   return (
     root.boxes === true &&
     !root.deformation &&
     !root.reach &&
     4 * 2 * root.pages.length <= rt.lights.changes.room() &&
     leavesOnly(root.pages)
-  );
+  )
 }
 
 /** Root `rank`'s cluster boxes declared at `world`, and at its last seen `pose` when given
@@ -126,13 +126,13 @@ function declareClusters(
   movingOnly: boolean,
   pose?: ArrayLike<number>,
 ) {
-  const { pages } = rt.layout.selectionRoots[rank];
+  const { pages } = rt.layout.selectionRoots[rank]
   for (let i = 0; i < pages.length; i++) {
-    const rec = pages[i];
-    if (i > 0 && sameBox(rec, pages[i - 1])) continue;
-    local.set(rec.min, 0);
-    local.set(rec.max, 3);
-    declarePair(rt, local, world, movingOnly, pose);
+    const rec = pages[i]
+    if (i > 0 && sameBox(rec, pages[i - 1])) continue
+    local.set(rec.min, 0)
+    local.set(rec.max, 3)
+    declarePair(rt, local, world, movingOnly, pose)
   }
 }
 
@@ -149,8 +149,8 @@ export function declareInPlace(
   max: ArrayLike<number>,
   movingOnly: boolean,
 ) {
-  if (!clustersStandFor(rt, rank)) return rt.lights.changes.worldChanged(min, max, movingOnly);
-  declareClusters(rt, rank, rt.layout.selectionRoots[rank].world.elements, movingOnly);
+  if (!clustersStandFor(rt, rank)) return rt.lights.changes.worldChanged(min, max, movingOnly)
+  declareClusters(rt, rank, rt.layout.selectionRoots[rank].world.elements, movingOnly)
 }
 
 /**
@@ -158,11 +158,11 @@ export function declareInPlace(
  * and its new one. `promoted`, its first move: its pages go stale whole.
  */
 export function declareOwnMove(rt: WebgpuPagesRuntime, rank: number, promoted: boolean) {
-  if (own[rank] <= 0) return;
+  if (own[rank] <= 0) return
   const root = rt.layout.selectionRoots[rank],
     pose = poses.subarray((own[rank] - 1) * 16, own[rank] * 16),
-    world = root.world.elements;
-  own[rank] = -own[rank];
-  if (!clustersStandFor(rt, rank)) return declarePair(rt, root.localBox!, world, !promoted, pose);
-  declareClusters(rt, rank, world, !promoted, pose);
+    world = root.world.elements
+  own[rank] = -own[rank]
+  if (!clustersStandFor(rt, rank)) return declarePair(rt, root.localBox!, world, !promoted, pose)
+  declareClusters(rt, rank, world, !promoted, pose)
 }

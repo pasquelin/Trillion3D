@@ -8,8 +8,8 @@ use super::*;
 use crate::dag::{build_culling_bvh, DagCluster};
 use crate::geometry_page::localise;
 
-/// Bytes of one super-root page: vertex and triangle counts, its own vertices as three floats,
-/// its triangles as 16-bit local indices, padded to four bytes.
+/// Bytes of one super-root page: vertex and triangle counts, its own vertices as three floats in
+/// world space, its triangles as 16-bit local indices, padded to four bytes.
 fn page_bytes(vertices: usize, corners: usize) -> usize {
     8 + vertices * 12 + (corners * 2).next_multiple_of(4)
 }

@@ -1,9 +1,9 @@
-import { localFileGlobs } from './scripts/repository-files.ts';
-import js from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import globals from 'globals';
-import react from 'eslint-plugin-react';
-import reactHooks from 'eslint-plugin-react-hooks';
+import { localFileGlobs } from './scripts/repository-files.ts'
+import js from '@eslint/js'
+import tseslint from 'typescript-eslint'
+import globals from 'globals'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
 
 export default tseslint.config(
   {
@@ -91,4 +91,4 @@ export default tseslint.config(
     files: ['**/*.test.ts', 'tests/fixtures/**/*.ts', 'tests/kit/gpu/timingDevice.ts'],
     rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
-);
+)

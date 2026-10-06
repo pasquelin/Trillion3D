@@ -7,18 +7,18 @@
  * the GPU writes is the CPU's, to the bit; a translation is brought to the eye first, by the double
  * subtraction `worldToRenderOrigin` does.
  */
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts';
-import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts';
-import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts';
-import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts';
-import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts';
-import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts';
-import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts';
+import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
+import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
+import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
+import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
+import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts'
+import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 
 /** The parent slot of a root that follows none. */
-export const NONE = 0xffffffff;
+export const NONE = 0xffffffff
 /** Doubles of one matrix, each two words. */
-export const MATRIX_DOUBLES = 16;
+export const MATRIX_DOUBLES = 16
 
 /**
  * The single-precision bits of double `a`, rounded to nearest, ties to even, as storing it in a
@@ -42,7 +42,7 @@ fn toF32(a:vec2u)->u32{
  if(m==0x1000000u){m=0x800000u;field=field+1u;}
  if(field>=255u){return sign|0x7f800000u;}
  return sign|(field<<23u)|(m&0x7fffffu);
-}`;
+}`
 
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
@@ -53,9 +53,9 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
  var sum=dMul(parents[parentAt+r],locals[localAt+c*4u]);
  for(var i=1u;i<4u;i++){sum=dAdd(sum,dMul(parents[parentAt+i*4u+r],locals[localAt+c*4u+i]));}
  return sum;
-}`;
+}`
 
-const SHARED_WGSL = `${DOUBLE_WGSL}${TO_F32_WGSL}${FROM_F32_WGSL}${PRODUCT_WGSL}`;
+const SHARED_WGSL = `${DOUBLE_WGSL}${TO_F32_WGSL}${FROM_F32_WGSL}${PRODUCT_WGSL}`
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -64,7 +64,7 @@ const SHARED_WGSL = `${DOUBLE_WGSL}${TO_F32_WGSL}${FROM_F32_WGSL}${PRODUCT_WGSL}
 const SAME_WORD_WGSL = `
 fn sameWord(a:u32,b:u32)->bool{
  return (a==b&&(a&0x7fffffffu)<=0x7f800000u)||((a|b)&0x7fffffffu)==0u;
-}`;
+}`
 
 /**
  * One thread per root of a range of the cut's worlds: `parent · local` brought to the eye, and,
@@ -115,7 +115,7 @@ ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
   for(var k=0u;k<16u;k++){previous[rank*16u+k]=world[k];}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
-}`;
+}`
 
 /**
  * The world sphere of a linked root's row (`../webgpu/shadow/spheres.ts`), what the shadow cull
@@ -158,7 +158,7 @@ fn composeSphere(row:u32,world:array<vec2u,16>){
  }
  spheres[s+3u]=sqrt(r2)*SPHERE_GROWTH+size*CENTRE_ERROR;
  spheres[s+7u]=0.0;
-}`;
+}`
 
 /**
  * One thread per page-table row (`composeRow`): the world words of a linked root's row, and, while
@@ -196,4 +196,4 @@ fn composeRow(row:u32){
 }
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x<params.rowCount){composeRow(id.x);}
-}`;
+}`

@@ -5,7 +5,7 @@ import {
   OCT_SCALE,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
-} from './format.ts';
+} from './format.ts'
 
 /**
  * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
@@ -31,7 +31,7 @@ const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  // The skin (\`deform.rs\`): its joints' base and width, and its first stream; the morph targets'
  // count and the word their streams are counted from, each target's record after the header.
  skinBase:u32,skinBits:u32,skin:u32,influences:u32,morphCount:u32,streams:u32,
-}`;
+}`
 
 /**
  * The tangent frame a page does not store, from the triangle: its normal `N`, two edges and the
@@ -47,7 +47,7 @@ fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFra
  let T=p*duv1.x+q*duv2.x;let B=p*duv1.y+q*duv2.y;
  let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
  return CotangentFrame(T*scale,B*scale);
-}`;
+}`
 
 export function clusterDecodeWgsl(buffer: string) {
   return `${CLUSTER_HEADER_WGSL}
@@ -193,5 +193,5 @@ fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
   clusterGrid(base,h.color.y,vertex,h.colorBits.y,h.colorMin.y,h.colorStep),
   clusterGrid(base,h.color.z,vertex,h.colorBits.z,h.colorMin.z,h.colorStep),
   clusterGrid(base,h.color.w,vertex,h.colorBits.w,h.colorMin.w,h.colorStep));
-}`;
+}`
 }

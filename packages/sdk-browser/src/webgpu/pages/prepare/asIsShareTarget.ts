@@ -1,17 +1,16 @@
-import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { readsAsIs } from './lightResources.ts';
-import { drawsParticles } from '../../particles/webgpuParticleFrame.ts';
+import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/asIsShare.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { readsAsIs } from './lightResources.ts'
+import { drawsParticles } from '../../particles/webgpuParticleFrame.ts'
 
 /** Whether the transparents write the share: a blended image that can show a debug view (#365),
  *  or whose temporal pass reads their coverage as the reactive value (#833). */
 export const blendWritesShare = (rt: WebgpuPagesRuntime) =>
-  rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || !!rt.gpu.temporalWanted);
+  rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || !!rt.gpu.temporalWanted)
 
 /** Whether the image has a share target: its transparents or its particles (their coverage as the
  *  reactive value, #833) write it. Any other scene draws and allocates what it did before (#365). */
-export const wantsAsIsShare = (rt: WebgpuPagesRuntime) =>
-  blendWritesShare(rt) || drawsParticles(rt);
+export const wantsAsIsShare = (rt: WebgpuPagesRuntime) => blendWritesShare(rt) || drawsParticles(rt)
 
 /** The share target at `width`×`height`, over the opaque flags: made with the targets or later. */
 export function makeAsIsShare(
@@ -20,21 +19,21 @@ export function makeAsIsShare(
   width: number,
   height: number,
 ) {
-  rt.gpu.asIsShare = createAsIsShare(device, rt.gpu.surfaces!.views()[3], width, height);
+  rt.gpu.asIsShare = createAsIsShare(device, rt.gpu.surfaces!.views()[3], width, height)
 }
 
 /** The share the transparents blend into this image, when they write one (`blendWritesShare`). */
 export const activeAsIsShare = (rt: WebgpuPagesRuntime) =>
-  blendWritesShare(rt) ? rt.gpu.asIsShare : undefined;
+  blendWritesShare(rt) ? rt.gpu.asIsShare : undefined
 
 /** Releases the share target and its cost, when there is one (#1162). */
 function releaseAsIsShare(rt: WebgpuPagesRuntime) {
-  const { gpu } = rt;
-  if (!gpu.asIsShare) return;
-  const [width, height] = gpu.allocatedSize;
-  gpu.asIsShare.dispose();
-  gpu.asIsShare = undefined;
-  gpu.targetBytes -= width * height * AS_IS_SHARE_BYTES;
+  const { gpu } = rt
+  if (!gpu.asIsShare) return
+  const [width, height] = gpu.allocatedSize
+  gpu.asIsShare.dispose()
+  gpu.asIsShare = undefined
+  gpu.targetBytes -= width * height * AS_IS_SHARE_BYTES
 }
 
 /**
@@ -48,15 +47,15 @@ export function seedAsIsShare(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
 ) {
-  const { gpu } = rt;
-  const written = (!!rt.vis.blendPipelines && blendWritesShare(rt)) || drawsParticles(rt);
-  if (!wantsAsIsShare(rt)) releaseAsIsShare(rt);
-  if (!written || !gpu.surfaces) return undefined;
+  const { gpu } = rt
+  const written = (!!rt.vis.blendPipelines && blendWritesShare(rt)) || drawsParticles(rt)
+  if (!wantsAsIsShare(rt)) releaseAsIsShare(rt)
+  if (!written || !gpu.surfaces) return undefined
   if (!gpu.asIsShare) {
-    const [width, height] = gpu.allocatedSize;
-    gpu.targetBytes += width * height * AS_IS_SHARE_BYTES;
-    makeAsIsShare(rt, device, width, height);
+    const [width, height] = gpu.allocatedSize
+    gpu.targetBytes += width * height * AS_IS_SHARE_BYTES
+    makeAsIsShare(rt, device, width, height)
   }
-  gpu.asIsShare!.seed(encoder, readsAsIs(rt));
-  return gpu.asIsShare;
+  gpu.asIsShare!.seed(encoder, readsAsIs(rt))
+  return gpu.asIsShare
 }

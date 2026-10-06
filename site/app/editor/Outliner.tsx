@@ -1,9 +1,9 @@
-import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import { useWords } from '../i18n.ts';
-import { usePortal } from '../layout/PortalContext.ts';
-import { Note } from '../ui/Text.tsx';
-import { Tree } from '../ui/Tree.tsx';
-import type { Editor } from './useEditor.ts';
+import type { Object3D } from '../../../packages/sdk-browser/src/index.ts'
+import { useWords } from '../i18n.ts'
+import { usePortal } from '../layout/PortalContext.ts'
+import { Note } from '../ui/Text.tsx'
+import { Tree } from '../ui/Tree.tsx'
+import type { Editor } from './useEditor.ts'
 
 /**
  * The scene's tree, in the editor's Scene panel, its helper marks left out: a click selects, a
@@ -11,11 +11,11 @@ import type { Editor } from './useEditor.ts';
  * back at the top of the scene; the object keeps where it stands in the world.
  */
 export function Outliner({ editor }: { editor: Editor }) {
-  const { locale } = usePortal().route;
-  const t = useWords(locale);
-  const { session, actions } = editor;
-  const roots = session.content;
-  if (roots.length === 0) return <Note>{t('editor.empty')}</Note>;
+  const { locale } = usePortal().route
+  const t = useWords(locale)
+  const { session, actions } = editor
+  const roots = session.content
+  if (roots.length === 0) return <Note>{t('editor.empty')}</Note>
   return (
     <Tree<Object3D>
       className="grid flex-1 content-start gap-2"
@@ -37,5 +37,5 @@ export function Outliner({ editor }: { editor: Editor }) {
       }}
       footer={<Note>{t('editor.dropRoot')}</Note>}
     />
-  );
+  )
 }

@@ -1,23 +1,23 @@
-import type { GpuPageContext } from './types.ts';
+import type { GpuPageContext } from './types.ts'
 
 export function createGpuPagePins(context: GpuPageContext) {
-  const { resident, pins, held, free, check, reader } = context;
-  const { emit } = reader;
+  const { resident, pins, held, free, check, reader } = context
+  const { emit } = reader
   return {
     pin(key: string, tier: 'held' | 'pinned' = 'pinned') {
-      check();
-      const page = resident.get(key);
+      check()
+      const page = resident.get(key)
       if (!page) {
         emit?.('gpu-page-pin-refused', 'GPU pin refused', () => ({
           version: 1,
           key,
           reason: 'not-resident',
-        }));
-        throw new Error('PAGE_NOT_RESIDENT');
+        }))
+        throw new Error('PAGE_NOT_RESIDENT')
       }
-      const changed = !pins.has(key);
-      pins.add(key);
-      if (tier === 'held') held.add(key);
+      const changed = !pins.has(key)
+      pins.add(key)
+      if (tier === 'held') held.add(key)
       if (changed)
         emit?.('gpu-page-pin', 'GPU page pinned', () => ({
           version: 1,
@@ -26,34 +26,34 @@ export function createGpuPagePins(context: GpuPageContext) {
           generation: page.generation,
           changed,
           pinned: pins.size,
-        }));
+        }))
     },
     /**
      * Moves a resident page to the far end of the eviction order, without a load: a page a
      * lower tier still wants is then the last unpinned page a new arrival takes the slot of.
      */
     touch(key: string, lower = false) {
-      const page = resident.get(key);
-      if (!page) return false;
-      resident.delete(key);
-      resident.set(key, page);
-      if (lower) context.eviction.lower.set(key, context.eviction.epoch);
-      return true;
+      const page = resident.get(key)
+      if (!page) return false
+      resident.delete(key)
+      resident.set(key, page)
+      if (lower) context.eviction.lower.set(key, context.eviction.epoch)
+      return true
     },
     /** Slots a load can take without evicting a pinned page: the free ones and the unpinned. */
     unpinnedSlots() {
-      return free.length + resident.size - pins.size;
+      return free.length + resident.size - pins.size
     },
     unpin(key: string) {
-      const changed = pins.delete(key);
-      held.delete(key);
+      const changed = pins.delete(key)
+      held.delete(key)
       if (changed)
         emit?.('gpu-page-unpin', 'GPU pin removed', () => ({
           version: 1,
           key,
           changed,
           pinned: pins.size,
-        }));
+        }))
     },
-  };
+  }
 }

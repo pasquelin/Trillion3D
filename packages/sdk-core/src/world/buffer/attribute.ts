@@ -3,195 +3,195 @@
  * the interleaved buffer itself. A reader uploads an attribute's bytes as they are and compares
  * `version` (the buffer's, for a view) to know they changed.
  */
-import type { PageAttribute } from '../../../../page-codec/src/pageAttributes.ts';
-import { VertexElements, type BufferTypedArray } from './elements.ts';
-import { defer, load, notLoaded, type PendingNumbers } from './pending.ts';
+import type { PageAttribute } from '../../../../page-codec/src/pageAttributes.ts'
+import { VertexElements, type BufferTypedArray } from './elements.ts'
+import { defer, load, notLoaded, type PendingNumbers } from './pending.ts'
 
-export type { BufferTypedArray } from './elements.ts';
+export type { BufferTypedArray } from './elements.ts'
 
 /** A copy of `source`'s numbers into an attribute owning them: every vertex, or those `order`
  *  lists, in `source`'s type and normalisation. */
 export function ownAttribute(source: VertexAttribute, order?: ArrayLike<number>) {
   const count = order ? order.length : source.count,
-    size = source.itemSize;
+    size = source.itemSize
   const array = new (source.array.constructor as new (length: number) => BufferTypedArray)(
     count * size,
-  );
+  )
   for (let i = 0; i < count; i++)
-    for (let c = 0; c < size; c++) array[i * size + c] = source.stored(order ? order[i] : i, c);
-  const copy = new BufferAttribute(array, size, source.normalized);
-  copy.name = source.name;
-  return copy;
+    for (let c = 0; c < size; c++) array[i * size + c] = source.stored(order ? order[i] : i, c)
+  const copy = new BufferAttribute(array, size, source.normalized)
+  copy.name = source.name
+  return copy
 }
 
 /** What a pending holder is built on, before `defer` takes its numbers away. */
-const NONE = new Float32Array(0);
+const NONE = new Float32Array(0)
 
 /** A triangle list of plain numbers: 16-bit while every index fits, 32-bit beyond. */
 export function indexList(values: ArrayLike<number>) {
-  const list = Array.from(values);
-  const Kind = list.reduce((a, b) => Math.max(a, b), 0) > 65535 ? Uint32Array : Uint16Array;
-  return new BufferAttribute(new Kind(list), 1);
+  const list = Array.from(values)
+  const Kind = list.reduce((a, b) => Math.max(a, b), 0) > 65535 ? Uint32Array : Uint16Array
+  return new BufferAttribute(new Kind(list), 1)
 }
 
 /** A typed array of per-vertex values, `itemSize` numbers per vertex: the page codec's
  *  `PageAttribute` (`page-codec/src/pageAttributes.ts`), with what a page writes into it. */
 export class BufferAttribute extends VertexElements implements PageAttribute {
   /** Always `true`: tells a buffer attribute apart from anything else. */
-  readonly isBufferAttribute = true as const;
+  readonly isBufferAttribute = true as const
   /** The attribute owns its buffer. */
-  readonly kind = 'attribute' as const;
+  readonly kind = 'attribute' as const
   /** How the values were declared; a half-float attribute is held at float precision. */
-  readonly type: string;
+  readonly type: string
   /** Bumped by every declared write: what the world compares to see the content changed. */
-  version = 0;
+  version = 0
   /** Called when the attribute is declared written; set by the geometry that holds it. */
-  _onChange: (() => void) | null = null;
+  _onChange: (() => void) | null = null
   /** Ranges of `array` written since the last upload, sent alone. */
-  readonly updateRanges: { start: number; count: number }[] = [];
+  readonly updateRanges: { start: number; count: number }[] = []
   /** The numbers, `null` while a loaded mesh's are still to be read (`pendingAttribute`). */
-  _numbers: BufferTypedArray | null;
-  _pending: { readonly length: number; read(): Promise<BufferTypedArray> } | null = null;
+  _numbers: BufferTypedArray | null
+  _pending: { readonly length: number; read(): Promise<BufferTypedArray> } | null = null
   constructor(
     array: BufferTypedArray,
     itemSize: number,
     normalized = false,
     type = array.constructor.name,
   ) {
-    super(itemSize, normalized);
-    this._numbers = array;
-    this.type = type;
+    super(itemSize, normalized)
+    this._numbers = array
+    this.type = type
   }
   /** The numbers themselves; a read before they are loaded is refused by name. */
   get array() {
-    return this._numbers ?? notLoaded();
+    return this._numbers ?? notLoaded()
   }
   /** Reads the numbers if they are still to come. */
   _load() {
-    return load(this);
+    return load(this)
   }
   /** How many vertices the numbers describe, known before they are loaded. */
   get count() {
-    return Math.floor((this._numbers ?? this._pending!).length / this.itemSize);
+    return Math.floor((this._numbers ?? this._pending!).length / this.itemSize)
   }
   protected at(index: number) {
-    return index * this.itemSize;
+    return index * this.itemSize
   }
   /** `needsUpdate = true` after writing `array`: a reader uploads it again. */
   set needsUpdate(value: boolean) {
-    if (!value) return;
-    this.version++;
-    this._onChange?.();
+    if (!value) return
+    this.version++
+    this._onChange?.()
   }
   get needsUpdate() {
-    return false;
+    return false
   }
   /** Marks `count` numbers from `start` written. */
   addUpdateRange(start: number, count: number) {
-    this.updateRanges.push({ start, count });
+    this.updateRanges.push({ start, count })
   }
   /** Forgets the written ranges, once uploaded. */
   clearUpdateRanges() {
-    this.updateRanges.length = 0;
+    this.updateRanges.length = 0
   }
   /** A new attribute with a copy of the numbers, their type, normalisation and name. */
   clone() {
-    const copy = new BufferAttribute(this.array.slice(), this.itemSize, this.normalized, this.type);
-    copy.name = this.name;
-    return copy;
+    const copy = new BufferAttribute(this.array.slice(), this.itemSize, this.normalized, this.type)
+    copy.name = this.name
+    return copy
   }
 }
 
 /** Several attributes packed per vertex: `stride` numbers per vertex, each attribute at an offset. */
 export class InterleavedBuffer {
   /** Always `true`: tells an interleaved buffer apart from anything else. */
-  readonly isInterleavedBuffer = true as const;
+  readonly isInterleavedBuffer = true as const
   /** One storage several attributes view. */
-  readonly kind = 'interleavedBuffer' as const;
+  readonly kind = 'interleavedBuffer' as const
   /** Bumped by `needsUpdate`. */
-  version = 0;
+  version = 0
   /** The numbers, `null` while a loaded mesh's are still to be read (`pendingInterleaved`). */
-  _numbers: BufferTypedArray | null;
-  _pending: BufferAttribute['_pending'] = null;
+  _numbers: BufferTypedArray | null
+  _pending: BufferAttribute['_pending'] = null
   /** How many numbers each vertex takes. */
-  readonly stride: number;
+  readonly stride: number
   constructor(array: BufferTypedArray, stride: number) {
-    this._numbers = array;
-    this.stride = stride;
+    this._numbers = array
+    this.stride = stride
   }
   /** Every vertex's numbers, packed one after the other; refused by name before they are loaded. */
   get array() {
-    return this._numbers ?? notLoaded();
+    return this._numbers ?? notLoaded()
   }
   /** Reads the numbers if they are still to come. */
   _load() {
-    return load(this);
+    return load(this)
   }
   /** How many vertices it packs. */
   get count() {
-    return Math.floor((this._numbers ?? this._pending!).length / this.stride);
+    return Math.floor((this._numbers ?? this._pending!).length / this.stride)
   }
   /** `needsUpdate = true` after writing `array`: a reader uploads it again. */
   set needsUpdate(value: boolean) {
-    if (value) this.version++;
+    if (value) this.version++
   }
   get needsUpdate() {
-    return false;
+    return false
   }
   /** One attribute read out of the pack, as its own attribute. */
   attribute(itemSize: number, offset: number) {
-    return new InterleavedBufferAttribute(this, itemSize, offset).clone();
+    return new InterleavedBufferAttribute(this, itemSize, offset).clone()
   }
 }
 
 /** An attribute viewing `itemSize` numbers at `offset` of each vertex of an interleaved buffer. */
 export class InterleavedBufferAttribute extends VertexElements {
   /** Always `true`: tells an interleaved view apart from anything else. */
-  readonly isInterleavedBufferAttribute = true as const;
+  readonly isInterleavedBufferAttribute = true as const
   /** The attribute views a shared buffer. */
-  readonly kind = 'interleavedAttribute' as const;
+  readonly kind = 'interleavedAttribute' as const
   /** The buffer it views. */
-  readonly data: InterleavedBuffer;
+  readonly data: InterleavedBuffer
   /** Where its numbers start in each vertex. */
-  readonly offset: number;
+  readonly offset: number
   constructor(data: InterleavedBuffer, itemSize: number, offset: number, normalized = false) {
-    super(itemSize, normalized);
-    this.data = data;
-    this.offset = offset;
+    super(itemSize, normalized)
+    this.data = data
+    this.offset = offset
   }
   get array() {
-    return this.data.array;
+    return this.data.array
   }
   /** Reads the buffer's numbers if they are still to come. */
   _load() {
-    return this.data._load();
+    return this.data._load()
   }
   get count() {
-    return this.data.count;
+    return this.data.count
   }
   protected at(index: number) {
-    return index * this.data.stride + this.offset;
+    return index * this.data.stride + this.offset
   }
   /** `needsUpdate = true` after writing `array`: a reader uploads it again. */
   set needsUpdate(value: boolean) {
-    this.data.needsUpdate = value;
+    this.data.needsUpdate = value
   }
   get needsUpdate() {
-    return false;
+    return false
   }
   /** Its own numbers, copied out of the pack into an attribute owning them. */
   clone() {
-    return ownAttribute(this);
+    return ownAttribute(this)
   }
 }
 
 /** Either kind of attribute: owning its storage or viewing an interleaved one. */
-export type VertexAttribute = BufferAttribute | InterleavedBufferAttribute;
+export type VertexAttribute = BufferAttribute | InterleavedBufferAttribute
 
 /** A vertex list whose numbers are read on first need: a loaded mesh's (`Geometry.loadVertices`). */
 export const pendingAttribute = (numbers: PendingNumbers, itemSize: number, normalized: boolean) =>
-  defer(new BufferAttribute(NONE, itemSize, normalized, numbers.type), numbers);
+  defer(new BufferAttribute(NONE, itemSize, normalized, numbers.type), numbers)
 
 /** An interleaved buffer whose numbers are read on first need, as `pendingAttribute`'s. */
 export const pendingInterleaved = (numbers: PendingNumbers, stride: number) =>
-  defer(new InterleavedBuffer(NONE, stride), numbers);
+  defer(new InterleavedBuffer(NONE, stride), numbers)

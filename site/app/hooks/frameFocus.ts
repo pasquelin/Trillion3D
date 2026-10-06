@@ -1,4 +1,4 @@
-import { takesKeys } from './typing.ts';
+import { takesKeys } from './typing.ts'
 
 /**
  * Who reads the keyboard when a demo is framed in the portal, as a state machine the frame's
@@ -7,23 +7,23 @@ import { takesKeys } from './typing.ts';
  * holds the pointer. The browser's Escape ends a lock and leaves the demo focused; one more
  * Escape, or a press outside, gives the keyboard back to the portal.
  */
-type FrameState = 'portal' | 'demo' | 'locked';
+type FrameState = 'portal' | 'demo' | 'locked'
 
 export interface FrameFocus {
-  state: FrameState;
+  state: FrameState
   /** A lock has just ended: the Escape that ended it, if the browser delivers it, is not a second. */
-  unlocking: boolean;
+  unlocking: boolean
 }
 
 /** What reaches the machine: a press inside the frame or a load that hands it the keyboard, the
  * frame's window gaining or losing the focus, a pointer lock taken or ended, an Escape pressed or
  * released inside. */
-export type FrameEvent = 'take' | 'focus' | 'blur' | 'lock' | 'unlock' | 'escape' | 'escapeUp';
+export type FrameEvent = 'take' | 'focus' | 'blur' | 'lock' | 'unlock' | 'escape' | 'escapeUp'
 
 /** What the binding does on the way: hand the focus to the frame, or back to the portal. */
-type FrameAct = 'focus' | 'release' | undefined;
+type FrameAct = 'focus' | 'release' | undefined
 
-export const PORTAL: FrameFocus = { state: 'portal', unlocking: false };
+export const PORTAL: FrameFocus = { state: 'portal', unlocking: false }
 
 export function stepFrame(
   { state, unlocking }: FrameFocus,
@@ -35,21 +35,21 @@ export function stepFrame(
       return [
         { state: state === 'locked' ? 'locked' : 'demo', unlocking },
         event === 'take' ? 'focus' : undefined,
-      ];
+      ]
     case 'blur':
-      return [PORTAL, undefined];
+      return [PORTAL, undefined]
     case 'lock':
-      return [{ state: 'locked', unlocking: false }, undefined];
+      return [{ state: 'locked', unlocking: false }, undefined]
     case 'unlock':
       return [
         { state: state === 'portal' ? 'portal' : 'demo', unlocking: state !== 'portal' },
         undefined,
-      ];
+      ]
     case 'escape':
-      if (state !== 'demo' || unlocking) return [{ state, unlocking }, undefined];
-      return [PORTAL, 'release'];
+      if (state !== 'demo' || unlocking) return [{ state, unlocking }, undefined]
+      return [PORTAL, 'release']
     case 'escapeUp':
-      return [{ state, unlocking: false }, undefined];
+      return [{ state, unlocking: false }, undefined]
   }
 }
 
@@ -64,11 +64,11 @@ const SCROLL_KEYS = new Set([
   'PageDown',
   'Home',
   'End',
-]);
+])
 
 /** Whether a key pressed in the demo must not scroll the page around it once the frame cannot:
  * a scrolling key the demo's own fields and buttons do not read. */
 export const keepsScroll = (key: string, target: EventTarget | null) =>
   SCROLL_KEYS.has(key) &&
   !takesKeys(target) &&
-  !/^(BUTTON|A|SUMMARY)$/.test((target as { tagName?: string } | null)?.tagName ?? '');
+  !/^(BUTTON|A|SUMMARY)$/.test((target as { tagName?: string } | null)?.tagName ?? '')

@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** Constants and enums of the image and its quality, each read from the file named in `module`. */
 
@@ -47,4 +47,4 @@ console.log(world.pixelError);`,
 setScreenErrorVariant('reference'); // null or undefined restores 'certifiee'
 console.log(screenErrorVariant());`,
   },
-];
+]

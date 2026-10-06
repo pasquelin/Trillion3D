@@ -1,14 +1,14 @@
-import { DocPage } from '../layout/DocPage.tsx';
-import { CodeBlock } from '../ui/CodeBlock.tsx';
-import { Inline } from '../ui/Prose.tsx';
-import { Split } from '../ui/Split.tsx';
-import { sectionGaps } from '../ui/sectionGaps.ts';
-import threeProgram from '../../content/migration/three-scene.txt';
-import engineProgram from '../../examples/a-bust-a-crate-and-a-glass-ball.html';
-import type { Locale } from '../../content/locale.ts';
-import type { PortalEntry } from '../../content/model.ts';
+import { DocPage } from '../layout/DocPage.tsx'
+import { CodeBlock } from '../ui/CodeBlock.tsx'
+import { Inline } from '../ui/Prose.tsx'
+import { Split } from '../ui/Split.tsx'
+import { sectionGaps } from '../ui/sectionGaps.ts'
+import threeProgram from '../../content/migration/three-scene.txt'
+import engineProgram from '../../examples/a-bust-a-crate-and-a-glass-ball.html'
+import type { Locale } from '../../content/locale.ts'
+import type { PortalEntry } from '../../content/model.ts'
 
-const [threeGaps, engineGaps] = sectionGaps(threeProgram, engineProgram);
+const [threeGaps, engineGaps] = sectionGaps(threeProgram, engineProgram)
 
 /**
  * The migration guide: one Three.js program (text, never run) beside the engine program that
@@ -40,5 +40,5 @@ export function ThreeMigration({ entry, locale }: { entry: PortalEntry; locale: 
         }
       />
     </DocPage>
-  );
+  )
 }

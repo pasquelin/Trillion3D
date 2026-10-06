@@ -1,4 +1,4 @@
-import { PHYSICS_MATERIALS } from '../physics/options.ts';
+import { PHYSICS_MATERIALS } from '../physics/options.ts'
 
 /**
  * THE BODY A CHARACTER STARTS WITH: an adult human, every number read from that human or
@@ -86,42 +86,42 @@ import { PHYSICS_MATERIALS } from '../physics/options.ts';
 
 /** What a character body reads on every tick; the controller publishes it as its settings. */
 export interface CharacterSettings {
-  walkSpeed: number;
-  sprintSpeed: number;
-  jumpSpeed: number;
-  gravity: number;
-  fallGravity: number;
-  airControl: number;
-  capsuleRadius: number;
-  capsuleHeight: number;
-  eyeHeight: number;
-  stepHeight: number;
-  maxSlope: number;
-  responseTime: number;
-  stopTime: number;
-  coyoteTime: number;
-  jumpBuffer: number;
-  headBob: number;
-  landingDip: number;
-  mass: number;
-  pushStrength: number;
+  walkSpeed: number
+  sprintSpeed: number
+  jumpSpeed: number
+  gravity: number
+  fallGravity: number
+  airControl: number
+  capsuleRadius: number
+  capsuleHeight: number
+  eyeHeight: number
+  stepHeight: number
+  maxSlope: number
+  responseTime: number
+  stopTime: number
+  coyoteTime: number
+  jumpBuffer: number
+  headBob: number
+  landingDip: number
+  mass: number
+  pushStrength: number
 }
 
 /** The friction of a rubber sole, what a character's feet grip with (see FLOOR FRICTION). */
-export const SOLE_FRICTION = PHYSICS_MATERIALS.rubber.friction;
+export const SOLE_FRICTION = PHYSICS_MATERIALS.rubber.friction
 /** The friction of the floor a character stands on without physics: stone. */
-export const DECLARED_FLOOR = PHYSICS_MATERIALS.stone.friction;
+export const DECLARED_FLOOR = PHYSICS_MATERIALS.stone.friction
 
 const STATURE = 1.75,
   GRAVITY = 9.80665,
-  JUMP_APEX = 0.5;
+  JUMP_APEX = 0.5
 
 /** Steps per second of a running human, both feet counted, declared: 170 a minute stands for the
  *  cadence a relaxed runner keeps of its own accord. Runners go faster mostly by longer strides,
  *  not quicker ones, so the cadence holds from a jog up. Sensitivity: the head bob's rate is
  *  linear in it, one rise and fall a step, 2.83 Hz at the walk speed and above, in proportion to
  *  the speed below (`characterEye.ts`). */
-export const RUN_CADENCE = 170 / 60;
+export const RUN_CADENCE = 170 / 60
 
 /** The settings that shape the body a physics backend holds: a change makes it again. */
 export const RESHAPING = [
@@ -131,7 +131,7 @@ export const RESHAPING = [
   'stepHeight',
   'mass',
   'pushStrength',
-] as const satisfies readonly (keyof CharacterSettings)[];
+] as const satisfies readonly (keyof CharacterSettings)[]
 
 export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
   walkSpeed: 3.5,
@@ -153,22 +153,22 @@ export const HUMAN_BODY: Readonly<CharacterSettings> = Object.freeze({
   landingDip: 0.06,
   mass: 80,
   pushStrength: 250,
-});
+})
 
 /** The fraction of the gap to the wished speed left after the response time: 95 % is closed. */
-export const RESPONSE_LEFT = 0.05;
+export const RESPONSE_LEFT = 0.05
 
 /** What the player asks for: a horizontal wish of length at most 1, and the sprint key. */
 export interface CharacterInput {
-  wishX: number;
-  wishZ: number;
-  sprint: boolean;
+  wishX: number
+  wishZ: number
+  sprint: boolean
 }
 
 /** The moments a game answers with a sound or a shake. */
 export interface CharacterEvents {
   /** Landed, `impact` being the downward speed in metres per second. */
-  onLand?(impact: number): void;
+  onLand?(impact: number): void
   /** Left the ground on a jump. */
-  onJump?(): void;
+  onJump?(): void
 }

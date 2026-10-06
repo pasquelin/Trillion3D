@@ -1,4 +1,4 @@
-import { DISPATCH_SPAN } from '../../raster/contract.ts';
+import { DISPATCH_SPAN } from '../../raster/contract.ts'
 
 /**
  * DISPATCHES IN ROWS: a cut's pass counts one thread per page, node, slot or listed entry, and a
@@ -13,22 +13,22 @@ import { DISPATCH_SPAN } from '../../raster/contract.ts';
  * of sixty-four opens (`openSlice`), so `work` carries both words and one arming lane copies them
  * (`armWgsl.ts`).
  */
-export const DEFAULT_GROUP_WIDTH = DISPATCH_SPAN;
+export const DEFAULT_GROUP_WIDTH = DISPATCH_SPAN
 
 /** The `[x, y]` workgroups of a dispatch of `groups`, in rows of at most `width`. */
 export function dispatchGrid(groups: number, width = DEFAULT_GROUP_WIDTH): [number, number] {
-  return groups <= width ? [groups, 1] : [width, Math.ceil(groups / width)];
+  return groups <= width ? [groups, 1] : [width, Math.ceil(groups / width)]
 }
 
 /** The width a device's dispatches run in: its own limit, WebGPU's default without one. */
 export const groupWidth = (limits?: { maxComputeWorkgroupsPerDimension?: number }) =>
-  limits?.maxComputeWorkgroupsPerDimension ?? DEFAULT_GROUP_WIDTH;
+  limits?.maxComputeWorkgroupsPerDimension ?? DEFAULT_GROUP_WIDTH
 
 /** A thread's flat index in a dispatch in rows (\`dispatchGrid\`), alone: what a kernel that opens
  *  no slice of a list reads, without the \`work\` words \`openSlice\` raises. */
 export const FLAT_INDEX_WGSL = `/** The rank of thread \`(x, y)\` among the dispatch's, row after row of \`width\` groups of 64. */
 fn flatIndex(x:u32,y:u32,width:u32)->u32{return x+y*width*64u;}
-`;
+`
 
 export const DAG_GRID_WGSL = `/** Workgroups along x of a dispatch in rows: the device's limit, set at pipeline creation when it
  *  is not WebGPU's default (\`../pipeline.ts\`). */
@@ -39,4 +39,4 @@ fn gridX(slice:u32)->u32{return min(slice+1u,GROUP_WIDTH);}
 fn gridY(slice:u32)->u32{return slice/GROUP_WIDTH+1u;}
 /** Slice \`slice\` of a list opened: the dispatch argument at \`groups\` — x, then y — covers it. */
 fn openSlice(groups:u32,slice:u32){atomicMax(&work[groups],gridX(slice));atomicMax(&work[groups+1u],gridY(slice));}
-`;
+`

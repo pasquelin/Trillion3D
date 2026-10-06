@@ -10,30 +10,30 @@
  * ours. A factor the traces reach takes no other value than the one it had.
  */
 
-import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts';
-import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts';
+import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'
+import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts'
 
 /** The opaque resolve's binding of the table (`lighting/deferred/setup.ts`). */
-export const VSM_MASK_TABLE_BINDING = 21;
+export const VSM_MASK_TABLE_BINDING = 21
 /** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */
-export const VSM_MASK_TILES_BINDING = 29;
+export const VSM_MASK_TILES_BINDING = 29
 /** The resolve's read of the table, at `binding`. */
 export const vsmMaskTableReadWgsl = (binding: number) => /* wgsl */ `
 @group(0) @binding(${binding}) var vsmMaskTable:texture_2d<f32>;
-fn vsmMaskDecode(code:u32)->f32{return textureLoad(vsmMaskTable,vec2u(code>>2u,0u),0)[code&3u];}`;
+fn vsmMaskDecode(code:u32)->f32{return textureLoad(vsmMaskTable,vec2u(code>>2u,0u),0)[code&3u];}`
 
 /** The decode table of `device`: its pipeline compiled off the frame from now (`started`), its
  *  fill encoded and submitted on its own, once (`fill`), by the first frame that binds a program
  *  reading a mask — before that frame's own submit, whatever becomes of its encoder. The caller
  *  frees the texture. */
 export function createVsmMaskTable(device: GPUDevice) {
-  const label = 'Trillion3D VSM mask table';
+  const label = 'Trillion3D VSM mask table'
   const texture = device.createTexture({
     label,
     size: [VSM_MASK_TABLE_TEXELS, 1],
     format: 'rgba16float',
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-  });
+  })
   const layout = device.createBindGroupLayout({
     label,
     entries: [
@@ -43,7 +43,7 @@ export function createVsmMaskTable(device: GPUDevice) {
         storageTexture: { access: 'write-only', format: 'rgba16float' },
       },
     ],
-  });
+  })
   const pipeline = started(
     preparedComputePipeline(device, {
       label,
@@ -53,27 +53,27 @@ export function createVsmMaskTable(device: GPUDevice) {
         entryPoint: 'vsmMaskTableFill',
       },
     }),
-  );
+  )
   const group = device.createBindGroup({
     label,
     layout,
     entries: [{ binding: 0, resource: texture.createView() }],
-  });
-  let filled = false;
+  })
+  let filled = false
   return {
     texture,
     view: texture.createView(),
     /** Fills the table in its own submit, the first time only: submitted, it holds for good. */
     fill() {
-      if (filled) return;
-      const encoder = device.createCommandEncoder({ label });
-      const pass = encoder.beginComputePass({ label });
-      pass.setPipeline(pipeline.get());
-      pass.setBindGroup(0, group);
-      pass.dispatchWorkgroups(1);
-      pass.end();
-      device.queue.submit([encoder.finish()]);
-      filled = true;
+      if (filled) return
+      const encoder = device.createCommandEncoder({ label })
+      const pass = encoder.beginComputePass({ label })
+      pass.setPipeline(pipeline.get())
+      pass.setBindGroup(0, group)
+      pass.dispatchWorkgroups(1)
+      pass.end()
+      device.queue.submit([encoder.finish()])
+      filled = true
     },
-  };
+  }
 }

@@ -1,28 +1,28 @@
-import type { Object3D } from './object3d.ts';
-import type { Mesh } from './mesh.ts';
-import { Matrix3, Matrix4 } from '../math/matrix4.ts';
-import { Vector3 } from '../math/vector3.ts';
-import { Ray } from '../math/volumes.ts';
-import type { Box3 } from '../math/box3.ts';
-import { forEachReadNode, meshTriangles } from '../../collision/meshTriangles.ts';
-import { buildTriangleTree } from '../../collision/triangleTree.ts';
-import { heldTree, holdTree } from './raycastTrees.ts';
-import { nearestTriangleOnRay } from '../../collision/triangleQuery.ts';
-import { triangleNormal } from '../../collision/closest.ts';
+import type { Object3D } from './object3d.ts'
+import type { Mesh } from './mesh.ts'
+import { Matrix3, Matrix4 } from '../math/matrix4.ts'
+import { Vector3 } from '../math/vector3.ts'
+import { Ray } from '../math/volumes.ts'
+import type { Box3 } from '../math/box3.ts'
+import { forEachReadNode, meshTriangles } from '../../collision/meshTriangles.ts'
+import { buildTriangleTree } from '../../collision/triangleTree.ts'
+import { heldTree, holdTree } from './raycastTrees.ts'
+import { nearestTriangleOnRay } from '../../collision/triangleQuery.ts'
+import { triangleNormal } from '../../collision/closest.ts'
 
 /** Where a ray meets an object: the object itself, the world point and the surface's normal
  *  there, how far along the ray, and which triangle (`-1` when the object's box was hit). */
 export interface Intersection {
   /** The object hit: the very node the page added. */
-  object: Object3D;
+  object: Object3D
   /** The world point hit. */
-  point: Vector3;
+  point: Vector3
   /** The world normal of the face hit, as its winding orients it. */
-  normal: Vector3;
+  normal: Vector3
   /** Distance from the ray's origin to `point`, world units. */
-  distance: number;
+  distance: number
   /** The rank of the triangle hit, or `-1` for a box. */
-  face: number;
+  face: number
 }
 
 const inverse = new Matrix4(),
@@ -30,33 +30,33 @@ const inverse = new Matrix4(),
   local = new Ray(),
   far = new Vector3(),
   entry = new Vector3(),
-  faceNormal = new Float64Array(3);
+  faceNormal = new Float64Array(3)
 
 /** The triangle tree of the shape a ray is cast at, in the shape's own frame, with each tree
  *  triangle's rank: the cached one (`raycastTrees.ts`), or built again once the shape changed
  *  (`Geometry.version`). */
 function shapeTree(mesh: Mesh) {
-  const geometry = mesh.geometry;
-  const held = heldTree(geometry);
-  if (held) return held;
-  const triangles = meshTriangles(mesh, null);
-  if (!triangles) return null;
-  const ranks = new Uint32Array(triangles.length / 9);
-  const built = { version: geometry.version, tree: buildTriangleTree(triangles, ranks), ranks };
-  holdTree(geometry, built);
-  return built;
+  const geometry = mesh.geometry
+  const held = heldTree(geometry)
+  if (held) return held
+  const triangles = meshTriangles(mesh, null)
+  if (!triangles) return null
+  const ranks = new Uint32Array(triangles.length / 9)
+  const built = { version: geometry.version, tree: buildTriangleTree(triangles, ranks), ranks }
+  holdTree(geometry, built)
+  return built
 }
 
 /** The nearest triangle of a mesh `local` crosses (`nearestTriangleOnRay`): its parameter, rank
  *  and local normal. */
 function nearestTriangle(mesh: Mesh) {
-  const shape = shapeTree(mesh);
-  if (!shape) return null;
-  const hit = nearestTriangleOnRay(shape.tree, local.origin.elements, local.direction.elements);
-  if (!hit) return null;
-  triangleNormal(faceNormal, shape.tree.triangles, hit.at);
-  const normal = new Vector3(faceNormal[0], faceNormal[1], faceNormal[2]);
-  return { t: hit.t, face: shape.ranks[hit.at / 9], normal };
+  const shape = shapeTree(mesh)
+  if (!shape) return null
+  const hit = nearestTriangleOnRay(shape.tree, local.origin.elements, local.direction.elements)
+  if (!hit) return null
+  triangleNormal(faceNormal, shape.tree.triangles, hit.at)
+  const normal = new Vector3(faceNormal[0], faceNormal[1], faceNormal[2])
+  return { t: hit.t, face: shape.ranks[hit.at / 9], normal }
 }
 
 /** The face of `box` a local point lies on, as its outward axis. */
@@ -66,23 +66,23 @@ function boxNormal(box: Box3, at: Vector3, into: Vector3) {
   // answer a question about three.
   const point = at.elements,
     min = box.min.elements,
-    max = box.max.elements;
+    max = box.max.elements
   let narrowest = Infinity,
     axis = 0,
-    outward = -1;
+    outward = -1
   for (let face = 0; face < 6; face++) {
     const k = face >> 1,
       upper = (face & 1) === 1,
-      gap = upper ? max[k] - point[k] : point[k] - min[k];
+      gap = upper ? max[k] - point[k] : point[k] - min[k]
     // Strictly narrower: of two faces at the same distance the first keeps it, as the walk it
     // replaces did.
     if (Math.abs(gap) < narrowest) {
-      narrowest = Math.abs(gap);
-      axis = k;
-      outward = upper ? 1 : -1;
+      narrowest = Math.abs(gap)
+      axis = k
+      outward = upper ? 1 : -1
     }
   }
-  return into.set(axis === 0 ? outward : 0, axis === 1 ? outward : 0, axis === 2 ? outward : 0);
+  return into.set(axis === 0 ? outward : 0, axis === 1 ? outward : 0, axis === 2 ? outward : 0)
 }
 
 /** Where `ray` meets one node's own content, in world terms, or null. A triangle mesh is tested
@@ -91,30 +91,30 @@ function boxNormal(box: Box3, at: Vector3, into: Vector3) {
  *  on that box: where the ray enters it, or at the ray's origin (distance 0, the normal facing
  *  back along the ray) when the ray starts inside it. */
 function hitNode(node: Object3D, ray: Ray): Intersection | null {
-  const mesh = node as Mesh;
-  if (mesh.isMesh && mesh.primitive !== 'triangles') return null;
-  const box = node.localBounds();
-  if (!box || box.isEmpty()) return null;
-  node.updateWorldMatrix(true, false);
-  inverse.copy(node.matrixWorld).invert();
+  const mesh = node as Mesh
+  if (mesh.isMesh && mesh.primitive !== 'triangles') return null
+  const box = node.localBounds()
+  if (!box || box.isEmpty()) return null
+  node.updateWorldMatrix(true, false)
+  inverse.copy(node.matrixWorld).invert()
   // Not normalised: a parameter along the local ray is the world distance along `ray`.
-  local.origin.copy(ray.origin).applyMatrix4(inverse);
-  far.copy(ray.origin).add(ray.direction).applyMatrix4(inverse);
-  local.direction.copy(far).sub(local.origin);
-  if (!local.intersectBox(box, entry)) return null;
+  local.origin.copy(ray.origin).applyMatrix4(inverse)
+  far.copy(ray.origin).add(ray.direction).applyMatrix4(inverse)
+  local.direction.copy(far).sub(local.origin)
+  if (!local.intersectBox(box, entry)) return null
   if (!mesh.isMesh && box.containsPoint(local.origin)) {
-    const back = ray.direction.clone().negate();
-    return { object: node, point: ray.origin.clone(), normal: back, distance: 0, face: -1 };
+    const back = ray.direction.clone().negate()
+    return { object: node, point: ray.origin.clone(), normal: back, distance: 0, face: -1 }
   }
-  let hit: { t: number; face: number; normal: Vector3 } | null;
-  if (mesh.isMesh) hit = nearestTriangle(mesh);
+  let hit: { t: number; face: number; normal: Vector3 } | null
+  if (mesh.isMesh) hit = nearestTriangle(mesh)
   else {
-    const t = entry.clone().sub(local.origin).dot(local.direction) / local.direction.lengthSq();
-    hit = { t, face: -1, normal: boxNormal(box, entry, new Vector3()) };
+    const t = entry.clone().sub(local.origin).dot(local.direction) / local.direction.lengthSq()
+    hit = { t, face: -1, normal: boxNormal(box, entry, new Vector3()) }
   }
-  if (!hit) return null;
-  const normal = hit.normal.applyMatrix3(normals.getNormalMatrix(node.matrixWorld)).normalize();
-  return { object: node, point: ray.at(hit.t), normal, distance: hit.t, face: hit.face };
+  if (!hit) return null
+  const normal = hit.normal.applyMatrix3(normals.getNormalMatrix(node.matrixWorld)).normalize()
+  return { object: node, point: ray.at(hit.t), normal, distance: hit.t, face: hit.face }
 }
 
 /**
@@ -129,11 +129,11 @@ export function raycast(
   ray: Ray,
   skip: (node: Object3D) => boolean = () => false,
 ): Intersection[] {
-  const hits: Intersection[] = [];
-  const unit = new Ray(ray.origin, ray.direction.clone().normalize());
+  const hits: Intersection[] = []
+  const unit = new Ray(ray.origin, ray.direction.clone().normalize())
   forEachReadNode(roots, { skip, visibleOnly: true }, (node) => {
-    const hit = hitNode(node, unit);
-    if (hit) hits.push(hit);
-  });
-  return hits.sort((a, b) => a.distance - b.distance);
+    const hit = hitNode(node, unit)
+    if (hit) hits.push(hit)
+  })
+  return hits.sort((a, b) => a.distance - b.distance)
 }

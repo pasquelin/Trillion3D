@@ -1,7 +1,7 @@
-import type { Primitive } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from './types.ts';
+import type { Primitive } from '../../../../sdk-core/src/index.ts'
+import type { PageRec } from './types.ts'
 
-const NONE: readonly PageRec[] = [];
+const NONE: readonly PageRec[] = []
 
 /**
  * The compiled install order, read once per placement: each record receives, as `dependencies`, one
@@ -15,20 +15,20 @@ const NONE: readonly PageRec[] = [];
  * `recs` are the records of one placement, in the order of `primitive.pages`.
  */
 export function linkBundleDependencies(primitive: Primitive, recs: readonly PageRec[]) {
-  const bundles = primitive.streams?.pages;
-  if (!bundles?.length) return;
-  const fetched: PageRec[] = [];
+  const bundles = primitive.streams?.pages
+  if (!bundles?.length) return
+  const fetched: PageRec[] = []
   primitive.pages.forEach((page, index) => {
-    const rec = recs[index];
-    if (typeof page.stream === 'number' && !rec.geometryPage) fetched[page.stream] ??= rec;
-  });
+    const rec = recs[index]
+    if (typeof page.stream === 'number' && !rec.geometryPage) fetched[page.stream] ??= rec
+  })
   const lists = bundles.map((bundle) => {
-    const records = (bundle.dependencies ?? []).flatMap((dependency) => fetched[dependency] ?? []);
-    return records.length ? records : NONE;
-  });
+    const records = (bundle.dependencies ?? []).flatMap((dependency) => fetched[dependency] ?? [])
+    return records.length ? records : NONE
+  })
   primitive.pages.forEach((page, index) => {
-    if (typeof page.stream === 'number') recs[index].dependencies = lists[page.stream];
-  });
+    if (typeof page.stream === 'number') recs[index].dependencies = lists[page.stream]
+  })
 }
 
 /**
@@ -39,9 +39,9 @@ export function withClosure<T extends { dependencies?: readonly T[] }>(
   cut: readonly T[],
   mark: (list: readonly T[]) => unknown,
 ) {
-  mark(cut);
+  mark(cut)
   for (let i = 0; i < cut.length; i++) {
-    const dependencies = cut[i].dependencies;
-    if (dependencies?.length) mark(dependencies);
+    const dependencies = cut[i].dependencies
+    if (dependencies?.length) mark(dependencies)
   }
 }

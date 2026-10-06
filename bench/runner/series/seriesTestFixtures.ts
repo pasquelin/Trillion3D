@@ -1,12 +1,12 @@
 // Shared fixtures for `series/series.test.ts`, `series/seriesHiz.test.ts` and `series/seriesCompute.test.ts`: split out
 // to keep the files under the line budget.
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import type { Page } from 'playwright';
-import type { RunContext } from '../report/types.ts';
-import type { Side } from '../harness/sideOptions.ts';
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import type { Page } from 'playwright'
+import type { RunContext } from '../report/types.ts'
+import type { Side } from '../harness/sideOptions.ts'
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 
 /** A mock Playwright `page`: `evaluate` directly returns the metrics provided to it, without
  *  ever entering a page — `measureView` (`lighting/lightingPage.ts`) does not run there. */
@@ -26,7 +26,7 @@ export function page(metrics: Record<string, unknown>): Page {
       lost: [],
       captureStatus: 200,
     }),
-  } as unknown as Page;
+  } as unknown as Page
 }
 
 export const pose: CameraPose = {
@@ -35,11 +35,11 @@ export const pose: CameraPose = {
   fov: 55,
   near: 0.1,
   far: 100,
-};
+}
 
 /** A run context in a throwaway folder, and the side it measures; `settings` adds to the defaults. */
 export async function contexte(settings: Partial<RunContext['settings']> = {}) {
-  const OUT = await mkdtemp(join(tmpdir(), 'trillion3d-serie-test-'));
+  const OUT = await mkdtemp(join(tmpdir(), 'trillion3d-serie-test-'))
   const ctx: RunContext = {
     MANIFEST: 'manifest.json',
     OUT,
@@ -53,7 +53,7 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
     } as RunContext['settings'],
     lights: null,
     poses: null,
-  };
+  }
   const side = {
     name: 'a',
     dist: 'dist-test',
@@ -67,6 +67,6 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
     },
     variant: null,
     errorMetric: null,
-  } as unknown as Side;
-  return { ctx, side, OUT };
+  } as unknown as Side
+  return { ctx, side, OUT }
 }

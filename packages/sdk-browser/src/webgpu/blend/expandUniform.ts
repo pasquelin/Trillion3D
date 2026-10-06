@@ -16,12 +16,12 @@ const UNI_FIELDS = [
   'vertexShift',
   'orderBase',
   'runsBase',
-] as const;
-export const UNI_WORDS = 12;
+] as const
+export const UNI_WORDS = 12
 export const EXPAND_UNI = Object.fromEntries(UNI_FIELDS.map((nom, rang) => [nom, rang])) as Record<
   (typeof UNI_FIELDS)[number],
   number
->;
+>
 /** WGSL declaration of these words, in the same order, padding included. */
 export const expandUniformWgsl = () =>
-  `struct Uni{${UNI_FIELDS.map((nom) => `${nom}:u32,`).join('')}pad0:u32,pad1:u32,pad2:u32,}`;
+  `struct Uni{${UNI_FIELDS.map((nom) => `${nom}:u32,`).join('')}pad0:u32,pad1:u32,pad2:u32,}`

@@ -1,4 +1,4 @@
-import { planItem } from './plan.ts';
+import { planItem } from './plan.ts'
 
 /**
  * FAR-TO-NEAR SORT OF SEEDS ON THE CPU, on the order the previous frame left (`order.ts`).
@@ -17,7 +17,7 @@ import { planItem } from './plan.ts';
  * loop compares numbers in contiguous memory instead of following a seed to its item.
  */
 const SHIFT_BUDGET_PER_ENTRY = 8,
-  SHIFT_BUDGET_FLOOR = 256;
+  SHIFT_BUDGET_FLOOR = 256
 
 /**
  * Total order every path produces: decreasing key, then increasing rank — the GPU's and the CPU
@@ -31,21 +31,21 @@ const SHIFT_BUDGET_PER_ENTRY = 8,
  * must recede.
  */
 export function precedes(keyA: number, rankA: number, keyB: number, rankB: number) {
-  if (keyA === keyB) return rankA > rankB;
-  if (keyB !== keyB) return keyA === keyA || rankA > rankB;
-  return keyA < keyB;
+  if (keyA === keyB) return rankA > rankB
+  if (keyB !== keyB) return keyA === keyA || rankA > rankB
+  return keyA < keyB
 }
 
 let sortKeys = new Float64Array(0),
   mergeKeys = new Float64Array(0),
-  mergeOrder = new Uint32Array(0);
+  mergeOrder = new Uint32Array(0)
 
 function growSortScratch(n: number) {
-  if (sortKeys.length >= n) return;
-  const size = Math.max(n, sortKeys.length * 2);
-  sortKeys = new Float64Array(size);
-  mergeKeys = new Float64Array(size);
-  mergeOrder = new Uint32Array(size);
+  if (sortKeys.length >= n) return
+  const size = Math.max(n, sortKeys.length * 2)
+  sortKeys = new Float64Array(size)
+  mergeKeys = new Float64Array(size)
+  mergeOrder = new Uint32Array(size)
 }
 
 /** Bottom-up stable merge sort of `order` with its aligned keys, on `[0, n)`. */
@@ -53,63 +53,63 @@ function mergeSortSeeds(order: Uint32Array, n: number) {
   let srcO: Uint32Array = order,
     srcK = sortKeys,
     dstO: Uint32Array = mergeOrder,
-    dstK = mergeKeys;
+    dstK = mergeKeys
   for (let width = 1; width < n; width *= 2) {
     for (let lo = 0; lo < n; lo += 2 * width) {
       const mid = Math.min(lo + width, n),
-        hi = Math.min(lo + 2 * width, n);
+        hi = Math.min(lo + 2 * width, n)
       let i = lo,
         j = mid,
-        k = lo;
+        k = lo
       while (i < mid && j < hi) {
         // Right goes first only when it strictly precedes left: equal entries keep their order.
-        const from = precedes(srcK[i], srcO[i], srcK[j], srcO[j]) ? j++ : i++;
-        dstO[k] = srcO[from];
-        dstK[k++] = srcK[from];
+        const from = precedes(srcK[i], srcO[i], srcK[j], srcO[j]) ? j++ : i++
+        dstO[k] = srcO[from]
+        dstK[k++] = srcK[from]
       }
       for (; i < mid; i++, k++) {
-        dstO[k] = srcO[i];
-        dstK[k] = srcK[i];
+        dstO[k] = srcO[i]
+        dstK[k] = srcK[i]
       }
       for (; j < hi; j++, k++) {
-        dstO[k] = srcO[j];
-        dstK[k] = srcK[j];
+        dstO[k] = srcO[j]
+        dstK[k] = srcK[j]
       }
     }
     const o = srcO,
-      kk = srcK;
-    srcO = dstO;
-    srcK = dstK;
-    dstO = o;
-    dstK = kk;
+      kk = srcK
+    srcO = dstO
+    srcK = dstK
+    dstO = o
+    dstK = kk
   }
-  if (srcO !== order) order.set(srcO.subarray(0, n));
+  if (srcO !== order) order.set(srcO.subarray(0, n))
 }
 
 /** Sorts `order` — seed indices of `seeds` — in place by `keys`, one per item by source rank. */
 export function sortSeedsFarToNear(order: Uint32Array, seeds: Uint32Array, keys: Float64Array) {
-  const n = order.length;
-  if (n < 2) return;
-  growSortScratch(n);
-  const sorted = sortKeys;
-  for (let k = 0; k < n; k++) sorted[k] = keys[planItem(seeds[order[k]])];
-  let budget = SHIFT_BUDGET_PER_ENTRY * n + SHIFT_BUDGET_FLOOR;
+  const n = order.length
+  if (n < 2) return
+  growSortScratch(n)
+  const sorted = sortKeys
+  for (let k = 0; k < n; k++) sorted[k] = keys[planItem(seeds[order[k]])]
+  let budget = SHIFT_BUDGET_PER_ENTRY * n + SHIFT_BUDGET_FLOOR
   for (let i = 1; i < n; i++) {
     const moved = order[i],
-      movedKey = sorted[i];
-    let j = i - 1;
+      movedKey = sorted[i]
+    let j = i - 1
     while (j >= 0 && precedes(sorted[j], order[j], movedKey, moved)) {
-      order[j + 1] = order[j];
-      sorted[j + 1] = sorted[j];
-      j--;
+      order[j + 1] = order[j]
+      sorted[j + 1] = sorted[j]
+      j--
     }
     // One question per entry, not one write per shift.
-    if (j + 1 === i) continue;
-    order[j + 1] = moved;
-    sorted[j + 1] = movedKey;
-    budget -= i - j - 1;
+    if (j + 1 === i) continue
+    order[j + 1] = moved
+    sorted[j + 1] = movedKey
+    budget -= i - j - 1
     // `[0, i]` is sorted, the rest is the previous frame's: the stable merge of the whole is the
     // same sorted list insertion would have reached.
-    if (budget < 0) return mergeSortSeeds(order, n);
+    if (budget < 0) return mergeSortSeeds(order, n)
   }
 }

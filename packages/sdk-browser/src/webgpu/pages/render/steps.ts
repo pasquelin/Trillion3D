@@ -1,5 +1,5 @@
-import type { PageRec } from '../../../page/selection/selection.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import type { PageRec } from '../../../page/selection/selection.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The residency traces of the CPU path, each stamped with the time its step took. */
 export function traceAdmission(
@@ -9,8 +9,8 @@ export function traceAdmission(
   started: number,
 ) {
   const { run, diag } = rt,
-    { tracking, slots } = rt.setup;
-  if (!diag.traceEnabled) return;
+    { tracking, slots } = rt.setup
+  if (!diag.traceEnabled) return
   diag.traceDiagnostic('residency-admission', 'Admission of the requested sets', () => ({
     frame: run.frame,
     scope: 'cpu/residency-admission',
@@ -22,14 +22,14 @@ export function traceAdmission(
     loaded: tracking.traceRecs('admission.loaded', run.drawn),
     slots,
     limited: run.coverageBudgetLimited,
-  }));
+  }))
 }
 
 export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number) {
   const { run, diag } = rt,
     { tracking } = rt.setup,
-    { residency } = rt.services;
-  if (!diag.traceEnabled) return;
+    { residency } = rt.services
+  if (!diag.traceEnabled) return
   diag.traceDiagnostic('residency-queue-reconstruct', 'Residency sets rebuilt', () => ({
     frame: run.frame,
     scope: 'cpu/residency-queue-reconstruct',
@@ -37,13 +37,13 @@ export function traceQueueReconstruct(rt: WebgpuPagesRuntime, elapsedMs: number)
     requested: tracking.traceRecs('reconstruct.requested', run.desired),
     queued: tracking.traceRecs('reconstruct.queued', residency.items),
     job: residency.job,
-  }));
+  }))
 }
 
 export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
   const { run, diag, services } = rt,
-    { tracking } = rt.setup;
-  if (!diag.traceEnabled) return;
+    { tracking } = rt.setup
+  if (!diag.traceEnabled) return
   diag.traceDiagnostic('residency-drawn-verify', 'Resident coverage checked before encode', () => ({
     frame: run.frame,
     scope: 'cpu/residency-drawn-copy',
@@ -51,14 +51,14 @@ export function traceDrawnVerify(rt: WebgpuPagesRuntime, elapsedMs: number) {
     shown: tracking.traceRecs('drawn.shown', run.shown),
     drawn: tracking.traceRecs('drawn', run.drawn),
     loaded: tracking.traceRecs('drawn.loaded', run.drawn.filter(services.poolHolds)),
-  }));
+  }))
 }
 
 /** Logs the configuration of the first CPU-cut image once, on the host console too. */
 export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
-  const { run, vis, gpu, diag } = rt;
-  if (run.renderPathLogged) return;
-  run.renderPathLogged = true;
+  const { run, vis, gpu, diag } = rt
+  if (run.renderPathLogged) return
+  run.renderPathLogged = true
   const details = {
     clearColor: `#${rt.run.clearColor.toString(16).padStart(6, '0')}`,
     targetSize: gpu.targetSize,
@@ -66,10 +66,10 @@ export function logFirstCpuRenderPath(rt: WebgpuPagesRuntime) {
     visibilityReady: !!(vis.visPipelineBack && vis.shadeClasses && vis.visView),
     selectedPages: run.shown.length,
     drawnPages: run.drawn.length,
-  };
-  diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', details);
+  }
+  diag.engineDiagnostic('first-render-path', 'WebGPU first render configuration', details)
   if (typeof window !== 'undefined')
-    console.info('[trillion3d] WebGPU first render configuration', details);
+    console.info('[trillion3d] WebGPU first render configuration', details)
 }
 
 /** The CPU sample of an image, with `null` for the steps an image that did not draw never ran. */
@@ -79,7 +79,7 @@ export function cpuSampleOf(
   cpuEnd: number,
 ) {
   const { run, timing } = rt,
-    drew = marks.encodeStart !== undefined;
+    drew = marks.encodeStart !== undefined
   return {
     version: 1,
     frame: run.frame,
@@ -97,5 +97,5 @@ export function cpuSampleOf(
      *  its delta is the cut's, not the one residency stirred. */
     residencyPagesEntered: run.pagesEntered,
     residencyPagesExited: run.pagesExited,
-  };
+  }
 }

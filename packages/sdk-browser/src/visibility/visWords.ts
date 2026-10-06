@@ -6,9 +6,9 @@
  * 16.7 M pages instead of the 65 535 a 16/16 split allowed, which a scene replicated a few times
  * exhausts immediately.
  */
-export const VIS_TRIANGLE_BITS = 8;
+export const VIS_TRIANGLE_BITS = 8
 
-export const VIS_TRIANGLE_MASK = (1 << VIS_TRIANGLE_BITS) - 1;
+export const VIS_TRIANGLE_MASK = (1 << VIS_TRIANGLE_BITS) - 1
 
 /** Largest triangle count a page may carry; one more would collide with the next page's rows. */
-export const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1;
+export const VIS_MAX_PAGE_TRIANGLES = VIS_TRIANGLE_MASK + 1

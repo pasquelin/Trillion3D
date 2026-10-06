@@ -1,37 +1,37 @@
-import type { GEOMETRY_PAGE_FORMAT_VERSION } from '../manifest/binaryFormat.ts';
+import type { GEOMETRY_PAGE_FORMAT_VERSION } from '../manifest/binaryFormat.ts'
 
 /** The format every cluster page of a cache is written in (`docs/FORMAT.md`), declared once at
  *  the top of the manifest; the page header's magic and the sidecar version are the gates. */
 export interface GeometryPageFormat {
   /** Page format version. */
-  formatVersion: typeof GEOMETRY_PAGE_FORMAT_VERSION;
+  formatVersion: typeof GEOMETRY_PAGE_FORMAT_VERSION
   /** Always `'quantized'`. */
-  codec: 'quantized';
+  codec: 'quantized'
 }
 /** A quantized cluster page (`WGP3`): `bytes` is what a reader keeps resident,
  *  `uncompressedBytes` what its float decode occupies. */
 export interface GeometryPageDescriptor {
   /** Where it is read. */
-  url: string;
+  url: string
   /** Fingerprint of its bytes. */
-  sha256: string;
+  sha256: string
   /** Its size. */
-  bytes: number;
+  bytes: number
   /** Vertices. */
-  vertexCount: number;
+  vertexCount: number
   /** Indices. */
-  indexCount: number;
+  indexCount: number
   /** Which attributes it carries. */
-  flags: number;
+  flags: number
   /** Its size once unpacked. */
-  uncompressedBytes: number;
+  uncompressedBytes: number
 }
 /** The grid a primitive's pages were quantized on, and the largest displacement it caused. */
 export interface PrimitiveQuantization {
   /** Position step is `2 ** positionExponent`, in object units. */
-  positionExponent: number;
+  positionExponent: number
   /** Texture coordinates sit on `2 ** uvExponent`. */
-  uvExponent: number;
+  uvExponent: number
   /** Largest distance between a source position and its decoded value; null without pages. */
-  maxPositionError: number | null;
+  maxPositionError: number | null
 }

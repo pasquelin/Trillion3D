@@ -4,29 +4,29 @@
 // its floor, each light bearing a range derived from the cell size. It applies to any imported model;
 // the benchmark knows nothing of the measurement set provided to it.
 
-import { modelFloor } from '../trajectory/poses.ts';
-import type { Bounds } from '../trajectory/poses.ts';
-import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
-import type { LightsSummary } from '../report/types.ts';
+import { modelFloor } from '../trajectory/poses.ts'
+import type { Bounds } from '../trajectory/poses.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
+import type { LightsSummary } from '../report/types.ts'
 
 /** A grid light always has a fixed position, unlike the shared `SceneLight` union. */
-type PointLight = SceneLight & { position: [number, number, number] };
+type PointLight = SceneLight & { position: [number, number, number] }
 
 /** The subset of `lightingSettings()`'s result this rule reads. */
 interface LightingSettings {
-  lights: number;
-  lightShadows: boolean;
-  sun: boolean;
-  lightIntensity?: number;
-  lightRangeFactor?: number;
-  movingLight?: boolean;
+  lights: number
+  lightShadows: boolean
+  sun: boolean
+  lightIntensity?: number
+  lightRangeFactor?: number
+  movingLight?: boolean
 }
 
 /** Benchmark point light intensity fallback: value from previous iterations. */
-const DEFAULT_INTENSITY = 40;
+const DEFAULT_INTENSITY = 40
 /** Range of a grid light as a multiple of the cell: covers the cell and a bit more, so ranges
  *  overlap like in a street. A larger factor makes several lights reach one pixel. */
-const DEFAULT_RANGE_FACTOR = 0.75;
+const DEFAULT_RANGE_FACTOR = 0.75
 
 /**
  * `count` point lights on a grid within the model's footprint. `shadows` indicates if they
@@ -46,21 +46,21 @@ function gridLights(
   intensity: number,
   rangeFactor: number,
 ): { lights: PointLight[]; cell: number } {
-  if (count <= 0) return { lights: [], cell: 0 };
+  if (count <= 0) return { lights: [], cell: 0 }
   const sx = Math.max(1e-3, bounds.max.x - bounds.min.x),
     sy = Math.max(0, bounds.max.y - bounds.min.y),
-    sz = Math.max(1e-3, bounds.max.z - bounds.min.z);
+    sz = Math.max(1e-3, bounds.max.z - bounds.min.z)
   const columns = Math.max(1, Math.round(Math.sqrt((count * sx) / sz))),
-    rows = Math.ceil(count / columns);
+    rows = Math.ceil(count / columns)
   const stepX = sx / columns,
-    stepZ = sz / rows;
-  const cell = Math.hypot(stepX, stepZ);
+    stepZ = sz / rows
+  const cell = Math.hypot(stepX, stepZ)
   // Streetlight height: a fraction of the model's height, never less than two meters.
-  const height = modelFloor(bounds) + Math.max(2, sy * 0.04);
-  const lights: PointLight[] = [];
+  const height = modelFloor(bounds) + Math.max(2, sy * 0.04)
+  const lights: PointLight[] = []
   for (let i = 0; i < count; i++) {
     const column = i % columns,
-      row = Math.floor(i / columns);
+      row = Math.floor(i / columns)
     lights.push({
       id: `banc-lampe-${i}`,
       kind: 'point',
@@ -69,9 +69,9 @@ function gridLights(
       intensity,
       range: cell * rangeFactor,
       castsShadow: shadows,
-    });
+    })
   }
-  return { lights, cell };
+  return { lights, cell }
 }
 
 /**
@@ -87,7 +87,7 @@ export const SUN: SceneLight = {
   color: [1, 0.97, 0.92],
   intensity: 3,
   castsShadow: true,
-};
+}
 
 /**
  * Light movement as a fraction of cell size: a small circle traveled in `period` frames.
@@ -95,24 +95,24 @@ export const SUN: SceneLight = {
  * measured is the update cost, not that of changing occluders.
  */
 function movingLightPlan(lights: PointLight[], cell: number) {
-  if (!lights.length) return null;
-  return { id: lights[0].id, origin: lights[0].position.slice(), radius: cell * 0.2, period: 60 };
+  if (!lights.length) return null
+  return { id: lights[0].id, origin: lights[0].position.slice(), radius: cell * 0.2, period: 60 }
 }
 
 /** Light movement plan: a small circle around `origin`, walked in `period` frames. */
 export interface MovingLightPlan {
-  id: string;
-  origin: number[];
-  radius: number;
-  period: number;
+  id: string
+  origin: number[]
+  radius: number
+  period: number
 }
 
 /** Lights placed for a run: the list passed to `addLight`, its motion plan, and the summary
  *  published in the report. */
 export interface LightsPlan {
-  lights: SceneLight[];
-  moving: MovingLightPlan | null;
-  resume: LightsSummary;
+  lights: SceneLight[]
+  moving: MovingLightPlan | null
+  resume: LightsSummary
 }
 
 /**
@@ -121,18 +121,18 @@ export interface LightsPlan {
  * this is default engine behavior, not a benchmark option.
  */
 export function benchLights(bounds: Bounds, settings: LightingSettings): LightsPlan | null {
-  if (!settings.lights && !settings.sun) return null;
-  const intensity = settings.lightIntensity ?? DEFAULT_INTENSITY;
-  const rangeFactor = settings.lightRangeFactor ?? DEFAULT_RANGE_FACTOR;
+  if (!settings.lights && !settings.sun) return null
+  const intensity = settings.lightIntensity ?? DEFAULT_INTENSITY
+  const rangeFactor = settings.lightRangeFactor ?? DEFAULT_RANGE_FACTOR
   const { lights, cell } = gridLights(
     bounds,
     settings.lights,
     settings.lightShadows,
     intensity,
     rangeFactor,
-  );
-  const moving = settings.movingLight ? movingLightPlan(lights, cell) : null;
-  const all = settings.sun ? [{ ...SUN, castsShadow: settings.lightShadows }, ...lights] : lights;
+  )
+  const moving = settings.movingLight ? movingLightPlan(lights, cell) : null
+  const all = settings.sun ? [{ ...SUN, castsShadow: settings.lightShadows }, ...lights] : lights
   return {
     lights: all,
     moving,
@@ -146,5 +146,5 @@ export function benchLights(bounds: Bounds, settings: LightingSettings): LightsP
       range: rangeFactor,
       mobile: !!moving,
     },
-  };
+  }
 }

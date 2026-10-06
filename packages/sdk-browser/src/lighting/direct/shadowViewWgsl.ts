@@ -8,4 +8,4 @@ var<private> shadowAngularPixel:f32=0.0;
 fn shadowSetView(camera:vec3f,width:f32,pixel:vec2f,rank:u32,footprint:f32,centre:vec3f){
  shadowCamera=camera;shadowViewWidth=width;shadowPixel=pixel;shadowFrame=rank;
  shadowAngularPixel=footprint/max(length(centre-camera),1e-6);
-}`;
+}`

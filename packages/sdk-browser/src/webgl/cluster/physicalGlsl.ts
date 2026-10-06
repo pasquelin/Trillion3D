@@ -1,5 +1,5 @@
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
-import { PHYSICAL_MAPS_GLSL } from './physicalMapsShader.ts';
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { PHYSICAL_MAPS_GLSL } from './physicalMapsShader.ts'
 
 /** Anisotropic GGX and a dielectric clear coat, from the Khronos material extension
  * equations. The frame follows the engine's UV derivatives; zero strength preserves the
@@ -45,4 +45,4 @@ vec3 anisotropicLobe(vec3 L,vec3 V,vec3 N,vec3 f0,float rough){
  return fresnel(f0,max(dot(V,H),0.0))*D*0.5/max(gv+gl,1e-6);
 }
 float coatAttenuation(vec3 V){return 1.0-physicalRead.z*fresnel(vec3(0.04),max(dot(coatNormal,V),0.0)).r;}
-`;
+`

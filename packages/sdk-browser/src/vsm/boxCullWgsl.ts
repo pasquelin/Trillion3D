@@ -111,4 +111,4 @@ fn vsmIsFineCaster(staticLayer:bool,casterPixelRadius:f32)->bool{
  if(staticLayer){return casterPixelRadius<vsm.detailPixelsStatic;}
  return casterPixelRadius<vsm.detailPixelsDynamic;
 }
-`;
+`

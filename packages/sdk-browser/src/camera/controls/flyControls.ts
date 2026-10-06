@@ -1,14 +1,14 @@
-import { createChangeGate, createControlBase } from './base.ts';
-import { axisOf, trackKeys, trackPointers, type KeyAxis } from './input.ts';
-import { controlPose } from './pose.ts';
-import { moveLocal } from './math.ts';
+import { createChangeGate, createControlBase } from './base.ts'
+import { axisOf, trackKeys, trackPointers, type KeyAxis } from './input.ts'
+import { controlPose } from './pose.ts'
+import { moveLocal } from './math.ts'
 import {
   multiplyQuaternion,
   normalizeQuaternion,
   localTurnQuaternion,
-} from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import { clampNumber } from '../../../../sdk-core/src/world/math/spherical.ts';
-import type { ControlCamera, SteeredCameraControls } from './types.ts';
+} from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+import { clampNumber } from '../../../../sdk-core/src/world/math/spherical.ts'
+import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
  * FLIGHT, six degrees of freedom: the camera keeps no up axis and no pivot. Keys translate
@@ -29,44 +29,44 @@ import type { ControlCamera, SteeredCameraControls } from './types.ts';
  */
 export interface FlyCameraControls extends SteeredCameraControls {
   /** Radians per second the roll turns at full deflection; pitch and yaw follow it by default. */
-  rollSpeed: number;
+  rollSpeed: number
   /** Radians per second the pitch turns at full deflection; `null` (the default) is `rollSpeed`. */
-  pitchSpeed: number | null;
+  pitchSpeed: number | null
   /** Radians per second the yaw turns at full deflection; `null` (the default) is `rollSpeed`. */
-  yawSpeed: number | null;
+  yawSpeed: number | null
   /**
    * Seconds a turn key takes to reach full deflection, and a released one to come back to
    * none: the turn rate ramps like a stick moved by hand. 0, the default, is on or off at once.
    * A stick still travelling moves the camera, so the frames go on until it is centred.
    */
-  inputResponse: number;
+  inputResponse: number
   /**
    * STICK, for a program that flies the camera: the pitch deflection in [-1, 1], nose up
    * positive as ArrowUp. Added to the keys and bounded to full deflection, it ramps over
    * `inputResponse` like a key, so a page's autopilot or mouse-aim instructor steers through
    * the same rates as the player. 0 by default.
    */
-  pitchInput: number;
+  pitchInput: number
   /** The yaw deflection in [-1, 1], left positive as ArrowLeft; as `pitchInput`. */
-  yawInput: number;
+  yawInput: number
   /** The roll deflection in [-1, 1], left positive as Q; as `pitchInput`. */
-  rollInput: number;
+  rollInput: number
   /**
    * Radians the view turns per pixel the pointer moves; `null` (the default) is half a turn per
    * surface height, whatever the surface's size.
    */
-  lookSpeed: number | null;
+  lookSpeed: number | null
   /** Whether dragging turns the view. */
-  dragToLook: boolean;
+  dragToLook: boolean
   /** Whether the pointer turns the view at all, by drag or hover; true by default. */
-  pointerLook: boolean;
+  pointerLook: boolean
   /**
    * CRUISE, off by default: the camera flies forward at `movementSpeed` with no key held, as
    * a plane does. W then adds `movementSpeed` (twice as fast) and S takes it away (the camera
    * hangs in place); it never flies backwards. Nothing moves until the next `update`, so a
    * host that redraws on `change` asks for one frame when it turns cruise on.
    */
-  autoForward: boolean;
+  autoForward: boolean
 }
 
 const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
@@ -74,7 +74,7 @@ const PITCH: KeyAxis = [['ArrowUp'], ['ArrowDown']],
   ROLL: KeyAxis = [['KeyQ'], ['KeyE']],
   STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
   RISE: KeyAxis = [['KeyR'], ['KeyF']],
-  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']];
+  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']]
 
 /** A flight's default speeds, stick and look, which `world.controls` keeps as its own. */
 export const FLY_DEFAULTS = {
@@ -88,28 +88,28 @@ export const FLY_DEFAULTS = {
   rollInput: 0,
   pointerLook: true,
   autoForward: false,
-};
+}
 
 export function createFlyCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): FlyCameraControls {
   const pose = controlPose(camera),
-    base = createControlBase();
+    base = createControlBase()
   const position = new Float64Array(3),
     orientation = new Float64Array(4),
     turn = new Float64Array(4),
     stick = new Float64Array(3),
-    moved = new Float64Array(7);
-  const gate = createChangeGate(base, 7);
+    moved = new Float64Array(7)
+  const gate = createChangeGate(base, 7)
   let lookPitch = 0,
     lookYaw = 0,
-    held = false;
+    held = false
   const look = (dx: number, dy: number) => {
-    const speed = api.lookSpeed ?? Math.PI / (surface.clientHeight || 1);
-    lookYaw -= dx * speed;
-    lookPitch -= dy * speed;
-  };
+    const speed = api.lookSpeed ?? Math.PI / (surface.clientHeight || 1)
+    lookYaw -= dx * speed
+    lookPitch -= dy * speed
+  }
   const api: FlyCameraControls = {
     ...base.api,
     object: pose.object,
@@ -117,39 +117,39 @@ export function createFlyCameraControls(
     ...FLY_DEFAULTS,
     dragToLook: true,
     update(delta = 0) {
-      const dt = delta > 0 ? delta : 0;
-      pose.readPosition(position);
-      pose.readOrientation(orientation);
+      const dt = delta > 0 ? delta : 0
+      pose.readPosition(position)
+      pose.readOrientation(orientation)
       // The stick travels towards the keys held by at most `dt / inputResponse` of its range.
-      const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity;
+      const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity
       const deflect = (axis: number, keyed: KeyAxis, input: number) => {
-        const wanted = clampNumber(axisOf(keys, ...keyed) + input, -1, 1);
-        return (stick[axis] += clampNumber(wanted - stick[axis], -travel, travel));
-      };
+        const wanted = clampNumber(axisOf(keys, ...keyed) + input, -1, 1)
+        return (stick[axis] += clampNumber(wanted - stick[axis], -travel, travel))
+      }
       const pitch =
           lookPitch + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,
         yaw = lookYaw + deflect(1, YAW, api.yawInput) * (api.yawSpeed ?? api.rollSpeed) * dt,
-        roll = deflect(2, ROLL, api.rollInput) * api.rollSpeed * dt;
-      lookPitch = lookYaw = 0;
+        roll = deflect(2, ROLL, api.rollInput) * api.rollSpeed * dt
+      lookPitch = lookYaw = 0
       if (pitch || yaw || roll)
         normalizeQuaternion(
           multiplyQuaternion(orientation, orientation, localTurnQuaternion(turn, pitch, yaw, roll)),
-        );
+        )
       const step = api.movementSpeed * dt,
-        advance = axisOf(keys, ...ADVANCE);
+        advance = axisOf(keys, ...ADVANCE)
       moveLocal(
         position,
         orientation,
         axisOf(keys, ...STRAFE) * step,
         axisOf(keys, ...RISE) * step,
         (api.autoForward ? Math.max(0, 1 + advance) : advance) * step,
-      );
-      pose.write(position, orientation);
-      moved.set(position);
-      moved.set(orientation, 3);
-      return gate(moved);
+      )
+      pose.write(position, orientation)
+      moved.set(position)
+      moved.set(orientation, 3)
+      return gate(moved)
     },
-  };
+  }
   const keys = trackKeys(surface, base, () => base.emit(), [
     PITCH,
     YAW,
@@ -157,22 +157,22 @@ export function createFlyCameraControls(
     STRAFE,
     RISE,
     ADVANCE,
-  ]);
+  ])
   trackPointers(surface, base, {
     down: () => (held = true),
     up: () => (held = false),
     drag: (dx, dy) => {
-      if (!api.dragToLook || !api.pointerLook) return;
-      look(dx, dy);
-      base.emit();
+      if (!api.dragToLook || !api.pointerLook) return
+      look(dx, dy)
+      base.emit()
     },
-  });
+  })
   // `dragToLook = false`: the pointer steers by hovering, which is why this listener is its
   // own and not the tracker's — the tracker only ever reports a pointer that is down.
   base.listen<PointerEvent>(surface, 'pointermove', (event) => {
-    if (api.dragToLook || held || !api.pointerLook) return;
-    look(event.movementX, event.movementY);
-    base.emit();
-  });
-  return api;
+    if (api.dragToLook || held || !api.pointerLook) return
+    look(event.movementX, event.movementY)
+    base.emit()
+  })
+  return api
 }

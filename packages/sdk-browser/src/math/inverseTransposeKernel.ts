@@ -12,4 +12,4 @@ fn invTranspose3Apply(p:InvT3,v:vec3f)->vec3f{
  return select(${fallback},p.scale*carried,p.regular);
 }
 fn inverseTranspose3(m:mat3x3f,v:vec3f)->vec3f{return invTranspose3Apply(invTranspose3Prep(m),v);}
-fn uniteOuZero(v:vec3f)->vec3f{return select(vec3f(0.0),normalize(v),dot(v,v)>0.0);}`;
+fn uniteOuZero(v:vec3f)->vec3f{return select(vec3f(0.0),normalize(v),dot(v,v)>0.0);}`

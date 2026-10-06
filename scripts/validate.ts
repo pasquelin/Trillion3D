@@ -1,15 +1,15 @@
-import { pnpmCommand } from './only-pnpm.ts';
-import { run } from './run.ts';
-import { NATIVE_STEPS, skipsNative, stepsToRun } from './validate-steps.ts';
+import { pnpmCommand } from './only-pnpm.ts'
+import { run } from './run.ts'
+import { NATIVE_STEPS, skipsNative, stepsToRun } from './validate-steps.ts'
 
 // `validate` runs every gate; `validate --group <name>` runs one group, which is how the CI gives
 // each of them its own parallel job (`.github/workflows/quality.yml`).
-const groupFlag = process.argv.indexOf('--group');
-const group = groupFlag === -1 ? undefined : process.argv[groupFlag + 1];
+const groupFlag = process.argv.indexOf('--group')
+const group = groupFlag === -1 ? undefined : process.argv[groupFlag + 1]
 
 if (skipsNative(process.env))
   console.log(
     `Native steps skipped, binaries restored for unchanged Rust sources: ${NATIVE_STEPS.join(', ')}`,
-  );
+  )
 
-for (const step of stepsToRun(process.env, group)) run(...pnpmCommand('run', step));
+for (const step of stepsToRun(process.env, group)) run(...pnpmCommand('run', step))

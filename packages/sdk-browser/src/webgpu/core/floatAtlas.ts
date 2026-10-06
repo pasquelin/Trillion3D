@@ -1,4 +1,4 @@
-import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts';
+import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts'
 
 /**
  * THE FLOAT ATLAS (#1410): a list of floats the passes read by index, kept in an `r32float`
@@ -11,27 +11,27 @@ import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts';
  * `FLOAT_ATLAS_WIDTH` allows it, so it weighs the very bytes the buffer did: the memory budgets
  * the engine funds from them see no change.
  */
-const FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE;
-const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE;
+const FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE
+const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE
 /** Layers every WebGPU device holds (`maxTextureArrayLayers`). */
-const FLOAT_ATLAS_LAYERS = 256;
+const FLOAT_ATLAS_LAYERS = 256
 
 /** Width, rows and layers of an atlas of `floats` floats: the fewest rows that divide them — a
  *  layer's rows, or whole layers —; rows of `FLOAT_ATLAS_WIDTH`, padded, when none does. */
 function floatAtlasExtent(floats: number): [number, number, number] {
   const count = Math.max(1, floats),
-    least = Math.ceil(count / FLOAT_ATLAS_WIDTH);
+    least = Math.ceil(count / FLOAT_ATLAS_WIDTH)
   for (let rows = least; rows <= FLOAT_ATLAS_ROWS; rows++)
-    if (count % rows === 0) return [count / rows, rows, 1];
-  const perLayer = FLOAT_ATLAS_ROWS;
+    if (count % rows === 0) return [count / rows, rows, 1]
+  const perLayer = FLOAT_ATLAS_ROWS
   for (
     let layers = Math.max(2, Math.ceil(least / perLayer));
     layers <= FLOAT_ATLAS_LAYERS;
     layers++
   )
-    if (count % (layers * perLayer) === 0) return [count / (layers * perLayer), perLayer, layers];
-  const layers = Math.ceil(least / perLayer);
-  return [FLOAT_ATLAS_WIDTH, layers > 1 ? perLayer : least, layers];
+    if (count % (layers * perLayer) === 0) return [count / (layers * perLayer), perLayer, layers]
+  const layers = Math.ceil(least / perLayer)
+  return [FLOAT_ATLAS_WIDTH, layers > 1 ? perLayer : least, layers]
 }
 
 /** Whether a device of `limits` makes an atlas of `floats` floats: WebGPU's guaranteed limits
@@ -40,25 +40,25 @@ export function floatAtlasFits(
   floats: number,
   limits?: { maxTextureDimension2D?: number; maxTextureArrayLayers?: number },
 ) {
-  const [width, rows, layers] = floatAtlasExtent(floats);
-  const side = limits?.maxTextureDimension2D ?? PORTABLE_TEXTURE_SIDE;
-  const most = limits?.maxTextureArrayLayers ?? FLOAT_ATLAS_LAYERS;
-  return width <= side && rows <= side && layers <= most;
+  const [width, rows, layers] = floatAtlasExtent(floats)
+  const side = limits?.maxTextureDimension2D ?? PORTABLE_TEXTURE_SIDE
+  const most = limits?.maxTextureArrayLayers ?? FLOAT_ATLAS_LAYERS
+  return width <= side && rows <= side && layers <= most
 }
 
 /** A zeroed atlas of `floats` floats and its view, which the passes bind whole. */
 export function createFloatAtlas(device: GPUDevice, label: string, floats: number) {
-  const extent = floatAtlasExtent(floats);
+  const extent = floatAtlasExtent(floats)
   const texture = device.createTexture({
     label,
     size: extent,
     format: 'r32float',
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
-  });
-  const bytes = extent[0] * extent[1] * extent[2] * 4;
-  return { texture, extent, bytes, view: texture.createView({ dimension: '2d-array' }) };
+  })
+  const bytes = extent[0] * extent[1] * extent[2] * 4
+  return { texture, extent, bytes, view: texture.createView({ dimension: '2d-array' }) }
 }
-export type FloatAtlas = ReturnType<typeof createFloatAtlas>;
+export type FloatAtlas = ReturnType<typeof createFloatAtlas>
 
 /** Writes `count` floats of `data`, from its float `offset`, at float `at` of `atlas`: whole rows
  *  at once, a partial row alone. Nothing is allocated. */
@@ -70,24 +70,24 @@ export function writeFloatAtlas(
   offset: number,
   count: number,
 ) {
-  const side = atlas.extent[0];
+  const side = atlas.extent[0]
   while (count > 0) {
     const column = at % side,
-      row = Math.floor(at / side);
+      row = Math.floor(at / side)
     const y = row % FLOAT_ATLAS_ROWS,
-      layer = Math.floor(row / FLOAT_ATLAS_ROWS);
-    const rows = column ? 0 : Math.min(Math.floor(count / side), FLOAT_ATLAS_ROWS - y);
-    const width = rows ? side : Math.min(count, side - column);
+      layer = Math.floor(row / FLOAT_ATLAS_ROWS)
+    const rows = column ? 0 : Math.min(Math.floor(count / side), FLOAT_ATLAS_ROWS - y)
+    const width = rows ? side : Math.min(count, side - column)
     queue.writeTexture(
       { texture: atlas.texture, origin: [column, y, layer] },
       data,
       { offset: offset * 4, bytesPerRow: side * 4 },
       [width, Math.max(1, rows), 1],
-    );
-    const written = width * Math.max(1, rows);
-    at += written;
-    offset += written;
-    count -= written;
+    )
+    const written = width * Math.max(1, rows)
+    at += written
+    offset += written
+    count -= written
   }
 }
 
@@ -95,4 +95,4 @@ export function writeFloatAtlas(
  *  its row width read from the texture. The layer is the row's quotient by the constant
  *  `FLOAT_ATLAS_ROWS`, not a second division by the width: `⌊⌊i/w⌋/rows⌋ = ⌊i/(w·rows)⌋`. */
 export const floatAtlasWgsl = (texture: string, name: string) =>
-  `fn ${name}(i:u32)->f32{let w=textureDimensions(${texture}).x;let row=i/w;return textureLoad(${texture},vec2u(i%w,row%${FLOAT_ATLAS_ROWS}u),row/${FLOAT_ATLAS_ROWS}u,0).r;}`;
+  `fn ${name}(i:u32)->f32{let w=textureDimensions(${texture}).x;let row=i/w;return textureLoad(${texture},vec2u(i%w,row%${FLOAT_ATLAS_ROWS}u),row/${FLOAT_ATLAS_ROWS}u,0).r;}`

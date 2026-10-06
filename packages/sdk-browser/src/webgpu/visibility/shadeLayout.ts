@@ -1,10 +1,10 @@
-import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
-import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
-import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts';
+import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
+import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts'
+import { RECEIVER_TARGET_FORMAT } from '../../visibility/shader/receiverTargetWgsl.ts'
 /** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
 export function shadeLayout(device: GPUDevice) {
-  const b = SHADE_BINDINGS;
-  const fragment = GPUShaderStage.FRAGMENT;
+  const b = SHADE_BINDINGS
+  const fragment = GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
     entries: [
       {
@@ -40,5 +40,5 @@ export function shadeLayout(device: GPUDevice) {
       },
       ...atlasLayoutEntries(b.data),
     ],
-  });
+  })
 }

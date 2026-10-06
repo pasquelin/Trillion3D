@@ -1,10 +1,10 @@
-import { DRAW_UNPAGED } from './plan.ts';
-import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts';
-import { INSTANCE_CULL_SHIFT } from './runs.ts';
-import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts';
-import { expandUniformWgsl } from './expandUniform.ts';
-import { EXPAND_BINDING as B } from './expandBindings.ts';
-import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
+import { DRAW_UNPAGED } from './plan.ts'
+import { PLAN_PIPELINE_MASK, PLAN_SHIFT, PLAN_VERTEX_CULL_BIT } from './planEntry.ts'
+import { INSTANCE_CULL_SHIFT } from './runs.ts'
+import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
+import { expandUniformWgsl } from './expandUniform.ts'
+import { EXPAND_BINDING as B } from './expandBindings.ts'
+import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -17,15 +17,15 @@ export const BLEND_EXPAND_ENTRIES = [
   'scanBlendGroups',
   'placeBlendEntries',
   'writeBlendRuns',
-];
+]
 
 export function blendExpandDispatch(out: number[], entries: number, runs: number) {
-  const groups = Math.ceil(Math.max(1, entries) / EXPAND_GROUP);
-  out[0] = groups;
-  out[1] = 1;
-  out[2] = groups;
-  out[3] = Math.ceil(Math.max(1, runs) / EXPAND_GROUP);
-  return out;
+  const groups = Math.ceil(Math.max(1, entries) / EXPAND_GROUP)
+  out[0] = groups
+  out[1] = 1
+  out[2] = groups
+  out[3] = Math.ceil(Math.max(1, runs) / EXPAND_GROUP)
+  return out
 }
 
 /**
@@ -145,4 +145,4 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u){
  args[o+2u]=base<<uni.vertexShift;
  args[o+3u]=0u;
 }
-`;
+`

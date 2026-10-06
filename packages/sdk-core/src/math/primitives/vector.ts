@@ -1,4 +1,4 @@
-import type { NumberSink } from '../matrix/matrix4.ts';
+import type { NumberSink } from '../matrix/matrix4.ts'
 
 /**
  * 3 and 4 vectors of the math kernel: products and transforms by a column-major 4×4
@@ -8,7 +8,7 @@ import type { NumberSink } from '../matrix/matrix4.ts';
 
 /** `a · b` on three components read at `aAt` and `bAt`: one buffer plus an offset, never a view. */
 export function dotVector3(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
-  return a[aAt] * b[bAt] + a[aAt + 1] * b[bAt + 1] + a[aAt + 2] * b[bAt + 2];
+  return a[aAt] * b[bAt] + a[aAt + 1] * b[bAt + 1] + a[aAt + 2] * b[bAt + 2]
 }
 
 /**
@@ -25,14 +25,14 @@ export function crossVector3<T extends NumberSink>(
 ) {
   const ax = a[aAt],
     ay = a[aAt + 1],
-    az = a[aAt + 2];
+    az = a[aAt + 2]
   const bx = b[bAt],
     by = b[bAt + 1],
-    bz = b[bAt + 2];
-  out[outAt] = ay * bz - az * by;
-  out[outAt + 1] = az * bx - ax * bz;
-  out[outAt + 2] = ax * by - ay * bx;
-  return out;
+    bz = b[bAt + 2]
+  out[outAt] = ay * bz - az * by
+  out[outAt + 1] = az * bx - ax * bz
+  out[outAt + 2] = ax * by - ay * bx
+  return out
 }
 
 /**
@@ -48,10 +48,10 @@ export function transformAffinePoint<T extends NumberSink>(
   z: number,
   outOffset = 0,
 ) {
-  out[outOffset] = m[0] * x + m[4] * y + m[8] * z + m[12];
-  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z + m[13];
-  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z + m[14];
-  return out;
+  out[outOffset] = m[0] * x + m[4] * y + m[8] * z + m[12]
+  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z + m[13]
+  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z + m[14]
+  return out
 }
 
 /**
@@ -67,23 +67,23 @@ export function transformHomogeneousPoint<T extends NumberSink>(
   z: number,
   outOffset = 0,
 ) {
-  transformAffinePoint(out, m, x, y, z, outOffset);
-  out[outOffset + 3] = m[3] * x + m[7] * y + m[11] * z + m[15];
-  return out;
+  transformAffinePoint(out, m, x, y, z, outOffset)
+  out[outOffset + 3] = m[3] * x + m[7] * y + m[11] * z + m[15]
+  return out
 }
 
 /** Normalises the vector at `at` in place: each component is multiplied by `1 / (length || 1)`, so a zero vector stays zero. */
 export function normalizeVector3(v: NumberSink, at = 0) {
   const inverse =
-    1 / (Math.sqrt(v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]) || 1);
-  v[at] *= inverse;
-  v[at + 1] *= inverse;
-  v[at + 2] *= inverse;
+    1 / (Math.sqrt(v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]) || 1)
+  v[at] *= inverse
+  v[at + 1] *= inverse
+  v[at + 2] *= inverse
 }
 
 /** The squared length of the vector read at `at`: the three squares summed in a fixed order. */
 export function lengthSqVector3(v: ArrayLike<number>, at = 0) {
-  return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2];
+  return v[at] * v[at] + v[at + 1] * v[at + 1] + v[at + 2] * v[at + 2]
 }
 
 /** `out.addVectors(a, b)`: `out = a + b` component by component; `out` may be `a` or `b`. */
@@ -92,10 +92,10 @@ export function addVector3<T extends NumberSink>(
   a: ArrayLike<number>,
   b: ArrayLike<number>,
 ) {
-  out[0] = a[0] + b[0];
-  out[1] = a[1] + b[1];
-  out[2] = a[2] + b[2];
-  return out;
+  out[0] = a[0] + b[0]
+  out[1] = a[1] + b[1]
+  out[2] = a[2] + b[2]
+  return out
 }
 
 /** `out.subVectors(a, b)`: `out = a - b` component by component; `out` may be `a` or `b`. */
@@ -104,18 +104,18 @@ export function subVector3<T extends NumberSink>(
   a: ArrayLike<number>,
   b: ArrayLike<number>,
 ) {
-  out[0] = a[0] - b[0];
-  out[1] = a[1] - b[1];
-  out[2] = a[2] - b[2];
-  return out;
+  out[0] = a[0] - b[0]
+  out[1] = a[1] - b[1]
+  out[2] = a[2] - b[2]
+  return out
 }
 
 /** `v.multiplyScalar(s)`: the three components of `out` multiplied in place. */
 export function scaleVector3<T extends NumberSink>(out: T, s: number) {
-  out[0] *= s;
-  out[1] *= s;
-  out[2] *= s;
-  return out;
+  out[0] *= s
+  out[1] *= s
+  out[2] *= s
+  return out
 }
 
 /** `out.copy(a).multiplyScalar(s)`: `out = a · s` component by component, written at `outAt`, read at `aAt`. */
@@ -126,18 +126,18 @@ export function copyScaledVector3<T extends NumberSink>(
   outAt = 0,
   aAt = 0,
 ) {
-  out[outAt] = a[aAt] * s;
-  out[outAt + 1] = a[aAt + 1] * s;
-  out[outAt + 2] = a[aAt + 2] * s;
-  return out;
+  out[outAt] = a[aAt] * s
+  out[outAt + 1] = a[aAt + 1] * s
+  out[outAt + 2] = a[aAt + 2] * s
+  return out
 }
 
 /** `v.addScaledVector(a, s)`: `out += a · s`, component by component. */
 export function addScaledVector3<T extends NumberSink>(out: T, a: ArrayLike<number>, s: number) {
-  out[0] += a[0] * s;
-  out[1] += a[1] * s;
-  out[2] += a[2] * s;
-  return out;
+  out[0] += a[0] * s
+  out[1] += a[1] * s
+  out[2] += a[2] * s
+  return out
 }
 
 /**
@@ -151,10 +151,10 @@ export function applyMatrix3Vector3<T extends NumberSink>(
   y: number,
   z: number,
 ) {
-  out[0] = m[0] * x + m[3] * y + m[6] * z;
-  out[1] = m[1] * x + m[4] * y + m[7] * z;
-  out[2] = m[2] * x + m[5] * y + m[8] * z;
-  return out;
+  out[0] = m[0] * x + m[3] * y + m[6] * z
+  out[1] = m[1] * x + m[4] * y + m[7] * z
+  out[2] = m[2] * x + m[5] * y + m[8] * z
+  return out
 }
 
 /**
@@ -169,11 +169,11 @@ export function transformDirectionVector3<T extends NumberSink>(
   z: number,
   outOffset = 0,
 ) {
-  out[outOffset] = m[0] * x + m[4] * y + m[8] * z;
-  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z;
-  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z;
-  normalizeVector3(out, outOffset);
-  return out;
+  out[outOffset] = m[0] * x + m[4] * y + m[8] * z
+  out[outOffset + 1] = m[1] * x + m[5] * y + m[9] * z
+  out[outOffset + 2] = m[2] * x + m[6] * y + m[10] * z
+  normalizeVector3(out, outOffset)
+  return out
 }
 
 /**
@@ -182,10 +182,10 @@ export function transformDirectionVector3<T extends NumberSink>(
  * keyed on numbers needs, allocation-free.
  */
 export function keepNumbers(kept: Float64Array, next: ArrayLike<number>) {
-  let same = true;
+  let same = true
   for (let i = 0; i < kept.length; i++) {
-    if (!Object.is(kept[i], next[i])) same = false;
-    kept[i] = next[i];
+    if (!Object.is(kept[i], next[i])) same = false
+    kept[i] = next[i]
   }
-  return same;
+  return same
 }

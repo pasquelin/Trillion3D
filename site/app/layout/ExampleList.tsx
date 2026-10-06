@@ -1,18 +1,18 @@
-import { Thumbnail } from '../ui/Thumbnail.tsx';
-import { examplePlaceholder } from '../examples/list.ts';
+import { Thumbnail } from '../ui/Thumbnail.tsx'
+import { examplePlaceholder } from '../examples/list.ts'
 
 interface ExampleLink {
-  key: string;
-  label: string;
-  href: string;
-  thumbnail: string;
-  active: boolean;
+  key: string
+  label: string
+  href: string
+  thumbnail: string
+  active: boolean
 }
 
 export interface ExampleGroup {
-  id: string;
-  title: string;
-  items: ExampleLink[];
+  id: string
+  title: string
+  items: ExampleLink[]
 }
 
 /** The Examples sidebar's list: theme by theme, one card per example — its render the width of
@@ -39,5 +39,5 @@ export function ExampleList({ groups }: { groups: ExampleGroup[] }) {
         </section>
       ))}
     </div>
-  );
+  )
 }

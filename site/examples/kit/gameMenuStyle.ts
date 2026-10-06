@@ -41,7 +41,7 @@ kbd.trillion3d-cap { min-width: 26px; padding: 3px 7px; border-radius: 6px; text
   font: 600 13px/1.2 ui-monospace, 'SF Mono', Menlo, monospace; background: var(--color-base-300);
   border: 1px solid color-mix(in oklab, var(--color-base-content) 25%, transparent);
   border-bottom-width: 3px; }
-`;
+`
 
 /** The page's rule the kit adds once: what a page marks `data-hud` shows only while playing. */
-export const HUD_RULE = "html[data-game='menu'] [data-hud] { visibility: hidden !important; }";
+export const HUD_RULE = "html[data-game='menu'] [data-hud] { visibility: hidden !important; }"

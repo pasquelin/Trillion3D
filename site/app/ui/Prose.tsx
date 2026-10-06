@@ -1,5 +1,5 @@
 interface InlineProps {
-  text?: string;
+  text?: string
 }
 
 export function Inline({ text = '' }: InlineProps) {
@@ -11,20 +11,20 @@ export function Inline({ text = '' }: InlineProps) {
           <code key={index} dir="ltr">
             {part.slice(1, -1)}
           </code>
-        );
-      if (part.startsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>;
-      if (part.startsWith('*')) return <em key={index}>{part.slice(1, -1)}</em>;
-      return part;
-    });
+        )
+      if (part.startsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>
+      if (part.startsWith('*')) return <em key={index}>{part.slice(1, -1)}</em>
+      return part
+    })
 }
 
 interface ProseProps {
-  html: string;
+  html: string
 }
 
 /** Only repository-authored documentation HTML belongs here; never user input. */
 export function Prose({ html }: ProseProps) {
-  return <div className="trillion3d-prose" dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className="trillion3d-prose" dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 /** Repository-authored HTML steps, numbered in reading order. */
@@ -37,5 +37,5 @@ export function Steps({ steps }: { steps: string[] }) {
         ))}
       </ol>
     </div>
-  );
+  )
 }

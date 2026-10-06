@@ -3,34 +3,34 @@ import {
   EVENT_WORDS,
   PHYSICS_LAYOUT_VERSION,
   POSE_WORDS,
-} from '../../../sdk-core/src/physics/layout.ts';
-import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts';
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import type { JoltThreadStart } from './joltThreads.ts';
-import type { CharacterReport } from './characterDriver.ts';
+} from '../../../sdk-core/src/physics/layout.ts'
+import { MAX_CATCH_UP_STEPS, type PhysicsBudget } from '../../../sdk-core/src/physics/options.ts'
+import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts'
+import type { JoltThreadStart } from './joltThreads.ts'
+import type { CharacterReport } from './characterDriver.ts'
 import type {
   CharacterInput,
   CharacterSettings,
-} from '../../../sdk-core/src/collision/characterSettings.ts';
+} from '../../../sdk-core/src/collision/characterSettings.ts'
 
 /** Version of the page ↔ worker messages below and of the word layouts they carry. */
-export const PHYSICS_PROTOCOL = PHYSICS_LAYOUT_VERSION;
+export const PHYSICS_PROTOCOL = PHYSICS_LAYOUT_VERSION
 
 /** What the page tells the physics worker. */
 export type ToPhysics =
   | {
-      type: 'start';
-      protocol: number;
+      type: 'start'
+      protocol: number
       /** URL of `joltPhysics.wasm`, or of `joltPhysicsThreads.wasm` when `threads` is above 1. */
-      wasm: string;
-      budget: PhysicsBudget;
+      wasm: string
+      budget: PhysicsBudget
       /** Threads that step the module, the worker's included (`budget.threads`, capped). */
-      threads: number;
+      threads: number
       /** Seconds of one fixed step: the page's clock owes them (`stepClock.ts`), the worker
        *  takes them. */
-      step: number;
+      step: number
       /** Two result buffers, exchanged back and forth. */
-      buffers: ArrayBuffer[];
+      buffers: ArrayBuffer[]
     }
   /** A frame's commands, applied before the next step. */
   | { type: 'commands'; words: Uint32Array<ArrayBuffer> }
@@ -50,7 +50,7 @@ export type ToPhysics =
   /** A result buffer the page has read, handed back. */
   | { type: 'buffer'; buffer: ArrayBuffer }
   /** Sent by the worker to a worker of its own: run one of the module's threads. */
-  | JoltThreadStart;
+  | JoltThreadStart
 
 /**
  * A tick's records of one kind (`recordTick.ts`), `id, count, …` then `count` items each: in
@@ -59,48 +59,48 @@ export type ToPhysics =
  * when the tick wrote none twice). The page draws between the two (`twoSteps.ts`).
  */
 export interface TickRecords {
-  words: Uint32Array;
-  befores: Uint32Array | null;
+  words: Uint32Array
+  befores: Uint32Array | null
 }
 
 /** One tick's results: the poses and events of every step it took, in one buffer. */
 export interface PhysicsResults {
-  type: 'results';
-  buffer: ArrayBuffer;
+  type: 'results'
+  buffer: ArrayBuffer
   /** Pose records from the buffer's start, event records from `eventsAt` (`layout.ts`). */
-  poses: number;
-  events: number;
+  poses: number
+  events: number
   /** Enters dropped past `budget.contactEvents` in one step. */
-  dropped: number;
+  dropped: number
   /** Fixed steps taken. */
-  steps: number;
+  steps: number
   /** The page's step the simulation stands at after them (`advance.to`): the state its poses
    *  hold. */
-  step: number;
+  step: number
   /** Whether the world rests after them — every body asleep, no leave owed, the character
    *  still —: it steps no more until the page sends something that wakes it. */
-  resting: boolean;
+  resting: boolean
   /** The page's messages that may wake the world the worker had run by then (commands, the
    *  character, keys): a rest the page sent more since says nothing of them. */
-  heard: number;
+  heard: number
   /** Worker milliseconds spent in the module during this tick: its own clock, never the page's. */
-  stepMs: number;
+  stepMs: number
   /** Worker milliseconds of the tick's slowest fixed step, on the same clock. */
-  stepMaxMs: number;
+  stepMaxMs: number
   /** Bodies awake after the tick. */
-  active: number;
+  active: number
   /** The character after the tick, when it has one and it stepped; its feet, as a record of one
    *  item of 3 words (`recordTick.ts`). */
-  character: CharacterReport | null;
-  feet: TickRecords | null;
+  character: CharacterReport | null
+  feet: TickRecords | null
   /** Each vehicle the tick wrote (`vehicleLayout.ts`); a parked one is not written: `null` when
    *  none. */
-  vehicles: TickRecords | null;
+  vehicles: TickRecords | null
   /** The soft bodies the tick moved (`softLayout.ts`), or `null` when none moved. */
-  soft: TickRecords | null;
+  soft: TickRecords | null
   /** Command buffers the worker ran since its last results, handed back for the page to fill
    *  again (`CommandWriter.recycle`). */
-  spent: ArrayBuffer[];
+  spent: ArrayBuffer[]
 }
 
 /**
@@ -123,19 +123,19 @@ export type FromPhysics =
    *  their rest size with an edge pulled past five times its length — and brought back to a good
    *  state, by engine id: they stay simulated (`soft.cpp`). */
   | { type: 'recovered'; bodies: number[] }
-  | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] };
+  | { type: 'error'; code: string; message: string; fatal: boolean; bodies?: number[] }
 
 /** Word where a result buffer's earlier poses start: after one pose per body. Record `r` there
  *  is the pose of record `r`'s body one step before it (`tickResults.ts`). */
-export const beforesAt = (budget: Pick<PhysicsBudget, 'bodies'>) => budget.bodies * POSE_WORDS;
+export const beforesAt = (budget: Pick<PhysicsBudget, 'bodies'>) => budget.bodies * POSE_WORDS
 
 /** Whether the earlier-state word `before` beside a record whose id word is `id` holds its state a
  *  step before: one the tick met once has its id word inverted there (`~id`), naming none. A
  *  pose's sleep bit may change between the two steps. */
-export const keptBefore = (id: number, before: number) => ((id ^ before) & ~ASLEEP_BIT) === 0;
+export const keptBefore = (id: number, before: number) => ((id ^ before) & ~ASLEEP_BIT) === 0
 
 /** Word where a result buffer's events start: after two poses per body. */
-export const eventsAt = (budget: PhysicsBudget) => 2 * beforesAt(budget);
+export const eventsAt = (budget: PhysicsBudget) => 2 * beforesAt(budget)
 
 /**
  * Words of one result buffer: every body's pose once, its pose a step before when the tick took
@@ -144,27 +144,27 @@ export const eventsAt = (budget: PhysicsBudget) => 2 * beforesAt(budget);
  * might not fit: nothing is ever cut.
  */
 export const resultWords = (budget: PhysicsBudget) =>
-  eventsAt(budget) + budget.contactEvents * MAX_CATCH_UP_STEPS * EVENT_WORDS;
+  eventsAt(budget) + budget.contactEvents * MAX_CATCH_UP_STEPS * EVENT_WORDS
 
 /** What the world's physics reports: counts from the last tick, and both clocks apart. */
 export interface PhysicsStats {
-  /** Bodies the simulation holds. */ bodies: number;
-  /** Bodies awake after the last tick. */ active: number;
+  /** Bodies the simulation holds. */ bodies: number
+  /** Bodies awake after the last tick. */ active: number
   /** Worker milliseconds per fixed step, last tick: the worker's clock, never added to the page's. */
-  stepMs: number;
+  stepMs: number
   /** Worker milliseconds of the slowest fixed step of the last tick: a slow step the mean hides. */
-  stepMaxMs: number;
+  stepMaxMs: number
   /** Page milliseconds the physics took in the last frame (the `physics` CPU stage). */
-  mainMs: number;
-  /** Poses the last tick sent back. */ poses: number;
-  /** Contact events the last tick sent back. */ events: number;
+  mainMs: number
+  /** Poses the last tick sent back. */ poses: number
+  /** Contact events the last tick sent back. */ events: number
   /** `enter` events dropped since the physics started, past `budget.physics.contactEvents` in
    *  one step (their `leave` is never sent). */
-  droppedEvents: number;
+  droppedEvents: number
   /** Soft bodies brought back at rest to their last good state (with none, their rest shape) since
    *  the physics started, each time one diverged on amplitude; they also raise a
    *  `PHYSICS_DIVERGED` that names them and stops nothing, at most once a second. */
-  softRecoveries: number;
+  softRecoveries: number
 }
 
 /** The stats of a world whose physics holds nothing yet. */
@@ -178,4 +178,4 @@ export const emptyPhysicsStats = (): PhysicsStats => ({
   events: 0,
   droppedEvents: 0,
   softRecoveries: 0,
-});
+})

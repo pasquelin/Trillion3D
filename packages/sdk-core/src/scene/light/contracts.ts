@@ -13,21 +13,21 @@
  * a position would be a promise the engine would not keep.
  */
 export interface SceneLight {
-  /** The light's name. */ id: string;
-  /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect';
+  /** The light's name. */ id: string
+  /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect'
   /** Point and spot only: the point the light comes from, in metres. */
-  position?: [number, number, number];
+  position?: [number, number, number]
   /** Spot: the cone axis. Directional: the propagation direction (from the sun toward the
    *  ground). Rect: the normal of its emitting face. */
-  direction?: [number, number, number];
-  /** Its colour, linear RGB. */ color: [number, number, number];
-  /** How strong it is. */ intensity: number;
+  direction?: [number, number, number]
+  /** Its colour, linear RGB. */ color: [number, number, number]
+  /** How strong it is. */ intensity: number
   /** Point, spot and rect: the range in metres, where energy vanishes exactly. */
-  range?: number;
-  /** A spot's opening. */ coneAngle?: number;
+  range?: number
+  /** A spot's opening. */ coneAngle?: number
   /** Spot only: the share of the cone, from its edge inward, over which the light fades in
    *  `[0, 1]`; without it the edge softens over `spotEdgeSoftness`. */
-  penumbra?: number;
+  penumbra?: number
   /**
    * Point and spot only: the radius, in metres, of the envelope that holds the source.
    * A real light is always housed in something — lantern glass, reflector, shade
@@ -38,18 +38,18 @@ export interface SceneLight {
    * property of the light, never an object name or a material type: the engine only knows
    * surfaces. Strictly positive and strictly less than the range; if absent, nothing changes.
    */
-  emitterRadius?: number;
+  emitterRadius?: number
   /** Directional only: source disk angular radius in radians; absent is an ideal point source. */
-  angularRadius?: number;
+  angularRadius?: number
   /** Rect only: the unit axis its width runs along, perpendicular to `direction`. */
-  right?: [number, number, number];
+  right?: [number, number, number]
   /** Rect only: its width and height, in metres. */
-  size?: [number, number];
-  /** Whether it casts shadows. */ castsShadow: boolean;
+  size?: [number, number]
+  /** Whether it casts shadows. */ castsShadow: boolean
 }
 /** Exposure, display curve and the irradiance from every direction (`../core/environment.ts`). */
-export type { SceneEnvironment } from '../core/environment.ts';
-/** The version of the light contract this engine reads. */ export const SCENE_LIGHT_VERSION = 2;
+export type { SceneEnvironment } from '../core/environment.ts'
+/** The version of the light contract this engine reads. */ export const SCENE_LIGHT_VERSION = 2
 /**
  * What the host asks to see. `lit` is real lighting and that alone; `unlit` is the raw-albedo
  * diagnostic view — material colour as-is, with no light, no ambient and
@@ -60,7 +60,7 @@ export type { SceneEnvironment } from '../core/environment.ts';
  * exposure and output as linear values without ACES or sRGB. This is what the harness compares to
  * the compiler oracle; it is not an image to look at, and it is black without a rigged bounce.
  */
-export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
+export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'
 /**
  * Published settings of direct lighting. These are named product choices, not buried
  * constants: every runtime bound rereads them, and the diagnostic publishes them as-is.
@@ -136,45 +136,45 @@ export const LIGHT_SETTINGS = {
    * no bias is a length of the scene.
    */
   shadowNormalOffsetTexels: 0.5,
-} as const;
+} as const
 /**
  * Shadow slices the atlas addresses, under the page table's own rules (#818) — never a limit on
  * the lights: a shadow-casting light beyond them lights without a shadow, and the frame counts it
  * (`shadowCastersUnsliced`).
  */
-export const MAX_SHADOW_SLICES = 64;
+export const MAX_SHADOW_SLICES = 64
 
 /** Faces of a point light's slice: six. */
-export const POINT_FACES = 6;
+export const POINT_FACES = 6
 /** Floats of a light in the GPU buffer: five `vec4f`. */
-export const SCENE_LIGHT_FLOATS = 20;
+export const SCENE_LIGHT_FLOATS = 20
 /** Light-buffer header: count, then three reserved words. */
-export const SCENE_LIGHT_HEADER_FLOATS = 4;
+export const SCENE_LIGHT_HEADER_FLOATS = 4
 /** Rank of a light kind in the GPU buffer: the shader refers to it by this number, not by name.
  *  @property point - A bulb. @property spot - A torch. @property directional - The sun.
  *  @property rect - A glowing rectangle. */
-export const LIGHT_KIND = { point: 0, spot: 1, directional: 2, rect: 3 } as const;
+export const LIGHT_KIND = { point: 0, spot: 1, directional: 2, rect: 3 } as const
 /** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
 export interface ShadowViewpoint {
-  /** Where the viewpoint stands. */ position: readonly [number, number, number];
-  /** Which way it looks. */ forward: readonly [number, number, number];
-  /** Half its vertical opening. */ halfFovY: number;
-  /** Width over height. */ aspect: number;
-  /** Nearest distance. */ near: number;
-  /** Farthest distance. */ far: number;
+  /** Where the viewpoint stands. */ position: readonly [number, number, number]
+  /** Which way it looks. */ forward: readonly [number, number, number]
+  /** Half its vertical opening. */ halfFovY: number
+  /** Width over height. */ aspect: number
+  /** Nearest distance. */ near: number
+  /** Farthest distance. */ far: number
   /** World size of one pixel at the near plane: the finest footprint any pixel of the view has. */
-  pixelNear: number;
+  pixelNear: number
 }
 /** The eleven numbers of a view, in order: position, axis, half-field, aspect, near, far, and
  *  the pixel's footprint at the near plane. */
-export const VIEW_NUMBERS = 11;
+export const VIEW_NUMBERS = 11
 export function writeView<T extends Float32Array | Float64Array>(view: ShadowViewpoint, out: T) {
-  out.set(view.position);
-  out.set(view.forward, 3);
-  out[6] = view.halfFovY;
-  out[7] = view.aspect;
-  out[8] = view.near;
-  out[9] = view.far;
-  out[10] = view.pixelNear;
-  return out;
+  out.set(view.position)
+  out.set(view.forward, 3)
+  out[6] = view.halfFovY
+  out[7] = view.aspect
+  out[8] = view.near
+  out[9] = view.far
+  out[10] = view.pixelNear
+  return out
 }
