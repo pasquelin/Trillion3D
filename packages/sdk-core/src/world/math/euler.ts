@@ -1,8 +1,8 @@
 import { composeMatrix4At } from '../../math/matrix/matrix4Compose.ts';
 import { Observed } from './observed.ts';
+import { clampNumber } from './spherical.ts';
 import type { XYZWLike as Q } from './likes.ts';
 
-const clamp = (v: number) => Math.min(1, Math.max(-1, v));
 /**
  * Beyond this the middle angle is at its pole and the outer two share one degree of freedom.
  * Declared: the sine of the pitch past which the rotation matrix is treated as gimbal-locked;
@@ -122,42 +122,42 @@ export class Euler extends Observed {
       z = 0;
     switch (order) {
       case 'YXZ':
-        x = Math.asin(-clamp(m23));
+        x = Math.asin(-clampNumber(m23, -1, 1));
         if (Math.abs(m23) < POLE) {
           y = Math.atan2(m13, m33);
           z = Math.atan2(m21, m22);
         } else y = Math.atan2(-m31, m11);
         break;
       case 'ZXY':
-        x = Math.asin(clamp(m32));
+        x = Math.asin(clampNumber(m32, -1, 1));
         if (Math.abs(m32) < POLE) {
           y = Math.atan2(-m31, m33);
           z = Math.atan2(-m12, m22);
         } else z = Math.atan2(m21, m11);
         break;
       case 'ZYX':
-        y = Math.asin(-clamp(m31));
+        y = Math.asin(-clampNumber(m31, -1, 1));
         if (Math.abs(m31) < POLE) {
           x = Math.atan2(m32, m33);
           z = Math.atan2(m21, m11);
         } else z = Math.atan2(-m12, m22);
         break;
       case 'YZX':
-        z = Math.asin(clamp(m21));
+        z = Math.asin(clampNumber(m21, -1, 1));
         if (Math.abs(m21) < POLE) {
           x = Math.atan2(-m23, m22);
           y = Math.atan2(-m31, m11);
         } else y = Math.atan2(m13, m33);
         break;
       case 'XZY':
-        z = Math.asin(-clamp(m12));
+        z = Math.asin(-clampNumber(m12, -1, 1));
         if (Math.abs(m12) < POLE) {
           x = Math.atan2(m32, m22);
           y = Math.atan2(m13, m11);
         } else x = Math.atan2(-m23, m33);
         break;
       default:
-        y = Math.asin(clamp(m13));
+        y = Math.asin(clampNumber(m13, -1, 1));
         if (Math.abs(m13) < POLE) {
           x = Math.atan2(-m23, m33);
           z = Math.atan2(-m12, m11);
