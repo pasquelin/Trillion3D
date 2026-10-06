@@ -102,16 +102,23 @@ type Inputs = {
 }
 
 /** One timer, set for the earliest failed hold's wait, `due`: it asks `wake` for a frame then,
- *  and is set again by the next frame however the clock read the wait then. */
-function wakeAt(wake: () => void) {
+ *  and is set again by the next frame however the clock read the wait then; cleared, and `wake`
+ *  let go, once the session closes (`dispose`). */
+function wakeAt(wake?: () => void) {
   let timer: ReturnType<typeof setTimeout> | undefined,
     armed = Infinity
-  const fire = () => ((armed = Infinity), wake())
-  return (due: number) => {
-    if (due === armed) return
-    clearTimeout(timer)
-    armed = due
-    if (due < Infinity) timer = setTimeout(fire, due - performance.now())
+  const fire = () => ((armed = Infinity), wake?.())
+  return {
+    arm(due: number) {
+      if (due === armed || !wake) return
+      clearTimeout(timer)
+      armed = due
+      if (due < Infinity) timer = setTimeout(fire, due - performance.now())
+    },
+    dispose() {
+      clearTimeout(timer)
+      wake = timer = undefined
+    },
   }
 }
 
@@ -125,8 +132,8 @@ function wakeAt(wake: () => void) {
  */
 export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, active, renew, budget, wake } = inputs
-  const arm = wake ? wakeAt(wake) : () => {}
   if (!partitions.length) return null
+  const waker = wakeAt(wake)
   const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew })
   let reads: Promise<void>[] = [],
     later = false
@@ -174,7 +181,7 @@ export function createPartitionFrame(inputs: Inputs) {
     const { eye, reach } = viewOf(camera)
     later = false
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
-    arm(partitions.reduce((due, cells) => Math.min(due, cells.due()), Infinity))
+    waker.arm(partitions.reduce((due, cells) => Math.min(due, cells.due()), Infinity))
   }
-  return Object.assign(step, { pending })
+  return Object.assign(step, { pending, dispose: waker.dispose })
 }

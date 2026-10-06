@@ -125,4 +125,8 @@ test("a still camera never waits for a failed hold's wait: one timer asks the lo
   frame() // a clock that still reads the wait as running: the timer is set again
   t.mock.timers.tick(500)
   assert.equal(woken, 2)
+  frame()
+  frame.dispose() // the session closed: the timer leaves with it
+  t.mock.timers.tick(500)
+  assert.equal(woken, 2, 'never asks a closed session for a frame')
 })
