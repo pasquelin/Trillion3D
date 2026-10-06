@@ -1,7 +1,7 @@
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { emptyPhysicsStats } from './protocol.ts';
+import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import { CommandWriter, type PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { emptyPhysicsStats } from '../protocol.ts';
 import { createSessionBodies } from './sessionBodies.ts';
 import { createSessionControls } from './sessionControls.ts';
 import { createSessionFrame } from './sessionFrame.ts';
@@ -9,12 +9,12 @@ import { createSessionState, createWorkerLink } from './sessionLink.ts';
 import { listenToWorker } from './sessionMessages.ts';
 import type { SessionParts, WantedPhysics } from './sessionParts.ts';
 import { startPhysicsWorker } from './sessionWorker.ts';
-import { createPhysicsVehicles } from './vehicles.ts';
-import { createSoftVertices } from './softBodies.ts';
-import { createTileStreamer } from './tiles.ts';
-import { createPhysicsView } from './view.ts';
-import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
-import { createStepClock, physicsStep } from './stepClock.ts';
+import { createPhysicsVehicles } from '../vehicles.ts';
+import { createSoftVertices } from '../softBodies.ts';
+import { createTileStreamer } from '../tiles.ts';
+import { createPhysicsView } from '../view.ts';
+import { createCharacterPort, createPhysicsCharacter } from '../physicsCharacter.ts';
+import { createStepClock, physicsStep } from '../stepClock.ts';
 
 /**
  * One running simulation: the worker, the bodies, the drawn poses. It exists only once physics is

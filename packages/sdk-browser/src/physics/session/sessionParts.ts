@@ -1,19 +1,19 @@
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import type { CommandWriter, PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { createPhysicsBodies } from './bodies.ts';
-import type { createPhysicsJoints } from './joints.ts';
-import type { createJointList } from './jointList.ts';
-import type { createCharacterPort } from './physicsCharacter.ts';
-import type { createPhysicsPoses } from './poses.ts';
-import type { PhysicsStats } from './protocol.ts';
+import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import type { CommandWriter, PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import type { createPhysicsBodies } from '../bodies.ts';
+import type { createPhysicsJoints } from '../joints.ts';
+import type { createJointList } from '../jointList.ts';
+import type { createCharacterPort } from '../physicsCharacter.ts';
+import type { createPhysicsPoses } from '../poses.ts';
+import type { PhysicsStats } from '../protocol.ts';
 import type { SessionState, WorkerLink } from './sessionLink.ts';
 import type { startPhysicsWorker } from './sessionWorker.ts';
-import type { createSoftVertices } from './softBodies.ts';
-import type { createStepClock } from './stepClock.ts';
-import type { createTileStreamer } from './tiles.ts';
-import type { createPhysicsVehicles } from './vehicles.ts';
-import type { createPhysicsView } from './view.ts';
+import type { createSoftVertices } from '../softBodies.ts';
+import type { createStepClock } from '../stepClock.ts';
+import type { createTileStreamer } from '../tiles.ts';
+import type { createPhysicsVehicles } from '../vehicles.ts';
+import type { createPhysicsView } from '../view.ts';
 
 /** The joints and vehicles `world.physics.add` holds: made once their bodies are simulated. */
 export type WantedPhysics = Pick<ReturnType<typeof createJointList>, 'joints' | 'vehicles'>;

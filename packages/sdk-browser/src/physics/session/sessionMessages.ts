@@ -1,6 +1,6 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { emitContacts } from './contacts.ts';
-import { eventsAt, type FromPhysics, type PhysicsResults } from './protocol.ts';
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import { emitContacts } from '../contacts.ts';
+import { eventsAt, type FromPhysics, type PhysicsResults } from '../protocol.ts';
 import type { SessionParts } from './sessionParts.ts';
 
 type Message<T extends FromPhysics['type']> = Extract<FromPhysics, { type: T }>;

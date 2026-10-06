@@ -1,8 +1,8 @@
-import { type CommandWriter, type PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createPhysicsBodies } from './bodies.ts';
-import { createPhysicsJoints } from './joints.ts';
-import { createPhysicsPoses } from './poses.ts';
+import { type CommandWriter, type PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { createPhysicsBodies } from '../bodies.ts';
+import { createPhysicsJoints } from '../joints.ts';
+import { createPhysicsPoses } from '../poses.ts';
 import { createSessionHost } from './sessionHost.ts';
 import type { SessionState } from './sessionLink.ts';
 import type { WantedPhysics } from './sessionParts.ts';

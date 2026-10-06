@@ -1,6 +1,6 @@
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { PhysicsSession } from '../../physics/session.ts';
+import type { PhysicsSession } from '../../physics/session/session.ts';
 import { poseNamed } from '../../host/world/moveByName.ts';
 import { createWorldRaycast } from './worldRaycast.ts';
 

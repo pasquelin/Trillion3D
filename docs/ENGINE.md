@@ -642,7 +642,7 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
   and named by the page); `PhysicsSystem::Update`'s errors (body pairs, contact constraints,
   manifold cache) are sent as `PHYSICS_BUDGET`, capacities `budget.physics.bodyPairs` and
   `contactConstraints`.
-- **Page.** `physics/session.ts` reconciles bodies with the scene once per frame that changed it,
+- **Page.** `physics/session/session.ts` reconciles bodies with the scene once per frame that changed it,
   sends the view, posts the frame's commands in one message, then the steps the frame owes. The
   frame's time is set at its start, before the controller (`worldFrames.ts`), one step behind what
   the frame before asked, and everything the physics draws is drawn at it by one mechanism

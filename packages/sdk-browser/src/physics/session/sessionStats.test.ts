@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
-import { Material } from '../../../sdk-core/src/world/material/material.ts';
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
-import { BODY_INDEX, OP } from '../../../sdk-core/src/physics/index.ts';
-import { createWorldPhysics } from './worldPhysics.ts';
-import { fakeWorkers, idleTick, loaded } from './worker.fixture.ts';
+import { box } from '../../../../sdk-core/src/world/geometry/basic.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { Material } from '../../../../sdk-core/src/world/material/material.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { BODY_INDEX, OP } from '../../../../sdk-core/src/physics/index.ts';
+import { createWorldPhysics } from '../worldPhysics.ts';
+import { fakeWorkers, idleTick, loaded } from '../worker.fixture.ts';
 
 test("a tick's slowest step shows in world.physics.stats.stepMaxMs, beside the mean", async () => {
   const { workers, restore } = fakeWorkers();

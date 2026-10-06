@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
-import { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
-import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { Material } from '../../../sdk-core/src/world/material/material.ts';
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
-import { fakeWorkers, idleTick, loaded, poseRecord } from './worker.fixture.ts';
-import { createWorldPhysics } from './worldPhysics.ts';
+import { MAX_CATCH_UP_STEPS, PHYSICS_STEP } from '../../../../sdk-core/src/physics/index.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { box } from '../../../../sdk-core/src/world/geometry/basic.ts';
+import { Material } from '../../../../sdk-core/src/world/material/material.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { fakeWorkers, idleTick, loaded, poseRecord } from '../worker.fixture.ts';
+import { createWorldPhysics } from '../worldPhysics.ts';
 
 /** A world's physics on a fake worker, ready, one crate in it; `told` lists the kinds of what the
  *  page sent since the last call, advances with their numbers. */

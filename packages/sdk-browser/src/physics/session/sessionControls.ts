@@ -1,11 +1,11 @@
-import type { WaterSpec } from '../../../sdk-core/src/fluids/index.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { hasBody } from './bodies.ts';
-import { followMove } from './nodePose.ts';
-import { placeBodies } from './placeBodies.ts';
+import type { WaterSpec } from '../../../../sdk-core/src/fluids/index.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { hasBody } from '../bodies.ts';
+import { followMove } from '../nodePose.ts';
+import { placeBodies } from '../placeBodies.ts';
 import type { SessionParts } from './sessionParts.ts';
-import { engineIdOf } from './simulatedIds.ts';
-import { drawnBySoft } from './softBodies.ts';
+import { engineIdOf } from '../simulatedIds.ts';
+import { drawnBySoft } from '../softBodies.ts';
 
 /** What the world asks of a session between its frames: its clock, its water, the scene's changes,
  *  its queries and its end. */

@@ -10,7 +10,7 @@ import { families } from '../host/families.ts';
 import { createJointList } from './jointList.ts';
 import { physicsLink } from './physicsLink.ts';
 import { createWaterCarry } from './waterCarry.ts';
-import type { PhysicsSession } from './session.ts';
+import type { PhysicsSession } from './session/session.ts';
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts';
 import {
   simulationRangeOf,

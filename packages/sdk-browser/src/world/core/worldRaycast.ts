@@ -11,7 +11,7 @@ import {
   type PhysicsIntersection,
   type PhysicsRaycastOptions,
 } from '../../physics/raycast.ts';
-import type { PhysicsSession } from '../../physics/session.ts';
+import type { PhysicsSession } from '../../physics/session/session.ts';
 
 /** A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`. */
 export type CanvasPoint = {

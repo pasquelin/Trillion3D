@@ -1,7 +1,7 @@
-import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts';
-import type { ToPhysics } from './protocol.ts';
+import type { CommandWriter } from '../../../../sdk-core/src/physics/index.ts';
+import type { ToPhysics } from '../protocol.ts';
 import type { startPhysicsWorker } from './sessionWorker.ts';
-import { along, type createStepClock } from './stepClock.ts';
+import { along, type createStepClock } from '../stepClock.ts';
 
 /**
  * What the session's page side tracks of its worker, fields of one object (`session.ts`).

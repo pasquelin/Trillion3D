@@ -19,7 +19,7 @@ import { createWorldPhysics } from './worldPhysics.ts';
 import { startModule, startThreaded, type Module } from './module.fixture.ts';
 import { body } from './records.fixture.ts';
 /** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
-const loaded = () => import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
+const loaded = () => import('./session/session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
 /** Drops a box on a floor, `seen` or behind the view; returns the step at which it sleeps. */
 async function dropBox(jolt: Module, seen: boolean) {
   const writer = new CommandWriter();

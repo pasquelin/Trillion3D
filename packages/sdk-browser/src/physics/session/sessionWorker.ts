@@ -1,7 +1,7 @@
-import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts';
-import { besideModule, startModuleWorker } from '../host/besideModule.ts';
-import { stepThreads } from './joltThreads.ts';
-import { PHYSICS_PROTOCOL, resultWords } from './protocol.ts';
+import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
+import { besideModule, startModuleWorker } from '../../host/besideModule.ts';
+import { stepThreads } from '../joltThreads.ts';
+import { PHYSICS_PROTOCOL, resultWords } from '../protocol.ts';
 
 /** The physics worker, started on the module that fits the page (threaded when it can share
  *  memory) with the budget, the fixed step of `step` seconds and its two result buffers. */

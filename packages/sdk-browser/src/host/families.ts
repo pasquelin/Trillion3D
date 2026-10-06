@@ -23,7 +23,7 @@ export const families = {
   /** The WebGL2 renderer, on a machine that grants no WebGPU device (`../backend/engines.ts`). */
   webgl2: family('WebGL2 renderer', () => import('../backend/autonomous/webglCode.ts')),
   /** The physics session and its worker (`../physics/worldPhysics.ts`). */
-  physics: family('physics', () => import('../physics/session.ts')),
+  physics: family('physics', () => import('../physics/session/session.ts')),
   /** The particle steps and draws of both renderers. */
   particles: family('particles', () => import('../particles/particleCode.ts')),
   /** WebGPU transmission: the water pass every transmissive surface draws through, glass too. */

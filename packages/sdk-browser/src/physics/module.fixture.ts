@@ -16,7 +16,7 @@ import type { createPhysicsBodies } from './bodies.ts';
 import { createCharacterDriver } from './characterDriver.ts';
 import { openJolt, startJolt } from './joltModule.ts';
 import { physicsRaycast, type PhysicsRaycastOptions } from './raycast.ts';
-import type { PhysicsSession } from './session.ts';
+import type { PhysicsSession } from './session/session.ts';
 import { engineIdOf } from './simulatedIds.ts';
 import type { JoltThreadStart, SpawnJoltThread } from './joltThreads.ts';
 

@@ -1,7 +1,7 @@
-import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
-import { MAX_CATCH_UP_STEPS } from '../../../sdk-core/src/physics/index.ts';
-import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts';
-import { resolveCameraWorld } from '../camera/world.ts';
+import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
+import { MAX_CATCH_UP_STEPS } from '../../../../sdk-core/src/physics/index.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { resolveCameraWorld } from '../../camera/world.ts';
 import type { SessionParts } from './sessionParts.ts';
 
 /** The scene's tree or its bodies changed: they are reconciled, with the joints and vehicles. */
