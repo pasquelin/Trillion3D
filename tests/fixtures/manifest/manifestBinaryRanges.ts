@@ -1,5 +1,8 @@
-import * as format from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
-import { columnElements, type Counts } from '../../packages/sdk-core/src/manifest/binaryLayout.ts';
+import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts';
+import {
+  columnElements,
+  type Counts,
+} from '../../../packages/sdk-core/src/manifest/binaryLayout.ts';
 
 const align8 = (value: number) => (value + 7) & ~7;
 

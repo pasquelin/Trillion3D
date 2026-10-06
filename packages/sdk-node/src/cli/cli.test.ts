@@ -4,8 +4,8 @@ import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { manifest } from '../../../../tests/fixtures/manifestBinary.ts';
-import { writePagedManifest } from '../../../../tests/fixtures/pagedManifest.ts';
+import { manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts';
+import { writePagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts';
 
 interface RunResult {
   code: number | null;

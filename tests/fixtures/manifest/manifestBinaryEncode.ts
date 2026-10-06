@@ -1,7 +1,7 @@
 // The TypeScript twin of the compiler's manifest encoder (`asset-compiler-rust/src/manifest_binary`),
 // kept as a test fixture: only the tests build binary manifests in TypeScript.
-import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
-import * as format from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts';
+import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts';
 import {
   checkedDepthLayer,
   countManifest,
@@ -16,7 +16,7 @@ import type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
   SlimPrimitive,
-} from '../../packages/sdk-core/src/manifest/binaryTypes.ts';
+} from '../../../packages/sdk-core/src/manifest/binaryTypes.ts';
 
 /** Splits a manifest into the small JSON a reader parses and the columns it maps. The returned
  *  descriptor carries an empty `sha256`: only the caller, holding the finished bytes, can hash them. */

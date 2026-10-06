@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepare } from '../index.mts';
-import { manifest as fixture } from '../../../../tests/fixtures/manifestBinary.ts';
-import { writePagedManifest } from '../../../../tests/fixtures/pagedManifest.ts';
+import { manifest as fixture } from '../../../../tests/fixtures/manifest/manifestBinary.ts';
+import { writePagedManifest } from '../../../../tests/fixtures/manifest/pagedManifest.ts';
 
 /** The `prepare()` metrics of a run that built the hierarchy, as the manifest/pointer merge
  *  produces them in practice: not part of `CompilationResult`'s narrow declared shape, only

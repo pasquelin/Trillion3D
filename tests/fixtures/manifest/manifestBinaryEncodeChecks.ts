@@ -4,15 +4,15 @@ import {
   EngineError,
   type ClusterManifest,
   type Page,
-} from '../../packages/sdk-core/src/contracts/index.ts';
-import { PREVIEW_BLOCK_FORMATS } from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
-import type { Counts } from '../../packages/sdk-core/src/manifest/binaryLayout.ts';
-import type { SlimPrimitiveBinary } from '../../packages/sdk-core/src/manifest/binaryTypes.ts';
-import { MAX_DEPTH_LAYER } from '../../packages/sdk-core/src/lod/depthLayer.ts';
+} from '../../../packages/sdk-core/src/contracts/index.ts';
+import { PREVIEW_BLOCK_FORMATS } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts';
+import type { Counts } from '../../../packages/sdk-core/src/manifest/binaryLayout.ts';
+import type { SlimPrimitiveBinary } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts';
+import { MAX_DEPTH_LAYER } from '../../../packages/sdk-core/src/lod/depthLayer.ts';
 import {
   previewBlockBytes,
   previewGeometry,
-} from '../../packages/sdk-core/src/texture/previewLevels.ts';
+} from '../../../packages/sdk-core/src/texture/previewLevels.ts';
 
 /** A cluster's coplanar depth layer, refused unless it fits the four bits the cache gives it. */
 export function checkedDepthLayer(depthLayer: number) {

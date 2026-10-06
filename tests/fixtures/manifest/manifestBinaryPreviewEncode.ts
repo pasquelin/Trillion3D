@@ -1,11 +1,14 @@
-import { EngineError, type TexturePreview } from '../../packages/sdk-core/src/contracts/index.ts';
-import * as format from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
+import {
+  EngineError,
+  type TexturePreview,
+} from '../../../packages/sdk-core/src/contracts/index.ts';
+import * as format from '../../../packages/sdk-core/src/manifest/binaryFormat.ts';
 import { writeSha } from './manifestBinaryEncodeChecks.ts';
 import {
   checkEntryHeader,
   levelLengths,
-} from '../../packages/sdk-core/src/manifest/binaryPreviewEntry.ts';
-import { previewGeometry } from '../../packages/sdk-core/src/texture/previewLevels.ts';
+} from '../../../packages/sdk-core/src/manifest/binaryPreviewEntry.ts';
+import { previewGeometry } from '../../../packages/sdk-core/src/texture/previewLevels.ts';
 
 type ColumnView = <T>(
   name: format.ColumnName,

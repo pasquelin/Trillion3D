@@ -1,11 +1,11 @@
-import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../packages/sdk-core/src/contracts/base.ts';
-import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
-import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
+import { CLUSTERED_BLEND_FORMAT_VERSION } from '../../../packages/sdk-core/src/contracts/base.ts';
+import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../packages/sdk-core/src/manifest/binaryFormat.ts';
+import type { ClusterManifest } from '../../../packages/sdk-core/src/contracts/index.ts';
 import {
   levelBlockBytes,
   previewFirstLevel,
   previewGeometry,
-} from '../../packages/sdk-core/src/texture/previewLevels.ts';
+} from '../../../packages/sdk-core/src/texture/previewLevels.ts';
 
 export const TEMPLATES = {
   url: 'clusters.bin',

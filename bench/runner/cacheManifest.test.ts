@@ -3,8 +3,8 @@ import test from 'node:test';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { manifest } from '../../tests/fixtures/manifestBinary.ts';
-import { writePagedManifest } from '../../tests/fixtures/pagedManifest.ts';
+import { manifest } from '../../tests/fixtures/manifest/manifestBinary.ts';
+import { writePagedManifest } from '../../tests/fixtures/manifest/pagedManifest.ts';
 import { cacheHoldsBlend } from './cacheManifest.ts';
 
 /** A cache folder as the compiler publishes it: the pointer, then the paged manifest it names. */
