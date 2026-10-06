@@ -43,6 +43,23 @@ test('a bundle whose bytes are not those its table names is refused, its bundles
   assert.deepEqual(roots.held(), [], 'released, it holds nothing')
 })
 
+test('the top read at open and a run read through the queue are refused alike, naming the bundle that differs', async (t) => {
+  const { bin } = worldRootsFixture()
+  const world = served(t, { bin }),
+    at = (bundle: number) => world.table.bundles[bundle].offset
+  const differs = (bundle: number) => (error: Error) => {
+    const refusal = (error instanceof EngineError ? error : error.cause) as EngineError
+    const expected = world.table.bundles[bundle].sha256
+    return refusal.code === 'INVALID_CACHE' && refusal.details.expectedSha256 === expected
+  }
+  const { roots } = await opened(t, world.manifest)
+  bin[at(3)] ^= 1
+  await assert.rejects(roots.hold(0), differs(3), 'a run, through the queue')
+  bin[at(3)] ^= 1
+  bin[at(0)] ^= 1
+  await assert.rejects(openWorldRoots(world.manifest, 'http://world/'), differs(0), 'the top')
+})
+
 test('a server that ignores the Range is read whole once for the session, every byte counted once', async (t) => {
   const { manifest, ranges, bin } = served(t, { ignoresRange: true })
   const metered: string[] = []

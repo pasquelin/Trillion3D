@@ -4,30 +4,14 @@
  * in the cache unless its askers keep it (`StreamPage.kept`), each step told to the diagnostics
  * that listen.
  */
-import { corruptObject } from '../cluster/pages.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
 import { rangedReader } from '../cluster/ranged.ts'
-import { verifyPageBytes } from '../page/decode/host.ts'
 import type { RangeReader, StreamContext, StreamPage } from './types.ts'
 import { createRoundTrip } from './roundTrip.ts'
-import { mismatchedPart } from './rangeParts.ts'
+import { verified } from './rangeParts.ts'
 
 /** The attempts a page's read makes before it fails and waits its turn (`failures.ts`). */
 export const ATTEMPTS = 3
-
-/** `buffer` checked against what `page` announced, its size then its fingerprint — a range's part
- *  by part —: the bytes to keep, or the fingerprint found when they are not those announced
- *  (`undefined` when the size differs already). The fingerprint of a whole page transfers its
- *  buffer to a decode worker and back: the one returned is the one to read. */
-async function verified(page: StreamPage, buffer: ArrayBuffer) {
-  if (buffer.byteLength !== page.bytes) return { found: undefined }
-  if (!page.range) {
-    const { sha256, source } = await verifyPageBytes(buffer)
-    return sha256 === page.sha256 ? { buffer: source } : { found: sha256 }
-  }
-  const wrong = await mismatchedPart(buffer, page.range.offset, page.range.parts)
-  return wrong ? { found: wrong.found } : { buffer }
-}
 
 /** `buffer`, `page`'s bytes read at attempt `n` of `url`, checked against what it announced, the
  *  check told: the bytes to keep, or refused by `corruptObject`. */
@@ -40,7 +24,7 @@ async function checkedBytes(
 ) {
   const actualBytes = buffer.byteLength,
     expectedBytes = page.bytes
-  const { buffer: kept, found } = await verified(page, buffer)
+  const { buffer: kept, refused, found } = await verified(page, url, buffer)
   const sizeMatches = actualBytes === page.bytes,
     hashMatches = kept !== undefined
   emit?.(
@@ -58,7 +42,7 @@ async function checkedBytes(
     attempt: n,
   }))
   // Named by what failed: the retries and the final `PAGE_STREAM_FAILED` repeat it.
-  throw corruptObject(url, page, actualBytes, found)
+  throw refused
 }
 
 /** The requests of pages under `base`: a page's file, or its range of another, read through one

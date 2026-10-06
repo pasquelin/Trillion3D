@@ -6,10 +6,8 @@
  */
 import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { rangedReader } from '../cluster/ranged.ts'
-import { corruptObject } from '../cluster/pages.ts'
 import type { ByteMeter } from '../cluster/byteMeter.ts'
-import type { StreamPage } from '../streaming/types.ts'
-import { mismatchedPart, partSpan } from '../streaming/rangeParts.ts'
+import { partSpan, verified } from '../streaming/rangeParts.ts'
 
 /** Bundles `[first, end)` of the binary: where they start, and their bytes end to end. */
 function bundleSpan(table: WorldRoots, first: number, end: number) {
@@ -20,7 +18,7 @@ function bundleSpan(table: WorldRoots, first: number, end: number) {
 
 /** The page of the session's queue that reads bundles `[first, end)` of `table`'s binary at `url`,
  *  checked bundle by bundle; the holds that read it keep its bundles' pages, not the page cache. */
-export function runPage(table: WorldRoots, url: string, first: number, end: number): StreamPage {
+export function runPage(table: WorldRoots, url: string, first: number, end: number) {
   const { offset, bytes } = bundleSpan(table, first, end)
   const range = { file: url, offset, parts: table.bundles.slice(first, end) }
   return { url: `${url}#${first}-${end}`, bytes, sha256: '', range, kept: false }
@@ -34,7 +32,8 @@ export function bundleIn(bytes: Uint8Array, table: WorldRoots, first: number, bu
 }
 
 /** Bundles `[first, end)` of `table`'s binary at `url`, read at open by `read` (`rangedReader`) in
- *  one range `meter` counts, each checked against its digest: their pages, bundle by bundle. */
+ *  one range `meter` counts, checked as the queue checks their run (`verified`): their pages,
+ *  bundle by bundle. */
 export async function readSpan(
   read: ReturnType<typeof rangedReader>,
   url: string,
@@ -42,14 +41,13 @@ export async function readSpan(
   [first, end]: readonly [number, number],
   meter: ByteMeter,
 ) {
-  const { offset, bytes } = bundleSpan(table, first, end)
-  const buffer = await read(offset, bytes, { meter }),
-    got = new Uint8Array(buffer)
-  if (got.byteLength !== bytes)
-    throw corruptObject(`${url}#${first}-${end}`, { bytes, sha256: '' }, got.byteLength, undefined)
-  const bundles = table.bundles.slice(first, end)
-  const wrong = await mismatchedPart(buffer, offset, bundles)
-  const part = wrong && bundles[wrong.part]
-  if (part) throw corruptObject(`${url}#${first + wrong.part}`, part, part.bytes, wrong.found)
-  return bundles.map((_, at) => bundleIn(got, table, first, first + at))
+  const page = runPage(table, url, first, end)
+  const checked = await verified(
+    page,
+    page.url,
+    await read(page.range.offset, page.bytes, { meter }),
+  )
+  if (!checked.buffer) throw checked.refused
+  const got = new Uint8Array(checked.buffer)
+  return page.range.parts.map((_, at) => bundleIn(got, table, first, first + at))
 }
