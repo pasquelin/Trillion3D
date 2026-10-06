@@ -4,11 +4,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';
-import { readOptions } from './options.ts';
+import { readOptions } from '../options.ts';
 import { runSerie } from './series.ts';
 import { contexte, pose } from './seriesTestFixtures.ts';
 import type { Page } from 'playwright';
-import type { RunContext } from './report/types.ts';
+import type { RunContext } from '../report/types.ts';
 
 /** What the page returns when it has nothing more to say than requested metrics. */
 const releveDePage = (mathBatch: unknown) => ({

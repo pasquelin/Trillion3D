@@ -1,10 +1,10 @@
 import {
   gpuPassBlockOf,
   gpuPassBlockTotals,
-} from '../../packages/sdk-browser/src/gpu/core/passBlocks.ts';
-import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
-import { distribution } from './summary.ts';
-import type { PassesGpu } from './summaryPasses.ts';
+} from '../../../packages/sdk-browser/src/gpu/core/passBlocks.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
+import { distribution } from '../summary.ts';
+import type { PassesGpu } from '../summaryPasses.ts';
 
 /**
  * GPU passes and their blocks, summarised over the readings of a series.

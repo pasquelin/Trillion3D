@@ -1,12 +1,12 @@
-// Shared fixtures for `series.test.ts`, `seriesHiz.test.ts` and `seriesCompute.test.ts`: split out
+// Shared fixtures for `series/series.test.ts`, `series/seriesHiz.test.ts` and `series/seriesCompute.test.ts`: split out
 // to keep the files under the line budget.
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
-import type { RunContext } from './report/types.ts';
-import type { Side } from './sideOptions.ts';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
+import type { RunContext } from '../report/types.ts';
+import type { Side } from '../sideOptions.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 
 /** A mock Playwright `page`: `evaluate` directly returns the metrics provided to it, without
  *  ever entering a page — `measureView` (`lightingPage.ts`) does not run there. */

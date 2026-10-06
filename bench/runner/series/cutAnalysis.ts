@@ -2,8 +2,8 @@
 // manifest's column files, to say where the triangles come from — by primitive, by DAG level.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { readCacheManifest } from './assets/cacheManifest.ts';
-import type { ClusterManifest } from '../../packages/sdk-core/src/index.ts';
+import { readCacheManifest } from '../assets/cacheManifest.ts';
+import type { ClusterManifest } from '../../../packages/sdk-core/src/index.ts';
 
 const shaOf = (id: string) =>
   String(id)

@@ -24,7 +24,7 @@ import {
   imageSettings,
   type ReferenceRecord,
 } from './referenceStore.ts';
-import { measurePayload, withGpuIncidents } from './seriesPage.ts';
+import { measurePayload, withGpuIncidents } from './series/seriesPage.ts';
 import { readStreet } from './street.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');

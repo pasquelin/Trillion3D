@@ -2,15 +2,15 @@ import { createHash } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from 'playwright';
-import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import { distribution, machineLoad } from './summary.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import { distribution, machineLoad } from '../summary.ts';
 import { passesGpu } from './seriesPasses.ts';
 import { pageBudget, geometryPool } from './seriesPools.ts';
 import { measurePayload, runInPage } from './seriesPage.ts';
-import type { Side } from './sideOptions.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
-import type { Row, RunContext } from './report/types.ts';
+import type { Side } from '../sideOptions.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
+import type { Row, RunContext } from '../report/types.ts';
 
 /** A series: one side, one view, one threshold. Writes its capture, returns its report row. */
 export async function runSerie(

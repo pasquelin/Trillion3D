@@ -1,7 +1,7 @@
 // "honest measurement harness counters" batch: `runSerie` reads submitted triangles, held
 // image indicator and GPU selection fallback from the `metrics` object reported by the page,
 // and publishes `null` without inferring zero when the engine does not count them.
-// Hi-Z counters have their own file, `seriesHiz.test.ts`, to keep both under the line budget.
+// Hi-Z counters have their own file, `series/seriesHiz.test.ts`, to keep both under the line budget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';

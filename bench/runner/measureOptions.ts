@@ -1,4 +1,4 @@
-// The payload `series.ts` sends into the page, and the result `measureView` (`lightingPage.ts`)
+// The payload `series/series.ts` sends into the page, and the result `measureView` (`lightingPage.ts`)
 // sends back. One shape on each side of the `page.evaluate` boundary, read by both the Node
 // harness and the browser page module — hence type-only imports here, erased at build.
 import type {

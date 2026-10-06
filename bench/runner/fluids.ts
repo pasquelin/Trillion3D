@@ -15,10 +15,10 @@ import { floatingBodies } from '../../packages/sdk-browser/src/physics/water.fix
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import { distribution, machineLoad } from './summary.ts';
-import { passesGpu } from './seriesPasses.ts';
+import { passesGpu } from './series/seriesPasses.ts';
 import { p50p95, passes } from './summaryPasses.ts';
 import { sdkEntryUrl } from './dists.ts';
-import { withGpuIncidents } from './seriesPage.ts';
+import { withGpuIncidents } from './series/seriesPage.ts';
 import type { Side } from './sideOptions.ts';
 import type { BenchSettings } from './options.ts';
 import type * as FluidsPage from './fluidsPage.ts';

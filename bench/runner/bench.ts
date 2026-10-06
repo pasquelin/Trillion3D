@@ -18,7 +18,7 @@ import { imageDiff } from './imageDiff.ts';
 import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs } from './report/evidence.ts';
-import { runSerie } from './series.ts';
+import { runSerie } from './series/series.ts';
 import { runGazeSeries } from './gazeNetworkRun.ts';
 import { publish } from './benchPublish.ts';
 import { readsCache } from './assets/scene.ts';

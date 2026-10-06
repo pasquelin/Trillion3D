@@ -1,4 +1,4 @@
-// Shared shapes of the harness measurement: what `series.ts` builds, `bench.ts` assembles into
+// Shared shapes of the harness measurement: what `series/series.ts` builds, `bench.ts` assembles into
 // `measure.json`, and everything under `bench/runner/` (`summary.ts`, `summaryCompute.ts`,
 // `summaryMemory.ts`, `summaryTextures.ts`, `report/`) reads back. One record type here, typed
 // once from the engine contracts, rather than cast at every reader.
@@ -16,7 +16,7 @@ import type { LimitsRecord } from '../limits.ts';
 import type { FluidsRow } from '../fluids.ts';
 import type { GazeNetworkReading } from '../gazeNetworkRun.ts';
 
-/** What `bench.ts` builds before playing series, and `series.ts` reads to run one. */
+/** What `bench.ts` builds before playing series, and `series/series.ts` reads to run one. */
 export interface RunContext {
   MANIFEST: string | null;
   OUT: string;
@@ -26,7 +26,7 @@ export interface RunContext {
   bounds?: Bounds;
 }
 
-/** The selected cut of a series, read inside the page (`cutPage.ts`). */
+/** The selected cut of a series, read inside the page (`series/cutPage.ts`). */
 export interface CutSelection {
   source: string | null;
   ids: string[];
@@ -43,14 +43,14 @@ interface HiZCounters {
   image: number | null;
 }
 
-/** The page budget as the last frame saw it (`seriesPools.ts`). */
+/** The page budget as the last frame saw it (`series/seriesPools.ts`). */
 export interface PageBudget {
   requested: number | null;
   resident: number | null;
   budgetLimitedCoverage: boolean | null;
 }
 
-/** The geometry pool as the engine held it (`seriesPools.ts`). */
+/** The geometry pool as the engine held it (`series/seriesPools.ts`). */
 export interface GeometryPool {
   bytes: number | null;
   slots: number | null;
@@ -100,7 +100,7 @@ export type ImageDiff =
   | { error: string }
   | { pixels: number; maxChannel: number; meanChannel: number; p999Channel: number; total: number };
 
-/** One row of the series table: one side, one view, one threshold (`series.ts::runSerie`). */
+/** One row of the series table: one side, one view, one threshold (`series/series.ts::runSerie`). */
 export interface Row {
   cpuFrameMs: Distribution;
   cpuSelectMs: Distribution;

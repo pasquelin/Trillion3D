@@ -1,5 +1,5 @@
 // Settings passed to `openMeasuredWorld` by the measurement page. This module is served to the page
-// and imported by its URL, like `cutPage.ts`: `measureView` is serialised by Playwright and
+// and imported by its URL, like `series/cutPage.ts`: `measureView` is serialised by Playwright and
 // cannot read any module variable.
 import type {
   BackendFactory,

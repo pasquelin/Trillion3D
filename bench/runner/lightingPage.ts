@@ -1,6 +1,6 @@
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { MeasureViewOptions, MeasureViewResult } from './measureOptions.ts';
-import type * as PageCoupe from './cutPage.ts';
+import type * as PageCoupe from './series/cutPage.ts';
 import type * as PageTemoin from './witnessPage.ts';
 import type * as PageExplorateur from './explorerPage.ts';
 import type * as PageMesure from './measurePage.ts';
@@ -15,7 +15,7 @@ type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.BackendFactory
 
 export async function measureView(options: MeasureViewOptions): Promise<MeasureViewResult> {
   const sdk = (await import(options.sdkUrl)) as SdkNamespace;
-  const coupe = (await import(`${options.modulesUrl}cutPage.ts`)) as typeof PageCoupe;
+  const coupe = (await import(`${options.modulesUrl}series/cutPage.ts`)) as typeof PageCoupe;
   // The Three witness does not read the contract's light store: the harness, a host like any
   // other, itself places in Three the lights that store declares (`witnessPage.ts`).
   // A dist whose witness entry exports no light group `Group` gives its witness none.

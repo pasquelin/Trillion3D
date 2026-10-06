@@ -51,7 +51,7 @@ const config: KnipConfig = {
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
         'tests/integration/public-types-union.fixture.ts',
         // Served to the harness page and imported by URL, never by local import.
-        'bench/runner/cutPage.ts',
+        'bench/runner/series/cutPage.ts',
         'bench/runner/witnessPage.ts',
         'bench/runner/explorerPage.ts',
         'bench/runner/lightingPage.ts',

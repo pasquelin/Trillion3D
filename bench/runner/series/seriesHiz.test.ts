@@ -1,7 +1,7 @@
 // "honest measurement harness counters" batch: `runSerie` reads the six Hi-Z counters under
 // their contract names (`hizTestedClusters`…, never the old `hiZTested`… which never existed),
 // and publishes `null` without inferring zero when the engine does not count them.
-// Split from `series.test.ts` to keep both files under the line budget.
+// Split from `series/series.test.ts` to keep both files under the line budget.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rm } from 'node:fs/promises';

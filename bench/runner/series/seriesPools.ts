@@ -1,9 +1,9 @@
 // Memory reservoirs of a series: what the bench asks of the engine, and what the engine says it
 // held. Reservoirs are fixed, in bytes, like the reference's variables; an extreme value is a
 // measurement case, and the reading says how the engine held it.
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
-import type { BenchSettings } from './options.ts';
-import type { PageBudget, GeometryPool } from './report/types.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
+import type { BenchSettings } from '../options.ts';
+import type { PageBudget, GeometryPool } from '../report/types.ts';
 
 /** Reservoirs requested by the bench, for the measurement page; `null` leaves the engine default. */
 export const reservoirs = ({
