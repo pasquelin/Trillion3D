@@ -11,12 +11,6 @@ import { clusterErrorAtDepth, screenErrorBound } from '../lod/screenErrorBound.t
 const FOCALE = 640,
   PROCHE = 0.25;
 
-/** The old formula, as the engine applied it: `ε·s·f / (|C| − r·s)`. */
-function ancienne(error: number, stretch: number, c: number[], radius: number) {
-  const distance = Math.hypot(c[0], c[1], c[2]) - radius * stretch;
-  return distance > PROCHE ? (error * stretch * FOCALE) / distance : Infinity;
-}
-
 const pixel = (p: number[]) => [(FOCALE * p[0]) / -p[2], (FOCALE * p[1]) / -p[2]];
 
 /** Points spread on the sphere (Fibonacci spiral), centre included. */
@@ -89,18 +83,6 @@ test('the bound majors the real screen displacement, off-axis as on-axis', () =>
       `${name}: real ${reel} px above the announced ${annonce(centre, radius, epsilon)} px`,
     );
   }
-});
-
-test('off-axis, the old formula announced less than the real displacement', () => {
-  const centre = [8, 0, -10],
-    radius = 1,
-    epsilon = 0.05;
-  const reel = pireDeplacement(centre, radius, epsilon);
-  assert.ok(
-    reel > ancienne(epsilon, 1, centre, radius),
-    `defect 3 assumes a real ${reel} px above the old announced`,
-  );
-  assert.ok(reel <= annonce(centre, radius, epsilon), 'and the corrected bound covers it');
 });
 
 test('clusterErrorAtDepth is clusterErrorPixels whose axis and depth are already taken', () => {
