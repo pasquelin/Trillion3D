@@ -53,12 +53,10 @@ export function createPartitionCells(inputs: Inputs) {
   const rows = createCellPlacements(root, parents, meshes)
   const { held, touched } = rows
   const far = createFarCells(world, held)
-  /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked; the
-   *  failed reads' waits over when the plan last asked the failed holds again. */
+  /** Cells waiting for rows; the rung the rows are sized for (`RUNGS`: all); the widest asked. */
   let waiting = 0,
     sized = -1,
-    wanted = -1,
-    turns = 0
+    wanted = -1
   /** Where the camera at `eye` stands in the cells' frame, and the rung its view asks. */
   const view = (eye: ArrayLike<number>, reach: number) => {
     const local = inCellFrame(resolveCameraWorld(root).worldMatrix, eye, reach)
@@ -85,7 +83,8 @@ export function createPartitionCells(inputs: Inputs) {
     rows.place(cell, decoded, cellUrl(cell)) &&
     (manifest.hold(cell, holdPriority(index, seen.local, cell, seen.ahead)), true)
   const placed = (cell: number, decoded: CellRows) => place(cell, decoded) || (waiting++, false)
-  /** A failed read's wait is over: the failed holds are asked again, at their priority now. */
+  /** A failed read's wait ended since a failed hold was held: it is asked again, at its priority
+   *  now. */
   const retry = (local: typeof seen.local) => {
     const priority = (cell: number) => holdPriority(index, local, cell)
     manifest.retry(priority)
@@ -124,10 +123,9 @@ export function createPartitionCells(inputs: Inputs) {
       }
       const plan = far.plan(index, local, eye, io.lens, leave)
       plan.leave.forEach(leave)
-      if (turns !== io.turns()) {
-        turns = io.turns()
-        retry(local)
-      }
+      const turns = io.turns(),
+        due = manifest.turned(turns)
+      if (far.turned(turns) || due) retry(local)
       io.forget(index.forgotten())
       waiting = 0
       let later = false

@@ -35,8 +35,10 @@ export function recordFailure(context: StreamContext, url: string, error: Error,
     return
   }
   const wait = Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** failure.tries++)
-  failure.due = performance.now() + wait
+  const due = (failure.due = performance.now() + wait)
   const turn = () => {
+    // Its wait is over once its turn is told, whatever the clocks' rounding: the view asks it then.
+    if (failure.due === due) failure.due = Math.min(due, performance.now())
     state.turns++
     context.onTurn?.()
   }

@@ -68,3 +68,18 @@ test('a page is `failed` only while its refusal is in force: once its wait is ov
     streamer.dispose()
   }
 })
+
+test('a read is asked again once its turn is told, even on a clock still short of its wait', async (t) => {
+  const { streamer, sent, frames, clock } = refusing(t, 503)
+  try {
+    await frames(0) // read and refused at 0, its wait running till 500
+    clock.now = 499
+    t.mock.timers.tick(500) // its turn told a hair before the clock reads 500
+    await new Promise(setImmediate)
+    assert.equal(streamer.failed('a.bin'), false, 'its turn told, it is asked again')
+    await streamer.request(['a.bin']).catch(() => {})
+    assert.deepEqual([...new Set(sent)], [0, 499])
+  } finally {
+    streamer.dispose()
+  }
+})

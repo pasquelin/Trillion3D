@@ -7,8 +7,9 @@
  * `../scene/worldRoots.ts`). Both are read through the session's queue at the priority the cell is
  * held with, and a cell that leaves while its hold reads lets its reads go at once: those still
  * queued are never fetched. A hold that failed holds nothing; the plan asks it again, at the
- * priority its view gives it then, once a failed read's wait is over (`retry`,
- * `../streaming/failures.ts`). Without `pages` the manifest was read whole: every mesh the cells
+ * priority its view gives it then, once a failed read's wait ended since it was held (`retry`,
+ * `../streaming/failures.ts`): the wait that lets its failed read pass ends after it was held,
+ * whenever the hold settles. Without `pages` the manifest was read whole: every mesh the cells
  * place has its primitive from the open.
  */
 import type { ManifestPages, PageAsk } from '../../../sdk-core/src/manifest/paged.ts'
@@ -79,9 +80,10 @@ function createLandings() {
   }
 }
 
-/** A cell's hold, held or read, left while it reads, and what lets its reads go. Each hold is
- *  released once on every holder, landed or not (`WorldRootsHold.hold`). */
-type Hold = { landed: boolean; left: boolean; stop: AbortController }
+/** A cell's hold, held or read, left while it reads, what lets its reads go, and the failed reads'
+ *  waits over when it was held. Each hold is released once on every holder, landed or not
+ *  (`WorldRootsHold.hold`). */
+type Hold = { landed: boolean; left: boolean; stop: AbortController; turns: number }
 
 /** The holds of the cells placed on `pages` and `world`. */
 export function createCellPages(
@@ -91,10 +93,12 @@ export function createCellPages(
 ) {
   const holders: Holder[] = world ? [world] : []
   if (pages) holders.push(meshPagesHolder(pages, meshPagesOf))
-  /** Each cell's hold; the cells whose hold failed, their pages counted till the plan asks again. */
+  /** Each cell's hold; the cells whose hold failed, their pages counted till the plan asks again,
+   *  with the waits over when it was held; the waits over the plan last told. */
   const holding = new Map<number, Hold>(),
-    failed = new Set<number>(),
+    failed = new Map<number, number>(),
     landings = createLandings()
+  let turns = 0
   const releaseAll = (cell: number) => holders.forEach((holder) => holder.release(cell))
   const settle = (cell: number, own: Hold, held: PromiseSettledResult<void>[]) => {
     landings.settled()
@@ -102,11 +106,11 @@ export function createCellPages(
     if (own.left) return releaseAll(cell) // left while it read
     if (own.landed) return
     holding.delete(cell)
-    failed.add(cell)
+    failed.set(cell, own.turns)
   }
   const hold = (cell: number, priority = PRIORITY_VISIBLE) => {
     if (!holders.length || holding.has(cell)) return
-    const own: Hold = { landed: false, left: false, stop: new AbortController() }
+    const own: Hold = { landed: false, left: false, stop: new AbortController(), turns }
     holding.set(cell, own)
     landings.started()
     const asked = { signal: own.stop.signal, priority }
@@ -129,10 +133,18 @@ export function createCellPages(
       if (own.landed) releaseAll(cell)
       else own.stop.abort()
     },
-    /** The failed holds are held again at the priority `priorityOf` gives each — what the plan
-     *  asks once a failed read's wait is over —, and let go once the new hold counts. */
+    /** The plan tells the failed reads' waits over now, `now`: whether a failed hold is due again,
+     *  one held before a wait ended. */
+    turned(now: number) {
+      turns = now
+      for (const held of failed.values()) if (held < now) return true
+      return false
+    },
+    /** The failed holds due again are held at the priority `priorityOf` gives each, and let go once
+     *  the new hold counts; those whose read's wait is not over yet wait for it. */
     retry(priorityOf: (cell: number) => number) {
-      for (const cell of [...failed]) {
+      for (const [cell, held] of failed) {
+        if (held >= turns) continue
         failed.delete(cell)
         hold(cell, priorityOf(cell))
         releaseAll(cell)

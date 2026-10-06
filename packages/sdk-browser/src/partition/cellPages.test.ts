@@ -93,6 +93,9 @@ test('a failed hold keeps its pages wanted until the plan asks again, at the pri
   await settled(held)
   assert.equal(held.held(), 0, 'never asked again by itself, frame after frame')
   held.retry(() => 1.25)
+  assert.equal(world.priorities.length, 1, 'not before a wait ended since it was held')
+  assert.equal(held.turned(1), true)
+  held.retry(() => 1.25)
   await settled(held)
   assert.deepEqual(
     [counts.get('x'), world.held, held.held()],

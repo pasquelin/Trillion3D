@@ -1,5 +1,5 @@
-// A placed cell whose hold failed is asked again by the plan once a failed read's wait is over —
-// never frame after frame before —, at the priority its view gives it then.
+// A placed cell whose hold failed is asked again by the plan once a failed read's wait ended since it
+// was held — never frame after frame before —, at the priority its view gives it then.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
@@ -10,17 +10,10 @@ import { io, noBudget, opened } from './cells.fixture.ts'
 import { paged } from './paged.fixture.ts'
 import { holdPriority } from './plan.ts'
 import { placedMesh } from './rows.ts'
+import type { WorldRootsHold } from '../scene/worldRoots.ts'
 
-test("a failed hold is asked again once a failed read's wait is over, at its priority then", async () => {
-  const priorities: number[] = []
-  let refuse = true
-  const world = {
-    async hold(_cell: number, asked?: PageAsk) {
-      priorities.push(asked!.priority!)
-      if (refuse) throw new Error('refused')
-    },
-    release() {},
-  }
+/** A partition of one cell, its world bundles held on `world`: the cell and its file read. */
+function oneCell(world: Pick<WorldRootsHold, 'hold' | 'release'>) {
   const box = [10, 0, 0, 11, 1, 1]
   const record = { url: 'a.json', sha256: '', bytes: 1, meshes: [[7, 1] as const], meshPages: [] }
   const { partition, files } = paged([{ ...record, parents: [[null, box] as const] }], 1)
@@ -34,7 +27,20 @@ test("a failed hold is asked again once a failed read's wait is over, at its pri
   const file = new TextEncoder().encode(JSON.stringify(cell))
   const bytes = (url: string) => files.get(url.split('/').at(-1)!) ?? file
   const { manifest } = cellHoldings(cells)
-  const landed = () => Promise.all(manifest.reads())
+  return { cells, bytes, manifest, landed: () => Promise.all(manifest.reads()) }
+}
+
+test("a failed hold is asked again once a failed read's wait is over, at its priority then", async () => {
+  const priorities: number[] = []
+  let refuse = true
+  const world = {
+    async hold(_cell: number, asked?: PageAsk) {
+      priorities.push(asked!.priority!)
+      if (refuse) throw new Error('refused')
+    },
+    release() {},
+  }
+  const { cells, bytes, manifest, landed } = oneCell(world)
   await opened(cells, bytes, 100) // placed from the origin: its hold refused
   await landed()
   const { port } = io(bytes)
@@ -50,4 +56,28 @@ test("a failed hold is asked again once a failed read's wait is over, at its pri
   const at = (eye: number[]) =>
     holdPriority({ distance: () => 10 - eye[0] }, { eye, reach: 100 }, 0)
   assert.deepEqual(priorities, [at([0, 0, 0]), at([5, 0, 0])], 'at the priority its view gives it')
+})
+
+test("a hold whose failed read's wait ends before the hold settles is still asked again", async () => {
+  let fail = () => {}
+  const failing = new Promise<void>((resolve) => (fail = resolve))
+  const asks: number[] = []
+  const world = {
+    async hold() {
+      if (asks.push(1) > 1) return
+      await failing
+      throw new Error('refused')
+    },
+    release() {},
+  }
+  const { cells, bytes, manifest, landed } = oneCell(world)
+  await opened(cells, bytes, 100)
+  const { port } = io(bytes)
+  port.turns = () => 1
+  cells.frame([5, 0, 0], 100, port, noBudget) // the wait ended while the hold still reads
+  fail()
+  await landed()
+  cells.frame([5, 0, 0], 100, port, noBudget)
+  await landed()
+  assert.deepEqual([asks.length, manifest.held()], [2, 1], 'asked again, held')
 })
