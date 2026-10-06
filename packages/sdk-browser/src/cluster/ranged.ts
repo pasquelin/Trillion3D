@@ -1,6 +1,6 @@
 import { unmetered, type ByteMeter } from './byteMeter.ts'
 import { checked } from './checked.ts'
-import { waitShared, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
+import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 
 /** How one range is read: the meter counting what arrives, the requests `checked` makes at most,
  *  and the signal that lets its asker go, the reader's own by default. */
@@ -52,7 +52,12 @@ export function rangedReader(url: string, signal?: AbortSignal) {
     }
   }
   const read = async (offset: number, length: number, asked: Asked = {}) => {
-    while (!ranged && asking) await asking.catch(() => {})
+    // Waiting on another range's answer, its own signal still lets it go at once.
+    while (!ranged && asking)
+      await waited(
+        asking.catch(() => {}),
+        asked.signal ?? signal,
+      )
     if (!whole) {
       const range = await request(offset, length, asked)
       if (range) return range

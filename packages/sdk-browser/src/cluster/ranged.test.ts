@@ -70,3 +70,21 @@ test('ranges asked at once before the server answered one send one request: neve
   assert.deepEqual([...new Uint8Array(low), ...new Uint8Array(high)], [1, 2, 3, 4, 5, 6, 7, 8])
   assert.deepEqual([signals.length, read.held()], [2, 8], 'one request after the stopped one')
 })
+
+test("a range waiting on another's first answer lets go at once when its own asker does", async (t) => {
+  let answer = () => {}
+  const answered = new Promise<void>((resolve) => (answer = resolve))
+  t.mock.method(globalThis, 'fetch', async () => {
+    await answered // the first answer, not come yet
+    return new Response(new Uint8Array(8))
+  })
+  const read = rangedReader('http://cache/world.bin')
+  const first = read(0, 4)
+  const gone = new AbortController()
+  const waiting = read(4, 4, { signal: gone.signal })
+  await new Promise(setImmediate)
+  gone.abort()
+  await assert.rejects(waiting, { name: 'AbortError' }) // before the answer
+  answer()
+  assert.equal((await first).byteLength, 4)
+})
