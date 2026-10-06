@@ -72,9 +72,10 @@ test('a cell that leaves mid-read releases its pages once they land', async () =
 })
 
 // A placed cell also holds the world bundles its objects' roots depend on. A hold whose world read
-// fails keeps both wanted — its failed reads wait their turn on the same pages — until the plan
-// asks it again, or the cell leaves.
-test('a failed hold keeps its pages wanted until the plan asks again, at the priority it gives then', async () => {
+// fails keeps both wanted until the plan asks it again, once its wait is over, or the cell leaves.
+test('a failed hold keeps its pages wanted until the plan asks again, at the priority it gives then', async (t) => {
+  let now = 0
+  t.mock.method(performance, 'now', () => now)
   const { pages, counts, land } = countedPages(new Set())
   const world = { held: 0, fails: 1, priorities: [] as (number | undefined)[] }
   const held = createCellPages(pages, cell(['x']), {
@@ -92,10 +93,11 @@ test('a failed hold keeps its pages wanted until the plan asks again, at the pri
   assert.deepEqual([counts.get('x'), world.held, held.held()], [1, 1, 0], 'wanted, not held')
   await settled(held)
   assert.equal(held.held(), 0, 'never asked again by itself, frame after frame')
-  held.retry(() => 1.25)
-  assert.equal(world.priorities.length, 1, 'not before a wait ended since it was held')
-  assert.equal(held.turned(1), true)
-  held.retry(() => 1.25)
+  held.retry(() => 1.25, now)
+  assert.equal(world.priorities.length, 1, 'not before its wait is over')
+  assert.equal(held.due(), 500, 'half a second after its first failure')
+  now = 500
+  held.retry(() => 1.25, now)
   await settled(held)
   assert.deepEqual(
     [counts.get('x'), world.held, held.held()],

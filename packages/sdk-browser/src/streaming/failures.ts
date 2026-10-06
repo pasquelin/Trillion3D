@@ -1,18 +1,26 @@
 /**
- * WHEN A STREAMER ASKS AGAIN A READ THAT FAILED. One that may pass (`retriableError`: the network,
- * a timeout, a rate limit, a server error, an answer that is not what its page announced) waits
- * 0.5 s · 2^(k−1) after its k-th failure in a row, at most 8 s: a request meanwhile is refused at
- * once, no request sent, and the end of its wait is told (`onTurn`), so the view asks it again.
- * A source refusing every read of F pages is thus asked at most F times in the first half second,
- * then ever more seldom, down to F every 8 s — never once a frame. Past the longest wait the
- * failure is said once (`onStalled`). One another request would meet again — a 404, a 403 — is
- * refused for good.
+ * WHEN A READ THAT FAILED IS ASKED AGAIN. One that may pass (`retriableError`: the network, a
+ * timeout, a rate limit, a server error, an answer that is not what its page announced) waits
+ * 0.5 s · 2^(k−1) after its k-th failure in a row, at most 8 s (`backoff`); one another request
+ * would meet again — a 404, a 403 — is never asked again. A streamer refuses a page at once while
+ * its wait runs, no request sent, and says it once past the longest wait (`onStalled`): a source
+ * refusing every read of F pages is asked at most F times in the first half second, then ever
+ * more seldom, down to F every 8 s — never once a frame. A cell's hold that failed waits the same
+ * (`../partition/cellPages.ts`).
  */
-import { pause, retriableError } from '../cluster/checked.ts'
+import { retriableError } from '../cluster/checked.ts'
 import type { StreamContext } from './types.ts'
 
 const FIRST_WAIT_MS = 500,
   LAST_WAIT_MS = 8000
+
+/** How long a read that failed `tries` times in a row waits before it is asked again, `error` its
+ *  last failure or what caused it: for good (`Infinity`) when another request would meet it again. */
+export function backoff(tries: number, error: unknown) {
+  const cause = error instanceof Error ? error.cause : undefined
+  if (!retriableError(error) || !retriableError(cause)) return Infinity
+  return Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** (tries - 1))
+}
 
 /** A page's last failure, its failures in a row, when it may be asked again, whether it was said. */
 export type ReadFailure = { error: Error; tries: number; due: number; said: boolean }
@@ -31,28 +39,14 @@ export function refusals(context: StreamContext) {
   return refused
 }
 
-/** `url` failed with `error`, its last attempt by `cause`: it waits its turn, or is refused for
- *  good. */
+/** `url` failed with `error`, its last attempt by `cause`: it waits, or is refused for good. */
 export function recordFailure(context: StreamContext, url: string, error: Error, cause: unknown) {
-  const { failures, abort, state } = context
-  const failure = failures.get(url) ?? { error, tries: 0, due: 0, said: false }
-  failures.set(url, failure)
+  const failure = context.failures.get(url) ?? { error, tries: 0, due: 0, said: false }
+  context.failures.set(url, failure)
   failure.error = error
-  if (!retriableError(cause)) {
-    failure.due = Infinity
-    return
-  }
-  const wait = Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** failure.tries++)
-  const due = (failure.due = performance.now() + wait)
-  const turn = () => {
-    // Its wait is over once its turn is told, whatever the clocks' rounding: the view asks it then.
-    if (failure.due === due) failure.due = Math.min(due, performance.now())
-    state.turns++
-    context.onTurn?.()
-  }
-  // A streamer closed meanwhile asks nothing again.
-  void pause(wait, abort.signal).then(turn, () => {})
-  if (wait < LAST_WAIT_MS || failure.said) return
+  const wait = backoff(++failure.tries, cause)
+  failure.due = performance.now() + wait
+  if (wait !== LAST_WAIT_MS || failure.said) return
   failure.said = true
   context.onStalled?.({ url, cause })
 }

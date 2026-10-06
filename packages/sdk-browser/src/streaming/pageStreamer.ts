@@ -53,7 +53,6 @@ export function createPageStreamerWith(
     loaded: 0,
     evictions: 0,
     admissionBlocked: 0,
-    turns: 0,
     disposed: false,
     reservedBytes: () => 0,
   }
@@ -62,7 +61,7 @@ export function createPageStreamerWith(
   const context: StreamContext = {
     ...{ base, catalog, store, cache, jobs, queue, pinned, failures, abort, limit, maxPages },
     ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
-    ...{ onTurn: options.onTurn, onStalled: options.onStalled },
+    onStalled: options.onStalled,
   }
   const { loadOne, roundTrip, keptBytes, readFrom } = createStreamingFetcher(context, store.touch)
   const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
@@ -115,7 +114,6 @@ export function createPageStreamerWith(
     /** Whether a read of `url` is refused now: its failure's wait is not over, or it never passes. */
     failed: (url: string) => refusalOf(context, url) !== undefined,
     readFrom,
-    /** How many failed reads' waits are over (`failures.ts`). */ turns: () => state.turns,
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
     roundTripMs: roundTrip.ms,
     read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),

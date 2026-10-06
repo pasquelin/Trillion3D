@@ -70,8 +70,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     camera,
     active: () => state.active,
     opened: context,
-    renew: options.onPartitionOutgrown,
-    budget: frameBudget,
+    ...{ renew: options.onPartitionOutgrown, budget: frameBudget, wake: pageSources.wake },
   })
   const render = createExplorerRender(session, {
     check,

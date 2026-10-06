@@ -11,20 +11,15 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void
 
-/** How a session hears its streamer's failed reads: a wait over wakes its loop, once it runs
- *  (`whenTurned`), to ask the read again; a read that keeps failing is said on `channel`. */
-function failedReads(channel: ReturnType<typeof createDiagnosticChannel>) {
-  let turned = () => {}
-  return {
-    onTurn: () => turned(),
-    onStalled: ({ url, cause }: { url: string; cause: unknown }) =>
-      channel.emit({
-        ...{ phase: 'page-read-stalled', message: 'A read keeps failing past its longest wait' },
-        context: { kind: 'error', url, error: String(cause) },
-      }),
-    whenTurned: (wake: () => void) => void (turned = wake),
-  }
-}
+/** A read of the session's streamer that keeps failing past its longest wait, said on
+ *  `channel`. */
+const stalledOn =
+  (channel: ReturnType<typeof createDiagnosticChannel>) =>
+  ({ url, cause }: { url: string; cause: unknown }) =>
+    channel.emit({
+      ...{ phase: 'page-read-stalled', message: 'A read keeps failing past its longest wait' },
+      context: { kind: 'error', url, error: String(cause) },
+    })
 
 export async function createExplorerPageSources(
   metadata: ClusterManifest,
@@ -73,7 +68,7 @@ export async function createExplorerPageSources(
     loaded = all.loaded
     pageBytesRead = all.pageBytesRead
   } else progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand')
-  const turns = failedReads(diagnosticChannel)
+  let woken = () => {}
   // The queue comes last: no wait after it leaves it unowned till the preparation takes it.
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
     cache: options.pageCache,
@@ -88,7 +83,7 @@ export async function createExplorerPageSources(
       diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
         ? diagnosticChannel.emit
         : undefined,
-    ...{ onTurn: turns.onTurn, onStalled: turns.onStalled },
+    onStalled: stalledOn(diagnosticChannel),
   })
   return {
     pages,
@@ -102,7 +97,9 @@ export async function createExplorerPageSources(
     loaded,
     pageBytesRead,
     indices,
-    whenTurned: turns.whenTurned,
+    /** Asks the session's loop for a frame once it runs (`wakeWith`): a failed hold's wait is over. */
+    wake: () => woken(),
+    wakeWith: (loop: () => void) => void (woken = loop),
   }
 }
 

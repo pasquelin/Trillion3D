@@ -51,7 +51,7 @@ const gridCell = (side: number, cell: number): TableCell => {
  * A generated world of `side` × `side` cells 10 m apart, its roots served by `answer`
  * (`served`) and read through a page streamer of `transfers` the world is bound to, a read that
  * keeps failing told `stalled`: its partition's cells, its world roots, the streamer, the file
- * each address reads, and an io of its frames, the streamer's turns told.
+ * each address reads, and an io of its frames.
  */
 export async function gridWorld(
   t: TestContext,
@@ -80,7 +80,6 @@ export async function gridWorld(
   )
   const bytes = (url: string) => files.get(url.split('/').at(-1)!) ?? cellFile
   const { port } = io(bytes)
-  port.turns = streamer.turns
   return { cells, roots, streamer, bytes, port }
 }
 

@@ -92,12 +92,12 @@ export async function openMeasuredWorld(
       preparationMs: performance.now() - preparationStart,
       moveNamed: source?.moveNamed,
     })
-    // A change, or a failed read whose wait is over, asks the session's own loop for a frame;
+    // A change, or a failed hold whose wait is over, asks the session's own loop for a frame;
     // without one, the host draws (`render`) and a change asks nothing.
     const invalidate = explorerSwitch(options, 'interactive')
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
       : () => {}
-    prepared.pageSources.whenTurned(invalidate)
+    prepared.pageSources.wakeWith(invalidate)
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
     const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias
     const capture = referenceCapture(explorer.capture, reference, shadowBias)

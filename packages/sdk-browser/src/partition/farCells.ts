@@ -89,10 +89,8 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       return plan
     },
     release,
-    /** Whether a far cell's failed hold is due again, the failed reads' waits over now told. */
-    turned: holds.turned,
-    /** The far cells whose failed hold is due again are held, at the priority `priorityOf` gives
-     *  each. */
+    /** When the first far cell whose hold failed is asked again, and those due held again. */
+    due: holds.due,
     retry: holds.retry,
   }
 }

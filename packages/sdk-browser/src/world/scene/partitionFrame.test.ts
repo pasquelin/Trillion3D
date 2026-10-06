@@ -30,6 +30,7 @@ function recording() {
         io.request(['ahead.json'], true)
       },
       decodes: () => [],
+      due: () => Infinity,
     } as unknown as PartitionCells,
   )
   return { cells, seen }
@@ -43,7 +44,6 @@ function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
       void asked.push([urls, options.priority]),
     getBytes: (url: string) => files.get(url.split('/').at(-1)!),
     loading: () => false,
-    turns: () => 0,
     admit() {},
     forget() {},
   } as unknown as ReturnType<typeof createPageStreamer>

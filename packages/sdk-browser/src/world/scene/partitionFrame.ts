@@ -98,6 +98,21 @@ type Inputs = {
    *  (`partitionMounts.ts`): the owner opens the session again. Absent, a cell past those rows
    *  waits. */
   renew?: () => void
+  /** Asks the session's loop for a frame: a failed hold's wait is over. */
+  wake?: () => void
+}
+
+/** One timer at a time, for the earliest failed hold's wait: it asks `wake` for the frame that
+ *  holds it again, which arms the next. */
+function createWaker(wake?: () => void) {
+  let timer: ReturnType<typeof setTimeout> | undefined,
+    armed = Infinity
+  return (due: number) => {
+    if (due >= armed || due === Infinity || !wake) return
+    clearTimeout(timer)
+    armed = due
+    timer = setTimeout(() => ((armed = Infinity), wake()), due - performance.now())
+  }
 }
 
 /**
@@ -106,10 +121,11 @@ type Inputs = {
  * it handed to the decode pool decoded, the mounts they asked, and the next of the cells' holds
  * on its way landed, true while one of them waits for a frame to place or mount it, or a decode,
  * a hold or a mount landed: a still camera is drawn again until they all are. It never waits for a
- * failed read's turn: the streamer asks the loop for the frame that holds it again (`onTurn`).
+ * failed hold's wait: one timer asks the loop for the frame that holds it again (`wake`).
  */
 export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, active, renew, budget } = inputs
+  const wakeAt = createWaker(inputs.wake)
   if (!partitions.length) return null
   const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew })
   const manifests = partitions.map((cells) => cellHoldings(cells).manifest)
@@ -143,7 +159,6 @@ export function createPartitionFrame(inputs: Inputs) {
       decode: decodeCell,
       decodePage,
       loading: (url: string) => streamer.loading(url),
-      turns: streamer.turns,
       request,
       admit: streamer.admit,
       forget: streamer.forget,
@@ -159,7 +174,12 @@ export function createPartitionFrame(inputs: Inputs) {
     }
     const { eye, reach } = viewOf(camera)
     later = false
-    for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
+    let due = Infinity
+    for (const cells of partitions) {
+      later = cells.frame(eye, reach, io, budget) || later
+      due = Math.min(due, cells.due())
+    }
+    wakeAt(due)
   }
   return Object.assign(step, { pending })
 }

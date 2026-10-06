@@ -8,8 +8,7 @@ import type { CellRows } from './cellDecode.ts'
 import type { PageBody } from './cellIndex.ts'
 
 /** A frame's: the streamer's verified bytes and their decode off the main thread, reads, requests
- *  (`ahead`: before needed), catalogue, how many failed reads' waits are over (`turns`), rows,
- *  else the owner told. */
+ *  (`ahead`: before needed), catalogue, rows, else the owner told. */
 export type CellFrameIo = {
   bytes(url: string): Uint8Array | undefined
   decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
@@ -18,7 +17,6 @@ export type CellFrameIo = {
   request(urls: readonly string[], ahead: boolean): void
   admit(pages: readonly StreamPage[]): void
   forget(urls: readonly string[]): void
-  turns(): number
   update(rows: PlacementRows, from: number, to: number): void
   grow?: PlacementGrowth
   outgrown?: () => void

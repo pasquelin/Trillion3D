@@ -1,8 +1,10 @@
-// A placed cell whose hold failed is asked again by the plan once a failed read's wait ended since it
-// was held — never frame after frame before —, at the priority its view gives it then.
-import test from 'node:test'
+// A placed cell whose hold failed is asked again by the plan once its own wait is over — 0.5 s, then
+// twice as long each time up to 8 s, never frame after frame before —, at the priority its view
+// gives it then, whatever failed; one another request would meet again (a 404) is never asked again.
+import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
+import { EngineError } from '../../../sdk-core/src/index.ts'
 import type { PageAsk } from '../../../sdk-core/src/manifest/paged.ts'
 import { cellHoldings } from './cellPages.ts'
 import { createPartitionCells } from './cells.ts'
@@ -30,13 +32,16 @@ function oneCell(world: Pick<WorldRootsHold, 'hold' | 'release'>) {
   return { cells, bytes, manifest, landed: () => Promise.all(manifest.reads()) }
 }
 
-test("a failed hold is asked again once a failed read's wait is over, at its priority then", async () => {
+/** One cell whose world hold throws `failure` while `refusing()`, framed by a clock in the test's
+ *  hands: the priorities its holds were asked at, and a frame from `eye` at time `at`. */
+async function failing(t: TestContext, failure: () => Error, refusing: () => boolean) {
+  let now = 0
+  t.mock.method(performance, 'now', () => now)
   const priorities: number[] = []
-  let refuse = true
   const world = {
     async hold(_cell: number, asked?: PageAsk) {
       priorities.push(asked!.priority!)
-      if (refuse) throw new Error('refused')
+      if (refusing()) throw failure()
     },
     release() {},
   }
@@ -44,40 +49,49 @@ test("a failed hold is asked again once a failed read's wait is over, at its pri
   await opened(cells, bytes, 100) // placed from the origin: its hold refused
   await landed()
   const { port } = io(bytes)
-  let turns = 0
-  port.turns = () => turns
-  for (let frame = 0; frame < 3; frame++) cells.frame([5, 0, 0], 100, port, noBudget)
-  await landed()
+  const frame = async (at: number, eye = [5, 0, 0]) => {
+    now = at
+    cells.frame(eye, 100, port, noBudget)
+    await landed()
+  }
+  return { priorities, manifest, frame, due: () => cells.due() }
+}
+
+test('a failed hold is asked again once its own wait is over, at its priority then', async (t) => {
+  let refuse = true
+  const { priorities, manifest, frame, due } = await failing(
+    t,
+    () => new Error('refused'),
+    () => refuse,
+  )
+  for (const at of [0, 250, 499]) await frame(at)
   assert.equal(priorities.length, 1, 'never asked again frame after frame')
-  ;[refuse, turns] = [false, 1]
-  cells.frame([5, 0, 0], 100, port, noBudget)
-  await landed()
+  assert.equal(due(), 500)
+  refuse = false
+  await frame(500)
   assert.equal(manifest.held(), 1, 'held once asked again')
   const at = (eye: number[]) =>
     holdPriority({ distance: () => 10 - eye[0] }, { eye, reach: 100 }, 0)
   assert.deepEqual(priorities, [at([0, 0, 0]), at([5, 0, 0])], 'at the priority its view gives it')
 })
 
-test("a hold whose failed read's wait ends before the hold settles is still asked again", async () => {
-  let fail = () => {}
-  const failing = new Promise<void>((resolve) => (fail = resolve))
-  const asks: number[] = []
-  const world = {
-    async hold() {
-      if (asks.push(1) > 1) return
-      await failing
-      throw new Error('refused')
-    },
-    release() {},
-  }
-  const { cells, bytes, manifest, landed } = oneCell(world)
-  await opened(cells, bytes, 100)
-  const { port } = io(bytes)
-  port.turns = () => 1
-  cells.frame([5, 0, 0], 100, port, noBudget) // the wait ended while the hold still reads
-  fail()
-  await landed()
-  cells.frame([5, 0, 0], 100, port, noBudget)
-  await landed()
-  assert.deepEqual([asks.length, manifest.held()], [2, 1], 'asked again, held')
+test('a hold that fails without any read, its world not bound yet, waits as long, doubling', async (t) => {
+  const { priorities, frame } = await failing(
+    t,
+    () => new Error('WORLD_ROOTS_UNBOUND: a cell holds within a session'),
+    () => true,
+  )
+  for (let at = 0; at <= 4000; at += 250) await frame(at)
+  assert.equal(priorities.length, 4, 'asked at 0, 0.5, 1.5 and 3.5 s')
+})
+
+test('a hold another request would meet again (404) is never asked again', async (t) => {
+  const missing = new EngineError('RESOURCE_HTTP_ERROR', 'absent', { status: 404 })
+  const { priorities, frame, due } = await failing(
+    t,
+    () => new Error('PAGE_STREAM_FAILED', { cause: missing }),
+    () => true,
+  )
+  for (let at = 0; at <= 20_000; at += 1000) await frame(at)
+  assert.deepEqual([priorities.length, due()], [1, Infinity])
 })

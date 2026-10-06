@@ -83,8 +83,6 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void
-  /** Hears the wait of a failed read end: the view asks it again (`failures.ts`). */
-  onTurn?: () => void
   /** Hears, once, a read that keeps failing past the longest wait. */
   onStalled?: (failure: { url: string; cause: unknown }) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
@@ -124,7 +122,6 @@ export type StreamContext = {
   maxTransferBytes: number
   onEvict?: (url: string) => void
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void
-  onTurn?: () => void
   onStalled?: PageStreamerOptions['onStalled']
   state: {
     order: number
@@ -137,8 +134,6 @@ export type StreamContext = {
     loaded: number
     evictions: number
     admissionBlocked: number
-    /** Failed reads whose wait is over (`failures.ts`). */
-    turns: number
     disposed: boolean
     /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
      *  the cache weighs itself: those tables follow the view. */

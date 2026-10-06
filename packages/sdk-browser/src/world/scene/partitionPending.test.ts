@@ -24,6 +24,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
         return later
       },
       decodes: () => decodes.splice(0),
+      due: () => Infinity,
     } as unknown as PartitionCells,
   )
   const streamer = {
@@ -57,12 +58,14 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   assert.equal(await frame.pending(), true, 'a decode landed')
 })
 
-/** The frame step of a still camera over one partition holding its cells on `holder`. */
-function stillFrame(holder: Parameters<typeof createCellPages>[2]) {
+/** The frame step of a still camera over one partition holding its cells on `holder`, asking
+ *  `wake` for a frame once a failed hold's wait is over. */
+function stillFrame(holder: Parameters<typeof createCellPages>[2], wake?: () => void) {
   const manifest = createCellPages(undefined, () => [], holder)
   const cells = withHoldings({ meshes: new Map(), manifest }, {
     frame: () => false,
     decodes: () => [],
+    due: manifest.due,
   } as unknown as PartitionCells)
   const frame = createPartitionFrame({
     partitions: [cells],
@@ -70,6 +73,7 @@ function stillFrame(holder: Parameters<typeof createCellPages>[2]) {
     camera: hostFramingCamera(60, 1, 0.1, 100),
     active: () => ({}) as RenderBackend,
     budget: { admits: () => true, spend() {} },
+    wake,
   })!
   return { manifest, frame }
 }
@@ -96,16 +100,24 @@ test('a still camera is drawn again as each hold lands, never waiting for every 
   assert.equal(await frame.pending(), false, 'every hold landed')
 })
 
-test("a still camera never waits for a failed read's turn: the streamer asks the frame", async () => {
-  const { manifest, frame } = stillFrame({
+test("a still camera never waits for a failed hold's wait: one timer asks the loop for a frame then", async (t) => {
+  t.mock.method(performance, 'now', () => 0)
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let woken = 0
+  const holder = {
     async hold() {
       throw new Error('refused')
     },
     release() {},
-  })
+  }
+  const { manifest, frame } = stillFrame(holder, () => woken++)
   manifest.hold(0)
   frame()
   assert.equal(await frame.pending(), true, 'the hold failed: a frame is drawn')
   frame()
   assert.equal(await frame.pending(), false, 'then nothing is on its way, and nothing is awaited')
+  t.mock.timers.tick(499)
+  assert.equal(woken, 0)
+  t.mock.timers.tick(1)
+  assert.equal(woken, 1, 'its wait over, the loop is asked once')
 })
