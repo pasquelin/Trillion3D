@@ -129,7 +129,9 @@ test('a read its last holder let go that still lands lists its primitives once, 
   assert.equal(pages.primitives.length, 0, 'and let go with its last holder')
 })
 
-test('a more urgent hold of a page on its way lifts its read: its file asked again so, and the next', async () => {
+/** The priorities one page's reads are asked at once holds ask it as `asks` say, every read
+ *  landing once all are asked. */
+async function readPriorities(asks: (number | undefined)[]) {
   const { root, files } = pagedManifest(manifest(), false, true)
   const { read: gated, land } = gatedReads(files)
   const priorities: (number | undefined)[] = []
@@ -140,29 +142,17 @@ test('a more urgent hold of a page on its way lifts its read: its file asked aga
   const { pages } = await openPagedManifest(root, read)
   const opened = priorities.length
   const [first] = root.pages as string[]
-  const holds = [3, 1, 3].map((priority) => pages.hold([first], { priority }))
+  const holds = asks.map((priority) => pages.hold([first], { priority }))
   land()
   await Promise.all(holds)
-  assert.deepEqual(
-    priorities.slice(opened),
-    [3, 1, 1],
-    'the page at 3, lifted to 1, its sidecar at 1',
-  )
+  return priorities.slice(opened)
+}
+
+test('a more urgent hold of a page on its way lifts its read: its file asked again so, and the next', async () => {
+  const asked = await readPriorities([3, 1, 3])
+  assert.deepEqual(asked, [3, 1, 1], 'the page at 3, lifted to 1, its sidecar at 1')
 })
 
 test("a hold that names no priority leaves a page read's priority as it was", async () => {
-  const { root, files } = pagedManifest(manifest(), false, true)
-  const { read: gated, land } = gatedReads(files)
-  const priorities: (number | undefined)[] = []
-  const read = (page: { url: string }, asked?: PageAsk) => (
-    priorities.push(asked?.priority),
-    gated(page, asked)
-  )
-  const { pages } = await openPagedManifest(root, read)
-  const opened = priorities.length
-  const [first] = root.pages as string[]
-  const holds = [pages.hold([first], { priority: 3 }), pages.hold([first])]
-  land()
-  await Promise.all(holds)
-  assert.deepEqual(priorities.slice(opened), [3, 3], 'the page and its sidecar at 3')
+  assert.deepEqual(await readPriorities([3, undefined]), [3, 3], 'the page and its sidecar at 3')
 })
