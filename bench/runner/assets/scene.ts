@@ -8,7 +8,7 @@ import { basename, join, resolve } from 'node:path';
 // at another folder — a frozen copy, or that of another worktree.
 export const ASSETS = process.env.TRILLION3D_ASSETS
   ? resolve(process.env.TRILLION3D_ASSETS)
-  : resolve(import.meta.dirname, '../../.mesure/assets');
+  : resolve(import.meta.dirname, '../../../.mesure/assets');
 
 /** Harness fallback when no named cache gives it a scene. */
 export const DEFAULT_SCENE = 'sponza';

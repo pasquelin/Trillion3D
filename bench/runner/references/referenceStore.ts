@@ -6,13 +6,13 @@ import { decodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
 import { sha256 } from '../../../packages/sdk-node/src/compiler/provenance.mts';
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../../tests/kit/server/staticServer.ts';
-import type { BenchSettings } from '../benchSettings.ts';
+import type { BenchSettings } from '../harness/benchSettings.ts';
 
 /** The published references, one folder per scene: its `reference.json`, in git. */
 export const REFERENCES_DIR = resolve(import.meta.dirname, '../../references');
 /** Their images, a PNG per view, off git (`.mesure/`, AGENTS.md rule 10): `references/reference.ts` draws
  *  them there, and the SHA-256 of `reference.json` says which image each record names. */
-export const REFERENCE_IMAGES_DIR = resolve(import.meta.dirname, '../../.mesure/references');
+export const REFERENCE_IMAGES_DIR = resolve(import.meta.dirname, '../../../.mesure/references');
 
 /** The proof scenes and the settings they are drawn at: the boss's case, 1728 × 1117 CSS at
  *  DPR 2, the sun and bounced light on the engine that draws them. A flag given after them wins. */
