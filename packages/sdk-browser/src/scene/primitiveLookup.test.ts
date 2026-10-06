@@ -23,7 +23,7 @@ function referenceFind(
   );
 }
 
-function memeResultat(
+function sameResult(
   primitives: Primitive[],
   association: { meshes?: number; primitives?: number } | undefined,
 ) {
@@ -32,18 +32,18 @@ function memeResultat(
 }
 
 test('an empty manifest never finds anything', () => {
-  memeResultat([], { meshes: 0, primitives: 0 });
-  memeResultat([], undefined);
+  sameResult([], { meshes: 0, primitives: 0 });
+  sameResult([], undefined);
 });
 
 test('undefined association looks up the pair (undefined, 0), which nothing ever carries', () => {
   const primitives = [prim(0, 0, 'a'), prim(1, 0, 'b')];
-  memeResultat(primitives, undefined);
+  sameResult(primitives, undefined);
 });
 
 test('primitives default to 0 when the association does not specify them', () => {
   const primitives = [prim(2, 0, 'a')];
-  memeResultat(primitives, { meshes: 2 });
+  sameResult(primitives, { meshes: 2 });
 });
 
 test('a duplicate key (same mesh, same primitive): the first declared wins', () => {
@@ -59,14 +59,14 @@ test('a duplicate key (same mesh, same primitive): the first declared wins', () 
 
 test('a NaN mesh or NaN primitive in the manifest is never findable, as with ===', () => {
   const primitives = [prim(NaN, 0, 'meshNaN'), prim(4, NaN, 'primNaN'), prim(4, 0, 'valide')];
-  memeResultat(primitives, { meshes: NaN, primitives: 0 });
-  memeResultat(primitives, { meshes: 4, primitives: NaN });
-  memeResultat(primitives, { meshes: 4, primitives: 0 });
+  sameResult(primitives, { meshes: NaN, primitives: 0 });
+  sameResult(primitives, { meshes: 4, primitives: NaN });
+  sameResult(primitives, { meshes: 4, primitives: 0 });
 });
 
 test('an association that asks for NaN never finds anything, even if an item carries NaN', () => {
   const primitives = [prim(NaN, 0, 'meshNaN')];
-  memeResultat(primitives, { meshes: NaN, primitives: 0 });
+  sameResult(primitives, { meshes: NaN, primitives: 0 });
 });
 
 test('several meshes and several primitives per mesh: each pair finds exactly its item', () => {
@@ -79,6 +79,6 @@ test('several meshes and several primitives per mesh: each pair finds exactly it
       const association = { meshes: mesh, primitives: p };
       assert.equal(finder(association), referenceFind(primitives, association), `${mesh}/${p}`);
     }
-  memeResultat(primitives, { meshes: 5, primitives: 0 }); // mesh hors catalogue
-  memeResultat(primitives, { meshes: 0, primitives: 99 }); // primitive hors catalogue
+  sameResult(primitives, { meshes: 5, primitives: 0 }); // mesh outside catalogue
+  sameResult(primitives, { meshes: 0, primitives: 99 }); // primitive outside catalogue
 });
