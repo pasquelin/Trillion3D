@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { walkTrajectory } from './trajectoryWalk.ts';
 import { poseAt } from './poses.ts';
-import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
 
 const pose = poseAt({ min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 10, z: 10 } }, 0);
 test('arrival counters survive a backend reusing its metrics scratch during settling', async () => {

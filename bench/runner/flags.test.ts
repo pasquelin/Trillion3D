@@ -47,7 +47,7 @@ test('no flag a harness reads, and no flag of a campaign line, is named in Frenc
 test('no campaign run and no view is named in French', () => {
   const runs = captures(read('campaign.ts'), /^([a-z][\w-]*) \| [^|\n]+ \| /gm);
   const views = [
-    ...captures(read('poses.ts'), /^ {2}(\w+): \{ index:/gm),
+    ...captures(read('trajectory/poses.ts'), /^ {2}(\w+): \{ index:/gm),
     ...harnessSources().flatMap((text) => captures(text, /--views[ =]([\w,]+)/g)),
   ];
   for (const known of ['mobile', 'bounce', 'lights-4']) assert.ok(runs.includes(known), known);

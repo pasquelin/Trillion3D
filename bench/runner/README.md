@@ -12,7 +12,7 @@ live under `.mesure/assets/`.
 
 A flag the harness never reads — misspelt, retired (the French names, `--moteur`, `--vues`,
 `--largeur`, `--lampes`, …) or naming a side the run does not measure — stops `bench.ts`,
-`trajectory.ts`, `references/oracle.ts` and `campaign.ts` with `unknown flag: --<name>` before any build or
+`trajectory/trajectory.ts`, `references/oracle.ts` and `campaign.ts` with `unknown flag: --<name>` before any build or
 browser. The report is rendered by the bilingual React portal ([Published
 reports](#published-reports)); rebuilding the site does not rerun benchmarks.
 
@@ -29,7 +29,7 @@ engines they are the union of both sides' requirements.
 | `--scene <name>`                                                       | inferred from the cache, else `sponza`  | any folder of `.mesure/assets/` that `assets/assets.ts` compiled (`sponza`, `normal-tangent-mirror-test`, `facade-7`, …); sets each side's `derived` cache without `--cache-<side>`. `--scene fluids` (`fluids.ts`, #418): no cache, one ocean, 100 floating bodies, 20 fires, 5 smoke volumes built through the public API on `webgpu` or `webgl2`; `resume.md` then has a "Fluids scene" table instead of views |
 | `--cache-before` / `--cache-after`                                     | the scene's cache                       | compiled cache (`native/full`), to compare two compilers on one scene                                                                                                                                                                                                                                                                                                                                             |
 | `--resources <dir>`                                                    | none                                    | glTF resources mounted under `/assets/`; without it, un-based caches yield 404 textures                                                                                                                                                                                                                                                                                                                           |
-| `--views`                                                              | `overview,ground,street`                | among `overview`, `ground`, `street`, `detail` (`poses.ts`, `PATH_VERSION` 9)²                                                                                                                                                                                                                                                                                                                                    |
+| `--views`                                                              | `overview,ground,street`                | among `overview`, `ground`, `street`, `detail` (`trajectory/poses.ts`, `PATH_VERSION` 9)²                                                                                                                                                                                                                                                                                                                         |
 | `--images` / `--warmup`                                                | 60 / 8                                  | measured and warmup frames                                                                                                                                                                                                                                                                                                                                                                                        |
 | `--pixelError`                                                         | `0`                                     | a list of screen-error thresholds                                                                                                                                                                                                                                                                                                                                                                                 |
 | `--width` / `--height` / `--dpr`                                       | 1280 / 720 / 1                          | CSS viewport kept as asked; `--dpr 2` renders twice the pixels per axis; `--dpr` positive                                                                                                                                                                                                                                                                                                                         |
@@ -253,7 +253,7 @@ within the portable 8192-texel side, box-filtered and assembled in linear light.
 
     pnpm run build && node bench/runner/references/reference.ts [--scene sponza,facade-7] [--references <dir>]
 
-Each scene's views (`overview`, `ground`, `street`, `poses.ts`) at 1728 × 1117 CSS, DPR 2, sun and
+Each scene's views (`overview`, `ground`, `street`, `trajectory/poses.ts`) at 1728 × 1117 CSS, DPR 2, sun and
 bounce on the WebGPU engine (`references/referenceStore.ts::REFERENCE_ARGS`; a later bench flag wins) go to
 `.mesure/references/<scene>/<view>.png`, off git (AGENTS.md rule 10), recorded in git by
 `bench/references/<scene>/reference.json`: the engine commit (the last to change `packages/`), the
@@ -267,7 +267,7 @@ bench scene exists (#1274).
 
 Acceptance replays the whole versioned camera path without timings:
 
-    node bench/runner/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
+    node bench/runner/trajectory/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
       --before .worktrees/reference/dist --after dist --out .mesure/out/8-trajectory
 
 Both builds must exist; `--before` is the chosen golden baseline, never replaced by the candidate.

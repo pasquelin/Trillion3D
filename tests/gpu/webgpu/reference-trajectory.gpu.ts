@@ -5,7 +5,7 @@
 // not run.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FRAMES_PER_SEGMENT, PATH_POSES, poseAt } from '../../../bench/runner/poses.ts';
+import { FRAMES_PER_SEGMENT, PATH_POSES, poseAt } from '../../../bench/runner/trajectory/poses.ts';
 import { DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from './measureResolution.ts';

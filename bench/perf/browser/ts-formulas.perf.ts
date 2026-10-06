@@ -8,7 +8,7 @@ import { nanosecondsToMs } from '../../../packages/sdk-browser/src/gpu/timing/ty
 import { VIS_TRIANGLE_BITS } from '../../../packages/sdk-browser/src/visibility/types.ts';
 import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts';
 import { packedRowBase } from '../../../packages/sdk-browser/src/webgpu/row/pageRow.ts';
-import { modelFloor } from '../../runner/poses.ts';
+import { modelFloor } from '../../runner/trajectory/poses.ts';
 import { mesure, parElement, stress, rapport } from '../../core/index.ts';
 import {
   referenceDevicePixels,
@@ -96,7 +96,7 @@ const resNs = await mesure({
 
 const resFloor = await mesure({
   name: 'model floor',
-  fichier: 'bench/runner/poses.ts',
+  fichier: 'bench/runner/trajectory/poses.ts',
   cas: single('1 000 extents', emprises, emprises.length),
   calcul: parElement((b: (typeof emprises)[number]) => modelFloor(b)),
   attendu: (liste) => liste.map((b) => referenceFloorOf(b)),

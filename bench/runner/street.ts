@@ -2,7 +2,7 @@
 // Node chooses the columns and the street among them; the page only asks the physics
 // (`streetPage.ts`). Nothing names a scene, and no share of the box is assumed open.
 import type { Page } from 'playwright';
-import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from './poses.ts';
+import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from './trajectory/poses.ts';
 import { probeColumns } from './streetPage.ts';
 import { readBounds } from './page.ts';
 

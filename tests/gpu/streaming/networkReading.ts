@@ -5,7 +5,7 @@
 import { createServer } from 'node:http';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { ASSETS } from '../../../bench/runner/assets/scene.ts';
-import { poseAt } from '../../../bench/runner/poses.ts';
+import { poseAt } from '../../../bench/runner/trajectory/poses.ts';
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { isCacheObject } from '../../../scripts/compress-cache-objects.ts';
 import { listen, staticServer } from '../../../scripts/static-server.ts';

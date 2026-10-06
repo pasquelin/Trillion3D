@@ -6,7 +6,7 @@
 // same way (`transparentOcclusionReference.ts`).
 import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { readBounds } from '../../../bench/runner/page.ts';
-import { poseAt } from '../../../bench/runner/poses.ts';
+import { poseAt } from '../../../bench/runner/trajectory/poses.ts';
 import { SDK_URL } from '../world/proofWorld.ts';
 import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts';
 import { compareAudit, emptyTotals } from './partitionReference.ts';

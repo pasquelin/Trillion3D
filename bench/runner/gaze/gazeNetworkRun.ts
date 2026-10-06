@@ -1,9 +1,9 @@
 import type { Page } from 'playwright';
-import { VIEWS, trajectoryPoses } from '../poses.ts';
+import { VIEWS, trajectoryPoses } from '../trajectory/poses.ts';
 import { measurePayload } from '../series/seriesPage.ts';
 import { gazeNetworkCounter } from './gazeNetworkCounter.ts';
 import type { MeasureViewOptions } from '../measureOptions.ts';
-import type { Bounds } from '../poses.ts';
+import type { Bounds } from '../trajectory/poses.ts';
 import type { RunContext } from '../report/types.ts';
 import type { Side } from '../sideOptions.ts';
 

@@ -46,7 +46,7 @@ const config: KnipConfig = {
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
         'bench/runner/feedback/feedbackTargetAb.ts',
-        'bench/runner/trajectory.ts',
+        'bench/runner/trajectory/trajectory.ts',
         'bench/runner/references/reference.ts',
         // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
         'tests/integration/public-types-union.fixture.ts',
@@ -56,8 +56,8 @@ const config: KnipConfig = {
         'bench/runner/explorerPage.ts',
         'bench/runner/lightingPage.ts',
         'bench/runner/references/referencePage.ts',
-        'bench/runner/trajectoryPage.ts',
-        'bench/runner/poses.ts',
+        'bench/runner/trajectory/trajectoryPage.ts',
+        'bench/runner/trajectory/poses.ts',
         'bench/runner/threeBarePage.ts',
         'bench/runner/threeLodPage.ts',
         'bench/runner/measurePage.ts',

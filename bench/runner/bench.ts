@@ -125,7 +125,7 @@ async function main() {
       manifestUrl: sides[0].manifestUrl ?? MANIFEST,
     };
     // The box, then the camera's street read off the model's own geometry, on one page: the poses
-    // walk it (`poses.ts`).
+    // walk it (`trajectory/poses.ts`).
     const bounds = (report.bounds = await onPage(async (page) => readStreet(page, urls)));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);

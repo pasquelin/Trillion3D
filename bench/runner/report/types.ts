@@ -10,7 +10,7 @@ import type {
 import type { MemoryBudgetsReport } from '../../../packages/sdk-browser/src/index.ts';
 import type { Distribution, PassesGpu } from '../summary/summaryPasses.ts';
 import type { BenchSettings } from '../options.ts';
-import type { Bounds } from '../poses.ts';
+import type { Bounds } from '../trajectory/poses.ts';
 import type { LightsPlan } from '../lamps.ts';
 import type { LimitsRecord } from '../limits.ts';
 import type { FluidsRow } from '../fluids.ts';

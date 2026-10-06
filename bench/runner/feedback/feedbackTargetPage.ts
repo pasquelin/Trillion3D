@@ -4,7 +4,7 @@ import type {
   FrameMetrics,
   GpuPassTimings,
 } from '../../../packages/sdk-core/src/index.ts';
-import { poseAt } from '../poses.ts';
+import { poseAt } from '../trajectory/poses.ts';
 import { streetBounds } from '../street.ts';
 import { posterCapture } from '../measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';

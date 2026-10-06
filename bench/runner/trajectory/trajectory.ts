@@ -2,24 +2,24 @@
 // Acceptance entry point. Goldens come from an explicit built baseline, repeated for stable A/A.
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
-import { launchChrome } from './chrome.ts';
-import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
-import { fingerprintBuild } from '../../scripts/write-build-provenance.ts';
-import { assetIdentity } from './report/provenance.ts';
-import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts';
-import { isDist } from './dists.ts';
-import { resolveCache, sideReport } from './sideOptions.ts';
-import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from './assets/scene.ts';
+import { launchChrome } from '../chrome.ts';
+import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
+import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts';
+import { assetIdentity } from '../report/provenance.ts';
+import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from '../options.ts';
+import { isDist } from '../dists.ts';
+import { resolveCache, sideReport } from '../sideOptions.ts';
+import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from '../assets/scene.ts';
 import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts';
-import { readStreet } from './street.ts';
-import { benchLights } from './lamps.ts';
-import { measurePayload, withGpuIncidents } from './series/seriesPage.ts';
+import { readStreet } from '../street.ts';
+import { benchLights } from '../lamps.ts';
+import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts';
 import { checkpointIndices, trajectoryVerdict } from './trajectoryProof.ts';
 import type { captureTrajectory } from './trajectoryPage.ts';
 
 async function main() {
-  const root = resolve(import.meta.dirname, '../..');
+  const root = resolve(import.meta.dirname, '../../..');
   const { flags, settings, out, resources } = readOptions(
     [
       '--engine',
@@ -132,7 +132,9 @@ async function main() {
         const run = await withGpuIncidents(page, () =>
           page.evaluate(
             async ({ payload, indices, captureArrival }) => {
-              const module = (await import(`${payload.modulesUrl}trajectoryPage.ts`)) as {
+              const module = (await import(
+                `${payload.modulesUrl}trajectory/trajectoryPage.ts`
+              )) as {
                 captureTrajectory: typeof captureTrajectory;
               };
               return module.captureTrajectory(payload, indices, captureArrival);

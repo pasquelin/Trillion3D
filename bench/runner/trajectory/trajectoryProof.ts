@@ -1,7 +1,7 @@
 // Image-only trajectory verdicts. A late image is not evidence of a permanent regression.
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
-import { imageDiff } from './references/imageDiff.ts';
-import type { ImageDiff } from './report/types.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
+import { imageDiff } from '../references/imageDiff.ts';
+import type { ImageDiff } from '../report/types.ts';
 import { FRAMES_PER_SEGMENT, PATH_POSES } from './poses.ts';
 
 export interface TrajectoryCheckpoint {

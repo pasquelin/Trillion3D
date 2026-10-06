@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../bench/runner/lamps.ts';
-import { PATH_POSES, poseAt, VIEWS } from '../../../bench/runner/poses.ts';
+import { PATH_POSES, poseAt, VIEWS } from '../../../bench/runner/trajectory/poses.ts';
 import { DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts';
 import { streetBounds } from '../../../bench/runner/street.ts';
 import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';

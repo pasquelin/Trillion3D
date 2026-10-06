@@ -1,6 +1,6 @@
-import type { CameraPose, FrameMetrics } from '../../packages/sdk-core/src/index.ts';
+import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
 import type { TrajectoryCheckpoint } from './trajectoryProof.ts';
-import { HOLD_FRAME_LIMIT } from './measurePage.ts';
+import { HOLD_FRAME_LIMIT } from '../measurePage.ts';
 
 interface TrajectoryPort {
   render(pose: CameraPose): Partial<FrameMetrics>;

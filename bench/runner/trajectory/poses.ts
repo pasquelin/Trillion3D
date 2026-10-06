@@ -1,8 +1,8 @@
 // Bench trajectory, views and poses. The trajectory is defined here: the repo is its source, and
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
-import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
-import type { Street } from './street.ts';
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
+import type { Street } from '../street.ts';
 
 const PATH_VERSION = 9;
 /** Where a path point stands. `street`: at the model's street (`street.ts`), `x` and `z` as shares

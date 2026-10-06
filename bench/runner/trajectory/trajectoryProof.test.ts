@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import type { Capture } from '../../../tests/kit/server/staticServer.ts';
 import {
   checkpointIndices,
   trajectoryVerdict,

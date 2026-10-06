@@ -3,7 +3,7 @@
 // and the only one, why world creation is duplicated between `readBounds` below and
 // `measureView` in `lightingPage.ts`, which the page imports by URL.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { Bounds } from './poses.ts';
+import type { Bounds } from './trajectory/poses.ts';
 
 /** What `readBounds` needs to open a tiny world: the SDK and manifest it points the page at. */
 export interface BoundsOptions {
