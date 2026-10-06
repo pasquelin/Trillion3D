@@ -19,7 +19,7 @@ import { createVsmResources } from './resources.ts';
 import type { VsmRenderScene } from './renderPass.ts';
 import type { VsmBoundLight, VsmRowSpheres, VsmWorst } from './rowPageBound.ts';
 
-import { seeded } from './planFrames.fixture.ts';
+import { encoder, seeded } from './planFrames.fixture.ts';
 
 export { seeded };
 export const PAGES = 2048;
@@ -195,19 +195,9 @@ export function topSums(v: Float64Array) {
   return out;
 }
 
-/** What a raster pass of `rowCount` rows under one sun is encoded with, on a recording device: an
- *  encoder that records nothing, the scene on one tiny buffer, and the sun. */
+/** What a raster pass of `rowCount` rows under one sun is encoded with, on a recording device: the
+ *  recording encoder, the scene on one tiny buffer, and the sun. */
 export function recordingRaster(device: GPUDevice, rowCount: number) {
-  const pass = {
-    ...{ setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {} },
-    ...{ dispatchWorkgroupsIndirect() {}, drawIndirect() {}, end() {} },
-  };
-  const encoder = {
-    beginComputePass: () => pass,
-    beginRenderPass: () => pass,
-    clearBuffer() {},
-    copyBufferToBuffer() {},
-  } as unknown as GPUCommandEncoder;
   const buffer = device.createBuffer({ size: 16, usage: 0 });
   const scene: VsmRenderScene = {
     rowCount,
