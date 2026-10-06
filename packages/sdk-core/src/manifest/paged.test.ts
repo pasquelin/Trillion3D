@@ -7,6 +7,25 @@ import { decodeManifestBinary } from './binaryDecode.ts'
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
 import { openPagedManifest, readPagedManifest, type PageAsk } from './paged.ts'
 
+/** A reader of `files` whose reads asked with a signal wait till `land`, then pass at once; one cut
+ *  off rejects unless it reads on (`readsOn`): the signals asked. */
+function gatedReads(files: Map<string, Uint8Array>, readsOn = false) {
+  const signals: AbortSignal[] = [],
+    waiting: (() => void)[] = []
+  let open = false
+  const read = (page: { url: string }, asked?: PageAsk) =>
+    new Promise<Uint8Array>((resolve, reject) => {
+      const bytes = () => resolve(files.get(page.url)!)
+      if (!asked?.signal) return bytes()
+      signals.push(asked.signal)
+      if (!readsOn) asked.signal.addEventListener('abort', () => reject(asked.signal!.reason))
+      if (open) bytes()
+      else waiting.push(bytes)
+    })
+  const land = () => ((open = true), waiting.splice(0).forEach((bytes) => bytes()))
+  return { read, signals, land }
+}
+
 /** The manifest one column file gave, before the manifest was paged. */
 function whole() {
   const { manifest: slim, binary } = encodeManifestBinary(manifest(), TEMPLATES)
@@ -64,13 +83,7 @@ test('an opened manifest holds the mesh pages it is asked for, each read once an
 
 test('holds of one unread page share its read, cancelled once the last of them lets go', async () => {
   const { root, files } = pagedManifest(manifest(), false, true)
-  const signals: AbortSignal[] = []
-  const read = (page: { url: string }, asked?: PageAsk) =>
-    new Promise<Uint8Array>((resolve, reject) => {
-      if (!asked?.signal) return resolve(files.get(page.url)!)
-      signals.push(asked.signal)
-      asked.signal.addEventListener('abort', () => reject(asked.signal!.reason))
-    })
+  const { read, signals } = gatedReads(files)
   const { pages } = await openPagedManifest(root, read)
   const [first] = root.pages as string[]
   const [a, b] = [new AbortController(), new AbortController()]
@@ -85,21 +98,33 @@ test('holds of one unread page share its read, cancelled once the last of them l
 
 test('a hold arriving as the last asker of a page lets its read go starts a new read, never joins the stopped one', async () => {
   const { root, files } = pagedManifest(manifest(), false, true)
-  const signals: AbortSignal[] = []
-  const read = (page: { url: string }, asked?: PageAsk) =>
-    new Promise<Uint8Array>((resolve, reject) => {
-      if (!asked?.signal) return resolve(files.get(page.url)!)
-      signals.push(asked.signal)
-      asked.signal.addEventListener('abort', () => reject(asked.signal!.reason))
-      if (signals.length > 1) resolve(files.get(page.url)!)
-    })
+  const { read, signals, land } = gatedReads(files)
   const { pages } = await openPagedManifest(root, read)
   const [first] = root.pages as string[]
   const leaving = new AbortController()
   const left = pages.hold([first], { signal: leaving.signal })
   leaving.abort()
   const late = pages.hold([first], { signal: new AbortController().signal })
+  land()
   await assert.rejects(left, { name: 'AbortError' })
   await late
   assert.deepEqual([signals.length, pages.primitives.length], [3, 1], 'read anew, then placed')
+})
+
+test('a read its last holder let go that still lands lists its primitives once, beside the new read', async () => {
+  const { root, files } = pagedManifest(manifest(), false, true)
+  const { read, land } = gatedReads(files, true)
+  const { pages } = await openPagedManifest(root, read)
+  const [first] = root.pages as string[]
+  const leaving = new AbortController()
+  const left = pages.hold([first], { signal: leaving.signal })
+  leaving.abort()
+  const late = pages.hold([first])
+  land()
+  await assert.rejects(left, { name: 'AbortError' })
+  await late
+  await new Promise(setImmediate) // the stopped read lands too
+  assert.equal(pages.primitives.length, 1, 'listed once')
+  pages.release([first, first]) // each hold released once, landed or not
+  assert.equal(pages.primitives.length, 0, 'and let go with its last holder')
 })

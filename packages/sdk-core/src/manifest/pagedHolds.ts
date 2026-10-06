@@ -7,6 +7,7 @@
  */
 import type { Primitive } from '../contracts/index.ts'
 import type { TablePage } from '../scene/core/tablePages.ts'
+import { waitShared, type SharedRead } from '../runtime/sharedRead.ts'
 
 /** How a hold asks its pages read: the signal that lets it go, and its priority. */
 export type PageAsk = { signal?: AbortSignal; priority?: number }
@@ -26,31 +27,13 @@ export interface ManifestPages {
   release(slots: readonly string[]): void
 }
 
-/** A page's read on its way, its holds waiting on it, and what cancels it. */
-type Reading = { promise: Promise<void>; askers: number; stop: AbortController }
-/** A page held: its holders, its primitives once read, its read on its way, its files read. */
+/** A page held: its holders, its primitives once read, its read on its way — shared by the holds
+ *  waiting on it, cancelled once every one let it go —, its files read. */
 type Held = {
   count: number
   primitives?: Primitive[]
-  reading?: Reading
+  reading?: SharedRead<void>
   files: Map<string, TablePage>
-}
-
-/** `reading` waited on by one hold until its `signal` lets it go: the last to let go cancels it. */
-function waited(reading: Reading, signal?: AbortSignal) {
-  reading.askers++
-  if (!signal) return reading.promise
-  return new Promise<void>((resolve, reject) => {
-    const leave = () => {
-      if (--reading.askers === 0) reading.stop.abort(signal.reason)
-      reject(signal.reason)
-    }
-    if (signal.aborted) return leave()
-    signal.addEventListener('abort', leave, { once: true })
-    void reading.promise.then(resolve, reject).finally(() => {
-      signal.removeEventListener('abort', leave)
-    })
-  })
 }
 
 /** `primitives` taken out of `list`, its order kept. */
@@ -76,16 +59,18 @@ export function createPageHolds(
     if (!entry.reading || entry.reading.stop.signal.aborted) {
       const stop = new AbortController(),
         own = { priority: asked.priority, signal: stop.signal }
-      const reading: Reading = { askers: 0, stop, promise: place(slot, entry, own) }
+      const reading = { askers: 0, stop, promise: place(slot, entry, own) }
       const done = () => void (entry.reading === reading && (entry.reading = undefined))
       reading.promise.then(done, done)
       entry.reading = reading
     }
-    return waited(entry.reading, asked.signal)
+    return waitShared(entry.reading, asked.signal)
   }
   const place = async (slot: string, entry: Held, asked: PageAsk) => {
     const primitives = await load(slot, asked, (page) => entry.files.set(page.url, page))
-    if (held.get(slot) !== entry) return // released before it landed
+    // Released before it landed, or placed by another read: one its last holder let go that still
+    // landed, or the one started after it.
+    if (held.get(slot) !== entry || entry.primitives) return
     entry.primitives = primitives
     for (const primitive of primitives) list.push(primitive)
     // In rank order, whichever page landed first: the list is the same for the same pages held.
