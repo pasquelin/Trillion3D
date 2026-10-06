@@ -4,17 +4,17 @@ on:
   pull_request:
     branches: [develop, main]
     types: [opened, synchronize, reopened]
-  # `develop`, and an issue's branch (`<issue>-<name>`) from its first push, so CI runs during the
-  # review. Such a run reads only its branch's caches and `main`'s (GitHub's cache scopes), not
-  # `develop`'s: its first run rebuilds the compiler, the pull request's reads `develop`'s.
+  # `develop` only: an issue's branch is proved by its pull request's run, which proves the merge
+  # with `develop` and reads `develop`'s caches; the pre-push hook already ran the gates but the
+  # tests (`scripts/hooks/pre-push.ts`), so a run on the branch's own push would prove it twice.
   push:
-    branches: [develop, '[0-9]+-*']
+    branches: [develop]
   workflow_dispatch:
 
 # One group per event and ref: a pull request's (`refs/pull/<n>/merge`) is never a push's, so a push
-# run never cancels the one that proves the merge with `develop`, and a push to a branch with an open
-# pull request runs twice. A new run supersedes the older one of its group; a running `develop` run
-# is never cancelled, since it is the record that the branch is green.
+# run never cancels the one that proves the merge with `develop`. A new run supersedes the older one
+# of its group; a running `develop` run is never cancelled, since it is the record that the branch
+# is green.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
@@ -137,8 +137,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         id: rust
       # On a hit the restored binary replaces the release build; on a miss each shard builds it
-      # rather than wait for the `native` job, which alone publishes it once its gates pass: more
-      # runner minutes on a Rust change, no job waiting on another.
+      # rather than wait for the `native` job, which alone publishes it once its gates pass: on a
+      # Rust change, runner minutes (free on this public repository) bought for minutes of waiting.
       - uses: ./.github/actions/native-cache
         id: native
         with:

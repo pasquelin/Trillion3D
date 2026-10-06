@@ -30,8 +30,13 @@ on:
       - .github/workflows/compiler.yml
   release:
     types: [published]
-  # The `Release` workflow's five compilers (#1354), which it packs from this run's artifacts.
+  # The `Release` workflow's five compilers, which it packs from this run's artifacts.
   workflow_call:
+    inputs:
+      release:
+        description: Called by the `Release` workflow, which needs the compilers whatever changed.
+        type: boolean
+        default: false
   workflow_dispatch:
 
 concurrency:
@@ -42,7 +47,33 @@ permissions:
   contents: read
 
 jobs:
+  # A pull request that changes the release too runs the `Release` workflow, which builds these
+  # five compilers through this one (`release: true`): this workflow's own run then builds nothing,
+  # so no pull request builds them twice.
+  scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.release.outputs.build }}
+    steps:
+      - uses: actions/checkout@v7
+        if: github.event_name == 'pull_request' && !inputs.release
+        with:
+          fetch-depth: 2
+      - id: release
+        env:
+          OWN_RUN: ${{ github.event_name == 'pull_request' && !inputs.release }}
+        run: |
+          build=true
+          if [ "$OWN_RUN" = true ] &&
+            git diff --name-only HEAD^1 HEAD | grep -qE '^(\.github/workflows/release\.yml|scripts/release[^/]*\.ts)$'; then
+            build=false
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: scope
+    if: needs.scope.outputs.build == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -79,7 +110,8 @@ jobs:
   # `develop`'s compiler (the pull request's base), built plainly — profile guidance changes no
   # byte — and fingerprinted on the same scenes with this branch's script.
   base:
-    if: github.event_name == 'pull_request'
+    needs: scope
+    if: github.event_name == 'pull_request' && needs.scope.outputs.build == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:
@@ -120,8 +152,8 @@ jobs:
 
   # Every fingerprint against Linux x64's, `develop`'s included; the sizes are printed beside them.
   compare:
-    needs: [build, base]
-    if: ${{ !cancelled() }}
+    needs: [scope, build, base]
+    if: ${{ !cancelled() && needs.scope.outputs.build == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:

@@ -44,6 +44,8 @@ permissions:
 jobs:
   compilers:
     uses: ./.github/workflows/compiler.yml
+    with:
+      release: true
 
   pack:
     needs: compilers

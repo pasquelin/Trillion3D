@@ -25,8 +25,8 @@ ignores. This page is a map: each rule lives in the header of the file named, wh
 
 ### Deploy
 
-`.github/workflows/pages.yml` builds the site on a pull request touching it and publishes it on a
-push to `main`; its comments state each step. A manual run publishes only from `main`:
+`.github/workflows/pages.yml` builds and publishes the site on a push to `main` (a pull request's
+site is built by `validate`); its comments state each step. A manual run publishes only from `main`:
 `gh workflow run pages.yml -f deploy=true --ref main`.
 
 ## Add an example
