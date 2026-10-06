@@ -9,6 +9,9 @@ use crate::dag::DagCluster;
 pub(super) const RAMP: [f32; 12] = [0., 0., -1., 2., 1., -1., 2., 1., 1., 0., 0., 1.];
 pub(super) const RAMP_TRIANGLES: [u32; 6] = [0, 2, 1, 0, 3, 2];
 const GOLDEN: &str = "../../tests/fixtures/physics/ramp-tile.bin";
+/// The golden height field: the 5 × 5 grid below, cooked by native Jolt; the physics module's
+/// tests restore these very bytes (`packages/sdk-browser/src/physics`).
+const HEIGHT_GOLDEN: &str = "../../tests/fixtures/physics/height-field-tile.bin";
 /// Cooks `pos` twice, the same bytes, and checks them against the golden file `golden`
 /// (`TRILLION3D_WRITE_GOLDEN` rewrites it).
 pub(super) fn golden_tile(pos: &[f32], golden: &str) -> Vec<u8> {
@@ -36,7 +39,8 @@ fn a_tile_cooks_to_the_same_golden_bytes() {
     golden_tile(&RAMP, GOLDEN);
 }
 
-// Behaviour: a regular grid is detected, sample for sample; one vertex off the lattice is not a grid.
+// Behaviour: a regular grid is detected, sample for sample, and cooks to the golden height field;
+// one vertex off the lattice is not a grid.
 #[test]
 fn a_regular_grid_becomes_a_height_field() {
     let (n, mut pos, mut triangles) = (5usize, Vec::new(), Vec::new());
@@ -62,7 +66,10 @@ fn a_regular_grid_becomes_a_height_field() {
     assert_eq!((grid.size, grid.cells), (6, [4, 4]));
     assert_eq!(grid.samples[3 * grid.size + 2], 0.6f32);
     assert_eq!(grid.scale, [0.5, 1.0, 0.5]);
-    assert!(height_field_shape(&grid.samples, grid.size, grid.offset, grid.scale).is_ok());
+    let cook = || height_field_shape(&grid.samples, grid.size, grid.offset, grid.scale).unwrap();
+    let shape = cook();
+    assert_eq!(shape, cook());
+    assert_golden(&shape, HEIGHT_GOLDEN);
     pos[3 * 3] += 0.2;
     assert!(height::detect(&pos, &triangles).is_none());
 }

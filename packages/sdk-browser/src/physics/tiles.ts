@@ -102,7 +102,7 @@ export function createTileStreamer(
           drop(model, opening)
           models.delete(model)
         }
-      schedule.settle()
+      shapes.settle()
     },
     /** Carries the bodies a dynamic one holds (`carriedBodies.ts`), then brings the resident
      *  tiles in line with what is wanted (`tileSchedule.ts`) within what the static meshes and
@@ -127,7 +127,7 @@ export function createTileStreamer(
       const owner = bodies.slots.of(id)
       if (owner && 'tile' in owner) leave(owner.tile)
       else if (owner) declared.refused(owner)
-      schedule.settle()
+      shapes.settle()
     },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
     materialOf(id: number) {
@@ -150,7 +150,7 @@ export function createTileStreamer(
     clear() {
       models.forEach((opening, model) => drop(model, opening))
       models.clear()
-      schedule.settle()
+      shapes.settle()
     },
   }
 }

@@ -74,10 +74,12 @@ test('an update builds a bounded number of tile bodies, nearest first: a thousan
   const { tiles, bodies } = streamer
   tiles.update([0, 0, 0], 1e5)
   await landed()
+  // As its bytes land, then at the next update: as many each time, the nearest.
+  const landing = bodies.count.bodies
   tiles.update([0, 0, 0], 1e5)
-  const first = bodies.count.bodies
-  assert.ok(first > 0 && first < 1000, `${first} bodies in one update`)
-  assert.equal(Math.max(...residentAt(bodies, 2000)), (first - 1) * 10, 'the nearest')
+  const first = bodies.count.bodies - landing
+  assert.ok(first === landing && landing + first < 1000, `${first} bodies in one update`)
+  assert.equal(Math.max(...residentAt(bodies, 2000)), (landing + first - 1) * 10, 'the nearest')
   const built = (await settle(streamer, [0, 0, 0], 1e5)).filter((added) => added > 0)
   assert.ok(
     built.every((added, i) => added === first || i === built.length - 1),
@@ -98,7 +100,7 @@ test('tile bodies take every free slot; a page body that needs one takes the far
   assert.deepEqual([bodies.count.bodies, Math.max(...residentAt(bodies, 8)), errors], [8, 60, []])
 })
 test('the bodies an update leaves unbuilt ask another frame; none left, none is asked', async () => {
-  const streamer = await streamed(100)
+  const streamer = await streamed(200)
   const { tiles, bodies, heard } = streamer
   /** Whether `tiles.update` asks another frame before its reads land. */
   const asks = async () => {
@@ -106,9 +108,11 @@ test('the bodies an update leaves unbuilt ask another frame; none left, none is 
     tiles.update([0, 0, 0], 1e5)
     return Promise.race([asked, landed().then(() => false)])
   }
-  await asks()
-  assert.deepEqual([await asks(), bodies.count.bodies], [true, 64], 'thirty-six still to build')
-  assert.deepEqual([await asks(), bodies.count.bodies], [false, 100])
+  // Its bytes landing: as many bodies as an update builds, another frame asked for the rest.
+  assert.deepEqual([await asks(), bodies.count.bodies], [true, 64])
+  assert.deepEqual([await asks(), bodies.count.bodies], [true, 128])
+  assert.deepEqual([await asks(), bodies.count.bodies], [true, 192])
+  assert.deepEqual([await asks(), bodies.count.bodies], [false, 200])
 })
 
 test('a body the worker refuses takes its placement out alone: the others stay on the tile', async () => {

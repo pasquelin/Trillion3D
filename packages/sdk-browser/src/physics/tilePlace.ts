@@ -17,6 +17,7 @@ import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { checked, optionalFile } from '../cluster/checked.ts'
 import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { selectByKey } from '../../../math/src/select.ts'
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
  *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
@@ -59,6 +60,11 @@ export type TileShape = SharedShape & {
   counted: number
   kept: number
 }
+
+const nearOf = (p: Placed) => p.near
+/** Rearranges `list[0, count)` so its first `k` are its `k` nearest, in no order. */
+export const selectNearest = (list: Placed[], count: number, k: number) =>
+  k > 0 && selectByKey(list, nearOf, 0, count, k - 1)
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
 const LOOKAHEAD_S = 1

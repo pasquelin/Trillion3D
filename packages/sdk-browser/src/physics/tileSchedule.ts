@@ -1,11 +1,11 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import type { createModelBodies } from './modelBodies.ts'
-import { partitionBy, selectByKey } from '../../../sdk-core/src/math/select.ts'
+import { partitionBy } from '../../../sdk-core/src/math/select.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import { createTileKeeps } from './tileKeeps.ts'
 import type { createResidentTiles } from './tileResident.ts'
-import { moversOf, nearness, type Placed, type TileShape } from './tilePlace.ts'
+import { moversOf, nearness, selectNearest, type Placed, type TileShape } from './tilePlace.ts'
 import { ONE_REQUEST } from '../cluster/checked.ts'
 
 /** Tile reads in flight at once. */
@@ -27,11 +27,6 @@ type ScheduleParts = {
 }
 
 const byNear = (a: TileShape, b: TileShape) => a.near - b.near
-const nearOf = (p: Placed) => p.near
-
-/** Rearranges `list[0, count)` so its first `k` are its `k` nearest, in no order. */
-const selectNearest = (list: Placed[], count: number, k: number) =>
-  k > 0 && selectByKey(list, nearOf, 0, count, k - 1)
 
 /**
  * What an update does for the tiles: `want` lists the placements wanted and their tiles, each tile
@@ -106,18 +101,10 @@ export class TileSchedule {
     this.keeps.trim(bytes, pass)
     this.in = n
   }
-  /** Builds the `BUILDS` nearest bodies the placements let in wait for on their resident tiles,
-   *  asking another frame for the others, and reads the `LOADS` nearest tiles still to read; then
-   *  lets go of the tiles no one uses. */
+  /** Builds the bodies the placements let in wait for on their resident tiles (`build`), and
+   *  reads the `LOADS` nearest tiles still to read; then lets go of the tiles no one uses. */
   start() {
-    const wanted = this.wanted,
-      parts = this.parts
-    const waiting = partitionBy(wanted, this.in, this.buildable)
-    if (waiting > BUILDS) {
-      selectNearest(wanted, waiting, BUILDS)
-      parts.invalidate()
-    }
-    for (let i = 0; i < waiting && i < BUILDS; i++) parts.resident.build(wanted[i])
+    this.build(this.buildable)
     const tiles = this.tiles
     for (let i = 0, loads = LOADS; i < tiles.length && loads && this.fetching < FETCHES; i++) {
       const shape = tiles[i]
@@ -126,10 +113,6 @@ export class TileSchedule {
       loads--
       this.read(shape)
     }
-    this.settle()
-  }
-  /** Lets go of the tiles no one keeps (`SharedShapes.settle`). */
-  settle() {
     this.parts.shapes.settle()
   }
   /** Evicts the farthest tile body the last update let in, for a body that needs its slot. */
@@ -167,8 +150,21 @@ export class TileSchedule {
   }
   /** Whether placement `p`'s tile had its bytes counted by this update. */
   private readonly counted = (p: Placed) => p.shape.counted === this.pass
-  /** Whether placement `p` waits for its body on its resident tile. */
+  /** Whether placement `p` waits for its body on its resident tile; on the tile just landed. */
   private readonly buildable = (p: Placed) => p.id < 0 && p.shape.handle >= 0
+  private readonly onLanded = (p: Placed) => p.id < 0 && p.shape === this.landed
+  private landed: TileShape | null = null
+  /** Builds the `BUILDS` nearest bodies of the placements let in that `waits` holds, asking
+   *  another frame for the others. */
+  private build(waits: (p: Placed) => boolean) {
+    const wanted = this.wanted,
+      waiting = partitionBy(wanted, this.in, waits)
+    if (waiting > BUILDS) {
+      selectNearest(wanted, waiting, BUILDS)
+      this.parts.invalidate()
+    }
+    for (let i = 0; i < waiting && i < BUILDS; i++) this.parts.resident.build(wanted[i])
+  }
   /** One request: a tile still wanted is asked again at the next update, but for a 4xx; a read
    *  that cannot land is a failure. */
   private read(shape: TileShape) {
@@ -184,15 +180,17 @@ export class TileSchedule {
       .catch((error) => parts.failed(error as EngineError))
       .finally(() => this.fetching--)
   }
-  /** `shape`'s bytes landed: restored if the last update let it in, else kept for one that does. */
+  /** `shape`'s bytes landed: restored if the last update let it in, else kept for one that does,
+   *  and its placements let in built at once — no frame may come before a query or a step. */
   private land(shape: TileShape, bytes: Uint8Array) {
     if (!shape.holders || shape.kept !== this.pass) return
     try {
       this.parts.shapes.restore(shape, bytes)
+      this.landed = shape
+      this.build(this.onLanded)
     } catch (error) {
-      // Its room taken meanwhile, by a static mesh: it waits.
-      if ((error as EngineError).code === 'PHYSICS_BUDGET') return
-      throw error
+      // Its room, or a slot, taken meanwhile: the rest waits for the next update.
+      if ((error as EngineError).code !== 'PHYSICS_BUDGET') throw error
     }
     this.parts.invalidate()
   }
