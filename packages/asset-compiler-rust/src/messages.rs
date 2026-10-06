@@ -45,7 +45,7 @@ fn describe(object: &mut Value) {
     object["id"] = json!(id);
     object["level"] = entry["level"].clone();
     object["action"] = entry["action"].clone();
-    object["docs"] = json!(format!("{}{id}.md", catalogue().docs));
+    object["docs"] = json!(format!("{}#{}", catalogue().docs, id.to_lowercase()));
 }
 
 /// Decorates an event before it is printed: its own `code` (an error) and each of its `warnings`.
@@ -72,7 +72,9 @@ mod tests {
             .as_str()
             .is_some_and(|id| id.starts_with("T3D-E")));
         assert_eq!(error["level"], "error");
-        assert!(error["docs"].as_str().is_some_and(|d| d.ends_with(".md")));
+        assert!(error["docs"]
+            .as_str()
+            .is_some_and(|d| d.contains("COMPILER_ERRORS.md#t3d-")));
         let mut primitive = json!({"phase":"primitive","warnings":[{"code":"DAG_FLAT"}]});
         decorate(&mut primitive);
         assert_eq!(primitive["warnings"][0]["level"], "warn");

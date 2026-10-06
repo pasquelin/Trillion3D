@@ -2,7 +2,7 @@
 // `pageDecodeWorker.ts` and `pageIntegrationWorker.ts` are worker entry points: the pool and the
 // integration lane load them by URL, never by import; so do `physicsWorker.ts`, the physics session,
 // and `animationWorker.ts`, the animation samples taken ahead.
-import type { KnipConfig } from 'knip';
+import type { KnipConfig } from 'knip'
 
 const config: KnipConfig = {
   // The root project alone: the other workspaces, the compiler's platform packages
@@ -41,6 +41,8 @@ const config: KnipConfig = {
         'scripts/{build-witnesses,copy-resources}.ts',
         // Run by git through the one-line shims of `.githooks/`.
         'scripts/hooks/{delegate,pre-commit,pre-push}.ts',
+        // Run by the pre-commit hook.
+        'scripts/format-staged.ts',
         'bench/runner/bench.ts',
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
@@ -77,7 +79,6 @@ const config: KnipConfig = {
         'bench/runner/summary/summaryGlobal.ts',
         'bench/runner/counts/pageQuantization.ts',
         'bench/runner/references/oracle.ts',
-        'bench/runner/lighting/lampFixture.ts',
         'bench/runner/counts/anisotropyCost.ts',
         // What the public scenes' caches guarantee (`node --test`, off the unit suite: no assets).
         'bench/runner/waterCost.ts',
@@ -117,6 +118,6 @@ const config: KnipConfig = {
       ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/, 'ioreg', 'sips'],
     },
   },
-};
+}
 
-export default config;
+export default config

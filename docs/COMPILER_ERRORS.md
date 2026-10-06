@@ -3,7 +3,7 @@
 <!-- Generated from packages/sdk-node/src/messages/messages.json by scripts/message-pages.ts: edit the catalogue, then run `pnpm run generate:messages`. -->
 
 Every message of the compiler, of its Node adapter and of the browser runtime has a stable
-public code, one sentence, its cause and the action to take, each on its own page.
+public code, one sentence, its cause and the action to take.
 `T3D-Exxx` is an error: the job, or in the browser what needed it, goes no further.
 `T3D-Wxxx` is a warning: always told, it never stops a compile that can succeed
 (`trillion3d-compile --strict` fails on it). `T3D-Ixxx` is an info, told on request
@@ -13,378 +13,378 @@ catalogue maps it to its public code. Exit codes and message prefixes:
 
 ## Global
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E001](messages/T3D-E001.md) | `INVALID_ARGS` | error | The compiler command line was rejected before any work started. |
-| [T3D-E002](messages/T3D-E002.md) | `INVALID_BATCH` | error | The batch file was rejected before any job started. |
-| [T3D-E003](messages/T3D-E003.md) | `INVALID_OPTIONS` | error | A compile option is out of range. |
-| [T3D-E004](messages/T3D-E004.md) | `INVALID_GLTF` | error | The source glTF could not be read. |
-| [T3D-E005](messages/T3D-E005.md) | `INVALID_JSON` | error | A JSON file of the source could not be parsed. |
-| [T3D-E006](messages/T3D-E006.md) | `UNSUPPORTED_ACCESSOR` | error | A glTF accessor uses a layout the compiler does not read. |
-| [T3D-E007](messages/T3D-E007.md) | `BUFFER_OUT_OF_BOUNDS` | error | A glTF accessor reads past the end of its buffer. |
-| [T3D-E008](messages/T3D-E008.md) | `SOURCE_NOT_READY` | error | The source folder's `manifest.json` is not marked ready. |
-| [T3D-E009](messages/T3D-E009.md) | `UNSUPPORTED_FORMAT` | error | The source folder's `manifest.json` has a format version this compiler does not read. |
-| [T3D-E010](messages/T3D-E010.md) | `SOURCE_HASH_MISMATCH` | error | Source files changed after their `manifest.json` was written. |
-| [T3D-E011](messages/T3D-E011.md) | `IMPORT_ERROR` | error | The FBX or OBJ importer refused the file. |
-| [T3D-E012](messages/T3D-E012.md) | `IMPORT_UNSUPPORTED_VERSION` | error | The FBX or OBJ file is in a version the importer does not read. |
-| [T3D-E013](messages/T3D-E013.md) | `IMPORT_OUT_OF_MEMORY` | error | The importer ran out of memory while reading the file. |
-| [T3D-E014](messages/T3D-E014.md) | `IMPORT_IO_ERROR` | error | The importer could not read the file from disk. |
-| [T3D-E015](messages/T3D-E015.md) | `IMPORT_EMPTY` | error | The import produced no visible mesh. |
-| [T3D-E016](messages/T3D-E016.md) | `EMPTY_SLICE` | error | No mesh instance fits the `slice` triangle budget. |
-| [T3D-E017](messages/T3D-E017.md) | `RAM_ADMISSION_BUDGET_EXCEEDED` | error | The estimated working memory of the compile is above its RAM budget. |
-| [T3D-E018](messages/T3D-E018.md) | `INCOMPLETE_CLUSTER_PARTITION` | error | An internal check on the finest clusters failed: some triangles belong to no cluster. |
-| [T3D-E019](messages/T3D-E019.md) | `INVALID_CLUSTER_PARTITION` | error | An internal check on the finest clusters failed: a cluster is malformed. |
-| [T3D-E020](messages/T3D-E020.md) | `DAG_ERROR_NOT_MONOTONE` | error | A cluster's simplification error is above its parent's, which would break level-of-detail selection. |
-| [T3D-E021](messages/T3D-E021.md) | `DAG_NORMAL_DEVIATION` | error | A coarse cluster bends its normals past its group's bound. |
-| [T3D-E022](messages/T3D-E022.md) | `PAGE_DEPENDENCY_BOUND` | error | A cluster's parents span more bundles than the dependency bound allows. |
-| [T3D-E023](messages/T3D-E023.md) | `INVALID_PAGE_DEPENDENCIES` | error | A bundle's dependency list failed its consistency check. |
-| [T3D-E024](messages/T3D-E024.md) | `CANCELLED` | error | The compile stopped on a cancel request; nothing was published. |
-| [T3D-E025](messages/T3D-E025.md) | `CACHE_LOCKED` | error | Another compile holds the cache folder's lock. |
-| [T3D-E026](messages/T3D-E026.md) | `IO_ERROR` | error | A file could not be read or written. |
-| [T3D-E027](messages/T3D-E027.md) | `THREAD_POOL_ERROR` | error | The compiler could not start its worker threads. |
-| [T3D-W001](messages/T3D-W001.md) | `autonomous-scene-animated` | warning | The standalone glTF scene was not written because the source is animated. |
-| [T3D-W002](messages/T3D-W002.md) | `texture-level-write-failed` | warning | A baked texture level could not be written, so the engine loads the source image instead. |
-| [T3D-E028](messages/T3D-E028.md) | `IMPORT_UNSUPPORTED_ANIMATION` | error | The source animation uses a feature the importer does not carry. |
-| [T3D-E029](messages/T3D-E029.md) | `INDEX_OUT_OF_BOUNDS` | error | A glTF index points outside its accessor. |
-| [T3D-E030](messages/T3D-E030.md) | `UNSUPPORTED_ACCESSOR_TYPE` | error | A glTF accessor has a missing or unknown type. |
-| [T3D-E031](messages/T3D-E031.md) | `UNSUPPORTED_COMPONENT` | error | A glTF accessor has a component type the compiler does not read. |
-| [T3D-E032](messages/T3D-E032.md) | `UNSUPPORTED_PRIMITIVE` | error | A glTF primitive is not made of triangles. |
-| [T3D-E033](messages/T3D-E033.md) | `INVALID_TRIANGLES` | error | A primitive's index count is not a positive multiple of three. |
-| [T3D-E034](messages/T3D-E034.md) | `NONFINITE_POSITION` | error | A vertex position is not a finite number. |
-| [T3D-E035](messages/T3D-E035.md) | `INVALID_SOURCE` | error | The source is missing a file it needs. |
-| [T3D-E036](messages/T3D-E036.md) | `SOURCE_FORMAT_UNKNOWN` | error | No import driver accepts this source. |
-| [T3D-E037](messages/T3D-E037.md) | `SOURCE_FORMAT_AMBIGUOUS` | error | Several import drivers claim the same source folder. |
-| [T3D-E038](messages/T3D-E038.md) | `INVALID_MANIFEST` | error | A compiled manifest failed its format check. |
-| [T3D-E039](messages/T3D-E039.md) | `INVALID_PAGE` | error | A geometry page has an invalid triangle or vertex count. |
-| [T3D-E040](messages/T3D-E040.md) | `INVALID_PAGE_ATTRIBUTE` | error | A geometry page attribute has an invalid count or layout. |
-| [T3D-E041](messages/T3D-E041.md) | `PAGE_ATTRIBUTE_RANGE` | error | A page attribute spans more than its quantisation grid can hold. |
-| [T3D-E042](messages/T3D-E042.md) | `PAGE_VERTEX_LIMIT` | error | A geometry page holds more than 65,535 vertices. |
-| [T3D-E043](messages/T3D-E043.md) | `PAGE_JOINT_RANGE` | error | A skinned page names a joint past 65,535. |
-| [T3D-E044](messages/T3D-E044.md) | `PAGE_MORPH_TARGETS` | error | A primitive has more morph targets than a page carries. |
-| [T3D-E045](messages/T3D-E045.md) | `SOFT_DEFORMATION` | error | A simulated primitive also carries a skin or morph targets. |
-| [T3D-E046](messages/T3D-E046.md) | `PHYSICS_COOK_FAILED` | error | The physics shape of a primitive could not be built. |
-| [T3D-E047](messages/T3D-E047.md) | `TEXTURE_ENCODE_FAILED` | error | A baked texture level could not be encoded. |
-| [T3D-E048](messages/T3D-E048.md) | `WORLD_TOP_OVER_BUDGET` | error | The world's pinned top level is above its byte budget. |
-| [T3D-E049](messages/T3D-E049.md) | `INVALID_CUTOUT_DECISIONS` | error | The cutout answer sheet in the cache folder is invalid. |
-| [T3D-E050](messages/T3D-E050.md) | `INVALID_ORACLE_JOB` | error | The reference path tracer's job file is invalid. |
-| [T3D-E051](messages/T3D-E051.md) | `INVALID_ORACLE_SOURCE` | error | The reference path tracer's scene is invalid. |
-| [T3D-W003](messages/T3D-W003.md) | `DAG_FLAT` | warning | A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance. |
-| [T3D-W004](messages/T3D-W004.md) | `DAG_ROOTS` | warning | A primitive's DAG stopped rising mid-way and left many roots, so it stays heavy in the distance. |
-| [T3D-E091](messages/T3D-E091.md) | `INVALID_WORLD_ROOTS` | error | The world roots' table could not be written as its records. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e001"></a>T3D-E001 | `INVALID_ARGS` | error | The compiler command line was rejected before any work started. | Command line or batch file rejected before any work | Check the arguments against the usage line printed with the error. |
+| <a id="t3d-e002"></a>T3D-E002 | `INVALID_BATCH` | error | The batch file was rejected before any job started. | Command line or batch file rejected before any work | Fix the batch file: a non-empty `jobs` array, each job naming its source, cache and resource base URL. |
+| <a id="t3d-e003"></a>T3D-E003 | `INVALID_OPTIONS` | error | A compile option is out of range. | Scope, budgets, threads, base URL or simplification out of range | Use a scope of `slice` or `full`, positive triangle budget, thread count and RAM budget, a resource base URL, and `none` or `qem-endpoints` as simplification. |
+| <a id="t3d-e004"></a>T3D-E004 | `INVALID_GLTF` | error | The source glTF could not be read. | Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address) | Validate the file (for example with the Khronos glTF Validator) and export it again from its authoring tool. |
+| <a id="t3d-e005"></a>T3D-E005 | `INVALID_JSON` | error | A JSON file of the source could not be parsed. | Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address) | Fix the JSON syntax at the position the message names, or export the file again. |
+| <a id="t3d-e006"></a>T3D-E006 | `UNSUPPORTED_ACCESSOR` | error | A glTF accessor uses a layout the compiler does not read. | Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address) | Export the model again with standard accessors: float positions and unsigned integer indices. |
+| <a id="t3d-e007"></a>T3D-E007 | `BUFFER_OUT_OF_BOUNDS` | error | A glTF accessor reads past the end of its buffer. | Source glTF rejected (also a directory with nothing importable, and an `accessor.count` whose dense expansion no machine can address) | Export the model again; its binary buffer is truncated or belongs to another file. |
+| <a id="t3d-e008"></a>T3D-E008 | `SOURCE_NOT_READY` | error | The source folder's `manifest.json` is not marked ready. | Source `manifest.json` not ready, wrong format version, or files changed since it was written | Let the tool that writes the source folder finish, or point the compiler at the glTF file itself. |
+| <a id="t3d-e009"></a>T3D-E009 | `UNSUPPORTED_FORMAT` | error | The source folder's `manifest.json` has a format version this compiler does not read. | Source `manifest.json` not ready, wrong format version, or files changed since it was written | Write the source folder again with this version of Trillion3D. |
+| <a id="t3d-e010"></a>T3D-E010 | `SOURCE_HASH_MISMATCH` | error | Source files changed after their `manifest.json` was written. | Source `manifest.json` not ready, wrong format version, or files changed since it was written | Write the source manifest again, or restore the files it describes. |
+| <a id="t3d-e011"></a>T3D-E011 | `IMPORT_ERROR` | error | The FBX or OBJ importer refused the file. | FBX/OBJ import failed, or produced no visible mesh | Read the reason in the message, then export the file again from its authoring tool. |
+| <a id="t3d-e012"></a>T3D-E012 | `IMPORT_UNSUPPORTED_VERSION` | error | The FBX or OBJ file is in a version the importer does not read. | FBX/OBJ import failed, or produced no visible mesh | Export the file again as FBX 7 or as OBJ. |
+| <a id="t3d-e013"></a>T3D-E013 | `IMPORT_OUT_OF_MEMORY` | error | The importer ran out of memory while reading the file. | FBX/OBJ import failed, or produced no visible mesh | Free memory, raise the RAM budget, or split the model into smaller files. |
+| <a id="t3d-e014"></a>T3D-E014 | `IMPORT_IO_ERROR` | error | The importer could not read the file from disk. | FBX/OBJ import failed, or produced no visible mesh | Check that the file exists, is readable and is not being written by another program. |
+| <a id="t3d-e015"></a>T3D-E015 | `IMPORT_EMPTY` | error | The import produced no visible mesh. | FBX/OBJ import failed, or produced no visible mesh | Check that the file holds visible mesh geometry, not only empty nodes, cameras or lights. |
+| <a id="t3d-e016"></a>T3D-E016 | `EMPTY_SLICE` | error | No mesh instance fits the `slice` triangle budget. | No mesh instance fits the `slice` budget | Raise the triangle budget, or compile with the `full` scope. |
+| <a id="t3d-e017"></a>T3D-E017 | `RAM_ADMISSION_BUDGET_EXCEEDED` | error | The estimated working memory of the compile is above its RAM budget. | Estimated working set above `RAM_MB`, dense expansion of every decoded accessor counted; also a dense expansion the allocator refuses | Raise the RAM budget (`ramBudgetMb`), or split the model into smaller files. |
+| <a id="t3d-e018"></a>T3D-E018 | `INCOMPLETE_CLUSTER_PARTITION` | error | An internal check on the finest clusters failed: some triangles belong to no cluster. | Internal consistency check failed on level-0 clusters | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e019"></a>T3D-E019 | `INVALID_CLUSTER_PARTITION` | error | An internal check on the finest clusters failed: a cluster is malformed. | Internal consistency check failed on level-0 clusters | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e020"></a>T3D-E020 | `DAG_ERROR_NOT_MONOTONE` | error | A cluster's simplification error is above its parent's, which would break level-of-detail selection. | A cluster's error above its parent's, or a coarse cluster's normal deviation past its group's bound ([checks](COMPILER.md#invocation)) | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e021"></a>T3D-E021 | `DAG_NORMAL_DEVIATION` | error | A coarse cluster bends its normals past its group's bound. | A cluster's error above its parent's, or a coarse cluster's normal deviation past its group's bound ([checks](COMPILER.md#invocation)) | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e022"></a>T3D-E022 | `PAGE_DEPENDENCY_BOUND` | error | A cluster's parents span more bundles than the dependency bound allows. | A cluster whose parents alone span more bundles than `streams.dependencyBound` ([bundles](COMPILER.md#invocation)); names the mesh, the primitive and the page | Report it as a compiler bug, with the mesh and primitive the message names. |
+| <a id="t3d-e023"></a>T3D-E023 | `INVALID_PAGE_DEPENDENCIES` | error | A bundle's dependency list failed its consistency check. | A bundle dependency list with a cycle, missing its pages' parents, not closed, not reaching the root cover, or not empty on a pinned bundle; the message names the mesh and the primitive, then the page or the bundle ([bundles](COMPILER.md#invocation)) | Report it as a compiler bug, with the mesh, primitive and page the message names. |
+| <a id="t3d-e024"></a>T3D-E024 | `CANCELLED` | error | The compile stopped on a cancel request; nothing was published. | Stopped on a cancel request | Run the compile again when you want its result. |
+| <a id="t3d-e025"></a>T3D-E025 | `CACHE_LOCKED` | error | Another compile holds the cache folder's lock. | Another compilation holds `<cache>/native/.lock`, an operating-system file lock held for the whole compile. It follows the process, not the file: released when its owner ends, killed or not, so no cache stays blocked; the file is never deleted, only the hold counts. The newcomer waits 30 s (`TRILLION3D_CACHE_LOCK_WAIT_MS`) before this refusal; a cancel during the wait ends it with `CANCELLED` | Wait for the other compile to end, or compile into another cache folder; `TRILLION3D_CACHE_LOCK_WAIT_MS` sets how long to wait. |
+| <a id="t3d-e026"></a>T3D-E026 | `IO_ERROR` | error | A file could not be read or written. | Filesystem or thread pool failure | Check the free disk space and the permissions of the source and cache folders. |
+| <a id="t3d-e027"></a>T3D-E027 | `THREAD_POOL_ERROR` | error | The compiler could not start its worker threads. | Filesystem or thread pool failure | Lower the thread count, or free system resources, then compile again. |
+| <a id="t3d-w001"></a>T3D-W001 | `autonomous-scene-animated` | warning | The standalone glTF scene was not written because the source is animated. | The source declares node animation, skinning or morph weights, which the autonomous glTF (accessors rebuilt from the cache's pages) cannot carry: the mode is refused for this cache (`autonomousScene: null`) rather than written frozen. Once per job; does not fail the job | Load the cache through the engine, which plays the animation; the standalone scene serves static models only. |
+| <a id="t3d-w002"></a>T3D-W002 | `texture-level-write-failed` | warning | A baked texture level could not be written, so the engine loads the source image instead. | A baked mip level could not be written under `native/textures/` (disk full, directory not writable); the entry keeps its sidecar tail with `bakedLevels = 0`, so the engine loads the source image. Per image; does not fail the job | Free disk space or make the cache folder writable, then compile again. |
+| <a id="t3d-e028"></a>T3D-E028 | `IMPORT_UNSUPPORTED_ANIMATION` | error | The source animation uses a feature the importer does not carry. | An FBX skin, curve or keyed channel outside what the glTF intermediate carries (for example several skin deformers on one mesh); refused rather than frozen. | Bake the animation to plain keyframes in the authoring tool and export again. |
+| <a id="t3d-e029"></a>T3D-E029 | `INDEX_OUT_OF_BOUNDS` | error | A glTF index points outside its accessor. | A triangle index, or a sparse accessor index, at or past the count of the accessor it indexes. | Export the model again; its index or sparse accessor data is corrupt. |
+| <a id="t3d-e030"></a>T3D-E030 | `UNSUPPORTED_ACCESSOR_TYPE` | error | A glTF accessor has a missing or unknown type. | An accessor `type` absent, or outside the ones glTF defines for the attribute that reads it. | Export the model again with standard accessor types (`SCALAR`, `VEC2`, `VEC3`, `VEC4`, `MAT4`). |
+| <a id="t3d-e031"></a>T3D-E031 | `UNSUPPORTED_COMPONENT` | error | A glTF accessor has a component type the compiler does not read. | An accessor `componentType` outside the glTF list, or not allowed for the attribute that reads it. | Export the model again with float, normalised integer or unsigned integer components. |
+| <a id="t3d-e032"></a>T3D-E032 | `UNSUPPORTED_PRIMITIVE` | error | A glTF primitive is not made of triangles. | A primitive `mode` other than triangles (points, lines, strips or fans the reader does not expand). | Triangulate the mesh in its authoring tool; points and lines are not drawn. |
+| <a id="t3d-e033"></a>T3D-E033 | `INVALID_TRIANGLES` | error | A primitive's index count is not a positive multiple of three. | A triangle list whose index count is zero or not divisible by three. | Export the model again; its triangle list is truncated. |
+| <a id="t3d-e034"></a>T3D-E034 | `NONFINITE_POSITION` | error | A vertex position is not a finite number. | A position component that is NaN or infinite; no bounds or clusters can be built from it. | Clean the mesh in its authoring tool (remove NaN or infinite vertices) and export again. |
+| <a id="t3d-e035"></a>T3D-E035 | `INVALID_SOURCE` | error | The source is missing a file it needs. | A source whose runtime glTF is absent, or a compressed buffer that does not decode. | Point the compiler at a folder or file holding the whole model, its runtime file included. |
+| <a id="t3d-e036"></a>T3D-E036 | `SOURCE_FORMAT_UNKNOWN` | error | No import driver accepts this source. | A file or folder whose extension and content no scene driver claims. | Use one of the accepted formats the message lists, or convert the model to glTF. |
+| <a id="t3d-e037"></a>T3D-E037 | `SOURCE_FORMAT_AMBIGUOUS` | error | Several import drivers claim the same source folder. | A source directory holding files of several scene formats, none preferred. | Keep one model format per source folder, or point the compiler at the file itself. |
+| <a id="t3d-e038"></a>T3D-E038 | `INVALID_MANIFEST` | error | A compiled manifest failed its format check. | A binary manifest record whose length, count or layout contradicts its header. | Delete the cache folder and compile again. |
+| <a id="t3d-e039"></a>T3D-E039 | `INVALID_PAGE` | error | A geometry page has an invalid triangle or vertex count. | A page whose triangle or position count is zero or past its limit, found while encoding it. | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e040"></a>T3D-E040 | `INVALID_PAGE_ATTRIBUTE` | error | A geometry page attribute has an invalid count or layout. | A page attribute whose count or layout does not match the page it belongs to. | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e041"></a>T3D-E041 | `PAGE_ATTRIBUTE_RANGE` | error | A page attribute spans more than its quantisation grid can hold. | An attribute range past 2^24 steps of its primitive's grid. | Split the mesh, or scale its UVs or attributes down to a smaller range, then compile again. |
+| <a id="t3d-e042"></a>T3D-E042 | `PAGE_VERTEX_LIMIT` | error | A geometry page holds more than 65,535 vertices. | A page past the 16-bit vertex index its format uses. | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-e043"></a>T3D-E043 | `PAGE_JOINT_RANGE` | error | A skinned page names a joint past 65,535. | A joint index past the 16-bit range a page stores. | Reduce the skeleton to at most 65,536 joints and export again. |
+| <a id="t3d-e044"></a>T3D-E044 | `PAGE_MORPH_TARGETS` | error | A primitive has more morph targets than a page carries. | A primitive's morph target count past the per-page limit. | Reduce the primitive's morph targets and export again. |
+| <a id="t3d-e045"></a>T3D-E045 | `SOFT_DEFORMATION` | error | A simulated primitive also carries a skin or morph targets. | A cloth, rope or soft-volume primitive that also declares joints or morph targets. | Keep one deformation per primitive: either the physics simulation, or the skin and morph targets. |
+| <a id="t3d-e046"></a>T3D-E046 | `PHYSICS_COOK_FAILED` | error | The physics shape of a primitive could not be built. | The native physics cook refused a primitive's collision or soft-body shape. | Check the mesh for degenerate or non-manifold parts, clean it, and compile again. |
+| <a id="t3d-e047"></a>T3D-E047 | `TEXTURE_ENCODE_FAILED` | error | A baked texture level could not be encoded. | The lossless encoder refused a texture level baked from a decoded image. | Report it as a compiler bug, with the texture if you can share it. |
+| <a id="t3d-e048"></a>T3D-E048 | `WORLD_TOP_OVER_BUDGET` | error | The world's pinned top level is above its byte budget. | The always-resident top of a world holds more bytes than its budget; the message names the heaviest cell. | Split the world into more cells, or simplify the objects that stay loaded everywhere. |
+| <a id="t3d-e049"></a>T3D-E049 | `INVALID_CUTOUT_DECISIONS` | error | The cutout answer sheet in the cache folder is invalid. | An answer sheet whose JSON, version or entries do not read back. | Fix or delete the answer sheet (`decoupes.json`), then compile again. |
+| <a id="t3d-e050"></a>T3D-E050 | `INVALID_ORACLE_JOB` | error | The reference path tracer's job file is invalid. | A `trillion3d-oracle` job missing a field or holding a value out of range (a measurement tool, not the compiler). | Fix the job file at the field the message names. |
+| <a id="t3d-e051"></a>T3D-E051 | `INVALID_ORACLE_SOURCE` | error | The reference path tracer's scene is invalid. | A `trillion3d-oracle` scene missing a field or holding a value out of range (a measurement tool, not the compiler). | Fix the scene at the field the message names. |
+| <a id="t3d-w003"></a>T3D-W003 | `DAG_FLAT` | warning | A primitive of several clusters built no coarser level, so it is drawn at full detail at every distance. | The cluster DAG of the primitive stopped at depth 0: every group of clusters failed to simplify (seam-locked, border-locked, too small or of unusable error); the warning carries the group count per outcome and the dominant cause. | Look at the named cause in `clusters.json`: weld seams, remove locked borders or split UV islands in the authoring tool. |
+| <a id="t3d-w004"></a>T3D-W004 | `DAG_ROOTS` | warning | A primitive's DAG stopped rising mid-way and left many roots, so it stays heavy in the distance. | More than an eighth of a primitive's pages are roots, on a primitive of at least eight clusters: its DAG stopped mid-way. | Look at the named cause in `clusters.json`: weld seams, remove locked borders or split UV islands in the authoring tool. |
+| <a id="t3d-e091"></a>T3D-E091 | `INVALID_WORLD_ROOTS` | error | The world roots' table could not be written as its records. | A world-roots table whose page, bundle, cluster or group names a value its fixed-size record cannot hold (a word past 32 bits, a missing field, a digest that is not 64 lowercase hexadecimal digits); the message names the field ([World super-roots](FORMAT.md#world-super-roots)). | Report it as a compiler bug, with the field the message names. |
 
 ## Archives
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E052](messages/T3D-E052.md) | `ARCHIVE_PATH_ESCAPE` | error | An archive entry's path leaves the extraction folder. |
-| [T3D-E053](messages/T3D-E053.md) | `ARCHIVE_SYMLINK` | error | An archive entry is a symbolic link, which is never followed. |
-| [T3D-E054](messages/T3D-E054.md) | `ARCHIVE_ENCRYPTED` | error | An archive entry is encrypted. |
-| [T3D-E055](messages/T3D-E055.md) | `ARCHIVE_UNREADABLE` | error | The archive is truncated or corrupted. |
-| [T3D-E056](messages/T3D-E056.md) | `ARCHIVE_EMPTY` | error | The archive holds no entry. |
-| [T3D-E057](messages/T3D-E057.md) | `ARCHIVE_TOO_MANY_ENTRIES` | error | The archive holds more than 20,000 entries. |
-| [T3D-E058](messages/T3D-E058.md) | `ARCHIVE_TOO_LARGE` | error | The archive unpacks to more than 8 GiB. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e052"></a>T3D-E052 | `ARCHIVE_PATH_ESCAPE` | error | An archive entry's path leaves the extraction folder. | ZIP entry path leaves the extraction root (absolute path, `..`, named volume, reversed separator) | Rebuild the archive with relative entry paths only. |
+| <a id="t3d-e053"></a>T3D-E053 | `ARCHIVE_SYMLINK` | error | An archive entry is a symbolic link, which is never followed. | ZIP entry is a symlink; never followed | Rebuild the archive with the linked files stored as plain files. |
+| <a id="t3d-e054"></a>T3D-E054 | `ARCHIVE_ENCRYPTED` | error | An archive entry is encrypted. | ZIP entry is encrypted; refused, never bypassed | Rebuild the archive without encryption. |
+| <a id="t3d-e055"></a>T3D-E055 | `ARCHIVE_UNREADABLE` | error | The archive is truncated or corrupted. | ZIP archive truncated or corrupted | Download or export the archive again. |
+| <a id="t3d-e056"></a>T3D-E056 | `ARCHIVE_EMPTY` | error | The archive holds no entry. | ZIP archive carries no entry | Check that the archive holds the model files. |
+| <a id="t3d-e057"></a>T3D-E057 | `ARCHIVE_TOO_MANY_ENTRIES` | error | The archive holds more than 20,000 entries. | ZIP archive exceeds 20,000 entries | Split the archive, or extract it and compile the model folder. |
+| <a id="t3d-e058"></a>T3D-E058 | `ARCHIVE_TOO_LARGE` | error | The archive unpacks to more than 8 GiB. | ZIP archive exceeds 8 GiB decompressed | Extract the archive and compile the model folder, or split the model. |
 
 ## Lights and OBJ/MTL materials
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-W005](messages/T3D-W005.md) | `light-index-out-of-bounds` | warning | A node names a light the file does not declare, so that light is left out. |
-| [T3D-W006](messages/T3D-W006.md) | `light-invalid-transform` | warning | A light's position or orientation is not a finite number, so the light is left out. |
-| [T3D-W007](messages/T3D-W007.md) | `light-unsupported-type` | warning | A light is neither point, spot nor directional, so it is left out. |
-| [T3D-W008](messages/T3D-W008.md) | `light-non-positive-intensity` | warning | A light's intensity is zero, negative or not a number, so it is left out. |
-| [T3D-W009](messages/T3D-W009.md) | `light-degenerate-axis` | warning | A spot or directional light has a transform that collapses its direction, so it is left out. |
-| [T3D-I001](messages/T3D-I001.md) | `light-emitter-radius-derived` | info | A light's emitter radius was measured on its emissive body rather than read from the file. |
-| [T3D-W010](messages/T3D-W010.md) | `light-emitter-radius-invalid` | warning | A light's emitter radius is not usable, so it is omitted and the light kept. |
-| [T3D-W011](messages/T3D-W011.md) | `light-area-or-volume` | warning | An area or volume light was left out; only point, spot and directional lights are carried. |
-| [T3D-W012](messages/T3D-W012.md) | `material-library-missing` | warning | A material library the model cites could not be opened, so its materials take default values. |
-| [T3D-W013](messages/T3D-W013.md) | `material-library-truncated` | warning | The material library ends in the middle of a declaration. |
-| [T3D-W014](messages/T3D-W014.md) | `material-specular-color` | warning | A specular colour or map was dropped; glTF's metal-roughness model has no place for it. |
-| [T3D-W015](messages/T3D-W015.md) | `material-specular-ior` | warning | An index of refraction other than 1.5 was dropped. |
-| [T3D-W016](messages/T3D-W016.md) | `material-ambient-color` | warning | An ambient colour or map was dropped; glTF has no ambient term. |
-| [T3D-W017](messages/T3D-W017.md) | `material-bump-map` | warning | A bump map was dropped because a different normal map is kept. |
-| [T3D-W018](messages/T3D-W018.md) | `material-separate-opacity-texture` | warning | An opacity map separate from the base colour was dropped; glTF reads opacity from the base colour's alpha only. |
-| [T3D-W019](messages/T3D-W019.md) | `material-split-metal-roughness` | warning | Metalness and roughness come from different maps, which glTF cannot carry. |
-| [T3D-W020](messages/T3D-W020.md) | `texture-offset` | warning | A texture map's offset option was dropped. |
-| [T3D-W021](messages/T3D-W021.md) | `texture-scale` | warning | A texture map's scale option was dropped. |
-| [T3D-W022](messages/T3D-W022.md) | `texture-bump-scale` | warning | A bump map's strength option was dropped; glTF carries no relief strength. |
-| [T3D-W023](messages/T3D-W023.md) | `texture-embedded-format` | warning | An embedded texture is in an image format the importer does not read, so it is dropped. |
-| [T3D-W024](messages/T3D-W024.md) | `texture-format` | warning | A texture file is in an image format the importer does not read, so it is dropped. |
-| [T3D-W025](messages/T3D-W025.md) | `texture-missing` | warning | A texture file the model cites was not found, so the material draws without it. |
-| [T3D-W026](messages/T3D-W026.md) | `texture-outside-source` | warning | A texture file lies outside the model's folder, so it is not copied. |
-| [T3D-W027](messages/T3D-W027.md) | `texture-procedural` | warning | A procedural texture was dropped; only image textures are carried. |
-| [T3D-W028](messages/T3D-W028.md) | `texture-uv-transform` | warning | A texture's UV transform was dropped. |
-| [T3D-I002](messages/T3D-I002.md) | `node-hidden` | info | Hidden nodes were left out of the scene. |
-| [T3D-W029](messages/T3D-W029.md) | `node-invalid-transform` | warning | A node's transform is not a finite number, so the node is left out. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-w005"></a>T3D-W005 | `light-index-out-of-bounds` | warning | A node names a light the file does not declare, so that light is left out. | A node names a `KHR_lights_punctual` light the document does not declare; the lamp is left out | Export the scene again; its light list is inconsistent. |
+| <a id="t3d-w006"></a>T3D-W006 | `light-invalid-transform` | warning | A light's position or orientation is not a finite number, so the light is left out. | The lamp's world matrix holds a non-finite number | Fix the light's transform in the authoring tool and export again. |
+| <a id="t3d-w007"></a>T3D-W007 | `light-unsupported-type` | warning | A light is neither point, spot nor directional, so it is left out. | A lamp neither `point`, `spot` nor `directional` | Replace it with a point, spot or directional light. |
+| <a id="t3d-w008"></a>T3D-W008 | `light-non-positive-intensity` | warning | A light's intensity is zero, negative or not a number, so it is left out. | Intensity zero, negative or non-finite | Give the light a positive intensity. |
+| <a id="t3d-w009"></a>T3D-W009 | `light-degenerate-axis` | warning | A spot or directional light has a transform that collapses its direction, so it is left out. | A `spot` or `directional` lamp whose node transform collapses its −Z axis | Fix the light's rotation and scale in the authoring tool. |
+| <a id="t3d-i001"></a>T3D-I001 | `light-emitter-radius-derived` | info | A light's emitter radius was measured on its emissive body rather than read from the file. | Counted, not rejected: `emitterRadius` measured on the emissive body bound to the lamp, not read from the source | Nothing to do; declare the radius in the file to choose it yourself. |
+| <a id="t3d-w010"></a>T3D-W010 | `light-emitter-radius-invalid` | warning | A light's emitter radius is not usable, so it is omitted and the light kept. | A radius, declared or measured, not finite, not strictly positive, or not strictly below `range`; the field is omitted, the lamp kept | Give the light a positive radius smaller than its range. |
+| <a id="t3d-w011"></a>T3D-W011 | `light-area-or-volume` | warning | An area or volume light was left out; only point, spot and directional lights are carried. | An FBX or OBJ light of the area or volume type, which has no glTF punctual equivalent. | Replace it with point, spot or directional lights, or with an emissive surface. |
+| <a id="t3d-w012"></a>T3D-W012 | `material-library-missing` | warning | A material library the model cites could not be opened, so its materials take default values. | A cited material library (an OBJ `mtllib`) could not be opened; every material takes its defaults | Place the `.mtl` file beside the model under the name the model cites. |
+| <a id="t3d-w013"></a>T3D-W013 | `material-library-truncated` | warning | The material library ends in the middle of a declaration. | The material library's last line is unterminated, cut mid-declaration; the incomplete value parsed is kept | Export the `.mtl` file again; the last value read is kept. |
+| <a id="t3d-w014"></a>T3D-W014 | `material-specular-color` | warning | A specular colour or map was dropped; glTF's metal-roughness model has no place for it. | A specular colour or map (`Ks`, `map_Ks`), which glTF's metallic-roughness model has no room for; **not** turned into metalness, a different model | Convert the material to metal-roughness in the authoring tool. |
+| <a id="t3d-w015"></a>T3D-W015 | `material-specular-ior` | warning | An index of refraction other than 1.5 was dropped. | An index of refraction (`Ni`) other than glTF's default 1.5 | Nothing carries it in glTF; set the look with roughness and metalness instead. |
+| <a id="t3d-w016"></a>T3D-W016 | `material-ambient-color` | warning | An ambient colour or map was dropped; glTF has no ambient term. | An ambient colour or map (`Ka`, `map_Ka`) that became neither the occlusion nor the base-colour texture; glTF has no ambient term | Bake the ambient into the base colour or an occlusion map. |
+| <a id="t3d-w017"></a>T3D-W017 | `material-bump-map` | warning | A bump map was dropped because a different normal map is kept. | A bump map (`bump`, `map_Bump`) naming another file than the normal map kept; the normal map wins and the height map is dropped | Bake the bump into the normal map, or keep only one of them. |
+| <a id="t3d-w018"></a>T3D-W018 | `material-separate-opacity-texture` | warning | An opacity map separate from the base colour was dropped; glTF reads opacity from the base colour's alpha only. | An FBX or OBJ opacity map naming another image than the base colour. | Put the opacity into the alpha channel of the base-colour texture. |
+| <a id="t3d-w019"></a>T3D-W019 | `material-split-metal-roughness` | warning | Metalness and roughness come from different maps, which glTF cannot carry. | An FBX or OBJ material whose metalness and roughness maps are two files; neither is bound. | Pack metalness and roughness into one texture (blue and green channels). |
+| <a id="t3d-w020"></a>T3D-W020 | `texture-offset` | warning | A texture map's offset option was dropped. | A map's `-o` or `-s` option; would need `KHR_texture_transform`, which the glTF writer does not emit | Bake the offset into the UVs in the authoring tool. |
+| <a id="t3d-w021"></a>T3D-W021 | `texture-scale` | warning | A texture map's scale option was dropped. | A map's `-o` or `-s` option; would need `KHR_texture_transform`, which the glTF writer does not emit | Bake the scale into the UVs in the authoring tool. |
+| <a id="t3d-w022"></a>T3D-W022 | `texture-bump-scale` | warning | A bump map's strength option was dropped; glTF carries no relief strength. | A map's `-bm` option; glTF carries no relief strength | Bake the strength into the normal map. |
+| <a id="t3d-w023"></a>T3D-W023 | `texture-embedded-format` | warning | An embedded texture is in an image format the importer does not read, so it is dropped. | An FBX texture carried inside the file whose name gives no supported image format. | Embed the texture as PNG or JPEG, or place it beside the model. |
+| <a id="t3d-w024"></a>T3D-W024 | `texture-format` | warning | A texture file is in an image format the importer does not read, so it is dropped. | A referenced texture file whose extension no image driver claims. | Convert the texture to PNG or JPEG. |
+| <a id="t3d-w025"></a>T3D-W025 | `texture-missing` | warning | A texture file the model cites was not found, so the material draws without it. | A referenced texture file absent from the source folder. | Place the texture beside the model under the name the model cites. |
+| <a id="t3d-w026"></a>T3D-W026 | `texture-outside-source` | warning | A texture file lies outside the model's folder, so it is not copied. | A referenced texture path leaving the source folder. | Move the texture into the model's folder and point the material at it. |
+| <a id="t3d-w027"></a>T3D-W027 | `texture-procedural` | warning | A procedural texture was dropped; only image textures are carried. | An FBX or OBJ texture with no image file behind it. | Bake the procedural texture to an image in the authoring tool. |
+| <a id="t3d-w028"></a>T3D-W028 | `texture-uv-transform` | warning | A texture's UV transform was dropped. | An FBX texture with a translation, rotation or scale on its UVs, which the glTF writer does not carry. | Bake the transform into the UVs in the authoring tool. |
+| <a id="t3d-i002"></a>T3D-I002 | `node-hidden` | info | Hidden nodes were left out of the scene. | FBX or OBJ nodes marked invisible in the source; counted, not converted. | Make the nodes visible in the authoring tool if they should be drawn. |
+| <a id="t3d-w029"></a>T3D-W029 | `node-invalid-transform` | warning | A node's transform is not a finite number, so the node is left out. | A node whose world matrix holds NaN or infinity. | Fix the node's transform in the authoring tool and export again. |
 
 ## Blender
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E059](messages/T3D-E059.md) | `blend-header-invalid` | error | The file is not a readable Blender file. |
-| [T3D-E060](messages/T3D-E060.md) | `blend-pointer-size-unsupported` | error | The Blender file was written with 32-bit pointers. |
-| [T3D-E061](messages/T3D-E061.md) | `blend-endianness-unsupported` | error | The Blender file is big-endian. |
-| [T3D-E062](messages/T3D-E062.md) | `blend-block-header-unsupported` | error | The Blender file uses a block layout this reader does not know. |
-| [T3D-E063](messages/T3D-E063.md) | `blend-truncated` | error | The Blender file ends in the middle of a block. |
-| [T3D-E064](messages/T3D-E064.md) | `blend-too-large` | error | The Blender file needs more memory than the RAM budget. |
-| [T3D-E065](messages/T3D-E065.md) | `blend-dna-invalid` | error | The Blender file's structure description is missing or unreadable. |
-| [T3D-E066](messages/T3D-E066.md) | `blend-mesh-layout-unsupported` | error | A Blender mesh is stored in a layout this reader does not know. |
-| [T3D-E067](messages/T3D-E067.md) | `blend-mesh-invalid` | error | A Blender mesh corner points outside its vertices. |
-| [T3D-W030](messages/T3D-W030.md) | `blend-collection-instance-unsupported` | warning | An object that instances a collection was left out. |
-| [T3D-W031](messages/T3D-W031.md) | `blend-modifier-not-applied` | warning | Modifiers were not applied; the base mesh is exported. |
-| [T3D-W032](messages/T3D-W032.md) | `blend-mesh-missing` | warning | A mesh object points at no mesh data, so it is left out. |
-| [T3D-W033](messages/T3D-W033.md) | `blend-alpha-texture-unsupported` | warning | An alpha input from another image or node was dropped; the declared alpha is kept. |
-| [T3D-W034](messages/T3D-W034.md) | `blend-texture-channel-unsupported` | warning | An alpha taken from a colour channel was dropped; the declared alpha is kept. |
-| [T3D-W035](messages/T3D-W035.md) | `blend-surface-node-unsupported` | warning | A material not driven by a Principled BSDF keeps only its basic values. |
-| [T3D-W036](messages/T3D-W036.md) | `blend-shader-input-unconverted` | warning | A shader input fed by a node other than an image was not converted; its declared value is kept. |
-| [T3D-W037](messages/T3D-W037.md) | `blend-emission-clamped` | warning | An emission above 1 was clamped. |
-| [T3D-W038](messages/T3D-W038.md) | `blend-image-format` | warning | An image in a format the image readers do not decode was dropped. |
-| [T3D-W039](messages/T3D-W039.md) | `blend-image-outside-source` | warning | An image outside the model's folder, not packed, was not copied. |
-| [T3D-W040](messages/T3D-W040.md) | `blend-object-material-override-unconverted` | warning | An object's material override was dropped; the mesh's own material is kept. |
-| [T3D-W041](messages/T3D-W041.md) | `blend-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. |
-| [T3D-I003](messages/T3D-I003.md) | `blend-extra-scenes` | info | The file holds more than one scene; only the active one is exported. |
-| [T3D-I004](messages/T3D-I004.md) | `blend-object-outside-scene` | info | A mesh object outside the active scene was not exported. |
-| [T3D-W042](messages/T3D-W042.md) | `blend-light-type-unsupported` | warning | A light type other than point, sun, spot or area was left out. |
-| [T3D-W043](messages/T3D-W043.md) | `blend-lamp-missing` | warning | A light object points at no light data, so it is left out. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e059"></a>T3D-E059 | `blend-header-invalid` | error | The file is not a readable Blender file. | File starts neither with `BLENDER` nor with a gzip or Zstandard frame, or its header does not read back | Save the file again from Blender. |
+| <a id="t3d-e060"></a>T3D-E060 | `blend-pointer-size-unsupported` | error | The Blender file was written with 32-bit pointers. | Written with 32-bit pointers; only 64-bit files are read | Open the file in a 64-bit Blender and save it again. |
+| <a id="t3d-e061"></a>T3D-E061 | `blend-endianness-unsupported` | error | The Blender file is big-endian. | Big-endian; only little-endian files are read | Open the file in a current Blender and save it again. |
+| <a id="t3d-e062"></a>T3D-E062 | `blend-block-header-unsupported` | error | The Blender file uses a block layout this reader does not know. | A block-header variant outside the one this reader describes | Save the file again from a current Blender, or export it to glTF. |
+| <a id="t3d-e063"></a>T3D-E063 | `blend-truncated` | error | The Blender file ends in the middle of a block. | The file, or its compressed frame, ends inside a block | Save the file again from Blender; the copy is incomplete. |
+| <a id="t3d-e064"></a>T3D-E064 | `blend-too-large` | error | The Blender file needs more memory than the RAM budget. | Needs more than the job's `ramBudgetMb`: a gzip or Zstandard file unpacking past it (the message names the least bytes needed), a block index not fitting in what is left, or a packed image or mesh taking the scene binary past it (named, with its bytes); a bare file is mapped in place, its size never counted. Also a mesh announcing more vertices or corners than this reader reads | Raise the RAM budget, or split the scene into smaller files. |
+| <a id="t3d-e065"></a>T3D-E065 | `blend-dna-invalid` | error | The Blender file's structure description is missing or unreadable. | No `DNA1` block, or its self-description does not read back | Save the file again from Blender. |
+| <a id="t3d-e066"></a>T3D-E066 | `blend-mesh-layout-unsupported` | error | A Blender mesh is stored in a layout this reader does not know. | A mesh in none of the known layouts — Blender 5's attribute store, the `CustomData` layers of 3.5 to 4.x, the `MVert`/`MPoly`/`MLoop` structures of 2.8 to 3.4 — (no `position`, no `.corner_vert`, or unreadable face offsets); refused, never guessed | Save the file again from a current Blender, or export it to glTF. |
+| <a id="t3d-e067"></a>T3D-E067 | `blend-mesh-invalid` | error | A Blender mesh corner points outside its vertices. | A mesh corner points outside its own vertices | Clean up the mesh in Blender (Merge by Distance, Delete Loose) and save again. |
+| <a id="t3d-w030"></a>T3D-W030 | `blend-collection-instance-unsupported` | warning | An object that instances a collection was left out. | An object instancing a collection; per object, does not fail the job | Make the instance real in Blender (Object > Apply > Make Instances Real). |
+| <a id="t3d-w031"></a>T3D-W031 | `blend-modifier-not-applied` | warning | Modifiers were not applied; the base mesh is exported. | Modifiers, evaluated by Blender and not stored: the base mesh is exported | Apply the modifiers in Blender before saving. |
+| <a id="t3d-w032"></a>T3D-W032 | `blend-mesh-missing` | warning | A mesh object points at no mesh data, so it is left out. | A mesh object pointing at non-mesh data, or nothing | Fix or delete the object in Blender. |
+| <a id="t3d-w033"></a>T3D-W033 | `blend-alpha-texture-unsupported` | warning | An alpha input from another image or node was dropped; the declared alpha is kept. | `Alpha` from an image the base colour does not carry, or a computed node; glTF reads opacity only from the base-colour texture's alpha, so the declared factor is kept | Put the alpha into the base-colour image's alpha channel. |
+| <a id="t3d-w034"></a>T3D-W034 | `blend-texture-channel-unsupported` | warning | An alpha taken from a colour channel was dropped; the declared alpha is kept. | `Alpha` from a channel of the base-colour image other than its alpha; reading it there would recompose bytes, so the declared factor is kept | Store the alpha in the base-colour image's alpha channel. |
+| <a id="t3d-w035"></a>T3D-W035 | `blend-surface-node-unsupported` | warning | A material not driven by a Principled BSDF keeps only its basic values. | The active `Material Output` is driven by something other than a `Principled BSDF`, or nothing; the material block's own values are kept | Connect a Principled BSDF to the material output. |
+| <a id="t3d-w036"></a>T3D-W036 | `blend-shader-input-unconverted` | warning | A shader input fed by a node other than an image was not converted; its declared value is kept. | A Principled BSDF input fed by a node other than an image texture (or a normal map over one); the declared value is kept exactly | Bake the node setup to an image texture in Blender. |
+| <a id="t3d-w037"></a>T3D-W037 | `blend-emission-clamped` | warning | An emission above 1 was clamped. | Emission colour × strength above 1, which `emissiveFactor` cannot carry; clamped | Lower the emission strength, or accept the clamp. |
+| <a id="t3d-w038"></a>T3D-W038 | `blend-image-format` | warning | An image in a format the image readers do not decode was dropped. | An image file the image registry cannot decode; the scene continues without it | Convert the image to PNG or JPEG. |
+| <a id="t3d-w039"></a>T3D-W039 | `blend-image-outside-source` | warning | An image outside the model's folder, not packed, was not copied. | An image outside the served root with no packed bytes; not copied beside the scene | Pack the image in Blender, or move it into the model's folder. |
+| <a id="t3d-w040"></a>T3D-W040 | `blend-object-material-override-unconverted` | warning | An object's material override was dropped; the mesh's own material is kept. | An object replacing a mesh material slot; the mesh's material is kept | Assign the material to the mesh data instead of the object. |
+| <a id="t3d-w041"></a>T3D-W041 | `blend-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. | A face the ear-clipping cut could not finish ([Polygon faces](COMPILER.md#polygon-faces)): self-crossing, or planeless (every corner collinear, zero area); it falls back to the fan from its first corner, which may overfill its outline | Triangulate or fix the face in Blender (self-crossing or flat polygon). |
+| <a id="t3d-i003"></a>T3D-I003 | `blend-extra-scenes` | info | The file holds more than one scene; only the active one is exported. | More than one scene; only the active scene's objects are exported | Make the scene you want active before saving. |
+| <a id="t3d-i004"></a>T3D-I004 | `blend-object-outside-scene` | info | A mesh object outside the active scene was not exported. | A mesh object no collection of the active scene holds — left over, in another scene, or in a collection the active view layer excludes; not exported | Link the object into a collection of the active scene if it should be drawn. |
+| <a id="t3d-w042"></a>T3D-W042 | `blend-light-type-unsupported` | warning | A light type other than point, sun, spot or area was left out. | A lamp type not converted — the `hemi` of files before Blender 2.8, or any type outside point, sun, spot and area; not exported | Replace it with a point, sun, spot or area light. |
+| <a id="t3d-w043"></a>T3D-W043 | `blend-lamp-missing` | warning | A light object points at no light data, so it is left out. | A lamp object pointing at non-`Lamp` data, or nothing; not exported | Fix or delete the object in Blender. |
 
 ## Images
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-W044](messages/T3D-W044.md) | `image-lossy-unsupported` | warning | A lossy WebP texture was refused, so it falls back to white. |
-| [T3D-W045](messages/T3D-W045.md) | `image-animation-unsupported` | warning | An animated WebP or GIF texture was refused, so it falls back to white. |
-| [T3D-W046](messages/T3D-W046.md) | `image-animation-first-frame` | warning | An animated PNG was read as its default image only. |
-| [T3D-W047](messages/T3D-W047.md) | `image-icc-profile-ignored` | warning | An embedded colour profile was ignored; the texture is read as sRGB. |
-| [T3D-W048](messages/T3D-W048.md) | `image-transfer-unsupported` | warning | A PNG gamma other than sRGB or linear was ignored; the texture is read as sRGB. |
-| [T3D-W049](messages/T3D-W049.md) | `image-profile-unsupported` | warning | A TIFF profile or codec was declined, so the texture falls back to white. |
-| [T3D-W050](messages/T3D-W050.md) | `image-depth-unsupported` | warning | A texture with more than 8 bits per channel was refused, so it falls back to white. |
-| [T3D-W051](messages/T3D-W051.md) | `image-too-large` | warning | A texture is above the decoding size ceiling, so it falls back to white. |
-| [T3D-W052](messages/T3D-W052.md) | `image-float-unsupported` | warning | A floating-point image (OpenEXR or HDR) was used where an 8-bit image is expected. |
-| [T3D-W053](messages/T3D-W053.md) | `bmp-depth-unsupported` | warning | A BMP bit depth outside the lossless list was refused, so the texture falls back to white. |
-| [T3D-W054](messages/T3D-W054.md) | `bmp-bitfields-lossy` | warning | A BMP with more than 8 bits per channel was refused, so the texture falls back to white. |
-| [T3D-W055](messages/T3D-W055.md) | `bmp-embedded-codec-unsupported` | warning | A BMP wrapping a JPEG or PNG was refused, so the texture falls back to white. |
-| [T3D-W056](messages/T3D-W056.md) | `bmp-compression-unsupported` | warning | A BMP compression outside the read list was refused, so the texture falls back to white. |
-| [T3D-W057](messages/T3D-W057.md) | `dds-header-truncated` | warning | A DDS texture's header is truncated, so the texture falls back to white. |
-| [T3D-W058](messages/T3D-W058.md) | `dds-header-invalid` | warning | A DDS texture's header is out of range, so the texture falls back to white. |
-| [T3D-W059](messages/T3D-W059.md) | `dds-codec-unsupported` | warning | A DDS codec outside the read list was refused, so the texture falls back to white. |
-| [T3D-W060](messages/T3D-W060.md) | `dds-layout-unsupported` | warning | A DDS cube, volume, array or padded texture was refused, so it falls back to white. |
-| [T3D-W061](messages/T3D-W061.md) | `dds-data-truncated` | warning | A DDS texture's pixel data is incomplete, so it falls back to white. |
-| [T3D-W062](messages/T3D-W062.md) | `dds-image-too-large` | warning | A DDS texture is above the decoding size ceiling, so it falls back to white. |
-| [T3D-W063](messages/T3D-W063.md) | `exr-header-invalid` | warning | An OpenEXR texture's header is unreadable, so it falls back to white. |
-| [T3D-W064](messages/T3D-W064.md) | `exr-deep-unsupported` | warning | A deep OpenEXR image was refused, so the texture falls back to white. |
-| [T3D-W065](messages/T3D-W065.md) | `exr-multipart-unsupported` | warning | A multi-part OpenEXR image was refused, so the texture falls back to white. |
-| [T3D-W066](messages/T3D-W066.md) | `exr-channels-unsupported` | warning | OpenEXR channels other than R, G, B and A were refused, so the texture falls back to white. |
-| [T3D-W067](messages/T3D-W067.md) | `exr-image-too-large` | warning | An OpenEXR texture is above the decoding size ceiling, so it falls back to white. |
-| [T3D-W068](messages/T3D-W068.md) | `exr-data-unreadable` | warning | An OpenEXR texture's pixels are unreadable, so it falls back to white. |
-| [T3D-W069](messages/T3D-W069.md) | `hdr-header-invalid` | warning | A Radiance HDR texture's header is unreadable, so it falls back to white. |
-| [T3D-W070](messages/T3D-W070.md) | `hdr-format-unsupported` | warning | A Radiance HDR pixel encoding outside RGBE was refused, so the texture falls back to white. |
-| [T3D-W071](messages/T3D-W071.md) | `hdr-orientation-unsupported` | warning | A Radiance HDR scan order other than top-down was refused, so the texture falls back to white. |
-| [T3D-W072](messages/T3D-W072.md) | `hdr-data-truncated` | warning | A Radiance HDR texture's scanlines are incomplete, so it falls back to white. |
-| [T3D-W073](messages/T3D-W073.md) | `hdr-image-too-large` | warning | A Radiance HDR texture is above the decoding size ceiling, so it falls back to white. |
-| [T3D-W074](messages/T3D-W074.md) | `ktx2-header-truncated` | warning | A KTX2 texture's header is truncated, so it falls back to white. |
-| [T3D-W075](messages/T3D-W075.md) | `ktx2-header-invalid` | warning | A KTX2 texture's header is out of range, so it falls back to white. |
-| [T3D-W076](messages/T3D-W076.md) | `ktx2-format-unsupported` | warning | A KTX2 pixel format outside the read list was refused, so the texture falls back to white. |
-| [T3D-W077](messages/T3D-W077.md) | `ktx2-layout-unsupported` | warning | A KTX2 cube, volume, array or 1D texture was refused, so it falls back to white. |
-| [T3D-W078](messages/T3D-W078.md) | `ktx2-supercompression-unsupported` | warning | A KTX2 supercompression other than none, BasisLZ or Zstandard was refused, so the texture falls back to white. |
-| [T3D-W079](messages/T3D-W079.md) | `ktx2-data-truncated` | warning | A KTX2 texture's level data is incomplete, so it falls back to white. |
-| [T3D-W080](messages/T3D-W080.md) | `ktx2-image-too-large` | warning | A KTX2 texture is above the decoding size ceiling, so it falls back to white. |
-| [T3D-W081](messages/T3D-W081.md) | `ktx2-transcode-failed` | warning | A Basis Universal payload could not be transcoded, so the texture falls back to white. |
-| [T3D-W082](messages/T3D-W082.md) | `ktx2-orientation-unsupported` | warning | A KTX2 orientation the reader cannot map was kept as stored, so the texture may appear flipped. |
-| [T3D-W083](messages/T3D-W083.md) | `ktx2-swizzle-unsupported` | warning | A KTX2 channel swizzle was not applied. |
-| [T3D-W084](messages/T3D-W084.md) | `eac-level-short` | warning | An EAC-compressed KTX2 level is missing blocks, so the texture falls back to white. |
-| [T3D-W085](messages/T3D-W085.md) | `psd-header-invalid` | warning | A Photoshop file's header is out of range, so the texture falls back to white. |
-| [T3D-W086](messages/T3D-W086.md) | `psd-depth-unsupported` | warning | A Photoshop file at 1, 16 or 32 bits per channel was refused, so the texture falls back to white. |
-| [T3D-W087](messages/T3D-W087.md) | `psd-color-mode-unsupported` | warning | A Photoshop colour mode other than RGB or greyscale was refused, so the texture falls back to white. |
-| [T3D-W088](messages/T3D-W088.md) | `psd-channels-unsupported` | warning | A Photoshop file with several extra channels was refused, so the texture falls back to white. |
-| [T3D-W089](messages/T3D-W089.md) | `psd-alpha-channel-ignored` | warning | An extra Photoshop channel not declared as transparency was ignored. |
-| [T3D-I005](messages/T3D-I005.md) | `psd-layers-flattened` | info | A layered Photoshop file was read as its flattened composite. |
-| [T3D-W090](messages/T3D-W090.md) | `psd-compression-unsupported` | warning | A ZIP-compressed Photoshop composite was refused, so the texture falls back to white. |
-| [T3D-W091](messages/T3D-W091.md) | `psd-composite-missing` | warning | A Photoshop file has no flattened composite, so the texture falls back to white. |
-| [T3D-W092](messages/T3D-W092.md) | `psd-data-truncated` | warning | A Photoshop file's image data is incomplete, so the texture falls back to white. |
-| [T3D-W093](messages/T3D-W093.md) | `psd-image-too-large` | warning | A Photoshop texture is above the decoding size ceiling, so it falls back to white. |
-| [T3D-W094](messages/T3D-W094.md) | `image-decode-failed` | warning | A texture could not be decoded, so its texture levels are not baked. |
-| [T3D-W095](messages/T3D-W095.md) | `image-empty` | warning | A texture has no pixels, so its texture levels are not baked. |
-| [T3D-W096](messages/T3D-W096.md) | `image-format-unknown` | warning | A texture is in no format the image readers recognise, so its texture levels are not baked. |
-| [T3D-W097](messages/T3D-W097.md) | `image-missing` | warning | A texture file the model cites was not found, so its texture levels are not baked. |
-| [T3D-W098](messages/T3D-W098.md) | `image-out-of-bounds` | warning | A material names an image the file does not declare, so its texture levels are not baked. |
-| [T3D-W099](messages/T3D-W099.md) | `image-uri-not-relative` | warning | A texture URI is absolute or leaves the model's folder, so its texture levels are not baked. |
-| [T3D-W100](messages/T3D-W100.md) | `image-uri-outside-source` | warning | A texture URI resolves outside the model's folder, so its texture levels are not baked. |
-| [T3D-W101](messages/T3D-W101.md) | `image-uri-undecodable` | warning | A texture URI has invalid percent-encoding, so its texture levels are not baked. |
-| [T3D-W102](messages/T3D-W102.md) | `image-without-source` | warning | A glTF image has neither a URI nor a buffer view, so its texture levels are not baked. |
-| [T3D-W103](messages/T3D-W103.md) | `image-buffer-view-invalid` | warning | A glTF image names an invalid buffer view, so its texture levels are not baked. |
-| [T3D-W104](messages/T3D-W104.md) | `image-buffer-view-not-copied` | warning | A glTF image's buffer view was not carried to the compiled source, so its texture levels are not baked. |
-| [T3D-W105](messages/T3D-W105.md) | `image-buffer-view-out-of-bounds` | warning | A glTF image's buffer view reads past its buffer, so its texture levels are not baked. |
-| [T3D-W106](messages/T3D-W106.md) | `texture-out-of-bounds` | warning | A material names a texture the file does not declare, so its texture levels are not baked. |
-| [T3D-W107](messages/T3D-W107.md) | `texture-without-image` | warning | A glTF texture names no image, so its texture levels are not baked. |
-| [T3D-W108](messages/T3D-W108.md) | `texture-blocks-undecodable` | warning | A compressed texture level did not decode back during its quality check. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-w044"></a>T3D-W044 | `image-lossy-unsupported` | warning | A lossy WebP texture was refused, so it falls back to white. | A WebP `VP8 ` (lossy) stream, refused before decoding: the fidelity policy admits WebP lossless only | Save the texture as lossless WebP or PNG. |
+| <a id="t3d-w045"></a>T3D-W045 | `image-animation-unsupported` | warning | An animated WebP or GIF texture was refused, so it falls back to white. | An `ANIM`/`ANMF` chunk (WebP) or a second image descriptor (GIF): an animation is not a texture, refused rather than flattened to a chosen frame | Export the one frame you want as a still image. |
+| <a id="t3d-w046"></a>T3D-W046 | `image-animation-first-frame` | warning | An animated PNG was read as its default image only. | A PNG `acTL` chunk (an APNG of several frames): the default image, the one the APNG specification places in `IDAT`, is delivered and the animation counted | Nothing to do if the default image is the one you want; otherwise save that frame as PNG. |
+| <a id="t3d-w047"></a>T3D-W047 | `image-icc-profile-ignored` | warning | An embedded colour profile was ignored; the texture is read as sRGB. | An embedded colour profile — PNG `iCCP`, JPEG `ICC_PROFILE` APP2 segment, Photoshop image resource 1039 — that the sRGB output, with no colour management, does not carry; a profile naming itself sRGB counts nothing | Convert the texture to sRGB in an image editor. |
+| <a id="t3d-w048"></a>T3D-W048 | `image-transfer-unsupported` | warning | A PNG gamma other than sRGB or linear was ignored; the texture is read as sRGB. | A PNG `gAMA` neither 45455 (sRGB) nor 100000 (linear), with no `iCCP` or `sRGB` chunk overriding it; treated as sRGB, the convention for a silent file | Convert the texture to sRGB in an image editor. |
+| <a id="t3d-w049"></a>T3D-W049 | `image-profile-unsupported` | warning | A TIFF profile or codec was declined, so the texture falls back to white. | TIFF read, its profile or codec declined | Save the texture as PNG, or as an uncompressed 8-bit TIFF. |
+| <a id="t3d-w050"></a>T3D-W050 | `image-depth-unsupported` | warning | A texture with more than 8 bits per channel was refused, so it falls back to white. | A bit depth the `Rgba8` contract cannot carry (PNG or TIFF 16 bits per channel, DDS 16-bit codecs); refused before decoding rather than narrowed to 8 bits | Save the texture at 8 bits per channel. |
+| <a id="t3d-w051"></a>T3D-W051 | `image-too-large` | warning | A texture is above the decoding size ceiling, so it falls back to white. | Over the allocation ceiling once expanded to RGBA8 (width x height x 4, checked before any pixel is decoded); decoded by no `image`-crate plugin | Reduce the texture's resolution. |
+| <a id="t3d-w052"></a>T3D-W052 | `image-float-unsupported` | warning | A floating-point image (OpenEXR or HDR) was used where an 8-bit image is expected. | The `RgbaF32` variant (OpenEXR, Radiance HDR) returned to an `Rgba8`-only consumer (the RGBA8 sRGB previews); refused by name rather than tone-mapped | Convert the texture to an 8-bit PNG. |
+| <a id="t3d-w053"></a>T3D-W053 | `bmp-depth-unsupported` | warning | A BMP bit depth outside the lossless list was refused, so the texture falls back to white. | A BMP bit count outside those carried losslessly to RGBA8 (1, 2, 4, 8, 16, 24, 32) | Save the texture as PNG. |
+| <a id="t3d-w054"></a>T3D-W054 | `bmp-bitfields-lossy` | warning | A BMP with more than 8 bits per channel was refused, so the texture falls back to white. | A `BI_BITFIELDS` mask wider than eight bits per channel (10-10-10, for instance), which decoding would narrow; refused before decoding | Save the texture as PNG. |
+| <a id="t3d-w055"></a>T3D-W055 | `bmp-embedded-codec-unsupported` | warning | A BMP wrapping a JPEG or PNG was refused, so the texture falls back to white. | `BI_JPEG` or `BI_PNG`: another format wrapped, which has its own plugin; unwrapping it here would bypass the router | Save the texture as a plain JPEG or PNG file. |
+| <a id="t3d-w056"></a>T3D-W056 | `bmp-compression-unsupported` | warning | A BMP compression outside the read list was refused, so the texture falls back to white. | A compression outside the read format (`BI_ALPHABITFIELDS`, the CMYK variants) | Save the texture as PNG. |
+| <a id="t3d-w057"></a>T3D-W057 | `dds-header-truncated` | warning | A DDS texture's header is truncated, so the texture falls back to white. | Shorter than `DDS_HEADER`/`DDS_PIXELFORMAT`/`DDS_HEADER_DXT10` require | Export the DDS texture again. |
+| <a id="t3d-w058"></a>T3D-W058 | `dds-header-invalid` | warning | A DDS texture's header is out of range, so the texture falls back to white. | Header out of domain (false announced size, zero dimension, absurd mip count) | Export the DDS texture again. |
+| <a id="t3d-w059"></a>T3D-W059 | `dds-codec-unsupported` | warning | A DDS codec outside the read list was refused, so the texture falls back to white. | A codec outside the declared list (BC6H float, signed variants, `_TYPELESS`, 16-bit, YUV, premultiplied-alpha `DXT2`/`DXT4`) | Export the texture as BC1 to BC7 (8-bit), or as PNG. |
+| <a id="t3d-w060"></a>T3D-W060 | `dds-layout-unsupported` | warning | A DDS cube, volume, array or padded texture was refused, so it falls back to white. | Not a plain surface (cube, volume, array, padded row pitch) | Export a plain 2D texture. |
+| <a id="t3d-w061"></a>T3D-W061 | `dds-data-truncated` | warning | A DDS texture's pixel data is incomplete, so it falls back to white. | Consistent header, announced pixels missing | Export the DDS texture again. |
+| <a id="t3d-w062"></a>T3D-W062 | `dds-image-too-large` | warning | A DDS texture is above the decoding size ceiling, so it falls back to white. | Over the decoder's allocation ceiling | Reduce the texture's resolution. |
+| <a id="t3d-w063"></a>T3D-W063 | `exr-header-invalid` | warning | An OpenEXR texture's header is unreadable, so it falls back to white. | OpenEXR magic present, version field or header unreadable | Export the OpenEXR file again. |
+| <a id="t3d-w064"></a>T3D-W064 | `exr-deep-unsupported` | warning | A deep OpenEXR image was refused, so the texture falls back to white. | Deep data (a list of samples per pixel); flattening it would be a compositing choice | Flatten the image to a plain OpenEXR in the compositing tool. |
+| <a id="t3d-w065"></a>T3D-W065 | `exr-multipart-unsupported` | warning | A multi-part OpenEXR image was refused, so the texture falls back to white. | Several parts; nothing says which is the texture | Export the part you want as a single-part OpenEXR. |
+| <a id="t3d-w066"></a>T3D-W066 | `exr-channels-unsupported` | warning | OpenEXR channels other than R, G, B and A were refused, so the texture falls back to white. | Channels other than `R`, `G`, `B` plus optional `A` — extra or other names, 32-bit integers, subsampling | Export the image with R, G, B and optional A channels only. |
+| <a id="t3d-w067"></a>T3D-W067 | `exr-image-too-large` | warning | An OpenEXR texture is above the decoding size ceiling, so it falls back to white. | Over the allocation ceiling, counted at 16 bytes per pixel | Reduce the texture's resolution. |
+| <a id="t3d-w068"></a>T3D-W068 | `exr-data-unreadable` | warning | An OpenEXR texture's pixels are unreadable, so it falls back to white. | Header in the subset, pixels unreadable (truncated file, unexpected compression, wrong chunk table) | Export the OpenEXR file again with a standard compression. |
+| <a id="t3d-w069"></a>T3D-W069 | `hdr-header-invalid` | warning | A Radiance HDR texture's header is unreadable, so it falls back to white. | Radiance HDR header missing, truncated, or without a valid resolution line | Export the HDR file again. |
+| <a id="t3d-w070"></a>T3D-W070 | `hdr-format-unsupported` | warning | A Radiance HDR pixel encoding outside RGBE was refused, so the texture falls back to white. | Pixel encoding outside the subset (`32-bit_rle_xyze`, another colour space) | Export the image in the RGBE encoding. |
+| <a id="t3d-w071"></a>T3D-W071 | `hdr-orientation-unsupported` | warning | A Radiance HDR scan order other than top-down was refused, so the texture falls back to white. | Scan order other than `-Y height +X width`; accepting it would flip the image | Export the image with the standard `-Y height +X width` orientation. |
+| <a id="t3d-w072"></a>T3D-W072 | `hdr-data-truncated` | warning | A Radiance HDR texture's scanlines are incomplete, so it falls back to white. | Scanlines cut short, a run overflowing its line, or a packet not advancing | Export the HDR file again. |
+| <a id="t3d-w073"></a>T3D-W073 | `hdr-image-too-large` | warning | A Radiance HDR texture is above the decoding size ceiling, so it falls back to white. | Over the allocation ceiling, counted at 16 bytes per pixel | Reduce the texture's resolution. |
+| <a id="t3d-w074"></a>T3D-W074 | `ktx2-header-truncated` | warning | A KTX2 texture's header is truncated, so it falls back to white. | Shorter than its 80-byte header and level index require | Export the KTX2 texture again. |
+| <a id="t3d-w075"></a>T3D-W075 | `ktx2-header-invalid` | warning | A KTX2 texture's header is out of range, so it falls back to white. | Header out of domain (bad identifier, zero width, unexpected `typeSize`, absurd level count, level starting inside the index) | Export the KTX2 texture again. |
+| <a id="t3d-w076"></a>T3D-W076 | `ktx2-format-unsupported` | warning | A KTX2 pixel format outside the read list was refused, so the texture falls back to white. | A `vkFormat` outside the declared list (signed BC4/BC5/EAC, BC6H float, byte orders other than RGBA, channels wider than 8 bits, ASTC footprints other than 4x4) | Export the texture with an 8-bit RGBA, BC or 4x4 ASTC format. |
+| <a id="t3d-w077"></a>T3D-W077 | `ktx2-layout-unsupported` | warning | A KTX2 cube, volume, array or 1D texture was refused, so it falls back to white. | Not a plain surface (1D texture, volume, layer array, cubemap) | Export a plain 2D texture. |
+| <a id="t3d-w078"></a>T3D-W078 | `ktx2-supercompression-unsupported` | warning | A KTX2 supercompression other than none, BasisLZ or Zstandard was refused, so the texture falls back to white. | A `supercompressionScheme` outside None, BasisLZ and Zstandard (ZLIB, unassigned numbers) | Export the texture with BasisLZ, Zstandard or no supercompression. |
+| <a id="t3d-w079"></a>T3D-W079 | `ktx2-data-truncated` | warning | A KTX2 texture's level data is incomplete, so it falls back to white. | Consistent header, an announced level or its Zstandard stream incomplete | Export the KTX2 texture again. |
+| <a id="t3d-w080"></a>T3D-W080 | `ktx2-image-too-large` | warning | A KTX2 texture is above the decoding size ceiling, so it falls back to white. | The image or its decompression buffer over the decoder's allocation ceiling | Reduce the texture's resolution. |
+| <a id="t3d-w081"></a>T3D-W081 | `ktx2-transcode-failed` | warning | A Basis Universal payload could not be transcoded, so the texture falls back to white. | A Basis Universal payload the transcoder refuses (codec outside its list, video with cross-frame state, corrupt stream) | Encode the texture again with a current Basis Universal encoder. |
+| <a id="t3d-w082"></a>T3D-W082 | `ktx2-orientation-unsupported` | warning | A KTX2 orientation the reader cannot map was kept as stored, so the texture may appear flipped. | A `KTXorientation` not reducible to the contract's (top row first, left to right): starting leftwards, or a third dimension. `rd` (the contract's) and `ru` (flipped vertically) are handled; otherwise texels stay as stored | Export the texture with the standard top-down, left-to-right orientation. |
+| <a id="t3d-w083"></a>T3D-W083 | `ktx2-swizzle-unsupported` | warning | A KTX2 channel swizzle was not applied. | A `KTXswizzle` other than the identity `rgba`; not applied | Export the texture with its channels in RGBA order. |
+| <a id="t3d-w084"></a>T3D-W084 | `eac-level-short` | warning | An EAC-compressed KTX2 level is missing blocks, so the texture falls back to white. | A KTX2 level in an EAC format that does not carry all the blocks its dimensions announce. | Export the KTX2 texture again. |
+| <a id="t3d-w085"></a>T3D-W085 | `psd-header-invalid` | warning | A Photoshop file's header is out of range, so the texture falls back to white. | Photoshop header out of domain (unknown version, non-zero reserved bytes, zero or over-ceiling side, channel count out of range or below its mode's colour channels) | Save the file again from Photoshop, or export it as PNG. |
+| <a id="t3d-w086"></a>T3D-W086 | `psd-depth-unsupported` | warning | A Photoshop file at 1, 16 or 32 bits per channel was refused, so the texture falls back to white. | 1, 16 or 32 bits per channel, which `Rgba8` cannot hold; refused before decoding rather than narrowed | Convert the document to 8 bits per channel. |
+| <a id="t3d-w087"></a>T3D-W087 | `psd-color-mode-unsupported` | warning | A Photoshop colour mode other than RGB or greyscale was refused, so the texture falls back to white. | A mode outside RGB and greyscale (bitmap, indexed, CMYK, multichannel, duotone, Lab), whose conversion would need a profile, matrix or palette chosen in the source's stead | Convert the document to RGB colour mode. |
+| <a id="t3d-w088"></a>T3D-W088 | `psd-channels-unsupported` | warning | A Photoshop file with several extra channels was refused, so the texture falls back to white. | More than one plane beyond the mode's colour channels; nothing says which is transparency, a saved selection or a spot colour | Delete the extra channels, or export the texture as PNG. |
+| <a id="t3d-w089"></a>T3D-W089 | `psd-alpha-channel-ignored` | warning | An extra Photoshop channel not declared as transparency was ignored. | One extra plane not declared transparency — the signed layer count Adobe's specification uses to say "the first alpha channel of the composite holds the document transparency" is absent or positive: a saved selection, read and written nowhere (taking it for transparency punched holes in the texture) | Store transparency as a layer mask flattened into the composite, or export the texture as PNG. |
+| <a id="t3d-i005"></a>T3D-I005 | `psd-layers-flattened` | info | A layered Photoshop file was read as its flattened composite. | Layers present; only the flattened composite is delivered, since recomposing would redo the editor's blend modes, masks and effects | Nothing to do if the saved composite is the image you want. |
+| <a id="t3d-w090"></a>T3D-W090 | `psd-compression-unsupported` | warning | A ZIP-compressed Photoshop composite was refused, so the texture falls back to white. | A ZIP-compressed composite, outside the raw and PackBits subset | Save the file without ZIP compression, or export it as PNG. |
+| <a id="t3d-w091"></a>T3D-W091 | `psd-composite-missing` | warning | A Photoshop file has no flattened composite, so the texture falls back to white. | The file stops before its merged image data; layers are not recomposed instead | Save the file with "Maximize compatibility" on, or export it as PNG. |
+| <a id="t3d-w092"></a>T3D-W092 | `psd-data-truncated` | warning | A Photoshop file's image data is incomplete, so the texture falls back to white. | Announced planes missing, or a compressed row short of its width | Save the file again from Photoshop. |
+| <a id="t3d-w093"></a>T3D-W093 | `psd-image-too-large` | warning | A Photoshop texture is above the decoding size ceiling, so it falls back to white. | Over the decoder's allocation ceiling | Reduce the texture's resolution. |
+| <a id="t3d-w094"></a>T3D-W094 | `image-decode-failed` | warning | A texture could not be decoded, so its texture levels are not baked. | An image whose bytes the driver that recognised it could not decode (truncated or corrupt file). | Open the image in an image editor and save it again as PNG. |
+| <a id="t3d-w095"></a>T3D-W095 | `image-empty` | warning | A texture has no pixels, so its texture levels are not baked. | An image of zero width or height, or a file with no image stream. | Replace the texture with a non-empty image. |
+| <a id="t3d-w096"></a>T3D-W096 | `image-format-unknown` | warning | A texture is in no format the image readers recognise, so its texture levels are not baked. | Image bytes no image driver claims. | Convert the texture to PNG or JPEG. |
+| <a id="t3d-w097"></a>T3D-W097 | `image-missing` | warning | A texture file the model cites was not found, so its texture levels are not baked. | An image URI resolving to no readable file. | Place the texture file where the model's URI points. |
+| <a id="t3d-w098"></a>T3D-W098 | `image-out-of-bounds` | warning | A material names an image the file does not declare, so its texture levels are not baked. | A texture's image index past the glTF `images` array. | Export the model again; its image list is inconsistent. |
+| <a id="t3d-w099"></a>T3D-W099 | `image-uri-not-relative` | warning | A texture URI is absolute or leaves the model's folder, so its texture levels are not baked. | An image URI with a root, `..`, `.` or a platform separator. | Use a URI relative to the model file, inside its folder. |
+| <a id="t3d-w100"></a>T3D-W100 | `image-uri-outside-source` | warning | A texture URI resolves outside the model's folder, so its texture levels are not baked. | An image URI whose resolved path leaves the source folder. | Move the texture into the model's folder. |
+| <a id="t3d-w101"></a>T3D-W101 | `image-uri-undecodable` | warning | A texture URI has invalid percent-encoding, so its texture levels are not baked. | An image URI whose `%` escapes do not decode to UTF-8. | Fix the URI's escaping in the model file. |
+| <a id="t3d-w102"></a>T3D-W102 | `image-without-source` | warning | A glTF image has neither a URI nor a buffer view, so its texture levels are not baked. | A glTF `images` entry naming no data. | Export the model again with its images embedded or referenced. |
+| <a id="t3d-w103"></a>T3D-W103 | `image-buffer-view-invalid` | warning | A glTF image names an invalid buffer view, so its texture levels are not baked. | An image buffer view index that does not fit the published view table. | Export the model again with its images embedded correctly. |
+| <a id="t3d-w104"></a>T3D-W104 | `image-buffer-view-not-copied` | warning | A glTF image's buffer view was not carried to the compiled source, so its texture levels are not baked. | An image buffer view absent from the view map of the compiled source. | Report it as a compiler bug, with the model if you can share it. |
+| <a id="t3d-w105"></a>T3D-W105 | `image-buffer-view-out-of-bounds` | warning | A glTF image's buffer view reads past its buffer, so its texture levels are not baked. | An image buffer view whose range leaves its buffer. | Export the model again; its buffer is truncated. |
+| <a id="t3d-w106"></a>T3D-W106 | `texture-out-of-bounds` | warning | A material names a texture the file does not declare, so its texture levels are not baked. | A material texture index past the glTF `textures` array. | Export the model again; its texture list is inconsistent. |
+| <a id="t3d-w107"></a>T3D-W107 | `texture-without-image` | warning | A glTF texture names no image, so its texture levels are not baked. | A glTF `textures` entry with no `source`. | Export the model again with the texture's image. |
+| <a id="t3d-w108"></a>T3D-W108 | `texture-blocks-undecodable` | warning | A compressed texture level did not decode back during its quality check. | A block-compressed level the compiler encoded and then failed to decode for its quality check. | Report it as a compiler bug, with the texture if you can share it. |
 
 ## USD
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E068](messages/T3D-E068.md) | `USDZ_LAYOUT_INVALID` | error | The USDZ package stores an entry compressed or unaligned. |
-| [T3D-E069](messages/T3D-E069.md) | `USDZ_ROOT_LAYER_MISSING` | error | The USDZ package's first entry is not a USD layer. |
-| [T3D-W109](messages/T3D-W109.md) | `usd-point-instancer-unsupported` | warning | A point instancer was not expanded, so its instances are not drawn. |
-| [T3D-W110](messages/T3D-W110.md) | `usd-curves-unsupported` | warning | Curves were left out; only surfaces are drawn. |
-| [T3D-W111](messages/T3D-W111.md) | `usd-volume-unsupported` | warning | A volume was left out; only surfaces are drawn. |
-| [T3D-W112](messages/T3D-W112.md) | `usd-skel-unsupported` | warning | A skeleton or blend shape was left out; the mesh is drawn in its rest pose. |
-| [T3D-I006](messages/T3D-I006.md) | `usd-camera-unsupported` | info | A camera was left out; the host places its own. |
-| [T3D-W113](messages/T3D-W113.md) | `usd-light-unsupported` | warning | A light type with no glTF equivalent was left out. |
-| [T3D-W114](messages/T3D-W114.md) | `usd-patch-unsupported` | warning | A NURBS patch was left out; it is not tessellated. |
-| [T3D-W115](messages/T3D-W115.md) | `usd-subdivision-unsupported` | warning | A subdivision surface was carried as its flat polygons, which changes its silhouette. |
-| [T3D-W116](messages/T3D-W116.md) | `usd-variants-unsupported` | warning | Only the default selection of a variant set was read. |
-| [T3D-W117](messages/T3D-W117.md) | `usd-composition-invalid` | warning | A reference, payload or sublayer could not be resolved. |
-| [T3D-W118](messages/T3D-W118.md) | `usd-animation-first-sample` | warning | An animated attribute was read at its first time sample; the scene is frozen there. |
-| [T3D-W119](messages/T3D-W119.md) | `usd-mesh-invalid` | warning | A mesh's arrays are missing or contradictory, so it is left out. |
-| [T3D-W120](messages/T3D-W120.md) | `usd-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. |
-| [T3D-W121](messages/T3D-W121.md) | `usd-xform-unsupported` | warning | A transform operation was not composed. |
-| [T3D-W122](messages/T3D-W122.md) | `usd-xform-invalid` | warning | A transform is not a finite number, so the node stays at identity. |
-| [T3D-W123](messages/T3D-W123.md) | `usd-surface-unsupported` | warning | A material with no UsdPreviewSurface keeps default values. |
-| [T3D-W124](messages/T3D-W124.md) | `usd-texture-missing` | warning | A texture was not found, is outside the model's folder, or is in an unread format. |
-| [T3D-W125](messages/T3D-W125.md) | `usd-opacity-texture-unsupported` | warning | An opacity image separate from the base colour was dropped; the written opacity is kept. |
-| [T3D-W126](messages/T3D-W126.md) | `usd-texture-channel-unsupported` | warning | A texture channel glTF does not read there was used; the map is carried as is. |
-| [T3D-W127](messages/T3D-W127.md) | `usd-texture-unsupported` | warning | A texture could not be bound as is. |
-| [T3D-W128](messages/T3D-W128.md) | `usd-texture-wrap-unsupported` | warning | A wrap mode glTF lacks was replaced by repeat. |
-| [T3D-W129](messages/T3D-W129.md) | `usd-texture-scale-unsupported` | warning | A texture scale or bias glTF cannot carry was dropped. |
-| [T3D-W130](messages/T3D-W130.md) | `usd-texture-colour-space-unsupported` | warning | A texture's colour space contradicts its role; its bytes pass through unchanged. |
-| [T3D-W131](messages/T3D-W131.md) | `usd-specular-workflow-unsupported` | warning | A specular-workflow material was read without its specular colour. |
-| [T3D-W132](messages/T3D-W132.md) | `usd-clearcoat-unsupported` | warning | A clearcoat layer was dropped; base glTF has none. |
-| [T3D-W133](messages/T3D-W133.md) | `usd-ior-unsupported` | warning | An index of refraction other than 1.5 was dropped. |
-| [T3D-W134](messages/T3D-W134.md) | `usd-normal-value-unsupported` | warning | A constant normal value was dropped; the geometry's normals stay. |
-| [T3D-W135](messages/T3D-W135.md) | `usd-face-invalid` | warning | A face its arrays do not carry was dropped. |
-| [T3D-I007](messages/T3D-I007.md) | `usd-face-hole` | info | A face listed as a hole was removed, as OpenUSD draws it. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e068"></a>T3D-E068 | `USDZ_LAYOUT_INVALID` | error | The USDZ package stores an entry compressed or unaligned. | A USDZ entry compressed, or its payload not on a 64-byte boundary; the AOUSD package layout requires every file stored as-is and aligned | Package the scene again with `usdzip` or a USD tool that writes the standard layout. |
+| <a id="t3d-e069"></a>T3D-E069 | `USDZ_ROOT_LAYER_MISSING` | error | The USDZ package's first entry is not a USD layer. | The package's first entry, its root layer, is not a USD layer, so it names no scene; later entries are resources, never candidate scenes | Package the scene again with its root `.usd`, `.usda` or `.usdc` layer first. |
+| <a id="t3d-w109"></a>T3D-W109 | `usd-point-instancer-unsupported` | warning | A point instancer was not expanded, so its instances are not drawn. | `PointInstancer`: parallel arrays over an indexed prototype, not expanded; does not fail the job | Make the instances real in the authoring tool before exporting. |
+| <a id="t3d-w110"></a>T3D-W110 | `usd-curves-unsupported` | warning | Curves were left out; only surfaces are drawn. | `BasisCurves`, `NurbsCurves` or `HermiteCurves`: not a surface | Convert the curves to meshes (for example tubes) before exporting. |
+| <a id="t3d-w111"></a>T3D-W111 | `usd-volume-unsupported` | warning | A volume was left out; only surfaces are drawn. | `Volume` or an OpenVDB/Field3D asset: not a surface | Convert the volume to a mesh before exporting, if it should be drawn. |
+| <a id="t3d-w112"></a>T3D-W112 | `usd-skel-unsupported` | warning | A skeleton or blend shape was left out; the mesh is drawn in its rest pose. | `SkelRoot`, `Skeleton`, `SkelAnimation` or `BlendShape`: no skinning carried | Export the model as glTF or FBX to keep its skinning. |
+| <a id="t3d-i006"></a>T3D-I006 | `usd-camera-unsupported` | info | A camera was left out; the host places its own. | `Camera`: the host places its own | Nothing to do; set the camera in your application. |
+| <a id="t3d-w113"></a>T3D-W113 | `usd-light-unsupported` | warning | A light type with no glTF equivalent was left out. | A `UsdLux` schema with no glTF punctual equivalent — `DomeLight`, `CylinderLight`, `GeometryLight`, `PortalLight`, every `LightFilter`; sphere, disk, rect and distant lights are imported, with their declared emitter radius | Replace it with a sphere, disk, rect or distant light. |
+| <a id="t3d-w114"></a>T3D-W114 | `usd-patch-unsupported` | warning | A NURBS patch was left out; it is not tessellated. | `NurbsPatch`: not tessellated | Convert the patch to a mesh before exporting. |
+| <a id="t3d-w115"></a>T3D-W115 | `usd-subdivision-unsupported` | warning | A subdivision surface was carried as its flat polygons, which changes its silhouette. | A `Mesh` whose `subdivisionScheme` is not `none`: polygons carried **flat**, changing the silhouette | Subdivide the mesh in the authoring tool before exporting, or set its scheme to `none`. |
+| <a id="t3d-w116"></a>T3D-W116 | `usd-variants-unsupported` | warning | Only the default selection of a variant set was read. | A variant set; only the composed default selection is read | Select the variant you want as default before exporting. |
+| <a id="t3d-w117"></a>T3D-W117 | `usd-composition-invalid` | warning | A reference, payload or sublayer could not be resolved. | A reference, payload or sublayer left unresolved (missing file, unresolvable path) | Place the referenced file where the path points, or fix the path. |
+| <a id="t3d-w118"></a>T3D-W118 | `usd-animation-first-sample` | warning | An animated attribute was read at its first time sample; the scene is frozen there. | An attribute with no default read at its first time sample; the scene is frozen there | Nothing to do for a still scene; export as glTF or FBX to keep the animation. |
+| <a id="t3d-w119"></a>T3D-W119 | `usd-mesh-invalid` | warning | A mesh's arrays are missing or contradictory, so it is left out. | Required `Mesh` arrays missing or contradictory (`faceVertexCounts` not landing on `faceVertexIndices`) | Export the mesh again from its authoring tool. |
+| <a id="t3d-w120"></a>T3D-W120 | `usd-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. | As `blend-ngon-untriangulable` | Triangulate or fix the face in the authoring tool (self-crossing or flat polygon). |
+| <a id="t3d-w121"></a>T3D-W121 | `usd-xform-unsupported` | warning | A transform operation was not composed. | A transform op not composed (`!resetXformStack!`, the inverse of an arbitrary matrix, an unknown op type) | Flatten the transform stack in the authoring tool before exporting. |
+| <a id="t3d-w122"></a>T3D-W122 | `usd-xform-invalid` | warning | A transform is not a finite number, so the node stays at identity. | Non-finite transform; the node stays at identity | Fix the node's transform in the authoring tool. |
+| <a id="t3d-w123"></a>T3D-W123 | `usd-surface-unsupported` | warning | A material with no UsdPreviewSurface keeps default values. | A `Material` with no `UsdPreviewSurface` reachable from `outputs:surface` | Give the material a UsdPreviewSurface shader. |
+| <a id="t3d-w124"></a>T3D-W124 | `usd-texture-missing` | warning | A texture was not found, is outside the model's folder, or is in an unread format. | A texture file absent, outside the source directory, or of a format the image registry does not read | Place the texture in the model's folder as PNG or JPEG. |
+| <a id="t3d-w125"></a>T3D-W125 | `usd-opacity-texture-unsupported` | warning | An opacity image separate from the base colour was dropped; the written opacity is kept. | An `opacity` bound to an image the base colour does not carry; glTF reads alpha only in `baseColorTexture` and two images do not merge without recomposing a third, so the written opacity is kept and the image dropped | Put the opacity into the alpha channel of the base-colour texture. |
+| <a id="t3d-w126"></a>T3D-W126 | `usd-texture-channel-unsupported` | warning | A texture channel glTF does not read there was used; the map is carried as is. | An input bound to a channel glTF does not read there (metal from blue, roughness from green; an opacity on the base-colour image from alpha only); the map is carried as is, the opacity falls back to its written value | Pack metalness in blue and roughness in green, and opacity in the base colour's alpha. |
+| <a id="t3d-w127"></a>T3D-W127 | `usd-texture-unsupported` | warning | A texture could not be bound as is. | A texture not bindable as is: a UV set other than `st`, a `<UDIM>` pattern, or split metallic/roughness maps | Use the `st` UV set, no UDIM, and one texture for metalness and roughness. |
+| <a id="t3d-w128"></a>T3D-W128 | `usd-texture-wrap-unsupported` | warning | A wrap mode glTF lacks was replaced by repeat. | A `UsdUVTexture` wrap mode glTF lacks — `black` (transparent border) or `useMetadata`; the texture repeats, USD's default | Use `repeat`, `mirror` or `clamp` wrap modes. |
+| <a id="t3d-w129"></a>T3D-W129 | `usd-texture-scale-unsupported` | warning | A texture scale or bias glTF cannot carry was dropped. | A `scale` or `bias` no glTF factor carries (glTF multiplies, never adds): a non-zero `bias`, a `scale` differing across colour channels, or an alpha `scale` other than one | Bake the scale and bias into the texture. |
+| <a id="t3d-w130"></a>T3D-W130 | `usd-texture-colour-space-unsupported` | warning | A texture's colour space contradicts its role; its bytes pass through unchanged. | A `sourceColorSpace` contrary to the input's role (colour declared `raw`, data declared `sRGB`); bytes pass through, never re-encoded | Declare colour textures `sRGB` and data textures `raw`. |
+| <a id="t3d-w131"></a>T3D-W131 | `usd-specular-workflow-unsupported` | warning | A specular-workflow material was read without its specular colour. | A specular-workflow `UsdPreviewSurface` (`useSpecularWorkflow`, or a written `specularColor`), which metal and roughness do not carry | Convert the material to the metal-roughness workflow. |
+| <a id="t3d-w132"></a>T3D-W132 | `usd-clearcoat-unsupported` | warning | A clearcoat layer was dropped; base glTF has none. | A clearcoat (`clearcoat` above zero, with its roughness): base glTF has no such layer | Remove the clearcoat, or accept its loss. |
+| <a id="t3d-w133"></a>T3D-W133 | `usd-ior-unsupported` | warning | An index of refraction other than 1.5 was dropped. | An index of refraction other than 1.5: base glTF carries none | Nothing carries it in glTF; set the look with roughness and metalness instead. |
+| <a id="t3d-w134"></a>T3D-W134 | `usd-normal-value-unsupported` | warning | A constant normal value was dropped; the geometry's normals stay. | A normal written as a value, no texture: glTF has no constant material normal, the geometry's stays | Use a normal map texture instead of a constant. |
+| <a id="t3d-w135"></a>T3D-W135 | `usd-face-invalid` | warning | A face its arrays do not carry was dropped. | A face its arrays do not carry: index outside the points or negative, under three corners, or a primvar index outside its array; dropped, never folded onto the first point | Clean up the mesh in the authoring tool and export again. |
+| <a id="t3d-i007"></a>T3D-I007 | `usd-face-hole` | info | A face listed as a hole was removed, as OpenUSD draws it. | A face in `holeIndices`, invisible in OpenUSD before any subdivision, so removed, once per face, whatever `subdivisionScheme`; a hole index outside the face table counts as `usd-face-invalid` | Nothing to do; remove it from `holeIndices` if it should be drawn. |
 
 ## Alembic
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E070](messages/T3D-E070.md) | `alembic-hdf5-unsupported` | error | The Alembic file uses the HDF5 container, which is not read. |
-| [T3D-E071](messages/T3D-E071.md) | `alembic-archive-unfrozen` | error | The Alembic archive was never closed by its writer. |
-| [T3D-E072](messages/T3D-E072.md) | `alembic-version-unsupported` | error | The Alembic file's format version is not read. |
-| [T3D-E073](messages/T3D-E073.md) | `alembic-file-invalid` | error | The Alembic file is not a readable Ogawa archive. |
-| [T3D-E074](messages/T3D-E074.md) | `alembic-size-unsupported` | error | An Alembic group or block is above the reader's size ceiling. |
-| [T3D-E075](messages/T3D-E075.md) | `alembic-values-invalid` | error | An Alembic transform stack does not compose. |
-| [T3D-E076](messages/T3D-E076.md) | `alembic-topology-invalid` | error | An Alembic face points outside its positions. |
-| [T3D-W136](messages/T3D-W136.md) | `alembic-curves-unsupported` | warning | Alembic curves were left out; only meshes are drawn. |
-| [T3D-W137](messages/T3D-W137.md) | `alembic-points-unsupported` | warning | An Alembic point cloud was left out; only meshes are drawn. |
-| [T3D-W138](messages/T3D-W138.md) | `alembic-nupatch-unsupported` | warning | An Alembic NURBS patch was left out; it is not tessellated. |
-| [T3D-I008](messages/T3D-I008.md) | `alembic-camera-unsupported` | info | An Alembic camera was left out; the host places its own. |
-| [T3D-W139](messages/T3D-W139.md) | `alembic-light-unsupported` | warning | An Alembic light was left out. |
-| [T3D-W140](messages/T3D-W140.md) | `alembic-object-unsupported` | warning | An Alembic object of an unknown schema was left out. |
-| [T3D-W141](messages/T3D-W141.md) | `alembic-instance-unsupported` | warning | An Alembic instance was left out. |
-| [T3D-W142](messages/T3D-W142.md) | `alembic-subd-as-polygons` | warning | An Alembic subdivision surface was drawn as its flat polygons. |
-| [T3D-W143](messages/T3D-W143.md) | `alembic-animation-ignored` | warning | Only the first sample of an animated Alembic property was read. |
-| [T3D-W144](messages/T3D-W144.md) | `alembic-normals-missing` | warning | Alembic normals are missing, so they are computed. |
-| [T3D-W145](messages/T3D-W145.md) | `alembic-normals-dropped` | warning | Alembic normals are inconsistent, so they are dropped and computed. |
-| [T3D-W146](messages/T3D-W146.md) | `alembic-uv-dropped` | warning | Alembic UVs are inconsistent, so they are dropped. |
-| [T3D-W147](messages/T3D-W147.md) | `alembic-face-in-two-facesets` | warning | An Alembic face belongs to two face sets, so its material is ambiguous. |
-| [T3D-W148](messages/T3D-W148.md) | `alembic-degenerate-face` | warning | An Alembic face with fewer than three corners was dropped. |
-| [T3D-W149](messages/T3D-W149.md) | `alembic-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. |
-| [T3D-W150](messages/T3D-W150.md) | `alembic-faceset-invalid` | warning | An Alembic face set could not be read, so it is skipped. |
-| [T3D-W151](messages/T3D-W151.md) | `alembic-mesh-invalid` | warning | An Alembic mesh's arrays are contradictory, so it is left out. |
-| [T3D-W152](messages/T3D-W152.md) | `alembic-mesh-empty` | warning | An Alembic mesh has no triangle, so it is left out. |
-| [T3D-W153](messages/T3D-W153.md) | `alembic-transform-invalid` | warning | An Alembic transform is not a finite number, so the node stays at identity. |
-| [T3D-I009](messages/T3D-I009.md) | `alembic-transform-not-inherited` | info | An Alembic transform that does not inherit its parent was placed at the scene root. |
-| [T3D-W154](messages/T3D-W154.md) | `alembic-hierarchy-too-deep` | warning | An Alembic hierarchy is deeper than the limit, so the deeper branch is cut. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e070"></a>T3D-E070 | `alembic-hdf5-unsupported` | error | The Alembic file uses the HDF5 container, which is not read. | HDF5 container instead of Ogawa, refused by name; re-export as Ogawa | Export the file again as Alembic Ogawa. |
+| <a id="t3d-e071"></a>T3D-E071 | `alembic-archive-unfrozen` | error | The Alembic archive was never closed by its writer. | No frozen flag: the writer never closed the archive, a work in progress | Finish the export in the authoring tool, then compile the complete file. |
+| <a id="t3d-e072"></a>T3D-E072 | `alembic-version-unsupported` | error | The Alembic file's format version is not read. | A format version this reader does not read (a 16-bit big-endian field, `00 01` for version one) | Export the file again from a current authoring tool. |
+| <a id="t3d-e073"></a>T3D-E073 | `alembic-file-invalid` | error | The Alembic file is not a readable Ogawa archive. | No Ogawa header, block truncated, pointer outside the file, root group without its six blocks | Export the file again; it is truncated or corrupt. |
+| <a id="t3d-e074"></a>T3D-E074 | `alembic-size-unsupported` | error | An Alembic group or block is above the reader's size ceiling. | A group or data block beyond the plugin's allocation ceiling (4 Mi children, 1 GiB per block, 64 Mi face corners per mesh) | Split the scene into smaller files. |
+| <a id="t3d-e075"></a>T3D-E075 | `alembic-values-invalid` | error | An Alembic transform stack does not compose. | An `Xform` op stack that does not compose: an op outside the format's seven, or fewer values than it consumes | Export the file again from its authoring tool. |
+| <a id="t3d-e076"></a>T3D-E076 | `alembic-topology-invalid` | error | An Alembic face points outside its positions. | A face index outside the position table, or more face corners declared than indices written | Clean up the mesh in the authoring tool and export again. |
+| <a id="t3d-w136"></a>T3D-W136 | `alembic-curves-unsupported` | warning | Alembic curves were left out; only meshes are drawn. | An Alembic curves object; not converted. | Convert the curves to meshes before exporting. |
+| <a id="t3d-w137"></a>T3D-W137 | `alembic-points-unsupported` | warning | An Alembic point cloud was left out; only meshes are drawn. | An Alembic points object; not converted. | Convert the points to meshes before exporting. |
+| <a id="t3d-w138"></a>T3D-W138 | `alembic-nupatch-unsupported` | warning | An Alembic NURBS patch was left out; it is not tessellated. | An Alembic NURBS patch object; not converted. | Convert the patch to a mesh before exporting. |
+| <a id="t3d-i008"></a>T3D-I008 | `alembic-camera-unsupported` | info | An Alembic camera was left out; the host places its own. | An Alembic camera object; not converted. | Nothing to do; set the camera in your application. |
+| <a id="t3d-w139"></a>T3D-W139 | `alembic-light-unsupported` | warning | An Alembic light was left out. | An Alembic light object; not converted. | Add the lights in the engine, or export the scene as glTF with its lights. |
+| <a id="t3d-w140"></a>T3D-W140 | `alembic-object-unsupported` | warning | An Alembic object of an unknown schema was left out. | An Alembic object whose schema the reader does not know; not converted. | Convert the object to a mesh before exporting. |
+| <a id="t3d-w141"></a>T3D-W141 | `alembic-instance-unsupported` | warning | An Alembic instance was left out. | An Alembic instance object; not expanded. | Make the instances real in the authoring tool before exporting. |
+| <a id="t3d-w142"></a>T3D-W142 | `alembic-subd-as-polygons` | warning | An Alembic subdivision surface was drawn as its flat polygons. | A subdivision surface carried as its control polygons. | Subdivide the mesh in the authoring tool before exporting. |
+| <a id="t3d-w143"></a>T3D-W143 | `alembic-animation-ignored` | warning | Only the first sample of an animated Alembic property was read. | A property with several time samples, read at its first. | Nothing to do for a still scene; export as glTF or FBX to keep the animation. |
+| <a id="t3d-w144"></a>T3D-W144 | `alembic-normals-missing` | warning | Alembic normals are missing, so they are computed. | A mesh with no normals written. | Export the normals with the mesh if the computed ones look wrong. |
+| <a id="t3d-w145"></a>T3D-W145 | `alembic-normals-dropped` | warning | Alembic normals are inconsistent, so they are dropped and computed. | Normals whose count matches neither the vertices nor the face corners. | Export the mesh again with one normal per vertex or per corner. |
+| <a id="t3d-w146"></a>T3D-W146 | `alembic-uv-dropped` | warning | Alembic UVs are inconsistent, so they are dropped. | UVs whose count or indices do not match the mesh. | Export the mesh again with one UV per vertex or per corner. |
+| <a id="t3d-w147"></a>T3D-W147 | `alembic-face-in-two-facesets` | warning | An Alembic face belongs to two face sets, so its material is ambiguous. | A face listed in two face sets. | Assign each face to one face set. |
+| <a id="t3d-w148"></a>T3D-W148 | `alembic-degenerate-face` | warning | An Alembic face with fewer than three corners was dropped. | A face under three corners. | Clean up the mesh in the authoring tool. |
+| <a id="t3d-w149"></a>T3D-W149 | `alembic-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. | As `blend-ngon-untriangulable`. | Triangulate or fix the face in the authoring tool (self-crossing or flat polygon). |
+| <a id="t3d-w150"></a>T3D-W150 | `alembic-faceset-invalid` | warning | An Alembic face set could not be read, so it is skipped. | A face set with no readable face list. | Export the mesh again with valid face sets. |
+| <a id="t3d-w151"></a>T3D-W151 | `alembic-mesh-invalid` | warning | An Alembic mesh's arrays are contradictory, so it is left out. | A mesh whose counts, indices and positions disagree. | Export the mesh again from its authoring tool. |
+| <a id="t3d-w152"></a>T3D-W152 | `alembic-mesh-empty` | warning | An Alembic mesh has no triangle, so it is left out. | A mesh with no face, or only degenerate ones. | Delete the empty mesh or give it faces. |
+| <a id="t3d-w153"></a>T3D-W153 | `alembic-transform-invalid` | warning | An Alembic transform is not a finite number, so the node stays at identity. | A transform holding NaN or infinity. | Fix the node's transform in the authoring tool. |
+| <a id="t3d-i009"></a>T3D-I009 | `alembic-transform-not-inherited` | info | An Alembic transform that does not inherit its parent was placed at the scene root. | A transform flagged not to inherit its parent's; its subtree starts a new root. | Nothing to do if the object should ignore its parent's transform. |
+| <a id="t3d-w154"></a>T3D-W154 | `alembic-hierarchy-too-deep` | warning | An Alembic hierarchy is deeper than the limit, so the deeper branch is cut. | A hierarchy past the reader's depth limit. | Flatten the hierarchy in the authoring tool. |
 
 ## Maya ASCII
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E077](messages/T3D-E077.md) | `ma-file-invalid` | error | The file is not a readable Maya ASCII file. |
-| [T3D-E078](messages/T3D-E078.md) | `ma-size-unsupported` | error | The Maya ASCII file or one of its attributes is above the size ceiling. |
-| [T3D-W155](messages/T3D-W155.md) | `ma-command-ignored` | warning | A MEL command outside the read subset was ignored; no command is ever run. |
-| [T3D-W156](messages/T3D-W156.md) | `ma-node-ignored` | warning | A Maya node type that is not converted was ignored. |
-| [T3D-W157](messages/T3D-W157.md) | `ma-attribute-unattached` | warning | An attribute value names no node of the file, so it is ignored. |
-| [T3D-W158](messages/T3D-W158.md) | `ma-attribute-invalid` | warning | An attribute value is out of range or of an unread type, so it is ignored. |
-| [T3D-W159](messages/T3D-W159.md) | `ma-parent-unsupported` | warning | A parenting command was not replayed. |
-| [T3D-W160](messages/T3D-W160.md) | `ma-name-ambiguous` | warning | A short node name is carried by several nodes; the first one written is used. |
-| [T3D-W161](messages/T3D-W161.md) | `ma-transform-invalid` | warning | A transform is not a finite number, so the node stays at identity. |
-| [T3D-W162](messages/T3D-W162.md) | `ma-hierarchy-too-deep` | warning | A hierarchy is deeper than 256 levels or circular, so the branch is cut. |
-| [T3D-W163](messages/T3D-W163.md) | `ma-matrix-unsupported` | warning | A matrix attribute not written as sixteen numbers was ignored. |
-| [T3D-I010](messages/T3D-I010.md) | `ma-shape-intermediate` | info | An intermediate shape Maya never draws was left out. |
-| [T3D-W164](messages/T3D-W164.md) | `ma-mesh-invalid` | warning | A mesh's arrays are contradictory, so it is left out. |
-| [T3D-W165](messages/T3D-W165.md) | `ma-mesh-empty` | warning | A mesh has no triangle, so it is left out. |
-| [T3D-W166](messages/T3D-W166.md) | `ma-degenerate-face` | warning | A face with fewer than three corners was dropped. |
-| [T3D-W167](messages/T3D-W167.md) | `ma-face-hole-unsupported` | warning | A face with a hole was left out. |
-| [T3D-W168](messages/T3D-W168.md) | `ma-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. |
-| [T3D-W169](messages/T3D-W169.md) | `ma-face-record-ignored` | warning | An undocumented face record was ignored. |
-| [T3D-W170](messages/T3D-W170.md) | `ma-face-record-invalid` | warning | A face record attached to no face was ignored. |
-| [T3D-W171](messages/T3D-W171.md) | `ma-uv-dropped` | warning | UVs were dropped from a mesh part. |
-| [T3D-W172](messages/T3D-W172.md) | `ma-normals-dropped` | warning | Written normals did not match the mesh, so they are dropped and computed. |
-| [T3D-I011](messages/T3D-I011.md) | `ma-normals-computed` | info | No normals were written, so they are computed from the edges' hardness. |
-| [T3D-W173](messages/T3D-W173.md) | `ma-face-material-invalid` | warning | A material assignment names no face, so it is ignored. |
-| [T3D-W174](messages/T3D-W174.md) | `ma-face-material-missing` | warning | Faces with no material beside assigned ones were kept without a material. |
-| [T3D-W175](messages/T3D-W175.md) | `ma-material-unsupported` | warning | A shader other than lambert, phong, blinn or standardSurface keeps default values. |
-| [T3D-W176](messages/T3D-W176.md) | `ma-transparency-colour-unsupported` | warning | A coloured transparency was carried as one alpha, the mean of its channels. |
-| [T3D-W177](messages/T3D-W177.md) | `ma-emission-clamped` | warning | An emission above 1 was clamped. |
-| [T3D-W178](messages/T3D-W178.md) | `ma-texture-missing` | warning | A texture was not found, is outside the model's folder, or is in an unread format. |
-| [T3D-W179](messages/T3D-W179.md) | `ma-bump-height-unsupported` | warning | A height bump map was dropped; glTF has no height map. |
-| [T3D-W180](messages/T3D-W180.md) | `ma-bump-object-space-unsupported` | warning | An object-space normal map was dropped; glTF reads tangent-space normals. |
-| [T3D-W181](messages/T3D-W181.md) | `ma-texture-transform-unsupported` | warning | A texture placement (repeat, offset or rotation) was dropped. |
-| [T3D-W182](messages/T3D-W182.md) | `ma-texture-mirror-unsupported` | warning | A texture mirroring was dropped. |
-| [T3D-W183](messages/T3D-W183.md) | `ma-texture-unsupported` | warning | A texture could not be bound as is. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e077"></a>T3D-E077 | `ma-file-invalid` | error | The file is not a readable Maya ASCII file. | Does not open with `//Maya ASCII`, is not valid UTF-8, or stops inside a quoted string; refused, not read up to the break | Save the file again from Maya as Maya ASCII. |
+| <a id="t3d-e078"></a>T3D-E078 | `ma-size-unsupported` | error | The Maya ASCII file or one of its attributes is above the size ceiling. | File above the 512 MiB ceiling, or an attribute index past the 16 Mi element ceiling | Split the scene into smaller files. |
+| <a id="t3d-w155"></a>T3D-W155 | `ma-command-ignored` | warning | A MEL command outside the read subset was ignored; no command is ever run. | A MEL command outside the read subset, named after the two dots. **No command is ever executed**: `python`, `eval`, `source` and every unknown one land here, their text going to the report only | Bake what the command builds into plain nodes before saving, or export to glTF. |
+| <a id="t3d-w156"></a>T3D-W156 | `ma-node-ignored` | warning | A Maya node type that is not converted was ignored. | A node type not converted — camera, light, NURBS surface, joint, script node, tool node | Convert the node to a mesh before saving, or add the element in the engine. |
+| <a id="t3d-w157"></a>T3D-W157 | `ma-attribute-unattached` | warning | An attribute value names no node of the file, so it is ignored. | A `setAttr` with no node: no `createNode` or `select` before it, or the selection names no node of this file (Maya's defaults, `:time1` and the like, are not in the file) | Nothing to do for Maya defaults; otherwise save the scene again. |
+| <a id="t3d-w158"></a>T3D-W158 | `ma-attribute-invalid` | warning | An attribute value is out of range or of an unread type, so it is ignored. | A `setAttr` whose values miss its index range, whose type is outside the read list, or whose index passes the element ceiling | Save the scene again from Maya. |
+| <a id="t3d-w159"></a>T3D-W159 | `ma-parent-unsupported` | warning | A parenting command was not replayed. | A `parent` not replayed: not naming known mesh shapes and a known transform, or removing instead of adding | Parent the shapes to their transforms in Maya before saving. |
+| <a id="t3d-w160"></a>T3D-W160 | `ma-name-ambiguous` | warning | A short node name is carried by several nodes; the first one written is used. | A name written without a path that several nodes carry, where Maya requires the full path (`\|A\|M`); the first node written answers | Give the nodes unique names, or reference them by full path. |
+| <a id="t3d-w161"></a>T3D-W161 | `ma-transform-invalid` | warning | A transform is not a finite number, so the node stays at identity. | Non-finite `transform`; the node stays at identity | Fix the node's transform in Maya. |
+| <a id="t3d-w162"></a>T3D-W162 | `ma-hierarchy-too-deep` | warning | A hierarchy is deeper than 256 levels or circular, so the branch is cut. | Deeper than 256 levels, a circular parent chain included; the branch is cut there without overflowing the stack | Flatten the hierarchy in Maya. |
+| <a id="t3d-w163"></a>T3D-W163 | `ma-matrix-unsupported` | warning | A matrix attribute not written as sixteen numbers was ignored. | A matrix attribute (`offsetParentMatrix`) not written as its sixteen numbers (`setAttr`'s long `xform` form); not guessed, the node keeps its other attributes' pose | Bake the offset parent matrix into the transform before saving. |
+| <a id="t3d-i010"></a>T3D-I010 | `ma-shape-intermediate` | info | An intermediate shape Maya never draws was left out. | An intermediate shape (`.io`), a construction-history input Maya never draws; left out. A shape with `visibility` off is left out too, counted as `invisible` like an invisible transform | Nothing to do; delete construction history to remove it. |
+| <a id="t3d-w164"></a>T3D-W164 | `ma-mesh-invalid` | warning | A mesh's arrays are contradictory, so it is left out. | Contradictory `mesh` arrays: no `.vt`, a face corner outside the edge table, or an edge outside the vertex table | Clean up the mesh in Maya (Mesh > Cleanup) and save again. |
+| <a id="t3d-w165"></a>T3D-W165 | `ma-mesh-empty` | warning | A mesh has no triangle, so it is left out. | A `mesh` yielding no triangle: no face, or all degenerate | Delete the empty mesh or give it faces. |
+| <a id="t3d-w166"></a>T3D-W166 | `ma-degenerate-face` | warning | A face with fewer than three corners was dropped. | A face under three corners | Clean up the mesh in Maya (Mesh > Cleanup). |
+| <a id="t3d-w167"></a>T3D-W167 | `ma-face-hole-unsupported` | warning | A face with a hole was left out. | A face declaring a hole (`h` record), which the fan would fill; the silhouette is not guessed | Fill or cut the hole into regular faces in Maya. |
+| <a id="t3d-w168"></a>T3D-W168 | `ma-ngon-untriangulable` | warning | A polygon could not be cut into triangles cleanly and was filled as a fan. | As `blend-ngon-untriangulable` | Triangulate or fix the face in Maya (self-crossing or flat polygon). |
+| <a id="t3d-w169"></a>T3D-W169 | `ma-face-record-ignored` | warning | An undocumented face record was ignored. | A `.fc` record the documentation does not describe | Save the scene again from Maya. |
+| <a id="t3d-w170"></a>T3D-W170 | `ma-face-record-invalid` | warning | A face record attached to no face was ignored. | A `.fc` record attached to no face | Save the scene again from Maya. |
+| <a id="t3d-w171"></a>T3D-W171 | `ma-uv-dropped` | warning | UVs were dropped from a mesh part. | UVs dropped: a `mu` record with no face, a UV set past the first, a slot outside `.uvst[0].uvsp`, or a material part where only some faces carry UVs (a glTF primitive has an attribute on all its vertices or none) | Give every face of the mesh UVs in the first UV set. |
+| <a id="t3d-w172"></a>T3D-W172 | `ma-normals-dropped` | warning | Written normals did not match the mesh, so they are dropped and computed. | `.n` counts neither one vector per vertex nor one per corner; dropped, normals computed | Save the mesh with one normal per vertex or per corner. |
+| <a id="t3d-i011"></a>T3D-I011 | `ma-normals-computed` | info | No normals were written, so they are computed from the edges' hardness. | No normal written: computed from the geometry and each edge's hardness flag (the third number of `.ed`, a `.ma`'s only smoothing mark). A soft edge carries shading across, a hard edge splits it, one smooth fan's corners share a vertex. An edge shared by more than two faces joins nothing: incidences are counted over the whole topology, marks included, before any join, so no face or edge turns a three-face edge into a border and the file's face order does not matter | Nothing to do if the shading looks right; otherwise set edge hardness in Maya. |
+| <a id="t3d-w173"></a>T3D-W173 | `ma-face-material-invalid` | warning | A material assignment names no face, so it is ignored. | An `instObjGroups` group whose component list names no face (a vertex, an edge, an empty list) | Assign the material to faces in Maya. |
+| <a id="t3d-w174"></a>T3D-W174 | `ma-face-material-missing` | warning | Faces with no material beside assigned ones were kept without a material. | Faces no `shadingGroup` claims beside bound faces of the same mesh; they leave in a material-less primitive, not dropped | Assign a material to every face of the mesh. |
+| <a id="t3d-w175"></a>T3D-W175 | `ma-material-unsupported` | warning | A shader other than lambert, phong, blinn or standardSurface keeps default values. | A shader other than `lambert`, `phong`, `blinn`, `standardSurface` | Use one of those shaders. |
+| <a id="t3d-w176"></a>T3D-W176 | `ma-transparency-colour-unsupported` | warning | A coloured transparency was carried as one alpha, the mean of its channels. | A colour transparency with unequal channels; their mean is carried as the one alpha | Use a grey transparency. |
+| <a id="t3d-w177"></a>T3D-W177 | `ma-emission-clamped` | warning | An emission above 1 was clamped. | Emission above one, which `emissiveFactor` cannot carry; clamped | Lower the emission, or accept the clamp. |
+| <a id="t3d-w178"></a>T3D-W178 | `ma-texture-missing` | warning | A texture was not found, is outside the model's folder, or is in an unread format. | A texture file absent, outside the source directory, or of a format the image registry does not read | Place the texture in the model's folder as PNG or JPEG. |
+| <a id="t3d-w179"></a>T3D-W179 | `ma-bump-height-unsupported` | warning | A height bump map was dropped; glTF has no height map. | A `bump2d` reading a height relief (`bumpInterp` 0, Maya's default): glTF has no height map, and as `normalTexture` it would light the surface from an image saying nothing of orientation; the material keeps no `normalTexture` | Convert the bump to a tangent-space normal map. |
+| <a id="t3d-w180"></a>T3D-W180 | `ma-bump-object-space-unsupported` | warning | An object-space normal map was dropped; glTF reads tangent-space normals. | A `bump2d` reading object-space normals (`bumpInterp` 2); glTF's `normalTexture` is tangent-space, and converting needs the pose at draw time | Bake a tangent-space normal map. |
+| <a id="t3d-w181"></a>T3D-W181 | `ma-texture-transform-unsupported` | warning | A texture placement (repeat, offset or rotation) was dropped. | A `place2dTexture` moving the placement (`repeatUV`, `offset`, `rotateUV`, whole or per component); `KHR_texture_transform` would carry it, but this glTF writer declares no such extension | Bake the placement into the UVs in Maya. |
+| <a id="t3d-w182"></a>T3D-W182 | `ma-texture-mirror-unsupported` | warning | A texture mirroring was dropped. | A `place2dTexture` mirroring (`mirrorU`, `mirrorV`); no glTF wrap mode folds so | Bake the mirroring into the UVs in Maya. |
+| <a id="t3d-w183"></a>T3D-W183 | `ma-texture-unsupported` | warning | A texture could not be bound as is. | A texture not bindable as is: an input computed rather than from a `file` node, a lone metalness or roughness map, or an opacity from another image than the base colour | Use file textures, one texture for metalness and roughness, and opacity in the base colour's alpha. |
 
 ## Unity
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-W184](messages/T3D-W184.md) | `unity-model-hierarchy-invalid` | warning | A referenced model's hierarchy does not compose, so its meshes are placed without transforms. |
-| [T3D-W185](messages/T3D-W185.md) | `unity-material-clip-and-blend` | warning | A material declares both transparency and alpha clipping; transparency wins and the clip threshold is lost. |
-| [T3D-W186](messages/T3D-W186.md) | `unity-prefab-override-unplaced` | warning | A prefab modification aimed at an object that is not drawn on its own was ignored. |
-| [T3D-W187](messages/T3D-W187.md) | `unity-prefab-material-slot-invalid` | warning | A prefab modification names a material slot beyond 65,536, so it is ignored. |
-| [T3D-W188](messages/T3D-W188.md) | `unity-file-unreadable` | warning | A scene, prefab or material file could not be read. |
-| [T3D-W189](messages/T3D-W189.md) | `unity-document-unreadable` | warning | An object in a Unity file could not be parsed, so it is skipped. |
-| [T3D-W190](messages/T3D-W190.md) | `unity-hierarchy-too-deep` | warning | A Unity hierarchy is deeper than the limit, so the deeper branch is not built. |
-| [T3D-W191](messages/T3D-W191.md) | `unity-invalid-transform` | warning | A transform value is not finite or a rotation has zero length, so identity is kept. |
-| [T3D-I012](messages/T3D-I012.md) | `unity-camera` | info | A camera component was read as data and not drawn. |
-| [T3D-W192](messages/T3D-W192.md) | `unity-light` | warning | A light component was not converted. |
-| [T3D-W193](messages/T3D-W193.md) | `unity-particles` | warning | A particle system was not converted. |
-| [T3D-I013](messages/T3D-I013.md) | `unity-script` | info | A script component was read as data and not run. |
-| [T3D-W194](messages/T3D-W194.md) | `unity-skinned-renderer` | warning | A skinned mesh renderer was not converted. |
-| [T3D-W195](messages/T3D-W195.md) | `unity-sprite-renderer` | warning | A sprite renderer was not converted. |
-| [T3D-W196](messages/T3D-W196.md) | `unity-terrain` | warning | A terrain was not converted. |
-| [T3D-W197](messages/T3D-W197.md) | `unity-mesh-local` | warning | A mesh stored inside the scene file was not read. |
-| [T3D-W198](messages/T3D-W198.md) | `unity-builtin-mesh-unsupported` | warning | A built-in primitive other than the cube was not converted. |
-| [T3D-W199](messages/T3D-W199.md) | `unity-model-missing` | warning | A referenced model is not in the project. |
-| [T3D-W200](messages/T3D-W200.md) | `unity-material-missing` | warning | A referenced material is not in the project. |
-| [T3D-W201](messages/T3D-W201.md) | `unity-texture-missing` | warning | A referenced texture is not in the project. |
-| [T3D-W202](messages/T3D-W202.md) | `unity-prefab-missing` | warning | A referenced prefab is not in the project. |
-| [T3D-W203](messages/T3D-W203.md) | `unity-material-unreadable` | warning | A material file holds no material. |
-| [T3D-W204](messages/T3D-W204.md) | `unity-model-format-unknown` | warning | A referenced model is in a format no driver reads. |
-| [T3D-W205](messages/T3D-W205.md) | `unity-model-nested-scene` | warning | A referenced model is itself a Unity scene, which is not nested. |
-| [T3D-W206](messages/T3D-W206.md) | `unity-model-import-failed` | warning | A referenced model could not be imported; the note carries its reason. |
-| [T3D-W207](messages/T3D-W207.md) | `unity-model-buffer-unreadable` | warning | A referenced model's imported data could not be read. |
-| [T3D-W208](messages/T3D-W208.md) | `unity-model-mesh-by-fileid` | warning | A mesh of a multi-mesh model could not be found by its id, so the whole model is placed. |
-| [T3D-W209](messages/T3D-W209.md) | `unity-metallic-map-unconverted` | warning | A packed metallic-smoothness map was not converted; the factors are kept. |
-| [T3D-W210](messages/T3D-W210.md) | `unity-texture-format` | warning | A texture in a format the image readers do not decode was dropped. |
-| [T3D-W211](messages/T3D-W211.md) | `unity-texture-outside-source` | warning | A texture outside the project's served folder was not copied. |
-| [T3D-W212](messages/T3D-W212.md) | `unity-texture-transform` | warning | A texture's tiling or offset was dropped. |
-| [T3D-W213](messages/T3D-W213.md) | `unity-texture-wrap-unsupported` | warning | A wrap mode glTF lacks (Mirror Once) was replaced by repeat. |
-| [T3D-W214](messages/T3D-W214.md) | `unity-texture-filter-unsupported` | warning | A texture filter outside point, bilinear and trilinear was replaced by the default. |
-| [T3D-W215](messages/T3D-W215.md) | `unity-emission-clamped` | warning | An HDR emission above 1 was clamped. |
-| [T3D-I014](messages/T3D-I014.md) | `unity-emission-keyword-off` | info | A material stores an emission colour but does not enable emission, so it does not glow. |
-| [T3D-W216](messages/T3D-W216.md) | `unity-prefab-added-component-unconverted` | warning | A component a prefab instance adds was not converted. |
-| [T3D-W217](messages/T3D-W217.md) | `unity-prefab-added-object-unplaced` | warning | An object a prefab instance adds under an undrawn object was kept under the instance root. |
-| [T3D-I015](messages/T3D-I015.md) | `unity-prefab-modification-ignored` | info | A prefab modification that changes neither geometry nor rendering was ignored. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-w184"></a>T3D-W184 | `unity-model-hierarchy-invalid` | warning | A referenced model's hierarchy does not compose, so its meshes are placed without transforms. | A referenced model whose hierarchy does not compose (a child index outside the node table, a node with two parents, a tree deeper than the limit); its meshes are instanced without transforms | Export the model again from its authoring tool. |
+| <a id="t3d-w185"></a>T3D-W185 | `unity-material-clip-and-blend` | warning | A material declares both transparency and alpha clipping; transparency wins and the clip threshold is lost. | Transparency **and** alpha clipping declared (`_Mode`, `_Surface`, `_AlphaClip`/`_AlphaCutoffEnable`): `BLEND` wins, since `MASK` would make pixels fully opaque or drop them; the threshold is lost, glTF reading `alphaCutoff` only under `MASK` | Choose either transparent or alpha-clipped rendering for the material. |
+| <a id="t3d-w186"></a>T3D-W186 | `unity-prefab-override-unplaced` | warning | A prefab modification aimed at an object that is not drawn on its own was ignored. | A prefab-instance modification aimed at an object not rendered on its own (a model object folded into the instance root, or a second target competing for it); not mixed into another object's transform or materials | Apply the modification inside the prefab. |
+| <a id="t3d-w187"></a>T3D-W187 | `unity-prefab-material-slot-invalid` | warning | A prefab modification names a material slot beyond 65,536, so it is ignored. | A modification aimed at a material slot beyond the 65,536 a renderer carries | Fix the modification in the Unity editor. |
+| <a id="t3d-w188"></a>T3D-W188 | `unity-file-unreadable` | warning | A scene, prefab or material file could not be read. | A `.unity`, `.prefab` or `.mat` unreadable; the note names it | Save the asset again from the Unity editor with text serialization. |
+| <a id="t3d-w189"></a>T3D-W189 | `unity-document-unreadable` | warning | An object in a Unity file could not be parsed, so it is skipped. | A serialized object whose body does not parse in an otherwise readable file; skipped with the reason, the rest read | Save the asset again from the Unity editor with text serialization. |
+| <a id="t3d-w190"></a>T3D-W190 | `unity-hierarchy-too-deep` | warning | A Unity hierarchy is deeper than the limit, so the deeper branch is not built. | A transform hierarchy, nested prefabs included, deeper than the limit; the subtree is not built | Flatten the hierarchy in the Unity editor. |
+| <a id="t3d-w191"></a>T3D-W191 | `unity-invalid-transform` | warning | A transform value is not finite or a rotation has zero length, so identity is kept. | A non-finite local transform value or a zero-length rotation; identity kept | Fix the transform in the Unity editor. |
+| <a id="t3d-i012"></a>T3D-I012 | `unity-camera` | info | A camera component was read as data and not drawn. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Nothing to do; set the camera in your application. |
+| <a id="t3d-w192"></a>T3D-W192 | `unity-light` | warning | A light component was not converted. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Add the lights in the engine, or export the scene as glTF with its lights. |
+| <a id="t3d-w193"></a>T3D-W193 | `unity-particles` | warning | A particle system was not converted. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Rebuild the effect in the engine. |
+| <a id="t3d-i013"></a>T3D-I013 | `unity-script` | info | A script component was read as data and not run. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Nothing to do; scripts are not part of a compiled scene. |
+| <a id="t3d-w194"></a>T3D-W194 | `unity-skinned-renderer` | warning | A skinned mesh renderer was not converted. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Export the character as FBX or glTF and compile it separately. |
+| <a id="t3d-w195"></a>T3D-W195 | `unity-sprite-renderer` | warning | A sprite renderer was not converted. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Replace the sprite with a textured quad mesh. |
+| <a id="t3d-w196"></a>T3D-W196 | `unity-terrain` | warning | A terrain was not converted. | A component read as data, not rendered (camera, light, particle system, script, skinned renderer, sprite renderer, terrain); never approximated | Export the terrain as a mesh (for example with a terrain-to-mesh tool). |
+| <a id="t3d-w197"></a>T3D-W197 | `unity-mesh-local` | warning | A mesh stored inside the scene file was not read. | A `MeshFilter` pointing at a mesh stored in the scene file; no mesh bytes are read here | Save the mesh as a model asset (FBX or OBJ) and reference it. |
+| <a id="t3d-w198"></a>T3D-W198 | `unity-builtin-mesh-unsupported` | warning | A built-in primitive other than the cube was not converted. | An editor built-in primitive other than the cube (sphere, capsule, cylinder, plane), whose tessellation is the editor's; the note gives the `fileID` | Replace it with a model asset of the same shape. |
+| <a id="t3d-w199"></a>T3D-W199 | `unity-model-missing` | warning | A referenced model is not in the project. | A GUID no project asset carries | Add the missing model asset to the project. |
+| <a id="t3d-w200"></a>T3D-W200 | `unity-material-missing` | warning | A referenced material is not in the project. | A GUID no project asset carries | Add the missing material asset to the project. |
+| <a id="t3d-w201"></a>T3D-W201 | `unity-texture-missing` | warning | A referenced texture is not in the project. | A GUID no project asset carries | Add the missing texture asset to the project. |
+| <a id="t3d-w202"></a>T3D-W202 | `unity-prefab-missing` | warning | A referenced prefab is not in the project. | A GUID no project asset carries | Add the missing prefab asset to the project. |
+| <a id="t3d-w203"></a>T3D-W203 | `unity-material-unreadable` | warning | A material file holds no material. | A `.mat` with no `Material` object | Save the material again from the Unity editor. |
+| <a id="t3d-w204"></a>T3D-W204 | `unity-model-format-unknown` | warning | A referenced model is in a format no driver reads. | A referenced model no driver claims | Convert the model to FBX, OBJ or glTF. |
+| <a id="t3d-w205"></a>T3D-W205 | `unity-model-nested-scene` | warning | A referenced model is itself a Unity scene, which is not nested. | A referenced model that is itself a Unity scene: a driver does not call itself | Reference the scene's content as a prefab instead. |
+| <a id="t3d-w206"></a>T3D-W206 | `unity-model-import-failed` | warning | A referenced model could not be imported; the note carries its reason. | The model's driver refused it; the note carries its code and message | Fix the model as its own message says, then compile again. |
+| <a id="t3d-w207"></a>T3D-W207 | `unity-model-buffer-unreadable` | warning | A referenced model's imported data could not be read. | The imported model's glTF, or a buffer, unreadable | Delete the cache folder and compile again. |
+| <a id="t3d-w208"></a>T3D-W208 | `unity-model-mesh-by-fileid` | warning | A mesh of a multi-mesh model could not be found by its id, so the whole model is placed. | A `MeshFilter` naming one mesh of a multi-mesh model by a `fileID` its `.meta` does not name, or an object the model lacks; the whole model is instanced, no part guessed | Reimport the model in Unity so its `.meta` names every mesh. |
+| <a id="t3d-w209"></a>T3D-W209 | `unity-metallic-map-unconverted` | warning | A packed metallic-smoothness map was not converted; the factors are kept. | Metal and smoothness packed in one plane (R and A, or the HDRP mask) where glTF wants G and B; converting would re-encode pixels, so the factors are kept exactly | Author a glTF-style map (roughness in green, metalness in blue). |
+| <a id="t3d-w210"></a>T3D-W210 | `unity-texture-format` | warning | A texture in a format the image readers do not decode was dropped. | A texture format the image registry does not claim; dropped | Convert the texture to PNG or JPEG. |
+| <a id="t3d-w211"></a>T3D-W211 | `unity-texture-outside-source` | warning | A texture outside the project's served folder was not copied. | A texture outside the served root, which no URI names | Move the texture into the project folder. |
+| <a id="t3d-w212"></a>T3D-W212 | `unity-texture-transform` | warning | A texture's tiling or offset was dropped. | A non-neutral UV scale or offset on a slot, which needs an extension the intermediate scene does not write yet | Bake the tiling and offset into the UVs or the texture. |
+| <a id="t3d-w213"></a>T3D-W213 | `unity-texture-wrap-unsupported` | warning | A wrap mode glTF lacks (Mirror Once) was replaced by repeat. | A `TextureImporter` wrap mode glTF lacks (_Mirror Once_); the axis repeats | Use Repeat, Clamp or Mirror wrap modes. |
+| <a id="t3d-w214"></a>T3D-W214 | `unity-texture-filter-unsupported` | warning | A texture filter outside point, bilinear and trilinear was replaced by the default. | A `TextureImporter` filter outside point, bilinear and trilinear; glTF default kept | Use point, bilinear or trilinear filtering. |
+| <a id="t3d-w215"></a>T3D-W215 | `unity-emission-clamped` | warning | An HDR emission above 1 was clamped. | An emissive colour above 1 (Unity's HDR emission), `emissiveFactor` being bounded to [0, 1] | Lower the emission intensity, or accept the clamp. |
+| <a id="t3d-i014"></a>T3D-I014 | `unity-emission-keyword-off` | info | A material stores an emission colour but does not enable emission, so it does not glow. | Keywords declared without `_EMISSION` beside a stored emissive colour: it does not emit | Enable Emission on the material if it should glow. |
+| <a id="t3d-w216"></a>T3D-W216 | `unity-prefab-added-component-unconverted` | warning | A component a prefab instance adds was not converted. | A component a prefab instance adds to a source object; it lives in the instance's document, not folded into the source object | Add the component inside the prefab itself. |
+| <a id="t3d-w217"></a>T3D-W217 | `unity-prefab-added-object-unplaced` | warning | An object a prefab instance adds under an undrawn object was kept under the instance root. | An object a prefab instance adds under a source object not rendered; kept under the instance root | Add the object inside the prefab itself. |
+| <a id="t3d-i015"></a>T3D-I015 | `unity-prefab-modification-ignored` | info | A prefab modification that changes neither geometry nor rendering was ignored. | A modification changing neither geometry nor rendering, counted by property (array indices reduced to `[]`, keeping the report bounded) | Nothing to do. |
 
 ## Node adapter and CLI
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E079](messages/T3D-E079.md) | `COMPILER_PLATFORM_UNSUPPORTED` | error | The compiler has no build for this operating system and processor. |
-| [T3D-E080](messages/T3D-E080.md) | `COMPILER_EXECUTABLE_MISSING` | error | The compiler program is missing. |
-| [T3D-E081](messages/T3D-E081.md) | `COMPILER_EXECUTABLE_NOT_EXECUTABLE` | error | The compiler program exists but cannot be run. |
-| [T3D-E082](messages/T3D-E082.md) | `COMPILER_STALE` | error | The compiler built in this checkout is older than its sources. |
-| [T3D-E083](messages/T3D-E083.md) | `COMPILER_LINE_LIMIT` | error | The compiler printed a line longer than the protocol allows, so the run was stopped. |
-| [T3D-E084](messages/T3D-E084.md) | `COMPILER_NO_POINTER` | error | The compiler ended without printing where its result is. |
-| [T3D-E085](messages/T3D-E085.md) | `COMPILER_NOT_READY` | error | The compiler reported a result that is not ready. |
-| [T3D-E086](messages/T3D-E086.md) | `COMPILER_EXIT` | error | The compiler stopped with an unexpected exit code and no error code. |
-| [T3D-E087](messages/T3D-E087.md) | `STRICT_WARNINGS` | error | The compile succeeded with warnings, which `--strict` turns into a failure. |
-| [T3D-E088](messages/T3D-E088.md) | `CUTOUT_SHEET_INVALID` | error | The cutout answer sheet is not one this version reads. |
-| [T3D-E089](messages/T3D-E089.md) | `PNG_UNSUPPORTED` | error | A PNG image is not a whole 8-bit RGBA, non-interlaced file. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e079"></a>T3D-E079 | `COMPILER_PLATFORM_UNSUPPORTED` | error | The compiler has no build for this operating system and processor. | `process.platform` and `process.arch` name a pair outside the supported list. | Compile on one of the supported platforms the message lists, or set `TRILLION3D_COMPILER_BIN` to a compiler you built yourself. |
+| <a id="t3d-e080"></a>T3D-E080 | `COMPILER_EXECUTABLE_MISSING` | error | The compiler program is missing. | No compiler program where the Node adapter looked: `options.executable`, the installed platform package `@trillion3d/compiler-<platform>-<arch>` (an optional dependency of `trillion3d`; none serves a Linux on musl), or `TRILLION3D_COMPILER_BIN`. | Reinstall `trillion3d` with its optional dependencies, or set `TRILLION3D_COMPILER_BIN` to the path of a compiler program. |
+| <a id="t3d-e081"></a>T3D-E081 | `COMPILER_EXECUTABLE_NOT_EXECUTABLE` | error | The compiler program exists but cannot be run. | The operating system refused to start the executable (no execute permission). | Reinstall `trillion3d`, or make the file named by `TRILLION3D_COMPILER_BIN` executable (`chmod +x`). |
+| <a id="t3d-e082"></a>T3D-E082 | `COMPILER_STALE` | error | The compiler built in this checkout is older than its sources. | A crate source newer than the checkout's release build; its caches would carry the previous build's key. Raised only inside a checkout of the Trillion3D repository. | Run `pnpm run build:native` in the checkout. |
+| <a id="t3d-e083"></a>T3D-E083 | `COMPILER_LINE_LIMIT` | error | The compiler printed a line longer than the protocol allows, so the run was stopped. | A stderr or stdout line past 4 MiB without an end of line. | Report it as a compiler bug. |
+| <a id="t3d-e084"></a>T3D-E084 | `COMPILER_NO_POINTER` | error | The compiler ended without printing where its result is. | Exit code 0 with no readable pointer on stdout. | Report it as a compiler bug, with the events it printed. |
+| <a id="t3d-e085"></a>T3D-E085 | `COMPILER_NOT_READY` | error | The compiler reported a result that is not ready. | A pointer whose `status` is not `ready` and carries no code. | Read the events of the run for the job's error, then compile again. |
+| <a id="t3d-e086"></a>T3D-E086 | `COMPILER_EXIT` | error | The compiler stopped with an unexpected exit code and no error code. | A non-zero exit with no pointer, no batch summary and no error event. | Report it as a compiler bug, with the exit code and the events it printed. |
+| <a id="t3d-e087"></a>T3D-E087 | `STRICT_WARNINGS` | error | The compile succeeded with warnings, which `--strict` turns into a failure. | `trillion3d-compile --strict` saw at least one warning-level message; the cache is written, the exit code is 3. | Fix what the warnings say, or run without `--strict`. |
+| <a id="t3d-e088"></a>T3D-E088 | `CUTOUT_SHEET_INVALID` | error | The cutout answer sheet is not one this version reads. | The sheet file is not an answer sheet, or declares another version. | Delete the answer sheet in the cache folder and compile again to write a new one. |
+| <a id="t3d-e089"></a>T3D-E089 | `PNG_UNSUPPORTED` | error | A PNG image is not a whole 8-bit RGBA, non-interlaced file. | The Node adapter's PNG reader (cutout previews, reference images) reads 8-bit RGBA, non-interlaced PNG files only, every row present. | Save the image again as 8-bit RGBA without interlacing; for a cutout preview, delete the cache folder's cutout previews and compile again. |
 
 ## Browser runtime
 
-| Code | Name | Level | Message |
-| --- | --- | --- | --- |
-| [T3D-E090](messages/T3D-E090.md) | `FAMILY_LOAD_FAILED` | error | An optional family of the browser engine did not load. |
+| Code | Name | Level | Message | Cause | What to do |
+| --- | --- | --- | --- | --- | --- |
+| <a id="t3d-e090"></a>T3D-E090 | `FAMILY_LOAD_FAILED` | error | An optional family of the browser engine did not load. | The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it, and a session whose renderer does not arrive does not open, refused with this error. | Check that every chunk of the bundle is served beside the entry module and reachable; the engine asks the family again on its next use. |

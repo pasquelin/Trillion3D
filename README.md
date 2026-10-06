@@ -200,8 +200,8 @@ The rules a contribution follows: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## How the project is run
 
-Trillion3D is built by a small company of AI sessions — CTOs, leads with their coders and
-reviewers, an acceptance session that times and proves each batch — run by one maintainer.
+Trillion3D is built by AI sessions — one per issue, and an acceptance session that times and
+proves each batch — run by one maintainer.
 [docs/COMPANY.md](docs/COMPANY.md) explains every role and how to run it from any clone; the contribution workflow never requires it.
 
 ## Documentation

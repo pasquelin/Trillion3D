@@ -66,6 +66,6 @@ export const FRENCH_EXCEPTIONS: Record<string, FrenchException> = {
   'atlas-couleur': {
     reason:
       'a fixture folder and file name (`tests/fixtures/formats/previews/atlas-couleur`) read by the ' +
-      'texture preview tests of the asset compiler and by `scripts/texture-coverage-levels.test.ts`',
+      'texture preview tests of the asset compiler',
   },
 };

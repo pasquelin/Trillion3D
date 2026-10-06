@@ -13,8 +13,9 @@ lands in `packages/asset-compiler-rust/target/release/trillion3d-compiler` (`.ex
 
 ## Contents
 
-[Invocation](#invocation) · [The three streams](#the-three-streams) · [Events](#events) · [The
-pointer](#the-pointer) · [Reusing a compiled folder](#reusing-a-compiled-folder) ·
+[Invocation](#invocation) · [Simplification and DAG](#simplification-and-dag) · [glTF scene
+selection](#gltf-scene-selection) · [The three streams](#the-three-streams) · [Events](#events) ·
+[The pointer](#the-pointer) · [Reusing a compiled folder](#reusing-a-compiled-folder) ·
 [Measurements](#measurements) · [Batch mode](#batch-mode) · [Cancellation](#cancellation) · [FBX and
 OBJ import](#fbx-and-obj-import) · [USD and USDZ import](#usd-and-usdz-import) · [Input
 formats](#input-formats) · [Adding a format](#adding-a-format) · [Cache layout](#cache-layout) ·
@@ -26,23 +27,41 @@ Node](#using-it-from-node) · [Using it from any other host](#using-it-from-any-
 ## Invocation
 
 ```
-trillion3d-compiler SOURCE CACHE [slice|full] [triangles] RESOURCE_BASE_URL
-trillion3d-compiler SOURCE CACHE [slice|full] [triangles] [threads] [RAM_MB] RESOURCE_BASE_URL [none|qem-endpoints] [--textures-format=bc7|astc|both|none]
+trillion3d-compiler SOURCE CACHE slice|full TRIANGLES RESOURCE_BASE_URL
+trillion3d-compiler SOURCE CACHE slice|full TRIANGLES THREADS RAM_MB RESOURCE_BASE_URL
+trillion3d-compiler SOURCE CACHE slice|full TRIANGLES THREADS RAM_MB RESOURCE_BASE_URL none|qem-endpoints
 trillion3d-compiler --jobs FILE|-
 trillion3d-compiler --version
 ```
 
-| Argument            | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Default                          |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| `SOURCE`            | A file or folder a driver recognises: a directory with `manifest.json`, a `.gltf`/`.glb`, a scene of one of the formats above, a container (`.usdz`, `.unitypackage`, `.zip`), or a directory of such files, merged into one scene. Unknown or ambiguous: refused with the list of accepted formats                                                                                                                                                                 | required                         |
-| `CACHE`             | Output directory, created if missing; one pointer per scope, pruned after each compile ([The pointer](#the-pointer)), so one source at a time; a busy cache is waited for, then refused (`CACHE_LOCKED`)                                                                                                                                                                                                                                                            | required                         |
-| scope               | `slice` keeps whole mesh instances up to the triangle budget; `full` keeps everything                                                                                                                                                                                                                                                                                                                                                                               | `slice`                          |
-| triangles           | Triangle budget for `slice`; ignored by `full`                                                                                                                                                                                                                                                                                                                                                                                                                      | `150000`                         |
-| threads             | Worker threads for clustering and simplification (1–64)                                                                                                                                                                                                                                                                                                                                                                                                             | `2`                              |
-| `RAM_MB`            | Admission budget: a job whose estimated working set exceeds it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not an enforced limit                                                                                                                                                                                                                                                                                                                         | `256`                            |
-| `RESOURCE_BASE_URL` | URL prefix under which the host serves the **source** directory; relative image URIs are rewritten against it                                                                                                                                                                                                                                                                                                                                                       | required                         |
-| simplification      | `none`: exact clusters only, one DAG level, every cluster a root; `qem-endpoints`: the coarser levels above them, each group simplified by the `meshopt` crate's simplifier through this compiler's region adapter (`qem.rs`)                                                                                                                                                                                                                                       | `none`                           |
-| `--textures-format` | `bc7\|astc\|both\|none`: the block family cooked beside the lossless levels (`none`: lossless only), under the quality gate of [FORMAT.md](FORMAT.md#textures). Cost is the encode and its read-back, block rows in parallel on the job's pool: Emerald from an empty cache, 8 threads, 17.9 / 18.8 s wall without a family (two runs), 26.1 / 25.9 s `bc7`, 31.4 / 39.0 s `astc`; an existing level file is not encoded again, so a recompile pays the tails alone | `bc7` (a cook runs on a desktop) |
+The command takes exactly 5, 7 or 8 positional arguments (`compiler_args.rs`), plus
+`--textures-format=` anywhere; any other count prints the usage, emits `INVALID_ARGS` and exits 2.
+Scope and triangles are always written; the short forms default only threads, `RAM_MB` and
+simplification. Out-of-range values are refused with `INVALID_OPTIONS` (`compiler_validate.rs`).
+
+- `SOURCE` (required): a file or folder a driver recognises — a directory with `manifest.json`, a
+  `.gltf`/`.glb`, a scene of one of the formats above, a container (`.usdz`, `.unitypackage`,
+  `.zip`), or a directory of such files, merged into one scene. Unknown or ambiguous: refused with
+  the list of accepted formats.
+- `CACHE` (required): output directory, created if missing; one pointer per scope, pruned after each
+  compile ([The pointer](#the-pointer)), so one source at a time. A busy cache is waited for, then
+  refused (`CACHE_LOCKED`).
+- scope (required): `slice` keeps whole mesh instances up to the triangle budget; `full` keeps
+  everything.
+- `TRIANGLES` (required, positive): triangle budget for `slice`; ignored by `full`.
+- `THREADS` (default `2`): worker threads for clustering and simplification, 1–64.
+- `RAM_MB` (default `256`, at least 64): admission budget — a job whose estimated working set
+  exceeds it is refused (`RAM_ADMISSION_BUDGET_EXCEEDED`); a guard, not an enforced limit. Under 64
+  the options are refused (`INVALID_OPTIONS`).
+- `RESOURCE_BASE_URL` (required): URL prefix under which the host serves the **source** directory;
+  relative image URIs are rewritten against it.
+- simplification (default `none`): `none` builds exact clusters only, one DAG level, every cluster a
+  root; `qem-endpoints` adds the coarser levels above them ([Simplification and
+  DAG](#simplification-and-dag)).
+- `--textures-format=bc7|astc|both|none` (default `bc7`): the block family cooked beside the
+  lossless levels (`none`: lossless only), under the quality gate of
+  [FORMAT.md](FORMAT.md#textures). Block rows encode in parallel on the job's pool; an existing
+  level file is not encoded again, so a recompile pays only the missing ones.
 
 Examples:
 
@@ -52,146 +71,100 @@ trillion3d-compiler scenes/london cache/london full 150000 8 8192 /assets/london
 trillion3d-compiler scenes/emerald cache/emerald full 150000 8 32768 /assets/emerald/ qem-endpoints # a glTF folder with manifest.json
 ```
 
+The glTF reader decodes `KHR_draco_mesh_compression` and `EXT_meshopt_compression` once, before the
+accessor pipeline, under the job's RAM budget (`src/compressed/`). Quantized positions
+(`KHR_mesh_quantization`) are not read: `POSITION` must be float `VEC3` (`INVALID_GLTF`).
+
+## Simplification and DAG
+
 `simplification` says what the DAG may hold, not how fast it is built. In `none` it stops at level
 0: the clusters partition the source triangles exactly, every one a root, and `"simplification":
 false` in the manifest means no cluster carries a surface the source lacks. In `qem-endpoints` each
-level groups 8 to 32 clusters, has the linked `meshopt` simplifier (its quadric error metric) simplify the
-group with its border locked, then re-splits it; level 0
-is the same in both modes.
+level groups 8 to 32 clusters, has the linked `meshopt` simplifier (its quadric error metric)
+simplify the group with its border locked, then re-splits it; level 0 is the same in both modes.
 
 The compiler does not implement the quadric error metric: it hands the simplifier a region, the
-vertex flags and the attribute weights, and the library ranks the collapses and returns the error it
-measured. Here the error is absolute, counting normals (weight ½) and
-carried texture sets (weight 1) against positions normalised to the group's extent, clamped to it;
-permissive across hard edges, texture seams protected; disconnected parts pruned once the error
-passes them. Copies a page cannot tell apart (same position and carried attributes) become one
-vertex, the group's first copy, before reduction, so a coarse page names only vertices its children
-draw; no other weld remains. A part removed whole (a column, an arch) costs the diameter of its
-bounds plus its distance to the surface kept, so it drops only at a level whose error is that wide,
-and a roof of shingles each under the error keeps a cover within it. A coarse corner takes the copy
-of its position and texture coordinates whose normal is its face's, among those a face turned its
-way draws. A reduction shading a face from behind, or leaving a corner no such copy, is retried with
-that face's surroundings locked while a retry locks something new; one losing a vertex shared with
-another group is retried, three times at most, without pruning (which ignores locks).
+vertex flags and the attribute weights (`qem.rs`), and the library ranks the collapses and returns
+the error it measured. The error is absolute, counting normals (weight ½) and carried texture sets
+(weight 1) against positions normalised to the group's extent, clamped to it; permissive across hard
+edges, texture seams protected; disconnected parts pruned once the error passes them. Copies a page
+cannot tell apart (same position and carried attributes) become one vertex, the group's first copy,
+before reduction, so a coarse page names only vertices its children draw; no other weld remains. A
+part removed whole (a column, an arch) costs the diameter of its bounds plus its distance to the
+surface kept, so it drops only at a level whose error is that wide, and a roof of shingles each
+under the error keeps a cover within it. A coarse corner takes the copy of its position and texture
+coordinates whose normal is its face's, among those a face turned its way draws. A reduction
+shading a face from behind, or leaving a corner no such copy, is retried with that face's
+surroundings locked while a retry locks something new; one losing a vertex shared with another
+group is retried, three times at most, without pruning (which ignores locks).
 
-A stalled group diagnosed `seam-locked` (below) is retried with solved vertices (the linked
-simplifier's `simplifyWithUpdate`, `dag/solved.rs`, `qem_solve.rs`; the library accumulates each quadric and moves the vertices, this crate chooses the groups, the locks and the weights and measures the error of the result); other groups keep the endpoint reduction, so
-primitives without one are unchanged. The retry keeps the level's locks; any seam corner may
-collapse with all its copies; each surviving position moves to its quadric's minimum and each copy
-gets its own texture coordinate and normal solved there (renormalised). A texture set weighs the
-surface length one unit of it spans in the group — the square root of surface area over texture area
-—, so a sliding coordinate costs the distance its texture moves; normals keep their weight. On the
-open border, where the simplifier keeps seam corners in place, a position's copies point at one of
-them, and the largest coordinate step that costs, times its set's density, joins the group's error.
-A placed vertex belongs to the texture island of the source vertex it was solved from; a coarse face
-whose corners lie in two islands is charged its longest edge, by this solve and any later reduction
-of its vertices, so it is drawn only where it covers under a pixel. The retry runs the endpoint
-reduction's checks and retries (`dag/retries.rs`: lost locks, faces lit from behind but those no
-longer than the error, parts removed whole) and is kept when it yields fewer clusters. Its error is
-measured as every reduction's (`dag/measured.rs`): parts removed whole, sampled Hausdorff distance
-and texture deviation from the group's triangles to the solve's, so a solved group never publishes
-less than the surface it draws. Its vertices are appended after the primitive's (indices from the
-source's vertex count on), read by pages, the cook's checks, the collider and the proxy;
-`source.bin` stays the source buffer.
+A stalled group diagnosed `seam-locked` (below) is retried with solved vertices (the simplifier's
+`simplifyWithUpdate`; `dag/solved.rs`, `qem_solve.rs`): the library accumulates each quadric and
+moves the vertices, this crate chooses the groups, the locks and the weights and measures the error
+of the result. Other groups keep the endpoint reduction. The retry keeps the level's locks; any seam
+corner may collapse with all its copies; each surviving position moves to its quadric's minimum and
+each copy gets its own texture coordinate and normal solved there (renormalised). A texture set
+weighs the surface length one unit of it spans in the group — the square root of surface area over
+texture area —, so a sliding coordinate costs the distance its texture moves; normals keep their
+weight. On the open border, where the simplifier keeps seam corners in place, a position's copies
+point at one of them, and the largest coordinate step that costs, times its set's density, joins
+the group's error. A placed vertex belongs to the texture island of the source vertex it was solved
+from; a coarse face whose corners lie in two islands is charged its longest edge, so it is drawn
+only where it covers under a pixel. The retry runs the endpoint reduction's checks and retries
+(`dag/retries.rs`) and is kept when it yields fewer clusters. Its error is measured as every
+reduction's (`dag/measured.rs`): parts removed whole, sampled Hausdorff distance and texture
+deviation from the group's triangles to the solve's, so a solved group never publishes less than
+the surface it draws. Its vertices are appended after the primitive's (indices from the source's
+vertex count on), read by pages, the cook's checks, the collider and the proxy; `source.bin` stays
+the source buffer.
+
+A stalled group is named by experiment, never by threshold: the builder reruns the stalled
+reduction with one constraint lifted at a time, discards the result and keeps the first cause that
+holds:
+
+- `too-small`: fewer than two live triangles, nothing to halve.
+- `border-locked`: advances when rerun with no lock; positions shared with neighbouring groups hold
+  it.
+- `seam-locked`: still stalls with no lock, and advances with its position copies welded across the
+  seams of every carried texture set; retried with solved vertices, it stays stalled only if that
+  retry does not advance either.
+- `unreducible`: advances under neither rerun; the surface itself resists halving.
+- `border-lost`: lost a shared position on every retry with added locks.
+- `unusable-error`: received a non-finite error from the simplifier.
 
 Before publishing, the cook refuses a DAG (`DAG_ERROR_NOT_MONOTONE`, `DAG_NORMAL_DEVIATION`) where a
 cluster's error exceeds its parent's, or a coarse cluster's normal deviation passes its group's
 bound. A triangle's normal deviation is the angle between its face normal and the mean of its corner
-normals, which shades its centre; triangles no wider than their level's error, and slivers thinner
-than a thousandth of their longest edge, are exempt. A group's bound is 90° (past it a face is lit
-from behind) or, if larger, the worst deviation among the level-0 triangles it descends from, so one
-inverted source triangle raises only its own groups' bound. The reduction holds each group to that
-bound without the width exemption — any face but a sliver turning past it is retried with locks —,
-so a long thin coarse face never comes out inside out. The cook is the same bytes on every platform:
-the root `.cargo/config.toml` builds the simplifier's C++ with `-ffp-contract=off` (arm64 otherwise
-fuses multiply-adds and rounds apart from x86_64), the arc cosine is the `libm` crate's (the
-platform's last bit differs between macOS and glibc), and a test pins a cooked fixture's digest. The
-report publishes per level `errorMax`, `normalDeviationMax` and `rootTriangles`, what the level adds
-to the root cover no budget goes under.
+normals; triangles no wider than their level's error, and slivers thinner than a thousandth of their
+longest edge, are exempt. A group's bound is 90° or, if larger, the worst deviation among the
+level-0 triangles it descends from, so one inverted source triangle raises only its own groups'
+bound. The reduction holds each group to that bound without the width exemption, so a long thin
+coarse face never comes out inside out. The report publishes per level `errorMax`,
+`normalDeviationMax` and `rootTriangles`, what the level adds to the root cover no budget goes
+under.
 
-Pages are packed into streaming bundles of 128 KiB, each listing the bundles holding its clusters'
-parents, closed up to the pinned root cover ([FORMAT.md](FORMAT.md#cluster-dag), `streams`). Packing
-keeps the list short — one level per bundle, coarsest first, siblings together — under a bound fixed
-before packing, `streams.dependencyBound`, the most parents one cluster has: a bundle closes early
-rather than exceed it, and a cluster that alone would is refused (`PAGE_DEPENDENCY_BOUND`). The
-bound is on direct parent bundles; `streams.maxDependencies`, the longest closed list, is a
-statistic. The cook refuses (`INVALID_PAGE_DEPENDENCIES`) a cycle, a page whose parents' bundle is
-missing from its bundle's list, a list not closed or not reaching the root cover, and a pinned
-bundle with any dependency; the message names the mesh and primitive, then the page or bundle.
+The cook is the same bytes on every platform: the root `.cargo/config.toml` builds the simplifier's
+C++ with `-ffp-contract=off` (arm64 otherwise fuses multiply-adds), the arc cosine is the `libm`
+crate's, and a test pins a cooked fixture's digest.
 
-### The corpus
+Pages are packed into streaming bundles as [FORMAT.md](FORMAT.md#cluster-dag) describes (`streams`,
+`PAGE_DEPENDENCY_BOUND`). The cook refuses (`INVALID_PAGE_DEPENDENCIES`) a cycle, a page whose
+parents' bundle is missing from its bundle's list, a list not closed or not reaching the root
+cover, and a pinned bundle with any dependency; the message names the mesh and primitive, then the
+page or bundle.
 
-The DAG builder is proved on a generated corpus, `packages/asset-compiler-rust/src/tests/corpus/`:
-each case's shape, texture layout and parameters are drawn from a seed, nothing hand-picked or read
-from disk. Five families — `uv` (where chart seams fall, a second set with seams of its own),
-`attributes`, `topology`, `materials` and `inputs` (index widths, sparse and quantized positions,
-millimetre, metre and kilometre scales) —, cases listed below.
+The DAG builder is proved on a generated [corpus](../packages/asset-compiler-rust/src/tests/corpus/)
+(`packages/asset-compiler-rust/src/tests/corpus/`): each case's shape, texture layout and
+parameters are drawn from a seed, in five families (`uv`, `attributes`, `topology`, `materials`,
+`inputs`), each case on two seeds; the invariants it asserts are in `invariants.rs`. Run it with
+`cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`.
 
-On each of two seeds every case asserts:
-
-- level 0 is the source partition — the same triangles, each exactly once;
-- every coarse index names a vertex the source uses, or one a seam-locked group's solve placed
-  after them;
-- every LOD error is finite and never exceeds its parent's;
-- no coarse triangle a pixel shows spans two texture islands of a sampled set: a triangle across
-  two islands is no longer than its cluster's error, and a solved vertex lies in its source vertex's
-  island; a seam whose sides connect elsewhere (a wrap column) is one island;
-- the primitive reaches a single root, with no stalled group;
-- every page decodes back to its positions and attributes within its declared error;
-- the compiled cache agrees with the in-memory DAG, root for root, and `source.bin` is the source
-  buffer byte for byte, view by view.
-
-A set no material samples stays out of the pages and the seam weld: `uv-second-set-unread`
-(`uv-second-set-with-own-seams` with the second set unread) reaches one root, page for page the DAG
-compiled without that set.
-
-A stalled group is named by experiment, never by threshold: the builder reruns the stalled reduction
-with one constraint lifted at a time, discards the result (the DAG is the one built without reruns)
-and keeps the first cause that holds:
-
-| Cause            | The group…                                                                                                                                                                                                       |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `too-small`      | holds fewer than two live triangles: nothing to halve                                                                                                                                                            |
-| `border-locked`  | advances when rerun with no lock: positions shared with neighbouring groups hold it                                                                                                                              |
-| `seam-locked`    | still stalls with no lock, and advances with its position copies welded across the seams of every carried texture set; retried with solved vertices, it stays stalled only if that retry does not advance either |
-| `unreducible`    | advances under neither rerun: the surface itself resists halving                                                                                                                                                 |
-| `border-lost`    | lost a shared position on every retry with added locks                                                                                                                                                           |
-| `unusable-error` | received a non-finite error from the simplifier                                                                                                                                                                  |
-
-Every case guarantees one root on both seeds, except `inputs-quantized-positions`, refused
-`INVALID_GLTF` ("POSITION must be float VEC3") because `KHR_mesh_quantization` is not read. A
-refusal is checked against the code the case expects; a panic, another code, or an unexplained flat
-DAG fails. The cases:
-
-- `uv`: `uv-one-island`, `uv-island-per-face`, `uv-island-per-brick`, `uv-atlas-of-islands`,
-  `uv-mirrored-halves`, `uv-tiled-beyond-unit`, `uv-second-set-with-own-seams`,
-  `uv-second-set-unread`, `uv-zero-area-triangles`, `uv-all-at-one-point`, `uv-none`;
-- `attributes`: `attributes-hard-normals`, `attributes-smooth-normals`, `attributes-colour-steps`,
-  `attributes-tangents`, `attributes-every-one`;
-- `topology`: `topology-closed-manifold`, `topology-open-borders`, `topology-non-manifold-edges`,
-  `topology-t-junctions`, `topology-unwelded-duplicates`, `topology-degenerate-triangles`,
-  `topology-thin-strip`, `topology-slats`, `topology-smaller-than-cluster`,
-  `topology-exactly-one-cluster`, `topology-huge-flat-plane`, `topology-high-curvature`,
-  `topology-slivers`;
-- `materials`: `materials-several`, `materials-alpha-masked`, `materials-blended`,
-  `materials-double-sided`;
-- `inputs`: `inputs-indices-u8`, `inputs-indices-u16`, `inputs-indices-u32`, `inputs-unindexed`,
-  `inputs-sparse-positions`, `inputs-quantized-positions`, `inputs-large-offset`,
-  `inputs-millimetre-scale`, `inputs-kilometre-scale`.
-
-`uv-island-per-face`, `uv-island-per-brick`, `uv-second-set-with-own-seams` and
-`attributes-every-one` make every vertex a seam corner: lifting locks frees nothing, welding seams
-frees the groups, which are `seam-locked` and climb to one root on solved vertices.
-`topology-high-curvature` stalled under the simplifier's older version on seam positions at its poles and wrap
-column; 0.25 slides past them.
-
-Run it with `cargo test --release corpus --manifest-path packages/asset-compiler-rust/Cargo.toml`:
-42 cases, 5 families, two seeds each, under 4 s.
+## glTF scene selection
 
 A glTF document renders one scene (glTF 2.0 §3.5): the one `scene` names, else the first of
 `scenes`. Only nodes reachable from its roots are compiled — node selection, the resident proxy and
 `lights.json` read that set, so a mesh or `KHR_lights_punctual` lamp in another scene, or none, is
-left out. A document with **no** (or empty) `scenes` compiles every root of the node hierarchy, and
+left out. A document with no (or empty) `scenes` compiles every root of the node hierarchy, and
 `selectedNodes` counts the nodes kept. A `scene`, `scenes[].nodes` or `children` index outside the
 node table is refused (`INVALID_GLTF`), as is a `children` cycle anywhere in the node table, reached
 or not, since the published document carries every node. A parentless node no scene names is
@@ -212,63 +185,80 @@ body derives from it, and a `KHR_lights_punctual` lamp it hides is off, left out
 
 The process talks through stdin, stdout and stderr only. The one environment variable read,
 `TRILLION3D_CACHE_LOCK_WAIT_MS`, shortens the wait for a busy cache
-([`CACHE_LOCKED`](COMPILER_ERRORS.md#global)):
-milliseconds, `0` refuses at once, anything unreadable is ignored.
+([`CACHE_LOCKED`](COMPILER_ERRORS.md#global)): milliseconds, `0` refuses at once, anything
+unreadable is ignored.
 
-| Stream | Content                                            | Size                                    |
-| ------ | -------------------------------------------------- | --------------------------------------- |
-| stderr | One JSON object per line, one line per event       | a few KB per job (Emerald: 26 KB)       |
-| stdout | The pointer for one job, or the batch summary      | under 1 KB per job (Emerald: 663 bytes) |
-| stdin  | Optional cancel requests, one JSON object per line | —                                       |
+| Stream | Content | Size |
+| --- | --- | --- |
+| stderr | One JSON object per line, one line per event | a few KB per job |
+| stdout | The pointer for one job, or the batch summary | under 1 KB per job |
+| stdin | Optional cancel requests, one JSON object per line | — |
 
-The manifest (`clusters.json`, hundreds of KB to MB) is **never** printed; the pointer says where it
-is. A host may ignore stdin.
+The manifest (`clusters.json` and its pages) is **never** printed; the pointer says where it is. A
+host may ignore stdin.
 
 ## Events
 
 Every stderr line is `{"event": <kind>, "job": <id>, ...}`; the job id is `"job"` for a single
 invocation, the batch file's id in batch mode, `"*"` on batch-level lines. `accepted`, `progress`
 and `complete` carry `ratio`, a whole-job completion estimate from 0 to 1 that never goes backwards,
-so a host draws one bar without knowing the phases: source import up to 0.30, glTF import 0.35,
-clustering 0.35–0.95 over the primitives the `import` event announced, root bundles 0.95–0.96,
-coplanar cuts 0.96–0.965, texture levels 0.965–0.97 one image per step, resident proxy 0.97, lights
-0.98, prune 0.99, pointer 1. An unknown phase keeps the last ratio, and importing several files does
-not restart the bar.
+so a host draws one bar without knowing the phases (`compiler_ratio.rs`): source import up to 0.30,
+glTF import 0.35, clustering 0.35–0.95 over the primitives the `import` event announced, root
+bundles 0.95–0.96, coplanar cuts 0.96–0.965, texture levels 0.965–0.97 one image per step, resident
+proxy 0.97, impostors 0.975, lights 0.98, a proven reused folder 0.98, prune 0.99, pointer 1. An
+unknown phase keeps the last ratio, and importing several files does not restart the bar.
 
-| `event`     | When                                     | Extra fields                                                                                                                                                                                                          |
-| ----------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `batch`     | Once, first line of `--jobs`             | `jobs`, `workers`                                                                                                                                                                                                     |
-| `queued`    | Once per job in a batch, before any work | `source`                                                                                                                                                                                                              |
-| `accepted`  | A worker starts the job                  | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification`                                                                                                                                   |
-| `progress`  | During the job                           | `phase` and its fields, below                                                                                                                                                                                         |
-| `stall`     | The job succeeded, before `complete`     | one line per row of the manifest's `worstStalls` ([FORMAT.md](FORMAT.md)), in order: `rank`, `index`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands`; in batch mode too |
-| `complete`  | The job succeeded                        | `pointer` (same object as stdout), `ms`                                                                                                                                                                               |
-| `cancelled` | The job stopped on a cancel request      | `status:"error"`, `code:"CANCELLED"`, `message`, `ms`, and the code's catalogue fields                                                                                                                                |
-| `error`     | The job failed                           | `status:"error"`, `code`, `message`, `ms`, and the code's catalogue fields                                                                                                                                            |
-| `done`      | Once, last line of `--jobs`              | `completed`, `failed`, `cancelled`, `ms`                                                                                                                                                                              |
+| `event` | When | Extra fields |
+| --- | --- | --- |
+| `batch` | Once, first line of `--jobs` | `jobs`, `workers` |
+| `queued` | Once per job in a batch, before any work | `source` |
+| `accepted` | A worker starts the job | `source`, `cache`, `scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` |
+| `progress` | During the job | `phase` and its fields, below |
+| `stall` | The job succeeded, before `complete` | one line per row of the manifest's `worstStalls`, in order: `rank`, `index`, `mesh`, `primitive`, `rootTriangles`, `cause`, `seamVertices`, `lockedVertices`, `uvIslands` |
+| `complete` | The job succeeded | `pointer` (same object as stdout), `ms` |
+| `cancelled` | The job stopped on a cancel request | `status:"error"`, `code:"CANCELLED"`, `message`, `ms`, catalogue fields |
+| `error` | The job failed | `status:"error"`, `code`, `message`, `ms`, catalogue fields |
+| `done` | Once, last line of `--jobs` | `completed`, `failed`, `cancelled`, `ms` |
 
-Every `code` the catalogue knows ([COMPILER_ERRORS.md](COMPILER_ERRORS.md), one source of truth in
-`packages/sdk-node/src/messages/messages.json`) leaves with its catalogue fields beside it: `id`, the
-stable public code (`T3D-Exxx` error, `T3D-Wxxx` warning, `T3D-Ixxx` info), `level` (`error`,
+Every `code` the catalogue knows ([COMPILER_ERRORS.md](COMPILER_ERRORS.md), one source of truth
+in `packages/sdk-node/src/messages/messages.json`) leaves with its catalogue fields beside it: `id`,
+the stable public code (`T3D-Exxx` error, `T3D-Wxxx` warning, `T3D-Ixxx` info), `level` (`error`,
 `warn`, `info`), `action`, what the user does, and `docs`, the code's documentation page. An error
 event carries them, and so does each of a `primitive` event's `warnings`. `code` stays the symbolic
 name the cache writes, so no cache byte depends on the catalogue.
 
 Progress phases, in order:
 
-| `phase`         | Fields                                                                                                                                                                                                                                  | Meaning                                                                                                                                                                                                                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) for a reused import | FBX/OBJ only                                                                                                                                                                                                                                                                                                                         |
-| `import`        | `completed`, `total`, `ms`, `primitives`, `nodes`, `unsupported` (the source import's report, counts by code; `null` for a glTF source)                                                                                                 | glTF loaded and validated, source geometry written; `primitives` `primitive` events follow                                                                                                                                                                                                                                           |
-| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its stages, each from the end of the one before: `dagMs`, `cullingMs`, then `physicsMs` and `pagesMs` side by side, `reportMs`); `warnings` if any            | One primitive clustered and paged (primitives run in parallel, in no fixed order)                                                                                                                                                                                                                                                    |
-| `bootstrap`     | `completed`, `total`                                                                                                                                                                                                                    | Root bundles assembled                                                                                                                                                                                                                                                                                                               |
-| `textures`      | `completed`, `total`                                                                                                                                                                                                                    | One source image decoded, its mip chain baked for every atlas reading it, its levels written                                                                                                                                                                                                                                         |
-| `cutouts`       | `pending`, `sheet`                                                                                                                                                                                                                      | Cutout sheet written; `pending` textures still unanswered, `sheet` its path                                                                                                                                                                                                                                                          |
-| `proxy`         | `triangles`, `nodes`, `errorMetres`                                                                                                                                                                                                     | Resident proxy built                                                                                                                                                                                                                                                                                                                 |
-| `lights`        | `lights`, `rejected`, `counts`                                                                                                                                                                                                          | Scene lights written; `rejected` lamps left out, `counts` what was filled in or omitted on a lamp kept                                                                                                                                                                                                                               |
-| `reuse`         | `completed` (1 reused, 0 refused), `files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`, `validateMs`, or `reason`                                                                                                           | The key's folder was proven and kept — no `textures` or `proxy` follow, and `import` (its `unsupported` report), `primitive` (only those with `warnings`) and `lights` only tell again the warnings the kept product carries — or refused for the named reason and rebuilt ([Reusing a compiled folder](#reusing-a-compiled-folder)) |
-| `prune`         | `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures`, `removedTextureBytes`                                                                                                                                               | Stale keys, imports, orphan objects and texture levels removed (emitted only when something was)                                                                                                                                                                                                                                     |
-| `complete`      | `completed`, `total`, `pruned`                                                                                                                                                                                                          | Pointer written; `pruned` summarises the prune                                                                                                                                                                                                                                                                                       |
+- `import-source` — a converting driver (FBX, OBJ, USD, Alembic, `.blend`, Maya ASCII, Unity) writes
+  its intermediate scene. `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes)
+  → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`,
+  `meshNodes`, `ms`), or `reused` (`key`) for a reused import.
+- `import` — `completed`, `total`, `ms`, `primitives`, `nodes`, `unsupported` (the source import's
+  report, counts by code; `null` for a glTF source): glTF loaded and validated, source geometry
+  written; `primitives` `primitive` events follow.
+- `primitive` — `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (`dagMs`, `cullingMs`,
+  `physicsMs`, `pagesMs`, `reportMs`, each from the end of the one before, physics and pages side by
+  side); `warnings` if any. One primitive clustered and paged; primitives run in parallel, in no
+  fixed order.
+- `bootstrap` — `completed`, `total`: root bundles assembled.
+- `coplanar` — `step` = `planes` → `surfaces` → `done`, with `completed`, `total`: coplanar cuts.
+- `textures` — `completed`, `total`: one source image decoded, its mip chain baked for every atlas
+  reading it, its levels written.
+- `cutouts` — `pending`, `sheet`: cutout sheet written; `pending` textures still unanswered, `sheet`
+  its path.
+- `proxy` — `triangles`, `nodes`, `errorMetres`: resident proxy built.
+- `impostors` — `baked`: impostor atlases baked ([FORMAT.md](FORMAT.md#impostor-atlases)).
+- `lights` — `lights`, `rejected`, `counts`: scene lights written; `rejected` lamps left out,
+  `counts` what was filled in or omitted on a lamp kept.
+- `reuse` — `completed` (1 reused, 0 refused), `files`, `fileBytes`, `objects`, `objectBytes`,
+  `textureLevels`, `validateMs`, or `reason`: the key's folder was proven and kept — no `textures`
+  or `proxy` follow, and `import`, `primitive` (only those with `warnings`) and `lights` only tell
+  again the warnings the kept product carries — or refused for the named reason and rebuilt
+  ([Reusing a compiled folder](#reusing-a-compiled-folder)).
+- `prune` — `removedKeys`, `removedObjects`, `removedBytes`, `removedTextures`,
+  `removedTextureBytes`: stale keys, imports, orphan objects and texture levels removed (emitted
+  only when something was).
+- `complete` — `completed`, `total`, `pruned`: pointer written; `pruned` summarises the prune.
 
 ## The pointer
 
@@ -305,111 +295,89 @@ stdout for one job:
 }
 ```
 
-`pointer` is the file the browser explorer needs (`manifestUrl`); `url` is relative to
-`native/<scope>/`. `reused` is `null` when the job wrote the folder; for a proven and kept one it
-carries the proof's counts (`files`, `fileBytes`, `objects`, `objectBytes`, `textureLevels`,
-`validateMs`), `metrics.clusterHierarchyPagesMs` is `null` (no hierarchy built) and
-`metrics.importMs` runs to the decision — routing, loading, key and proof (`reused.validateMs` is
-the proof alone). `textureSkipped` and `textureNotes` count the texture stage's reasons by code
-(`texturePreviews.skipped` and `.notes` of the manifest), so a host summarises them without reading
-it. On failure stdout carries `{"status":"error","code":…,"message":…}` with the code's catalogue
-fields ([exit codes](#exit-codes-and-error-codes)).
+`formatVersion` is 9, or 10 (`CLUSTERED_BLEND_FORMAT_VERSION`) when any primitive is
+`clustered-blend` ([FORMAT.md](FORMAT.md#pointer)). `pointer` is the file the browser explorer needs
+(`manifestUrl`); `url` is relative to `native/<scope>/`. `reused` is `null` when the job wrote the
+folder; for a proven and kept one it carries the proof's counts (`files`, `fileBytes`, `objects`,
+`objectBytes`, `textureLevels`, `validateMs`), `metrics.clusterHierarchyPagesMs` is `null` and
+`metrics.importMs` runs to the decision — routing, loading, key and proof. `textureSkipped` and
+`textureNotes` count the texture stage's reasons by code (`texturePreviews.skipped` and `.notes` of
+the manifest). On failure stdout carries `{"status":"error","code":…,"message":…}` with the code's
+catalogue fields ([exit codes](#exit-codes-and-error-codes)).
 
 A cache never needs wiping: after every successful job the compiler removes the scope's other keys,
-stale FBX/OBJ imports, and every object under `objects/` and texture level no surviving manifest
-(either scope) references (`compiler_prune.rs`). Deleting a large cache by hand costs tens of
-seconds (Emerald: 80 000 files); recompiling over it costs nothing extra.
+stale imports, and every object under `objects/` and texture level no surviving manifest (either
+scope) references (`compiler_prune.rs`).
 
 `key` is a SHA-256 over what the source declares, the resources the compile consumes and the options
 shaping the output: the source manifest, the source binary, **every image the scene links by
 relative URI** (its fingerprint, `null` when absent), declared sidecars, the compiler version, the
 compiler's fingerprint (its source modules, `Cargo.toml` and `Cargo.lock` at build time), the
-error-model identity (`dag-group-qem-v3`, the identity of this crate's use of the `meshopt` simplifier), scope, budget, `RESOURCE_BASE_URL` and simplification.
+error-model identity (`dag-group-qem-v3`), scope, budget, `RESOURCE_BASE_URL` and simplification.
 External image bytes are neither embedded in the manifest nor hashed into the geometry — their
-SHA-256 is, and the baked levels under `native/textures/` are addressed by it; hosts own their
-resource identity. Any change gives a new `<key>` directory, which the pointer names and the prune
-keeps alone.
+SHA-256 is, and the baked levels under `native/textures/` are addressed by it. Any change gives a
+new `<key>` directory, which the pointer names and the prune keeps alone.
 
-Deliberately **outside** the identity, at every level of the manifest: measured durations
-(`importMs`, `parseMs`, `ms`) and the converting machine's absolute path (`path`) — they describe a
-run, and hashing them gave three keys for three identical compilations. Everything else a driver
-writes enters the key, later fields included (forgetting to exclude a field tightens the identity;
-forgetting to include one would loosen it). So the same inputs and options give the same key on any
-machine and cache, and replacing a linked texture beside an unchanged scene gives another, since the
-column files' previews are read from its pixels. The cost is one streaming hash per linked image,
-once per compile.
+Measured durations (`importMs`, `parseMs`, `ms`) and the converting machine's absolute path (`path`)
+are outside the identity at every level of the manifest; everything else a driver writes enters the
+key. So the same inputs and options give the same key on any machine and cache, and replacing a
+linked texture beside an unchanged scene gives another. The cost is one streaming hash per linked
+image, once per compile.
 
 ## Reusing a compiled folder
 
 A folder under the key holds the bytes the job would write. Once the source is keyed, before the
 first primitive, the compiler looks for `<scope>/<key>/clusters.json`: absent, it compiles; present,
-it **proves** the folder with the compile path's own checks (a fingerprint where it fingerprints,
-presence for level files it trusts by name), keeps it and skips to the pointer and prune:
+it **proves** the folder with the compile path's own checks, keeps it and skips to the pointer and
+prune:
 
-| Checked                        | Against                                                                                                                                                                                                                                                                                                                                             |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The manifest head              | `status`, `key`, `scope` and `compilerVersion` of this job; a `formatVersion` this compiler writes. Another build's folder under the key is refused                                                                                                                                                                                                 |
-| The manifest's pages           | Their slots in the root, and each column file its page's `binary`                                                                                                                                                                                                                                                                                   |
-| Every other product            | The manifest's `files` record — `source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin` — by size and SHA-256; no record, no proof. A partitioned scene's cells against the records its pages hold, each page against its slot                                                                      |
-| Every object the sidecar names | Its content-addressed name, hashed on the job's pool                                                                                                                                                                                                                                                                                                |
-| Every baked texture level      | Its presence under `textures/v<N>/<sha256>/` — the lossless file and the block file of every family the layout word keeps —, once per (image, atlas); a bake the compile could not finish (`texturePreviews.notes.texture-level-write-failed`, or fewer levels baked than the sidecar tail starts at) is refused, since a reuse would never bake it |
-| The cutout answer sheet        | Its presence at the cache root (`decoupes.json`): every compile writes it, and a host reads "nothing to answer" in its absence                                                                                                                                                                                                                      |
+- The manifest head: `status`, `key`, `scope` and `compilerVersion` of this job; a `formatVersion`
+  this compiler writes (9 or 10). Another build's folder under the key is refused.
+- The manifest's pages: their slots in the root, and each column file its page's `binary`.
+- Every other product the manifest's `files` record names (`source.gltf`, `source.bin`, `proxy.bin`,
+  `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`, …), by size and SHA-256; no record,
+  no proof. A partitioned scene's cells against the records its pages hold.
+- Every object the sidecar names: its content-addressed name, hashed on the job's pool.
+- Every baked texture level: its presence under `textures/v<N>/<sha256>/` — the lossless file and
+  the block file of every family the layout word keeps —, once per (image, atlas); a bake the
+  compile could not finish (`texturePreviews.notes.texture-level-write-failed`, or fewer levels than
+  the sidecar tail starts at) is refused, since a reuse would never bake it.
+- The cutout answer sheet: its presence at the cache root (`decoupes.json`).
 
 A failed check names its reason on `reuse` (`completed: 0`) and the job compiles, overwriting the
 folder. A proven folder yields `reused` on the pointer and `reuse` with `completed: 1`; neither the
 manifest (its `metrics` still describe the compile that produced it) nor the answer sheet is
-rewritten — an answer that changes the product changes the key. A folder from a compiler that wrote
-no `files` record is never reused; its key differs anyway, the compiler's sources being in it.
-
-A reuse costs the identity (routing, loading, hashing the source binary and linked images) plus the
-proof (hashing every product and object). Measured 2026-09-21, 8 threads, `full 150000`,
-`qem-endpoints`, one shared machine (load 25–39 on 12 cores, so each pair ran back to back): warm
-recompile of an unchanged source with `develop` at c21647cd against a reuse with #47's branch at
-421b1cc0, three pairs, `wallMs` in s. The proof, reshaped into one pool pass over files and objects
-at 6fd914dc, was re-measured twice on Emerald under load 47–84: recompile 30.6 · 21.4 s, reuse 6.7 ·
-5.8 s, proof 2.2 · 2.0 s — the pairing holds, the table stands.
-
-| Scene                                                                       | Recompile before (s) | Reuse after (s)   | of which proof (s) |
-| --------------------------------------------------------------------------- | -------------------- | ----------------- | ------------------ |
-| Emerald — 10 M triangles, 83 303 objects (388 MB), 200 MB of products       | 9.8 · 13.1 · 12.1    | 5.4 · 5.9 · 7.8   | 2.3 · 2.3 · 2.4    |
-| Whisperwind — 172 M triangles, 229 013 objects (737 MB), 285 MB of products (licence: [see ASSET_LICENSE_AUDIT](ASSET_LICENSE_AUDIT.md#licence-table-of-every-asset)) | 15.8 · 24.1 · 14.9   | 11.1 · 15.7 · 9.4 | 7.0 · 8.9 · 5.9    |
-
-Every reuse beats its paired recompile; on Whisperwind the proof dominates, its 229 013 small
-objects costing more to open than to hash. The compile pays the `files` record once — each product
-hashed as written, never read back: 200–285 MB here, under the run-to-run spread.
+rewritten — an answer that changes the product changes the key. A reuse costs the identity (routing,
+loading, hashing the source binary and linked images) plus the proof (hashing every product and
+object); the compile pays the `files` record once, each product hashed as written.
 
 ## Measurements
 
 A job's durations are its own: its counters are created with the compilation, adopted by its own
 pool's threads and read by nobody else, so two jobs of one batch never describe each other's work.
 
-| Field                                                     | Where                                                                            | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `metrics.importMs`                                        | result and pointer                                                               | Source routed, loaded, validated, its geometry copied                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `metrics.clusterHierarchyPagesMs`                         | result and pointer                                                               | Clustering, paging, coplanar cuts, resident proxy and lights                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `metrics.compileMs`                                       | result and pointer                                                               | Wall time until the manifest is serialized                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `metrics.pruneMs`                                         | pointer                                                                          | Wall time of the prune after publication                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `metrics.phaseElapsedMs`                                  | result and pointer                                                               | Elapsed time per phase, summed over worker threads; the texture stage publishes `textureDecodeMs`, `textureBakeMs` (chains, block encodes and their gate read-back), `textureWriteMs` and `textureAlphaMs` — Emerald from an empty cache, 8 threads, `--textures-format=bc7`: 7,2 s, 72,0 s, 68,3 s and 0,6 s inside 26,1 s wall; without a family (develop's compiler, same machine, same evening) 6,7 s, 6,3 s, 64,2 s and 0,6 s inside 17,9 s — the write column is the PNG levels, paid once per image whichever family |
-| `reusedPages`                                             | result (per primitive), pointer and `prepare()` (total, `null` on a kept folder) | Page objects the run found already built                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `metrics.wallMs`                                          | pointer and `complete` event                                                     | Wall time of the whole job, after the manifest is written and the cache pruned                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `metrics.threads`, `metrics.ramBudgetMb`                  | result, pointer and `prepare()`                                                  | The run's settings                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `metrics.admissionEstimatedBytes`, `metrics.compileWaves` | result, pointer and `prepare()` (absent on a kept folder)                        | The working set the run admitted and the waves it cut from its budget                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Field | Where | Meaning |
+| --- | --- | --- |
+| `metrics.importMs` | result and pointer | Source routed, loaded, validated, its geometry copied |
+| `metrics.clusterHierarchyPagesMs` | result and pointer | Clustering, paging, coplanar cuts, resident proxy and lights |
+| `metrics.compileMs` | result and pointer | Wall time until the manifest is serialized |
+| `metrics.pruneMs` | pointer | Wall time of the prune after publication |
+| `metrics.phaseElapsedMs` | result and pointer | Elapsed time per phase, summed over worker threads; the texture stage publishes `textureDecodeMs`, `textureBakeMs` (chains, block encodes and their gate read-back), `textureWriteMs` and `textureAlphaMs` |
+| `reusedPages` | result (per primitive), pointer and `prepare()` (total, `null` on a kept folder) | Page objects the run found already built |
+| `metrics.wallMs` | pointer and `complete` event | Wall time of the whole job, after the manifest is written and the cache pruned |
+| `metrics.threads`, `metrics.ramBudgetMb` | result, pointer and `prepare()` | The run's settings |
+| `metrics.admissionEstimatedBytes`, `metrics.compileWaves` | result, pointer and `prepare()` (absent on a kept folder) | The working set the run admitted and the waves it cut from its budget |
 
-What a run measures of itself — every `…Ms`, `peakRssBytes`, `reusedPages` — and its settings —
-`threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaves` — are its report, never its
-product: the written manifest keeps none of it, nor which cutout sheet the run read, only the
-answers it applied, so a cold and a warm compile of one scene write the same bytes (#1370), and so
-do two compiles on other threads or under another RAM budget (#1405): the waves only order the
-work, each primitive's result is kept in its place;
-`prepare()` returns the pointer's; the pointer and `complete` carry them all, `wallMs` and `pruneMs` too, and
-`wallMs` ≥ `compileMs + pruneMs`; it bounds a
-single phase only when one thread did the work. The `phaseElapsedMs` phases **overlap** and are
-elapsed time on the `wallMs` clock, not CPU: a wait, disk write or descheduled thread lands in the
-open phase (a host callback sleeping 250 ms adds 250 ms). Summed across threads, with `threads > 1`
-their total can exceed `wallMs`, and adding phases is meaningless. Nothing measures processor time;
-`cpuMs` and `diskBytesRead` stay `null`. `peakRssBytes`, the process's peak resident memory
-(`getrusage`), is in the result, the pointer and every progress event — the first event where it jumps names
-the stage that raised it; it is shared by a batch's concurrent jobs.
+What a run measures of itself and its settings are its report, never its product
+([FORMAT.md](FORMAT.md#clustersjson)): the manifest keeps none of it, nor which cutout sheet the run
+read, only the answers it applied. `prepare()` returns the pointer's; the pointer and `complete`
+carry them all, and `wallMs` ≥ `compileMs + pruneMs`. The `phaseElapsedMs` phases **overlap** and
+are elapsed time on the `wallMs` clock, not CPU: a wait, disk write or descheduled thread lands in
+the open phase. Summed across threads, with `threads > 1` their total can exceed `wallMs`, and
+adding phases is meaningless. Nothing measures processor time; `cpuMs` and `diskBytesRead` stay
+`null`. `peakRssBytes`, the process's peak resident memory (`getrusage`), is in the result, the
+pointer and every progress event — the first event where it jumps names the stage that raised it;
+it is shared by a batch's concurrent jobs.
 
 ## Batch mode
 
@@ -443,15 +411,15 @@ two jobs sharing one would destroy each other's output):
 }
 ```
 
-| Field                                                                   | Meaning                                                                        | Default                                              |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| `workers`                                                               | Concurrent jobs (1–64), lowered until the budget holds them                    | `1`                                                  |
-| `ramBudgetMb`                                                           | Total admission budget, split evenly between workers unless a job sets its own | `256 × workers`                                      |
-| `threads`                                                               | Default threads per job                                                        | `2`                                                  |
-| `jobs[].id`                                                             | Unique job id in events and the summary                                        | `job-<index>`                                        |
-| `jobs[].source`, `cache`, `resourceBaseUrl`                             | As on the command line                                                         | required                                             |
-| `jobs[].scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides                                                              | `full`, `150000`, batch default, batch share, `none` |
-| `jobs[].texturesFormat`                                                 | As `--textures-format=`                                                        | `bc7`                                                |
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `workers` | Concurrent jobs (1–64), lowered until the budget holds them | `1` |
+| `ramBudgetMb` | Total admission budget, split evenly between workers unless a job sets its own | `256 × workers` |
+| `threads` | Default threads per job | `2` |
+| `jobs[].id` | Unique job id in events and the summary | `job-<index>` |
+| `jobs[].source`, `cache`, `resourceBaseUrl` | As on the command line | required |
+| `jobs[].scope`, `triangles`, `threads`, `ramBudgetMb`, `simplification` | Per-job overrides | `full`, `150000`, batch default, batch share, `none` |
+| `jobs[].texturesFormat` | As `--textures-format=` | `bc7` |
 
 Jobs go in file order to the first free worker. stdout at the end:
 
@@ -462,24 +430,21 @@ Jobs go in file order to the first free worker. stdout at the end:
 
 `jobs` is sorted by id; `status` is `partial` when some but not all jobs are ready, `failed` when
 none is. The summary is always printed, so a host reads it rather than the exit code (2 unless every
-job is ready — the normal outcome of a partial batch, not a process failure). Only a batch file
-refused outright prints `{"status":"error","code":"INVALID_BATCH",...}`, with no `jobs`.
+job is ready). Only a batch file refused outright prints
+`{"status":"error","code":"INVALID_BATCH",...}`, with no `jobs`.
 
-Two jobs may not write one cache: each prunes it after publishing, erasing the other's result.
-Destinations are compared by identity — the longest existing prefix canonicalized, symlinks
-included, the absent suffix normalized (`.`, `..`, doubled separators) — so `x` and `p/../x` are one
-cache, and the batch is refused (`INVALID_BATCH`) before any job starts, naming both jobs and
-spellings.
+Two jobs may not write one cache. Destinations are compared by identity — the longest existing
+prefix canonicalized, symlinks included, the absent suffix normalized (`.`, `..`, doubled
+separators) — so `x` and `p/../x` are one cache, and the batch is refused (`INVALID_BATCH`) before
+any job starts, naming both jobs and spellings.
 
 `ramBudgetMb` budgets the **whole batch**. No job is admitted under 64 MiB, so `workers` is lowered
 until every set of jobs that could run together fits: `workers: 2` with `ramBudgetMb: 64` runs one
 job at a time with 64 MiB. Per-job overrides count the same way (the largest that would run together
 must fit); a job asking for more than the whole batch, or a total under 64 MiB, is refused with
 `INVALID_BATCH` before anything starts. The `batch` event publishes the concurrency admitted, each
-`accepted` event its job's share — an admission estimate, not an enforced RSS ceiling.
-
-For thousands of models: one batch file, `workers` sized to the machine, `ramBudgetMb` what it can
-give; each job has its own pool of `threads`, so `workers × threads` is the CPU ceiling.
+`accepted` event its job's share — an admission estimate, not an enforced RSS ceiling. Each job has
+its own pool of `threads`, so `workers × threads` is the CPU ceiling.
 
 ## Cancellation
 
@@ -501,7 +466,8 @@ the import cache (below).
 ## FBX and OBJ import
 
 A `.fbx`/`.obj` `SOURCE`, or a directory of such files with neither `manifest.json` nor a glTF, is
-first imported into the cache:
+first imported into the cache, like every converting driver's source (USD, Alembic, `.blend`, Maya
+ASCII, Unity):
 
 ```
 <CACHE>/native/imports/<import-key>/
@@ -513,58 +479,102 @@ first imported into the cache:
 `<import-key>` hashes every input file, the driver's name and version, **every other file the reader
 opened** (the `.mtl` an OBJ cites, absence included) **and every image path the texture resolution
 tried** — path, existence, bytes: the reader never opens an image, but its presence picks the
-intermediate glTF's URI, and leaving images out once served a scene compiled before its image
-existed. An unchanged source and driver is imported once and reused (`import-source/reused`); a
-touched, deleted or new material library **or texture** gives another key. The import manifest lists
-only the files the reader opened; what the resolution kept is in `images`. The compile then treats
-the import like a hand-made glTF folder.
+intermediate glTF's URI. An unchanged source and driver is imported once and reused
+(`import-source/reused`); a touched, deleted or new material library **or texture** gives another
+key. The import manifest lists only the files the reader opened; what the resolution kept is in
+`images`. The compile then treats the import like a hand-made glTF folder.
 
 What is carried:
 
-| Source                                         | glTF                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Positions, normals, one UV set, one colour set | `POSITION`, `NORMAL` (generated when missing), `TEXCOORD_0` (V flipped), `COLOR_0`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Polygons                                       | Triangulated by ufbx; indices `u16` under 65 536 vertices, else `u32`                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Units and axes                                 | Metres, right-handed, Y up (FBX `UnitScaleFactor` and axis system honoured; OBJ assumed metres, Y up)                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Instances                                      | One glTF mesh per (mesh, material list), one node per instance with its world matrix (`geometry_to_world`, geometry transforms and pivots baked)                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Materials                                      | `pbrMetallicRoughness` from ufbx's unified PBR view (Phong, Lambert, Arnold, Stingray, 3ds Max, OpenPBR, MTL…): base colour + alpha, metallic, roughness (glossiness inverted), emissive, normal, occlusion, metallic-roughness when one texture carries both; `doubleSided`; `alphaMode` `BLEND` when opacity < 1 or an opacity texture is bound, **never** `MASK` — no import format declares a cutoff, and clipping a transparent material loses fidelity. A bound texture replaces the colour factor (FBX semantics). Default roughness: 0.6 |
-| Map options (MTL)                              | `-clamp on` sets the sampler's edge mode on both axes; `-o`, `-s` and `-bm` are counted, not applied                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Textures                                       | PNG/JPEG resolved inside the source directory (declared absolute, relative or bare name; then `textures/`; then a `.png`/`.jpg` sibling of a DDS/TGA/…); embedded bytes become buffer views; wrap modes → sampler. Referenced by a **URI** relative to the source directory, percent-escaped per glTF (a name with `%`, `#`, `?` or a space survives), served under `RESOURCE_BASE_URL`                                                                                                                                                          |
-| Lights                                         | Point, directional, spot → `KHR_lights_punctual`, along the FBX light direction                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Hidden nodes                                   | Skipped, counted                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+- Positions, normals, one UV set, one colour set → `POSITION`, `NORMAL` (generated when missing),
+  `TEXCOORD_0` (V flipped), `COLOR_0`.
+- Polygons: triangulated by ufbx; indices `u16` under 65 536 vertices, else `u32`.
+- Units and axes: metres, right-handed, Y up (FBX `UnitScaleFactor` and axis system honoured; OBJ
+  assumed metres, Y up).
+- Instances: one glTF mesh per (mesh, material list), one node per instance with its world matrix
+  (`geometry_to_world`, geometry transforms and pivots baked).
+- Materials: `pbrMetallicRoughness` from ufbx's unified PBR view (Phong, Lambert, Arnold, Stingray,
+  3ds Max, OpenPBR, MTL…): base colour + alpha, metallic, roughness (glossiness inverted), emissive,
+  normal, occlusion, metallic-roughness when one texture carries both; `doubleSided`; `alphaMode`
+  `BLEND` when opacity < 1 or an opacity texture is bound, **never** `MASK` — no import format
+  declares a cutoff. A bound texture replaces the colour factor (FBX semantics). Default roughness:
+  0.6.
+- MTL map options: `-clamp on` sets the sampler's edge mode on both axes; `-o`, `-s` and `-bm` are
+  counted, not applied. ufbx keeps `Tr` and `illum` as raw properties: a transparency written `Tr`
+  instead of `d` is lost, the illumination model ignored.
+- Textures: PNG/JPEG resolved inside the source directory (declared absolute, relative or bare name;
+  then `textures/`; then a `.png`/`.jpg` sibling of a DDS/TGA/…); embedded bytes become buffer
+  views; wrap modes → sampler. Referenced by a URI relative to the source directory, percent-escaped
+  per glTF, served under `RESOURCE_BASE_URL`.
+- Lights: point, directional, spot → `KHR_lights_punctual`, along the FBX light direction.
+- Hidden nodes: skipped, counted.
 
 Not carried, counted under `unsupported`: cameras, area/volume lights, procedural textures, UV
 transforms, textures outside the source directory, GPU-only image formats without a PNG/JPEG
 sibling, separate opacity textures, split metallic/roughness textures, and the `material-*` and
-`texture-*` rows of the [error tables](COMPILER_ERRORS.md). ufbx warnings (clamped indices, …) go
-under `notes`; a missing
-material library has its own code instead. The import manifest also records per file: format, FBX
+`texture-*` rows of the [error tables](COMPILER_ERRORS.md). ufbx warnings go under `notes`; a
+missing material library has its own code. The import manifest also records per file: format, FBX
 version, creator, unit scale, mesh/material/texture/light counts, parse and conversion time.
 
 ## USD and USDZ import
 
 A `.usd`, `.usda` or `.usdc` layer is composed by the `usd` driver into the same intermediate scene
-under `<CACHE>/native/imports/<import-key>/`. A `.usdz` package is a container: extracted under the
-cache, its content routed like any source, its layer through `usd`.
+under `<CACHE>/native/imports/<import-key>/`. A `.usdz` package is a container (the `usdz` driver):
+extracted under the cache, its content routed like any source, its layer through `usd`. What is
+dropped or approximated is counted under `unsupported` by its `usd-*` code
+([COMPILER_ERRORS.md](COMPILER_ERRORS.md)).
 
-| Source                              | glTF                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Xform`, `Scope`, any untyped group | One node each; `xformOpOrder` composed into a column-major `matrix` (translate, scale, the six Euler orders, `orient`, `transform`, and their `!invert!` forms). `rotateXYZ` … `rotateZYX` apply rotations in letter order, first letter most local; the angles stay written `(x, y, z)` under every order                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `Mesh`                              | Polygons triangulated in their own plane ([Polygon faces](#polygon-faces)); `orientation` honoured (`leftHanded` reverses each triangle); indices `u16` under 65 536 vertices, else `u32`; a face with an index outside the points or negative, under three corners, or a primvar index outside its array is dropped and counted (`usd-face-invalid`), never folded onto point zero; a `holeIndices` face, invisible in OpenUSD, is dropped and counted (`usd-face-hole`) whatever the subdivision scheme, a hole index outside the face table counting as `usd-face-invalid`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Normals and `primvars:st`           | Resolved through `interpolation` (`constant`, `uniform`, `vertex`/`varying`, `faceVarying`) and `:indices`; `TEXCOORD_0` V flipped; a corner's (point, normal, uv) is the vertex key                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `GeomSubset`, family `materialBind` | One primitive per subset; unclaimed faces take the mesh's `material:binding`. Bindings resolve up the ancestors, nearest winning (a subset binding none takes its mesh's), and `bindMaterialAs = "strongerThanDescendants"` wins over those below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Instances                           | `instanceable` prims sharing a prototype share one glTF mesh, one node each; `class` prims are templates, not traversed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| Roots and `defaultPrim`             | Every root is converted; `defaultPrim` is the entry point that opens the scene, dropping no other root                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `visibility`                        | `invisible` removes the prim and its subtree (inherited; no descendant comes back); counted as `invisible` in the manifest counts                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Units and axes                      | `metersPerUnit` (0.01 when undeclared) and `upAxis` land on the scene root node, never in the vertices (`Z` up becomes `Y` up)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Materials                           | `UsdPreviewSurface` → `pbrMetallicRoughness`: `diffuseColor` + `opacity` → `baseColorFactor`, `metallic`, `roughness`, `emissiveColor`, `normal`; a connected `UsdUVTexture` wins over the written factor, which then stays at one. An `opacity` bound to the base-colour texture's alpha rides in it; bound to another image it has no place in glTF (`usd-opacity-texture-unsupported`). A shared metallic/roughness map is read as glTF packs it, metal `outputs:b`, roughness `outputs:g`; an opacity from the base-colour image is carried only from `outputs:a`, any other channel keeping the written opacity (`usd-texture-channel-unsupported`). `opacityThreshold` > 0 → `MASK` at that cutoff; else an opacity below one or from the base-colour texture → `BLEND`. Absent inputs take the specification's defaults — `diffuseColor` 0.18 grey (never white), `roughness` 0.5, `metallic` 0, `opacity` 1 —; a textured `occlusion` reaches `occlusionTexture` through red. `doubleSided` comes from the mesh: an unbound double-sided mesh gets one shared default material carrying it, and a bound material is duplicated into a double-sided variant, never mutated |
-| Textures                            | `UsdUVTexture` by URI; its asset path is anchored on the authoring layer (reference, sublayer or payload), then taken back under the source directory; `wrapS` and `wrapT` reach the sampler, a mode glTF lacks repeating (`usd-texture-wrap-unsupported`); a `scale` equal across colour channels with no `bias` becomes the material factor, anything else stays out (`usd-texture-scale-unsupported`); a `sourceColorSpace` contrary to the input's role is counted (`usd-texture-colour-space-unsupported`), never re-encoded                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Animation                           | The default value, else the lowest time sample (`usd-animation-first-sample`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `UsdLux` lights                     | `SphereLight`, `DiskLight` and `RectLight` (glTF has no area source) → `point`, `DistantLight` → `directional`; a `ShapingAPI` cone makes any a `spot`, `softness` giving the inner angle; `ShadowAPI` `inputs:shadow:enable` rides in `extras.castsShadow`. `inputs:intensity` × 2^`inputs:exposure` is a radiance; the radiant intensity is it times the source's projected area — `π r²` for a sphere or disk, width × height for a rect — unless `inputs:normalize` is set, and a distant light carries its irradiance as written; glTF's photometric value is the radiometric one times 683 cd/W, which `lights.json` divides back out. `inputs:radius`, or half the diagonal of `inputs:width` × `inputs:height`, becomes `extras.emitterRadius` in world metres (layer unit and prim scale included). A distant light's `inputs:angle` is an angular diameter and a directional lamp takes no envelope: not carried                                                                                                                                                                                                                                                        |
+- `Xform`, `Scope`, any untyped group: one node each; `xformOpOrder` composed into a column-major
+  `matrix` (translate, scale, the six Euler orders, `orient`, `transform`, and their `!invert!`
+  forms). `rotateXYZ` … `rotateZYX` apply rotations in letter order, first letter most local; the
+  angles stay written `(x, y, z)` under every order.
+- `Mesh`: polygons triangulated in their own plane ([Polygon faces](#polygon-faces)); `orientation`
+  honoured (`leftHanded` reverses each triangle); indices `u16` under 65 536 vertices, else `u32`. A
+  face with an index outside the points or negative, under three corners, or a primvar index outside
+  its array is dropped, never folded onto point zero; a `holeIndices` face is dropped whatever the
+  subdivision scheme.
+- Normals and `primvars:st`: resolved through `interpolation` (`constant`, `uniform`,
+  `vertex`/`varying`, `faceVarying`) and `:indices`; `TEXCOORD_0` V flipped; a corner's (point,
+  normal, uv) is the vertex key.
+- `GeomSubset`, family `materialBind`: one primitive per subset; unclaimed faces take the mesh's
+  `material:binding`. Bindings resolve up the ancestors, nearest winning (a subset binding none
+  takes its mesh's), and `bindMaterialAs = "strongerThanDescendants"` wins over those below.
+- Instances: `instanceable` prims sharing a prototype share one glTF mesh, one node each; `class`
+  prims are templates, not traversed.
+- Roots and `defaultPrim`: every root is converted; `defaultPrim` is the entry point that opens the
+  scene, dropping no other root.
+- `visibility`: `invisible` removes the prim and its subtree (inherited; no descendant comes back),
+  counted as `invisible` in the manifest counts.
+- Units and axes: `metersPerUnit` (0.01 when undeclared) and `upAxis` land on the scene root node,
+  never in the vertices (`Z` up becomes `Y` up).
+- Materials: `UsdPreviewSurface` → `pbrMetallicRoughness`: `diffuseColor` + `opacity` →
+  `baseColorFactor`, `metallic`, `roughness`, `emissiveColor`, `normal`; a connected `UsdUVTexture`
+  wins over the written factor, which then stays at one. An `opacity` bound to the base-colour
+  texture's alpha (`outputs:a`) rides in it, any other opacity texture or channel keeps the written
+  opacity. A shared metallic/roughness map is read as glTF packs it, metal `outputs:b`, roughness
+  `outputs:g`. `opacityThreshold` > 0 → `MASK` at that cutoff; else an opacity below one or from the
+  base-colour texture → `BLEND`. Absent inputs take the specification's defaults — `diffuseColor`
+  0.18 grey, `roughness` 0.5, `metallic` 0, `opacity` 1 —; a textured `occlusion` reaches
+  `occlusionTexture` through red. `doubleSided` comes from the mesh: an unbound double-sided mesh
+  gets one shared default material carrying it, and a bound material is duplicated into a
+  double-sided variant, never mutated.
+- Textures: `UsdUVTexture` by URI; its asset path is anchored on the authoring layer (reference,
+  sublayer or payload), then taken back under the source directory; `wrapS` and `wrapT` reach the
+  sampler, a mode glTF lacks repeating; a `scale` equal across colour channels with no `bias`
+  becomes the material factor, anything else stays out; a `sourceColorSpace` contrary to the
+  input's role is counted, never re-encoded.
+- Animation: the default value, else the lowest time sample.
+- `UsdLux` lights: `SphereLight`, `DiskLight` and `RectLight` (glTF has no area source) → `point`,
+  `DistantLight` → `directional`; a `ShapingAPI` cone makes any a `spot`, `softness` giving the
+  inner angle; `ShadowAPI` `inputs:shadow:enable` rides in `extras.castsShadow`.
+  `inputs:intensity` × 2^`inputs:exposure` is a radiance; the radiant intensity is it times the
+  source's projected area — `π r²` for a sphere or disk, width × height for a rect — unless
+  `inputs:normalize` is set, and a distant light carries its irradiance as written; glTF's
+  photometric value is the radiometric one times 683 cd/W, which `lights.json` divides back out. `inputs:radius`, or half the diagonal of
+  `inputs:width` × `inputs:height`, becomes `extras.emitterRadius` in world metres. A distant
+  light's `inputs:angle` is not carried.
 
-Not carried: the `usd-*` rows of the [error tables](COMPILER_ERRORS.md), counted under
-`unsupported`. The import manifest
-also records the layer read, its size and SHA-256.
+The import manifest also records the layer read, its size and SHA-256.
 
 ### Polygon faces
 
@@ -574,11 +584,7 @@ way by a non-zero angle, the edges swinging round exactly once — is written as
 first corner in one pass. Every other ring is ear-clipped, cutting only empty triangles, so a
 concave face keeps its area and outline; a ring the ears cannot finish (self-crossing, or planeless)
 falls back on the fan, counted under `<driver>-ngon-untriangulable`. On a strictly convex ring the
-ears cut that very fan — in exact arithmetic, and on every ring tested and fuzzed (millions of
-random rings, none differing) — so no index of the compared caches moved; a collinear or duplicated
-corner, a special case for the ears, keeps the ear path. Not a theorem: a ring within rounding of
-collinear could in principle be read convex here and cut otherwise by the ears. The gain: a convex
-polygon of `n` corners cost `n²` corner tests and now costs `n`.
+ears would cut that very fan; a collinear or duplicated corner keeps the ear path.
 
 ## Input formats
 
@@ -590,67 +596,73 @@ only where the quality gate of [FORMAT.md](FORMAT.md#textures) holds its loss un
 measured bound; a texture received GPU-compressed keeps its format where the machine supports it and
 is decoded only as a fallback.
 
-Legal policy: no proprietary format, unless established legal reading. This page is not legal
-advice; verdicts come from documentary analysis (Directive 2009/24/EC art. 1, 5 § 3, 6; CJEU SAS
-Institute C‑406/10; 17 USC § 102(b); SAS v. WPL, 4th Cir. 2017 on contract scope). Repository rules:
-each reader is written in this repository, its dependencies' licenses respected, never
-any editor code or SDK reused, never any protection bypass, provenance of each reader documented,
-redistributable test suites.
+No proprietary format is read without an established legal reading (this page is not legal advice).
+Each reader is written in this repository, its dependencies' licenses respected, never any editor
+code or SDK reused, never any protection bypassed, the provenance of each reader documented, its
+test suites redistributable.
 
 ### Architecture: one driver per format
 
-The compiler knows no format. It routes each source to a driver (interpretation plugin) in a static
-registry, on the model of a device driver ([Adding a format](#adding-a-format)):
+The compiler knows no format. It routes each source to a driver in a static registry
+([Adding a format](#adding-a-format)):
 
-- **one driver per format, without exception**: `gltf`, `fbx`, `obj` for scenes; `png`, `jpeg` for
-  images; then `tga`, `tiff`, `dds`, `exr`, `hdr`, `ktx2`, `webp`, `psd`, `bmp`, `gif`, `zip`,
-  `unitypackage`, `unity`, `usd`, `alembic`, `blend`, `ma`;
+- **one driver per format, without exception**: `gltf`, `fbx`, `obj`, `unity`, `blend`, `zip`,
+  `unitypackage`, `alembic`, `usd`, `usdz`, `ma` for scenes (`plugins/scene.rs`); `png`, `jpeg`,
+  `tga`, `tiff`, `dds`, `exr`, `hdr`, `ktx2`, `webp`, `psd`, `bmp`, `gif` for images;
 - each is a Rust module with its name, version, detection (extension, magic number, folder
   structure), named report and minimal golden test; two drivers may share a library (ufbx for `fbx`
   and `obj`, the `image` crate for images) and remain two registry entries;
 - two versioned contracts: scene driver (glTF intermediate scene + bin + report) and image driver
   (RGBA8, or RGBA linear float for EXR and HDR); driver and contract versions enter the cache
-  identity, and the selected driver (name, version) is recorded in the manifest and report for
-  provenance;
+  identity, and the selected driver (name, version) is recorded in the manifest and report;
 - an unknown or ambiguous source is rejected with the list of accepted formats, never interpreted
   by default.
 
 ### Safe
 
-Every format below is done; "here from spec" means a reader written in this repository from the
-specification, without a crate.
+"Here from spec" means a reader written in this repository from the specification, without a crate.
 
-| Format                   | Base                                                     | Path                                                                                                                                                                                                                                                           | Priority |
-| ------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| glTF / GLB               | Khronos standard                                         | —                                                                                                                                                                                                                                                              | —        |
-| OBJ / MTL                | published specification                                  | MTL read and audited (golden [`tests/fixtures/formats/obj`](../tests/fixtures/formats/README.md#obj)). Limit: ufbx keeps `Tr` and `illum` as uninterpreted raw properties — a transparency written `Tr` instead of `d` is lost, the illumination model ignored | P2       |
-| PNG, classic JPEG        | standards                                                | —                                                                                                                                                                                                                                                              | —        |
-| TGA                      | published specification                                  | —                                                                                                                                                                                                                                                              | —        |
-| TIFF (declared profiles) | published specification                                  | —                                                                                                                                                                                                                                                              | —        |
-| OpenEXR, Radiance HDR    | documented, BSD-3                                        | `exr` crate 1.74.2 for OpenEXR; HDR here from spec                                                                                                                                                                                                             | —        |
-| USD / USDZ               | public AOUSD, OpenUSD under TOST 1.0                     | `openusd` crate 0.7.0 (MIT, pure Rust, no C++); what `usd` carries and counts: [USD and USDZ import](#usd-and-usdz-import); `usdz` is a stored and aligned ZIP container                                                                                       | —        |
-| Alembic                  | open, BSD-3                                              | static geometry only; Ogawa reader here from spec                                                                                                                                                                                                              | —        |
-| `.blend`                 | documented SDNA; reading a .blend does not impose GPL    | SDNA reader written here; meshes of Blender 2.8 to 5.x, UVs, instances, Principled BSDF                                                                                                                                                                        | —        |
-| PSD / PSB                | specification published by Adobe for third-party readers | flattened composite only, to RGBA8; reader here from spec; RGB and 8-bit grayscale, raw or PackBits, PSD and PSB                                                                                                                                               | P3       |
-| BMP, GIF                 | open                                                     | `image` features; lossless only — BMP masks with >8 bits per channel and animated GIF rejected by name                                                                                                                                                         | P3       |
-| ZIP                      | open                                                     | —                                                                                                                                                                                                                                                              | —        |
+- glTF / GLB: Khronos standard.
+- OBJ / MTL: published specification; MTL read and audited (golden
+  [`tests/fixtures/formats/obj`](../tests/fixtures/formats/README.md#obj)); `Tr` and `illum` not
+  interpreted ([FBX and OBJ import](#fbx-and-obj-import)).
+- PNG, classic JPEG: standards.
+- TGA: published specification.
+- TIFF (declared profiles): published specification.
+- OpenEXR, Radiance HDR: documented, BSD-3; `exr` crate for OpenEXR, HDR here from spec.
+- USD / USDZ: public AOUSD, OpenUSD under TOST 1.0; `openusd` crate (MIT, pure Rust, no C++); `usdz`
+  is a stored and aligned ZIP container ([USD and USDZ import](#usd-and-usdz-import)).
+- Alembic: open, BSD-3; static geometry only; Ogawa reader here from spec.
+- `.blend`: documented SDNA, reading a `.blend` does not impose GPL; SDNA reader written here;
+  meshes of Blender 2.8 to 5.x, UVs, instances, Principled BSDF.
+- PSD / PSB: specification published by Adobe for third-party readers; flattened composite only, to
+  RGBA8; reader here from spec; RGB and 8-bit grayscale, raw or PackBits.
+- BMP, GIF: open; `image` features; lossless only — BMP masks with more than 8 bits per channel and
+  animated GIF rejected by name.
+- ZIP: open.
 
 ### Conditionally Safe — condition written in code
 
-| Format                                     | Condition                                                                          | Path                                                                                                                                                                                                                                                                                                                                                | Priority |
-| ------------------------------------------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| FBX                                        | MIT ufbx, frozen version, notices kept, never Autodesk SDK                         | —                                                                                                                                                                                                                                                                                                                                                   | —        |
-| Unity `.unity`, `.prefab`, `.mat`, `.meta` | YAML subset documented by Unity; data only, never Unity scripts or code            | —                                                                                                                                                                                                                                                                                                                                                   | —        |
-| `.unitypackage`                            | tar.gz archive; each file retains its license                                      | —                                                                                                                                                                                                                                                                                                                                                   | —        |
-| DDS                                        | container documented by Microsoft; codecs declared one by one                      | —                                                                                                                                                                                                                                                                                                                                                   | —        |
-| KTX2, Basis Universal                      | Khronos; `basisu` Apache-2; codecs listed one by one                               | KTX2 only; ETC1S/BasisLZ and UASTC LDR by `basisu`, Zstandard by `ruzstd`, uncompressed R8G8B8A8, BC1–BC5, BC7, ETC2, EAC, ASTC 4×4; KTX 1.0 no                                                                                                                                                                                                     | —        |
-| WebP                                       | written in this repository; pure Rust decoder `image-webp`, libwebp patent license | lossless only, lossy stream and animation rejected by name                                                                                                                                                                                                                                                                                          | —        |
-| Maya ASCII `.ma`                           | documented format; data only, no script executed                                   | reader here from the public MEL command docs; subset `createNode`, `setAttr`, `connectAttr`, `currentUnit`, `parent`; `transform`, `mesh`, `lambert`/`phong`/`blinn`/`standardSurface`, `file`/`place2dTexture`/`bump2d`, `shadingEngine` by face groups. Any other command — `python`, `eval`, `source`, unknown — counted by name, never executed | —        |
+- FBX: MIT ufbx, frozen version, notices kept, never the Autodesk SDK.
+- Unity `.unity`, `.prefab`, `.mat`, `.meta`: YAML subset documented by Unity; data only, never
+  Unity scripts or code.
+- `.unitypackage`: tar.gz archive; each file retains its license.
+- DDS: container documented by Microsoft; codecs declared one by one.
+- KTX2, Basis Universal: Khronos, `basisu` Apache-2. KTX2 only: ETC1S/BasisLZ and UASTC LDR by
+  `basisu`, Zstandard by `ruzstd`, uncompressed R8G8B8A8, BC1–BC5, BC7, ETC2, EAC, ASTC 4×4; KTX 1.0
+  not read.
+- WebP: pure Rust decoder `image-webp`, libwebp patent license; lossless only, lossy stream and
+  animation rejected by name.
+- Maya ASCII `.ma`: documented format; data only, no script executed. Reader here from the public
+  MEL command docs; subset `createNode`, `setAttr`, `connectAttr`, `currentUnit`, `parent`;
+  `transform`, `mesh`, `lambert`/`phong`/`blinn`/`standardSurface`,
+  `file`/`place2dTexture`/`bump2d`, `shadingEngine` by face groups. Any other command — `python`,
+  `eval`, `source`, unknown — counted by name, never executed.
 
 ### To Avoid — No Native Import
 
 `.uasset` / `.umap`, `.max`, `.mb` (binary), native SpeedTree, Substance `.sbsar`, CAD (`.step`,
-`.3dm`), point clouds, HEIC. Request export in one of listed formats.
+`.3dm`), point clouds, HEIC. Request an export in one of the listed formats.
 
 ### Content Licenses — Independent of Format
 
@@ -658,7 +670,8 @@ Audit local asset and license manifests with [the offline license audit](ASSET_L
 
 - FAB Standard License: use with other tools and engines permitted, standalone asset redistribution
   prohibited; historical licenses apply for some items, keep purchase EULA.
-- Quixel Megascans under reference Engine plan: restricted to reference Engine, unusable in Trillion3D.
+- Quixel Megascans under reference Engine plan: restricted to reference Engine, unusable in
+  Trillion3D.
 - Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset
   distribution; model library distributor is not a finished game.
 - Sketchfab: per-download license (CC-BY requires attribution and change notice).
@@ -691,8 +704,8 @@ stay ambiguous.
 
 `prepare` receives every file of the claimed folder, accepts one or several, and rejects with
 `SOURCE_FORMAT_AMBIGUOUS` when it wants only one. It checks `request.cancelled` at each bounded work
-boundary, reports through `request.progress`, and writes only under `request.cache`, never beside
-the source.
+boundary, reports through `request.progress` (a converter under `import-source`), and writes only
+under `request.cache`, never beside the source.
 
 glTF tables (nodes, meshes, materials, accessors, images) are filled by `src/import/tables.rs`
 (`SceneTables`), primitives emitted from deduplicated vertices by `src/import/primitive.rs`
@@ -727,11 +740,11 @@ A failed decode returns a report reason (a stable string like `image-decode-fail
 compilation error: the engine falls back to its default white. A decoder never returns an empty
 image and never panics.
 
-`DecodedImage` has two variants since `image-plugin-2`: `Rgba8`, and `RgbaF32` for high dynamic
-range. **A driver never converts one to the other**: float to 8-bit needs tone mapping, a loss the
-source lacked. The consumer decides by `match` and a named reason (`image-float-unsupported` for the
-RGBA8 sRGB previews). A float driver checks the ceiling at **sixteen bytes per pixel** before
-allocating (`float_budget`), the rejection naming its format.
+`DecodedImage` has two variants: `Rgba8`, and `RgbaF32` for high dynamic range. **A driver never
+converts one to the other**: float to 8-bit needs tone mapping, a loss the source lacked. The
+consumer decides by `match` and a named reason (`image-float-unsupported` for the RGBA8 sRGB
+previews). A float driver checks the ceiling at **sixteen bytes per pixel** before allocating
+(`float_budget`), the rejection naming its format.
 
 ### What to Provide With It
 
@@ -744,12 +757,13 @@ allocating (`float_budget`), the rejection naming its format.
   tests exist, not to be duplicated per format. Read a decode with `rgba8()` or `rgba_f32()` from
   `src/plugins/tests.rs`, never an irrefutable `let` on a `DecodedImage` variant: a test assuming
   one output says so by a call that panics on the other.
-- **Dependencies**: a driver's library and its license are declared in `Cargo.toml` and `THIRD_PARTY_NOTICES.md`, not cited in its comments.
+- **Dependencies**: a driver's library and its license are declared in `Cargo.toml` and
+  `THIRD_PARTY_NOTICES.md`, not cited in its comments.
 
 ### Forbidden
 
-- Reusing editor code or SDK, even available: each reader is written in this repository, its dependencies'
-  licenses kept.
+- Reusing editor code or SDK, even available: each reader is written in this repository, its
+  dependencies' licenses kept.
 - Bypassing a format's encryption, protection or license check.
 - Breaking the fidelity [policy](#input-formats): re-encoding a lossy source, modifying or writing
   beside originals.
@@ -759,25 +773,38 @@ allocating (`float_budget`), the rejection naming its format.
 
 ## Cache layout
 
-Written by a job under `<CACHE>/native/`:
+Written by a job under `<CACHE>/native/` ([FORMAT.md](FORMAT.md#layout) is the reader's contract):
 
-| Path                                             | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<scope>/manifest.json`                          | Pointer: `{status, formatVersion, compiler, key, scope, url}`                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `<scope>/<key>/clusters.json` + its pages        | Compiled manifest (root, JSON pages + typed-array columns), see [FORMAT.md](FORMAT.md)                                                                                                                                                                                                                                                                                                                                                                                            |
-| `<scope>/<key>/source.gltf` + `source.bin`       | Source glTF on one aligned buffer, image URIs rewritten under `RESOURCE_BASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `<scope>/<key>/scene.gltf` + `scene.bin`         | Autonomous scene for the prepared-page backends (materials, no source geometry), written only when every primitive is exact and the source declares no animation, skinning or morph weights; otherwise `autonomousScene` is `null` and `autonomous-scene-animated` says why                                                                                                                                                                                                       |
-| `textures/v<N>/<sha256>/<kind>-<level>.<format>` | Baked mip levels above the sidecar's tail — lossless PNG, plus the kept block family — addressed by the source image's SHA-256, shared across keys and scopes, never rewritten, pruned with the objects; kinds, formats and `v<N>`: [FORMAT.md](FORMAT.md#textures)                                                                                                                                                                                                               |
-| `objects/<sha256>.bin`                           | Content-addressed index pages, quantized cluster pages (`WGP3`, [FORMAT.md](FORMAT.md)) and streaming bundles, shared across keys and scopes                                                                                                                                                                                                                                                                                                                                      |
-| `imports/<import-key>/`                          | FBX/OBJ import (above)                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `<scope>/<key>/lights.json`                      | Scene lights in the engine's `SceneLight` contract (below)                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `<scope>/<key>/scene-tables.json`                | Node graph, lights, surfaces and geometry layout of the prepared scene, read from the `source.gltf` (and `scene.gltf`) the job publishes; the runtime builds its scene from it alone ([FORMAT.md](FORMAT.md#prepared-scene-tables)). Placements outgrowing one stream unit go to `scene-cell-<n>.json` cells beside it, halved by bytes along their widest spread, boxed in each core parent's frame, read by distance, indexed by pages ([FORMAT.md](FORMAT.md#world-partition)) |
+- `.lock`: the cache's exclusion, held while a job writes (`CACHE_LOCKED`).
+- `<scope>/manifest.json`: the pointer, `{status, formatVersion, compiler, key, scope, url}`.
+- `<scope>/<key>/clusters.json` and its pages: the compiled manifest (root, JSON pages and
+  typed-array columns), see [FORMAT.md](FORMAT.md#clustersjson).
+- `<scope>/<key>/source.gltf` + `source.bin`: the source glTF on one aligned buffer, image URIs
+  rewritten under `RESOURCE_BASE_URL`.
+- `<scope>/<key>/scene.gltf` + `scene.bin`: autonomous scene for the prepared-page backends
+  (materials, no source geometry), written only when every primitive is exact and the source
+  declares no animation, skinning or morph weights; otherwise `autonomousScene` is `null` and
+  `autonomous-scene-animated` says why.
+- `<scope>/<key>/scene-tables.json`: node graph, lights, surfaces and geometry layout of the
+  prepared scene, read from the `source.gltf` (and `scene.gltf`) the job publishes; the runtime
+  builds its scene from it alone ([FORMAT.md](FORMAT.md#prepared-scene-tables)). Placements
+  outgrowing one stream unit go to `scene-cell-<n>.json` cells beside it
+  ([FORMAT.md](FORMAT.md#world-partition)).
+- `<scope>/<key>/world-roots.table`, `world-roots.dag`, `world-roots.bin`: the world super-roots
+  above the objects (`compiler_world_roots.rs`, [FORMAT.md](FORMAT.md#world-super-roots)).
+- `<scope>/<key>/proxy.bin`: the resident lighting proxy
+  ([FORMAT.md](FORMAT.md#resident-lighting-proxy)).
+- `<scope>/<key>/lights.json`: scene lights in the engine's `SceneLight` contract (below).
+- `<scope>/<key>/physics.json`: the cooked colliders (below).
+- `textures/v<N>/<sha256>/<kind>-<level>.<format>`: baked mip levels above the sidecar's tail —
+  lossless PNG, plus the kept block family — addressed by the source image's SHA-256, shared across
+  keys and scopes, never rewritten, pruned with the objects ([FORMAT.md](FORMAT.md#textures)).
+- `objects/<sha256>.bin`: content-addressed index pages, quantized cluster pages, streaming bundles
+  and collider shapes, shared across keys and scopes.
+- `imports/<import-key>/`: a converting driver's intermediate scene ([FBX and OBJ
+  import](#fbx-and-obj-import)).
 
-Sizes (Emerald, 10 M triangles, 336 images): manifest 387 KB of JSON and 29 MB of columns,
-`source.bin` 195 MB, `objects/` 542 MB in 80 343 files, `textures/` 856 MB in 1 380 PNG files.
-Emerald compiles in about 10 s wall on 8 threads once its levels exist, 20 s when they are first
-baked (default PNG compression; 13 s with the fast one, for 1,0 GB of levels instead of 856 MB); the
-133 MB OBJ above in 3.4 s, 1.2 s of it import.
+The cutout answer sheet, `decoupes.json`, lies at the cache root beside `native/`.
 
 ### `lights.json` — the lamps of the source file
 
@@ -789,21 +816,18 @@ lamp).
 
 `emitterRadius`, the radius of the envelope a lamp stops occluding in its own shadow map
 ([SDK.md](SDK.md)), is filled for `point` and `spot` lamps only, from two places in order. First the
-source: a radius declared on the lamp, in the light's `extras.emitterRadius` in metres (the `extras`
-channel `castsShadow` travels on). USD and Blender fill it from their data — a `UsdLux` light's
-`inputs:radius` or the diagonal of `inputs:width` × `inputs:height`, a Blender `Lamp`'s `radius`
-(`shadow_soft_size` in files that still name it so) and emitting surface — carried to world metres
-by the layer unit and object scale. glTF `KHR_lights_punctual` has no radius field and `ufbx_light`
-(every FBX lamp) carries colour, intensity, direction, decay, area shape and cone angles but no
-size, so for those only a glTF authored with the channel feeds it. Otherwise the compiler measures
-the luminaire: when the lamp's parent node or a direct sibling carries a mesh whose material emits —
-a non-zero `emissiveFactor` or an `emissiveTexture`, the material alone deciding — the radius is the
-greatest distance from the lamp's centre to one of that body's vertices, counted
-`light-emitter-radius-derived`. The body is walked vertex by vertex, never by its box: a sphere's
-box overruns by sqrt(3) and would exclude occluders the envelope never held. With several emissive
-bodies the tightest sphere wins. The field is written only when finite, strictly positive and
-strictly below `range`; otherwise it is omitted, counted `light-emitter-radius-invalid`. A lamp with
-no envelope, and a `directional` lamp (no centre), receive nothing, uncounted.
+source: a radius declared on the lamp, in the light's `extras.emitterRadius` in metres. USD and
+Blender fill it from their data — a `UsdLux` light's `inputs:radius` or the diagonal of
+`inputs:width` × `inputs:height`, a Blender `Lamp`'s `radius` (`shadow_soft_size` in older files)
+and emitting surface — carried to world metres by the layer unit and object scale. glTF
+`KHR_lights_punctual` and FBX lamps carry no size, so for those only a glTF authored with the
+channel feeds it. Otherwise the compiler measures the luminaire: when the lamp's parent node or a
+direct sibling carries a mesh whose material emits — a non-zero `emissiveFactor` or an
+`emissiveTexture` — the radius is the greatest distance from the lamp's centre to one of that
+body's vertices, counted `light-emitter-radius-derived`. The body is walked vertex by vertex, never by its box. With several
+emissive bodies the tightest sphere wins. The field is written only when finite, strictly positive
+and strictly below `range`; otherwise it is omitted, counted `light-emitter-radius-invalid`. A lamp
+with no envelope, and a `directional` lamp, receive nothing, uncounted.
 
 ### `physics.json` — the cooked colliders (stage `physics-cook`)
 
@@ -811,26 +835,22 @@ The browser builds no tree, hull or mass: loading a collider is a decode and a c
 linked into the compiler from the web module's pinned submodule (`build.rs` builds
 `packages/physics-jolt-wasm` with `-DCOOK=ON`; needs CMake, a C++17 compiler and `git submodule
 update --init`). The stage contract is `PHYSICS_COOK_STAGE` / `PHYSICS_COOK_VERSION`; the Jolt
-commit and stage version enter the cache key, so another Jolt's cook is never reused. Algorithms, in
-`src/physics_cook/` (fields: [FORMAT.md](FORMAT.md#physicsjson--cooked-colliders)):
+commit and stage version enter the cache key, so another Jolt's cook is never reused. Fields are in
+[FORMAT.md](FORMAT.md#physicsjson--cooked-colliders); the algorithms, in `src/physics_cook/`:
 
-- **Collision level** (`cut.rs`). A DAG cut at one threshold — clusters with `lod_error <=
-threshold < parent_error`, the renderer's and proxy's rule, so the surface is covered once,
-  borders locked. The tolerance `t` is the object's own: the median error of its first simplified
-  level. A cluster's error is an estimate, not a bound, so each cut tried is measured against level
-  0 both ways (`hausdorff.rs`: vertices, edge midpoints and centroids of each side to the other's
-  nearest triangle): the cut at `t` first, then a bisection over the cluster errors under `t` down
-  to level 0, which holds any tolerance. The coarsest cut within `t` is kept, its distance published
-  as `hausdorff`, at or under `tolerance`. No simplified level: collision at level 0.
+- **Collision level** (`cut.rs`). A DAG cut at one threshold — clusters with `lod_error <= threshold
+  < parent_error`, the renderer's and proxy's rule, so the surface is covered once, borders locked.
+  The tolerance `t` is the object's own: the median error of its first simplified level. Each cut
+  tried is measured against level 0 both ways (`hausdorff.rs`: vertices, edge midpoints and
+  centroids of each side to the other's nearest triangle): the cut at `t` first, then a bisection
+  over the cluster errors under `t` down to level 0. The coarsest cut within `t` is kept. No
+  simplified level: collision at level 0.
 - **Tiles.** The cut splits along the culling hierarchy: a node of at most 4096 collision triangles
   is one tile, a larger one hands its children down. Each tile is a Jolt `MeshShape` in the
-  primitive's frame with its triangles' material index, stored under its SHA-256. Jolt drops a
-  triangle whose doubled area is under 1e-6, absolute: small objects in metres (the chess pieces of
-  `abeautiful-game`) lost most of their surface, a tile all of it, then refused. The cook
-  (`packages/physics-jolt-wasm/src/mesh.h`, shared with the runtime's triangle meshes) scales such a
-  tile's box to 2^11 by a power of two (past it Jolt's relative 21-bit quantization is the stricter
-  test), at most 2^19 (the largest whose inverse Jolt takes as a scale), inside a `ScaledShape` of
-  the inverse: both scalings exact, the collider is the drawn cut.
+  primitive's frame, stored under its SHA-256. Jolt drops a triangle whose doubled area is under
+  1e-6, absolute, so the cook (`packages/physics-jolt-wasm/src/mesh.h`, shared with the runtime)
+  scales a tile of small triangles to 2^11 by a power of two, at most 2^19, inside a `ScaledShape`
+  of the inverse: both scalings exact, the collider is the drawn cut.
 - **Height fields** (`height.rs`). A primitive whose used vertices sit one per point on an evenly
   spaced x-z lattice, every triangle within one cell, becomes a `HeightFieldShape`; the largest gap
   between a cell's two diagonals is its `hausdorff`.
@@ -839,22 +859,18 @@ threshold < parent_error`, the renderer's and proxy's rule, so the surface is co
   declared soft body is static ground as drawn, motion-declaring nodes included; the page drops
   their placements once it has restored the body.
 - **Declared bodies** (`declared.rs`). A rendered node whose `KHR_physics_rigid_bodies` declares a
-  `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into `bodies`: its motion as
-  declared, matter, pose and shape — the `KHR_implicit_shapes` shape its collider names; else one
-  convex hull, built by native Jolt for contact (`cook_hull`, `hull.rs`), of the mesh its collider's
-  node draws (its own without a collider), in the body's frame. A dynamic body's mass is not the
-  hull's: the solid its closed mesh bounds is weighed exactly by volume integrals over its triangles
-  (`mass.rs`, after Tonon's tetrahedron formulas) at the runtime's density, 1000 kg/m³, and the
-  body's scale — mass, centre of mass, inertia —, which the page hands Jolt, building and weighing
-  nothing; a kinematic body, moved and never pushed, is not weighed. A concave body collides by its
-  hull until volume decomposition (#519). A refused body — missing shape, shearing node, unreadable
-  mesh, a dynamic mesh not closed (every edge meeting its reverse, positions welded) or bounding no
+  `motion` (dynamic, or kinematic with `isKinematic`) is also cooked into `bodies`: the
+  `KHR_implicit_shapes` shape its collider names, else one convex hull built by native Jolt
+  (`hull.rs`) of the mesh its collider's node draws. A dynamic body's mass, centre of mass and
+  inertia come from volume integrals over its closed mesh's tetrahedra (`mass.rs`) at 1000 kg/m³ and
+  the body's scale; a kinematic body is not weighed. A concave body collides by its hull. A refused
+  body — missing shape, shearing node, unreadable mesh, a dynamic mesh not closed or bounding no
   volume, a hull Jolt refuses — is named in `report.bodiesRefused`; the compile goes on.
 - **Breakable bodies** (`pieces.rs`, `voronoi.rs`). A shapeless body declaring `breakable` (above 0)
-  is cut into at most 12 Voronoi cells around seeds drawn from the node's index, each clipped by
-  its bisectors and the mesh's face planes into a closed piece with Jolt's hull (`hull.rs`) and
-  exact mass, centre and inertia (`mass.rs`). Pieces missing the mesh's mass by over 1e-5 (a concave
-  mesh, until decomposition) refuse the body, as does a declared shape.
+  is cut into at most 12 Voronoi cells around seeds drawn from the node's index, each clipped by its
+  bisectors and the mesh's face planes into a closed piece with Jolt's hull and exact mass, centre
+  and inertia. Pieces missing the mesh's mass by over 1e-5 (a concave mesh) refuse the body, as does
+  a declared shape.
 
 Primitives without a DAG (shared blend) cook no collider, nor does one whose shape Jolt refuses
 (every triangle of zero area), named with Jolt's reason in `report.refused`; the compile goes on,
@@ -863,43 +879,36 @@ its render cache unchanged.
 ### Soft bodies a model declares
 
 A drawn node whose `extras.physics` holds `obj.physics`'s soft-body options — `{ "type": "cloth" |
-"rope" | "volume", "pins", "mass", "stretch", "bend", "pressure", … }`, `bend` omitted for none
-(JSON has no `Infinity`) — is cooked as a soft body, not static ground (`src/physics_cook/soft.rs`);
-its mesh must hold one primitive. Its vertices become the simulated ones exactly as the page's
-`softBodyOf` makes them (`soft_record.rs`): coincident positions welded, masses from the area (a
-rope's length) each holds at the node's world scale or the declared `mass` spread so, pins held, a
-volume's default pressure. Each value is rounded to 32 bits where the page rounds it, bit for bit:
-the cook writes the records of a cloth, a scaled welded rope and a volume (`soft_tests.rs`,
-`tests/fixtures/physics/soft-records.bin`) and the page rebuilds each with `softBodyOf`
-(`packages/sdk-core/src/physics/softCook.test.ts`). Native Jolt builds the `SoftBodySharedSettings`
-with the physics worker's own builder (`packages/physics-jolt-wasm/src/softSettings.h`, compiled
-into both), optimised, saved with `SaveWithMaterials` under their SHA-256 like a tile. The page
-hands the bytes to Jolt's `sRestoreWithMaterials` in one SOFT command and builds nothing
-(`packages/sdk-browser/src/physics/cookedSoft.ts`; fields in
-[FORMAT.md](FORMAT.md#softbodies--cooked-soft-bodies)). The golden cloth
-(`tests/fixtures/physics/cloth-settings.bin`, rewritten with `TRILLION3D_WRITE_GOLDEN=1`) is
-restored by the physics module's test and swings as the page-built cloth
-(`packages/sdk-browser/src/physics/cookedSoft.test.ts`). A refused node — two primitives, a shearing
-matrix, an option out of range, a pin naming no vertex — is named in `report.softRefused`; the
-compile goes on. The node is drawn as compiled: its simulated vertices reach no drawn surface until
-dynamic geometry is uploaded in place (#573).
+"rope" | "volume", "pins", "mass", "stretch", "bend", "pressure", … }`, `bend` omitted for none —
+is cooked as a soft body, not static ground (`src/physics_cook/soft.rs`); its mesh must hold one
+primitive. Its vertices become the simulated ones exactly as the page's `softBodyOf` makes them
+(`soft_record.rs`): coincident positions welded, masses from the area (a rope's length) each holds
+at the node's world scale or the declared `mass` spread so, pins held, a volume's default pressure.
+Each value is rounded to 32 bits where the page rounds it, bit for bit (`soft_tests.rs` against
+`packages/sdk-core/src/physics/softCook.test.ts`). Native Jolt builds the `SoftBodySharedSettings`
+with the physics worker's own builder (`packages/physics-jolt-wasm/src/softSettings.h`), optimised,
+saved with `SaveWithMaterials` under their SHA-256 like a tile; the page hands the bytes to Jolt's
+`sRestoreWithMaterials` and builds nothing (`packages/sdk-browser/src/physics/cookedSoft.ts`; fields
+in [FORMAT.md](FORMAT.md#softbodies--cooked-soft-bodies)). A refused node — two primitives, a
+shearing matrix, an option out of range, a pin naming no vertex — is named in `report.softRefused`;
+the compile goes on. The cook also writes the render mapping (`render`, version 1), and the page
+writes the simulated vertices back into the drawn mesh (`sdk-browser/src/deformation/softSource.ts`;
+[Deformation streams](#deformation-streams)).
 
 ## Cutouts declared as blend
 
 The virtualized path takes opaque and masked materials: a blended primitive costs one draw call per
 item and face, a masked one joins the single compute-raster draw. Source files routinely declare
 foliage blended when it is a cutout — every texel there or gone, a soft fringe only along the
-contour. A renderer that does not reclassify such a material refuses it and logs it, and
-a human ticks _Masked_ before shipping. Importing other people's files, the compiler takes that role
-— **without ever guessing silently**.
+contour. Importing other people's files, the compiler proposes the reclassification — **without
+ever guessing silently**.
 
 Each compile writes `decoupes.json`, the answer sheet, at the compiled model's root beside
 `native/`: one entry per candidate texture, keyed by the sha256 of its image bytes, with the
 measure, the compiler's `proposal`, what the texture still holds in the blend path, and `cutout` —
-`true`, `false`, or `null` while undecided. It is written on **every** compile, pending or not: the
-sheet says a review is due, and `cutouts.version` in the manifest publishes its contract number.
-Nothing applies until an entry answers `true`; with no sheet, blended stays blended and the product
-is byte-identical.
+`true`, `false`, or `null` while undecided. It is written on **every** compile, pending or not, and
+`cutouts.version` in the manifest publishes its contract number. Nothing applies until an entry
+answers `true`; with no sheet, blended stays blended and the product is byte-identical.
 
 Exact alpha measurements are cached in the sheet apart from the rounded display values, identified
 by the image hash, the compiler's implementation hash (its cache key's) and the decoder versions, so
@@ -918,23 +927,18 @@ knows the image, and recompiles only the models an answer changed. Answers are k
 so a leaf two scenes share is asked once.
 
 The measure reads the full-resolution alpha inside the decode the texture stage already performs to
-bake each mip chain, in parallel on the job's pool ([FORMAT.md](FORMAT.md#textures)), so nothing is
-decoded twice; candidates are read once more to key answers by sha256 — 0.08 s of a 14.5 s Emerald
-compile. The question shows the progressive thumbnails the cache already carries: nothing is drawn,
-encoded or sent for it. Two numbers separate the shapes: the share of texels neither present nor
-absent, and the share of those within eight pixels of the 0.5 contour — a glass is grey everywhere
-and far from any contour, a leaf grey only along its edge. The proposal proposes; the answer
-applies.
+bake each mip chain ([FORMAT.md](FORMAT.md#textures)), so nothing is decoded twice; candidates are
+read once more to key answers by sha256. The question shows the progressive thumbnails the cache
+already carries. Two numbers separate the shapes: the share of texels neither present nor absent,
+and the share of those within eight pixels of the 0.5 contour — a glass is grey everywhere and far
+from any contour, a leaf grey only along its edge. The proposal proposes; the answer applies.
 
 An answer applies to a **texture**: every base-color binding of it, in every scene sharing it. Two
 bindings are refused even when the answer says cutout, named in the report: a material with
-`KHR_materials_transmission` (its thickness is not a cutout) and one whose `baseColorFactor` alpha
-is already below one (its opacity is not the texture's). Applying an answer sets `alphaMode` to
-`MASK` at glTF's default 0.5 cutoff, in the published `source.gltf` too, and enters the cache key,
-so a changed answer recompiles.
-
-Masking hardens the silhouette blending softened — the declared cost of the batch; temporal
-antialiasing recovers the edge.
+`KHR_materials_transmission` and one whose `baseColorFactor` alpha is already below one. Applying an
+answer sets `alphaMode` to `MASK` at glTF's default 0.5 cutoff, in the published `source.gltf` too,
+and enters the cache key, so a changed answer recompiles. Masking hardens the silhouette blending
+softened; temporal antialiasing recovers the edge.
 
 ## Memory and threads
 
@@ -945,26 +949,22 @@ antialiasing recovers the edge.
   expansion of every accessor to decode — `count × components × 4` bytes, whether its values are
   stored, absent or `sparse` —, plus each primitive's index buffer; only these bytes, which no
   compilation order lowers, refuse a job. Primitives then compile in consecutive waves whose working
-  sets (the DAG, and the collider cook and page packing running beside it on the finished DAG) fit
-  in what the budget leaves after what the job keeps to the end (each page's manifest record, its
-  culling and structure entries and their published text): a scene that fits is one wave, a tighter
-  budget smaller waves, down to one primitive at a time, never refused (`compiler_budget/waves.rs`);
-  what one worker holds whatever the scene — a collider tile with Jolt's cook of it, a bundle being
-  packed — is charged once per thread. Each cost derives from the primitive's triangle and vertex
-  counts and the structures allocated for them (`compiler_primitive/cost.rs`).
-  `metrics.compileWaves` reports the waves run (in the run's report, never the manifest: the
-  bytes written are the same whatever the waves), `metrics.peakRssBytes` (also on every `progress`
-  event) the process high-water mark. Estimates, not a process cap (`unsupported: "hard RSS
-enforcement"`).
+  sets (the DAG, and the collider cook and page packing running beside it) fit in what the budget
+  leaves after what the job keeps to the end (each page's manifest record, its culling and structure
+  entries and their published text): a scene that fits is one wave, a tighter budget smaller waves,
+  down to one primitive at a time, never refused (`compiler_budget/waves.rs`); what one worker holds
+  whatever the scene — a collider tile with Jolt's cook of it, a bundle being packed — is charged
+  once per thread. Each cost derives from the primitive's triangle and vertex counts
+  (`compiler_primitive/cost.rs`). The waves only order the work: the bytes written are the same
+  whatever the waves. Estimates, not a process cap (`unsupported: "hard RSS enforcement"`).
 - Texture baking reads image dimensions before pixels, through each format's header reader. Images
-  run in deterministic waves cut by the same planner (`compiler_budget/waves.rs`), whose estimated
-  encoded source, expanded container payload, decode intermediates, alpha-distance buffer, mip
-  pyramid, PNG output, block read-back and temporary tails fit in the RAM left after the source and
-  geometry estimate. Every returned preview tail is reserved before the first wave, copies for
-  textures sharing an image included. An image or the retained tails exceeding that fails with
+  run in deterministic waves cut by the same planner, whose estimated encoded source, expanded
+  container payload, decode intermediates, alpha-distance buffer, mip pyramid, PNG output, block
+  read-back and temporary tails fit in the RAM left after the source and geometry estimate. Every
+  returned preview tail is reserved before the first wave, copies for textures sharing an image
+  included. An image or the retained tails exceeding that fails with
   `RAM_ADMISSION_BUDGET_EXCEEDED` — never a white substitute or a lower resolution. Cancellation is
-  checked during planning and between images. These image-buffer estimates are no hard process-RSS
-  or third-party allocator ceiling, and leave the reduction and quality gate unchanged.
+  checked during planning and between images.
 - The source buffer is memory-mapped when it is a single external `.bin` or a GLB's single BIN
   chunk; multi-buffer sources are copied.
 - The FBX/OBJ importer holds the whole ufbx scene, then streams the glTF out: roughly 3–4× the
@@ -980,12 +980,12 @@ A refusal raised while a primitive compiles starts `Mesh <m> primitive <p>: ` (s
 primitive), since page ids restart at 0 in every primitive; a cancellation keeps its message. A
 ceiling exceeded is refused before allocating.
 
-Every code, global and per driver (archives, lights and OBJ/MTL materials, Blender, images, USD,
-Alembic, Maya ASCII, Unity) and of the Node adapter, has a stable public code, one sentence, its
-cause and the action to take, one page per code: [COMPILER_ERRORS.md](COMPILER_ERRORS.md). An error
-publishes nothing; a warning is always told and never stops a compile that can succeed; an info is
-told on request. The catalogue is `packages/sdk-node/src/messages/messages.json`, embedded in the
-compiler, read by the Node adapter, and the source of the pages (`pnpm run generate:messages`).
+Every code, global and per driver and of the Node adapter, has a stable public code, one sentence,
+its cause and the action to take, one page per code: [COMPILER_ERRORS.md](COMPILER_ERRORS.md). An
+error publishes nothing; a warning is always told and never stops a compile that can succeed; an
+info is told on request. The catalogue is `packages/sdk-node/src/messages/messages.json`, embedded
+in the compiler, read by the Node adapter, and the source of the pages
+(`pnpm run generate:messages`).
 
 ## Using it from Node
 
@@ -1019,18 +1019,18 @@ const summary = await prepareMany(jobs, { workers: 4, ramBudgetMb: 32768, thread
 summary.jobs[0].pointer; // pointers only; nothing is read from disk
 ```
 
-`createTerminalProgress({label, index, total, verbose})` returns an object whose `event` method takes every
-compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a TTY, one
-plain line per phase change elsewhere; `createBatchProgress()` does it per job for
-`prepareMany({onEvent})`; `progress.note(text)` shows a host-side step (a copy, a manifest check)
-before the compiler starts. The warnings of a job are counted while it compiles and told once when it
-ends, one line per code — its public code, count, worst case, action and documentation page — never
-one line per primitive; info codes stay silent unless `verbose`, which also lists every occurrence
-under its code. A reused folder tells the same warnings as the compile that wrote it. The `trillion3d-compile` CLI uses it on a TTY and
-prints raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them), followed by the same
-summary as `{"event":"message", "id", "code", "level", "count", …}` events. `--verbose` adds the info
-codes and every occurrence; `--strict` exits 3 when the compile succeeded with a warning
-(`STRICT_WARNINGS`), the cache written; any failure exits 1.
+`createTerminalProgress({label, index, total, verbose})` returns an object whose `event` method
+takes every compiler event and draws one live line (spinner, bar from `ratio`, phase, elapsed) on a
+TTY, one plain line per phase change elsewhere; `createBatchProgress()` does it per job for
+`prepareMany({onEvent})`; `progress.note(text)` shows a host-side step before the compiler starts.
+The warnings of a job are counted while it compiles and told once when it ends, one line per code —
+its public code, count, worst case, action and documentation page; info codes stay silent unless
+`verbose`, which also lists every occurrence under its code. A reused folder tells the same warnings
+as the compile that wrote it. The `trillion3d-compile` CLI uses it on a TTY and prints raw JSON
+events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them), followed by the same summary as
+`{"event":"message", "id", "code", "level", "count", …}` events. `--verbose` adds the info codes and
+every occurrence; `--strict` exits 3 when the compile succeeded with a warning (`STRICT_WARNINGS`),
+the cache written; any failure exits 1.
 
 ```js
 const progress = createTerminalProgress({ label: 'city', index: 0, total: 8 });
@@ -1042,14 +1042,13 @@ await prepare(source, cache, 'full', 150000, { resourceBaseUrl, onProgress: prog
 
 The executable is `options.executable`, else the one of the installed platform package, else
 `TRILLION3D_COMPILER_BIN` (trusted, announced once on stderr), else
-`packages/asset-compiler-rust/target/release/`, refused with `COMPILER_STALE` while a crate source is
-newer than that build, so no cook publishes under the previous build's key (`pnpm run build:native`
-rebuilds it). Outside a checkout, a platform none of them serves is refused with
+`packages/asset-compiler-rust/target/release/`, refused with `COMPILER_STALE` while a crate source
+is newer than that build, so no cook publishes under the previous build's key
+(`pnpm run build:native` rebuilds it). Outside a checkout, a platform none of them serves is refused with
 `COMPILER_PLATFORM_UNSUPPORTED` and the supported list, and a supported one whose package is not
 installed (optional dependencies omitted, a Linux on musl) with `COMPILER_EXECUTABLE_MISSING` and
 the package's name; each error carries its public code and a link to its page
-([COMPILER_ERRORS.md](COMPILER_ERRORS.md)). Node never buffers a manifest: about 90 MB RSS whatever
-the model size.
+([COMPILER_ERRORS.md](COMPILER_ERRORS.md)). Node never buffers a manifest, whatever the model size.
 
 ### Platform packages
 
@@ -1064,10 +1063,8 @@ macOS arm64 build assumes the Apple M1; an x86-64 build keeps its baseline and r
 quantizers in AVX2 where the processor has it (`shared_math::wide`). No fused multiply-add anywhere
 — Rust never fuses, C and C++ are built with `-ffp-contract=off`, Jolt in its cross-platform mode —,
 so every platform writes the same bytes: the workflow compiles the reference scenes with each binary
-and compares every cache file's SHA-256 with Linux x64's and, on a pull request, `develop`'s. The
-Jolt collider shapes `physics.json` names are listed apart: against a base whose `build.rs` does not
-yet build Jolt in its cross-platform mode, they alone may differ, since they changed once to the
-unfused bytes (#1352); once that base is merged, every file is compared again.
+and compares every cache file's SHA-256 with Linux x64's and, on a pull request, `develop`'s. Only
+the Jolt collider shapes may differ from a base whose Jolt cook still fuses multiply-adds.
 
 ## Using it from any other host
 
@@ -1085,9 +1082,10 @@ DAG and streaming path: the compiler carries per-vertex joint/weight and target 
 vertex permutations and QEM source origins, and measures joint rest balls and target displacement
 radii for runtime conservative bounds. Animated scenes keep the prepared source tables; no
 autonomous scene is claimed when it would discard animation. For cooked cloth, rope and soft volumes
-the compiler applies the physics cook's weld and compact mapping to the render vertices; simplified
-vertices retain their source offset, and runtime displacement bounds add conservative transfer error
-until finer resident pages can be selected. A cooked soft primitive also declaring skin/morph
-sources is refused with `SOFT_DEFORMATION` rather than giving one stream two meanings. The page and
-sidecar format (flags 16/32/64, `render.version: 1`):
-[FORMAT.md](FORMAT.md#deformation-in-geometry-page-format-7).
+the compiler applies the physics cook's weld and compact mapping to the render vertices
+(`softSourceIds` on a whole-copy primitive, `geometry_page_deform/reach.rs`), and the page writes
+the simulation back into them; simplified vertices retain their source offset, and runtime
+displacement bounds add conservative transfer error until finer resident pages can be selected. A
+cooked soft primitive also declaring skin/morph sources is refused with `SOFT_DEFORMATION` rather
+than giving one stream two meanings. The page and sidecar format (flags 16/32/64,
+`render.version: 1`): [FORMAT.md](FORMAT.md#deformation-in-geometry-page-format-7).

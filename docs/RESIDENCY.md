@@ -6,21 +6,21 @@ budgets a page sets are [SDK.md](SDK.md#memory-budgets); the raster that draws t
 
 ## One cut rule per cluster
 
-`page/cut/rule.ts`, #486. A cluster is drawn when it is resident, its parent group is coarser than
+`page/cut/rule.ts`. A cluster is drawn when it is resident, its parent group is coarser than
 the threshold, and either its own error meets the threshold or the group finer than it is not
 resident:
 
 `draw(c) = resident(c) && parentError(c) > t && (clusterError(c) <= t || !resident(childGroup(c)))`
 
-The kernel compiles the same expression (`dagMask`) as its CPU model (`gpu/dag/oracle/oracle.fixture.ts`);
-the threshold is always the host's. Residency is read by group (`page/cut/readiness.ts`): a group is
-resident when every cluster it replaces is, and so is every group above it (a cluster nothing
-replaces stands for itself). A group then draws all its outputs or all its members, never both or
-neither, so every surface is drawn exactly once, by the wanted cluster or **its nearest resident
-ancestor**, and a missing page coarsens its own neighbourhood by one level, never its whole
-primitive nor the root cover. Every fallback below — memory short, a page not yet uploaded, a
-dependency that does not fit, a shadow caster the pool lacks — is this rule. The host derives both
-bit sets from the pool's residency and uploads what changed (`gpu/dag/readiness.ts`).
+The kernel compiles the same expression (`dagMask`) as its CPU model
+(`gpu/dag/oracle/oracle.fixture.ts`); the threshold is always the host's. Residency is read by group
+(`page/cut/readiness.ts`): a group is resident when every cluster it replaces is, and so is every
+group above it (a cluster nothing replaces stands for itself). A group then draws all its outputs or
+all its members, never both or neither: a missing page falls back to **its nearest resident
+ancestor** and coarsens its own neighbourhood by one level, never its whole primitive nor the root
+cover. Memory short, a page not yet uploaded, a dependency that does not fit and a shadow caster the
+pool lacks all fall back this way. The host derives both bit sets from the pool's residency and
+uploads what changed (`gpu/dag/readiness.ts`).
 
 Because a group needs all its members, the cut asks the cache for whole groups closed upward,
 group-mates a view never keeps included (`page/cut/groupClosure.ts`); otherwise a group straddling
@@ -34,12 +34,11 @@ placement in view and moved by the pool's residency feed — the rank journal on
 store's loads and releases on WebGL2 —, so a still view reads no page and a change reads only the
 pages that moved (`page/cut/held.ts`). It prunes on the same open counts, in JavaScript and in its
 WebAssembly node walk (`page-codec-wasm/src/cut.rs`); the WebGPU CPU path, its light cuts and the
-WebGL2 image draw through it, with no fallback of their own. No table is sized by the world: the
-readiness holds the resident pages alone (every other page's state derives from the DAG), and the
-closure, the cut's differences, the residency sets and the pending set hold what the cut names, in
-sparse maps (`page/cut/sparseInts.ts`); a placement leaving the view drops its readiness at the end
-of the image's cut. A world sixteen times larger, from the same view with the same pool, costs the
-same bytes (`page/cut/viewBound.test.ts`).
+WebGL2 image draw through it, with no fallback of their own. The readiness holds the resident pages
+alone (every other page's state derives from the DAG), and the closure, the cut's differences, the
+residency sets and the pending set hold what the cut names, in sparse maps
+(`page/cut/sparseInts.ts`); a placement leaving the view drops its readiness at the end of the
+image's cut (`page/cut/viewBound.test.ts` holds the bytes to the view).
 
 ## The geometry pool
 
@@ -47,11 +46,10 @@ The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover held fo
 lifetime; the texture pool is split between the colour and data atlases in layers. The world's GPU
 and CPU totals reach the pools through one fixed split (`residency/memoryBudget.ts`). When a view
 asks beyond the pool, the WebGPU cut keeps the host's screen error: the pool loads what fits,
-coarsest first, and the cut rule draws the rest. Residency does the coarsening, so a smaller budget
-is paid in detail, one DAG level at a time from the finest; `coverage-budget` only says the image
-asks for more than the slots hold.
+coarsest first, and the cut rule draws the rest; `coverage-budget` says the image asks for more
+than the slots hold.
 
-**Minimum capacity** (#1237, `residency/minimumCapacity.ts`). Memory never forces a cut the view
+**Minimum capacity** (`residency/minimumCapacity.ts`). Memory never forces a cut the view
 refuses: the cook drops a part only at a level whose error covers it, so a root drawn where the view
 refuses its error loses every smaller part (a column, a lintel). The pool's floor is the root cover
 and the pages of the group each root replaces, one level finer, plus on WebGPU the vertex buffers
@@ -60,9 +58,9 @@ pool follows for its live textures). A budget under it is raised to it by name (
 cost published at open (`minimum-capacity`: `rootPages`, `floorPages`). Both engines admit those
 pages before any other, whatever their level (`floorFirst`, `admissionLevel`), and the WebGPU CPU
 cut ranks through the same admission: at the smallest budget a root the view refuses is replaced by
-its group, one it accepts drawn as before.
+its group, one it accepts is drawn.
 
-**Pinned bytes** (#1237, `scene/worldRoots.ts`). The runtime pins one thing: the world top the cook
+**Pinned bytes** (`scene/worldRoots.ts`). The runtime pins one thing: the world top the cook
 publishes (`world-roots.table`, [FORMAT.md](FORMAT.md#world-super-roots)), read as the model loads —
 its bundles, the first of `world-roots.bin`, in one ranged read, each checked against its digest —
 and held for the scene's life, bounded by the materials, never the world (the session's `world-top`
@@ -70,8 +68,10 @@ diagnostic: `pinnedBundles`, `pinnedBytes`, `heldBytes`). Object roots are pages
 a model not partitioned holds its placements for its life, a partition's placed cells hold theirs
 until they leave, and each placed cell holds the world bundles past the top its objects' roots
 depend on (`partition/cellPages.ts`), each once, released with the last cell needing it. The
-session counts those bytes in the CPU budget beside the engines' host tables. The super-roots are
-not drawn yet: a cell's super-roots standing in for a far cell is #1238.
+session counts those bytes in the CPU budget beside the engines' host tables. The cut draws the
+world's super-roots (`scene/worldSuperRoots.ts`): a cell's super-roots stand in for its object roots
+while those are not resident, by the same group rule, and a partition loads a cell's objects only
+where the cut would descend past its super-roots (`partition/superRoots.ts`).
 
 ### WebGPU: slots, resizes and tables
 
@@ -87,7 +87,7 @@ replaced by an invalid one. The copy holds both pools at once (`transientBytes`)
 has the device grant, beside the tables grown first, before any page moves.
 
 The tables sized by drawable row start at `geometryPoolCeilingBytes` and grow in place when a larger
-pool asks more rows (`webgpu/pages/prepare/growTables.ts`, #216): every GPU buffer sized by row is
+pool asks more rows (`webgpu/pages/prepare/growTables.ts`): every GPU buffer sized by row is
 made anew under one out-of-memory scope while the old ones still draw, and swapped in once all are
 granted; each visibility row keeps its rank, no shader, pipeline, page or tile is remade, and
 nothing sized by row is made after the swap (spheres, mobility words and tested-half work buffer
@@ -108,9 +108,9 @@ dependency does not fit, the page is not loaded. Both tiers of the residency que
 and the lower tier of the view ahead and the light cuts — share this path.
 
 Loads on the GPU-cut path are read off the readback's requests, closed over their groups
-(`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and the one
+(`webgpu/residency/requestAdmission.ts`): past the pool, the coarsest levels whole and the one
 the room straddles in part, what the queue already holds first, from the pool's room alone. The CPU
-cut ranks by the same admission, off the pages its cut closes over (`closure.forEachHeld`, #974):
+cut ranks by the same admission, off the pages its cut closes over (`closure.forEachHeld`):
 the GPU cut keeps no ranking of its own, and a CPU cut taking the image back ranks what it left.
 
 **Eviction queue.** A resident GPU cut publishes on the same readback the order the cache gives
@@ -161,10 +161,10 @@ released view's pages leave it. The main view keeps its cut and motion across a 
 
 **What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget;
 what it lacks it names in `capabilities.unsupported` and in the `render-capabilities` diagnostic it
-publishes on opening (`backend/autonomous/capabilities.ts`), never silently: no GPU-driven selection
-or indirect draw (the cut runs on the CPU), no occlusion culling, no cast shadows
+publishes on opening (`backend/autonomous/capabilities.ts`): no GPU-driven selection or indirect
+draw (the cut runs on the CPU), no occlusion culling, no cast shadows
 ([SHADOWS.md](SHADOWS.md#webgl2-has-none)), no global illumination, no temporal antialiasing, no
-physical VRAM reading. Each costs work or a feature, never coverage: no hole and no stale image.
+physical VRAM reading.
 
 ## Out of memory
 
@@ -197,7 +197,7 @@ the visibility targets included, they are refused by name and the mode kept, nev
 (`frame-targets-refused`); they are asked again only when the view's size changes, or by a capture.
 Once the targets are in place, a live allocation that moves the ledger funds the pools again beside
 the frames, one funding at a time, and never holds one: a funding refused keeps the pools in place
-and is said once (`frame-targets-refused`, `reason: 'budget'`), the frames going on (#1362). A
+and is said once (`frame-targets-refused`, `reason: 'budget'`), the frames going on. A
 target grant and a capture wait for a funding in flight, so two never move the pools at once.
 
 **WebGL2.** It has no out-of-memory scope, so the engine reads `gl.getError()` for its allocations
@@ -216,20 +216,14 @@ context refuses gives that set up, its pages placed in a new one. A browser that
 the context takes the context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
 is drawn while it is lost.
 
-WebGL2 uploads every declared surface's maps ahead of the draws, within `texturePoolBytes`: the
-session's preparation sends them, then each frame what is left, only once the GPU ran the step
-before, and only the maps that fit what is left of `maxTextureTransferBytesPerFrame` (16 MiB) and
-`maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet is
-uploaded by the first draw that binds it.
-
 ## Coverage counters
 
 Shared URLs occupy one slot across instances. Two counters say different things:
 
-| Field            | Meaning                                                                                         | Reported by          |
-| ---------------- | ----------------------------------------------------------------------------------------------- | -------------------- |
-| `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
-| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
+| Field | Meaning | Reported by |
+| --- | --- | --- |
+| `pagesDetached` | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure | the WebGL page paths |
+| `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend |
 
 `coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage; the `coverage-*`
 diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is retried at most
@@ -250,20 +244,27 @@ each mip level, and only the tiles the image reads are resident. The texture poo
 default, split evenly, in layers of 30×30 tiles) is the session's texture memory whatever the
 scene, its layers allocated on first use: an atlas with no map holds none, its white fill (what a
 material without a map reads) read from an opaque-white stand-in, until its first map opens the
-lane's pool (#1345). The material resolution counts, for one pixel in sixteen (every pixel during `flush()`), the
-tile each map needs at the mip its derivatives select; transparents write their requests into their
-own target, reduced by a compute pass. The counters come back one frame late.
+lane's pool. The material resolution counts, for one pixel in sixteen (every pixel during
+`flush()`), the tile each map needs at the mip its derivatives select; transparents write their
+requests into their own target, reduced by a compute pass. The counters come back one frame late.
 
-Uploads are bounded twice per frame, `maxTextureTransferBytesPerFrame` (16 MiB) and
-`maxTextureUploadMsPerFrame` (1.0 ms), most-requested tiles first; the rest waits on its coarser
-resident level, so a cold traversal streams at a fixed cadence instead of stalling. The first tile
-of a pass is always copied. `textureUploadPeakMs`, `textureUploadMs` and `textureTilesDeferred`
-publish the work; a stutter is read on the peak and the p95, never the median. A full pool evicts
-the least recently read tile; a tile nothing can accommodate is counted in `textureTilesRefused`. A
-missing tile is served by its finest resident ancestor, down to the texture's tail (every level of
-64 texels or less, pinned at `prepare()`): never a fill texel. `flush()` renders the pose until
-nothing it reads is missing, drains the pending shadow pages, and replays the temporal accumulation
-identically, so a flushed pose is deterministic (`pose-settle` diagnostic).
+Uploads are bounded twice per frame on both engines, `maxTextureTransferBytesPerFrame` (16 MiB) and
+`maxTextureUploadMsPerFrame` (1.0 ms). On WebGPU the most-requested tiles go first; the rest waits
+on its coarser resident level, so a cold traversal streams at a fixed cadence instead of stalling.
+The first tile of a pass is always copied. `textureUploadPeakMs`, `textureUploadMs` and
+`textureTilesDeferred` publish the work; a stutter is read on the peak and the p95, never the
+median. A full pool evicts the least recently read tile; a tile nothing can accommodate is counted
+in `textureTilesRefused`. A missing tile is served by its finest resident ancestor, down to the
+texture's tail (every level of 64 texels or less, pinned at `prepare()`): never a fill texel.
+`flush()` renders the pose until nothing it reads is missing, drains the pending shadow pages, and
+replays the temporal accumulation identically, so a flushed pose is deterministic (`pose-settle`
+diagnostic).
+
+WebGL2 uploads whole maps, each with its mip chain: every declared surface's maps ahead of the
+draws, within `texturePoolBytes`. The session's preparation sends them, then each frame what is
+left, only once the GPU ran the step before and only the maps that fit what is left of the two
+bounds (one map larger than the whole budget goes alone); a map not sent yet is uploaded by the
+first draw that binds it.
 
 **The engine reads the levels the compiler baked.** Once the cache declares texture chains, each
 baked level is read on demand (decoded by the browser, held within `world.budget.cpu`, kept across a

@@ -4,8 +4,8 @@ The on-disk contract: what the compiler writes and the SDK reads.
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer | Payload |
+| --- | --- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`; SHA-addressed objects `native/objects/<digest>.bin`, one per index page, geometry page or streaming bundle; baked texture levels `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, a lossless PNG per mip level above the sidecar's tail, plus the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected
@@ -30,35 +30,28 @@ rule is needed, and the manifest names each object in full, so the reader depend
 
 `status` must be `ready`; `url` is resolved relative to the pointer. The reader accepts formats 9
 and 10 (`FORMAT_VERSION`, `CLUSTERED_BLEND_FORMAT_VERSION`) and refuses every other whole, by its
-number, before any field is read; SDK, compiler and cache versions are independent.
-
-| Version | What changed                                                                                                                    | Why an older folder is refused                                                                                                                  |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| 10      | `formatVersion: 10`, in this pointer and the metadata, required by a cache containing `clustered-blend`; every other cache is 9 | An older reader refuses it instead of treating transparent pages as opaque                                                                      |
-| 9       | Format 9 pages the manifest                                                                                                     | An earlier manifest is not paged                                                                                                                |
-| 7       | `selectedNodes` a count (7 and 8) where 5 and 6 wrote a list                                                                    | A list gives no count to read                                                                                                                   |
-| 5       | Added the [prepared-scene tables](#prepared-scene-tables), which a reader builds its scene from                                 | An earlier folder has no tables to give; the tables carry a version of their own, refused by name when it is not the one the reader builds from |
+number, before any field is read; SDK, compiler and cache versions are independent. A cache
+containing `clustered-blend` declares `formatVersion: 10`, in this pointer and the metadata, so a
+reader that would treat transparent pages as opaque refuses it; every other cache is 9. The
+[prepared-scene tables](#prepared-scene-tables) carry versions of their own.
 
 ## `clusters.json`
 
-`clusters.json` is the manifest's root, one size whatever the world (1 717 bytes at `full` scope for
-the grids of 48² and 192² and the open-world cell laid 8 × 8; `compiler_manifest_pages.rs`): the
-fields naming the product — `status`, `formatVersion`, `schema`, `scope`, `key`, `compilerVersion`
-—, `head`, the head page's slot, and `pages`, eight mesh-page slots, empty ones last, laid out and
-paged as the [paged cell index](#world-partition). A page is `manifest-page-<sha256>.json`: the
-head, `{ version: 10, …, binary }`, holds every other field below and the texture previews'
-column-file descriptor; a mesh page, `{ version: 10, primitives, binary }`, slim primitives and
-their columns' descriptor; an index page, `{ version: 10, pages }`, at most eight slots. Mesh pages
-are cut by the same pager from the primitives in order, halved: a region page is one primitive, or
-the primitives whose page fits 128 KiB (`PAGE_BYTES`), each with its own column file, written before
-the scene tables whose region pages name them (#792). What a run reports of itself
-(`reusedPages`, every `…Ms` metric, `peakRssBytes`) and of its settings (`threads`, `ramBudgetMb`,
-`admissionEstimatedBytes`, `compileWaves`) is in no page, so a rebuild writes the same bytes, on any
-threads and under any RAM budget (#1370, #1405); an older head carrying them still reads, the fields
-ignored. A reader checks the root (`assertCacheRoot`), reads the pages in parallel,
-each against its slot and column-file descriptor, and merges them (`readPagedManifest`). Rewriting a
-key folder removes, once the new root is written, every manifest page and column file it no longer
-names.
+`clusters.json` is the manifest's root, one size whatever the world: the fields naming the product
+— `status`, `formatVersion`, `schema`, `scope`, `key`, `compilerVersion` —, `head`, the head page's
+slot, and `pages`, eight mesh-page slots, empty ones last, laid out and paged as the [paged cell
+index](#world-partition). A page is `manifest-page-<sha256>.json`: the head, `{ version: 10, …,
+binary }`, holds every other field below and the texture previews' column-file descriptor; a mesh
+page, `{ version: 10, primitives, binary }`, slim primitives and their columns' descriptor; an index
+page, `{ version: 10, pages }`, at most eight slots. Mesh pages are cut by the same pager from the
+primitives in order, halved: a region page is one primitive, or the primitives whose page fits 128
+KiB (`PAGE_BYTES`), each with its own column file, written before the scene tables whose region
+pages name them. What a run reports of itself (`reusedPages`, every `…Ms` metric, `peakRssBytes`)
+and of its settings (`threads`, `ramBudgetMb`, `admissionEstimatedBytes`, `compileWaves`) is in no
+page, so a rebuild writes the same bytes, on any threads and under any RAM budget. A reader checks
+the root (`assertCacheRoot`), reads the pages in parallel, each against its slot and column-file
+descriptor, and merges them (`readPagedManifest`). Rewriting a key folder removes, once the new root
+is written, every manifest page and column file it no longer names.
 
 Required fields of the merged manifest, read by the browser adapter:
 
@@ -68,31 +61,29 @@ Required fields of the merged manifest, read by the browser adapter:
 - `selectedTriangles`, `selectedNodes` — counts of triangles and nodes kept, not lists, so they do
   not grow with the placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams,
-dag, topology }`
+  dag, topology }`
   - `pass`: `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry,
     `shared-blend` for unsplit transmissive geometry (`KHR_materials_transmission` with
     `transmissionFactor > 0`).
   - `clusterStrategy`: `dag-groups` on every DAG primitive, `null` on a `shared-blend` one, which
     carries no pages.
-  - `errorModel`: `dag-group-qem-v3`, the one model read — absolute group error weighing positions,
-    normals and texture coordinates, clamped to the group's extent, never below the sampled
-    Hausdorff distance between the group's children and outputs. A `dag-group-qem-v1` (positions
-    only) or `dag-group-qem-v2` (quadric error alone, below the geometry on curved surfaces) cache
-    is refused with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks
-    a tree; a cache whose clusters carry none (the page tree of earlier compilers) is refused by
-    `assertCacheIdentity` with `STALE_CACHE`, naming the primitive, so a host recompiles rather than
-    half-reads.
+  - `errorModel`: `dag-group-qem-v3` (`DAG_ERROR_MODEL`), the one model read — absolute group error
+    weighing positions, normals and texture coordinates, clamped to the group's extent, never below
+    the sampled Hausdorff distance between the group's children and outputs; any other is refused
+    with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks a tree; a
+    cache whose clusters carry none is refused by `assertCacheIdentity` with `STALE_CACHE`, naming
+    the primitive, so a host recompiles rather than half-reads.
   - `simplification`: `true` when compiled with `qem-endpoints`.
 - `worstStalls[]` — the stall table, ranked by the compiler: at most ten primitives whose stalled
-  group kept level-0 triangles as roots, most `rootTriangles` first, ties in manifest order, each `{
-index, mesh, primitive, rootTriangles, cause, seamVertices, lockedVertices, uvIslands }` (manifest
-  rank and `dag` summary). A primitive whose only stall is its coarsest group, above levels that
-  climbed, keeps no level-0 root and is not listed (its `dag.stalls[]` names it). The CLI's `stall`
-  events and the bench's `resume.md` print it as is
+  group kept level-0 triangles as roots, most `rootTriangles` first, ties in manifest order, each
+  `{ index, mesh, primitive, rootTriangles, cause, seamVertices, lockedVertices, uvIslands }`
+  (manifest rank and `dag` summary). A primitive whose only stall is its coarsest group, above
+  levels that climbed, keeps no level-0 root and is not listed (its `dag.stalls[]` names it). The
+  CLI's `stall` events print it as is
 - `worldRoots` — the [world super-roots](#world-super-roots) report, pinned top bytes included; not
   read by the browser.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews,
-texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, a page's [column
+  texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, a page's [column
   file](#column-files) descriptor.
 
 For the compiler alone: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of
@@ -105,10 +96,9 @@ keeping the folder ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 ### Column files
 
 Per-cluster numbers — tens of thousands of clusters, a dozen values each — are typed-array columns,
-one file per page (`manifest-page-<sha256>.bin`); the page JSON keeps what a human or tool reads —
-primitives, materials, passes, reports, and the counts locating each primitive's slice. Emerald
-Square falls from 48.4 MB of JSON to 387 KB plus a 17.0 MB sidecar, which the reader maps instead of
-tokenizing.
+one file per page (`manifest-page-<sha256>.bin`), which the reader maps instead of tokenizing; the
+page JSON keeps what a human or tool reads — primitives, materials, passes, reports, and the counts
+locating each primitive's slice.
 
 Little-endian: `u32` magic `WGMB` (`0x424d4757`), `u32` version `10`, `u32` column count `29`, `u32`
 reserved, one `(byteOffset, byteLength)` `u32` pair per column, then the payloads, each on an 8-byte
@@ -136,10 +126,10 @@ once since coarsening swaps whole groups.
 
 - `role` — `exact` at level 0, `coarse` above
 - `level` — DAG level, 0 for the source triangles
-- `lodError` / `sphere` — object-space error of the group that produced the cluster, and the `[x,
-y, z, radius]` sphere it is projected through: at level 0 the smallest ball of its vertices, above
-  it a ball holding every child's sphere, never larger than the box-centre sphere or sequential
-  merge it replaces
+- `lodError` / `sphere` — object-space error of the group that produced the cluster, and the
+  `[x, y, z, radius]` sphere it is projected through: at level 0 the smallest ball of its vertices,
+  above it a ball holding every child's sphere, never larger than the box-centre sphere or
+  sequential merge it replaces
 - `parentError` / `parentSphere` — the same pair for the replacing group; `null` on a root, never
   replaced
 - `group` — index in `structure.groups` of the replacing group, `null` on a root
@@ -149,10 +139,10 @@ y, z, radius]` sphere it is projected through: at level 0 the smallest ball of i
 - `geometry` — the optional independently decodable geometry page ([Pages](#pages))
 - `cone` — `{ axis: [x, y, z], angle }`, the normal cone: every non-degenerate face normal lies
   within `angle` radians of `axis`, `angle` never wider than the runtime's reference `triangleCone`
-  on the same triangles by more than a few ulps (`normal_cone.rs` says how and why); `{ axis: [0, 0,
-1], angle: π }`, rejecting nothing, when no face is left or the normals give no axis. Every
-  cluster has one, and the WebGPU prepare reads no vertex for it. In a column file it is `pageCone`,
-  four `f64` per page; sidecar version 9 added it, and a version-8 reader refuses the file
+  on the same triangles by more than a few ulps (`normal_cone.rs` says how and why);
+  `{ axis: [0, 0, 1], angle: π }`, rejecting nothing, when no face is left or the normals give no
+  axis. Every cluster has one, and the WebGPU prepare reads no vertex for it. In a column file it is
+  `pageCone`, four `f64` per page
 
 `structure` — `{ version, roots, groups[] }`: `roots` lists the clusters nothing replaces; a group
 is `{ level, error, sphere, children, outputs }`, `children` and `outputs` covering the same
@@ -175,13 +165,12 @@ pinned bundle lists nothing and every other reaches one; `maxDependencies`, the 
 is a statistic measured after packing. On WebGPU a bundle request brings the missing bundles of its
 list, retained with it, so a cluster enters the GPU pool only after its parents
 ([RESIDENCY.md](RESIDENCY.md#webgpu-admission-and-eviction)); the WebGL2 page path does not read the
-lists yet. In the column file a count per bundle (`bundleDependencyCount`) precedes the flat lists
-(`bundleDependency`); sidecar version 8 added them, and a version-7 reader refuses the file. The
-first `pinned` bundles hold exactly the root clusters, so keeping them resident guarantees a
-complete, if coarse, cover; they are concatenated across primitives into shared objects of at most 1
-MiB, so a first frame waits on a handful of requests, not one per primitive — each entry names the
-shared object, and each cluster keeps its `streamOffset` in it. A cluster stays addressable by its
-own `url` and by `streamOffset` in its bundle.
+lists. In the column file a count per bundle (`bundleDependencyCount`) precedes the flat lists
+(`bundleDependency`). The first `pinned` bundles hold exactly the root clusters, so keeping them
+resident guarantees a complete, if coarse, cover; they are concatenated across primitives into
+shared objects of at most 1 MiB, so a first frame waits on a handful of requests, not one per
+primitive — each entry names the shared object, and each cluster keeps its `streamOffset` in it. A
+cluster stays addressable by its own `url` and by `streamOffset` in its bundle.
 
 `dag` — a report, not a contract: `{ depth, clusterTriangles, groupMin, groupMax, levels[],
 groups[], warnings[], stalls[], rootTriangles, cause, seamVertices, lockedVertices, uvIslands }`.
@@ -231,35 +220,33 @@ independently decodable quantized cluster page with URL, SHA-256, byte length, v
 attribute flags and `uncompressedBytes` (the page unpacked to float attributes and 32-bit indices,
 what an expanding reader holds; `bytes` is what an in-place decoder keeps resident). The manifest
 declares the format once: `geometryPages: { formatVersion: 7, codec: "quantized" }`, independent of
-the cache version — the optional fields and `autonomousScene` are additive, while `clustered-blend`
-requires cache format 10. A missing `geometryPages` or another format is refused whole, as is a
-sidecar of a version other than 10 (it names only this page); every page header opens with the same
-version. Index pages stay available for existing backends.
+the cache version, while `clustered-blend` requires cache format 10. A missing `geometryPages` or
+another format is refused whole, as is a sidecar of a version other than 10; every page header opens
+with the same version. Index pages stay available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
-The cluster format — positions on an object grid, octahedral normals, integer texture
-coordinates, colours on a grid, local indices delta-coded in blocks of triangles, no tangent —
-built for the web: twenty-five little-endian `u32` header words, then
-word-aligned bit streams, nothing else. No field spans more than two words, so a shader reads any
-vertex or corner of a resident page in place, in O(1)
-(`packages/sdk-browser/src/cluster/decodeWgsl.ts`); the JavaScript and WebAssembly decoders unpack
-the same bytes to floats for the autonomous backend.
+The cluster format — positions on an object grid, octahedral normals, integer texture coordinates,
+colours on a grid, local indices delta-coded in blocks of triangles, no tangent — built for the web:
+twenty-five little-endian `u32` header words, then word-aligned bit streams, nothing else. No field
+spans more than two words, so a shader reads any vertex or corner of a resident page in place, in
+O(1) (`packages/sdk-browser/src/cluster/decodeWgsl.ts`); the JavaScript and WebAssembly decoders
+unpack the same bytes to floats for the autonomous backend.
 
-| Word  | Content                                                                                                                                             |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0, 1  | magic `WGP3` (`0x33504757`), version `7`                                                                                                            |
-| 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                                                                  |
-| 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0, `16` joints/weights, `32` morph targets, `64` simulation-source semantics |
-| 5–8   | position record and minimum: one `f32` per axis                                                                                                     |
-| 9–11  | TEXCOORD_0 record and minimum                                                                                                                       |
-| 12–14 | TEXCOORD_1 record and minimum                                                                                                                       |
-| 15–19 | COLOR_0 record and minimum, four channels                                                                                                           |
-| 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units                                     |
-| 21    | bits of the corner stream                                                                                                                           |
-| 22    | stored positions: 1 to the vertex count                                                                                                             |
-| 23    | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29                                                           |
-| 24    | skin influences per vertex (0 without skin; 1 to 65,536 with skin)                                                                                  |
+| Word | Content |
+| --- | --- |
+| 0, 1 | magic `WGP3` (`0x33504757`), version `7` |
+| 2, 3 | vertex count (1 to 65,535), index count (a positive multiple of 3) |
+| 4 | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0, `16` joints/weights, `32` morph targets, `64` simulation-source semantics |
+| 5–8 | position record and minimum: one `f32` per axis |
+| 9–11 | TEXCOORD_0 record and minimum |
+| 12–14 | TEXCOORD_1 record and minimum |
+| 15–19 | COLOR_0 record and minimum, four channels |
+| 20 | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
+| 21 | bits of the corner stream |
+| 22 | stored positions: 1 to the vertex count |
+| 23 | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29 |
+| 24 | skin influences per vertex (0 without skin; 1 to 65,536 with skin) |
 
 A record word holds each component's width in six-bit fields from bit 0 (0 to 24) and the grid
 exponent as a signed top byte; a zero-width component is constant, with no stream. Streams follow in
@@ -270,21 +257,17 @@ is 16 bits.
 
 Position streams hold word 22's count: a page whose vertices repeat positions (a flat-shaded mesh
 repeats each corner under every face normal) stores each position once, in first-use order, plus a
-link per vertex, its position's rank on `bits_for(word 22 − 1)` bits (version 5, CMP-10, #960),
-decoding to the same floats one field further, still O(1). Compiler and reference encoder do so only
-when positions plus links take fewer words than one position per vertex; otherwise word 22 is the
-vertex count and there is no link stream. From the same sources the repository's scenes' pages weigh
-2.0 % less than in version 4 — the flat-shaded chalet 17.5 %, the crates 19.2 %, the street corner
-24.7 % —, smooth ones like the terrains not a byte more, every page decoding to the same vertices.
+link per vertex, its position's rank on `bits_for(word 22 − 1)` bits, decoding to the same floats
+one field further, still O(1). Compiler and reference encoder do so only when positions plus links
+take fewer words than one position per vertex; otherwise word 22 is the vertex count and there is
+no link stream.
 
-Triangles are coded in blocks of eight, in page order (version 4, #959): the block table holds per
-block its smallest corner (`base`, `ceil(log2(vertexCount))` bits), the width `w` of its corners'
-distance to it (5 bits, 0 to 16) and `prefix`, the sum of earlier blocks' widths (`bits_for(word 21
-/ 24)` bits), each record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`;
-the corner stream holds `corner − base` for corner `k` at bit `24 × prefix + k × w`. A corner is one
-record and one field away, O(1) in a shader, and lossless. Vertices numbered by first use keep
-blocks narrow: Sponza's (licence: [see ASSET_LICENSE_AUDIT](ASSET_LICENSE_AUDIT.md#licence-table-of-every-asset)) pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 %
-(building) to 6.7 % (sphere) less, every page decoding to the same triangles.
+Triangles are coded in blocks of eight, in page order: the block table holds per block its smallest
+corner (`base`, `ceil(log2(vertexCount))` bits), the width `w` of its corners' distance to it (5
+bits, 0 to 16) and `prefix`, the sum of earlier blocks' widths (`bits_for(word 21 / 24)` bits), each
+record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`; the corner stream
+holds `corner − base` for corner `k` at bit `24 × prefix + k × w`. A corner is one record and one
+field away, O(1) in a shader, and lossless. Vertices numbered by first use keep blocks narrow.
 
 Every offset follows from the counts, widths and words 21 and 22, so the header stores no other and
 a reader trusts none: the byte length must equal what the streams need; a header field outside the
@@ -298,36 +281,36 @@ before any float is produced.
 Decoding is one multiply and one add per component in 32-bit floats: `value = min + q × 2^exponent`,
 the product exact (a power-of-two step), the sum rounded once, so the three decoders
 (`geometryPage.ts` through `Math.fround`, the Rust codec, the WGSL routines) agree, bit for bit on
-the graphics card (`tests/gpu/cluster/cluster-decoding.gpu.ts`). A normal is two bytes, `x` low
-and `y` high, `(q × 2/255 − 1)` each, the lower hemisphere folded (`z < 0`) then normalized, `2/255`
+the graphics card (`tests/gpu/cluster/cluster-decoding.gpu.ts`). A normal is two bytes, `x` low and
+`y` high, `(q × 2/255 − 1)` each, the lower hemisphere folded (`z < 0`) then normalized, `2/255`
 rounded to the nearest `f32` in each language. `-0` lands on the cell of `0`.
 
-The position grid is per primitive, the finer of two rules. First `exponent = min(floor(log2(widest
-extent)), tile) − 16`: about 2^16 steps across the primitive, or per tile of 2 world metres when
-wider — `tile = floor(log2(2 / scale))` in object units, `scale` the largest world scale placing the
-primitive (a metre per unit if unknown). A primitive wider than 2 m thus sits on `2^-15` m (30.5
-µm), whose worst displacement, √3/2 of a step, is 0.057 px at a metre on the reference display (2234
-lines under a 55° vertical field), under the 0.1 px display quantum; a cluster no group produced has
-nothing finer to refine to, so the grid bounds it (#959). A primitive under 2 metres keeps its grid
-whatever its units; tiles split nothing — a cell rounds the absolute coordinate and each page stores
-its own minimum — and cost only the bits a page's box needs on the finer grid. Second,
-`floor(log2(finest group error / 8))`, so a cluster's displacement projects below an eighth of the
-threshold wherever the cut picks it (the finest error being the smallest non-zero `lodError`). Both
-are bounded below by `ceil(log2(widest extent)) − 23`, so a primitive spans at most 2^23 steps and
-every page fits the 24-bit field on its exponent — a kilometre terrain, whose root spans it, stops
-at `2^-13` m on 1,024 m. The engine's runtime cutter runs this rule (`bits/grid.rs` in the SDK
-module) with no error rule and a metre per unit, or the 2^23-step grid without the module; a
-compiled primitive whose material moves into or out of blended in the session is re-cut by it on its
-own clusters, with its DAG's finest error, placing scale and the compiler's texture grid, giving the
-page the compiler writes for the new class (#846). All pages of a primitive share its exponent, so a
-vertex two clusters share lands on the same cell in both; each cluster spends only the bits its box
-needs, and a page still needing more than 24 bits — a texture coordinate range past 1024, a colour
-range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded alone. Texture
-coordinates sit on `2^-14`, a quarter texel of a 4096-wide map; the compiler never leaves it, and
-the runtime cutter takes the finest coarser grid only for a primitive whose widest cluster spans
-past 1024 (a long dashed line's distance along it), the record word carrying the exponent. Colours,
-clamped to `[0, 1]`, sit on `2^-8`, with the same per-page minima and widths; a constant channel
-costs no bits.
+The position grid is per primitive, the finer of two rules. First
+`exponent = min(floor(log2(widest extent)), tile) − 16`: about 2^16 steps across the primitive, or
+per tile of 2 world metres when wider — `tile = floor(log2(2 / scale))` in object units, `scale` the
+largest world scale placing the primitive (a metre per unit if unknown). A primitive wider than 2 m
+thus sits on `2^-15` m (30.5 µm), whose worst displacement, √3/2 of a step, is 0.057 px at a metre
+on the reference display (2234 lines under a 55° vertical field), under the 0.1 px display quantum;
+a cluster no group produced has nothing finer to refine to, so the grid bounds it. A primitive under
+2 metres keeps its grid whatever its units; tiles split nothing — a cell rounds the absolute
+coordinate and each page stores its own minimum — and cost only the bits a page's box needs on the
+finer grid. Second, `floor(log2(finest group error / 8))`, so a cluster's displacement projects
+below an eighth of the threshold wherever the cut picks it (the finest error being the smallest
+non-zero `lodError`). Both are bounded below by `ceil(log2(widest extent)) − 23`, so a primitive
+spans at most 2^23 steps and every page fits the 24-bit field on its exponent — a kilometre terrain,
+whose root spans it, stops at `2^-13` m on 1,024 m. The engine's runtime cutter runs this rule
+(`bits/grid.rs` in the SDK module) with no error rule and a metre per unit, or the 2^23-step grid
+without the module; a compiled primitive whose material moves into or out of blended in the session
+is re-cut by it on its own clusters, with its DAG's finest error, placing scale and the compiler's
+texture grid, giving the page the compiler writes for the new class. All pages of a primitive share
+its exponent, so a vertex two clusters share lands on the same cell in both; each cluster spends
+only the bits its box needs, and a page still needing more than 24 bits — a texture coordinate range
+past 1024, a colour range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded
+alone. Texture coordinates sit on `2^-14`, a quarter texel of a 4096-wide map; the compiler never
+leaves it, and the runtime cutter takes the finest coarser grid only for a primitive whose widest
+cluster spans past 1024 (a long dashed line's distance along it), the record word carrying the
+exponent. Colours, clamped to `[0, 1]`, sit on `2^-8`, with the same per-page minima and widths; a
+constant channel costs no bits.
 
 The cost is declared: word 20 carries the page's worst position displacement, rounded up to the
 `f32` so no position exceeds it — every decoder returns it and the autonomous backend widens the
@@ -335,11 +318,11 @@ page's box by it —, and `primitives[].quantization`, `{ positionExponent, uvEx
 maxPositionError }` (step `2^positionExponent`), the primitive's, `null` on a primitive without
 pages. The cut adds it: a cluster **a group produced** is certified at `lodError +
 maxPositionError`, a group at `error + maxPositionError`, and every cluster and culling-node box
-grows by it, so the pixel threshold bounds the quantized surface drawn, not the measured source
-(spec C4; its colour and texture-coordinate terms remain open). **A cluster no group produced keeps
-its band** — the ladder's floor, nothing finer cached; raising it would leave nothing to draw at
-zero pixels — but its boxes grow. Both sides of a replacement swap at the same threshold, so the cut
-stays a partition. A normal is within 1° of its source, a colour within half a level of 256.
+grows by it, so the pixel threshold bounds the quantized surface drawn, not the measured source.
+**A cluster no group produced keeps its band** — the ladder's floor, nothing finer cached; raising
+it would leave nothing to draw at zero pixels — but its boxes grow. Both sides of a replacement swap
+at the same threshold, so the cut stays a partition. A normal is within 1° of its source, a colour
+within half a level of 256.
 
 A coarse page may carry vertices matching no source vertex: a seam-locked group reduced with solved
 vertices ([COMPILER.md](COMPILER.md)) writes each surviving position at its quadric's minimum, each
@@ -348,13 +331,12 @@ position on the primitive's grid, so the page's cone and the collider bound the 
 exist nowhere else.
 
 Two source vertices landing on the same cells decode alike, so the page keeps one and remaps
-corners: Whisperwind's FBX import, 2.6 vertices per triangle, comes down to its distinct vertices,
-triangles unchanged. Tangents are never written: every lighting pass rebuilds a cotangent frame from
-a triangle's normal, two edges and their texture deltas (`cotangentFrame`, in WGSL beside the decode
-routines and GLSL for the WebGL2 renderer; a raster passes the edges, a fragment stage its screen
-derivatives). A texture coordinate set no texture of the material names in
-`texCoord` is not written either — residency follows what the frame reads —, while the DAG still
-welds along it, so clusters do not depend on what a material samples.
+corners, triangles unchanged. Tangents are never written: every lighting pass rebuilds a cotangent
+frame from a triangle's normal, two edges and their texture deltas (`cotangentFrame`, in WGSL beside
+the decode routines and GLSL for the WebGL2 renderer; a raster passes the edges, a fragment stage
+its screen derivatives). A texture coordinate set no texture of the material names in `texCoord` is
+not written either — residency follows what the frame reads —, while the DAG still welds along it,
+so clusters do not depend on what a material samples.
 
 When every selected primitive has autonomous pages, the compiler also publishes `scene.gltf` and
 `scene.bin`: node transforms, material declarations and images, geometry accessors replaced by a
@@ -362,12 +344,8 @@ dummy triangle. The `autonomousGeometry: true` backend builds meshes only from v
 pages, which carry the source normals (a surface is flat only where the `source.gltf` primitive of
 the same ranks declares none), and never requests `source.bin`. It reads images where the
 [prepared-scene tables](#prepared-scene-tables) locate them, sampling `texture.image`, no baked
-level. Skipping an image — a one-pixel placeholder at preparation, levels read from the cache on
-demand — belongs to a session whose every mounted backend reads those levels (the WebGPU page
-raster); the engine resolves `textureSource` against what it draws with (`resolveTextureSource`), so
-no machine loses its textures. Transparent autonomous pages are not implemented. The complete root
-cover loads before the explorer is ready. `maxResidentPages` counts displayed page instances while
-the streamer deduplicates URL transfers; neither measures physical VRAM or total application memory.
+level. Which images a session skips for the baked levels (`textureSource`) is runtime behaviour
+([RESIDENCY.md](RESIDENCY.md#virtual-textures)).
 
 ## Textures
 
@@ -396,17 +374,18 @@ regenerating a chain only for a texture without one. The chain is split in two:
   SHA-256 of the source image bytes, `{kind}` `srgb`, `linear`, `srgb-coverage` or
   `srgb-coverage-<C>`, `{level}` the mip rank, `{format}` `png` (lossless, always present), `bc7` /
   `bc5` (BC family, RGBA and two-channel) or `astc` / `astc-la` (ASTC 4×4, same two layouts). A
-  block file holds the level's **tile records** (version 6, #962): tile rows top to bottom, tiles
-  left to right, each record the 4×4 blocks of its 128×128 tile plus a 4-texel gutter, clipped at
-  the level's edge (gutter blocks repeated in both neighbours), block rows top to bottom, a side not
-  a multiple of four padded by its edge. No index: offsets and lengths follow from the level's
-  dimensions (`texture/tileRecords.ts`), so the WebGPU streamer reads one tile with one HTTP `Range`
-  request, or the whole file from a server ignoring `Range`. `textures.version` repeats
-  `TEXTURE_PREVIEW_VERSION`; another version is refused whole with `STALE_CACHE`, naming the
-  recompile command (`assertCacheIdentity`). Levels are content-addressed, shared by every scene
-  sharing the image, never rewritten, pruned like objects when no surviving manifest names their
-  digest. `v<N>` is `TEXTURE_PREVIEW_VERSION`: a new reduction rule, codec or gate bar changes the
-  path, so stale levels are never served.
+  block file holds the level's **tile records**: tile rows top to bottom, tiles left to right, each
+  record the 4×4 blocks of its 128×128 tile plus a 4-texel gutter, clipped at the level's edge
+  (gutter blocks repeated in both neighbours), block rows top to bottom, a side not a multiple of
+  four padded by its edge. No index: offsets and lengths follow from the level's dimensions
+  (`texture/tileRecords.ts`), so the WebGPU streamer reads one tile with one HTTP `Range` request,
+  or the whole file from a server ignoring `Range`. Levels are content-addressed, shared by every
+  scene sharing the image, never rewritten, pruned like objects when no surviving manifest names
+  their digest.
+
+`v<N>` and `textures.version` are `TEXTURE_PREVIEW_VERSION` (6): a new reduction rule, codec or gate
+bar changes the path, so stale levels are never served, and a cache of another version is refused
+whole with `STALE_CACHE`, naming the recompile command (`assertCacheIdentity`).
 
 **Block layouts and the quality gate.** A cook writes one block family
 (`--textures-format=bc7|astc|both|none`, `bc7` by default: a cook runs on a desktop). The layout
@@ -421,14 +400,13 @@ base colour's alpha is not; a normal map's three are, Z rebuilt against Z stored
 if** its PSNR over the whole chain reaches **48 dB**, no texel moves more than **3 levels** of 255
 on a read channel, and no texel of a masked texture crosses its alpha cutoff (alpha times the
 material's colour factor alpha, as the engine cuts). That defines "no visible loss" for a block
-texture: on a still capture at 1280×720, DPR 1, every channel of every pixel within 3 of 255 (below
-what an 8-bit display discriminates) and 0 px of A/A, carried to the texel since filtering only
-averages texels, measured on the batch captures. A chain under the bar stays lossless in that family
-— no block file or tail, the layout word says so — and is sampled from an RGBA8 pool. The report
-(`clusters.json`, `texturePreviews`) publishes the bar (`qualityGate`), counts per family and layout
-(`encoded`), the kept chains' PSNR quantiles, and each chain left lossless with its PSNR, largest
-gap and flips (`lossless`). The codecs are the compiler's own, pure Rust, one layout each, no mode
-search, their blocks proved on the same independent decoder.
+texture: every channel of every pixel within 3 of 255 (below what an 8-bit display discriminates)
+and 0 px of A/A, carried to the texel since filtering only averages texels. A chain under the bar
+stays lossless in that family — no block file or tail, the layout word says so — and is sampled from
+an RGBA8 pool. The report (`clusters.json`, `texturePreviews`) publishes the bar (`qualityGate`),
+counts per family and layout (`encoded`), the kept chains' PSNR quantiles, and each chain left
+lossless with its PSNR, largest gap and flips (`lossless`). The codecs are the compiler's own, pure
+Rust, one layout each, no mode search, their blocks proved on the same independent decoder.
 
 Every level follows the rule the card applies when it regenerates a chain
 (`packages/sdk-browser/src/texture/mips.ts`): level `k` from the **quantized** level `k - 1`,
@@ -438,60 +416,37 @@ mean except for a colour texture **every** reader of which takes alpha as covera
 non-transmitting `BLEND` materials or of `MASK` ones with a cutoff above 0, only: it gets its own
 chain, `atlas` word `2`, `{kind}` `srgb-coverage`, where four texels of differing alpha average
 their linear colours weighted by alpha (premultiplied, averaged, divided by the summed alpha, stored
-straight), so colour under a transparent texel no longer darkens a cutout's border (#42); when every
-reader cuts, each level's median alpha is then scaled to cover level 0's share (#44, below). An
-image whose alpha never varies keeps the plain chain, which weighting would not change. One opaque
-or transmissive base colour or one emissive among the readers keeps the plain chain byte for byte,
-that reader drawing the colour under alpha 0; the data atlas never weighs. Weighted files, named
-apart, never share with another scene's plain chain of the image; the card regenerating a hosted
-texture decides the same from the same material census. The file's declared transfer is ignored: the
-pyramid follows the display. Baking thus keeps the image within rounding — on Emerald at 2496×1404,
-0 pixels beyond ±2 per channel on the general view; on the lawn view 1 720 isolated pixels (0,05 %)
-where a coarse texel's median alpha crosses the 0,5 cutoff, plus their shadows with the sun on.
-Remeasured when the engine stopped regenerating cached chains (#289), at 1280×720, DPR 1, threshold
-0, TAA off, lossless pools both sides: the four Emerald views differ by at most 2 of 255 on a
-channel (one channel of one frame at 3), mean absolute channel error 0,009 to 0,049 of 255;
-Whisperwind by 5 pixels at 1 of 255; A/A witness 0 px on every view.
+straight), so colour under a transparent texel does not darken a cutout's border; when every reader
+cuts, each level's median alpha is then scaled to cover level 0's share (below). An image whose
+alpha never varies keeps the plain chain, which weighting would not change. One opaque or
+transmissive base colour or one emissive among the readers keeps the plain chain byte for byte, that
+reader drawing the colour under alpha 0; the data atlas never weighs. Weighted files, named apart,
+never share with another scene's plain chain of the image; the card regenerating a hosted texture
+decides the same from the same material census. The file's declared transfer is ignored: the
+pyramid follows the display.
 
-**Coverage-preserving alpha (#44).** The median alone thins a masked texture at coarse levels —
-sponza's masked maps held coverage within ±2.4 % down to 32² texels, then lost 3 to 15 % at level 6,
-up to 40 % at level 7 and 57 % at level 8. A coverage chain therefore carries its texture's cutoff
-byte `C`: the lowest among the materials reading its alpha as coverage, each the smallest byte `b`
-with `b / 255 × f >= alphaCutoff` in `f32`, `f` its `baseColorFactor` alpha — the product itself,
-since the cutoff divided by `f` lands a byte off on exact ties; glTF 2.0 cuts sampled alpha times
-the factor's against `alphaCutoff`, as both backends do (`maskKeep`, #748; WebGL2's `baseFactor`,
-#769). A factor of 0 or below, or a cutoff at or above the factor, keeps at most fully opaque texels
-and takes `C = 255`, which the lowest over the readers ignores beside any other; `C` is 0, the
-median alone, when one reader blends — it draws the alpha itself, and the scale would move its mean.
-Two textures of one image cut at two cutoffs, or one blended, bake a chain each. Coverage is counted
-on the bilinearly filtered cut, as the sampler draws it, not on texels (Castaño's practice, #43):
-four samples per texel, at the quarter points of the square between its centre and those of its
-right, lower and diagonal neighbours (an edge texel its own neighbour), each the byte `(9a + 3b +
-3c + d) / 16` of the square's corners rounded half up, `a` the nearest: a filtered alpha passes the
-cut
-from `C − 0.5` — exactly the engine's cut at `alphaTest` 0.5 —, where the scale puts `t − 0.5`. At
-each level `k >= 1`, after the median, with `n0` the level-0 samples `>= C`, `N0` and `Nk` the texel
-counts of levels 0 and `k` (four samples a texel both sides), and `above(t)` the level-`k` samples
-the scale at `t` lifts to `C` or more — each filed in a 256-bin histogram under the highest such `t`
-(0 if none), found by binary search between the square's lowest and highest corners, since the scale
-only grows as `t` falls, a corner reaches `C` exactly when `t` is at most its byte and a sample lies
-between its corners —, `t` is the byte of `1..=255` minimising `|above(t) × N0 − n0 × Nk|` (ties to
-the `t` nearest `C`, then the lower), and every alpha `a` becomes `min(255, (2a(2C − 1) + 2t − 1) /
-(4t − 2))` in integers, truncating: `a × (C − 0.5) / (t − 0.5)` rounded half up, so exactly
-`above(t)` filtered samples reach `C`. Every level matches level 0, never the previous; `t = C`
-leaves a level byte for byte; level `k + 1` reduces from the scaled bytes; colours are untouched.
-The compiler (`texture_preview/coverage.rs`) and the card's chains for hosted textures run this
-arithmetic, in WGSL and GLSL (`texture/coverageRule.ts`): WebGPU counts each level and picks `t` in
-a compute pass (#748, `texture/coverageMips.ts`), WebGL2 counts by additive blending into an RGBA
-float target, a channel per sample, and picks `t` in a one-texel draw (#769,
-`webgl/cluster/coverageMips.ts`) — without `EXT_color_buffer_float` and `EXT_float_blend`, the
-median alone —, once per chain built (a live texture per new picture), never per frame: four samples
-a texel and a search of at most eight steps each, the frame nothing. Files are `srgb-coverage-<C>`,
-one name per cutoff, so two scenes cutting one image differently never serve each other's levels;
-the blended-only chain keeps `srgb-coverage` and its bytes. The filtered cut (#43) moved the
-`srgb-coverage-<C>` bytes under their names, and level files are written only when missing, so #43
-raised `TEXTURE_PREVIEW_VERSION` to 5, whose folder `textures/v5` serves no level of the texel-count
-rule (6 since the tile records of #962).
+**Coverage-preserving alpha.** The median alone thins a masked texture at coarse levels, so a
+coverage chain carries its texture's cutoff byte `C`: the lowest among the materials reading its
+alpha as coverage, each the smallest byte `b` with `b / 255 × f >= alphaCutoff` in `f32`, `f` its
+`baseColorFactor` alpha (glTF cuts sampled alpha times the factor's against `alphaCutoff`, as both
+backends do). A factor of 0 or below, or a cutoff at or above the factor, takes `C = 255`, which the
+lowest over the readers ignores beside any other; `C` is 0, the median alone, when one reader
+blends. Two textures of one image cut at two cutoffs, or one blended, bake a chain each. Coverage is
+counted on the bilinearly filtered cut, as the sampler draws it: four samples per texel, at the
+quarter points of the square between its centre and those of its right, lower and diagonal
+neighbours (an edge texel its own neighbour), each the byte `(9a + 3b + 3c + d) / 16` of the
+square's corners rounded half up, `a` the nearest. At each level `k >= 1`, after the median, `t` is
+the byte of `1..=255` minimising `|above(t) × N0 − n0 × Nk|` (ties to the `t` nearest `C`, then the
+lower) — `n0` the level-0 samples `>= C`, `N0` and `Nk` the texel counts of levels 0 and `k`,
+`above(t)` the level-`k` samples the scale at `t` lifts to `C` or more —, and every alpha `a`
+becomes `min(255, (2a(2C − 1) + 2t − 1) / (4t − 2))` in integers, truncating: `a × (C − 0.5) /
+(t − 0.5)` rounded half up. Every level matches level 0, never the previous; `t = C` leaves a level
+byte for byte; level `k + 1` reduces from the scaled bytes; colours are untouched. The compiler
+(`texture_preview/coverage.rs`) and the card's chains for hosted textures
+(`texture/coverageRule.ts`, WGSL and GLSL) run this arithmetic once per chain built, never per
+frame; a WebGL2 card without `EXT_color_buffer_float` and `EXT_float_blend` keeps the median alone.
+Files are `srgb-coverage-<C>`, one name per cutoff, so two scenes cutting one image differently
+never serve each other's levels; the blended-only chain keeps `srgb-coverage`.
 
 An image whose decode fails has no entry: its textures load from the source. A texture whose chain
 is not whole (`bakedLevels < firstLevel`) also keeps the source path, in the engine's lossless lane,
@@ -501,7 +456,7 @@ whatever family the device samples.
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and the
 runtime builds that scene from it alone: no glTF is parsed in the browser. Its own versions govern
-it — `version` 5, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —, an
+it — `version` 6, `nodeTableVersion` 5, `materialTableVersion` 4, `geometryTableVersion` 1 —, an
 unknown one refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`). Every
 value is read from the `source.gltf` the same compilation publishes (and, for its layout,
 `scene.gltf` when written): the slice's nodes, cutout answers applied, mesh ranks remapped.
@@ -509,19 +464,31 @@ value is read from the `source.gltf` the same compilation publishes (and, for it
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
 - `nodes[]` — every node the partition's cells do not place, in glTF order, renumbered without them
   (all nodes at their glTF rank when `partition` is `null`): `{ name, children, mesh, light, camera,
-weights, matrix, translation, rotation, scale, visible }`. `weights` overrides the mesh's morph
-  weights; `visible` is `false` under `KHR_node_visibility` `visible: false`, hiding the node and
-  its subtree until a page shows it, and such a node stays in this table, not a cell (node table
-  version 4). The pose is the LOCAL one as declared, each part `null` when silent, so the runtime
-  composes the same world-matrix bits as always. Several nodes naming one mesh is instancing.
+  skin, weights, matrix, translation, rotation, scale, visible, sourceNode }`. `skin` is a rank of
+  `skins[]`; `weights` overrides the mesh's morph weights; `visible` is `false` under
+  `KHR_node_visibility` `visible: false`, hiding the node and its subtree until a page shows it, and
+  such a node stays in this table, not a cell; the optional `sourceNode` carries the original `u32`
+  document rank through partition renumbering as exactly eight lowercase hexadecimal digits, a fixed
+  width keeping the table's size independent of the world's node count (the table rank when
+  absent; a malformed value is refused). The pose is the LOCAL one as declared, each part `null`
+  when silent, so the runtime composes the same world-matrix bits as always. Several nodes naming
+  one mesh is instancing.
 - `partition` — `null`, or the world partition (below): the cells placing the other nodes.
 - `meshPages` — the slots of the manifest mesh pages holding the meshes of `nodes[]`, sorted, each
-  once (version 5, #751): what a runtime holding the manifest by the view reads before its first
-  frame, the cells' region pages naming the rest.
+  once: what a runtime holding the manifest by the view reads before its first frame, the cells'
+  region pages naming the rest.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
-range, innerConeAngle, outerConeAngle }`, silent fields `null` (the specification's default).
+  range, innerConeAngle, outerConeAngle }`, silent fields `null` (the specification's default).
   `lights.json` stays the radiometric product the engine lights with.
 - `cameras[]` — `{ name, type, yfov, aspectRatio, xmag, ymag, znear, zfar }`, silent fields `null`.
+- `skins[]` — `{ name, joints, skeleton, inverseBindMatrices }`: joints as node ranks (a vertex's
+  joint index is a rank in this list), the skeleton root or `null`, sixteen numbers a joint,
+  column-major, or `null` for identities.
+- `animations[]` — `{ name, channels }`, a channel `{ node, path, interpolation, times, values }`:
+  the node rank it moves, `translation`, `rotation`, `scale` or `weights`, `LINEAR`, `STEP` or
+  `CUBICSPLINE`, key times in seconds, and the values (a cubic spline's in-tangent, value,
+  out-tangent). Every number is written out, so the runtime builds skeletons and clips without
+  reading the scene's binary.
 - `materials[]` — the surface fields the engine reads: `lit`, `baseColor`, `metalness`,
   `roughness`, `doubleSided`, `backSide`, `alphaTest`, the six map slots (`map`, `metalnessMap`,
   `roughnessMap`, `normalMap`, `aoMap`, `emissiveMap`), `normalScale`, `normalScaleY`,
@@ -537,11 +504,11 @@ range, innerConeAngle, outerConeAngle }`, silent fields `null` (the specificatio
   entry's `normalScaleY` turned as the other variant writes it, whichever document it opened. A
   primitive with no material wears an entry holding glTF's default.
 - `textures[]` — at the glTF texture rank: `{ name, sampler, image, wrapS, wrapT, magFilter,
-minFilter }`, `image` the source `EXT_texture_webp` then `EXT_texture_avif` names before the core
+  minFilter }`, `image` the source `EXT_texture_webp` then `EXT_texture_avif` names before the core
   `source`, as the loader reads it; in the engine's words (`clamp`/`repeat`/`mirror`,
   `linear-mip-linear`…), the specification's defaults where the sampler is silent; `sampler` the
-  glTF sampler rank, which with the image's source decides which textures are one. A map slot is `{
-texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled (the
+  glTF sampler rank, which with the image's source decides which textures are one. A map slot is
+  `{ texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled (the
   `KHR_texture_transform`'s when it names one), `slotTexCoord` the slot's own, deciding whether the
   host reads the glTF texture or a copy and so the rank kept, and `transform` the declared
   `KHR_texture_transform` — `{ offset, rotation, scale }`, each `null` when silent — or `null`; the
@@ -549,12 +516,21 @@ texture, texCoord, slotTexCoord, transform }`: `texCoord` the set sampled (the
 - `documents` — each published document's geometry layout, keyed by file name (`source.gltf`, and
   `scene.gltf` when written): `{ buffer, views, accessors, meshes, images }`. `buffer` names its one
   binary; a view is `{ offset, length, stride }` into it; an accessor `{ view, offset,
-componentType, normalized, count, type, min, max, sparse }`, `sparse` being `{ count, indices: {
-view, offset, componentType }, values: { view, offset } }` or `null`; a mesh `{ name, weights,
-primitives }`, a primitive `{ attributes, targets, indices, material }` — accessor ranks by glTF
+  componentType, normalized, count, type, min, max, sparse }`, `sparse` being `{ count, indices: {
+  view, offset, componentType }, values: { view, offset } }` or `null`; a mesh `{ name, weights,
+  primitives }`, a primitive `{ attributes, targets, indices, material }` — accessor ranks by glTF
   semantic, morph targets (sets of accessor ranks, `null` for none), and its surface's rank in
   `materials[]` for that document's tangent variant; an image `{ name, uri, view, mimeType }`, an
   address relative to the document or a view of its binary.
+
+The runtime builds its host scene from these tables alone
+(`packages/sdk-browser/src/host/prepared/`) — attributes viewed on the binary, the declared position
+box, textures folded on image source and sampler, surfaces with vertex-colour and flat-shading
+variants, nodes, meshes, cameras and lights named as the host loader did — proven equal to the
+loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
+(`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout naming a document the tables
+lack, a view outside its binary, or a cell placing a mesh with no rows built is
+`PREPARED_SCENE_MISMATCH`.
 
 ### World partition
 
@@ -575,28 +551,26 @@ is `{ version: 2, nodes }`, each `{ parent, mesh, matrix, translation, rotation,
 `nodes[]` rank of its core parent (`null`, the scene), its mesh, its local pose as declared, silent
 parts `null`. A placement keeps no name: it is a row, not a host node.
 
-**The paged cell index** (`partition/pages.rs`, #750). Records lie in pages cut from the halving
-tree, each node a contiguous cell range. A region page `{ version: 4, first, cells, meshPages }`
-holds the records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size),
-`first` its first cell's rank — its `n`-th record is `scene-cell-<first + n>.json`, cell
-`cells[first + n]` of the [world roots](#world-super-roots) —, and `meshPages`, sorted, each once,
-the manifest mesh-page slots holding a primitive of a mesh its cells place, what a region needs
-fetched (#792). An index page `{ version: 4, pages, parents }` lists at most 8 pages (`FAN_OUT`),
-its node opened largest first, each with (#575) the core ranks its cells hang nodes under, eight
-hexadecimal digits each run together, `""` for none. `partition` is the root `{ version: 4, pages,
-parents, meshes, cube }`: the whole tree opened into exactly eight slots, empty last, parents beside
-each slot as an index page lists them; then per placed mesh, in rank order, its rank, its node count
-and its **rows at each of 32 rungs**, eight hexadecimal digits each; and `cube`, the widest cell's
-diagonal, the sixteen hexadecimal digits of its `f64` (`partition/pages/rows.rs`). Rung `k` is a
-side `cube·√2^k`; its rows are, summed over the parents, the most nodes of that mesh one parent's
-cells place meeting one window of side `1.5·side` at a multiple of `side/2` on every axis — each
-cell counted whole, never past every node. Any cube of that side lies in one such window, so a
-rung's rows hold every node of the cells meeting any cube of it, a bound set by the side and the
-cells' size, the same at 1× and 16× the world once the side is narrower than the world. The slots
-take 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8, the whole root 1 739
-for the grids with one mesh under the scene: fixed width, growing with meshes and parents placed,
-never with cells. A slot is 168 hexadecimal digits — the page's SHA-256, its size (8) and its box at
-the declared poses as six big-endian `f64` bit patterns (16 each) — naming
+**The paged cell index** (`partition/pages.rs`). Records lie in pages cut from the halving tree,
+each node a contiguous cell range. A region page `{ version: 4, first, cells, meshPages }` holds the
+records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), `first` its
+first cell's rank — its `n`-th record is `scene-cell-<first + n>.json`, cell `cells[first + n]` of
+the [world roots](#world-super-roots) —, and `meshPages`, sorted, each once, the manifest mesh-page
+slots holding a primitive of a mesh its cells place, what a region needs fetched. An index page
+`{ version: 4, pages, parents }` lists at most 8 pages (`FAN_OUT`), its node opened largest first,
+each with the core ranks its cells hang nodes under, eight hexadecimal digits each run together,
+`""` for none. `partition` is the root `{ version: 4, pages, parents, meshes, cube }`: the whole
+tree opened into exactly eight slots, empty last, parents beside each slot as an index page lists
+them; then per placed mesh, in rank order, its rank, its node count and its **rows at each of 32
+rungs**, eight hexadecimal digits each; and `cube`, the widest cell's diagonal, the sixteen
+hexadecimal digits of its `f64` (`partition/pages/rows.rs`). Rung `k` is a side `cube·√2^k`; its
+rows are, summed over the parents, the most nodes of that mesh one parent's cells place meeting one
+window of side `1.5·side` at a multiple of `side/2` on every axis — each cell counted whole, never
+past every node. Any cube of that side lies in one such window, so a rung's rows hold every node of
+the cells meeting any cube of it, a bound set by the side and the cells' size, the same at 1× and
+16× the world once the side is narrower than the world. The root is fixed width, growing with meshes
+and parents placed, never with cells. A slot is 168 hexadecimal digits — the page's SHA-256, its
+size (8) and its box at the declared poses as six big-endian `f64` bit patterns (16 each) — naming
 `scene-page-<sha256>.json`; zeros name no page. `tablePartition` reads the root alone: slots and
 parents, `bounds` (their boxes' union), `meshes` (ranks placed), `totals` (node counts), `rows`,
 `cube`, `parents` (core ranks). `readCellPage` refuses a page of another version, an index page
@@ -605,88 +579,24 @@ cell's rank or mesh-page list. The runtime numbers a cell by that rank whatever 
 and a placed cell holds the world bundles its roots need by it. Pages and cells are outside the
 manifest's `files`: a reused folder proves them through the root.
 
-**The cell index at runtime** (#575). Before its first frame a session sizes its rows for its first
-camera (below), reads the index pages on its way and the cells within reach, and places them
-(`primePartitions`): the first frame reads the view's bytes, not the world's. Each frame walks the
-index from the root (`partition/cellIndex.ts`): a page is boxed at the declared poses, and its
-content now lies within that box and those carried by the parents its cells hang under that moved
-since (`boxes.ts`); a page whose box meets the reach is read through the session's streamer (files
-entering its catalogue), decoded in the decode pool (`cellPage`), opened within the one integration
-budget, then its pages walked or cells tested; one past the keep sphere with no cell placed is
-closed, its files released. Work follows the reach, not the world's cell count. Cell files are
-parsed off the main thread too, by the pool's `cells` task (`partition/cellDecode.ts`), into
-each node's ranks and local matrix, the rows placed within the same budget. A page or cell the pool
-refuses keeps its code across the thread (another version stays `UNSUPPORTED_SCENE_TABLES`) and
-names its file (`PageDecodeFailed.refusal`, `PageDecodeRequest.name`).
-
-**The manifest held by the view** (#751). A WebGL2 world reads the manifest's root, head page and
-the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each placed cell holds
-its region page's mesh pages, counted once per cell, releasing them as it leaves, and a page no
-placed cell holds leaves the manifest with its primitives (`partition/cellPages.ts`). The
-session opens on the primitives listed, meshes without one left out, mounts each once its page is
-read (`mountPlacements`) and unmounts it when the page leaves (`world/scene/partitionMounts.ts`). A
-WebGPU world reads the whole manifest until its session grows in place (#216).
-
-**Reading the cells.** Each placed mesh is one host mesh per primitive, its instance buffer filled
-by the cells (`packages/sdk-browser/src/partition/`): a placement takes a row at the world
-matrix the engine composes for a child of its parent — a host node's bits — and
-parks it when its cell leaves. A page may move a core parent (`getObjectByName`): its rows are
-rewritten, and the cell's boxes are its parents' boxes under their current matrices (`boxes.ts`), so
-a cell is read where its placements stand, at its nearest box's distance. A cell is read while the
-camera can draw any of it: the **reach** is the far plane on the frustum's diagonal, `far·√w`, `w =
-1 + (tan(fov/2)/zoom)²·(1 + aspect²)` its off-axis stretch, not shortened by the error target —
-nothing coarser stands for an unread cell (the proxy of #23), so a dropped object would be missing,
-not replaced. An orthographic camera reads to the far corner of its zoomed box. Before every frame,
-index pages and cells within the reach are requested nearest first, those within `1.25 × reach` at
-prefetch priority, and a read cell leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in
-`plan.ts`) — margins of the reach, not the cell, so a cell wider than the view is kept only while
-its box meets that sphere. Cells go through the session's page streamer (one request queue) and are
-placed within the frame's integration budget (`ARRIVAL_BUDGET_MS`, `FrameBudget`), clocked once per
-frame: cells first, then page arrivals, then WebGPU row records; a frame's first integration always
-goes through.
-
-The rows are sized when a session opens, before its engines read them, for every placement its
-camera's view can hold at once **wherever the page moves the core parents** (`sizing.ts`). A held
-cell's box lies within `keep = 1.5 × reach` of the eye: under the scene root it meets the cube of
-side `2·keep` around it, and under a core parent stretching the root's frame by `least` to `most`,
-the cube of side `2·(keep + √3·most·cube/2)/least` in the parent's frame. The rows take the root's
-`rows` at the first rung whose side holds the widest cube the parents ask — set by reach, cell size
-and parent stretch, not the world —, so parents moved, turned or scaled up never run them short,
-reopen the session or leave a placement undrawn (CONTRIBUTING.md §Streaming rule 10). A reach later
-outgrowing the rung, or a parent scaled down or stretched more unevenly than at opening, asks a
-wider rung — twice the side at least —, grown in place on an engine following the growth contract
-(`placement/growth.ts`) that takes it (`growsInPlace`: WebGPU while its page table holds it);
-otherwise the rows stay and the session's owner is asked, once, to reopen it sized for that view
-(`onPartitionOutgrown`; the world does). A session no owner can reopen (a bare explorer) sizes its
-rows for every placement and never asks. A session drawing on demand redraws, camera still, until
-the pages and cells asked within reach are read, decoded and opened or placed. A partitioned scene
-is not replicated (`UNSUPPORTED_SCENE_UPDATE`).
-
-A far cell's merged, simplified proxy (HLOD) is its [world super-roots](#world-super-roots).
-
-The runtime builds its host scene from these tables alone
-(`packages/sdk-browser/src/host/prepared/`) — attributes viewed on the binary, the declared position
-box, textures folded on image source and sampler, surfaces with vertex-colour and flat-shading
-variants, nodes, meshes, cameras and lights named as the host loader did — proven equal to the
-loader's graph, field by field and byte by byte, on every cache `site/assets` publishes
-(`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout naming a document the tables
-lack, a view outside its binary, or a cell placing a mesh with no rows built is
-`PREPARED_SCENE_MISMATCH`.
+How a session walks the index, sizes its rows from the rungs, reads cells by distance and holds
+their pages and bundles is runtime behaviour (`packages/sdk-browser/src/partition/`;
+[RESIDENCY.md](RESIDENCY.md#the-geometry-pool), _Pinned bytes_). A far cell's merged, simplified
+proxy (HLOD) is its [world super-roots](#world-super-roots).
 
 ### World super-roots
 
 Every primitive ends at its own roots, which `streams.pinned` keeps resident, so pinned alone an
 open world's root cover grows with the world, not the view. The compiler therefore continues the DAG
-above the objects (`packages/asset-compiler-rust/src/compiler_world_roots.rs`, #23): every
-placement's primitives' root clusters, placed in world space, their error and published sphere's
-radius scaled by the placement's largest axis scale, enter the DAG builder as level 0
-(`build_dag_from_roots`), grouped per [world partition](#world-partition) cell and material. The
-levels above — the cell's **super-roots** — use a primitive's grouping, simplification and monotone
-error (a part leaves only at the error its extent costs). Every cell's roots of a material then
-re-enter the builder and climb to the **world top**, a grouped cell root being the very cluster its
-group names. A scene fitting one unit is one cell; a node the core keeps (moved, lit, skinned,
-hidden) and a primitive without a DAG keep only their roots; `simplification: none` builds no
-super-root.
+above the objects (`packages/asset-compiler-rust/src/compiler_world_roots.rs`): every placement's
+primitives' root clusters, placed in world space, their error and published sphere's radius scaled
+by the placement's largest axis scale, enter the DAG builder as level 0 (`build_dag_from_roots`),
+grouped per [world partition](#world-partition) cell and material. The levels above — the cell's
+**super-roots** — use a primitive's grouping, simplification and monotone error (a part leaves only
+at the error its extent costs). Every cell's roots of a material then re-enter the builder and climb
+to the **world top**, a grouped cell root being the very cluster its group names. A scene fitting
+one unit is one cell; a node the core keeps (moved, lit, skinned, hidden) and a primitive without a
+DAG keep only their roots; `simplification: none` builds no super-root.
 
 The world DAG is packed and linked as a primitive's (`streams`, above): the top first, pinned, then
 each level from the coarsest, one level per bundle, closed `dependencies` reaching a pinned bundle.
@@ -698,11 +608,11 @@ roots included, reaches the world top.
 Three products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a
 page is `u32` vertex count, `u32` triangle count, its vertices as three `f32` in world space and its
 triangles as `u16` local indices, padded to four bytes. `world-roots.table` and `world-roots.dag`
-(version 3, #1332: version 2 named an object root by its instance) are **fixed-size little-endian records**, read at their rank straight from their
-bytes (`packages/sdk-core/src/manifest/worldRootsTable.ts`), never one string of the whole world:
-the open world's table weighed 866 MiB as JSON, past the 512 MiB a JavaScript string holds. Each
-record names a variable list — a bundle's or an object's dependencies, an object's roots, a group's
-children and outputs — by its first word and its length in a `u32` **pool** after the records.
+(version 3) are **fixed-size little-endian records**, read at their rank straight from their bytes
+(`packages/sdk-core/src/manifest/worldRootsTable.ts`), never one string of the whole world, which a
+JavaScript engine refuses past 512 MiB. Each record names a variable list — a bundle's or an
+object's dependencies, an object's roots, a group's children and outputs — by its first word and
+its length in a `u32` **pool** after the records.
 
 - `world-roots.table`, what a load reads: an 80-byte header — `WRTB`, version, `budgetBytes`,
   `pinned`, `pinnedTopBytes`, the counts of bundles, pages, cells and objects, the pool's length in
@@ -714,21 +624,19 @@ children and outputs — by its first word and its length in a `u32` **pool** af
   **object**, one per placement primitive — its published node, its manifest primitive, the
   `streams` bundles holding its roots, and every world bundle those roots need, ascending, up to the
   top: the **cross-primitive dependencies** of its root bundles —; then the pool.
-- `world-roots.dag`, what the world stream reads on its first use (#1238): a 24-byte header —
-  `WRTD`, version, the counts of clusters and groups, the pool's length, zero —; a 152-byte
-  **cluster** for every world cluster, object roots included, at its world rank — the rank the
-  groups use —: its level, its triangles, its material, its page's `bundle` and `offset` in the bin
-  (a super-root) and its `origin`, the rank among the table's objects of the placed object whose
-  own stream holds its page (an object root), each `0xffffffff` for none; then as `f64` its error, its parent's error (NaN for a root),
-  its sphere, its parent's sphere (NaN for a root), its minimum and its maximum —; a 64-byte
-  **group** — its level, its children and outputs, zero, then as `f64` its error and sphere —, the
-  relation the runtime flattens into its cluster structure; then the pool.
+- `world-roots.dag`, what the world stream reads on its first use: a 24-byte header — `WRTD`,
+  version, the counts of clusters and groups, the pool's length, zero —; a 152-byte **cluster** for
+  every world cluster, object roots included, at its world rank — the rank the groups use —: its
+  level, its triangles, its material, its page's `bundle` and `offset` in the bin (a super-root) and
+  its `origin`, the rank among the table's objects of the placed object whose own stream holds its
+  page (an object root), each `0xffffffff` for none; then as `f64` its error, its parent's error
+  (NaN for a root), its sphere, its parent's sphere (NaN for a root), its minimum and its maximum —;
+  a 64-byte **group** — its level, its children and outputs, zero, then as `f64` its error and
+  sphere —, the relation the runtime flattens into its cluster structure; then the pool.
 
 All three are in the manifest's `files`; a reader refuses a file whose records do not fill it
-exactly, whose bundles are not the bin's ranges end to end or whose lists leave its pool or name
-a bundle or cluster it does not hold (`INVALID_CACHE`). A cache cooked before #1232 publishes
-`world-roots.json` instead, which the runtime no longer reads: its image is unchanged, the
-super-roots being drawn by nothing yet.
+exactly, whose bundles are not the bin's ranges end to end or whose lists leave its pool or name a
+bundle or cluster it does not hold (`INVALID_CACHE`).
 
 The first `pinned` bundles are the **pinned top**, their bytes `pinnedTopBytes` in the cook report
 (`clusters.json`, `worldRoots`: `{ version, file, cells, superRoots, topPages, pinnedBundles,
@@ -737,49 +645,34 @@ the materials, not the world: one tile or 64 tiles of the same objects publish t
 one page per material. A top over `budgetBytes` (`WORLD_TOP_BUDGET_BYTES`, 4 MiB) is refused at
 cook, `WORLD_TOP_OVER_BUDGET`, naming the cell pinning most of it.
 
-The runtime reads the table as a model loads and pins the top alone (#1237,
-`packages/sdk-browser/src/scene/worldRoots.ts`): its bundles, the binary's first, in one ranged
-read, each checked against its `sha256`. The DAG file is read once the world stream opens, never by
-a load. Object roots are no longer pinned: held with the placements
-the view holds, a placed cell holding the bundles past the top its objects' `dependencies` name,
-each once, until the last cell needing it leaves ([RESIDENCY.md](RESIDENCY.md#the-geometry-pool),
-Pinned bytes). The super-roots are not drawn yet (#1238): the image is unchanged.
-
-Packed last in the one cut, the world DAG reads a mirror of the scene's residency
-(`packages/sdk-browser/src/gpu/dag/worldMirror.ts`, #1332), which the cut that packs it builds and
-feeds the rows' flags through: a super-root resident while its bundle is held, an object root while
-its placed object (`origin`) is placed and its root cover resident, so the cut keeps a cell's
-super-root until its objects are drawable. A partition's plan reads the cut's own choice
-(`partition/superRoots.ts`, `farCells.ts`), each cell's bound read once the world stream
-opens (an object root's cell is its object's, `cells.cellOf`): a cell is held by its super-roots,
-its object pages unread, until their largest `parentError` projects past the pixel target on the
-frustum's diagonal; a placed cell gives its objects back once that error is within the target over
-`1 + KEEP`. Both wait for a cut that packs the world DAG (#1333): until then no cell is held far
-and the rows' flags go up as they are.
+The runtime pins the top as a model loads and holds the bundles past it with the cells that need
+them ([RESIDENCY.md](RESIDENCY.md#the-geometry-pool), _Pinned bytes_); the WebGPU cut packs the
+world DAG last (`GpuSelection.packsWorld`, `scene/worldSuperRoots.ts`) and draws a cell's
+super-roots in place of its object roots while those are not drawable
+(`partition/superRoots.ts`).
 
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the `physics-cook` stage
 ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)), with its own
 `formatVersion` (2, or 3 when a body carries `pieces`); any other is refused (`PHYSICS_FORMAT`,
-recompile the model) — format 1 had another bodies shape and no matter on an instance. Its shapes
-are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
-`jolt` names that commit, and the engine refuses another's. `stage` names the stage and its version.
+recompile the model). Its shapes are Jolt's binary state (`Shape::SaveWithChildren`), readable only
+by the Jolt that wrote them: `jolt` names that commit, and the engine refuses another's. `stage`
+names the stage and its version.
 
-| Field       | Content                                                                                                                                                                                                                                                                                                                                    |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles`                                                                                      |
-| `tiles`     | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame); every triangle is of the collider's `material`, which an exact hit reports. A tile of small triangles is a `MeshShape` cooked a power of two larger inside a `ScaledShape` of the inverse |
-| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A shearing node matrix is no body pose: counted in `report.unplaced`                                                      |
-| `report`    | Counts, the largest tolerance and measured distance, and `refused`: each primitive whose collider Jolt refused (`primitive`, `mesh`, `meshPrimitive`, `reason`, Jolt's error), drawn without a collider; a refusal never fails the compile                                                                                                 |
+| Field | Content |
+| --- | --- |
+| `colliders` | One per compiled primitive with a DAG: `primitive`, `material` (glTF index), `kind` (`mesh` or `heightField`), `tolerance` (the object's DAG error the level holds), `hausdorff` (measured to level 0, at or under `tolerance`), `triangles`, `tiles` |
+| `tiles` | One Jolt shape each, a SHA-addressed object like a page: `url`, `sha256`, `bytes`, `triangles`, `bounds` (min and max in the primitive's frame); every triangle is of the collider's `material`, which an exact hit reports. A tile of small triangles is a `MeshShape` cooked a power of two larger inside a `ScaledShape` of the inverse |
+| `instances` | Static placements: `node`, `collider`, `position`, `rotation` (x, y, z, w), `scale`, and the `friction` and `restitution` of the `physicsMaterial` the node's `KHR_physics_rigid_bodies` collider names, if any. A shearing node matrix is no body pose: counted in `report.unplaced` |
+| `report` | Counts, the largest tolerance and measured distance, and `refused`: each primitive whose collider Jolt refused (`primitive`, `mesh`, `meshPrimitive`, `reason`, Jolt's error), drawn without a collider; a refusal never fails the compile |
 
 The manifest's `physics` names the file, format, Jolt commit, report and every object cited
 (`objects[].sha256`), so a prune keeps them.
 
 ### `bodies` — declared rigid bodies
 
-Stage version 6 adds `bodies` (additive: older files have none, format 2 reads it), one per rendered
-node whose `KHR_physics_rigid_bodies` declares a `motion`
+`bodies` holds one entry per rendered node whose `KHR_physics_rigid_bodies` declares a `motion`
 ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)). The node, and
 another node its collider names (`colliderNode`), keep their `instances` entries, which the page
 leaves out once it has restored the body (`packages/sdk-browser/src/physics/cookedBodies.ts`) and
@@ -795,27 +688,23 @@ falls back on if it refuses it. Each entry:
   than its own centre, reweighed at the model's placed world scale; what `motion` declares (`mass`,
   `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins, the cooked inertia scaled
   to a declared mass and moved to a declared `centerOfMass` by the parallel axis theorem.
-- `colliderNode` (stage version 9, additive): the other node whose mesh the hull is cooked from,
-  when the collider names one; absent otherwise and in older files (that node then stays static
-  ground beside the body).
+- `colliderNode` (optional): the other node whose mesh the hull is cooked from, when the collider
+  names one; absent otherwise.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
+- `breakable` and `pieces`, when the body's `extras.physics` declares `breakable`: that threshold
+  and convex non-overlapping pieces of its mesh
+  ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)), each a `cooked`
+  shape in the body's frame with its own `mass` at the body's `scale`. A file with pieces is format
+  3; the runtime reads it and leaves the pieces unused.
 
 `report.bodies` counts them; `report.bodiesRefused` lists refused nodes (`node`, `reason`), which
 stay static ground.
 
-Stage version 8: a body whose `extras.physics` declares `breakable` also carries that threshold and
-`pieces`, convex non-overlapping pieces of its mesh
-([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)), each a `cooked`
-shape in the body's frame with its own `mass` at the body's `scale`. Such a file is format 3,
-refused by name by a format-2 reader; without pieces it stays format 2. The runtime reads format 3
-and leaves pieces unused: nothing breaks yet (#519).
-
 ### `softBodies` — cooked soft bodies
 
-Stage version 5 adds `softBodies` (additive: older files have none, format 2 reads it), one per
-drawn node whose `extras.physics` declares a cloth, a rope or a volume
-([COMPILER.md](COMPILER.md#soft-bodies-a-model-declares)). Each entry:
+`softBodies` holds one entry per drawn node whose `extras.physics` declares a cloth, a rope or a
+volume ([COMPILER.md](COMPILER.md#soft-bodies-a-model-declares)). Each entry:
 
 - `node`: the declaring node, with no `instances` entry (a soft body is no static ground).
 - `physics`: the declared options, as `obj.physics` takes them; the page reads matter, pull and
@@ -866,8 +755,8 @@ smallest overflowing instance is kept.
 triangle order, albedo, wide BVH and provenance are unchanged, and the reader expands sharing once
 at load to the canonical flat columns, shaders untouched. Little-endian; eleven `u32` header words:
 `WGPX`, version, triangle count, node count, owner-group count, owner-record count, source-node
-count, reserved zero, shape count, stored shape-triangle count and shared-placement count. The first
-eight keep version 3's ownership header. Payload columns, in order:
+count, reserved zero, shape count, stored shape-triangle count and shared-placement count. Payload
+columns, in order:
 
 - One `u32` triangle count per shape; all shapes' nine `f32` coordinates per triangle, then all
   shapes' `u32` linear RGBA8 albedos.
@@ -880,14 +769,13 @@ eight keep version 3's ownership header. Payload columns, in order:
 - One `u32` owner-group rank per triangle, followed by `groups + 1` owner offsets.
 - Owner records: source-node rank and linear RGBA8 colour, both `u32`.
 - One `i32` parent rank per source node (`-1` for roots), then one `i32` compiled mesh rank per
-  source node (`-1` when it places none; version 5, #966), then sixteen `f64` bind-world values per
-  node.
+  source node (`-1` when it places none), then sixteen `f64` bind-world values per node.
 
 The manifest publishes `groups`, `owners` and `instances` beside the sizes and counts. Identical
 owner lists are interned; subdivision shares a group and BVH permutation moves its rank with the
 canonical triangle. Group offsets are monotonic, groups nonempty, ranks in range, the source
 hierarchy acyclic; unknown proxy versions are rejected. These modules are in the compiler's
-implementation hash, so a version's products never reuse an older version's keys. The mesh column
+implementation hash, so a version's products never reuse another version's keys. The mesh column
 names what a partition's cell node draws, which no core node carries: the far sun's ray lets its
 triangles through when every host mesh of that placed mesh says `castShadow = false`.
 
@@ -900,40 +788,32 @@ count are tried, and a run is stored shared only when its tables save serialized
 disk and transfer bytes, not GPU geometry. The browser caches decoded columns with their verified
 buffer across device sessions, charging expansion and matrix bytes to the CPU cache. `cargo run
 --manifest-path packages/asset-compiler-rust/Cargo.toml --example proxy_sharing` regenerates the
-paired Rust/TS fixtures and reports exact v3/v5 serialized bytes for the 1,000-instance case;
-runtime memory and image acceptance are the post-merge measurement session's evidence.
+paired Rust/TS fixtures.
 
-The node table's optional `sourceNode` carries the original unsigned 32-bit document rank through
-partition renumbering as exactly eight lowercase hexadecimal digits, a fixed width keeping the core
-table's size independent of the world's node count; the runtime decodes it, rejecting malformed
-values, and uses the table rank when absent. A proxy owner whose leaf is not instantiated follows
-its nearest loaded ancestor. Each session keeps its mutable refit and transforms apart from the
-shared cache bytes. Geometry simplification removed at cook is not rebuilt when an object later
-grows.
+Owners are source nodes by their node table's `sourceNode` ([prepared scene
+tables](#prepared-scene-tables)). A proxy owner whose leaf is not instantiated follows its nearest
+loaded ancestor. Each session keeps its mutable refit and transforms apart from the shared cache
+bytes. Geometry simplification removed at cook is not rebuilt when an object later grows.
 
 ## Impostor atlases
 
-`clusters.json` carries `impostors` (version 1, #817): the compiler's verdict on every drawn mesh
-and, for each eligible one, an octahedral atlas standing in for it far away. The runtime switch and
-card are #1239, their WebGPU draw #1335 (a switched root keeps its mesh's shadow) and their WebGL2
-draw #1336 (the same plan, card and atlas reads, lit by that path's one formula), the crossfade and
-shadow casting #1240; this section fixes what the cache holds.
+`clusters.json` carries `impostors` (version 1): the compiler's verdict on every drawn mesh and, for
+each eligible one, an octahedral atlas standing in for it far away.
 
 **Capture.** In object space, pivot at the bounding-sphere centre (`centre`, `objectRadius` R, the
 DAG's `bounding_sphere`), +Y up, from `frames`×`frames` = 12×12 directions: frame `(i, j)` looks
-back along `d = decode((i, j) / (frames − 1))`. The full octahedron decodes `f` through `p = (u, 1
-− |u| − |v|, v)` with `(u, v) = 2f − 1`, the lower half folded as `p.xz ← side(p.xz) · (1 − |p.zx|)`
-—
-`side` is ±1, never 0, so a direction on an axis keeps its face —; the hemi-octahedron (`hemi`)
-decodes `p = (f.x − f.y, 0, f.x + f.y − 1)`, `p.y = 1 − |p.x| − |p.z|`. `hemi` is chosen when every
-placement keeps the mesh's +Y up and stands on the scene's floor within one probe texel; otherwise
-the full octahedron. A frame is an orthographic view of side 2R onto the pivot's plane, axes `x =
-normalize(cross(up, d))`, `y = cross(d, x)` (`up` = +Y, or +Z when `|d.y| > 0.999`); texel `(px,
-py)` of a `frameSide`-texel frame sits at `((px + ½) / frameSide − ½) · 2R` along `x` and `(½ −
-(py + ½) / frameSide) · 2R` along `y`: rows top to bottom, row 0 at `+y`. Frame `(i, j)` fills
-texels
-`[i · frameSide, (i + 1) · frameSide) × [j · frameSide, (j + 1) · frameSide)` of an `atlasSide =
-frames · frameSide` square.
+back along `d = decode((i, j) / (frames − 1))`. The full octahedron decodes `f` through
+`p = (u, 1 − |u| − |v|, v)` with `(u, v) = 2f − 1`, the lower half folded as
+`p.xz ← side(p.xz) · (1 − |p.zx|)` — `side` is ±1, never 0, so a direction on an axis keeps its face
+—; the hemi-octahedron (`hemi`) decodes `p = (f.x − f.y, 0, f.x + f.y − 1)`,
+`p.y = 1 − |p.x| − |p.z|`. `hemi` is chosen when every placement keeps the mesh's +Y up and stands
+on the scene's floor within one probe texel; otherwise the full octahedron. A frame is an
+orthographic view of side 2R onto the pivot's plane, axes `x = normalize(cross(up, d))`,
+`y = cross(d, x)` (`up` = +Y, or +Z when `|d.y| > 0.999`); texel `(px, py)` of a `frameSide`-texel
+frame sits at `((px + ½) / frameSide − ½) · 2R` along `x` and `(½ − (py + ½) / frameSide) · 2R`
+along `y`: rows top to bottom, row 0 at `+y`. Frame `(i, j)` fills texels
+`[i · frameSide, (i + 1) · frameSide) × [j · frameSide, (j + 1) · frameSide)` of an
+`atlasSide = frames · frameSide` square.
 
 **Texels.** Four rotated-grid rays a texel go from `2R` along `d` towards the pivot, through the
 compiler's one CPU tracer over the proxy's BVH constructor (`proxy/tracer.rs`), hitting only where
@@ -963,15 +843,16 @@ bounding radius times the placements' largest world scale, T the DAG's `rootTria
 mesh's primitives and `c` the frames' mean coverage of their bounding disc (a first bake at 16
 texels a frame), the atlas is sharp from `z_tex = 2R·f / frameSide` and the root outnumbers its
 pixels from `z_tri = R·f·√(cπ/T)` (`switchDepth.texel`, `switchDepth.triangles`, in metres at `f`).
-`frameSide` is the smallest power of two, at least 16, with `frameSide ≥ 2√(T/(cπ))`, so `z_tex ≤
-z_tri`. Each `meshes` entry names its compiled `mesh`, `sourceMesh`, `name`, `placements`, `masked`,
-`rootTriangles`, `radius` and `status`: `baked`, with `coverage`, `hemi`, `frames`, `frameSide`,
-`atlasSide`, `maps` and `bytes`, or `refused`, with `reason`, a `detail` sentence giving the
-deciding numbers, and the probe's `coverage` if one ran. Reasons, in trial order: `skinned` (a skin,
-joint weights or morph targets: the mesh deforms); `single-opaque-placement` (one placement and no
-masked material); `no-coverage`; `root-cheaper-than-impostor` (`z_tri` beyond the drawn scene's
-bounds diagonal, the farthest a placement is seen from); `atlas-over-texture-limit` (`atlasSide`
-above `textureLimit`, 8192, the side any WebGPU card holds). `baked` and `refused` count them.
+`frameSide` is the smallest power of two, at least 16, with `frameSide ≥ 2√(T/(cπ))`, so
+`z_tex ≤ z_tri`. Each `meshes` entry names its compiled `mesh`, `sourceMesh`, `name`, `placements`,
+`masked`, `rootTriangles`, `radius` and `status`: `baked`, with `coverage`, `hemi`, `frames`,
+`frameSide`, `atlasSide`, `maps` and `bytes`, or `refused`, with `reason`, a `detail` sentence
+giving the deciding numbers, and the probe's `coverage` if one ran. Reasons, in trial order:
+`skinned` (a skin, joint weights or morph targets: the mesh deforms); `single-opaque-placement` (one
+placement and no masked material); `no-coverage`; `root-cheaper-than-impostor` (`z_tri` beyond the
+drawn scene's bounds diagonal, the farthest a placement is seen from); `atlas-over-texture-limit`
+(`atlasSide` above `textureLimit`, 8192, the side any WebGPU card holds). `baked` and `refused`
+count them.
 
 ## Deformation in geometry page format 7
 
@@ -986,8 +867,7 @@ counts or bytes. The JavaScript, native, WASM, WGSL and GLSL consumers share the
 
 Flag 64 requires flag 16 and explicitly changes its IDs' meaning: they index the cooked simulation's
 compacted vertices, not a skeleton, the weights interpolating displacements from those vertices'
-recorded rest positions. Geometry page format 7 is required, so an older reader refuses it instead
-of rendering a skin. The physics sidecar's optional `render: { version: 1, positions, indices }`
+recorded rest positions. The physics sidecar's optional `render: { version: 1, positions, indices }`
 stores those rest positions (xyz per vertex) and triangle indices, in the order simulation and
 renderer share; an unsupported mapping version or inconsistent lengths are rejected.
 
@@ -995,7 +875,7 @@ renderer share; an unsupported mapping version or inconsistent lengths are rejec
 displacement per morph target and optional `softVertices`, bounding deformation whatever page is
 selected, so the cut expands bounds and refines conservative error.
 
-For material-driven whole-mesh transmission, `primitive.deformation.softSourceIds` (version 7) maps
-each original render vertex to its compact simulation vertex in `softVertices`, as integers within
-that array; clustered copies carry the same IDs in the flagged soft-source stream, both using one
+For material-driven whole-mesh transmission, `primitive.deformation.softSourceIds` maps each
+original render vertex to its compact simulation vertex in `softVertices`, as integers within that
+array; clustered copies carry the same IDs in the flagged soft-source stream, both using one
 simulation record.
