@@ -80,13 +80,13 @@ adjusted. The list is `site/content/gallery-roadmap.json`: theme ids, then one e
 - **Examples area**: the sidebar lists ready entries (with a `file`) theme by theme, each a card
   with its thumbnail, under a filter box; the landing page shows every entry by theme — a ready one
   as a card with its settled render (`site/assets/examples/thumbnails/<id>.png`, captured by
-  `scripts/docs-examples-thumbnails.ts`) that opens it, one to come as an "in progress" card that
+  `scripts/docs/examples-thumbnails.ts`) that opens it, one to come as an "in progress" card that
   opens nothing and names the engine feature it waits for.
 - **One example** is the file on `DemoPage`: the iframe fills the content area; one DaisyUI floating
   action button carries Code (the source, highlighted, in a modal, with Copy — read only; editing
   and running belong to the sandbox), Share (copies the link), Controls, Fullscreen and Restart.
 - **Scenes** live under `site/assets/examples/`, each `<scene>/source` beside its `cache`, built by
-  `scripts/docs-examples-assets.ts` with this checkout's native compiler. Git tracks no cache:
+  `scripts/docs/examples-assets.ts` with this checkout's native compiler. Git tracks no cache:
   `pnpm run compile:caches` (`scripts/site-caches.ts`) compiles each missing or stale one, as the
   site deploy, the unit test runners and `test:gpu` do first. Imported models and their licences are
   listed in `site/assets/examples/CREDITS.md`.
@@ -105,7 +105,7 @@ pnpm build:docs
 pnpm docs:serve
 ```
 
-`build:docs` runs `scripts/docs-build.ts`, writing the published tree into `dist/site/`: it compiles
+`build:docs` runs `scripts/docs/build.ts`, writing the published tree into `dist/site/`: it compiles
 `site/styles/tailwind.css` with Tailwind and DaisyUI into `css/site.css` after scanning the
 handwritten HTML and TypeScript for class names; bundles the browser SDK and its workers into
 `runtime/`, the React portal into `runtime/portal.js`, and the areas `App.tsx` imports on demand
@@ -114,9 +114,9 @@ handwritten HTML and TypeScript for class names; bundles the browser SDK and its
 proofs and the site workflow (`.github/workflows/pages.yml`, [Deploy](#deploy)) build the same tree
 from one function, `buildSite()` in `scripts/docs/site.ts`.
 
-`docs:serve` (`scripts/docs-serve.ts`) builds, then serves only `dist/site/` on
+`docs:serve` (`scripts/docs/serve.ts`) builds, then serves only `dist/site/` on
 `http://127.0.0.1:4177`: the published paths, no development framework or fallback route; it stays
-the proofs' production-path server. `pnpm docs:dev` (`scripts/docs-dev.ts`) builds once, serves
+the proofs' production-path server. `pnpm docs:dev` (`scripts/docs/dev.ts`) builds once, serves
 `dist/site/` through the same server and headers, and follows `site/` and `packages/`: a change git
 does not ignore reruns only the `buildSite()` steps that read it or an earlier step's output (the
 list `SITE_STEPS` in `scripts/docs/site.ts`), then every open page reloads. The reload script is
@@ -129,7 +129,7 @@ Nothing built is committed — the site, the API files, the scene caches. `dist/
 no branch: `docs:serve` builds the whole tree; unit tests import the sources directly, the demos
 through `site/demos/engine.ts`, so
 no runner builds anything. `check:docs-bundles` in `validate`
-(`node scripts/docs-build.ts --untracked`) fails when git tracks any file of it. A release
+(`node scripts/docs/build.ts --untracked`) fails when git tracks any file of it. A release
 (`develop` → `main`) publishes the site built from the merged sources.
 
 The site address is one constant, `SITE_URL` in `scripts/docs/site.ts`: the build writes the
@@ -156,7 +156,7 @@ gh workflow run pages.yml -f deploy=true --ref main
    `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless`.
    These make the page cross-origin isolated, which the physics needs for its threads
    (`SharedArrayBuffer`); `credentialless` rather than `require-corp` lets the consent panel and its
-   audience measurement load from their own origins. `scripts/docs-serve.ts` answers the same
+   audience measurement load from their own origins. `scripts/docs/serve.ts` answers the same
    headers locally.
 
 Secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_TARGET`, `DEPLOY_SSH_PORT`. The maintainer
@@ -198,7 +198,7 @@ packages; none stays external or comes from a CDN.
 2. **Scene**: primitives are built in code with `geometry.*` in the HTML. A scene around an imported
    model is added to `scripts/docs/examples/models.ts`, credited in
    `site/assets/examples/CREDITS.md`, then `pnpm build:native` and
-   `node scripts/docs-examples-assets.ts <scene>`.
+   `node scripts/docs/examples-assets.ts <scene>`.
 3. **Roadmap entry** in `site/content/gallery-roadmap.json`, `file` = `examples/<id>.html`, in
    learning order within its theme, or turn its "in progress" entry into it. An entry with no `file`
    carries `status` (`buildable`, or `needs-engine` with the awaited feature in
@@ -210,7 +210,7 @@ packages; none stays external or comes from a CDN.
 4. **Thumbnail**: declare the most telling moment in seconds, `<meta name="thumbnail" content="3">`
    (1.5 when none); the author captures nothing. The card shows the shared placeholder until the
    recette, after the merge, captures every example its batch added or changed with
-   `node scripts/docs-examples-thumbnails.ts <id>` (kit panels and credit line hidden) and delivers
+   `node scripts/docs/examples-thumbnails.ts <id>` (kit panels and credit line hidden) and delivers
    them in one "Thumbnail only" pull request. A scene too heavy to cook here lives in its own
    repository, published beside the portal outside this gallery: the open world (#332),
    https://github.com/pasquelin/Trillion3D-openworld, served at `/openworld/` (#426).
@@ -287,7 +287,7 @@ pnpm build:native
 pnpm docs:scene
 ```
 
-`docs:scene` (`scripts/docs-scene.ts`) regenerates the deterministic glTF source, then runs this
+`docs:scene` (`scripts/docs/scene.ts`) regenerates the deterministic glTF source, then runs this
 checkout's native compiler for its cache; `docs:gallery` does the same for the scenes modelled in
 code, the gallery's observatory and the mountain terrain. Every generator runs the compiler through
 `scripts/native-compiler.ts`, following the SDK's rule: `TRILLION3D_COMPILER_BIN` may select a

@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
-import { modelScenes, writeModelScenes } from './docs/examples/models.ts';
-import { nativeCompiler } from './native-compiler.ts';
-import { COOKED_SCENES, compileCache } from './site-caches.ts';
+import { modelScenes, writeModelScenes } from './examples/models.ts';
+import { nativeCompiler } from '../native-compiler.ts';
+import { COOKED_SCENES, compileCache } from '../site-caches.ts';
 
 /**
  * Writes the sources of the example scenes, under `site/assets/examples/<scene>/source` — an
@@ -9,7 +9,7 @@ import { COOKED_SCENES, compileCache } from './site-caches.ts';
  * checkout's native compiler. An argument limits the run to one scene; `--source-only` skips
  * the compiler.
  */
-const root = resolve(import.meta.dirname, '..'),
+const root = resolve(import.meta.dirname, '../..'),
   examples = resolve(root, 'site/assets/examples'),
   only = process.argv.slice(2).find((argument) => !argument.startsWith('-'));
 

@@ -109,7 +109,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
 - **pnpm.** `pnpm run check:changed` is the one local gate: changed-file format, lint, types, lines
   and duplicates, and the unit tests the change can affect — its domain folder's and those that
   really use it (`scripts/affected-tests.ts`); a documentation, site image or translation change runs
-  only the gates and the unit tests that read those files (`scripts/docs-tests.ts`). Its test run is
+  only the gates and the unit tests that read those files (`scripts/docs/tests.ts`). Its test run is
   capped to two processes (`TRILLION3D_TEST_CONCURRENCY`), and every heavy local step (a test run,
   `build`, `build:docs`, `build:native`, `compile:caches`) waits for the other worktrees' and runs at
   low priority (`scripts/heavy-lock.ts`). Inspect dependants after deletions, public-export or

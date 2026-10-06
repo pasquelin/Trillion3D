@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
-import { candidates, importFacts } from './import-facts.ts';
-import { repositoryFiles } from './repository-files.ts';
-import { isUnitTest, runUnitTests } from './unit-tests.ts';
+import { candidates, importFacts } from '../import-facts.ts';
+import { repositoryFiles } from '../repository-files.ts';
+import { isUnitTest, runUnitTests } from '../unit-tests.ts';
 
 // The unit tests that read documentation, site translations or example thumbnails: a change of
 // those files alone skips the build, the type check and the rest of the suite, but still runs these

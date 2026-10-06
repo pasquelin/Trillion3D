@@ -12,7 +12,7 @@ on:
       - 'site/**'
       - 'packages/**'
       - 'scripts/docs/**'
-      - 'scripts/docs-build.ts'
+      - 'scripts/docs/build.ts'
       - 'scripts/site-caches.ts'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -67,7 +67,7 @@ jobs:
         run: pnpm run build:native && pnpm run compile:caches
       # Styles, demo maths, browser engine, workers, portal, API files, scene caches and statics;
       # `--published` adds the audience measurement, which no local or proof build carries.
-      - run: node scripts/docs-build.ts --published
+      - run: node scripts/docs/build.ts --published
       # The scene caches' objects, geometry pages among them, are the exception to the gzip below:
       # brotli takes 11 to 24 % off them (#921). Sent beside each original with
       # `Content-Encoding: br` to a browser that accepts it; `isCacheObject` picks them, as the
@@ -133,7 +133,7 @@ jobs:
           -e "ssh -p $PORT -i $HOME/.ssh/deploy -o StrictHostKeyChecking=yes"
           dist/site/ "$TARGET:/"
       # The address checked is the one the built page declares canonical (scripts/docs/site.ts).
-      # Each answer must carry the cross-origin isolation `scripts/docs-serve.ts` serves locally:
+      # Each answer must carry the cross-origin isolation `scripts/docs/serve.ts` serves locally:
       # without it `crossOriginIsolated` is false and the physics falls back to one thread (#444).
       - name: Check the published site
         run: |

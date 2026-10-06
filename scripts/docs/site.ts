@@ -76,7 +76,7 @@ async function copyTree(source: string, target: string, published: boolean) {
 }
 
 /** One step of the build, with the paths under the root (files or folders) it reads and writes:
- *  the development server (`docs-dev.ts`) runs again only the steps a changed path is under. */
+ *  the development server (`docs/dev.ts`) runs again only the steps a changed path is under. */
 export interface SiteStep {
   name: string;
   reads: readonly string[];

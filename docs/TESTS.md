@@ -52,7 +52,7 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 `pnpm run check:changed`, the one local gate, runs only what changed files touch
 (`scripts/affected-tests.ts`); it does not replace `validate`, which the CI runs. A change of
 documentation, translations or example thumbnails also runs the tests that read them
-(`pnpm run test:docs`, `scripts/docs-tests.ts`), which the CI's `quick` job runs too. It also
+(`pnpm run test:docs`, `scripts/docs/tests.ts`), which the CI's `quick` job runs too. It also
 type-checks (`tsc --noEmit`) every tracked `tsconfig*.json` project owning a changed TypeScript
 file, by listing it or by import (`scripts/ts-projects.ts`); a changed file no project reaches
 fails, unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it

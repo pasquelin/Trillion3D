@@ -53,7 +53,7 @@ code, merge or block a pull request; a thumbnail pull request is the one you ope
 7. **Thumbnails**, after the images, on the after tree: each example the batch added or changed
    (`git diff --name-only <before> <after> -- 'site/examples/*.html'`, one `<id>.html` each), plus
    each `pnpm run check:thumbnails` lists, captured with
-   `node scripts/docs-examples-thumbnails.ts <id>` (one Chrome). Look at each before committing: a
+   `node scripts/docs/examples-thumbnails.ts <id>` (one Chrome). Look at each before committing: a
    blank or broken render is a defect (`/t3d-writer`), not a thumbnail. One issue you open for the
    batch ("Thumbnails of batch `<after>`"), one branch `<issue>-thumbnails` from `develop` in
    `.worktrees/`, one pull request starting `Closes #<issue>`, saying "Thumbnail only", with the

@@ -32,8 +32,8 @@ const config: KnipConfig = {
         // Run by hand: the example scenes' sources and thumbnails (`docs/LEARNING_PORTAL.md`), the
         // first-load proof of the site (`docs/TESTS.md`), the area-light table fit (`ltcTable.ts`),
         // the Install page walkthrough (#1355, the recette's Chrome proof).
-        'scripts/docs-examples-assets.ts',
-        'scripts/docs-examples-thumbnails.ts',
+        'scripts/docs/examples-assets.ts',
+        'scripts/docs/examples-thumbnails.ts',
         'scripts/site-first-load.ts',
         'scripts/ltc-fit.ts',
         'scripts/prove-install-page.ts',

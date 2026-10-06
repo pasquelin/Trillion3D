@@ -1,11 +1,11 @@
 /** Serve one built site tree with production paths and no framework dependency. */
 import { pathToFileURL } from 'node:url';
-import { isCacheObject } from './compress-cache-objects.ts';
-import { buildSite, SITE_OUTPUT } from './docs/site.ts';
-import { listen, staticServer, type StaticOptions } from './static-server.ts';
+import { isCacheObject } from '../compress-cache-objects.ts';
+import { buildSite, SITE_OUTPUT } from './site.ts';
+import { listen, staticServer, type StaticOptions } from '../static-server.ts';
 
 /** A static server over `root`: the built site by default, any site-shaped tree otherwise;
- *  `extra` adds the development server's answer and transform (`docs-dev.ts`). */
+ *  `extra` adds the development server's answer and transform (`docs/dev.ts`). */
 export function createDocsServer(
   root = SITE_OUTPUT,
   extra: Pick<StaticOptions, 'answer' | 'transform'> = {},

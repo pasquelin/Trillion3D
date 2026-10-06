@@ -2,7 +2,7 @@ import { TREE_GATES } from './validate-steps.ts';
 
 // What `check:changed` runs for a change (`scripts/check-changed.ts`). A change that touches only
 // documentation, site images or translations runs the gates and the unit tests that read those
-// files (`scripts/docs-tests.ts`), and no API generation, scene cache or type check (#1348).
+// files (`scripts/docs/tests.ts`), and no API generation, scene cache or type check (#1348).
 
 export const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
 export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/;
@@ -22,7 +22,7 @@ const siteImage =
   /^(?!tests\/|bench\/|packages\/|site\/assets\/.*\/(?:source|models)\/).*\.(?:png|jpe?g|gif|webp|avif|svg)$/i;
 
 /** Whether `file` is documentation, a site image or a translation, which only the tests of
- *  `scripts/docs-tests.ts` read. */
+ *  `scripts/docs/tests.ts` read. */
 export function isDocumentation(file: string): boolean {
   if (packaged.test(file) || english.test(file)) return false;
   return markdown.test(file) || translation.test(file) || siteImage.test(file);

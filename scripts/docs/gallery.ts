@@ -6,11 +6,11 @@
  *   pnpm run docs:gallery [observatory|mountain-terrain] [--source-only]
  */
 import { rm } from 'node:fs/promises';
-import { nativeCompiler } from './native-compiler.ts';
-import { COOKED_SCENES, compileCache, sourceOf } from './site-caches.ts';
-import { writeObservatory } from './docs/observatory/write.ts';
-import { mountainTerrain } from './docs/mountain-terrain/model.ts';
-import { writeMountainTerrain } from './docs/mountain-terrain/write.ts';
+import { nativeCompiler } from '../native-compiler.ts';
+import { COOKED_SCENES, compileCache, sourceOf } from '../site-caches.ts';
+import { writeObservatory } from './observatory/write.ts';
+import { mountainTerrain } from './mountain-terrain/model.ts';
+import { writeMountainTerrain } from './mountain-terrain/write.ts';
 
 const scenes: Record<string, (source: string) => Promise<unknown>> = {
   observatory: (source) => writeObservatory(source),

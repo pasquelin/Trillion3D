@@ -1,7 +1,7 @@
 # Example assets: provenance and credits
 
 Every scene under this folder is compiled by the repository's native compiler from the sources
-beside it (`scripts/docs-examples-assets.ts`). Every example built from primitives alone is now
+beside it (`scripts/docs/examples-assets.ts`). Every example built from primitives alone is now
 written in code, with `geometry.*`, directly in its `site/examples/*.html` page: it compiles
 nothing here and owns no folder under this directory.
 
@@ -36,7 +36,7 @@ Nine scenes are modelled in code for their example and released under
 [CC0](https://creativecommons.org/publicdomain/zero/1.0/): nothing in them was taken from another
 work. Each has a writer under `scripts/docs/examples/`, seeded so the same code writes the same
 bytes on every machine, and is rebuilt, source and cache, by
-`node scripts/docs-examples-assets.ts <folder>` with the same compiler arguments as the model
+`node scripts/docs/examples-assets.ts <folder>` with the same compiler arguments as the model
 scenes above (`full`, 2 threads, 256 MB, `qem-endpoints`, the default `bc7` texture family).
 
 | Folder | Writer | Source |

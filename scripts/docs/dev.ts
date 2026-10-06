@@ -4,13 +4,13 @@ import { readFileSync, watch } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createDocsServer, DOCS_PORT } from './docs-serve.ts';
-import { inHead } from './docs/measurement.ts';
-import { buildSite, SITE_OUTPUT, SITE_STEPS } from './docs/site.ts';
-import { ignoredPaths } from './git-paths.ts';
-import { contentType, listen } from './static-server.ts';
+import { createDocsServer, DOCS_PORT } from './serve.ts';
+import { inHead } from './measurement.ts';
+import { buildSite, SITE_OUTPUT, SITE_STEPS } from './site.ts';
+import { ignoredPaths } from '../git-paths.ts';
+import { contentType, listen } from '../static-server.ts';
 
-const ROOT = resolve(import.meta.dirname, '..');
+const ROOT = resolve(import.meta.dirname, '../..');
 
 /** The event stream an open page listens on. Only this server adds it, to the pages it serves:
  *  the built tree never holds it (checked by `scripts/docs/measurement.test.ts`). */

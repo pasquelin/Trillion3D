@@ -1,9 +1,9 @@
 import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { launchChrome } from '../bench/runner/chrome.ts';
-import { startDocsServer } from './docs-serve.ts';
-import { leastDrawn, openExample, RENDER_ONLY, thumbnailDelay } from './docs/examples/capture.ts';
-import { readyEntries } from '../site/app/examples/list.ts';
+import { launchChrome } from '../../bench/runner/chrome.ts';
+import { startDocsServer } from './serve.ts';
+import { leastDrawn, openExample, RENDER_ONLY, thumbnailDelay } from './examples/capture.ts';
+import { readyEntries } from '../../site/app/examples/list.ts';
 
 /**
  * Captures every example at the moment it declares (`thumbnailDelay`), one size for all, into
