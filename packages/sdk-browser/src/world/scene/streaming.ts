@@ -4,6 +4,7 @@ import { ARRIVAL_QUEUE_BATCH } from '../../backend/common.ts'
 import { decodePageOffThread } from '../../page/decode/host.ts'
 import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { ATTEMPTS } from '../../streaming/fetchAttempt.ts'
+import { finalFailure } from '../../streaming/failures.ts'
 import type { RenderBackend } from '../../backend/types.ts'
 import type { ExplorerHostState } from '../render/hostState.ts'
 import type { ExplorerSession } from '../session/session.ts'
@@ -84,9 +85,10 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
       .catch((error) => {
         if (state.disposed || signal?.aborted || controller.signal.aborted) return
         const detail = String(error)
-        if (streamingError !== detail) {
-          streamingError = detail
-          const recovered = state.active.metrics().coverageReady === true
+        if (streamingError === detail) return
+        streamingError = detail
+        const recovered = state.active.metrics().coverageReady === true
+        if (recovered || finalFailure(error))
           emit(
             recovered
               ? {
@@ -106,21 +108,20 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
                   detail,
                 },
           )
-          diagnose(
-            'coverage-streaming-failed',
-            'Page load failed; GPU fallback cover kept if available',
-            {
-              kind: 'error',
-              version: 1,
-              error: detail,
-              failedPages: streamer.stats().failed,
-              maxAttemptsPerPage: ATTEMPTS,
-              coverageReady: state.active.metrics().coverageReady ?? null,
-              recovered,
-              scope,
-            },
-          )
-        }
+        diagnose(
+          'coverage-streaming-failed',
+          'Page load failed; GPU fallback cover kept if available',
+          {
+            kind: 'error',
+            version: 1,
+            error: detail,
+            failedPages: streamer.stats().failed,
+            maxAttemptsPerPage: ATTEMPTS,
+            coverageReady: state.active.metrics().coverageReady ?? null,
+            recovered,
+            scope,
+          },
+        )
       })
       .finally(() => {
         if (backgroundFetchController === controller) backgroundFetchController = undefined
