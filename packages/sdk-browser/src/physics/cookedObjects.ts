@@ -6,20 +6,18 @@ import { cookedHref, type Model } from './tilePlace.ts'
 export type HeldObjects = ReadonlyMap<string, SharedShape>
 
 /** The cooked `objects` of `kind` an opening of `model` builds its bodies from (`sharedShapes.ts`),
- *  each held from that opening to its leaving (`letGoAll`) and read once for the session however
- *  many bodies and models name it; a hull counts its bytes against the share while restored. */
+ *  each held from that opening to its leaving (`letGoAll`) and read once however many bodies and
+ *  models name it; a hull, its body's own shape, counts no bytes of the static collision. */
 export function holdObjects(
   shapes: SharedShapes,
   model: Model,
   kind: Exclude<CookedKind, 'tile'>,
-  objects: Iterable<Pick<CookedTile, 'url' | 'bytes'> | undefined>,
+  objects: Iterable<Pick<CookedTile, 'url'> | undefined>,
 ) {
   const held = new Map<string, SharedShape>()
   for (const object of objects)
-    if (object && !held.has(object.url)) {
-      const counted = kind === 'hull' ? object.bytes : 0
-      held.set(object.url, shapes.hold(kind, cookedHref(model, object.url), counted, {}))
-    }
+    if (object && !held.has(object.url))
+      held.set(object.url, shapes.hold(kind, cookedHref(model, object.url), 0, {}))
   return held
 }
 

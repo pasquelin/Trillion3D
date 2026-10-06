@@ -22,7 +22,6 @@ export function createResidentTiles(
 ) {
   const held = { bodies: 0 }
   const evict = (p: Placed) => {
-    p.out = true
     if (p.id < 0) return
     bodies.release(p.id & BODY_INDEX)
     p.id = -1

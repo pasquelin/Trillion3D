@@ -1,8 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
   BODY_INDEX,
-  COLLISION_SHARE,
-  collisionBytesOf,
+  collisionShareOf,
   type CommandWriter,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts'
@@ -16,13 +15,12 @@ import { cookedPhysics, isModel, locate, placedOf, tilePose, type Model } from '
 
 /**
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
- * simulation within the static collision's share of `budget.memoryBytes` (`collisionBytesOf`) and
- * of `budget.bodies` (`COLLISION_SHARE`), the other bodies keeping the rest: tiles load around
- * every moving body first, then around the eye up to the active range — the camera's draw
- * distance, the scene's own —, nearest first, and leave once no longer wanted. A scene is never
- * refused for its size: a tile that does not fit waits, the farther ones leaving for it; a hull a
- * declared body needs comes first, the tiles leaving it room (`sharedShapes.ts`). A tile is
- * restored from the module's binary state, never rebuilt; so are the bodies its nodes declare
+ * simulation within the static collision's share of `budget.memoryBytes` and of `budget.bodies`
+ * (`collisionShareOf`), the other bodies keeping the rest: tiles load around every moving body
+ * first, then around the eye up to the active range — the camera's draw distance, the scene's
+ * own —, nearest first, and leave once no longer wanted. A scene is never
+ * refused for its size: a tile that does not fit waits, the farther ones leaving for it. A tile
+ * is restored from the module's binary state, never rebuilt; so are the bodies its nodes declare
  * (`cookedBodies.ts`), made as it opens.
  *
  * A tile is one shape for the session (`sharedShapes.ts`), however many placements and models
@@ -41,8 +39,9 @@ export function createTileStreamer(
 ) {
   const models = new Map<Model, TileOpening>()
   // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
-  const [share, bodyShare] = [collisionBytesOf(budget), Math.floor(budget.bodies * COLLISION_SHARE)]
-  const shapes = new SharedShapes({ writer, bodies, share, invalidate, failed })
+  const share = collisionShareOf(budget, 'memoryBytes'),
+    bodyShare = collisionShareOf(budget, 'bodies')
+  const shapes = new SharedShapes({ writer, bodies, failed })
   const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
   const resident = createResidentTiles(writer, bodies, shapes)
   const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
@@ -93,7 +92,7 @@ export function createTileStreamer(
       const count = bodies.count,
         held = resident.held.bodies
       schedule.admit(
-        share - count.collisionBytes + shapes.tileBytes - shapes.demand,
+        share - count.collisionBytes + shapes.restoredBytes,
         Math.min(bodyShare, budget.bodies - count.bodies + held),
       )
       schedule.start()

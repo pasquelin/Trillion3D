@@ -6,7 +6,7 @@ import {
   LAYER,
   MOTION,
   checkPhysicsBudget,
-  collisionBytesOf,
+  collisionShareOf,
   physicsMatterOf,
   isSoftType,
   resolveShape,
@@ -160,7 +160,7 @@ export function createPhysicsBodies(
     release,
     /** A shared shape's collision `bytes` counted once if they fit (negative: given back). */
     countShape: (bytes: number) =>
-      (bytes <= 0 || count.collisionBytes + bytes <= collisionBytesOf(budget)) &&
+      (bytes <= 0 || count.collisionBytes + bytes <= collisionShareOf(budget, 'memoryBytes')) &&
       ((count.collisionBytes += bytes), true),
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */

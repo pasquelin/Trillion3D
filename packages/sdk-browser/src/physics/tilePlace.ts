@@ -42,19 +42,19 @@ export interface Placed {
   box: Float64Array
   /** The body's engine id once resident, -1 while out. */
   id: number
-  /** Left out by the last update, past the share or unwanted. */
-  out: boolean
   /** How near the last update wanted it (`nearness`). */
   near: number
 }
 
 /** A cooked tile as the session shares it (`sharedShapes.ts`), its manifest entry beside, and the
  *  marks an update leaves on it (`tileSchedule.ts`): how near its nearest wanted placement is, the
- *  update that saw it wanted, and the one that counted its bytes against the share. */
+ *  update that saw it wanted, the one that gave a placement of it a body, and the one that
+ *  counted its bytes against the share. */
 export type TileShape = SharedShape & {
   tile: CookedTile
   near: number
   seen: number
+  slotted: number
   counted: number
 }
 
@@ -100,14 +100,20 @@ export function placedOf(
   const hold = (tile: CookedTile) => {
     let href = hrefs.get(tile.url)
     if (!href) hrefs.set(tile.url, (href = cookedHref(model, tile.url)))
-    return shapes.hold('tile', href, tile.bytes, { tile, near: Infinity, seen: -1, counted: -1 })
+    return shapes.hold('tile', href, tile.bytes, {
+      tile,
+      near: Infinity,
+      seen: -1,
+      slotted: -1,
+      counted: -1,
+    })
   }
   return cooked.instances.flatMap((instance) => {
     const { tiles, material } = cooked.colliders[instance.collider]
     return tiles.map((tile) => {
       const p: Placed = {
         ...{ model, instance, shape: hold(tile), material: material ?? -1 },
-        ...{ box: new Float64Array(6), id: -1, out: false, near: Infinity },
+        ...{ box: new Float64Array(6), id: -1, near: Infinity },
       }
       locate(p)
       return p

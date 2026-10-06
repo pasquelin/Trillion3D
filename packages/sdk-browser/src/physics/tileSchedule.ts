@@ -73,31 +73,33 @@ export class TileSchedule {
     this.tiles.sort(byNear)
   }
   /**
-   * Lets in the placements wanted within `free` bytes of the share and `slots` bodies: the tiles'
-   * bytes counted once each, nearest tile first — past the first that does not fit, no farther one
-   * is, the room kept for it; one past the whole share never fits, and holds no one back —, then
-   * the `slots` nearest placements of the tiles counted. The others are evicted.
+   * Lets in the placements wanted within `free` bytes of the share and `slots` bodies: the bytes
+   * counted once each of the tiles the `slots` nearest placements name, nearest tile first — past
+   * the first that does not fit, no farther one is, the room kept for it; one past the whole share
+   * never fits, and holds no one back —, then the `slots` nearest placements of the tiles counted.
+   * The others are evicted.
    */
   admit(free: number, slots: number) {
     const tiles = this.tiles,
-      wanted = this.wanted
+      wanted = this.wanted,
+      pass = this.pass,
+      near = Math.min(wanted.length, Math.max(slots, 0))
+    if (near < wanted.length) selectNearest(wanted, wanted.length, near)
+    for (let i = 0; i < near; i++) wanted[i].shape.slotted = pass
     let bytes = free
     for (let i = 0; i < tiles.length; i++) {
       const shape = tiles[i]
-      if (shape.bytes > free) continue
+      if (shape.slotted !== pass || shape.bytes > free) continue
       if (shape.bytes > bytes) break
       bytes -= shape.bytes
-      shape.counted = this.pass
+      shape.counted = pass
     }
     const counted = partition(wanted, 0, wanted.length, this.counted),
-      n = Math.min(counted, Math.max(slots, 0))
+      n = Math.min(counted, near)
     if (n < counted) selectNearest(wanted, counted, n)
-    for (let i = 0; i < wanted.length; i++) {
-      const p = wanted[i]
-      p.out = i >= n
-      if (p.out) this.parts.resident.evict(p)
-      else p.shape.wanted = this.pass
-    }
+    for (let i = 0; i < wanted.length; i++)
+      if (i >= n) this.parts.resident.evict(wanted[i])
+      else wanted[i].shape.wanted = pass
     this.in = n
   }
   /** Builds the `BUILDS` nearest bodies the placements let in wait for on their resident tiles,

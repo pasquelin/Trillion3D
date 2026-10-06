@@ -11,10 +11,9 @@ export const hasReported = (error: unknown) =>
   typeof error === 'object' && error !== null && reported.has(error)
 
 /**
- * `shape`'s object, read once — `tries` requests — for every caller until it lands. Landed, the
- * next caller asks it again, but a soft body's settings, kept for the session; failed, it is
- * reported once to `failed` and asked again, but a 4xx: refused for the session, never asked
- * again.
+ * `shape`'s object, read once — `tries` requests — for every caller until it lands; landed, the
+ * next caller asks it again. Failed, it is reported once to `failed` and asked again, but a 4xx:
+ * refused while the shape is held.
  */
 export function readShared(
   shape: SharedShape,
@@ -24,15 +23,17 @@ export function readShared(
   if (shape.refused) return Promise.reject(shape.refused)
   if (shape.read) return shape.read
   const abort = new AbortController()
-  const read = cookedBytes(shape.url, abort.signal, tries)
+  // Whatever the read throws, its failure is an object: reported once, known again (`hasReported`).
+  const read = cookedBytes(shape.url, abort.signal, tries).catch((error: unknown) => {
+    throw error instanceof Object ? error : new Error(String(error))
+  })
   const settled = (error?: unknown) => {
     if (abort.signal.aborted || shape.read !== read) return
-    shape.abort = null
-    if (error === undefined && shape.kind === 'settings') return
-    shape.read = null
+    shape.read = shape.abort = null
     if (error === undefined) return
     reported.add(error as object)
     failed(error as EngineError)
+    // A refusal another request would meet again: only an HTTP one, an `EngineError`.
     if (!retriableError(error)) shape.refused = error as Error
   }
   read.then(() => settled(), settled)

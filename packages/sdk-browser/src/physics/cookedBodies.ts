@@ -123,8 +123,6 @@ export function createCookedBodies(
   /** `body` made again at `model`'s `scale` now, kept in `opening`; refused there, it waits in
    *  its `refused` list for another scale. */
   function remake(model: Model, opening: Opening, { body }: Refused, scale: number[]) {
-    // Its hull not restored yet — waiting for room, or its read failed —: read and restored first.
-    if (hullOf(opening.hulls, body)?.handle === -1) return start(model, opening, body)
     try {
       return make(model, opening, body)
     } catch (error) {

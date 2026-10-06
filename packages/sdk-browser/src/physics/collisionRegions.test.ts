@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  collisionBytesOf,
+  collisionShareOf,
   DEFAULT_PHYSICS_BUDGET,
   TRIANGLE_BYTES,
 } from '../../../sdk-core/src/physics/index.ts'
@@ -41,7 +41,7 @@ test('a 15 M-triangle static scene is never refused: its tiles follow a moving b
   const { tiles, scene, bodies, errors, fetched } = await streamedModel(row(), new Uint8Array(1), {
     bodies: 1024,
   })
-  const share = collisionBytesOf(DEFAULT_PHYSICS_BUDGET),
+  const share = collisionShareOf(DEFAULT_PHYSICS_BUDGET, 'memoryBytes'),
     fit = Math.floor(share / (TRIANGLES * TRIANGLE_BYTES))
   assert.ok(TILES > 3 * fit, 'the scene is far past what the share holds')
   const ball = new Mesh(box(1, 1, 1), new Material('meshStandard'))

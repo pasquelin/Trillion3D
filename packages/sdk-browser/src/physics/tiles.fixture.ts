@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises'
 import {
   PHYSICS_STEP,
   CommandWriter,
-  collisionBytesOf,
   DEFAULT_PHYSICS_BUDGET,
   type CookedBody,
   type PhysicsBudget,
@@ -36,16 +35,17 @@ export const declared = (
     ...more,
   }) as CookedBody
 
-/** The cooked objects of a session over `writer` and `bodies` (`SharedShapes`), within the default
- *  memory, a failure thrown. */
-export const sharedShapes = (writer: CommandWriter, bodies: SharedShapesBodies) =>
+/** The cooked objects of a session over `writer` and `bodies` (`SharedShapes`), failures thrown. */
+export const sharedShapes = (
+  writer: CommandWriter,
+  bodies: ReturnType<typeof createPhysicsBodies>,
+) =>
   new SharedShapes({
-    ...{ writer, bodies, share: collisionBytesOf(DEFAULT_PHYSICS_BUDGET), invalidate() {} },
+    ...{ writer, bodies },
     failed: (error) => {
       throw error
     },
   })
-type SharedShapesBodies = ReturnType<typeof createPhysicsBodies>
 
 /** Lets the fetches in flight land: `streamedModel`'s fetch answers in microtasks alone, so the
  *  next turn of the event loop comes once every answer has been read. */

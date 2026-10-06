@@ -1,4 +1,4 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
+import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import { createSimulatedIds } from './simulatedIds.ts'
@@ -12,54 +12,48 @@ export type CookedKind = 'tile' | 'hull' | 'settings'
 export interface SharedShape {
   kind: CookedKind
   url: string
-  /** The bytes it counts against the static collision's share while restored. */
+  /** The bytes it counts against the static collision's share while restored: a tile's; a
+   *  declared body's hull, its own shape, counts none. */
   bytes: number
   /** Its handle in the module while restored, -1 while not. */
   handle: number
   /** The bodies built on it; and the placements and openings naming it. */
   users: number
   holders: number
-  /** Its read: in flight, with the abort its last holder leaving lets it go by; or landed and
-   *  kept, a soft body's settings, for every body made from them in the session. */
+  /** Its read in flight, and the abort its last holder leaving lets it go by. */
   read: Promise<Uint8Array> | null
   abort: AbortController | null
-  /** The 4xx its object answered, reported once: never asked again in the session. */
+  /** The 4xx its object answered, reported once: not asked again while it is held. */
   refused: Error | null
   /** The last update that wanted it restored (`tileSchedule.ts`): kept through it bodiless. */
   wanted: number
-  /** Listed for `settle`; and, past the room the tiles leave, waiting for them to leave more. */
+  /** Listed for `settle`. */
   listed: boolean
-  waiting: Promise<void> | null
 }
 
-/** What a session's cooked objects need: the writer of its commands, its bodies' count, the
- *  static collision's share, and where to ask a frame and report a failure. */
+/** What a session's cooked objects need: the writer of its commands, what counts the bytes of
+ *  its shapes, and where a failed read is reported. */
 type SharedParts = {
   writer: CommandWriter
-  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'countShape' | 'count'>
-  share: number
-  invalidate: () => void
+  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'countShape'>
   failed: (error: EngineError) => void
 }
 
 /**
  * The cooked objects a session's bodies are built from, one per kind and object however many
- * models, placements or bodies name it: read once, a failed read reported once; a shape restored
- * once under a handle of the session's ids (`createSimulatedIds`: a handle taken again is
- * another), its bytes counted once (`countShape`), and released by `settle` once no body uses it
- * — a tile once no update wants it, a hull once no opening holds it —, never before nor twice.
- * The streamed tiles hold only the room the others leave: a hull past it waits, counted in
- * `demand`, for the tiles' next update to leave it room.
+ * models, placements or bodies name it, while one holds it: read once, a failed read reported
+ * once; a shape restored once under a handle of the session's ids (`createSimulatedIds`: a handle
+ * taken again is another), its bytes counted once (`countShape`), and released by `settle` once
+ * no body uses it — a tile once no update wants it, a hull once no opening holds it —, never
+ * before nor twice.
  */
 export class SharedShapes {
-  /** The bytes the restored tiles count, and those the hulls waiting for room ask. */
-  tileBytes = 0
-  demand = 0
+  /** The bytes the restored shapes count: the tiles'. */
+  restoredBytes = 0
   private readonly known = new Map<string, SharedShape>()
   private readonly handles = createSimulatedIds<SharedShape>()
   /** Restored shapes whose users fell to zero, or none came yet: `settle` reads them. */
   private readonly bare: SharedShape[] = []
-  private readonly queue: { shape: SharedShape; bytes: Uint8Array; done: () => void }[] = []
   private readonly parts: SharedParts
 
   constructor(parts: SharedParts) {
@@ -71,20 +65,19 @@ export class SharedShapes {
     if (!shape) {
       shape = {
         ...{ kind, url, bytes, handle: -1, users: 0, holders: 0, read: null, abort: null },
-        ...{ refused: null, wanted: -1, listed: false, waiting: null, ...extra },
+        ...{ refused: null, wanted: -1, listed: false, ...extra },
       }
       this.known.set(`${kind} ${url}`, shape)
     }
     shape.holders++
     return shape as SharedShape & E
   }
-  /** A holder of `shape` gone: the last one lets its read in flight go, and a hull be released. */
+  /** A holder of `shape` gone: the last one lets its read go, a hull be released, and the shape
+   *  be forgotten, refused or not. */
   letGo(shape: SharedShape) {
     if (--shape.holders) return
-    if (shape.abort) {
-      shape.abort.abort()
-      shape.read = shape.abort = null
-    }
+    shape.abort?.abort()
+    shape.read = shape.abort = null
     this.list(shape)
     this.forget(shape)
   }
@@ -92,24 +85,9 @@ export class SharedShapes {
   read(shape: SharedShape, tries?: number) {
     return readShared(shape, this.parts.failed, tries)
   }
-  /** `shape` restored, read first when it is not. Past the room the tiles leave, it waits for
-   *  them to leave more; past the room even none would leave, it is refused by name. */
+  /** `shape` restored, read first when it is not: a hull, which counts no bytes. */
   async restored(shape: SharedShape) {
-    if (shape.handle >= 0) return
-    const bytes = await this.read(shape)
-    if (shape.waiting) return shape.waiting
-    if (this.restore(shape, bytes)) return
-    const { bodies, share } = this.parts
-    if (bodies.count.collisionBytes - this.tileBytes + this.demand + shape.bytes > share)
-      throw new EngineError(
-        'PHYSICS_BUDGET',
-        `The cooked shape ${shape.url} does not fit the static collision's share (world.budget.physics.memoryBytes).`,
-        { budget: 'memoryBytes', requested: shape.bytes },
-      )
-    this.demand += shape.bytes
-    shape.waiting = new Promise((done) => this.queue.push({ shape, bytes, done }))
-    this.parts.invalidate()
-    return shape.waiting
+    if (shape.handle < 0) this.restore(shape, await this.read(shape))
   }
   /** Restores `shape` from its object's `bytes` when they fit the share: whether it is restored. */
   restore(shape: SharedShape, bytes: Uint8Array) {
@@ -117,7 +95,7 @@ export class SharedShapes {
     if (!this.parts.bodies.countShape(shape.bytes)) return false
     shape.handle = this.handles.take(shape)
     this.parts.writer.restore(shape.handle, bytes)
-    if (shape.kind === 'tile') this.tileBytes += shape.bytes
+    this.restoredBytes += shape.bytes
     this.list(shape)
     return true
   }
@@ -130,7 +108,7 @@ export class SharedShapes {
     if (!--shape.users) this.list(shape)
   }
   /** Releases every restored shape no body uses, but a hull an opening holds and a tile a holder
-   *  of update `pass` wants; then restores the hulls waiting, in the room the tiles left. */
+   *  of update `pass` wants. */
   settle(pass: number) {
     const bare = this.bare
     let kept = 0
@@ -147,18 +125,6 @@ export class SharedShapes {
       }
     }
     bare.length = kept
-    this.retry()
-  }
-  /** The hulls waiting for room restored now it is there; one no opening holds any more, let go. */
-  private retry() {
-    let kept = 0
-    for (const wait of this.queue)
-      if (!wait.shape.holders || this.restore(wait.shape, wait.bytes)) {
-        this.demand -= wait.shape.bytes
-        wait.shape.waiting = null
-        wait.done()
-      } else this.queue[kept++] = wait
-    this.queue.length = kept
   }
   /** `shape` listed for `settle`, once. */
   private list(shape: SharedShape) {
@@ -171,15 +137,13 @@ export class SharedShapes {
     this.parts.writer.release(shape.handle)
     this.handles.release(shape.handle)
     this.parts.bodies.countShape(-shape.bytes)
-    if (shape.kind === 'tile') this.tileBytes -= shape.bytes
+    this.restoredBytes -= shape.bytes
     shape.handle = -1
     this.forget(shape)
   }
-  /** `shape` out of the registry once nothing holds it, it is not restored, and it keeps neither
-   *  a refusal nor landed settings for the session. */
+  /** `shape` out of the registry once nothing holds it and it is not restored. */
   private forget(shape: SharedShape) {
     const key = `${shape.kind} ${shape.url}`
-    if (shape.holders || shape.handle >= 0 || shape.refused || shape.read) return
-    if (this.known.get(key) === shape) this.known.delete(key)
+    if (!shape.holders && shape.handle < 0 && this.known.get(key) === shape) this.known.delete(key)
   }
 }

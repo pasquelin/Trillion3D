@@ -40,7 +40,11 @@ test('a tile and a hull of one URL are two shapes, each restored with what it ho
   const { bodies, errors, restored, builtOn } = await opened(file, crates)
   assert.deepEqual([errors, restored.length, bodies.count.bodies], [[], 2, 2])
   assert.equal(new Set(builtOn).size, 2, 'the tile body on the tile, the crate on the hull')
-  assert.equal(bodies.count.collisionBytes, 2 + 3, 'the tile’s bytes, and the hull’s')
+  assert.equal(
+    bodies.count.collisionBytes,
+    2,
+    'the tile’s bytes; the hull, its body’s own shape, none',
+  )
 })
 
 test('a shape left bodiless again and again is listed for release once', () => {
@@ -57,7 +61,7 @@ test('a shape left bodiless again and again is listed for release once', () => {
   assert.equal((shapes as unknown as { bare: unknown[] }).bare.length, 1, 'kept, listed once')
 })
 
-test('an object a 4xx refuses is asked once and reported once, whatever names it after', async () => {
+test('a 4xx is asked and reported once while its object is held; held again after, asked again', async () => {
   const { file, crates } = hulled(2, 'hull.bin', 1)
   const fetched = stubFetch(file, new Uint8Array(4))
   const served = globalThis.fetch
@@ -65,15 +69,34 @@ test('an object a 4xx refuses is asked once and reported once, whatever names it
     url.endsWith('hull.bin')
       ? (fetched.push('hull.bin'), new Response(null, { status: 404 }))
       : served(url)) as typeof fetch
-  const streamer = modelStreamer({}, 1, crates)
-  const { tiles, scene, model, errors } = streamer
+  const { tiles, scene, model, errors } = modelStreamer({}, 1, crates)
+  const reads = () => fetched.filter((name) => name === 'hull.bin').length
   tiles.scan(scene)
   await landed()
+  assert.deepEqual([reads(), errors.length], [1, 1], 'two bodies name it: one request, one report')
   scene.remove(model)
   tiles.scan(scene)
   scene.add(model)
   tiles.scan(scene)
   await landed()
-  const reads = fetched.filter((name) => name === 'hull.bin').length
-  assert.deepEqual([reads, errors.map((error) => error.code)], [1, ['RESOURCE_HTTP_ERROR']])
+  assert.deepEqual(
+    [reads(), errors.map((error) => error.code)],
+    [2, ['RESOURCE_HTTP_ERROR', 'RESOURCE_HTTP_ERROR']],
+  )
+})
+
+test('a read failing with no error object is reported, never thrown', async () => {
+  const { file, crates } = hulled(1, 'hull.bin', 1)
+  const fetched = stubFetch(file, new Uint8Array(4))
+  const served = globalThis.fetch
+  const torn = { ok: true, status: 200, arrayBuffer: () => Promise.reject('torn') }
+  globalThis.fetch = (async (url: string) =>
+    url.endsWith('hull.bin') ? (fetched.push('hull.bin'), torn) : served(url)) as typeof fetch
+  const { tiles, scene, errors } = modelStreamer({}, 1, crates)
+  tiles.scan(scene)
+  await landed()
+  assert.deepEqual(
+    errors.map((error) => (error as unknown as Error).message),
+    ['torn'],
+  )
 })

@@ -16,7 +16,7 @@ import type { SharedShapes } from './sharedShapes.ts'
 import { tilePose, type Model } from './tilePlace.ts'
 
 /** The settings object a cooked soft body is made from. */
-const settingsOf = (soft: CookedSoftBody) => soft.settings
+const settingsObject = (soft: CookedSoftBody) => soft.settings
 
 /** A cooked soft body made: its entry, its options, its engine id. */
 export type CookedMade = {
@@ -43,9 +43,8 @@ export function createCookedSoftBodies(
   failed: (error: EngineError) => void,
 ) {
   /** Each open model's opening: its soft bodies made, those refused at another scale, the
-   *  settings they are made from — held, read once and kept while held (`cookedObjects.ts`): a
-   *  body made again, or back at its scale, never waits on the network —, and the signal its
-   *  model's leaving aborts its reads by. */
+   *  settings they are made from, held (`cookedObjects.ts`), and the signal its model's leaving
+   *  aborts its reads by. */
   type Opening = {
     made: CookedMade[]
     refused: CookedSoftBody[]
@@ -55,6 +54,14 @@ export function createCookedSoftBodies(
   const held = createOpenings<Opening>(bodies.release, (opening) =>
     letGoAll(shapes, opening.settings),
   )
+  /** Each soft body's settings, read once (`SharedShapes.read`) and kept by its cooked entry,
+   *  freed with it: a body made again, back at its scale, never waits on the network. */
+  const kept = new WeakMap<CookedSoftBody, Promise<Uint8Array>>()
+  function settingsOf(opening: Opening, soft: CookedSoftBody) {
+    let bytes = kept.get(soft)
+    if (!bytes) kept.set(soft, (bytes = shapes.read(opening.settings.get(soft.settings.url)!)))
+    return bytes
+  }
   /** Lists `soft` refused in `opening`, and refuses it by name: at another scale than it was
    *  cooked at. */
   function refuse(opening: Opening, soft: CookedSoftBody) {
@@ -62,7 +69,7 @@ export function createCookedSoftBodies(
     failed(rescaledSoft(`of node ${soft.node}`, soft.scale, { node: soft.node }))
   }
   async function add(model: Model, opening: Opening, soft: CookedSoftBody) {
-    const cooked = await shapes.read(opening.settings.get(soft.settings.url)!)
+    const cooked = await settingsOf(opening, soft)
     if (!held.current(model, opening)) return
     const { position, quaternion, scale } = tilePose({ model, instance: soft })
     if (!fits(scale, soft.scale)) return refuse(opening, soft)
@@ -88,7 +95,7 @@ export function createCookedSoftBodies(
     /** Makes the soft bodies `model` was cooked with, read until `signal` aborts, the last
      *  opening's out. */
     open(model: Model, softBodies: readonly CookedSoftBody[], signal: AbortSignal) {
-      const settings = holdObjects(shapes, model, 'settings', softBodies.map(settingsOf))
+      const settings = holdObjects(shapes, model, 'settings', softBodies.map(settingsObject))
       const opening: Opening = { made: [], refused: [], settings, signal }
       held.open(model, opening)
       for (const soft of softBodies) start(model, opening, soft)
