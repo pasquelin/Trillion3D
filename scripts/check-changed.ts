@@ -47,6 +47,9 @@ async function main(): Promise<void> {
   )
   // A documentation change also runs the tests that read documentation (`scripts/docs/tests.ts`).
   const withTests = !process.argv.includes('--push')
+  // A push's one heavy step, the seconds-long build the type check may need, runs beside other
+  // worktrees' heavy steps rather than wait for them (`scripts/heavy-lock.ts`).
+  if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
   const testFiles = !withTests
     ? []
     : [
