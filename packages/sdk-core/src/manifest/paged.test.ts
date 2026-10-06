@@ -128,3 +128,24 @@ test('a read its last holder let go that still lands lists its primitives once, 
   pages.release([first, first]) // each hold released once, landed or not
   assert.equal(pages.primitives.length, 0, 'and let go with its last holder')
 })
+
+test('a more urgent hold of a page on its way lifts its read: its file asked again so, and the next', async () => {
+  const { root, files } = pagedManifest(manifest(), false, true)
+  const { read: gated, land } = gatedReads(files)
+  const priorities: (number | undefined)[] = []
+  const read = (page: { url: string }, asked?: PageAsk) => (
+    priorities.push(asked?.priority),
+    gated(page, asked)
+  )
+  const { pages } = await openPagedManifest(root, read)
+  const opened = priorities.length
+  const [first] = root.pages as string[]
+  const holds = [3, 1, 3].map((priority) => pages.hold([first], { priority }))
+  land()
+  await Promise.all(holds)
+  assert.deepEqual(
+    priorities.slice(opened),
+    [3, 1, 1],
+    'the page at 3, lifted to 1, its sidecar at 1',
+  )
+})

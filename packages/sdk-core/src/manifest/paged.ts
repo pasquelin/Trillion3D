@@ -91,5 +91,5 @@ export async function openPagedManifest(
     const [page] = await readLeaves(MANIFEST_PAGES, named(MANIFEST_PAGES, [slot]), own)
     return accept(decode(await withSidecar(page, own)).primitives)
   }
-  return { metadata, pages: createPageHolds(load, metadata.primitives, letGo) }
+  return { metadata, pages: createPageHolds(load, metadata.primitives, letGo, read) }
 }
