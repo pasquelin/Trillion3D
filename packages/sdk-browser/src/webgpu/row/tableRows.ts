@@ -1,6 +1,6 @@
-import { storageBufferCap } from '../../residency/pools.ts';
-import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts';
-import { pageTableRows } from './pageTableRows.ts';
+import { storageBufferCap } from '../../residency/pools.ts'
+import { PAGE_INFO_STRIDE, VIS_MAX_PAGES } from '../../visibility/buffer.ts'
+import { pageTableRows } from './pageTableRows.ts'
 
 /**
  * THE ROWS A VIEW IS GIVEN (#1232): a fixed visible-cluster budget. The page table is sized by
@@ -10,16 +10,16 @@ import { pageTableRows } from './pageTableRows.ts';
  * more: its table opens at `CUT_ROWS` and grows by what its cut selects (`viewRowsFor`).
  */
 export const VIEW_ROWS = 1 << 18,
-  CUT_ROWS = 1 << 16;
+  CUT_ROWS = 1 << 16
 
 /** Whether a scene of `instances` packed pages is cut on the CPU: past the rows a view holds. */
-export const cutsOnCpu = (instances: number) => instances > VIEW_ROWS;
+export const cutsOnCpu = (instances: number) => instances > VIEW_ROWS
 
 /** The rows a view holds once its cut selected `asked`: a quarter more, in steps of `CUT_ROWS`, so a
  *  growing view grows the table a few times, never once per image, and ahead of the rows it draws;
  *  within what a visibility ID names. */
 export const viewRowsFor = (asked: number) =>
-  Math.min(VIS_MAX_PAGES, Math.ceil((1.25 * Math.max(1, asked)) / CUT_ROWS) * CUT_ROWS);
+  Math.min(VIS_MAX_PAGES, Math.ceil((1.25 * Math.max(1, asked)) / CUT_ROWS) * CUT_ROWS)
 
 /**
  * THE ROWS OF THE PAGE TABLE, bounded by the device. The visibility rows (`draw`) and the blended
@@ -34,14 +34,14 @@ export function boundTableRows(
   draw: number,
   blend: number,
 ) {
-  const held = pageTableRows(limits);
-  if (draw + blend <= held) return { drawSlots: draw, blendSlots: blend, bounded: null };
-  const blendSlots = blend ? Math.max(1, Math.floor((held * blend) / (draw + blend))) : 0;
+  const held = pageTableRows(limits)
+  if (draw + blend <= held) return { drawSlots: draw, blendSlots: blend, bounded: null }
+  const blendSlots = blend ? Math.max(1, Math.floor((held * blend) / (draw + blend))) : 0
   return {
     drawSlots: held - blendSlots,
     blendSlots,
     bounded: { draw, blend, rows: held, bytes: held * PAGE_INFO_STRIDE },
-  };
+  }
 }
 
 /**
@@ -54,7 +54,7 @@ export function grownTableRows(
   held: { blendFirst: number; casterSlots: number },
 ) {
   const drawSlots = Math.max(asked.drawSlots, held.blendFirst),
-    room = asked.bounded ? asked.bounded.rows - drawSlots : Infinity;
-  const blendSlots = Math.max(asked.blendSlots, held.casterSlots - held.blendFirst);
-  return { drawSlots, casterSlots: drawSlots + Math.min(room, blendSlots) };
+    room = asked.bounded ? asked.bounded.rows - drawSlots : Infinity
+  const blendSlots = Math.max(asked.blendSlots, held.casterSlots - held.blendFirst)
+  return { drawSlots, casterSlots: drawSlots + Math.min(room, blendSlots) }
 }

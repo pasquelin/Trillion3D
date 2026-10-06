@@ -1,9 +1,9 @@
 // #1239: the runtime contract of the `impostors` section (#817) — absent stays readable, a `baked`
 // entry carries the three maps and the four numbers its card and switch read, and an unknown
 // version is refused by name.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { EngineError } from './cache.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { EngineError } from './cache.ts'
 import {
   IMPOSTOR_VERSION,
   assertImpostorSection,
@@ -11,14 +11,14 @@ import {
   validateImpostorSection,
   type ImpostorMesh,
   type ImpostorSection,
-} from './impostor.ts';
+} from './impostor.ts'
 
-const level = { url: 'objects/a.bin', sha256: 'a', bytes: 4, width: 1, height: 1 };
+const level = { url: 'objects/a.bin', sha256: 'a', bytes: 4, width: 1, height: 1 }
 const maps = {
   colourCoverage: { kind: 'coverage', levels: [level] },
   normalDepth: { kind: 'data', levels: [level] },
   orm: { kind: 'data', levels: [level] },
-};
+}
 const section = (over: Partial<ImpostorSection> = {}): ImpostorSection => ({
   version: IMPOSTOR_VERSION,
   frames: 12,
@@ -47,42 +47,42 @@ const section = (over: Partial<ImpostorSection> = {}): ImpostorSection => ({
     },
   ],
   ...over,
-});
+})
 
 test('an absent section is readable and draws every mesh in full', () => {
-  assert.equal(validateImpostorSection(undefined), null);
-  assert.equal(assertImpostorSection(undefined), undefined);
-});
+  assert.equal(validateImpostorSection(undefined), null)
+  assert.equal(assertImpostorSection(undefined), undefined)
+})
 
 test('a version this build does not read is refused whole', () => {
-  assert.match(validateImpostorSection(section({ version: 2 })) ?? '', /version/);
-});
+  assert.match(validateImpostorSection(section({ version: 2 })) ?? '', /version/)
+})
 
 test('a baked entry without the numbers its switch and card need is refused', () => {
   const meshesWith = (over: Partial<ImpostorMesh>) =>
-    section().meshes.map((mesh) => ({ ...mesh, ...over }));
+    section().meshes.map((mesh) => ({ ...mesh, ...over }))
   const problem = (over: Partial<ImpostorMesh>) =>
-    validateImpostorSection(section({ meshes: meshesWith(over) })) ?? '';
-  assert.match(problem({ maps: undefined }), /three maps/);
-  assert.match(problem({ frames: undefined }), /frame count/);
-  assert.match(problem({ frameSide: undefined }), /frame side/);
-  assert.match(problem({ objectRadius: undefined }), /object radius/);
-  assert.match(problem({ rootTriangles: undefined }), /root triangle/);
-  assert.match(problem({ coverage: undefined }), /coverage/);
-});
+    validateImpostorSection(section({ meshes: meshesWith(over) })) ?? ''
+  assert.match(problem({ maps: undefined }), /three maps/)
+  assert.match(problem({ frames: undefined }), /frame count/)
+  assert.match(problem({ frameSide: undefined }), /frame side/)
+  assert.match(problem({ objectRadius: undefined }), /object radius/)
+  assert.match(problem({ rootTriangles: undefined }), /root triangle/)
+  assert.match(problem({ coverage: undefined }), /coverage/)
+})
 
 test('impostorMeshBaked is true only for a baked entry with its drawable atlas', () => {
-  const [mesh] = section().meshes;
-  assert.equal(impostorMeshBaked(mesh), true);
-  assert.equal(impostorMeshBaked({ ...mesh, status: 'refused' }), false);
-  assert.equal(impostorMeshBaked({ ...mesh, maps: undefined }), false);
-});
+  const [mesh] = section().meshes
+  assert.equal(impostorMeshBaked(mesh), true)
+  assert.equal(impostorMeshBaked({ ...mesh, status: 'refused' }), false)
+  assert.equal(impostorMeshBaked({ ...mesh, maps: undefined }), false)
+})
 
 test('assertImpostorSection returns its section and throws the named refusal', () => {
-  const built = section();
-  assert.equal(assertImpostorSection(built), built);
+  const built = section()
+  assert.equal(assertImpostorSection(built), built)
   assert.throws(
     () => assertImpostorSection({ version: 99 }),
     (error: unknown) => error instanceof EngineError && error.code === 'UNSUPPORTED_FORMAT',
-  );
-});
+  )
+})

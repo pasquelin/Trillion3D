@@ -1,20 +1,20 @@
-import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
-import { Button } from './Button.tsx';
-import { RenderFrame } from './RenderFrame.tsx';
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react'
+import { Button } from './Button.tsx'
+import { RenderFrame } from './RenderFrame.tsx'
 
 interface CanvasAction extends Omit<ComponentPropsWithoutRef<'button'>, 'title' | 'aria-label'> {
-  label: string;
-  symbol: ReactNode;
-  [key: `data-${string}`]: unknown;
+  label: string
+  symbol: ReactNode
+  [key: `data-${string}`]: unknown
 }
 
 interface CanvasProps extends ComponentPropsWithoutRef<'canvas'> {
-  label?: string;
-  canvasRef?: Ref<HTMLCanvasElement>;
-  actions?: CanvasAction[];
-  pending?: boolean;
-  loadingLabel?: string;
-  overlay?: ReactNode;
+  label?: string
+  canvasRef?: Ref<HTMLCanvasElement>
+  actions?: CanvasAction[]
+  pending?: boolean
+  loadingLabel?: string
+  overlay?: ReactNode
 }
 
 export function Canvas({
@@ -35,8 +35,8 @@ export function Canvas({
       className={`block w-full rounded-box ${pending ? 'invisible' : ''} ${className}`}
       {...props}
     />
-  );
-  if (!actions.length && !pending && !overlay) return surface;
+  )
+  if (!actions.length && !pending && !overlay) return surface
   return (
     <RenderFrame
       pending={pending}
@@ -62,5 +62,5 @@ export function Canvas({
     >
       {surface}
     </RenderFrame>
-  );
+  )
 }

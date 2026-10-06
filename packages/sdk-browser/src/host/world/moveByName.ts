@@ -4,12 +4,12 @@ import {
   determinantMatrix4,
   invertMatrix4,
   multiplyMatrix4,
-} from '../../../../sdk-core/src/index.ts';
-import { resolveCameraWorld } from '../../camera/world.ts';
-import { assertFiniteTransform } from './matrices.ts';
-import { copyElements, sameElements } from '../../math/matrixElements.ts';
-import { findNode } from './nameIndex.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+} from '../../../../sdk-core/src/index.ts'
+import { resolveCameraWorld } from '../../camera/world.ts'
+import { assertFiniteTransform } from './matrices.ts'
+import { copyElements, sameElements } from '../../math/matrixElements.ts'
+import { findNode } from './nameIndex.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
  * A MOVE BY NAME, whichever engine draws (#972): the node a name finds, and its local pose set so
@@ -21,12 +21,12 @@ const local = new Float64Array(16),
   parentInverse = new Float64Array(16),
   trs = new Float64Array(3),
   trsRotation = new Float64Array(4),
-  trsScale = new Float64Array(3);
+  trsScale = new Float64Array(3)
 
 /** True when `world`, rounded to single precision, is `matrix`. */
 function standsAt(world: Float64Array, matrix: Float32Array) {
-  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false;
-  return true;
+  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false
+  return true
 }
 
 /** The node of `source` a move by name poses at `matrix`, by the name index (`nameIndex.ts`);
@@ -35,8 +35,8 @@ export function namedNode(source: Object3D, nodeName: string, matrix: Float32Arr
   if (matrix.length !== 16)
     throw new EngineError('INVALID_TRANSFORM', `${nodeName}: sixteen floats expected`, {
       length: matrix.length,
-    });
-  const node = findNode(source, nodeName);
+    })
+  const node = findNode(source, nodeName)
   if (!node)
     throw new EngineError(
       'UNKNOWN_SCENE_NODE',
@@ -44,8 +44,8 @@ export function namedNode(source: Object3D, nodeName: string, matrix: Float32Arr
       {
         nodeName,
       },
-    );
-  return node;
+    )
+  return node
 }
 
 /**
@@ -57,7 +57,7 @@ export function namedNode(source: Object3D, nodeName: string, matrix: Float32Arr
 export function poseNode(node: Object3D, matrix: Float32Array) {
   // A non-finite pose is refused here, before any inversion: further on it would become a NaN
   // world matrix, then a null normal, then a black surface with no readable cause.
-  assertFiniteTransform(matrix, node.name);
+  assertFiniteTransform(matrix, node.name)
   // The requested pose is a WORLD pose: bringing it back into the parent's space needs the
   // parent's world matrix, and the host is allowed to have written a local pose above without
   // climbing the graph. The transform tree brings the node's chain up to date with every pose
@@ -67,24 +67,24 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   // "no effect" a request remade after the parent moved. It therefore precedes them.
   const current = resolveCameraWorld(node).worldMatrix,
     parent = node.parent,
-    above = parent ? parent.worldMatrix : null;
+    above = parent ? parent.worldMatrix : null
   // The world the node already stands at, to the precision the request carries: moving it there
   // moves nothing — a node's first write included, which the local comparison below cannot judge.
-  if (standsAt(current, matrix)) return false;
-  copyElements(local, matrix);
+  if (standsAt(current, matrix)) return false
+  copyElements(local, matrix)
   if (parent && above) {
     // A parent flattened onto a plane or a line has no inverse: the base would yield sixteen
     // zeros and the node would silently leave for the origin. The determinant is the only test
     // that distinguishes this case from the exit, and it also catches a non-finite matrix.
-    const parentDeterminant = determinantMatrix4(above);
+    const parentDeterminant = determinantMatrix4(above)
     if (parentDeterminant === 0 || !Number.isFinite(parentDeterminant))
       throw new EngineError(
         'SINGULAR_PARENT_TRANSFORM',
         `${node.name}: parent world matrix not invertible`,
         { nodeName: node.name, parentName: parent.name, determinant: parentDeterminant },
-      );
-    invertMatrix4(parentInverse, above);
-    multiplyMatrix4(local, parentInverse, local);
+      )
+    invertMatrix4(parentInverse, above)
+    multiplyMatrix4(local, parentInverse, local)
   }
   // A pose identical to the one this node already carries — and set from here, hence
   // `matrixAutoUpdate` false — changes no world matrix: declaring it changed would invalidate
@@ -92,7 +92,7 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   // write leaves `node.matrix` different and therefore takes the full path again. `local` is
   // expressed in the parent space JUST RESOLVED: a moved parent gives another `local` for the
   // same requested world pose, and the request is therefore not judged as no-effect.
-  if (!node.matrixAutoUpdate && sameElements(node._matrixElements, local)) return false;
+  if (!node.matrixAutoUpdate && sameElements(node._matrixElements, local)) return false
   // The local matrix is authoritative, not the three fields: not every matrix is a
   // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
   // scale under a rotation produces — does not decompose into it, and a host update would
@@ -101,17 +101,17 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   // moved node alone is what keeps it intact. The base's decompose still fills the three fields,
   // at the same bits as `Matrix4.decompose`: exact without shear and approximate otherwise, for
   // whoever reads them.
-  decomposeMatrix4(local, trs, trsRotation, trsScale);
-  node.position.set(trs[0], trs[1], trs[2]);
-  node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
-  node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
-  copyElements(node.matrix.elements, local);
-  node.matrixAutoUpdate = false;
-  return true;
+  decomposeMatrix4(local, trs, trsRotation, trsScale)
+  node.position.set(trs[0], trs[1], trs[2])
+  node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3])
+  node.scale.set(trsScale[0], trsScale[1], trsScale[2])
+  copyElements(node.matrix.elements, local)
+  node.matrixAutoUpdate = false
+  return true
 }
 
 /** A move by name (WebGL2's, a world's): the node posed, or null when the move moves nothing. */
 export function poseNamed(source: Object3D, nodeName: string, matrix: Float32Array) {
-  const node = namedNode(source, nodeName, matrix);
-  return poseNode(node, matrix) ? node : null;
+  const node = namedNode(source, nodeName, matrix)
+  return poseNode(node, matrix) ? node : null
 }

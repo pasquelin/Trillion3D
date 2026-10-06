@@ -1,5 +1,5 @@
-import { WRAP_MAP } from '../wrapModes.ts';
-import type { MaterialClassFeature } from './materialClass.ts';
+import { WRAP_MAP } from '../wrapModes.ts'
+import type { MaterialClassFeature } from './materialClass.ts'
 
 /**
  * What each `WRAP_MAP` map gives its read: its slot in the page record. A rank added to
@@ -13,12 +13,12 @@ const CARTE = {
   normal: 'normalIndex',
   ao: 'aoIndex',
   emissive: 'emissiveIndex',
-} as const satisfies Record<keyof typeof WRAP_MAP, string>;
+} as const satisfies Record<keyof typeof WRAP_MAP, string>
 
 /** Atlas read of a map: its slot — whose header carries its addressing —, the pixel's
  *  derivatives, and the class's filter rule (`HAS_SAMPLING`), folded at compile time. */
 export const lecture = (fn: string, nom: keyof typeof WRAP_MAP) =>
-  `${fn}(page.${CARTE[nom]},uv,ddx,ddy,HAS_SAMPLING)`;
+  `${fn}(page.${CARTE[nom]},uv,ddx,ddy,HAS_SAMPLING)`
 
 /** Class override that says the map exists (`materialClass.ts`): slot 0 is the absence
  *  of a texture, and every page of a class has the same maps, so the test folds at compile time. */
@@ -29,11 +29,11 @@ const PRESENCE = {
   normal: 'HAS_NORMAL_MAP',
   ao: 'HAS_AO',
   emissive: 'HAS_EMISSIVE',
-} as const satisfies Record<keyof typeof WRAP_MAP, MaterialClassFeature>;
+} as const satisfies Record<keyof typeof WRAP_MAP, MaterialClassFeature>
 
 /** The body runs only if the class reads the map. */
 export const siCarte = (nom: keyof typeof WRAP_MAP, corps: string) =>
-  `if(${PRESENCE[nom]}){${corps}}`;
+  `if(${PRESENCE[nom]}){${corps}}`
 
 /**
  * Read of a data map that may be the SAME texture as a map already read — a glTF stores
@@ -49,6 +49,6 @@ export const lectureDonnee = (
 ) => {
   const reprises = dejaLues
     .map(([lue, other]) => `if(page.${CARTE[nom]}==page.${CARTE[other]}){${variable}=${lue};}else `)
-    .join('');
-  return siCarte(nom, `${reprises}{${variable}=${lecture('dataSample', nom)};}`);
-};
+    .join('')
+  return siCarte(nom, `${reprises}{${variable}=${lecture('dataSample', nom)};}`)
+}

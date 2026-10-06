@@ -1,7 +1,7 @@
-import type { EntryFrame } from '../i18n/entries.ts';
+import type { EntryFrame } from '../i18n/entries.ts'
 
 /** "How it works": what the engine does inside, one screen each, for a curious reader. */
-const INTERNAL = { section: 'internals', kind: 'Guide' };
+const INTERNAL = { section: 'internals', kind: 'Guide' }
 
 export const INTERNALS: EntryFrame[] = [
   {
@@ -32,4 +32,4 @@ export const INTERNALS: EntryFrame[] = [
     ...INTERNAL,
     id: 'shadow-pages',
   },
-];
+]

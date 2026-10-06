@@ -10,18 +10,18 @@ export function whiteNoise(
   seconds: number,
   envelope: (at: number) => number = () => 1,
 ): AudioBuffer {
-  const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate);
-  const samples = buffer.getChannelData(0);
+  const buffer = context.createBuffer(1, context.sampleRate * seconds, context.sampleRate)
+  const samples = buffer.getChannelData(0)
   for (let k = 0; k < samples.length; k++)
-    samples[k] = (Math.random() * 2 - 1) * envelope(k / samples.length);
-  return buffer;
+    samples[k] = (Math.random() * 2 - 1) * envelope(k / samples.length)
+  return buffer
 }
 
 /** `seconds` of brown noise: white noise summed with a leak, so the low notes carry it. */
 export function brownNoise(context: BaseAudioContext, seconds: number): AudioBuffer {
-  const buffer = whiteNoise(context, seconds);
-  const samples = buffer.getChannelData(0);
+  const buffer = whiteNoise(context, seconds)
+  const samples = buffer.getChannelData(0)
   for (let k = 0, last = 0; k < samples.length; k++)
-    samples[k] = last = (last + 0.02 * samples[k]) / 1.02;
-  return buffer;
+    samples[k] = last = (last + 0.02 * samples[k]) / 1.02
+  return buffer
 }

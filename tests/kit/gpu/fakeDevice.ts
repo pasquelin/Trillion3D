@@ -1,4 +1,4 @@
-import { installGpuGlobals } from './globals.ts';
+import { installGpuGlobals } from './globals.ts'
 import {
   copyOf,
   type FakeBuffer,
@@ -8,11 +8,11 @@ import {
   type FakeTextureCopy,
   type FakeWrite,
   type LostInfo,
-} from './fakeRecords.ts';
+} from './fakeRecords.ts'
 
-import { checkGroup, checkLayout, checkPipelineLayout } from './bindRules.ts';
+import { checkGroup, checkLayout, checkPipelineLayout } from './bindRules.ts'
 
-export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts';
+export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts'
 
 /**
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
@@ -31,7 +31,7 @@ export function fakeDevice({
   mapping,
   features = [],
 }: FakeDeviceOptions = {}) {
-  installGpuGlobals();
+  installGpuGlobals()
   const buffers: FakeBuffer[] = [],
     textures: FakeTexture[] = [],
     bindGroupLayouts: GPUBindGroupLayoutDescriptor[] = [],
@@ -43,34 +43,34 @@ export function fakeDevice({
     textureWrites: GPUTexelCopyTextureInfo[] = [],
     // Each texture write with its bytes, layout and extent, for a test that replays them.
     texelWrites: {
-      destination: GPUTexelCopyTextureInfo;
-      data: ReturnType<typeof copyOf>;
-      layout: GPUTexelCopyBufferLayout;
-      size: GPUExtent3D;
+      destination: GPUTexelCopyTextureInfo
+      data: ReturnType<typeof copyOf>
+      layout: GPUTexelCopyBufferLayout
+      size: GPUExtent3D
     }[] = [],
     imageCopies: GPUCopyExternalImageDestInfo[] = [],
     // The error scopes open, innermost last, each with the first error raised under it.
     scopes: Array<object | null> = [],
     // Every `destroy` call in order, the device's own included: a resource destroyed twice is twice.
-    destroyed: Array<{ label?: string }> = [];
-  let lose!: (info: LostInfo) => void;
-  let fences = 0;
-  const lost = new Promise<LostInfo>((resolve) => (lose = resolve));
+    destroyed: Array<{ label?: string }> = []
+  let lose!: (info: LostInfo) => void
+  let fences = 0
+  const lost = new Promise<LostInfo>((resolve) => (lose = resolve))
   /** Applies `refuse` to one creation, before its resource is made. */
   const allocate = (descriptor: GPUBufferDescriptor | GPUTextureDescriptor) => {
-    const refusal = refuse?.(descriptor);
-    if (refusal === 'throw') throw new Error('NO_MEMORY');
-    if (refusal !== 'oom') return;
-    if (!scopes.length) throw new Error('fakeDevice: out of memory outside an error scope');
-    scopes[scopes.length - 1] ??= { message: 'Out of memory' };
-  };
+    const refusal = refuse?.(descriptor)
+    if (refusal === 'throw') throw new Error('NO_MEMORY')
+    if (refusal !== 'oom') return
+    if (!scopes.length) throw new Error('fakeDevice: out of memory outside an error scope')
+    scopes[scopes.length - 1] ??= { message: 'Out of memory' }
+  }
   // A render pipeline is its descriptor: a pass that sets it can be read back as it was made.
   const renderPipeline = (descriptor: GPURenderPipelineDescriptor) => (
     renderPipelines.push(descriptor),
     descriptor
-  );
+  )
   // A compute pipeline is its stage and its layout: a pass checks the groups it sets against it.
-  const computePipeline = (d: GPUComputePipelineDescriptor) => ({ ...d.compute, layout: d.layout });
+  const computePipeline = (d: GPUComputePipelineDescriptor) => ({ ...d.compute, layout: d.layout })
   const device = {
     label: '',
     lost,
@@ -78,9 +78,9 @@ export function fakeDevice({
     ...(limits && { limits }),
     destroy: () => void destroyed.push(device),
     createBuffer(descriptor: GPUBufferDescriptor) {
-      allocate(descriptor);
-      const { label, size, usage } = descriptor;
-      let bytes: ArrayBuffer | undefined;
+      allocate(descriptor)
+      const { label, size, usage } = descriptor
+      let bytes: ArrayBuffer | undefined
       const buffer: FakeBuffer = {
         label,
         size,
@@ -89,15 +89,15 @@ export function fakeDevice({
         getMappedRange: () => (bytes ??= new ArrayBuffer(size)),
         unmap() {},
         destroy: () => void destroyed.push(buffer),
-      };
-      buffers.push(buffer);
-      return buffer;
+      }
+      buffers.push(buffer)
+      return buffer
     },
     createTexture(descriptor: GPUTextureDescriptor) {
-      allocate(descriptor);
-      const size = descriptor.size;
+      allocate(descriptor)
+      const size = descriptor.size
       const [width, height = 1, depthOrArrayLayers = 1] =
-        'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size];
+        'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size]
       const texture: FakeTexture = {
         ...descriptor,
         width,
@@ -106,9 +106,9 @@ export function fakeDevice({
         mipLevelCount: descriptor.mipLevelCount ?? 1,
         createView: () => ({ format: descriptor.format }),
         destroy: () => void destroyed.push(texture),
-      };
-      textures.push(texture);
-      return texture;
+      }
+      textures.push(texture)
+      return texture
     },
     createSampler: () => ({}),
     createShaderModule: ({ label }: GPUShaderModuleDescriptor) => ({
@@ -132,8 +132,8 @@ export function fakeDevice({
     createBindGroup: (d: GPUBindGroupDescriptor) => (checkGroup(d), bindGroups.push(d), d),
     pushErrorScope: () => void scopes.push(null),
     popErrorScope: async () => {
-      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError');
-      return scopes.pop() ?? null;
+      if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
+      return scopes.pop() ?? null
     },
     createCommandEncoder: () => ({
       copyBufferToBuffer: (
@@ -159,7 +159,7 @@ export function fakeDevice({
         dataOffset = 0,
         size?: number,
       ) {
-        writes.push({ buffer, offset, data: copyOf(data), dataOffset, size });
+        writes.push({ buffer, offset, data: copyOf(data), dataOffset, size })
       },
       writeTexture: (
         destination: GPUTexelCopyTextureInfo,
@@ -167,15 +167,15 @@ export function fakeDevice({
         layout: GPUTexelCopyBufferLayout,
         size: GPUExtent3D,
       ) => {
-        textureWrites.push(destination);
-        texelWrites.push({ destination, data: copyOf(data), layout, size });
+        textureWrites.push(destination)
+        texelWrites.push({ destination, data: copyOf(data), layout, size })
       },
       copyExternalImageToTexture: (_source: unknown, destination: GPUCopyExternalImageDestInfo) =>
         void imageCopies.push(destination),
       submit() {},
       onSubmittedWorkDone: async () => void fences++,
     },
-  };
+  }
   return {
     device: device as unknown as GPUDevice,
     buffers,
@@ -195,5 +195,5 @@ export function fakeDevice({
     fences: () => fences,
     /** Settles `device.lost` with `info`, as a driver reset or a `destroy` would. */
     lose,
-  };
+  }
 }

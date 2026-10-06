@@ -1,14 +1,14 @@
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
-import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts';
-import { DAG_GRID_WGSL, FLAT_INDEX_WGSL } from '../../gpu/dag/shader/gridWgsl.ts';
-import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
+import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts'
+import { DAG_GRID_WGSL, FLAT_INDEX_WGSL } from '../../gpu/dag/shader/gridWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import {
   FRAMEBUFFER_WGSL,
   PIXEL_TRIANGLE_WGSL,
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
-} from './pixelTriangleWgsl.ts';
+} from './pixelTriangleWgsl.ts'
 
 /**
  * THE RESOLVE'S FRAME CACHE (`shadeCache`): what many pixels used to compute alike, computed once
@@ -47,23 +47,23 @@ import {
  * the 256 triangles a visibility identifier addresses —, then the triangles. A row at or past the
  * header's count is composed and decoded by its pixels.
  */
-const SHADE_CACHE_CURSOR_WORD = 0;
-export const SHADE_CACHE_ROWS_WORD = 1;
-export const SHADE_CACHE_CAPACITY_WORD = 2;
-const SHADE_CACHE_END_WORD = 3;
-export const SHADE_CACHE_HEADER_WORDS = SHADE_CACHE_END_WORD + 1;
+const SHADE_CACHE_CURSOR_WORD = 0
+export const SHADE_CACHE_ROWS_WORD = 1
+export const SHADE_CACHE_CAPACITY_WORD = 2
+const SHADE_CACHE_END_WORD = 3
+export const SHADE_CACHE_HEADER_WORDS = SHADE_CACHE_END_WORD + 1
 /** A row's frame as `storeRowFrame` writes it: the adjugate's nine words, its scale, whether it is
  *  regular, the side of the determinant. Its first slot follows, then its two prefix words. */
-const ROW_FRAME_WORDS = 12;
-export const ROW_RECORD_WORDS = 16;
-export const ROW_MARK_WORDS = 16;
-export const TRIANGLE_WORDS = 42;
+const ROW_FRAME_WORDS = 12
+export const ROW_RECORD_WORDS = 16
+export const ROW_MARK_WORDS = 16
+export const TRIANGLE_WORDS = 42
 /** Triangles a visibility identifier addresses in a row: its low byte. */
-export const ROW_TRIANGLES = 256;
+export const ROW_TRIANGLES = 256
 /** Rows a workgroup of the rows pass handles; the triangles pass's lanes per row. */
-export const SHADE_ROWS_LANES = 64;
+export const SHADE_ROWS_LANES = 64
 /** The marks pass's tile side. */
-export const MARK_TILE = 8;
+export const MARK_TILE = 8
 
 const LAYOUT_WGSL = `const SHADE_CACHE_CURSOR:u32=${SHADE_CACHE_CURSOR_WORD}u;
 const SHADE_CACHE_ROWS:u32=${SHADE_CACHE_ROWS_WORD}u;
@@ -82,7 +82,7 @@ fn rowMarks(rows:u32,row:u32)->u32{return ROW_RECORDS+rows*ROW_RECORD_WORDS+row*
 /** The first word of the triangles, of \`rows\` laid. */
 fn cachedTriangles(rows:u32)->u32{return ROW_RECORDS+rows*(ROW_RECORD_WORDS+ROW_MARK_WORDS);}
 /** The passes ran this frame: the pixels read what they stored. */
-override SHADE_CACHE:bool=false;`;
+override SHADE_CACHE:bool=false;`
 
 /** A row's frame and its composition, the one text the passes and the resolve compile. Requires
  *  `INVERSE_TRANSPOSE_WGSL`. */
@@ -92,7 +92,7 @@ struct RowFrame{invT:InvT3,positive:bool,}
 fn composeRowFrame(world:mat4x4f)->RowFrame{
  let world3=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
  return RowFrame(invTranspose3Prep(world3),determinant(world3)>=0.0);
-}`;
+}`
 
 /** Reads of the cache as plain words — the resolve's, and the triangles pass's. */
 const CACHE_READ_WGSL = `${ROW_FRAME_WGSL}
@@ -116,7 +116,7 @@ fn cachedSlot(row:u32,tri:u32)->u32{
  let record=ROW_RECORDS+row*ROW_RECORD_WORDS;
  let before=(shadeCache[record+ROW_PREFIX+(tri>>7u)]>>(((tri>>5u)&3u)*8u))&255u;
  return shadeCache[record+ROW_BASE]+before+countOneBits(word&(bit-1u));
-}`;
+}`
 
 /**
  * The resolve's read: its binding, read-only, the frames and `pixelTriangle`. The overrides are set
@@ -133,7 +133,7 @@ fn pixelTriangle(row:u32,page:PageInfo,tri:u32)->PixelTriangle{
  let at=cachedTriangles(shadeCache[SHADE_CACHE_ROWS])+slot*TRIANGLE_WORDS;
  return PixelTriangle(cacheVec4(at),cacheVec4(at+4u),cacheVec4(at+8u),cacheVec4(at+12u),cacheVec4(at+16u),cacheVec4(at+20u),
   cacheVec3(at+24u),cacheVec3(at+27u),cacheVec3(at+30u),cacheVec2(at+33u),cacheVec2(at+35u),cacheVec2(at+37u),cacheVec3(at+39u));
-}`;
+}`
 
 /** The marks and rows passes, on the cache's words as atomics; \`work\`, the triangles pass's
  *  dispatch, x then y. */
@@ -224,7 +224,7 @@ var<workgroup> tileIds:array<u32,${MARK_TILE * MARK_TILE}>;
  }
  atomicMax(&shadeCache[SHADE_CACHE_END],base+count);
  openSlice(0u,(base+count-1u)>>6u);
-}`;
+}`
 
 /** The triangles pass, the page decoded by the resolve's own text. */
 export const SHADE_TRIS_SHADER = `${PAGE_INFO_STRUCT_WGSL}
@@ -263,4 +263,4 @@ fn storeTriangle(at:u32,t:PixelTriangle){
  // A triangle past its page is marked, never read: its pixel shades nothing.
  if(tri*3u+2u>=page.indexCount){return;}
  storeTriangle(at,decodeTriangle(page,tri,rowFrame(row,page.world).invT));
-}`;
+}`

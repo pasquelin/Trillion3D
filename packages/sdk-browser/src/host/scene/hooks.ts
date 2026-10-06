@@ -2,11 +2,11 @@ import {
   listen,
   type Observed,
   type ObservedComponents,
-} from '../../../../sdk-core/src/world/math/observed.ts';
-import { bump, type Hook, type WriteRevision } from './hookCore.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+} from '../../../../sdk-core/src/world/math/observed.ts'
+import { bump, type Hook, type WriteRevision } from './hookCore.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
-const hooks = new WeakMap<object, Hook>();
+const hooks = new WeakMap<object, Hook>()
 
 /**
  * Bumps `hook` when a write on `value` or on one of its `faces` leaves `value`'s numbers other
@@ -16,18 +16,18 @@ const hooks = new WeakMap<object, Hook>();
  * write sets the quaternion quietly, in the node's own listener, chained first.
  */
 function hookValue(hook: Hook, value: ObservedComponents, ...faces: Observed[]) {
-  const seen = Float64Array.from(value.elements);
+  const seen = Float64Array.from(value.elements)
   const note = () => {
-    const now = value.elements;
-    let moved = false;
+    const now = value.elements
+    let moved = false
     for (let i = 0; i < seen.length; i++)
       if (now[i] !== seen[i]) {
-        seen[i] = now[i];
-        moved = true;
+        seen[i] = now[i]
+        moved = true
       }
-    if (moved) bump(hook);
-  };
-  for (const face of [value, ...faces]) listen(face, note);
+    if (moved) bump(hook)
+  }
+  for (const face of [value, ...faces]) listen(face, note)
 }
 
 /**
@@ -38,22 +38,22 @@ function hookValue(hook: Hook, value: ObservedComponents, ...faces: Observed[]) 
  * touch without slowing the host's walk: `scan.ts` compares them per frame.
  */
 export function hookHostNode(node: Object3D, revision: WriteRevision) {
-  const known = hooks.get(node);
+  const known = hooks.get(node)
   if (known) {
-    if (!known.revisions.includes(revision)) known.revisions.push(revision);
-    return;
+    if (!known.revisions.includes(revision)) known.revisions.push(revision)
+    return
   }
-  const hook: Hook = { revisions: [revision] };
-  hooks.set(node, hook);
-  hookValue(hook, node.position);
-  hookValue(hook, node.scale);
-  hookValue(hook, node.quaternion, node.rotation);
+  const hook: Hook = { revisions: [revision] }
+  hooks.set(node, hook)
+  hookValue(hook, node.position)
+  hookValue(hook, node.scale)
+  hookValue(hook, node.quaternion, node.rotation)
 }
 
 /** Forgets `revision` on `node`: its writes no longer bump it. The listeners stay, bumping
  *  nothing once the last watch has left. */
 export function unhookHostNode(node: Object3D, revision: WriteRevision) {
-  const hook = hooks.get(node);
-  const at = hook ? hook.revisions.indexOf(revision) : -1;
-  if (hook && at >= 0) hook.revisions.splice(at, 1);
+  const hook = hooks.get(node)
+  const at = hook ? hook.revisions.indexOf(revision) : -1
+  if (hook && at >= 0) hook.revisions.splice(at, 1)
 }

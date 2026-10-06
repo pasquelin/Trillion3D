@@ -2,9 +2,9 @@ import {
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
-} from '../frustum/frustum.ts';
-import { multiplyMatrix4, type NumberSink } from '../matrix/matrix4.ts';
-import { invertMatrix4 } from '../matrix/matrix4Inverse.ts';
+} from '../frustum/frustum.ts'
+import { multiplyMatrix4, type NumberSink } from '../matrix/matrix4.ts'
+import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
 
 /**
  * Engine perspective camera, in REVERSED DEPTH and infinite far plane: near plane
@@ -25,24 +25,24 @@ import { invertMatrix4 } from '../matrix/matrix4Inverse.ts';
  */
 
 // Radians in half a degree: a field of `fov` degrees opens `fov` of them on each side of the axis.
-const HALF_DEGREE = Math.PI / 360;
+const HALF_DEGREE = Math.PI / 360
 
 /** Half the height a perspective camera of vertical field `fov` degrees, zoomed by `zoom`, sees
  *  one unit ahead: `tan(fov / 2) / zoom`. Its projection, its rays and a pixel's size read it. */
 export function perspectiveSlope(fov: number, zoom = 1) {
-  return Math.tan(fov * HALF_DEGREE) / zoom;
+  return Math.tan(fov * HALF_DEGREE) / zoom
 }
 
-type Box = { left: number; right: number; top: number; bottom: number };
+type Box = { left: number; right: number; top: number; bottom: number }
 
 /** The view of an orthographic camera: its `box` scaled by `zoom` about the box centre, as
  *  `[centre x, centre y, half width, half height]` written into `out`. */
 export function orthographicView(box: Box, zoom: number, out = new Float64Array(4)) {
-  out[0] = (box.right + box.left) / 2;
-  out[1] = (box.top + box.bottom) / 2;
-  out[2] = (box.right - box.left) / (2 * zoom);
-  out[3] = (box.top - box.bottom) / (2 * zoom);
-  return out;
+  out[0] = (box.right + box.left) / 2
+  out[1] = (box.top + box.bottom) / 2
+  out[2] = (box.right - box.left) / (2 * zoom)
+  out[3] = (box.top - box.bottom) / (2 * zoom)
+  return out
 }
 
 /** `orthographicView` of the box an orthographic camera draws at a picture of `aspect`: its own,
@@ -54,9 +54,9 @@ export function drawnView(
   zoom: number,
   out = new Float64Array(4),
 ) {
-  orthographicView(box, zoom, out);
-  if (box.fitAspect) out[2] = out[3] * aspect;
-  return out;
+  orthographicView(box, zoom, out)
+  if (box.fitAspect) out[2] = out[3] * aspect
+  return out
 }
 
 /**
@@ -78,13 +78,13 @@ export function perspectiveProjection<T extends NumberSink>(
   // centred, neither reads Z. Clip z = near for every point, so depth z / w = near / δ: 1 on the
   // near plane, falling towards 0 with distance and never reaching it.
   const hy = (near * perspectiveSlope(fov)) / zoom, // this rounding order is fixed, bit for bit
-    hx = aspect * hy;
-  for (let i = 0; i < 16; i++) out[i] = 0;
-  out[0] = near / hx;
-  out[5] = near / hy;
-  out[11] = -1;
-  out[14] = near;
-  return out;
+    hx = aspect * hy
+  for (let i = 0; i < 16; i++) out[i] = 0
+  out[0] = near / hx
+  out[5] = near / hy
+  out[11] = -1
+  out[14] = near
+  return out
 }
 
 /**
@@ -107,27 +107,27 @@ export function orthographicProjection<T extends NumberSink>(
   // extent dz = far − near: (far − δ) / dz = z / dz + far / dz.
   const dx = right - left,
     dy = top - bottom,
-    dz = far - near;
-  for (let i = 0; i < 16; i++) out[i] = 0;
-  out[0] = 2 / dx;
-  out[5] = 2 / dy;
-  out[10] = 1 / dz;
+    dz = far - near
+  for (let i = 0; i < 16; i++) out[i] = 0
+  out[0] = 2 / dx
+  out[5] = 2 / dy
+  out[10] = 1 / dz
   // `+ 0` keeps a centred box's offsets at +0, never −0.
-  out[12] = -(left + right) / dx + 0;
-  out[13] = -(bottom + top) / dy + 0;
-  out[14] = far / dz;
-  out[15] = 1;
-  return out;
+  out[12] = -(left + right) / dx + 0
+  out[13] = -(bottom + top) / dy + 0
+  out[14] = far / dz
+  out[15] = 1
+  return out
 }
 
 /** Matrices of a camera frame, allocated once and rewritten each frame. */
 export interface CameraFrame {
   /** View: inverse of the camera world matrix. */
-  view: Float64Array;
+  view: Float64Array
   /** Projection × view. */
-  viewProjection: Float64Array;
+  viewProjection: Float64Array
   /** The six normalized planes of the `viewProjection` frustum, ordered like `frustumPlanesFromMatrix`. */
-  planes: Float64Array;
+  planes: Float64Array
 }
 
 /** A camera frame's matrices and planes, made once and rewritten each frame. */
@@ -136,7 +136,7 @@ export function createCameraFrame(): CameraFrame {
     view: new Float64Array(16),
     viewProjection: new Float64Array(16),
     planes: new Float64Array(FRUSTUM_PLANE_VALUES),
-  };
+  }
 }
 
 /**
@@ -158,14 +158,14 @@ export function updateCameraFrame(
   world: Float64Array,
   far = Infinity,
 ) {
-  invertMatrix4(frame.view, world);
-  multiplyMatrix4(frame.viewProjection, projection, frame.view);
-  frustumPlanesFromMatrix(frame.planes, frame.viewProjection);
-  frustumFarPlane(frame.planes, 16, frame.view, far, true);
-  return frame;
+  invertMatrix4(frame.view, world)
+  multiplyMatrix4(frame.viewProjection, projection, frame.view)
+  frustumPlanesFromMatrix(frame.planes, frame.viewProjection)
+  frustumFarPlane(frame.planes, 16, frame.view, far, true)
+  return frame
 }
 
 /** The clip w of a point at view depth `depth`: `perspective·depth + (1 − perspective)` — its
  *  depth under a perspective projection, 1 under an orthographic one (`EngineCamera.perspective`). */
 export const clipWeight = (perspective: number, depth: number) =>
-  perspective * depth + (1 - perspective);
+  perspective * depth + (1 - perspective)

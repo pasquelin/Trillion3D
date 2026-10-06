@@ -1,26 +1,26 @@
 // the two linear searches of the streaming path.
-import { compacteFile } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts';
-import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts';
-import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts';
-import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts';
+import { compacteFile } from '../../../packages/sdk-browser/src/streaming/queueOrder.ts'
+import { pushPending } from '../../../packages/sdk-browser/src/world/render/draw.ts'
+import type { Job } from '../../../packages/sdk-browser/src/streaming/types.ts'
+import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
 import {
   referencePushPending,
   referenceRetireDeLaFile,
-} from '../../oracles/browser/streaming-lookups.ts';
+} from '../../oracles/browser/streaming-lookups.ts'
 
 function rafale(total: number, annulations: number, depart: number) {
-  const alea = xorshiftRandom(depart);
-  const urls: string[] = [];
-  for (let i = 0; i < total; i++) urls.push(`pages/${i}-${Math.floor(alea() * 1e6)}.bin`);
-  const vises: number[] = [];
-  for (let i = 0; i < annulations; i++) vises.push(Math.floor(alea() * Math.max(1, total)));
-  return { urls, vises };
+  const alea = xorshiftRandom(depart)
+  const urls: string[] = []
+  for (let i = 0; i < total; i++) urls.push(`pages/${i}-${Math.floor(alea() * 1e6)}.bin`)
+  const vises: number[] = []
+  for (let i = 0; i < annulations; i++) vises.push(Math.floor(alea() * Math.max(1, total)))
+  return { urls, vises }
 }
 
 /** Fields a queue's order and cancellation walk never read: shared across every fixture job. */
-const DUMMY_CONTROLLER = new AbortController();
-const DUMMY_PROMISE = Promise.resolve(new Uint8Array());
-const noop = () => {};
+const DUMMY_CONTROLLER = new AbortController()
+const DUMMY_PROMISE = Promise.resolve(new Uint8Array())
+const noop = () => {}
 const file = ({ urls }: { urls: string[] }): Job[] =>
   urls.map((url) => ({
     url,
@@ -32,31 +32,31 @@ const file = ({ urls }: { urls: string[] }): Job[] =>
     promise: DUMMY_PROMISE,
     resolve: noop,
     reject: noop,
-  }));
+  }))
 
 function passeReference({ urls, vises }: { urls: string[]; vises: number[] }) {
-  const queue = file({ urls });
-  const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean);
-  for (const job of cibles) referenceRetireDeLaFile(queue, job);
-  return queue.map((job) => job.url);
+  const queue = file({ urls })
+  const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean)
+  for (const job of cibles) referenceRetireDeLaFile(queue, job)
+  return queue.map((job) => job.url)
 }
 
 function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
-  const queue = file({ urls });
-  const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean);
-  for (const job of cibles) job.state = 'dropped';
-  compacteFile(queue);
-  return queue.map((job) => job.url);
+  const queue = file({ urls })
+  const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean)
+  for (const job of cibles) job.state = 'dropped'
+  compacteFile(queue)
+  return queue.map((job) => job.url)
 }
 
 function adresses(total: number, depart: number) {
-  const alea = xorshiftRandom(depart);
-  const output: string[] = [];
+  const alea = xorshiftRandom(depart)
+  const output: string[] = []
   for (let i = 0; i < total; i++)
     output.push(
       alea() < 0.3 && output.length ? output[Math.floor(alea() * output.length)] : `p/${i}.bin`,
-    );
-  return output;
+    )
+  return output
 }
 
 const resG5 = await measure({
@@ -69,34 +69,34 @@ const resG5 = await measure({
   calculation: optimisedPass,
   expected: passeReference,
   options: { tours: 40, budgetMs: 1500 },
-});
+})
 
-const urlsEmpilees = adresses(4000, 0x61);
+const urlsEmpilees = adresses(4000, 0x61)
 const resG6 = await measure({
   name: 'pending stack',
   fichier: 'packages/sdk-browser/src/world/render/draw.ts',
   cas: [{ name: '4 000 addresses to stack', input: urlsEmpilees, size: 4000 }],
   calculation: (urls: readonly string[]) => {
-    const set = new Set<string>();
-    pushPending(set, urls);
-    return [...set];
+    const set = new Set<string>()
+    pushPending(set, urls)
+    return [...set]
   },
   expected: (urls: readonly string[]) => {
-    const arr: string[] = [];
-    referencePushPending(arr, urls);
-    return arr;
+    const arr: string[] = []
+    referencePushPending(arr, urls)
+    return arr
   },
   options: { tours: 100, budgetMs: 1500 },
-});
+})
 
 await stress({
   name: 'compacteFile extremes',
   calculation: (q: Job[]) => compacteFile(q),
   extremes: [{ name: 'empty', input: [] }],
-});
+})
 
 rapport(
   'recherches-streaming',
   [resG5, resG6],
   'G5 and G6 remove and stack the exact same addresses',
-);
+)

@@ -25,6 +25,6 @@ export function splineSpan(
   const u = (c - a) * 0.5,
     v = (d - b) * 0.5,
     k = 2 * b - 2 * c + u + v,
-    q = 3 * c - 3 * b - 2 * u - v;
-  return k * w3 + q * w2 + u * w + b;
+    q = 3 * c - 3 * b - 2 * u - v
+  return k * w3 + q * w2 + u * w + b
 }

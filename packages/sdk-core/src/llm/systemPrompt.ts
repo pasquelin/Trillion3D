@@ -22,11 +22,11 @@ Fundamental principles and architecture of Trillion3D:
 
 4. Performance Trade-offs:
    - To increase frame rate on constrained devices: increase \`pixelError\` (e.g., 2.0 or 3.0), or reduce memory pool allocations via \`trillion3d_set_memory_budgets\`.
-   - For maximum visual fidelity: set \`pixelError = 0\`, and \`temporalAntialiasing = true\`.`;
+   - For maximum visual fidelity: set \`pixelError = 0\`, and \`temporalAntialiasing = true\`.`
 
 /**
  * Generates the ready-to-use expert system prompt to prime an LLM.
  */
 export function getTrillion3dLlmPrompt(): string {
-  return TRILLION3D_SYSTEM_PROMPT;
+  return TRILLION3D_SYSTEM_PROMPT
 }

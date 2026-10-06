@@ -10,22 +10,22 @@
  *   it — are built per primitive kind;
  * - the physical extensions are applied under the parameter names the table writes them with.
  */
-import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
-import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
-import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
-import { GraphSurface } from '../graph/surface.ts';
-import { type GraphTexture } from '../graph/texture.ts';
-import { hostSide } from '../../scene/materialSide.ts';
-import { HOST_COLOUR_SPACE_SRGB } from '../surfaceConstants.ts';
-import { linearColour } from '../graph/surfaceFields.ts';
+import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts'
+import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
+import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts'
+import { GraphSurface } from '../graph/surface.ts'
+import { type GraphTexture } from '../graph/texture.ts'
+import { hostSide } from '../../scene/materialSide.ts'
+import { HOST_COLOUR_SPACE_SRGB } from '../surfaceConstants.ts'
+import { linearColour } from '../graph/surfaceFields.ts'
 
-type Slot = (slot: TableTextureSlot, colorSpace?: string) => Promise<GraphTexture | null>;
-type Params = Record<string, unknown>;
+type Slot = (slot: TableTextureSlot, colorSpace?: string) => Promise<GraphTexture | null>
+type Params = Record<string, unknown>
 
 /** The extension maps that hold colour, and are read in sRGB. */
-const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap']);
+const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap'])
 /** The extension factors that are colours. */
-const COLOURS = new Set(['sheenColor', 'specularColor']);
+const COLOURS = new Set(['sheenColor', 'specularColor'])
 
 /** How a surface draws its alpha mode, at open and when a page changes it
  *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
@@ -34,24 +34,24 @@ export const alphaModeFields = (mode: AlphaMode, cutoff: number) => ({
   transparent: mode === 'blend',
   depthWrite: mode !== 'blend',
   alphaTest: mode === 'mask' ? cutoff : 0,
-});
+})
 
 const isSlot = (value: unknown): value is TableTextureSlot =>
-  typeof value === 'object' && value !== null && 'texture' in value;
+  typeof value === 'object' && value !== null && 'texture' in value
 
 /** The variant of a surface a primitive asks for: what its geometry carries, and whether a cloth
  *  draws it (`drawnTwoSided`; unsaid, it does not). */
-export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean; twoSided?: boolean };
+export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean; twoSided?: boolean }
 
 /** A variant's key in a cache of surfaces by variant: the open's and a created material's. */
 export const variantKey = ({ vertexColors, flatShading, twoSided = false }: SurfaceVariant) =>
-  `${vertexColors}:${flatShading}:${twoSided}`;
+  `${vertexColors}:${flatShading}:${twoSided}`
 
 /** The geometries of the primitives a cloth draws, as the open read them off the manifest
  *  (`graph.ts`): a material assigned to one later is drawn on both faces too. */
-const twoSidedGeometries = new WeakSet<object>();
+const twoSidedGeometries = new WeakSet<object>()
 /** `geometry` is a cloth's: every surface it wears is drawn on both faces. */
-export const drawnByCloth = (geometry: object) => void twoSidedGeometries.add(geometry);
+export const drawnByCloth = (geometry: object) => void twoSidedGeometries.add(geometry)
 
 /** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
  *  no normal, both faces where a cloth draws it — at open (`graph.ts`) and for a created material
@@ -60,15 +60,15 @@ export const surfaceVariantOf = (geometry: { attributes: Record<string, unknown>
   vertexColors: geometry.attributes.color !== undefined,
   flatShading: geometry.attributes.normal === undefined,
   twoSided: twoSidedGeometries.has(geometry),
-});
+})
 
 /** The surface fields a variant sets over its plain surface; a plain variant sets none. */
 export function variantFields({ vertexColors, flatShading, twoSided }: SurfaceVariant) {
-  const fields: Params = {};
-  if (vertexColors) fields.vertexColors = true;
-  if (flatShading) fields.flatShading = true;
-  if (twoSided) fields.side = hostSide('double');
-  return fields;
+  const fields: Params = {}
+  if (vertexColors) fields.vertexColors = true
+  if (flatShading) fields.flatShading = true
+  if (twoSided) fields.side = hostSide('double')
+  return fields
 }
 
 function extensionParams(
@@ -77,24 +77,24 @@ function extensionParams(
   assign: (name: string, slot: TableTextureSlot, colour?: boolean) => void,
 ) {
   for (const [name, value] of Object.entries(entry.extensions)) {
-    if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name));
+    if (isSlot(value)) assign(name, value, COLOUR_MAPS.has(name))
     else if (name === 'clearcoatNormalScale')
-      params[name] = new Vector2(value as number, value as number);
-    else if (COLOURS.has(name)) params[name] = linearColour(value as number[]);
-    else params[name] = Array.isArray(value) ? [...value] : value;
+      params[name] = new Vector2(value as number, value as number)
+    else if (COLOURS.has(name)) params[name] = linearColour(value as number[])
+    else params[name] = Array.isArray(value) ? [...value] : value
   }
   // The host rebuilds the tangent frame from screen derivatives on geometry without tangents, and
   // turns the second clear-coat normal factor the way it turns the first.
   if (entry.kind === 'physical' && entry.derivativeTangents) {
-    const scale = (params.clearcoatNormalScale as Vector2 | undefined) ?? new Vector2(1, 1);
-    params.clearcoatNormalScale = scale.set(scale.x, -scale.y);
+    const scale = (params.clearcoatNormalScale as Vector2 | undefined) ?? new Vector2(1, 1)
+    params.clearcoatNormalScale = scale.set(scale.x, -scale.y)
   }
 }
 
 /** The table rank each prepared surface was built from: the scene's own material id, which a
  *  page lists and sets by (`../../world/api/materialApi.ts`); a surface built elsewhere has none. */
-const tableRanks = new WeakMap<GraphSurface, number>();
-export const tableRankOf = (surface: GraphSurface) => tableRanks.get(surface);
+const tableRanks = new WeakMap<GraphSurface, number>()
+export const tableRankOf = (surface: GraphSurface) => tableRanks.get(surface)
 
 async function build(
   materials: readonly TableMaterial[],
@@ -102,54 +102,54 @@ async function build(
   variant: SurfaceVariant,
   slot: Slot,
 ) {
-  const entry = materials[rank];
-  const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity };
-  const pending: Promise<void>[] = [];
+  const entry = materials[rank]
+  const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity }
+  const pending: Promise<void>[] = []
   const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
     if (from)
       pending.push(
         slot(from, colour ? HOST_COLOUR_SPACE_SRGB : undefined).then((texture) => {
-          if (texture) params[name] = texture;
+          if (texture) params[name] = texture
         }),
-      );
-  };
-  assign('map', entry.map, true);
+      )
+  }
+  assign('map', entry.map, true)
   if (entry.kind !== 'unlit') {
-    params.metalness = entry.metalness;
-    params.roughness = entry.roughness;
-    assign('metalnessMap', entry.metalnessMap);
-    assign('roughnessMap', entry.roughnessMap);
-    assign('normalMap', entry.normalMap);
-    params.normalScale = new Vector2(entry.normalScale, entry.normalScaleY);
-    assign('aoMap', entry.aoMap);
-    params.aoMapIntensity = entry.aoIntensity;
-    params.emissive = linearColour(entry.emissive);
-    assign('emissiveMap', entry.emissiveMap, true);
-    extensionParams(entry, params, assign);
+    params.metalness = entry.metalness
+    params.roughness = entry.roughness
+    assign('metalnessMap', entry.metalnessMap)
+    assign('roughnessMap', entry.roughnessMap)
+    assign('normalMap', entry.normalMap)
+    params.normalScale = new Vector2(entry.normalScale, entry.normalScaleY)
+    assign('aoMap', entry.aoMap)
+    params.aoMapIntensity = entry.aoIntensity
+    params.emissive = linearColour(entry.emissive)
+    assign('emissiveMap', entry.emissiveMap, true)
+    extensionParams(entry, params, assign)
   }
   if (entry.kind === 'physical') {
-    params.transmission = entry.transmission;
-    params.ior = entry.ior;
-    params.thickness = entry.thickness;
-    params.attenuationDistance = entry.attenuationDistance || Infinity;
-    params.attenuationColor = linearColour(entry.attenuationColor);
+    params.transmission = entry.transmission
+    params.ior = entry.ior
+    params.thickness = entry.thickness
+    params.attenuationDistance = entry.attenuationDistance || Infinity
+    params.attenuationColor = linearColour(entry.attenuationColor)
   }
   // Which frame the normal factors were written for: an engine pass that reads no tangent turns
   // the second one of a surface written for vertex tangents (`../surfaceImport.ts`).
-  params.forVertexTangents = !entry.derivativeTangents;
-  if (entry.doubleSided) params.side = hostSide('double');
+  params.forVertexTangents = !entry.derivativeTangents
+  if (entry.doubleSided) params.side = hostSide('double')
   Object.assign(
     params,
     alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),
     variantFields(variant),
-  );
-  await Promise.all(pending);
+  )
+  await Promise.all(pending)
   const family =
-    entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard';
-  const material = new GraphSurface(family, params);
-  if (entry.name) material.name = entry.name;
-  tableRanks.set(material, rank);
-  return material;
+    entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard'
+  const material = new GraphSurface(family, params)
+  if (entry.name) material.name = entry.name
+  tableRanks.set(material, rank)
+  return material
 }
 
 /**
@@ -157,14 +157,14 @@ async function build(
  * wears it: a record the engine holds per surface is then held once per surface.
  */
 export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
-  const built = new Map<string, Promise<GraphSurface>>();
+  const built = new Map<string, Promise<GraphSurface>>()
   return (rank: number, variant: SurfaceVariant) => {
-    const key = `${rank}:${variantKey(variant)}`;
-    let material = built.get(key);
+    const key = `${rank}:${variantKey(variant)}`
+    let material = built.get(key)
     if (!material) {
-      material = build(materials, rank, variant, slot);
-      built.set(key, material);
+      material = build(materials, rank, variant, slot)
+      built.set(key, material)
     }
-    return material;
-  };
+    return material
+  }
 }

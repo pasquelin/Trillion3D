@@ -1,16 +1,16 @@
-import { IMPOSTOR_CARD_WGSL } from '../../visibility/shader/impostorWgsl.ts';
-import { core } from '../../impostor/borrowed.ts';
-import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts';
+import { IMPOSTOR_CARD_WGSL } from '../../visibility/shader/impostorWgsl.ts'
+import { core } from '../../impostor/borrowed.ts'
+import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the eye. */
-export const CARD_VIEW_FLOATS = 20;
+export const CARD_VIEW_FLOATS = 20
 /** The surface flag of a lit physical surface the resolve shades (`shadeWgsl.ts`). */
-const LIT_SURFACE_FLAG = 2;
+const LIT_SURFACE_FLAG = 2
 
 /** The card's depth nudged toward the eye by one part in 2^20 when its surface is drawn: the
  *  visibility stage wrote the same depth, and the nudge keeps it the nearest even where two
  *  compilations of one formula round apart. Reversed Z: nearer is larger. */
-const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20;
+const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20
 
 /**
  * THE CARD PASS (#1335): the impostor drawn as a masked surface of the one lighting model, as the
@@ -92,4 +92,4 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let ao=b.orm.x;
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
  return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
-}`;
+}`

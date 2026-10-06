@@ -1,19 +1,19 @@
 // Reading a rendered frame back: pixels, the frame-held wait, and the pixel comparisons the
 // engine proofs share. Split from `sharedSceneProof.ts` (scene construction and mounting)
 // to keep each file under the line gate.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts';
-import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts';
-import { VIEWPORT } from './sharedSceneProof.ts';
-import { project } from './cameraRig.ts';
-import { animationFrame } from './frame.ts';
-import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
+import { taaStillFrames, upscalePhases } from '../../../packages/sdk-browser/src/taa/jitter.ts'
+import { VIEWPORT } from './sharedSceneProof.ts'
+import { project } from './cameraRig.ts'
+import { animationFrame } from './frame.ts'
+import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts'
 
 /** `RenderBackend` does not declare `cpuFrameEnd` publicly; the object `webgpuPagesBackend`
  *  returns still carries it (`packages/sdk-browser/src/webgpu/pages/pages.ts`). Read here through a local
  *  extension of the public type rather than widening it in the engine. */
 interface BackendWithCpuFrameEnd extends RenderBackend {
-  cpuFrameEnd?(): void;
+  cpuFrameEnd?(): void
 }
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and
@@ -23,11 +23,11 @@ export async function image(
   backend: RenderBackend,
   camera: G.Camera,
 ): Promise<{ pixels: Uint8Array; metrics: ReturnType<RenderBackend['metrics']> }> {
-  await animationFrame();
-  backend.render(camera);
-  (backend as BackendWithCpuFrameEnd).cpuFrameEnd?.();
-  await backend.flush!();
-  return { pixels: backend.capture!(), metrics: backend.metrics() };
+  await animationFrame()
+  backend.render(camera)
+  ;(backend as BackendWithCpuFrameEnd).cpuFrameEnd?.()
+  await backend.flush!()
+  return { pixels: backend.capture!(), metrics: backend.metrics() }
 }
 
 /**
@@ -36,7 +36,7 @@ export async function image(
  * many again for what lands while the view settles (a page, a tile, its targets), which restarts
  * that average.
  */
-export const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1));
+export const PLAFOND = 2 * taaStillFrames(upscalePhases(MIN_RENDER_SCALE, 1))
 
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
 export async function untilHeld(
@@ -44,50 +44,50 @@ export async function untilHeld(
   camera: G.Camera,
 ): Promise<{ rendered: number[] | undefined; held: number[] | null; rendues: number }> {
   let rendered: number[] | undefined,
-    rendues = 0;
+    rendues = 0
   for (let i = 0; i < PLAFOND; i++) {
-    const { pixels, metrics } = await image(backend, camera);
-    if (metrics.frameHeld) return { rendered, held: Array.from(pixels), rendues };
-    rendered = Array.from(pixels);
-    rendues++;
+    const { pixels, metrics } = await image(backend, camera)
+    if (metrics.frameHeld) return { rendered, held: Array.from(pixels), rendues }
+    rendered = Array.from(pixels)
+    rendues++
   }
-  return { rendered, held: null, rendues };
+  return { rendered, held: null, rendues }
 }
 
 /** How many RGBA quadruplets differ between two images of the same size. */
 export function difference(a: Uint8Array | number[], b: Uint8Array | number[]): number {
-  let n = 0;
+  let n = 0
   for (let i = 0; i < a.length; i += 4)
     if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2] || a[i + 3] !== b[i + 3])
-      n++;
-  return n;
+      n++
+  return n
 }
 
 /** Pixels of an image that differ from its corner pixel, the cleared background: an image where
  *  the scene appears has many of them, an empty canvas none (#298). */
 export function drawnPixels(pixels: ArrayLike<number>) {
-  let drawn = 0;
+  let drawn = 0
   for (let index = 0; index < pixels.length; index += 4)
     for (let channel = 0; channel < 4; channel += 1)
       if (pixels[index + channel] !== pixels[channel]) {
-        drawn += 1;
-        break;
+        drawn += 1
+        break
       }
-  return drawn;
+  return drawn
 }
 
 /** True when the pixel at `i` carries the tile's red and not the background's blue. */
 export const estRouge = (pixels: Uint8Array | number[], i: number): boolean =>
-  pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40;
+  pixels[i] > 110 && pixels[i] > pixels[i + 2] + 40
 
 /** The number of pixels that carry the tile's red rather than the background's blue. */
 export function redCount(pixels: Uint8Array | number[]): number {
-  let n = 0;
-  for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++;
-  return n;
+  let n = 0
+  for (let i = 0; i < pixels.length; i += 4) if (estRouge(pixels, i)) n++
+  return n
 }
 
-const point = new G.Vector3();
+const point = new G.Vector3()
 
 /** RGB read where world point `(x, y, z)` projects in an image of `viewport`, clamped to it.
  *  Bottom-left origin, like `capture`. */
@@ -99,9 +99,9 @@ export function colorAt(
   z = 0,
   [w, h]: readonly [number, number] = VIEWPORT,
 ) {
-  project(point.set(x, y, z), camera);
+  project(point.set(x, y, z), camera)
   const px = Math.min(w - 1, Math.max(0, Math.round(((point.x + 1) / 2) * (w - 1)))),
     py = Math.min(h - 1, Math.max(0, Math.round(((point.y + 1) / 2) * (h - 1)))),
-    i = (py * w + px) * 4;
-  return [pixels[i], pixels[i + 1], pixels[i + 2]];
+    i = (py * w + px) * 4
+  return [pixels[i], pixels[i + 1], pixels[i + 2]]
 }

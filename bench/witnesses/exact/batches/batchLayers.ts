@@ -1,6 +1,6 @@
-import { depthLayerUnits } from '../../../../packages/sdk-core/src/index.ts';
-import type { BatchPage } from './batchPage.ts';
-import { BatchGroup } from './batchPrimitive.ts';
+import { depthLayerUnits } from '../../../../packages/sdk-core/src/index.ts'
+import type { BatchPage } from './batchPage.ts'
+import { BatchGroup } from './batchPrimitive.ts'
 
 /**
  * Sub-batches of coplanar layers, for the WebGL2 path.
@@ -18,25 +18,25 @@ export function buildLayerGroups(
   pages: readonly BatchPage[],
   groups: Array<BatchGroup | undefined>,
 ) {
-  const layerGroups: Array<Map<number, BatchGroup> | undefined> = [];
+  const layerGroups: Array<Map<number, BatchGroup> | undefined> = []
   for (const page of pages) {
-    const layer = page.depthLayer ?? 0;
+    const layer = page.depthLayer ?? 0
     // A multi-material has no single bias to carry: the page stays on its original batch.
-    if (layer <= 0 || page.material.grouped) continue;
-    const base = groups[page.renderOrder];
-    if (!base) continue;
-    let map = layerGroups[page.renderOrder];
-    if (!map) layerGroups[page.renderOrder] = map = new Map();
-    if (map.has(layer)) continue;
-    const group = new BatchGroup(base.primitive);
-    group.transparent = base.transparent;
-    group.layer = layer;
+    if (layer <= 0 || page.material.grouped) continue
+    const base = groups[page.renderOrder]
+    if (!base) continue
+    let map = layerGroups[page.renderOrder]
+    if (!map) layerGroups[page.renderOrder] = map = new Map()
+    if (map.has(layer)) continue
+    const group = new BatchGroup(base.primitive)
+    group.transparent = base.transparent
+    group.layer = layer
     // This path draws with the host-library projection, in FORWARD depth: getting closer
     // to the eye means SUBTRACTING units — the opposite of the engine path.
-    group.polygonOffsetUnits = -depthLayerUnits(layer);
-    map.set(layer, group);
+    group.polygonOffsetUnits = -depthLayerUnits(layer)
+    map.set(layer, group)
   }
-  return layerGroups;
+  return layerGroups
 }
 
 /** The batch that should receive a page: its twin when it carries a layer, otherwise its own. */
@@ -45,12 +45,12 @@ export function groupForPage(
   layerGroups: Array<Map<number, BatchGroup> | undefined>,
   page: BatchPage,
 ) {
-  const layer = page.depthLayer ?? 0;
+  const layer = page.depthLayer ?? 0
   if (layer > 0) {
-    const biased = layerGroups[page.renderOrder]?.get(layer);
-    if (biased) return biased;
+    const biased = layerGroups[page.renderOrder]?.get(layer)
+    if (biased) return biased
   }
-  return groups[page.renderOrder];
+  return groups[page.renderOrder]
 }
 
 /** Every batch of a scene: the layer-0 ones and their biased twins. */
@@ -58,6 +58,6 @@ export function* everyGroup(
   groups: Array<BatchGroup | undefined>,
   layerGroups: Array<Map<number, BatchGroup> | undefined>,
 ) {
-  for (const group of groups) if (group) yield group;
-  for (const map of layerGroups) if (map) for (const group of map.values()) yield group;
+  for (const group of groups) if (group) yield group
+  for (const map of layerGroups) if (map) for (const group of map.values()) yield group
 }

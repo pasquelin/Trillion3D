@@ -1,5 +1,5 @@
-import { rootWorldsToRenderOrigin } from './pack.ts';
-import type { PackedDag, DagRoot } from './types.ts';
+import { rootWorldsToRenderOrigin } from './pack.ts'
+import type { PackedDag, DagRoot } from './types.ts'
 
 /**
  * Brings packed world matrices into the RENDER FRAME whose origin is `origin` —
@@ -14,10 +14,10 @@ export function packedWorldsToRenderOrigin(
   roots: readonly DagRoot[],
   origin: ArrayLike<number>,
 ) {
-  rootWorldsToRenderOrigin(packed.worlds, roots, origin, new Float64Array(roots.length * 3));
-  return packed;
+  rootWorldsToRenderOrigin(packed.worlds, roots, origin, new Float64Array(roots.length * 3))
+  return packed
 }
 
 /** Every page's url of `dag`, in page order: what a test compares a cut's ids against. */
 export const dagPageUrls = (dag: PackedDag) =>
-  Array.from({ length: dag.pageCount }, (_, page) => dag.pageUrlOf(page)!);
+  Array.from({ length: dag.pageCount }, (_, page) => dag.pageUrlOf(page)!)

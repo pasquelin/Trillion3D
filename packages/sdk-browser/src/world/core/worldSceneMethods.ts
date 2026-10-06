@@ -1,8 +1,8 @@
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { PhysicsSession } from '../../physics/session/session.ts';
-import { poseNamed } from '../../host/world/moveByName.ts';
-import { createWorldRaycast } from './worldRaycast.ts';
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { PhysicsSession } from '../../physics/session/session.ts'
+import { poseNamed } from '../../host/world/moveByName.ts'
+import { createWorldRaycast } from './worldRaycast.ts'
 
 /**
  * A world's moves by name (#972), and the methods it exposes over the nodes of its scene.
@@ -24,11 +24,11 @@ export function namedMove(
   invalidate: () => void,
 ) {
   return (nodeName: string, matrix: Float32Array) => {
-    const node = poseNamed(scene, nodeName, matrix);
-    if (!node) return;
-    poses.moved(node);
-    invalidate();
-  };
+    const node = poseNamed(scene, nodeName, matrix)
+    if (!node) return
+    poses.moved(node)
+    invalidate()
+  }
 }
 
 /**
@@ -61,7 +61,7 @@ export function worldSceneMethods(
      * of them is not finite.
      */
     setTransform(nodeName: string, matrix: Float32Array) {
-      runtime.moveNamed(nodeName, matrix);
+      runtime.moveNamed(nodeName, matrix)
     },
-  };
+  }
 }

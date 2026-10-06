@@ -13,7 +13,7 @@
  * (`volumeTransmittanceOf`): the per-fragment `k` would round once more.
  */
 /** A black channel's `k`: `2^(k·x)` is 0 past a path of 10⁻¹⁹, and 1 at a path of 0. */
-const VOLUME_BLACK_LOG2 = -(2 ** 64);
+const VOLUME_BLACK_LOG2 = -(2 ** 64)
 
 /** `k` of each channel of `colour` over `distance`, into `out`. */
 export function volumeAttenuation(
@@ -22,10 +22,10 @@ export function volumeAttenuation(
   out: number[] = [0, 0, 0],
 ) {
   for (let i = 0; i < 3; i++) {
-    const c = Math.min(colour[i], 1);
-    out[i] = !(distance > 0) ? 0 : c > 0 ? Math.log2(c) / distance : VOLUME_BLACK_LOG2;
+    const c = Math.min(colour[i], 1)
+    out[i] = !(distance > 0) ? 0 : c > 0 ? Math.log2(c) / distance : VOLUME_BLACK_LOG2
   }
-  return out;
+  return out
 }
 
 /** The law in WGSL: the water's transmittance from its constant, the shadow's from its colour. */
@@ -35,4 +35,4 @@ fn volumeTransmittanceOf(colour:vec3f,distance:f32,path:f32)->vec3f{
  if(!(distance>0.0)){return vec3f(1.0);}
  let c=min(colour,vec3f(1.0));
  return select(vec3f(select(1.0,0.0,path!=0.0)),pow(c,vec3f(path/distance)),c>vec3f(0.0));
-}`;
+}`

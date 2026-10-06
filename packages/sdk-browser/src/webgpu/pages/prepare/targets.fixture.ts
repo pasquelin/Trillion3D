@@ -1,21 +1,21 @@
-import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
-import { standardSurface } from '../../../host/graph/graph.fixture.ts';
-import { surfaceOf } from '../../../page/surface.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts'
+import { standardSurface } from '../../../host/graph/graph.fixture.ts'
+import { surfaceOf } from '../../../page/surface.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
 export function runtime(reflective = false) {
   const resized: number[][] = [],
-    failures: string[] = [];
+    failures: string[] = []
   const temporal = {
     frame: { hasHistory: true, stillFrames: 5 },
     resize(w: number, h: number) {
-      resized.push([w, h]);
-      return true;
+      resized.push([w, h])
+      return true
     },
     release() {},
     dispose() {},
-  };
+  }
   const rt = {
     setup: {},
     // A textured scene's: its pipelines write the feedback (`feedbackVariant.ts`).
@@ -33,6 +33,6 @@ export function runtime(reflective = false) {
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
     diag: { diagnosticFailure: (phase: string) => failures.push(phase) },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, temporal, resized, failures };
+  } as unknown as WebgpuPagesRuntime
+  return { rt, temporal, resized, failures }
 }

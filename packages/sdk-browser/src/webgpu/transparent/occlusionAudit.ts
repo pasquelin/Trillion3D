@@ -1,8 +1,8 @@
-import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts';
-import { visLayerTop } from '../visibility/uniforms.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
-import { rootOf } from '../../page/selection/placements.ts';
+import { readGpuBuffer, readGpuTextureR32F } from '../../gpu/core/readback.ts'
+import { visLayerTop } from '../visibility/uniforms.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
+import { rootOf } from '../../page/selection/placements.ts'
 
 /**
  * What the transparent occlusion test REJECTED on the last image, and enough to refute it without
@@ -18,25 +18,25 @@ import { rootOf } from '../../page/selection/placements.ts';
  */
 export interface TransparentOcclusionAudit {
   /** Width in pixels. */
-  width: number;
+  width: number
   /** Height in pixels. */
-  height: number;
+  height: number
   /** Nearest distance. */
-  near: number;
+  near: number
   /** The camera's view matrix. */
-  view: Float64Array;
+  view: Float64Array
   /** The camera's view-projection. */
-  viewProj: Float64Array;
+  viewProj: Float64Array
   /** Coplanar layer whose bias served every entry: the highest of the image. */
-  layer: number;
+  layer: number
   /** Table entries the test rejected, in table order. */
-  rejected: Uint32Array;
+  rejected: Uint32Array
   /** World corners of rejected entries, eight per entry, in the same order. */
-  corners: Float64Array;
+  corners: Float64Array
   /** Image depth, one float per pixel, row by row from the top. */
-  depth: Float32Array;
+  depth: Float32Array
   /** Entries the test examined: all those that name a page. */
-  examined: number;
+  examined: number
 }
 
 export async function readTransparentOcclusionAudit(
@@ -46,7 +46,7 @@ export async function readTransparentOcclusionAudit(
     device = rt.gpu.device,
     table = blendState.table,
     compaction = blendState.compaction,
-    frame = vis.gpuPartition?.lastFrame;
+    frame = vis.gpuPartition?.lastFrame
   if (
     run.lost ||
     !device ||
@@ -56,29 +56,29 @@ export async function readTransparentOcclusionAudit(
     !frame ||
     !vis.gpuHiz
   )
-    return null;
-  const words = await readGpuBuffer(device, compaction.occludedBuffer, table.capacity * 4);
+    return null
+  const words = await readGpuBuffer(device, compaction.occludedBuffer, table.capacity * 4)
   // A backend closed or lost while the read was in flight reads nothing more.
-  if (!words || run.lost || !vis.gpuHiz) return null;
-  const verdicts = new Uint32Array(words.buffer, words.byteOffset, table.capacity);
-  const keep: number[] = [];
-  let examined = 0;
+  if (!words || run.lost || !vis.gpuHiz) return null
+  const verdicts = new Uint32Array(words.buffer, words.byteOffset, table.capacity)
+  const keep: number[] = []
+  let examined = 0
   for (let entry = 0; entry < table.capacity; entry++) {
-    if (table.pageOfEntry[entry] < 0) continue;
-    examined++;
-    if (verdicts[entry]) keep.push(entry);
+    if (table.pageOfEntry[entry] < 0) continue
+    examined++
+    if (verdicts[entry]) keep.push(entry)
   }
-  const depth = await readGpuTextureR32F(device, vis.gpuHiz.level0, frame.width, frame.height);
-  if (!depth) return null;
-  const rejected = Uint32Array.from(keep);
-  const corners = new Float64Array(rejected.length * BOX_CORNER_VALUES);
-  const { recordOf, selectionRoots, placement } = layout;
+  const depth = await readGpuTextureR32F(device, vis.gpuHiz.level0, frame.width, frame.height)
+  if (!depth) return null
+  const rejected = Uint32Array.from(keep)
+  const corners = new Float64Array(rejected.length * BOX_CORNER_VALUES)
+  const { recordOf, selectionRoots, placement } = layout
   for (let i = 0; i < rejected.length; i++) {
     const page = table.pageOfEntry[rejected[i]],
-      rec = recordOf(page);
-    if (!rec) continue;
-    const root = rootOf(selectionRoots, placement.rootOfPacked[page]);
-    pageCornersInto(corners, i * BOX_CORNER_VALUES, rec, root.world, root.reach);
+      rec = recordOf(page)
+    if (!rec) continue
+    const root = rootOf(selectionRoots, placement.rootOfPacked[page])
+    pageCornersInto(corners, i * BOX_CORNER_VALUES, rec, root.world, root.reach)
   }
   return {
     width: frame.width,
@@ -91,5 +91,5 @@ export async function readTransparentOcclusionAudit(
     corners,
     depth,
     examined,
-  };
+  }
 }

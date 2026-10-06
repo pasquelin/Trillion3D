@@ -17,16 +17,16 @@
  * to within `u²`, and the gap to the anchor is computed without ever bringing world magnitude
  * into view: the bound becomes proportional to the cluster size again.
  */
-export const CORNER_VALUES = 48;
+export const CORNER_VALUES = 48
 
 /**
  * Words per `rowData` row: the unclipped screen rectangle (four signed integers), the already-
  * corrected depth bound, and the flags. What a row held from the previous image is read before
  * this image overwrites it: that is the whole occluder history.
  */
-export const ROW_DATA_U32 = 6;
+export const ROW_DATA_U32 = 6
 export const ROW_NEAREST = 4,
-  ROW_FLAGS = 5;
+  ROW_FLAGS = 5
 /** Bits of `rowData[ROW_FLAGS]`. */
 export const FLAG_CLIP = 1,
   FLAG_PREV_REST = 2,
@@ -37,20 +37,20 @@ export const FLAG_CLIP = 1,
   /** Kept by the occlusion test while the view stood still: the row stays an occluder until the
    *  view moves, instead of leaving the occluders under one antialiasing jitter and coming back
    *  under the next. */
-  FLAG_KEPT = 16;
+  FLAG_KEPT = 16
 
 /**
  * Words per tested box: the rectangle already clipped to the viewport and expressed in texels of
  * the mip that covers it, the depth bound, the verdict row, the mip address, the triangles
  * whose count weighs a reject, and the address and shift of the coarse mip the test reads first.
  */
-export const TESTED_U32 = 12;
+export const TESTED_U32 = 12
 
 /** Threads of a per-row kernel workgroup. */
-export const PARTITION_WORKGROUP = 64;
+export const PARTITION_WORKGROUP = 64
 
 /** Words of `state`: the frame counters, all atomic. */
-export const STATE_WORDS = 16;
+export const STATE_WORDS = 16
 
 /** Counters of `state`: what the frame decided and what the occlusion test then rejected. */
 export const ST_TESTED = 0,
@@ -62,10 +62,10 @@ export const ST_TESTED = 0,
   ST_TESTED_TRIANGLES = 5,
   ST_OVERSIZED_TRIANGLES = 6,
   ST_REJECTED = 7,
-  ST_REJECTED_TRIANGLES = 8;
+  ST_REJECTED_TRIANGLES = 8
 
 /** Words of `state` a workgroup tallies: up to the last counter, `ST_TESTED` left unused. */
-const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1;
+const TALLY_WORDS = ST_REJECTED_TRIANGLES + 1
 /**
  * The frame's counters, kept on a sampled frame only (`uni.counting`: the `countsDue` answer that
  * also encodes their copy, `counters.ts`), as one atomic per workgroup and counter: a workgroup sums
@@ -80,7 +80,7 @@ fn flushTally(lane:u32){
  if(uni.counting==0u){return;}
  workgroupBarrier();
  if(lane>${ST_TESTED}u&&lane<${TALLY_WORDS}u){let n=atomicLoad(&tally[lane]);if(n!=0u){atomicAdd(&state[lane],n);}}
-}`;
+}`
 
 /** Verdict of a row, one word per Hi-Z slot: the occluder half, the tested half the pyramid
  *  rejects, the tested half it keeps. The partition sets occluder and kept, the test brings some
@@ -88,11 +88,11 @@ fn flushTally(lane:u32){
  *  raster — reads this word, and a reader that would read two values loses clusters. */
 export const VERDICT_OCCLUDER = 0,
   VERDICT_REJECTED = 1,
-  VERDICT_KEPT = 2;
+  VERDICT_KEPT = 2
 
 /** Reject predicate, the same text in every module that binds `hizFlags`: a valid slot at the
  *  rejected verdict. Its negation is what draws. */
-export const HIZ_REJECTED_WGSL = `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`;
+export const HIZ_REJECTED_WGSL = `fn hizRejected(hizSlot:u32)->bool{return hizSlot!=0xffffffffu&&hizFlags[hizSlot]==${VERDICT_REJECTED}u;}`
 
 /** Bindings of the partition module, by name: the number `PARTITION_SHADER` declares each under. */
 export const PARTITION_BINDING = {
@@ -106,7 +106,7 @@ export const PARTITION_BINDING = {
   state: 7,
   uniforms: 8,
   pyramid: 9,
-} as const;
+} as const
 /** What each kernel binds: a stage may bind eight storage buffers, and the two together would
  *  need nine, so each layout names only the buffers its entry point reads or writes. */
 export const PARTITION_KERNEL_BINDINGS = {
@@ -122,7 +122,7 @@ export const PARTITION_KERNEL_BINDINGS = {
     'state',
     'uniforms',
   ],
-} as const satisfies Record<string, readonly (keyof typeof PARTITION_BINDING)[]>;
+} as const satisfies Record<string, readonly (keyof typeof PARTITION_BINDING)[]>
 
 /**
  * Uniform words: view (16) and view-projection (16), both ALREADY composed with the anchor
@@ -135,8 +135,8 @@ export const UNI_VIEW = 0,
   UNI_ANCHOR = 32,
   UNI_ANCHOR_LOW = 36,
   UNI_SCALARS = 40,
-  UNI_LEVELS = 52;
-export const MAX_HIZ_LEVELS = 16;
-export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2;
+  UNI_LEVELS = 52
+export const MAX_HIZ_LEVELS = 16
+export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2
 
-export { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts';
+export { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts'

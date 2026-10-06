@@ -1,10 +1,10 @@
-import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
-import { taaReprojectWgsl } from '../taa/shaderWgsl.ts';
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
-import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
-import { PREVIOUS_DEPTH_WGSL } from './resolveWgsl.ts';
+import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
+import { taaReprojectWgsl } from '../taa/shaderWgsl.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { PREVIOUS_DEPTH_WGSL } from './resolveWgsl.ts'
 
-export const REFLECTION_SOURCE_VIEW_BYTES = 176;
+export const REFLECTION_SOURCE_VIEW_BYTES = 176
 
 /**
  * The reflection source without a second lighting pass: the last image's unfogged, mirror-free
@@ -41,10 +41,10 @@ ${PREVIOUS_DEPTH_WGSL}
  if(abs(textureLoad(lastDepth,prior,0)-expected.x)>expected.y){return vec4f(0.0);}
  if(view.params.y!=0.0&&textureLoad(lastIds,prior,0).r!=id){return vec4f(0.0);}
  return vec4f(textureSampleLevel(lastImage,lastSampler,uv.xy*view.last.xy*view.last.zw,0.0).rgb,1.0);
-}`;
+}`
 
 export const reflectionSourceLayout = oncePerDevice((device) => {
-  const visibility = GPUShaderStage.FRAGMENT;
+  const visibility = GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility, texture: { sampleType: 'float' } },
@@ -57,5 +57,5 @@ export const reflectionSourceLayout = oncePerDevice((device) => {
       { binding: 7, visibility, texture: { sampleType: 'depth' } },
       { binding: 8, visibility, texture: { sampleType: 'uint' } },
     ],
-  });
-});
+  })
+})

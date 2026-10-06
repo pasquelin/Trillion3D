@@ -9,8 +9,8 @@ const DECLARED_ERRORS: readonly { page: string; error: string; why: string }[] =
     error: 'effect.outline is not a function',
     why: 'parked, written against the outline pass #757 delivers',
   },
-];
+]
 
 /** Whether `error`, raised or logged by the example `page`, is one declared for it. */
 export const declaredError = (page: string, error: string) =>
-  DECLARED_ERRORS.some((declared) => declared.page === page && declared.error === error);
+  DECLARED_ERRORS.some((declared) => declared.page === page && declared.error === error)

@@ -1,32 +1,32 @@
 // A camera cut's buffers and the device check read one table (#974): the check judges exactly
 // the sizes the cut makes, under one fit rule.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { cameraCutBuffers, pastBinding, readoutRow } from './bufferTable.ts';
-import { createDagResources } from './resources.ts';
-import { dagDeviceRefusal } from './deviceRefusal.ts';
-import { dagFixture } from '../../page/selection/dag.fixture.ts';
-import { packed } from './selectionHelpers.fixture.ts';
-import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { cameraCutBuffers, pastBinding, readoutRow } from './bufferTable.ts'
+import { createDagResources } from './resources.ts'
+import { dagDeviceRefusal } from './deviceRefusal.ts'
+import { dagFixture } from '../../page/selection/dag.fixture.ts'
+import { packed } from './selectionHelpers.fixture.ts'
+import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 test('the camera cut makes the buffers its table names', async () => {
-  const { dag } = packed(dagFixture());
-  const fake = fakeDevice({ limits: SHADOW_LIMITS });
-  const resources = (await createDagResources(fake.device, dag, true))!;
-  const made = (label: string) => fake.buffers.filter((b) => b.label === label).map((b) => b.size);
-  const camera = cameraCutBuffers(dag);
+  const { dag } = packed(dagFixture())
+  const fake = fakeDevice({ limits: SHADOW_LIMITS })
+  const resources = (await createDagResources(fake.device, dag, true))!
+  const made = (label: string) => fake.buffers.filter((b) => b.label === label).map((b) => b.size)
+  const camera = cameraCutBuffers(dag)
   for (const row of [...Object.values(camera.rows), readoutRow(resources.listCap)])
-    assert.deepEqual(made(row.label), [row.size], row.label);
-});
+    assert.deepEqual(made(row.label), [row.size], row.label)
+})
 
 test('the device check refuses the first row past one binding, by the one rule', () => {
-  const { dag } = packed(dagFixture());
-  const rows = { ...cameraCutBuffers(dag).rows, out: readoutRow(1) };
-  const largest = Math.max(...Object.values(rows).map((row) => row.size));
-  const limits = { maxStorageBufferBindingSize: largest - 1 };
-  const past = pastBinding(limits, rows);
-  assert.equal(past?.bytes, largest);
-  assert.deepEqual(dagDeviceRefusal(limits, dag), past, 'the check is the rule on the table');
-  assert.equal(pastBinding({ maxStorageBufferBindingSize: largest }, rows), undefined);
-});
+  const { dag } = packed(dagFixture())
+  const rows = { ...cameraCutBuffers(dag).rows, out: readoutRow(1) }
+  const largest = Math.max(...Object.values(rows).map((row) => row.size))
+  const limits = { maxStorageBufferBindingSize: largest - 1 }
+  const past = pastBinding(limits, rows)
+  assert.equal(past?.bytes, largest)
+  assert.deepEqual(dagDeviceRefusal(limits, dag), past, 'the check is the rule on the table')
+  assert.equal(pastBinding({ maxStorageBufferBindingSize: largest }, rows), undefined)
+})

@@ -8,37 +8,37 @@
  */
 
 /** Floats of a box stored flat. */
-export const BOX_VALUES = 6;
+export const BOX_VALUES = 6
 
 /** Sets an empty box: lower bounds at `+Infinity`, upper bounds at `-Infinity`. */
 export function boxEmpty(out: Float64Array, o: number) {
-  out[o] = Infinity;
-  out[o + 1] = Infinity;
-  out[o + 2] = Infinity;
-  out[o + 3] = -Infinity;
-  out[o + 4] = -Infinity;
-  out[o + 5] = -Infinity;
+  out[o] = Infinity
+  out[o + 1] = Infinity
+  out[o + 2] = Infinity
+  out[o + 3] = -Infinity
+  out[o + 4] = -Infinity
+  out[o + 5] = -Infinity
 }
 
 /** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
 export function boxIsEmpty(box: ArrayLike<number>, o: number) {
-  return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2];
+  return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2]
 }
 
 /** True when boxes `a` at `ao` and `b` at `bo` hold the same six values, bit for bit. */
 export function boxEquals(a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) {
-  for (let v = 0; v < BOX_VALUES; v++) if (a[ao + v] !== b[bo + v]) return false;
-  return true;
+  for (let v = 0; v < BOX_VALUES; v++) if (a[ao + v] !== b[bo + v]) return false
+  return true
 }
 
 /** Expands the box to contain a point. */
 export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: number, z: number) {
-  out[o] = Math.min(out[o], x);
-  out[o + 1] = Math.min(out[o + 1], y);
-  out[o + 2] = Math.min(out[o + 2], z);
-  out[o + 3] = Math.max(out[o + 3], x);
-  out[o + 4] = Math.max(out[o + 4], y);
-  out[o + 5] = Math.max(out[o + 5], z);
+  out[o] = Math.min(out[o], x)
+  out[o + 1] = Math.min(out[o + 1], y)
+  out[o + 2] = Math.min(out[o + 2], z)
+  out[o + 3] = Math.max(out[o + 3], x)
+  out[o + 4] = Math.max(out[o + 4], y)
+  out[o + 5] = Math.max(out[o + 5], z)
 }
 
 /** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed). */
@@ -50,8 +50,8 @@ export function boxGrow(
   g: number,
 ) {
   for (let c = 0; c < 3; c++) {
-    out[o + c] = box[bo + c] - g;
-    out[o + c + 3] = box[bo + c + 3] + g;
+    out[o + c] = box[bo + c] - g
+    out[o + c + 3] = box[bo + c + 3] + g
   }
 }
 
@@ -66,12 +66,12 @@ export function boxUnion(
   maxY: number,
   maxZ: number,
 ) {
-  out[o] = Math.min(out[o], minX);
-  out[o + 1] = Math.min(out[o + 1], minY);
-  out[o + 2] = Math.min(out[o + 2], minZ);
-  out[o + 3] = Math.max(out[o + 3], maxX);
-  out[o + 4] = Math.max(out[o + 4], maxY);
-  out[o + 5] = Math.max(out[o + 5], maxZ);
+  out[o] = Math.min(out[o], minX)
+  out[o + 1] = Math.min(out[o + 1], minY)
+  out[o + 2] = Math.min(out[o + 2], minZ)
+  out[o + 3] = Math.max(out[o + 3], maxX)
+  out[o + 4] = Math.max(out[o + 4], maxY)
+  out[o + 5] = Math.max(out[o + 5], maxZ)
 }
 
 /**
@@ -94,12 +94,12 @@ export function boxCornersInto(
   for (let i = 0; i < 8; i++) {
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
-      lz = i & 4 ? maxZ : minZ;
-    const mw = 1 / (m[3] * lx + m[7] * ly + m[11] * lz + m[15]);
-    const at = o + i * 3;
-    out[at] = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) * mw;
-    out[at + 1] = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) * mw;
-    out[at + 2] = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) * mw;
+      lz = i & 4 ? maxZ : minZ
+    const mw = 1 / (m[3] * lx + m[7] * ly + m[11] * lz + m[15])
+    const at = o + i * 3
+    out[at] = (m[0] * lx + m[4] * ly + m[8] * lz + m[12]) * mw
+    out[at + 1] = (m[1] * lx + m[5] * ly + m[9] * lz + m[13]) * mw
+    out[at + 2] = (m[2] * lx + m[6] * ly + m[10] * lz + m[14]) * mw
   }
 }
 
@@ -125,15 +125,15 @@ export function boxTransform(
     minZ = box[bo + 2],
     maxX = box[bo + 3],
     maxY = box[bo + 4],
-    maxZ = box[bo + 5];
+    maxZ = box[bo + 5]
   if (maxX < minX || maxY < minY || maxZ < minZ) {
-    out[o] = minX;
-    out[o + 1] = minY;
-    out[o + 2] = minZ;
-    out[o + 3] = maxX;
-    out[o + 4] = maxY;
-    out[o + 5] = maxZ;
-    return;
+    out[o] = minX
+    out[o + 1] = minY
+    out[o + 2] = minZ
+    out[o + 3] = maxX
+    out[o + 4] = maxY
+    out[o + 5] = maxZ
+    return
   }
   const m0 = m[0],
     m1 = m[1],
@@ -150,34 +150,34 @@ export function boxTransform(
     m12 = m[12],
     m13 = m[13],
     m14 = m[14],
-    m15 = m[15];
+    m15 = m[15]
   let loX = Infinity,
     loY = Infinity,
     loZ = Infinity,
     hiX = -Infinity,
     hiY = -Infinity,
-    hiZ = -Infinity;
+    hiZ = -Infinity
   for (let i = 0; i < 8; i++) {
     const lx = i & 1 ? maxX : minX,
       ly = i & 2 ? maxY : minY,
-      lz = i & 4 ? maxZ : minZ;
-    const mw = 1 / (m3 * lx + m7 * ly + m11 * lz + m15);
+      lz = i & 4 ? maxZ : minZ
+    const mw = 1 / (m3 * lx + m7 * ly + m11 * lz + m15)
     const x = (m0 * lx + m4 * ly + m8 * lz + m12) * mw,
       y = (m1 * lx + m5 * ly + m9 * lz + m13) * mw,
-      z = (m2 * lx + m6 * ly + m10 * lz + m14) * mw;
-    loX = Math.min(loX, x);
-    loY = Math.min(loY, y);
-    loZ = Math.min(loZ, z);
-    hiX = Math.max(hiX, x);
-    hiY = Math.max(hiY, y);
-    hiZ = Math.max(hiZ, z);
+      z = (m2 * lx + m6 * ly + m10 * lz + m14) * mw
+    loX = Math.min(loX, x)
+    loY = Math.min(loY, y)
+    loZ = Math.min(loZ, z)
+    hiX = Math.max(hiX, x)
+    hiY = Math.max(hiY, y)
+    hiZ = Math.max(hiZ, z)
   }
-  out[o] = loX;
-  out[o + 1] = loY;
-  out[o + 2] = loZ;
-  out[o + 3] = hiX;
-  out[o + 4] = hiY;
-  out[o + 5] = hiZ;
+  out[o] = loX
+  out[o + 1] = loY
+  out[o + 2] = loZ
+  out[o + 3] = hiX
+  out[o + 4] = hiY
+  out[o + 5] = hiZ
 }
 
 /** Distance from the point `(x, y, z)` to the box, 0 inside it: the gap past each face: the distance of the
@@ -191,6 +191,6 @@ export function boxPointDistance(
 ) {
   const dx = Math.max(box[o] - x, 0, x - box[o + 3]),
     dy = Math.max(box[o + 1] - y, 0, y - box[o + 4]),
-    dz = Math.max(box[o + 2] - z, 0, z - box[o + 5]);
-  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    dz = Math.max(box[o + 2] - z, 0, z - box[o + 5])
+  return Math.sqrt(dx * dx + dy * dy + dz * dz)
 }

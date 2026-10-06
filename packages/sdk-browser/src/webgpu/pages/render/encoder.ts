@@ -1,38 +1,38 @@
-import { vsmSubmitted } from './vsm/vsmFrameEnd.ts';
-import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
-import { viewProj } from '../helpers.ts';
-import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
-import { enginePose } from '../../../camera/world.ts';
-import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
-import type { WebgpuPagesCore } from '../runtime.ts';
-import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts';
+import { vsmSubmitted } from './vsm/vsmFrameEnd.ts'
+import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts'
+import { viewProj } from '../helpers.ts'
+import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts'
+import { enginePose } from '../../../camera/world.ts'
+import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts'
+import type { WebgpuPagesCore } from '../runtime.ts'
+import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
 
 const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
   rt.timing.gpuTiming && !rt.capture.capturing
     ? rt.timing.gpuTiming.createEncoder(rt.run.frame)
-    : device.createCommandEncoder();
+    : device.createCommandEncoder()
 
 /** Whether this image's texture feedback is read back: not a capture's, nor an image without the
  *  target — a scene that wears no texture, the feedback A/B's arm without it. The reduction, its
  *  copy and the readback's mapping all ask it (#1016). */
-const feedbackPublished = (rt: WebgpuPagesCore) => !rt.capture.capturing && !!rt.gpu.feedbackView;
+const feedbackPublished = (rt: WebgpuPagesCore) => !rt.capture.capturing && !!rt.gpu.feedbackView
 
 /** The image's own command buffer when one is open, a fresh one otherwise. */
 export const createRenderEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
-  rt.timing.frameEncoder ?? newEncoder(rt, device);
+  rt.timing.frameEncoder ?? newEncoder(rt, device)
 
 export const openFrameEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
-  (rt.timing.frameEncoder = newEncoder(rt, device));
+  (rt.timing.frameEncoder = newEncoder(rt, device))
 
 /** Drops the open command buffer and settles the selection whose readback would have ridden in it. */
 export function abandonFrameEncoder(rt: WebgpuPagesCore) {
-  const { timing } = rt;
-  if (!timing.frameEncoder) return;
-  timing.frameEncoder = undefined;
-  const settle = timing.frameSelection;
-  timing.frameSelection = undefined;
-  settle?.(false);
-  timing.gpuTiming?.cancelUnsubmitted();
+  const { timing } = rt
+  if (!timing.frameEncoder) return
+  timing.frameEncoder = undefined
+  const settle = timing.frameSelection
+  timing.frameSelection = undefined
+  settle?.(false)
+  timing.gpuTiming?.cancelUnsubmitted()
 }
 
 export function submitColorCopy(
@@ -43,47 +43,47 @@ export function submitColorCopy(
   width: number,
   presented = false,
 ) {
-  const { run, gpu, timing, capture, context } = rt;
+  const { run, gpu, timing, capture, context } = rt
   // The off-screen variant does not touch the swap chain in any way: neither a composition target
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
-  const offscreen = composesOffscreen(context.diagnosticGpuVariant);
+  const offscreen = composesOffscreen(context.diagnosticGpuVariant)
   if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
     // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
-    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect);
-    run.gpuDrawCalls++;
+    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect)
+    run.gpuDrawCalls++
   }
-  const owned = encoder === timing.frameEncoder;
+  const owned = encoder === timing.frameEncoder
   // Texture image feedback leaves with the image: the target where pixels posted their requests is
   // reduced to counts, copied to their readback then zeroed.
-  const published = feedbackPublished(rt);
+  const published = feedbackPublished(rt)
   if (published)
     rt.vis.textures?.publishRequests(
       encoder,
       run.feedbackWritten ? gpu.feedbackView : undefined,
       gpu.targetSize,
       run.textureConverging,
-    );
-  const refusal = gpuDeviceLedgerOf(device)?.refusal;
-  if (refusal) throw refusal;
+    )
+  const refusal = gpuDeviceLedgerOf(device)?.refusal
+  if (refusal) throw refusal
   // Submit is timed alone: the encode that precedes it no longer carries it.
-  const submitStart = performance.now();
-  const command = encoder.finish();
-  device.queue.submit([command]);
-  timing.lastQueueSubmitMs = performance.now() - submitStart;
+  const submitStart = performance.now()
+  const command = encoder.finish()
+  device.queue.submit([command])
+  timing.lastQueueSubmitMs = performance.now() - submitStart
   // Counts of a sampled image are mapped only once the image that copied them is submitted.
-  rt.vis.gpuPartition?.countsSubmitted();
-  if (published) rt.vis.textures?.feedback.submitted();
-  rt.lights.tiles?.submitted();
-  vsmSubmitted(rt);
+  rt.vis.gpuPartition?.countsSubmitted()
+  if (published) rt.vis.textures?.feedback.submitted()
+  rt.lights.tiles?.submitted()
+  vsmSubmitted(rt)
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw (#198).
-  rt.layout.rows.rowsChanged = false;
-  run.imageRevision++;
+  rt.layout.rows.rowsChanged = false
+  run.imageRevision++
   if (owned) {
-    timing.frameEncoder = undefined;
-    const settle = timing.frameSelection;
-    timing.frameSelection = undefined;
-    settle?.(true);
+    timing.frameEncoder = undefined
+    const settle = timing.frameSelection
+    timing.frameSelection = undefined
+    settle?.(true)
   }
   if (rt.diag.traceEnabled)
     rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
@@ -105,7 +105,7 @@ export function submitColorCopy(
         : context.gpuCanvas
           ? 'direct'
           : 'composed',
-    }));
+    }))
   if (timing.gpuTiming?.isSampled(encoder))
     timing.gpuTiming.submitted(encoder, {
       submission: run.imageRevision,
@@ -119,7 +119,7 @@ export function submitColorCopy(
       scaleSteered: rt.scale.steered,
       transparentDrawCalls: run.blendDrawCalls,
       transparentSubmittedTriangles: run.blendSubmittedTriangles,
-    });
+    })
 }
 
 export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
@@ -139,6 +139,6 @@ export function encodeClear(rt: WebgpuPagesCore, encoder: GPUCommandEncoder) {
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },
-  });
-  pass.end();
+  })
+  pass.end()
 }

@@ -1,4 +1,4 @@
-import type { Job } from './types.ts';
+import type { Job } from './types.ts'
 
 /**
  * Insertion rank of a priority in a queue already in order: the first job it precedes.
@@ -7,13 +7,13 @@ import type { Job } from './types.ts';
  */
 function rangDInsertion(queue: readonly { priority: number }[], priority: number) {
   let low = 0,
-    high = queue.length;
+    high = queue.length
   while (low < high) {
-    const mid = (low + high) >> 1;
-    if (queue[mid].priority <= priority) low = mid + 1;
-    else high = mid;
+    const mid = (low + high) >> 1
+    if (queue[mid].priority <= priority) low = mid + 1
+    else high = mid
   }
-  return low;
+  return low
 }
 
 /**
@@ -21,9 +21,9 @@ function rangDInsertion(queue: readonly { priority: number }[], priority: number
  * ever set: it therefore goes to the tail of its priority group, and order is kept without a sort.
  */
 export function insereTravail(queue: Job[], job: Job) {
-  const at = rangDInsertion(queue, job.priority);
-  if (at === queue.length) queue.push(job);
-  else queue.splice(at, 0, job);
+  const at = rangDInsertion(queue, job.priority)
+  if (at === queue.length) queue.push(job)
+  else queue.splice(at, 0, job)
 }
 
 /**
@@ -32,10 +32,9 @@ export function insereTravail(queue: Job[], job: Job) {
  * pay a sweep of the queue per abandoned request to find its place.
  */
 export function compacteFile(queue: Job[]) {
-  let garde = 0;
-  for (let i = 0; i < queue.length; i++)
-    if (queue[i].state !== 'dropped') queue[garde++] = queue[i];
-  queue.length = garde;
+  let garde = 0
+  for (let i = 0; i < queue.length; i++) if (queue[i].state !== 'dropped') queue[garde++] = queue[i]
+  queue.length = garde
 }
 
 /**
@@ -50,6 +49,6 @@ export function findAdmissible(
   maxTransferBytes: number,
 ) {
   for (let i = 0; i < queue.length; i++)
-    if (active === 0 || activeBytes + (bytesOf(queue[i].url) ?? 0) <= maxTransferBytes) return i;
-  return -1;
+    if (active === 0 || activeBytes + (bytesOf(queue[i].url) ?? 0) <= maxTransferBytes) return i
+  return -1
 }

@@ -1,29 +1,29 @@
-import { useState } from 'react';
-import { useWords } from '../i18n.ts';
-import type { ReactNode } from 'react';
-import type { Locale } from '../../content/locale.ts';
-import { Button } from './Button.tsx';
+import { useState } from 'react'
+import { useWords } from '../i18n.ts'
+import type { ReactNode } from 'react'
+import type { Locale } from '../../content/locale.ts'
+import { Button } from './Button.tsx'
 
 /** Shared code chrome for both read-only snippets and the editable code primitive. */
 interface CodeSurfaceProps {
-  code: string;
-  locale: Locale;
-  title: ReactNode;
-  actions?: ReactNode;
-  children: ReactNode;
+  code: string
+  locale: Locale
+  title: ReactNode
+  actions?: ReactNode
+  children: ReactNode
   /** Take the height of the parent and give the code what the header leaves. */
-  fill?: boolean;
+  fill?: boolean
 }
 
 export function CodeSurface({ code, locale, title, actions, children, fill }: CodeSurfaceProps) {
-  const [status, setStatus] = useState('');
-  const t = useWords(locale);
+  const [status, setStatus] = useState('')
+  const t = useWords(locale)
   async function copy() {
     try {
-      await navigator.clipboard.writeText(String(code));
-      setStatus(t('code.copied'));
+      await navigator.clipboard.writeText(String(code))
+      setStatus(t('code.copied'))
     } catch {
-      setStatus(t('code.copyFailed'));
+      setStatus(t('code.copyFailed'))
     }
   }
   return (
@@ -46,5 +46,5 @@ export function CodeSurface({ code, locale, title, actions, children, fill }: Co
         {status}
       </span>
     </section>
-  );
+  )
 }

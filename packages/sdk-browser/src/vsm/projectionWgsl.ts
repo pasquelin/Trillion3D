@@ -40,23 +40,23 @@
  * the receiver's (`shadowReceiver`), off the depth a cell's list was built for. A thin-subsurface
  * pixel gets no normal bias, no screen ray, no back-face cull.
  */
-import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts';
-import { SUBSURFACE_FLAG } from '../scene/subsurface.ts';
-import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.ts';
-import { vsmBlueNoiseWgsl } from './blueNoise.ts';
-import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts';
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
+import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
+import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.ts'
+import { vsmBlueNoiseWgsl } from './blueNoise.ts'
+import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_STRUCTS_WGSL,
-} from './pageTableWgsl.ts';
+} from './pageTableWgsl.ts'
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
   VSM_PROJECTION_SAMPLE_WGSL,
-} from './projectionDataWgsl.ts';
-import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts';
+} from './projectionDataWgsl.ts'
+import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import {
   VSM_TRACE_RESULT_WGSL,
   VSM_TRACE_COMMON_WGSL,
@@ -64,30 +64,30 @@ import {
   VSM_TRACE_LIGHT_WGSL,
   VSM_TRACE_LOCAL_WGSL,
   vsmTraceWgsl,
-} from './traceWgsl.ts';
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
-import type { VsmLayout } from './layout.ts';
+} from './traceWgsl.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */
-export const VSM_PROJECTION_GROUP_SHIFT = 3;
-export const VSM_PROJECTION_GROUP_SIZE = 1 << VSM_PROJECTION_GROUP_SHIFT;
+export const VSM_PROJECTION_GROUP_SHIFT = 3
+export const VSM_PROJECTION_GROUP_SIZE = 1 << VSM_PROJECTION_GROUP_SHIFT
 /** The projection's groups, a tile word each, over `width` × `height` pixels. */
 export const vsmProjectionTiles = (width: number, height: number) =>
   [
     Math.ceil(width / VSM_PROJECTION_GROUP_SIZE),
     Math.ceil(height / VSM_PROJECTION_GROUP_SIZE),
-  ] as const;
+  ] as const
 /** Lights per layer of the mask: four 8-bit lanes of an r32uint texel. */
-export const VSM_PROJECTION_MAX_LIGHTS = 4;
+export const VSM_PROJECTION_MAX_LIGHTS = 4
 /** Lights per dispatch: the frame's shadowed lights (`assignSlice`'s 64 channels). */
-export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64;
+export const VSM_PROJECTION_MAX_PASS_LIGHTS = 64
 /** Mask format: four lights' 8-bit lanes (`vsmMaskCode`). */
-export const VSM_PROJECTION_MASK_FORMAT: GPUTextureFormat = 'r32uint';
+export const VSM_PROJECTION_MASK_FORMAT: GPUTextureFormat = 'r32uint'
 /** Format of the mask's tile words: a texel per group, bit L where the group stored layer L. */
-export const VSM_PROJECTION_TILE_FORMAT: GPUTextureFormat = 'r32uint';
+export const VSM_PROJECTION_TILE_FORMAT: GPUTextureFormat = 'r32uint'
 /** Bits of `VSM_PROJECTION_KINDS`: a directional light in the pass, a local one. */
-export const VSM_PROJECTION_KINDS_DIRECTIONAL = 1;
-export const VSM_PROJECTION_KINDS_LOCAL = 2;
+export const VSM_PROJECTION_KINDS_DIRECTIONAL = 1
+export const VSM_PROJECTION_KINDS_LOCAL = 2
 
 /** Group 0: the VSM tables the projection reads (bindings 4.. = the pool, slices × parts). */
 export const VSM_PROJECTION_VSM_SPECS: readonly VsmBindingSpec[] = [
@@ -96,7 +96,7 @@ export const VSM_PROJECTION_VSM_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'projectionData', binding: 2 },
   { resource: 'tileDepths', binding: 3 },
   { resource: 'pagePool', binding: 4 },
-];
+]
 
 /** Group 1 bindings. */
 export const VSM_PROJECTION_BINDING = {
@@ -107,13 +107,13 @@ export const VSM_PROJECTION_BINDING = {
   blueNoise: 4,
   shadowMask: 5,
   shadowMaskTiles: 6,
-} as const;
+} as const
 
 /** Bind group of the shadow receiver target the resolve wrote (`receiverTargetWgsl.ts`), binding 0. */
-export const VSM_PROJECTION_RECEIVER_GROUP = 2;
+export const VSM_PROJECTION_RECEIVER_GROUP = 2
 
 /** Byte size of `VsmProjectionView` (uniform). */
-export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 48;
+export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 48
 
 /**
  * The view (view space +Z forward, reverse-Z, matrices column-major as the engine's) and the
@@ -149,10 +149,10 @@ struct VsmProjectionView{
  lights:array<VsmProjectionLight,${VSM_PROJECTION_MAX_PASS_LIGHTS}>,
 }
 const LIGHT_KIND_RECT:u32=${VSM_LIGHT_KIND_RECT}u;
-`;
+`
 
 const bindingsWgsl = () => {
-  const B = VSM_PROJECTION_BINDING;
+  const B = VSM_PROJECTION_BINDING
   return /* wgsl */ `
 @group(1) @binding(${B.view}) var<uniform> vsmView:VsmProjectionView;
 @group(1) @binding(${B.sceneDepth}) var vsmSceneDepth:texture_depth_2d;
@@ -160,8 +160,8 @@ const bindingsWgsl = () => {
 @group(1) @binding(${B.flags}) var vsmFlags:texture_2d<u32>;
 @group(1) @binding(${B.shadowMask}) var vsmShadowMask:texture_storage_2d_array<${VSM_PROJECTION_MASK_FORMAT},write>;
 @group(1) @binding(${B.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;
-${vsmBlueNoiseWgsl(1, B.blueNoise)}`;
-};
+${vsmBlueNoiseWgsl(1, B.blueNoise)}`
+}
 
 /** Whether both halves voted true (`halfVoted`: the lane's half's vote), one answer for the
  *  group: a word a half, written after a barrier every lane passes once it has read the last ones. */
@@ -171,7 +171,7 @@ fn vsmGroupVoted(halfVoted:bool)->bool{
  workgroupBarrier();
  if(vsmLaneInHalf==0u){vsmHalfVoted[vsmLaneHalf]=select(0u,1u,halfVoted);}
  return all(workgroupUniformLoad(&vsmHalfVoted)==vec2u(1u));
-}`;
+}`
 /**
  * The wave votes. AllTrue over the lane's 32-pixel half; callers pass `c || !active` so a lane
  * outside the vote holds it true. Must be reached in uniform control flow, `split`
@@ -223,7 +223,7 @@ fn vsmVoteAllTrue(c:bool,split:bool)->bool{
     : `fn vsmLaneInit(groupIndex:u32){vsmLaneHalf=groupIndex>>5u;vsmLaneInHalf=groupIndex&31u;vsmVoteSerial=0u;}
 fn vsmVoteAllTrue(c:bool,split:bool)->bool{return vsmVoteCounter(c);}`
 }
-`;
+`
 
 /** Pixel reconstruction, normal bias, screen ray, filter. */
 const PIXEL_WGSL = /* wgsl */ `
@@ -314,7 +314,7 @@ fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
  *  point on the receiver, its screen ray length and its blue noise — zero elsewhere, where no
  *  light reads them (\`vsmLightParticipates\`, the traces' \`participating\`). */
 struct VsmPixel{pos:vec2u,inRect:bool,info:VsmSurfaceInfo,sceneDepth:f32,shifted:vec3f,screenRayWorld:f32,noise:f32,}
-`;
+`
 
 /** The traces, with the votes of the compute groups, then the light's region and projection. */
 const traceWgsl =
@@ -401,7 +401,7 @@ fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool,voteSplit:bool)->VsmT
  if(!participating){result=vsmEmptyTrace();}
  return result;
 }
-`;
+`
 
 /**
  * The tile's box (`vsmLightMayReachTile`): each lit pixel's point, a coordinate's order kept by its
@@ -460,7 +460,7 @@ fn vsmTileCandidate(k:u32,lightCount:u32){
  for(var i=0u;i<3u;i++){high[i]=atomicLoad(&vsmTileBounds[i]);low[i]=~atomicLoad(&vsmTileBounds[3u+i]);}
  if(vsmLightMayReachTile(k,vsmOrderedValue(low),vsmOrderedValue(high),(held&2u)!=0u)){atomicOr(&vsmTileCandidates[k>>5u],1u<<(k&31u));}
 }
-`;
+`
 
 const entryWgsl = (subgroups: boolean, receiver: boolean) => /* wgsl */ `
 /** Set where the pass projects one light (\`encodeVirtualShadowProjection\`): its light loops then
@@ -588,10 +588,10 @@ fn vsmProjection(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_
  // Whether the votes take the counter (\`voteWgsl\`): uniform, as their barriers need.
  vsmProjectTile(pixel,lights,tileRead.xy,lightCount,${subgroups ? 'tileRead.z!=0u' : 'true'});
 }
-`;
+`
 
 /** Lanes, hence codes: 256 factors, four a texel. */
-export const VSM_MASK_TABLE_TEXELS = 64;
+export const VSM_MASK_TABLE_TEXELS = 64
 
 /** Fills the mask's decode table (`projectionMaskTable.ts`): code c's factor at texel c / 4,
  *  channel c % 4. */
@@ -607,7 +607,7 @@ fn vsmMaskTableValue(c:u32)->f32{
 @compute @workgroup_size(${VSM_MASK_TABLE_TEXELS}) fn vsmMaskTableFill(@builtin(local_invocation_index) t:u32){
  let c=4u*t;
  textureStore(table,vec2u(t,0u),vec4f(vsmMaskTableValue(c),vsmMaskTableValue(c+1u),vsmMaskTableValue(c+2u),vsmMaskTableValue(c+3u)));
-}`;
+}`
 
 /** The whole module, for one layout (pool parts) and one vote variant. */
 export function vsmProjectionWgsl(
@@ -615,7 +615,7 @@ export function vsmProjectionWgsl(
   options: { subgroups: boolean; receiver?: boolean },
 ) {
   const { subgroups } = options,
-    receiver = options.receiver ?? false;
+    receiver = options.receiver ?? false
   return [
     subgroups ? 'enable subgroups;' : '',
     VSM_CONSTANTS_WGSL,
@@ -640,5 +640,5 @@ export function vsmProjectionWgsl(
     tileBoundWgsl(subgroups),
     receiver ? receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0) : '',
     entryWgsl(subgroups, receiver),
-  ].join('\n');
+  ].join('\n')
 }

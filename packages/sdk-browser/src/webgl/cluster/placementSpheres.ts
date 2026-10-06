@@ -1,18 +1,15 @@
-export type Centre = { readonly x: number; readonly y: number; readonly z: number };
+export type Centre = { readonly x: number; readonly y: number; readonly z: number }
 
 /** The placements of an instanced mesh (`isInstancedNode`): its matrices and how many are drawn. */
 export type Instanced = {
-  readonly count: number;
-  readonly instanceMatrix: { readonly array: ArrayLike<number>; readonly version?: number };
-};
+  readonly count: number
+  readonly instanceMatrix: { readonly array: ArrayLike<number>; readonly version?: number }
+}
 
 /** An instanced mesh's placement sphere, kept while its matrices and count are unchanged. */
-export type PlacementSphere = { readonly centre: Centre; readonly radius: number };
+export type PlacementSphere = { readonly centre: Centre; readonly radius: number }
 
-const placementSpheres = new WeakMap<
-  object,
-  PlacementSphere & { version: number; count: number }
->();
+const placementSpheres = new WeakMap<object, PlacementSphere & { version: number; count: number }>()
 
 /**
  * The centre of the union of an instanced mesh's placement spheres — the geometry's sphere carried
@@ -21,7 +18,7 @@ const placementSpheres = new WeakMap<
  * change.
  */
 export const placementsCentre = (mesh: Instanced, geometry: { center: Centre; radius?: number }) =>
-  placementsSphere(mesh, geometry).centre;
+  placementsSphere(mesh, geometry).centre
 
 /** The union of an instanced mesh's placement spheres, in its own space: what the depth sorts on
  *  and what the frustum culls on. A radius below zero is an empty union (no placement). */
@@ -31,42 +28,42 @@ export function placementsSphere(
 ): PlacementSphere {
   const matrices = mesh.instanceMatrix,
     count = mesh.count,
-    version = matrices.version ?? 0;
-  const kept = placementSpheres.get(mesh);
-  if (kept && kept.version === version && kept.count === count) return kept;
+    version = matrices.version ?? 0
+  const kept = placementSpheres.get(mesh)
+  if (kept && kept.version === version && kept.count === count) return kept
   const g = geometry.center,
     gr = geometry.radius ?? 0,
-    e = matrices.array;
+    e = matrices.array
   // The union, empty first (a negative radius), as a sphere made empty is.
   let cx = 0,
     cy = 0,
     cz = 0,
-    r = -1;
+    r = -1
   const expandBy = (px: number, py: number, pz: number) => {
     if (r < 0) {
-      [cx, cy, cz, r] = [px, py, pz, 0];
-      return;
+      ;[cx, cy, cz, r] = [px, py, pz, 0]
+      return
     }
     const dx = px - cx,
       dy = py - cy,
       dz = pz - cz,
-      lengthSq = dx * dx + dy * dy + dz * dz;
-    if (lengthSq <= r * r) return;
+      lengthSq = dx * dx + dy * dy + dz * dz
+    if (lengthSq <= r * r) return
     const length = Math.sqrt(lengthSq),
       delta = (length - r) * 0.5,
-      s = delta / length;
-    cx += dx * s;
-    cy += dy * s;
-    cz += dz * s;
-    r += delta;
-  };
+      s = delta / length
+    cx += dx * s
+    cy += dy * s
+    cz += dz * s
+    r += delta
+  }
   for (let i = 0, o = 0; i < count; i++, o += 16) {
     // The geometry's sphere through placement `i`: its centre carried (with the projective
     // divide), its radius scaled by the matrix's largest axis.
-    const w = 1 / (e[o + 3] * g.x + e[o + 7] * g.y + e[o + 11] * g.z + e[o + 15]);
+    const w = 1 / (e[o + 3] * g.x + e[o + 7] * g.y + e[o + 11] * g.z + e[o + 15])
     const sx = (e[o] * g.x + e[o + 4] * g.y + e[o + 8] * g.z + e[o + 12]) * w,
       sy = (e[o + 1] * g.x + e[o + 5] * g.y + e[o + 9] * g.z + e[o + 13]) * w,
-      sz = (e[o + 2] * g.x + e[o + 6] * g.y + e[o + 10] * g.z + e[o + 14]) * w;
+      sz = (e[o + 2] * g.x + e[o + 6] * g.y + e[o + 10] * g.z + e[o + 14]) * w
     const sr =
       gr *
       Math.sqrt(
@@ -75,10 +72,10 @@ export function placementsSphere(
           e[o + 4] * e[o + 4] + e[o + 5] * e[o + 5] + e[o + 6] * e[o + 6],
           e[o + 8] * e[o + 8] + e[o + 9] * e[o + 9] + e[o + 10] * e[o + 10],
         ),
-      );
-    if (sr < 0) continue;
-    if (r < 0) [cx, cy, cz, r] = [sx, sy, sz, sr];
-    else if (sx === cx && sy === cy && sz === cz) r = Math.max(r, sr);
+      )
+    if (sr < 0) continue
+    if (r < 0) [cx, cy, cz, r] = [sx, sy, sz, sr]
+    else if (sx === cx && sy === cy && sz === cz) r = Math.max(r, sr)
     else {
       // The farthest two points of the placement's sphere along the line between the centres.
       const dx = sx - cx,
@@ -87,12 +84,12 @@ export function placementsSphere(
         inverse = 1 / (Math.sqrt(dx * dx + dy * dy + dz * dz) || 1),
         vx = dx * inverse * sr,
         vy = dy * inverse * sr,
-        vz = dz * inverse * sr;
-      expandBy(sx + vx, sy + vy, sz + vz);
-      expandBy(sx - vx, sy - vy, sz - vz);
+        vz = dz * inverse * sr
+      expandBy(sx + vx, sy + vy, sz + vz)
+      expandBy(sx - vx, sy - vy, sz - vz)
     }
   }
-  const sphere = { version, count, centre: { x: cx, y: cy, z: cz }, radius: r };
-  placementSpheres.set(mesh, sphere);
-  return sphere;
+  const sphere = { version, count, centre: { x: cx, y: cy, z: cz }, radius: r }
+  placementSpheres.set(mesh, sphere)
+  return sphere
 }

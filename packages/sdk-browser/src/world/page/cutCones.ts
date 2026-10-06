@@ -1,6 +1,6 @@
-import type { NormalCone } from '../../page/cone/cone.ts';
-import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
-import { reserveArena } from '../../page/decode/wasmArena.ts';
+import type { NormalCone } from '../../page/cone/cone.ts'
+import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts'
+import { reserveArena } from '../../page/decode/wasmArena.ts'
 
 /**
  * The normal cone of each cluster the run-time cut writes, built by the compiler's own builder
@@ -15,29 +15,29 @@ export async function clusterCones(
   indices: Uint32Array,
   ranges: readonly (readonly [number, number])[],
 ): Promise<NormalCone[] | null> {
-  const wasm = await prepareSdkWasm();
-  if (!wasm || typeof wasm.cone_clusters !== 'function' || ranges.length === 0) return null;
-  let arena;
+  const wasm = await prepareSdkWasm()
+  if (!wasm || typeof wasm.cone_clusters !== 'function' || ranges.length === 0) return null
+  let arena
   try {
     arena = reserveArena(wasm, [
       { type: 'f32', length: positions.length },
       { type: 'u32', length: indices.length },
       { type: 'u32', length: ranges.length * 2 },
       { type: 'f64', length: ranges.length * 4 },
-    ]);
+    ])
   } catch {
     // Memory that cannot grow traps in the allocator: the same refusal as a null reservation.
-    return null;
+    return null
   }
-  if (!arena) return null;
+  if (!arena) return null
   try {
-    const [p, i, r, out] = arena.blocs();
-    p.view.set(positions);
-    i.view.set(indices);
+    const [p, i, r, out] = arena.blocs()
+    p.view.set(positions)
+    i.view.set(indices)
     ranges.forEach(([start, end], k) => {
-      r.view[k * 2] = start;
-      r.view[k * 2 + 1] = end;
-    });
+      r.view[k * 2] = start
+      r.view[k * 2 + 1] = end
+    })
     const status = wasm.cone_clusters(
       p.offset,
       positions.length,
@@ -46,19 +46,19 @@ export async function clusterCones(
       r.offset,
       ranges.length,
       out.offset,
-    );
-    if (status !== 0) return null;
+    )
+    if (status !== 0) return null
     // The builder allocates: its memory may have grown and detached the views taken above.
-    const cones = arena.blocs()[3].view;
+    const cones = arena.blocs()[3].view
     return ranges.map((_, k) => ({
       axis: [cones[k * 4], cones[k * 4 + 1], cones[k * 4 + 2]],
       angle: cones[k * 4 + 3],
-    }));
+    }))
   } catch {
     // A module that traps (its memory cannot grow for the builder) refuses like one that says
     // no: the cut keeps its pages without a cone rather than fail and lose the mesh.
-    return null;
+    return null
   } finally {
-    arena.freed();
+    arena.freed()
   }
 }

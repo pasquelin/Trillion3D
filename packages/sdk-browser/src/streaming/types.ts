@@ -1,6 +1,6 @@
-import type { BackendDiagnostic } from '../backend/types.ts';
-import type { PageCache } from './pageCache.ts';
-import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts';
+import type { BackendDiagnostic } from '../backend/types.ts'
+import type { PageCache } from './pageCache.ts'
+import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -11,111 +11,111 @@ import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts';
  */
 export interface HostRetentionDelta {
   /** Request rank → address. The same table for the life of the scene: its identity names the emitter. */
-  readonly urls: readonly string[];
+  readonly urls: readonly string[]
   /** Pages that entered. */
-  readonly entered: Int32Array;
+  readonly entered: Int32Array
   /** How many entered. */
-  readonly enteredCount: number;
+  readonly enteredCount: number
   /** Pages that left. */
-  readonly exited: Int32Array;
+  readonly exited: Int32Array
   /** How many left. */
-  readonly exitedCount: number;
+  readonly exitedCount: number
   /** Pages held. */
-  readonly held: Int32Array;
+  readonly held: Int32Array
   /** How many held. */
-  readonly heldCount: number;
+  readonly heldCount: number
 }
 
 /** How `request` reads a batch: its cancel, its priority, and what runs as each page lands. */
 export interface BatchRead {
-  /** Cancels the batch's reads. */ signal?: AbortSignal;
-  /** Queue priority, 1 by default. */ priority?: number;
+  /** Cancels the batch's reads. */ signal?: AbortSignal
+  /** Queue priority, 1 by default. */ priority?: number
   /** Runs as each page's read lands, not after the whole batch. */
-  onPage?: (url: string) => unknown;
+  onPage?: (url: string) => unknown
 }
 
 /** One page a streamer fetches: where, how big, and its fingerprint. */
 export interface StreamPage {
   /** Where it is read. */
-  url: string;
+  url: string
   /** Its size. */
-  bytes: number;
+  bytes: number
   /** Fingerprint of its bytes. */
-  sha256: string;
+  sha256: string
 }
 /** The pages a resource mounted in the open session brings (#572): `admit`-ted before they are
  *  read, `forget`-ten with their bytes once it is unmounted. */
 export type PageCatalogue = {
-  admit(pages: readonly StreamPage[]): void;
-  forget(urls: readonly string[]): void;
-};
+  admit(pages: readonly StreamPage[]): void
+  forget(urls: readonly string[]): void
+}
 /** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
  *  manifest tables and its transfer queue; every member has a default. */
 export interface PageStreamerOptions {
   /** Cancels every read once aborted. */
-  signal?: AbortSignal;
+  signal?: AbortSignal
   /** Reads running at once; 8 by default. */
-  workerCount?: number;
+  workerCount?: number
   /** Most pages held at once; bounded by bytes only when absent. */
-  maxPages?: number;
+  maxPages?: number
   /** Hears each page that leaves the cache. */
-  onEvict?: (url: string) => void;
+  onEvict?: (url: string) => void
   /** Bytes the transfer queue may hold; 8 MiB by default. */
-  maxTransferBytes?: number;
+  maxTransferBytes?: number
   /** Hears each step of every read. */
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
    *  reserved on top; 256 MiB by default. */
-  maxCachedBytes?: number;
+  maxCachedBytes?: number
 }
 export type Job = {
-  url: string;
-  priority: number;
-  order: number;
-  controller: AbortController;
+  url: string
+  priority: number
+  order: number
+  controller: AbortController
   /** `dropped`: no consumer left, the queue drops it on the next `pump` pass. */
-  state: 'queued' | 'active' | 'dropped';
-  consumers: Set<symbol>;
-  promise: Promise<Uint8Array>;
-  resolve: (value: Uint8Array) => void;
-  reject: (reason: unknown) => void;
-};
+  state: 'queued' | 'active' | 'dropped'
+  consumers: Set<symbol>
+  promise: Promise<Uint8Array>
+  resolve: (value: Uint8Array) => void
+  reject: (reason: unknown) => void
+}
 
 export type StreamContext = {
-  base: string;
-  catalog: Map<string, StreamPage>;
+  base: string
+  catalog: Map<string, StreamPage>
   /** The decoded-page cache the streamer reads through, and its pages. */
-  store: PageCache;
-  cache: PageCache['pages'];
-  jobs: Map<string, Job>;
-  queue: Job[];
-  pinned: Set<string>;
-  failures: Map<string, Error>;
-  abort: AbortController;
-  limit: number;
-  maxPages?: number;
-  maxTransferBytes: number;
-  onEvict?: (url: string) => void;
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
+  store: PageCache
+  cache: PageCache['pages']
+  jobs: Map<string, Job>
+  queue: Job[]
+  pinned: Set<string>
+  failures: Map<string, Error>
+  abort: AbortController
+  limit: number
+  maxPages?: number
+  maxTransferBytes: number
+  onEvict?: (url: string) => void
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
   state: {
-    order: number;
-    active: number;
-    activeBytes: number;
-    requested: number;
-    hits: number;
-    misses: number;
-    bytesRead: number;
-    loaded: number;
-    evictions: number;
-    admissionBlocked: number;
+    order: number
+    active: number
+    activeBytes: number
+    requested: number
+    hits: number
+    misses: number
+    bytesRead: number
+    loaded: number
+    evictions: number
+    admissionBlocked: number
     /** Jobs marked abandoned but still in the queue array. */
-    dropped: number;
-    disposed: boolean;
+    dropped: number
+    disposed: boolean
     /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
      *  the cache weighs itself: those tables follow the view. */
-    reservedBytes: () => number;
-  };
+    reservedBytes: () => number
+  }
   /** `undefined` when nobody listens: `emit?.(…)` then builds nothing (`lazyDiagnostic`). */
-  emit: LazyDiagnostic | undefined;
-  abortError: () => DOMException;
-};
+  emit: LazyDiagnostic | undefined
+  abortError: () => DOMException
+}

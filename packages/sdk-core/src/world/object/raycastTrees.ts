@@ -1,6 +1,6 @@
-import type { Geometry } from '../geometry/geometry.ts';
-import type { TriangleTree } from '../../collision/triangleTree.ts';
-import { RAYCAST_TREE_BUDGET } from './raycastTreeBudget.ts';
+import type { Geometry } from '../geometry/geometry.ts'
+import type { TriangleTree } from '../../collision/triangleTree.ts'
+import { RAYCAST_TREE_BUDGET } from './raycastTreeBudget.ts'
 
 /**
  * THE RAYCAST TREE CACHE. `raycast` keeps the triangle tree of each shape it was cast at, in the
@@ -13,78 +13,78 @@ import { RAYCAST_TREE_BUDGET } from './raycastTreeBudget.ts';
 
 /** A shape's tree, the geometry version it was built from, and each tree triangle's rank. */
 export interface ShapeTree {
-  version: number;
-  tree: TriangleTree;
-  ranks: Uint32Array;
+  version: number
+  tree: TriangleTree
+  ranks: Uint32Array
 }
 
-type Held = ShapeTree & { key: WeakRef<Geometry>; bytes: number };
+type Held = ShapeTree & { key: WeakRef<Geometry>; bytes: number }
 
-const trees = new WeakMap<Geometry, Held>();
+const trees = new WeakMap<Geometry, Held>()
 /** Every tree held, the one cast at least recently first. */
-const order = new Set<Held>();
+const order = new Set<Held>()
 let heldBytes = 0,
-  budget = RAYCAST_TREE_BUDGET;
+  budget = RAYCAST_TREE_BUDGET
 /** Drops the tree of a geometry collected without `dispose()`. */
-const collected = new FinalizationRegistry<Held>(drop);
+const collected = new FinalizationRegistry<Held>(drop)
 
 function drop(held: Held) {
-  collected.unregister(held);
-  order.delete(held);
-  heldBytes -= held.bytes;
-  const geometry = held.key.deref();
-  if (geometry && trees.get(geometry) === held) trees.delete(geometry);
+  collected.unregister(held)
+  order.delete(held)
+  heldBytes -= held.bytes
+  const geometry = held.key.deref()
+  if (geometry && trees.get(geometry) === held) trees.delete(geometry)
 }
 
 /** Drops the oldest trees until `room` more bytes fit in the budget. */
 function makeRoom(room: number) {
   for (const held of order) {
-    if (heldBytes + room <= budget) return;
-    drop(held);
+    if (heldBytes + room <= budget) return
+    drop(held)
   }
 }
 
 /** The cache's envelope: `bytes` to read or set it; a lower value evicts at once. */
 export const raycastTreeBudget = {
   get bytes() {
-    return budget;
+    return budget
   },
   set bytes(value: number) {
-    budget = Math.max(0, value);
-    makeRoom(0);
+    budget = Math.max(0, value)
+    makeRoom(0)
   },
   /** Bytes the cache holds now. */
   get held() {
-    return heldBytes;
+    return heldBytes
   },
-};
+}
 
 /** The tree held for `geometry` at its current version, marked as cast most recently. */
 export function heldTree(geometry: Geometry): ShapeTree | null {
-  const held = trees.get(geometry);
-  if (!held) return null;
-  if (held.version !== geometry.version) return (drop(held), null);
-  order.delete(held);
-  order.add(held);
-  return held;
+  const held = trees.get(geometry)
+  if (!held) return null
+  if (held.version !== geometry.version) return (drop(held), null)
+  order.delete(held)
+  order.add(held)
+  return held
 }
 
 /** Keeps `shape` for `geometry` when it fits the budget, evicting the oldest trees first. */
 export function holdTree(geometry: Geometry, shape: ShapeTree) {
-  const old = trees.get(geometry);
-  if (old) drop(old);
-  const bytes = shape.tree.bytes + shape.ranks.byteLength;
-  if (bytes > budget) return;
-  makeRoom(bytes);
-  const held = { ...shape, key: new WeakRef(geometry), bytes };
-  trees.set(geometry, held);
-  collected.register(geometry, held, held);
-  order.add(held);
-  heldBytes += bytes;
+  const old = trees.get(geometry)
+  if (old) drop(old)
+  const bytes = shape.tree.bytes + shape.ranks.byteLength
+  if (bytes > budget) return
+  makeRoom(bytes)
+  const held = { ...shape, key: new WeakRef(geometry), bytes }
+  trees.set(geometry, held)
+  collected.register(geometry, held, held)
+  order.add(held)
+  heldBytes += bytes
 }
 
 /** Drops the tree held for `geometry`, if any: what `Geometry.dispose()` calls. */
 export function forgetTree(geometry: Geometry) {
-  const held = trees.get(geometry);
-  if (held) drop(held);
+  const held = trees.get(geometry)
+  if (held) drop(held)
 }

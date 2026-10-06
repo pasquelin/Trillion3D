@@ -1,7 +1,7 @@
-import { BOX_VALUES } from '../primitives/box.ts';
-import { frustumExcludesBox } from '../frustum/box.ts';
-import { sphereFromBounds } from '../primitives/sphere.ts';
-import { SPHERE_VALUES } from './strides.ts';
+import { BOX_VALUES } from '../primitives/box.ts'
+import { frustumExcludesBox } from '../frustum/box.ts'
+import { sphereFromBounds } from '../primitives/sphere.ts'
+import { SPHERE_VALUES } from './strides.ts'
 
 /**
  * Tests `n` bounding boxes against the six frustum planes (24 floats), and writes what is KEPT:
@@ -15,9 +15,9 @@ export function frustumKeepsBoxBatch(
   boxes: ArrayLike<number>,
   n: number,
 ): number {
-  let count = 0;
+  let count = 0
   for (let i = 0; i < n; i++) {
-    const at = i * BOX_VALUES;
+    const at = i * BOX_VALUES
     const excluded = frustumExcludesBox(
       planes,
       boxes[at],
@@ -26,11 +26,11 @@ export function frustumKeepsBoxBatch(
       boxes[at + 3],
       boxes[at + 4],
       boxes[at + 5],
-    );
-    kept[i] = excluded ? 0 : 1;
-    if (!excluded) count++;
+    )
+    kept[i] = excluded ? 0 : 1
+    if (!excluded) count++
   }
-  return count;
+  return count
 }
 
 /**
@@ -45,7 +45,7 @@ export function sphereFromBoundsBatch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    const src = i * BOX_VALUES;
+    const src = i * BOX_VALUES
     sphereFromBounds(
       out,
       i * SPHERE_VALUES,
@@ -55,6 +55,6 @@ export function sphereFromBoundsBatch(
       boxes[src + 3],
       boxes[src + 4],
       boxes[src + 5],
-    );
+    )
   }
 }

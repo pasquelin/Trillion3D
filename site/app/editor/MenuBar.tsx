@@ -1,10 +1,10 @@
-import { useRef } from 'react';
-import { useWords } from '../i18n.ts';
-import { usePortal } from '../layout/PortalContext.ts';
-import { Dropdown } from '../ui/Dropdown.tsx';
-import { LIGHTS, SHAPES, type AddKind } from './objects.ts';
-import { manifestOf, MODELS, type ModelId } from './starter.ts';
-import type { Editor } from './useEditor.ts';
+import { useRef } from 'react'
+import { useWords } from '../i18n.ts'
+import { usePortal } from '../layout/PortalContext.ts'
+import { Dropdown } from '../ui/Dropdown.tsx'
+import { LIGHTS, SHAPES, type AddKind } from './objects.ts'
+import { manifestOf, MODELS, type ModelId } from './starter.ts'
+import type { Editor } from './useEditor.ts'
 
 /** The dictionary words (`editor.<word>`) naming the menus' items. */
 type ItemWord =
@@ -16,16 +16,16 @@ type ItemWord =
   | 'duplicate'
   | 'delete'
   | `add.${AddKind}`
-  | `model.${ModelId}`;
+  | `model.${ModelId}`
 
 /** Hands the scene to the person as a JSON file. */
 function download(json: string) {
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
-  link.download = 'scene.json';
-  link.click();
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
+  link.download = 'scene.json'
+  link.click()
   // Revoked on the next task: some browsers start the download after `click` returns.
-  setTimeout(() => URL.revokeObjectURL(link.href), 0);
+  setTimeout(() => URL.revokeObjectURL(link.href), 0)
 }
 
 /**
@@ -34,18 +34,18 @@ function download(json: string) {
  * loaded).
  */
 export function MenuBar({ editor }: { editor: Editor }) {
-  const { locale } = usePortal().route;
-  const t = useWords(locale);
-  const { session, actions, failed } = editor;
-  const file = useRef<HTMLInputElement>(null);
-  const kinds: AddKind[] = [...(Object.keys(SHAPES) as AddKind[]), 'group', ...LIGHTS];
-  const none = !session.selected;
+  const { locale } = usePortal().route
+  const t = useWords(locale)
+  const { session, actions, failed } = editor
+  const file = useRef<HTMLInputElement>(null)
+  const kinds: AddKind[] = [...(Object.keys(SHAPES) as AddKind[]), 'group', ...LIGHTS]
+  const none = !session.selected
   const item = (key: ItemWord, onSelect: () => void, disabled = false) => ({
     key,
     label: t(`editor.${key}`),
     onSelect,
     disabled,
-  });
+  })
   return (
     <>
       <input
@@ -54,12 +54,12 @@ export function MenuBar({ editor }: { editor: Editor }) {
         accept="application/json,.json"
         className="hidden"
         onChange={(event) => {
-          const chosen = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
+          const chosen = event.currentTarget.files?.[0]
+          event.currentTarget.value = ''
           chosen
             ?.text()
             .then((text) => actions.open(JSON.parse(text)))
-            .catch(failed);
+            .catch(failed)
         }}
       />
       <Dropdown
@@ -69,9 +69,9 @@ export function MenuBar({ editor }: { editor: Editor }) {
           item('openFile', () => file.current?.click()),
           item('save', () => {
             try {
-              download(actions.save());
+              download(actions.save())
             } catch (error) {
-              failed(error);
+              failed(error)
             }
           }),
         ]}
@@ -99,5 +99,5 @@ export function MenuBar({ editor }: { editor: Editor }) {
         )}
       />
     </>
-  );
+  )
 }

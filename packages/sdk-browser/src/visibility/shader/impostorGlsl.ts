@@ -28,7 +28,7 @@ vec3 impOctDecode(vec2 f,float hemi){
 }
 vec3 impWeights(vec2 f){
  return vec3(min(1.0-f.x,1.0-f.y),abs(f.x-f.y),min(f.x,f.y));
-}`;
+}`
 
 /** The card's view, once per card (the vertex stage), as `IMPOSTOR_VIEW_WGSL`. */
 const IMPOSTOR_VIEW_GLSL = `
@@ -44,7 +44,7 @@ vec3 impFrameNormal(vec2 frame,float frames,float hemi){return impOctDecode(fram
 vec3 impFrameX(vec3 n){
  vec3 up=abs(n.y)>0.999?vec3(0.0,0.0,1.0):vec3(0.0,1.0,0.0);
  return normalize(cross(up,n));
-}`;
+}`
 
 /** Per pixel: the ray on each frame's plane, one-step parallax and the blend, as
  *  `IMPOSTOR_TAP_WGSL`. */
@@ -73,8 +73,8 @@ ImpBlend impBlend(ImpTap a,ImpTap b,ImpTap c,vec3 w,float lod){
          +w.y*textureLod(impostorOrm,b.uv,lod).xyz
          +w.z*textureLod(impostorOrm,c.uv,lod).xyz;
  return ImpBlend(colour,normalize(packed*2.0-1.0),orm,w.x*a.point+w.y*b.point+w.z*c.point);
-}`;
+}`
 
 /** The mapping and the card's view: what the card's vertex stage reads; the fragment stage reads
  *  the tap and the blend (`IMPOSTOR_TAP_GLSL`). */
-export const IMPOSTOR_VIEW_CARD_GLSL = `${IMPOSTOR_MATH_GLSL}\n${IMPOSTOR_VIEW_GLSL}`;
+export const IMPOSTOR_VIEW_CARD_GLSL = `${IMPOSTOR_MATH_GLSL}\n${IMPOSTOR_VIEW_GLSL}`

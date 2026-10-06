@@ -3,41 +3,41 @@
  */
 export function compareImages(a: Uint8Array, b: Uint8Array) {
   if (!a.length || a.length !== b.length || a.length % 4 !== 0)
-    throw new Error('Invalid RGBA images');
+    throw new Error('Invalid RGBA images')
   let differentPixels = 0,
     maxChannelError = 0,
-    squared = 0;
+    squared = 0
   // Both paths give the same result: the aligned one only skips equal pixels four bytes at a time.
-  const isAlignedA = (a.byteOffset & 3) === 0;
-  const isAlignedB = (b.byteOffset & 3) === 0;
+  const isAlignedA = (a.byteOffset & 3) === 0
+  const isAlignedB = (b.byteOffset & 3) === 0
   if (isAlignedA && isAlignedB) {
-    const u32A = new Uint32Array(a.buffer, a.byteOffset, a.length >>> 2);
-    const u32B = new Uint32Array(b.buffer, b.byteOffset, b.length >>> 2);
-    const pixelCount = u32A.length;
+    const u32A = new Uint32Array(a.buffer, a.byteOffset, a.length >>> 2)
+    const u32B = new Uint32Array(b.buffer, b.byteOffset, b.length >>> 2)
+    const pixelCount = u32A.length
     // `p <= pixelCount` would read one past the end, `undefined` on both sides: equal, no pixel added.
     for (let p = 0; p < pixelCount; p++) {
       if (u32A[p] !== u32B[p]) {
-        differentPixels++;
-        const i = p << 2;
-        const d0 = Math.abs(a[i] - b[i]);
-        const d1 = Math.abs(a[i + 1] - b[i + 1]);
-        const d2 = Math.abs(a[i + 2] - b[i + 2]);
-        const d3 = Math.abs(a[i + 3] - b[i + 3]);
-        squared += d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3;
-        maxChannelError = Math.max(maxChannelError, d0, d1, d2, d3);
+        differentPixels++
+        const i = p << 2
+        const d0 = Math.abs(a[i] - b[i])
+        const d1 = Math.abs(a[i + 1] - b[i + 1])
+        const d2 = Math.abs(a[i + 2] - b[i + 2])
+        const d3 = Math.abs(a[i + 3] - b[i + 3])
+        squared += d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3
+        maxChannelError = Math.max(maxChannelError, d0, d1, d2, d3)
       }
     }
   } else {
     for (let i = 0; i < a.length; i += 4) {
-      let different = false;
+      let different = false
       for (let c = 0; c < 4; c++) {
-        const delta = Math.abs(a[i + c] - b[i + c]);
-        squared += delta * delta;
-        maxChannelError = Math.max(maxChannelError, delta);
-        different ||= delta !== 0;
+        const delta = Math.abs(a[i + c] - b[i + c])
+        squared += delta * delta
+        maxChannelError = Math.max(maxChannelError, delta)
+        different ||= delta !== 0
       }
-      if (different) differentPixels++;
+      if (different) differentPixels++
     }
   }
-  return { differentPixels, maxChannelError, rmse: Math.sqrt(squared / a.length) };
+  return { differentPixels, maxChannelError, rmse: Math.sqrt(squared / a.length) }
 }

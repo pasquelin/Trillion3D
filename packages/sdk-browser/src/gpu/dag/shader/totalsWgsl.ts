@@ -1,4 +1,4 @@
-import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts';
+import { CLUSTER_TRANSPARENT } from '../clusterFlags.ts'
 
 /**
  * Triangle totals of a frame, held BY THE GPU.
@@ -46,4 +46,4 @@ fn verseTotaux(lid:u32){
 fn resetTotaux(){
  atomicStore(&out.selectedTriangles,0u);atomicStore(&out.transparentTriangles,0u);
 }
-`;
+`

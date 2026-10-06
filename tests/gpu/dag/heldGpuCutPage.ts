@@ -6,33 +6,33 @@
 import type {
   BackendDiagnostic,
   RenderBackend,
-} from '../../../packages/sdk-browser/src/backend/types.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts'
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   dagFixture,
   wideCamera,
-} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import { openGpuDevice } from '../kit/webgpuDevice.ts';
+} from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
+import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
-const FRAMES = 30;
+const FRAMES = 30
 
 /** The fixture strip runs along x from -2 to 2, one leaf per unit: the units each page spans. */
-type PageSpan = { url: string; units: [number, number] };
+type PageSpan = { url: string; units: [number, number] }
 
 /** What the pages backend carries beside the public `RenderBackend`. */
 interface PagesBackend extends RenderBackend {
-  cpuFrameEnd?(): void;
-  selectedPageIds(): string[];
+  cpuFrameEnd?(): void
+  selectedPageIds(): string[]
 }
 
 export async function runHeldCut() {
-  const gpu = await openGpuDevice();
-  if (!gpu) return { unavailable: 'no WebGPU adapter' };
-  const { device } = gpu;
-  const events: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = [];
-  const fixture = dagFixture();
-  const canvas = document.createElement('canvas');
-  document.body.append(canvas);
+  const gpu = await openGpuDevice()
+  if (!gpu) return { unavailable: 'no WebGPU adapter' }
+  const { device } = gpu
+  const events: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = []
+  const fixture = dagFixture()
+  const canvas = document.createElement('canvas')
+  document.body.append(canvas)
   const backend = webgpuPagesBackend({
     source: fixture.source,
     metadata: fixture.metadata,
@@ -48,22 +48,22 @@ export async function runHeldCut() {
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
     onDiagnostic: (e) => events.push({ phase: e.phase, message: e.message, context: e.context }),
-  }) as PagesBackend;
-  const camera = wideCamera();
-  const frames = [];
-  if (!backend.flush) throw new Error('the backend has no flush');
+  }) as PagesBackend
+  const camera = wideCamera()
+  const frames = []
+  if (!backend.flush) throw new Error('the backend has no flush')
   try {
-    await backend.prepare();
+    await backend.prepare()
     // Loading: the pages the cut asks for arrive, then the measured frames begin.
     for (let i = 0; i < 4; i++) {
-      backend.render(camera);
-      await backend.flush();
+      backend.render(camera)
+      await backend.flush()
     }
     for (let frame = 0; frame < FRAMES; frame++) {
-      backend.render(camera);
-      backend.cpuFrameEnd?.();
-      await backend.flush();
-      const m = backend.metrics();
+      backend.render(camera)
+      backend.cpuFrameEnd?.()
+      await backend.flush()
+      const m = backend.metrics()
       frames.push({
         frame,
         cpuSelectMs: m.cpuSelectMs ?? null,
@@ -71,20 +71,20 @@ export async function runHeldCut() {
         drawn: backend.selectedPageIds(),
         clusters: m.clusters ?? null,
         residentPages: m.residentPages ?? null,
-      });
+      })
     }
   } catch (error) {
-    const trace = error instanceof Error ? (error.stack ?? '') : '';
-    return { error: String(error) + trace, frames, events, errors: gpu.errors };
+    const trace = error instanceof Error ? (error.stack ?? '') : ''
+    return { error: String(error) + trace, frames, events, errors: gpu.errors }
   } finally {
-    backend.dispose();
-    canvas.remove();
-    fixture.geometry.dispose();
+    backend.dispose()
+    canvas.remove()
+    fixture.geometry.dispose()
   }
-  const { court: adapter } = await gpu.fermer();
+  const { court: adapter } = await gpu.fermer()
   const pages: PageSpan[] = fixture.metadata.primitives[0].pages.map((page) => ({
     url: page.url,
     units: [page.min[0] + 2, page.max[0] + 2],
-  }));
-  return { adapter, pages, frames, events, errors: gpu.errors };
+  }))
+  return { adapter, pages, frames, events, errors: gpu.errors }
 }

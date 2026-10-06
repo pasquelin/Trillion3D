@@ -1,4 +1,4 @@
-import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts';
+import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
 
 /**
  * What a triangle decides before a pixel is named, and the only writing of that compute: binning
@@ -106,4 +106,4 @@ fn triClass(t:Tri)->u32{
 /** Eight-pixel tiles a box covers, in columns then in rows. */
 fn tileCols(t:Tri)->u32{return u32(t.hi.x-t.lo.x)/${TILE}u+1u;}
 fn tileRows(t:Tri)->u32{return u32(t.hi.y-t.lo.y)/${TILE}u+1u;}
-`;
+`

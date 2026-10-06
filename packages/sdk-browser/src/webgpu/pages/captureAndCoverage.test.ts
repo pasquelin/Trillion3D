@@ -1,30 +1,30 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { webgpuPagesBackend } from './pages.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { webgpuPagesBackend } from './pages.ts'
+import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
+import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import {
   quadScene,
   camera,
   assertBothQuadPagesDrawn,
   disposeQuadRun,
-} from './testScenes.fixture.ts';
-import { twoCoarseQuadsScene } from './testOccluder.fixture.ts';
-import { deepQuadScene } from './deepQuad.fixture.ts';
-import type { WebgpuPagesBackend } from './runtime.ts';
+} from './testScenes.fixture.ts'
+import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
+import { deepQuadScene } from './deepQuad.fixture.ts'
+import type { WebgpuPagesBackend } from './runtime.ts'
 import {
   DEFAULT_SCOPE,
   type ClusterManifest,
   type Primitive,
-} from '../../../../sdk-core/src/index.ts';
+} from '../../../../sdk-core/src/index.ts'
 
 test('a surface capture blocks external renders while its own view is drawn, and not after', async () => {
-  installGpuGlobals();
-  const { device } = mockGpu();
-  const fixture = quadScene();
-  const main = camera();
+  installGpuGlobals()
+  const { device } = mockGpu()
+  const fixture = quadScene()
+  const main = camera()
   let capturing = false,
-    blocked: unknown;
+    blocked: unknown
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
@@ -34,64 +34,64 @@ test('a surface capture blocks external renders while its own view is drawn, and
       // The capture view's targets are granted: that view is the one drawn now.
       if (capturing && event.phase === 'frame-allocation')
         try {
-          backend.render(main);
-          blocked = false;
+          backend.render(main)
+          blocked = false
         } catch (error) {
-          blocked = String(error);
+          blocked = String(error)
         }
     },
-  });
+  })
   try {
-    await backend.prepare();
-    backend.render(main);
-    await backend.flush?.();
-    capturing = true;
-    const surface = await backend.captureSurfaceView!(camera(), { width: 16, height: 16 });
-    capturing = false;
-    surface.dispose();
-    assert.match(String(blocked), /SURFACE_CAPTURE_BUSY/);
+    await backend.prepare()
+    backend.render(main)
+    await backend.flush?.()
+    capturing = true
+    const surface = await backend.captureSurfaceView!(camera(), { width: 16, height: 16 })
+    capturing = false
+    surface.dispose()
+    assert.match(String(blocked), /SURFACE_CAPTURE_BUSY/)
     // The main view never left its targets: it draws at once, nothing to restore.
-    backend.render(main);
-    assert.equal(backend.metrics().submittedTriangles, 2);
+    backend.render(main)
+    assert.equal(backend.metrics().submittedTriangles, 2)
   } finally {
-    disposeQuadRun(backend, fixture);
+    disposeQuadRun(backend, fixture)
   }
-});
+})
 
 test('a failed transparent material pipeline cannot leave an HDR pass with an rgba8 fallback pipeline', async () => {
-  installGpuGlobals();
-  const { device } = mockGpu();
-  const fixture = quadScene();
-  fixture.material.transparent = true;
-  fixture.material.opacity = 0.5;
-  fixture.metadata.primitives[0].pass = 'shared-blend';
-  const create = device.createRenderPipeline.bind(device);
+  installGpuGlobals()
+  const { device } = mockGpu()
+  const fixture = quadScene()
+  fixture.material.transparent = true
+  fixture.material.opacity = 0.5
+  fixture.metadata.primitives[0].pass = 'shared-blend'
+  const create = device.createRenderPipeline.bind(device)
   device.createRenderPipeline = (descriptor) => {
-    const target = descriptor.fragment ? [...descriptor.fragment.targets][0] : undefined;
+    const target = descriptor.fragment ? [...descriptor.fragment.targets][0] : undefined
     if (descriptor.vertex.entryPoint === 'vs' && target?.format === 'rgba16float')
-      throw new Error('NO_FORWARD_MATERIAL');
-    return create(descriptor);
-  };
+      throw new Error('NO_FORWARD_MATERIAL')
+    return create(descriptor)
+  }
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  });
+  })
   try {
-    await backend.prepare();
-    assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true);
-    backend.render(camera());
-    assert.equal(backend.metrics().submittedTriangles, 2);
+    await backend.prepare()
+    assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true)
+    backend.render(camera())
+    assert.equal(backend.metrics().submittedTriangles, 2)
   } finally {
-    disposeQuadRun(backend, fixture);
+    disposeQuadRun(backend, fixture)
   }
-});
+})
 
 test('camera jumps and obsolete uploads preserve coverage while detail slots are reclaimed', async () => {
-  installGpuGlobals();
+  installGpuGlobals()
   const { device } = mockGpu(),
-    fixture = twoCoarseQuadsScene(deepQuadScene);
+    fixture = twoCoarseQuadsScene(deepQuadScene)
   // `twoCoarseQuadsScene` rebuilds `metadata` with only `primitives`, itself narrowed to `{url}`
   // pages by an inner callback's own annotation: the real page objects it spreads keep every
   // field at runtime, only their perceived type loses them. The rest of `ClusterManifest` is
@@ -106,63 +106,63 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     selectedNodes: 0,
     totalNodes: 0,
     primitives: fixture.metadata.primitives as Primitive[],
-  };
+  }
   const backend = webgpuPagesBackend({
     ...fixture,
     metadata,
     gpuDevice: device,
     maxResidentPages: 6,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend;
+  }) as WebgpuPagesBackend
   const cam = camera(),
     move = (x: number) => {
-      cam.position.set(x, 0, 5);
-      cam.lookAt(x, 0, 0);
-      cam.updateMatrixWorld();
-      backend.render(cam);
-      assert.equal(backend.metrics().submittedTriangles, 2);
-    };
-  try {
-    await backend.prepare();
-    move(0);
-    await backend.flush();
-    move(0);
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
-    move(100);
-    assert.deepEqual(backend.selectedPageIds(), ['b3'], 'the root cover stands in on arrival');
-    await backend.flush();
-    move(100);
-    assert.deepEqual(backend.selectedPageIds().sort(), ['b0', 'b1']);
-    for (let i = 0; i < 12; i++) {
-      move(i % 2 ? 100 : 0);
-      await Promise.resolve();
+      cam.position.set(x, 0, 5)
+      cam.lookAt(x, 0, 0)
+      cam.updateMatrixWorld()
+      backend.render(cam)
+      assert.equal(backend.metrics().submittedTriangles, 2)
     }
-    move(0);
-    await backend.flush();
-    move(0);
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1']);
-    assert.ok(backend.metrics().cacheEvictions! > 0);
+  try {
+    await backend.prepare()
+    move(0)
+    await backend.flush()
+    move(0)
+    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
+    move(100)
+    assert.deepEqual(backend.selectedPageIds(), ['b3'], 'the root cover stands in on arrival')
+    await backend.flush()
+    move(100)
+    assert.deepEqual(backend.selectedPageIds().sort(), ['b0', 'b1'])
+    for (let i = 0; i < 12; i++) {
+      move(i % 2 ? 100 : 0)
+      await Promise.resolve()
+    }
+    move(0)
+    await backend.flush()
+    move(0)
+    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
+    assert.ok(backend.metrics().cacheEvictions! > 0)
   } finally {
-    backend.dispose();
-    fixture.dispose();
+    backend.dispose()
+    fixture.dispose()
   }
-});
+})
 
 test('a visible opaque primitive without a hierarchy still has complete exact-page coverage', async () => {
-  installGpuGlobals();
+  installGpuGlobals()
   const fixture = quadScene(),
-    { device } = mockGpu();
+    { device } = mockGpu()
   const backend = webgpuPagesBackend({
     ...fixture,
     metadata: { ...fixture.metadata, primitives: [{ ...fixture.metadata.primitives[0] }] },
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend;
+  }) as WebgpuPagesBackend
   try {
-    await backend.prepare();
-    assertBothQuadPagesDrawn(backend);
+    await backend.prepare()
+    assertBothQuadPagesDrawn(backend)
   } finally {
-    disposeQuadRun(backend, fixture);
+    disposeQuadRun(backend, fixture)
   }
-});
+})

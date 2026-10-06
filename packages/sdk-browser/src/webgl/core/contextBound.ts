@@ -10,32 +10,32 @@ export function boundToContext<T>(
   discard: (value: T) => void = () => {},
 ) {
   let value: T | undefined,
-    armed = false;
+    armed = false
   const lost = () => {
-    value = undefined;
-    armed = false;
-  };
+    value = undefined
+    armed = false
+  }
   return {
     /** True while the object built on the live context is still there: nothing lost since. */
     alive() {
-      return value !== undefined && !gl.isContextLost();
+      return value !== undefined && !gl.isContextLost()
     },
     current(): T | null {
-      if (gl.isContextLost()) return null;
+      if (gl.isContextLost()) return null
       if (value === undefined) {
-        value = build();
+        value = build()
         if (!armed) {
-          gl.canvas.addEventListener('webglcontextlost', lost, { once: true });
-          armed = true;
+          gl.canvas.addEventListener('webglcontextlost', lost, { once: true })
+          armed = true
         }
       }
-      return value;
+      return value
     },
     /** Discards the object on a live context and forgets it either way; `current()` rebuilds. */
     dispose() {
-      gl.canvas.removeEventListener('webglcontextlost', lost);
-      if (value !== undefined && !gl.isContextLost()) discard(value);
-      lost();
+      gl.canvas.removeEventListener('webglcontextlost', lost)
+      if (value !== undefined && !gl.isContextLost()) discard(value)
+      lost()
     },
-  };
+  }
 }

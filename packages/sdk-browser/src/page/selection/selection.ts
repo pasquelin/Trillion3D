@@ -1,6 +1,6 @@
-export { selectVisiblePages } from '../cut/cut.ts';
-export { collectClusterPages } from './collect.ts';
-export { projectedPageError } from './diagnostic.ts';
+export { selectVisiblePages } from '../cut/cut.ts'
+export { collectClusterPages } from './collect.ts'
+export { projectedPageError } from './diagnostic.ts'
 export {
   resolvePixelError,
   pageRequestUrl,
@@ -8,11 +8,11 @@ export {
   indexPagesByUrl,
   collectPendingUrls,
   acceptPageArray,
-} from './requests.ts';
-export type { PageRec, ClusterRoot } from './types.ts';
-export { rootOf } from './placements.ts';
-export { createSelectionResult } from '../cut/state.ts';
-export type { SelectionResult } from '../cut/state.ts';
+} from './requests.ts'
+export type { PageRec, ClusterRoot } from './types.ts'
+export { rootOf } from './placements.ts'
+export { createSelectionResult } from '../cut/state.ts'
+export type { SelectionResult } from '../cut/state.ts'
 
 /**
  * Camera-independent minimal complete cover: the clusters no other cluster replaces.
@@ -26,15 +26,15 @@ export function rootCoverage<T extends { url: string; parentError?: number | nul
   roots: ReadonlyArray<{ pages: T[] }>,
   keyOf: (page: T) => string = (page) => page.url,
 ): T[] {
-  const unique = new Map<string, T>();
+  const unique = new Map<string, T>()
   for (const root of roots) {
-    let found = 0;
+    let found = 0
     for (const page of root.pages)
       if (page.parentError == null) {
-        unique.set(keyOf(page), page);
-        found++;
+        unique.set(keyOf(page), page)
+        found++
       }
-    if (!found) throw new Error('INVALID_ROOT_COVERAGE');
+    if (!found) throw new Error('INVALID_ROOT_COVERAGE')
   }
-  return [...unique.values()];
+  return [...unique.values()]
 }

@@ -1,18 +1,18 @@
-import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts';
-import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts';
-import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts';
-import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts';
-import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts';
+import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
+import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../scene/surfaceModel.ts'
+import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
+import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
+import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
 
 /** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
-export const LIGHTING_RECEIVER_BINDING = 23;
+export const LIGHTING_RECEIVER_BINDING = 23
 
 /** The lighting's entry, its camera fog and its mirror term: the texts the reflection source
  *  output finds in it (`reflections/sourceOutputWgsl.ts`). */
 export const LIGHT_SURFACE_ENTRY =
-  '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{';
-export const CAMERA_FOG_WGSL = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`;
-export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)';
+  '@fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{'
+export const CAMERA_FOG_WGSL = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`
+export const MIRROR_TERM_WGSL = '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)'
 
 /**
  * What a shadow read needs of its pixel: the pixel the frame's shadow mask is read at
@@ -33,7 +33,7 @@ const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f)
   shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,z));
   let receiver=shadowReceiver(pixel.xy);shadowReceiverOffset=receiver.offset;shadowReceiverPlane=receiver.plane;
  }
-}`;
+}`
 
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}
 ${SURFACE_EMISSIVE_AO_WGSL}
@@ -62,4 +62,4 @@ ${LIGHT_SURFACE_ENTRY}
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
  var rgb=lit+ambient+emissive.rgb${bounce};${CAMERA_FOG_WGSL}
  return vec4f(rgb,1.0);
-}`;
+}`

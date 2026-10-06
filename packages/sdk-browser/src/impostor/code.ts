@@ -1,6 +1,6 @@
-import { families } from '../host/families.ts';
-import type { BackendContext } from '../backend/types.ts';
-import type { Lent } from './borrowed.ts';
+import { families } from '../host/families.ts'
+import type { BackendContext } from '../backend/types.ts'
+import type { Lent } from './borrowed.ts'
 
 /**
  * The impostor draw's code (`impostorCode.ts`), a family on demand (#1335, #1336), the one load
@@ -17,4 +17,4 @@ export const loadImpostorCode = (context: Pick<BackendContext, 'metadata'>, lent
         (code) => (code.lend(lent), code),
         () => undefined,
       )
-    : Promise.resolve(undefined);
+    : Promise.resolve(undefined)

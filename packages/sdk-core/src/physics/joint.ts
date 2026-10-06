@@ -1,5 +1,5 @@
-import type { Object3D } from '../world/object/object3d.ts';
-import type { JointKind, JointMotor, JointOptions } from './jointOptions.ts';
+import type { Object3D } from '../world/object/object3d.ts'
+import type { JointKind, JointMotor, JointOptions } from './jointOptions.ts'
 
 export type {
   JointKind,
@@ -7,12 +7,12 @@ export type {
   JointMotor,
   JointOptions,
   SixDofAxis,
-} from './jointOptions.ts';
+} from './jointOptions.ts'
 
 /** The options each kind has, past `anchor`, `anchorB`, `axis` and `breakForce`. */
-const ALL = ['limits', 'spring', 'motor'] as const;
+const ALL = ['limits', 'spring', 'motor'] as const
 type Tuning =
-  (typeof ALL)[number] | 'axes' | 'axisB' | 'path' | 'loop' | 'follow' | 'over' | 'ratio';
+  (typeof ALL)[number] | 'axes' | 'axisB' | 'path' | 'loop' | 'follow' | 'over' | 'ratio'
 const TUNINGS: Record<JointKind, readonly Tuning[]> = {
   fixed: [],
   point: [],
@@ -26,18 +26,18 @@ const TUNINGS: Record<JointKind, readonly Tuning[]> = {
   pulley: ['over', 'ratio', 'limits'],
   gear: ['axisB', 'ratio'],
   rackAndPinion: ['axisB', 'ratio'],
-};
-const OPTIONS = [...new Set(Object.values(TUNINGS).flat())];
+}
+const OPTIONS = [...new Set(Object.values(TUNINGS).flat())]
 const refuse = (kind: JointKind, tuning: Tuning) => {
-  if (!TUNINGS[kind].includes(tuning)) throw new RangeError(`A ${kind} joint has no ${tuning}.`);
-};
+  if (!TUNINGS[kind].includes(tuning)) throw new RangeError(`A ${kind} joint has no ${tuning}.`)
+}
 /** What a kind cannot be made without: a second body, a track, the wheels. */
 function required(kind: JointKind, b: Object3D | null, options: JointOptions) {
   if (!b && (kind === 'pulley' || kind === 'gear' || kind === 'rackAndPinion'))
-    throw new RangeError(`A ${kind} joint connects two bodies.`);
+    throw new RangeError(`A ${kind} joint connects two bodies.`)
   if (kind === 'path' && (options.path?.length ?? 0) < 2)
-    throw new RangeError('A path joint needs a path of two points or more.');
-  if (kind === 'pulley' && !options.over) throw new RangeError('A pulley joint needs its wheels.');
+    throw new RangeError('A path joint needs a path of two points or more.')
+  if (kind === 'pulley' && !options.over) throw new RangeError('A pulley joint needs its wheels.')
 }
 
 /**
@@ -46,65 +46,65 @@ function required(kind: JointKind, b: Object3D | null, options: JointOptions) {
  * breaks.
  */
 export class Joint {
-  private _motor: JointMotor | null;
-  private _broken = false;
-  private readonly handlers = new Set<() => void>();
+  private _motor: JointMotor | null
+  private _broken = false
+  private readonly handlers = new Set<() => void>()
   /** The world simulating this joint, set while it does: what a write on it asks of the
    *  simulation — the motor changed. */
-  _host: { motor(joint: Joint): void } | null = null;
-  /** The joint's id in the simulation (slot and generation), -1 outside one. */ _id = -1;
+  _host: { motor(joint: Joint): void } | null = null
+  /** The joint's id in the simulation (slot and generation), -1 outside one. */ _id = -1
   /** Each end's `point, axis, normal` in its body's frame, and the kind's own words (a path's
    *  track in `b`'s), fixed when first made. */
-  _frames: { a: number[]; b: number[]; length: number; extra: number[] } | null = null;
+  _frames: { a: number[]; b: number[]; length: number; extra: number[] } | null = null
 
-  /** What the joint is. */ readonly kind: JointKind;
-  /** The first body. */ readonly a: Object3D;
-  /** The second body, or `null` for the world. */ readonly b: Object3D | null;
-  /** What it was made with. */ readonly options: Readonly<JointOptions>;
+  /** What the joint is. */ readonly kind: JointKind
+  /** The first body. */ readonly a: Object3D
+  /** The second body, or `null` for the world. */ readonly b: Object3D | null
+  /** What it was made with. */ readonly options: Readonly<JointOptions>
 
   constructor(kind: JointKind, a: Object3D, b: Object3D | null, options: JointOptions = {}) {
-    this.kind = kind;
-    this.a = a;
-    this.b = b;
-    this.options = options;
-    if (a === b) throw new RangeError('A joint connects two different bodies.');
-    for (const tuning of OPTIONS) if (options[tuning] != null) refuse(kind, tuning);
-    required(kind, b, options);
-    this._motor = options.motor ?? null;
+    this.kind = kind
+    this.a = a
+    this.b = b
+    this.options = options
+    if (a === b) throw new RangeError('A joint connects two different bodies.')
+    for (const tuning of OPTIONS) if (options[tuning] != null) refuse(kind, tuning)
+    required(kind, b, options)
+    this._motor = options.motor ?? null
   }
   /** The motor of a hinge, a slider, a swing-twist, a six-DOF or a path; `null` lets the joint
    *  move freely. */
   get motor() {
-    return this._motor;
+    return this._motor
   }
   set motor(motor: JointMotor | null) {
-    if (motor) refuse(this.kind, 'motor');
-    this._motor = motor;
-    this._host?.motor(this);
+    if (motor) refuse(this.kind, 'motor')
+    this._motor = motor
+    this._host?.motor(this)
   }
   /** Whether it broke: pulled past its `breakForce`, or its decorative body left the simulation
    *  asleep. A broken joint holds no more. */
   get broken() {
-    return this._broken;
+    return this._broken
   }
   /**
    * Calls `handler` when the joint breaks.
    * @returns A function that removes the handler.
    */
   on(event: 'break', handler: () => void) {
-    this.handlers.add(handler);
-    return () => void this.handlers.delete(handler);
+    this.handlers.add(handler)
+    return () => void this.handlers.delete(handler)
   }
   /** The simulation broke it. */
   _break() {
-    if (this._broken) return;
-    this._broken = true;
-    for (const handler of this.handlers) handler();
+    if (this._broken) return
+    this._broken = true
+    for (const handler of this.handlers) handler()
   }
 }
 
 const make = (kind: JointKind) => (a: Object3D, b: Object3D | null, options?: JointOptions) =>
-  new Joint(kind, a, b, options);
+  new Joint(kind, a, b, options)
 
 /** The `joint` family: two bodies connected, or a body and the world (`b` null). */
 export const joint = {
@@ -136,4 +136,4 @@ export const joint = {
   /** A pinion `a` turning about `axis` drives a rack `b` along `axisB`, each held by its own
    *  hinge or slider (the body as its `a`), their teeth kept in the phase they were made in. */
   rackAndPinion: make('rackAndPinion'),
-};
+}

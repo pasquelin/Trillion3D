@@ -1,4 +1,4 @@
-import { residentBase, OUT_SELECTED_TRIANGLES, OUT_TRANSPARENT_TRIANGLES } from './layout.ts';
+import { residentBase, OUT_SELECTED_TRIANGLES, OUT_TRANSPARENT_TRIANGLES } from './layout.ts'
 
 /**
  * One of the two residency columns returned to the oracle, one word per cluster: what the buffer
@@ -11,7 +11,7 @@ export function residentFlags(
 ) {
   return Uint32Array.from({ length: pageCount }, (_, page) =>
     residentBit(bits, base, page) ? 1 : 0,
-  );
+  )
 }
 
 /**
@@ -23,13 +23,13 @@ export function residentFlags(
 export function writeTriangleTotals(
   ints: Uint32Array,
   totals: {
-    selectedTriangles?: number;
-    transparentTriangles?: number;
+    selectedTriangles?: number
+    transparentTriangles?: number
   },
 ) {
-  ints[OUT_SELECTED_TRIANGLES] = totals.selectedTriangles ?? 0;
-  ints[OUT_TRANSPARENT_TRIANGLES] = totals.transparentTriangles ?? 0;
+  ints[OUT_SELECTED_TRIANGLES] = totals.selectedTriangles ?? 0
+  ints[OUT_TRANSPARENT_TRIANGLES] = totals.transparentTriangles ?? 0
 }
 
 const residentBit = (bits: Uint32Array, base: number, page: number) =>
-  (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0;
+  (bits[base + (page >>> 5)] & (1 << (page & 31))) !== 0

@@ -1,41 +1,41 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { stageQuantiles, stageLabel, disabledStageProfile, STAGE_LABELS } from './stageProfile.ts';
-import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/mapping.ts';
-import { WEBGL_STAGES } from '../../../../bench/witnesses/exact/cpu.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { stageQuantiles, stageLabel, disabledStageProfile, STAGE_LABELS } from './stageProfile.ts'
+import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/mapping.ts'
+import { WEBGL_STAGES } from '../../../../bench/witnesses/exact/cpu.ts'
 
 test('stageQuantiles returns null for an empty series: unmeasured, not zero', () => {
-  assert.equal(stageQuantiles([]), null);
-});
+  assert.equal(stageQuantiles([]), null)
+})
 
 test('stageQuantiles distinguishes a measured zero from the unmeasured', () => {
-  const quantiles = stageQuantiles([0, 0, 0]);
-  assert.deepEqual(quantiles, { p50: 0, p95: 0 });
-  assert.notEqual(quantiles, null);
-});
+  const quantiles = stageQuantiles([0, 0, 0])
+  assert.deepEqual(quantiles, { p50: 0, p95: 0 })
+  assert.notEqual(quantiles, null)
+})
 
 test('stageQuantiles computes p50 and p95 from the series', () => {
-  assert.deepEqual(stageQuantiles([10, 20, 30, 40, 60]), { p50: 30, p95: 60 });
-});
+  assert.deepEqual(stageQuantiles([10, 20, 30, 40, 60]), { p50: 30, p95: 60 })
+})
 
 test('every stage an engine records reads as its own words, and every label names such a stage', () => {
-  const recorded = new Set<string>([...WEBGPU_STAGES, ...WEBGL_STAGES]);
+  const recorded = new Set<string>([...WEBGPU_STAGES, ...WEBGL_STAGES])
   for (const stage of recorded) {
-    assert.notEqual(stageLabel(stage).trim(), '', `${stage} has words`);
-    assert.notEqual(stageLabel(stage), stage, `${stage} is not shown as its key`);
+    assert.notEqual(stageLabel(stage).trim(), '', `${stage} has words`)
+    assert.notEqual(stageLabel(stage), stage, `${stage} is not shown as its key`)
   }
-  const labels = Object.values(STAGE_LABELS);
-  assert.equal(new Set(labels).size, labels.length, 'no two stages read the same');
-  assert.deepEqual(Object.keys(STAGE_LABELS).sort(), [...recorded].sort());
-  assert.ok(Object.isFrozen(STAGE_LABELS));
-});
+  const labels = Object.values(STAGE_LABELS)
+  assert.equal(new Set(labels).size, labels.length, 'no two stages read the same')
+  assert.deepEqual(Object.keys(STAGE_LABELS).sort(), [...recorded].sort())
+  assert.ok(Object.isFrozen(STAGE_LABELS))
+})
 
 test('a stage no engine names is shown as it is', () => {
-  assert.equal(stageLabel('host-custom-stage'), 'host-custom-stage');
-});
+  assert.equal(stageLabel('host-custom-stage'), 'host-custom-stage')
+})
 
 test('disabledStageProfile measures nothing: counters at zero, quantiles and method at null', () => {
-  const profile = disabledStageProfile('webgl2', 'per-stage profile not requested by the host');
+  const profile = disabledStageProfile('webgl2', 'per-stage profile not requested by the host')
   assert.deepEqual(profile, {
     version: 1,
     enabled: false,
@@ -48,5 +48,5 @@ test('disabledStageProfile measures nothing: counters at zero, quantiles and met
     gpuImageMs: null,
     overheadMs: null,
     stages: [],
-  });
-});
+  })
+})

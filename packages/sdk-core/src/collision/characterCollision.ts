@@ -1,7 +1,7 @@
-import { capsulePass, type Capsule, type CapsuleContact, type CapsulePush } from './capsule.ts';
-import { dropSphere } from './drop.ts';
-import { forEachTriangleInBox } from './triangleQuery.ts';
-import type { TriangleTree } from './triangleTree.ts';
+import { capsulePass, type Capsule, type CapsuleContact, type CapsulePush } from './capsule.ts'
+import { dropSphere } from './drop.ts'
+import { forEachTriangleInBox } from './triangleQuery.ts'
+import type { TriangleTree } from './triangleTree.ts'
 
 /**
  * THE SEAM BETWEEN A CHARACTER AND THE WORLD IT COLLIDES WITH. The character body
@@ -21,7 +21,7 @@ export interface CharacterCollision {
    * `capsule.feet`; an implementation measures each next overlap from the moved capsule, so a
    * corner is left in one call. Returns whether anything overlapped.
    */
-  resolveCapsule(capsule: Capsule, push: CapsulePush): boolean;
+  resolveCapsule(capsule: Capsule, push: CapsulePush): boolean
   /**
    * Lowers the capsule's bottom sphere straight down, by at most `depth`, and returns how far
    * it goes before it first rests on a surface `accepts` takes — the highest such support;
@@ -33,13 +33,13 @@ export interface CharacterCollision {
     capsule: Capsule,
     depth: number,
     accepts: (contact: CapsuleContact) => boolean,
-  ): number | null;
+  ): number | null
 }
 
 /** The default collision world: a static triangle tree. */
 export interface TriangleCollision extends CharacterCollision {
   /** The tree answered from: its `triangleCount` and `bytes` are the world's cost. */
-  readonly tree: TriangleTree;
+  readonly tree: TriangleTree
 }
 
 const centre = new Float64Array(3),
@@ -50,7 +50,7 @@ const centre = new Float64Array(3),
     surface: new Float64Array(3),
     point: new Float64Array(3),
     depth: 0,
-  };
+  }
 
 /** A collision world over the triangles of `tree`. */
 export function triangleCollision(tree: TriangleTree): TriangleCollision {
@@ -58,20 +58,20 @@ export function triangleCollision(tree: TriangleTree): TriangleCollision {
     tree,
     resolveCapsule: (capsule, push) => capsulePass(tree, capsule, push),
     groundBelow(capsule, depth, accepts) {
-      const { feet, radius, height } = capsule;
-      centre.set(feet);
-      centre[1] += radius;
+      const { feet, radius, height } = capsule
+      centre.set(feet)
+      centre[1] += radius
       // The column the sphere sweeps, up to the top of the body: a support higher than the
       // body is a ceiling, not a floor.
-      for (let k = 0; k < 3; k += 2) [min[k], max[k]] = [feet[k] - radius, feet[k] + radius];
-      [min[1], max[1]] = [feet[1] - depth, feet[1] + Math.max(height, 2 * radius)];
-      let best = Infinity;
+      for (let k = 0; k < 3; k += 2) [min[k], max[k]] = [feet[k] - radius, feet[k] + radius]
+      ;[min[1], max[1]] = [feet[1] - depth, feet[1] + Math.max(height, 2 * radius)]
+      let best = Infinity
       forEachTriangleInBox(tree, min, max, (at) => {
-        const distance = dropSphere(centre, radius, tree.triangles, at, touch);
+        const distance = dropSphere(centre, radius, tree.triangles, at, touch)
         if (distance < best && distance <= depth && touch.normal[1] > 0 && accepts(touch))
-          best = distance;
-      });
-      return best === Infinity ? null : best;
+          best = distance
+      })
+      return best === Infinity ? null : best
     },
-  };
+  }
 }

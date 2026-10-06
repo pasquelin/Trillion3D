@@ -1,4 +1,4 @@
-import { WATER_RANK_SHIFT } from '../water/rank.ts';
+import { WATER_RANK_SHIFT } from '../water/rank.ts'
 
 /**
  * The cull an entry's pipeline no longer does (plan.ts, VERTEX CULL): mode 1 drops the front
@@ -25,12 +25,12 @@ import { WATER_RANK_SHIFT } from '../water/rank.ts';
  * `2·step·(|e1|₁ + |e2|₁) + 8·step²`, e1 and e2 the two edges from the first corner. A doubtful
  * triangle only costs the fragments of its discarded side.
  */
-const FACING_TOLERANCE = 8 * 2 ** -23 * 2 ** 10;
-const SNAP_STEP = 2 ** -4;
+const FACING_TOLERANCE = 8 * 2 ** -23 * 2 ** 10
+const SNAP_STEP = 2 ** -4
 /** What `vertexFacing` answers besides a mode: the vertex stage drops the triangle. */
-export const FACING_DROP = 3;
+export const FACING_DROP = 3
 /** The mode the fragment applies rides above the water rank, in the same flat word. */
-export const FACING_SHIFT = WATER_RANK_SHIFT;
+export const FACING_SHIFT = WATER_RANK_SHIFT
 
 /** The two functions in WGSL; the host shader declares the page geometry
  *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `corners` are the
@@ -58,4 +58,4 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  return select(0u,${FACING_DROP}u,area<0.0);
 }
 fn facingDiscarded(mode:u32,front:bool)->bool{return (mode==1u&&front)||(mode==2u&&!front);}
-`;
+`

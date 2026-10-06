@@ -1,16 +1,16 @@
-import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import { useWords } from '../i18n.ts';
-import { usePortal } from '../layout/PortalContext.ts';
-import { Note } from '../ui/Text.tsx';
-import { poseCommand, poseOf } from './commands.ts';
-import { Field } from '../ui/Input.tsx';
-import { NumberField, TextField } from '../ui/NumberField.tsx';
-import { GeometryFields } from './GeometryFields.tsx';
-import type { Editor } from './useEditor.ts';
-import { SurfaceFields } from './SurfaceFields.tsx';
+import type { Object3D } from '../../../packages/sdk-browser/src/index.ts'
+import { useWords } from '../i18n.ts'
+import { usePortal } from '../layout/PortalContext.ts'
+import { Note } from '../ui/Text.tsx'
+import { poseCommand, poseOf } from './commands.ts'
+import { Field } from '../ui/Input.tsx'
+import { NumberField, TextField } from '../ui/NumberField.tsx'
+import { GeometryFields } from './GeometryFields.tsx'
+import type { Editor } from './useEditor.ts'
+import { SurfaceFields } from './SurfaceFields.tsx'
 
-const AXES = ['x', 'y', 'z'] as const;
-const DEGREES = 180 / Math.PI;
+const AXES = ['x', 'y', 'z'] as const
+const DEGREES = 180 / Math.PI
 
 /** The three rows of the pose: position, rotation shown in degrees, scale. */
 function poseRows(node: Object3D) {
@@ -18,7 +18,7 @@ function poseRows(node: Object3D) {
     { key: 'editor.position', read: node.position, factor: 1, step: 0.1 },
     { key: 'editor.rotation', read: node.rotation, factor: DEGREES, step: 5 },
     { key: 'editor.scaleField', read: node.scale, factor: 1, step: 0.1 },
-  ] as const;
+  ] as const
 }
 
 /**
@@ -27,19 +27,19 @@ function poseRows(node: Object3D) {
  * command of the history.
  */
 export function Inspector({ editor }: { editor: Editor }) {
-  const { locale } = usePortal().route;
-  const t = useWords(locale);
-  const { session, actions } = editor;
-  const node = session.selected;
-  if (!node) return <Note>{t('editor.nothing')}</Note>;
+  const { locale } = usePortal().route
+  const t = useWords(locale)
+  const { session, actions } = editor
+  const node = session.selected
+  if (!node) return <Note>{t('editor.nothing')}</Note>
   /** One axis of one row set to `value`, recorded as a change of pose. */
   const setAxis = (row: ReturnType<typeof poseRows>[number], axis: number, value: number) => {
-    const before = poseOf(node);
-    const next = AXES.map((name) => row.read[name]);
-    next[axis] = value / row.factor;
-    row.read.set(next[0], next[1], next[2]);
-    session.record(poseCommand(node, before, poseOf(node)));
-  };
+    const before = poseOf(node)
+    const next = AXES.map((name) => row.read[name])
+    next[axis] = value / row.factor
+    row.read.set(next[0], next[1], next[2])
+    session.record(poseCommand(node, before, poseOf(node)))
+  }
   return (
     <div className="@container grid grid-cols-1 gap-2">
       <TextField
@@ -66,5 +66,5 @@ export function Inspector({ editor }: { editor: Editor }) {
       <GeometryFields editor={editor} node={node} />
       <SurfaceFields editor={editor} node={node} />
     </div>
-  );
+  )
 }

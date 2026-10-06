@@ -33,4 +33,4 @@ vec3 Nv=dot(N,V)>0.0?N:-N;float t=clamp(volume.x,0.0,1.0),f0=pow((volume.y-1.0)/
 float F=f0+(1.0-f0)*pow(clamp(1.0-max(dot(Nv,V),0.0),0.0,1.0),5.0);
 vec3 transmitted=baseTint*transmittedBackdrop(P,Nv,V),reflected=lit?shade(Nv,V,vec3(0.0),0.0,rough,ao):vec3(0.0);
 float mirror=lit?mirrorWeight(rough):0.0;if(mirror>0.0)reflected+=F*reflectedRadiance(P,Nv,reflect(-V,Nv),rough)*mirror;
-float a=alpha+t*(1.0-alpha);return vec4((t*((1.0-F)*transmitted+reflected)+(1.0-t)*alpha*litColor)/max(a,1e-4),a);}`;
+float a=alpha+t*(1.0-alpha);return vec4((t*((1.0-F)*transmitted+reflected)+(1.0-t)*alpha*litColor)/max(a,1e-4),a);}`

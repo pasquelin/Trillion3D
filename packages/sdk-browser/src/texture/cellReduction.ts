@@ -1,4 +1,4 @@
-import { shaderLanguage } from '../math/shaderLanguage.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts'
 /** A source cell's width in original pixels, \`2^k\` at source level \`k\`, \`s = max(o >> k, 1)\` a
  *  side: the larger difference of the two sides' leading bits, built from its exponent bits. What
  *  \`exp2(floor(log2(max(o.x/s.x, o.y/s.y))))\` gives with an exact division, which WGSL and GLSL
@@ -8,13 +8,13 @@ const REDUCTION_STEP_WGSL = `
 fn reductionStep(o:vec2i,s:vec2i)->f32{
  let k=max(firstLeadingBit(o.x)-firstLeadingBit(s.x),firstLeadingBit(o.y)-firstLeadingBit(s.y));
  return bitcast<f32>(u32(k+127)<<23u);
-}`;
+}`
 const REDUCTION_STEP_GLSL = `
 int leadingBit(int v){return (floatBitsToInt(float(v))>>23)-127;}
 float reductionStep(ivec2 o,ivec2 s){
  int k=max(leadingBit(o.x)-leadingBit(s.x),leadingBit(o.y)-leadingBit(s.y));
  return intBitsToFloat((k+127)<<23);
-}`;
+}`
 
 /** The source cells a cell of the next level covers, `[start, end)`: two by two, the last cell
  *  owning an odd source tail. The host declares `extent`. */
@@ -24,7 +24,7 @@ const CELL_SPAN = `
  var start:vec2i=pixel*2;
  var end:vec2i=min(start+vec2i(2),sourceSize);
  if(pixel.x==destination.x-1){end.x=sourceSize.x;}
- if(pixel.y==destination.y-1){end.y=sourceSize.y;}`;
+ if(pixel.y==destination.y-1){end.y=sourceSize.y;}`
 
 /** A cell of the next level over the source cells it covers (`mipRead`, which the host declares).
  *  Under `range`, their nearest/farthest pair in `.xy`, the reflection's depth bounds (`[1, 0]`
@@ -61,10 +61,10 @@ fn cellReduction(pixel:vec2i)->vec4f{${CELL_SPAN}
   }
  }
  return sum/area;
-}`;
+}`
 
 /** The reduction of rule `range` and what it calls, in each graphics API. */
 export const cellReductionWgsl = (range: boolean) =>
-  `${range ? '' : REDUCTION_STEP_WGSL}${cellReduction(range)}`;
+  `${range ? '' : REDUCTION_STEP_WGSL}${cellReduction(range)}`
 export const cellReductionGlsl = (range: boolean) =>
-  `${range ? '' : REDUCTION_STEP_GLSL}${shaderLanguage(cellReduction(range), 'glsl')}`;
+  `${range ? '' : REDUCTION_STEP_GLSL}${shaderLanguage(cellReduction(range), 'glsl')}`

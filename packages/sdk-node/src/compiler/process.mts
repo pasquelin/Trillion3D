@@ -1,11 +1,11 @@
-import { spawn } from 'node:child_process';
-import type { CompilerEvent } from './contracts.ts';
-import { currentCompilerExecutable } from './executable.mts';
-import { compilerError } from '../messages/catalogue.mts';
-import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts';
+import { spawn } from 'node:child_process'
+import type { CompilerEvent } from './contracts.ts'
+import { currentCompilerExecutable } from './executable.mts'
+import { compilerError } from '../messages/catalogue.mts'
+import { COMPILER_LINE_LIMIT, lineReader } from './lines.mts'
 
 /** Grace period between a cooperative cancel request on stdin and a hard kill. */
-export const CANCEL_GRACE_MS = 5000;
+export const CANCEL_GRACE_MS = 5000
 /**
  * A batch prints its summary whatever happened to its jobs: exit code 2 only says "not every job is
  * ready", and the summary says which ones were not. Reading the exit code alone turned a `partial`
@@ -14,12 +14,12 @@ export const CANCEL_GRACE_MS = 5000;
  * is not a summary and still rejects.
  */
 function isBatchSummary(output: unknown): boolean {
-  const summary = output as { status?: unknown; jobs?: unknown } | null;
+  const summary = output as { status?: unknown; jobs?: unknown } | null
   return (
     !!summary &&
     Array.isArray(summary.jobs) &&
     (summary.status === 'ready' || summary.status === 'partial' || summary.status === 'failed')
-  );
+  )
 }
 /**
  * Runs the native compiler once. Node only launches it, forwards events and cancellation, and reads
@@ -31,76 +31,76 @@ export function runCompiler<T>(
   onEvent?: (event: CompilerEvent) => void,
 ): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const executable = currentCompilerExecutable(options.executable);
+    const executable = currentCompilerExecutable(options.executable)
     const child = spawn(executable, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    let settled = false;
-    let killTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastError: Error | null = null;
-    let stdout = '';
+    })
+    let settled = false
+    let killTimer: ReturnType<typeof setTimeout> | null = null
+    let lastError: Error | null = null
+    let stdout = ''
     const finish = <V,>(fn: (value: V) => void, value: V) => {
-      if (settled) return;
-      settled = true;
-      if (killTimer) clearTimeout(killTimer);
-      options.signal?.removeEventListener('abort', onAbort);
-      fn(value);
-    };
+      if (settled) return
+      settled = true
+      if (killTimer) clearTimeout(killTimer)
+      options.signal?.removeEventListener('abort', onAbort)
+      fn(value)
+    }
     const fail = (error: unknown) => {
       try {
-        child.kill();
+        child.kill()
       } catch {
         /* Child may already have exited. */
       }
-      finish(reject, error);
-    };
+      finish(reject, error)
+    }
     const onAbort = () => {
       try {
-        child.stdin.write('{"cancel":"*"}\n');
+        child.stdin.write('{"cancel":"*"}\n')
       } catch {
         /* stdin may be closed; the kill below still applies. */
       }
       killTimer = setTimeout(() => {
         try {
-          child.kill();
+          child.kill()
         } catch {
           /* Already gone. */
         }
-      }, CANCEL_GRACE_MS);
-    };
-    options.signal?.addEventListener('abort', onAbort, { once: true });
-    if (options.signal?.aborted) onAbort();
+      }, CANCEL_GRACE_MS)
+    }
+    options.signal?.addEventListener('abort', onAbort, { once: true })
+    if (options.signal?.aborted) onAbort()
     child.stdin.on('error', () => {
       /* The compiler closed stdin; cancellation falls back to kill. */
-    });
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
+    })
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
     child.stdout.on('data', (chunk) => {
-      stdout += chunk;
-      if (stdout.length > COMPILER_LINE_LIMIT) fail(compilerError('COMPILER_LINE_LIMIT'));
-    });
+      stdout += chunk
+      if (stdout.length > COMPILER_LINE_LIMIT) fail(compilerError('COMPILER_LINE_LIMIT'))
+    })
     child.stderr.on(
       'data',
       lineReader(
         (line) => {
-          let event: CompilerEvent;
+          let event: CompilerEvent
           try {
-            event = JSON.parse(line) as CompilerEvent;
+            event = JSON.parse(line) as CompilerEvent
           } catch {
-            lastError = compilerError('COMPILER_EXIT', line);
-            return;
+            lastError = compilerError('COMPILER_EXIT', line)
+            return
           }
           if (event.status === 'error')
-            lastError = compilerError(event.code ?? 'COMPILER_EXIT', event.message ?? line);
+            lastError = compilerError(event.code ?? 'COMPILER_EXIT', event.message ?? line)
           try {
-            onEvent?.(event);
+            onEvent?.(event)
           } catch (error) {
-            fail(error);
+            fail(error)
           }
         },
         () => fail(compilerError('COMPILER_LINE_LIMIT')),
       ),
-    );
+    )
     child.on('error', (error: NodeJS.ErrnoException) =>
       fail(
         error.code === 'ENOENT'
@@ -109,37 +109,37 @@ export function runCompiler<T>(
             ? compilerError('COMPILER_EXECUTABLE_NOT_EXECUTABLE', executable, { cause: error })
             : error,
       ),
-    );
+    )
     child.on('close', (code) => {
       if (options.signal?.aborted) {
-        finish(reject, compilerError('CANCELLED'));
-        return;
+        finish(reject, compilerError('CANCELLED'))
+        return
       }
-      let output: T | null = null;
+      let output: T | null = null
       try {
-        output = JSON.parse(stdout) as T;
+        output = JSON.parse(stdout) as T
       } catch {
         /* Missing or partial pointer: reported below. */
       }
       if (isBatchSummary(output)) {
-        finish(resolve, output as T);
-        return;
+        finish(resolve, output as T)
+        return
       }
       if (code !== 0) {
-        const refusal = output as { code?: string; message?: string } | null;
+        const refusal = output as { code?: string; message?: string } | null
         finish(
           reject,
           refusal?.code
             ? compilerError(refusal.code, refusal.message)
             : (lastError ?? compilerError('COMPILER_EXIT', `exit code ${code}`)),
-        );
-        return;
+        )
+        return
       }
       if (!output) {
-        finish(reject, compilerError('COMPILER_NO_POINTER'));
-        return;
+        finish(reject, compilerError('COMPILER_NO_POINTER'))
+        return
       }
-      finish(resolve, output);
-    });
-  });
+      finish(resolve, output)
+    })
+  })
 }

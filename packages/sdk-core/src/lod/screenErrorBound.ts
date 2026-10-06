@@ -1,5 +1,5 @@
-import { clipWeight } from '../math/primitives/camera.ts';
-import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts';
+import { clipWeight } from '../math/primitives/camera.ts'
+import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts'
 
 /**
  * Certified screen error of a cluster (C4): a majorant, in pixels, of the on-screen displacement of
@@ -51,18 +51,18 @@ export function screenErrorBound(
 ): number {
   // EXPERIMENT switch (`screenErrorVariant.ts`), read here for the whole CPU selection.
   if (screenErrorVariant() !== 'certifiee')
-    return referenceScreenError(error, stretch, depth, focal, near, perspective);
+    return referenceScreenError(error, stretch, depth, focal, near, perspective)
   // Rust mirror (CPU cut walk): `projected_error_at` of `packages/page-codec-wasm/src/cut_error.rs`.
   const reach = radius * stretch,
-    shift = error * stretch;
+    shift = error * stretch
   const nearest = clipWeight(perspective, depth - reach),
     closest = nearest - perspective * shift,
-    side = perspective * (lateral + reach);
+    side = perspective * (lateral + reach)
   // The near plane first: the hypotenuse root used to be taken then discarded when it is reached.
-  if (!(closest > perspective * near)) return Infinity;
-  const slant = Math.sqrt(nearest * nearest + side * side);
-  if (!(slant >= nearest && slant < Infinity)) return Infinity;
-  return ((shift * focal) / nearest) * (slant / closest);
+  if (!(closest > perspective * near)) return Infinity
+  const slant = Math.sqrt(nearest * nearest + side * side)
+  if (!(slant >= nearest && slant < Infinity)) return Infinity
+  return ((shift * focal) / nearest) * (slant / closest)
 }
 
 /**
@@ -81,11 +81,11 @@ export function clusterErrorPixels(
   near: number,
   perspective = 1,
 ): number {
-  if (clusterError === 0) return 0;
-  if (clusterError === Infinity) return Infinity;
+  if (clusterError === 0) return 0
+  if (clusterError === Infinity) return Infinity
   // No guard on the centre: a NaN or ±infinity in x or y yields a `lateral` that
   // `clusterErrorAtDepth` rejects with the same message, its two short-circuits already set here.
-  const lateral = Math.sqrt(centreX * centreX + centreY * centreY);
+  const lateral = Math.sqrt(centreX * centreX + centreY * centreY)
   return clusterErrorAtDepth(
     clusterError,
     stretch,
@@ -95,7 +95,7 @@ export function clusterErrorPixels(
     focal,
     near,
     perspective,
-  );
+  )
 }
 
 /**
@@ -117,7 +117,7 @@ export function frameParametersSound(
     near > 0 &&
     perspective >= 0 &&
     perspective <= 1
-  );
+  )
 }
 
 /**
@@ -134,10 +134,10 @@ export function clusterErrorAtDepth(
   near: number,
   perspective = 1,
 ): number {
-  if (clusterError === 0) return 0;
-  if (clusterError === Infinity) return Infinity;
+  if (clusterError === 0) return 0
+  if (clusterError === Infinity) return Infinity
   if (!frameParametersSound(stretch, focal, near, perspective))
-    throw new Error('Invalid cluster parameters');
+    throw new Error('Invalid cluster parameters')
   return clusterErrorInFrame(
     clusterError,
     stretch,
@@ -147,7 +147,7 @@ export function clusterErrorAtDepth(
     focal,
     near,
     perspective,
-  );
+  )
 }
 
 /**
@@ -176,7 +176,7 @@ export function clusterErrorInFrame(
     !(lateral >= 0 && lateral < Infinity) ||
     !Number.isFinite(depth)
   ) {
-    throw new Error('Invalid cluster parameters');
+    throw new Error('Invalid cluster parameters')
   }
-  return screenErrorBound(clusterError, stretch, lateral, depth, radius, focal, near, perspective);
+  return screenErrorBound(clusterError, stretch, lateral, depth, radius, focal, near, perspective)
 }

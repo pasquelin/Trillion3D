@@ -3,8 +3,8 @@ import {
   MATRIX_VALUES,
   boxTransformBatch,
   multiplyMatrix4Batch,
-} from '../../../sdk-core/src/index.ts';
-import { f64, joue, taille, tampon, f64Views, type MathLot } from './batchLot.ts';
+} from '../../../sdk-core/src/index.ts'
+import { f64, joue, taille, tampon, f64Views, type MathLot } from './batchLot.ts'
 
 /**
  * Initial two batches: box transformation and 4×4 matrix product, both operations
@@ -17,27 +17,27 @@ import { f64, joue, taille, tampon, f64Views, type MathLot } from './batchLot.ts
  */
 
 /** Names under which governor holds medians, and keys of published report. */
-const BOX_TRANSFORM_BATCH = 'boxTransformBatch';
-const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch';
+const BOX_TRANSFORM_BATCH = 'boxTransformBatch'
+const MULTIPLY_MATRIX4_BATCH = 'multiplyMatrix4Batch'
 
 /** A batch of boxes to move by matrices, with its buffers. */
 export interface BoxTransformLot extends MathLot {
   /** `6 · n` numbers: input boxes, `minX, minY, minZ, maxX, maxY, maxZ` per element. */
-  readonly boxes: Float64Array;
+  readonly boxes: Float64Array
   /** `16 · n` numbers: column-major matrices. */
-  readonly mats: Float64Array;
+  readonly mats: Float64Array
   /** `6 · n` numbers: transformed boxes. */
-  readonly out: Float64Array;
+  readonly out: Float64Array
 }
 
 /** A batch of matrix products, with its buffers. */
 export interface MultiplyLot extends MathLot {
   /** The left matrices. */
-  readonly a: Float64Array;
+  readonly a: Float64Array
   /** The right matrices. */
-  readonly b: Float64Array;
+  readonly b: Float64Array
   /** Where the products go. */
-  readonly out: Float64Array;
+  readonly out: Float64Array
 }
 
 /** A batch of `n` boxes transformed by `n` matrices. */
@@ -46,61 +46,61 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
     { type: 'f64', length: n * BOX_VALUES },
     { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES },
     { type: 'f64', length: n * BOX_VALUES },
-  ]);
-  const [inputOffset, matrices, outputOffset] = blocs().map((bloc) => bloc.offset);
+  ])
+  const [inputOffset, matrices, outputOffset] = blocs().map((bloc) => bloc.offset)
   const wasmRun = wasm
     ? () => wasm.math_box_transform_batch(outputOffset, inputOffset, matrices, n)
-    : null;
+    : null
   return {
     n,
     shared: wasm !== null,
     get boxes() {
-      return f64(blocs()[0]);
+      return f64(blocs()[0])
     },
     get mats() {
-      return f64(blocs()[1]);
+      return f64(blocs()[1])
     },
     get out() {
-      return f64(blocs()[2]);
+      return f64(blocs()[2])
     },
     holds: (count) => count > 0 && taille(blocs(), 0) === count * BOX_VALUES,
     run: () => {
-      const b = blocs();
+      const b = blocs()
       return joue(BOX_TRANSFORM_BATCH, n, wasmRun, () =>
         boxTransformBatch(f64(b[2]), f64(b[0]), f64Views(b[1]), n),
-      );
+      )
     },
     release,
-  };
+  }
 }
 
 /** A batch of `n` products `out[i] = a[i] · b[i]`. */
 export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
-  const request = { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES } as const;
-  const { wasm, blocs, release } = await tampon([request, request, request]);
-  const [gauche, right, outputOffset] = blocs().map((bloc) => bloc.offset);
+  const request = { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES } as const
+  const { wasm, blocs, release } = await tampon([request, request, request])
+  const [gauche, right, outputOffset] = blocs().map((bloc) => bloc.offset)
   const wasmRun = wasm
     ? () => wasm.math_multiply_matrix4_batch(outputOffset, gauche, right, n)
-    : null;
+    : null
   return {
     n,
     shared: wasm !== null,
     get a() {
-      return f64(blocs()[0]);
+      return f64(blocs()[0])
     },
     get b() {
-      return f64(blocs()[1]);
+      return f64(blocs()[1])
     },
     get out() {
-      return f64(blocs()[2]);
+      return f64(blocs()[2])
     },
     holds: (count) => count > 0 && taille(blocs(), 0) === count * MATRIX_VALUES,
     run: () => {
-      const b = blocs();
+      const b = blocs()
       return joue(MULTIPLY_MATRIX4_BATCH, n, wasmRun, () =>
         multiplyMatrix4Batch(f64Views(b[2]), f64Views(b[0]), f64Views(b[1]), n),
-      );
+      )
     },
     release,
-  };
+  }
 }

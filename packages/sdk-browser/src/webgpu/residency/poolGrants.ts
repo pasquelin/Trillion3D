@@ -1,24 +1,24 @@
-import { deviceMade } from '../../gpu/core/errorScope.ts';
-import { createPageBuffer } from '../../gpu/page/resize.ts';
-import { tilePoolTexture } from '../tile/pool.ts';
-import { POOL_LANES, type PoolEncoding } from '../../texture/blockFormats.ts';
-import type { GeometryPool } from '../../residency/pools.ts';
-import type { TexturePool, TexturePools } from './memoryBudgets.ts';
+import { deviceMade } from '../../gpu/core/errorScope.ts'
+import { createPageBuffer } from '../../gpu/page/resize.ts'
+import { tilePoolTexture } from '../tile/pool.ts'
+import { POOL_LANES, type PoolEncoding } from '../../texture/blockFormats.ts'
+import type { GeometryPool } from '../../residency/pools.ts'
+import type { TexturePool, TexturePools } from './memoryBudgets.ts'
 import {
   halvedPool,
   outOfMemoryContext,
   type RefusedPool,
   type ShrunkPool,
-} from '../../residency/outOfMemory.ts';
+} from '../../residency/outOfMemory.ts'
 
 /** What a probe is named: never a pool's own label, which a reader of the device looks for. */
-const PROBE_LABEL = 'Trillion3D pool probe';
+const PROBE_LABEL = 'Trillion3D pool probe'
 
-type Diagnose = (phase: string, message: string, context: Record<string, unknown>) => void;
-export type Made = { destroy(): void };
+type Diagnose = (phase: string, message: string, context: Record<string, unknown>) => void
+export type Made = { destroy(): void }
 /** A pool the device granted, and what was allocated for it: the pool itself at prepare, a probe
  *  at a resize (`probed`); `halvings` the refusals it took, 0 when granted as asked. */
-export type Granted<P, R> = { pool: P; made: R; halvings: number };
+export type Granted<P, R> = { pool: P; made: R; halvings: number }
 
 /**
  * Out of memory, absorbed: what a pool needs is allocated under an out-of-memory scope
@@ -31,35 +31,35 @@ export type Granted<P, R> = { pool: P; made: R; halvings: number };
  * the floor was refused: the caller then keeps what it holds).
  */
 async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
-  device: GPUDevice;
-  name: Exclude<RefusedPool, 'target'>;
-  budgetBytes: number;
-  draw: (budgetBytes: number) => P;
-  make: (pool: P) => R;
-  diagnose: Diagnose;
+  device: GPUDevice
+  name: Exclude<RefusedPool, 'target'>
+  budgetBytes: number
+  draw: (budgetBytes: number) => P
+  make: (pool: P) => R
+  diagnose: Diagnose
 }): Promise<Granted<P, R> | undefined> {
-  const { device, name, draw, make, diagnose } = options;
-  let pool = draw(options.budgetBytes);
-  const requestedBytes = pool.allocatedBytes;
+  const { device, name, draw, make, diagnose } = options
+  let pool = draw(options.budgetBytes)
+  const requestedBytes = pool.allocatedBytes
   let made: R | undefined,
-    halvings = 0;
+    halvings = 0
   while (!(made = await deviceMade(device, () => make(pool)))) {
-    const smaller = halvedPool(pool, draw);
+    const smaller = halvedPool(pool, draw)
     if (!smaller) {
-      const refused = outOfMemoryContext(name, requestedBytes);
-      diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, refused);
-      return undefined;
+      const refused = outOfMemoryContext(name, requestedBytes)
+      diagnose('gpu-out-of-memory', `The device refused the ${name} pool's floor`, refused)
+      return undefined
     }
-    pool = smaller;
-    halvings++;
+    pool = smaller
+    halvings++
   }
   if (pool.allocatedBytes !== requestedBytes)
     diagnose(
       'gpu-out-of-memory',
       `The device refused the ${name} pool; drawn smaller`,
       outOfMemoryContext(name, requestedBytes, pool),
-    );
-  return { pool, made, halvings };
+    )
+  return { pool, made, halvings }
 }
 
 /**
@@ -69,8 +69,8 @@ async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
  * budget recorded is the pool's plus `deducted`, the one declared.
  */
 export function budgetBeside(budgetBytes: number, heldBytes: number) {
-  const deducted = Math.min(heldBytes, budgetBytes - 1);
-  return { bytes: budgetBytes - deducted, deducted };
+  const deducted = Math.min(heldBytes, budgetBytes - 1)
+  return { bytes: budgetBytes - deducted, deducted }
 }
 
 /** The geometry pool the device grants for `budgetBytes`, by the session's own rule; `make`
@@ -81,7 +81,7 @@ export const grantedGeometryPool = <R extends Made>(
   draw: (budgetBytes: number) => GeometryPool,
   diagnose: Diagnose,
   make: (pool: GeometryPool) => R,
-) => grantedPool({ device, name: 'geometry', budgetBytes, draw, make, diagnose });
+) => grantedPool({ device, name: 'geometry', budgetBytes, draw, make, diagnose })
 
 /** The texture lane pools the device grants for `budgetBytes`, by the session's own rule; `make`
  *  allocates the pools themselves, or their probe (`textureProbe`). */
@@ -99,11 +99,11 @@ export const grantedTexturePool = <R extends Made>(
     draw: pools.poolFor,
     make,
     diagnose,
-  });
+  })
 
 /** A geometry pool's probe: its buffer, under the probe's label. */
 export const geometryProbe = (device: GPUDevice) => (pool: GeometryPool) =>
-  createPageBuffer(device, pool.allocatedBytes, PROBE_LABEL);
+  createPageBuffer(device, pool.allocatedBytes, PROBE_LABEL)
 
 /** A texture pool's probe: one texture per lane it takes, as the pool makes it, under the probe's
  *  label. */
@@ -123,20 +123,20 @@ export const textureProbe =
           label: PROBE_LABEL,
         }),
       ),
-    );
-    return { destroy: () => textures.forEach((texture) => texture.destroy()) };
-  };
+    )
+    return { destroy: () => textures.forEach((texture) => texture.destroy()) }
+  }
 
 /** The pool a probe was granted, the probe released: a resize allocates the pool itself when it
  *  copies into it, and the probe is gone before. */
 export async function probed<P>(granted: Promise<Granted<P, Made> | undefined>) {
-  const result = await granted;
-  result?.made.destroy();
-  return result?.pool;
+  const result = await granted
+  result?.made.destroy()
+  return result?.pool
 }
 
 /** True when two texture pools hold the same layers in every lane: nothing to replace. */
 export const sameLayers = (a: TexturePool, b: TexturePool) =>
   (['color', 'data'] as const).every((kind) =>
     POOL_LANES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
-  );
+  )

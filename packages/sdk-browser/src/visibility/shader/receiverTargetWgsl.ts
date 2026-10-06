@@ -10,21 +10,21 @@
  * zero exponent field is no receiver. `receiverOffsetReaders.test.ts` holds the round trip to
  * these bounds.
  */
-export const RECEIVER_TARGET_FORMAT: GPUTextureFormat = 'rg32uint';
-export const RECEIVER_TARGET_BYTES = 8;
+export const RECEIVER_TARGET_FORMAT: GPUTextureFormat = 'rg32uint'
+export const RECEIVER_TARGET_BYTES = 8
 
 /** The plane's octahedral form: the resolve encodes (`receiverOct`), the reader decodes
  *  (`receiverUnoct`); each side holds only its own half. */
 const OCT_ENCODE_WGSL = `fn receiverOct(n:vec3f)->vec2f{
  let p=n.xy/(abs(n.x)+abs(n.y)+abs(n.z));
  return select(p,(1.0-abs(p.yx))*select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0)),n.z<0.0);
-}`;
+}`
 const OCT_DECODE_WGSL = `fn receiverUnoct(p:vec2f)->vec3f{
  var n=vec3f(p,1.0-abs(p.x)-abs(p.y));
  let k=saturate(-n.z);
  n=vec3f(n.xy+select(vec2f(k),vec2f(-k),n.xy>=vec2f(0.0)),n.z);
  return normalize(n);
-}`;
+}`
 
 /** The resolve's write: `storeReceiver` with the offset and the (unnormalised) plane; a zero plane
  *  is no receiver. */
@@ -42,7 +42,7 @@ fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
  let x=q.x|(q.y<<10u)|(u32(e+27)<<20u)|((k.x&127u)<<25u);
  let y=(k.x>>7u)|(k.y<<6u)|(k.z<<19u);
  textureStore(receiverOutput,vec2i(pos),vec4u(x,y,0u,0u));
-}`;
+}`
 
 /** The reader's `shadowReceiver(pixel)`, the decode's own result (`receiverOffsetWgsl.ts`): the
  *  pixel's texel (`shadowReceiverTexel`) decoded (`shadowReceiverOf`), each for a reader that loads
@@ -60,4 +60,4 @@ fn shadowReceiverOf(t:vec2u)->ShadowReceiver{
  let offset=vec3f(vec3i(k)-vec3i(4096))/4095.0*exp2(f32(i32(field)-27));
  let plane=receiverUnoct(vec2f(f32(t.x&1023u),f32((t.x>>10u)&1023u))/1023.0*2.0-1.0);
  return ShadowReceiver(offset,plane);
-}`;
+}`

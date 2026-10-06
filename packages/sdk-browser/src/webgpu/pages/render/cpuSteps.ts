@@ -1,21 +1,21 @@
-import { addCpuSteps } from '../../../stage/cpuSteps.ts';
-import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts';
+import { addCpuSteps } from '../../../stage/cpuSteps.ts'
+import { CPU_STEP, CPU_STEP_STAGES } from './cpuStepTable.ts'
 import {
   frameCostAuditEnabled,
   gpuFrameCostSnapshot,
   logFrameCostAudit,
-} from '../../../frame/costAudit.ts';
-import type { HostCpuStep } from '../../../host/cpuProfile.ts';
-import { debugMode } from '../../../host/debugMode.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+} from '../../../frame/costAudit.ts'
+import type { HostCpuStep } from '../../../host/cpuProfile.ts'
+import { debugMode } from '../../../host/debugMode.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** Deposits the image's CPU bounds into the public per-stage profile, when it is mounted. */
 function recordStages(rt: WebgpuPagesRuntime) {
   const { timing, lights, bounce } = rt,
-    stages = timing.stages;
-  if (!stages) return;
-  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add));
-  const tiles = rt.vis.textures?.counters;
+    stages = timing.stages
+  if (!stages) return
+  stages.frameCpu((add) => addCpuSteps(CPU_STEP_STAGES, timing.cpuProfile.row, add))
+  const tiles = rt.vis.textures?.counters
   if (tiles)
     stages.setCounts('textures', {
       tilesRequested: tiles.requested,
@@ -24,13 +24,13 @@ function recordStages(rt: WebgpuPagesRuntime) {
       tilesServed: tiles.served,
       tilesPending: tiles.pending,
       tilesDeferred: tiles.deferred,
-    });
+    })
   if (!tiles?.worked)
     stages.setReason('textures', {
       cpu: 'no image feedback: no tile to serve',
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
-    });
-  stages.setCounts('lightLists', { activeLights: lights.lightsActive });
+    })
+  stages.setCounts('lightLists', { activeLights: lights.lightsActive })
   // What bounce actually did: probes and rays, never a duration. A still, converged scene encodes
   // no pass, so the stage stays "unmeasured" and not zero.
   stages.setCounts('bounce', {
@@ -42,17 +42,17 @@ function recordStages(rt: WebgpuPagesRuntime) {
     // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
     // and it is the duration that decides this count, never the reverse.
     budgetFraction: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
-  });
+  })
   if (!bounce.probes)
     stages.setReason('bounce', {
       cpu: bounce.reason ?? 'bounce absent',
       gpu: bounce.reason ?? 'bounce absent',
-    });
+    })
   // Diagnostic only: transparent overdraw count, when the variant mounts it. The per-pixel maximum
   // is not measurable by occlusion query: it is not published.
-  const overdraw = rt.blendState.overdraw;
+  const overdraw = rt.blendState.overdraw
   if (overdraw)
-    stages.setCounts('transparents', overdraw.pull(rt.gpu.targetSize[0] * rt.gpu.targetSize[1]));
+    stages.setCounts('transparents', overdraw.pull(rt.gpu.targetSize[0] * rt.gpu.targetSize[1]))
   // Occupancy of the cut: how many clusters the DAG holds, how many the frustum and nodes reject,
   // how many the cut keeps. That ratio says what a kernel that visits every cluster costs versus
   // only the live ones.
@@ -60,13 +60,13 @@ function recordStages(rt: WebgpuPagesRuntime) {
     clustersRejected: rt.run.frustumRejected,
     pagesWanted: rt.run.visible,
     dagClusters: rt.run.gpuSelection?.pageCount ?? 0,
-  });
-  stages.setCounts('animations', timing.worldCounts);
-  stages.setCounts('partition', timing.partitionCounts);
-  timing.encodeCounts.drawCalls = rt.run.gpuDrawCalls;
-  timing.encodeCounts.blendDrawCalls = rt.run.blendDrawCalls;
-  timing.encodeCounts.computeDispatches = rt.run.gpuComputeDispatches;
-  stages.setCounts('encode', timing.encodeCounts);
+  })
+  stages.setCounts('animations', timing.worldCounts)
+  stages.setCounts('partition', timing.partitionCounts)
+  timing.encodeCounts.drawCalls = rt.run.gpuDrawCalls
+  timing.encodeCounts.blendDrawCalls = rt.run.blendDrawCalls
+  timing.encodeCounts.computeDispatches = rt.run.gpuComputeDispatches
+  stages.setCounts('encode', timing.encodeCounts)
 }
 
 /**
@@ -75,29 +75,29 @@ function recordStages(rt: WebgpuPagesRuntime) {
  * such a loop needs.
  */
 export function publishCpuProfile(rt: WebgpuPagesRuntime) {
-  const { timing, run, diag } = rt;
+  const { timing, run, diag } = rt
   if (
     (diag.traceEnabled && !frameCostAuditEnabled()) ||
     !timing.cpuSample ||
     run.frame === timing.lastCpuLogFrame
   )
-    return;
-  const now = performance.now();
-  if (now - timing.lastCpuLogMs < 2000) return;
-  timing.lastCpuLogMs = now;
-  timing.lastCpuLogFrame = run.frame;
+    return
+  const now = performance.now()
+  if (now - timing.lastCpuLogMs < 2000) return
+  timing.lastCpuLogMs = now
+  timing.lastCpuLogFrame = run.frame
   const details = {
     ...timing.cpuSample,
     steps: timing.cpuProfile.summary(),
     audit: gpuFrameCostSnapshot(rt),
-  };
-  diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details);
-  logFrameCostAudit('webgpu-page-raster', { kind: 'cpu-profile', ...details });
+  }
+  diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details)
+  logFrameCostAudit('webgpu-page-raster', { kind: 'cpu-profile', ...details })
 }
 
 /** Deposits the duration of a host-sampled step: arrivals, wait, retain, submit. */
 export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: number) {
-  rt.timing.cpuProfile.row[CPU_STEP[step]] = ms;
+  rt.timing.cpuProfile.row[CPU_STEP[step]] = ms
 }
 
 /**
@@ -108,13 +108,13 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
  * channel or the frame audit, which publish them.
  */
 export function endCpuFrame(rt: WebgpuPagesRuntime) {
-  const { timing, run } = rt;
-  if (!timing.rowFilled) return;
-  timing.rowFilled = false;
-  if (!(timing.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return;
-  const total = timing.cpuProfile.row[CPU_STEP.totalMs];
-  timing.cpuProfile.record(run.frame, total);
-  timing.cpuWindow.record(run.frame, total);
-  recordStages(rt);
-  publishCpuProfile(rt);
+  const { timing, run } = rt
+  if (!timing.rowFilled) return
+  timing.rowFilled = false
+  if (!(timing.stages || rt.diag.listened || debugMode() || frameCostAuditEnabled())) return
+  const total = timing.cpuProfile.row[CPU_STEP.totalMs]
+  timing.cpuProfile.record(run.frame, total)
+  timing.cpuWindow.record(run.frame, total)
+  recordStages(rt)
+  publishCpuProfile(rt)
 }

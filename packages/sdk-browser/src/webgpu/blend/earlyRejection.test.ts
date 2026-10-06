@@ -1,8 +1,8 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createWebgpuBlendPipelines } from './pipelines.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createWebgpuBlendPipelines } from './pipelines.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 /**
  * Early depth rejection of the blend pass, guarded by its fragment stage.
@@ -19,30 +19,30 @@ import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts';
  * written, and a pipeline variant to avoid it would be code with no gain.
  */
 test('the blend fragment stage writes nothing to memory', () => {
-  const fragment = BLEND_SHADER.slice(BLEND_SHADER.indexOf('fn blendFragment('));
-  assert.ok(fragment.length > 0, 'the module does carry a fragment stage');
+  const fragment = BLEND_SHADER.slice(BLEND_SHADER.indexOf('fn blendFragment('))
+  assert.ok(fragment.length > 0, 'the module does carry a fragment stage')
   for (const interdit of [/textureStore/, /atomic/, /@builtin\(frag_depth\)/]) {
-    assert.doesNotMatch(fragment, interdit, `${interdit} forbidden in the fragment stage`);
+    assert.doesNotMatch(fragment, interdit, `${interdit} forbidden in the fragment stage`)
   }
   // No writable storage binding, wherever it is declared: the driver reads the declaration,
   // not the use, to decide early rejection.
-  assert.doesNotMatch(BLEND_SHADER, /var<storage,\s*read_write>/);
-  assert.match(BLEND_SHADER, /var<storage,read> proxy:/, 'the proxy stays read, the ray is traced');
-});
+  assert.doesNotMatch(BLEND_SHADER, /var<storage,\s*read_write>/)
+  assert.match(BLEND_SHADER, /var<storage,read> proxy:/, 'the proxy stays read, the ray is traced')
+})
 
 test('the blend layout declares no writable storage buffer', async () => {
-  const { device } = fakeDevice();
-  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
+  const { device } = fakeDevice()
+  const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, [])
   const entries = (blendBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] })
-    .entries;
+    .entries
   const inscriptibles = entries.filter(
     (entry) =>
       (entry.visibility & GPUShaderStage.FRAGMENT) !== 0 && entry.buffer?.type === 'storage',
-  );
-  assert.deepEqual(inscriptibles, [], 'a single one would be enough to lose early rejection');
+  )
+  assert.deepEqual(inscriptibles, [], 'a single one would be enough to lose early rejection')
   // The proxy is there, and read-only: the far surface keeps its sun shadow.
   assert.ok(
     entries.some((entry) => entry.buffer?.type === 'read-only-storage'),
     'the blend storage buffers are all read',
-  );
-});
+  )
+})

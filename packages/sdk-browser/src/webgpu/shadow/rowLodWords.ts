@@ -1,26 +1,26 @@
-import { transformAffinePoint } from '../../../../sdk-core/src/index.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
-import { writeSplitDouble } from '../../gpu/partition/contract.ts';
-import { worldStretch } from '../../page/cut/logic.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { MovedBox } from '../../page/selection/types.ts';
-import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
-import { rowGrowth } from '../../hiz/corners.ts';
-import type { Placements } from '../../page/selection/placements.ts';
+import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { writeSplitDouble } from '../../gpu/partition/contract.ts'
+import { worldStretch } from '../../page/cut/logic.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { MovedBox } from '../../page/selection/types.ts'
+import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts'
+import { rowGrowth } from '../../hiz/corners.ts'
+import type { Placements } from '../../page/selection/placements.ts'
 
 /** Own/parent world centres and errors, their low residues, then two world radii, the radius of
  *  the row's whole object (its root's world box, 0 for none) and padding. */
-export const ROW_LOD_FLOATS = 20;
+export const ROW_LOD_FLOATS = 20
 /** The error a row with no coarser form carries as its parent's, the largest float: every page
  *  wants finer. */
-const NO_PARENT = 3.4e38;
+const NO_PARENT = 3.4e38
 
 const centre = new Float64Array(3),
-  moved = new Float64Array(4);
+  moved = new Float64Array(4)
 /** The sphere of `box`, in a scratch the next call rewrites. */
 function movedSphere({ min, max }: MovedBox) {
-  sphereFromBounds(moved, 0, min[0], min[1], min[2], max[0], max[1], max[2]);
-  return moved;
+  sphereFromBounds(moved, 0, min[0], min[1], min[2], max[0], max[1], max[2])
+  return moved
 }
 
 /** The world centre of local sphere `sphere` and its world error `error`, at `out[at]`. */
@@ -31,10 +31,9 @@ function writeError(
   sphere: ArrayLike<number>,
   error: number,
 ) {
-  transformAffinePoint(centre, e, sphere[0], sphere[1], sphere[2], 0);
-  for (let axis = 0; axis < 3; axis++)
-    writeSplitDouble(out, at + axis, at + 8 + axis, centre[axis]);
-  out[at + 3] = error;
+  transformAffinePoint(centre, e, sphere[0], sphere[1], sphere[2], 0)
+  for (let axis = 0; axis < 3; axis++) writeSplitDouble(out, at + axis, at + 8 + axis, centre[axis])
+  out[at + 3] = error
 }
 
 /**
@@ -55,14 +54,14 @@ export function writeRowLod(
   ready = true,
   childReady = true,
 ) {
-  const at = row * ROW_LOD_FLOATS;
-  out.fill(0, at, at + ROW_LOD_FLOATS);
-  out[at + 7] = NO_PARENT;
-  const box = root?.worldBox;
+  const at = row * ROW_LOD_FLOATS
+  out.fill(0, at, at + ROW_LOD_FLOATS)
+  out[at + 7] = NO_PARENT
+  const box = root?.worldBox
   // The object's bounding radius: the screen-size cull is an instance test.
   if (box && box[3] >= box[0])
-    out[at + 18] = 0.5 * hypot3(box[3] - box[0], box[4] - box[1], box[5] - box[2]);
-  if (!root || !rec?.sphere || rec.lodError === undefined) return;
+    out[at + 18] = 0.5 * hypot3(box[3] - box[0], box[4] - box[1], box[5] - box[2])
+  if (!root || !rec?.sphere || rec.lodError === undefined) return
   // A page bounded where its vertices are (`rowBox`, #573) takes its box's sphere, which no reach
   // grows; its errors still grow by the reach, as far as the deformation carries a finer form from
   // the coarser one — a dynamic page, a leaf with no coarser form, has none to grow.
@@ -70,14 +69,14 @@ export function writeRowLod(
     e = root.world.elements,
     reach = 2 * (root.reach ?? 0),
     scale = worldStretch(root),
-    sphere = rec.moved ? movedSphere(rec.moved) : rec.sphere;
-  const own = rec.lodError + ((rec.level ?? 0) > 0 ? reach : 0);
-  writeError(out, at, e, sphere, childReady ? own * scale : 0);
-  out[at + 16] = (sphere[3] + grow) * scale;
-  const parent = rec.parentError ?? -1;
-  if (!ready) out[at + 7] = 0;
+    sphere = rec.moved ? movedSphere(rec.moved) : rec.sphere
+  const own = rec.lodError + ((rec.level ?? 0) > 0 ? reach : 0)
+  writeError(out, at, e, sphere, childReady ? own * scale : 0)
+  out[at + 16] = (sphere[3] + grow) * scale
+  const parent = rec.parentError ?? -1
+  if (!ready) out[at + 7] = 0
   else if (parent >= 0 && rec.parentSphere) {
-    writeError(out, at + 4, e, rec.parentSphere, (parent + reach) * scale);
-    out[at + 17] = (rec.parentSphere[3] + grow) * scale;
+    writeError(out, at + 4, e, rec.parentSphere, (parent + reach) * scale)
+    out[at + 17] = (rec.parentSphere[3] + grow) * scale
   }
 }

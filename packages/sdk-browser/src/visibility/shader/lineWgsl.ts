@@ -1,4 +1,4 @@
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
 /**
  * THE SCREEN-SPACE LINE: how a corner of a line quad (`drawnTriangles`, sdk-core `drawn.ts`)
@@ -29,7 +29,7 @@ export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,view
  let n=length(t);
  if(n==0.0){return c;}
  return vec4f(c.xy+vec2f(-t.y,t.x)*(width*pixelRatio/n)/viewport*c.w,c.z,c.w);
-}`;
+}`
 
 /** The same corner in the WebGL2 program's forward depth (`../../webgl/cluster/shaders.ts`). */
 export const LINE_CLIP_GLSL = `vec4 lineClip(vec4 clip,vec4 along,float width,vec2 viewport,float pixelRatio){
@@ -39,7 +39,7 @@ export const LINE_CLIP_GLSL = `vec4 lineClip(vec4 clip,vec4 along,float width,ve
  float n=length(t);
  if(n==0.0)return c;
  return vec4(c.xy+vec2(-t.y,t.x)*(width*pixelRatio/n)/viewport*c.w,c.z,c.w);
-}`;
+}`
 
 /** `LINE_CLIP_WGSL` on the CPU, statement for statement, in the engine's reversed depth: the
  *  software raster (`../projection.ts`) widens a line quad's corner with it. Writes into `out`,
@@ -53,17 +53,17 @@ export function lineClip(
   pixelRatio: number,
 ) {
   const f = clip[3] - clip[2],
-    g = along[3] - along[2];
-  const k = f < 0 && g !== 0 ? f / g : 0;
-  for (let i = 0; i < 4; i++) out[i] = clip[i] - along[i] * k;
+    g = along[3] - along[2]
+  const k = f < 0 && g !== 0 ? f / g : 0
+  for (let i = 0; i < 4; i++) out[i] = clip[i] - along[i] * k
   const tx = (along[0] * out[3] - out[0] * along[3]) * viewport[0],
-    ty = (along[1] * out[3] - out[1] * along[3]) * viewport[1];
-  const n = hypot2(tx, ty);
-  if (n === 0) return out;
-  const s = (width * pixelRatio) / n;
-  out[0] += ((-ty * s) / viewport[0]) * out[3];
-  out[1] += ((tx * s) / viewport[1]) * out[3];
-  return out;
+    ty = (along[1] * out[3] - out[1] * along[3]) * viewport[1]
+  const n = hypot2(tx, ty)
+  if (n === 0) return out
+  const s = (width * pixelRatio) / n
+  out[0] += ((-ty * s) / viewport[0]) * out[3]
+  out[1] += ((tx * s) / viewport[1]) * out[3]
+  return out
 }
 
 /**
@@ -78,16 +78,16 @@ export function lineClip(
 export const LINE_DASH_WGSL = `fn lineDash(at:f32,dash:vec2f)->bool{
  let period=dash.x+dash.y;
  return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
-}`;
+}`
 
 /** The same dash in the WebGL2 program (`../../webgl/cluster/shaders.ts`). */
 export const LINE_DASH_GLSL = `bool lineDash(float at,vec2 dash){
  float period=dash.x+dash.y;
  return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
-}`;
+}`
 
 /** `LINE_DASH_WGSL` on the CPU, statement for statement: the software raster's dash. */
 export function lineDash(at: number, dashSize: number, gapSize: number) {
-  const period = dashSize + gapSize;
-  return dashSize <= 0 || at - period * Math.floor(at / period) <= dashSize;
+  const period = dashSize + gapSize
+  return dashSize <= 0 || at - period * Math.floor(at / period) <= dashSize
 }

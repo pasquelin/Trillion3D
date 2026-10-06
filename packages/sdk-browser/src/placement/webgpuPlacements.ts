@@ -1,24 +1,24 @@
-import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
+import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts'
 import {
   declareInPlace,
   declareOwnMove,
   forgetOwnMoves,
   noteOwnMove,
   ownsMove,
-} from '../webgpu/pages/render/movedClusters.ts';
-import { staleTemporalBox } from '../hiz/staleRegions.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED } from './update.ts';
-import { placedBy, type PlacementRows } from './rows.ts';
+} from '../webgpu/pages/render/movedClusters.ts'
+import { staleTemporalBox } from '../hiz/staleRegions.ts'
+import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED } from './update.ts'
+import { placedBy, type PlacementRows } from './rows.ts'
 
 /** Hands a root that was parked or taken, or began or stopped casting, to the GPU cut. */
 export const flipWorld =
   (rt: WebgpuPagesRuntime) => (rank: number, root: { parked?: boolean; mark?: number }) => {
-    rt.run.gpuSelection?.parkWorld(rank, !!root.parked);
-    rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0);
+    rt.run.gpuSelection?.parkWorld(rank, !!root.parked)
+    rt.run.gpuSelection?.markWorld(rank, root.mark ?? 0)
     // Its rows' words say whether it casts (`MOBILITY_SHADOWLESS`): the caster passes skip them.
-    rt.lights.mobility.touch(rank);
-  };
+    rt.lights.mobility.touch(rank)
+  }
 
 /**
  * Rows of an instance buffer the WebGPU page raster was opened with were written. The roots read
@@ -37,7 +37,7 @@ export function updateWebgpuPlacements(
   to: number,
 ) {
   const { run, layout, lights } = rt,
-    { mobility } = lights;
+    { mobility } = lights
   // Each moved root stales its own pages, its moving casters only once it was moving already
   // (`../webgpu/shadow/mobility.ts`): the plan keeps the boxes apart (`changes.ts`). A root that
   // only moved declares its clusters at its last pose and its new one (`movedClusters.ts`); the
@@ -50,30 +50,30 @@ export function updateWebgpuPlacements(
     flipWorld(rt),
     (rank, world) => {
       // Weighed once: a pose that moved is noted at its last pose, then taken as a move.
-      if (!mobility.poseOf(rank)) return mobility.move(rank, world);
-      if (mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)) return MOVE_NONE;
-      noteOwnMove(rt, rank);
-      return mobility.move(rank, world, true);
+      if (!mobility.poseOf(rank)) return mobility.move(rank, world)
+      if (mobility.holds(rank, world, layout.selectionRoots[rank]?.localBox)) return MOVE_NONE
+      noteOwnMove(rt, rank)
+      return mobility.move(rank, world, true)
     },
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
     (min, max, movingOnly, rank, moveOnly, move) => {
-      if (moveOnly && ownsMove(rank)) declareOwnMove(rt, rank, !movingOnly);
+      if (moveOnly && ownsMove(rank)) declareOwnMove(rt, rank, !movingOnly)
       // A root shown or hidden in place is still as it was: the static slice holds it unless it
       // moves already, and its clusters say which pages it covers (`declareInPlace`).
-      else if (move === MOVE_NONE) declareInPlace(rt, rank, min, max, mobility.moves(rank));
+      else if (move === MOVE_NONE) declareInPlace(rt, rank, min, max, mobility.moves(rank))
       // A first move — of a root parked past the static threshold too, whose box
       // was last made at a pose rounded again at rest, so it declares its row's — leaves the
       // static slice: the invalidation uses the cache state from before the update.
       // Moving before this update: moving now, and not by this first move.
-      else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank));
-      staleTemporalBox(run.temporalHizState, min, max);
+      else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank))
+      staleTemporalBox(run.temporalHizState, min, max)
     },
-  );
-  forgetOwnMoves();
+  )
+  forgetOwnMoves()
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
-  if (!moved && !placedBy(rt.blendState.blendGpu, rows)) return;
+  if (!moved && !placedBy(rt.blendState.blendGpu, rows)) return
   // Poses moved and rows were parked or taken: no node entered or left the source graph, so
   // the watched set stands (`frame/gateCore.ts`), and the host index already holds its worlds.
-  run.gate.engineMovedInPlace();
+  run.gate.engineMovedInPlace()
 }

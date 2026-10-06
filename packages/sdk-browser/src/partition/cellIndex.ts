@@ -9,27 +9,27 @@
  * tested. A page past the keep sphere with no cell placed is closed again: the index holds the
  * pages the view reached, never the world's, and a frame's work follows what its sphere holds.
  */
-import type { readCellPage, TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { TableSlot } from '../../../sdk-core/src/scene/core/tablePages.ts';
-import type { StreamPage } from '../streaming/types.ts';
-import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts';
-import { boxDistance } from './plan.ts';
+import type { readCellPage, TableCell } from '../../../sdk-core/src/scene/core/tablePartition.ts'
+import type { TableSlot } from '../../../sdk-core/src/scene/core/tablePages.ts'
+import type { StreamPage } from '../streaming/types.ts'
+import { boxed, type Boxed, type CellBoxes, type Declared } from './boxes.ts'
+import { boxDistance } from './plan.ts'
 
 /** A page of the index: its file, its boxes, and once opened the pages it lists or its cells. */
 export type IndexPage = Declared & {
-  slot: StreamPage;
-  body: { pages: IndexPage[] } | { cells: number[] } | null;
-};
+  slot: StreamPage
+  body: { pages: IndexPage[] } | { cells: number[] } | null
+}
 /** A cell the index holds: its record, its file's address, its boxes. */
-type Cell = TableCell & { item: Boxed };
+type Cell = TableCell & { item: Boxed }
 /** A page's body as the pool reads it. */
-export type PageBody = ReturnType<typeof readCellPage>;
+export type PageBody = ReturnType<typeof readCellPage>
 
 /** The index under the root's `slots`, whose files lie beside `base`, boxed through `boxes`. */
 export function createCellIndex(slots: readonly TableSlot[], base: string, boxes: CellBoxes) {
-  const cells = new Map<number, Cell>();
+  const cells = new Map<number, Cell>()
   let opened = 0,
-    forgotten: string[] = [];
+    forgotten: string[] = []
   const pageOf = ({ page, bounds, parents }: TableSlot): IndexPage => ({
     slot: { ...page, url: new URL(page.url, base).href },
     declared: bounds,
@@ -37,32 +37,32 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
     box: new Float64Array(6),
     written: -1,
     body: null,
-  });
-  const top = slots.map(pageOf);
+  })
+  const top = slots.map(pageOf)
   const distance = (cell: number, eye: ArrayLike<number>) =>
-    boxDistance(boxes.bounds(cells.get(cell)!.item), eye);
+    boxDistance(boxes.bounds(cells.get(cell)!.item), eye)
   /** Whether `page` holds no cell of `held`. */
   const idle = (page: IndexPage, held: { has(cell: number): boolean }): boolean =>
     !page.body ||
     ('pages' in page.body
       ? page.body.pages.every((below) => idle(below, held))
-      : !page.body.cells.some((cell) => held.has(cell)));
+      : !page.body.cells.some((cell) => held.has(cell)))
   const close = (page: IndexPage) => {
-    const body = page.body;
-    if (!body) return;
-    opened--;
-    page.body = null;
+    const body = page.body
+    if (!body) return
+    opened--
+    page.body = null
     if ('pages' in body)
       for (const below of body.pages) {
-        forgotten.push(below.slot.url);
-        close(below);
+        forgotten.push(below.slot.url)
+        close(below)
       }
     else
       for (const cell of body.cells) {
-        forgotten.push(cells.get(cell)!.url);
-        cells.delete(cell);
+        forgotten.push(cells.get(cell)!.url)
+        cells.delete(cell)
       }
-  };
+  }
   return {
     /** The root's pages, the files the streamer's catalogue holds at open. */
     slots: top.map((page) => page.slot),
@@ -72,24 +72,24 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
     stats: () => ({ pages: opened, cells: cells.size }),
     /** Opens `page` on its decoded `body`; returns the files it names, which the catalogue takes. */
     open(page: IndexPage, body: PageBody): StreamPage[] {
-      opened++;
+      opened++
       if (body.pages) {
-        const pages = body.pages.map(pageOf);
-        page.body = { pages };
-        return pages.map((below) => below.slot);
+        const pages = body.pages.map(pageOf)
+        page.body = { pages }
+        return pages.map((below) => below.slot)
       }
       // A cell is its cook's rank, whatever page opens first: the world roots name it so (#1237).
       const ids = body.cells.map((record, at) => {
-        const url = new URL(record.url, base).href;
-        const id = body.first + at;
-        cells.set(id, { ...record, url, item: boxed(record.parents) });
-        return id;
-      });
-      page.body = { cells: ids };
+        const url = new URL(record.url, base).href
+        const id = body.first + at
+        cells.set(id, { ...record, url, item: boxed(record.parents) })
+        return id
+      })
+      page.body = { cells: ids }
       return ids.map((id) => {
-        const { url, bytes, sha256 } = cells.get(id)!;
-        return { url, bytes, sha256 };
-      });
+        const { url, bytes, sha256 } = cells.get(id)!
+        return { url, bytes, sha256 }
+      })
     },
     /**
      * Walks the pages from the root: visits each cell with a box within `radius` of `eye`, with
@@ -106,32 +106,32 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
       unread: (page: IndexPage, distance: number) => void,
     ) {
       const tested = { pages: 0, cells: 0 },
-        open = [...top];
+        open = [...top]
       for (let page = open.pop(); page; page = open.pop()) {
-        tested.pages++;
-        const away = boxDistance(boxes.around(page), eye);
+        tested.pages++
+        const away = boxDistance(boxes.around(page), eye)
         if (away > radius) {
-          if (away > keep && idle(page, held)) close(page);
-        } else if (!page.body) unread(page, away);
-        else if ('pages' in page.body) open.push(...page.body.pages);
+          if (away > keep && idle(page, held)) close(page)
+        } else if (!page.body) unread(page, away)
+        else if ('pages' in page.body) open.push(...page.body.pages)
         else
           for (const cell of page.body.cells) {
-            tested.cells++;
-            const at = distance(cell, eye);
-            if (at <= radius) visit(cell, at);
+            tested.cells++
+            const at = distance(cell, eye)
+            if (at <= radius) visit(cell, at)
           }
       }
-      return tested;
+      return tested
     },
     /** How far `cell`'s nearest box lies from `eye`. */
     distance,
     /** The files the pages closed since the last call named: the catalogue lets them go. */
     forgotten() {
-      const out = forgotten;
-      forgotten = [];
-      return out;
+      const out = forgotten
+      forgotten = []
+      return out
     },
-  };
+  }
 }
 
-export type CellIndex = ReturnType<typeof createCellIndex>;
+export type CellIndex = ReturnType<typeof createCellIndex>

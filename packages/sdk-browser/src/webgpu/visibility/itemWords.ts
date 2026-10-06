@@ -1,10 +1,10 @@
-import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts';
-import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts';
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
-import { visBin } from '../pages/prepare/pipelineFor.ts';
-import { createDirtyRows, forEachDirtyRun, forEachRewrittenRun } from '../row/dirty.ts';
-import type { GpuDraw } from '../../gpu/draw/draw.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { CULL_BINS, DRAW_ITEM_U32 } from '../../gpu/draw/draw.ts'
+import { ROW_INDEX_WORDS, rowCutout } from '../row/pageRow.ts'
+import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { visBin } from '../pages/prepare/pipelineFor.ts'
+import { createDirtyRows, forEachDirtyRun, forEachRewrittenRun } from '../row/dirty.ts'
+import type { GpuDraw } from '../../gpu/draw/draw.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /**
  * The five words of a draw record — the row, its pipeline bin, its page index in the catalogue, its
@@ -30,7 +30,7 @@ export function createDrawItemWordsHold(slots: number) {
     /** Sum of triangles of rows `[0, heldCount)`. */
     total: 0,
     heldCount: 0,
-  };
+  }
 }
 
 /**
@@ -43,60 +43,60 @@ export function refreshDrawItemWords(
   layerSlots: number,
   target: GpuDraw | undefined,
 ) {
-  const { rows, itemWordsHold: hold } = rt.layout;
+  const { rows, itemWordsHold: hold } = rt.layout
   // Rows that just left the drawable rank leave the total: a loop bounded by what changed, never by
   // the resident-row count.
   for (let row = rows.packedCount; row < hold.heldCount; row++) {
-    hold.total -= hold.triangles[row];
-    hold.triangles[row] = 0;
+    hold.total -= hold.triangles[row]
+    hold.triangles[row] = 0
   }
   // A row that enters the drawable rank enters with its words: it is dirty, or it has just been
   // written. Rewriting it costs what the rank grew, and nothing more.
-  const stale = hold.layerSlots !== layerSlots || hold.target !== target;
-  hold.layerSlots = layerSlots;
-  hold.target = target;
-  if (!stale) forEachRewrittenRun(rows, hold.heldCount, rt, writeRun);
-  else if (rows.packedCount > 0) writeRun(rt, 0, rows.packedCount - 1);
-  hold.heldCount = rows.packedCount;
-  return hold;
+  const stale = hold.layerSlots !== layerSlots || hold.target !== target
+  hold.layerSlots = layerSlots
+  hold.target = target
+  if (!stale) forEachRewrittenRun(rows, hold.heldCount, rt, writeRun)
+  else if (rows.packedCount > 0) writeRun(rt, 0, rows.packedCount - 1)
+  hold.heldCount = rows.packedCount
+  return hold
 }
 
 /** Writes the words of rows `[from, to]` and marks them to send. */
 function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  const { rows, drawItemWords, itemWordsHold: hold } = rt.layout;
+  const { rows, drawItemWords, itemWordsHold: hold } = rt.layout
   const rowWords = PAGE_INFO_STRIDE / 4,
     ints = rows.pageTableInts,
-    layerSlots = hold.layerSlots;
+    layerSlots = hold.layerSlots
   for (let row = from; row <= to; row++) {
     const rec = rows.packedRecs[row]!,
       word = row * DRAW_ITEM_U32,
-      rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]];
-    const cull = visBin(rec, rank, rt.layout.selectionRoots);
-    drawItemWords[word] = row;
+      rank = rt.layout.placement.rootOfPacked[rows.packedPageIndex[row]]
+    const cull = visBin(rec, rank, rt.layout.selectionRoots)
+    drawItemWords[word] = row
     // The cutout bit `maskKeep` reads on the GPU, from the words this image uploads.
-    drawItemWords[word + 1] = ints && rowCutout(ints, row) ? cull + CULL_BINS : cull;
-    drawItemWords[word + 2] = rows.packedPageIndex[row];
+    drawItemWords[word + 1] = ints && rowCutout(ints, row) ? cull + CULL_BINS : cull
+    drawItemWords[word + 2] = rows.packedPageIndex[row]
     // The coplanar layer belongs to the table row, not to the image: it travels with the item.
-    drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);
+    drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots)
     // Triangles the row draws are those of its page-table row — what the GPU actually draws — not
     // those the cluster declares. The GPU partition weighs an occlusion reject with them, and the
     // table total follows without a per-image walk.
-    const triangles = ints ? ints[row * rowWords + ROW_INDEX_WORDS] / 3 : 0;
-    drawItemWords[word + 4] = triangles;
-    hold.total += triangles - hold.triangles[row];
-    hold.triangles[row] = triangles;
+    const triangles = ints ? ints[row * rowWords + ROW_INDEX_WORDS] / 3 : 0
+    drawItemWords[word + 4] = triangles
+    hold.total += triangles - hold.triangles[row]
+    hold.triangles[row] = triangles
   }
-  hold.pending.mark(from, to);
+  hold.pending.mark(from, to)
 }
 
 /** Sends the pending rows' words to the compaction, run by run, then holds nothing pending. */
 export function sendDrawItemWords(rt: WebgpuPagesRuntime) {
-  const { pending } = rt.layout.itemWordsHold;
-  forEachDirtyRun(pending.marks, pending.span.from, pending.span.to, rt, sendRun);
-  pending.clear();
+  const { pending } = rt.layout.itemWordsHold
+  forEachDirtyRun(pending.marks, pending.span.from, pending.span.to, rt, sendRun)
+  pending.clear()
 }
 
 function sendRun(rt: WebgpuPagesRuntime, from: number, to: number) {
-  rt.vis.gpuDraw!.uploadItems(rt.layout.drawItemWords, from, to);
-  rt.timing.encodeCounts.itemsUploaded += to - from + 1;
+  rt.vis.gpuDraw!.uploadItems(rt.layout.drawItemWords, from, to)
+  rt.timing.encodeCounts.itemsUploaded += to - from + 1
 }

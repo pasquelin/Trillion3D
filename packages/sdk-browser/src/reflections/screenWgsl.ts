@@ -1,13 +1,13 @@
-import { REFLECTION_CONE_WGSL } from './coneWgsl.ts';
-import { interleavedGradientWgsl } from '../math/interleavedGradientWgsl.ts';
-import { REFLECTION_SEGMENT, screenTraceShader } from './traceShader.ts';
+import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
+import { interleavedGradientWgsl } from '../math/interleavedGradientWgsl.ts'
+import { REFLECTION_SEGMENT, screenTraceShader } from './traceShader.ts'
 import {
   type ScreenLobe,
   type ScreenRadiance,
   screenRadianceShader,
-} from './screenRadianceShader.ts';
-import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts';
-import { TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts';
+} from './screenRadianceShader.ts'
+import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'
+import { TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
 
 /** The WebGPU resolve: its fallback is the program's own reflection model, the probes with bounce
  *  and the environment without. */
@@ -15,7 +15,7 @@ const SCREEN_RADIANCE = {
   name: 'resolvedRadiance',
   disabled: 'reflectionView.enabled.x==0.0',
   fallback: (rough: string) => `reflectedRadiance(P,N,R,${rough})`,
-} satisfies ScreenRadiance;
+} satisfies ScreenRadiance
 
 /** A program's lobe and fade (`ScreenRadiance`); a `mirror` of its own walks the depth bounds. */
 const screenReflectionWgsl = (lobe: ScreenLobe & Pick<ScreenRadiance, 'maxRoughness'> = {}) => `
@@ -33,9 +33,9 @@ fn reflectionClearDepth()->f32{return 0.0;}
 fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}
 ${screenTraceShader('wgsl')}
 ${REFLECTION_CONE_WGSL}${lobe.mirror ? HIZ_TRACE_WGSL : ''}
-${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, ...lobe })}`;
+${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, ...lobe })}`
 
-export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl();
+export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl()
 
 /** The blended march's surface (`translucentReflectionMarch`), from the opaque walk's own tests
  *  (`reflectionContinues`, `reflectionSideSlope`, `traceShader.ts`):
@@ -67,12 +67,12 @@ fn reflectionOnPlane(p:vec2i,z:f32,plane:vec3f,at:vec2f)->f32{
 }
 fn reflectionCarries(plane:vec3f,last:vec2i,lastDepth:f32,p:vec2i,z:f32,span:f32)->bool{
  return lastDepth!=reflectionClearDepth()&&plane.z==1.0&&abs(lastDepth+dot(plane.xy,vec2f(p-last))-z)<=max(span,abs(z)*exp2(-22.0));
-}`;
+}`
 
 /** Coarse samples of a blended surface's ray: the translucent trace is coarse; each one that finds
  *  the ray behind the depth, or past the edge of the last one's surface, walks the pixels since the
  *  last one. */
-const TRANSLUCENT_TRACE_SAMPLES = 32;
+const TRANSLUCENT_TRACE_SAMPLES = 32
 
 /** A blended surface's (`../webgpu/blend/shader.ts`), as translucency traces it:
  *  one mirror ray in a fixed count of samples over
@@ -177,14 +177,14 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
   last=next;
  }
  return vec4f(0.0);
-}`;
+}`
 
 /** The water composite's (`../webgpu/water/compositeWgsl.ts`): its mirror ray bounded
  *  (`boundedReflectionRay`), the fluids' own quality tier (AGENTS.md rule 1, #1279), on the depth
  *  bounds `reflectionPlan` makes for it. */
 export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl({
   mirror: 'boundedReflectionRay',
-});
+})
 
 /** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
  *  no weight, and leaves its whole lobe to the environment reflection, never black (#1341). */
@@ -196,18 +196,18 @@ fn heldReflection(P:vec3f)->vec4f{
  let held=textureLoad(roughHistory,at,0);
  if(held.a>0.0){return vec4f(held.rgb,0.0);}
  return vec4f(0.0,0.0,0.0,1.0);
-}`;
+}`
 
 /** Install screen hits at the one reflection-model entry of either program, preserving its
  *  existing miss behavior: the probes with bounce, the environment without. */
 export function withScreenReflections(shader: string, history = false) {
   const reflection = history
     ? screenReflectionWgsl({ filtered: 'heldReflection(P)' }) + HELD_REFLECTION_WGSL
-    : SCREEN_REFLECTION_WGSL;
+    : SCREEN_REFLECTION_WGSL
   return (
     shader.replace(
       ')*reflectedRadiance(P,N,reflect(-V,N),',
       ')*resolvedRadiance(P,N,reflect(-V,N),',
     ) + reflection
-  );
+  )
 }

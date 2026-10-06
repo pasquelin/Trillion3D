@@ -13,6 +13,6 @@
  * display colour (`DISPLAY_FORMAT`), which only the composition writes, after the pass, one byte
  * per channel — `unpack4x8unorm` stores each byte exactly, `pack4x8unorm` reads the same word back.
  */
-export const WATER_RANK_SHIFT = 16;
+export const WATER_RANK_SHIFT = 16
 /** Transmissive items a scene may carry: the rank counts them in sixteen bits. */
-export const WATER_MAX_ITEMS = (1 << WATER_RANK_SHIFT) - 1;
+export const WATER_MAX_ITEMS = (1 << WATER_RANK_SHIFT) - 1

@@ -1,9 +1,9 @@
-import { createGpuPageCache } from '../../../gpu/page/pages.ts';
-import { grantedGeometryPool } from '../../residency/poolGrants.ts';
-import { grantedLatest } from './grantLatest.ts';
-import { geometryBudgetBeside } from '../io/memory.ts';
-import { throwIfStopped } from '../io/lost.ts';
-import { type WebgpuPagesRuntime } from '../runtime.ts';
+import { createGpuPageCache } from '../../../gpu/page/pages.ts'
+import { grantedGeometryPool } from '../../residency/poolGrants.ts'
+import { grantedLatest } from './grantLatest.ts'
+import { geometryBudgetBeside } from '../io/memory.ts'
+import { throwIfStopped } from '../io/lost.ts'
+import { type WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * The engine's GPU page cache, with its trace hook. Cache events are sampled only if trace is
@@ -11,7 +11,7 @@ import { type WebgpuPagesRuntime } from '../runtime.ts';
  */
 function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, slots: number) {
   const { diag, run, services } = rt,
-    { pageBytes, homes } = rt.setup;
+    { pageBytes, homes } = rt.setup
   const options = (
     diag.traceEnabled
       ? {
@@ -19,9 +19,9 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
           slots,
           homes,
           onDiagnostic: (event: {
-            phase: string;
-            message: string;
-            context: Record<string, unknown>;
+            phase: string
+            message: string
+            context: Record<string, unknown>
           }) =>
             diag.traceDiagnostic(`cache-${event.phase}`, event.message, () => ({
               ...event.context,
@@ -29,8 +29,8 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
             })),
         }
       : { pageBytes, slots, homes }
-  ) as Parameters<typeof createGpuPageCache>[2];
-  return createGpuPageCache(gpuDevice, services.pageSource, options);
+  ) as Parameters<typeof createGpuPageCache>[2]
+  return createGpuPageCache(gpuDevice, services.pageSource, options)
 }
 
 /**
@@ -42,12 +42,12 @@ function createWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, sl
  * turn (`grantedLatest`).
  */
 export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { setup, gpu, diag, run, signal } = rt;
+  const { setup, gpu, diag, run, signal } = rt
   const held = await grantedLatest({
     budget: () => setup.geometryPool.budgetBytes,
     draw: (asked) => {
-      const { bytes, declared } = geometryBudgetBeside(rt, asked);
-      return { bytes, declared, pool: declared(setup.geometryPoolFor(bytes)) };
+      const { bytes, declared } = geometryBudgetBeside(rt, asked)
+      return { bytes, declared, pool: declared(setup.geometryPoolFor(bytes)) }
     },
     same: (drawn, pool) => drawn.slots === pool.slots,
     grant: async ({ bytes, declared }) => {
@@ -57,16 +57,16 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
         setup.geometryPoolFor,
         diag.engineDiagnostic,
         (pool) => {
-          const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots);
-          return { cache, destroy: () => void cache.dispose() };
+          const cache = createWebgpuPagesCache(rt, gpuDevice, pool.slots)
+          return { cache, destroy: () => void cache.dispose() }
         },
-      );
-      return granted && { ...granted, pool: declared(granted.pool) };
+      )
+      return granted && { ...granted, pool: declared(granted.pool) }
     },
     stopped: () => signal.aborted || run.lost,
-  });
-  if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED');
-  setup.geometryPool = held.pool;
-  gpu.cache = held.made.cache;
-  throwIfStopped(rt);
+  })
+  if (!held) throw new Error('WEBGPU_GEOMETRY_POOL_REFUSED')
+  setup.geometryPool = held.pool
+  gpu.cache = held.made.cache
+  throwIfStopped(rt)
 }

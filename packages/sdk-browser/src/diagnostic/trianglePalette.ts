@@ -14,4 +14,4 @@ fn hashColor(id:u32)->vec3f{
  let value=0.78+0.20*f32((h>>24u)&255u)/255.0;
  let channels=abs(fract(vec3f(hue,hue+0.6666667,hue+0.3333333))*6.0-vec3f(3.0));
  return value*mix(vec3f(1.0),clamp(channels-vec3f(1.0),vec3f(0.0),vec3f(1.0)),saturation);
-}`;
+}`

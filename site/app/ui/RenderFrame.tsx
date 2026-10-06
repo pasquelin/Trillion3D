@@ -1,20 +1,20 @@
-import { useImperativeHandle, useRef } from 'react';
-import type { ReactNode, Ref } from 'react';
-import { useFrameFocus } from '../hooks/useFrameFocus.ts';
-import type { FrameKeyboard } from '../hooks/useFrameFocus.ts';
-import { Loading } from './Loading.tsx';
+import { useImperativeHandle, useRef } from 'react'
+import type { ReactNode, Ref } from 'react'
+import { useFrameFocus } from '../hooks/useFrameFocus.ts'
+import type { FrameKeyboard } from '../hooks/useFrameFocus.ts'
+import { Loading } from './Loading.tsx'
 
 interface RenderFrameProps {
-  children: ReactNode;
-  pending?: boolean;
-  loadingLabel?: string;
-  overlay?: ReactNode;
-  actions?: ReactNode;
-  ref?: Ref<HTMLDivElement>;
+  children: ReactNode
+  pending?: boolean
+  loadingLabel?: string
+  overlay?: ReactNode
+  actions?: ReactNode
+  ref?: Ref<HTMLDivElement>
   /** Take the height the parent column leaves, instead of a screen-bound one of its own. */
-  fill?: boolean;
+  fill?: boolean
   /** A demo framed here reads the keyboard: when it takes it, and the hint shown while it has not. */
-  keyboard?: { mode: FrameKeyboard; hint: string };
+  keyboard?: { mode: FrameKeyboard; hint: string }
 }
 
 /** The chrome every rendered viewport shares: one frame, one radius, one background, one loading
@@ -30,9 +30,9 @@ export function RenderFrame({
   fill = false,
   keyboard,
 }: RenderFrameProps) {
-  const host = useRef<HTMLDivElement | null>(null);
-  useImperativeHandle(ref, () => host.current!, []);
-  const held = useFrameFocus(host, keyboard?.mode);
+  const host = useRef<HTMLDivElement | null>(null)
+  useImperativeHandle(ref, () => host.current!, [])
+  const held = useFrameFocus(host, keyboard?.mode)
   return (
     <div
       ref={host}
@@ -53,5 +53,5 @@ export function RenderFrame({
         </div>
       )}
     </div>
-  );
+  )
 }

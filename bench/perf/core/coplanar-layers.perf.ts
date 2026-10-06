@@ -1,31 +1,31 @@
 // coplanar layer units against their oracle.
-import { depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts';
-import { xorshiftRandom, measure, rapport } from '../../core/index.ts';
-import { referenceDepthLayerUnits } from '../../oracles/core/coplanar-layers.ts';
+import { depthLayerUnits } from '../../../packages/sdk-core/src/lod/depthLayer.ts'
+import { xorshiftRandom, measure, rapport } from '../../core/index.ts'
+import { referenceDepthLayerUnits } from '../../oracles/core/coplanar-layers.ts'
 
-const alea = xorshiftRandom(107);
+const alea = xorshiftRandom(107)
 
 /** A hostile layer: out of bounds, non-finite, or missing (`null` behaves as `undefined` on the
  *  engine's `!layer` guard — this bench deliberately probes that wider, unsigned contract). */
-type Couche = number | undefined | null;
+type Couche = number | undefined | null
 
 // One third of the layers are hostile: out of bounds, non-finite, or missing. The engine brings them
 // all to zero without throwing, and this is what the oracle checks on both functions.
-const HOSTILES: Couche[] = [-1, 16, NaN, Infinity, -Infinity, undefined, null];
+const HOSTILES: Couche[] = [-1, 16, NaN, Infinity, -Infinity, undefined, null]
 const couche = (): Couche =>
-  alea() < 0.3 ? HOSTILES[Math.floor(alea() * HOSTILES.length)] : Math.floor(alea() * 16);
+  alea() < 0.3 ? HOSTILES[Math.floor(alea() * HOSTILES.length)] : Math.floor(alea() * 16)
 
 // Output belongs to the test case: the timer only measures engine calls.
 const couches = (count: number) => ({
   list: Array.from({ length: count }, couche),
   output: new Float64Array(count),
-});
+})
 const unites =
   (calcule: (layer: number | undefined) => number) =>
   ({ list, output }: { list: Couche[]; output: Float64Array }) => {
-    for (let i = 0; i < list.length; i++) output[i] = calcule(list[i] as number | undefined);
-    return output;
-  };
+    for (let i = 0; i < list.length; i++) output[i] = calcule(list[i] as number | undefined)
+    return output
+  }
 
 const measureUnits = await measure({
   name: 'coplanar layer units',
@@ -33,6 +33,6 @@ const measureUnits = await measure({
   cas: [{ name: '50 000 layers', size: 50000, input: couches(50000) }],
   calculation: unites(depthLayerUnits),
   expected: unites(referenceDepthLayerUnits),
-});
+})
 
-rapport('couches-coplanaires', [measureUnits], 'layer units return the same values');
+rapport('couches-coplanaires', [measureUnits], 'layer units return the same values')

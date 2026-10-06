@@ -1,38 +1,38 @@
-import type { PageSource } from '../../../../sdk-core/src/index.ts';
-import type { BackendDiagnostic } from '../../backend/types.ts';
-import { createGpuPageReader } from './reader.ts';
-import { createGpuPageLoader } from './load.ts';
-import { createGpuPagePins } from './gpuPagePins.ts';
-import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts';
-import { evictResident } from './commit.ts';
-import { heldHomes, type PageHomes } from './homes.ts';
-import { checked, ONE_REQUEST } from '../../cluster/checked.ts';
-import type { ResidentPage, GpuPageContext } from './types.ts';
-export type { ResidentPage } from './types.ts';
+import type { PageSource } from '../../../../sdk-core/src/index.ts'
+import type { BackendDiagnostic } from '../../backend/types.ts'
+import { createGpuPageReader } from './reader.ts'
+import { createGpuPageLoader } from './load.ts'
+import { createGpuPagePins } from './gpuPagePins.ts'
+import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts'
+import { evictResident } from './commit.ts'
+import { heldHomes, type PageHomes } from './homes.ts'
+import { checked, ONE_REQUEST } from '../../cluster/checked.ts'
+import type { ResidentPage, GpuPageContext } from './types.ts'
+export type { ResidentPage } from './types.ts'
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy.
  * `pin(key, 'held')` keeps a page ahead of ordinary pins during `resize(slots)`, which no longer accepts a held set. Ordinary repinning preserves the held tier; `unpin(key)` removes it. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
   options: {
-    pageBytes: number;
-    slots: number;
+    pageBytes: number
+    slots: number
     /** Each page's own place, taken while `slots` hold the whole catalogue (`homes.ts`). */
-    homes?: PageHomes;
-    onDiagnostic?: (d: BackendDiagnostic) => void;
+    homes?: PageHomes
+    onDiagnostic?: (d: BackendDiagnostic) => void
   },
 ) {
-  const { pageBytes, slots, homes } = options;
+  const { pageBytes, slots, homes } = options
   if (!Number.isSafeInteger(pageBytes) || pageBytes < 4 || pageBytes % 4)
-    throw new Error('INVALID_PAGE_BUDGET');
-  const allocatedBytes = pageBufferBytes(device, pageBytes, slots, homes);
-  const buffer = createPageBuffer(device, allocatedBytes);
+    throw new Error('INVALID_PAGE_BUDGET')
+  const allocatedBytes = pageBufferBytes(device, pageBytes, slots, homes)
+  const buffer = createPageBuffer(device, allocatedBytes)
   const resident = new Map<string, ResidentPage>(),
     pins = new Set<string>(),
     held = new Set<string>(),
     free = Array.from({ length: heldHomes(homes, slots)?.homes.size ?? slots }, (_, i) => i),
-    abort = new AbortController();
-  const fetches = new Map<string, Promise<Uint8Array>>();
+    abort = new AbortController()
+  const fetches = new Map<string, Promise<Uint8Array>>()
   const state = {
     pending: Promise.resolve() as Promise<unknown>,
     disposed: false,
@@ -40,13 +40,13 @@ export function createGpuPageCache(
     bytesRead: 0,
     uploadedBytes: 0,
     evictions: 0,
-  };
+  }
   // Every arrival and departure in order, so a host mirrors the cache page by page instead of asking
   // for all of its catalogue every frame. `changeSlots[i]` is the words offset of the slot, or -1.
   const changeKeys: string[] = [],
-    changeSlots: number[] = [];
-  const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic, fetches);
-  const { emit } = reader;
+    changeSlots: number[] = []
+  const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic, fetches)
+  const { emit } = reader
   emit?.('gpu-page-catalogue', 'GPU cache configured', () => ({
     version: 1,
     pageBytes,
@@ -54,17 +54,17 @@ export function createGpuPageCache(
     allocatedBytes,
     source: 'host-page-source',
     drawDetached: false,
-  }));
+  }))
   const check = (signal?: AbortSignal) => {
     if (state.disposed) {
       emit?.('gpu-page-error', 'Operation refused after dispose', () => ({
         version: 1,
         error: 'PAGE_CACHE_DISPOSED',
-      }));
-      throw new Error('PAGE_CACHE_DISPOSED');
+      }))
+      throw new Error('PAGE_CACHE_DISPOSED')
     }
-    signal?.throwIfAborted();
-  };
+    signal?.throwIfAborted()
+  }
   const context: GpuPageContext = {
     device,
     pageBytes,
@@ -83,13 +83,13 @@ export function createGpuPageCache(
     changeSlots,
     reader,
     check,
-  };
-  const pinning = createGpuPagePins(context);
-  const load = createGpuPageLoader(context, pinning.pin);
+  }
+  const pinning = createGpuPagePins(context)
+  const load = createGpuPageLoader(context, pinning.pin)
   return {
     /** The pool buffer: a new identity after `resize`, to be rebound. */
     get buffer() {
-      return context.buffer;
+      return context.buffer
     },
     load,
     /**
@@ -99,46 +99,46 @@ export function createGpuPageCache(
      */
     resize(slots: number) {
       const operation = state.pending.then(() => {
-        check();
-        return resizeGpuPages(context, slots);
-      });
-      state.pending = operation.catch(() => {});
-      return operation;
+        check()
+        return resizeGpuPages(context, slots)
+      })
+      state.pending = operation.catch(() => {})
+      return operation
     },
     get(key: string) {
-      return resident.get(key);
+      return resident.get(key)
     },
     /** Evicts in `order` from now on: an arrival takes the slot of its first resident, unpinned page
      *  not taken yet, never of a page it leaves out. `undefined` goes back to the least recent. */
     evictInOrder(order?: { readonly count: number; keyAt(at: number): string }) {
-      Object.assign(context.eviction, { order, at: 0, lateAt: 0 });
-      context.eviction.epoch++;
-      context.eviction.held.length = context.eviction.late.length = 0;
+      Object.assign(context.eviction, { order, at: 0, lateAt: 0 })
+      context.eviction.epoch++
+      context.eviction.held.length = context.eviction.late.length = 0
     },
     /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
      * `get` can compare it instead of querying every page again. */
     get residencyRevision() {
-      return state.generation + state.evictions;
+      return state.generation + state.evictions
     },
     /** Moves the pending residency changes into the caller's arrays, then empties the log. */
     drainResidencyChanges(keys: string[], slots: number[]) {
       for (let i = 0; i < changeKeys.length; i++) {
-        keys.push(changeKeys[i]);
-        slots.push(changeSlots[i]);
+        keys.push(changeKeys[i])
+        slots.push(changeSlots[i])
       }
-      changeKeys.length = 0;
-      changeSlots.length = 0;
+      changeKeys.length = 0
+      changeSlots.length = 0
     },
     ...pinning,
     unload(key: string) {
-      const page = resident.get(key);
+      const page = resident.get(key)
       if (!page) {
         emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
           version: 1,
           key,
           reason: 'not-resident',
-        }));
-        return false;
+        }))
+        return false
       }
       if (pins.has(key)) {
         emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
@@ -147,12 +147,12 @@ export function createGpuPageCache(
           slot: page.slot,
           generation: page.generation,
           reason: 'pinned',
-        }));
-        return false;
+        }))
+        return false
       }
-      evictResident(context, page, 'explicit-unload');
-      free.push(page.slot);
-      return true;
+      evictResident(context, page, 'explicit-unload')
+      free.push(page.slot)
+      return true
     },
     stats() {
       return {
@@ -163,41 +163,41 @@ export function createGpuPageCache(
         uploadedBytes: state.uploadedBytes,
         evictions: state.evictions,
         physicalVramBytes: null,
-      };
+      }
     },
     dispose() {
-      if (state.disposed) return state.pending.then(() => {});
+      if (state.disposed) return state.pending.then(() => {})
       emit?.('gpu-page-dispose', 'GPU cache released', () => ({
         version: 1,
         resident: resident.size,
         loading: fetches.size,
         evictions: state.evictions,
-      }));
-      state.disposed = true;
-      abort.abort();
-      resident.clear();
-      pins.clear();
-      held.clear();
+      }))
+      state.disposed = true
+      abort.abort()
+      resident.clear()
+      pins.clear()
+      held.clear()
       state.pending = state.pending
         .catch(() => {})
         .then(async () => {
           try {
-            await device.queue.onSubmittedWorkDone();
+            await device.queue.onSubmittedWorkDone()
           } catch {
             /* Queue may already be lost. */
           }
-          context.buffer.destroy();
-        });
-      return state.pending;
+          context.buffer.destroy()
+        })
+      return state.pending
     },
-  };
+  }
 }
 /** A page source that fetches pages over HTTP, by key, from `baseUrl`. */
 export function httpPageSource(baseUrl: string): PageSource {
   return {
     async read(key, signal) {
-      const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST);
-      return new Uint8Array(await response.arrayBuffer());
+      const response = await checked(new URL(key, baseUrl).href, signal, ONE_REQUEST)
+      return new Uint8Array(await response.arrayBuffer())
     },
-  };
+  }
 }

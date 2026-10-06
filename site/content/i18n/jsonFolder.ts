@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs'
 
 /**
  * The JSON files of `folder` whose name matches `pattern`, parsed and keyed by the pattern's first
@@ -10,8 +10,8 @@ export function readJsonFolder<T>(folder: URL, pattern: RegExp): Record<string, 
     readdirSync(folder)
       .sort()
       .flatMap((file) => {
-        const code = pattern.exec(file)?.[1];
-        return code ? [[code, JSON.parse(readFileSync(new URL(file, folder), 'utf8')) as T]] : [];
+        const code = pattern.exec(file)?.[1]
+        return code ? [[code, JSON.parse(readFileSync(new URL(file, folder), 'utf8')) as T]] : []
       }),
-  );
+  )
 }

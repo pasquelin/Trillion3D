@@ -1,6 +1,6 @@
-import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts';
-import { shaderFloat } from './shaderConstants.ts';
-import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts';
+import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
+import { shaderFloat } from './shaderConstants.ts'
+import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts'
 
 /** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
 export const ACES_WGSL = `
@@ -10,9 +10,9 @@ fn aces(color:vec3f)->vec3f{
  let a=${ACES.numerator};let b=${ACES.denominator};c=a/b;
  c=${ACES.output.wgsl}*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
-}`;
+}`
 
-const R = TONE_MAPPING_RANK;
+const R = TONE_MAPPING_RANK
 
 /**
  * Every display curve a scene may choose (`SceneEnvironment.toneMapping`), picked by its rank:
@@ -61,4 +61,4 @@ fn toneMap(color:vec3f,curve:u32)->vec3f{
   case ${R.neutral}u:{return neutralCurve(color);}
   default:{return aces(color);}
  }
-}`;
+}`

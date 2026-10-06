@@ -21,9 +21,9 @@ const middles = (v: string) =>
   [
     `min(max(${v}.x,${v}.y),max(${v}.z,${v}.w))`,
     `max(min(${v}.x,${v}.y),min(${v}.z,${v}.w))`,
-  ] as const;
-const [U_BYTE, V_BYTE] = middles('b');
-const [U_ALPHA, V_ALPHA] = middles('a');
+  ] as const
+const [U_BYTE, V_BYTE] = middles('b')
+const [U_ALPHA, V_ALPHA] = middles('a')
 
 export const COVERAGE_SCALE_WGSL = `
 fn toByte(x:f32)->u32{return u32(round(x*255.0));}
@@ -35,7 +35,7 @@ fn scaled(a:u32,c:u32,t:u32)->u32{return min(255u,u32((2u*a*(2u*c-1u)+2u*t-1u)/(
 fn reducedAlpha(a:vec4f,c:u32,t:u32)->f32{
  if(c==0u){let u=${U_ALPHA};let v=${V_ALPHA};return (u+v)*0.5;}
  return f32(scaled(median(a),c,t))/255.0;
-}`;
+}`
 export const COVERAGE_PICK_WGSL = `
 fn wide(a:u32,b:u32)->vec2u{
  let al=a&0xffffu;let ah=a>>16u;let bl=b&0xffffu;let bh=b>>16u;
@@ -55,7 +55,7 @@ fn pick(c:u32,covered:u32,texels:vec2u)->u32{
   if(below(next,best)){best=next;}
  }
  return best.w;
-}`;
+}`
 
 export const COVERAGE_CUT_WGSL = `
 fn filtered(a:vec4u,s:u32)->u32{
@@ -69,7 +69,7 @@ fn cutBin(a:vec4u,s:u32,c:u32)->u32{
   if(filtered(vec4u(scaled(a.x,c,t),scaled(a.y,c,t),scaled(a.z,c,t),scaled(a.w,c,t)),s)>=c){low=t;}else{high=t;}
  }
  return low;
-}`;
+}`
 
 /** The GLSL ES 3.0 twins, line for line. */
 export const COVERAGE_SCALE_GLSL = `
@@ -82,7 +82,7 @@ uint scaled(uint a,uint c,uint t){return min(255u,uint((2u*a*(2u*c-1u)+2u*t-1u)/
 float reducedAlpha(vec4 a,uint c,uint t){
  if(c==0u){float u=${U_ALPHA};float v=${V_ALPHA};return (u+v)*0.5;}
  return float(scaled(median(a),c,t))/255.;
-}`;
+}`
 export const COVERAGE_PICK_GLSL = `
 uvec2 wide(uint a,uint b){
  uint al=a&0xffffu;uint ah=a>>16u;uint bl=b&0xffffu;uint bh=b>>16u;
@@ -102,7 +102,7 @@ uint pick(uint c,uint covered,uvec2 texels){
   if(below(next,best)){best=next;}
  }
  return best.w;
-}`;
+}`
 export const COVERAGE_CUT_GLSL = `
 uint filtered(uvec4 a,uint s){
  uint x=3u-2u*(s&1u);uint y=3u-2u*(s>>1u);
@@ -115,4 +115,4 @@ uint cutBin(uvec4 a,uint s,uint c){
   if(filtered(uvec4(scaled(a.x,c,t),scaled(a.y,c,t),scaled(a.z,c,t),scaled(a.w,c,t)),s)>=c){low=t;}else{high=t;}
  }
  return low;
-}`;
+}`

@@ -1,1 +1,1 @@
-export const RASTER_BACKGROUND = 0x171d28;
+export const RASTER_BACKGROUND = 0x171d28

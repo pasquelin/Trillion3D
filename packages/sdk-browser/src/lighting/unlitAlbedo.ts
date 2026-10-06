@@ -1,8 +1,8 @@
-import type { Scene } from '../world/core/scene.ts';
+import type { Scene } from '../world/core/scene.ts'
 
 /** What the view reads of the display graph: its meshes' surfaces, and the two hooks a draw
  *  wraps itself in. */
-type AlbedoScene = Pick<Scene, 'traverse' | 'onBeforeRender' | 'onAfterRender'>;
+type AlbedoScene = Pick<Scene, 'traverse' | 'onBeforeRender' | 'onAfterRender'>
 
 /**
  * Factors that take a surface's response away from its albedo. Each is a material property —
@@ -18,8 +18,8 @@ type AlbedoScene = Pick<Scene, 'traverse' | 'onBeforeRender' | 'onAfterRender'>;
  * What remains: base colour, base map, vertex colours — albedo — and the material's
  * emission, a named gap of this view against the WebGPU path (`bench/runner/README.md`, "The witnesses").
  */
-const NEUTRAL = ['metalness', 'aoMapIntensity', 'lightMapIntensity', 'transmission'] as const;
-type Factors = Partial<Record<(typeof NEUTRAL)[number], number>>;
+const NEUTRAL = ['metalness', 'aoMapIntensity', 'lightMapIntensity', 'transmission'] as const
+type Factors = Partial<Record<(typeof NEUTRAL)[number], number>>
 
 /**
  * Raw albedo of the `unlit` view on a WebGL2 engine.
@@ -38,61 +38,61 @@ export function createUnlitAlbedo(scene: AlbedoScene) {
   // Materials actually neutralized of the current frame and the values they carried, in two
   // reused arrays: nothing is allocated per frame, and a material shared by several meshes
   // is kept only once — the second visit finds nothing left to zero.
-  const touched: Factors[] = [];
-  const saved: (number | undefined)[] = [];
-  let count = 0;
+  const touched: Factors[] = []
+  const saved: (number | undefined)[] = []
+  let count = 0
   const zero = (material: object) => {
-    const factors = material as Factors;
-    const base = count * NEUTRAL.length;
-    let changed = false;
+    const factors = material as Factors
+    const base = count * NEUTRAL.length
+    let changed = false
     for (let index = 0; index < NEUTRAL.length; index++) {
-      const value = factors[NEUTRAL[index]];
-      saved[base + index] = value;
-      if (!value) continue;
-      factors[NEUTRAL[index]] = 0;
-      changed = true;
+      const value = factors[NEUTRAL[index]]
+      saved[base + index] = value
+      if (!value) continue
+      factors[NEUTRAL[index]] = 0
+      changed = true
     }
-    if (changed) touched[count++] = factors;
-  };
+    if (changed) touched[count++] = factors
+  }
   const neutralise = (object: object) => {
-    const material = (object as { material?: object | object[] }).material;
-    if (!material) return;
-    if (Array.isArray(material)) for (const one of material) zero(one);
-    else zero(material);
-  };
+    const material = (object as { material?: object | object[] }).material
+    if (!material) return
+    if (Array.isArray(material)) for (const one of material) zero(one)
+    else zero(material)
+  }
   const before = () => {
-    count = 0;
-    scene.traverse(neutralise);
-  };
+    count = 0
+    scene.traverse(neutralise)
+  }
   const after = () => {
     while (count > 0) {
-      count--;
+      count--
       const factors = touched[count],
-        base = count * NEUTRAL.length;
+        base = count * NEUTRAL.length
       for (let index = 0; index < NEUTRAL.length; index++) {
-        const value = saved[base + index];
-        if (value !== undefined) factors[NEUTRAL[index]] = value;
+        const value = saved[base + index]
+        if (value !== undefined) factors[NEUTRAL[index]] = value
       }
     }
-  };
+  }
   let enabled = false,
     priorBefore = scene.onBeforeRender,
-    priorAfter = scene.onAfterRender;
+    priorAfter = scene.onAfterRender
   return {
     /** Arms or disarms the view. Disarming first returns to the materials what they carried. */
     setEnabled(value: boolean) {
-      if (value === enabled) return;
-      enabled = value;
+      if (value === enabled) return
+      enabled = value
       if (value) {
-        priorBefore = scene.onBeforeRender;
-        priorAfter = scene.onAfterRender;
-        scene.onBeforeRender = before;
-        scene.onAfterRender = after;
-        return;
+        priorBefore = scene.onBeforeRender
+        priorAfter = scene.onAfterRender
+        scene.onBeforeRender = before
+        scene.onAfterRender = after
+        return
       }
-      after();
-      scene.onBeforeRender = priorBefore;
-      scene.onAfterRender = priorAfter;
+      after()
+      scene.onBeforeRender = priorBefore
+      scene.onAfterRender = priorAfter
     },
-  };
+  }
 }

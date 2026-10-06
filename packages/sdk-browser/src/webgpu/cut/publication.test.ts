@@ -1,31 +1,31 @@
 // Publication of a CPU cut: it only ages the lists once per image — whoever forgets the readback
 // does it before choosing, and thus covers an erroneous exit of the cut — and republishing the
 // same cut stirs nothing, since what is published is a difference.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
-import { createWebgpuCutPublication } from './publication.ts';
-import { fixturePages, fixtureUniforms } from './adopter.fixture.ts';
-import type { CutDelta } from './delta.ts';
-import type { WebgpuPagesCore } from '../pages/runtime.ts';
-import type { WebgpuResidencySets } from '../residency/sets.ts';
-import { createGroupClosure } from '../../page/cut/groupClosure.ts';
-import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts'
+import { createWebgpuCutPublication } from './publication.ts'
+import { fixturePages, fixtureUniforms } from './adopter.fixture.ts'
+import type { CutDelta } from './delta.ts'
+import type { WebgpuPagesCore } from '../pages/runtime.ts'
+import type { WebgpuResidencySets } from '../residency/sets.ts'
+import { createGroupClosure } from '../../page/cut/groupClosure.ts'
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts'
 
 /** `capturing`: a capture view is drawn, not the main one. */
 function banc(capturing = false) {
-  const packedPages = fixturePages(4);
+  const packedPages = fixturePages(4)
   for (let i = 0; i < packedPages.length; i++) {
-    packedPages[i].min = [0, 0, 0];
-    packedPages[i].max = [0, 0, 0];
+    packedPages[i].min = [0, 0, 0]
+    packedPages[i].max = [0, 0, 0]
   }
   // One placement of the four clusters, laid out as `../pages/prepare/layout.ts` lays it; the pool
   // holds what `holds` names, and the rank journal's watcher is the one publication subscribes.
   const root = { pages: packedPages, world: new Matrix4() } as unknown as ClusterRoot<PageRec>,
-    holds = new Set<PageRec>();
-  let watcher: (page: number) => void = () => {};
-  const shadowChanges: number[] = [];
-  let resourceChanges = 0;
+    holds = new Set<PageRec>()
+  let watcher: (page: number) => void = () => {}
+  const shadowChanges: number[] = []
+  let resourceChanges = 0
   const run = {
     desired: [] as unknown[],
     desiredPacked: [] as number[],
@@ -40,16 +40,16 @@ function banc(capturing = false) {
     pagesEntered: null,
     pagesExited: null,
     gate: { resourcesChanged: () => resourceChanges++ },
-  };
+  }
   /** What the residency sets actually received: differences, not lists. */
-  const remue = { coupe: 0, dessinee: 0 };
-  const compte = (delta: CutDelta) => delta.enteredCount + delta.exitedCount;
+  const remue = { coupe: 0, dessinee: 0 }
+  const compte = (delta: CutDelta) => delta.enteredCount + delta.exitedCount
   const residencySets = {
     applyCut: (delta: CutDelta) => (remue.coupe += compte(delta)),
     applyDrawn: (delta: CutDelta) => (remue.dessinee += compte(delta)),
     hostBytes: 0,
-  } as unknown as WebgpuResidencySets;
-  const mainView = {};
+  } as unknown as WebgpuResidencySets
+  const mainView = {}
   const rt = {
     run,
     gpu: {},
@@ -73,16 +73,16 @@ function banc(capturing = false) {
         pageIndexOf: () => undefined,
       },
     },
-  } as unknown as WebgpuPagesCore;
+  } as unknown as WebgpuPagesCore
   /** The two lower tiers, and every list handed to the tier ahead. */
-  const aheadOffers: number[][] = [];
+  const aheadOffers: number[][] = []
   const tiers = {
     shadow: { hostBytes: 0 },
     ahead: {
       hostBytes: 0,
       offerIds: (ids: ArrayLike<number>) => aheadOffers.push(Array.from(ids)),
     },
-  };
+  }
   const publication = createWebgpuCutPublication(
     rt,
     residencySets,
@@ -93,7 +93,7 @@ function banc(capturing = false) {
     ),
     { all: [tiers.shadow, tiers.ahead], ahead: tiers.ahead },
     (rec) => holds.has(rec),
-  );
+  )
   return {
     publication,
     run,
@@ -107,77 +107,77 @@ function banc(capturing = false) {
     holds,
     touch: (page: number) => watcher(page),
     residencySets,
-  };
+  }
 }
 
 test('the CPU cut, which sees no view ahead, empties the tier ahead', () => {
-  const { publication, aheadOffers } = banc();
-  publication.adoptCpuCut([0, 1], [0, 1]);
-  assert.deepEqual(aheadOffers.at(-1), [], 'the last list ahead is empty');
-});
+  const { publication, aheadOffers } = banc()
+  publication.adoptCpuCut([0, 1], [0, 1])
+  assert.deepEqual(aheadOffers.at(-1), [], 'the last list ahead is empty')
+})
 
 test('both lower tiers count in the host tables', () => {
-  const { publication, tiers } = banc();
-  const before = publication.hostTableBytes();
-  assert.ok(Number.isFinite(before), `every table reads a size (${before})`);
-  tiers.shadow.hostBytes = 64;
-  tiers.ahead.hostBytes = 32;
-  assert.equal(publication.hostTableBytes(), before + 96);
-});
+  const { publication, tiers } = banc()
+  const before = publication.hostTableBytes()
+  assert.ok(Number.isFinite(before), `every table reads a size (${before})`)
+  tiers.shadow.hostBytes = 64
+  tiers.ahead.hostBytes = 32
+  assert.equal(publication.hostTableBytes(), before + 96)
+})
 
 test('a CPU-cut image only ages the lists once', () => {
-  const { publication, run } = banc();
-  const avant = run.cutEpoch;
+  const { publication, run } = banc()
+  const avant = run.cutEpoch
   // Order of `renderCpuCut`: forget the readback, choose, then publish once the guards have passed.
-  publication.forgetReadback();
-  publication.adoptCpuCut([0, 1, 2], [0, 1]);
-  assert.equal(run.cutEpoch, avant + 1, 'a single ageing for the image');
+  publication.forgetReadback()
+  publication.adoptCpuCut([0, 1, 2], [0, 1])
+  assert.equal(run.cutEpoch, avant + 1, 'a single ageing for the image')
   assert.deepEqual(
     run.desired.map((page) => (page as { url: string }).url),
     ['p0', 'p1', 'p2'],
-  );
-});
+  )
+})
 
 test('the camera cut moving stales no shadow page: the maps draw what the light cuts select', () => {
-  const { publication, shadowChanges, resourceChanges } = banc();
-  publication.adoptCpuCut([0, 1, 2, 3], [0]);
-  publication.adoptCpuCut([0, 1, 2, 3], [1]);
-  publication.adoptCpuCut([0, 1, 2, 3], [0]);
-  assert.deepEqual(shadowChanges, [], 'no caster bound is declared for a camera cut change');
-  assert.equal(resourceChanges(), 0, 'nor is the held frame woken for the shadows');
-});
+  const { publication, shadowChanges, resourceChanges } = banc()
+  publication.adoptCpuCut([0, 1, 2, 3], [0])
+  publication.adoptCpuCut([0, 1, 2, 3], [1])
+  publication.adoptCpuCut([0, 1, 2, 3], [0])
+  assert.deepEqual(shadowChanges, [], 'no caster bound is declared for a camera cut change')
+  assert.equal(resourceChanges(), 0, 'nor is the held frame woken for the shadows')
+})
 
 test('republishing the same cut stirs no set', () => {
-  const { publication, remue } = banc();
-  publication.adoptCpuCut([0, 1, 2], [0, 1]);
+  const { publication, remue } = banc()
+  publication.adoptCpuCut([0, 1, 2], [0, 1])
   const coupe = remue.coupe,
-    dessinee = remue.dessinee;
-  assert.ok(coupe > 0 && dessinee > 0, 'the first publication did name pages');
-  publication.adoptCpuCut([0, 1, 2], [0, 1]);
-  assert.equal(remue.coupe, coupe, 'the second neither enters nor exits a single page');
-  assert.equal(remue.dessinee, dessinee);
-});
+    dessinee = remue.dessinee
+  assert.ok(coupe > 0 && dessinee > 0, 'the first publication did name pages')
+  publication.adoptCpuCut([0, 1, 2], [0, 1])
+  assert.equal(remue.coupe, coupe, 'the second neither enters nor exits a single page')
+  assert.equal(remue.dessinee, dessinee)
+})
 
 test("the rank journal's touches move the CPU cut's readiness, page by page", () => {
-  const { publication, packedPages, root, holds, touch } = banc();
+  const { publication, packedPages, root, holds, touch } = banc()
   const held = publication.heldResidency,
-    ready = () => packedPages.map((_, page) => held.readiness(root).isReady(page));
-  assert.deepEqual(ready(), [false, false, false, false], 'entered whole: the pool holds nothing');
-  holds.add(packedPages[2]);
-  assert.deepEqual(ready(), [false, false, false, false], 'a slot no journal named is not read');
-  touch(2);
-  assert.deepEqual(ready(), [false, false, true, false], 'the journal named it: read, alone');
-  holds.delete(packedPages[2]);
-  touch(2);
-  assert.deepEqual(ready(), [false, false, false, false]);
-  assert.equal(held.unroutedReads, 0, 'the layout routed every move');
-});
+    ready = () => packedPages.map((_, page) => held.readiness(root).isReady(page))
+  assert.deepEqual(ready(), [false, false, false, false], 'entered whole: the pool holds nothing')
+  holds.add(packedPages[2])
+  assert.deepEqual(ready(), [false, false, false, false], 'a slot no journal named is not read')
+  touch(2)
+  assert.deepEqual(ready(), [false, false, true, false], 'the journal named it: read, alone')
+  holds.delete(packedPages[2])
+  touch(2)
+  assert.deepEqual(ready(), [false, false, false, false])
+  assert.equal(held.unroutedReads, 0, 'the layout routed every move')
+})
 
 test('a capture ranks its own wanted cut first: its packed ranks, at their count', () => {
   // The delta's buffer is swapped at each difference and longer than its live ranks (#1235).
-  const { publication, residencySets } = banc(true);
-  publication.adoptCpuCut([0, 1, 2], [0]);
-  assert.deepEqual(Array.from(residencySets.drawnFirst!), [0, 1, 2]);
-  publication.adoptCpuCut([3], [3]);
-  assert.deepEqual(Array.from(residencySets.drawnFirst!), [3], 'the new cut, not a stale buffer');
-});
+  const { publication, residencySets } = banc(true)
+  publication.adoptCpuCut([0, 1, 2], [0])
+  assert.deepEqual(Array.from(residencySets.drawnFirst!), [0, 1, 2])
+  publication.adoptCpuCut([3], [3])
+  assert.deepEqual(Array.from(residencySets.drawnFirst!), [3], 'the new cut, not a stale buffer')
+})

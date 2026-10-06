@@ -2,57 +2,57 @@
 // hooks a node by chaining listeners on its position, scale and rotation (`listen`), no field
 // redefined. The listener-hooked graph is walked against its plain twin, the witness; a plain case
 // gives the spread (A/A). The watch's per-frame read over the same nodes is measured on its own.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { measure, rapport } from '../../core/index.ts';
-import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { measure, rapport } from '../../core/index.ts'
+import { createHostSceneWatch } from '../../../packages/sdk-browser/src/host/scene/watch.ts'
 
-const NODES = 20000;
-const GROUPS = 200;
+const NODES = 20000
+const GROUPS = 200
 
 /** `NODES` meshes under `GROUPS` groups, every pose distinct, matrices left to recompose. */
 function graph() {
-  const root = new G.Group();
-  const meshes = [];
+  const root = new G.Group()
+  const meshes = []
   for (let g = 0; g < GROUPS; g++) {
-    const group = new G.Group();
-    group.position.set(g, 0, -g);
-    root.add(group);
+    const group = new G.Group()
+    group.position.set(g, 0, -g)
+    root.add(group)
     for (let i = 0; i < NODES / GROUPS; i++) {
-      const mesh = G.mesh();
-      mesh.position.set(i, g, i + g);
-      mesh.rotation.y = (i + g) * 1e-3;
-      const stretch = 1 + (i % 7) * 0.1;
-      mesh.scale.set(stretch, stretch, stretch);
-      group.add(mesh);
-      meshes.push(mesh);
+      const mesh = G.mesh()
+      mesh.position.set(i, g, i + g)
+      mesh.rotation.y = (i + g) * 1e-3
+      const stretch = 1 + (i % 7) * 0.1
+      mesh.scale.set(stretch, stretch, stretch)
+      group.add(mesh)
+      meshes.push(mesh)
     }
   }
-  return { root, meshes };
+  return { root, meshes }
 }
 
 /** The graph, hooked as the frame gate hooks it: every drawn source node and its ancestors. */
 function hooked() {
-  const scene = graph();
-  const watch = createHostSceneWatch();
+  const scene = graph()
+  const watch = createHostSceneWatch()
   watch.observe(
     scene.root,
     scene.meshes.map((sourceMesh) => ({ sourceMesh })),
-  );
-  watch.take();
-  return { ...scene, watch };
+  )
+  watch.take()
+  return { ...scene, watch }
 }
 
 /** The world matrices of one mesh in two hundred, after a forced walk of the whole graph. */
 function walk({ root, meshes }: { root: G.Group; meshes: G.HostMesh[] }) {
-  root.updateMatrixWorld(true);
-  const sample = new Float64Array((meshes.length / 200) * 16);
+  root.updateMatrixWorld(true)
+  const sample = new Float64Array((meshes.length / 200) * 16)
   for (let i = 0; i < meshes.length; i += 200)
-    sample.set(meshes[i].matrixWorld.elements, (i / 200) * 16);
-  return sample;
+    sample.set(meshes[i].matrixWorld.elements, (i / 200) * 16)
+  return sample
 }
 
-const plain = graph();
-const options = { warmup: 5, tours: 40, budgetMs: 4000 };
+const plain = graph()
+const options = { warmup: 5, tours: 40, budgetMs: 4000 }
 
 const walks = await measure({
   name: 'updateMatrixWorld(true) over listener-hooked nodes',
@@ -68,11 +68,11 @@ const walks = await measure({
   temoin: () => walk(plain),
   expected: () => walk(plain),
   options,
-});
+})
 
-const still = hooked();
-const written = hooked();
-let frame = 0;
+const still = hooked()
+const written = hooked()
+let frame = 0
 const reads = await measure({
   name: 'watch.take() per frame',
   fichier: [
@@ -84,11 +84,11 @@ const reads = await measure({
     { name: `${NODES} nodes, one pose written per frame`, input: written, size: NODES },
   ],
   calculation: (scene) => {
-    if (scene === written) scene.meshes[frame++ % NODES].position.x += 1;
-    return scene.watch.take();
+    if (scene === written) scene.meshes[frame++ % NODES].position.x += 1
+    return scene.watch.take()
   },
   motif: 'a still scene takes 0, one write takes `moved`: what the frame gate compares',
   options,
-});
+})
 
-rapport('scene-hooks', [walks, reads], 'the hooked graph walks to the bits of its plain twin');
+rapport('scene-hooks', [walks, reads], 'the hooked graph walks to the bits of its plain twin')

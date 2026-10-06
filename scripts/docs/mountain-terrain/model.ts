@@ -6,9 +6,9 @@ const gaussian = (
   sx: number,
   sz: number,
   height: number,
-) => height * Math.exp(-((x - cx) ** 2) / sx - (z - cz) ** 2 / sz);
+) => height * Math.exp(-((x - cx) ** 2) / sx - (z - cz) ** 2 / sz)
 
-const valleyCenter = (z: number) => 0.35 + 0.48 * Math.sin(z * 0.48) - 0.08 * z;
+const valleyCenter = (z: number) => 0.35 + 0.48 * Math.sin(z * 0.48) - 0.08 * z
 
 export function terrainHeight(x: number, z: number) {
   const west = gaussian(x, z, -2.5, 0.3, 1.9, 11, 4.4),
@@ -23,67 +23,60 @@ export function terrainHeight(x: number, z: number) {
     erosion =
       (0.13 * Math.sin(x * 2.8 + z * 0.7) + 0.1 * Math.sin(z * 3.4 - x)) *
       Math.min(1, massif / 1.5),
-    plateau = gaussian(x, z, 3.15, -3.05, 0.7, 0.65, 1.25);
-  return massif - channel * (1.15 + massif * 0.28) - ravines * massif + erosion + plateau;
+    plateau = gaussian(x, z, 3.15, -3.05, 0.7, 0.65, 1.25)
+  return massif - channel * (1.15 + massif * 0.28) - ravines * massif + erosion + plateau
 }
 
-const bandFor = (height: number) => (height < 0.45 ? 0 : height < 1.45 ? 1 : height < 2.7 ? 2 : 3);
+const bandFor = (height: number) => (height < 0.45 ? 0 : height < 1.45 ? 1 : height < 2.7 ? 2 : 3)
 
 /** An eroded terrain mesh split into elevation bands, plus a separate river strip. */
 export interface Terrain {
-  positions: number[];
-  bands: number[][];
-  river: number[];
-  indices: number[];
+  positions: number[]
+  bands: number[][]
+  river: number[]
+  indices: number[]
 }
 
 export function mountainTerrain(detail = 96): Terrain {
   const positions: number[] = [],
-    bands: number[][] = [[], [], [], []];
+    bands: number[][] = [[], [], [], []]
   for (let u = 0; u <= detail; u++)
     for (let v = 0; v <= detail; v++) {
       const x = (u / detail - 0.5) * 12,
-        z = (v / detail - 0.5) * 12;
-      positions.push(x, terrainHeight(x, z), z);
+        z = (v / detail - 0.5) * 12
+      positions.push(x, terrainHeight(x, z), z)
     }
-  const vertex = (u: number, v: number) => u * (detail + 1) + v;
+  const vertex = (u: number, v: number) => u * (detail + 1) + v
   for (let u = 0; u < detail; u++)
     for (let v = 0; v < detail; v++) {
       const a = vertex(u, v),
         b = vertex(u + 1, v),
         c = vertex(u + 1, v + 1),
-        d = vertex(u, v + 1);
+        d = vertex(u, v + 1)
       for (const triangle of [
         [a, b, c],
         [a, c, d],
       ]) {
-        const height = triangle.reduce((sum, index) => sum + positions[index * 3 + 1], 0) / 3;
-        bands[bandFor(height)].push(...triangle);
+        const height = triangle.reduce((sum, index) => sum + positions[index * 3 + 1], 0) / 3
+        bands[bandFor(height)].push(...triangle)
       }
     }
   const river: number[] = [],
-    riverMargin = Math.max(1, Math.round(detail / 12));
+    riverMargin = Math.max(1, Math.round(detail / 12))
   for (let step = riverMargin; step <= detail - riverMargin; step++) {
     const z = (step / detail - 0.5) * 12,
       x = valleyCenter(z),
       width = 0.2 + 0.03 * Math.cos(z * 0.7),
       left = x - width,
-      right = x + width;
-    positions.push(
-      left,
-      terrainHeight(left, z) + 0.08,
-      z,
-      right,
-      terrainHeight(right, z) + 0.08,
-      z,
-    );
+      right = x + width
+    positions.push(left, terrainHeight(left, z) + 0.08, z, right, terrainHeight(right, z) + 0.08, z)
   }
   const riverSegments = detail - riverMargin * 2,
-    start = positions.length / 3 - (riverSegments + 1) * 2;
+    start = positions.length / 3 - (riverSegments + 1) * 2
   for (let step = 0; step < riverSegments; step++) {
     const a = start + step * 2,
-      b = a + 2;
-    river.push(a, b, b + 1, a, b + 1, a + 1);
+      b = a + 2
+    river.push(a, b, b + 1, a, b + 1, a + 1)
   }
-  return { positions, bands, river, indices: [...bands.flat(), ...river] };
+  return { positions, bands, river, indices: [...bands.flat(), ...river] }
 }

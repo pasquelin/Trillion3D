@@ -1,46 +1,46 @@
-import { TAA_SAMPLES } from './jitter.ts';
+import { TAA_SAMPLES } from './jitter.ts'
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
   /** Jitter rank of the next accumulated image; only advances on those, over `phases`. */
-  sample: number;
+  sample: number
   /** Lighting sample rank, independent of the spatial jitter cycle; owned by this view. */
-  stochasticSample: number;
+  stochasticSample: number
   /** Jitter phases of the frame's render-to-display ratio (`upscalePhases`): eleven at native size. */
-  phases: number;
+  phases: number
   /** This image's jitter, in the pixels it is drawn in. */
-  jitter: Float64Array;
+  jitter: Float64Array
   /** Render view-projection of this image, jitter included: what the raster, shading, blend and
    *  the partition read, decided once at image entry. */
-  viewProjection: Float64Array;
+  viewProjection: Float64Array
   /** View-projection WITHOUT jitter of the last accumulated image: what the history describes. */
-  previousViewProjection: Float64Array;
+  previousViewProjection: Float64Array
   /** The eye of that image: the camera's move since, which a point's parallax is told by. */
-  previousEye: Float64Array;
-  hasHistory: boolean;
+  previousEye: Float64Array
+  hasHistory: boolean
   /** Explicit discontinuity revision of this view, independent of ordinary camera motion. */
-  viewSeen: number;
+  viewSeen: number
   /** Quiet images accumulated in a row; see `taaStillFrames`. Zero as soon as something moves. */
-  stillFrames: number;
+  stillFrames: number
   /** Quiet images drawn into a still average not yet whole (`taaSettled`), counted for good: the
    *  image still arriving, which the interactive loop's settle limit does not spend (`taaArrivals`). */
-  stillDrawn: number;
+  stillDrawn: number
   /** Scene revision of the last accumulated image: another one causes poses to be compared. */
-  sceneSeen: number;
+  sceneSeen: number
   /** Shadow version (`shadowEpoch`) of the last image: another one restarts a still average. */
-  shadowsSeen: number;
+  shadowsSeen: number
   /** Reflections were still refining the last image (`restartTaaOnSettle`). */
-  refining: boolean;
+  refining: boolean
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
-  active: boolean;
+  active: boolean
   /** Scale the last ordinary image was drawn at (`ScaleControl.wanted`), which a convergence image keeps. */
-  scale: number;
+  scale: number
   /** Rank of a MOVING image, whose lighting is drawn per pixel (`../lighting/direct/lightSamplingWgsl.ts`):
    *  bounded, different from one to the next, replayed with the image. Zero when still. */
-  sampledRank: number;
+  sampledRank: number
   /** In a capture's barrier (`../webgpu/tile/converge.ts`), the jitter phase its convergence image
    *  draws, counted from the replayed one, at the still image's scale; `null` in any other image. */
-  stillPhase: number | null;
+  stillPhase: number | null
 }
 
 /** What a convergence image replays of the last ordinary image: see `checkpoint`. */
@@ -56,7 +56,7 @@ export function createTaaCheckpoint() {
     sampledRank: 0,
     previousViewProjection: new Float64Array(16),
     previousEye: new Float64Array(3),
-  };
+  }
 }
 
 export function createTaaFrameState(): TaaFrameState {
@@ -79,7 +79,7 @@ export function createTaaFrameState(): TaaFrameState {
     scale: 1,
     sampledRank: 0,
     stillPhase: null,
-  };
+  }
 }
 
 /** The image's stochastic phase, the one the lighting's noise turns with (the deferred view's
@@ -87,21 +87,21 @@ export function createTaaFrameState(): TaaFrameState {
  *  advances on accumulated images alone, a capture's convergence replays it; none without the
  *  temporal accumulation. */
 export const stochasticPhase = (taa: TaaFrameState | undefined) =>
-  taa?.active ? taa.stochasticSample + (taa.stillPhase ?? 0) : 0;
+  taa?.active ? taa.stochasticSample + (taa.stillPhase ?? 0) : 0
 
 /** Slots of the resolve's stochastic pattern (`writeTaaView`): the accumulated image's own rank
  *  modulo them. The one other reading of `stochasticSample` beside `stochasticPhase`: without the
  *  convergence images' offset, the replayed image's own rank, as the resolve re-reads it. */
-const STOCHASTIC_SLOTS = 8;
-export const stochasticSlot = (taa: TaaFrameState) => taa.stochasticSample % STOCHASTIC_SLOTS;
+const STOCHASTIC_SLOTS = 8
+export const stochasticSlot = (taa: TaaFrameState) => taa.stochasticSample % STOCHASTIC_SLOTS
 
 /** The golden ratio's fractional part, (√5 − 1) / 2. */
-const GOLDEN_FRACTION = (Math.sqrt(5) - 1) / 2;
+const GOLDEN_FRACTION = (Math.sqrt(5) - 1) / 2
 /** A phase's turn in [0, 1): the golden ratio's multiple of it, whose successive values fill the
  *  interval evenly over any count of images (Weyl's sequence, its gaps of at most three lengths). */
-const goldenTurn = (phase: number) => (phase * GOLDEN_FRACTION) % 1;
+const goldenTurn = (phase: number) => (phase * GOLDEN_FRACTION) % 1
 /** The turn a still image's noise takes (`goldenTurn` of its phase), which the accumulation
  *  averages at equal weights; none (−1) while the image moves, where a reactive pixel keeps mostly
  *  its current image, or without the accumulation. */
 export const stillTurn = (taa: TaaFrameState | undefined) =>
-  taa?.active && taa.stillFrames > 0 ? goldenTurn(stochasticPhase(taa)) : -1;
+  taa?.active && taa.stillFrames > 0 ? goldenTurn(stochasticPhase(taa)) : -1

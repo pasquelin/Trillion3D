@@ -1,7 +1,7 @@
-import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts';
-import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
-import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts';
-import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts';
+import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
+import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
+import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -12,18 +12,18 @@ import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts';
 /** Former atlas padding carries physical transmission and subsurface data. The final aligned
  *  block holds deformation metadata without aliasing those material values. `deform` is the
  *  float-pool record address plus one; zero means no deformation. */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,padDeform:u32,}`;
+export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,padDeform:u32,}`
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
  *  render pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`); `mipBias` the texture
  *  level offset of a frame drawn below the display (`../../webgpu/tile/wgsl.ts`). Its size is
  *  `VIS_UNIFORM_BYTES`. */
-export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`;
+export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`
 
 /** Description of a cluster, followed by the uniform of a page-geometry pass. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
-${VIS_UNIFORMS_WGSL}`;
+${VIS_UNIFORMS_WGSL}`
 
 /**
  * Bindings a page-geometry pass shares, one per line. They are named rather than grouped so that
@@ -37,7 +37,7 @@ export const PAGE_BINDING = {
   uniforms: `@group(0) @binding(${VIS_BINDINGS.uniform}) var<uniform> uni:Uniforms;`,
   instances: `@group(0) @binding(${VIS_BINDINGS.instances}) var<storage, read> instances:array<u32>;`,
   slotOffsets: `@group(0) @binding(${VIS_BINDINGS.slotOffsets}) var<storage, read> slotOffsets:array<u32>;`,
-} as const;
+} as const
 
 /** Page row and first corner of an instance: its instance word in indirect (\`INSTANCE_WORD_WGSL\`),
  *  its row from corner zero in an explicit draw. */
@@ -46,26 +46,26 @@ fn drawBatch(instanceIndex:u32)->vec2u{
  if(uni.indirect==0u){return vec2u(instanceIndex,0u);}
  let word=instances[slotOffsets[uni.drawSlot]+instanceIndex];
  return vec2u(instanceRow(word),instanceCorner(word));
-}`;
+}`
 
 /** Position of a page vertex in its local space. */
-export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}`;
+export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}`
 
 /** Texture coordinate of a page vertex. */
-export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`;
+export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`
 
 /** Normal and signed tangent of a vertex read as floats: seven per vertex, the normal then the
  *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`), from the float pool's atlas
  *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. */
 const VERT_NORMAL_WGSL = `${floatAtlasWgsl('normals', 'normalAt')}
 fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normalAt(i),normalAt(i+1u),normalAt(i+2u));}
-fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}`;
+fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}`
 /** The normal atlas bound at `binding`, and the reads of `VERT_NORMAL_WGSL`: what a pass inserts. */
 export const normalAtlasWgsl = (binding: number) =>
-  `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;\n${VERT_NORMAL_WGSL}`;
+  `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;\n${VERT_NORMAL_WGSL}`
 
 /** Signed area of the triangle `(a,b,p)` in screen coordinates; the raster takes its barycentrics from it. */
-export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`;
+export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`
 
 /**
  * The three affine barycentric weights of the point `p`, the signed area already known, for
@@ -75,7 +75,7 @@ export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)
 export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
  let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;
  return vec3f(w0,w1,1.0-w0-w1);
-}`;
+}`
 
 /**
  * Texture coordinate of a vertex and the opacity-mask test of a cluster, as both the
@@ -122,4 +122,4 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f3
  var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;
  if(coloured){alpha*=vertexAlpha;}
  return alpha>=page.baseColor.w;
-}`;
+}`

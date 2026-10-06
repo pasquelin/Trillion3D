@@ -1,14 +1,14 @@
 // The dist of one side of the comparison: an already built `dist/` directory, or a git reference
 // extracted outside the repository then built. Separated from `harness/options.ts`: resolving a side is
 // repository and build work, not reading arguments.
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { pnpmCommand } from '../../../scripts/only-pnpm.ts';
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { pnpmCommand } from '../../../scripts/only-pnpm.ts'
 
 const buildDist = (dir: string) =>
-  execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' });
+  execFileSync(...pnpmCommand('run', 'build'), { cwd: dir, stdio: 'inherit' })
 
 /**
  * One side of the comparison, before `equipSide` (`harness/sideOptions.ts`) turns it into a `Side` by
@@ -17,12 +17,12 @@ const buildDist = (dir: string) =>
  * and cache are known.
  */
 export interface SideBase {
-  name: string;
-  dist: string;
-  from: string;
-  cache?: string;
-  manifestUrl?: string;
-  sourceUrl?: string | null;
+  name: string
+  dist: string
+  from: string
+  cache?: string
+  manifestUrl?: string
+  sourceUrl?: string | null
 }
 
 /** Requested sides: the candidate always, the reference only if named. */
@@ -31,36 +31,36 @@ export function resolveSides({
   before,
   root,
 }: {
-  after?: string;
-  before?: string;
-  root: string;
+  after?: string
+  before?: string
+  root: string
 }): SideBase[] {
-  const target = after ?? join(root, 'dist');
+  const target = after ?? join(root, 'dist')
   // The repository's own dist is rebuilt when it lacks the witness entry: a dist built before the
   // witnesses left the package would otherwise be served without them.
   if (target === join(root, 'dist') && !existsSync(join(target, BROWSER_ENTRIES[0])))
-    buildDist(root);
-  const sides = [{ name: 'after', ...resolveDist(target, 'after', root) }];
-  if (before) sides.push({ name: 'before', ...resolveDist(before, 'before', root) });
-  return sides;
+    buildDist(root)
+  const sides = [{ name: 'after', ...resolveDist(target, 'after', root) }]
+  if (before) sides.push({ name: 'before', ...resolveDist(before, 'before', root) })
+  return sides
 }
 
 /** Resolves a side: an existing `dist` folder, or a git reference extracted then built.
  *  The extracted tree goes outside the repository: a second `tsconfig.json` under root would break linting. */
 function resolveDist(value: string, label: string, root: string): { dist: string; from: string } {
-  if (isDist(value)) return { dist: resolve(value), from: 'folder' };
-  if (isDist(join(value, 'dist'))) return { dist: resolve(value, 'dist'), from: 'folder' };
+  if (isDist(value)) return { dist: resolve(value), from: 'folder' }
+  if (isDist(join(value, 'dist'))) return { dist: resolve(value, 'dist'), from: 'folder' }
   const ref = execFileSync('git', ['-C', root, 'rev-parse', '--verify', `${value}^{commit}`], {
     encoding: 'utf8',
-  }).trim();
-  const dir = join(tmpdir(), 'trillion3d-mesure', `${label}-${ref.slice(0, 12)}`);
+  }).trim()
+  const dir = join(tmpdir(), 'trillion3d-mesure', `${label}-${ref.slice(0, 12)}`)
   if (isDist(join(dir, 'dist')))
-    return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (reused)` };
-  mkdirSync(dir, { recursive: true });
-  execFileSync('/bin/sh', ['-c', `git -C '${root}' archive ${ref} | tar -x -C '${dir}'`]);
-  execFileSync('ln', ['-sfn', join(root, 'node_modules'), join(dir, 'node_modules')]);
-  buildDist(dir);
-  return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)}` };
+    return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)} (reused)` }
+  mkdirSync(dir, { recursive: true })
+  execFileSync('/bin/sh', ['-c', `git -C '${root}' archive ${ref} | tar -x -C '${dir}'`])
+  execFileSync('ln', ['-sfn', join(root, 'node_modules'), join(dir, 'node_modules')])
+  buildDist(dir)
+  return { dist: join(dir, 'dist'), from: `git ${ref.slice(0, 12)}` }
 }
 
 /**
@@ -78,12 +78,11 @@ const BROWSER_ENTRIES = [
   'sdk-browser/measurement.js',
   'sdk-browser/src/index.js',
   'sdk-browser/index.js',
-];
+]
 
 /** Whether `dir` is a built dist: it holds one of the browser entries. */
-export const isDist = (dir: string) =>
-  BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)));
+export const isDist = (dir: string) => BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)))
 
 /** The page-side address of a side's SDK: the first browser entry its dist carries. */
 export const sdkEntryUrl = (side: { name: string; dist: string }) =>
-  `/sdk/${side.name}/${BROWSER_ENTRIES.find((entry) => existsSync(join(side.dist, entry))) ?? BROWSER_ENTRIES[0]}`;
+  `/sdk/${side.name}/${BROWSER_ENTRIES.find((entry) => existsSync(join(side.dist, entry))) ?? BROWSER_ENTRIES[0]}`

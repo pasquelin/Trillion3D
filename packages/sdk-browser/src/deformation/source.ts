@@ -1,9 +1,9 @@
-import type { Primitive } from '../../../sdk-core/src/index.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
-import type { Deformed, DeformedMesh } from './frame.ts';
+import type { Primitive } from '../../../sdk-core/src/index.ts'
+import type { MatrixElements } from '../math/matrixElements.ts'
+import type { Deformed, DeformedMesh } from './frame.ts'
 
 /** Largest source record needed by placements sharing one resource. */
-export type DeformationCapacity = { joints: number; waves: number };
+export type DeformationCapacity = { joints: number; waves: number }
 
 /**
  * The deformation a placement of `mesh` draws with, or `null`: its skeleton when its primitive's
@@ -18,14 +18,14 @@ export function deformedOf(
   world: MatrixElements,
   capacity?: DeformationCapacity,
 ): Deformed | null {
-  const measured = primitive?.deformation ?? null;
+  const measured = primitive?.deformation ?? null
   const joints = measured?.joints.length
       ? Math.max(measured.joints.length / 4, capacity?.joints ?? mesh.skeleton?.bones.length ?? 0)
       : 0,
     targets = measured?.targets.length ?? 0,
     waves = capacity?.waves ?? mesh.waves?.waveModel.count ?? 0,
-    soft = measured?.softVertices ?? 0;
-  if (!joints && !targets && !waves && !soft) return null;
-  const reach = { joints: measured?.joints ?? [], targets: measured?.targets ?? [] };
-  return { world, mesh, shape: { joints, targets, waves, soft }, reach };
+    soft = measured?.softVertices ?? 0
+  if (!joints && !targets && !waves && !soft) return null
+  const reach = { joints: measured?.joints ?? [], targets: measured?.targets ?? [] }
+  return { world, mesh, shape: { joints, targets, waves, soft }, reach }
 }

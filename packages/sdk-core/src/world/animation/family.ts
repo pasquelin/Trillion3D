@@ -1,9 +1,9 @@
-import type { Object3D } from '../object/object3d.ts';
-import type { Clip, Track, TrackKind } from './clip.ts';
-import { Mixer } from './mixer.ts';
-import { Skeleton } from './skeleton.ts';
-import { solveTwoBoneIK } from './ik.ts';
-import { windClip } from './wind.ts';
+import type { Object3D } from '../object/object3d.ts'
+import type { Clip, Track, TrackKind } from './clip.ts'
+import { Mixer } from './mixer.ts'
+import { Skeleton } from './skeleton.ts'
+import { solveTwoBoneIK } from './ik.ts'
+import { windClip } from './wind.ts'
 
 const track =
   (kind: TrackKind) =>
@@ -12,7 +12,7 @@ const track =
     kind,
     times: new Float32Array(times),
     values: new Float32Array(values),
-  });
+  })
 
 /** The `animation` family: clips of keyed tracks, played by a mixer on a node and its children. */
 export const animation = {
@@ -54,4 +54,4 @@ export const animation = {
   /** A looping clip of wind in a tree's bones: they lean with it and sway back.
    *  @param bones - Trunk first, tips last. @param options - Direction, largest bend, sways a second. */
   windClip,
-};
+}

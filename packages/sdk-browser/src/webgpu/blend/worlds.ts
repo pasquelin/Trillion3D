@@ -1,6 +1,6 @@
-import { boxIsEmpty, boxTransform } from '../../../../sdk-core/src/index.ts';
-import { readHostBox } from '../../host/boxBounds.ts';
-import type { BlendGpuItem } from './state.ts';
+import { boxIsEmpty, boxTransform } from '../../../../sdk-core/src/index.ts'
+import { readHostBox } from '../../host/boxBounds.ts'
+import type { BlendGpuItem } from './state.ts'
 
 /**
  * World box of a transparent item, rebuilt from the LOCAL box of its geometry and the
@@ -13,16 +13,16 @@ import type { BlendGpuItem } from './state.ts';
  * because its bounds are doubtful.
  */
 export function refreshBlendBounds(item: BlendGpuItem) {
-  const box = item.worldBox;
-  if (!box) return;
-  const local = item.sourceGeometry.boundingBox;
+  const box = item.worldBox
+  if (!box) return
+  const local = item.sourceGeometry.boundingBox
   if (!local) {
-    item.bounds = undefined;
-    return;
+    item.bounds = undefined
+    return
   }
-  readHostBox(box, local);
-  boxTransform(box, 0, box, 0, item.matrix.elements);
-  item.bounds = !boxIsEmpty(box, 0) && box.every(Number.isFinite) ? box : undefined;
+  readHostBox(box, local)
+  boxTransform(box, 0, box, 0, item.matrix.elements)
+  item.bounds = !boxIsEmpty(box, 0) && box.every(Number.isFinite) ? box : undefined
 }
 
 /**
@@ -31,11 +31,11 @@ export function refreshBlendBounds(item: BlendGpuItem) {
  * number of items whose box was rebuilt.
  */
 export function refreshBlendWorlds(items: readonly BlendGpuItem[]) {
-  let repris = 0;
+  let repris = 0
   for (const item of items)
     if (item.worldBox) {
-      refreshBlendBounds(item);
-      repris++;
+      refreshBlendBounds(item)
+      repris++
     }
-  return repris;
+  return repris
 }

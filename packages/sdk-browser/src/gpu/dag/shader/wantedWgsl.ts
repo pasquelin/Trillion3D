@@ -1,4 +1,4 @@
-import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
+import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
 
 /**
  * The kernel that follows the descent, and that visits only what it kept.
@@ -41,4 +41,4 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
  *  A cluster nothing replaces falls back on its own, as that path does. */
 fn replacementPixels(cluster:Cluster,pixels:vec2f)->f32{return select(pixels.x,pixels.y,cluster.parentError<0.0);}
-`;
+`

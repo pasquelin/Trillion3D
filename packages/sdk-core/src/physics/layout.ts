@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 18;
+export const PHYSICS_LAYOUT_VERSION = 18
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -32,17 +32,17 @@ export const OP = {
   unvehicle: 22,
   drive: 23,
   /** The soft bodies' (`softLayout.ts`). */ soft: 24,
-} as const;
+} as const
 
 /** How a body moves: fixed, moved by the page, or moved by the simulation. */
-export const MOTION = { static: 0, kinematic: 1, dynamic: 2 } as const;
+export const MOTION = { static: 0, kinematic: 1, dynamic: 2 } as const
 
 /**
  * Collision layers. Static geometry meets everything that moves; moving bodies meet everything;
  * decorative bodies (debris) meet the static world only, so a thousand of them never push a
  * character or a crate.
  */
-export const LAYER = { static: 0, moving: 1, decorative: 2 } as const;
+export const LAYER = { static: 0, moving: 1, decorative: 2 } as const
 
 /** Shape kinds of the ADD command: four exact primitives, a triangle mesh, a convex hull, a
  *  cooked shape (`physics.json`), named by the handle a RESTORE gave it — its first data word —
@@ -56,14 +56,14 @@ export const SHAPE = {
   hull: 5,
   cooked: 6,
   compound: 7,
-} as const;
+} as const
 
 /**
  * Words of one part of a compound: `kind, a, b, c, px, py, pz, qx, qy, qz, qw` — a primitive, its
  * sizes, its place in the body. A compound ADD carries its parts as data: `indexCount` counts
  * their words and `vertexCount` is 0.
  */
-export const PART_WORDS = 11;
+export const PART_WORDS = 11
 
 /**
  * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored` — a ray,
@@ -71,10 +71,10 @@ export const PART_WORDS = 11;
  * swept along `travel`, through the body whose engine id is `ignored` (`MISS`: none). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
  * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
  */
-export const CAST_WORDS = 11;
-export const HIT_WORDS = 8;
-export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const;
-export const MISS = 0xffffffff;
+export const CAST_WORDS = 11
+export const HIT_WORDS = 8
+export const CAST = { ray: 0, sphere: 1, box: 2, capsule: 3 } as const
+export const MISS = 0xffffffff
 
 /** Joint kinds of the JOINT command, each one of the module's two-body constraints. */
 export const JOINT = {
@@ -90,9 +90,9 @@ export const JOINT = {
   pulley: 9,
   gear: 10,
   rackAndPinion: 11,
-} as const;
+} as const
 /** What a joint's motor does: nothing, drive to a velocity, or drive to a position. */
-export const MOTOR = { off: 0, velocity: 1, position: 2 } as const;
+export const MOTOR = { off: 0, velocity: 1, position: 2 } as const
 /**
  * Words of JOINT: `op, joint id, kind, engine id a, engine id b, motor mode, motor axis, extra
  * count`, then for `a` and for `b` its frame — `point x, y, z, axis x, y, z, normal x, y, z` in
@@ -107,20 +107,20 @@ export const MOTOR = { off: 0, velocity: 1, position: 2 } as const;
  * `op, joint id, mode, axis, target, max force`. After a step, the module lists the joints pulled
  * past their break force and takes them out (`jolt_broken`).
  */
-export const JOINT_WORDS = 33;
+export const JOINT_WORDS = 33
 
 /** Per-body flag bits: sensor, continuous collision, events wanted, hidden (no pose), asleep (ADD). */
-export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8, asleep: 16 } as const;
+export const FLAG = { sensor: 1, ccd: 2, events: 4, hidden: 8, asleep: 16 } as const
 
 /**
  * A body's engine id, carried by ADD and by every pose and event record: its slot in the bits of
  * `BODY_INDEX`, the slot's generation in the seven bits above. A record naming a body that left is
  * then never read as the body that took its slot; the other commands name the slot alone.
  */
-export const BODY_INDEX = 0x00ffffff;
+export const BODY_INDEX = 0x00ffffff
 /** Where the generation starts in an engine id, and how many a slot counts before wrapping. */
-export const GENERATION_SHIFT = 24;
-export const GENERATIONS = 128;
+export const GENERATION_SHIFT = 24
+export const GENERATIONS = 128
 
 /**
  * Words of the fixed part of ADD: `op, engine id, motion, layer, shape, flags, px, py, pz, qx, qy,
@@ -131,65 +131,65 @@ export const GENERATIONS = 128;
  * A primitive's 3 or 12 data words, a cooked shape's past its handle, are its mass frame: the
  * centre of mass it turns about, then a dynamic body's inertia about it (nine, column-major).
  */
-export const ADD_WORDS = 25;
+export const ADD_WORDS = 25
 /** The simulation's own damping, per second, linear and angular alike: what ADD carries for a
  *  body that sets none (the module's). */
-export const DAMPING = 0.05;
+export const DAMPING = 0.05
 
 /**
  * Words of VIEW: `op, eye x, y, z, facing x, y, z, halfCone, range`. Distance decides what is
  * simulated: a dynamic body beyond `range` is frozen, its velocities kept. The view decides what is
  * sent: a body outside the cone of half angle `halfCone` (radians; 0 sees everything) sends no pose.
  */
-export const VIEW_WORDS = 9;
+export const VIEW_WORDS = 9
 
 /**
  * Words of one piece `jolt_water_query` lists: `engine id, index | count << 16, x, z, half x,
  * half z` — a compound's sub-shape, a slice of a long primitive or the whole body, by its centre
  * and horizontal half extents in world space.
  */
-export const WATER_PIECE_WORDS = 6;
+export const WATER_PIECE_WORDS = 6
 /**
  * Words of BUOYANCY before its planes: `op, plane count, water density, linear drag, angular
  * drag, current x, y, z`, then per piece `PLANE_WORDS` words: `engine id, index | count << 16,
  * point x, y, z, normal x, y, z` — the water plane under that piece. A body's pieces are
  * consecutive.
  */
-export const BUOYANCY_WORDS = 8;
-export const PLANE_WORDS = 8;
+export const BUOYANCY_WORDS = 8
+export const PLANE_WORDS = 8
 
 /**
  * Words of one pose record: `engine id | asleep bit, px, py, pz, qx, qy, qz, qw, vx, vy, vz, wx, wy,
  * wz` — the linear and angular velocities let the page extrapolate a late tick.
  */
-export const POSE_WORDS = 14;
+export const POSE_WORDS = 14
 /** Set on a pose record's index word when the body fell asleep during the step. */
-export const ASLEEP_BIT = 0x80000000;
+export const ASLEEP_BIT = 0x80000000
 
 /** Words of one event record: `type, engine id a, engine id b, impulse, px, py, pz`. */
-export const EVENT_WORDS = 7;
+export const EVENT_WORDS = 7
 /** Event types: a pair of bodies started touching, or stopped. */
-export const EVENT = { begin: 1, end: 2 } as const;
+export const EVENT = { begin: 1, end: 2 } as const
 
 /** What `jolt_error` answers after a failed step. */
-export const MODULE_ERROR = ['NONE', 'BODY_LIMIT', 'UNKNOWN_BODY', 'BAD_SHAPE', 'BAD_COMMAND'];
+export const MODULE_ERROR = ['NONE', 'BODY_LIMIT', 'UNKNOWN_BODY', 'BAD_SHAPE', 'BAD_COMMAND']
 
 /**
  * Words of CHARACTER: `op, radius, height, maxSlope, stepHeight, mass, pushStrength, feet x, y, z`.
  * It puts the world's one character at rest with its feet there, replacing any before; a radius
  * of 0 removes it.
  */
-export const CHARACTER_WORDS = 10;
+export const CHARACTER_WORDS = 10
 /**
  * Words of CHARACTER_MOVE: `op, vx, vy, vz, grounded` — the velocity the character moves at over
  * the next step, in m/s, and whether it walks (it then climbs steps and follows the floor down).
  */
-export const CHARACTER_MOVE_WORDS = 5;
+export const CHARACTER_MOVE_WORDS = 5
 /**
  * Words of the character's state after a step: `present, feet x, y, z, ground, ground velocity
  * x, y, z, ground friction`; `ground` is `GROUND`, the ground velocity that of the point it stands
  * on, the ground friction that of the body it stands on (`material.physics`), -1 when none.
  */
-export const CHARACTER_STATE_WORDS = 9;
+export const CHARACTER_STATE_WORDS = 9
 /** What the character stands on: a floor, a slope too steep, a touch that holds nothing, air. */
-export const GROUND = { floor: 0, steep: 1, unsupported: 2, air: 3 } as const;
+export const GROUND = { floor: 0, steep: 1, unsupported: 2, air: 3 } as const

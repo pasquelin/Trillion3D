@@ -1,5 +1,5 @@
-import { copyMatrix4, type NumberSink } from '../matrix/matrix4.ts';
-import { transformHomogeneousPoint } from './vector.ts';
+import { copyMatrix4, type NumberSink } from '../matrix/matrix4.ts'
+import { transformHomogeneousPoint } from './vector.ts'
 
 /**
  * THE RENDER FRAME. A scene posed far from the world origin shimmers: the GPU
@@ -35,14 +35,14 @@ export function worldToRenderOrigin<T extends NumberSink>(
   origin: ArrayLike<number>,
   at = 0,
 ) {
-  copyMatrix4(out, world, at);
+  copyMatrix4(out, world, at)
   // The three numbers that depend on the origin. A buffer whose other thirteen already hold
   // `world` — only the eye moved since — rewrites these alone, by the same subtraction
   // (`rootTranslationsToRenderOrigin`, `packages/sdk-browser/src/gpu/dag/pack.ts`).
-  out[at + 12] = world[12] - origin[0];
-  out[at + 13] = world[13] - origin[1];
-  out[at + 14] = world[14] - origin[2];
-  return out;
+  out[at + 12] = world[12] - origin[0]
+  out[at + 13] = world[13] - origin[1]
+  out[at + 14] = world[14] - origin[2]
+  return out
 }
 
 /**
@@ -57,8 +57,8 @@ export function matrixAtRenderOrigin<T extends NumberSink>(
   origin: ArrayLike<number>,
   at = 0,
 ) {
-  copyMatrix4(out, m, at);
-  return transformHomogeneousPoint(out, m, origin[0], origin[1], origin[2], at + 12);
+  copyMatrix4(out, m, at)
+  return transformHomogeneousPoint(out, m, origin[0], origin[1], origin[2], at + 12)
 }
 
 /**
@@ -67,9 +67,9 @@ export function matrixAtRenderOrigin<T extends NumberSink>(
  * translation is the image of the eye by the linear part, and the relative world already carries it.
  */
 export function viewToRenderOrigin<T extends NumberSink>(out: T, view: ArrayLike<number>) {
-  copyMatrix4(out, view);
-  out[12] = 0;
-  out[13] = 0;
-  out[14] = 0;
-  return out;
+  copyMatrix4(out, view)
+  out[12] = 0
+  out[13] = 0
+  out[14] = 0
+  return out
 }

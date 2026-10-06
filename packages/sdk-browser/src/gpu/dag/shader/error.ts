@@ -9,10 +9,10 @@
  * being eliminated at compile time. `withScreenErrorVariant` sets it true for the campaign that
  * measures the external-reference metric, exact mirror of `referenceScreenError`.
  */
-import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts';
-import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts';
-import { PROJECTED_BOUND_WGSL } from './projectedBoundWgsl.ts';
-import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts';
+import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
+import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts'
+import { PROJECTED_BOUND_WGSL } from './projectedBoundWgsl.ts'
+import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts'
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
@@ -39,19 +39,19 @@ fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
 /** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
 fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}
 fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}
-`;
+`
 
 /**
  * Shader text for a given variant: returned as-is for ours, a single declaration returned for
  * the external-reference one. Nothing else changes by a character.
  */
 export function withScreenErrorVariant(code: string, variant: ScreenErrorVariant): string {
-  if (variant !== 'reference') return code;
-  const at = code.indexOf(REFERENCE_ERROR_DECL);
-  if (at < 0) throw new Error('REFERENCE_ERROR declaration missing from the shader');
+  if (variant !== 'reference') return code
+  const at = code.indexOf(REFERENCE_ERROR_DECL)
+  if (at < 0) throw new Error('REFERENCE_ERROR declaration missing from the shader')
   return (
     code.slice(0, at) +
     'const REFERENCE_ERROR:bool=true;' +
     code.slice(at + REFERENCE_ERROR_DECL.length)
-  );
+  )
 }

@@ -7,7 +7,7 @@
  */
 
 /** What an output accepts: `Float32Array`, `Float64Array` or a plain array. */
-export type NumberSink = { [index: number]: number };
+export type NumberSink = { [index: number]: number }
 
 /**
  * `out = a · b`. The thirty-two inputs are read before the first write, so `out` may be
@@ -33,52 +33,52 @@ export function multiplyMatrix4(out: Float64Array, a: Float64Array, b: Float64Ar
   const a11 = a[0],
     a12 = a[4],
     a13 = a[8],
-    a14 = a[12];
+    a14 = a[12]
   const a21 = a[1],
     a22 = a[5],
     a23 = a[9],
-    a24 = a[13];
+    a24 = a[13]
   const a31 = a[2],
     a32 = a[6],
     a33 = a[10],
-    a34 = a[14];
+    a34 = a[14]
   const a41 = a[3],
     a42 = a[7],
     a43 = a[11],
-    a44 = a[15];
+    a44 = a[15]
   const b11 = b[0],
     b12 = b[4],
     b13 = b[8],
-    b14 = b[12];
+    b14 = b[12]
   const b21 = b[1],
     b22 = b[5],
     b23 = b[9],
-    b24 = b[13];
+    b24 = b[13]
   const b31 = b[2],
     b32 = b[6],
     b33 = b[10],
-    b34 = b[14];
+    b34 = b[14]
   const b41 = b[3],
     b42 = b[7],
     b43 = b[11],
-    b44 = b[15];
-  out[0] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41;
-  out[4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42;
-  out[8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43;
-  out[12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44;
-  out[1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41;
-  out[5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42;
-  out[9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43;
-  out[13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44;
-  out[2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41;
-  out[6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42;
-  out[10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43;
-  out[14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44;
-  out[3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41;
-  out[7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42;
-  out[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43;
-  out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
-  return out;
+    b44 = b[15]
+  out[0] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41
+  out[4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42
+  out[8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43
+  out[12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44
+  out[1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41
+  out[5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42
+  out[9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43
+  out[13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44
+  out[2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41
+  out[6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42
+  out[10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43
+  out[14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44
+  out[3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41
+  out[7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42
+  out[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43
+  out[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44
+  return out
 }
 
 /**
@@ -89,19 +89,19 @@ export function determinantMatrix4(m: ArrayLike<number>) {
   const n11 = m[0],
     n12 = m[4],
     n13 = m[8],
-    n14 = m[12];
+    n14 = m[12]
   const n21 = m[1],
     n22 = m[5],
     n23 = m[9],
-    n24 = m[13];
+    n24 = m[13]
   const n31 = m[2],
     n32 = m[6],
     n33 = m[10],
-    n34 = m[14];
+    n34 = m[14]
   const n41 = m[3],
     n42 = m[7],
     n43 = m[11],
-    n44 = m[15];
+    n44 = m[15]
   return (
     n41 *
       (+n14 * n23 * n32 -
@@ -131,7 +131,7 @@ export function determinantMatrix4(m: ArrayLike<number>) {
         n13 * n21 * n32 -
         n12 * n21 * n33 +
         n12 * n23 * n31)
-  );
+  )
 }
 
 /**
@@ -146,13 +146,13 @@ export function linearPartDeterminant(m: ArrayLike<number>) {
     m[0] * (m[5] * m[10] - m[6] * m[9]) -
     m[1] * (m[4] * m[10] - m[6] * m[8]) +
     m[2] * (m[4] * m[9] - m[5] * m[8])
-  );
+  )
 }
 
 /** Column-major identity, read and never written: the pose of a node or a root with no pose. */
 export const IDENTITY_MATRIX4: Float64Array = new Float64Array([
   1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
-]);
+])
 
 /**
  * Copies the sixteen floats of `m` into `out`, each at its offset. A loop rather than
@@ -165,6 +165,6 @@ export function copyMatrix4<T extends NumberSink>(
   outAt = 0,
   mAt = 0,
 ) {
-  for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i];
-  return out;
+  for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i]
+  return out
 }

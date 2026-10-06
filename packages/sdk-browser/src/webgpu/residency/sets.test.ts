@@ -1,10 +1,10 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { check, frame, keysOf, queueOf, scene } from './sets.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { check, frame, keysOf, queueOf, scene } from './sets.fixture.ts'
 
 test('the incremental sets answer what the whole-set version answered, image after image', () => {
-  const world = scene();
-  const room = 64;
+  const world = scene()
+  const room = 64
   // A camera that moves: the cut grows, slides, shrinks, empties and comes back — and it names
   // transparent clusters (16 to 19) exactly as it names opaque ones.
   const cuts: number[][] = [
@@ -15,77 +15,77 @@ test('the incremental sets answer what the whole-set version answered, image aft
     [],
     [1, 3, 5, 7, 9, 11, 13, 15, 16, 17, 18, 19],
     [0, 2, 4, 19],
-  ];
-  cuts.forEach((ids, index) => check(world, ids, room, `image ${index}`));
-});
+  ]
+  cuts.forEach((ids, index) => check(world, ids, room, `image ${index}`))
+})
 
 test('a cut wider than the page budget keeps the same coarse subset as the whole-set version', () => {
-  const world = scene();
+  const world = scene()
   for (const room of [0, 1, 3, 6, 9, 14]) {
-    const world2 = scene();
-    check(world2, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19], room, `budget ${room}`);
-    check(world2, [4, 5, 6, 7, 8, 9, 10, 11, 16, 17], room, `budget ${room} bis`);
+    const world2 = scene()
+    check(world2, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 19], room, `budget ${room}`)
+    check(world2, [4, 5, 6, 7, 8, 9, 10, 11, 16, 17], room, `budget ${room} bis`)
     // Back under the budget: the queue is the desired set again.
-    check(world2, [0, 1, 16], 64, `budget ${room} released`);
+    check(world2, [0, 1, 16], 64, `budget ${room} released`)
   }
-  assert.equal(world.tracking.wanted.count, 0);
-});
+  assert.equal(world.tracking.wanted.count, 0)
+})
 
 test('the CPU cut goes through the same delta, and the GPU resumes against it', () => {
-  const world = scene();
-  const { tracking, delta, packed, bootstrapKey } = world;
-  frame(world, [0, 1, 2, 3, 16], 64);
+  const world = scene()
+  const { tracking, delta, packed, bootstrapKey } = world
+  frame(world, [0, 1, 2, 3, 16], 64)
   // It names its records and not ranks; the delta draws the same ranks from them, and the sets move
   // by what moved — neither emptied nor rebuilt.
-  delta.adoptRecords([packed[10], packed[11], packed[19]], (rec) => packed.indexOf(rec));
-  world.cut();
-  world.budget(64);
+  delta.adoptRecords([packed[10], packed[11], packed[19]], (rec) => packed.indexOf(rec))
+  world.cut()
+  world.budget(64)
   assert.deepEqual(
     keysOf(tracking.wanted),
     new Set(
       [packed[10], packed[11], packed[19]].map(tracking.keyOf).filter((k) => !bootstrapKey[k]),
     ),
-  );
-  assert.equal(delta.exitedCount, 5, 'the five pages of the previous cut have left');
+  )
+  assert.equal(delta.exitedCount, 5, 'the five pages of the previous cut have left')
   // The GPU takes the image back: its delta starts from what the CPU left, not from zero.
-  check(world, [0, 1, 16], 64, 'retour coupe GPU');
-});
+  check(world, [0, 1, 16], 64, 'retour coupe GPU')
+})
 
 test('an image that moves no page touches no set at all', () => {
-  const world = scene();
-  const { delta, sets, tracking } = world;
-  const ids = [0, 1, 2, 3, 4, 5, 16, 17, 18, 19];
-  frame(world, ids, 64);
-  const wantedBefore = queueOf(tracking.wanted);
-  const listBefore = tracking.wanted.list;
+  const world = scene()
+  const { delta, sets, tracking } = world
+  const ids = [0, 1, 2, 3, 4, 5, 16, 17, 18, 19]
+  frame(world, ids, 64)
+  const wantedBefore = queueOf(tracking.wanted)
+  const listBefore = tracking.wanted.list
   // The pin step drains these; nothing else may add to them once the cut stops moving.
   const entering = sets.entering.count,
-    leaving = sets.leaving.count;
+    leaving = sets.leaving.count
   for (let image = 0; image < 100; image++) {
-    frame(world, ids, 64);
-    assert.equal(delta.enteredCount, 0);
-    assert.equal(delta.exitedCount, 0);
+    frame(world, ids, 64)
+    assert.equal(delta.enteredCount, 0)
+    assert.equal(delta.exitedCount, 0)
   }
-  assert.equal(sets.entering.count, entering);
-  assert.equal(sets.leaving.count, leaving);
+  assert.equal(sets.entering.count, entering)
+  assert.equal(sets.leaving.count, leaving)
   // Same backing array, same members, in the same places: nothing was rebuilt or reallocated.
-  assert.equal(tracking.wanted.list, listBefore);
-  assert.deepEqual(queueOf(tracking.wanted), wantedBefore);
-});
+  assert.equal(tracking.wanted.list, listBefore)
+  assert.deepEqual(queueOf(tracking.wanted), wantedBefore)
+})
 
 test('a queue rebuilt past the budget hands the pin step only the keys it took and let go', () => {
-  const world = scene();
-  const { sets, tracking } = world;
+  const world = scene()
+  const { sets, tracking } = world
   // Eight pages, levels 0 to 7, over a budget of three: the ranking keeps the three coarsest.
-  frame(world, [2, 4, 6, 8, 10, 12, 14], 3);
-  const before = keysOf(tracking.keep);
-  sets.entering.clear();
-  sets.leaving.clear();
+  frame(world, [2, 4, 6, 8, 10, 12, 14], 3)
+  const before = keysOf(tracking.keep)
+  sets.entering.clear()
+  sets.leaving.clear()
   // The coarsest page leaves the cut: the rebuilt queue drops it and takes the next one down.
-  frame(world, [2, 4, 6, 8, 10, 12], 3);
-  const after = keysOf(tracking.keep);
-  const minus = (a: Set<number>, b: Set<number>) => new Set([...a].filter((key) => !b.has(key)));
-  assert.deepEqual(keysOf(sets.entering), minus(after, before), 'joined');
-  assert.deepEqual(keysOf(sets.leaving), minus(before, after), 'left');
-  assert.equal(sets.leaving.count, 1);
-});
+  frame(world, [2, 4, 6, 8, 10, 12], 3)
+  const after = keysOf(tracking.keep)
+  const minus = (a: Set<number>, b: Set<number>) => new Set([...a].filter((key) => !b.has(key)))
+  assert.deepEqual(keysOf(sets.entering), minus(after, before), 'joined')
+  assert.deepEqual(keysOf(sets.leaving), minus(before, after), 'left')
+  assert.equal(sets.leaving.count, 1)
+})

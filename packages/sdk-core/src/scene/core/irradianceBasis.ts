@@ -9,7 +9,7 @@
  * at a normal is `E(n) = Σ L_k · band_k · polynomial_k(n)`, the convolution with the clamped
  * cosine lobe: `band_k = Â_l · basis_k` with `Â_0 = π`, `Â_1 = 2π/3`, `Â_2 = π/4`.
  */
-import { IRRADIANCE_TERMS } from './irradianceTerms.ts';
+import { IRRADIANCE_TERMS } from './irradianceTerms.ts'
 
 /**
  * Irradiance at the unit normal named `normal`, as a shader expression: the sum of each
@@ -20,7 +20,7 @@ import { IRRADIANCE_TERMS } from './irradianceTerms.ts';
 export function irradianceShader(coefficient: (k: number) => string, normal: string) {
   return IRRADIANCE_TERMS.map(
     (term, k) => `${coefficient(k)}*((${term.polynomial(normal)})*${term.band})`,
-  ).join('+');
+  ).join('+')
 }
 
 /**
@@ -36,7 +36,7 @@ export function filteredRadianceShader(
   return IRRADIANCE_TERMS.map(
     (term, k) =>
       `${coefficient(k)}*((${term.polynomial(direction)})*${term.basis}*${bands}.${k === 0 ? 'x' : k < 4 ? 'y' : 'z'})`,
-  ).join('+');
+  ).join('+')
 }
 
 /**
@@ -51,5 +51,5 @@ export function radianceProjectionShader(
 ) {
   return IRRADIANCE_TERMS.map(
     (term, k) => `${target(k)}+=${radiance}*((${term.polynomial(direction)})*${term.basis});`,
-  ).join('\n');
+  ).join('\n')
 }

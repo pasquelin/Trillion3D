@@ -13,41 +13,40 @@
  * A texture keeps ONE record for the session (`textureImport.ts`).
  */
 
-import type { HostColour, HostMaterials, HostTexture } from './resources.ts';
-import { isHostColour, type HostShadedMaterial } from './shadedMaterial.ts';
-import { importHostTexture } from './textureImport.ts';
-import type { Texture } from '../../../sdk-core/src/index.ts';
-import { sideOf } from '../scene/materialSide.ts';
-import type { VisMaterial } from '../visibility/types.ts';
+import type { HostColour, HostMaterials, HostTexture } from './resources.ts'
+import { isHostColour, type HostShadedMaterial } from './shadedMaterial.ts'
+import { importHostTexture } from './textureImport.ts'
+import type { Texture } from '../../../sdk-core/src/index.ts'
+import { sideOf } from '../scene/materialSide.ts'
+import type { VisMaterial } from '../visibility/types.ts'
 import {
   SURFACE_MODEL,
   hostSurfaceModel,
   litModel,
   shininessRoughness,
   metalRough,
-} from '../scene/surfaceModel.ts';
+} from '../scene/surfaceModel.ts'
 
-const map = (texture: unknown) => (texture ? importHostTexture(texture as HostTexture) : undefined);
+const map = (texture: unknown) => (texture ? importHostTexture(texture as HostTexture) : undefined)
 
 /** A host-keyed table of glTF texture ranks, rekeyed once on the records the engine addresses. */
 export function importTextureIndices(indices?: ReadonlyMap<HostTexture, number>) {
-  if (!indices) return undefined;
-  const ranks = new Map<Texture, number>();
-  for (const [host, rank] of indices) ranks.set(importHostTexture(host), rank);
-  return ranks;
+  if (!indices) return undefined
+  const ranks = new Map<Texture, number>()
+  for (const [host, rank] of indices) ranks.set(importHostTexture(host), rank)
+  return ranks
 }
 
 /** White is what a material with no declared colour is drawn with, as the host does. */
-const WHITE: HostColour = { r: 1, g: 1, b: 1 };
+const WHITE: HostColour = { r: 1, g: 1, b: 1 }
 
 /** Surface parameters of a host material, read in one place — here — into the engine's own
  *  record. Nothing is cached: every call re-reads the host declaration, so a reassigned material
  *  or a replaced map is seen as it stands. */
 export function importHostSurface(material: HostMaterials): VisMaterial | undefined {
-  const first = (Array.isArray(material) ? material[0] : material) as
-    HostShadedMaterial | undefined;
-  if (!first) return undefined;
-  const color = isHostColour(first.color) ? first.color : WHITE;
+  const first = (Array.isArray(material) ? material[0] : material) as HostShadedMaterial | undefined
+  if (!first) return undefined
+  const color = isHostColour(first.color) ? first.color : WHITE
   // A non-physical family reads in the one model (`../scene/surfaceModel.ts`): Lambert and toon lit
   // apart, Phong as the physical model at the roughness of its exponent, the others unlit.
   const model = hostSurfaceModel(first),
@@ -63,7 +62,7 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
     // triangle, which turns the second factor of a surface written for vertex tangents — the sign
     // the material table gives that surface's other variant (`docs/FORMAT.md`). A pass reading a
     // host geometry's own tangents takes the factor the surface was written with.
-    written = first.forVertexTangents;
+    written = first.forVertexTangents
   return {
     baseColor: [color.r, color.g, color.b],
     metalness: standard ? (first.metalness ?? 0) : 0,
@@ -130,5 +129,5 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
           },
         }
       : {}),
-  };
+  }
 }

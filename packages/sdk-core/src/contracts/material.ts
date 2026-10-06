@@ -8,36 +8,36 @@
  */
 
 /** Which faces of a surface are drawn, the engine's own enum, compared everywhere downstream. */
-export type Side = 'front' | 'back' | 'double';
+export type Side = 'front' | 'back' | 'double'
 
 /** How the alpha channel of a surface is read: opaque ignores it, `mask` cuts at `alphaCutoff`,
  *  `blend` composes. A blended surface is never turned into a masked one inside the engine. */
-export type AlphaMode = 'opaque' | 'mask' | 'blend';
+export type AlphaMode = 'opaque' | 'mask' | 'blend'
 
 /** The alpha mode a surface is drawn in, from its blend flag and cutoff: the one rule a host
  *  surface and the engine's material agree on. */
 export const alphaModeOf = (surface: { transparent: boolean; alphaTest: number }): AlphaMode =>
-  surface.transparent ? 'blend' : surface.alphaTest > 0 ? 'mask' : 'opaque';
+  surface.transparent ? 'blend' : surface.alphaTest > 0 ? 'mask' : 'opaque'
 
 /** One linear RGB colour, `[0, 1]` per channel. */
-export type LinearRgb = readonly [number, number, number];
+export type LinearRgb = readonly [number, number, number]
 
 /** Surface parameters of one primitive, as the engine holds them. */
 export interface Material {
   /** The base colour, linear. */
-  baseColor: LinearRgb;
+  baseColor: LinearRgb
   /** Base-colour alpha, `1` for a surface that hides what is behind it. */
-  opacity: number;
+  opacity: number
   /** How metallic, 0 to 1. */
-  metalness: number;
+  metalness: number
   /** How rough, 0 to 1. */
-  roughness: number;
+  roughness: number
   /** The colour it gives off. */
-  emissive: LinearRgb;
+  emissive: LinearRgb
   /** Which faces are drawn. */
-  side: Side;
+  side: Side
   /** Opaque, cut out, or blended. */
-  alphaMode: AlphaMode;
+  alphaMode: AlphaMode
   /** Alpha below which a masked surface discards the pixel; ignored by the other modes. */
-  alphaCutoff: number;
+  alphaCutoff: number
 }

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react'
 
 /** What the demo page tells the example in its frame: show or hide its controls panel. */
 interface ControlsMessage {
-  type: 'trillion3d:controls';
-  visible: boolean;
+  type: 'trillion3d:controls'
+  visible: boolean
 }
 
 /**
@@ -12,28 +12,28 @@ interface ControlsMessage {
  * the example's controls panel is shown.
  */
 export function useDemo(file: string) {
-  const [source, setSource] = useState('');
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [run, setRun] = useState(0);
-  const [loadedRun, setLoadedRun] = useState(-1);
-  const [controls, setControls] = useState(true);
-  const frame = useRef<HTMLIFrameElement | null>(null);
+  const [source, setSource] = useState('')
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const [run, setRun] = useState(0)
+  const [loadedRun, setLoadedRun] = useState(-1)
+  const [controls, setControls] = useState(true)
+  const frame = useRef<HTMLIFrameElement | null>(null)
   useEffect(() => {
-    const request = new AbortController();
-    setFailed(false);
+    const request = new AbortController()
+    setFailed(false)
     fetch(file, { signal: request.signal })
       .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
       .then(setSource)
       .catch(() => {
-        if (!request.signal.aborted) setFailed(true);
-      });
-    return () => request.abort();
-  }, [file, attempt]);
+        if (!request.signal.aborted) setFailed(true)
+      })
+    return () => request.abort()
+  }, [file, attempt])
   const post = (visible: boolean) => {
-    const message: ControlsMessage = { type: 'trillion3d:controls', visible };
-    frame.current?.contentWindow?.postMessage(message, location.origin);
-  };
+    const message: ControlsMessage = { type: 'trillion3d:controls', visible }
+    frame.current?.contentWindow?.postMessage(message, location.origin)
+  }
   return {
     frame,
     source,
@@ -43,18 +43,18 @@ export function useDemo(file: string) {
     controls,
     /** The frame finished loading run `count`: it gets the panel's current state. */
     loaded: (count: number) => {
-      setLoadedRun(count);
-      post(controls);
+      setLoadedRun(count)
+      post(controls)
     },
     restart: () => setRun((count) => count + 1),
     /** Reads the example again after a failure, and runs it anew. */
     retry: () => {
-      setAttempt((count) => count + 1);
-      setRun((count) => count + 1);
+      setAttempt((count) => count + 1)
+      setRun((count) => count + 1)
     },
     toggleControls: () => {
-      setControls(!controls);
-      post(!controls);
+      setControls(!controls)
+      post(!controls)
     },
-  };
+  }
 }

@@ -24,37 +24,37 @@ import {
   WORLD_ROOTS_FILE,
   type WorldRoots,
   type WorldRootsPage,
-} from '../../../sdk-core/src/manifest/worldRoots.ts';
+} from '../../../sdk-core/src/manifest/worldRoots.ts'
 import {
   readWorldRoots,
   readWorldRootsDag,
-} from '../../../sdk-core/src/manifest/worldRootsTable.ts';
-import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
-import { rangedReader } from '../cluster/ranged.ts';
-import { corruptObject, fetchVerified } from '../cluster/pages.ts';
-import { verifyPageBytes } from '../page/decode/host.ts';
-import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
-import { families } from '../host/families.ts';
-import { worldRootsPageSource } from './worldRootsPage.ts';
-import { worldRootDag } from './worldSuperRoots.ts';
-import { cellSuperRoots } from '../partition/superRoots.ts';
+} from '../../../sdk-core/src/manifest/worldRootsTable.ts'
+import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
+import { rangedReader } from '../cluster/ranged.ts'
+import { corruptObject, fetchVerified } from '../cluster/pages.ts'
+import { verifyPageBytes } from '../page/decode/host.ts'
+import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
+import { families } from '../host/families.ts'
+import { worldRootsPageSource } from './worldRootsPage.ts'
+import { worldRootDag } from './worldSuperRoots.ts'
+import { cellSuperRoots } from '../partition/superRoots.ts'
 
 /** The world pages' detached source, their DAG (#1238) and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`, #1332): nothing draws from them yet (#1333),
  *  so a scene opens without them, and their page server and DAG file are read on first use. */
 type WorldStream = {
-  source: ReturnType<typeof worldRootsPageSource>;
-  dag: ReturnType<typeof worldRootDag>;
-  superRoots: Float64Array | undefined;
-};
+  source: ReturnType<typeof worldRootsPageSource>
+  dag: ReturnType<typeof worldRootDag>
+  superRoots: Float64Array | undefined
+}
 
-type Announced = { bytes: number; sha256: string };
+type Announced = { bytes: number; sha256: string }
 /** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
 const worldRootsUrls = (base: string) => ({
   table: new URL(WORLD_ROOTS_FILE, base).href,
   dag: new URL(WORLD_ROOTS_DAG, base).href,
   bin: new URL(WORLD_ROOTS_BIN, base).href,
-});
+})
 /** What a load reads of the world roots `declared` lists, address to length: the table whole, and
  *  of the binary the one range it reads, the pinned top its cook published in `manifest`
  *  (`worldRoots.pinnedTopBytes`); a server that ignores the Range adds the rest as it arrives. */
@@ -63,12 +63,12 @@ export function worldRootsPlan(
   base: string,
   manifest: object,
 ) {
-  const { table, bin } = worldRootsUrls(base);
-  const top = (manifest as { worldRoots?: { pinnedTopBytes?: number } }).worldRoots?.pinnedTopBytes;
-  const plan: [string, number][] = [];
-  if (declared.has(table)) plan.push([table, declared.get(table)!]);
-  if (declared.has(bin) && top) plan.push([bin, top]);
-  return plan;
+  const { table, bin } = worldRootsUrls(base)
+  const top = (manifest as { worldRoots?: { pinnedTopBytes?: number } }).worldRoots?.pinnedTopBytes
+  const plan: [string, number][] = []
+  if (declared.has(table)) plan.push([table, declared.get(table)!])
+  if (declared.has(bin) && top) plan.push([bin, top])
+  return plan
 }
 
 /** Bundles `[first, end)` of the binary `read` reads (`rangedReader`), in one ranged request that
@@ -81,17 +81,17 @@ async function readBundles(
   meter?: ByteMeter,
 ) {
   const from = table.bundles[first].offset,
-    last = table.bundles[end - 1];
-  const bytes = new Uint8Array(await read(from, last.offset + last.bytes - from, meter));
+    last = table.bundles[end - 1]
+  const bytes = new Uint8Array(await read(from, last.offset + last.bytes - from, meter))
   return Promise.all(
     table.bundles.slice(first, end).map(async (bundle, i) => {
-      const start = bundle.offset - from;
-      const verified = await verifyPageBytes(bytes.slice(start, start + bundle.bytes).buffer);
+      const start = bundle.offset - from
+      const verified = await verifyPageBytes(bytes.slice(start, start + bundle.bytes).buffer)
       if (verified.sha256 !== bundle.sha256)
-        throw corruptObject(`${url}#${first + i}`, bundle, bundle.bytes, verified.sha256);
-      return worldBundlePages(new Uint8Array(verified.source), bundle.count, first + i);
+        throw corruptObject(`${url}#${first + i}`, bundle, bundle.bytes, verified.sha256)
+      return worldBundlePages(new Uint8Array(verified.source), bundle.count, first + i)
     }),
-  );
+  )
 }
 
 /**
@@ -104,52 +104,52 @@ export async function openWorldRoots(
   signal?: AbortSignal,
   meter: ByteMeter = unmetered,
 ) {
-  const files = (metadata as { files?: Record<string, Announced | undefined> }).files ?? {};
-  const announced = files[WORLD_ROOTS_FILE];
-  if (!announced) return undefined;
-  const urls = worldRootsUrls(base);
-  const bytes = await fetchVerified(urls.table, announced, signal, meter);
-  const table = readWorldRoots(new Uint8Array(bytes));
-  const url = new URL(table.payload.url, base).href;
+  const files = (metadata as { files?: Record<string, Announced | undefined> }).files ?? {}
+  const announced = files[WORLD_ROOTS_FILE]
+  if (!announced) return undefined
+  const urls = worldRootsUrls(base)
+  const bytes = await fetchVerified(urls.table, announced, signal, meter)
+  const table = readWorldRoots(new Uint8Array(bytes))
+  const url = new URL(table.payload.url, base).href
   // The load's meter counts the top, read while it loads; a cell's bundles are read after it.
-  const read = rangedReader(url, signal);
-  const topBundles = await readBundles(read, url, table, [0, table.pinned], meter);
+  const read = rangedReader(url, signal)
+  const topBundles = await readBundles(read, url, table, [0, table.pinned], meter)
   /** The bundles past the top the placed cells hold: how many cells hold each, and its read. */
-  const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>();
-  let heldBytes = 0;
+  const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>()
+  let heldBytes = 0
   const release = (cell: number) => {
     for (const bundle of cellDependencies(table, cell)) {
-      const own = held.get(bundle);
-      if (!own || --own.cells > 0) continue;
-      held.delete(bundle);
-      heldBytes -= table.bundles[bundle].bytes;
+      const own = held.get(bundle)
+      if (!own || --own.cells > 0) continue
+      held.delete(bundle)
+      heldBytes -= table.bundles[bundle].bytes
     }
-  };
+  }
   /** A bundle's pages: the pinned top's and a placed cell's from what is held, any other read and
    *  verified for the one request (the GPU page pool keeps what it uploads). */
   const bundlePages = (bundle: number) =>
     bundle < table.pinned
       ? Promise.resolve(topBundles[bundle])
       : (held.get(bundle)?.pages ??
-        readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages));
-  let stream: WorldStream | undefined;
+        readBundles(read, url, table, [bundle, bundle + 1]).then(([pages]) => pages))
+  let stream: WorldStream | undefined
   // Only an opened stream is kept: a family refusal is asked again on the next use (`onDemand`),
   // and a table out of rank is refused again, before any page is served.
   const openStream = async () => {
-    if (stream) return stream;
-    const { worldPageServer, worldRootPages } = await families.worldStream.load();
+    if (stream) return stream
+    const { worldPageServer, worldRootPages } = await families.worldStream.load()
     // The world DAG's file, read once the stream opens: a load never holds it (#1232).
-    const dag = files[WORLD_ROOTS_DAG];
+    const dag = files[WORLD_ROOTS_DAG]
     const records =
-      dag && readWorldRootsDag(new Uint8Array(await fetchVerified(urls.dag, dag, signal)));
+      dag && readWorldRootsDag(new Uint8Array(await fetchVerified(urls.dag, dag, signal)))
     return (stream ??= {
       dag: worldRootDag({ ...records, payload: table.payload }, worldRootPages),
       // An object root's cell is its object's (`origin`, the table's rank, #1332).
       superRoots:
         records && cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
       source: worldRootsPageSource(worldPageServer(table, bundlePages)),
-    });
-  };
+    })
+  }
   return {
     table,
     /** The world pages' detached source, both engines' shape (`worldRootsPage.ts`), and their DAG
@@ -163,19 +163,19 @@ export async function openWorldRoots(
      *  each once whatever the cells sharing it. A read that fails holds nothing of the cell. */
     async hold(cell: number) {
       const reads = cellDependencies(table, cell).map((bundle) => {
-        let own = held.get(bundle);
+        let own = held.get(bundle)
         if (!own) {
-          const pages = readBundles(read, url, table, [bundle, bundle + 1]).then(([p]) => p);
-          held.set(bundle, (own = { cells: 0, pages }));
-          heldBytes += table.bundles[bundle].bytes;
+          const pages = readBundles(read, url, table, [bundle, bundle + 1]).then(([p]) => p)
+          held.set(bundle, (own = { cells: 0, pages }))
+          heldBytes += table.bundles[bundle].bytes
         }
-        own.cells++;
-        return own.pages;
-      });
+        own.cells++
+        return own.pages
+      })
       await Promise.all(reads).catch((error: unknown) => {
-        release(cell);
-        throw error;
-      });
+        release(cell)
+        throw error
+      })
     },
     /** `cell` left: a bundle no placed cell needs any more is let go. */
     release,
@@ -189,7 +189,7 @@ export async function openWorldRoots(
       read.held() +
       // The source's own bundles past the top and the held ones: kept for a page's other view.
       (stream?.source.keptBytes(held) ?? 0),
-  };
+  }
 }
 
-export type WorldRootsHold = NonNullable<Awaited<ReturnType<typeof openWorldRoots>>>;
+export type WorldRootsHold = NonNullable<Awaited<ReturnType<typeof openWorldRoots>>>

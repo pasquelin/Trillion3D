@@ -24,7 +24,7 @@
 /** Addressing modes of a sampler, glTF's `wrapS`/`wrapT`. */
 export const HOST_WRAP_REPEAT = 1000,
   HOST_WRAP_CLAMP_TO_EDGE = 1001,
-  HOST_WRAP_MIRRORED_REPEAT = 1002;
+  HOST_WRAP_MIRRORED_REPEAT = 1002
 
 /** Sampling modes, glTF's `magFilter`/`minFilter`, the mip combinations included. */
 export const HOST_FILTER_NEAREST = 1003,
@@ -32,10 +32,10 @@ export const HOST_FILTER_NEAREST = 1003,
   HOST_FILTER_NEAREST_MIP_LINEAR = 1005,
   HOST_FILTER_LINEAR = 1006,
   HOST_FILTER_LINEAR_MIP_NEAREST = 1007,
-  HOST_FILTER_LINEAR_MIP_LINEAR = 1008;
+  HOST_FILTER_LINEAR_MIP_LINEAR = 1008
 
 /** The texture is addressed by a UV set the material names, not by a derived vector. */
-export const HOST_MAPPING_UV = 300;
+export const HOST_MAPPING_UV = 300
 
 /** Blend modes, in the host's order: none, source-over — the blend equation of glTF's `BLEND`
  *  alpha mode —, additive, subtractive, multiply (`../scene/materialBlending.ts`). */
@@ -43,20 +43,20 @@ export const HOST_BLENDING_NONE = 0,
   HOST_BLENDING_NORMAL = 1,
   HOST_BLENDING_ADDITIVE = 2,
   HOST_BLENDING_SUBTRACTIVE = 3,
-  HOST_BLENDING_MULTIPLY = 4;
+  HOST_BLENDING_MULTIPLY = 4
 
 /** A normal texture whose vectors live in the surface's tangent frame, as glTF defines it. */
-export const HOST_NORMAL_MAP_TANGENT_SPACE = 0;
+export const HOST_NORMAL_MAP_TANGENT_SPACE = 0
 
 /** The depth test passes at equal or nearer depth: every surface's until it says otherwise. */
-export const HOST_DEPTH_LESS_EQUAL = 3;
+export const HOST_DEPTH_LESS_EQUAL = 3
 
 /** Channels of a raw texture's texels: four, three, or red alone. */
 export const HOST_FORMAT_RGBA = 1023,
   HOST_FORMAT_RGB = 1022,
-  HOST_FORMAT_RED = 1028;
+  HOST_FORMAT_RED = 1028
 
 /** How a texture's numbers are read: sRGB-encoded colour, linear, or undeclared. */
 export const HOST_COLOUR_SPACE_SRGB = 'srgb',
   HOST_COLOUR_SPACE_LINEAR = 'srgb-linear',
-  HOST_COLOUR_SPACE_NONE = '';
+  HOST_COLOUR_SPACE_NONE = ''

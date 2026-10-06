@@ -1,7 +1,7 @@
-import type { PartitionFrame } from './uniform.ts';
+import type { PartitionFrame } from './uniform.ts'
 
 /** A buffer of four bytes that only carries its label. */
-export const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer;
+export const buffer = (label: string) => ({ label, size: 4, destroy() {} }) as unknown as GPUBuffer
 
 /** A still frame of `rows` rows on an 8 by 8 view with one level. */
 export const frame = (rows: number): PartitionFrame => ({
@@ -17,4 +17,4 @@ export const frame = (rows: number): PartitionFrame => ({
   hasRest: true,
   viewMoved: false,
   counting: false,
-});
+})

@@ -1,20 +1,20 @@
-import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
-import { followVideoFrames } from './liveVideo.ts';
+import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { followVideoFrames } from './liveVideo.ts'
 
 /** Pixels held in memory, with the size they span: what a data texture samples. */
 export type PixelImage = {
   /** The pixel values, row after row. */
-  data: ArrayBufferView;
+  data: ArrayBufferView
   /** Pixels in one row. */
-  width: number;
+  width: number
   /** Rows in one layer. */
-  height: number;
+  height: number
   /** Layers, for a stack of images. */
-  depth?: number;
-};
+  depth?: number
+}
 
 /** A texture whose image is `image`, the sampling words left at their defaults. */
-const of = (image: unknown, layout?: string, format?: string) => new Texture(image, layout, format);
+const of = (image: unknown, layout?: string, format?: string) => new Texture(image, layout, format)
 
 /**
  * The `texture` family: an image and how it is sampled. Colour images are sRGB, data images are
@@ -41,10 +41,10 @@ export const texture = {
     height: number,
     format: 'rgba' | 'rgb' | 'r' = 'rgba',
   ) {
-    const t = of({ data: pixels, width, height } satisfies PixelImage, 'data', format);
-    t.colorSpace = 'linear';
-    t.flipY = false;
-    return t;
+    const t = of({ data: pixels, width, height } satisfies PixelImage, 'data', format)
+    t.colorSpace = 'linear'
+    t.flipY = false
+    return t
   },
   /**
    * A texture that shows what a canvas holds. After drawing on the canvas again, set
@@ -58,9 +58,9 @@ export const texture = {
    * @param v - The video to show.
    */
   video(v: HTMLVideoElement) {
-    const t = of(v);
-    followVideoFrames(t, v);
-    return t;
+    const t = of(v)
+    followVideoFrames(t, v)
+    return t
   },
   /**
    * A texture that keeps depth instead of colour.
@@ -95,6 +95,6 @@ export const texture = {
     height: number,
     format: string,
   ) => of({ mipmaps, width, height }, 'compressed', format),
-};
+}
 
-export { Texture };
+export { Texture }

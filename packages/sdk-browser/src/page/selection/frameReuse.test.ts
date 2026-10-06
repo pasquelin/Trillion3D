@@ -1,15 +1,15 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   collectClusterPages,
   selectVisiblePages,
   type PageRec,
   type SelectionResult,
-} from './selection.ts';
-import { blendFixture, camera } from './blend.fixture.ts';
-import { engineCamera } from '../../camera/camera.fixture.ts';
-import { createHeldResidency } from '../cut/held.ts';
-import { createSelectionResult } from '../cut/state.ts';
+} from './selection.ts'
+import { blendFixture, camera } from './blend.fixture.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { createHeldResidency } from '../cut/held.ts'
+import { createSelectionResult } from '../cut/state.ts'
 
 /** Two frames of one view agree on what they show, want and reject. */
 function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<PageRec>) {
@@ -17,27 +17,27 @@ function assertSameCut(first: SelectionResult<PageRec>, second: SelectionResult<
     first.shown.map((p) => p.url),
     second.shown.map((p) => p.url),
     'same shown set',
-  );
+  )
   assert.deepEqual(
     first.wanted.map((p) => p.url),
     second.wanted.map((p) => p.url),
     'same wanted set',
-  );
-  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject');
+  )
+  assert.equal(first.frustumRejected, second.frustumRejected, 'same frustum reject')
 }
 
 test('a cut frame reuses its flat table, result and arrays: it allocates nothing', () => {
-  const fixture = blendFixture();
+  const fixture = blendFixture()
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
     fixture.indices,
     fixture.associations,
-  );
+  )
   const table = roots[0].culling,
     shown: PageRec[] = [],
-    wanted: PageRec[] = [];
-  const result = createSelectionResult<PageRec>();
+    wanted: PageRec[] = []
+  const result = createSelectionResult<PageRec>()
   const cam = camera(),
     ask = {
       pixelError: 100,
@@ -45,91 +45,91 @@ test('a cut frame reuses its flat table, result and arrays: it allocates nothing
       held: createHeldResidency(),
       wanted,
       result,
-    };
-  const first = selectVisiblePages(roots, engineCamera(cam), ask, shown);
-  const second = selectVisiblePages(roots, engineCamera(cam), ask, shown);
-  assert.equal(second, first, 'the returned result is the one supplied, frame after frame');
-  assert.equal(second, result);
-  assert.equal(second.shown, shown);
-  assert.equal(second.wanted, wanted);
+    }
+  const first = selectVisiblePages(roots, engineCamera(cam), ask, shown)
+  const second = selectVisiblePages(roots, engineCamera(cam), ask, shown)
+  assert.equal(second, first, 'the returned result is the one supplied, frame after frame')
+  assert.equal(second, result)
+  assert.equal(second.shown, shown)
+  assert.equal(second.wanted, wanted)
   assert.equal(
     roots[0].culling,
     table,
     'the flat table is built with the primitive, never per frame',
-  );
+  )
   assert.deepEqual(
     second.shown.map((page) => page.url),
     ['near'],
-  );
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-});
+  )
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
 
 test('an invalid cluster band is rejected at prepare, not in the middle of a frame', () => {
-  const fixture = blendFixture();
+  const fixture = blendFixture()
   // The own sphere is already validated at load; the replacement's was not validated anywhere.
   const page = fixture.metadata.primitives[0].pages[0] as {
-    parentError: number | null;
-    parentSphere: number[] | null;
-  };
-  page.parentError = 1;
-  page.parentSphere = [0, 0, 0, -1];
+    parentError: number | null
+    parentSphere: number[] | null
+  }
+  page.parentError = 1
+  page.parentSphere = [0, 0, 0, -1]
   assert.throws(
     () =>
       collectClusterPages(fixture.source, fixture.metadata, fixture.indices, fixture.associations),
     /Invalid cluster parameters/,
-  );
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-});
+  )
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
 
 test('two successive calls with the same camera select the same set of clusters', () => {
-  const fixture = blendFixture();
+  const fixture = blendFixture()
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
     fixture.indices,
     fixture.associations,
-  );
-  const cam = camera();
-  const shown1: PageRec[] = [];
+  )
+  const cam = camera()
+  const shown1: PageRec[] = []
   const first = selectVisiblePages(
     roots,
     engineCamera(cam),
     { pixelError: 100, viewport: [960, 540], held: createHeldResidency() },
     shown1,
-  );
-  const shown2: PageRec[] = [];
+  )
+  const shown2: PageRec[] = []
   const second = selectVisiblePages(
     roots,
     engineCamera(cam),
     { pixelError: 100, viewport: [960, 540], held: createHeldResidency() },
     shown2,
-  );
-  assertSameCut(first, second);
-  assert.equal(first.lodLevel, second.lodLevel, 'same LOD level');
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-});
+  )
+  assertSameCut(first, second)
+  assert.equal(first.lodLevel, second.lodLevel, 'same LOD level')
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})
 
 test('selection working arrays are reused from one frame to the next', () => {
-  const fixture = blendFixture();
+  const fixture = blendFixture()
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
     fixture.indices,
     fixture.associations,
-  );
+  )
   const cam = camera(),
     ask = {
       pixelError: 100,
       viewport: [960, 540] as [number, number],
       held: createHeldResidency(),
-    };
-  const hint: PageRec[] = [];
-  const first = selectVisiblePages(roots, engineCamera(cam), ask, hint);
-  const second = selectVisiblePages(roots, engineCamera(cam), ask, hint);
-  assertSameCut(first, second);
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-});
+    }
+  const hint: PageRec[] = []
+  const first = selectVisiblePages(roots, engineCamera(cam), ask, hint)
+  const second = selectVisiblePages(roots, engineCamera(cam), ask, hint)
+  assertSameCut(first, second)
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})

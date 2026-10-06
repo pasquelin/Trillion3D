@@ -1,4 +1,4 @@
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts';
+import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 
 /**
  * The random half of a light-loop test's scope, drawn in one fixed order: a surface normal, each
@@ -14,9 +14,9 @@ export function shadedLightScope(
   round: number,
 ) {
   const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
-    ln = Math.hypot(...n) || 1;
-  const normal = n.map((v) => v / ln);
-  const shades = items.map(() => (r() < 0.25 ? 0 : u(0, 1)));
+    ln = Math.hypot(...n) || 1
+  const normal = n.map((v) => v / ln)
+  const shades = items.map(() => (r() < 0.25 ? 0 : u(0, 1)))
   const scope = {
     ...K,
     directLights: { count, items },
@@ -27,6 +27,6 @@ export function shadedLightScope(
     shadowReceiverPlane: [0, 0, 0],
     shadowBiasNormal: (vector: number[]) => vector,
     shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
-  };
-  return { normal, scope };
+  }
+  return { normal, scope }
 }

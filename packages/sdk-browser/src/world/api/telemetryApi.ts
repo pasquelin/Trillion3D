@@ -1,12 +1,12 @@
-import { disabledStageProfile, type StageProfile } from '../../../../sdk-core/src/index.ts';
-import type { RenderBackend } from '../../backend/types.ts';
-import type { EngineProfiler, TelemetryReport } from '../../diagnostic/telemetry.ts';
+import { disabledStageProfile, type StageProfile } from '../../../../sdk-core/src/index.ts'
+import type { RenderBackend } from '../../backend/types.ts'
+import type { EngineProfiler, TelemetryReport } from '../../diagnostic/telemetry.ts'
 
 export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () => RenderBackend) {
   return {
     profiler,
     getReport(): TelemetryReport {
-      return profiler.getReport();
+      return profiler.getReport()
     },
     /**
      * Per-step profile of the active engine: one row per step, p50 and p95, CPU duration and
@@ -14,11 +14,11 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
      * Empty as long as `stageProfile: true` was not requested of `openMeasuredWorld`.
      */
     stageProfile(): StageProfile {
-      const backend = active();
+      const backend = active()
       return (
         backend.stageProfile?.() ??
         disabledStageProfile(backend.id, 'this engine does not time its steps')
-      );
+      )
     },
     /**
      * What the GPU partition of the active engine wrote for the last frame, with the world
@@ -27,17 +27,17 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
      * rectangle contains the CPU one and that its depth underestimates the CPU one.
      */
     partitionAudit() {
-      return active().partitionAudit?.() ?? Promise.resolve(null);
+      return active().partitionAudit?.() ?? Promise.resolve(null)
     },
     /** Transparent clusters the occlusion test rejected on the last frame, with their world
      *  corners and the frame depth: enough to check, cluster by cluster, that each one was
      *  entirely behind the opaque. */
     transparentOcclusionAudit() {
-      return active().transparentOcclusionAudit?.() ?? Promise.resolve(null);
+      return active().transparentOcclusionAudit?.() ?? Promise.resolve(null)
     },
     /** Clears the profile window of the active engine, to measure only what comes next. */
     resetStageProfile() {
-      active().resetStageProfile?.();
+      active().resetStageProfile?.()
     },
     /**
      * CPU bounds of the active engine over the same window: p50, p95 and max of each named bound
@@ -45,16 +45,16 @@ export function createExplorerTelemetryApi(profiler: EngineProfiler, active: () 
      * forgotten. `null` from an engine that keeps no row — the CPU reference cut — or none yet.
      */
     cpuSteps() {
-      return active().cpuSteps?.() ?? null;
+      return active().cpuSteps?.() ?? null
     },
     printReport() {
-      profiler.printReport();
+      profiler.printReport()
     },
     enableAutoLog(intervalSeconds = 2) {
-      return profiler.startAutoLog(intervalSeconds);
+      return profiler.startAutoLog(intervalSeconds)
     },
     disableAutoLog() {
-      profiler.stopAutoLog();
+      profiler.stopAutoLog()
     },
-  };
+  }
 }

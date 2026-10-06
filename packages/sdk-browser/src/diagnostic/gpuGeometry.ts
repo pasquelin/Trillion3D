@@ -1,5 +1,5 @@
-import type { DiagnosticGpuVariant } from './gpuVariant.ts';
-import { COMPUTE_ALL, FINE_SPAN } from '../gpu/raster/contract.ts';
+import type { DiagnosticGpuVariant } from './gpuVariant.ts'
+import { COMPUTE_ALL, FINE_SPAN } from '../gpu/raster/contract.ts'
 
 /**
  * DIAGNOSTIC fragment stages of the geometry pass, added to the two visibility modules for
@@ -13,7 +13,7 @@ import { COMPUTE_ALL, FINE_SPAN } from '../gpu/raster/contract.ts';
  *  \`vis_opaque_fs\`, which every slot without a cutout row draws with. */
 export const DIAGNOSTIC_VIS_WGSL = `
 @fragment fn vis_hiz_jete_fs(in:VSOut)->VisHizOut{discard;var out:VisHizOut;out.id=0u;out.depth=0.0;return out;}
-@fragment fn vis_jete_fs(in:VSOut)->@location(0) u32{discard;return 0u;}`;
+@fragment fn vis_jete_fs(in:VSOut)->@location(0) u32{discard;return 0u;}`
 
 /** The two flat resolve stages: reading only the pixel's class (`classAdmits`, which every
  *  resolve stage asks: no depth target keeps another class's pixels), then the identifier. */
@@ -26,54 +26,53 @@ export const DIAGNOSTIC_SHADE_WGSL = `
  let packed=textureLoad(vis,vec2i(i32(pos.x),i32(pos.y)),0).r;
  if(!classAdmits(packed)){discard;}
  return diagnosticSurface(vec3f(f32(packed&0xffu)/255.0),0u);
-}`;
+}`
 
 /** Raster-stage suffix (`vis_<suffix>_fs`, `vis_hiz_<suffix>_fs`) that each variant imposes. */
 const VIS_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
   'geometry-flat': 'opaque',
   'geometry-vertices': 'jete',
-};
+}
 
 /** Surface-resolve stage that each variant imposes. */
 const SHADE_STAGE: Partial<Record<DiagnosticGpuVariant, string>> = {
   'resolve-flat': 'shade_plat_fs',
   'resolve-ids': 'shade_ids_fs',
-};
+}
 
 /** True when the variant changes a fragment stage of the visibility raster. */
 export const variesVisibility = (variant?: DiagnosticGpuVariant) =>
-  variant !== undefined && variant in VIS_STAGE;
+  variant !== undefined && variant in VIS_STAGE
 
 /** True when the variant changes the fragment stage of surface resolve. */
 export const variesShade = (variant?: DiagnosticGpuVariant) =>
-  variant !== undefined && variant in SHADE_STAGE;
+  variant !== undefined && variant in SHADE_STAGE
 
 /** Fragment stage of the visibility raster, Hi-Z or not, for the requested variant. */
 export function visVariantFragment(hiz: boolean, variant?: DiagnosticGpuVariant) {
   const base = hiz ? 'vis_hiz' : 'vis',
-    stage = variant && VIS_STAGE[variant];
-  return stage ? `${base}_${stage}_fs` : `${base}_fs`;
+    stage = variant && VIS_STAGE[variant]
+  return stage ? `${base}_${stage}_fs` : `${base}_fs`
 }
 
 /** The raster stage without a mask test: production's on a draw that holds no cutout row
  *  (`../webgpu/visibility/pipelines.ts`), and `geometry-flat`'s on every draw. */
-export const visOpaqueFragment = (hiz: boolean) => visVariantFragment(hiz, 'geometry-flat');
+export const visOpaqueFragment = (hiz: boolean) => visVariantFragment(hiz, 'geometry-flat')
 
 /** Fragment stage of surface resolve for the requested variant. */
 export const shadeVariantFragment = (variant?: DiagnosticGpuVariant) =>
-  (variant && SHADE_STAGE[variant]) || 'shade_fs';
+  (variant && SHADE_STAGE[variant]) || 'shade_fs'
 
 /** True when the variant does not encode the second visibility pass: occluders only. */
 export const skipsSecondaryPass = (variant?: DiagnosticGpuVariant) =>
-  variant === 'geometry-one-pass';
+  variant === 'geometry-one-pass'
 
 /** What the variant hands to the compute raster: nothing, the small triangles, or the whole cut. */
 export function computeSpanFor(variant?: DiagnosticGpuVariant) {
-  if (variant === 'raster-compute') return COMPUTE_ALL;
-  if (variant === 'raster-hybrid') return FINE_SPAN;
-  return 0;
+  if (variant === 'raster-compute') return COMPUTE_ALL
+  if (variant === 'raster-hybrid') return FINE_SPAN
+  return 0
 }
 
 /** True when the variant hands all or part of the opaque geometry to the compute raster. */
-export const requestsComputeRaster = (variant?: DiagnosticGpuVariant) =>
-  computeSpanFor(variant) > 0;
+export const requestsComputeRaster = (variant?: DiagnosticGpuVariant) => computeSpanFor(variant) > 0

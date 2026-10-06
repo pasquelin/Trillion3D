@@ -5,38 +5,38 @@ import {
   GEOMETRY_PAGE_FORMAT_VERSION,
   type ClusterManifest,
   type Primitive,
-} from '../../../../sdk-core/src/index.ts';
-import type { Cut } from './worldCuts.ts';
-import type { Batch } from './worldBatches.ts';
-import { buildWorldMirror } from './worldMirror.ts';
-import type { LoadedModel } from './loadedModel.ts';
-import type { ExplorerScene } from '../session/prepare.ts';
-import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
-import { absolutePrimitive } from '../../scene/absolutePrimitive.ts';
+} from '../../../../sdk-core/src/index.ts'
+import type { Cut } from './worldCuts.ts'
+import type { Batch } from './worldBatches.ts'
+import { buildWorldMirror } from './worldMirror.ts'
+import type { LoadedModel } from './loadedModel.ts'
+import type { ExplorerScene } from '../session/prepare.ts'
+import type { PlacementMount } from '../../placement/backendSceneUpdates.ts'
+import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
 
 /** Each primitive with absolute addresses, made once however often a session reopens: a model
  *  whose manifest the view holds (#751) lists more or fewer of them from one opening to another. */
-const absolute = new WeakMap<Primitive, Primitive>();
+const absolute = new WeakMap<Primitive, Primitive>()
 function absolutePrimitives(model: LoadedModel) {
-  const { metadata, base } = model.record;
+  const { metadata, base } = model.record
   return metadata.primitives.map((primitive) => {
-    let made = absolute.get(primitive);
-    if (!made) absolute.set(primitive, (made = absolutePrimitive(primitive, base)));
-    return made;
-  });
+    let made = absolute.get(primitive)
+    if (!made) absolute.set(primitive, (made = absolutePrimitive(primitive, base)))
+    return made
+  })
 }
 
 /** A loaded model's source graph as the mirror nests it: the host scene its loader built. */
 const modelGraph = (model: LoadedModel) =>
   model.record.scene.source as unknown as Parameters<
     typeof buildWorldMirror
-  >[0]['models'][number]['graph'];
+  >[0]['models'][number]['graph']
 
 /** What a session is opened on: the batches placed by rows, and the models. */
 export type WorldPlan = {
-  batches: readonly Batch[];
-  models: readonly LoadedModel[];
-};
+  batches: readonly Batch[]
+  models: readonly LoadedModel[]
+}
 
 /**
  * The scene a world's session opens on: one manifest merging the loaded models' (their page
@@ -47,62 +47,62 @@ export type WorldPlan = {
  * when nothing is drawn.
  */
 export function buildWorldSource(plan: WorldPlan) {
-  const { batches, models } = plan;
-  const primitives: Primitive[] = [];
-  const associations: ExplorerScene['associations'] = new Map();
-  let offset = 0;
+  const { batches, models } = plan
+  const primitives: Primitive[] = []
+  const associations: ExplorerScene['associations'] = new Map()
+  let offset = 0
   for (const model of models) {
-    const { metadata, scene: graph } = model.record;
+    const { metadata, scene: graph } = model.record
     for (const primitive of absolutePrimitives(model))
-      primitives.push({ ...primitive, mesh: primitive.mesh + offset });
+      primitives.push({ ...primitive, mesh: primitive.mesh + offset })
     for (const [node, link] of graph.associations) {
-      const moved = { ...link, meshes: (link.meshes ?? 0) + offset };
+      const moved = { ...link, meshes: (link.meshes ?? 0) + offset }
       // Rows a partition's cells place are sized on the model's own link: the session reads them there.
       if (link.placements)
         Object.defineProperty(moved, 'placements', {
           get: () => link.placements,
           enumerable: true,
-        });
-      associations.set(node, moved);
+        })
+      associations.set(node, moved)
     }
     // Past every rank its primitives and its meshes name: a mesh whose primitive the view has not
     // read yet (#751) keeps its rank from the next model's.
-    let last = -1;
-    for (const { mesh } of metadata.primitives) last = Math.max(last, mesh);
-    for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1);
-    offset += last + 1;
+    let last = -1
+    for (const { mesh } of metadata.primitives) last = Math.max(last, mesh)
+    for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1)
+    offset += last + 1
   }
   // One primitive per geometry resource, however many batches wear it and rows place it.
-  const ranked = new Map<Cut, Primitive>();
+  const ranked = new Map<Cut, Primitive>()
   const rankOf = (cut: Cut) => {
-    let primitive = ranked.get(cut);
+    let primitive = ranked.get(cut)
     if (!primitive) {
-      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: offset++ }));
-      primitives.push(primitive);
+      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: offset++ }))
+      primitives.push(primitive)
     }
-    return primitive.mesh;
-  };
-  if (!primitives.length && !associations.size && !batches.length) return null;
+    return primitive.mesh
+  }
+  if (!primitives.length && !associations.size && !batches.length) return null
   const placedOf = (batch: Batch) => ({
     cut: batch.cut,
     material: batch.entry.material,
     rows: batch.rows!,
     name: batch.entry.material.name as string,
     twoSided: batch.twoSided,
-  });
+  })
   const mirror = buildWorldMirror({
     placed: batches.map(placedOf),
     models: models.map((node) => ({ node, graph: modelGraph(node) })),
     rankOf,
-  });
-  const nodes = new Map(batches.map((batch, i) => [batch, mirror.placed[i].node]));
-  for (const [twin, link] of mirror.associations) associations.set(twin, link);
+  })
+  const nodes = new Map(batches.map((batch, i) => [batch, mirror.placed[i].node]))
+  for (const [twin, link] of mirror.associations) associations.set(twin, link)
   const first = (models.find((model) => model.record.textureSource === 'cache') ?? models[0])
-    ?.record;
+    ?.record
   const triangles = primitives.reduce(
     (sum, p) => sum + p.pages.reduce((t, page) => t + page.count / 3, 0),
     0,
-  );
+  )
   const metadata: ClusterManifest = {
     ...(first?.metadata ?? {}),
     schema: first?.metadata.schema ?? CLUSTERED_BLEND_FORMAT_VERSION,
@@ -118,10 +118,10 @@ export function buildWorldSource(plan: WorldPlan) {
     totalNodes: 0,
     autonomousScene: null,
     primitives,
-  };
+  }
   const base =
-    first?.base ?? (typeof document === 'undefined' ? 'http://localhost/' : document.baseURI);
-  const graph = mirror.root;
+    first?.base ?? (typeof document === 'undefined' ? 'http://localhost/' : document.baseURI)
+  const graph = mirror.root
   return {
     root: mirror.root,
     twins: mirror.twins,
@@ -130,20 +130,20 @@ export function buildWorldSource(plan: WorldPlan) {
     /** A batch the session was not opened with, as it mounts it (`PlacementMount`): its host
      *  mesh hung in the graph, its primitive listed in the manifest. */
     mount(batch: Batch): PlacementMount {
-      const { node, association } = mirror.place(placedOf(batch));
-      nodes.set(batch, node);
-      return { node, association, primitive: ranked.get(batch.cut)! };
+      const { node, association } = mirror.place(placedOf(batch))
+      nodes.set(batch, node)
+      return { node, association, primitive: ranked.get(batch.cut)! }
     },
     /** A batch the session no longer draws: its host mesh, and its resource's primitive and
      *  geometry once no other batch wears it. True when the resource left. */
     unmount(batch: Batch) {
-      const node = nodes.get(batch)!;
-      nodes.delete(batch);
-      const worn = [...nodes.keys()].some((other) => other.cut === batch.cut);
-      mirror.unplace(node, worn ? undefined : batch.cut);
-      if (worn) return false;
-      primitives.splice(primitives.indexOf(ranked.get(batch.cut)!), 1);
-      return ranked.delete(batch.cut);
+      const node = nodes.get(batch)!
+      nodes.delete(batch)
+      const worn = [...nodes.keys()].some((other) => other.cut === batch.cut)
+      mirror.unplace(node, worn ? undefined : batch.cut)
+      if (worn) return false
+      primitives.splice(primitives.indexOf(ranked.get(batch.cut)!), 1)
+      return ranked.delete(batch.cut)
     },
     source: {
       manifestUrl: first?.manifestUrl ?? base,
@@ -164,5 +164,5 @@ export function buildWorldSource(plan: WorldPlan) {
         worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
       },
     },
-  };
+  }
 }

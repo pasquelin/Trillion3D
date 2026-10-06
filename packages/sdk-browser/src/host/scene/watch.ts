@@ -1,42 +1,42 @@
-import { aimOf, isLightNode } from '../graph/kinds.ts';
-import type { WriteRevision } from './hookCore.ts';
-import { hookHostNode, unhookHostNode } from './hooks.ts';
-import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts';
-import { nodeWrites } from '../../../../sdk-core/src/scene/core/nodeEdits.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { aimOf, isLightNode } from '../graph/kinds.ts'
+import type { WriteRevision } from './hookCore.ts'
+import { hookHostNode, unhookHostNode } from './hooks.ts'
+import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts'
+import { nodeWrites } from '../../../../sdk-core/src/scene/core/nodeEdits.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 /**
  * Mark of a node the engine created itself — an instance copy, for example. The host never
  * received it and therefore cannot write it: hooking it would listen for a write that never comes.
  */
-export const ENGINE_OWNED = 'trillion3dEngineOwned';
+export const ENGINE_OWNED = 'trillion3dEngineOwned'
 
 /** What the engine draws, seen from here: each entry names the source node it comes from. A
  *  page of a selection root, a blended mesh outside the DAG: the same key, the same treatment. */
-export type WatchedSources = ReadonlyArray<unknown>;
+export type WatchedSources = ReadonlyArray<unknown>
 
 /** Source node of an entry, when it names one. */
 function sourceOf(entry: unknown) {
-  const shaped = entry as { sourceMesh?: Object3D } | undefined | null;
-  return shaped ? shaped.sourceMesh : undefined;
+  const shaped = entry as { sourceMesh?: Object3D } | undefined | null
+  return shaped ? shaped.sourceMesh : undefined
 }
 
 /** The source node of an entry with its chain, and the bones that deform it with theirs: a bone's
  *  pose moves the drawn skin as the node's own does (#357). */
 function watchSource(entry: unknown, into: Set<Object3D>) {
-  const node = sourceOf(entry);
-  if (!node) return;
-  withAncestors(node, into);
-  const bones = (node as { skeleton?: { bones: readonly Object3D[] } }).skeleton?.bones;
-  if (bones) for (const bone of bones) withAncestors(bone, into);
+  const node = sourceOf(entry)
+  if (!node) return
+  withAncestors(node, into)
+  const bones = (node as { skeleton?: { bones: readonly Object3D[] } }).skeleton?.bones
+  if (bones) for (const bone of bones) withAncestors(bone, into)
 }
 
 /** Walks a node's chain up to the root: an ancestor's pose is the node's. */
 function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
-  let walk: Object3D | null = node ?? null;
+  let walk: Object3D | null = node ?? null
   while (walk && !into.has(walk)) {
-    into.add(walk);
-    walk = walk.parent;
+    into.add(walk)
+    walk = walk.parent
   }
 }
 
@@ -63,11 +63,11 @@ function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
  * trigger a second one.
  */
 export function createHostSceneWatch() {
-  const mark: WriteRevision = { revision: 1 };
+  const mark: WriteRevision = { revision: 1 }
   let watched: NodeState[] = [],
     seen = 0,
     // The engine's write count the watched nodes were last read under.
-    writesRead = -1;
+    writesRead = -1
   return {
     /**
      * Sets the list of watched nodes: the source models of what the engine draws, the lights,
@@ -77,39 +77,39 @@ export function createHostSceneWatch() {
      * as-is by that same frame.
      */
     observe(source: Object3D, drawn: WatchedSources) {
-      const set = new Set<Object3D>();
+      const set = new Set<Object3D>()
       source.traverse((object) => {
-        if (!isLightNode(object)) return;
-        withAncestors(object, set);
-        withAncestors(aimOf(object), set);
-      });
-      for (const entry of drawn) watchSource(entry, set);
-      for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
+        if (!isLightNode(object)) return
+        withAncestors(object, set)
+        withAncestors(aimOf(object), set)
+      })
+      for (const entry of drawn) watchSource(entry, set)
+      for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node)
       // With neither a declared root nor a light, there is nothing to hook: the whole graph is not a default.
-      if (!set.size) withAncestors(source, set);
-      for (const state of watched) if (!set.has(state.node)) unhookHostNode(state.node, mark);
-      watched = [];
+      if (!set.size) withAncestors(source, set)
+      for (const state of watched) if (!set.has(state.node)) unhookHostNode(state.node, mark)
+      watched = []
       for (const node of set) {
-        hookHostNode(node, mark);
-        watched.push(snapshot(node));
+        hookHostNode(node, mark)
+        watched.push(snapshot(node))
       }
-      writesRead = nodeWrites();
+      writesRead = nodeWrites()
     },
     /** Takes what the host wrote since the previous read: one integer for the hooked poses, one
      *  for the other fields, and the scan of those fields only when their count moved. The count
      *  is read after the scan: a matrix the scan takes into the tree counts as a write of its own.
      *  `reshaped` says the list is to be rebuilt. */
     take(): WatchVerdict {
-      let verdict: WatchVerdict = seen === mark.revision ? 0 : 'moved';
-      seen = mark.revision;
-      if (nodeWrites() === writesRead) return verdict;
+      let verdict: WatchVerdict = seen === mark.revision ? 0 : 'moved'
+      seen = mark.revision
+      if (nodeWrites() === writesRead) return verdict
       for (let i = 0; i < watched.length; i++) {
-        const scanned = scan(watched[i]);
-        if (scanned === 'reshaped') verdict = scanned;
-        else if (scanned && !verdict) verdict = scanned;
+        const scanned = scan(watched[i])
+        if (scanned === 'reshaped') verdict = scanned
+        else if (scanned && !verdict) verdict = scanned
       }
-      writesRead = nodeWrites();
-      return verdict;
+      writesRead = nodeWrites()
+      return verdict
     },
     /** True when the host wrote a hooked pose this watch has not taken or settled yet. Nothing
      *  is hooked before the first observation: no host write can be pending there. */
@@ -117,12 +117,12 @@ export function createHostSceneWatch() {
     /** The engine wrote the graph itself, under a scene revision it already incremented: the
      *  poses it bumped are taken as seen, and that scene revision has the list observed anew. */
     settle() {
-      seen = mark.revision;
+      seen = mark.revision
     },
     /** Forgets every node: their writes no longer reach this watch. */
     release() {
-      for (const state of watched) unhookHostNode(state.node, mark);
-      watched = [];
+      for (const state of watched) unhookHostNode(state.node, mark)
+      watched = []
     },
-  };
+  }
 }

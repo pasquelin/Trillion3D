@@ -1,4 +1,4 @@
-import { previewIsWhole, type ClusterManifest } from '../../../sdk-core/src/index.ts';
+import { previewIsWhole, type ClusterManifest } from '../../../sdk-core/src/index.ts'
 
 /**
  * A 1×1 opaque white PNG: what the prepared scene decodes in place of an image whose mip
@@ -7,7 +7,7 @@ import { previewIsWhole, type ClusterManifest } from '../../../sdk-core/src/inde
  * cross neither the network nor the browser decoder.
  */
 export const PLACEHOLDER_IMAGE =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP4DwQACfsD/Wj6HMwAAAAASUVORK5CYII=';
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mP4DwQACfsD/Wj6HMwAAAAASUVORK5CYII='
 
 /**
  * Ranks of the images the loader can skip reading: those whose every sidecar entry carries a
@@ -18,12 +18,12 @@ export const PLACEHOLDER_IMAGE =
  * `count` is how many images the document holds; an entry past it names none.
  */
 export function bakedImages(metadata: ClusterManifest, count: number): Set<number> {
-  const ranks = new Set<number>();
-  if (!metadata.textures) return ranks;
-  const whole = new Map<number, boolean>();
+  const ranks = new Set<number>()
+  if (!metadata.textures) return ranks
+  const whole = new Map<number, boolean>()
   for (const preview of metadata.texturePreviews ?? []) {
-    whole.set(preview.image, (whole.get(preview.image) ?? true) && previewIsWhole(preview));
+    whole.set(preview.image, (whole.get(preview.image) ?? true) && previewIsWhole(preview))
   }
-  for (const [image, complete] of whole) if (complete && image < count) ranks.add(image);
-  return ranks;
+  for (const [image, complete] of whole) if (complete && image < count) ranks.add(image)
+  return ranks
 }

@@ -1,16 +1,16 @@
-import { useWords } from './i18n.ts';
-import type { Locale } from '../content/locale.ts';
-import type { PortalEntry } from '../content/model.ts';
-import { Card } from './ui/Card.tsx';
-import { Inline } from './ui/Prose.tsx';
-import { FieldTable } from './ui/Table.tsx';
+import { useWords } from './i18n.ts'
+import type { Locale } from '../content/locale.ts'
+import type { PortalEntry } from '../content/model.ts'
+import { Card } from './ui/Card.tsx'
+import { Inline } from './ui/Prose.tsx'
+import { FieldTable } from './ui/Table.tsx'
 
-const code = (text: string | undefined) => (text ? <code>{text}</code> : null);
+const code = (text: string | undefined) => (text ? <code>{text}</code> : null)
 
 /** What a function takes: one row per parameter, its type, its default and what it does. */
 export function Parameters({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
-  const t = useWords(locale);
-  if (!entry.parameters?.length) return null;
+  const t = useWords(locale)
+  if (!entry.parameters?.length) return null
   return (
     <Card title={t('entry.parameters')}>
       <FieldTable
@@ -26,29 +26,29 @@ export function Parameters({ entry, locale }: { entry: PortalEntry; locale: Loca
         }))}
       />
     </Card>
-  );
+  )
 }
 
 /** What a function gives back: its type, and what it is. */
 export function Returns({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
-  const t = useWords(locale);
-  if (!entry.returns) return null;
+  const t = useWords(locale)
+  if (!entry.returns) return null
   return (
     <Card title={t('entry.returns')}>
       <p>
         {code(entry.returns.type)} — <Inline text={entry.returns.desc} />
       </p>
     </Card>
-  );
+  )
 }
 
 /** What an object or a type holds: one row per member, and a written entry's own values. */
 export function Members({ entry, locale }: { entry: PortalEntry; locale: Locale }) {
-  const t = useWords(locale);
-  const members = entry.members ?? [];
-  const values = entry.values ?? [];
-  if (!members.length && !values.length) return null;
-  const typed = members.length > 0;
+  const t = useWords(locale)
+  const members = entry.members ?? []
+  const values = entry.values ?? []
+  if (!members.length && !values.length) return null
+  const typed = members.length > 0
   return (
     <Card
       title={
@@ -74,5 +74,5 @@ export function Members({ entry, locale }: { entry: PortalEntry; locale: Locale 
         ]}
       />
     </Card>
-  );
+  )
 }

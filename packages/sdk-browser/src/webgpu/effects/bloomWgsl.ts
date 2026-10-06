@@ -1,6 +1,6 @@
-import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts';
-import { BLOOM_DOWN_TAPS, bloomTapText } from '../../effects/bloomFilter.ts';
-import { bloomLevelWgsl, levelTap } from '../../effects/bloomLevel.ts';
+import { FULLSCREEN_VERTEX } from '../../lighting/deferred/shaders.ts'
+import { BLOOM_DOWN_TAPS, bloomTapText } from '../../effects/bloomFilter.ts'
+import { bloomLevelWgsl, levelTap } from '../../effects/bloomLevel.ts'
 
 /**
  * The bloom's three WebGPU programs (`bloomFilter.ts`), on premultiplied linear radiance, alpha
@@ -21,4 +21,4 @@ ${bloomTapText(BLOOM_DOWN_TAPS, levelTap, 'vec2f')}
 return c;}
 @fragment fn up(@builtin(position) pixel:vec4f)->@location(0) vec4f{return tent(pixel.xy*bloom.outTexel);}
 @fragment fn composite(@builtin(position) pixel:vec4f)->@location(0) vec4f{
-return blendLevel(textureLoad(scene,vec2i(pixel.xy),0),pixel.xy);}`;
+return blendLevel(textureLoad(scene,vec2i(pixel.xy),0),pixel.xy);}`

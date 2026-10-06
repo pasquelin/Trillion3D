@@ -7,36 +7,36 @@ import {
   clipPlanesFromMatrix,
   frustumClipBox,
   frustumExcludesBox,
-} from '../../../../packages/sdk-core/src/index.ts';
-import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts';
-import type { MeasureCase } from '../../../core/index.ts';
-import { viewBoxes, casCones, matrices, projectionViews } from './scenesVolumes.ts';
-import type { ConeCase, ViewBoxCase, ViewProjectionCase } from './scenesVolumes.ts';
+} from '../../../../packages/sdk-core/src/index.ts'
+import { frustumPlanesToLocal } from '../../../../packages/sdk-browser/src/gpu/dag/oracle/math.fixture.ts'
+import type { MeasureCase } from '../../../core/index.ts'
+import { viewBoxes, casCones, matrices, projectionViews } from './scenesVolumes.ts'
+import type { ConeCase, ViewBoxCase, ViewProjectionCase } from './scenesVolumes.ts'
 import {
   hierarchicalViewBoxes,
   hierarchicalCones,
   hierarchicalWorlds,
   hierarchicalViews,
-} from './scenesHierarchies.ts';
-import { referenceBoxClip } from '../../../oracles/browser/selection.ts';
+} from './scenesHierarchies.ts'
+import { referenceBoxClip } from '../../../oracles/browser/selection.ts'
 import {
   referenceConeRejects,
   referencePlanesToLocal,
   reordonne,
-} from '../../../oracles/browser/volumes.ts';
-import { casVolume, un, type CasVolume } from './volumeCase.ts';
-import { plans } from './volumeFrustumPlaneCases.ts';
+} from '../../../oracles/browser/volumes.ts'
+import { casVolume, un, type CasVolume } from './volumeCase.ts'
+import { plans } from './volumeFrustumPlaneCases.ts'
 
 const two = <Entree>(
   name: string,
   input: Entree[],
   nomH: string,
   entreeH: Entree[],
-): MeasureCase<Entree[]>[] => [...un(name, input), ...un(nomH, entreeH)];
+): MeasureCase<Entree[]>[] => [...un(name, input), ...un(nomH, entreeH)]
 
 interface LocalPlaneCase {
-  planes: Float32Array;
-  m: number[];
+  planes: Float32Array
+  m: number[]
 }
 
 /** Single-precision planes of the selection uniforms, brought under each placement. */
@@ -45,7 +45,7 @@ const locaux = (views: { vp: number[] }[], worlds: number[][], pas: number): Loc
     worlds
       .filter((_, j) => j % pas === v % pas)
       .map((m) => ({ planes: plans(vp, Float32Array), m })),
-  );
+  )
 
 /** Equivalence lines of the frustum and the cone, without timer options. */
 // The Three oracle of these three computations predates the reversed-depth convention
@@ -53,7 +53,7 @@ const locaux = (views: { vp: number[] }[], worlds: number[][], pas: number): Loc
 // correctness is held by `bench/witnesses/three/parity/core/math/frustum/frustum.test.ts` and `bench/witnesses/three/parity/core/math/frustum/box.test.ts`, and the bench
 // line publishes it.
 const Z_INVERSE =
-  'Three oracle from before reversed Z — correctness in bench/witnesses/three/parity/core/math/frustum/frustum.test.ts';
+  'Three oracle from before reversed Z — correctness in bench/witnesses/three/parity/core/math/frustum/frustum.test.ts'
 
 export const casTronc: CasVolume[] = [
   casVolume({
@@ -81,9 +81,9 @@ export const casTronc: CasVolume[] = [
     ),
     optimised: (list: ViewProjectionCase[]) =>
       list.map(({ vp }) => {
-        const output = new Float64Array(24);
-        clipPlanesFromMatrix(output, vp);
-        return output;
+        const output = new Float64Array(24)
+        clipPlanesFromMatrix(output, vp)
+        return output
       }),
   }),
   casVolume({
@@ -112,21 +112,21 @@ export const casTronc: CasVolume[] = [
     ),
     reference: (list: ViewBoxCase[]) =>
       list.map(({ vp, box: b }) => {
-        const brut = new Float64Array(24);
-        clipPlanesFromMatrix(brut, vp);
+        const brut = new Float64Array(24)
+        clipPlanesFromMatrix(brut, vp)
         return [
           referenceBoxClip(reordonne(brut), b[0], b[1], b[2], b[3], b[4], b[5]),
           referenceBoxClip(reordonne(plans(vp)), b[0], b[1], b[2], b[3], b[4], b[5]),
-        ];
+        ]
       }),
     optimised: (list: ViewBoxCase[]) =>
       list.map(({ vp, box: b }) => {
-        const brut = new Float64Array(24);
-        clipPlanesFromMatrix(brut, vp);
+        const brut = new Float64Array(24)
+        clipPlanesFromMatrix(brut, vp)
         return [
           frustumClipBox(brut, b[0], b[1], b[2], b[3], b[4], b[5]),
           frustumClipBox(plans(vp), b[0], b[1], b[2], b[3], b[4], b[5]),
-        ];
+        ]
       }),
   }),
   casVolume({
@@ -142,9 +142,9 @@ export const casTronc: CasVolume[] = [
       list.map(({ planes, m }) => Float64Array.from(referencePlanesToLocal(planes, m))),
     optimised: (list: LocalPlaneCase[]) =>
       list.map(({ planes, m }) => {
-        const output = new Float64Array(24);
-        frustumPlanesToLocal(output, planes, m);
-        return output;
+        const output = new Float64Array(24)
+        frustumPlanesToLocal(output, planes, m)
+        return output
       }),
   }),
   casVolume({
@@ -184,4 +184,4 @@ export const casTronc: CasVolume[] = [
         ),
       ),
   }),
-];
+]

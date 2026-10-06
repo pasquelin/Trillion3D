@@ -4,19 +4,19 @@
 
 /** A linear congruential step on 32-bit integers: the light-grid and resolve probes' draw. */
 export function seeded(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296;
+  let state = seed >>> 0
+  return () => (state = (Math.imul(state, 1664525) + 1013904223) >>> 0) / 4294967296
 }
 
 /** Xorshift32: three exclusive shifts, the state never passing through zero. */
 export function xorshift32(seed: number): () => number {
-  let state = seed;
+  let state = seed
   return () => {
-    state ^= state << 13;
-    state ^= state >>> 17;
-    state ^= state << 5;
-    return (state >>> 0) / 4294967296;
-  };
+    state ^= state << 13
+    state ^= state >>> 17
+    state ^= state << 5
+    return (state >>> 0) / 4294967296
+  }
 }
 
 /**
@@ -25,13 +25,13 @@ export function xorshift32(seed: number): () => number {
  * equally.
  */
 export function lois(draw: () => number): {
-  hasard: () => number;
-  between: (a: number, b: number) => number;
-  log: (a: number, b: number) => number;
+  hasard: () => number
+  between: (a: number, b: number) => number
+  log: (a: number, b: number) => number
 } {
   return {
     hasard: draw,
     between: (a: number, b: number) => a + (b - a) * draw(),
     log: (a: number, b: number) => a * (b / a) ** draw(),
-  };
+  }
 }

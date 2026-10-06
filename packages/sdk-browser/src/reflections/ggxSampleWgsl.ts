@@ -1,4 +1,4 @@
-import { TWO_PI } from '../lighting/shaderConstants.ts';
+import { TWO_PI } from '../lighting/shaderConstants.ts'
 
 /** GGX importance sampling of the split-sum radiance prefilter (N = V = R).
  * A sampled half-vector has PDF D(H) N.H; reflection changes measure by 4 V.H.
@@ -24,4 +24,4 @@ fn stochasticReflection(R:vec3f,N:vec3f,rough:f32,xi:vec2f)->vec4f{
  let kernel=distribution*max(dot(R,L),0.0)*0.25*select(0.0,1.0,dot(N,L)>0.0);
  return vec4f(L,kernel/max(pdf,1e-20));
 }
-`;
+`

@@ -11,19 +11,19 @@
  */
 
 /** Groups one dispatch dimension guarantees: the list spreads over x and z as needed. */
-export const DISPATCH_SPAN = 65535;
+export const DISPATCH_SPAN = 65535
 
 /** Side of the fine-class tile, and triangles a sixty-four-thread group treats there. */
-export const FINE_SIDE = 4;
+export const FINE_SIDE = 4
 
-export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE);
+export const FINE_PER_GROUP = 64 / (FINE_SIDE * FINE_SIDE)
 /** Side of a full group's tile: the coarse class fits in one, the large class loops. */
-export const TILE = 8;
+export const TILE = 8
 /** Tiles a large-class group walks at most, hence its maximum span in pixels. */
-const LARGE_TILES = 8;
-export const LARGE_SPAN = TILE * LARGE_TILES - 1;
+const LARGE_TILES = 8
+export const LARGE_SPAN = TILE * LARGE_TILES - 1
 /** Maximum span of a fine-class box: a tile of `FINE_SIDE` pixels on a side. */
-export const FINE_SPAN = FINE_SIDE - 1;
+export const FINE_SPAN = FINE_SIDE - 1
 
 /**
  * The small/large split: a triangle whose screen box, clamped to the frame, does not
@@ -32,7 +32,7 @@ export const FINE_SPAN = FINE_SIDE - 1;
  * triangles a vertex puts behind the near plane, which a threshold always leaves to hardware,
  * which clips them itself.
  */
-export const COMPUTE_ALL = 1e9;
+export const COMPUTE_ALL = 1e9
 
 /**
  * The split predicate, the same text in both rasters: they read the same vertices, the same
@@ -53,7 +53,7 @@ fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
  if(uni.computeSpan>=${COMPUTE_ALL}){return true;}
  if(uni.computeSpan<=0.0||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0){return false;}
  return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
-}`;
+}`
 
 /** Words the list reserves before its entries: four counts, the frame's largest height in
  *  tiles, then the four dispatches the `plan` kernel derives from them. */
@@ -61,14 +61,14 @@ export const CNT_FINE = 0,
   CNT_COARSE = 1,
   CNT_LARGE = 2,
   CNT_HUGE = 3,
-  TILE_ROWS = 4;
+  TILE_ROWS = 4
 /** First word of the indirect dispatches; they are contiguous so they copy as one. */
-export const DISPATCH_BASE = 6;
-export const DISPATCH_WORDS = 12;
-export const LIST_HEADER = 20;
+export const DISPATCH_BASE = 6
+export const DISPATCH_WORDS = 12
+export const LIST_HEADER = 20
 
 /** Header bytes the frame clears: the five counters, rounded to the copy word. */
-export const HEADER_CLEAR_BYTES = 24;
+export const HEADER_CLEAR_BYTES = 24
 
 /**
  * The three modes of a raster kernel, in the order the frame encodes them.
@@ -78,11 +78,11 @@ export const HEADER_CLEAR_BYTES = 24;
  */
 export const MODE_DEPTH_OCCLUDER = 0,
   MODE_DEPTH_REST = 1,
-  MODE_ID = 2;
+  MODE_ID = 2
 
 /** The four classes, in the order of their indirect dispatches. */
-export const RASTER_CLASSES = ['fine', 'coarse', 'large', 'huge'] as const;
-export type RasterClass = (typeof RASTER_CLASSES)[number];
+export const RASTER_CLASSES = ['fine', 'coarse', 'large', 'huge'] as const
+export type RasterClass = (typeof RASTER_CLASSES)[number]
 
 /** Entry-point name of a class in a mode: one rule, both sides read it. */
-export const rasterEntry = (klass: RasterClass, mode: number) => `${klass}${mode}`;
+export const rasterEntry = (klass: RasterClass, mode: number) => `${klass}${mode}`

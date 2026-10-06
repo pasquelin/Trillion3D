@@ -1,38 +1,38 @@
-import type { TFunction } from 'i18next';
-import { useWords } from '../i18n.ts';
-import { readingGroups } from './model/sources.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { flattenFields } from './model/availability.ts';
-import { recordLabel, sceneName } from './model/presentation.ts';
-import { viewName } from './model/names.ts';
-import { Collapse } from '../ui/Collapse.tsx';
-import type { Report, ReportSource } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import type { TFunction } from 'i18next'
+import { useWords } from '../i18n.ts'
+import { readingGroups } from './model/sources.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { flattenFields } from './model/availability.ts'
+import { recordLabel, sceneName } from './model/presentation.ts'
+import { viewName } from './model/names.ts'
+import { Collapse } from '../ui/Collapse.tsx'
+import type { Report, ReportSource } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface AllReadingsProps {
-  report: Report;
-  sources: ReportSource[];
-  locale: Locale;
+  report: Report
+  sources: ReportSource[]
+  locale: Locale
 }
 
 function cell(value: unknown, locale: Locale, t: TFunction): string {
-  if (value === null || value === undefined) return t('report.notRecorded');
+  if (value === null || value === undefined) return t('report.notRecorded')
   if (typeof value === 'number')
-    return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(value);
-  if (typeof value === 'boolean') return t(value ? 'report.yes' : 'report.no');
-  return String(value);
+    return new Intl.NumberFormat(locale, { maximumFractionDigits: 20 }).format(value)
+  if (typeof value === 'boolean') return t(value ? 'report.yes' : 'report.no')
+  return String(value)
 }
 
 export function AllReadings({ report, sources, locale }: AllReadingsProps) {
-  const t = useWords(locale);
-  const groups = readingGroups(sources);
+  const t = useWords(locale)
+  const groups = readingGroups(sources)
   return (
     <Section bare id="report-all-values" title={t('report.allValues')}>
       <p>{t('report.allValuesLead')}</p>
       {[...groups].map(([key, records]) => {
-        const maps: Map<string, unknown>[] = records.map((r) => flattenFields(r.complete));
-        const fields = [...new Set(maps.flatMap((m) => [...m.keys()]))];
+        const maps: Map<string, unknown>[] = records.map((r) => flattenFields(r.complete))
+        const fields = [...new Set(maps.flatMap((m) => [...m.keys()]))]
         return (
           <Collapse
             key={key}
@@ -66,8 +66,8 @@ export function AllReadings({ report, sources, locale }: AllReadingsProps) {
               </Table>
             )}
           </Collapse>
-        );
+        )
       })}
     </Section>
-  );
+  )
 }

@@ -1,33 +1,33 @@
-import { type ColumnName, type TextureBlockFormat } from './binaryFormat.ts';
+import { type ColumnName, type TextureBlockFormat } from './binaryFormat.ts'
 
 /** How many rows each part of a binary manifest holds. */
 export interface Counts {
   /** Pages. */
-  pages: number;
+  pages: number
   /** Culling nodes. */
-  cullingNodes: number;
+  cullingNodes: number
   /** Groups. */
-  groups: number;
+  groups: number
   /** Group children. */
-  children: number;
+  children: number
   /** Group outputs. */
-  outputs: number;
+  outputs: number
   /** Roots. */
-  roots: number;
+  roots: number
   /** Bundles. */
-  bundles: number;
+  bundles: number
   /** Bundle dependencies, every bundle's list concatenated. */
-  bundleDependencies: number;
+  bundleDependencies: number
   /** Texture previews. */
-  previews: number;
+  previews: number
   /** Bytes of the pixel column, every level of every entry concatenated. */
-  previewBytes: number;
+  previewBytes: number
   /** Bytes of each block column: the kept chains' tails compressed, whole blocks, entries
    *  contiguous, nothing for a chain the family left lossless. */
-  previewBlockBytes: Record<TextureBlockFormat, number>;
+  previewBlockBytes: Record<TextureBlockFormat, number>
 }
 /** Which row count each column holds one element per: a part of `Counts`, or a block format's bytes. */
-type RowCount = Exclude<keyof Counts, 'previewBlockBytes'> | TextureBlockFormat;
+type RowCount = Exclude<keyof Counts, 'previewBlockBytes'> | TextureBlockFormat
 
 const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   pageBounds: 'pages',
@@ -59,10 +59,10 @@ const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   texturePreviewPixels: 'previewBytes',
   texturePreviewBc7: 'bc7',
   texturePreviewAstc: 'astc',
-};
+}
 
 /** The element count of column `name`: its row count's part of `counts`. */
 export function columnElements(name: ColumnName, counts: Counts) {
-  const rows = COLUMN_ROWS[name];
-  return rows === 'bc7' || rows === 'astc' ? counts.previewBlockBytes[rows] : counts[rows];
+  const rows = COLUMN_ROWS[name]
+  return rows === 'bc7' || rows === 'astc' ? counts.previewBlockBytes[rows] : counts[rows]
 }

@@ -2,7 +2,7 @@ import {
   CONE_LENGTH_RATIO_WGSL,
   CONE_ORTHO_EPS_WGSL,
   HALF_PI_WGSL,
-} from '../../../../../sdk-core/src/index.ts';
+} from '../../../../../sdk-core/src/index.ts'
 
 /**
  * The normal-cone rejection of the DAG selection kernel, and the per-page word that caches it with
@@ -73,4 +73,4 @@ fn coneCache(index:u32)->u32{return views[0u].queueCap+views[0u].clusterCount+in
 /** Bits of the cone cache word: the cone verdict, then — camera cut only — the two comparisons of
  *  the cut rule (\`parentPixels > t\`, \`ownPixels <= t\`), made once by \`dagWanted\`. */
 const CONE_REJECTED:u32=1u;const PARENT_ABOVE:u32=2u;const OWN_WITHIN:u32=4u;
-`;
+`

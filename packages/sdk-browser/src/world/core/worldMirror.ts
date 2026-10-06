@@ -1,88 +1,88 @@
 /** Resource meshes share geometry and material; placement rows retain animation owners.
  * Loaded models keep their graph. Resource instances use placement rows, including blends. */
-import { numbered } from '../../host/graph/serial.ts';
-import { isDrawnNode } from '../../host/graph/kinds.ts';
-import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
-import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
-import { hostSurface, repaintHostSurface } from './worldSurface.ts';
-import { HOST_MAPS, type HostTextures } from './worldTextures.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import type { GraphSurface } from '../../host/graph/surface.ts';
-import type { GraphTexture } from '../../host/graph/texture.ts';
-import type { Cut } from './worldCuts.ts';
-import type { PosedTwin } from './worldPoses.ts';
-import type { RepaintedEntry } from './worldMaterials.ts';
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { numbered } from '../../host/graph/serial.ts'
+import { isDrawnNode } from '../../host/graph/kinds.ts'
+import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
+import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import type { PlacementRows } from '../../placement/rows.ts'
+import { hostSurface, repaintHostSurface } from './worldSurface.ts'
+import { HOST_MAPS, type HostTextures } from './worldTextures.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import type { GraphSurface } from '../../host/graph/surface.ts'
+import type { GraphTexture } from '../../host/graph/texture.ts'
+import type { Cut } from './worldCuts.ts'
+import type { PosedTwin } from './worldPoses.ts'
+import type { RepaintedEntry } from './worldMaterials.ts'
+import type { AlphaChange } from '../../placement/backendSceneUpdates.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The geometry of drawn triangles, under the attribute names a mesh reads. A sprite's quad is
  *  bounded as its pages are (`runtimePrimitive.ts`): by the cube and ball of its radius about its
  *  origin, which hold it whichever way the rasters turn it. */
 function hostGeometry(drawn: DrawnTriangles) {
-  const geometry = new Geometry();
-  geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3));
-  geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3));
-  if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2));
-  if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4));
-  const deformation = drawn.deformation;
+  const geometry = new Geometry()
+  geometry.setAttribute('position', new BufferAttribute(drawn.positions, 3))
+  geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3))
+  if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2))
+  if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4))
+  const deformation = drawn.deformation
   if (deformation?.joints && deformation.weights) {
     geometry.setAttribute(
       'skinIndex',
       new BufferAttribute(deformation.joints, deformation.influences ?? 4),
-    );
+    )
     geometry.setAttribute(
       'skinWeight',
       new BufferAttribute(deformation.weights, deformation.influences ?? 4),
-    );
+    )
   }
-  geometry.morphTargetsRelative = true;
+  geometry.morphTargetsRelative = true
   geometry.morphAttributes.position =
-    deformation?.targets.map((t) => new BufferAttribute(t.positions, 3)) ?? [];
+    deformation?.targets.map((t) => new BufferAttribute(t.positions, 3)) ?? []
   geometry.morphAttributes.normal =
-    deformation?.targets.map((t) => new BufferAttribute(t.normals, 3)) ?? [];
-  geometry.setIndex(new BufferAttribute(drawn.indices, 1));
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-  const radius = drawn.spriteRadius;
+    deformation?.targets.map((t) => new BufferAttribute(t.normals, 3)) ?? []
+  geometry.setIndex(new BufferAttribute(drawn.indices, 1))
+  geometry.computeBoundingBox()
+  geometry.computeBoundingSphere()
+  const radius = drawn.spriteRadius
   if (radius !== undefined) {
-    geometry.boundingBox!.min.set(-radius, -radius, -radius);
-    geometry.boundingBox!.max.set(radius, radius, radius);
-    geometry.boundingSphere!.center.set(0, 0, 0);
-    geometry.boundingSphere!.radius = radius;
+    geometry.boundingBox!.min.set(-radius, -radius, -radius)
+    geometry.boundingBox!.max.set(radius, radius, radius)
+    geometry.boundingSphere!.center.set(0, 0, 0)
+    geometry.boundingSphere!.radius = radius
   }
-  return geometry;
+  return geometry
 }
 
 /** How a session reads repainted surfaces again (`BackendSceneUpdates.refreshMaterials`). */
-type Refresh = (values: boolean, alpha?: AlphaChange) => boolean;
+type Refresh = (values: boolean, alpha?: AlphaChange) => boolean
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
  *  mesh rank each geometry resource was given in the session's manifest. */
 type Placed = {
-  cut: Cut;
-  material: Material;
-  rows: PlacementRows;
-  name: string;
+  cut: Cut
+  material: Material
+  rows: PlacementRows
+  name: string
   /** Worn by cloths: drawn on both faces (`hostSurface`'s `sheet`); unsaid, as it declares. */
-  twoSided?: boolean;
-};
+  twoSided?: boolean
+}
 type MirrorInput = {
-  placed: readonly Placed[];
-  models: readonly { node: Object3D; graph: Object3D }[];
-  rankOf: (cut: Cut) => number;
-};
+  placed: readonly Placed[]
+  models: readonly { node: Object3D; graph: Object3D }[]
+  rankOf: (cut: Cut) => number
+}
 
 /** The host graph of a world's session, and the twins the world poses before a frame. */
 export function buildWorldMirror(input: MirrorInput) {
-  const root = new Group();
-  const twins = new Map<Object3D, PosedTwin>();
+  const root = new Group()
+  const twins = new Map<Object3D, PosedTwin>()
   const associations = new Map<
     Object3D,
     { meshes: number; primitives: number; placements?: PlacementRows }
-  >();
+  >()
   const geometries = new Map<Cut, Geometry>(),
     // One surface per material, and a second one when the material asks for vertex colours and
     // is worn by geometries with and without them: the material decides
@@ -91,12 +91,12 @@ export function buildWorldMirror(input: MirrorInput) {
     // it is worn by a sprite: the sprite surface turns its quad to the camera. A fifth, and a
     // sixth with vertex colours, when it is worn by cloths: drawn on both faces.
     surfaces = new Map<Material, GraphSurface[]>(),
-    textures: HostTextures = new Map();
+    textures: HostTextures = new Map()
   const meshOf = (cut: Cut, material: Material, twoSided = false) => {
-    let geometry = geometries.get(cut);
-    if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
+    let geometry = geometries.get(cut)
+    if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)))
     // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
-    if (cut.dynamic) geometry.usage = 'dynamic';
+    if (cut.dynamic) geometry.usage = 'dynamic'
     const tinted = !!material.vertexColors && !!cut.drawn.colors,
       reading = cut.drawn.lines
         ? 'lines'
@@ -104,54 +104,54 @@ export function buildWorldMirror(input: MirrorInput) {
           ? 'sprite'
           : twoSided
             ? 'sheet'
-            : 'faces';
-    let worn = surfaces.get(material);
-    if (!worn) surfaces.set(material, (worn = []));
+            : 'faces'
+    let worn = surfaces.get(material)
+    if (!worn) surfaces.set(material, (worn = []))
     const rank =
-      reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted;
-    const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
-    return numbered(new Mesh(geometry, surface));
-  };
+      reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
+    const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading))
+    return numbered(new Mesh(geometry, surface))
+  }
   /** Hangs the host mesh of a resource placed by rows; returns it with its association. */
   const place = ({ cut, material, rows, name, twoSided }: Placed) => {
-    const mesh = meshOf(cut, material, twoSided);
-    mesh.name = name;
-    const association = { meshes: input.rankOf(cut), primitives: 0, placements: rows };
-    associations.set(mesh, association);
-    root.add(mesh);
-    return { node: mesh, association };
-  };
+    const mesh = meshOf(cut, material, twoSided)
+    mesh.name = name
+    const association = { meshes: input.rankOf(cut), primitives: 0, placements: rows }
+    associations.set(mesh, association)
+    root.add(mesh)
+    return { node: mesh, association }
+  }
   /** Takes down a placed host mesh, its geometry with `cut`, the last one reading it, and its
    *  surface with the last mesh wearing it: out of the cache a repaint writes, given back with
    *  the textures no other surface reads (#837). */
   const unplace = (mesh: Mesh<GraphSurface>, cut?: Cut) => {
-    associations.delete(mesh);
-    root.remove(mesh);
-    if (cut && geometries.delete(cut)) mesh.geometry.dispose();
-    const surface = mesh.material as GraphSurface;
-    if (root.children.some((node) => (node as Mesh<GraphSurface>).material === surface)) return;
-    const read = new Set<unknown>();
+    associations.delete(mesh)
+    root.remove(mesh)
+    if (cut && geometries.delete(cut)) mesh.geometry.dispose()
+    const surface = mesh.material as GraphSurface
+    if (root.children.some((node) => (node as Mesh<GraphSurface>).material === surface)) return
+    const read = new Set<unknown>()
     for (const [material, worn] of surfaces) {
-      if (worn.includes(surface)) delete worn[worn.indexOf(surface)];
-      if (!worn.some(Boolean)) surfaces.delete(material);
-      for (const kept of worn) if (kept) for (const field of HOST_MAPS) read.add(kept[field]);
+      if (worn.includes(surface)) delete worn[worn.indexOf(surface)]
+      if (!worn.some(Boolean)) surfaces.delete(material)
+      for (const kept of worn) if (kept) for (const field of HOST_MAPS) read.add(kept[field])
     }
-    surface.dispose();
+    surface.dispose()
     for (const [key, texture] of textures)
       if (!read.has(texture)) {
-        textures.delete(key);
-        texture.dispose();
+        textures.delete(key)
+        texture.dispose()
       }
-  };
-  const placed = input.placed.map(place);
+  }
+  const placed = input.placed.map(place)
   for (const { node, graph } of input.models) {
-    const twin = new Group();
-    twin.add(graph);
-    twin.name = node.name;
-    twin.matrixAutoUpdate = false;
-    twin.matrix.fromArray(node.matrixWorld.elements);
-    root.add(twin);
-    twins.set(node, twin);
+    const twin = new Group()
+    twin.add(graph)
+    twin.name = node.name
+    twin.matrixAutoUpdate = false
+    twin.matrix.fromArray(node.matrixWorld.elements)
+    root.add(twin)
+    twins.set(node, twin)
   }
   /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
    *  the open session, if any — read them again: once, with the surfaces whose alpha moved the
@@ -159,49 +159,49 @@ export function buildWorldMirror(input: MirrorInput) {
    *  session cannot. */
   const repaint = (painted: readonly RepaintedEntry[], refresh?: Refresh) => {
     let written = false,
-      values = false;
-    const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>();
+      values = false
+    const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>()
     for (const { entry, alpha, values: wrote } of painted) {
       const worn = (surfaces.get(entry.material) ?? []).filter(
         (surface): surface is GraphSurface => !!surface,
-      );
-      for (const surface of worn) repaintHostSurface(surface, entry.material);
-      if (!worn.length) continue;
-      written = true;
-      values ||= wrote;
-      if (!alpha) continue;
-      const way = `${alpha.from}>${alpha.to}`;
-      const change = moved.get(way);
-      if (change) change.surfaces.push(...worn);
-      else moved.set(way, { ...alpha, surfaces: worn });
+      )
+      for (const surface of worn) repaintHostSurface(surface, entry.material)
+      if (!worn.length) continue
+      written = true
+      values ||= wrote
+      if (!alpha) continue
+      const way = `${alpha.from}>${alpha.to}`
+      const change = moved.get(way)
+      if (change) change.surfaces.push(...worn)
+      else moved.set(way, { ...alpha, surfaces: worn })
     }
-    if (!refresh || !written) return true;
-    const [first, ...others] = moved.values();
-    return refresh(values, first) && others.every((alpha) => refresh(false, alpha));
-  };
+    if (!refresh || !written) return true
+    const [first, ...others] = moved.values()
+    return refresh(values, first) && others.every((alpha) => refresh(false, alpha))
+  }
   /** The host geometry of `cut`, once placed: the vertices a dynamic resource rewrites (#573). */
-  const geometryOf = (cut: Cut) => geometries.get(cut);
-  return { root, twins, associations, repaint, placed, place, unplace, geometryOf };
+  const geometryOf = (cut: Cut) => geometries.get(cut)
+  return { root, twins, associations, repaint, placed, place, unplace, geometryOf }
 }
 
 /** Gives back the geometries, surfaces and textures a mirror built, each once however many
  *  host meshes share it; a loaded model's are kept. */
 export function releaseWorldMirror(root: Object3D) {
-  const released = new Set<object>();
+  const released = new Set<object>()
   for (const twin of root.children) {
-    if (!isDrawnNode(twin)) continue;
-    const { geometry, material } = twin;
-    const surface = material as GraphSurface;
+    if (!isDrawnNode(twin)) continue
+    const { geometry, material } = twin
+    const surface = material as GraphSurface
     for (const owned of [geometry, surface] as { dispose(): void }[])
       if (!released.has(owned)) {
-        released.add(owned);
-        owned.dispose();
+        released.add(owned)
+        owned.dispose()
         if (owned === surface)
           for (const field of HOST_MAPS) {
-            const texture = surface[field] as GraphTexture | null | undefined;
+            const texture = surface[field] as GraphTexture | null | undefined
             if (texture && !released.has(texture)) {
-              released.add(texture);
-              texture.dispose();
+              released.add(texture)
+              texture.dispose()
             }
           }
       }

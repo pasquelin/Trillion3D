@@ -1,11 +1,11 @@
-import { serialOf } from '../../host/graph/serial.ts';
-import { depthOf } from './meshDepth.ts';
+import { serialOf } from '../../host/graph/serial.ts'
+import { depthOf } from './meshDepth.ts'
 
 /** A drawn mesh as its order reads it: its order, its surface, and what its depth reads. */
 export type OrderedNode = Parameters<typeof depthOf>[0] & {
-  readonly renderOrder: number;
-  readonly material?: unknown;
-};
+  readonly renderOrder: number
+  readonly material?: unknown
+}
 
 /**
  * THE ORDER OF A SCENE DRAW: the opaque meshes by `renderOrder`, surface, then
@@ -26,78 +26,78 @@ export type OrderedNode = Parameters<typeof depthOf>[0] & {
  * instead of sorting from scratch (#1198: 0.44 ms a frame for sponza's 1 465 pages).
  */
 export function createDrawOrder(serial: (node: OrderedNode) => number | undefined = serialOf) {
-  const ranks = new WeakMap<object, number>();
-  let nextRank = 0;
+  const ranks = new WeakMap<object, number>()
+  let nextRank = 0
   // Reused from frame to frame: a sort allocates only when a list outgrows them.
   let depths = new Float64Array(0),
     orders = new Float64Array(0),
     serials = new Float64Array(0),
-    surfaceRanks = new Int32Array(0);
+    surfaceRanks = new Int32Array(0)
   // Packed, grown one index at a time; `nodes` is emptied in place after each sort, so no mesh
   // is held between frames.
   const nodes: (OrderedNode | undefined)[] = [],
     opaqueOrder: number[] = [],
-    seeThroughOrder: number[] = [];
+    seeThroughOrder: number[] = []
   /** The surface number of the node at `i`, taken on first ask (-1: not asked yet this sort). */
   const rankAt = (i: number) => {
-    let rank = surfaceRanks[i];
+    let rank = surfaceRanks[i]
     if (rank < 0) {
-      const surface = nodes[i]!.material as object;
-      const known = ranks.get(surface);
-      if (known === undefined) ranks.set(surface, (rank = nextRank++));
-      else rank = known;
-      surfaceRanks[i] = rank;
+      const surface = nodes[i]!.material as object
+      const known = ranks.get(surface)
+      if (known === undefined) ranks.set(surface, (rank = nextRank++))
+      else rank = known
+      surfaceRanks[i] = rank
     }
-    return rank;
-  };
+    return rank
+  }
   const frontToBack = (a: number, b: number) =>
     orders[a] - orders[b] ||
     rankAt(a) - rankAt(b) ||
     depths[a] - depths[b] ||
-    serials[a] - serials[b];
+    serials[a] - serials[b]
   const backToFront = (a: number, b: number) =>
-    orders[a] - orders[b] || depths[b] - depths[a] || serials[a] - serials[b];
-  const frontToBackByIndex = (a: number, b: number) => frontToBack(a, b) || a - b;
-  const backToFrontByIndex = (a: number, b: number) => backToFront(a, b) || a - b;
+    orders[a] - orders[b] || depths[b] - depths[a] || serials[a] - serials[b]
+  const frontToBackByIndex = (a: number, b: number) => frontToBack(a, b) || a - b
+  const backToFrontByIndex = (a: number, b: number) => backToFront(a, b) || a - b
   const sort = (
     list: OrderedNode[],
     screen: ArrayLike<number>,
     compare: (a: number, b: number) => number,
     permutation: number[],
   ) => {
-    const count = list.length;
+    const count = list.length
     if (depths.length < count) {
-      const size = Math.max(count, depths.length * 2);
-      depths = new Float64Array(size);
-      orders = new Float64Array(size);
-      serials = new Float64Array(size);
-      surfaceRanks = new Int32Array(size);
+      const size = Math.max(count, depths.length * 2)
+      depths = new Float64Array(size)
+      orders = new Float64Array(size)
+      serials = new Float64Array(size)
+      surfaceRanks = new Int32Array(size)
     }
-    const ranked = compare === frontToBack;
-    let resumed = permutation.length === count;
+    const ranked = compare === frontToBack
+    let resumed = permutation.length === count
     for (let i = 0; i < count; i++) {
-      const node = list[i];
-      nodes[i] = node;
-      depths[i] = depthOf(node, screen);
-      orders[i] = node.renderOrder;
-      serials[i] = serial(node) ?? 0;
-      if (ranked) surfaceRanks[i] = ranks.get(node.material as object) ?? -1;
+      const node = list[i]
+      nodes[i] = node
+      depths[i] = depthOf(node, screen)
+      orders[i] = node.renderOrder
+      serials[i] = serial(node) ?? 0
+      if (ranked) surfaceRanks[i] = ranks.get(node.material as object) ?? -1
       // NaN answers every comparison "equal", so the result depends on where the sort starts.
       const numbers =
-        depths[i] === depths[i] && orders[i] === orders[i] && serials[i] === serials[i];
-      resumed &&= numbers && (!ranked || surfaceRanks[i] >= 0);
+        depths[i] === depths[i] && orders[i] === orders[i] && serials[i] === serials[i]
+      resumed &&= numbers && (!ranked || surfaceRanks[i] >= 0)
     }
     if (!resumed) {
-      permutation.length = count;
-      for (let i = 0; i < count; i++) permutation[i] = i;
+      permutation.length = count
+      for (let i = 0; i < count; i++) permutation[i] = i
     }
-    const byIndex = ranked ? frontToBackByIndex : backToFrontByIndex;
-    permutation.sort(resumed ? byIndex : compare);
-    for (let i = 0; i < count; i++) list[i] = nodes[permutation[i]]!;
-    nodes.fill(undefined, 0, count);
-  };
+    const byIndex = ranked ? frontToBackByIndex : backToFrontByIndex
+    permutation.sort(resumed ? byIndex : compare)
+    for (let i = 0; i < count; i++) list[i] = nodes[permutation[i]]!
+    nodes.fill(undefined, 0, count)
+  }
   return (opaque: OrderedNode[], seeThrough: OrderedNode[], screen: ArrayLike<number>) => {
-    sort(opaque, screen, frontToBack, opaqueOrder);
-    sort(seeThrough, screen, backToFront, seeThroughOrder);
-  };
+    sort(opaque, screen, frontToBack, opaqueOrder)
+    sort(seeThrough, screen, backToFront, seeThroughOrder)
+  }
 }

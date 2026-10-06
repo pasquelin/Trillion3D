@@ -1,44 +1,44 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { waterRankOf, writeVolumeRecords, VOLUME_WORDS } from '../transparent/transmission.ts';
-import { FLAG_TRANSMISSIVE } from '../../visibility/buffer.ts';
-import { device, prepared } from './pass.fixture.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { waterRankOf, writeVolumeRecords, VOLUME_WORDS } from '../transparent/transmission.ts'
+import { FLAG_TRANSMISSIVE } from '../../visibility/buffer.ts'
+import { device, prepared } from './pass.fixture.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 test('a transmissive surface is prepared like the other blends, and marked', () => {
-  const { blendState } = prepared();
-  assert.equal(blendState.transmissive, 1, 'only one of the three copies transmits');
-  assert.equal(blendState.blendGpu.length, 3, 'no copy is left aside');
+  const { blendState } = prepared()
+  assert.equal(blendState.transmissive, 1, 'only one of the three copies transmits')
+  assert.equal(blendState.blendGpu.length, 3, 'no copy is left aside')
   assert.deepEqual(
     blendState.blendGpu.map((item) => (item.flags & FLAG_TRANSMISSIVE) !== 0),
     [false, true, false],
-  );
+  )
   assert.deepEqual(
     blendState.blendGpu.map((item) => !!item.transmissive),
     [false, true, false],
-  );
+  )
   assert.deepEqual(
     blendState.blendGpu.map((item) => waterRankOf(item.flags)),
     [0, 1, 0],
     'the water rank rides above the flags, one-based, zero for a blend',
-  );
-});
+  )
+})
 
 test("the material's glTF volume reaches the composite at the item's water rank, and nothing else does", () => {
-  const { blendState, gpu } = prepared();
-  const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime;
-  writeVolumeRecords(rt, device);
-  const volume = blendState.volumePacked;
-  assert.equal(volume.length, VOLUME_WORDS, 'one record: the transmissive item, at rank zero');
+  const { blendState, gpu } = prepared()
+  const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime
+  writeVolumeRecords(rt, device)
+  const volume = blendState.volumePacked
+  assert.equal(volume.length, VOLUME_WORDS, 'one record: the transmissive item, at rank zero')
   // The per-volume terms, once on the CPU: 1 / ior, Fresnel's f0, and k = log2(c) / d.
-  const rounded = (value: number) => Math.round(value * 1e4) / 1e4;
-  const [ior, distance] = [1.33, 6];
+  const rounded = (value: number) => Math.round(value * 1e4) / 1e4
+  const [ior, distance] = [1.33, 6]
   assert.deepEqual(
     Array.from(volume.subarray(0, 4)).map(rounded),
     [1, 1 / ior, 2.5, ((ior - 1) / (ior + 1)) ** 2].map(rounded),
-  );
+  )
   assert.deepEqual(
     Array.from(volume.subarray(4, 7)).map(rounded),
     [0.35, 0.72, 0.68].map((c) => rounded(Math.log2(c) / distance)),
-  );
-});
+  )
+})

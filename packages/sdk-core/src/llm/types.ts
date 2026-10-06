@@ -1,44 +1,44 @@
 /**
  * Standardized format for LLM tool definitions.
  */
-export type LlmToolFormat = 'openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema';
+export type LlmToolFormat = 'openai' | 'anthropic' | 'gemini' | 'mcp' | 'json-schema'
 
 /**
  * Simplified JSON Schema for LLM function parameters.
  */
 export interface JsonSchemaProperty {
   /** The value's kind. */
-  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object';
+  type: 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object'
   /** What it means. */
-  description: string;
+  description: string
   /** The allowed values. */
-  enum?: readonly (string | number)[];
+  enum?: readonly (string | number)[]
   /** The value when none is given. */
-  default?: string | number | boolean;
+  default?: string | number | boolean
   /** Smallest value. */
-  minimum?: number;
+  minimum?: number
   /** Largest value. */
-  maximum?: number;
+  maximum?: number
   /** The shape of each item. */
-  items?: JsonSchemaProperty;
+  items?: JsonSchemaProperty
   /** The shape of each field. */
-  properties?: Record<string, JsonSchemaProperty>;
+  properties?: Record<string, JsonSchemaProperty>
   /** Fields that must be given. */
-  required?: readonly string[];
+  required?: readonly string[]
 }
 
 /** The shape of a tool's whole argument object. */
 export interface JsonSchemaObject {
   /** Always `'object'`. */
-  type: 'object';
+  type: 'object'
   /** What it means. */
-  description?: string;
+  description?: string
   /** Its fields. */
-  properties: Record<string, JsonSchemaProperty>;
+  properties: Record<string, JsonSchemaProperty>
   /** Fields that must be given. */
-  required?: readonly string[];
+  required?: readonly string[]
   /** Whether other fields are allowed. */
-  additionalProperties?: boolean;
+  additionalProperties?: boolean
 }
 
 /**
@@ -46,51 +46,51 @@ export interface JsonSchemaObject {
  */
 export interface Trillion3dTool {
   /** The tool's name. */
-  name: string;
+  name: string
   /** What it does. */
-  description: string;
+  description: string
   /** Its arguments. */
-  parameters: JsonSchemaObject;
+  parameters: JsonSchemaObject
 }
 
 /** A tool in the form OpenAI's API reads. */
 export interface OpenAiToolDefinition {
   /** Always `'function'`. */
-  type: 'function';
+  type: 'function'
   /** The tool itself. */
   function: {
-    name: string;
-    description: string;
-    parameters: JsonSchemaObject;
-  };
+    name: string
+    description: string
+    parameters: JsonSchemaObject
+  }
 }
 
 /** A tool in the form Anthropic's API reads. */
 export interface AnthropicToolDefinition {
   /** The tool's name. */
-  name: string;
+  name: string
   /** What it does. */
-  description: string;
+  description: string
   /** Its arguments. */
-  input_schema: JsonSchemaObject;
+  input_schema: JsonSchemaObject
 }
 
 /** A tool in the form Gemini's API reads. */
 export interface GeminiFunctionDeclaration {
   /** The tool's name. */
-  name: string;
+  name: string
   /** What it does. */
-  description: string;
+  description: string
   /** Its arguments. */
-  parameters: JsonSchemaObject;
+  parameters: JsonSchemaObject
 }
 
 /** A tool in the form the Model Context Protocol reads. */
 export interface McpToolDefinition {
   /** The tool's name. */
-  name: string;
+  name: string
   /** What it does. */
-  description: string;
+  description: string
   /** Its arguments. */
-  inputSchema: JsonSchemaObject;
+  inputSchema: JsonSchemaObject
 }

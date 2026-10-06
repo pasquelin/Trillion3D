@@ -1,4 +1,4 @@
-import { createTransformControls } from './transform.ts';
+import { createTransformControls } from './transform.ts'
 
 /** The `controls` family: controllers a page attaches to a world, beside the camera controller
  *  `world.controls` already drives. */
@@ -11,17 +11,17 @@ export const controls = {
    * gizmo.addEventListener('dragEnd', () => history.push(box.position.clone()));
    */
   transform: createTransformControls,
-};
+}
 
 export type {
   TransformControls,
   TransformControlsOptions,
   TransformEvent,
   TransformHost,
-} from './transform.ts';
+} from './transform.ts'
 export type {
   TransformHandle,
   TransformMode,
   TransformSnap,
   TransformSpace,
-} from './transformMath.ts';
+} from './transformMath.ts'

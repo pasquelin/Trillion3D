@@ -1,73 +1,73 @@
-import test from 'node:test';
-import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
-import assert from 'node:assert/strict';
-import * as G from '../../../host/graph/graph.fixture.ts';
-import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
-import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts';
-import { webgpuPagesBackend } from '../pages.ts';
-import { rasterPageRecords } from '../../../page/raster.fixture.ts';
-import type { RasterView } from '../runtime.ts';
-import { backendRasterRgba } from '../../../../../../bench/oracles/browser/cpu-image/backendImage.ts';
+import test from 'node:test'
+import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts'
+import assert from 'node:assert/strict'
+import * as G from '../../../host/graph/graph.fixture.ts'
+import { compareImages, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
+import { exactPagesBackend } from '../../../../../../bench/witnesses/measurement.ts'
+import { webgpuPagesBackend } from '../pages.ts'
+import { rasterPageRecords } from '../../../page/raster.fixture.ts'
+import type { RasterView } from '../runtime.ts'
+import { backendRasterRgba } from '../../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import {
   drawnPageIds,
   indirectDraws,
   installGpuGlobals,
-} from '../../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
+} from '../../../../../../tests/kit/gpu/globals.ts'
+import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import {
   quadScene,
   camera,
   mixedBinScene,
   quadBackend,
   flushedGpuScene,
-} from '../testScenes.fixture.ts';
+} from '../testScenes.fixture.ts'
 
 test('webgpu pages raster consumes the GPU cache and does not attach a mesh per visible page', async () => {
-  installGpuGlobals();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
+  installGpuGlobals()
+  const { source, metadata, indices, associations, geometry, material } = quadScene()
   const { draws, writes, computes, buffers, packed, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
     associations,
-  });
-  draws.length = 0;
-  backend.render(camera());
-  let pageMeshes = 0;
+  })
+  draws.length = 0
+  backend.render(camera())
+  let pageMeshes = 0
   backend.scene.traverse((o) => {
-    if (G.isDrawnNode(o)) pageMeshes++;
-  });
-  assert.equal(pageMeshes, 0);
-  assert.equal(backend.metrics().clusters, 2);
-  assert.equal(backend.metrics().selectedTriangles, 2);
-  assert.equal(backend.metrics().residentPages, 2);
-  assert.ok(writes.length >= 2);
+    if (G.isDrawnNode(o)) pageMeshes++
+  })
+  assert.equal(pageMeshes, 0)
+  assert.equal(backend.metrics().clusters, 2)
+  assert.equal(backend.metrics().selectedTriangles, 2)
+  assert.equal(backend.metrics().residentPages, 2)
+  assert.ok(writes.length >= 2)
   // The scene has one prepared material class, so its surface draw is one full-screen triangle that
   // rejects the background itself; it wears no texture, so it writes no feedback.
-  const shade = draws.filter((d) => d.entryPoint === 'shade_vs');
+  const shade = draws.filter((d) => d.entryPoint === 'shade_vs')
   assert.deepEqual(
     shade.map((d) => [d.fragment, d.vertexCount]),
     [['shade_fsWithoutFeedback', 3]],
-  );
+  )
   // The hardware raster is the producer of the opaque image: the cut reaches it through the image
   // mask, which its indirect commands consume as instances. The compute raster is not created in
   // production — no binning, no opaque compute capability.
-  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
-  const vis = indirectDraws(draws);
+  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1])
+  const vis = indirectDraws(draws)
   assert.equal(
     vis.reduce((n, d) => n + (d.instanceCount ?? 0), 0),
     2,
-  );
-  assert.equal(computes.includes('bin'), false);
-  assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'));
-  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false);
-  backend.dispose();
-  geometry.dispose();
-  material.dispose();
-});
+  )
+  assert.equal(computes.includes('bin'), false)
+  assert.ok(backend.capabilities.unsupported.includes('small-triangle compute raster'))
+  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), false)
+  backend.dispose()
+  geometry.dispose()
+  material.dispose()
+})
 
 test('vis drawIndirect consumes GPU instance indices against one unsorted page table', async () => {
-  installGpuGlobals();
+  installGpuGlobals()
   const {
     source,
     metadata: metadataPartial,
@@ -77,40 +77,40 @@ test('vis drawIndirect consumes GPU instance indices against one unsorted page t
     geoB,
     front,
     both,
-  } = mixedBinScene();
-  const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY };
+  } = mixedBinScene()
+  const metadata: ClusterManifest = { ...metadataPartial, ...MANIFEST_IDENTITY }
   const { draws, computes, buffers, packed, backend } = await flushedGpuScene({
     source,
     metadata,
     indices,
     associations,
-  });
-  draws.length = 0;
-  computes.length = 0;
-  backend.render(camera());
+  })
+  draws.length = 0
+  computes.length = 0
+  backend.render(camera())
   // The two bins — front-only and double-sided — hold two indirect commands on a shared page
   // table, and read the SAME image mask.
-  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1]);
-  assert.equal(computes.includes('bin'), false);
-  const vis = indirectDraws(draws);
-  assert.ok(vis.length >= 2);
+  assert.deepEqual(drawnPageIds(buffers, packed.nodeCount, packed.pageCount), [0, 1])
+  assert.equal(computes.includes('bin'), false)
+  const vis = indirectDraws(draws)
+  assert.ok(vis.length >= 2)
   assert.equal(
     vis.reduce((n, draw) => n + (draw.instanceCount ?? 0), 0),
     2,
-  );
-  assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0]);
-  assert.ok(vis.every((draw) => draw.instanceBuffer && draw.slotOffsetsBuffer));
-  backend.dispose();
-  geoA.dispose();
-  geoB.dispose();
-  front.dispose();
-  both.dispose();
-});
+  )
+  assert.deepEqual([...new Set(vis.map((draw) => draw.bindOffset ?? 0))], [0])
+  assert.ok(vis.every((draw) => draw.instanceBuffer && draw.slotOffsetsBuffer))
+  backend.dispose()
+  geoA.dispose()
+  geoB.dispose()
+  front.dispose()
+  both.dispose()
+})
 
 test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => {
-  installGpuGlobals();
-  const { device } = mockGpu();
-  const { source, metadata, indices, associations, geometry, material } = quadScene();
+  installGpuGlobals()
+  const { device } = mockGpu()
+  const { source, metadata, indices, associations, geometry, material } = quadScene()
   const context = {
     source,
     metadata,
@@ -118,41 +118,41 @@ test('webgpu page raster matches the WebGL2 exact-pages triangles', async () => 
     associations,
     maxResidentPages: 2,
     viewport: [32, 32] as [number, number],
-  };
-  const webgl = exactPagesBackend(context);
-  const webgpu = webgpuPagesBackend({ ...context, gpuDevice: device });
-  const cam = camera();
-  webgl.render(cam);
-  await webgpu.prepare();
-  webgpu.render(cam);
-  await webgpu.flush?.();
-  webgpu.render(cam);
-  const expected = rasterPageRecords(webgl, cam, [32, 32]);
+  }
+  const webgl = exactPagesBackend(context)
+  const webgpu = webgpuPagesBackend({ ...context, gpuDevice: device })
+  const cam = camera()
+  webgl.render(cam)
+  await webgpu.prepare()
+  webgpu.render(cam)
+  await webgpu.flush?.()
+  webgpu.render(cam)
+  const expected = rasterPageRecords(webgl, cam, [32, 32])
   const observed = backendRasterRgba(
     (webgpu as unknown as { rasterView(): RasterView }).rasterView(),
-  );
-  const image = compareImages(expected, observed);
-  assert.equal(image.maxChannelError, 0);
-  webgl.dispose();
-  webgpu.dispose();
-  geometry.dispose();
-  material.dispose();
-});
+  )
+  const image = compareImages(expected, observed)
+  assert.equal(image.maxChannelError, 0)
+  webgl.dispose()
+  webgpu.dispose()
+  geometry.dispose()
+  material.dispose()
+})
 
 // Root pages stay resident outside the pool: a budget smaller than root coverage
 // is raised to it, by name, and the image is complete — never refused.
 test('a budget under root coverage is raised to it, by name, and the image prepares', async () => {
-  installGpuGlobals();
-  const { device } = mockGpu();
+  installGpuGlobals()
+  const { device } = mockGpu()
   const { fixture, backend } = quadBackend(device, {
     maxResidentPages: 1,
-  });
-  await backend.prepare();
-  const metrics = backend.metrics();
-  assert.equal(metrics.geometryPoolClamp, 'root-cover');
-  assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'the slots hold root coverage');
-  assert.equal(metrics.coverageReady, true);
-  backend.dispose();
-  fixture.geometry.dispose();
-  fixture.material.dispose();
-});
+  })
+  await backend.prepare()
+  const metrics = backend.metrics()
+  assert.equal(metrics.geometryPoolClamp, 'root-cover')
+  assert.ok((metrics.geometryPoolSlots ?? 0) > 1, 'the slots hold root coverage')
+  assert.equal(metrics.coverageReady, true)
+  backend.dispose()
+  fixture.geometry.dispose()
+  fixture.material.dispose()
+})

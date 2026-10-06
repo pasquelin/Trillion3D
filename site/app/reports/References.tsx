@@ -1,14 +1,14 @@
-import { useWords } from '../i18n.ts';
-import { Table } from '../ui/Table.tsx';
-import { Card } from '../ui/Card.tsx';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Table } from '../ui/Table.tsx'
+import { Card } from '../ui/Card.tsx'
+import type { Locale } from '../../content/locale.ts'
 
 interface ReferencesProps {
-  locale: Locale;
+  locale: Locale
 }
 
 export function References({ locale }: ReferencesProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   const rows = [
     [t('references.clusterTriangles'), '128'],
     [t('references.groupClusters'), '8–32'],
@@ -18,7 +18,7 @@ export function References({ locale }: ReferencesProps) {
     [t('references.gpuVisibility'), '2.5 ms'],
     [t('references.gpuMaterials'), '2.084 ms'],
     [t('references.cpu'), '0.05 ms'],
-  ];
+  ]
   return (
     <Card id="report-references" title={t('report.references')}>
       <p>{t('report.referenceNote')}</p>
@@ -36,5 +36,5 @@ export function References({ locale }: ReferencesProps) {
         </tbody>
       </Table>
     </Card>
-  );
+  )
 }

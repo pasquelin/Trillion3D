@@ -1,28 +1,27 @@
-import { createContext, useContext, useId } from 'react';
-import type { ComponentPropsWithoutRef, ComponentPropsWithRef, ReactNode } from 'react';
-import { Icon } from './Icon.tsx';
+import { createContext, useContext, useId } from 'react'
+import type { ComponentPropsWithoutRef, ComponentPropsWithRef, ReactNode } from 'react'
+import { Icon } from './Icon.tsx'
 
 interface FieldProps extends ComponentPropsWithoutRef<'fieldset'> {
-  label: ReactNode;
+  label: ReactNode
 }
 
 interface SelectProps extends Omit<ComponentPropsWithoutRef<'select'>, 'size'> {
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md'
 }
 
 /** Inputs show focus by their border alone, never by an outline or a ring. */
-export const QUIET_FOCUS =
-  'focus:outline-none focus-within:outline-none focus-visible:outline-none';
+export const QUIET_FOCUS = 'focus:outline-none focus-within:outline-none focus-visible:outline-none'
 
 /** The legend of the field an input sits in, which names the input when it has no label. */
-const FieldLabel = createContext<string | undefined>(undefined);
+const FieldLabel = createContext<string | undefined>(undefined)
 
 const labelledBy = (props: { 'aria-label'?: string }, labelId: string | undefined) =>
-  props['aria-label'] ? undefined : labelId;
+  props['aria-label'] ? undefined : labelId
 
 /** A DaisyUI fieldset with its legend, naming the inputs inside it. */
 export function Field({ label, children, className = '', ...props }: FieldProps) {
-  const labelId = useId();
+  const labelId = useId()
   return (
     <fieldset className={`fieldset min-w-0 ${className}`} {...props}>
       <legend id={labelId} className="fieldset-legend">
@@ -30,7 +29,7 @@ export function Field({ label, children, className = '', ...props }: FieldProps)
       </legend>
       <FieldLabel.Provider value={labelId}>{children}</FieldLabel.Provider>
     </fieldset>
-  );
+  )
 }
 
 /** A group of fields, spaced as one form. */
@@ -39,7 +38,7 @@ export function Form({ children, className = '', ...props }: ComponentPropsWitho
     <fieldset className={`fieldset gap-4 ${className}`} {...props}>
       {children}
     </fieldset>
-  );
+  )
 }
 
 export function Select({ children, size = 'md', className = '', ...props }: SelectProps) {
@@ -51,7 +50,7 @@ export function Select({ children, size = 'md', className = '', ...props }: Sele
     >
       {children}
     </select>
-  );
+  )
 }
 
 export function Range({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
@@ -62,7 +61,7 @@ export function Range({ className = '', ...props }: ComponentPropsWithoutRef<'in
       className={`range range-primary range-sm w-full ${QUIET_FOCUS} ${className}`}
       {...props}
     />
-  );
+  )
 }
 
 function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'input'>) {
@@ -73,7 +72,7 @@ function Toggle({ className = '', ...props }: ComponentPropsWithoutRef<'input'>)
       className={`toggle toggle-primary toggle-sm ${QUIET_FOCUS} ${className}`}
       {...props}
     />
-  );
+  )
 }
 
 /** A toggle with its words beside it, the whole line clickable. */
@@ -86,7 +85,7 @@ export function ToggleField({
       <Toggle {...props} />
       {label}
     </label>
-  );
+  )
 }
 
 /** A DaisyUI search field: the magnifier inside the `input` label, then the field, then an
@@ -96,8 +95,8 @@ export function SearchInput({
   size = 'md',
   ...props
 }: Omit<ComponentPropsWithRef<'input'>, 'type' | 'size' | 'className'> & {
-  hint?: ReactNode;
-  size?: 'md' | 'lg';
+  hint?: ReactNode
+  size?: 'md' | 'lg'
 }) {
   return (
     <label className={`input w-full ${size === 'lg' ? 'input-lg' : 'input-md'} ${QUIET_FOCUS}`}>
@@ -105,5 +104,5 @@ export function SearchInput({
       <input type="search" className={`grow ${QUIET_FOCUS}`} autoComplete="off" {...props} />
       {hint && <kbd className="kbd kbd-sm">{hint}</kbd>}
     </label>
-  );
+  )
 }

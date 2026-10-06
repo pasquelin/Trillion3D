@@ -3,65 +3,65 @@
 // announced it, and the frame was held on a stale scene. A pose write is what announces
 // itself now (#6): the hooked field increments the watch's revision and the frame compares one
 // integer; the other fields are a few values per node, taken by the same read.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as G from '../graph/graph.fixture.ts';
-import { createHostSceneWatch } from './watch.ts';
-import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
-import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts';
-import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as G from '../graph/graph.fixture.ts'
+import { createHostSceneWatch } from './watch.ts'
+import { createWebglFrameGate } from '../../webgl/core/frameGate.ts'
+import { exactPagesBackend } from '../../../../../bench/witnesses/measurement.ts'
+import { quadRootsContext, frontCamera } from '../../backend/pagesBackendScenes.fixture.ts'
 
 function graphe() {
-  const source = new G.Group();
-  const mesh = G.mesh(new G.Geometry(), G.basicSurface());
-  const light = G.pointLight(0xffffff, 1);
-  const sun = G.directionalLight(0xffffff, 1);
-  source.add(mesh, light, sun);
-  source.updateMatrixWorld(true);
-  return { source, mesh, light, sun };
+  const source = new G.Group()
+  const mesh = G.mesh(new G.Geometry(), G.basicSurface())
+  const light = G.pointLight(0xffffff, 1)
+  const sun = G.directionalLight(0xffffff, 1)
+  source.add(mesh, light, sun)
+  source.updateMatrixWorld(true)
+  return { source, mesh, light, sun }
 }
 
 /** The reread nodes: the source models of what is drawn, the lamps, and their ancestors. */
-const drawn = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }));
+const drawn = (...meshes: G.Object3D[]) => meshes.map((sourceMesh) => ({ sourceMesh }))
 
 function veille(source: G.Object3D, ...meshes: G.Object3D[]) {
-  const watch = createHostSceneWatch();
-  watch.observe(source, drawn(...meshes));
-  return watch;
+  const watch = createHostSceneWatch()
+  watch.observe(source, drawn(...meshes))
+  return watch
 }
 
 test('the first read announces a change, the next one announces nothing', () => {
-  const { source } = graphe();
-  const watch = veille(source);
-  assert.equal(watch.take(), 'moved', 'nothing is known of this graph yet');
-  assert.equal(watch.take(), 0, 'a reread with no write must be silent');
-  assert.equal(watch.take(), 0, 'and stay so');
-});
+  const { source } = graphe()
+  const watch = veille(source)
+  assert.equal(watch.take(), 'moved', 'nothing is known of this graph yet')
+  assert.equal(watch.take(), 0, 'a reread with no write must be silent')
+  assert.equal(watch.take(), 0, 'and stay so')
+})
 
 test('a pose written directly by the host is seen, once only', () => {
-  const { source, mesh } = graphe();
-  const watch = veille(source, mesh);
-  watch.take();
-  mesh.position.x = 100;
-  assert.equal(watch.take(), 'moved', 'the direct move must be seen');
-  assert.equal(watch.take(), 0, 'and must not be announced twice');
-});
+  const { source, mesh } = graphe()
+  const watch = veille(source, mesh)
+  watch.take()
+  mesh.position.x = 100
+  assert.equal(watch.take(), 'moved', 'the direct move must be seen')
+  assert.equal(watch.take(), 0, 'and must not be announced twice')
+})
 
 test('visibility written directly by the host is seen; a reparent reshapes', () => {
-  const { source, mesh } = graphe();
-  const watch = veille(source, mesh);
-  watch.take();
-  mesh.visible = false;
-  assert.equal(watch.take(), 'moved');
-  assert.equal(watch.take(), 0);
-  new G.Group().add(mesh);
-  assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed');
-  assert.equal(watch.take(), 0);
-});
+  const { source, mesh } = graphe()
+  const watch = veille(source, mesh)
+  watch.take()
+  mesh.visible = false
+  assert.equal(watch.take(), 'moved')
+  assert.equal(watch.take(), 0)
+  new G.Group().add(mesh)
+  assert.equal(watch.take(), 'reshaped', 'the ancestor chain changed')
+  assert.equal(watch.take(), 0)
+})
 
 test("a lamp's intensity, colour, range and pose are seen", () => {
-  const { source, light } = graphe();
-  const watch = veille(source);
+  const { source, light } = graphe()
+  const watch = veille(source)
   for (const ecriture of [
     () => (light.intensity = 7),
     () => (light.position.x = 9),
@@ -69,109 +69,109 @@ test("a lamp's intensity, colour, range and pose are seen", () => {
     () => (light.distance = 42),
     () => (light.decay = 3),
   ]) {
-    watch.take();
-    ecriture();
-    assert.equal(watch.take(), 'moved', `write not seen: ${ecriture}`);
-    assert.equal(watch.take(), 0, 'announced twice');
+    watch.take()
+    ecriture()
+    assert.equal(watch.take(), 'moved', `write not seen: ${ecriture}`)
+    assert.equal(watch.take(), 0, 'announced twice')
   }
-});
+})
 
 test("a directional lamp's target, outside the source graph, is seen", () => {
-  const { source, sun } = graphe();
-  const watch = veille(source);
-  watch.take();
-  sun.target.position.set(0, -5, 0);
-  assert.equal(watch.take(), 'moved', 'the sun direction has changed');
-  assert.equal(watch.take(), 0);
-});
+  const { source, sun } = graphe()
+  const watch = veille(source)
+  watch.take()
+  sun.target.position.set(0, -5, 0)
+  assert.equal(watch.take(), 'moved', 'the sun direction has changed')
+  assert.equal(watch.take(), 0)
+})
 
 test('the frame gate no longer holds a frame when the host has written the scene', () => {
-  const gate = createWebglFrameGate();
-  const { source, mesh } = graphe();
-  const coupe = [{ id: 1 }] as Array<{ id: number }>;
-  const draws = drawn(mesh);
-  gate.readScene(source, draws);
-  gate.keep(1, 3, coupe, 0, false);
-  gate.readScene(source, draws);
-  gate.keep(1, 3, coupe, 0, false);
-  gate.readScene(source, draws);
-  assert.equal(gate.held(), true, 'with no write, the frame must be held');
-  mesh.position.x = 100;
-  gate.readScene(source, draws);
-  assert.equal(gate.held(), false, 'the scene moved under the held frame');
-});
+  const gate = createWebglFrameGate()
+  const { source, mesh } = graphe()
+  const coupe = [{ id: 1 }] as Array<{ id: number }>
+  const draws = drawn(mesh)
+  gate.readScene(source, draws)
+  gate.keep(1, 3, coupe, 0, false)
+  gate.readScene(source, draws)
+  gate.keep(1, 3, coupe, 0, false)
+  gate.readScene(source, draws)
+  assert.equal(gate.held(), true, 'with no write, the frame must be held')
+  mesh.position.x = 100
+  gate.readScene(source, draws)
+  assert.equal(gate.held(), false, 'the scene moved under the held frame')
+})
 
 test('a write the engine made itself is settled with its revision, not announced twice', () => {
-  const gate = createWebglFrameGate();
-  const { source, mesh } = graphe();
-  const draws = drawn(mesh);
-  gate.readScene(source, draws);
-  gate.readScene(source, draws);
-  const before = gate.revisions.scene;
+  const gate = createWebglFrameGate()
+  const { source, mesh } = graphe()
+  const draws = drawn(mesh)
+  gate.readScene(source, draws)
+  gate.readScene(source, draws)
+  const before = gate.revisions.scene
   // What `setTransform` does: writes the node, then declares the scene changed.
-  mesh.position.x = 5;
-  gate.sceneChanged();
-  gate.readScene(source, draws);
-  assert.equal(gate.revisions.scene, before + 1, 'one change, one revision');
-  gate.readScene(source, draws);
-  assert.equal(gate.revisions.scene, before + 1, 'and none after');
+  mesh.position.x = 5
+  gate.sceneChanged()
+  gate.readScene(source, draws)
+  assert.equal(gate.revisions.scene, before + 1, 'one change, one revision')
+  gate.readScene(source, draws)
+  assert.equal(gate.revisions.scene, before + 1, 'and none after')
   // A structural engine write settled the same way leaves no reshape pending either.
-  new G.Group().add(mesh);
-  gate.sceneChanged();
-  gate.readScene(source, draws);
-  gate.readScene(source, draws);
-  assert.equal(gate.revisions.scene, before + 2, 'the reparent costs its one revision');
-});
+  new G.Group().add(mesh)
+  gate.sceneChanged()
+  gate.readScene(source, draws)
+  gate.readScene(source, draws)
+  assert.equal(gate.revisions.scene, before + 2, 'the reparent costs its one revision')
+})
 
 test("a lamp's target moved under another node: the new parent is hooked, its later pose is seen", () => {
-  const gate = createWebglFrameGate();
-  const { source, sun } = graphe();
-  const parent = new G.Group();
-  source.add(parent);
-  gate.readScene(source, []);
-  gate.readScene(source, []);
-  parent.add(sun.target);
-  gate.readScene(source, []); // the reparent is a scene change: the list is rebuilt at once
-  const after = gate.revisions.scene;
+  const gate = createWebglFrameGate()
+  const { source, sun } = graphe()
+  const parent = new G.Group()
+  source.add(parent)
+  gate.readScene(source, [])
+  gate.readScene(source, [])
+  parent.add(sun.target)
+  gate.readScene(source, []) // the reparent is a scene change: the list is rebuilt at once
+  const after = gate.revisions.scene
   // Written in the tick right after the reshape frame: the new parent is already hooked.
-  parent.position.y = -3;
-  gate.readScene(source, []);
-  assert.equal(gate.revisions.scene, after + 1, 'the new parent moved: seen');
-  gate.readScene(source, []);
-  assert.equal(gate.revisions.scene, after + 1, 'a pose write rebuilt nothing and repeats nothing');
-});
+  parent.position.y = -3
+  gate.readScene(source, [])
+  assert.equal(gate.revisions.scene, after + 1, 'the new parent moved: seen')
+  gate.readScene(source, [])
+  assert.equal(gate.revisions.scene, after + 1, 'a pose write rebuilt nothing and repeats nothing')
+})
 
 /** The host-library engine with a lamp declared in the source graph, which the host will write directly. */
 function litEngine() {
-  const { geometry, material, source, context } = quadRootsContext(true);
-  const light = G.pointLight(0xffffff, 1);
-  source.add(light);
-  const backend = exactPagesBackend(context);
-  const copie = () => backend.scene.children.find(G.isPlacedLight) as G.Light;
-  return { backend, light, copie, dispose: () => (geometry.dispose(), material.dispose()) };
+  const { geometry, material, source, context } = quadRootsContext(true)
+  const light = G.pointLight(0xffffff, 1)
+  source.add(light)
+  const backend = exactPagesBackend(context)
+  const copie = () => backend.scene.children.find(G.isPlacedLight) as G.Light
+  return { backend, light, copie, dispose: () => (geometry.dispose(), material.dispose()) }
 }
 
 test('a lamp written directly by the host is copied on the next frame', () => {
-  const { backend, light, copie, dispose } = litEngine();
-  const camera = frontCamera();
-  backend.render(camera);
-  assert.equal(copie().intensity, 1, 'the declared lamp is copied as-is');
-  light.intensity = 7;
-  light.position.x = 9;
-  backend.render(camera);
-  assert.equal(copie().intensity, 7, 'the intensity written by the host did not follow');
-  assert.equal(copie().position.x, 9, 'the pose written by the host did not follow');
-  backend.dispose();
-  dispose();
-});
+  const { backend, light, copie, dispose } = litEngine()
+  const camera = frontCamera()
+  backend.render(camera)
+  assert.equal(copie().intensity, 1, 'the declared lamp is copied as-is')
+  light.intensity = 7
+  light.position.x = 9
+  backend.render(camera)
+  assert.equal(copie().intensity, 7, 'the intensity written by the host did not follow')
+  assert.equal(copie().position.x, 9, 'the pose written by the host did not follow')
+  backend.dispose()
+  dispose()
+})
 
 test('a bone posed by the host is seen: it moves the skin it deforms (#357)', () => {
-  const { source, mesh } = graphe();
-  const bone = new G.Group();
-  source.add(bone);
-  Object.assign(mesh, { skeleton: { bones: [bone] } });
-  const watch = veille(source, mesh);
-  watch.take();
-  bone.rotation.z = 1;
-  assert.equal(watch.take(), 'moved', 'the bone is a drawn pose');
-});
+  const { source, mesh } = graphe()
+  const bone = new G.Group()
+  source.add(bone)
+  Object.assign(mesh, { skeleton: { bones: [bone] } })
+  const watch = veille(source, mesh)
+  watch.take()
+  bone.rotation.z = 1
+  assert.equal(watch.take(), 'moved', 'the bone is a drawn pose')
+})

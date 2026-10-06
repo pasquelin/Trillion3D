@@ -10,29 +10,26 @@
  * depth where the mesh's surface would be (the depth offset, `gl_FragDepth`), and the blended
  * colour, normal and ORM handed to the same `shade`, reflections, fog and output.
  */
-import { CARD_COVERAGE_CUT, CARD_FLOATS } from '../../impostor/cards.ts';
-import {
-  IMPOSTOR_TAP_GLSL,
-  IMPOSTOR_VIEW_CARD_GLSL,
-} from '../../visibility/shader/impostorGlsl.ts';
-import { core } from '../../impostor/borrowed.ts';
+import { CARD_COVERAGE_CUT, CARD_FLOATS } from '../../impostor/cards.ts'
+import { IMPOSTOR_TAP_GLSL, IMPOSTOR_VIEW_CARD_GLSL } from '../../visibility/shader/impostorGlsl.ts'
+import { core } from '../../impostor/borrowed.ts'
 
 /** Texels of one card record: four floats each. */
-export const CARD_TEXELS = CARD_FLOATS / 4;
+export const CARD_TEXELS = CARD_FLOATS / 4
 
 /** The card records, `LIGHT_ROW_TEXELS` a row as every float texture of the path, and the image's
  *  view: read by both stages. A record index is never negative and the row a power of two, so it
  *  folds by mask and shift, as the light texture's (`lightTexel`). */
 const cardRecordGlsl = () => `uniform highp sampler2D impostorCards;uniform mat4 cardView;
 vec4 cardRecord(int card,int k){int t=card*${CARD_TEXELS}+k;return texelFetch(impostorCards,ivec2(t&${core.LIGHT_ROW_TEXELS - 1},t>>${Math.log2(core.LIGHT_ROW_TEXELS)}),0);}
-mat4 cardMatrix(int card,int k){return mat4(cardRecord(card,k),cardRecord(card,k+1),cardRecord(card,k+2),cardRecord(card,k+3));}`;
+mat4 cardMatrix(int card,int k){return mat4(cardRecord(card,k),cardRecord(card,k+1),cardRecord(card,k+2),cardRecord(card,k+3));}`
 
 /** What the vertex stage hands each pixel: the corner in object space, pivot-relative, then the
  *  card's own, flat — its record, the eye and radius, the weights and mip, the three frames, their
  *  capture planes. */
 const CARD_VARYINGS = `vec3 cardPoint;flat VARY int cardIndex;flat VARY vec4 cardEyeRadius,cardWeightsLod,cardAb,cardCell;
-flat VARY vec3 cardX0,cardX1,cardX2,cardN0,cardN1,cardN2;`;
-const varyings = (way: 'in' | 'out') => `${way} ${CARD_VARYINGS.replaceAll('VARY', way)}`;
+flat VARY vec3 cardX0,cardX1,cardX2,cardN0,cardN1,cardN2;`
+const varyings = (way: 'in' | 'out') => `${way} ${CARD_VARYINGS.replaceAll('VARY', way)}`
 
 /** The card's vertex stage: card `firstCard + gl_InstanceID`, corner by `gl_VertexID`. */
 export const cardVertex = () => `#version 300 es
@@ -54,19 +51,19 @@ void main(){
  cardPoint=(m*vec4(p,1.0)).xyz-pivot;cardIndex=i;cardEyeRadius=vec4(eye,shape.x);
  cardWeightsLod=vec4(k.w,shape.w);cardAb=vec4(k.a,k.b);cardCell=vec4(k.c,1.0/frames,0.0);
  gl_Position=projectionMatrix*(cardView*vec4(p,1.0));
-}`;
+}`
 
 /** The cluster fragment's inputs, which the card computes instead of interpolating. */
 const CLUSTER_INPUTS =
-  'in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;';
+  'in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;'
 /** The three atlas maps' samplers, in `ATLAS_MAPS` order, as `impostorGlsl.ts` reads them. */
-export const ATLAS_SAMPLERS = ['impostorColour', 'impostorNormalDepth', 'impostorOrm'] as const;
+export const ATLAS_SAMPLERS = ['impostorColour', 'impostorNormalDepth', 'impostorOrm'] as const
 const cardInputs =
   () => `vec3 toEye;vec3 viewNormal;vec3 viewPosition;vec2 texcoord0;vec2 texcoord1;vec4 vertexColor;
 uniform sampler2D ${ATLAS_SAMPLERS.join(',')};
 ${cardRecordGlsl()}
 ${varyings('in')}
-${IMPOSTOR_TAP_GLSL}`;
+${IMPOSTOR_TAP_GLSL}`
 
 /** The card's surface at this pixel, then what the cluster program's shading reads of it: the view
  *  position and depth of the blended surface point, its colour, metal, roughness (floored and
@@ -85,7 +82,7 @@ const cardSurface = () => `void main(){
  float rough=min(max(b.orm.y,${core.ROUGHNESS_FLOOR})+geometryRoughness(N),1.0);
  coatNormal=N;physicalFrame(N);thinSubsurface=vec3(0.0);
  float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=b.orm.x;
-`;
+`
 
 /** The card's fragment stage of the cluster fragment program, `linear` its effect-chain variant:
  *  its inputs and surface read replaced, the rest — lighting, reflections, fog, output — its own. */
@@ -99,4 +96,4 @@ export const cardFragment = (linear: boolean) =>
     'void main(){',
     cardSurface(),
     'vec3 rgb=lit?shade(',
-  );
+  )

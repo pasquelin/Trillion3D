@@ -1,9 +1,9 @@
-import type { MeasuredWorldOptions } from '../session/options.ts';
-import type { WorldRenderer } from '../capability/worldReady.ts';
-import type { WorldControls } from './worldCamera.ts';
-import type { WorldPhysicsOptions } from '../../physics/worldPhysicsOptions.ts';
-import type { RenderScale } from '../../frame/renderScaleOption.ts';
-import type { WorldQualityOptions } from './worldQuality.ts';
+import type { MeasuredWorldOptions } from '../session/options.ts'
+import type { WorldRenderer } from '../capability/worldReady.ts'
+import type { WorldControls } from './worldCamera.ts'
+import type { WorldPhysicsOptions } from '../../physics/worldPhysicsOptions.ts'
+import type { RenderScale } from '../../frame/renderScaleOption.ts'
+import type { WorldQualityOptions } from './worldQuality.ts'
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
@@ -12,43 +12,43 @@ export interface WorldOptions {
    * grants; a renderer the machine lacks is refused by its name, never swapped for the other.
    * @defaultValue the best the machine grants
    */
-  renderer?: WorldRenderer;
+  renderer?: WorldRenderer
   /**
    * Whether the world runs its own loop: it draws when something changes and rests after 120
    * frames with nothing new. `false` lets the page call `world.render()` itself.
    * @defaultValue true
    */
-  interactive?: boolean;
+  interactive?: boolean
   /** How many image pixels per screen pixel. @defaultValue the screen's own density */
-  pixelRatio?: number;
+  pixelRatio?: number
   /** The controller that moves the camera from the canvas; `world.controls.kind` changes it later.
    *  `'vehicle'` throws `NO_VEHICLE` here: no vehicle is set before the world exists — set
    *  `world.controls.vehicle`, then `kind`. @defaultValue 'none' */
-  controls?: WorldControls;
+  controls?: WorldControls
   /** Stops the world's loads when the signal is aborted. */
-  signal?: AbortSignal;
+  signal?: AbortSignal
   /** Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only
    *  then. @defaultValue false */
-  physics?: boolean | WorldPhysicsOptions;
+  physics?: boolean | WorldPhysicsOptions
   /** Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws
    *  each pixel at its centre, with no history, what a pixel-exact capture asks; switched later
    *  by `world.temporalAntialiasing`. @defaultValue true */
-  temporalAntialiasing?: boolean;
+  temporalAntialiasing?: boolean
   /** The fraction of the display per axis the image is drawn at, before temporal antialiasing
    *  rebuilds it to the display: `'auto'` lets the frame budget choose it between `min` and `max`
    *  (`{ min, max }`, 0.5 and 1 by default; on WebGL2, which only resamples, `min` is 1 by
    *  default), a number fixes it. On WebGPU a still image is drawn at that scale too, the budget's,
    *  and held once whole cycles of its jitter phases are averaged; on WebGL2 it is drawn at the
    *  maximum. Changed later by `world.renderScale`. @defaultValue 'auto' */
-  renderScale?: RenderScale;
+  renderScale?: RenderScale
   /** The quality: a preset, groups at levels of their own, the resolution (`world.quality`).
    *  @defaultValue every group at `'max'`, today's defaults; the native resolution, dynamic */
-  quality?: WorldQualityOptions;
+  quality?: WorldQualityOptions
   /** Debug mode, a development build's tools against a shipping build: the frames are filed
    *  into the CPU step profile (`world.cpuSteps`) and the frame report only in it. It is the
    *  page's, as `?profile` in its address turns it on; `world.diagnostic.debug` switches it later.
    *  @defaultValue false */
-  debug?: boolean;
+  debug?: boolean
 }
 
 /**
@@ -72,4 +72,4 @@ export const sessionOptions = (
   importedLights: false,
   ownControls: false,
   ...held,
-});
+})

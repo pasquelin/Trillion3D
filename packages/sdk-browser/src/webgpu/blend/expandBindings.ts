@@ -1,5 +1,5 @@
-import { COMPUTE } from '../../gpu/core/computeBindings.ts';
-import { UNI_WORDS } from './expandUniform.ts';
+import { COMPUTE } from '../../gpu/core/computeBindings.ts'
+import { UNI_WORDS } from './expandUniform.ts'
 
 /** Group-0 binding of each buffer the expansion kernel reads, under its WGSL name. */
 export const EXPAND_BINDING = {
@@ -12,10 +12,10 @@ export const EXPAND_BINDING = {
   scratch: 6,
   expanded: 7,
   args: 8,
-} as const;
+} as const
 
 const read = 'read-only-storage',
-  write = 'storage';
+  write = 'storage'
 const STORAGE_TYPES: Record<Exclude<keyof typeof EXPAND_BINDING, 'uni'>, GPUBufferBindingType> = {
   plan: read,
   keep: read,
@@ -25,7 +25,7 @@ const STORAGE_TYPES: Record<Exclude<keyof typeof EXPAND_BINDING, 'uni'>, GPUBuff
   scratch: write,
   expanded: write,
   args: write,
-};
+}
 
 /**
  * Group-0 bindings, published under the WGSL that declares them: the uniform at its dynamic
@@ -44,6 +44,6 @@ export function blendExpandBindEntries(): GPUBindGroupLayoutEntry[] {
       visibility: COMPUTE,
       buffer: { type },
     })),
-  ];
-  return entries.sort((a, b) => a.binding - b.binding);
+  ]
+  return entries.sort((a, b) => a.binding - b.binding)
 }

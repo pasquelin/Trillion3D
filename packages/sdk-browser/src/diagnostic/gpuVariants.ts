@@ -45,4 +45,4 @@ export const DIAGNOSTIC_GPU_VARIANTS = [
   'resolve-flat',
   /** Surface resolve reads only the visibility buffer, with no material and no atlas. */
   'resolve-ids',
-] as const;
+] as const

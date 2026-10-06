@@ -1,7 +1,7 @@
-import type { PortalEntry } from '../model.ts';
+import type { PortalEntry } from '../model.ts'
 
 /** Guides of the scene editor's three doors — pick, move, save — and of the editor itself. */
-const GUIDE = { section: 'guides', kind: 'Guide' };
+const GUIDE = { section: 'guides', kind: 'Guide' }
 
 export const EDITOR_GUIDES: PortalEntry[] = [
   {
@@ -48,4 +48,4 @@ gizmo.addEventListener('dragEnd', () => history.push(crate.quaternion.clone()));
 // … later, or in another page:
 await world.scene.fromJSON(JSON.parse(saved), world.camera);`,
   },
-];
+]

@@ -7,23 +7,23 @@ import {
   type SceneLightStore,
   type SceneLightingView,
   cloneSceneLight,
-} from '../../../../sdk-core/src/index.ts';
-import type { BackendDiagnostic, RenderBackend } from '../../backend/types.ts';
-import { lightingCapabilitiesOf } from '../../lighting/capabilities.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+} from '../../../../sdk-core/src/index.ts'
+import type { BackendDiagnostic, RenderBackend } from '../../backend/types.ts'
+import { lightingCapabilitiesOf } from '../../lighting/capabilities.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
-  check: () => void;
-  store: SceneLightStore | undefined;
+  check: () => void
+  store: SceneLightStore | undefined
   /** Identifiers of the lights that came from the source file, in cache order. */
-  imported: readonly string[];
-  backends: RenderBackend[];
+  imported: readonly string[]
+  backends: RenderBackend[]
   /** A world's own move by name (`ExplorerSource.moveNamed`), taken before any engine's. */
-  moveNamed?: (nodeName: string, matrix: Float32Array) => void;
+  moveNamed?: (nodeName: string, matrix: Float32Array) => void
   /** Active engine: it is its lighting capability that is published, not the session's. */
-  active: () => RenderBackend;
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
-};
+  active: () => RenderBackend
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+}
 
 /**
  * Public API of lights and environment. The store is the session's: every engine shares it,
@@ -38,34 +38,34 @@ type Inputs = {
  * screen never keeps a stale pose. `setTransforms` does the same for many nodes at once.
  */
 export function createExplorerLightApi(inputs: Inputs) {
-  const { check, store, imported, backends, active, onDiagnostic } = inputs;
+  const { check, store, imported, backends, active, onDiagnostic } = inputs
   // Once per session, not once per call: a host that sets its lights every frame would drown
   // its own diagnostic report under the same repeated finding.
-  let warned = false;
+  let warned = false
   /**
    * The store accepts the light — it is the one that holds the contract, and the engine can
    * change afterwards — but the active engine will not apply it: the host learns it here,
    * by name, instead of inferring it from a black image.
    */
   const warnUnsupported = () => {
-    if (warned) return;
-    const capabilities = lightingCapabilitiesOf(active());
-    if (capabilities.sceneLights) return;
-    warned = true;
+    if (warned) return
+    const capabilities = lightingCapabilitiesOf(active())
+    if (capabilities.sceneLights) return
+    warned = true
     onDiagnostic?.({
       phase: 'scene-lights-unsupported',
       message: capabilities.reason ?? 'the active engine does not apply the contract lights',
       context: { backend: active().id, capabilities },
-    });
-  };
+    })
+  }
   const required = () => {
     if (!store)
-      throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {});
-    return store;
-  };
+      throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {})
+    return store
+  }
   const notify = () => {
-    for (const backend of backends) backend.refreshSceneLights?.();
-  };
+    for (const backend of backends) backend.refreshSceneLights?.()
+  }
   return {
     /** Published bounds of direct lighting, as the runtime applies them. */
     lightSettings: LIGHT_SETTINGS,
@@ -77,9 +77,9 @@ export function createExplorerLightApi(inputs: Inputs) {
      * paid per call, by the host that calls; no frame reads this function.
      */
     lights(): SceneLight[] {
-      check();
-      const lights = required();
-      return lights.ids.map((id) => cloneSceneLight(lights.light(id)!));
+      check()
+      const lights = required()
+      return lights.ids.map((id) => cloneSceneLight(lights.light(id)!))
     },
     /**
      * Lights the scene file carried, declared at open, as the same detached copies. The host
@@ -88,15 +88,15 @@ export function createExplorerLightApi(inputs: Inputs) {
      * nothing has changed for it.
      */
     importedLights(): SceneLight[] {
-      check();
-      const lights = required();
+      check()
+      const lights = required()
       return imported.flatMap((id) => {
-        const light = lights.light(id);
-        return light ? [cloneSceneLight(light)] : [];
-      });
+        const light = lights.light(id)
+        return light ? [cloneSceneLight(light)] : []
+      })
     },
     get environment(): SceneEnvironment | undefined {
-      return store?.environment ? { ...store.environment } : undefined;
+      return store?.environment ? { ...store.environment } : undefined
     },
     /**
      * Requested view. `auto` — the starting value — yields the unlit view as long as no light
@@ -106,7 +106,7 @@ export function createExplorerLightApi(inputs: Inputs) {
      * view: indirect irradiance alone, in linear values multiplied by exposure.
      */
     get lightingView(): SceneLightingView {
-      return store?.lightingView ?? 'auto';
+      return store?.lightingView ?? 'auto'
     },
     /**
      * What the ACTIVE engine actually does with lights: a call accepted by the store is not
@@ -114,68 +114,68 @@ export function createExplorerLightApi(inputs: Inputs) {
      * before believing it; the answer follows the selected engine, not the session.
      */
     lightingCapabilities() {
-      check();
-      return lightingCapabilitiesOf(active());
+      check()
+      return lightingCapabilitiesOf(active())
     },
     setLightingView(view: SceneLightingView) {
-      check();
-      required().setView(view);
-      warnUnsupported();
-      notify();
+      check()
+      required().setView(view)
+      warnUnsupported()
+      notify()
     },
     addLight(light: SceneLight) {
-      check();
-      required().add(light);
-      warnUnsupported();
-      notify();
+      check()
+      required().add(light)
+      warnUnsupported()
+      notify()
     },
     setLight(id: string, patch: Partial<Omit<SceneLight, 'id'>>) {
-      check();
-      required().set(id, patch);
-      warnUnsupported();
-      notify();
+      check()
+      required().set(id, patch)
+      warnUnsupported()
+      notify()
     },
     removeLight(id: string) {
-      check();
-      required().remove(id);
-      notify();
+      check()
+      required().remove(id)
+      notify()
     },
     setEnvironment(environment: SceneEnvironment) {
-      check();
-      required().setEnvironment(environment);
-      notify();
+      check()
+      required().setEnvironment(environment)
+      notify()
     },
     setTransform(nodeName: string, matrix: Float32Array) {
-      check();
-      if (inputs.moveNamed) return inputs.moveNamed(nodeName, matrix);
-      let applied = 0;
+      check()
+      if (inputs.moveNamed) return inputs.moveNamed(nodeName, matrix)
+      let applied = 0
       for (const backend of backends)
         if (backend.setTransform) {
-          backend.setTransform(nodeName, matrix);
-          applied++;
+          backend.setTransform(nodeName, matrix)
+          applied++
         }
       if (!applied)
         throw new EngineError(
           'UNSUPPORTED_SCENE_UPDATE',
           'no engine of this session moves a named node',
           { nodeName },
-        );
+        )
     },
     /** `setTransform` on many nodes the host resolved once: sixteen floats per node, in order. */
     setTransforms(nodes: readonly Object3D[], matrices: Float32Array) {
-      check();
-      let applied = 0;
+      check()
+      let applied = 0
       for (const backend of backends)
         if (backend.setTransforms) {
-          backend.setTransforms(nodes, matrices);
-          applied++;
+          backend.setTransforms(nodes, matrices)
+          applied++
         }
       if (!applied)
         throw new EngineError(
           'UNSUPPORTED_SCENE_UPDATE',
           'no engine of this session moves a named node',
           { nodeName: nodes[0]?.name },
-        );
+        )
     },
-  };
+  }
 }

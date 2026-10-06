@@ -1,9 +1,9 @@
-import { createChangeGate, createControlBase } from './base.ts';
-import { axisOf, trackKeys, type KeyAxis } from './input.ts';
-import { controlPose } from './pose.ts';
-import { moveLocal, orbitOrientation } from './math.ts';
-import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts';
-import type { ControlCamera, SteeredCameraControls } from './types.ts';
+import { createChangeGate, createControlBase } from './base.ts'
+import { axisOf, trackKeys, type KeyAxis } from './input.ts'
+import { controlPose } from './pose.ts'
+import { moveLocal, orbitOrientation } from './math.ts'
+import { createHead, HEAD_DEFAULTS, type PersonHead } from './look.ts'
+import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
  * FIRST PERSON, pointer locked: the pointer turns the head, the keys walk. The horizon stays
@@ -20,20 +20,20 @@ export interface FirstPersonCameraControls extends SteeredCameraControls, Person
 
 const STRAFE: KeyAxis = [['KeyD'], ['KeyA']],
   RISE: KeyAxis = [['Space'], ['ShiftLeft']],
-  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']];
+  ADVANCE: KeyAxis = [['KeyW'], ['KeyS']]
 
 export function createFirstPersonCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): FirstPersonCameraControls {
   const pose = controlPose(camera),
-    base = createControlBase();
+    base = createControlBase()
   const position = new Float64Array(3),
     orientation = new Float64Array(4),
     walk = new Float64Array(4),
     angles = new Float64Array(3),
-    moved = new Float64Array(7);
-  const gate = createChangeGate(base, 7);
+    moved = new Float64Array(7)
+  const gate = createChangeGate(base, 7)
   const api: FirstPersonCameraControls = {
     ...base.api,
     object: pose.object,
@@ -43,25 +43,25 @@ export function createFirstPersonCameraControls(
     lock: () => head.lock(),
     unlock: () => head.unlock(),
     update(delta = 0) {
-      const dt = delta > 0 ? delta : 0;
-      pose.readPosition(position);
-      angles[1] = head.turn(orientation);
-      angles[2] = Math.PI / 2;
-      const step = api.movementSpeed * dt;
+      const dt = delta > 0 ? delta : 0
+      pose.readPosition(position)
+      angles[1] = head.turn(orientation)
+      angles[2] = Math.PI / 2
+      const step = api.movementSpeed * dt
       moveLocal(
         position,
         orbitOrientation(walk, angles),
         axisOf(keys, ...STRAFE) * step,
         axisOf(keys, ...RISE) * step,
         axisOf(keys, ...ADVANCE) * step,
-      );
-      pose.write(position, orientation);
-      moved.set(position);
-      moved.set(orientation, 3);
-      return gate(moved);
+      )
+      pose.write(position, orientation)
+      moved.set(position)
+      moved.set(orientation, 3)
+      return gate(moved)
     },
-  };
-  const head = createHead(pose, surface, base, api);
-  const keys = trackKeys(surface, base, () => base.emit(), [STRAFE, RISE, ADVANCE]);
-  return api;
+  }
+  const head = createHead(pose, surface, base, api)
+  const keys = trackKeys(surface, base, () => base.emit(), [STRAFE, RISE, ADVANCE])
+  return api
 }

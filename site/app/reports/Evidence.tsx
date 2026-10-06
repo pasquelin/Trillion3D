@@ -1,31 +1,31 @@
-import { useWords } from '../i18n.ts';
-import { Collapse } from '../ui/Collapse.tsx';
-import { ImageComparison } from '../ui/ImageComparison.tsx';
-import { engineName, viewName } from './model/names.ts';
-import { formatValue } from './model/metrics.ts';
-import type { ReportRecord } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Collapse } from '../ui/Collapse.tsx'
+import { ImageComparison } from '../ui/ImageComparison.tsx'
+import { engineName, viewName } from './model/names.ts'
+import { formatValue } from './model/metrics.ts'
+import type { ReportRecord } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface EvidenceProps {
-  a: ReportRecord;
-  b: ReportRecord;
-  campaign: string;
-  locale: Locale;
-  imageOnly?: boolean;
+  a: ReportRecord
+  b: ReportRecord
+  campaign: string
+  locale: Locale
+  imageOnly?: boolean
 }
 
 export function Evidence({ a, b, campaign, locale, imageOnly = false }: EvidenceProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   const name = (r: ReportRecord) =>
     r.variant === 'raster-compute'
       ? t('evidence.computeDrawing')
       : a.engine === b.engine
         ? t('evidence.standardDrawing')
-        : engineName(r.engine);
+        : engineName(r.engine)
   const left = name(a),
-    right = name(b);
-  const src = (r: ReportRecord) => `reports/${campaign}/${r.image}`;
-  const sameSize = a.canvas?.width === b.canvas?.width && a.canvas?.height === b.canvas?.height;
+    right = name(b)
+  const src = (r: ReportRecord) => `reports/${campaign}/${r.image}`
+  const sameSize = a.canvas?.width === b.canvas?.width && a.canvas?.height === b.canvas?.height
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4" data-report-image-pair>
       {!imageOnly && (
@@ -90,5 +90,5 @@ export function Evidence({ a, b, campaign, locale, imageOnly = false }: Evidence
         </Collapse>
       )}
     </div>
-  );
+  )
 }

@@ -1,67 +1,67 @@
-import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
-import type { HostTexture } from '../../host/resources.ts';
-import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts';
-import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts';
-import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
-import { createTextureLevelReader } from '../../texture/levelReader.ts';
-import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts';
-import { noticeShadowRefusal } from '../diagnostic/worldNotices.ts';
-import type { BackendContext, BackendFactory, RenderBackend } from '../../backend/types.ts';
-import type { createExplorerPageSources } from './pageSources.ts';
-import type { ExplorerSession } from './session.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import type { HostTexture } from '../../host/resources.ts'
+import { DEFAULT_CLEAR_COLOR, isCancelled, pixelRatioOf } from '../../backend/common.ts'
+import { createSceneLightStore, dagWarningsDiagnostic } from '../../../../sdk-core/src/index.ts'
+import { createSceneProxyReader } from '../../scene/proxyLoad.ts'
+import { createTextureLevelReader } from '../../texture/levelReader.ts'
+import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
+import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts'
+import { noticeShadowRefusal } from '../diagnostic/worldNotices.ts'
+import type { BackendContext, BackendFactory, RenderBackend } from '../../backend/types.ts'
+import type { createExplorerPageSources } from './pageSources.ts'
+import type { ExplorerSession } from './session.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
-  source: Object3D;
-  sceneLightingSource?: Object3D;
-  associations: BackendContext['associations'];
-  textureIndices: Map<HostTexture, number>;
-  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>;
-  gpuDevice?: GPUDevice;
-  webglContext?: WebGL2RenderingContext;
-  directGpu: boolean;
+  source: Object3D
+  sceneLightingSource?: Object3D
+  associations: BackendContext['associations']
+  textureIndices: Map<HostTexture, number>
+  pageSources: Awaited<ReturnType<typeof createExplorerPageSources>>
+  gpuDevice?: GPUDevice
+  webglContext?: WebGL2RenderingContext
+  directGpu: boolean
   /** The engine paths this session renders through, already chosen (`chooseBackends`). */
-  factories: BackendFactory[];
-  backends: RenderBackend[];
+  factories: BackendFactory[]
+  backends: RenderBackend[]
   /** Manifest url base: that is what locates the resident-proxy cache object. */
-  base: string;
-  frameBudget?: BackendContext['frameBudget'];
+  base: string
+  frameBudget?: BackendContext['frameBudget']
   /** Each model's world roots: the pinned top and the bundles its placed cells hold (#1237). */
-  worldRoots: readonly { bytes(): number }[];
-};
+  worldRoots: readonly { bytes(): number }[]
+}
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, scope, metadata, signal, diagnosticChannel, emit, diagnose } = session;
-  const { source, sceneLightingSource, associations, textureIndices, pageSources } = inputs;
-  const { gpuDevice, webglContext, directGpu, factories, backends, base } = inputs;
-  const { indices, streamer, attachCap, cacheCap, preload } = pageSources;
-  const viewport: [number, number] = [canvas.width, canvas.height];
+  const { canvas, options, scope, metadata, signal, diagnosticChannel, emit, diagnose } = session
+  const { source, sceneLightingSource, associations, textureIndices, pageSources } = inputs
+  const { gpuDevice, webglContext, directGpu, factories, backends, base } = inputs
+  const { indices, streamer, attachCap, cacheCap, preload } = pageSources
+  const viewport: [number, number] = [canvas.width, canvas.height]
   // One light store per session: every engine reads it, the host is the only one that writes it.
-  const sceneLights = createSceneLightStore();
+  const sceneLights = createSceneLightStore()
   // Lights the source file carried, declared before the first engine: the `auto` view knows
   // from its first frame that it has a source, and no engine prepares on an empty store that
   // would then have to be pushed. A cache without this product declares none, as before.
-  let importedLightIds: string[] = [];
+  let importedLightIds: string[] = []
   if (explorerSwitch(options, 'importedLights')) {
-    const imported = await loadImportedLights(base, signal);
-    importedLightIds = declareImportedLights(sceneLights, imported.lights);
+    const imported = await loadImportedLights(base, signal)
+    importedLightIds = declareImportedLights(sceneLights, imported.lights)
     if (importedLightIds.length || Object.keys(imported.rejected).length)
       diagnose('imported-lights', 'Lights declared by the source file', {
         kind: 'preparation',
         declared: importedLightIds.length,
         rejected: imported.rejected,
         scope,
-      });
+      })
   }
   // What the compiler named without being able to fix it — a DAG that is not mounted — is
   // said at open, before the engine is chosen: it is a fact of the cache, not of an engine.
-  const dagWarnings = dagWarningsDiagnostic(metadata);
+  const dagWarnings = dagWarningsDiagnostic(metadata)
   if (dagWarnings)
     diagnose(dagWarnings.phase, dagWarnings.message, {
       kind: 'preparation',
       ...dagWarnings.context,
-    });
+    })
   const context: BackendContext = {
     source,
     metadata,
@@ -126,44 +126,44 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     shadowsRefused: options.shadowsRefused ?? noticeShadowRefusal({ say: diagnose }),
     importedLightIds,
     frameBudget: inputs.frameBudget,
-  };
+  }
   for (const factory of factories) {
-    const backend = factory(context);
-    if (backends.some((b) => b.id === backend.id)) throw new Error('Duplicate backend id');
-    const preparation = { kind: 'preparation' as const, backend: backend.id, scope };
-    diagnose('backend-preparation-start', 'Backend preparation started', { ...preparation });
+    const backend = factory(context)
+    if (backends.some((b) => b.id === backend.id)) throw new Error('Duplicate backend id')
+    const preparation = { kind: 'preparation' as const, backend: backend.id, scope }
+    diagnose('backend-preparation-start', 'Backend preparation started', { ...preparation })
     try {
-      await backend.prepare();
-      backends.push(backend);
-      diagnose('backend-preparation-complete', 'Backend preparation completed', { ...preparation });
+      await backend.prepare()
+      backends.push(backend)
+      diagnose('backend-preparation-complete', 'Backend preparation completed', { ...preparation })
     } catch (error) {
       // A release that fails is diagnosed; what went wrong before it still goes on.
       const release = async () => {
         try {
-          await backend.dispose();
+          await backend.dispose()
         } catch (disposeError) {
           diagnose('backend-dispose-error', 'Backend release failed', {
             kind: 'error',
             backend: backend.id,
             error: String(disposeError),
             scope,
-          });
+          })
         }
-      };
+      }
       // Cancelled — the session closed, or the backend did: nothing failed, nothing falls back, and
       // nothing of it outlives the session. An abort neither asked for is a failure like any other.
       if (isCancelled(backend.signal ?? signal)) {
-        await release();
-        throw error;
+        await release()
+        throw error
       }
       diagnose('backend-preparation-error', 'Backend preparation failed', {
         kind: 'error',
         backend: backend.id,
         error: String(error),
         scope,
-      });
+      })
       // The fallback does not wait for the failed backend's release.
-      void release();
+      void release()
       if (backend.id === 'webgpu-page-raster' && !directGpu) {
         emit({
           eventVersion: 1,
@@ -172,23 +172,23 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
           recovered: true,
           code: 'WEBGPU_UNAVAILABLE',
           detail: String(error),
-        });
+        })
         diagnose('fallback', 'WebGPU backend unavailable; continue with other backends', {
           kind: 'fallback',
           backend: backend.id,
           error: String(error),
           scope,
-        });
-        continue;
+        })
+        continue
       }
-      throw error;
+      throw error
     }
   }
-  if (preload !== 'all') indices.clear();
-  if (!backends.length) throw new Error('No backend');
+  if (preload !== 'all') indices.clear()
+  if (!backends.length) throw new Error('No backend')
   // The engines' host tables, which follow the view, and the world roots the models hold come out
   // of the decoded pages' CPU share.
-  const tables = () => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0);
-  streamer.reserve(() => inputs.worldRoots.reduce((bytes, held) => bytes + held.bytes(), tables()));
-  return { viewport, context };
+  const tables = () => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0)
+  streamer.reserve(() => inputs.worldRoots.reduce((bytes, held) => bytes + held.bytes(), tables()))
+  return { viewport, context }
 }

@@ -3,17 +3,17 @@ import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
-} from '../../../packages/sdk-core/src/texture/previewLevels.ts';
+} from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 
 /** `packages/sdk-core/src/texture/previewLevels.ts`: each number restarted from the dimensions, without a shared bound. */
 function referencePreviewPixelBytes(width: number, height: number) {
-  let bytes = 0;
-  const last = previewLastLevel(width, height);
+  let bytes = 0
+  const last = previewLastLevel(width, height)
   for (let level = previewFirstLevel(width, height); level <= last; level++) {
-    const [w, h] = previewLevelSize(width, height, level);
-    bytes += w * h * 4;
+    const [w, h] = previewLevelSize(width, height, level)
+    bytes += w * h * 4
   }
-  return bytes;
+  return bytes
 }
 
 /** `manifestBinaryPreview.ts`: three public calls, hence five sweeps for two bounds. */
@@ -22,5 +22,5 @@ export function referenceExpectedGeometry(width: number, height: number) {
     firstLevel: previewFirstLevel(width, height),
     levelCount: previewLastLevel(width, height) - previewFirstLevel(width, height) + 1,
     pixelBytes: referencePreviewPixelBytes(width, height),
-  };
+  }
 }

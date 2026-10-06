@@ -1,4 +1,4 @@
-import { geometryDeformationBytes } from '../deformation/textureBytes.ts';
+import { geometryDeformationBytes } from '../deformation/textureBytes.ts'
 /**
  * THE OBJECTS THE WEBGL2 PAGE PATH DRAWS WITH.
  *
@@ -12,31 +12,31 @@ import { geometryDeformationBytes } from '../deformation/textureBytes.ts';
  * Nothing is decided here: the pose, the component counts, the box and the surface parameters
  * all arrive computed.
  */
-import { numbered } from './graph/serial.ts';
-import type { Material } from '../../../sdk-core/src/index.ts';
-import type { HostInstancedMesh, HostMaterial, HostMaterials, HostMesh } from './resources.ts';
-import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
-import { geometryBytes } from '../scene/meshes.ts';
-import { hostSide } from '../scene/materialSide.ts';
-import { setGeometryBounds } from './geometryBounds.ts';
-import { Scene } from '../world/core/scene.ts';
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
-import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphSurface } from './graph/surface.ts';
-import { alphaModeFields } from './prepared/materials.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import { numbered } from './graph/serial.ts'
+import type { Material } from '../../../sdk-core/src/index.ts'
+import type { HostInstancedMesh, HostMaterial, HostMaterials, HostMesh } from './resources.ts'
+import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts'
+import type { MatrixElements } from '../math/matrixElements.ts'
+import { geometryBytes } from '../scene/meshes.ts'
+import { hostSide } from '../scene/materialSide.ts'
+import { setGeometryBounds } from './geometryBounds.ts'
+import { Scene } from '../world/core/scene.ts'
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
+import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts'
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
+import { GraphSurface } from './graph/surface.ts'
+import { alphaModeFields } from './prepared/materials.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 
-type Surfaces = GraphSurface | GraphSurface[];
+type Surfaces = GraphSurface | GraphSurface[]
 
 /** The display graph the page path hangs its pages on, holding from the start the transparent
  *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
 export function hostPageScene(copies: readonly object[] = []): Scene {
-  const scene = numbered(new Scene());
-  for (const copy of copies) scene.add(copy as unknown as Object3D);
-  return scene;
+  const scene = numbered(new Scene())
+  for (const copy of copies) scene.add(copy as unknown as Object3D)
+  return scene
 }
 
 /**
@@ -51,11 +51,11 @@ export function hostPageMesh(
   declaration: HostMaterials,
   renderOrder: number,
 ): HostMesh {
-  const mesh = numbered(new Mesh(geometry, declaration as unknown as Surfaces));
-  mesh.matrixAutoUpdate = false;
-  mesh.frustumCulled = false;
-  mesh.renderOrder = renderOrder;
-  return mesh;
+  const mesh = numbered(new Mesh(geometry, declaration as unknown as Surfaces))
+  mesh.matrixAutoUpdate = false
+  mesh.frustumCulled = false
+  mesh.renderOrder = renderOrder
+  return mesh
 }
 
 /**
@@ -69,33 +69,33 @@ export function hostPageInstances(
   renderOrder: number,
   capacity: number,
 ): HostInstancedMesh {
-  const mesh = numbered(new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity));
-  mesh.matrixAutoUpdate = false;
-  mesh.frustumCulled = false;
-  mesh.renderOrder = renderOrder;
-  return mesh;
+  const mesh = numbered(new InstancedMesh(geometry, declaration as unknown as Surfaces, capacity))
+  mesh.matrixAutoUpdate = false
+  mesh.frustumCulled = false
+  mesh.renderOrder = renderOrder
+  return mesh
 }
 
 /** Placement `index` of an instanced page: the sixteen floats of its row. */
 export const setHostInstance = (mesh: HostInstancedMesh, index: number, pose: MatrixElements) => {
-  mesh.instanceMatrix.array.set(pose.elements, index * 16);
-};
+  mesh.instanceMatrix.array.set(pose.elements, index * 16)
+}
 
 /** How many placements the instanced page draws this frame; its matrices go up once. */
 export const setHostInstanceCount = (mesh: HostInstancedMesh, count: number) => {
-  mesh.count = count;
-  mesh.instanceMatrix.needsUpdate = true;
-};
+  mesh.count = count
+  mesh.instanceMatrix.needsUpdate = true
+}
 
 /** Gives an instanced page's matrices back; its geometry and surface are released by theirs. */
 export const releaseHostInstances = (mesh: HostInstancedMesh) => {
-  mesh.dispose();
-};
+  mesh.dispose()
+}
 
 /** The surface a drawn page wears once its primitive has been repainted. */
 export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
-  mesh.material = declaration as unknown as Surfaces;
-};
+  mesh.material = declaration as unknown as Surfaces
+}
 
 /**
  * The host geometry of one decoded page: its triangle list, its attributes at the component
@@ -108,38 +108,38 @@ export function hostPageGeometry(
   min: ArrayLike<number>,
   max: ArrayLike<number>,
 ): Geometry {
-  const geometry = new Geometry();
-  geometry._owner = 'host';
-  geometry.setIndex(new BufferAttribute(page.indices, 1));
+  const geometry = new Geometry()
+  geometry._owner = 'host'
+  geometry.setIndex(new BufferAttribute(page.indices, 1))
   for (const [name, array] of Object.entries(page.attributes))
-    geometry.setAttribute(name, new BufferAttribute(array, itemSize(name)));
-  setGeometryBounds(geometry, min, max);
-  return geometry;
+    geometry.setAttribute(name, new BufferAttribute(array, itemSize(name)))
+  setGeometryBounds(geometry, min, max)
+  return geometry
 }
 
 /** A page geometry of an instance's own: a copy that shares no buffer with the model's. */
-export const copyHostGeometry = (geometry: Geometry): Geometry => geometry.clone();
+export const copyHostGeometry = (geometry: Geometry): Geometry => geometry.clone()
 
 /** Buffers already counted, reused across calls: a page geometry owns its own, so the set is
  *  empty again at every call and nothing is allocated to count one. */
-const counted = new Set<ArrayBufferView>();
+const counted = new Set<ArrayBufferView>()
 
 /** The bytes a page geometry holds, counted where every other holder of host buffers counts them
  *  (`../scene/meshes.ts`). */
 export function hostPageBytes(geometry: Geometry) {
-  counted.clear();
+  counted.clear()
   // A dynamic page reads its primitive's own lists (`sourcedPageGeometry`): its index alone is its.
   const own =
     geometry.usage === 'dynamic'
       ? (geometry.index?.array.byteLength ?? 0)
-      : geometryBytes(geometry, counted);
-  return own + geometryDeformationBytes(geometry);
+      : geometryBytes(geometry, counted)
+  return own + geometryDeformationBytes(geometry)
 }
 
 /** Gives a page geometry back: the draw frees its buffers. */
 export const releaseHostGeometry = (geometry: Geometry) => {
-  geometry.dispose();
-};
+  geometry.dispose()
+}
 
 /** The standard surface the engine's material parameters describe; a world moves it to the
  *  physical family (`../world/core/worldPhysicalSurface.ts`). The face constant is the engine's
@@ -147,7 +147,7 @@ export const releaseHostGeometry = (geometry: Geometry) => {
  *  nothing else is converted. */
 export function hostPageSurface(material: Material, vertexColors: boolean) {
   const [r, g, b] = material.baseColor,
-    [er, eg, eb] = material.emissive;
+    [er, eg, eb] = material.emissive
   return new GraphSurface('standard', {
     color: { r, g, b },
     emissive: { r: er, g: eg, b: eb },
@@ -157,7 +157,7 @@ export function hostPageSurface(material: Material, vertexColors: boolean) {
     ...alphaModeFields(material.alphaMode, material.alphaCutoff),
     side: hostSide(material.side),
     vertexColors,
-  }) as unknown as GraphSurface & HostMaterial;
+  }) as unknown as GraphSurface & HostMaterial
 }
 
 /**
@@ -171,23 +171,23 @@ export function colouredTwin(
   cache: Map<HostMaterial, HostMaterial>,
   original: HostMaterial,
 ): HostMaterial {
-  if ((original as unknown as GraphSurface).vertexColors) return original;
-  let twin = cache.get(original);
-  if (!twin) cache.set(original, (twin = colouredHostSurface(original)));
-  return twin;
+  if ((original as unknown as GraphSurface).vertexColors) return original
+  let twin = cache.get(original)
+  if (!twin) cache.set(original, (twin = colouredHostSurface(original)))
+  return twin
 }
 
 /** The same surface, reading the colour attribute a decoded page carries: a new clone, or `into`
  *  taking the original's values again once it was repainted in place. */
 export function colouredHostSurface(original: HostMaterial, into?: HostMaterial): HostMaterial {
-  const source = original as unknown as GraphSurface;
-  const twin = into ? (into as unknown as GraphSurface).copy(source) : source.clone();
-  twin.vertexColors = true;
-  twin.needsUpdate = true;
-  return twin as unknown as HostMaterial;
+  const source = original as unknown as GraphSurface
+  const twin = into ? (into as unknown as GraphSurface).copy(source) : source.clone()
+  twin.vertexColors = true
+  twin.needsUpdate = true
+  return twin as unknown as HostMaterial
 }
 
 /** Gives a surface this engine built back. */
 export const releaseHostSurface = (material: HostMaterial) => {
-  (material as unknown as GraphSurface).dispose();
-};
+  ;(material as unknown as GraphSurface).dispose()
+}

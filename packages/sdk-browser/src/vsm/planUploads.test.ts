@@ -24,9 +24,9 @@
 // same bytes in every buffer.
 // Retaken when the uniform block took its words by role, 208 bytes for 224: the same words
 // permuted, its pads gone; every other buffer kept.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
@@ -39,24 +39,24 @@ const DIGESTS: Record<number, string[]> = {
     '7c1efdf7558dd2f964a8f2c0dc4726b82f29a550a33f2ccb62e85f7a5d8f333a',
     '252f762369d8500f530187e8dcd5f6bf76f13c9bff8c103e12dbff9a88fa9d45',
   ],
-};
+}
 
 for (const seed of [1, 2])
   test(`seed ${seed}: three frames leave the same bytes in every buffer they write`, () => {
-    const random = seeded(seed);
-    const run = planFrames();
-    const eye: [number, number, number] = [0, 2, 0];
-    const digests: string[] = [];
-    let world = randomWorld(random, eye);
+    const random = seeded(seed)
+    const run = planFrames()
+    const eye: [number, number, number] = [0, 2, 0]
+    const digests: string[] = []
+    let world = randomWorld(random, eye)
     for (let f = 0; f < 3; f++) {
       // Each frame the eye walks and some lights keep their last pose: cached and invalidated maps.
-      const next = randomWorld(random, [eye[0] + f * 3, eye[1], eye[2] - f * 2]);
+      const next = randomWorld(random, [eye[0] + f * 3, eye[1], eye[2] - f * 2])
       world = {
         ...next,
         lights: next.lights.map((light, k) => (random() < 0.4 ? world.lights[k] : light)),
-      };
-      run.frame(world);
-      digests.push(run.digest());
+      }
+      run.frame(world)
+      digests.push(run.digest())
     }
-    assert.deepEqual(digests, DIGESTS[seed]);
-  });
+    assert.deepEqual(digests, DIGESTS[seed])
+  })

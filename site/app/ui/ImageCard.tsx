@@ -1,12 +1,12 @@
-import { Card } from './Card.tsx';
-import { ModalTrigger } from './Modal.tsx';
+import { Card } from './Card.tsx'
+import { ModalTrigger } from './Modal.tsx'
 
 interface ImageCardProps {
-  title: string;
-  src: string;
-  alt: string;
-  enlargeLabel: string;
-  closeLabel: string;
+  title: string
+  src: string
+  alt: string
+  enlargeLabel: string
+  closeLabel: string
 }
 
 export function ImageCard({ title, src, alt, enlargeLabel, closeLabel }: ImageCardProps) {
@@ -17,5 +17,5 @@ export function ImageCard({ title, src, alt, enlargeLabel, closeLabel }: ImageCa
         <img className="max-w-[92vw] max-h-[88dvh] object-contain" src={src} alt={alt} />
       </ModalTrigger>
     </Card>
-  );
+  )
 }

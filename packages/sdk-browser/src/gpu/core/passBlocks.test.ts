@@ -1,7 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts';
-import { gpuPassBlockOf, gpuPassBlockTotals } from './passBlocks.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts'
+import { gpuPassBlockOf, gpuPassBlockTotals } from './passBlocks.ts'
 
 const sample = (
   passes: Array<[string, number | null]>,
@@ -12,19 +12,19 @@ const sample = (
   truncated: false,
   passes: passes.map(([name, gpuMs]) => ({ name, gpuMs })),
   ...extra,
-});
+})
 
 test('each pass falls in the block its label names, and an unknown one stays outside', () => {
-  assert.equal(gpuPassBlockOf('Trillion3D DAG selection'), 'visibility');
-  assert.equal(gpuPassBlockOf('Trillion3D visibility primary'), 'visibility');
-  assert.equal(gpuPassBlockOf('Trillion3D HiZ'), 'visibility');
-  assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials');
-  assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials');
-  assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other');
-  assert.equal(gpuPassBlockOf('vsm.pass'), 'other');
-  assert.equal(gpuPassBlockOf('Trillion3D opaque fallback'), 'other');
-  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other');
-});
+  assert.equal(gpuPassBlockOf('Trillion3D DAG selection'), 'visibility')
+  assert.equal(gpuPassBlockOf('Trillion3D visibility primary'), 'visibility')
+  assert.equal(gpuPassBlockOf('Trillion3D HiZ'), 'visibility')
+  assert.equal(gpuPassBlockOf('Trillion3D material surfaces v1'), 'materials')
+  assert.equal(gpuPassBlockOf('Trillion3D empty surfaces'), 'materials')
+  assert.equal(gpuPassBlockOf('Trillion3D deferred lighting'), 'other')
+  assert.equal(gpuPassBlockOf('vsm.pass'), 'other')
+  assert.equal(gpuPassBlockOf('Trillion3D opaque fallback'), 'other')
+  assert.equal(gpuPassBlockOf('Trillion3D pass invented tomorrow'), 'other')
+})
 
 test("a block's durations add up, and the three sum to that of the passes", () => {
   const totals = gpuPassBlockTotals(
@@ -37,12 +37,12 @@ test("a block's durations add up, and the three sum to that of the passes", () =
       ['Trillion3D material surfaces v1', 2.084],
       ['Trillion3D deferred lighting', 1.5],
     ]),
-  );
-  assert.equal(totals.visibilityMs?.toFixed(3), '1.719');
-  assert.equal(totals.materialsMs?.toFixed(3), '2.301');
-  assert.equal(totals.otherMs, 1.5);
-  assert.equal((totals.visibilityMs! + totals.materialsMs! + totals.otherMs!).toFixed(3), '5.520');
-});
+  )
+  assert.equal(totals.visibilityMs?.toFixed(3), '1.719')
+  assert.equal(totals.materialsMs?.toFixed(3), '2.301')
+  assert.equal(totals.otherMs, 1.5)
+  assert.equal((totals.visibilityMs! + totals.materialsMs! + totals.otherMs!).toFixed(3), '5.520')
+})
 
 test('a pass without a duration voids ITS block, never the others', () => {
   const totals = gpuPassBlockTotals(
@@ -51,11 +51,11 @@ test('a pass without a duration voids ITS block, never the others', () => {
       ['Trillion3D visibility primary', 1.148],
       ['Trillion3D material surfaces v1', 2.084],
     ]),
-  );
-  assert.equal(totals.visibilityMs, null, 'a partial sum would pass for a measurement');
-  assert.equal(totals.materialsMs, 2.084);
-  assert.equal(totals.otherMs, null, 'no pass: no block, and above all not a zero');
-});
+  )
+  assert.equal(totals.visibilityMs, null, 'a partial sum would pass for a measurement')
+  assert.equal(totals.materialsMs, 2.084)
+  assert.equal(totals.otherMs, null, 'no pass: no block, and above all not a zero')
+})
 
 test('order changes nothing: a pass without a duration voids its block even when announced last', () => {
   const totals = gpuPassBlockTotals(
@@ -63,23 +63,23 @@ test('order changes nothing: a pass without a duration voids its block even when
       ['Trillion3D visibility primary', 1.148],
       ['Trillion3D DAG selection', null],
     ]),
-  );
-  assert.equal(totals.visibilityMs, null);
-});
+  )
+  assert.equal(totals.visibilityMs, null)
+})
 
 test('a truncated or missing sample yields no block', () => {
   const truncated = gpuPassBlockTotals(
     sample([['Trillion3D visibility primary', 1.148]], { truncated: true }),
-  );
-  assert.deepEqual(truncated, { visibilityMs: null, materialsMs: null, otherMs: null });
+  )
+  assert.deepEqual(truncated, { visibilityMs: null, materialsMs: null, otherMs: null })
   assert.deepEqual(gpuPassBlockTotals(null), {
     visibilityMs: null,
     materialsMs: null,
     otherMs: null,
-  });
+  })
   assert.deepEqual(gpuPassBlockTotals(undefined), {
     visibilityMs: null,
     materialsMs: null,
     otherMs: null,
-  });
-});
+  })
+})

@@ -3,7 +3,7 @@
  * they leave undone. The engine publishes its own sheets; only the witnesses and the browser
  * test pages that stand in for one read this.
  */
-import type { BackendCapabilities } from '../../packages/sdk-core/src/index.ts';
+import type { BackendCapabilities } from '../../packages/sdk-core/src/index.ts'
 
 export const baseCapabilities: BackendCapabilities = {
   renderer: 'Three.js WebGL2',
@@ -22,11 +22,11 @@ export const baseCapabilities: BackendCapabilities = {
     'bounded GPU eviction',
     'physical VRAM instrumentation',
   ],
-};
+}
 
 /** What the exact witness leaves undone: the base list, less what its bounded eviction and its
  *  contract lights retire, plus the shadows those lights do not cast. */
-const RETIRES = ['bounded GPU eviction', 'contract scene lights with shadow atlas'];
+const RETIRES = ['bounded GPU eviction', 'contract scene lights with shadow atlas']
 export const CONTRACT_LIGHTS_UNSUPPORTED = baseCapabilities.unsupported
   .filter((item) => !RETIRES.includes(item))
-  .concat('contract scene light shadows');
+  .concat('contract scene light shadows')

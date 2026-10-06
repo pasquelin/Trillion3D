@@ -1,37 +1,37 @@
-import { useEffect, useRef, useState } from 'react';
-import type { KeyboardEvent, ReactNode } from 'react';
-import { QUIET_FOCUS } from './Input.tsx';
+import { useEffect, useRef, useState } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
+import { QUIET_FOCUS } from './Input.tsx'
 
 interface DropdownItem {
-  key: string;
-  label: ReactNode;
-  onSelect: () => void;
-  disabled?: boolean;
+  key: string
+  label: ReactNode
+  onSelect: () => void
+  disabled?: boolean
   /** Marks the item as the chosen one, for a menu that picks a value. */
-  pressed?: boolean;
-  className?: string;
+  pressed?: boolean
+  className?: string
 }
 
 interface DropdownProps {
   /** What the button that opens the menu shows. */
-  label: ReactNode;
-  items: DropdownItem[];
-  'aria-label'?: string;
+  label: ReactNode
+  items: DropdownItem[]
+  'aria-label'?: string
   /** The opening button's classes: a small ghost button unless told otherwise. */
-  triggerClassName?: string;
+  triggerClassName?: string
   /** The list's width classes. */
-  menuClassName?: string;
+  menuClassName?: string
   /** Opens the list aligned on the button's right edge. */
-  end?: boolean;
+  end?: boolean
 }
 
 /** Moves the focus to the next (`step` 1) or previous (`step` -1) enabled item, wrapping. */
 function moveFocus(list: HTMLElement, step: 1 | -1) {
-  const buttons = [...list.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
-  if (buttons.length === 0) return;
-  const at = buttons.indexOf(document.activeElement as HTMLButtonElement);
-  const next = at < 0 ? (step > 0 ? 0 : buttons.length - 1) : at + step;
-  buttons[(next + buttons.length) % buttons.length].focus();
+  const buttons = [...list.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]
+  if (buttons.length === 0) return
+  const at = buttons.indexOf(document.activeElement as HTMLButtonElement)
+  const next = at < 0 ? (step > 0 ? 0 : buttons.length - 1) : at + step
+  buttons[(next + buttons.length) % buttons.length].focus()
 }
 
 /**
@@ -47,29 +47,29 @@ export function Dropdown({
   menuClassName = 'w-56',
   end = false,
 }: DropdownProps) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDetailsElement>(null);
-  const list = useRef<HTMLUListElement>(null);
+  const [open, setOpen] = useState(false)
+  const root = useRef<HTMLDetailsElement>(null)
+  const list = useRef<HTMLUListElement>(null)
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
     const outside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false);
-    };
+      if (!root.current?.contains(event.target as Node)) setOpen(false)
+    }
     // Captured: a canvas or a control that stops the event still closes the menu.
-    document.addEventListener('pointerdown', outside, true);
-    return () => document.removeEventListener('pointerdown', outside, true);
-  }, [open]);
+    document.addEventListener('pointerdown', outside, true)
+    return () => document.removeEventListener('pointerdown', outside, true)
+  }, [open])
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape' && open) {
-      event.preventDefault();
-      setOpen(false);
-      root.current?.querySelector('summary')?.focus();
+      event.preventDefault()
+      setOpen(false)
+      root.current?.querySelector('summary')?.focus()
     } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      if (open) moveFocus(list.current!, event.key === 'ArrowDown' ? 1 : -1);
-      else setOpen(true);
+      event.preventDefault()
+      if (open) moveFocus(list.current!, event.key === 'ArrowDown' ? 1 : -1)
+      else setOpen(true)
     }
-  };
+  }
   return (
     <details
       ref={root}
@@ -82,8 +82,8 @@ export function Dropdown({
           focus after a click, which would otherwise ring every menu the person has last opened. */}
       <summary
         onClick={(event) => {
-          event.preventDefault();
-          setOpen(!open);
+          event.preventDefault()
+          setOpen(!open)
         }}
         className={`list-none [&::-webkit-details-marker]:hidden h-8 ${QUIET_FOCUS} focus-visible:bg-base-content/10 ${open ? 'bg-base-content/10' : ''} ${triggerClassName}`}
         aria-label={ariaLabel}
@@ -104,8 +104,8 @@ export function Dropdown({
               disabled={item.disabled}
               aria-pressed={item.pressed}
               onClick={() => {
-                setOpen(false);
-                item.onSelect();
+                setOpen(false)
+                item.onSelect()
               }}
             >
               {item.label}
@@ -114,5 +114,5 @@ export function Dropdown({
         ))}
       </ul>
     </details>
-  );
+  )
 }

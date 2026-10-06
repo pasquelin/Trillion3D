@@ -1,15 +1,15 @@
-import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
-import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
-import type { ContractKey, LitPrograms } from '../../../lighting/deferred/contractVariants.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { receiverResources } from '../../visibility/receiver.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts'
+import type { DirectLightResources } from '../../../lighting/deferred/program.ts'
+import type { ContractKey, LitPrograms } from '../../../lighting/deferred/contractVariants.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { receiverResources } from '../../visibility/receiver.ts'
 import {
   vsmConsumerResources,
   vsmShadowMask,
   vsmShadowMaskTiles,
   vsmTransmissionView,
-} from '../render/vsm/vsmConsumers.ts';
-import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts';
+} from '../render/vsm/vsmConsumers.ts'
+import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/casters.ts'
 
 /**
  * True when the image must be lit by the declared lights. False in the only unlit view: `unlit`
@@ -21,13 +21,13 @@ import { castsShadow } from '../../../../../sdk-core/src/scene/light-shadow/cast
  * off all its lights, with no blackout showing.
  */
 export function wantsContractLighting(rt: WebgpuPagesRuntime) {
-  return !rt.lights.store.unlit;
+  return !rt.lights.store.unlit
 }
 
 /** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
  *  writes the flag. Otherwise every share is 0, and TAA and composition read no flags (OMB-11). */
 export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
-  vis.asIsShown || run.diagnostic !== 'beauty';
+  vis.asIsShown || run.diagnostic !== 'beauty'
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
  *  with bounce too when the session wants it; a failed one is said, then or later. The one it
@@ -38,7 +38,7 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   key: contractKey(rt.lights.store, true, {}),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   unboundedReflections: rt.context.unboundedReflections === true,
-});
+})
 
 /** What the blend and water programs are built with (`createWebgpuBlendPipelines`): the session's
  *  context, and the key a first frame asks for, as the lit programs' (`createForwardVariants`); a
@@ -51,7 +51,7 @@ export const blendContext = (rt: WebgpuPagesRuntime) => ({
     onFailure: (error: unknown) =>
       rt.diag.diagnosticFailure('forward-lighting-program-failed', error),
   },
-});
+})
 
 /**
  * The contract program a frame lights with, keyed on stable state alone, the store walked once
@@ -69,34 +69,34 @@ function contractKey(
 ) {
   let sun = false,
     local = false,
-    rect = false;
+    rect = false
   for (let slot = 0; slot < store.count && !(sun && local && rect); slot++) {
-    const kind = store.kindOf(slot);
+    const kind = store.kindOf(slot)
     if (castsShadow(store, slot)) {
-      if (kind === LIGHT_KIND.directional) sun = true;
-      else local = true;
+      if (kind === LIGHT_KIND.directional) sun = true
+      else local = true
     }
-    rect ||= kind === LIGHT_KIND.rect;
+    rect ||= kind === LIGHT_KIND.rect
   }
-  key.narrow = store.count <= LIGHT_SETTINGS.tileLights;
-  key.unshadowed = !shadowed || !(sun || local);
-  key.rectless = !rect;
-  key.sunless = !key.unshadowed && !sun;
-  key.localless = !key.unshadowed && !local;
-  return key as ContractKey;
+  key.narrow = store.count <= LIGHT_SETTINGS.tileLights
+  key.unshadowed = !shadowed || !(sun || local)
+  key.rectless = !rect
+  key.sunless = !key.unshadowed && !sun
+  key.localless = !key.unshadowed && !local
+  return key as ContractKey
 }
 
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
 export function litProgramPending(rt: WebgpuPagesRuntime) {
-  const { deferred } = rt.gpu;
+  const { deferred } = rt.gpu
   // A lit image already has its program: nothing to read (`deviceAnswering` asks every frame).
   return deferred && !deferred.usesContract && wantsContractLighting(rt)
     ? deferred.awaited(directLightResources(rt))
-    : undefined;
+    : undefined
 }
 
-const contractResources: DirectLightResources = {};
+const contractResources: DirectLightResources = {}
 
 /**
  * Contract resources the deferred pass binds, or nothing when they do not exist. Each is returned as
@@ -106,32 +106,32 @@ const contractResources: DirectLightResources = {};
  */
 export function directLightResources(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
-    active = wantsContractLighting(rt);
-  contractResources.lights = lights.buffer;
-  contractResources.tiles = active ? lights.tiles?.buffer : undefined;
+    active = wantsContractLighting(rt)
+  contractResources.lights = lights.buffer
+  contractResources.tiles = active ? lights.tiles?.buffer : undefined
   // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
   // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
   if (active) {
-    contractKey(lights.store, !!lights.pageLayout || !!lights.vsm, contractResources);
-    contractResources.narrow &&= !!lights.tiles;
+    contractKey(lights.store, !!lights.pageLayout || !!lights.vsm, contractResources)
+    contractResources.narrow &&= !!lights.tiles
   } else
     contractResources.narrow =
       contractResources.unshadowed =
       contractResources.rectless =
       contractResources.sunless =
       contractResources.localless =
-        false;
-  contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined;
-  contractResources.vsmMaskTiles = active ? vsmShadowMaskTiles(rt) : undefined;
-  contractResources.vsmTransmission = active ? vsmTransmissionView(rt) : undefined;
-  contractResources.vsm = active ? vsmConsumerResources(rt) : undefined;
+        false
+  contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined
+  contractResources.vsmMaskTiles = active ? vsmShadowMaskTiles(rt) : undefined
+  contractResources.vsmTransmission = active ? vsmTransmissionView(rt) : undefined
+  contractResources.vsm = active ? vsmConsumerResources(rt) : undefined
   // The grid is bound only if it exists: without it, the deferred pass compiles and binds the
   // contract program alone, exactly the one from before the bounce lot.
-  const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined;
-  contractResources.bounceGrid = bounce?.uniform;
-  contractResources.probes = bounce?.probes;
-  contractResources.surfaceCache = bounce?.surface.view;
+  const bounce = active && rt.bounce.wanted ? rt.bounce.probes : undefined
+  contractResources.bounceGrid = bounce?.uniform
+  contractResources.probes = bounce?.probes
+  contractResources.surfaceCache = bounce?.surface.view
   // What the shadow receiver offset is recomputed from: the frame's visibility buffer (#1410).
-  contractResources.receiver = active ? receiverResources(rt) : undefined;
-  return contractResources;
+  contractResources.receiver = active ? receiverResources(rt) : undefined
+  return contractResources
 }

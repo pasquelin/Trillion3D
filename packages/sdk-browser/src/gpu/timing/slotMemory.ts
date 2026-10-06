@@ -8,8 +8,8 @@
  * end (`sample.ts`, `setOwnShares`), so a timestamp before that end can be a new one.
  */
 export function createSlotMemory(size: number) {
-  const held = new BigUint64Array(size);
-  let latest = -Infinity;
+  const held = new BigUint64Array(size)
+  let latest = -Infinity
   return {
     /**
      * The reader of image `frame`'s timestamps: whether the one at a slot is the one it held, which
@@ -18,18 +18,18 @@ export function createSlotMemory(size: number) {
      * skipped.
      */
     read(frame: number) {
-      const current = frame > latest;
-      if (current) latest = frame;
+      const current = frame > latest
+      if (current) latest = frame
       return (slot: number, value: bigint) => {
-        if (!current) return false;
-        const unchanged = held[slot] === value;
-        held[slot] = value;
-        return unchanged;
-      };
+        if (!current) return false
+        const unchanged = held[slot] === value
+        held[slot] = value
+        return unchanged
+      }
     },
-  };
+  }
 }
 
 /** Whether the timestamp at `slot` is the one it held, so no pass of this image wrote it
  *  (`createSlotMemory`). */
-export type Stale = ReturnType<ReturnType<typeof createSlotMemory>['read']>;
+export type Stale = ReturnType<ReturnType<typeof createSlotMemory>['read']>

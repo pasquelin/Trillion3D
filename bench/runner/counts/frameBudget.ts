@@ -7,19 +7,19 @@
 // is the proof. What no count here reaches is named in `UNCOUNTED`, never priced at zero in silence.
 //
 //   node bench/runner/counts/frameBudget.ts [--pose 1]
-import { parseArgs } from 'node:util';
-import { MAX_SHADOW_SLICES } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
-import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import { ATRIUM_POSES, atriumDepth } from '../lighting/lightTileAtrium.ts';
+import { parseArgs } from 'node:util'
+import { MAX_SHADOW_SLICES } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
+import { ATRIUM_POSES, atriumDepth } from '../lighting/lightTileAtrium.ts'
 import {
   RESOLVE_GBUFFER,
   countGrid,
   gbufferAccesses,
   lightingModel,
-} from '../lighting/lightGridCount.ts';
-import { countResolveWork } from '../lighting/resolveWorkCount.ts';
-import { countClassFragments } from '../lighting/materialTileCount.ts';
-import { countTaaFetches } from './taaFetchCount.ts';
+} from '../lighting/lightGridCount.ts'
+import { countResolveWork } from '../lighting/resolveWorkCount.ts'
+import { countClassFragments } from '../lighting/materialTileCount.ts'
+import { countTaaFetches } from './taaFetchCount.ts'
 import {
   CLASSES,
   DEMAND_MARKS,
@@ -31,43 +31,43 @@ import {
   UNCOUNTED,
   atriumBenchLamps,
   hizAccesses,
-} from './frameBudgetRates.ts';
+} from './frameBudgetRates.ts'
 
-const DISPLAY = { width: 3456, height: 2234 };
-type Row = { stage: string; work: string; count: number; ms: number };
+const DISPLAY = { width: 3456, height: 2234 }
+type Row = { stage: string; work: string; count: number; ms: number }
 
 /** Each stage's counted work at `width` × `height`, pose `pose`, and its modelled milliseconds. */
 export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.height) {
   const r = FRAME_RATES,
-    N = width * height;
-  const texels = (count: number) => (count * r.texelPs) / 1e9;
-  const { eye, yaw, pitch } = ATRIUM_POSES[pose];
-  const view = camera(eye, yaw, pitch, 60, width, height);
-  const layers = new Uint16Array(N);
-  const depths = atriumDepth(view, undefined, undefined, layers);
-  const fragments = layers.reduce((a, b) => a + b, 0);
-  const lamps = atriumBenchLamps();
-  const grid = countGrid(view, depths, lamps);
+    N = width * height
+  const texels = (count: number) => (count * r.texelPs) / 1e9
+  const { eye, yaw, pitch } = ATRIUM_POSES[pose]
+  const view = camera(eye, yaw, pitch, 60, width, height)
+  const layers = new Uint16Array(N)
+  const depths = atriumDepth(view, undefined, undefined, layers)
+  const fragments = layers.reduce((a, b) => a + b, 0)
+  const lamps = atriumBenchLamps()
+  const grid = countGrid(view, depths, lamps)
   const work = countResolveWork(
     view,
     depths,
     lamps,
     lamps.map((_, rank) => rank < MAX_SHADOW_SLICES),
-  ).after;
-  const material = countClassFragments(width, height, CLASSES, pose);
-  const surface = Object.values(SURFACE_ACCESSES).reduce((a, b) => a + b, 0);
-  const gbuffer = gbufferAccesses(RESOLVE_GBUFFER.after).texels;
-  const model = lightingModel(grid);
-  const taa = countTaaFetches(1, false).fetches;
-  const C = grid.covered;
-  const hiz = hizAccesses(width, height);
+  ).after
+  const material = countClassFragments(width, height, CLASSES, pose)
+  const surface = Object.values(SURFACE_ACCESSES).reduce((a, b) => a + b, 0)
+  const gbuffer = gbufferAccesses(RESOLVE_GBUFFER.after).texels
+  const model = lightingModel(grid)
+  const taa = countTaaFetches(1, false).fetches
+  const C = grid.covered
+  const hiz = hizAccesses(width, height)
   /** A stage's row: its count, priced as texels unless its own rate is given. */
   const row = (stage: string, work: string, count: number, ms = texels(count)): Row => ({
     stage,
     work,
     count,
     ms,
-  });
+  })
   const rows: Row[] = [
     row('visibility', 'clear, two targets', 2 * N),
     row('visibility', 'raster fragments × 3 (depth test, depth, id)', 3 * fragments),
@@ -105,18 +105,18 @@ export function frameBudget(pose = 1, width = DISPLAY.width, height = DISPLAY.he
     ),
     row('antialiasing', `TAA texels, ${taa} a display pixel`, taa * N),
     row('present', 'HDR read, display write', 2 * N),
-  ];
-  return { rows, covered: C, total: rows.reduce((sum, row) => sum + row.ms, 0) };
+  ]
+  return { rows, covered: C, total: rows.reduce((sum, row) => sum + row.ms, 0) }
 }
 
 async function main() {
-  const { values } = parseArgs({ options: { pose: { type: 'string', default: '1' } } });
-  const { rows, covered, total } = frameBudget(Number(values.pose));
-  console.log(`Boss's case, atrium pose ${values.pose}, 3456 × 2234, ${covered} covered pixels:`);
+  const { values } = parseArgs({ options: { pose: { type: 'string', default: '1' } } })
+  const { rows, covered, total } = frameBudget(Number(values.pose))
+  console.log(`Boss's case, atrium pose ${values.pose}, 3456 × 2234, ${covered} covered pixels:`)
   console.table(
     rows.map((row) => ({ ...row, count: Math.round(row.count), ms: row.ms.toFixed(3) })),
-  );
-  console.log(`Modelled frame: ${total.toFixed(2)} ms of 16.6. Not counted:`, UNCOUNTED);
+  )
+  console.log(`Modelled frame: ${total.toFixed(2)} ms of 16.6. Not counted:`, UNCOUNTED)
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) await main()

@@ -2,21 +2,21 @@
 // measurement harness — would otherwise never hold an image, even when nothing the image
 // depends on has moved. Only a drain that actually changes the image drops it, by incrementing the
 // revision that names what it changed.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createFrameGateCore } from '../../../frame/gateCore.ts';
-import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts';
-import { flushWebgpuPages } from './flush.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createFrameGateCore } from '../../../frame/gateCore.ts'
+import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts'
+import { flushWebgpuPages } from './flush.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** A minimal flush state: no GPU, no texture, no in-flight residency. */
 function flushState(adopts?: () => boolean, armed = true) {
-  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
-  const { hold: frameHold, revisions } = gate;
+  const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES)
+  const { hold: frameHold, revisions } = gate
   // Two identical consecutive images: the witness is armed and stable, as after two renders.
   if (armed) {
-    frameHold.keep(revisions);
-    frameHold.keep(revisions);
+    frameHold.keep(revisions)
+    frameHold.keep(revisions)
   }
   const run = {
     gate,
@@ -38,7 +38,7 @@ function flushState(adopts?: () => boolean, armed = true) {
     gpuFrameActive: !!adopts,
     gpuSelection: adopts ? { flush: async () => {}, failed: () => false } : undefined,
     lastCamera: undefined,
-  };
+  }
   const rt = {
     run,
     gpu: {
@@ -60,56 +60,56 @@ function flushState(adopts?: () => boolean, armed = true) {
     context: { gpuCanvas: undefined },
     blendState: { blendGpu: [], visibleBlend: [] },
     lights: { changes: { deferred: () => false } },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, gate, frameHold, revisions };
+  } as unknown as WebgpuPagesRuntime
+  return { rt, gate, frameHold, revisions }
 }
 
 test('a flush that drains nothing leaves the held-image witness standing', async () => {
-  const { rt, gate, revisions } = flushState();
-  assert.equal(gate.held(), true, 'the witness starts armed');
-  await flushWebgpuPages(rt);
-  await flushWebgpuPages(rt);
-  assert.equal(gate.held(), true, 'the flush dropped the witness without having drained anything');
-  assert.equal(gate.hold.same(revisions), true, 'the revisions have not moved');
-});
+  const { rt, gate, revisions } = flushState()
+  assert.equal(gate.held(), true, 'the witness starts armed')
+  await flushWebgpuPages(rt)
+  await flushWebgpuPages(rt)
+  assert.equal(gate.held(), true, 'the flush dropped the witness without having drained anything')
+  assert.equal(gate.hold.same(revisions), true, 'the revisions have not moved')
+})
 
 test('a flush whose adoption changes the cut drops the witness', async () => {
-  const { rt, gate } = flushState(() => true);
-  await flushWebgpuPages(rt);
-  assert.equal(gate.held(), false, 'the cut changed under the held image');
-});
+  const { rt, gate } = flushState(() => true)
+  await flushWebgpuPages(rt)
+  assert.equal(gate.held(), false, 'the cut changed under the held image')
+})
 
 test('a flush whose adoption changes nothing leaves the witness standing', async () => {
-  const { rt, gate } = flushState(() => false);
-  await flushWebgpuPages(rt);
-  assert.equal(gate.held(), true, 'no list rewritten, no reason to redo the image');
-});
+  const { rt, gate } = flushState(() => false)
+  await flushWebgpuPages(rt)
+  assert.equal(gate.held(), true, 'no list rewritten, no reason to redo the image')
+})
 
 test('three images and three flushes with no write: the third is held', async () => {
   // What a host that flushes per image does — the harness: render, flush, repeat. The GPU
   // returns one sample per image, identical at a still pose, so adoption rewrites nothing.
-  let adoptions = 0;
-  const { rt, gate, frameHold, revisions } = flushState(() => (adoptions++, false), false);
-  let tenues = 0;
+  let adoptions = 0
+  const { rt, gate, frameHold, revisions } = flushState(() => (adoptions++, false), false)
+  let tenues = 0
   for (let image = 0; image < 3; image++) {
     // A complete image: it is stored with the signature of what it produced.
-    if (gate.held()) tenues++;
-    else frameHold.keep(revisions);
-    await flushWebgpuPages(rt);
+    if (gate.held()) tenues++
+    else frameHold.keep(revisions)
+    await flushWebgpuPages(rt)
   }
-  assert.equal(adoptions, 3, 'the flush does replay one adoption per image');
-  assert.equal(tenues, 1, 'the third image must be held');
-  assert.equal(gate.held(), true, 'the witness survived the three flushes');
-});
+  assert.equal(adoptions, 3, 'the flush does replay one adoption per image')
+  assert.equal(tenues, 1, 'the third image must be held')
+  assert.equal(gate.held(), true, 'the witness survived the three flushes')
+})
 
 test('a flush under image: false settles the pages and reads no image back (#408)', async () => {
-  const { rt } = flushState(undefined, false);
-  let touched = 0;
-  const device = new Proxy({}, { get: () => (touched++, () => assert.fail('image read back')) });
-  Object.assign(rt.gpu, { device, displayTexture: {} });
-  rt.run.imageRevision = 1;
-  await flushWebgpuPages(rt, { image: false });
-  assert.equal(touched, 0, 'a wait for pages must take no picture');
+  const { rt } = flushState(undefined, false)
+  let touched = 0
+  const device = new Proxy({}, { get: () => (touched++, () => assert.fail('image read back')) })
+  Object.assign(rt.gpu, { device, displayTexture: {} })
+  rt.run.imageRevision = 1
+  await flushWebgpuPages(rt, { image: false })
+  assert.equal(touched, 0, 'a wait for pages must take no picture')
   // A plain flush still starts the readback, which this GPU-less runtime cannot finish.
-  await assert.rejects(flushWebgpuPages(rt), /GPUBufferUsage|image read back/);
-});
+  await assert.rejects(flushWebgpuPages(rt), /GPUBufferUsage|image read back/)
+})

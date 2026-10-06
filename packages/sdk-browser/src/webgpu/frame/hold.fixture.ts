@@ -1,14 +1,14 @@
-import type { GuideSet } from '../../guides/guideSet.ts';
-import { createScaleControl } from '../../frame/scaleControl.ts';
-import { createFrameGateCore } from '../../frame/gateCore.ts';
-import { HOLD_SIGNATURE_VALUES } from './signature.ts';
-import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
-import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
-import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import type { WebgpuEffects } from '../effects/webgpuEffects.ts';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
+import type { GuideSet } from '../../guides/guideSet.ts'
+import { createScaleControl } from '../../frame/scaleControl.ts'
+import { createFrameGateCore } from '../../frame/gateCore.ts'
+import { HOLD_SIGNATURE_VALUES } from './signature.ts'
+import { createCpuStepProfile } from '../../stage/cpuProfile.ts'
+import { CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts'
+import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { WebgpuEffects } from '../effects/webgpuEffects.ts'
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -44,7 +44,7 @@ export function settledRt() {
     blendSubmittedTriangles: 0,
     blendFrustumRejected: 0,
     occluderSignature: 0,
-  };
+  }
   const rows = {
     rowsChanged: false,
     dirtyTo: -1,
@@ -54,9 +54,9 @@ export function settledRt() {
     candidateOverflow: 0,
     packedCount: 1,
     rowCount: 1,
-  };
+  }
   // The main view alone, drawn.
-  const main = {};
+  const main = {}
   const rt = {
     run,
     views: { main, active: main, persistent: [] },
@@ -104,8 +104,8 @@ export function settledRt() {
     context: {} as { effects?: EffectChain; guides?: GuideSet },
     // No transparent: the frame entry asks no share seed (`askFramePipelines`).
     blendState: { blendGpu: [] as unknown[] },
-  };
-  return rt as unknown as WebgpuPagesRuntime & typeof rt;
+  }
+  return rt as unknown as WebgpuPagesRuntime & typeof rt
 }
 
 /**
@@ -115,26 +115,26 @@ export function settledRt() {
  * been called, exactly like a real compilation that lasts several frames.
  */
 export function deferredLightingHarness() {
-  let resolveGate: () => void, rejectGate: (error: Error) => void;
+  let resolveGate: () => void, rejectGate: (error: Error) => void
   const gate = new Promise<void>((resolve, reject) => {
-    resolveGate = resolve;
-    rejectGate = reject;
-  });
-  const { device } = fakeDevice();
-  const compile = device.createRenderPipelineAsync;
+    resolveGate = resolve
+    rejectGate = reject
+  })
+  const { device } = fakeDevice()
+  const compile = device.createRenderPipelineAsync
   device.createRenderPipelineAsync = async (descriptor) => {
-    const label = descriptor.fragment?.module.label ?? '';
-    if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate;
-    return compile(descriptor);
-  };
+    const label = descriptor.fragment?.module.label ?? ''
+    if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate
+    return compile(descriptor)
+  }
   return {
     device,
     finishCompilation: () => resolveGate(),
     failCompilation: () => rejectGate(new Error('CONTRACT_COMPILE_FAILED')),
-  };
+  }
 }
 
-export const view = () => ({}) as GPUTextureView;
+export const view = () => ({}) as GPUTextureView
 export const surface = { views: () => [view(), view(), view(), view()] } as unknown as Parameters<
   Awaited<ReturnType<typeof createDeferredLighting>>['bind']
->[0];
+>[0]

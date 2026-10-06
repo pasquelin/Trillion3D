@@ -1,14 +1,14 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts';
-import { grown } from '../../page/cut/sparseInts.ts';
-import { copyPages } from '../pages/helpers.ts';
-import { mapRawRanks, type HeldList } from './heldList.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
+import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
+import { copyPages } from '../pages/helpers.ts'
+import { mapRawRanks, type HeldList } from './heldList.ts'
 
 /** The mark of a held id or an entry this list names at a rank no claim reached, until the held
  *  ranks are read: an id read back at it again is a repeat. */
-const PENDING = -1;
+const PENDING = -1
 /** An id of the list the next one does not keep: a repeat, or one without a record. */
-const SKIPPED = -1;
+const SKIPPED = -1
 
 /**
  * The difference of a GPU list read off the ranks it claims in the last list applied
@@ -38,78 +38,67 @@ export function applyClaimed(
 ) {
   const { mark, recordOf, pages, ids: kept, count: keptCount, next, entered, exited } = held,
     epoch = held.epoch,
-    words = (keptCount + 31) >>> 5;
-  if (held.named.length < words) held.named = grown(held.named, words);
-  held.named.fill(0, 0, words);
+    words = (keptCount + 31) >>> 5
+  if (held.named.length < words) held.named = grown(held.named, words)
+  held.named.fill(0, 0, words)
   // A held page keeps the record of the rank it held: a packed rank's record never changes, the
   // catalogue only grows behind its ranks (`postPackedBases`). They are read off a copy, as the
   // records are rewritten in the order of `ids`, at ranks the list already reaches: a record
   // array written past its end holds holes, every read of it after that paid.
   if (pages) {
-    copyPages(held.before, pages);
-    if (pages.length) while (pages.length < count) pages.push(pages[0]);
+    copyPages(held.before, pages)
+    if (pages.length) while (pages.length < count) pages.push(pages[0])
   }
   // The ranks no claim reached, in `entered` until the entries' ids replace them; a repeat of a
   // claimed page as its complement.
-  const raw = held.rawToHeld ? held.rawRank : null;
-  const waiting = carryClaimed(
-    ids,
-    count,
-    claims,
-    raw,
-    kept,
-    keptCount,
-    pages,
-    next,
-    held,
-    entered,
-  );
+  const raw = held.rawToHeld ? held.rawRank : null
+  const waiting = carryClaimed(ids, count, claims, raw, kept, keptCount, pages, next, held, entered)
   let skipped = 0,
-    enteredCount = 0;
+    enteredCount = 0
   for (let u = 0; u < waiting; u++) {
-    const w = entered[u];
+    const w = entered[u]
     if (w < 0) {
-      next[~w] = SKIPPED;
-      skipped++;
-      continue;
+      next[~w] = SKIPPED
+      skipped++
+      continue
     }
     const id = ids[w],
-      rec = recordOf(id);
+      rec = recordOf(id)
     // No record: the list never holds it. Marked by this list already: a repeat.
-    const seen = rec ? mark.set(id, PENDING) : PENDING;
+    const seen = rec ? mark.set(id, PENDING) : PENDING
     if (seen === PENDING) {
-      next[w] = SKIPPED;
-      skipped++;
-      continue;
+      next[w] = SKIPPED
+      skipped++
+      continue
     }
-    if (seen !== epoch) entered[enteredCount++] = id;
+    if (seen !== epoch) entered[enteredCount++] = id
     if (pages) {
       // A list that held no record reaches its ranks only here: filled whole from the first.
-      while (pages.length < count) pages.push(rec!);
-      if (pages[w] !== rec) pages[w] = rec!;
+      while (pages.length < count) pages.push(rec!)
+      if (pages[w] !== rec) pages[w] = rec!
     }
   }
   // The held ranks no claim named: kept when this list marked them, gone otherwise.
-  const named = held.named;
-  let exitedCount = 0;
+  const named = held.named
+  let exitedCount = 0
   for (let w = 0; w < words; w++) {
-    let bits = ~named[w];
-    if (w === words - 1 && keptCount & 31) bits &= (1 << (keptCount & 31)) - 1;
+    let bits = ~named[w]
+    if (w === words - 1 && keptCount & 31) bits &= (1 << (keptCount & 31)) - 1
     for (; bits; bits &= bits - 1) {
-      const id = kept[(w << 5) + 31 - Math.clz32(bits & -bits)];
+      const id = kept[(w << 5) + 31 - Math.clz32(bits & -bits)]
       if (mark.set(id, epoch) !== PENDING) {
-        exited[exitedCount++] = id;
-        mark.set(id, 0);
+        exited[exitedCount++] = id
+        mark.set(id, 0)
       }
     }
   }
-  for (let k = 0; k < enteredCount; k++) mark.set(entered[k], epoch);
-  held.rawToHeld = skipped > 0;
-  const nextCount = skipped ? compact(held, pages, count) : count;
-  if (pages) pages.length = nextCount;
-  held.enteredCount = enteredCount;
-  held.exitedCount = exitedCount;
-  return nextCount;
+  for (let k = 0; k < enteredCount; k++) mark.set(entered[k], epoch)
+  held.rawToHeld = skipped > 0
+  const nextCount = skipped ? compact(held, pages, count) : count
+  if (pages) pages.length = nextCount
+  held.enteredCount = enteredCount
+  held.exitedCount = exitedCount
+  return nextCount
 }
 
 /**
@@ -133,46 +122,46 @@ function carryClaimed(
   waiting: Int32Array,
 ) {
   const { named, before } = held,
-    published = held.published;
-  let listed = 0;
+    published = held.published
+  let listed = 0
   for (let i = 0; i < count; i++) {
-    const id = ids[i];
-    let t = claims[i];
-    if (raw && t !== NONE) t = raw[t];
-    next[i] = id;
-    published[i] = id;
+    const id = ids[i]
+    let t = claims[i]
+    if (raw && t !== NONE) t = raw[t]
+    next[i] = id
+    published[i] = id
     if (!(t < keptCount) || kept[t] !== id) {
-      waiting[listed++] = i;
-      continue;
+      waiting[listed++] = i
+      continue
     }
     const w = t >>> 5,
-      bit = 1 << (t & 31);
+      bit = 1 << (t & 31)
     if (named[w] & bit) {
-      waiting[listed++] = ~i;
-      continue;
+      waiting[listed++] = ~i
+      continue
     }
-    named[w] |= bit;
+    named[w] |= bit
     // A record already at its rank is not written again: placements of one primitive share it.
-    if (pages && pages[i] !== before[t]) pages[i] = before[t];
+    if (pages && pages[i] !== before[t]) pages[i] = before[t]
   }
-  return listed;
+  return listed
 }
 
 /** The ids the next list keeps moved down over the skipped ones, records with them, and the held
  *  rank of each raw rank written for the claims the next readback makes; their count. */
 function compact(held: HeldList, pages: PageRec[] | undefined, count: number) {
   const next = held.next,
-    raw = mapRawRanks(held, count, 0);
-  let kept = 0;
+    raw = mapRawRanks(held, count, 0)
+  let kept = 0
   for (let i = 0; i < count; i++) {
     if (next[i] === SKIPPED) {
-      raw[i] = NONE;
-      continue;
+      raw[i] = NONE
+      continue
     }
-    raw[i] = kept;
-    next[kept] = next[i];
-    if (pages) pages[kept] = pages[i];
-    kept++;
+    raw[i] = kept
+    next[kept] = next[i]
+    if (pages) pages[kept] = pages[i]
+    kept++
   }
-  return kept;
+  return kept
 }

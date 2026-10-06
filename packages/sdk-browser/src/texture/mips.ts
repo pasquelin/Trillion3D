@@ -1,20 +1,20 @@
-import { MIP_SHADER } from './mipsWgsl.ts';
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
-import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
+import { MIP_SHADER } from './mipsWgsl.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import {
   preparedPipeline,
   preparedPipelines,
   type PreparedPipelines,
-} from '../lighting/deferred/fullscreen.ts';
-import type { PoolEncoding } from './blockFormats.ts';
-import { prepareCoveragePipelines } from './coverageMips.ts';
+} from '../lighting/deferred/fullscreen.ts'
+import type { PoolEncoding } from './blockFormats.ts'
+import { prepareCoveragePipelines } from './coverageMips.ts'
 
 /** How a level reduces: a material's colour, or a radiance. */
-type MipRule = 'material' | 'radiance';
+type MipRule = 'material' | 'radiance'
 
 /** What decides a reduction's pipeline: the level's format, the colour rule — plain, or weighted by
  *  alpha —, and how the level reduces. */
-export type MipKey = { format: GPUTextureFormat; weighted: boolean; rule: MipRule };
+export type MipKey = { format: GPUTextureFormat; weighted: boolean; rule: MipRule }
 
 /**
  * Layout and reduction program, built ONCE per device; its pipeline once per format and per
@@ -27,12 +27,12 @@ export type MipKey = { format: GPUTextureFormat; weighted: boolean; rule: MipRul
  * handle: it serves every session, and names none.
  */
 type MipProgram = {
-  layout: GPUBindGroupLayout;
+  layout: GPUBindGroupLayout
   /** The pipeline of each key, one per `format/weighted/rule`. */
-  pipelines: PreparedPipelines<MipKey, GPURenderPipeline>;
-};
+  pipelines: PreparedPipelines<MipKey, GPURenderPipeline>
+}
 
-const idOf = ({ format, weighted, rule }: MipKey) => `${format}/${Number(weighted)}/${rule}`;
+const idOf = ({ format, weighted, rule }: MipKey) => `${format}/${Number(weighted)}/${rule}`
 
 const mipProgram = oncePerDevice((device): MipProgram => {
   const layout = device.createBindGroupLayout({
@@ -44,9 +44,9 @@ const mipProgram = oncePerDevice((device): MipProgram => {
       },
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
     ],
-  });
+  })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module = device.createShaderModule({ code: MIP_SHADER });
+    module = device.createShaderModule({ code: MIP_SHADER })
   return {
     layout,
     pipelines: preparedPipelines(
@@ -64,38 +64,38 @@ const mipProgram = oncePerDevice((device): MipProgram => {
         }),
       idOf,
     ),
-  };
-});
+  }
+})
 
 /** The program on `device`'s shared cache, and `key`'s pipeline in it. */
 const pipelineOf = (device: GPUDevice, key: MipKey) => {
-  const program = mipProgram(sharedGpuDevice(device));
-  return { layout: program.layout, pipeline: program.pipelines.of(key) };
-};
+  const program = mipProgram(sharedGpuDevice(device))
+  return { layout: program.layout, pipeline: program.pipelines.of(key) }
+}
 
 /** Compiles off the thread, before any texture reduces with them, the pipelines of `keys` on
  *  `device`'s shared cache; resolves once all have. */
 export const prepareMipPipelines = (device: GPUDevice, keys: readonly MipKey[]) =>
-  Promise.all(keys.map((key) => pipelineOf(device, key).pipeline.prepare())).then(() => {});
+  Promise.all(keys.map((key) => pipelineOf(device, key).pipeline.prepare())).then(() => {})
 
 /** The reduction of a reflection's radiance levels (`../reflections/conePyramid.ts`): the format of
  *  the source it reduces, the lit image's. */
 export const REFLECTION_MIP_KEYS: readonly MipKey[] = [
   { format: 'rgba16float', weighted: false, rule: 'radiance' },
-];
+]
 
 /** The atlases a host texture's working texture reduces into (`../webgpu/tile/scratch.ts`). */
-type HostKind = 'color' | 'data';
+type HostKind = 'color' | 'data'
 
 /** The reductions of a host texture's working texture in the atlases `kinds`: in the atlas's pool
  *  format, the lossless lane's — the only one a host image fills —, plain, or for a colour texture
  *  whose readers cut its coverage, weighted. */
 const hostMipKeys = (encoding: PoolEncoding, kinds: readonly HostKind[]) =>
   kinds.flatMap((kind): MipKey[] => {
-    const format = encoding.formatOf(kind, 'lossless');
-    const plain: MipKey = { format, weighted: false, rule: 'material' };
-    return kind === 'color' ? [plain, { ...plain, weighted: true }] : [plain];
-  });
+    const format = encoding.formatOf(kind, 'lossless')
+    const plain: MipKey = { format, weighted: false, rule: 'material' }
+    return kind === 'color' ? [plain, { ...plain, weighted: true }] : [plain]
+  })
 
 /** Compiles off the thread what a host texture's mips take in the atlases `kinds` — their
  *  reductions, and for a colour one the coverage counts its readers' cutoff asks —, before any
@@ -111,7 +111,7 @@ export const prepareHostReductions = (
   ]).then(
     () => {},
     () => {},
-  );
+  )
 
 /** The bind group layout and the pipeline of one format and one colour rule, compiled. */
 export function mipPipeline(
@@ -120,8 +120,8 @@ export function mipPipeline(
   weighted: boolean,
   rule: MipRule = 'material',
 ) {
-  const { layout, pipeline } = pipelineOf(device, { format, weighted, rule });
-  return { layout, pipeline: pipeline.get() };
+  const { layout, pipeline } = pipelineOf(device, { format, weighted, rule })
+  return { layout, pipeline: pipeline.get() }
 }
 
 /**
@@ -131,14 +131,14 @@ export function mipPipeline(
  * one that lives as long as the device rewrites itself in queue order, waiting for nothing. An
  * outgrown one is not destroyed: already-submitted passes may still read it, the collector frees it.
  */
-const heldBuffers = new WeakMap<GPUDevice, Map<string, GPUBuffer>>();
+const heldBuffers = new WeakMap<GPUDevice, Map<string, GPUBuffer>>()
 
 export function heldBuffer(device: GPUDevice, label: string, size: number, usage: number) {
-  const kept = heldBuffers.get(device) ?? new Map<string, GPUBuffer>();
-  heldBuffers.set(device, kept);
-  const held = kept.get(label);
-  if (held && held.size >= size) return held;
-  const buffer = device.createBuffer({ label, size, usage: usage | GPUBufferUsage.COPY_DST });
-  kept.set(label, buffer);
-  return buffer;
+  const kept = heldBuffers.get(device) ?? new Map<string, GPUBuffer>()
+  heldBuffers.set(device, kept)
+  const held = kept.get(label)
+  if (held && held.size >= size) return held
+  const buffer = device.createBuffer({ label, size, usage: usage | GPUBufferUsage.COPY_DST })
+  kept.set(label, buffer)
+  return buffer
 }

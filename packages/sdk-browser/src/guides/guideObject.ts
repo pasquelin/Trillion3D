@@ -1,25 +1,25 @@
-import { EngineError, invertMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/index.ts';
-import { pointAt } from '../../../sdk-core/src/world/geometry/bounds.ts';
-import { lineCorners } from '../../../sdk-core/src/world/geometry/drawn.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
-import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import type { Material } from '../../../sdk-core/src/world/material/material.ts';
-import { resolveCameraWorld } from '../camera/world.ts';
-import { copyElements, sameElements } from '../math/matrixElements.ts';
-import type { GuideEntry } from './guidePack.ts';
+import { EngineError, invertMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
+import { pointAt } from '../../../sdk-core/src/world/geometry/bounds.ts'
+import { lineCorners } from '../../../sdk-core/src/world/geometry/drawn.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
+import type { Material } from '../../../sdk-core/src/world/material/material.ts'
+import { resolveCameraWorld } from '../camera/world.ts'
+import { copyElements, sameElements } from '../math/matrixElements.ts'
+import type { GuideEntry } from './guidePack.ts'
 
 /** Segments of one colour and width, two ends of three numbers each; a point is a segment whose
  *  two ends are the same. `vertices` is what the ceiling counts: two per segment, one per point. */
 export interface GuidePiece {
-  ends: Float64Array;
-  color: number;
-  width: number;
-  vertices: number;
+  ends: Float64Array
+  color: number
+  width: number
+  vertices: number
 }
 
 const inverse = new Float64Array(16),
   local = new Float64Array(16),
-  point = [0, 0, 0];
+  point = [0, 0, 0]
 
 /**
  * What `guides.add` draws of `object`: one piece per line or point mesh of its subtree, its
@@ -28,61 +28,61 @@ const inverse = new Float64Array(16),
  * path reads them.
  */
 export function objectPieces(object: Object3D, width: number, size: number): GuidePiece[] {
-  invertMatrix4(inverse, object.matrixWorld.elements);
-  const pieces: GuidePiece[] = [];
+  invertMatrix4(inverse, object.matrixWorld.elements)
+  const pieces: GuidePiece[] = []
   object.traverse((node) => {
-    const mesh = node as Mesh;
-    if (!mesh.isMesh || mesh.primitive === 'triangles' || mesh.primitive === 'sprite') return;
-    const position = mesh.geometry.attributes.position;
-    if (!position?.count) return;
-    multiplyMatrix4(local, inverse, mesh.matrixWorld.elements);
+    const mesh = node as Mesh
+    if (!mesh.isMesh || mesh.primitive === 'triangles' || mesh.primitive === 'sprite') return
+    const position = mesh.geometry.attributes.position
+    if (!position?.count) return
+    multiplyMatrix4(local, inverse, mesh.matrixWorld.elements)
     const corners = mesh.geometry.index
       ? Array.from(mesh.geometry.index.array)
-      : Array.from({ length: position.count }, (_, i) => i);
-    const points = mesh.primitive === 'points';
-    const pairs = points ? corners.flatMap((c) => [c, c]) : lineCorners(corners, mesh.primitive);
-    const ends = new Float64Array(pairs.length * 3);
+      : Array.from({ length: position.count }, (_, i) => i)
+    const points = mesh.primitive === 'points'
+    const pairs = points ? corners.flatMap((c) => [c, c]) : lineCorners(corners, mesh.primitive)
+    const ends = new Float64Array(pairs.length * 3)
     pairs.forEach((v, k) => {
-      const [x, y, z] = pointAt(position, v, point);
+      const [x, y, z] = pointAt(position, v, point)
       for (let c = 0; c < 3; c++)
-        ends[k * 3 + c] = local[c] * x + local[4 + c] * y + local[8 + c] * z + local[12 + c];
-    });
-    const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as Material;
+        ends[k * 3 + c] = local[c] * x + local[4 + c] * y + local[8 + c] * z + local[12 + c]
+    })
+    const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as Material
     pieces.push({
       ends,
       color: material.color.getHex(),
       width: points ? size : width,
       vertices: points ? pairs.length / 2 : pairs.length,
-    });
-  });
-  return pieces;
+    })
+  })
+  return pieces
 }
 
 /** A guide with the node whose world pose it follows, if `add` drew it and the page did not
  *  place it. */
 export interface FollowedEntry extends GuideEntry {
-  node?: Object3D;
+  node?: Object3D
 }
 
 /** Puts `entry` at `next`; false when it stood there already, so a held frame stays. */
 export function placeGuide(entry: GuideEntry, next: ArrayLike<number>) {
-  if (sameElements(entry.matrix, next)) return false;
-  copyElements(entry.matrix, next);
-  return true;
+  if (sameElements(entry.matrix, next)) return false
+  copyElements(entry.matrix, next)
+  return true
 }
 
 /** Puts `entry` where its node stands now, its world pose resolved through the engine's one
  *  contract (`resolveCameraWorld`); false when nothing moved. A node the page destroyed is let
  *  go: its guide stays where it last stood, and the frame goes on. */
 export function followNode(entry: FollowedEntry) {
-  const { node } = entry;
-  if (!node) return false;
+  const { node } = entry
+  if (!node) return false
   try {
-    resolveCameraWorld(node);
+    resolveCameraWorld(node)
   } catch (error) {
-    if (!(error instanceof EngineError) || error.code !== 'STALE_SCENE_NODE') throw error;
-    entry.node = undefined;
-    return false;
+    if (!(error instanceof EngineError) || error.code !== 'STALE_SCENE_NODE') throw error
+    entry.node = undefined
+    return false
   }
-  return placeGuide(entry, node.matrixWorld.elements);
+  return placeGuide(entry, node.matrixWorld.elements)
 }

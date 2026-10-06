@@ -3,9 +3,9 @@
 // to "geometry" with its own share of the image (its span less what an earlier pass covered, the
 // span itself where the timer gives no share); a `null` duration leaves its stage unmeasured, a
 // truncated or missing sample deposits nothing. Shadow time also splits by label into choosing the casters and drawing them.
-import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
-import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/stage/passLabels.ts';
-import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
+import { VSM_PASS_PREFIX } from '../../../packages/sdk-browser/src/stage/passLabels.ts'
+import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts'
 
 // Stage of each label, then its shadow part: choosing the casters or drawing them.
 const ROW_OF: Record<string, readonly [stage: string, part?: string]> = {
@@ -20,12 +20,12 @@ const ROW_OF: Record<string, readonly [stage: string, part?: string]> = {
   'Trillion3D bounce v1': ['bounce'],
   'Trillion3D deferred lighting': ['lighting'],
   'Trillion3D HDR composition + present': ['present'],
-};
+}
 
 // Every virtual shadow map pass is timed with the Shadows stage: the engine's own prefix.
 const stageOf = (name: string) =>
-  ROW_OF[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry');
-const partOf = (name: string) => ROW_OF[name]?.[1] ?? 'other';
+  ROW_OF[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry')
+const partOf = (name: string) => ROW_OF[name]?.[1] ?? 'other'
 
 export function referenceAddCpuSteps(
   stages: ReadonlyArray<string | null>,
@@ -33,8 +33,8 @@ export function referenceAddCpuSteps(
   add: StageAdd,
 ) {
   for (let i = 0; i < stages.length; i++) {
-    const stage = stages[i];
-    if (stage) add(stage, row[i]);
+    const stage = stages[i]
+    if (stage) add(stage, row[i])
   }
 }
 
@@ -42,29 +42,29 @@ function totalsBy(
   sample: GpuPassTimings | null | undefined,
   groupOf: (name: string) => string,
 ): Map<string, number | null> {
-  const totals = new Map<string, number | null>();
-  if (!sample || sample.truncated) return totals;
+  const totals = new Map<string, number | null>()
+  if (!sample || sample.truncated) return totals
   for (const pass of sample.passes) {
-    const group = groupOf(pass.name);
-    if (totals.get(group) === null) continue;
-    const part = pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs);
-    totals.set(group, part === null ? null : (totals.get(group) ?? 0) + part);
+    const group = groupOf(pass.name)
+    if (totals.get(group) === null) continue
+    const part = pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs)
+    totals.set(group, part === null ? null : (totals.get(group) ?? 0) + part)
   }
-  return totals;
+  return totals
 }
 
 export function referenceGpuStages(sample: GpuPassTimings | null | undefined, add: StageAdd) {
-  for (const [stage, ms] of totalsBy(sample, stageOf)) if (ms !== null) add(stage, ms);
+  for (const [stage, ms] of totalsBy(sample, stageOf)) if (ms !== null) add(stage, ms)
 }
 
 export function referenceDirectLightTimings(sample: GpuPassTimings | null | undefined) {
   const totals = totalsBy(sample, stageOf),
-    parts = totalsBy(sample, partOf);
+    parts = totalsBy(sample, partOf)
   return {
     gpuLightListsMs: totals.get('lightLists') ?? null,
     gpuShadowsMs: totals.get('shadows') ?? null,
     gpuShadowCullMs: parts.get('cull') ?? null,
     gpuShadowRasterMs: parts.get('raster') ?? null,
     gpuLightingMs: totals.get('lighting') ?? null,
-  };
+  }
 }

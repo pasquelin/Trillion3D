@@ -1,4 +1,4 @@
-import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
   BODY_INDEX,
   CAST_WORDS,
@@ -10,13 +10,13 @@ import {
   WATER_PIECE_WORDS,
   POSE_WORDS,
   type PhysicsBudget,
-} from '../../../sdk-core/src/physics/index.ts';
-import { WAVE_DOUBLES, type Waves } from '../../../sdk-core/src/fluids/index.ts';
-import { joltImports, type SpawnJoltThread } from './joltThreads.ts';
+} from '../../../sdk-core/src/physics/index.ts'
+import { WAVE_DOUBLES, type Waves } from '../../../sdk-core/src/fluids/index.ts'
+import { joltImports, type SpawnJoltThread } from './joltThreads.ts'
 
 /** The flat C API of `joltPhysics.wasm` (`packages/physics-jolt-wasm/src/world.cpp`). */
 interface JoltExports {
-  _initialize(): void;
+  _initialize(): void
   jolt_init(
     maxBodies: number,
     bodyPairs: number,
@@ -24,50 +24,50 @@ interface JoltExports {
     tempBytes: number,
     threads: number,
     step: number,
-  ): number;
-  jolt_buffer(which: number, words: number): number;
-  jolt_step(commandWords: number, dt: number): number;
-  jolt_event_count(): number;
-  jolt_dropped_events(): number;
-  jolt_update_error(): number;
-  jolt_refused_count(): number;
-  jolt_refused(i: number): number;
-  jolt_diverged_count(): number;
-  jolt_diverged(i: number): number;
-  jolt_recovered_count(): number;
-  jolt_recovered(i: number): number;
-  jolt_error(): number;
-  jolt_active_count(): number;
-  jolt_owed_leaves(): number;
-  jolt_water_query(top: number, sliceLength: number): number;
-  jolt_water_pieces(): number;
-  jolt_wave_buffer(count: number): number;
-  jolt_water_planes(pieces: number, count: number, level: number, sample: number): number;
-  jolt_cast_buffer(count: number): number;
-  jolt_cast(count: number): number;
-  jolt_character(): number;
-  jolt_broken_count(): number;
-  jolt_broken(i: number): number;
-  jolt_vehicles(): number;
-  jolt_vehicle_words(): number;
-  jolt_soft(): number;
-  jolt_soft_words(): number;
-  jolt_concurrency(count: number): number;
+  ): number
+  jolt_buffer(which: number, words: number): number
+  jolt_step(commandWords: number, dt: number): number
+  jolt_event_count(): number
+  jolt_dropped_events(): number
+  jolt_update_error(): number
+  jolt_refused_count(): number
+  jolt_refused(i: number): number
+  jolt_diverged_count(): number
+  jolt_diverged(i: number): number
+  jolt_recovered_count(): number
+  jolt_recovered(i: number): number
+  jolt_error(): number
+  jolt_active_count(): number
+  jolt_owed_leaves(): number
+  jolt_water_query(top: number, sliceLength: number): number
+  jolt_water_pieces(): number
+  jolt_wave_buffer(count: number): number
+  jolt_water_planes(pieces: number, count: number, level: number, sample: number): number
+  jolt_cast_buffer(count: number): number
+  jolt_cast(count: number): number
+  jolt_character(): number
+  jolt_broken_count(): number
+  jolt_broken(i: number): number
+  jolt_vehicles(): number
+  jolt_vehicle_words(): number
+  jolt_soft(): number
+  jolt_soft_words(): number
+  jolt_concurrency(count: number): number
 }
 
 /** Bytes of the physics module's per-step scratch allocator, taken from the memory budget. */
-const TEMP_BYTES = 16 * 1024 * 1024;
-const PAGE = 65536;
+const TEMP_BYTES = 16 * 1024 * 1024
+const PAGE = 65536
 /** Pages the module declares as its initial memory (`-sINITIAL_MEMORY`, CMakeLists.txt). */
-const INITIAL_PAGES = 512;
+const INITIAL_PAGES = 512
 /** The budget each bit of `jolt_update_error` names (`EPhysicsUpdateError`: the manifold
  *  cache is sized from both). */
-const UPDATE_ERRORS = ['bodyPairs and contactConstraints', 'bodyPairs', 'contactConstraints'];
+const UPDATE_ERRORS = ['bodyPairs and contactConstraints', 'bodyPairs', 'contactConstraints']
 
 /** A module's own exports and memory, before the engine starts it: tools read these. */
 export interface OpenedJolt {
-  exports: WebAssembly.Exports;
-  memory: WebAssembly.Memory;
+  exports: WebAssembly.Exports
+  memory: WebAssembly.Memory
 }
 
 /**
@@ -82,18 +82,18 @@ export async function openJolt(
   memoryBytes: number,
   threads: { count: number; spawn: SpawnJoltThread } | null,
 ): Promise<OpenedJolt> {
-  const maximum = Math.floor(memoryBytes / PAGE);
+  const maximum = Math.floor(memoryBytes / PAGE)
   if (maximum < INITIAL_PAGES)
     throw new EngineError(
       'PHYSICS_BUDGET',
       `Physics budget "memoryBytes" is below the module's ${INITIAL_PAGES * PAGE} bytes.`,
-    );
-  const memory = new WebAssembly.Memory({ initial: INITIAL_PAGES, maximum, shared: !!threads });
-  const module = await WebAssembly.compile(bytes);
-  let exports: unknown = null;
-  const imports = joltImports(memory, () => exports as never, threads && { module, ...threads });
-  exports = (await WebAssembly.instantiate(module, imports)).exports;
-  return { exports: exports as WebAssembly.Exports, memory };
+    )
+  const memory = new WebAssembly.Memory({ initial: INITIAL_PAGES, maximum, shared: !!threads })
+  const module = await WebAssembly.compile(bytes)
+  let exports: unknown = null
+  const imports = joltImports(memory, () => exports as never, threads && { module, ...threads })
+  exports = (await WebAssembly.instantiate(module, imports)).exports
+  return { exports: exports as WebAssembly.Exports, memory }
 }
 
 /**
@@ -108,21 +108,21 @@ export function startJolt(
   threads: number,
   step: number,
 ) {
-  const jolt = exports as unknown as JoltExports;
+  const jolt = exports as unknown as JoltExports
   if (budget.bodies > BODY_INDEX)
-    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`);
-  jolt._initialize();
-  const { bodies, bodyPairs, contactConstraints } = budget;
+    throw new EngineError('PHYSICS_BUDGET', `Physics budget "bodies" is above ${BODY_INDEX}.`)
+  jolt._initialize()
+  const { bodies, bodyPairs, contactConstraints } = budget
   if (jolt.jolt_init(bodies, bodyPairs, contactConstraints, TEMP_BYTES, threads, step) !== 0)
-    throw new EngineError('PHYSICS_FAILED', 'Physics: the module did not start.');
+    throw new EngineError('PHYSICS_FAILED', 'Physics: the module did not start.')
   const outOfMemory = () =>
-    new EngineError('PHYSICS_BUDGET', 'Physics budget "memoryBytes" exceeded.');
-  let commandWords = 1024;
-  let commands = jolt.jolt_buffer(0, commandWords);
-  const poses = jolt.jolt_buffer(1, bodies * POSE_WORDS);
-  const events = jolt.jolt_buffer(2, budget.contactEvents * EVENT_WORDS);
-  if (!commands || !poses || !events) throw outOfMemory();
-  const maximum = Math.floor(budget.memoryBytes / PAGE) * PAGE;
+    new EngineError('PHYSICS_BUDGET', 'Physics budget "memoryBytes" exceeded.')
+  let commandWords = 1024
+  let commands = jolt.jolt_buffer(0, commandWords)
+  const poses = jolt.jolt_buffer(1, bodies * POSE_WORDS)
+  const events = jolt.jolt_buffer(2, budget.contactEvents * EVENT_WORDS)
+  if (!commands || !poses || !events) throw outOfMemory()
+  const maximum = Math.floor(budget.memoryBytes / PAGE) * PAGE
   return {
     /** The fixed step it was started at, s. */
     fixedStep: step,
@@ -130,19 +130,19 @@ export function startJolt(
      *  the pose count. */
     step(words: Uint32Array | null, dt: number, count = words?.length ?? 0) {
       if (count > commandWords) {
-        commands = jolt.jolt_buffer(0, count);
-        if (!commands) throw outOfMemory();
-        commandWords = count;
+        commands = jolt.jolt_buffer(0, count)
+        if (!commands) throw outOfMemory()
+        commandWords = count
       }
-      if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count));
+      if (words) new Uint32Array(memory.buffer, commands, count).set(words.subarray(0, count))
       // The module's `uint32_t` comes back as a signed 32-bit number: -1 is its failure.
-      const posed = jolt.jolt_step(count, dt) >>> 0;
+      const posed = jolt.jolt_step(count, dt) >>> 0
       if (posed === 0xffffffff)
         throw new EngineError(
           'PHYSICS_FAILED',
           `Physics: ${MODULE_ERROR[jolt.jolt_error()] ?? 'unknown'} in a command.`,
-        );
-      return posed;
+        )
+      return posed
     },
     /** The module's pose words, valid until the next step. */
     poses: (count: number) => new Uint32Array(memory.buffer, poses, count * POSE_WORDS),
@@ -174,33 +174,33 @@ export function startJolt(
     /** The pieces of the awake bodies reaching below `top`, cut past `sliceLength`
      *  (`WATER_PIECE_WORDS` each), valid until the next step. */
     water(top: number, sliceLength: number) {
-      const count = jolt.jolt_water_query(top, sliceLength);
-      return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS);
+      const count = jolt.jolt_water_query(top, sliceLength)
+      return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS)
     },
     /** The planes (`PLANE_WORDS` each) of the `count` pieces at `from` (by default those
      *  `water` listed last), on `waves` at their time over water at `level`, each square at least
      *  `sample` wide (`waterPlanes.cpp`); valid until the next step. */
     planes(waves: Waves, level: number, sample: number, count: number, from?: number) {
-      const at = jolt.jolt_wave_buffer(waves.count);
-      const out = new Float64Array(memory.buffer, at, waves.count * WAVE_DOUBLES);
+      const at = jolt.jolt_wave_buffer(waves.count)
+      const out = new Float64Array(memory.buffer, at, waves.count * WAVE_DOUBLES)
       for (let i = 0, o = 0; i < waves.count; i++, o += WAVE_DOUBLES) {
-        out[o] = waves.dirX[i];
-        out[o + 1] = waves.dirZ[i];
-        out[o + 2] = waves.k[i];
-        out[o + 3] = waves.amplitude[i];
-        out[o + 4] = waves.lateral[i];
-        out[o + 5] = waves.phase[i];
+        out[o] = waves.dirX[i]
+        out[o + 1] = waves.dirZ[i]
+        out[o + 2] = waves.k[i]
+        out[o + 3] = waves.amplitude[i]
+        out[o + 4] = waves.lateral[i]
+        out[o + 5] = waves.phase[i]
       }
-      const planes = jolt.jolt_water_planes(from ?? jolt.jolt_water_pieces(), count, level, sample);
-      return new Uint32Array(memory.buffer, planes, count * PLANE_WORDS);
+      const planes = jolt.jolt_water_planes(from ?? jolt.jolt_water_pieces(), count, level, sample)
+      return new Uint32Array(memory.buffer, planes, count * PLANE_WORDS)
     },
     /** Answers scene queries (`CAST_WORDS` each) against the last step; a copy of their hits. */
     cast(queries: Uint32Array) {
-      const count = queries.length / CAST_WORDS;
-      const at = jolt.jolt_cast_buffer(count);
-      if (!at) throw outOfMemory();
-      new Uint32Array(memory.buffer, at, queries.length).set(queries);
-      return new Uint32Array(memory.buffer, jolt.jolt_cast(count), count * HIT_WORDS).slice();
+      const count = queries.length / CAST_WORDS
+      const at = jolt.jolt_cast_buffer(count)
+      if (!at) throw outOfMemory()
+      new Uint32Array(memory.buffer, at, queries.length).set(queries)
+      return new Uint32Array(memory.buffer, jolt.jolt_cast(count), count * HIT_WORDS).slice()
     },
     /** The character's state after the last step (`CHARACTER_STATE_WORDS`). */
     character: () => new Float32Array(memory.buffer, jolt.jolt_character(), CHARACTER_STATE_WORDS),
@@ -208,8 +208,8 @@ export function startJolt(
     owedLeaves: () => jolt.jolt_owed_leaves(),
     /** Whether the memory has grown to its budget: a trap then is the budget, not a fault. */
     full: () => memory.buffer.byteLength + 4 * PAGE > maximum,
-  };
+  }
 }
 
 /** One running physics module (`startJolt`). */
-export type JoltModule = ReturnType<typeof startJolt>;
+export type JoltModule = ReturnType<typeof startJolt>

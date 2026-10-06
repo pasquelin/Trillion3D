@@ -1,36 +1,36 @@
-import { CHAPTERS } from './code.ts';
-import { dictionaryOf } from '../i18n/dictionary.ts';
-import type { Locale } from '../locale.ts';
-import type { PortalEntry } from '../model.ts';
+import { CHAPTERS } from './code.ts'
+import { dictionaryOf } from '../i18n/dictionary.ts'
+import type { Locale } from '../locale.ts'
+import type { PortalEntry } from '../model.ts'
 
 /** A chapter's words in one language; `steps` and `tryIt` are HTML fragments. */
 interface ChapterText {
-  title: string;
+  title: string
   /** The idea in one or two sentences: the first one is the page's lead. */
-  description: string;
-  steps: string[];
+  description: string
+  steps: string[]
   /** What to change in the live result, and what happens. */
-  tryIt: string;
+  tryIt: string
 }
 
 /** The twelve chapters, in order, as Learn entries in `locale`: the words are the language's
  *  `course`, the example and the code are the chapter's own. */
 export function courseEntries(locale: Locale): PortalEntry[] {
-  const { words, chapters } = dictionaryOf(locale).course;
-  const texts: Record<string, ChapterText> = chapters;
+  const { words, chapters } = dictionaryOf(locale).course
+  const texts: Record<string, ChapterText> = chapters
   const link = (caption: string, chapter: string) => ({
     href: `#/${locale}/learn/${chapter}`,
     caption,
     title: texts[chapter].title,
-  });
+  })
   return CHAPTERS.map(({ id, example, code }, index) => {
-    const text = texts[id];
-    const before = CHAPTERS[index - 1];
-    const after = CHAPTERS[index + 1];
-    const previous = before && link(words.previous, before.id);
+    const text = texts[id]
+    const before = CHAPTERS[index - 1]
+    const after = CHAPTERS[index + 1]
+    const previous = before && link(words.previous, before.id)
     const next = after
       ? link(words.next, after.id)
-      : { href: `#/${locale}/examples`, caption: words.end };
+      : { href: `#/${locale}/examples`, caption: words.end }
     return {
       id,
       section: 'course',
@@ -38,6 +38,6 @@ export function courseEntries(locale: Locale): PortalEntry[] {
       title: `${index + 1}. ${text.title}`,
       description: text.description,
       chapter: { example, code, steps: text.steps, tryIt: text.tryIt, previous, next, words },
-    };
-  });
+    }
+  })
 }

@@ -12,32 +12,32 @@
 import {
   installSceneLighting,
   type HostLight,
-} from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
-import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
-import { threeLight } from './fromGraphNodes.ts';
-import * as THREE from 'three';
-import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
+} from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts'
+import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
+import { threeLight } from './fromGraphNodes.ts'
+import * as THREE from 'three'
+import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
 /** The clear colour a host-rendered witness publishes: written in place once a colour is
  *  there, nothing allocated. */
 const paint = (scene: THREE.Scene, clearColor: number) => {
-  if (scene.background instanceof THREE.Color) scene.background.setHex(clearColor);
-  else scene.background = new THREE.Color(clearColor);
-};
+  if (scene.background instanceof THREE.Color) scene.background.setHex(clearColor)
+  else scene.background = new THREE.Color(clearColor)
+}
 
 /** What sets that colour during the session, then tells `changed` the held frame is stale: the
  *  engine's resource revision, never its scene one — nothing else is walked again. */
 export const hostBackground = (scene: THREE.Scene, changed: () => void) => (hex: number) => {
-  paint(scene, hex);
-  changed();
-};
+  paint(scene, hex)
+  changed()
+}
 
 /** The display graph a host-rendered engine publishes: its clear colour, then the source-graph
  *  lights placed on it. Building the host objects is the boundary's, the placement is not. */
 export function lighting(scene: THREE.Scene, clearColor: number, source: Object3D) {
-  paint(scene, clearColor);
+  paint(scene, clearColor)
   return installSceneLighting(scene, source, (light) =>
     asHostLibrary<HostLight>(threeLight(asHostLibrary<Light>(light))),
-  );
+  )
 }

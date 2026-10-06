@@ -1,25 +1,25 @@
-import type { RenderBackend } from '../../backend/types.ts';
-import { createExplorerDraw } from './draw.ts';
-import type { createExplorerHostState } from './hostState.ts';
-import { createExplorerMetrics } from '../diagnostic/metrics.ts';
-import type { prepareExplorer } from '../session/prepare.ts';
-import { createExplorerRender } from './render.ts';
-import type { ExplorerSession } from '../session/session.ts';
-import { createExplorerStreaming } from '../scene/streaming.ts';
-import { createPartitionFrame } from '../scene/partitionFrame.ts';
+import type { RenderBackend } from '../../backend/types.ts'
+import { createExplorerDraw } from './draw.ts'
+import type { createExplorerHostState } from './hostState.ts'
+import { createExplorerMetrics } from '../diagnostic/metrics.ts'
+import type { prepareExplorer } from '../session/prepare.ts'
+import { createExplorerRender } from './render.ts'
+import type { ExplorerSession } from '../session/session.ts'
+import { createExplorerStreaming } from '../scene/streaming.ts'
+import { createPartitionFrame } from '../scene/partitionFrame.ts'
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
+type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 type Inputs = {
-  prepared: Prepared;
-  host: ReturnType<typeof createExplorerHostState>;
-  backends: RenderBackend[];
-};
+  prepared: Prepared
+  host: ReturnType<typeof createExplorerHostState>
+  backends: RenderBackend[]
+}
 
 export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs) {
-  const { options, metadata } = session;
-  const { prepared, host, backends } = inputs;
-  const { camera, directGpu, pageSources, partitions, frameBudget, context } = prepared;
-  const { geometryUrls, pageIdByUrl, streamer } = pageSources;
+  const { options, metadata } = session
+  const { prepared, host, backends } = inputs
+  const { camera, directGpu, pageSources, partitions, frameBudget, context } = prepared
+  const { geometryUrls, pageIdByUrl, streamer } = pageSources
   const {
     state,
     baseline,
@@ -30,7 +30,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     ensureTarget,
     check,
     setPose,
-  } = host;
+  } = host
   const { metricsScratch, profiler, fillMetrics } = createExplorerMetrics(
     metadata,
     options,
@@ -45,14 +45,14 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
       renderSize: compose.renderSize(),
       gpu: drawBackend.gpu,
     }),
-  );
+  )
   const streaming = createExplorerStreaming(session, {
     streamer,
     geometryUrls,
     backends,
     state,
     budget: frameBudget,
-  });
+  })
   const drawBackend = createExplorerDraw(session, {
     camera,
     geometryUrls,
@@ -63,7 +63,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     baseline,
     state,
     compose,
-  });
+  })
   const followCells = createPartitionFrame({
     partitions,
     streamer,
@@ -72,7 +72,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     opened: context,
     renew: options.onPartitionOutgrown,
     budget: frameBudget,
-  });
+  })
   const render = createExplorerRender(session, {
     check,
     followCells,
@@ -96,6 +96,6 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     pageIdByUrl,
     streamer,
     compose,
-  });
-  return { render, profiler, streaming, followCells };
+  })
+  return { render, profiler, streaming, followCells }
 }

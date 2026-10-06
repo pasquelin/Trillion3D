@@ -1,15 +1,15 @@
-import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
-import { PROBE_AT_WGSL } from './atlas.ts';
+import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
+import { PROBE_AT_WGSL } from './atlas.ts'
 import {
   irradianceShader,
   filteredRadianceShader,
-} from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
+} from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 
 /**
  * The Lambert constant, 1/π, that both bounce passes apply to probe irradiance: the
  * surface cache and the per-pixel application divide by the same f32 literal.
  */
-export const INVERSE_PI_WGSL = `const INVERSE_PI:f32=0.31830989;`;
+export const INVERSE_PI_WGSL = `const INVERSE_PI:f32=0.31830989;`
 
 /**
  * Probe cascades, as both the update pass and deferred resolve read them. One declaration:
@@ -96,7 +96,7 @@ fn probeDistance(probe:vec3u,direction:vec3f)->f32{
  * nothing of it — and measured visibility, which closes leaks through walls. A probe that
  * does not carry the requested cell, was never updated, or is buried in a surface, weighs nothing.
  */
-`;
+`
 
 /** The eight-corner walk of one level, written once: its weights and visibility are the same
  *  whatever it gathers, so the single sum and the two sums run the very same operations on them. */
@@ -143,7 +143,7 @@ ${add}
   total+=weight;
  }
  return ${result};
-}`;
+}`
 
 /** One level's diffuse irradiance and filtered radiance, \`field\` and \`specular\` both over the
  *  same \`field.w\` weight, each summed in the order its own walk of \`sampleLevelField\` sums it. */
@@ -154,7 +154,7 @@ ${levelWalk(
   'var sum=vec3f(0.0);var specularSum=vec3f(0.0);',
   '  sum+=shIrradiance(probe,N)*weight;\n  specularSum+=shFilteredRadiance(probe,R,bands)*weight;',
   'LevelFields(vec4f(sum,total),specularSum)',
-)}`;
+)}`
 
 /** The cascades' fields at a point, as the deferred resolve reads them: \`sampleProbeFields\` walks
  *  the corners once for the diffuse irradiance at \`N\` and the filtered radiance along \`R\`, the
@@ -170,7 +170,7 @@ fn sampleProbeFields(P:vec3f,N:vec3f,R:vec3f,bands:vec3f)->ProbeFields{
   if(gathered.field.w>1e-5){return ProbeFields(gathered.field.xyz/gathered.field.w,gathered.specular/gathered.field.w);}
  }
  return ProbeFields(vec3f(0.0),vec3f(0.0));
-}`;
+}`
 
 export const BOUNCE_GRID_WGSL = `${BOUNCE_GRID_HEAD_WGSL}${levelWalk(
   'sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec4f',
@@ -194,4 +194,4 @@ fn sampleProbeField(P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec3f{
 }
 fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
  return sampleProbeField(P,N,N,vec3f(0.0),false);
-}`;
+}`

@@ -10,62 +10,62 @@
  * compiles with it.
  * Nothing is timed for it: without the flag it reads nothing and writes nothing.
  */
-import { addressFlag } from '../../../host/addressFlag.ts';
-import type { GpuTimingSample } from '../../../gpu/timing/types.ts';
-import { vsmProjectionCanUseSubgroups } from '../../../vsm/projectionPass.ts';
-import { VSM_PROJECTION_GROUP_SIZE } from '../../../vsm/projectionWgsl.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { passOwnMs } from '../../../stage/mapping.ts';
+import { addressFlag } from '../../../host/addressFlag.ts'
+import type { GpuTimingSample } from '../../../gpu/timing/types.ts'
+import { vsmProjectionCanUseSubgroups } from '../../../vsm/projectionPass.ts'
+import { VSM_PROJECTION_GROUP_SIZE } from '../../../vsm/projectionWgsl.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { passOwnMs } from '../../../stage/mapping.ts'
 
-const EVERY_FRAMES = 60;
-const asked = addressFlag((params) => params.get('trillion3dGpuLog') === '1');
-const ms = (value: number | null | undefined) => (value == null ? '-' : value.toFixed(2));
+const EVERY_FRAMES = 60
+const asked = addressFlag((params) => params.get('trillion3dGpuLog') === '1')
+const ms = (value: number | null | undefined) => (value == null ? '-' : value.toFixed(2))
 
 /** The device's line, written once: its subgroups and the projection's vote. */
 function deviceLine(device: GPUDevice) {
   const info = (device as { adapterInfo?: { subgroupMinSize?: number; subgroupMaxSize?: number } })
-    .adapterInfo;
-  const subgroups = vsmProjectionCanUseSubgroups(device);
+    .adapterInfo
+  const subgroups = vsmProjectionCanUseSubgroups(device)
   const vote = subgroups
     ? 'subgroup (workgroup counters where a half spans subgroups)'
-    : 'workgroup counters';
+    : 'workgroup counters'
   return (
     `[T3D-GPU] subgroups ${subgroups ? 'yes' : 'no'}` +
     ` (sizes ${info?.subgroupMinSize ?? '?'}-${info?.subgroupMaxSize ?? '?'}), projection vote: ${vote}`
-  );
+  )
 }
 
 /** What the timing sample of `device` hands the log (`prepareGpuTiming`). */
 export function createGpuLog(device: GPUDevice) {
-  let next = -1;
+  let next = -1
   // The images since the last line: the corner's CPU time (`FrameMetrics.cpuFrameMs`, fed by
   // `frameCpuMs`) and the display's interval (`rafIntervalMs`), summed and maxed.
   let images = 0,
     cpuSum = 0,
     rafImages = 0,
     rafSum = 0,
-    rafMax = 0;
+    rafMax = 0
   const log = (rt: WebgpuPagesRuntime, sample: GpuTimingSample) => {
-    if (!asked() || sample.frame < next) return;
-    if (next < 0) console.log(deviceLine(device));
-    next = sample.frame + EVERY_FRAMES;
+    if (!asked() || sample.frame < next) return
+    if (next < 0) console.log(deviceLine(device))
+    next = sample.frame + EVERY_FRAMES
     // Each pass's own share, its instances summed; '-' where one went untimed.
-    const own = new Map<string, number | null>();
+    const own = new Map<string, number | null>()
     for (const pass of sample.passes) {
       const value = passOwnMs(pass),
-        sum = own.get(pass.name);
-      own.set(pass.name, value == null || sum === null ? null : (sum ?? 0) + value);
+        sum = own.get(pass.name)
+      own.set(pass.name, value == null || sum === null ? null : (sum ?? 0) + value)
     }
     // The projection's groups over the size drawn now (`encodeVsmFrame`), the timed image's scale
     // beside it: a sample describes an image a few frames past.
     const cpu = images ? ` cpu ${ms(cpuSum / images)} ms` : '',
-      raf = rafImages ? ` raf ${ms(rafSum / rafImages)}/${ms(rafMax)} ms` : '';
-    images = cpuSum = rafImages = rafSum = rafMax = 0;
+      raf = rafImages ? ` raf ${ms(rafSum / rafImages)}/${ms(rafMax)} ms` : ''
+    images = cpuSum = rafImages = rafSum = rafMax = 0
     const [width, height] = rt.gpu.targetSize,
       [displayWidth, displayHeight] = rt.gpu.displaySize,
       side = VSM_PROJECTION_GROUP_SIZE,
       x = Math.ceil(width / side),
-      y = Math.ceil(height / side);
+      y = Math.ceil(height / side)
     console.log(
       `[T3D-GPU] frame ${sample.frame} gpu ${ms(sample.submittedMs)} ms` +
         cpu +
@@ -82,18 +82,18 @@ export function createGpuLog(device: GPUDevice) {
         (sample.truncated ? ' (truncated)' : '') +
         ' |' +
         [...own].map(([name, value]) => ` ${name} ${ms(value)}`).join(''),
-    );
-  };
+    )
+  }
   /** One drawn image: its CPU time and the display's interval, `null` when not yet measured. */
   const frame = (cpuMs: number, rafMs: number | null) => {
-    if (!asked()) return;
-    images++;
-    cpuSum += cpuMs;
+    if (!asked()) return
+    images++
+    cpuSum += cpuMs
     if (rafMs !== null) {
-      rafImages++;
-      rafSum += rafMs;
-      if (rafMs > rafMax) rafMax = rafMs;
+      rafImages++
+      rafSum += rafMs
+      if (rafMs > rafMax) rafMax = rafMs
     }
-  };
-  return Object.assign(log, { frame });
+  }
+  return Object.assign(log, { frame })
 }

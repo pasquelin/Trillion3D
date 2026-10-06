@@ -1,15 +1,15 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { metricsOf, vertexBytesOf } from './metrics.ts';
-import { createWebgpuRunState } from '../state/run.ts';
-import { createWebgpuVisState } from '../state/vis.ts';
-import { createWebgpuBlendState } from '../../blend/state.ts';
-import { createWebgpuLightState } from '../state/lights.ts';
-import { createWebgpuTimingState } from '../state/timing.ts';
-import { createScaleControl } from '../../../frame/scaleControl.ts';
-import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/byte-metrics.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { WebgpuGpuState } from '../state/gpu.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { metricsOf, vertexBytesOf } from './metrics.ts'
+import { createWebgpuRunState } from '../state/run.ts'
+import { createWebgpuVisState } from '../state/vis.ts'
+import { createWebgpuBlendState } from '../../blend/state.ts'
+import { createWebgpuLightState } from '../state/lights.ts'
+import { createWebgpuTimingState } from '../state/timing.ts'
+import { createScaleControl } from '../../../frame/scaleControl.ts'
+import { referenceVertexBytes } from '../../../../../../bench/oracles/browser/byte-metrics.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { WebgpuGpuState } from '../state/gpu.ts'
 
 /** The smallest runtime `metricsOf` reads: fresh states around `run` and `gpu`, nothing
  *  streamed yet. */
@@ -28,36 +28,36 @@ function runtimeOver(
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
     lights: createWebgpuLightState(),
     scale: createScaleControl(undefined),
-  } as unknown as WebgpuPagesRuntime;
+  } as unknown as WebgpuPagesRuntime
 }
 
 // Synchronous-triangles lot: `drawnTriangles` is copied as-is from `run.drawnTriangles`, without
 // the `pending` guard (`gpuFrameActive && !gpuMetricsReady`) that hides `submittedTriangles` — it
 // never waited for a GPU readback, so never `null` for lack of time where a cut exists.
 test('metricsOf publishes drawnTriangles from run.drawnTriangles, even when submittedTriangles is still pending', () => {
-  const run = createWebgpuRunState();
-  run.gpuFrameActive = true;
-  run.gpuMetricsReady = false; // An image still in flight: submittedTriangles must be null.
-  run.drawnTriangles = 4321;
-  const rt = runtimeOver(run);
+  const run = createWebgpuRunState()
+  run.gpuFrameActive = true
+  run.gpuMetricsReady = false // An image still in flight: submittedTriangles must be null.
+  run.drawnTriangles = 4321
+  const rt = runtimeOver(run)
 
-  const metrics = metricsOf(rt);
-  assert.equal(metrics.drawnTriangles, 4321);
-  assert.equal(metrics.submittedTriangles, null, 'witness: the pending guard does hide this one');
-});
+  const metrics = metricsOf(rt)
+  assert.equal(metrics.drawnTriangles, 4321)
+  assert.equal(metrics.submittedTriangles, null, 'witness: the pending guard does hide this one')
+})
 
 test("texture metrics are the streamer's, and `null` until it is built", () => {
-  const rt = runtimeOver(createWebgpuRunState());
-  const before = metricsOf(rt) as Record<string, unknown>;
-  assert.equal('texturePoolBytes' in before, false, 'no pool: nothing is published, not even zero');
+  const rt = runtimeOver(createWebgpuRunState())
+  const before = metricsOf(rt) as Record<string, unknown>
+  assert.equal('texturePoolBytes' in before, false, 'no pool: nothing is published, not even zero')
   rt.vis.textures = {
     metrics: () => ({ texturePoolBytes: 512, textureTilesResident: 3, textureLevelReads: null }),
-  } as unknown as typeof rt.vis.textures;
-  const metrics = metricsOf(rt);
-  assert.equal(metrics.texturePoolBytes, 512);
-  assert.equal(metrics.textureTilesResident, 3);
-  assert.equal(metrics.textureLevelReads, null, 'without a level reader: unmeasured, never zero');
-});
+  } as unknown as typeof rt.vis.textures
+  const metrics = metricsOf(rt)
+  assert.equal(metrics.texturePoolBytes, 512)
+  assert.equal(metrics.textureTilesResident, 3)
+  assert.equal(metrics.textureLevelReads, null, 'without a level reader: unmeasured, never zero')
+})
 
 // G4: `vertexBytesOf` reads a total held at allocation (`gpu.vertexBytes`, incremented by
 // `ensureWebgpuPositionBuffer` and `prepareWebgpuBlend`) instead of resuming, every sample, every
@@ -65,7 +65,7 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
 // G, copied as-is into `../../../../../../bench/oracles/browser/byte-metrics.ts`.
 {
   function buffer(size: number) {
-    return { size } as unknown as GPUBuffer;
+    return { size } as unknown as GPUBuffer
   }
 
   function scenario(
@@ -73,43 +73,43 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
     concat: (number | undefined)[],
     blend: (readonly [number | undefined, number | undefined, number | undefined])[],
   ) {
-    const positionBuffers = new Map(positions.map((size, i) => [i, buffer(size)]));
-    let tally = positions.reduce((a, b) => a + b, 0);
+    const positionBuffers = new Map(positions.map((size, i) => [i, buffer(size)]))
+    let tally = positions.reduce((a, b) => a + b, 0)
     const vis = {
       concatPos: concat[0] === undefined ? undefined : buffer(concat[0]),
       concatUv: concat[1] === undefined ? undefined : buffer(concat[1]),
       // The float pool's normals ride in its atlas (#1410): its bytes.
       vertexPool: concat[2] === undefined ? undefined : { normalBytes: concat[2] },
-    } as unknown as Parameters<typeof vertexBytesOf>[1];
+    } as unknown as Parameters<typeof vertexBytesOf>[1]
     const blendGpu = blend.map(([index, uv, normal]) => ({
       index: index === undefined ? undefined : buffer(index),
       uv: uv === undefined ? undefined : buffer(uv),
       normal: normal === undefined ? undefined : { bytes: normal },
-    }));
-    for (const [index, uv, normal] of blend) tally += (index ?? 0) + (uv ?? 0) + (normal ?? 0);
+    }))
+    for (const [index, uv, normal] of blend) tally += (index ?? 0) + (uv ?? 0) + (normal ?? 0)
     const gpu = { positionBuffers, vertexBytes: tally } as unknown as Pick<
       WebgpuGpuState,
       'positionBuffers' | 'vertexBytes'
-    >;
-    const blendState = { blendGpu } as unknown as Parameters<typeof referenceVertexBytes>[2];
+    >
+    const blendState = { blendGpu } as unknown as Parameters<typeof referenceVertexBytes>[2]
     assert.equal(
       vertexBytesOf(gpu, vis),
       referenceVertexBytes(gpu, vis, blendState),
       JSON.stringify({ positions, concat, blend }),
-    );
+    )
   }
 
   test('no resident buffer, no transparent mesh: both are zero', () => {
-    scenario([], [undefined, undefined, undefined], []);
-  });
+    scenario([], [undefined, undefined, undefined], [])
+  })
 
   test('resident position buffers alone, mixed sizes including zero', () => {
-    scenario([0, 4096, 12], [undefined, undefined, undefined], []);
-  });
+    scenario([0, 4096, 12], [undefined, undefined, undefined], [])
+  })
 
   test('the three concatenated visbuffer buffers present or partly missing', () => {
-    scenario([1024], [2048, undefined, 512], []);
-  });
+    scenario([1024], [2048, undefined, 512], [])
+  })
 
   test('transparent meshes with one missing channel each', () => {
     scenario(
@@ -120,8 +120,8 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
         [undefined, 128, undefined],
         [16, 16, 16],
       ],
-    );
-  });
+    )
+  })
 
   test('a complete sample with resident buffers, visbuffer and transparent meshes together', () => {
     scenario(
@@ -131,50 +131,50 @@ test("texture metrics are the streamer's, and `null` until it is built", () => {
         [64, 64, 64],
         [0, 0, 0],
       ],
-    );
-  });
+    )
+  })
 
   test('sizes near Number.MAX_SAFE_INTEGER do not diverge between the two sums', () => {
-    const big = Number.MAX_SAFE_INTEGER / 8;
-    scenario([big, big], [big, undefined, undefined], [[big, undefined, undefined]]);
-  });
+    const big = Number.MAX_SAFE_INTEGER / 8
+    scenario([big, big], [big, undefined, undefined], [[big, undefined, undefined]])
+  })
 }
 
 test('`lightsSampled` is true only on a moving accumulated frame whose resolve ran sampled', () => {
-  const temporal = { frame: { active: true, sampledRank: 3 } };
-  const rt = runtimeOver(createWebgpuRunState(), { positionBuffers: new Map(), temporal });
-  assert.equal(metricsOf(rt).lightsSampled, false, 'no light lit: nothing was drawn');
-  rt.lights.lightsActive = 2;
-  assert.equal(metricsOf(rt).lightsSampled, true);
-  temporal.frame.sampledRank = 0;
-  assert.equal(metricsOf(rt).lightsSampled, false, 'a still frame shades every light');
-});
+  const temporal = { frame: { active: true, sampledRank: 3 } }
+  const rt = runtimeOver(createWebgpuRunState(), { positionBuffers: new Map(), temporal })
+  assert.equal(metricsOf(rt).lightsSampled, false, 'no light lit: nothing was drawn')
+  rt.lights.lightsActive = 2
+  assert.equal(metricsOf(rt).lightsSampled, true)
+  temporal.frame.sampledRank = 0
+  assert.equal(metricsOf(rt).lightsSampled, false, 'a still frame shades every light')
+})
 
 // #349: the effect chain's targets count in the frame target bytes, like the frame's own.
 test('the targets of the effect chain count in gpuFrameTargetBytes', () => {
-  const gpu = { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } };
-  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), gpu)).gpuFrameTargetBytes, 1024);
-  const bare = { positionBuffers: new Map(), targetBytes: 1000 };
-  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), bare)).gpuFrameTargetBytes, 1000);
-});
+  const gpu = { positionBuffers: new Map(), targetBytes: 1000, effects: { bytes: 24 } }
+  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), gpu)).gpuFrameTargetBytes, 1024)
+  const bare = { positionBuffers: new Map(), targetBytes: 1000 }
+  assert.equal(metricsOf(runtimeOver(createWebgpuRunState(), bare)).gpuFrameTargetBytes, 1000)
+})
 
 test('the display cadence and the GPU idle are published as the scale clock and the timer hold them', () => {
-  const rt = runtimeOver(createWebgpuRunState());
-  const before = metricsOf(rt);
-  assert.equal(before.rafIntervalMs, null, 'no frame interval before two frames');
-  assert.equal(before.displayRefreshMs, null, 'no refresh before the clock finds one');
-  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120);
+  const rt = runtimeOver(createWebgpuRunState())
+  const before = metricsOf(rt)
+  assert.equal(before.rafIntervalMs, null, 'no frame interval before two frames')
+  assert.equal(before.displayRefreshMs, null, 'no refresh before the clock finds one')
+  for (let frame = 0; frame < 4; frame++) rt.scale.tick((frame * 1000) / 120)
   // A frame that missed a refresh: two of them, read on the same grid.
-  rt.scale.tick((5 * 1000) / 120);
-  rt.timing.lastGpuIdleMs = 1.25;
-  const metrics = metricsOf(rt);
-  assert.ok(Math.abs(metrics.rafIntervalMs! - 2000 / 120) < 1e-9);
-  assert.ok(Math.abs(metrics.displayRefreshMs! - 1000 / 120) < 1e-9);
-  assert.equal(metrics.gpuIdleMs, 1.25);
-});
+  rt.scale.tick((5 * 1000) / 120)
+  rt.timing.lastGpuIdleMs = 1.25
+  const metrics = metricsOf(rt)
+  assert.ok(Math.abs(metrics.rafIntervalMs! - 2000 / 120) < 1e-9)
+  assert.ok(Math.abs(metrics.displayRefreshMs! - 1000 / 120) < 1e-9)
+  assert.equal(metrics.gpuIdleMs, 1.25)
+})
 
 test('the size the image was drawn at is the one every pass up to the resolve drew at', () => {
-  const gpu = { positionBuffers: new Map(), targetSize: [1728, 1112] };
-  const metrics = metricsOf(runtimeOver(createWebgpuRunState(), gpu));
-  assert.deepEqual([metrics.renderWidth, metrics.renderHeight], [1728, 1112]);
-});
+  const gpu = { positionBuffers: new Map(), targetSize: [1728, 1112] }
+  const metrics = metricsOf(runtimeOver(createWebgpuRunState(), gpu))
+  assert.deepEqual([metrics.renderWidth, metrics.renderHeight], [1728, 1112])
+})

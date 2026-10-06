@@ -7,4 +7,4 @@
  * a task (Dawn's Node binding delivers them as a browser does), and the engine's asynchronous work
  * lands meanwhile — and the document timeline the engine reads its frame time from is the frame's.
  */
-export const animationFrame = () => new Promise<number>((done) => requestAnimationFrame(done));
+export const animationFrame = () => new Promise<number>((done) => requestAnimationFrame(done))

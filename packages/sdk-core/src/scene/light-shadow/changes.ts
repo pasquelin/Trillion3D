@@ -1,13 +1,13 @@
-import { boxEmpty, boxIsEmpty, boxUnion } from '../../math/primitives/box.ts';
-import { keepNumbers } from '../../math/primitives/vector.ts';
-import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts';
+import { boxEmpty, boxIsEmpty, boxUnion } from '../../math/primitives/box.ts'
+import { keepNumbers } from '../../math/primitives/vector.ts'
+import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts'
 
 /** The tested point, allocated once: `touches` is called per light and per box, every frame. */
-const point = new Float64Array(3);
+const point = new Float64Array(3)
 /** The read box, allocated once: the scheduler projects it view by view without creating anything. */
 const readMin = new Float64Array(3),
   readMax = new Float64Array(3),
-  readBox = { min: readMin, max: readMax, moving: false, detail: false };
+  readBox = { min: readMin, max: readMax, moving: false, detail: false }
 
 /**
  * What has moved in the world since the last frame, as world boxes. Each is kept **apart**: a
@@ -44,7 +44,7 @@ const readMin = new Float64Array(3),
 /** Boxes the list holds apart at least: each is projected in every light view it may reach at the
  *  next plan, so the count bounds that work. Declared: a few hundred moving clusters a frame, and
  *  room to spare. */
-export const SHADOW_CHANGE_BOXES = 4096;
+export const SHADOW_CHANGE_BOXES = 4096
 
 export function createShadowChanges(capacity: number) {
   const min = new Float64Array(capacity * 3),
@@ -53,24 +53,24 @@ export function createShadowChanges(capacity: number) {
     moving = new Uint8Array(capacity),
     /** The box holds only the released union of representation changes: the pages under it are
      *  coarser than the cut, not wrong, and stay read until redrawn. */
-    detail = new Uint8Array(capacity);
+    detail = new Uint8Array(capacity)
   /** The unions of representation changes held until the camera rests — whatever it touches,
    *  then objects already moving alone —: empty when none waits. */
   const held = [false, true].map((movingOnly) => {
-    const box = new Float64Array(6);
-    boxEmpty(box, 0);
-    return { box, min: box.subarray(0, 3), max: box.subarray(3, 6), movingOnly };
-  });
+    const box = new Float64Array(6)
+    boxEmpty(box, 0)
+    return { box, min: box.subarray(0, 3), max: box.subarray(3, 6), movingOnly }
+  })
   /** The view of the last frame and this frame's, to compare them: this frame's in float32, the
    *  precision a move must cross to count (`observeView`). */
   const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
-    viewNow = new Float32Array(VIEW_NUMBERS);
+    viewNow = new Float32Array(VIEW_NUMBERS)
   const write = (base: number, lo: ArrayLike<number>, hi: ArrayLike<number>, merge: boolean) => {
     for (let axis = 0; axis < 3; axis++) {
-      min[base + axis] = merge ? Math.min(min[base + axis], lo[axis]) : lo[axis];
-      max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis];
+      min[base + axis] = merge ? Math.min(min[base + axis], lo[axis]) : lo[axis]
+      max[base + axis] = merge ? Math.max(max[base + axis], hi[axis]) : hi[axis]
     }
-  };
+  }
   /** Box `count` takes the change; past the budget the last box absorbs it (the overflow). */
   const add = (
     lo: ArrayLike<number>,
@@ -79,21 +79,21 @@ export function createShadowChanges(capacity: number) {
     detailOnly: boolean,
   ) => {
     const merge = changes.count === capacity,
-      box = merge ? capacity - 1 : changes.count++;
-    write(box * 3, lo, hi, merge);
-    moving[box] = movingOnly && (!merge || moving[box]) ? 1 : 0;
-    detail[box] = detailOnly && (!merge || detail[box]) ? 1 : 0;
-  };
+      box = merge ? capacity - 1 : changes.count++
+    write(box * 3, lo, hi, merge)
+    moving[box] = movingOnly && (!merge || moving[box]) ? 1 : 0
+    detail[box] = detailOnly && (!merge || detail[box]) ? 1 : 0
+  }
   const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
-    add(lo, hi, movingOnly, false);
+    add(lo, hi, movingOnly, false)
   /** Each held union enters the list as one box, when one waits. */
   const release = () => {
     for (const { box, min: lo, max: hi, movingOnly } of held) {
-      if (boxIsEmpty(box, 0)) continue;
-      add(lo, hi, movingOnly, true);
-      boxEmpty(box, 0);
+      if (boxIsEmpty(box, 0)) continue
+      add(lo, hi, movingOnly, true)
+      boxEmpty(box, 0)
     }
-  };
+  }
   const changes = {
     /** Boxes in the list. */
     count: 0,
@@ -109,19 +109,19 @@ export function createShadowChanges(capacity: number) {
     /** The same world at another precision: its box joins the union held until the camera rests;
      *  `movingOnly`, the one of objects already moving, whose static casters did not change. */
     representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
-      boxUnion(held[+movingOnly].box, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+      boxUnion(held[+movingOnly].box, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2])
     },
     /** A caster's residency changed: its box enters the list at once, stale for detail alone,
      *  merged into the last one when that is a change of detail of the same kind it overlaps — the
      *  clusters a stream brings in together —, never joined to a far one (#831). */
     residencyChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
       const last = changes.count - 1,
-        base = last * 3;
-      let overlaps = last >= 0 && detail[last] === 1 && moving[last] === +movingOnly;
+        base = last * 3
+      let overlaps = last >= 0 && detail[last] === 1 && moving[last] === +movingOnly
       for (let axis = 0; overlaps && axis < 3; axis++)
-        overlaps = min[base + axis] <= hi[axis] && lo[axis] <= max[base + axis];
-      if (overlaps) write(base, lo, hi, true);
-      else add(lo, hi, movingOnly, true);
+        overlaps = min[base + axis] <= hi[axis] && lo[axis] <= max[base + axis]
+      if (overlaps) write(base, lo, hi, true)
+      else add(lo, hi, movingOnly, true)
     },
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
@@ -132,9 +132,9 @@ export function createShadowChanges(capacity: number) {
      * nothing new, and the camera that crawls past a float32 step moves again (#831).
      */
     observeView(view: ShadowViewpoint) {
-      const still = keepNumbers(lastView, writeView(view, viewNow));
-      if (still) release();
-      return still;
+      const still = keepNumbers(lastView, writeView(view, viewNow))
+      if (still) release()
+      return still
     },
     /**
      * Influence sphere of a light against box `box`: an analytic test, not a ray. A
@@ -142,38 +142,38 @@ export function createShadowChanges(capacity: number) {
      * so does a box that bounds nothing finite (`NaN`): nothing proves it out of reach.
      */
     touches(box: number, x: number, y: number, z: number, range: number) {
-      const base = box * 3;
-      if (!(range > 0)) return true;
-      let squared = 0;
-      point[0] = x;
-      point[1] = y;
-      point[2] = z;
+      const base = box * 3
+      if (!(range > 0)) return true
+      let squared = 0
+      point[0] = x
+      point[1] = y
+      point[2] = z
       for (let axis = 0; axis < 3; axis++) {
-        const gap = Math.max(min[base + axis] - point[axis], point[axis] - max[base + axis], 0);
-        squared += gap * gap;
+        const gap = Math.max(min[base + axis] - point[axis], point[axis] - max[base + axis], 0)
+        squared += gap * gap
       }
-      return !(squared > range * range);
+      return !(squared > range * range)
     },
     /** Box `box` in two reused arrays — its minima, its maxima —, whether it moves alone, and
      *  whether it is a change of detail alone. */
     read(box: number) {
-      const base = box * 3;
-      readBox.moving = moving[box] === 1;
-      readBox.detail = detail[box] === 1;
+      const base = box * 3
+      readBox.moving = moving[box] === 1
+      readBox.detail = detail[box] === 1
       for (let axis = 0; axis < 3; axis++) {
-        readMin[axis] = min[base + axis];
-        readMax[axis] = max[base + axis];
+        readMin[axis] = min[base + axis]
+        readMax[axis] = max[base + axis]
       }
-      return readBox;
+      return readBox
     },
     /** True when a box of the list is a world change: something moved this frame. */
     worldMoved() {
-      for (let box = 0; box < changes.count; box++) if (!detail[box]) return true;
-      return false;
+      for (let box = 0; box < changes.count; box++) if (!detail[box]) return true
+      return false
     },
     /** The boxes are consumed: the pages they stale now carry the state. */
     settled() {
-      changes.count = 0;
+      changes.count = 0
     },
     /**
      * No plan consumes the union this frame — no atlas, no light, unlit view — while the slices
@@ -182,10 +182,10 @@ export function createShadowChanges(capacity: number) {
     releaseDeferred: release,
     /** Nothing waits anymore, and the next view is a first one. */
     reset() {
-      changes.count = 0;
-      for (const { box } of held) boxEmpty(box, 0);
-      lastView.fill(NaN);
+      changes.count = 0
+      for (const { box } of held) boxEmpty(box, 0)
+      lastView.fill(NaN)
     },
-  };
-  return changes as Readonly<typeof changes>;
+  }
+  return changes as Readonly<typeof changes>
 }

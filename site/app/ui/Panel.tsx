@@ -1,8 +1,8 @@
-import { useId } from 'react';
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import { useId } from 'react'
+import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
 interface PanelProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'> {
-  title: ReactNode;
+  title: ReactNode
 }
 
 /**
@@ -10,7 +10,7 @@ interface PanelProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'> 
  * names it, scrolling on its own.
  */
 export function Panel({ title, children, className = '', ...props }: PanelProps) {
-  const titleId = useId();
+  const titleId = useId()
   return (
     <section
       aria-labelledby={titleId}
@@ -22,5 +22,5 @@ export function Panel({ title, children, className = '', ...props }: PanelProps)
       </h2>
       {children}
     </section>
-  );
+  )
 }

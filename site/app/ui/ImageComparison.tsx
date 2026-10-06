@@ -1,15 +1,15 @@
 interface ImageComparisonItem {
-  label: string;
-  src: string;
+  label: string
+  src: string
 }
 
 interface ImageComparisonProps {
-  left: ImageComparisonItem;
-  right: ImageComparisonItem;
-  label: string;
-  width?: number;
-  height?: number;
-  fitted?: boolean;
+  left: ImageComparisonItem
+  right: ImageComparisonItem
+  label: string
+  width?: number
+  height?: number
+  fitted?: boolean
 }
 
 /** DaisyUI owns the single draggable image divider. */
@@ -21,7 +21,7 @@ export function ImageComparison({
   height,
   fitted = false,
 }: ImageComparisonProps) {
-  const ratio = width && height ? width / height : 16 / 9;
+  const ratio = width && height ? width / height : 16 / 9
   return (
     <figure
       className="diff rounded-box w-full"
@@ -37,5 +37,5 @@ export function ImageComparison({
       </div>
       <div className="diff-resizer" />
     </figure>
-  );
+  )
 }

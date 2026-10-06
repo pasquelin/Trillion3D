@@ -1,4 +1,4 @@
-import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts';
+import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import {
   DEFORM_ADDRESS,
   DEFORM_IN_POOL,
@@ -7,16 +7,16 @@ import {
   FLAG_HAS_COLOR,
   FLAG_HAS_UV,
   FLAG_MASK,
-} from '../types.ts';
-import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts';
-import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts';
-import { SPRITE_WGSL } from './spriteWgsl.ts';
-import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts';
+} from '../types.ts'
+import { PAGE_UV_WGSL, PAGE_VERTEX_WGSL } from './pageWgsl.ts'
+import { LINE_CLIP_WGSL, LINE_DASH_WGSL } from './lineWgsl.ts'
+import { SPRITE_WGSL } from './spriteWgsl.ts'
+import { VERTEX_COLOR_WGSL } from '../../webgpu/core/vertexColors.ts'
 
-const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`;
+const QUANTIZED = `(page.flags&${FLAG_CLUSTER_PAGE}u)!=0u`
 /** The flags under which a vertex hands its UV on: a row that has one AND is masked, the only one
  *  whose `maskKeep` reads it (an unmasked row keeps every fragment before its first read). */
-export const UV_READ = FLAG_HAS_UV | FLAG_MASK;
+export const UV_READ = FLAG_HAS_UV | FLAG_MASK
 
 /**
  * The geometry of a cluster as every page-geometry pass reads it — visibility raster, compute
@@ -98,7 +98,7 @@ fn pageDeformed(page:PageInfo,vertex:u32,field:u32)->vec3f{
  let at=(page.deformOutput&${DEFORM_ADDRESS}u)-1u+vertex*11u+field;
  if((page.deformOutput&${DEFORM_IN_POOL}u)!=0u){return vec3f(positions[at],positions[at+1u],positions[at+2u]);}
  return vec3f(bitcast<f32>(indices[at]),bitcast<f32>(indices[at+1u]),bitcast<f32>(indices[at+2u]));
-}`;
+}`
 
 /** A page's texture coordinates, vertex colours and cutout alpha, read from \`uvs\`. */
 const PAGE_SURFACE_WGSL = `/** First texture coordinate of a page vertex. */
@@ -116,7 +116,7 @@ fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
 fn pageMaskAlpha(page:PageInfo,h:ClusterHeader,vertex:u32)->f32{
  if((page.flags&${FLAG_HAS_COLOR}u)!=0u){return pageColor(page,h,vertex).w;}
  return 1.0;
-}`;
+}`
 
 /** The page geometry every page-geometry pass reads (above). */
 export const PAGE_GEOMETRY_WGSL = `${PAGE_VERTEX_WGSL}
@@ -124,14 +124,14 @@ ${PAGE_UV_WGSL}
 ${LINE_DASH_WGSL}
 ${clusterDecodeWgsl('indices')}
 ${PAGE_POINT_WGSL}
-${PAGE_SURFACE_WGSL}`;
+${PAGE_SURFACE_WGSL}`
 
 /** The page geometry without its surface attributes: corners, positions and the deformed tail,
  *  which read \`indices\` and \`positions\` alone — what the shadow receiver offset decodes with
  *  (\`receiverOffsetWgsl.ts\`), so its passes bind no \`uvs\`. */
 export const PAGE_POINTS_WGSL = `${PAGE_VERTEX_WGSL}
 ${clusterDecodeWgsl('indices')}
-${PAGE_POINT_WGSL}`;
+${PAGE_POINT_WGSL}`
 
 /**
  * Vertex normal of a page, which the surface resolve and the transparent draw read: octahedral on the page,
@@ -142,7 +142,7 @@ export const PAGE_NORMAL_WGSL = `fn pageNormal(page:PageInfo,h:ClusterHeader,ver
  if(page.deformOutput!=0u){return pageDeformed(page,vertex,6u);}
  if(${QUANTIZED}){return clusterNormal(h,page.pageOffset,vertex);}
  return vertN(page.vertexBase,vertex);
-}`;
+}`
 
 /**
  * A page vertex on the camera's screen, which the camera rasters and the surface resolve add after
@@ -171,4 +171,4 @@ fn pageClip(vp:mat4x4f,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
  let clip=vp*vec4f(pagePosition(page,h,vertex),1.0);
  if(page.lineWidth>0.0){return pageLine(page,h,vertex,vp,clip);}
  return clip;
-}`;
+}`

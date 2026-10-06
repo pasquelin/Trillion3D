@@ -1,16 +1,16 @@
-import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts';
-import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts';
-import { interactiveOptions } from './interactiveOptions.ts';
-import { startInteractiveExplorer } from './interactive.ts';
-import { releaseOwned } from './lifecycle.ts';
-import { loadExplorerManifest } from './manifest.ts';
-import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts';
-import { createExplorerSession, type ExplorerSession } from './session.ts';
-import { prepareExplorer, type ExplorerResources, type ExplorerSource } from './prepare.ts';
-import { createExplorerHostRuntime } from '../render/hostRuntime.ts';
-import { createExplorerApi } from '../api/api.ts';
-import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts';
-import { referenceTilesCapture } from '../../frame/referenceTiles.ts';
+import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { resolveExplorerTarget, type MeasuredWorldTarget } from './target.ts'
+import { interactiveOptions } from './interactiveOptions.ts'
+import { startInteractiveExplorer } from './interactive.ts'
+import { releaseOwned } from './lifecycle.ts'
+import { loadExplorerManifest } from './manifest.ts'
+import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts'
+import { createExplorerSession, type ExplorerSession } from './session.ts'
+import { prepareExplorer, type ExplorerResources, type ExplorerSource } from './prepare.ts'
+import { createExplorerHostRuntime } from '../render/hostRuntime.ts'
+import { createExplorerApi } from '../api/api.ts'
+import { referenceCapture, referenceOptions } from '../../frame/referenceMode.ts'
+import { referenceTilesCapture } from '../../frame/referenceTiles.ts'
 
 /** Opens a session on `target`. `source` hands in a scene the caller already holds — manifest and
  *  graph — in place of the one `manifestUrl` names: what a world built in code is drawn from. */
@@ -19,18 +19,18 @@ export async function openMeasuredWorld(
   original: MeasuredWorldOptions,
   source?: ExplorerSource,
 ) {
-  const canvas = resolveExplorerTarget(target);
-  const { options, reference } = referenceOptions(interactiveOptions(canvas, original));
-  options.signal?.throwIfAborted();
-  const lifetime = explorerSwitch(options, 'interactive') ? new AbortController() : undefined;
+  const canvas = resolveExplorerTarget(target)
+  const { options, reference } = referenceOptions(interactiveOptions(canvas, original))
+  options.signal?.throwIfAborted()
+  const lifetime = explorerSwitch(options, 'interactive') ? new AbortController() : undefined
   if (lifetime)
     options.signal = options.signal
       ? AbortSignal.any([options.signal, lifetime.signal])
-      : lifetime.signal;
-  const manifestUrl = source?.manifestUrl ?? options.manifestUrl;
+      : lifetime.signal
+  const manifestUrl = source?.manifestUrl ?? options.manifestUrl
   const { diagnosticChannel, emit, diagnose, preparationStart, signal, scope, progress, opening } =
-    createExplorerSession(options, manifestUrl);
-  progress('manifest', 0, 1, 'Reading the cache');
+    createExplorerSession(options, manifestUrl)
+  progress('manifest', 0, 1, 'Reading the cache')
   const {
     metadata,
     metadataUrl,
@@ -39,12 +39,12 @@ export async function openMeasuredWorld(
     ? { ...source, loadedBase: source.base }
     : await loadExplorerManifest(manifestUrl, scope, signal, diagnose, diagnosticChannel).catch(
         (error: unknown) => {
-          opening.done();
-          throw error;
+          opening.done()
+          throw error
         },
-      );
-  const resources: ExplorerResources = {};
-  const backends: RenderBackend[] = [];
+      )
+  const resources: ExplorerResources = {}
+  const backends: RenderBackend[] = []
   const session: ExplorerSession = {
     canvas,
     options,
@@ -56,8 +56,8 @@ export async function openMeasuredWorld(
     diagnose,
     // A scene handed in is the caller's, and so is the canvas context it is drawn on.
     callerOwned: source !== undefined,
-  };
-  let disposeRuntime: (() => void) | undefined;
+  }
+  let disposeRuntime: (() => void) | undefined
   try {
     const prepared = await prepareExplorer(session, {
       manifestUrl,
@@ -68,66 +68,66 @@ export async function openMeasuredWorld(
       progress,
       scene: source?.scene,
       placeCamera: source?.placeCamera,
-    });
-    const runtime = createExplorerHostRuntime(session, { prepared, resources, backends });
-    disposeRuntime = runtime.dispose;
-    if (lifetime) runtime.hostedControls.push({ dispose: () => lifetime.abort() });
-    const { profiler } = runtime;
-    progress('ready', 1, 1, 'MeasuredWorld ready');
+    })
+    const runtime = createExplorerHostRuntime(session, { prepared, resources, backends })
+    disposeRuntime = runtime.dispose
+    if (lifetime) runtime.hostedControls.push({ dispose: () => lifetime.abort() })
+    const { profiler } = runtime
+    progress('ready', 1, 1, 'MeasuredWorld ready')
     if (typeof window !== 'undefined') {
-      (window as unknown as { __trillion3d: unknown }).__trillion3d = {
+      ;(window as unknown as { __trillion3d: unknown }).__trillion3d = {
         profiler,
         getReport: () => profiler.getReport(),
         printReport: () => profiler.printReport(),
         enableAutoLog: (sec = 2) => profiler.startAutoLog(sec),
         disableAutoLog: () => profiler.stopAutoLog(),
-      };
+      }
     }
     const explorer = createExplorerApi({
       ...runtime,
       capabilities: prepared.capabilities,
       preparationMs: performance.now() - preparationStart,
       moveNamed: source?.moveNamed,
-    });
+    })
     // A change asks the session's own loop for a frame; without one, the host draws (`render`)
     // and a change asks nothing.
     const invalidate = explorerSwitch(options, 'interactive')
       ? startInteractiveExplorer(explorer, runtime, original, { emit, diagnose })
-      : () => {};
+      : () => {}
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
-    const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias;
-    const capture = referenceCapture(explorer.capture, reference, shadowBias);
+    const shadowBias = () => runtime.state.active.metrics().shadowResolutionBias
+    const capture = referenceCapture(explorer.capture, reference, shadowBias)
     // The reference image itself: the camera's own renderer, captured tile by tile at a heavy
     // supersampling (`referenceTiles.ts`), box-filtered and assembled in linear light.
     const captureReference = reference
       ? referenceTilesCapture(
           (width, height) => explorer.captureView(width, height),
           (tile) => {
-            (explorer.camera as { viewTile?: unknown }).viewTile = tile;
+            ;(explorer.camera as { viewTile?: unknown }).viewTile = tile
           },
           reference.tiles,
           shadowBias,
         )
-      : null;
-    return Object.assign(explorer, { invalidate, capture, reference, captureReference });
+      : null
+    return Object.assign(explorer, { invalidate, capture, reference, captureReference })
   } catch (error) {
     diagnose('error', 'MeasuredWorld preparation failed', {
       kind: 'error',
       error: String(error),
       scope,
       manifestUrl,
-    });
+    })
     if (disposeRuntime) {
-      disposeRuntime();
-      throw error;
+      disposeRuntime()
+      throw error
     }
-    backends.forEach((b) => b.dispose());
-    releaseOwned(session, resources);
-    diagnosticChannel.flushSync();
-    diagnosticChannel.close();
-    throw error;
+    backends.forEach((b) => b.dispose())
+    releaseOwned(session, resources)
+    diagnosticChannel.flushSync()
+    diagnosticChannel.close()
+    throw error
   } finally {
-    opening.done();
+    opening.done()
   }
 }
-export type MeasuredWorld = Awaited<ReturnType<typeof openMeasuredWorld>>;
+export type MeasuredWorld = Awaited<ReturnType<typeof openMeasuredWorld>>

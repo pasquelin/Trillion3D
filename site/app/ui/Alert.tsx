@@ -1,7 +1,7 @@
-import type { ComponentPropsWithoutRef } from 'react';
+import type { ComponentPropsWithoutRef } from 'react'
 
 interface AlertProps extends ComponentPropsWithoutRef<'div'> {
-  tone?: 'info' | 'success' | 'warning' | 'error';
+  tone?: 'info' | 'success' | 'warning' | 'error'
 }
 
 const tones: Record<NonNullable<AlertProps['tone']>, string> = {
@@ -9,7 +9,7 @@ const tones: Record<NonNullable<AlertProps['tone']>, string> = {
   success: 'alert-success',
   warning: 'alert-warning',
   error: 'alert-error',
-};
+}
 
 /** The DaisyUI soft alert: a status or a warning set apart from the text. */
 export function Alert({ children, tone = 'info', className = '', ...props }: AlertProps) {
@@ -17,5 +17,5 @@ export function Alert({ children, tone = 'info', className = '', ...props }: Ale
     <div className={`alert alert-soft ${tones[tone]} ${className}`} {...props}>
       {children}
     </div>
-  );
+  )
 }

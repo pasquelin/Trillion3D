@@ -3,9 +3,9 @@ import {
   MATRIX_VALUES,
   boxTransform,
   boxUnionBatch,
-} from '../../../sdk-core/src/index.ts';
-import { createBoxTransformLot, type BoxTransformLot } from './batchRuntime.ts';
-import type { ClusterRoot, PageRec } from '../page/selection/types.ts';
+} from '../../../sdk-core/src/index.ts'
+import { createBoxTransformLot, type BoxTransformLot } from './batchRuntime.ts'
+import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
 /**
  * World boxes computed IN BATCHES: two utilities shared by sites uniting bounds
@@ -25,12 +25,12 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts';
 
 /** Batch when holding exactly `n` boxes, `null` otherwise: caller falls back box by box. */
 function lotBoxesReady(lot: BoxTransformLot | null | undefined, n: number) {
-  return lot?.holds(n) ? lot : null;
+  return lot?.holds(n) ? lot : null
 }
 
 /** Union into `into` of first `n` boxes produced by batch. */
 function unionLotBoxes(into: Float64Array, lot: BoxTransformLot, n: number) {
-  boxUnionBatch(into, lot.out, n);
+  boxUnionBatch(into, lot.out, n)
 }
 
 /**
@@ -47,50 +47,50 @@ export function boxUnionCollector(
   lot: BoxTransformLot | null | undefined,
   n: number,
 ) {
-  const enLot = lotBoxesReady(lot, n);
-  const seule = new Float64Array(BOX_VALUES);
-  let i = 0;
+  const enLot = lotBoxesReady(lot, n)
+  const seule = new Float64Array(BOX_VALUES)
+  let i = 0
   return {
     /** Buffer to write local box: batch buffer, or single pass-through box. */
     get boxes() {
-      return enLot ? enLot.boxes : seule;
+      return enLot ? enLot.boxes : seule
     },
     /** Index where to write in `boxes`. */
     get at() {
-      return enLot ? i * BOX_VALUES : 0;
+      return enLot ? i * BOX_VALUES : 0
     },
     /** Box just written paired with world matrix: in batch or single. */
     pose(world: ArrayLike<number>) {
       if (enLot) {
-        enLot.mats.set(world, i++ * MATRIX_VALUES);
-        return;
+        enLot.mats.set(world, i++ * MATRIX_VALUES)
+        return
       }
-      boxTransform(seule, 0, seule, 0, world);
-      boxUnionBatch(into, seule, 1);
+      boxTransform(seule, 0, seule, 0, world)
+      boxUnionBatch(into, seule, 1)
     },
     /** Runs batch if available, then returns union. */
     ferme() {
       if (enLot) {
-        enLot.run();
-        unionLotBoxes(into, enLot, i);
+        enLot.run()
+        unionLotBoxes(into, enLot, i)
       }
-      return into;
+      return into
     },
-  };
+  }
 }
 
 /** Local box and world matrix of root `i` written to batch. */
 function ecrit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
-  lot.boxes.set(root.localBox!, i * BOX_VALUES);
-  lot.mats.set(root.world.elements, i * MATRIX_VALUES);
+  lot.boxes.set(root.localBox!, i * BOX_VALUES)
+  lot.mats.set(root.world.elements, i * MATRIX_VALUES)
 }
 
 /** World box of root `i` re-read from batch. */
 function relit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
   const out = lot.out,
     box = root.worldBox!,
-    at = i * BOX_VALUES;
-  for (let k = 0; k < BOX_VALUES; k++) box[k] = out[at + k];
+    at = i * BOX_VALUES
+  for (let k = 0; k < BOX_VALUES; k++) box[k] = out[at + k]
 }
 
 /**
@@ -98,13 +98,13 @@ function relit(lot: BoxTransformLot, i: number, root: ClusterRoot<PageRec>) {
  * `null` when nothing to compute or root misses box declarations — caller remains on JS path.
  */
 export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
-  if (!roots.length || roots.some((root) => !root.localBox || !root.worldBox)) return null;
-  const lot = await createBoxTransformLot(roots.length);
-  if (!lotBoxesReady(lot, roots.length)) return null;
-  for (let i = 0; i < roots.length; i++) ecrit(lot, i, roots[i]);
-  lot.run();
-  for (let i = 0; i < roots.length; i++) relit(lot, i, roots[i]);
-  return lot;
+  if (!roots.length || roots.some((root) => !root.localBox || !root.worldBox)) return null
+  const lot = await createBoxTransformLot(roots.length)
+  if (!lotBoxesReady(lot, roots.length)) return null
+  for (let i = 0; i < roots.length; i++) ecrit(lot, i, roots[i])
+  lot.run()
+  for (let i = 0; i < roots.length; i++) relit(lot, i, roots[i])
+  return lot
 }
 
 /**
@@ -117,9 +117,9 @@ export function transformRootBoxes(
   moved: readonly number[],
   count: number,
 ) {
-  if (roots.length !== lot.n || !lot.holds(lot.n)) return false;
-  for (let k = 0; k < count; k++) ecrit(lot, moved[k], roots[moved[k]]);
-  lot.run();
-  for (let k = 0; k < count; k++) relit(lot, moved[k], roots[moved[k]]);
-  return true;
+  if (roots.length !== lot.n || !lot.holds(lot.n)) return false
+  for (let k = 0; k < count; k++) ecrit(lot, moved[k], roots[moved[k]])
+  lot.run()
+  for (let k = 0; k < count; k++) relit(lot, moved[k], roots[moved[k]])
+  return true
 }

@@ -1,4 +1,4 @@
-import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts';
+import { DEFAULT_GEOMETRY_POOL_BUDGET, geometryPoolFor } from './pools.ts'
 
 /**
  * The geometry pool a session starts with (`budgetBytes`, the default when the host names none),
@@ -14,9 +14,9 @@ export function sessionGeometryPool(
   grows = false,
 ) {
   const poolFor = (bytes: number, ceilingSlots?: number) =>
-    geometryPoolFor({ ...options, budgetBytes: bytes, ceilingSlots });
-  const pool = poolFor(budgetBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET);
-  const ceilingSlots = poolFor(Math.max(pool.budgetBytes, ceilingBytes ?? 0)).slots;
-  const bound = grows ? undefined : ceilingSlots;
-  return { pool, ceilingSlots, poolFor: (bytes: number) => poolFor(bytes, bound) };
+    geometryPoolFor({ ...options, budgetBytes: bytes, ceilingSlots })
+  const pool = poolFor(budgetBytes ?? DEFAULT_GEOMETRY_POOL_BUDGET)
+  const ceilingSlots = poolFor(Math.max(pool.budgetBytes, ceilingBytes ?? 0)).slots
+  const bound = grows ? undefined : ceilingSlots
+  return { pool, ceilingSlots, poolFor: (bytes: number) => poolFor(bytes, bound) }
 }

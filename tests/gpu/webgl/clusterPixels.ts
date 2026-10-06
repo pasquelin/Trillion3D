@@ -1,26 +1,26 @@
 // What the WebGL2 proofs share, in the page: a pixel read, a batch record as the owner
 // receives it, a posable record matrix, the clear, a hearer that refuses any surface WebGL2 leaves
 // out, the cluster renderer mounted on a 32 × 32 canvas, and a context with the engine's attributes.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
-import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts'
+import { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts'
 import {
   readDegraded,
   type MaterialDegraded,
   type ReadDegraded,
-} from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts';
-import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
+} from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts'
+import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts'
 import {
   createHostDrawCamera,
   readHostDrawCamera,
-} from '../../../packages/sdk-browser/src/camera/world.ts';
-import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/contextAttributes.ts';
+} from '../../../packages/sdk-browser/src/camera/world.ts'
+import { WEBGL_CONTEXT_ATTRIBUTES } from '../../../packages/sdk-browser/src/webgl/core/contextAttributes.ts'
 
 /** The RGBA bytes of one pixel of the bound framebuffer, bottom-left origin. */
 export function pixel(gl: WebGL2RenderingContext, x = 16, y = 16): number[] {
-  const value = new Uint8Array(4);
-  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value);
-  return [...value];
+  const value = new Uint8Array(4)
+  gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, value)
+  return [...value]
 }
 
 /** A batch record as the owner receives it: index ranges given in indices, held in bytes. */
@@ -30,8 +30,8 @@ export const clusterRecord = (
   starts: number[] = [0],
   counts: number[] = [6],
 ): ClusterDrawMesh => {
-  const index = geometry.index;
-  if (!index) throw new Error('clusterRecord requires an indexed geometry');
+  const index = geometry.index
+  if (!index) throw new Error('clusterRecord requires an indexed geometry')
   return {
     geometry: { index, attributes: geometry.attributes },
     material,
@@ -41,70 +41,70 @@ export const clusterRecord = (
     _multiDrawStarts: new Int32Array(starts.map((start) => start * 4)),
     _multiDrawCounts: new Int32Array(counts),
     _multiDrawCount: starts.length,
-  };
-};
+  }
+}
 
 /** A record's matrix, `elements` a `Float64Array` as the renderer reads it, kept in step with a
  *  private `G.Matrix4` so a proof still poses it with the usual helpers. */
 interface DrawMatrix {
-  elements: Float64Array<ArrayBuffer>;
-  makeTranslation(x: number, y: number, z: number): void;
-  makeScale(x: number, y: number, z: number): void;
-  identity(): void;
+  elements: Float64Array<ArrayBuffer>
+  makeTranslation(x: number, y: number, z: number): void
+  makeScale(x: number, y: number, z: number): void
+  identity(): void
 }
 
 export function drawMatrix(): DrawMatrix {
   // Identity from the start, as a host matrix is: a zero matrix collapses every vertex to a point.
   const scratch = new G.Matrix4(),
-    elements = new Float64Array(scratch.elements);
-  const sync = () => elements.set(scratch.elements);
+    elements = new Float64Array(scratch.elements)
+  const sync = () => elements.set(scratch.elements)
   return {
     elements,
     makeTranslation(x, y, z) {
-      scratch.makeTranslation(x, y, z);
-      sync();
+      scratch.makeTranslation(x, y, z)
+      sync()
     },
     makeScale(x, y, z) {
-      scratch.makeScale(x, y, z);
-      sync();
+      scratch.makeScale(x, y, z)
+      sync()
     },
     identity() {
-      scratch.identity();
-      sync();
+      scratch.identity()
+      sync()
     },
-  };
+  }
 }
 
 /** Clears colour to blue and depth, depth writes on. */
 export function clear(gl: WebGL2RenderingContext) {
-  gl.depthMask(true);
-  gl.clearColor(0, 0, 1, 1);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.depthMask(true)
+  gl.clearColor(0, 0, 1, 1)
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 }
 
 /** The hearer of a proof that draws only surfaces WebGL2 admits: a surface left out throws its
  *  reason, so the proof fails by name instead of reading a missing object. */
 export const strictHearer: MaterialDegraded = (_material, _features, leftOut) => {
-  if (leftOut) throw new Error(leftOut);
-};
-export const strictDegraded = () => readDegraded(strictHearer);
+  if (leftOut) throw new Error(leftOut)
+}
+export const strictDegraded = () => readDegraded(strictHearer)
 
 /** A 32 × 32 WebGL2 canvas, the renderer on it, hearing `degraded`, and a camera at the origin;
  *  without WebGL2 the page throws, and the proof fails by that name. */
 export function mountClusterRenderer(degraded: ReadDegraded = strictDegraded()) {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 32;
-  const gl = canvas.getContext('webgl2');
-  if (!gl) throw new Error('WebGL2 unavailable');
-  gl.viewport(0, 0, 32, 32);
-  const camera = G.perspectiveCamera(60, 1, 0.1, 10);
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 32
+  const gl = canvas.getContext('webgl2')
+  if (!gl) throw new Error('WebGL2 unavailable')
+  gl.viewport(0, 0, 32, 32)
+  const camera = G.perspectiveCamera(60, 1, 0.1, 10)
   return {
     gl,
     renderer: new WebglClusterRenderer(gl, degraded),
     scene: new G.Scene(),
     camera,
     drawCamera: readHostDrawCamera(createHostDrawCamera(), camera),
-  };
+  }
 }
 
 /** `run` on a `width` × `height` canvas of the page with the engine's own context attributes
@@ -114,16 +114,16 @@ export function onEngineContext<T>(
   height: number,
   run: (gl: WebGL2RenderingContext) => T,
 ): T {
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  document.body.append(canvas);
-  const gl = canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES);
-  if (!gl) throw new Error('WebGL2 unavailable');
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  document.body.append(canvas)
+  const gl = canvas.getContext('webgl2', WEBGL_CONTEXT_ATTRIBUTES)
+  if (!gl) throw new Error('WebGL2 unavailable')
   try {
-    return run(gl);
+    return run(gl)
   } finally {
-    gl.getExtension('WEBGL_lose_context')?.loseContext();
-    canvas.remove();
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    canvas.remove()
   }
 }

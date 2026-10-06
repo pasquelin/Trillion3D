@@ -1,76 +1,76 @@
-import type { BackendContext, RenderBackend } from '../../backend/types.ts';
+import type { BackendContext, RenderBackend } from '../../backend/types.ts'
 import {
   chooseBackends,
   loadsOwnVertices,
   resolveTextureSource,
-} from '../../backend/defaultBackends.ts';
-import { loadHostVertices, meshes } from '../../scene/meshes.ts';
-import { configureExplorer } from './capabilities.ts';
-import { directWebgpu } from './interactiveOptions.ts';
-import { probeExplorerCapabilities } from './capabilityProbe.ts';
-import { prepareExplorerBackends } from './backends.ts';
-import { createExplorerCamera } from '../camera/camera.ts';
-import { createExplorerPageSources } from './pageSources.ts';
-import { loadPreparedScene } from '../scene/scene.ts';
-import { primePartitions } from '../scene/partitionFrame.ts';
-import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts';
-import { createFrameBudget } from '../../page/integration/frameBudget.ts';
-import { sessionFamilies } from './familyUse.ts';
-import { loadRenderers } from '../../backend/engines.ts';
-import type { ExplorerSession } from './session.ts';
-import type { WebglSurface } from '../../webgl/core/surface.ts';
-import type { HostCamera } from '../../camera/world.ts';
+} from '../../backend/defaultBackends.ts'
+import { loadHostVertices, meshes } from '../../scene/meshes.ts'
+import { configureExplorer } from './capabilities.ts'
+import { directWebgpu } from './interactiveOptions.ts'
+import { probeExplorerCapabilities } from './capabilityProbe.ts'
+import { prepareExplorerBackends } from './backends.ts'
+import { createExplorerCamera } from '../camera/camera.ts'
+import { createExplorerPageSources } from './pageSources.ts'
+import { loadPreparedScene } from '../scene/scene.ts'
+import { primePartitions } from '../scene/partitionFrame.ts'
+import { ARRIVAL_BUDGET_MS } from '../../backend/common.ts'
+import { createFrameBudget } from '../../page/integration/frameBudget.ts'
+import { sessionFamilies } from './familyUse.ts'
+import { loadRenderers } from '../../backend/engines.ts'
+import type { ExplorerSession } from './session.ts'
+import type { WebglSurface } from '../../webgl/core/surface.ts'
+import type { HostCamera } from '../../camera/world.ts'
 
 export type ExplorerResources = {
-  source?: BackendContext['source'];
-  webglSurface?: WebglSurface;
-  gpuDevice?: GPUDevice;
-};
+  source?: BackendContext['source']
+  webglSurface?: WebglSurface
+  gpuDevice?: GPUDevice
+}
 
 /** The scene a loader builds: what `loadPreparedScene` returns. */
-export type ExplorerScene = Awaited<ReturnType<typeof loadPreparedScene>>;
+export type ExplorerScene = Awaited<ReturnType<typeof loadPreparedScene>>
 
 /** A scene the caller already holds, handed to `openMeasuredWorld` in place of a manifest URL. */
 export type ExplorerSource = {
-  manifestUrl: string;
-  metadataUrl: string;
-  base: string;
-  metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest;
-  scene: ExplorerScene;
+  manifestUrl: string
+  metadataUrl: string
+  base: string
+  metadata: import('../../../../sdk-core/src/index.ts').ClusterManifest
+  scene: ExplorerScene
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
-  placeCamera?: (camera: HostCamera) => void;
+  placeCamera?: (camera: HostCamera) => void
   /** Moves a node of the page's own scene by name, when the session draws a world built in code
    *  (`../core/worldRuntime.ts`): its engines hold that scene as rows, not as named nodes. */
-  moveNamed?: (nodeName: string, matrix: Float32Array) => void;
-};
+  moveNamed?: (nodeName: string, matrix: Float32Array) => void
+}
 
 type Inputs = {
-  scene?: ExplorerScene;
-  placeCamera?: ExplorerSource['placeCamera'];
-  manifestUrl: string;
-  metadataUrl: string;
-  base: string;
-  backends: RenderBackend[];
-  resources: ExplorerResources;
-  progress: (phase: string, completed: number, total: number, message: string) => void;
-};
+  scene?: ExplorerScene
+  placeCamera?: ExplorerSource['placeCamera']
+  manifestUrl: string
+  metadataUrl: string
+  base: string
+  backends: RenderBackend[]
+  resources: ExplorerResources
+  progress: (phase: string, completed: number, total: number, message: string) => void
+}
 
 export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) {
-  const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session;
-  const { manifestUrl, metadataUrl, base, backends, resources, progress } = inputs;
+  const { canvas, options, metadata, scope, signal, diagnosticChannel, diagnose } = session
+  const { manifestUrl, metadataUrl, base, backends, resources, progress } = inputs
   // The optional families the first frame draws with load beside the scene (#1353).
-  const families = sessionFamilies(options, diagnosticChannel.enabled);
+  const families = sessionFamilies(options, diagnosticChannel.enabled)
   // The machine is read before the scene: which engine path renders decides which file the
   // session loads — the cache's prepared scene for the autonomous path, `source.gltf` otherwise.
-  const { capabilities, gpuDevice } = await probeExplorerCapabilities(session);
-  resources.gpuDevice = gpuDevice;
-  const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer);
-  const renderers = loadRenderers(choice.factories); // its own chunk (#1353), beside the scene
-  const autonomous = choice.autonomous;
+  const { capabilities, gpuDevice } = await probeExplorerCapabilities(session)
+  resources.gpuDevice = gpuDevice
+  const choice = chooseBackends(options, metadata, gpuDevice, !!capabilities.renderer)
+  const renderers = loadRenderers(choice.factories) // its own chunk (#1353), beside the scene
+  const autonomous = choice.autonomous
   // What the loader opens follows what will draw: a path that samples the host images needs
   // them read, however the host set `textureSource`.
-  const textureSource = resolveTextureSource(options.textureSource, choice.factories);
+  const textureSource = resolveTextureSource(options.textureSource, choice.factories)
   diagnose('backend-choice', 'Backend chosen for this session', {
     kind: 'configuration',
     scope,
@@ -80,14 +80,14 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     autonomous,
     webgpuDevice: !!gpuDevice,
     textureSource,
-  });
-  const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf';
+  })
+  const sceneFile = autonomous ? metadata.autonomousScene! : 'source.gltf'
   progress(
     'scene',
     0,
     1,
     `Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`,
-  );
+  )
   const loadedScene =
     inputs.scene ??
     (await loadPreparedScene(
@@ -100,10 +100,10 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       signal,
       diagnose,
       (source) => {
-        resources.source = source;
+        resources.source = source
       },
-    ));
-  const source = (resources.source = loadedScene.source);
+    ))
+  const source = (resources.source = loadedScene.source)
   // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
   for (const { pinned, bytes } of loadedScene.worldRoots)
     diagnose('world-top', 'World top pinned', {
@@ -112,8 +112,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       pinnedBundles: pinned.bundles,
       pinnedBytes: pinned.bytes,
       heldBytes: bytes() - pinned.bytes,
-    });
-  if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source));
+    })
+  if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source))
   const pageSources = await createExplorerPageSources(
     metadata,
     options,
@@ -124,8 +124,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     diagnosticChannel,
     progress,
     loadedScene.partitions.flatMap((cells) => cells.pages),
-  );
-  const directGpu = directWebgpu(options, choice.factories, gpuDevice);
+  )
+  const directGpu = directWebgpu(options, choice.factories, gpuDevice)
   await configureExplorer(session, {
     choice,
     directGpu,
@@ -136,7 +136,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     source,
     pageSources,
     resources,
-  });
+  })
   // Framing replays the buffer reserved at load, then returns it: it is its last reader.
   const cameraState = createExplorerCamera(
     source,
@@ -146,9 +146,9 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     canvas,
     options,
     loadedScene.framingLot,
-  );
-  loadedScene.framingLot?.release();
-  inputs.placeCamera?.(cameraState.camera);
+  )
+  loadedScene.framingLot?.release()
+  inputs.placeCamera?.(cameraState.camera)
   // The pages and cells the first camera reaches are placed before the engines read their rows:
   // the first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands
   // one in (a world), else the framing one, which sees the whole scene.
@@ -159,17 +159,17 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
       pageSources.streamer,
       !!options.onPartitionOutgrown,
       signal,
-    );
+    )
     diagnose('partition', 'Pages and cells read before the first frame', {
       kind: 'preparation',
       scope,
       bytes,
       cells: loadedScene.partitions.map((cells) => cells.stats()),
-    });
+    })
   }
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
-  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
-  await renderers; // the engines are built once their renderer has arrived
+  const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS)
+  await renderers // the engines are built once their renderer has arrived
   const { viewport, context } = await prepareExplorerBackends(session, {
     source,
     sceneLightingSource: loadedScene.sceneLightingSource,
@@ -184,8 +184,8 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     base,
     frameBudget,
     worldRoots: loadedScene.worldRoots,
-  });
-  await families;
+  })
+  await families
   return {
     source,
     partitions: loadedScene.partitions,
@@ -196,5 +196,5 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     context,
     frameBudget,
     ...cameraState,
-  };
+  }
 }

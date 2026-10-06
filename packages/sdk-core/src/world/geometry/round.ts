@@ -1,10 +1,10 @@
-import { addScaledVector3, copyScaledVector3, dotVector3 } from '../../math/primitives/vector.ts';
-import { subtract as sub, cross } from '../../math/primitives/vectorTuple.ts';
-import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts';
-import type { Curve } from '../math/curves.ts';
+import { addScaledVector3, copyScaledVector3, dotVector3 } from '../../math/primitives/vector.ts'
+import { subtract as sub, cross } from '../../math/primitives/vectorTuple.ts'
+import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts'
+import type { Curve } from '../math/curves.ts'
 
-type V3 = [number, number, number];
-const TAU = Math.PI * 2;
+type V3 = [number, number, number]
+const TAU = Math.PI * 2
 
 /**
  * A ring of radius `radius` around the `z` axis, its tube `tube` thick, swept over `arc`.
@@ -21,16 +21,16 @@ export function torus(
   tubularSegments = 48,
   arc = TAU,
 ) {
-  [radialSegments, tubularSegments] = [pieces(radialSegments, 2), pieces(tubularSegments, 3)];
-  const b = new GeometryBuilder();
+  ;[radialSegments, tubularSegments] = [pieces(radialSegments, 2), pieces(tubularSegments, 3)]
+  const b = new GeometryBuilder()
   b.grid(tubularSegments, radialSegments, (u, v) => {
     const a = u * arc,
-      t = v * TAU;
-    const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)];
-    const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0];
-    return { p: addScaledVector3(c, n, tube), n, uv: [u, v] };
-  });
-  return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc]);
+      t = v * TAU
+    const n: V3 = [Math.cos(t) * Math.cos(a), Math.cos(t) * Math.sin(a), Math.sin(t)]
+    const c: V3 = [radius * Math.cos(a), radius * Math.sin(a), 0]
+    return { p: addScaledVector3(c, n, tube), n, uv: [u, v] }
+  })
+  return withRecipe(b.build(), 'torus', [radius, tube, radialSegments, tubularSegments, arc])
 }
 
 /**
@@ -52,12 +52,12 @@ export function torusKnot(
 ) {
   const at = (s: number): V3 => {
     const u = s * p * TAU,
-      r = radius * (2 + Math.cos((q / p) * u)) * 0.5;
-    return [r * Math.cos(u), r * Math.sin(u), radius * Math.sin((q / p) * u) * 0.5];
-  };
-  [tubularSegments, radialSegments] = [pieces(tubularSegments, 2), pieces(radialSegments, 3)];
-  const built = sweep(at, tubularSegments, radialSegments, () => tube, true);
-  return withRecipe(built, 'torusKnot', [radius, tube, tubularSegments, radialSegments, p, q]);
+      r = radius * (2 + Math.cos((q / p) * u)) * 0.5
+    return [r * Math.cos(u), r * Math.sin(u), radius * Math.sin((q / p) * u) * 0.5]
+  }
+  ;[tubularSegments, radialSegments] = [pieces(tubularSegments, 2), pieces(radialSegments, 3)]
+  const built = sweep(at, tubularSegments, radialSegments, () => tube, true)
+  return withRecipe(built, 'torusKnot', [radius, tube, tubularSegments, radialSegments, p, q])
 }
 
 /**
@@ -82,7 +82,7 @@ export function tube(
     radialSegments,
     () => radius,
     closed,
-  );
+  )
 }
 
 /**
@@ -99,20 +99,20 @@ export function lathe(
   phiStart = 0,
   phiLength = TAU,
 ) {
-  const profile = points.map((point) => ('x' in point ? [point.x, point.y] : [point[0], point[1]]));
-  const last = profile.length - 1;
-  const b = new GeometryBuilder();
+  const profile = points.map((point) => ('x' in point ? [point.x, point.y] : [point[0], point[1]]))
+  const last = profile.length - 1
+  const b = new GeometryBuilder()
   b.grid(pieces(segments, 1), last, (u, v) => {
     const i = Math.round(v * last),
-      phi = phiStart + u * phiLength;
+      phi = phiStart + u * phiLength
     const [x, y] = profile[i],
       before = profile[Math.max(0, i - 1)],
-      after = profile[Math.min(last, i + 1)];
-    const [nx, ny] = [after[1] - before[1], before[0] - after[0]];
-    const n = normalize(nx * Math.sin(phi), ny, nx * Math.cos(phi));
-    return { p: [x * Math.sin(phi), y, x * Math.cos(phi)], n, uv: [u, v] };
-  });
-  return b.build();
+      after = profile[Math.min(last, i + 1)]
+    const [nx, ny] = [after[1] - before[1], before[0] - after[0]]
+    const n = normalize(nx * Math.sin(phi), ny, nx * Math.cos(phi))
+    return { p: [x * Math.sin(phi), y, x * Math.cos(phi)], n, uv: [u, v] }
+  })
+  return b.build()
 }
 
 /**
@@ -123,23 +123,23 @@ export function lathe(
  * @param radialSegments - Straight pieces around.
  */
 export function capsule(radius = 1, length = 1, capSegments = 4, radialSegments = 8) {
-  const profile: [number, number][] = [];
-  const caps = (capSegments = pieces(capSegments, 1));
-  radialSegments = pieces(radialSegments, 1);
+  const profile: [number, number][] = []
+  const caps = (capSegments = pieces(capSegments, 1))
+  radialSegments = pieces(radialSegments, 1)
   for (let i = 0; i <= caps; i++) {
-    const a = -Math.PI / 2 + (i / caps) * (Math.PI / 2);
-    profile.push([radius * Math.cos(a), -length / 2 + radius * Math.sin(a)]);
+    const a = -Math.PI / 2 + (i / caps) * (Math.PI / 2)
+    profile.push([radius * Math.cos(a), -length / 2 + radius * Math.sin(a)])
   }
   for (let i = 0; i <= caps; i++) {
-    const a = (i / caps) * (Math.PI / 2);
-    profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)]);
+    const a = (i / caps) * (Math.PI / 2)
+    profile.push([radius * Math.cos(a), length / 2 + radius * Math.sin(a)])
   }
   return withRecipe(lathe(profile, radialSegments), 'capsule', [
     radius,
     length,
     capSegments,
     radialSegments,
-  ]);
+  ])
 }
 
 /** Rings of radius `radiusAt(s)` along `centre(s)`, `s ∈ [0, 1]`, framed by parallel transport. */
@@ -150,42 +150,42 @@ function sweep(
   radiusAt: (s: number) => number,
   closed: boolean,
 ) {
-  const count = pieces(tubularSegments, 2);
+  const count = pieces(tubularSegments, 2)
   const points = Array.from({ length: count + 1 }, (_, i) =>
     centre(closed ? (i % count) / count : i / count),
-  );
+  )
   const tangents = points.map((_, i) => {
     const a = points[Math.max(0, i - 1)],
-      c = points[Math.min(count, i + 1)];
-    const t = closed && (i === 0 || i === count) ? sub(points[1], points[count - 1]) : sub(c, a);
-    return normalize(t[0], t[1], t[2]);
-  });
+      c = points[Math.min(count, i + 1)]
+    const t = closed && (i === 0 || i === count) ? sub(points[1], points[count - 1]) : sub(c, a)
+    return normalize(t[0], t[1], t[2])
+  })
   // The first normal is any direction across the first tangent; each next one is the previous
   // turned by the least rotation that carries one tangent onto the next.
-  const t0 = tangents[0];
-  const seed: V3 = Math.abs(t0[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
-  const normals: V3[] = [normalize(...cross(cross(t0, seed), t0))];
+  const t0 = tangents[0]
+  const seed: V3 = Math.abs(t0[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]
+  const normals: V3[] = [normalize(...cross(cross(t0, seed), t0))]
   for (let i = 1; i <= count; i++) {
     const n = normals[i - 1],
-      t = tangents[i];
-    const along = dotVector3(n, t);
-    normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]));
+      t = tangents[i]
+    const along = dotVector3(n, t)
+    normals.push(normalize(n[0] - along * t[0], n[1] - along * t[1], n[2] - along * t[2]))
   }
   // Carried round a closed curve, the frame comes back turned about the tangent: each ring takes
   // back its share of that turn, so the last ring lands on the first and the tube closes.
-  const [first, last] = [normals[0], normals[count]];
-  const turn = closed ? Math.atan2(dotVector3(t0, cross(first, last)), dotVector3(first, last)) : 0;
-  const b = new GeometryBuilder();
+  const [first, last] = [normals[0], normals[count]]
+  const turn = closed ? Math.atan2(dotVector3(t0, cross(first, last)), dotVector3(first, last)) : 0
+  const b = new GeometryBuilder()
   b.grid(count, pieces(radialSegments, 3), (u, v) => {
     const i = Math.round(u * count),
       angle = v * TAU - (turn * i) / count,
-      r = radiusAt(u);
+      r = radiusAt(u)
     const n0 = normals[i],
-      n1 = cross(tangents[i], n0);
-    const m = copyScaledVector3<V3>([0, 0, 0], n0, Math.cos(angle));
-    const n = normalize(...addScaledVector3(m, n1, Math.sin(angle)));
-    const c = points[i];
-    return { p: addScaledVector3<V3>([c[0], c[1], c[2]], n, r), n, uv: [u, v] };
-  });
-  return b.build();
+      n1 = cross(tangents[i], n0)
+    const m = copyScaledVector3<V3>([0, 0, 0], n0, Math.cos(angle))
+    const n = normalize(...addScaledVector3(m, n1, Math.sin(angle)))
+    const c = points[i]
+    return { p: addScaledVector3<V3>([c[0], c[1], c[2]], n, r), n, uv: [u, v] }
+  })
+  return b.build()
 }

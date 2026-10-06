@@ -1,7 +1,7 @@
-import { readFile, writeFile, rename } from 'node:fs/promises';
-import { join } from 'node:path';
-import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../../sdk-core/src/index.ts';
-import { compilerError } from '../messages/catalogue.mts';
+import { readFile, writeFile, rename } from 'node:fs/promises'
+import { join } from 'node:path'
+import { CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION } from '../../../sdk-core/src/index.ts'
+import { compilerError } from '../messages/catalogue.mts'
 
 /**
  * The cutout answer sheet a compile leaves beside every model, read and written.
@@ -11,54 +11,51 @@ import { compilerError } from '../messages/catalogue.mts';
  * one answer covers every model that shares that texture — which is why the sheets are read as a
  * batch and written as a batch.
  */
-const SHEET_FILE = CUTOUT_SHEET_FILE;
+const SHEET_FILE = CUTOUT_SHEET_FILE
 
 interface SheetTexture {
-  image?: string;
-  used?: boolean;
-  measure?: Record<string, number>;
-  blendPrimitives?: number;
-  proposal?: 'cutout' | 'blend';
-  cutout?: boolean | null;
+  image?: string
+  used?: boolean
+  measure?: Record<string, number>
+  blendPrimitives?: number
+  proposal?: 'cutout' | 'blend'
+  cutout?: boolean | null
 }
 export interface Sheet {
-  version: number;
-  textures: Record<string, SheetTexture>;
+  version: number
+  textures: Record<string, SheetTexture>
 }
 
 /** One texture waiting for an answer, and every model of the batch that carries it. */
 export interface PendingCutout {
-  sha256: string;
-  image: string;
-  proposal: boolean;
-  blendPrimitives: number;
-  measure: Record<string, number>;
-  models: string[];
+  sha256: string
+  image: string
+  proposal: boolean
+  blendPrimitives: number
+  measure: Record<string, number>
+  models: string[]
 }
 
 function isSheet(value: unknown): value is Sheet {
-  const sheet = value as Sheet | null;
+  const sheet = value as Sheet | null
   return Boolean(
     sheet && typeof sheet === 'object' && sheet.textures && typeof sheet.textures === 'object',
-  );
+  )
 }
 
 /** The sheet of a compiled model, or `null` when it has none — a cache wiped, a model never built. */
 export async function readSheet(cache: string): Promise<Sheet | null> {
-  const text = await readFile(join(cache, SHEET_FILE), 'utf8').catch(() => null);
-  if (text === null) return null;
-  const parsed: unknown = JSON.parse(text);
+  const text = await readFile(join(cache, SHEET_FILE), 'utf8').catch(() => null)
+  if (text === null) return null
+  const parsed: unknown = JSON.parse(text)
   if (!isSheet(parsed))
-    throw compilerError(
-      'CUTOUT_SHEET_INVALID',
-      `${join(cache, SHEET_FILE)} is not an answer sheet`,
-    );
+    throw compilerError('CUTOUT_SHEET_INVALID', `${join(cache, SHEET_FILE)} is not an answer sheet`)
   if (parsed.version !== CUTOUT_SHEET_VERSION)
     throw compilerError(
       'CUTOUT_SHEET_INVALID',
       `${join(cache, SHEET_FILE)} declares version ${parsed.version}`,
-    );
-  return parsed;
+    )
+  return parsed
 }
 
 /**
@@ -67,15 +64,15 @@ export async function readSheet(cache: string): Promise<Sheet | null> {
  * primitives it still holds there, summed over the batch.
  */
 export function pendingOf(loaded: readonly { name: string; sheet: Sheet }[]): PendingCutout[] {
-  const pending = new Map<string, PendingCutout>();
+  const pending = new Map<string, PendingCutout>()
   for (const { name, sheet } of loaded) {
     for (const [sha256, texture] of Object.entries(sheet.textures)) {
-      if (texture.used !== true || texture.cutout !== null) continue;
-      const known = pending.get(sha256);
+      if (texture.used !== true || texture.cutout !== null) continue
+      const known = pending.get(sha256)
       if (known) {
-        known.blendPrimitives += texture.blendPrimitives ?? 0;
-        known.models.push(name);
-        continue;
+        known.blendPrimitives += texture.blendPrimitives ?? 0
+        known.models.push(name)
+        continue
       }
       pending.set(sha256, {
         sha256,
@@ -84,10 +81,10 @@ export function pendingOf(loaded: readonly { name: string; sheet: Sheet }[]): Pe
         blendPrimitives: texture.blendPrimitives ?? 0,
         measure: texture.measure ?? {},
         models: [name],
-      });
+      })
     }
   }
-  return [...pending.values()].sort((a, b) => b.blendPrimitives - a.blendPrimitives);
+  return [...pending.values()].sort((a, b) => b.blendPrimitives - a.blendPrimitives)
 }
 
 /**
@@ -101,17 +98,17 @@ export async function answerSheet(
   sheet: Sheet,
   answers: Map<string, boolean>,
 ): Promise<boolean> {
-  let changed = false;
+  let changed = false
   for (const [sha256, cutout] of answers) {
-    const texture = sheet.textures[sha256];
-    if (!texture || texture.cutout === cutout) continue;
-    texture.cutout = cutout;
-    changed = true;
+    const texture = sheet.textures[sha256]
+    if (!texture || texture.cutout === cutout) continue
+    texture.cutout = cutout
+    changed = true
   }
-  if (!changed) return false;
-  const target = join(cache, SHEET_FILE);
-  const pending = `${target}.pending`;
-  await writeFile(pending, `${JSON.stringify(sheet, null, 2)}\n`);
-  await rename(pending, target);
-  return true;
+  if (!changed) return false
+  const target = join(cache, SHEET_FILE)
+  const pending = `${target}.pending`
+  await writeFile(pending, `${JSON.stringify(sheet, null, 2)}\n`)
+  await rename(pending, target)
+  return true
 }

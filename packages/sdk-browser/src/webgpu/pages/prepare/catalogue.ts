@@ -3,4 +3,4 @@ export {
   createPackedPages,
   createPageCatalogue,
   type PageList,
-} from '../../../page/selection/catalogue.ts';
+} from '../../../page/selection/catalogue.ts'

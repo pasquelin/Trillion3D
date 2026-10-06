@@ -1,6 +1,6 @@
-import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts';
-import { createPageIntegrationRunner } from './task.ts';
-import type { PageIntegrationRequest } from '../../../../sdk-core/src/index.ts';
+import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts'
+import { createPageIntegrationRunner } from './task.ts'
+import type { PageIntegrationRequest } from '../../../../sdk-core/src/index.ts'
 
 /**
  * Entry point of the page-integration worker. Platform adapter: this file is loaded only in a
@@ -11,16 +11,16 @@ import type { PageIntegrationRequest } from '../../../../sdk-core/src/index.ts';
  * this file needs is declared here rather than adding a whole library.
  */
 type IntegrationWorkerScope = {
-  onmessage: ((event: { data: unknown }) => void) | null;
-  postMessage(message: unknown, transfer: ArrayBuffer[]): void;
-};
+  onmessage: ((event: { data: unknown }) => void) | null
+  postMessage(message: unknown, transfer: ArrayBuffer[]): void
+}
 
-const scope = globalThis as unknown as IntegrationWorkerScope;
-const runner = createPageIntegrationRunner();
+const scope = globalThis as unknown as IntegrationWorkerScope
+const runner = createPageIntegrationRunner()
 
 scope.onmessage = (event) => {
-  const request = event.data as PageIntegrationRequest;
-  if (!request || request.protocol !== PAGE_INTEGRATION_PROTOCOL) return;
-  const answer = runner.run(request);
-  scope.postMessage(answer, runner.transferOf(answer));
-};
+  const request = event.data as PageIntegrationRequest
+  if (!request || request.protocol !== PAGE_INTEGRATION_PROTOCOL) return
+  const answer = runner.run(request)
+  scope.postMessage(answer, runner.transferOf(answer))
+}

@@ -1,13 +1,13 @@
-import { PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
-import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts';
-import { visMaterial } from '../../visibility/shader/material.ts';
-import { readsOcclusion } from '../../scene/surfaceModel.ts';
-import { importHostTexture } from '../../host/textureImport.ts';
-import type { HostShadedMaterial } from '../../host/shadedMaterial.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
+import { PHYSICAL_MAP_UNIT } from './physicalMaps.ts'
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
+import { visMaterial } from '../../visibility/shader/material.ts'
+import { readsOcclusion } from '../../scene/surfaceModel.ts'
+import { importHostTexture } from '../../host/textureImport.ts'
+import type { HostShadedMaterial } from '../../host/shadedMaterial.ts'
+import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts'
 
-export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
+export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>
 
 /** The program's map units, in order, and the UV matrix uniform each reads. */
 const MAPS = [
@@ -18,11 +18,11 @@ const MAPS = [
   'aoMap',
   'emissiveMap',
   'subsurfaceMap',
-] as const;
+] as const
 /** Past the deformation units 13 and 14 (`deformation.ts`) the vertex stage binds per draw. */
-export const SUBSURFACE_UNIT = PHYSICAL_MAP_UNIT + 2;
-export const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
-MAP_UNIFORMS[SUBSURFACE_UNIT] = 'subsurfaceUv';
+export const SUBSURFACE_UNIT = PHYSICAL_MAP_UNIT + 2
+export const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv']
+MAP_UNIFORMS[SUBSURFACE_UNIT] = 'subsurfaceUv'
 
 /** What a unit binds: the material's map, the texture bound for it (none: the fallback texel, or
  *  a map another unit binds), its encoding, its fallback texel, and whether the map's alpha has
@@ -34,7 +34,7 @@ type MapVisit = (
   srgb: boolean,
   fallback: readonly number[] | undefined,
   reader: boolean,
-) => void;
+) => void
 
 /**
  * THE MAPS A MATERIAL BINDS, unit by unit, as the draw binds them (`materialBinding.ts`) and as
@@ -49,14 +49,14 @@ export function eachMap(material: Material, visit: MapVisit, physical = false) {
     basic = material as HostShadedMaterial,
     aoMap =
       mat.aoMap ??
-      (basic.aoMap && readsOcclusion(basic) ? importHostTexture(basic.aoMap) : undefined);
+      (basic.aoMap && readsOcclusion(basic) ? importHostTexture(basic.aoMap) : undefined)
   const sharedMetalRough =
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
-    mat.roughnessMap.channel === mat.metalnessMap.channel;
+    mat.roughnessMap.channel === mat.metalnessMap.channel
   for (let index = 0; index < MAPS.length; index++) {
-    const unit = index === 6 ? SUBSURFACE_UNIT : index;
-    const texture = MAPS[index] === 'aoMap' ? aoMap : mat[MAPS[index]];
+    const unit = index === 6 ? SUBSURFACE_UNIT : index
+    const texture = MAPS[index] === 'aoMap' ? aoMap : mat[MAPS[index]]
     visit(
       unit,
       texture,
@@ -64,12 +64,12 @@ export function eachMap(material: Material, visit: MapVisit, physical = false) {
       texture?.colorSpace === 'srgb',
       unit === 3 ? [128, 128, 255, 255] : undefined,
       MAPS[index] === 'map' || MAPS[index] === 'emissiveMap',
-    );
+    )
   }
   if (physical)
     for (const field of PHYSICAL_MAP_FIELDS) {
-      const map = mat[field];
-      visit(PHYSICAL_MAP_UNIT, map, map, false, undefined, false);
+      const map = mat[field]
+      visit(PHYSICAL_MAP_UNIT, map, map, false, undefined, false)
     }
-  return { mat, aoMap, sharedMetalRough };
+  return { mat, aoMap, sharedMetalRough }
 }

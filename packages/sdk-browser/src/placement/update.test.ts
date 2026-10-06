@@ -2,44 +2,44 @@
 // instance buffer's written span once (`world/core/worldPoses.ts`): a row of it left where it
 // stands — a still mesh between two written ones, a sleeping wheel posed again in place — is no
 // move, and two roots that moved are two boxes, never the room between them.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { boxTransform } from '../../../sdk-core/src/index.ts';
-import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/math/matrix/matrix4.ts';
-import { createShadowMobility } from '../webgpu/shadow/mobility.ts';
-import { createPlacementRows, placementWorld } from './rows.ts';
-import { followPlacementRows } from './update.ts';
-import { SHADOWLESS_ROOT } from '../visibility/shader/shadowlessRoot.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { boxTransform } from '../../../sdk-core/src/index.ts'
+import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { createShadowMobility } from '../webgpu/shadow/mobility.ts'
+import { createPlacementRows, placementWorld } from './rows.ts'
+import { followPlacementRows } from './update.ts'
+import { SHADOWLESS_ROOT } from '../visibility/shader/shadowlessRoot.ts'
 
 /** A small caster, the ground under it, a box far off: local boxes, placed at the origin. */
 const BOXES = [
   [-0.1, 0, -0.1, 0.1, 0.2, 0.1],
   [-5, -0.1, -5, 5, 0, 5],
   [20, 0, 20, 21, 1, 21],
-];
+]
 
 /** The three placements, rows of one buffer; the writer moves rows along x and hands the whole
  *  span as written, each moved root's box to `touched`, and whether it was moving already. */
 function placed() {
-  const rows = createPlacementRows(BOXES.length);
+  const rows = createPlacementRows(BOXES.length)
   const roots = BOXES.map((local, index) => {
-    rows.matrices.set(IDENTITY_MATRIX4, index * 16);
-    rows.live[index] = 1;
+    rows.matrices.set(IDENTITY_MATRIX4, index * 16)
+    rows.live[index] = 1
     const world = placementWorld(rows, index),
       worldBox = new Float64Array(6),
-      localBox = Float64Array.from(local);
-    boxTransform(worldBox, 0, localBox, 0, world.elements);
-    return { pages: [], world, localBox, worldBox, placement: { rows, index } };
-  });
-  const mobility = createShadowMobility();
-  mobility.ensure(roots.length, 1, (rank) => roots[rank].world.elements);
+      localBox = Float64Array.from(local)
+    boxTransform(worldBox, 0, localBox, 0, world.elements)
+    return { pages: [], world, localBox, worldBox, placement: { rows, index } }
+  })
+  const mobility = createShadowMobility()
+  mobility.ensure(roots.length, 1, (rank) => roots[rank].world.elements)
   const write = (
     moves: number[][],
     touched: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) => void,
     flip?: (rank: number, root: { mark?: number }) => void,
   ) => {
-    for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x;
-    const last = BOXES.length - 1;
+    for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x
+    const last = BOXES.length - 1
     return followPlacementRows(
       roots as never,
       rows,
@@ -49,16 +49,16 @@ function placed() {
       mobility.move,
       undefined,
       touched,
-    );
-  };
-  return { rows, write, mobility };
+    )
+  }
+  return { rows, write, mobility }
 }
 
 test('a written range stales each root that moved, apart, and none left where it stands', () => {
   const { write } = placed(),
-    boxes: number[][] = [];
+    boxes: number[][] = []
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>) =>
-    boxes.push([...Array.from(min), ...Array.from(max)]);
+    boxes.push([...Array.from(min), ...Array.from(max)])
   assert.equal(
     write(
       [
@@ -68,64 +68,64 @@ test('a written range stales each root that moved, apart, and none left where it
       collect,
     ),
     true,
-  );
+  )
   assert.deepEqual(boxes, [
     [-0.1, 0, -0.1, 0.2, 0.2, 0.1],
     [20, 0, 20, 22, 1, 21],
-  ]);
-  boxes.length = 0;
-  assert.equal(write([[0, 0.1]], collect), false, 'written again where it stands: no move');
-  assert.deepEqual(boxes, []);
-});
+  ])
+  boxes.length = 0
+  assert.equal(write([[0, 0.1]], collect), false, 'written again where it stands: no move')
+  assert.deepEqual(boxes, [])
+})
 
 test('a row parked or taken back where it stands stales its box, and is no move', () => {
   // A hidden or shown primitive is removed or added and its pages invalidated once; only a
   // transform update caches it as dynamic: the static layer keeps it.
   const { rows, write, mobility } = placed(),
-    boxes: [number[], boolean][] = [];
+    boxes: [number[], boolean][] = []
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
-    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
-  rows.live[2] = 0;
-  assert.equal(write([], collect), true, 'parked: its box is stale');
-  assert.deepEqual(boxes, [[BOXES[2], false]], 'the static layer is drawn again');
-  boxes.length = 0;
-  rows.live[2] = 1;
-  assert.equal(write([], collect), true, 'taken back: its box is stale');
-  assert.deepEqual(boxes, [[BOXES[2], false]], 'still static');
-  assert.equal(mobility.moves(2), false, 'shown or hidden in place: never moving');
-});
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly])
+  rows.live[2] = 0
+  assert.equal(write([], collect), true, 'parked: its box is stale')
+  assert.deepEqual(boxes, [[BOXES[2], false]], 'the static layer is drawn again')
+  boxes.length = 0
+  rows.live[2] = 1
+  assert.equal(write([], collect), true, 'taken back: its box is stale')
+  assert.deepEqual(boxes, [[BOXES[2], false]], 'still static')
+  assert.equal(mobility.moves(2), false, 'shown or hidden in place: never moving')
+})
 
 test('a row that stops or starts casting flips its mark and stales its box, whatever its pose', () => {
   // #456: `castShadow` written on a world mesh reaches its row (`worldPoses.ts`); its root leaves
   // or enters every light cut, and the pages it covered are drawn again without it, or with it.
   const { rows, write } = placed(),
     boxes: [number[], boolean][] = [],
-    marks: [number, number | undefined][] = [];
+    marks: [number, number | undefined][] = []
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
-    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
-  const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark]);
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly])
+  const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark])
   for (const shadowless of [1, 0]) {
-    rows.shadowless[1] = shadowless;
-    assert.equal(write([], collect, flip), true, 'a change of casting, whatever its pose');
-    assert.deepEqual(marks, [[1, shadowless ? SHADOWLESS_ROOT : undefined]]);
-    assert.deepEqual(boxes, [[BOXES[1], false]], 'the static layer, the root never made moving');
-    boxes.length = marks.length = 0;
-    assert.equal(write([], collect, flip), false, 'written again unchanged: nothing');
+    rows.shadowless[1] = shadowless
+    assert.equal(write([], collect, flip), true, 'a change of casting, whatever its pose')
+    assert.deepEqual(marks, [[1, shadowless ? SHADOWLESS_ROOT : undefined]])
+    assert.deepEqual(boxes, [[BOXES[1], false]], 'the static layer, the root never made moving')
+    boxes.length = marks.length = 0
+    assert.equal(write([], collect, flip), false, 'written again unchanged: nothing')
   }
-});
+})
 
 test('a moving row that stops casting as it moves stales its moving casters alone', () => {
   // #456: the static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
   const { rows, write } = placed(),
-    boxes: [number[], boolean][] = [];
+    boxes: [number[], boolean][] = []
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
-    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly]);
-  write([[0, 0.1]], collect);
-  boxes.length = 0;
-  rows.shadowless[0] = 1;
-  assert.equal(write([[0, 0.2]], collect), true);
+    boxes.push([[...Array.from(min), ...Array.from(max)], movingOnly])
+  write([[0, 0.1]], collect)
+  boxes.length = 0
+  rows.shadowless[0] = 1
+  assert.equal(write([[0, 0.2]], collect), true)
   assert.deepEqual(
     boxes.map(([, movingOnly]) => movingOnly),
     [true],
-  );
-});
+  )
+})

@@ -5,33 +5,30 @@
 // pixels off-screen, and a tile across the near plane. No pixel may differ off the silhouette band
 // — no crack between neighbouring triangles, no stray triangle, no triangle neither raster took
 // (`computeRasterPage.ts`).
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
-import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { resolve } from 'node:path'
+import { runPageProof, assertSoundProof } from '../kit/enginePageProof.ts'
 
-type Reading = Awaited<ReturnType<typeof import('./computeRasterPage.ts').compareRasters>>;
+type Reading = Awaited<ReturnType<typeof import('./computeRasterPage.ts').compareRasters>>
 
 test('the compute raster is watertight under both variants', async () => {
   const result = await runPageProof(
     resolve(import.meta.dirname, 'computeRasterPage.ts'),
     'computeRaster',
     'compareRasters',
-  );
-  const { adapter: adapter, covered, clusters, variants } = result as Reading;
-  console.log(JSON.stringify({ adapter, covered, clusters, variants }));
-  assertSoundProof(result);
-  assert.ok((covered ?? 0) > 1000, `the scene covers only ${covered} pixels`);
-  assert.equal(clusters, 30);
+  )
+  const { adapter: adapter, covered, clusters, variants } = result as Reading
+  console.log(JSON.stringify({ adapter, covered, clusters, variants }))
+  assertSoundProof(result)
+  assert.ok((covered ?? 0) > 1000, `the scene covers only ${covered} pixels`)
+  assert.equal(clusters, 30)
   for (const [variant, { clusters: drawn, interior, silhouette }] of Object.entries(
     variants ?? {},
   )) {
-    assert.equal(drawn, 30, `${variant}: both rasters draw the same cut`);
-    assert.deepEqual(interior, [], `${variant}: pixels differ off the silhouette band`);
+    assert.equal(drawn, 30, `${variant}: both rasters draw the same cut`)
+    assert.deepEqual(interior, [], `${variant}: pixels differ off the silhouette band`)
     // The two fill rules may differ by one pixel on the silhouette, never by more than its length.
-    assert.ok(
-      silhouette < (covered ?? 0) / 8,
-      `${variant}: ${silhouette} silhouette pixels differ`,
-    );
+    assert.ok(silhouette < (covered ?? 0) / 8, `${variant}: ${silhouette} silhouette pixels differ`)
   }
-});
+})

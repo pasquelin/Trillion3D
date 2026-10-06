@@ -1,12 +1,12 @@
-import type { ImpostorMaps } from '../../../../sdk-core/src/index.ts';
-import type { BackendContext } from '../../backend/types.ts';
-import type { EngineCamera } from '../../camera/world.ts';
-import type { ClusterRoot } from '../../page/selection/types.ts';
-import { createImpostorCards, dropImpostorCards, planImpostorCards } from '../../impostor/cards.ts';
-import { createWebglCardDraw } from './draw.ts';
-import type { WebglCards } from './pass.ts';
-import { createWebglImpostorFeed, type WebglAtlas } from './feed.ts';
-import { core } from '../../impostor/borrowed.ts';
+import type { ImpostorMaps } from '../../../../sdk-core/src/index.ts'
+import type { BackendContext } from '../../backend/types.ts'
+import type { EngineCamera } from '../../camera/world.ts'
+import type { ClusterRoot } from '../../page/selection/types.ts'
+import { createImpostorCards, dropImpostorCards, planImpostorCards } from '../../impostor/cards.ts'
+import { createWebglCardDraw } from './draw.ts'
+import type { WebglCards } from './pass.ts'
+import { createWebglImpostorFeed, type WebglAtlas } from './feed.ts'
+import { core } from '../../impostor/borrowed.ts'
 
 /**
  * THE IMPOSTOR TIER ON WEBGL2 (#1336): the same switch and the same card as WebGPU. Each image
@@ -28,56 +28,56 @@ export function createWebglImpostors(
 ) {
   const section = context.metadata.impostors,
     reader = context.readTextureLevel,
-    gl = context.webglContext;
-  if (!section?.baked || !reader || !gl) return undefined;
-  const state = createImpostorCards<WebglAtlas>(section);
+    gl = context.webglContext
+  if (!section?.baked || !reader || !gl) return undefined
+  const state = createImpostorCards<WebglAtlas>(section)
   const onFailure = (phase: string, error: unknown) =>
-    core.sendEngineDiagnostic(context.onDiagnostic, phase, String(error), { kind: 'error' });
+    core.sendEngineDiagnostic(context.onDiagnostic, phase, String(error), { kind: 'error' })
   // A card program that does not compile or link is told once and switches no root to a card.
   const makeDraw = () => {
     try {
-      return createWebglCardDraw(gl);
+      return createWebglCardDraw(gl)
     } catch (error) {
-      onFailure('impostor-card-program-failed', error);
+      onFailure('impostor-card-program-failed', error)
     }
-  };
-  let draw = makeDraw();
-  if (!draw) return undefined;
+  }
+  let draw = makeDraw()
+  if (!draw) return undefined
   // A landed level or a made atlas breaks a held image.
   const feedOptions = { room, landed: gate.resourcesChanged, onFailure },
-    makeFeed = () => createWebglImpostorFeed(gl, reader, feedOptions);
+    makeFeed = () => createWebglImpostorFeed(gl, reader, feedOptions)
   let feed = makeFeed(),
-    image = 0;
-  const atlasOf = (mesh: number, maps: ImpostorMaps) => feed.group(mesh, maps, image);
+    image = 0
+  const atlasOf = (mesh: number, maps: ImpostorMaps) => feed.group(mesh, maps, image)
   const restored = () => {
-    feed.dispose();
-    draw?.dispose();
-    [feed, draw] = [makeFeed(), makeDraw()];
-    dropImpostorCards(state, roots);
-  };
-  gl.canvas.addEventListener('webglcontextrestored', restored);
+    feed.dispose()
+    draw?.dispose()
+    ;[feed, draw] = [makeFeed(), makeDraw()]
+    dropImpostorCards(state, roots)
+  }
+  gl.canvas.addEventListener('webglcontextrestored', restored)
   const cards: WebglCards = (camera, lights, pass, linear) =>
-    draw?.draw(state, image, camera, lights, pass, linear) ?? false;
+    draw?.draw(state, image, camera, lights, pass, linear) ?? false
   return {
     state,
     cards,
     /** GPU bytes of the atlases held, within the texture pool beside the maps. */
     get bytes() {
-      return feed.bytes;
+      return feed.bytes
     },
     /** The image's plan at `cam` for `viewport`, before its cut. */
     plan(cam: EngineCamera, viewport: readonly number[] | undefined) {
-      if (!draw) return;
-      image++;
-      planImpostorCards(state, roots, cam, viewport, atlasOf);
+      if (!draw) return
+      image++
+      planImpostorCards(state, roots, cam, viewport, atlasOf)
     },
     dispose() {
-      gl.canvas.removeEventListener('webglcontextrestored', restored);
-      dropImpostorCards(state, roots);
-      feed.dispose();
-      draw?.dispose();
+      gl.canvas.removeEventListener('webglcontextrestored', restored)
+      dropImpostorCards(state, roots)
+      feed.dispose()
+      draw?.dispose()
     },
-  };
+  }
 }
 
-export type WebglImpostors = NonNullable<ReturnType<typeof createWebglImpostors>>;
+export type WebglImpostors = NonNullable<ReturnType<typeof createWebglImpostors>>

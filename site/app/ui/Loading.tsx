@@ -1,7 +1,7 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
 interface LoadingProps extends ComponentPropsWithoutRef<'div'> {
-  label?: ReactNode;
+  label?: ReactNode
 }
 
 export function Loading({ label, ...props }: LoadingProps) {
@@ -16,5 +16,5 @@ export function Loading({ label, ...props }: LoadingProps) {
         {label}
       </span>
     </div>
-  );
+  )
 }

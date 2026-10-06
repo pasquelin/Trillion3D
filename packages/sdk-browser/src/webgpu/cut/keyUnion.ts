@@ -1,6 +1,6 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { DenseKeySet } from './denseKeys.ts';
-import { createSparseInts } from '../../page/cut/sparseInts.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { DenseKeySet } from './denseKeys.ts'
+import { createSparseInts } from '../../page/cut/sparseInts.ts'
 
 /**
  * The union of several sources of page keys, held from one image to the next. A source holds a key at
@@ -11,37 +11,37 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts';
  * is what the pin bookkeeping needs and all it needs.
  */
 export function createKeyUnion(options: {
-  members: DenseKeySet;
-  keyCount: number;
-  covered?: Uint8Array;
-  onListed?: (key: number, page?: PageRec) => void;
-  onUnlisted?: (key: number) => void;
+  members: DenseKeySet
+  keyCount: number
+  covered?: Uint8Array
+  onListed?: (key: number, page?: PageRec) => void
+  onUnlisted?: (key: number) => void
 }) {
-  const { members, keyCount, covered, onListed, onUnlisted } = options;
+  const { members, keyCount, covered, onListed, onUnlisted } = options
   /** Holders per key, only for the keys held: the union follows the view, not the catalogue. */
-  const refs = createSparseInts();
-  let coveredCount = 0;
-  if (covered) for (let key = 0; key < keyCount; key++) if (covered[key]) coveredCount++;
+  const refs = createSparseInts()
+  let coveredCount = 0
+  if (covered) for (let key = 0; key < keyCount; key++) if (covered[key]) coveredCount++
   return {
     members,
     /** Keys the union holds, the covered cover included. */
     get size() {
-      return coveredCount + members.count;
+      return coveredCount + members.count
     },
     /** Bytes of the holder counts and of `members`. */
     get byteLength() {
-      return refs.byteLength + members.byteLength;
+      return refs.byteLength + members.byteLength
     },
     retain(key: number, page?: PageRec) {
-      if (refs.add(key, 1) > 1 || covered?.[key]) return;
-      members.add(key, page);
-      onListed?.(key, page);
+      if (refs.add(key, 1) > 1 || covered?.[key]) return
+      members.add(key, page)
+      onListed?.(key, page)
     },
     release(key: number) {
-      if (refs.get(key) <= 0) return;
-      if (refs.add(key, -1) > 0 || covered?.[key]) return;
-      members.remove(key);
-      onUnlisted?.(key);
+      if (refs.get(key) <= 0) return
+      if (refs.add(key, -1) > 0 || covered?.[key]) return
+      members.remove(key)
+      onUnlisted?.(key)
     },
-  };
+  }
 }

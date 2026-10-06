@@ -1,25 +1,25 @@
-import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts';
+import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts'
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   maskAlphaWgsl,
   tileDeclarations,
-} from '../../webgpu/tile/wgsl.ts';
+} from '../../webgpu/tile/wgsl.ts'
 import {
   EDGE_WGSL,
   MASK_KEEP_WGSL,
   PAGE_INFO_STRUCT_WGSL,
   VIS_UNIFORMS_WGSL,
-} from '../../visibility/shader/pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
-import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts';
-import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts';
-import { RASTER_TRI_WGSL } from './triWgsl.ts';
-import { COMPUTE_TAKES_WGSL } from './contract.ts';
-import { RASTER_PIXEL_WGSL } from './pixelWgsl.ts';
-import { rasterKernels } from './kernelsWgsl.ts';
-import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { wgslFloat } from '../partition/margins.ts';
+} from '../../visibility/shader/pageWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
+import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
+import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { RASTER_TRI_WGSL } from './triWgsl.ts'
+import { COMPUTE_TAKES_WGSL } from './contract.ts'
+import { RASTER_PIXEL_WGSL } from './pixelWgsl.ts'
+import { rasterKernels } from './kernelsWgsl.ts'
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
+import { wgslFloat } from '../partition/margins.ts'
 
 /**
  * Compute raster of the share of the opaque and masked cut that the split gives it — the small
@@ -33,7 +33,7 @@ import { wgslFloat } from '../partition/margins.ts';
  * path, at the same threshold and coordinates as the hardware raster.
  */
 const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
-${VIS_UNIFORMS_WGSL}`;
+${VIS_UNIFORMS_WGSL}`
 
 export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO}
 @group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
@@ -67,7 +67,7 @@ ${COMPUTE_TAKES_WGSL}
 ${MASK_KEEP_WGSL}
 ${RASTER_TRI_WGSL}
 ${RASTER_PIXEL_WGSL}
-${rasterKernels(capacity)}`;
+${rasterKernels(capacity)}`
 
 /**
  * Full-screen hardware resolve: a triangle that covers the screen rereads the work buffer and
@@ -92,4 +92,4 @@ fn offset(pos:vec4f)->u32{return u32(pos.y)*u32(uni.viewport.x)+u32(pos.x);}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 @fragment fn one(@builtin(position) pos:vec4f)->One{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
 @fragment fn two(@builtin(position) pos:vec4f)->Two{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
-@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslFloat(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`;
+@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslFloat(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`

@@ -1,12 +1,12 @@
-import { shadeBindEntries, type ShadeBindResources } from './bindEntries.ts';
-import { entriesReady } from './bindIdentity.ts';
-import { liveResources } from './liveEntries.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { shadeBindEntries, type ShadeBindResources } from './bindEntries.ts'
+import { entriesReady } from './bindIdentity.ts'
+import { liveResources } from './liveEntries.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The resolve reads the same live descriptors for invalidation and group construction. */
 export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
-    identity = vis.shadeIdentity;
+    identity = vis.shadeIdentity
   const entries = (identity.entries[0] ??= shadeBindEntries(
     liveResources<ShadeBindResources>({
       visView: () => rt.vis.visView,
@@ -22,8 +22,8 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       uniform: () => rt.vis.shadeUniform,
       shadeCache: () => rt.vis.shadeCache?.buffer,
     }),
-  ));
-  if (identity.entriesMoved(vis.shadeBindGroupLayout)) vis.shadeBindGroup = undefined;
+  ))
+  if (identity.entriesMoved(vis.shadeBindGroupLayout)) vis.shadeBindGroup = undefined
   if (!vis.shadeBindGroup && vis.shadeBindGroupLayout && entriesReady(entries))
-    vis.shadeBindGroup = device.createBindGroup({ layout: vis.shadeBindGroupLayout, entries });
+    vis.shadeBindGroup = device.createBindGroup({ layout: vis.shadeBindGroupLayout, entries })
 }

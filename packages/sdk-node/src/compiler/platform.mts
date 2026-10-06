@@ -1,6 +1,6 @@
-import { existsSync, realpathSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join, sep } from 'node:path';
+import { existsSync, realpathSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join, sep } from 'node:path'
 
 /**
  * The platforms the compiler is built for, as Node names them (`process.platform`-`process.arch`):
@@ -13,18 +13,18 @@ export const COMPILER_PLATFORMS = [
   'linux-arm64',
   'linux-x64',
   'win32-x64',
-] as const;
+] as const
 
 /** The compiler's file name on `platform`. */
 export const compilerFileName = (platform: NodeJS.Platform) =>
-  `trillion3d-compiler${platform === 'win32' ? '.exe' : ''}`;
+  `trillion3d-compiler${platform === 'win32' ? '.exe' : ''}`
 
 /** The package carrying the compiler built for `platform` and `arch`; null where none is built. */
 export function compilerPackage(platform: string, arch: string): string | null {
-  const target = `${platform}-${arch}`;
+  const target = `${platform}-${arch}`
   return (COMPILER_PLATFORMS as readonly string[]).includes(target)
     ? `@trillion3d/compiler-${target}`
-    : null;
+    : null
 }
 
 /**
@@ -39,16 +39,16 @@ export function installedCompiler(
   arch: string,
   from: string | URL = import.meta.url,
 ): string | null {
-  const name = compilerPackage(platform, arch);
-  if (!name) return null;
-  let manifest: string;
+  const name = compilerPackage(platform, arch)
+  if (!name) return null
+  let manifest: string
   try {
-    manifest = createRequire(from).resolve(`${name}/package.json`);
+    manifest = createRequire(from).resolve(`${name}/package.json`)
   } catch {
-    return null;
+    return null
   }
   // The real path: under `--preserve-symlinks` a workspace link would read as `node_modules`.
-  if (!realpathSync(manifest).split(sep).includes('node_modules')) return null;
-  const binary = join(dirname(manifest), 'bin', compilerFileName(platform));
-  return existsSync(binary) ? binary : null;
+  if (!realpathSync(manifest).split(sep).includes('node_modules')) return null
+  const binary = join(dirname(manifest), 'bin', compilerFileName(platform))
+  return existsSync(binary) ? binary : null
 }

@@ -3,18 +3,18 @@
 import {
   UNIFORM_U32,
   writeSplitDouble,
-} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts';
-import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
-import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts';
-import { xorshiftRandom, measure, rapport } from '../../core/index.ts';
+} from '../../../packages/sdk-browser/src/gpu/partition/contract.ts'
+import { packPartitionUniform } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
+import type { PartitionFrame } from '../../../packages/sdk-browser/src/gpu/partition/uniform.ts'
+import { xorshiftRandom, measure, rapport } from '../../core/index.ts'
 import {
   referencePartitionUniform,
   referenceSplitDouble,
-} from '../../oracles/browser/uniform-partition.ts';
+} from '../../oracles/browser/uniform-partition.ts'
 
-const alea = xorshiftRandom(89);
-const double = () => (alea() - 0.5) * 1e5;
-const matrice = () => Float64Array.from({ length: 16 }, double);
+const alea = xorshiftRandom(89)
+const double = () => (alea() - 0.5) * 1e5
+const matrice = () => Float64Array.from({ length: 16 }, double)
 
 const HOSTILES = [
   0,
@@ -30,19 +30,19 @@ const HOSTILES = [
   2 ** 1023,
   1.0000000000000002,
   1 / 3,
-];
+]
 
 // The output belongs to the case: the timer only frames the writes.
 const doubles = (valeurs: ArrayLike<number>) => ({
   valeurs,
   output: new Float32Array(valeurs.length * 2),
-});
+})
 const decompose =
   (ecrit: (out: Float32Array, top: number, bas: number, value: number) => void) =>
   ({ valeurs, output }: { valeurs: ArrayLike<number>; output: Float32Array }) => {
-    for (let i = 0; i < valeurs.length; i++) ecrit(output, i * 2, i * 2 + 1, valeurs[i]);
-    return output;
-  };
+    for (let i = 0; i < valeurs.length; i++) ecrit(output, i * 2, i * 2 + 1, valeurs[i])
+    return output
+  }
 
 const measureSplit = await measure({
   name: 'split-double decomposition',
@@ -58,7 +58,7 @@ const measureSplit = await measure({
   calculation: decompose(writeSplitDouble),
   expected: decompose(referenceSplitDouble),
   options: { tours: 100 },
-});
+})
 
 const image = (levels: number): PartitionFrame => ({
   view: matrice(),
@@ -76,10 +76,10 @@ const image = (levels: number): PartitionFrame => ({
   hasRest: true,
   viewMoved: false,
   counting: false,
-});
+})
 
 const words = new Uint32Array(UNIFORM_U32),
-  floats = new Float32Array(words.buffer);
+  floats = new Float32Array(words.buffer)
 
 const measureUniform = await measure({
   name: 'partition uniform',
@@ -89,15 +89,15 @@ const measureUniform = await measure({
     { name: '0 levels', input: image(0), size: 1 },
   ],
   calculation: (frame) => {
-    packPartitionUniform(words, floats, frame, frame.rows);
-    return words;
+    packPartitionUniform(words, floats, frame, frame.rows)
+    return words
   },
   expected: (frame) => referencePartitionUniform(frame, frame.rows),
   options: { tours: 1000 },
-});
+})
 
 rapport(
   'partition-uniforme',
   [measureSplit, measureUniform],
   'the partition uniform and the doubles yield the same bits',
-);
+)

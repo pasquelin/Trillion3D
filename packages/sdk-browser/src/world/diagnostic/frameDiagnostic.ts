@@ -1,28 +1,28 @@
-import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts';
-import type { AssetScope, FrameMetrics } from '../../../../sdk-core/src/index.ts';
-import type { RenderBackend } from '../../backend/types.ts';
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
-import type { createDiagnosticChannel } from '../../diagnostic/channel.ts';
-import type { ExplorerEmitters } from '../session/session.ts';
+import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
+import type { AssetScope, FrameMetrics } from '../../../../sdk-core/src/index.ts'
+import type { RenderBackend } from '../../backend/types.ts'
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
+import type { createDiagnosticChannel } from '../../diagnostic/channel.ts'
+import type { ExplorerEmitters } from '../session/session.ts'
 
 type Inputs = Pick<ExplorerEmitters, 'diagnose'> & {
-  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>;
-  active: RenderBackend;
-  camera: HostCamera;
+  diagnosticChannel: ReturnType<typeof createDiagnosticChannel>
+  active: RenderBackend
+  camera: HostCamera
   /** Target the host rereads between two poses. Read by its three numbers: the trace does not
    *  have to name a host-library compute type to publish a point. */
-  lookAtTarget: { x: number; y: number; z: number };
-  metricsScratch: FrameMetrics;
-  pageIdByUrl: Map<string, number>;
-  streamer: ReturnType<typeof createPageStreamer>;
-  measuring: boolean;
-  scope: AssetScope;
-  frameNumber: number;
-};
+  lookAtTarget: { x: number; y: number; z: number }
+  metricsScratch: FrameMetrics
+  pageIdByUrl: Map<string, number>
+  streamer: ReturnType<typeof createPageStreamer>
+  measuring: boolean
+  scope: AssetScope
+  frameNumber: number
+}
 
 /** Trace engine camera, allocated once. The diagnostic is outside the measured pass — it is
  *  published after `cpuFrameMs` closes — and it is only copied under `trace`. */
-const diagnosticCam = createEngineCamera();
+const diagnosticCam = createEngineCamera()
 
 export function emitExplorerFrameDiagnostic(inputs: Inputs) {
   const {
@@ -37,28 +37,28 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
     scope,
     frameNumber,
     diagnose,
-  } = inputs;
+  } = inputs
   // Snapshot construction and enqueueing happen after cpuFrameMs is closed;
   // the channel defers all observer work to a later microtask.
   if (diagnosticChannel.enabled && diagnosticChannel.detail === 'trace') {
-    const protectedOrRequested = new Set<string | number>();
-    const addPage = (url: string) => protectedOrRequested.add(pageIdByUrl.get(url) ?? url);
-    for (const url of active.pendingUrls?.() ?? []) addPage(url);
-    const ranks = active.retainedRanks?.();
+    const protectedOrRequested = new Set<string | number>()
+    const addPage = (url: string) => protectedOrRequested.add(pageIdByUrl.get(url) ?? url)
+    for (const url of active.pendingUrls?.() ?? []) addPage(url)
+    const ranks = active.retainedRanks?.()
     if (ranks) {
       // A failed draw may reach the trace before normal retention; consume its delta here.
-      streamer.retainRanks(ranks);
+      streamer.retainRanks(ranks)
       for (let i = 0; i < ranks.heldCount; i++) {
-        const url = ranks.urls[ranks.held[i]];
-        if (url !== undefined) addPage(url);
+        const url = ranks.urls[ranks.held[i]]
+        if (url !== undefined) addPage(url)
       }
     } else {
-      for (const url of active.pageUrls?.() ?? []) addPage(url);
+      for (const url of active.pageUrls?.() ?? []) addPage(url)
     }
     const { eye } = readCameraWorld(diagnosticCam, camera),
       protectedOrRequestedPageIds = [...protectedOrRequested],
       stream = streamer.stats(),
-      backendReport = active.metrics();
+      backendReport = active.metrics()
     diagnose('frame', 'Rendered frame', {
       kind: 'frame',
       nature: measuring ? 'measurement' : 'beauty',
@@ -104,6 +104,6 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
         autonomousClusterDrawsTotal: metricsScratch.autonomousClusterDrawsTotal ?? null,
         autonomousCopyDraws: metricsScratch.autonomousCopyDraws ?? null,
       },
-    });
+    })
   }
 }

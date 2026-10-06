@@ -2,9 +2,9 @@
  * The wave model read at world positions (`waves.ts` displaces rest positions): the height above
  * a point and the rest point under it (the physics module reads the same, `waterPlanes.cpp`).
  */
-import type { Waves } from './waves.ts';
-import { waveRest } from './waveRest.ts';
-const scratch = new Float64Array(3);
+import type { Waves } from './waves.ts'
+import { waveRest } from './waveRest.ts'
+const scratch = new Float64Array(3)
 
 /**
  * Height of the surface above the world position `(x, z)`. The rest point that lands there
@@ -13,6 +13,6 @@ const scratch = new Float64Array(3);
  * rate `Σ Qᵢ·Aᵢ·kᵢ`: near 1, three of its steps leave centimetres (measured on #419).
  */
 export function waveHeight(waves: Waves, x: number, z: number) {
-  waveRest(waves, x, z, scratch);
-  return waves.offset(scratch[0], scratch[2], scratch)[1];
+  waveRest(waves, x, z, scratch)
+  return waves.offset(scratch[0], scratch[2], scratch)[1]
 }

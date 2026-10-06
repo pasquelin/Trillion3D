@@ -1,29 +1,29 @@
-import { shaderErrors } from '../../gpu/core/shaderModule.ts';
-import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts';
-import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
+import { shaderErrors } from '../../gpu/core/shaderModule.ts'
+import { SHADE_UNIFORM_BYTES } from '../../visibility/shader/request.ts'
+import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts'
 import {
   VIS_BINDINGS,
   VIS_UNIFORM_BYTES,
   atlasLayoutEntries,
   readOnly,
-} from '../core/bindLayout.ts';
+} from '../core/bindLayout.ts'
 import {
   DIAGNOSTIC_SHADE_WGSL,
   DIAGNOSTIC_VIS_WGSL,
   variesShade,
   variesVisibility,
-} from '../../diagnostic/gpuGeometry.ts';
-import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
+} from '../../diagnostic/gpuGeometry.ts'
+import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
+import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'
 
 /** Zeros for `drawSlots` rows, which the untested passes bind where the tested ones read verdicts;
  *  made again when the table grows (`../pages/prepare/growTables.ts`). */
 export const zeroFlagsBuffer = (device: GPUDevice, drawSlots: number) =>
-  device.createBuffer({ size: Math.max(4, drawSlots * 4), usage: GPUBufferUsage.STORAGE });
+  device.createBuffer({ size: Math.max(4, drawSlots * 4), usage: GPUBufferUsage.STORAGE })
 
 /** The visibility raster's group 0, entry by entry: what every pass drawing page-table rows binds. */
 export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
-  const b = VIS_BINDINGS;
+  const b = VIS_BINDINGS
   return [
     { binding: b.cache, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
     { binding: b.position, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
@@ -44,7 +44,7 @@ export function visLayoutEntries(): GPUBindGroupLayoutEntry[] {
     { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
     { binding: b.instances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
     { binding: b.slotOffsets, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-  ];
+  ]
 }
 
 /** The resolve module whose `shade_fsWithoutFeedback` writes the four surfaces alone: the same
@@ -63,7 +63,7 @@ export const shadeWithoutFeedbackCode = () =>
     ],
     '@builtin(position) pos:vec4f',
     'pos',
-  );
+  )
 
 /** Allocates visibility uniforms and validates both shader modules before pipeline creation.
  *  `feedback` false makes the resolve module the one without a feedback output
@@ -80,34 +80,34 @@ export async function createWebgpuVisibilityShaders(
     label: 'Trillion3D resolve uniform',
     size: SHADE_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
-  const visBindGroupLayout = device.createBindGroupLayout({ entries: visLayoutEntries() });
+  })
+  const visBindGroupLayout = device.createBindGroupLayout({ entries: visLayoutEntries() })
   // The untested passes bind zeros at the same row index the tested ones read, so the buffer spans
   // the row table; WebGPU hands back a zeroed buffer and nothing ever writes to this one.
-  const zeroFlags = zeroFlagsBuffer(device, drawSlots);
+  const zeroFlags = zeroFlagsBuffer(device, drawSlots)
   const visUniform = device.createBuffer({
     label: 'Trillion3D visibility uniforms',
     size: uniformSlots * 256,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
+  })
   // With no variant, the two modules are exactly those from before: production compiles no
   // diagnostic stage.
   const visModule = device.createShaderModule({
     code: variesVisibility(variant) ? VIS_SHADER + DIAGNOSTIC_VIS_WGSL : VIS_SHADER,
-  });
-  const withoutFeedback = () => device.createShaderModule({ code: shadeWithoutFeedbackCode() });
+  })
+  const withoutFeedback = () => device.createShaderModule({ code: shadeWithoutFeedbackCode() })
   const shadeModule = feedback
     ? device.createShaderModule({
         code: variesShade(variant) ? SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL : SHADE_SHADER,
       })
-    : withoutFeedback();
-  const shadeWithoutFeedback = feedbackAB ? withoutFeedback() : undefined;
-  if ((await shaderErrors(visModule)).length) throw new Error('VIS_SHADER');
-  const shadeErrors = await shaderErrors(shadeModule);
+    : withoutFeedback()
+  const shadeWithoutFeedback = feedbackAB ? withoutFeedback() : undefined
+  if ((await shaderErrors(visModule)).length) throw new Error('VIS_SHADER')
+  const shadeErrors = await shaderErrors(shadeModule)
   if (shadeErrors.length)
-    throw new Error('SHADE_SHADER: ' + shadeErrors.map((message) => message.message).join(' | '));
+    throw new Error('SHADE_SHADER: ' + shadeErrors.map((message) => message.message).join(' | '))
   if (shadeWithoutFeedback && (await shaderErrors(shadeWithoutFeedback)).length)
-    throw new Error('SHADE_WITHOUT_FEEDBACK_SHADER');
+    throw new Error('SHADE_WITHOUT_FEEDBACK_SHADER')
   return {
     shadeUniform,
     visBindGroupLayout,
@@ -116,5 +116,5 @@ export async function createWebgpuVisibilityShaders(
     visModule,
     shadeModule,
     shadeWithoutFeedback,
-  };
+  }
 }

@@ -1,4 +1,4 @@
-import { WORK_BLOCK_WORDS } from './floorWgsl.ts';
+import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
 
 /**
  * The list of live clusters of a frame, and the dispatch argument that sizes it.
@@ -49,4 +49,4 @@ fn liveAppend(entry:u32){
  if((s&63u)==0u){openSlice(liveGroups(),s>>6u);}
 }
 fn liveAt(s:u32)->u32{return flagAt(liveBase()+s);}
-`;
+`

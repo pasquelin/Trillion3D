@@ -1,4 +1,4 @@
-import { LANCZOS2_GLSL } from '../../taa/lanczos2Wgsl.ts';
+import { LANCZOS2_GLSL } from '../../taa/lanczos2Wgsl.ts'
 
 /**
  * WebGL2's resample of an image drawn below the display, per DISPLAY pixel: the upscale of the
@@ -10,7 +10,7 @@ import { LANCZOS2_GLSL } from '../../taa/lanczos2Wgsl.ts';
  * `untoned`: the effect chain's second attachment (`CLUSTER_LINEAR_FRAGMENT`) resampled alike.
  */
 export const resampleFragment = (untoned: boolean) => {
-  const both = (text: string) => (untoned ? text : '');
+  const both = (text: string) => (untoned ? text : '')
   return `#version 300 es
 precision highp float;precision highp sampler2D;
 uniform sampler2D image,depth${both(',untoned')};uniform ivec2 render;uniform vec2 display;
@@ -27,5 +27,5 @@ ivec2 ring=tap-low;if(all(greaterThanEqual(ring,ivec2(0)))&&all(lessThanEqual(ri
 ${both('shareLo=min(shareLo,u);shareHi=max(shareHi,u);')}}}
 color=clamp(sum/max(total,1e-4),lo,hi);
 ${both('untonedOut=vec4(clamp(share/max(total,1e-4),shareLo,shareHi),0.0,0.0,color.a);')}
-gl_FragDepth=texelFetch(depth,clamp(base,ivec2(0),last),0).r;}`;
-};
+gl_FragDepth=texelFetch(depth,clamp(base,ivec2(0),last),0).r;}`
+}

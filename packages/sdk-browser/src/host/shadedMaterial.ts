@@ -8,14 +8,14 @@
  * rendering library is named on either side.
  */
 
-import type { HostColour, HostMaterial, HostTexture } from './resources.ts';
+import type { HostColour, HostMaterial, HostTexture } from './resources.ts'
 
 /** A map slot: the texture the material names there, or nothing. */
-export type HostMap = HostTexture | null | undefined;
+export type HostMap = HostTexture | null | undefined
 
 /** A host colour is declared as such by its owner; three loose numbers are not one. */
 export const isHostColour = (value: unknown): value is HostColour =>
-  !!value && (value as { isColor?: boolean }).isColor === true;
+  !!value && (value as { isColor?: boolean }).isColor === true
 
 /**
  * A surface as the two surface boundaries read it. Every field is optional: an unlit family
@@ -23,70 +23,70 @@ export const isHostColour = (value: unknown): value is HostColour =>
  */
 export type HostShadedMaterial = HostMaterial & {
   /** A Phong material's exponent, and a matcap material's image. */
-  readonly shininess?: number;
-  readonly matcap?: HostMap;
+  readonly shininess?: number
+  readonly matcap?: HostMap
   /** A toon material's tone ramp; the engine draws its two fixed bands, so the gate refuses one. */
-  readonly gradientMap?: HostMap;
-  readonly color?: unknown;
-  readonly map?: HostMap;
-  readonly metalness?: number;
-  readonly roughness?: number;
-  readonly metalnessMap?: HostMap;
-  readonly roughnessMap?: HostMap;
-  readonly normalMap?: HostMap;
-  readonly normalMapType?: number;
-  readonly normalScale?: { readonly x: number; readonly y: number };
+  readonly gradientMap?: HostMap
+  readonly color?: unknown
+  readonly map?: HostMap
+  readonly metalness?: number
+  readonly roughness?: number
+  readonly metalnessMap?: HostMap
+  readonly roughnessMap?: HostMap
+  readonly normalMap?: HostMap
+  readonly normalMapType?: number
+  readonly normalScale?: { readonly x: number; readonly y: number }
   /** Whether `normalScale` was written for a frame read from vertex tangents — the material
    *  table's tangent variant (`derivativeTangents` false, `docs/FORMAT.md`); unsaid, unknown. */
-  readonly forVertexTangents?: boolean;
-  readonly aoMap?: HostMap;
-  readonly aoMapIntensity?: number;
-  readonly emissive?: unknown;
-  readonly emissiveIntensity?: number;
-  readonly emissiveMap?: HostMap;
-  readonly subsurfaceColor?: unknown;
-  readonly subsurfaceMap?: HostMap;
+  readonly forVertexTangents?: boolean
+  readonly aoMap?: HostMap
+  readonly aoMapIntensity?: number
+  readonly emissive?: unknown
+  readonly emissiveIntensity?: number
+  readonly emissiveMap?: HostMap
+  readonly subsurfaceColor?: unknown
+  readonly subsurfaceMap?: HostMap
   /** glTF transmission volume: the one physical extension the engine keeps. */
-  readonly anisotropy?: number;
-  readonly anisotropyRotation?: number;
-  readonly anisotropyMap?: HostMap;
-  readonly clearcoatMap?: HostMap;
-  readonly clearcoatRoughnessMap?: HostMap;
-  readonly clearcoatNormalMap?: HostMap;
-  readonly clearcoatNormalScale?: { readonly x: number; readonly y: number };
-  readonly clearcoat?: number;
-  readonly clearcoatRoughness?: number;
-  readonly transmission?: number;
-  readonly ior?: number;
-  readonly thickness?: number;
-  readonly attenuationDistance?: number;
-  readonly attenuationColor?: unknown;
+  readonly anisotropy?: number
+  readonly anisotropyRotation?: number
+  readonly anisotropyMap?: HostMap
+  readonly clearcoatMap?: HostMap
+  readonly clearcoatRoughnessMap?: HostMap
+  readonly clearcoatNormalMap?: HostMap
+  readonly clearcoatNormalScale?: { readonly x: number; readonly y: number }
+  readonly clearcoat?: number
+  readonly clearcoatRoughness?: number
+  readonly transmission?: number
+  readonly ior?: number
+  readonly thickness?: number
+  readonly attenuationDistance?: number
+  readonly attenuationColor?: unknown
   /** Blend and raster state the gate refuses when the autonomous programs cannot preserve it. */
-  readonly alphaHash?: boolean;
-  readonly blending?: number;
-  readonly premultipliedAlpha?: boolean;
-  readonly alphaToCoverage?: boolean;
-  readonly clippingPlanes?: { readonly length: number } | null;
-  readonly stencilWrite?: boolean;
-  readonly flatShading?: boolean;
+  readonly alphaHash?: boolean
+  readonly blending?: number
+  readonly premultipliedAlpha?: boolean
+  readonly alphaToCoverage?: boolean
+  readonly clippingPlanes?: { readonly length: number } | null
+  readonly stencilWrite?: boolean
+  readonly flatShading?: boolean
   /** The surface opts out of the scene's fog when false. */
-  readonly fog?: boolean;
-  readonly wireframe?: boolean;
+  readonly fog?: boolean
+  readonly wireframe?: boolean
   /** Width in CSS pixels of the lines the surface draws; zero when it draws triangles. */
-  readonly lineWidth?: number;
+  readonly lineWidth?: number
   /** A dashed line's dash and gap along the line, in world units; absent on any other surface. */
-  readonly dashSize?: number;
-  readonly gapSize?: number;
+  readonly dashSize?: number
+  readonly gapSize?: number
   /** Set on a surface that draws a sprite's quad, with its turn and its size rule. */
-  readonly sprite?: boolean;
-  readonly rotation?: number;
-  readonly sizeAttenuation?: boolean;
-  readonly envMap?: HostMap;
-  readonly lightMap?: HostMap;
-  readonly bumpMap?: HostMap;
-  readonly displacementMap?: HostMap;
-  readonly alphaMap?: HostMap;
+  readonly sprite?: boolean
+  readonly rotation?: number
+  readonly sizeAttenuation?: boolean
+  readonly envMap?: HostMap
+  readonly lightMap?: HostMap
+  readonly bumpMap?: HostMap
+  readonly displacementMap?: HostMap
+  readonly alphaMap?: HostMap
   /** The compile hook a host may install on a material; `surfaceGate.ts` reads only whether
    *  one was installed, never what it does. */
-  readonly onBeforeCompile?: unknown;
-};
+  readonly onBeforeCompile?: unknown
+}

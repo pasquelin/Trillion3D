@@ -1,15 +1,15 @@
 import {
   ENVIRONMENT_REFLECTION_WGSL,
   PROBE_REFLECTION_FILTER_WGSL,
-} from '../reflections/probeFilterWgsl.ts';
-import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
-import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts';
-import { MODEL_FLAG } from '../scene/surfaceModel.ts';
-import { BOUNCE_FIELDS_WGSL } from './gridWgsl.ts';
+} from '../reflections/probeFilterWgsl.ts'
+import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts'
+import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts'
+import { MODEL_FLAG } from '../scene/surfaceModel.ts'
+import { BOUNCE_FIELDS_WGSL } from './gridWgsl.ts'
 
 /** Rank of the surface cache in the deferred bounce layout: past the water composite's own
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
-export const BOUNCE_SURFACE_BINDING = 20;
+export const BOUNCE_SURFACE_BINDING = 20
 
 /** Posed hits read the surface cache, an atlas (`atlas.ts`) whose padding texels, never written,
  *  hold zero — what a texel past the cache returns. An owned leaf's hit evaluates the lighting at
@@ -32,7 +32,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let size=textureDimensions(surface);
  if(texel>=size.x*size.y){return vec4f(0.0,0.0,0.0,hit.distance);}
  return vec4f(textureLoad(surface,vec2u(texel%size.x,texel/size.x),0).rgb,hit.distance);
-}`;
+}`
 
 /** The rough GGX prefilter convolves the existing radiance probe coefficients;
  * the mirror limit preserves the single original ray. The transition interpolates toward
@@ -61,7 +61,7 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  let filtered=filteredProbeReflection(P,N,R,rough);
  if(weight==0.0){return filtered;}
  return mix(filtered,proxyReflectionRay(P,N,R),weight);
-}`;
+}`
 
 /**
  * The specular a smooth opaque surface returns from what it reflects (#31): the radiance along the
@@ -74,7 +74,7 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  * Beyond that interval the existing order-2 probe field is convolved with the rough lobe.
  * A diffuse or toon surface has no specular lobe and reflects nothing.
  */
-export const MIRROR_LIGHTING_WGSL = mirrorLightingShader('wgsl');
+export const MIRROR_LIGHTING_WGSL = mirrorLightingShader('wgsl')
 
 /** The direct-only program's reflection: no proxy and no probe, the environment alone (#1341). */
 export const DIRECT_REFLECTION_WGSL = `
@@ -82,7 +82,7 @@ ${mirrorWeightShader('wgsl')}
 ${ENVIRONMENT_REFLECTION_WGSL}
 fn filteredReflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return environmentReflection(R,rough);}
-${MIRROR_LIGHTING_WGSL}`;
+${MIRROR_LIGHTING_WGSL}`
 
 /**
  * The deferred resolve's bounced diffuse light (\`bounceLighting\`), for a pixel whose mirror term
@@ -100,4 +100,4 @@ fn bounceSurfaceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,a
  let fields=sampleProbeFields(P,N,R,reflectionProbeBands(rough));
  holdProbeSpecular(P,N,R,rough,fields.specular);
  return bounceDiffuse(rgb,metal,fields.diffuse,ao);
-}`;
+}`

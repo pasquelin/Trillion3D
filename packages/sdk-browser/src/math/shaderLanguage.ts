@@ -1,5 +1,5 @@
 export function shaderLanguage(source: string, language: 'wgsl' | 'glsl') {
-  if (language === 'wgsl') return source;
+  if (language === 'wgsl') return source
   return source
     .replace(
       /fn (\w+)\(([^)]*)\)->(\w+)\{/g,
@@ -15,5 +15,5 @@ export function shaderLanguage(source: string, language: 'wgsl' | 'glsl') {
     .replace(/\b(\d+)u\b/g, '$1')
     .replace('any(pixel<ivec2(0))', 'any(lessThan(pixel,ivec2(0)))')
     .replace('any(pixel>=ivec2(size))', 'any(greaterThanEqual(pixel,ivec2(size)))')
-    .replace('all(pixel==origin)', 'all(equal(pixel,origin))');
+    .replace('all(pixel==origin)', 'all(equal(pixel,origin))')
 }

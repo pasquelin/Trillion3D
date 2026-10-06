@@ -1,11 +1,11 @@
-import { createChangeGate, createControlBase, type ControlBase } from './base.ts';
-import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts';
-import { trackPointers, trackWheel, type DragHandlers } from './input.ts';
-import { dollyDistance, panOffset, pixelWorldScale } from './math.ts';
-import { clampNumber, RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts';
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { ControlCamera, PivotCameraControls } from './types.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { createChangeGate, createControlBase, type ControlBase } from './base.ts'
+import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
+import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
+import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
+import { clampNumber, RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+import type { ControlCamera, PivotCameraControls } from './types.ts'
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
 /**
  * THE PIVOT CORE, shared by the trackball and the planar pan-zoom: a camera, a point it keeps
@@ -18,60 +18,60 @@ import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
  * back before every gesture, so a host that moves the camera itself is obeyed.
  */
 export interface PivotCore {
-  base: ControlBase;
-  api: PivotCameraControls;
+  base: ControlBase
+  api: PivotCameraControls
   /** Eye, pivot, eye-to-pivot offset and orientation, refreshed by `sample`. */
-  position: Float64Array;
-  center: Float64Array;
-  offset: Float64Array;
-  orientation: Float64Array;
-  height(): number;
-  sample(): void;
-  apply(): boolean;
-  panBy(dx: number, dy: number): void;
-  dolly(steps: number): void;
+  position: Float64Array
+  center: Float64Array
+  offset: Float64Array
+  orientation: Float64Array
+  height(): number
+  sample(): void
+  apply(): boolean
+  panBy(dx: number, dy: number): void
+  dolly(steps: number): void
 }
 
 export function createPivotControls(camera: ControlCamera, surface: HTMLElement): PivotCore {
   const pose = controlPose(camera),
-    base = createControlBase();
+    base = createControlBase()
   const position = new Float64Array(3),
     center = new Float64Array(3),
     offset = new Float64Array(3),
     orientation = new Float64Array(4),
     pan = new Float64Array(3),
-    moved = new Float64Array(10);
+    moved = new Float64Array(10)
   // Eye, pivot AND orientation: a trackball seen from its pivot's axis turns the view without
   // moving a single point, and that spin is a change the host must redraw.
-  const gate = createChangeGate(base, 10);
-  const height = () => surface.clientHeight || 1;
+  const gate = createChangeGate(base, 10)
+  const height = () => surface.clientHeight || 1
   const sample = () => {
-    pose.readPosition(position);
-    pose.readOrientation(orientation);
-    readVector(center, api.target);
-    for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i];
-  };
+    pose.readPosition(position)
+    pose.readOrientation(orientation)
+    readVector(center, api.target)
+    for (let i = 0; i < 3; i++) offset[i] = position[i] - center[i]
+  }
   const apply = () => {
-    let radius = hypot3(offset[0], offset[1], offset[2]);
+    let radius = hypot3(offset[0], offset[1], offset[2])
     // A pivot reached exactly is no direction at all: back off along what the camera faces.
     if (radius <= RADIUS_EPSILON) {
-      rotateByQuaternion(offset, orientation, 0, 0, 1);
-      radius = 1;
+      rotateByQuaternion(offset, orientation, 0, 0, 1)
+      radius = 1
     }
-    const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON);
-    const kept = clampNumber(radius, Math.max(api.minDistance, RADIUS_EPSILON), far);
-    for (let i = 0; i < 3; i++) position[i] = center[i] + (offset[i] * kept) / radius;
-    pose.write(position, orientation);
-    writeVector(api.target, center);
-    moved.set(position);
-    moved.set(center, 3);
-    moved.set(orientation, 6);
-    return gate(moved);
-  };
+    const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
+    const kept = clampNumber(radius, Math.max(api.minDistance, RADIUS_EPSILON), far)
+    for (let i = 0; i < 3; i++) position[i] = center[i] + (offset[i] * kept) / radius
+    pose.write(position, orientation)
+    writeVector(api.target, center)
+    moved.set(position)
+    moved.set(center, 3)
+    moved.set(orientation, 6)
+    return gate(moved)
+  }
   const api = pivotControlsApi(base, pose, () => {
-    sample();
-    return apply();
-  });
+    sample()
+    return apply()
+  })
   return {
     base,
     api,
@@ -83,28 +83,28 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
     sample,
     apply,
     panBy(dx, dy) {
-      if (!api.enablePan) return;
-      sample();
-      const distance = hypot3(offset[0], offset[1], offset[2]);
+      if (!api.enablePan) return
+      sample()
+      const distance = hypot3(offset[0], offset[1], offset[2])
       panOffset(
         pan,
         orientation,
         dx,
         dy,
         pixelWorldScale(distance, pose.fov(), height(), pose.zoom()),
-      );
-      for (let i = 0; i < 3; i++) center[i] += pan[i];
-      apply();
+      )
+      for (let i = 0; i < 3; i++) center[i] += pan[i]
+      apply()
     },
     dolly(steps) {
-      if (!api.enableZoom) return;
-      sample();
-      const distance = hypot3(offset[0], offset[1], offset[2]) || 1;
-      const kept = dollyDistance(distance, steps, api.zoomSpeed);
-      for (let i = 0; i < 3; i++) offset[i] = (offset[i] * kept) / distance;
-      apply();
+      if (!api.enableZoom) return
+      sample()
+      const distance = hypot3(offset[0], offset[1], offset[2]) || 1
+      const kept = dollyDistance(distance, steps, api.zoomSpeed)
+      for (let i = 0; i < 3; i++) offset[i] = (offset[i] * kept) / distance
+      apply()
     },
-  };
+  }
 }
 
 /** A pivot's default distance range and speeds, which `world.controls` keeps as its own. */
@@ -113,7 +113,7 @@ export const PIVOT_DEFAULTS = {
   maxDistance: Infinity,
   rotateSpeed: 1,
   zoomSpeed: 1,
-};
+}
 
 /** The pivot contract at its defaults: unbounded distance, both gestures on, unit speeds. */
 export function pivotControlsApi(
@@ -129,7 +129,7 @@ export function pivotControlsApi(
     enableZoom: true,
     enablePan: true,
     update,
-  };
+  }
 }
 
 /**
@@ -146,14 +146,14 @@ export function trackPivotGestures(
   trackPointers(surface, base, {
     drag,
     pinch: (ratio, dx, dy) => {
-      panBy(dx, dy);
-      dolly(pinchSteps(ratio));
+      panBy(dx, dy)
+      dolly(pinchSteps(ratio))
     },
-  });
-  trackWheel(surface, base, (steps) => dolly(-steps));
+  })
+  trackWheel(surface, base, (steps) => dolly(-steps))
 }
 
 /** Notches a pinch is worth: fingers apart zoom in, exactly as a wheel turned backwards. */
 function pinchSteps(ratio: number) {
-  return ratio > 0 ? -Math.log(ratio) / Math.log(0.95) : 0;
+  return ratio > 0 ? -Math.log(ratio) / Math.log(0.95) : 0
 }

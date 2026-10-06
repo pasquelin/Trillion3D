@@ -3,4 +3,4 @@ export const WEBGL_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
   antialias: false,
   alpha: false,
   preserveDrawingBuffer: false,
-};
+}

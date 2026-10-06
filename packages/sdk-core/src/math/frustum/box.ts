@@ -29,11 +29,11 @@ export function frustumExcludesBox(
     const a = planes[p],
       b = planes[p + 1],
       c = planes[p + 2],
-      d = planes[p + 3];
+      d = planes[p + 3]
     if (a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0)
-      return true;
+      return true
   }
-  return false;
+  return false
 }
 
 /**
@@ -52,14 +52,14 @@ export function frustumClipBox(
   maxY: number,
   maxZ: number,
 ) {
-  if (frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ)) return 0;
+  if (frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ)) return 0
   for (let p = 0; p < 24; p += 4) {
     const a = planes[p],
       b = planes[p + 1],
       c = planes[p + 2],
-      d = planes[p + 3];
+      d = planes[p + 3]
     if (a * (a > 0 ? minX : maxX) + b * (b > 0 ? minY : maxY) + c * (c > 0 ? minZ : maxZ) + d < 0)
-      return 1;
+      return 1
   }
-  return 2;
+  return 2
 }

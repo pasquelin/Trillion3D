@@ -1,29 +1,29 @@
-import { statSync } from 'node:fs';
-import { join } from 'node:path';
-import type { Metafile } from 'esbuild';
+import { statSync } from 'node:fs'
+import { join } from 'node:path'
+import type { Metafile } from 'esbuild'
 
 interface InstalledTools {
-  node: string;
-  pnpm: string;
-  typescript: string;
-  esbuild: string;
+  node: string
+  pnpm: string
+  typescript: string
+  esbuild: string
 }
 
 export interface InstalledEvidenceInput {
-  fixture: string;
-  packageName: string;
-  packed: { files?: { path: string }[] };
-  tools: InstalledTools;
-  compilerVersion: string | null;
-  browserProof: { browserVersion: string } | null;
-  proveNative: boolean;
-  proveBrowser: boolean;
+  fixture: string
+  packageName: string
+  packed: { files?: { path: string }[] }
+  tools: InstalledTools
+  compilerVersion: string | null
+  browserProof: { browserVersion: string } | null
+  proveNative: boolean
+  proveBrowser: boolean
 }
 
 export interface InstalledEvidenceReport {
-  tools: InstalledTools & { compiler: string | null; chrome: string | null };
-  settings: { types: string; bundles: string; native: string | null; browser: string | null };
-  files: { path: string; size: number }[];
+  tools: InstalledTools & { compiler: string | null; chrome: string | null }
+  settings: { types: string; bundles: string; native: string | null; browser: string | null }
+  files: { path: string; size: number }[]
 }
 
 export function installedEvidence({
@@ -36,7 +36,7 @@ export function installedEvidence({
   proveNative,
   proveBrowser,
 }: InstalledEvidenceInput): InstalledEvidenceReport {
-  const installedPackage = join(fixture, 'node_modules', packageName);
+  const installedPackage = join(fixture, 'node_modules', packageName)
   return {
     tools: { ...tools, compiler: compilerVersion, chrome: browserProof?.browserVersion ?? null },
     settings: {
@@ -50,15 +50,15 @@ export function installedEvidence({
         path,
         size: statSync(join(installedPackage, path)).size,
       })) ?? [],
-  };
+  }
 }
 
 export interface EvidenceSummaryInput {
-  package: string;
-  commit: string;
-  tools: InstalledTools & { compiler: string | null; chrome: string | null };
-  bundles: Record<string, Metafile>;
-  files: { path: string; size: number }[];
+  package: string
+  commit: string
+  tools: InstalledTools & { compiler: string | null; chrome: string | null }
+  bundles: Record<string, Metafile>
+  files: { path: string; size: number }[]
 }
 
 export function evidenceSummary(evidence: EvidenceSummaryInput): string {
@@ -66,15 +66,15 @@ export function evidenceSummary(evidence: EvidenceSummaryInput): string {
     Object.entries(evidence.bundles).map(([name, meta]) => {
       const output = Object.entries(meta.outputs).find(
         ([path]) => path === `${name}.js` || path.endsWith(`/${name}.js`),
-      );
-      return [name, output?.[1].bytes ?? null];
+      )
+      return [name, output?.[1].bytes ?? null]
     }),
-  );
+  )
   return JSON.stringify({
     package: evidence.package,
     commit: evidence.commit,
     tools: evidence.tools,
     fileCount: evidence.files.length,
     bundleBytes,
-  });
+  })
 }

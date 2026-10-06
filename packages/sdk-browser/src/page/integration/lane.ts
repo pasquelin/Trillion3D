@@ -1,9 +1,9 @@
-import { besideModule, startModuleWorker } from '../../host/besideModule.ts';
-import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts';
+import { besideModule, startModuleWorker } from '../../host/besideModule.ts'
+import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts'
 import type {
   PageIntegrationAnswer,
   PageIntegrationRequest,
-} from '../../../../sdk-core/src/index.ts';
+} from '../../../../sdk-core/src/index.ts'
 
 const workerError = (id: number, url: string): PageIntegrationAnswer => ({
   protocol: PAGE_INTEGRATION_PROTOCOL,
@@ -12,7 +12,7 @@ const workerError = (id: number, url: string): PageIntegrationAnswer => ({
   url,
   code: 'PAGE_INTEGRATION_WORKER',
   message: 'PAGE_INTEGRATION_WORKER',
-});
+})
 
 /**
  * One worker, one queue, send order kept intact. Browser adapter: this is the only integration
@@ -29,32 +29,32 @@ const workerError = (id: number, url: string): PageIntegrationAnswer => ({
  * and everything after that goes back in-line.
  */
 export function createPageIntegrationLane() {
-  const pending = new Map<number, (answer: PageIntegrationAnswer) => void>();
+  const pending = new Map<number, (answer: PageIntegrationAnswer) => void>()
   let worker: Worker | undefined,
     alive = true,
-    nextId = 1;
-  const source = besideModule('pageIntegrationWorker', import.meta.url);
+    nextId = 1
+  const source = besideModule('pageIntegrationWorker', import.meta.url)
   const breakLane = () => {
-    if (!alive) return;
-    alive = false;
-    const lost = [...pending.entries()];
-    pending.clear();
-    worker?.terminate();
-    worker = undefined;
-    for (const [id, settle] of lost) settle(workerError(id, ''));
-  };
+    if (!alive) return
+    alive = false
+    const lost = [...pending.entries()]
+    pending.clear()
+    worker?.terminate()
+    worker = undefined
+    for (const [id, settle] of lost) settle(workerError(id, ''))
+  }
   const spawn = () => {
-    const spawned = startModuleWorker(source);
+    const spawned = startModuleWorker(source)
     spawned.onmessage = (event: MessageEvent) => {
-      const answer = event.data as PageIntegrationAnswer;
-      const settle = pending.get(answer.id);
-      pending.delete(answer.id);
-      settle?.(answer);
-    };
-    spawned.onerror = breakLane;
-    spawned.onmessageerror = breakLane;
-    return spawned;
-  };
+      const answer = event.data as PageIntegrationAnswer
+      const settle = pending.get(answer.id)
+      pending.delete(answer.id)
+      settle?.(answer)
+    }
+    spawned.onerror = breakLane
+    spawned.onmessageerror = breakLane
+    return spawned
+  }
 
   const submit = (url: string, words: number, specs: ArrayBuffer | null) => {
     const request: PageIntegrationRequest = {
@@ -63,43 +63,43 @@ export function createPageIntegrationLane() {
       url,
       words,
       specs,
-    };
-    if (!alive || !worker) return Promise.resolve(workerError(request.id, url));
+    }
+    if (!alive || !worker) return Promise.resolve(workerError(request.id, url))
     return new Promise<PageIntegrationAnswer>((resolve) => {
-      pending.set(request.id, resolve);
+      pending.set(request.id, resolve)
       try {
-        worker!.postMessage(request, specs ? [specs] : []);
+        worker!.postMessage(request, specs ? [specs] : [])
       } catch {
-        breakLane();
+        breakLane()
       }
-    });
-  };
+    })
+  }
 
-  let ready: Promise<boolean> | undefined;
+  let ready: Promise<boolean> | undefined
   return {
     get alive() {
-      return alive;
+      return alive
     },
     /** True once the worker has answered the startup probe; false and the queue closed otherwise. */
     start() {
       ready ??= (async () => {
         if (typeof Worker === 'undefined') {
-          breakLane();
-          return false;
+          breakLane()
+          return false
         }
         try {
-          worker = spawn();
-          const answer = await submit('', 0, new Int32Array(0).buffer as ArrayBuffer);
-          if (!answer.ok) breakLane();
-          return answer.ok;
+          worker = spawn()
+          const answer = await submit('', 0, new Int32Array(0).buffer as ArrayBuffer)
+          if (!answer.ok) breakLane()
+          return answer.ok
         } catch {
-          breakLane();
-          return false;
+          breakLane()
+          return false
         }
-      })();
-      return ready;
+      })()
+      return ready
     },
     submit,
     retire: breakLane,
-  };
+  }
 }

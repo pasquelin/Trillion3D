@@ -1,10 +1,10 @@
-import type { HostAttributes } from '../../host/resources.ts';
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { slotSampled } from '../tile/samplingHeaders.ts';
-import { materialClassKey } from '../../visibility/shader/materialClass.ts';
-import { MODEL_SHIFT } from '../../scene/surfaceModel.ts';
-import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV } from '../../cluster/format.ts';
+import type { HostAttributes } from '../../host/resources.ts'
+import type { Texture } from '../../../../sdk-core/src/index.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { slotSampled } from '../tile/samplingHeaders.ts'
+import { materialClassKey } from '../../visibility/shader/materialClass.ts'
+import { MODEL_SHIFT } from '../../scene/surfaceModel.ts'
+import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV } from '../../cluster/format.ts'
 import {
   FLAG_CLUSTER_PAGE,
   FLAG_LIT,
@@ -22,23 +22,23 @@ import {
   FLAG_FOG_FREE,
   FLAG_DYNAMIC,
   type VisMaterial,
-} from '../../visibility/buffer.ts';
+} from '../../visibility/buffer.ts'
 
 export type GeometryBlock = {
-  vertexBase: number;
-  count: number;
-  hasUv: boolean;
-  hasNormal: boolean;
-  hasTangent: boolean;
+  vertexBase: number
+  count: number
+  hasUv: boolean
+  hasNormal: boolean
+  hasTangent: boolean
   /** Vertex colours: the page's `COLOR_0`, or the tail of the source UV buffer
    *  (`../core/vertexColors.ts`). */
-  hasColor: boolean;
+  hasColor: boolean
   /** The row reads its geometry from the quantized page in its pool slot, not from the source
    *  float buffers: `vertexBase` then addresses nothing. */
-  quantized?: boolean;
+  quantized?: boolean
   /** A world's dynamic geometry, rewritten in place (#573): its rows carry `FLAG_DYNAMIC`. */
-  dynamic?: boolean;
-};
+  dynamic?: boolean
+}
 
 /**
  * The geometry a row reads, into a block the caller owns — a row is rewritten at every arrival
@@ -54,16 +54,16 @@ export function rowGeometry(
   geometryBlocks: ReadonlyMap<HostAttributes, GeometryBlock>,
   into: GeometryBlock,
 ) {
-  const page = rec.geometryPage;
-  if (!page) return geometryBlocks.get(rec.attributes);
-  into.vertexBase = 0;
-  into.count = page.vertexCount;
-  into.hasUv = (page.flags & FLAG_UV) !== 0;
-  into.hasNormal = (page.flags & FLAG_NORMAL) !== 0;
-  into.hasTangent = false;
-  into.hasColor = (page.flags & FLAG_COLOR) !== 0;
-  into.quantized = true;
-  return into;
+  const page = rec.geometryPage
+  if (!page) return geometryBlocks.get(rec.attributes)
+  into.vertexBase = 0
+  into.count = page.vertexCount
+  into.hasUv = (page.flags & FLAG_UV) !== 0
+  into.hasNormal = (page.flags & FLAG_NORMAL) !== 0
+  into.hasTangent = false
+  into.hasColor = (page.flags & FLAG_COLOR) !== 0
+  into.quantized = true
+  return into
 }
 
 /** A block `rowGeometry` may fill; one per caller, never shared. */
@@ -75,24 +75,24 @@ export const emptyGeometryBlock = (): GeometryBlock => ({
   hasTangent: false,
   hasColor: false,
   quantized: false,
-});
+})
 /** An atlas as a material reads it: its page table, whose headers say which slots take their
  *  filter rule (`slotSampled`). */
-type SampledAtlas = { pages: { readonly words: Uint32Array } };
+type SampledAtlas = { pages: { readonly words: Uint32Array } }
 /** The two atlases a material's slots index. */
-type SampledAtlases = { color: SampledAtlas; data: SampledAtlas };
+type SampledAtlases = { color: SampledAtlas; data: SampledAtlas }
 
 /** Atlas slots of a scene's textures, by texture; a texture the atlas does not hold reads slot 0.
  *  `textures`, the atlases themselves, once they exist. */
 export type MaterialLayers = {
-  mapLayer: ReadonlyMap<Texture, number>;
-  dataLayer: ReadonlyMap<Texture, number>;
-  textures?: SampledAtlases;
-};
+  mapLayer: ReadonlyMap<Texture, number>
+  dataLayer: ReadonlyMap<Texture, number>
+  textures?: SampledAtlases
+}
 
 /** A texture's slot in an atlas table; 0, the fill texel, for none or one the atlas lacks. */
 export const layerSlot = (layers: ReadonlyMap<Texture, number>, texture?: Texture) =>
-  texture ? (layers.get(texture) ?? 0) : 0;
+  texture ? (layers.get(texture) ?? 0) : 0
 
 /** `FLAG_SAMPLED` when one of a material's maps, by its atlas slots, takes its filter rule: the
  *  flag that compiles or skips the filtered read, per page and per transparent item. */
@@ -106,9 +106,9 @@ export function sampledFlag(
   data3: number,
   color2 = 0,
 ) {
-  if (!textures) return 0;
+  if (!textures) return 0
   const color = textures.color.pages,
-    data = textures.data.pages;
+    data = textures.data.pages
   return slotSampled(color, color0) ||
     slotSampled(color, color1) ||
     slotSampled(color, color2) ||
@@ -117,7 +117,7 @@ export function sampledFlag(
     slotSampled(data, data2) ||
     slotSampled(data, data3)
     ? FLAG_SAMPLED
-    : 0;
+    : 0
 }
 
 /** What a page row says of its material: its map slots, its flags word, and its resolve class. */
@@ -132,27 +132,27 @@ export function rowMaterial(
     normal = layerSlot(dataLayer, mat.normalMap),
     ao = layerSlot(dataLayer, mat.aoMap),
     emissive = layerSlot(mapLayer, mat.emissiveMap),
-    subsurface = layerSlot(mapLayer, mat.subsurfaceMap);
-  let flags = 0;
-  if (mat.lit) flags |= FLAG_LIT;
-  if (mat.fog === false) flags |= FLAG_FOG_FREE;
-  if (mat.doubleSided) flags |= FLAG_DOUBLE;
-  if (geo?.hasUv) flags |= FLAG_HAS_UV;
-  if (map) flags |= FLAG_HAS_MAP;
-  if (geo?.hasNormal) flags |= FLAG_HAS_NORMAL;
-  if (geo?.hasTangent) flags |= FLAG_HAS_TANGENT;
+    subsurface = layerSlot(mapLayer, mat.subsurfaceMap)
+  let flags = 0
+  if (mat.lit) flags |= FLAG_LIT
+  if (mat.fog === false) flags |= FLAG_FOG_FREE
+  if (mat.doubleSided) flags |= FLAG_DOUBLE
+  if (geo?.hasUv) flags |= FLAG_HAS_UV
+  if (map) flags |= FLAG_HAS_MAP
+  if (geo?.hasNormal) flags |= FLAG_HAS_NORMAL
+  if (geo?.hasTangent) flags |= FLAG_HAS_TANGENT
   // A dashed line cuts its gaps where a masked surface cuts its cutout (`maskKeep`).
-  if (mat.alphaTest > 0 || mat.dashSize !== undefined) flags |= FLAG_MASK;
-  if (mat.backSide) flags |= FLAG_BACK;
-  if (rough || metal) flags |= FLAG_HAS_ORM;
-  if (normal) flags |= FLAG_HAS_NORMAL_MAP;
+  if (mat.alphaTest > 0 || mat.dashSize !== undefined) flags |= FLAG_MASK
+  if (mat.backSide) flags |= FLAG_BACK
+  if (rough || metal) flags |= FLAG_HAS_ORM
+  if (normal) flags |= FLAG_HAS_NORMAL_MAP
   // The material asks for its vertex colours, and the geometry has some: the forward rule.
-  if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR;
-  flags |= (mat.model ?? 0) << MODEL_SHIFT;
-  flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao, subsurface);
-  const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal });
+  if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR
+  flags |= (mat.model ?? 0) << MODEL_SHIFT
+  flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao, subsurface)
+  const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal })
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
-  if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE;
-  if (geo?.dynamic) flags |= FLAG_DYNAMIC;
-  return { map, rough, metal, normal, ao, emissive, subsurface, flags, classKey };
+  if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE
+  if (geo?.dynamic) flags |= FLAG_DYNAMIC
+  return { map, rough, metal, normal, ao, emissive, subsurface, flags, classKey }
 }

@@ -1,6 +1,6 @@
-import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
-import { LIGHT_ROW_TEXELS } from '../webgl/cluster/lightTexture.ts';
-import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts';
+import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
+import { LIGHT_ROW_TEXELS } from '../webgl/cluster/lightTexture.ts'
+import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 
 /**
  * THE GPU DEFORMATION STAGE (#357) in the WebGL2 program's vertex stage: `DEFORM_WGSL`
@@ -42,4 +42,4 @@ if((kinds&${KIND_MORPH})!=0)for(int t=0;t<min(targets,deformDraw.z);t++){float w
 if((kinds&${KIND_SKIN})!=0&&deformDraw.y!=0){p=deformSkin(palette,joints,vec4(p,1.0));n=deformSkin(palette,joints,vec4(n,0.0));}
 if((kinds&${KIND_WAVE})!=0){mat4 m=deformMatrix(world);vec3 at=(m*vec4(p,1.0)).xyz;
 p=(deformMatrix(world+16)*vec4(at+deformWaves(world+64,waves,at,false),1.0)).xyz;
-n=transpose(mat3(m))*deformWaves(world+64,waves,(m*vec4(rest,1.0)).xyz,true);}}`;
+n=transpose(mat3(m))*deformWaves(world+64,waves,(m*vec4(rest,1.0)).xyz,true);}}`

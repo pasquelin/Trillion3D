@@ -1,4 +1,4 @@
-import { COMPUTE } from '../core/computeBindings.ts';
+import { COMPUTE } from '../core/computeBindings.ts'
 import {
   STATE_TALLY_WGSL,
   ST_REJECTED,
@@ -6,10 +6,10 @@ import {
   ST_TESTED,
   VERDICT_KEPT,
   VERDICT_REJECTED,
-} from '../partition/contract.ts';
-import { HIZ_HIDES_WGSL } from './rectWgsl.ts';
-import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts';
-import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
+} from '../partition/contract.ts'
+import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
+import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -29,14 +29,14 @@ export function hizBindEntries(uniformBytes: number): GPUBindGroupLayoutEntry[] 
     { binding: 3, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
     { binding: 4, visibility: COMPUTE, buffer: { type: 'storage' } },
     { binding: 5, visibility: COMPUTE, buffer: { type: 'storage' } },
-  ];
+  ]
 }
 
 /** Group 1, the test's alone: the page table, whose Hi-Z slot word tells a row that has no
  *  verdict (never culled). The pyramid kernels bind group 0 only, the page pyramids included. */
 export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
   { binding: 0, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },
-];
+]
 
 /**
  * The Hi-Z kernels: the pyramid build and the test. The test no longer receives a count or bytes
@@ -149,4 +149,4 @@ fn testBox(i:u32){
   tallyAdd(${ST_REJECTED_TRIANGLES}u,b.triangles);
  }
 }
-`;
+`

@@ -7,20 +7,20 @@
 // <page>: an example's name (`drive-a-car`), a path, or a validation page's prefix (`v06`) with
 // TRILLION3D_VALIDATION_DIR set; a scenario file may name its page. One bench at a time on the
 // machine (`lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { measureOutput } from '../core/paths.ts';
-import { runChild } from './child.ts';
-import { LOCK_OWNER, takeBenchLock } from './lock.ts';
-import { mergePlays } from './merge.ts';
-import { benchOptions, stamp } from './options.ts';
-import { playScenario, type BenchPlay } from './play.ts';
-import { reportText } from './reportText.ts';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { measureOutput } from '../core/paths.ts'
+import { runChild } from './child.ts'
+import { LOCK_OWNER, takeBenchLock } from './lock.ts'
+import { mergePlays } from './merge.ts'
+import { benchOptions, stamp } from './options.ts'
+import { playScenario, type BenchPlay } from './play.ts'
+import { reportText } from './reportText.ts'
 
-const options = benchOptions();
-const label = `${options.name} ${options.scenario.name}${options.search}`;
+const options = benchOptions()
+const label = `${options.name} ${options.scenario.name}${options.search}`
 
-takeBenchLock(label);
+takeBenchLock(label)
 
 if (options.childReport) {
   // One play of a repeated run, in a process of its own: a fresh page, the same situation. Its
@@ -28,40 +28,40 @@ if (options.childReport) {
   // holds the machine. The run waits as long for each of its plays (`runChild`), so `--timeout`
   // bounds a play, never the whole run.
   setTimeout(() => {
-    console.error(`BENCH_TIMEOUT: ${label} past ${options.timeoutS} s`);
-    process.exit(3);
-  }, options.timeoutS * 1000).unref();
-  const play = await playScenario(options, options.childReport.replace(/\.json$/, ''));
-  writeFileSync(options.childReport, JSON.stringify(play));
-  process.exit(0);
+    console.error(`BENCH_TIMEOUT: ${label} past ${options.timeoutS} s`)
+    process.exit(3)
+  }, options.timeoutS * 1000).unref()
+  const play = await playScenario(options, options.childReport.replace(/\.json$/, ''))
+  writeFileSync(options.childReport, JSON.stringify(play))
+  process.exit(0)
 }
 
-const out = measureOutput('bench-gpu');
-mkdirSync(out, { recursive: true });
-const variant = options.profileName === 'desktop' ? '' : `-${options.profileName}`;
-const stem = join(out, `${stamp()}-${options.name}-${options.scenario.name}${variant}`);
-const plays: BenchPlay[] = [];
-const args = process.argv.slice(2).filter((arg) => arg !== '--cpu-profile');
+const out = measureOutput('bench-gpu')
+mkdirSync(out, { recursive: true })
+const variant = options.profileName === 'desktop' ? '' : `-${options.profileName}`
+const stem = join(out, `${stamp()}-${options.name}-${options.scenario.name}${variant}`)
+const plays: BenchPlay[] = []
+const args = process.argv.slice(2).filter((arg) => arg !== '--cpu-profile')
 for (let k = 0; k < options.repeat; k++) {
   // The last play is the profiled one when the CPU is profiled: the others' timings stand
   // without the profiler's cost.
-  const profiled = options.cpuProfile && k === options.repeat - 1;
-  const report = `${stem}-play${k + 1}.json`;
+  const profiled = options.cpuProfile && k === options.repeat - 1
+  const report = `${stem}-play${k + 1}.json`
   const child = await runChild(
     [process.argv[1], ...args, '--child-report', report, ...(profiled ? ['--cpu-profile'] : [])],
     // The run that holds the lock lends it on: this run's, or the suite's it is a child of.
     { ...process.env, [LOCK_OWNER]: process.env[LOCK_OWNER] ?? String(process.pid) },
     false,
     options.timeoutS * 1000,
-  );
+  )
   if (child.status !== 0)
-    throw new Error(`BENCH_PLAY: play ${k + 1} of ${label} ended ${child.status ?? child.signal}`);
-  plays.push(JSON.parse(readFileSync(report, 'utf8')) as BenchPlay);
+    throw new Error(`BENCH_PLAY: play ${k + 1} of ${label} ended ${child.status ?? child.signal}`)
+  plays.push(JSON.parse(readFileSync(report, 'utf8')) as BenchPlay)
 }
-const merged = mergePlays(plays);
-writeFileSync(`${stem}.json`, JSON.stringify(merged, null, 1));
-const text = reportText(merged);
-writeFileSync(`${stem}.md`, text);
-console.log(text);
-console.log(`report: ${stem}.md`);
-process.exit(merged.errors.length ? 1 : 0);
+const merged = mergePlays(plays)
+writeFileSync(`${stem}.json`, JSON.stringify(merged, null, 1))
+const text = reportText(merged)
+writeFileSync(`${stem}.md`, text)
+console.log(text)
+console.log(`report: ${stem}.md`)
+process.exit(merged.errors.length ? 1 : 0)

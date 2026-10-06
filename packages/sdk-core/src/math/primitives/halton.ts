@@ -7,11 +7,11 @@
 export function halton(index: number, base: number) {
   let result = 0,
     fraction = 1 / base,
-    i = index;
+    i = index
   while (i > 0) {
-    result += fraction * (i % base);
-    i = Math.floor(i / base);
-    fraction /= base;
+    result += fraction * (i % base)
+    i = Math.floor(i / base)
+    fraction /= base
   }
-  return result;
+  return result
 }

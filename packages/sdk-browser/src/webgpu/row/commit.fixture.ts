@@ -3,18 +3,18 @@
 // before lot F (`commit.test.ts`) and the direct proof of row recycling
 // (`recycle.test.ts`), which nothing differential can prove since the oracle carries the
 // same guard word for word.
-import { createWebgpuRowState } from './state.ts';
-import { createWebgpuRowCommit } from './commit.ts';
-import { createWebgpuRowSync } from './sync.ts';
-import { PAGE_INFO_STRIDE } from '../../visibility/types.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { createWebgpuRowState } from './state.ts'
+import { createWebgpuRowCommit } from './commit.ts'
+import { createWebgpuRowSync } from './sync.ts'
+import { PAGE_INFO_STRIDE } from '../../visibility/types.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
 
-const MOTS = PAGE_INFO_STRIDE / 4;
+const MOTS = PAGE_INFO_STRIDE / 4
 export const PAGES = 6,
-  SLOTS = 4;
+  SLOTS = 4
 
 export function catalogue(): PageRec[] {
-  const pages = [];
+  const pages = []
   for (let i = 0; i < PAGES; i++)
     pages.push({
       id: i,
@@ -22,8 +22,8 @@ export function catalogue(): PageRec[] {
       array: i === 2 ? undefined : Uint32Array.of(0, 1, 2),
       transparent: i === 4,
       depthLayer: 0,
-    } as unknown as PageRec);
-  return pages;
+    } as unknown as PageRec)
+  return pages
 }
 const ecrivain = (
   rec: PageRec,
@@ -33,28 +33,28 @@ const ecrivain = (
   floats: Float32Array,
   ints: Uint32Array,
 ) => {
-  const base = row * MOTS;
-  floats.fill(0, base, base + MOTS);
-  floats[base] = pageIndex;
-  floats[base + 1] = offsetWords;
-  ints[base + 3] = row + 1;
-  ints[base + 4] = rec.id as number;
-};
+  const base = row * MOTS
+  floats.fill(0, base, base + MOTS)
+  floats[base] = pageIndex
+  floats[base + 1] = offsetWords
+  ints[base + 3] = row + 1
+  ints[base + 4] = rec.id as number
+}
 export function mount(
   fabriqueEtat: typeof createWebgpuRowState = createWebgpuRowState,
   fabriqueCommit: typeof createWebgpuRowCommit = createWebgpuRowCommit,
 ) {
-  const pages = catalogue();
-  const rows = fabriqueEtat(pages, SLOTS);
-  const tampon = new ArrayBuffer(SLOTS * PAGE_INFO_STRIDE);
-  rows.pageTableFloats = new Float32Array(tampon);
-  rows.pageTableInts = new Uint32Array(tampon);
-  for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = { slot: i } as unknown as GPUBuffer;
-  const commit = fabriqueCommit(rows, ecrivain);
+  const pages = catalogue()
+  const rows = fabriqueEtat(pages, SLOTS)
+  const tampon = new ArrayBuffer(SLOTS * PAGE_INFO_STRIDE)
+  rows.pageTableFloats = new Float32Array(tampon)
+  rows.pageTableInts = new Uint32Array(tampon)
+  for (let i = 0; i < PAGES; i++) rows.pagePositions[i] = { slot: i } as unknown as GPUBuffer
+  const commit = fabriqueCommit(rows, ecrivain)
   /** CPU cut of the image: it is the one, and the only one, that reaches `commitRows`. The packed
    *  rank of each drawn record travels beside it (#1235): one record may serve several placements. */
   const coupe: PageRec[] = [],
-    coupePacked: number[] = [];
+    coupePacked: number[] = []
   const sync = createWebgpuRowSync(
     rows,
     { sync: () => {}, dirty: true },
@@ -62,12 +62,12 @@ export function mount(
     { drawn: coupe, drawnPacked: coupePacked },
     () => true,
     commit,
-  );
-  return { rows, sync, pages, coupe, coupePacked, commit };
+  )
+  return { rows, sync, pages, coupe, coupePacked, commit }
 }
 
-export type Mount = ReturnType<typeof mount>;
-export type Plan = { offsets: Int32Array; coupeProcesseur: boolean; descendante?: boolean };
+export type Mount = ReturnType<typeof mount>
+export type Plan = { offsets: Int32Array; coupeProcesseur: boolean; descendante?: boolean }
 
 export /**
  * One image. The residency mirror posts the offsets and names, like it, every page it moves; then
@@ -76,29 +76,29 @@ export /**
  * the only one where F4 shows.
  */
 function image(mounted: Mount, plan: Plan) {
-  const { rows, pages, coupe, coupePacked } = mounted;
+  const { rows, pages, coupe, coupePacked } = mounted
   for (let page = 0; page < plan.offsets.length; page++) {
-    if (rows.residentOffsetWords[page] === plan.offsets[page]) continue;
-    rows.residentOffsetWords[page] = plan.offsets[page];
-    rows.touchPage(page);
+    if (rows.residentOffsetWords[page] === plan.offsets[page]) continue
+    rows.residentOffsetWords[page] = plan.offsets[page]
+    rows.touchPage(page)
   }
   if (!plan.coupeProcesseur) {
-    rows.rowsEpoch = -1;
-    mounted.sync.syncRows();
-    return;
+    rows.rowsEpoch = -1
+    mounted.sync.syncRows()
+    return
   }
-  coupe.length = 0;
-  coupePacked.length = 0;
+  coupe.length = 0
+  coupePacked.length = 0
   for (let page = 0; page < pages.length; page++)
     if (rows.residentOffsetWords[page] >= 0 && pages[page].array) {
-      coupe.push(pages[page]);
-      coupePacked.push(page);
+      coupe.push(pages[page])
+      coupePacked.push(page)
     }
   if (plan.descendante) {
-    coupe.reverse();
-    coupePacked.reverse();
+    coupe.reverse()
+    coupePacked.reverse()
   }
-  mounted.sync.syncRowsFromCut();
+  mounted.sync.syncRowsFromCut()
 }
 export function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
   return {
@@ -118,9 +118,9 @@ export function etatComplet(rows: ReturnType<typeof createWebgpuRowState>) {
     candidateCount: rows.candidateCount,
     candidateOverflow: rows.candidateOverflow,
     rowsChanged: rows.rowsChanged,
-  };
+  }
 }
 
 /** Offsets of an image, one per page. */
 export const offsetsPar = (rempli: (page: number) => number) =>
-  Int32Array.from({ length: PAGES }, (_, page) => rempli(page));
+  Int32Array.from({ length: PAGES }, (_, page) => rempli(page))

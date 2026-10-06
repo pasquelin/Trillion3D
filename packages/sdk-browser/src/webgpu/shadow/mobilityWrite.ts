@@ -3,8 +3,8 @@ import {
   MOBILITY_CUTOUT,
   MOBILITY_MOVING,
   MOBILITY_SHADOWLESS,
-} from '../../gpu/shadow/mobilityBits.ts';
-import { rankBits, rebuildRowIndex, type MobilityState } from './mobilityState.ts';
+} from '../../gpu/shadow/mobilityBits.ts'
+import { rankBits, rebuildRowIndex, type MobilityState } from './mobilityState.ts'
 
 /** The row words of rows `[from, last]`, each from its row's placement, as one span pushed. */
 function writeRowSpan(
@@ -21,12 +21,12 @@ function writeRowSpan(
     const placement = placementOf(row),
       blended = row >= alwaysMoving,
       flags = rankBits(s, placement, shadowless) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0),
-      word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags;
+      word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags
     if (s.rowRank[row] !== placement) {
-      s.rowRank[row] = placement;
-      s.indexStale = true;
+      s.rowRank[row] = placement
+      s.indexStale = true
     }
-    s.rows[row] = word;
+    s.rows[row] = word
   }
 }
 
@@ -37,27 +37,27 @@ function writeDirtyRows(
   push: (first: number, count: number) => void,
   shadowless: (rank: number) => boolean,
 ) {
-  if (s.indexStale) rebuildRowIndex(s);
-  const kept = ~(MOBILITY_MOVING | MOBILITY_SHADOWLESS);
+  if (s.indexStale) rebuildRowIndex(s)
+  const kept = ~(MOBILITY_MOVING | MOBILITY_SHADOWLESS)
   for (const rank of s.dirtyList) {
-    s.dirty[rank] = 0;
-    const bits = rankBits(s, rank, shadowless);
+    s.dirty[rank] = 0
+    const bits = rankBits(s, rank, shadowless)
     let runFirst = -1,
-      runLast = -2;
+      runLast = -2
     for (let k = s.indexStart[rank]; k < s.indexStart[rank + 1]; k++) {
       const row = s.indexRows[k],
-        word = (s.rows[row] & kept) | bits;
-      if (word === s.rows[row]) continue;
-      s.rows[row] = word;
+        word = (s.rows[row] & kept) | bits
+      if (word === s.rows[row]) continue
+      s.rows[row] = word
       if (row !== runLast + 1) {
-        if (runFirst >= 0) push(runFirst, runLast - runFirst + 1);
-        runFirst = row;
+        if (runFirst >= 0) push(runFirst, runLast - runFirst + 1)
+        runFirst = row
       }
-      runLast = row;
+      runLast = row
     }
-    if (runFirst >= 0) push(runFirst, runLast - runFirst + 1);
+    if (runFirst >= 0) push(runFirst, runLast - runFirst + 1)
   }
-  s.dirtyList.length = 0;
+  s.dirtyList.length = 0
 }
 
 /**
@@ -83,14 +83,14 @@ export function writeMobilityRows(
   shadowless: (rank: number) => boolean = () => false,
 ) {
   if (s.wholeRows) {
-    from = 0;
-    to = rowCount - 1;
-    s.wholeRows = false;
+    from = 0
+    to = rowCount - 1
+    s.wholeRows = false
   }
-  const last = Math.min(to, s.rows.length - 1);
+  const last = Math.min(to, s.rows.length - 1)
   if (last >= from) {
-    writeRowSpan(s, placementOf, from, last, alwaysMoving, corners, cutout, shadowless);
-    push(from, last - from + 1);
+    writeRowSpan(s, placementOf, from, last, alwaysMoving, corners, cutout, shadowless)
+    push(from, last - from + 1)
   }
-  if (s.dirtyList.length) writeDirtyRows(s, push, shadowless);
+  if (s.dirtyList.length) writeDirtyRows(s, push, shadowless)
 }

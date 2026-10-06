@@ -1,10 +1,10 @@
-import { Material, type MaterialParameters } from './material.ts';
+import { Material, type MaterialParameters } from './material.ts'
 
 /** A member building one kind, with the values that kind starts from. */
 const kind =
   (name: string, defaults: Partial<MaterialParameters> = {}) =>
   (parameters?: MaterialParameters) =>
-    new Material(name, parameters, defaults);
+    new Material(name, parameters, defaults)
 
 /**
  * The `material` family: the matter alone. Every kind is lit by the engine's one surface model;
@@ -48,10 +48,10 @@ export const material = {
    * @param p - The shader's vertex code, fragment code and uniforms.
    */
   createShader: (p: {
-    vertex?: string;
-    fragment?: string;
-    uniforms?: Record<string, { value: unknown }>;
+    vertex?: string
+    fragment?: string
+    uniforms?: Record<string, { value: unknown }>
   }) => new Material('shader', { ...p }),
-};
+}
 
-export { Material, type MaterialParameters };
+export { Material, type MaterialParameters }

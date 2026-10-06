@@ -16,9 +16,9 @@
  * - `VSM_PROJECTION_SAMPLE_WGSL`: the page sampling; needs everything above plus the page lookup
  *   (`VSM_PAGE_LOOKUP_WGSL`) and `vsmPoolLoad(texel, slice)` from the binding builder.
  */
-import { VSM_UNIT_PER_CM } from './constants.ts';
+import { VSM_UNIT_PER_CM } from './constants.ts'
 
-const CM = `${VSM_UNIT_PER_CM}`;
+const CM = `${VSM_UNIT_PER_CM}`
 
 export const VSM_PROJECTION_DATA_WGSL = /* wgsl */ `
 struct VsmProjectionRecord{
@@ -156,12 +156,12 @@ fn vsmFacesAwayFromSun(normal:vec3f,lightDirection:vec3f,emitterSize:f32)->bool{
  let emitterSin=max(abs(emitterSize),terminatorSin);
  return dot(normal,lightDirection)< -emitterSin;
 }
-`;
+`
 
 /** Reads a map's projection data. Needs the `vsmProjectionData` binding. */
 export const VSM_PROJECTION_DATA_READ_WGSL = /* wgsl */ `
 fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vsmProjectionData[h.id],h);}
-`;
+`
 
 /**
  * Clipmap levels are computed in centimetres (`VSM_CM_PER_UNIT`): the
@@ -310,4 +310,4 @@ fn vsmReadClipmapPage(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmMapRead
  }
  return r;
 }
-`;
+`

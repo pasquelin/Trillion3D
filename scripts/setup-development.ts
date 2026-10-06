@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { execFileSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { linkLocalFiles } from './local-files.ts';
-import { linkSkills } from './skills-link.ts';
+import { execFileSync } from 'node:child_process'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { linkLocalFiles } from './local-files.ts'
+import { linkSkills } from './skills-link.ts'
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** The primary worktree, which `git worktree list` always prints first. */
 function primaryWorktree(): string | undefined {
@@ -13,9 +13,9 @@ function primaryWorktree(): string | undefined {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  const first = list.split('\n', 1)[0] ?? '';
-  return first.startsWith('worktree ') ? first.slice('worktree '.length) : undefined;
+  })
+  const first = list.split('\n', 1)[0] ?? ''
+  return first.startsWith('worktree ') ? first.slice('worktree '.length) : undefined
 }
 
 try {
@@ -23,22 +23,22 @@ try {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'ignore'],
-  }).trim();
+  }).trim()
   if (resolve(top) === root)
-    execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root });
+    execFileSync('git', ['config', 'core.hooksPath', '.githooks'], { cwd: root })
   // A linked worktree starts without the files `.gitignore` keeps local — personal assistant
   // settings and graph artefacts (#157). It gets a link to the ones the primary
   // worktree has, so a batch is written where its rules are readable.
-  const primary = primaryWorktree();
+  const primary = primaryWorktree()
   // Every clone runs the company the same way: its tracked skills and agents are aliased into the
   // local `.claude/` of the primary checkout, which linked worktrees then share.
   if (primary !== undefined && resolve(primary) === root) {
-    const skills = linkSkills(root);
-    if (skills.length) console.log(`Company skills linked: ${skills.length}`);
+    const skills = linkSkills(root)
+    if (skills.length) console.log(`Company skills linked: ${skills.length}`)
   }
   if (primary !== undefined) {
-    const linked = linkLocalFiles(root, primary);
-    if (linked.length) console.log(`Local files linked from ${primary}: ${linked.join(', ')}`);
+    const linked = linkLocalFiles(root, primary)
+    if (linked.length) console.log(`Local files linked from ${primary}: ${linked.join(', ')}`)
   }
 } catch {
   // Source archives and installed dependencies have no repository hooks to configure, and a

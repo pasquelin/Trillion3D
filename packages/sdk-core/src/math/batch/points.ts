@@ -1,5 +1,5 @@
-import { transformAffinePoint, transformDirectionVector3 } from '../primitives/vector.ts';
-import { POSITION_VALUES } from './strides.ts';
+import { transformAffinePoint, transformDirectionVector3 } from '../primitives/vector.ts'
+import { POSITION_VALUES } from './strides.ts'
 
 /**
  * Transforms `n` 3D points by a single 4×4 affine matrix: `out[i] = m · points[i]`.
@@ -14,8 +14,8 @@ export function transformPointsBatch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    const at = i * POSITION_VALUES;
-    transformAffinePoint(out, m, points[at], points[at + 1], points[at + 2], at);
+    const at = i * POSITION_VALUES
+    transformAffinePoint(out, m, points[at], points[at + 1], points[at + 2], at)
   }
 }
 
@@ -32,8 +32,8 @@ export function transformPointsByMatricesBatch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    const at = i * POSITION_VALUES;
-    transformAffinePoint(out, mats[i], points[at], points[at + 1], points[at + 2], at);
+    const at = i * POSITION_VALUES
+    transformAffinePoint(out, mats[i], points[at], points[at + 1], points[at + 2], at)
   }
 }
 
@@ -50,7 +50,7 @@ export function transformDirectionsBatch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    const at = i * POSITION_VALUES;
-    transformDirectionVector3(out, m, dirs[at], dirs[at + 1], dirs[at + 2], at);
+    const at = i * POSITION_VALUES
+    transformDirectionVector3(out, m, dirs[at], dirs[at + 1], dirs[at + 2], at)
   }
 }

@@ -1,12 +1,12 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import { BENCH_READS_DECLARATION, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+import { BENCH_READS_DECLARATION, DECLARATION, NAMES_THREE } from './engine-without-three-lists.ts'
 
-const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
-const root = new URL('../../', import.meta.url);
+const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
+const root = new URL('../../', import.meta.url)
 /** The benches of the browser package, keyed by their path from the repository root. */
-const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witnesses/'];
+const BENCHES = ['bench/perf/browser/', 'bench/oracles/browser/', 'bench/witnesses/']
 
 /**
  * How `declaration` is looked for, and what the search cannot see.
@@ -29,14 +29,14 @@ const sansCommentaires = (text: string) =>
   text
     .replace(/\/\*[\s\S]*?\*\//g, ' ')
     .replace(/\/\/[^\n]*/g, ' ')
-    .replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, ' ');
-const READS_DECLARATION = /\bdeclaration\b/;
-const READS_KEY = /\[\s*(['"`])declaration\1\s*\]/;
+    .replace(/'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g, ' ')
+const READS_DECLARATION = /\bdeclaration\b/
+const READS_KEY = /\[\s*(['"`])declaration\1\s*\]/
 const readsDeclaration = (text: string) =>
-  READS_DECLARATION.test(sansCommentaires(text)) || READS_KEY.test(text);
+  READS_DECLARATION.test(sansCommentaires(text)) || READS_KEY.test(text)
 
 /** A call of the crossing back, `asHostLibrary<T>(x)` or `asHostLibrary(x)`, never its import. */
-const TRAVERSE = /\basHostLibrary\s*[<(]/;
+const TRAVERSE = /\basHostLibrary\s*[<(]/
 
 /** The package's own sources. The two host-library rules below read these alone: `bench/` is the
  *  measurement harness, whose oracles and scene mounts are written with the host library by
@@ -44,40 +44,37 @@ const TRAVERSE = /\basHostLibrary\s*[<(]/;
 const sources = async () =>
   (await readdir(browser, { recursive: true })).filter(
     (name) => name.endsWith('.ts') && !name.endsWith('.test.ts'),
-  );
+  )
 
 /** Every source under `base`, keyed by its path from `base` behind `prefix`. */
 async function walkTree(base: URL, prefix = ''): Promise<string[]> {
-  const entries = await readdir(new URL(prefix, base), { withFileTypes: true });
-  const found: string[] = [];
+  const entries = await readdir(new URL(prefix, base), { withFileTypes: true })
+  const found: string[] = []
   for (const entry of entries) {
-    const name = `${prefix}${entry.name}`;
-    if (entry.isDirectory()) found.push(...(await walkTree(base, `${name}/`)));
-    else if (name.endsWith('.ts') && !name.endsWith('.test.ts')) found.push(name);
+    const name = `${prefix}${entry.name}`
+    if (entry.isDirectory()) found.push(...(await walkTree(base, `${name}/`)))
+    else if (name.endsWith('.ts') && !name.endsWith('.test.ts')) found.push(name)
   }
-  return found;
+  return found
 }
 
 /** Those sources AND the benches of the package: the declaration rule holds for the benches too,
  *  since a bench builds the page records the engine path then reads. */
 async function allSources(): Promise<Array<[string, URL]>> {
-  const found: Array<[string, URL]> = (await walkTree(browser)).map((f) => [
-    f,
-    new URL(f, browser),
-  ]);
+  const found: Array<[string, URL]> = (await walkTree(browser)).map((f) => [f, new URL(f, browser)])
   for (const bench of BENCHES)
-    for (const f of await walkTree(root, bench)) found.push([f, new URL(f, root)]);
-  return found;
+    for (const f of await walkTree(root, bench)) found.push([f, new URL(f, root)])
+  return found
 }
 
 /** Files outside the closed list where a pattern appears; `exclu` is the file that declares it. */
 async function outsideList(motif: RegExp, exclu = ''): Promise<string[]> {
-  const fuites: string[] = [];
+  const fuites: string[] = []
   for (const file of await sources()) {
-    if (file === exclu) continue;
-    if (motif.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file);
+    if (file === exclu) continue
+    if (motif.test(await readFile(new URL(file, browser), 'utf8'))) fuites.push(file)
   }
-  return fuites;
+  return fuites
 }
 
 test('the host-library pattern catches every import form', () => {
@@ -88,57 +85,57 @@ test('the host-library pattern catches every import form', () => {
     dynamic: "const t = await import('three');",
     're-export': "export { Mesh } from 'three';",
     addons: "import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';",
-  };
+  }
   for (const [forme, text] of Object.entries(formes))
-    assert.ok(NAMES_THREE.test(text), `${forme} must be caught`);
+    assert.ok(NAMES_THREE.test(text), `${forme} must be caught`)
   for (const text of ["import { x } from 'threejs';", "import { x } from './three';"])
-    assert.ok(!NAMES_THREE.test(text), `${text} is not the host library`);
-});
+    assert.ok(!NAMES_THREE.test(text), `${text} is not the host library`)
+})
 
 test('only declared files import the host library', async () => {
-  assert.ok((await sources()).length > 100, 'the browser package must be found');
-  const fuites = await outsideList(NAMES_THREE);
-  assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`);
-});
+  assert.ok((await sources()).length > 100, 'the browser package must be found')
+  const fuites = await outsideList(NAMES_THREE)
+  assert.deepEqual(fuites, [], `closed list declared in ${import.meta.url}`)
+})
 
 // `packages/sdk-browser/src/host/resources.ts` declares the crossing; the same closed list says who may call it, so the
 // doc of `asHostLibrary` stays a rule and not a hope.
 test('only the declared boundary files cross back through `asHostLibrary`', async () => {
-  const fuites = await outsideList(TRAVERSE, 'host/resources.ts');
-  assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`);
-});
+  const fuites = await outsideList(TRAVERSE, 'host/resources.ts')
+  assert.deepEqual(fuites, [], `the crossing back belongs to the list of ${import.meta.url}`)
+})
 
 test('no source of any other package imports the host library', async () => {
-  const packages = new URL('../../packages/', import.meta.url);
-  const fuites: string[] = [];
+  const packages = new URL('../../packages/', import.meta.url)
+  const fuites: string[] = []
   for (const name of await readdir(packages, { recursive: true })) {
     if (/(?:^|\/)(?:node_modules|target|dist)\//.test(name) || name.startsWith('sdk-browser/src/'))
-      continue;
-    if (!/\.m?ts$/.test(name) || /\.(?:test|fixture)\.m?ts$/.test(name)) continue;
-    if (NAMES_THREE.test(await readFile(new URL(name, packages), 'utf8'))) fuites.push(name);
+      continue
+    if (!/\.m?ts$/.test(name) || /\.(?:test|fixture)\.m?ts$/.test(name)) continue
+    if (NAMES_THREE.test(await readFile(new URL(name, packages), 'utf8'))) fuites.push(name)
   }
-  assert.deepEqual(fuites, [], 'the published packages name no host library');
-});
+  assert.deepEqual(fuites, [], 'the published packages name no host library')
+})
 
 test('only the declared files read the host declaration a page was collected from', async () => {
   const fuites: string[] = [],
-    morts: string[] = [];
-  const fichiers = await allSources();
+    morts: string[] = []
+  const fichiers = await allSources()
   assert.ok(
     fichiers.some(([name]) => name.startsWith('bench/')),
     'the benches are read too',
-  );
+  )
   for (const [file, url] of fichiers)
     if (readsDeclaration(await readFile(url, 'utf8'))) {
-      if (!DECLARATION[file.slice(0, -3)] && !BENCH_READS_DECLARATION.test(file)) fuites.push(file);
-    } else if (DECLARATION[file.slice(0, -3)]) morts.push(file);
+      if (!DECLARATION[file.slice(0, -3)] && !BENCH_READS_DECLARATION.test(file)) fuites.push(file)
+    } else if (DECLARATION[file.slice(0, -3)]) morts.push(file)
   assert.deepEqual(
     fuites,
     [],
     `the engine path reads \`material\`, the record (${import.meta.url})`,
-  );
-  assert.deepEqual(morts, [], 'an authorisation whose file no longer reads the field is removed');
-});
+  )
+  assert.deepEqual(morts, [], 'an authorisation whose file no longer reads the field is removed')
+})
 
 /**
  * The host camera is named by SHAPE since the graph left the list, so the rule can no longer be
@@ -157,24 +154,24 @@ const COMPOSE_LA_CAMERA = [
   /\bwriteEngineCamera\b/,
   /\bperspectiveProjection\b/,
   /\bupdateCameraFrame\b/,
-];
+]
 test('`camera/world.ts` remains the only translation from host camera to engine camera', async () => {
-  const text = await readFile(new URL('camera/world.ts', browser), 'utf8');
-  assert.match(text, /export type HostCamera = \{/);
-  assert.match(text, /export function readCameraWorld\(/);
-  const secondes: string[] = [];
+  const text = await readFile(new URL('camera/world.ts', browser), 'utf8')
+  assert.match(text, /export type HostCamera = \{/)
+  assert.match(text, /export function readCameraWorld\(/)
+  const secondes: string[] = []
   for (const file of await sources()) {
-    if (file === 'camera/world.ts') continue;
-    const code = sansCommentaires(await readFile(new URL(file, browser), 'utf8'));
+    if (file === 'camera/world.ts') continue
+    const code = sansCommentaires(await readFile(new URL(file, browser), 'utf8'))
     if (/\bHostCamera\b/.test(code) && COMPOSE_LA_CAMERA.some((motif) => motif.test(code)))
-      secondes.push(file);
+      secondes.push(file)
   }
   assert.deepEqual(
     secondes,
     [],
     'a host camera becomes an engine camera in `camera/world.ts` alone',
-  );
-  const engine = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8');
+  )
+  const engine = await readFile(new URL('camera/engineCamera.ts', browser), 'utf8')
   for (const champ of ['world', 'projection', 'view', 'viewProjection', 'planes', 'eye'])
-    assert.match(engine, new RegExp(`\\b${champ}\\b`), champ);
-});
+    assert.match(engine, new RegExp(`\\b${champ}\\b`), champ)
+})

@@ -12,10 +12,10 @@
 
 /** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
 export function field(words: Uint32Array, at: number, bits: number) {
-  if (!bits) return 0;
+  if (!bits) return 0
   const shift = at % 32,
-    index = at >>> 5;
-  let value = words[index] >>> shift;
-  if (shift + bits > 32) value |= words[index + 1] << (32 - shift);
-  return value & ((1 << bits) - 1);
+    index = at >>> 5
+  let value = words[index] >>> shift
+  if (shift + bits > 32) value |= words[index + 1] << (32 - shift)
+  return value & ((1 << bits) - 1)
 }

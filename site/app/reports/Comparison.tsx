@@ -1,22 +1,22 @@
-import { useWords } from '../i18n.ts';
-import { Section } from '../ui/Text.tsx';
-import { Table } from '../ui/Table.tsx';
-import { METRICS, METRIC_KEYS, metricValue, formatValue } from './model/metrics.ts';
-import { missingMetric } from './model/availability.ts';
-import { readingName } from './model/presentation.ts';
-import { comparison } from './model/compare.ts';
-import type { ReportRecord } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useWords } from '../i18n.ts'
+import { Section } from '../ui/Text.tsx'
+import { Table } from '../ui/Table.tsx'
+import { METRICS, METRIC_KEYS, metricValue, formatValue } from './model/metrics.ts'
+import { missingMetric } from './model/availability.ts'
+import { readingName } from './model/presentation.ts'
+import { comparison } from './model/compare.ts'
+import type { ReportRecord } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface ComparisonProps {
-  a: ReportRecord;
-  b?: ReportRecord | null;
-  variable?: string;
-  locale: Locale;
+  a: ReportRecord
+  b?: ReportRecord | null
+  variable?: string
+  locale: Locale
 }
 
 export function Comparison({ a, b, variable, locale }: ComparisonProps) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   return (
     <Section level={4} title={`${readingName(a, locale)} / ${readingName(b, locale)}`}>
       <p className="text-sm leading-relaxed text-base-content/75">{t('report.differenceNote')}</p>
@@ -31,12 +31,12 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
         </thead>
         <tbody>
           {METRIC_KEYS.map((key) => {
-            const metric = METRICS[key];
+            const metric = METRICS[key]
             const left = metricValue(a, key),
-              right = metricValue(b, key);
-            const controlled = comparison(a, b, key, variable);
-            const difference = left !== null && right !== null ? right - left : null;
-            const hasStat = 'stat' in metric && Boolean(metric.stat);
+              right = metricValue(b, key)
+            const controlled = comparison(a, b, key, variable)
+            const difference = left !== null && right !== null ? right - left : null
+            const hasStat = 'stat' in metric && Boolean(metric.stat)
             return (
               <tr key={key}>
                 <th scope="row">
@@ -64,11 +64,11 @@ export function Comparison({ a, b, variable, locale }: ComparisonProps) {
                   )}
                 </td>
               </tr>
-            );
+            )
           })}
         </tbody>
       </Table>
       <p className="text-sm leading-relaxed text-base-content/75">{t('report.p95')}</p>
     </Section>
-  );
+  )
 }

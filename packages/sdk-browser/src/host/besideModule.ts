@@ -6,11 +6,11 @@
  * @param from - The caller's `import.meta.url`.
  */
 export const besideModule = (name: string, from: string) =>
-  new URL(`./${name}${from.endsWith('.ts') ? '.ts' : '.js'}`, from);
+  new URL(`./${name}${from.endsWith('.ts') ? '.ts' : '.js'}`, from)
 
 /** One same-origin stand-in per cross-origin worker module, kept for the page's life: a worker
  *  that starts its own threads on its location (`joltWorkerPool`) reuses it. */
-const standIns = new Map<string, string>();
+const standIns = new Map<string, string>()
 
 /**
  * A module worker on `url`. A page may not start a worker on a script of another origin — the
@@ -20,15 +20,15 @@ const standIns = new Map<string, string>();
  * @param url - The worker module, `besideModule`'s answer or a worker's own location.
  */
 export function startModuleWorker(url: URL | string) {
-  const href = String(url);
-  const origin = globalThis.location?.origin;
+  const href = String(url)
+  const origin = globalThis.location?.origin
   // Same origin, or no page (Node): started on the URL as given, exactly as before the bundle.
-  if (!origin || new URL(href).origin === origin) return new Worker(url, { type: 'module' });
-  let standIn = standIns.get(href);
+  if (!origin || new URL(href).origin === origin) return new Worker(url, { type: 'module' })
+  let standIn = standIns.get(href)
   if (!standIn) {
-    const source = `import ${JSON.stringify(href)};`;
-    standIn = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-    standIns.set(href, standIn);
+    const source = `import ${JSON.stringify(href)};`
+    standIn = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }))
+    standIns.set(href, standIn)
   }
-  return new Worker(standIn, { type: 'module' });
+  return new Worker(standIn, { type: 'module' })
 }

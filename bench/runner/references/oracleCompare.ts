@@ -1,23 +1,23 @@
 // Launches compiler oracle and compares its irradiance to engine output.
-import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
-import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts';
-import type { Capture } from '../../../tests/kit/server/staticServer.ts';
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
+import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
+import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 
 /** Compiler oracle binary, built by `pnpm run build:native`: a measurement tool, not the compiler. */
-const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/trillion3d-oracle';
+const ORACLE_BIN = 'packages/asset-compiler-rust/target/release/trillion3d-oracle'
 /** True when binary exists: without it, campaign stops before opening browser. */
-export const oracleBuilt = (root: string) => existsSync(join(root, ORACLE_BIN));
+export const oracleBuilt = (root: string) => existsSync(join(root, ORACLE_BIN))
 
 /** What `oracleJob` reads of the campaign settings to build the oracle's job file. */
 interface JobSettings {
-  source: string;
-  width: number;
-  height: number;
-  samples: number;
-  bounces: number;
+  source: string
+  width: number
+  height: number
+  samples: number
+  bounces: number
 }
 
 /** Job read by oracle: identical pose, lights, and size as engine. */
@@ -41,12 +41,12 @@ export function oracleJob(
     samples: settings.samples,
     bounces: settings.bounces,
     out,
-  };
+  }
 }
 
 /** Whatever the compiler oracle binary reports: this pipeline only stores and prints it. */
 export interface OracleReport {
-  [key: string]: unknown;
+  [key: string]: unknown
 }
 
 /** Runs oracle on job file written beside output; returns its report. */
@@ -56,10 +56,10 @@ export function runOracle(
   dir: string,
   name: string,
 ): OracleReport {
-  const jobFile = join(dir, `${name}.oracle.json`);
-  writeFileSync(jobFile, JSON.stringify(job, null, 1));
-  const text = execFileSync(join(root, ORACLE_BIN), [jobFile], { encoding: 'utf8' });
-  return JSON.parse(text) as OracleReport;
+  const jobFile = join(dir, `${name}.oracle.json`)
+  writeFileSync(jobFile, JSON.stringify(job, null, 1))
+  const text = execFileSync(join(root, ORACLE_BIN), [jobFile], { encoding: 'utf8' })
+  return JSON.parse(text) as OracleReport
 }
 
 /**
@@ -75,41 +75,39 @@ export function compareIrradiance(
   exposure: number,
   floor: number,
 ) {
-  const raw = readFileSync(oraclePath);
-  const oracle = new Float32Array(
-    raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
-  );
-  const { body, w, h } = capture;
-  if (oracle.length !== w * h * 3) return { error: `oracle ${oracle.length} versus ${w * h * 3}` };
-  const errors: number[] = [];
+  const raw = readFileSync(oraclePath)
+  const oracle = new Float32Array(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength))
+  const { body, w, h } = capture
+  if (oracle.length !== w * h * 3) return { error: `oracle ${oracle.length} versus ${w * h * 3}` }
+  const errors: number[] = []
   let clipped = 0,
     counted = 0,
     engineSum = 0,
-    oracleSum = 0;
+    oracleSum = 0
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       // Engine capture is bottom-left origin, oracle is top-left origin.
-      const engineBase = ((h - 1 - y) * w + x) * 4;
-      const oracleBase = (y * w + x) * 3;
+      const engineBase = ((h - 1 - y) * w + x) * 4
+      const oracleBase = (y * w + x) * 3
       for (let axis = 0; axis < 3; axis++) {
-        const expected = oracle[oracleBase + axis] * exposure;
-        const measured = body[engineBase + axis] / 255;
-        if (expected < floor) continue;
+        const expected = oracle[oracleBase + axis] * exposure
+        const measured = body[engineBase + axis] / 255
+        if (expected < floor) continue
         if (expected > 1) {
-          clipped++;
-          continue;
+          clipped++
+          continue
         }
-        counted++;
-        engineSum += measured;
-        oracleSum += expected;
-        errors.push(Math.abs(measured - expected) / expected);
+        counted++
+        engineSum += measured
+        oracleSum += expected
+        errors.push(Math.abs(measured - expected) / expected)
       }
     }
-  errors.sort((a, b) => a - b);
+  errors.sort((a, b) => a - b)
   const quantile = (part: number) =>
-    errors.length ? errors[Math.floor(errors.length * part)] : null;
+    errors.length ? errors[Math.floor(errors.length * part)] : null
   const median = quantile(0.5),
-    p95 = quantile(0.95);
+    p95 = quantile(0.95)
   return {
     channels: counted,
     clipped,
@@ -118,13 +116,13 @@ export function compareIrradiance(
     p95Percent: p95 === null ? null : p95 * 100,
     engineMean: counted ? engineSum / counted : null,
     oracleMean: counted ? oracleSum / counted : null,
-  };
+  }
 }
 
 /** What `convergenceDelay` reads of the campaign settings. */
 interface DelaySettings {
-  delayMargin: number;
-  cadenceHz: number;
+  delayMargin: number
+  cadenceHz: number
 }
 
 /**
@@ -134,9 +132,9 @@ interface DelaySettings {
  * Delay is the first frame whose gap drops within a margin above the floor.
  */
 export function convergenceDelay(gaps: number[], settings: DelaySettings) {
-  const floor = gaps.length ? gaps[gaps.length - 1] : null;
-  const limit = floor === null ? null : floor * settings.delayMargin;
-  const frames = limit === null ? null : gaps.findIndex((gap) => gap <= limit) + 1;
+  const floor = gaps.length ? gaps[gaps.length - 1] : null
+  const limit = floor === null ? null : floor * settings.delayMargin
+  const frames = limit === null ? null : gaps.findIndex((gap) => gap <= limit) + 1
   return {
     images: frames || null,
     ms: frames ? (frames / settings.cadenceHz) * 1000 : null,
@@ -144,5 +142,5 @@ export function convergenceDelay(gaps: number[], settings: DelaySettings) {
     floor,
     margin: settings.delayMargin,
     gaps,
-  };
+  }
 }

@@ -20,10 +20,10 @@
  * related to a clipmap level (log2 of centimetres), the distance is converted to centimetres. Clip
  * and UV quantities are unitless and unchanged.
  */
-import { VSM_PLASTIC_STEP } from './blueNoise.ts';
-import { VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts';
+import { VSM_PLASTIC_STEP } from './blueNoise.ts'
+import { VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
 
-const CM = `${VSM_UNIT_PER_CM}`;
+const CM = `${VSM_UNIT_PER_CM}`
 
 /**
  * The ray march, instantiated for one ray state: from the ray's far end to its start, each step
@@ -82,7 +82,7 @@ fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapol
  }
  return VsmMarchHit(false,0.0);
 }
-`;
+`
 
 /** The traces' common helpers and the ray jitter step. */
 export const VSM_TRACE_COMMON_WGSL = /* wgsl */ `
@@ -212,7 +212,7 @@ fn vsmLocalMipAt(pd:VsmProjectionData,receiverInMap:vec3f,receiverDepthEye:f32)-
  }
  return 0u;
 }
-`;
+`
 
 /** The clipmap ray's state and helpers. */
 export const VSM_TRACE_DIRECTIONAL_WGSL = /* wgsl */ `
@@ -294,7 +294,7 @@ fn vsmSunDiskRayDirection(lightDirection:vec3f,sourceRadius:f32,E:vec2f)->vec3f{
  rayDir+=diskSide*diskUv.x+diskUp*diskUv.y;
  return normalize(rayDir);
 }
-`;
+`
 
 /** The local lights' ray states and helpers. */
 export const VSM_TRACE_LOCAL_WGSL = /* wgsl */ `
@@ -400,7 +400,7 @@ fn vsmLocalRayReach(cosTheta:f32)->f32{
  let sinTheta=sqrt(1.0-cosTheta*cosTheta);
  return 0.75*saturate(1.5/(cosTheta+vsm.traceConeCot*sinTheta));
 }
-`;
+`
 
 /** The light the traces read, as the projection's view uniform holds it (four a dispatch); a pass
  *  that traces from its own lights builds one. */
@@ -412,7 +412,7 @@ export const VSM_TRACE_LIGHT_WGSL = /* wgsl */ `struct VsmProjectionLight{
  spotAngles:vec2f,
  mapId:i32,
  kind:u32,
-}`;
+}`
 
 /**
  * Whether this sun ray provably misses, from its samples' tiles alone (`tileDepths`):
@@ -447,7 +447,7 @@ fn vsmSunRayMisses(rayState:ptr<function,VsmSunRay>,stepCount:i32,stepJitter:f32
  }
  return true;
 }
-`;
+`
 /**
  * A light's ray count (the adaptive ray count) under `guard`, decided after the first ray.
  * - A lane whose first ray hit an occluder whose rays fall within one pixel (`narrow`, false
@@ -480,7 +480,7 @@ ${
   }
 `
     : ''
-}`;
+}`
 
 /**
  * The traces of one light at one pixel, directional and local, over the ray casts above: the rays
@@ -683,11 +683,11 @@ ${rayCountWgsl('rayCap>1u&&settings.voteAfter>0', waveVotes)}  if(running&&!stop
  return result;
 }
 
-`;
+`
 
 /** The shadow map sample result (debug members and the occluder distance no consumer
  *  reads dropped): what a trace returns. */
 export const VSM_TRACE_RESULT_WGSL = /* wgsl */ `
 struct VsmTraceResult{valid:bool,shadowFactor:f32,rayCount:u32,}
 fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(false,1.0,0u);}
-`;
+`

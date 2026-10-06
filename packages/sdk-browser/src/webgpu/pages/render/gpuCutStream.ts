@@ -1,14 +1,14 @@
-import type { GpuSelection } from '../../../gpu/core/selection.ts';
-import { ensurePageTable } from './pageTable.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import type { GpuSelection } from '../../../gpu/core/selection.ts'
+import { ensurePageTable } from './pageTable.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** The rows `markRow` marks: the stream's, set before each residency upload. */
-let marked: WebgpuPagesRuntime['layout']['rows'] | undefined;
+let marked: WebgpuPagesRuntime['layout']['rows'] | undefined
 /** Packed page `page`'s readiness moved: its row, if it has one, is written again. */
 const markRow = (page: number) => {
-  const row = marked!.rowOfPage[page];
-  if (row >= 0) marked!.markRowWords(row);
-};
+  const row = marked!.rowOfPage[page]
+  if (row >= 0) marked!.markRowWords(row)
+}
 
 /**
  * What advances an image's stream: ask the cache for the pages the cut wants, post the page table,
@@ -24,29 +24,29 @@ export function streamCutResidency(
 ) {
   const { run, services } = rt,
     { rows } = rt.layout,
-    marks = rt.timing.marks;
+    marks = rt.timing.marks
   // Never throttled: past the budget the queue keeps the coarsest pages the readback asks for, and
   // the rest is drawn by its nearest resident ancestor (`../../residency/requestAdmission.ts`).
-  services.residency.queueGpuCutResidency(selection.peek());
+  services.residency.queueGpuCutResidency(selection.peek())
   // The cache gives slots back in the order the GPU cut published (`../../residency/evictionFeed.ts`).
-  services.followEvictions(selection);
+  services.followEvictions(selection)
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
-  marks.queueEnd = performance.now();
-  ensurePageTable(rt, gpuDevice);
-  services.syncRows(!run.textureConverging);
-  run.rowsSyncedFrame = run.frame;
-  marks.rowsEnd = performance.now();
-  if (rows.candidateOverflow) return false;
+  marks.queueEnd = performance.now()
+  ensurePageTable(rt, gpuDevice)
+  services.syncRows(!run.textureConverging)
+  run.rowsSyncedFrame = run.frame
+  marks.rowsEnd = performance.now()
+  if (rows.candidateOverflow) return false
   // The rank journal names pages that just entered or left: comparing the DAG's two thousand three
   // hundred pages no longer happens, and only their ranges are rewritten. A row whose readiness
   // moved has its mobility word written again: whether a finer form now stands for it (#831).
-  marked = rows;
+  marked = rows
   if (selection.updateResidency(rows.residentFlags, rows.residencyChanges, markRow))
-    run.gpuMetricsReady = false;
-  rows.clearResidencyChanges();
-  marks.residencyUploadEnd = performance.now();
-  return true;
+    run.gpuMetricsReady = false
+  rows.clearResidencyChanges()
+  marks.residencyUploadEnd = performance.now()
+  return true
 }
 
 /**
@@ -61,10 +61,10 @@ export function streamCutResidency(
  */
 export function dispatchWaitingSelection(rt: WebgpuPagesRuntime, selection: GpuSelection) {
   try {
-    selection.dispatch(rt.run.selectionUniforms);
-    return true;
+    selection.dispatch(rt.run.selectionUniforms)
+    return true
   } catch (error) {
-    rt.diag.diagnosticFailure('gpu-selection-dispatch-failed', error);
-    return false;
+    rt.diag.diagnosticFailure('gpu-selection-dispatch-failed', error)
+    return false
   }
 }

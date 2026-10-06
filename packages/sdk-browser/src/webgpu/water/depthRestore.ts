@@ -1,6 +1,6 @@
-import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
-import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
-import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts';
+import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
+import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts'
+import { WATER_DEPTH_RESTORE_SHADER } from './depthRestoreShader.ts'
 
 /**
  * WebGPU forbids cropped depth texture copies. Restore texels through a fragment that reads one
@@ -16,12 +16,12 @@ export async function createWaterDepthRestore(
     device,
     WATER_DEPTH_RESTORE_SHADER,
     'WATER_DEPTH_RESTORE',
-  );
+  )
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
     ],
-  });
+  })
   const pipeline = await buildRenderPipeline(device, {
     layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
     vertex: { module, entryPoint: 'fullscreen' },
@@ -32,21 +32,21 @@ export async function createWaterDepthRestore(
     },
     primitive: { topology: 'triangle-list' },
     depthStencil: { format: 'depth32float', depthCompare: 'always', depthWriteEnabled: true },
-  });
-  let group: GPUBindGroup | undefined;
+  })
+  let group: GPUBindGroup | undefined
   return {
     /** The depth the draw reads. */
     bind(source: GPUTextureView) {
-      group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: source }] });
+      group = device.createBindGroup({ layout, entries: [{ binding: 0, resource: source }] })
     },
     /** Into an open pass, already scissored. */
     draw(pass: GPURenderPassEncoder) {
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, group!);
-      pass.draw(3);
+      pass.setPipeline(pipeline)
+      pass.setBindGroup(0, group!)
+      pass.draw(3)
     },
     dispose() {
-      group = undefined;
+      group = undefined
     },
-  };
+  }
 }

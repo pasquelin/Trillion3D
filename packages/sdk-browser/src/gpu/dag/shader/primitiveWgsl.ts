@@ -1,4 +1,4 @@
-import { PRIMITIVE_VEC4 } from '../types.ts';
+import { PRIMITIVE_VEC4 } from '../types.ts'
 
 /**
  * What a camera cut derives once per primitive and frame, not once per node or page it visits.
@@ -44,4 +44,4 @@ fn preparePrimitive(w:u32,world:mat4x4f,t:mat4x4f,open:bool){
  putMatrix(at+AHEAD_E,views[AHEAD_VIEW].view*world);
  putPlanes(at+AHEAD_PLANES,t,AHEAD_VIEW,open);
 }
-`;
+`

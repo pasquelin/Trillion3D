@@ -1,18 +1,18 @@
-import { DAG_NODE_FLOATS } from '../types.ts';
-import { dagNodeFloor, dagNodeVerdict } from './nodeVerdict.fixture.ts';
-import { NODE_FIRST_CHILD } from '../nodeLayout.ts';
-import { drawsCard } from '../../../page/cut/select.ts';
-import type { DagViewFrames } from './math.fixture.ts';
+import { DAG_NODE_FLOATS } from '../types.ts'
+import { dagNodeFloor, dagNodeVerdict } from './nodeVerdict.fixture.ts'
+import { NODE_FIRST_CHILD } from '../nodeLayout.ts'
+import { drawsCard } from '../../../page/cut/select.ts'
+import type { DagViewFrames } from './math.fixture.ts'
 
 /** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested
  *  ahead and never drawn. */
-export const AHEAD_LEAF = 3;
+export const AHEAD_LEAF = 3
 
 /** One view's node verdict: `-1` rejected — outside, too fine or too coarse —, else its children. */
 function keeps(frames: DagViewFrames, nodes: Float32Array, nodeInts: Uint32Array, n: number) {
-  const children = dagNodeVerdict(frames, nodes, nodeInts, n);
-  if (children < 0 || dagNodeFloor(frames, nodes, nodeInts, n) > frames.pixelError) return -1;
-  return children;
+  const children = dagNodeVerdict(frames, nodes, nodeInts, n)
+  if (children < 0 || dagNodeFloor(frames, nodes, nodeInts, n) > frames.pixelError) return -1
+  return children
 }
 
 /**
@@ -31,42 +31,42 @@ function keeps(frames: DagViewFrames, nodes: Float32Array, nodeInts: Uint32Array
  */
 export function dagOracleDescent(
   packed: {
-    nodeCount: number;
-    worldCount: number;
-    nodes: Float32Array;
-    rootNodes: Uint32Array;
-    mark?: Uint32Array;
+    nodeCount: number
+    worldCount: number
+    nodes: Float32Array
+    rootNodes: Uint32Array
+    mark?: Uint32Array
   },
   frames: DagViewFrames,
   ahead?: DagViewFrames,
 ) {
   const { nodes } = packed,
-    nodeInts = new Uint32Array(nodes.buffer);
-  const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1);
+    nodeInts = new Uint32Array(nodes.buffer)
+  const nodeFlags = new Uint8Array(Math.max(1, packed.nodeCount)).fill(1)
   /** Pairs: the node, then whether it is the view ahead's alone. */
-  const frontier: number[] = [];
+  const frontier: number[] = []
   // The cut opens no descent on a root its impostor card draws (`drawsCard`, `markOf`).
   for (let w = 0; w < packed.worldCount; w++)
     if (packed.rootNodes[w] !== 0xffffffff && !drawsCard(packed.mark?.[w]))
-      frontier.push(packed.rootNodes[w], 0);
+      frontier.push(packed.rootNodes[w], 0)
   while (frontier.length) {
-    let aheadOnly = frontier.pop() as number;
-    const n = frontier.pop() as number;
-    let children = aheadOnly ? -1 : keeps(frames, nodes, nodeInts, n);
+    let aheadOnly = frontier.pop() as number
+    const n = frontier.pop() as number
+    let children = aheadOnly ? -1 : keeps(frames, nodes, nodeInts, n)
     if (children < 0 && ahead) {
-      children = keeps(ahead, nodes, nodeInts, n);
-      aheadOnly = 1;
+      children = keeps(ahead, nodes, nodeInts, n)
+      aheadOnly = 1
     }
     if (children < 0) {
-      nodeFlags[n] = 2;
-      continue;
+      nodeFlags[n] = 2
+      continue
     }
     if (children) {
-      const first = nodeInts[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD];
-      for (let c = 0; c < children; c++) frontier.push(first + c, aheadOnly);
-      continue;
+      const first = nodeInts[n * DAG_NODE_FLOATS + NODE_FIRST_CHILD]
+      for (let c = 0; c < children; c++) frontier.push(first + c, aheadOnly)
+      continue
     }
-    nodeFlags[n] = aheadOnly ? AHEAD_LEAF : 0;
+    nodeFlags[n] = aheadOnly ? AHEAD_LEAF : 0
   }
-  return nodeFlags;
+  return nodeFlags
 }

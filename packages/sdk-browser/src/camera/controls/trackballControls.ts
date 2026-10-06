@@ -1,11 +1,11 @@
-import { createPivotControls, trackPivotGestures } from './pivot.ts';
+import { createPivotControls, trackPivotGestures } from './pivot.ts'
 import {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   rotateByQuaternion,
-} from '../../../../sdk-core/src/math/matrix/quaternion.ts';
-import type { ControlCamera, PivotCameraControls } from './types.ts';
+} from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+import type { ControlCamera, PivotCameraControls } from './types.ts'
 
 /**
  * TRACKBALL: the camera rolls around its pivot as if the scene were a ball under the cursor.
@@ -20,39 +20,39 @@ import type { ControlCamera, PivotCameraControls } from './types.ts';
  */
 export interface TrackballCameraControls extends PivotCameraControls {
   /** Whether up stays up, like a turntable. */
-  turntable: boolean;
+  turntable: boolean
 }
 
 export function createTrackballCameraControls(
   camera: ControlCamera,
   surface: HTMLElement,
 ): TrackballCameraControls {
-  const core = createPivotControls(camera, surface);
+  const core = createPivotControls(camera, surface)
   const turn = new Float64Array(4),
-    axis = new Float64Array(3);
+    axis = new Float64Array(3)
   /** Turns the camera and its offset about a WORLD axis through the pivot. */
   const spin = (angle: number) => {
-    if (!angle) return;
-    axisAngleQuaternion(turn, axis, angle);
-    normalizeQuaternion(multiplyQuaternion(core.orientation, turn, core.orientation));
-    rotateByQuaternion(core.offset, turn, core.offset[0], core.offset[1], core.offset[2]);
-  };
+    if (!angle) return
+    axisAngleQuaternion(turn, axis, angle)
+    normalizeQuaternion(multiplyQuaternion(core.orientation, turn, core.orientation))
+    rotateByQuaternion(core.offset, turn, core.offset[0], core.offset[1], core.offset[2])
+  }
   /** The same, about one of the camera's own axes, which is what a screen drag names. */
   const spinLocal = (x: number, y: number, z: number, angle: number) => {
-    rotateByQuaternion(axis, core.orientation, x, y, z);
-    spin(angle);
-  };
+    rotateByQuaternion(axis, core.orientation, x, y, z)
+    spin(angle)
+  }
   const rotate = (dx: number, dy: number) => {
-    core.sample();
-    const speed = (2 * Math.PI * api.rotateSpeed) / core.height();
+    core.sample()
+    const speed = (2 * Math.PI * api.rotateSpeed) / core.height()
     if (api.turntable) {
-      axis.set([0, 1, 0]);
-      spin(-dx * speed);
-    } else spinLocal(0, 1, 0, -dx * speed);
-    spinLocal(1, 0, 0, -dy * speed);
-    core.apply();
-  };
-  const api = Object.assign(core.api, { turntable: false });
+      axis.set([0, 1, 0])
+      spin(-dx * speed)
+    } else spinLocal(0, 1, 0, -dx * speed)
+    spinLocal(1, 0, 0, -dy * speed)
+    core.apply()
+  }
+  const api = Object.assign(core.api, { turntable: false })
   trackPivotGestures(
     surface,
     core.base,
@@ -60,6 +60,6 @@ export function createTrackballCameraControls(
       button === 0 && !event.shiftKey ? rotate(dx, dy) : core.panBy(dx, dy),
     core.panBy,
     core.dolly,
-  );
-  return api;
+  )
+  return api
 }

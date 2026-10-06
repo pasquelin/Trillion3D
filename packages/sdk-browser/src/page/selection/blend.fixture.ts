@@ -1,5 +1,5 @@
-import * as G from '../../host/graph/graph.fixture.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import * as G from '../../host/graph/graph.fixture.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
 export function blendFixture(
   material: G.GraphSurface = G.basicSurface({
@@ -7,15 +7,15 @@ export function blendFixture(
     side: G.DOUBLE_SIDE,
   }),
 ) {
-  const geometry = new G.Geometry();
+  const geometry = new G.Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-1, -1, 0, 1, -1, 0, 0, 1, 0, 99, -1, 0, 101, -1, 0, 100, 1, 0], 3),
-  );
-  geometry.setIndex(G.indices([0, 1, 2, 3, 4, 5]));
+  )
+  geometry.setIndex(G.indices([0, 1, 2, 3, 4, 5]))
   const mesh = G.mesh(geometry, material),
-    source = new G.Group();
-  source.add(mesh);
+    source = new G.Group()
+  source.add(mesh)
   // Two level-0 clusters that nothing replaces: the smallest legal DAG, so both are root clusters.
   const pages = [
     {
@@ -54,7 +54,7 @@ export function blendFixture(
       group: null,
       source: null,
     },
-  ];
+  ]
   const metadata = {
     errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
@@ -68,19 +68,19 @@ export function blendFixture(
         structure: { version: 1, roots: [0, 1], groups: [] },
       },
     ],
-  } as unknown as ClusterManifest;
+  } as unknown as ClusterManifest
   const indices = new Map([
     ['near', new Uint32Array([0, 1, 2])],
     ['far', new Uint32Array([3, 4, 5])],
-  ]);
-  const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]]);
-  return { geometry, material, mesh, source, metadata, indices, associations };
+  ])
+  const associations = new Map([[mesh, { meshes: 0, primitives: 0 }]])
+  return { geometry, material, mesh, source, metadata, indices, associations }
 }
 
 export function camera() {
-  const camera = G.perspectiveCamera(55, 1, 0.1, 1000);
-  camera.position.z = 5;
-  camera.lookAt(0, 0, 0);
-  camera.updateMatrixWorld();
-  return camera;
+  const camera = G.perspectiveCamera(55, 1, 0.1, 1000)
+  camera.position.z = 5
+  camera.lookAt(0, 0, 0)
+  camera.updateMatrixWorld()
+  return camera
 }

@@ -1,15 +1,15 @@
-import { createRefreshClock } from './refreshClock.ts';
-import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts';
+import { createRefreshClock } from './refreshClock.ts'
+import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
 import {
   createTargetCap,
   displayMoved,
   FALLBACK_REFRESH_MS,
   INTERVAL_PAUSE_MS,
   PERIOD,
-} from './scaleTargets.ts';
-import { createScaleMemory } from './scaleMemory.ts';
-import { tickScale } from './scaleTick.ts';
-import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './scaleWindow.ts';
+} from './scaleTargets.ts'
+import { createScaleMemory } from './scaleMemory.ts'
+import { tickScale } from './scaleTick.ts'
+import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './scaleWindow.ts'
 
 /**
  * THE FRAME LOOP'S RENDER SCALE (#831): one controller, from what the display and the GPU say.
@@ -68,63 +68,63 @@ import { createScaleWindow, forgetThreshold, holdFrame, sampleCost } from './sca
  * drawn at the controller's scale.
  */
 export function createScaleControl(option: RenderScale | undefined, floor?: number) {
-  const display = { width: 0, height: 0, ratio: 0 };
-  displayMoved(display);
+  const display = { width: 0, height: 0, ratio: 0 }
+  displayMoved(display)
   const refresh = createRefreshClock(FALLBACK_REFRESH_MS),
     w = createScaleWindow(renderScaleBounds(option, floor)),
     targets = createTargetCap(w.bounds.max),
     memory = createScaleMemory(w, targets),
-    parts = { w, refresh, display, targets };
+    parts = { w, refresh, display, targets }
   const control = {
     get bounds() {
-      return w.bounds;
+      return w.bounds
     },
     drawn: 1,
     steered: false,
     still: false,
     get refreshMs() {
-      return refresh.settled ? refresh.display : null;
+      return refresh.settled ? refresh.display : null
     },
     get measuring() {
-      return w.bounds.auto && !w.measured && w.held < PERIOD;
+      return w.bounds.auto && !w.measured && w.held < PERIOD
     },
     get held() {
-      return w.holding;
+      return w.holding
     },
     hold: () => holdFrame(w),
     get frameIntervalMs() {
-      const gap = refresh.gap;
-      return gap > 0 && gap < INTERVAL_PAUSE_MS ? gap : null;
+      const gap = refresh.gap
+      return gap > 0 && gap < INTERVAL_PAUSE_MS ? gap : null
     },
     set(next: RenderScale | undefined) {
-      w.bounds = renderScaleBounds(next, floor);
-      targets.reset(w.bounds.max);
-      w.s = w.max = w.bounds.max;
-      forgetThreshold(w, refresh.display);
+      w.bounds = renderScaleBounds(next, floor)
+      targets.reset(w.bounds.max)
+      w.s = w.max = w.bounds.max
+      forgetThreshold(w, refresh.display)
     },
     wanted: () => (w.bounds.auto ? w.s : w.bounds.max),
     allocated: memory.allocated,
     capMemory: memory.cap,
     uncapMemory: memory.uncap,
     get memoryCapped() {
-      return targets.capped;
+      return targets.capped
     },
     drew(scale: number, steered: boolean, still = false) {
-      control.drawn = scale;
-      control.steered = steered;
-      control.still = still;
-      w.fresh = true;
-      w.images++;
+      control.drawn = scale
+      control.steered = steered
+      control.still = still
+      w.fresh = true
+      w.images++
     },
     tick: (now: number, timed = false) => tickScale(parts, control, now, timed),
     observe(gpuMs: number | null, scale: unknown, steered = true) {
-      if (gpuMs === null) return;
-      w.timedAt = w.images;
+      if (gpuMs === null) return
+      w.timedAt = w.images
       if (steered && w.timed && w.bounds.auto && typeof scale === 'number' && scale > 0)
-        sampleCost(w, gpuMs * (w.s / scale) ** 2);
+        sampleCost(w, gpuMs * (w.s / scale) ** 2)
     },
-  };
-  return control;
+  }
+  return control
 }
 
-export type ScaleControl = ReturnType<typeof createScaleControl>;
+export type ScaleControl = ReturnType<typeof createScaleControl>

@@ -1,12 +1,12 @@
-import { GRID_TOLERANCE } from '../../frame/refreshClock.ts';
+import { GRID_TOLERANCE } from '../../frame/refreshClock.ts'
 
 /** Intervals in a row that must sit on the display's grid before a frame's time is put on it: one
  *  interval landing there by chance — a variable-refresh display presenting whenever a frame is
  *  ready — puts nothing on it. */
-const RECENT = 3;
+const RECENT = 3
 /** A timer rounded to whole milliseconds strays by up to this much, until a timestamp shows a
  *  fraction: the refresh clock's own reading of the timer (`refreshClock.ts`). */
-const COARSE_MS = 1;
+const COARSE_MS = 1
 
 /**
  * THE WORLD'S TIME ON THE DISPLAY'S GRID. A frame's timestamp is when its display frame began, the
@@ -56,14 +56,14 @@ export function createFrameGrid() {
     run: 0,
     /** Whether a timestamp showed a fraction: the timer is not rounded to milliseconds. */
     fine: false,
-  };
+  }
   /** The grid starts again at the frame's own `now`, at the last refresh published. */
   const anchor = (now: number) => {
-    s.start = s.seen = grid.time = now;
-    s.steps = 0;
-    grid.snapped = false;
-    if (s.refresh > 0) s.period = s.refresh;
-  };
+    s.start = s.seen = grid.time = now
+    s.steps = 0
+    grid.snapped = false
+    if (s.refresh > 0) s.period = s.refresh
+  }
   const grid = {
     /** The last frame's time, ms: on the grid while `snapped`, else its own timestamp. NaN
      *  before the first. */
@@ -78,56 +78,56 @@ export function createFrameGrid() {
      *  past the tolerance is a new grid; a hair's change is taken when the grid next restarts,
      *  so the period, and with it the delta, stays the same number while the grid holds. */
     refreshed(ms: number | null | undefined) {
-      s.refresh = ms != null && ms > 0 ? ms : Number.NaN;
+      s.refresh = ms != null && ms > 0 ? ms : Number.NaN
       if (!(s.refresh > 0)) {
-        s.period = Number.NaN;
-        s.run = 0;
+        s.period = Number.NaN
+        s.run = 0
       } else if (!(s.period > 0) || Math.abs(s.refresh - s.period) > GRID_TOLERANCE * s.period) {
-        s.period = s.refresh;
-        s.run = 0;
+        s.period = s.refresh
+        s.run = 0
       }
     },
     /** A frame began at `now`, ms: its time and delta are written in `time` and `delta`. */
     frame(now: number) {
-      if (now % 1 !== 0) s.fine = true;
+      if (now % 1 !== 0) s.fine = true
       const last = grid.time,
-        period = s.period;
+        period = s.period
       if (Number.isNaN(last)) {
-        anchor(now);
-        grid.delta = 0;
-        return;
+        anchor(now)
+        grid.delta = 0
+        return
       }
       if (period > 0) {
         const tolerance = Math.max(GRID_TOLERANCE * period, s.fine ? 0 : COARSE_MS),
-          gap = now - s.seen;
+          gap = now - s.seen
         // The display frame read again: no time elapsed.
         if (Math.abs(gap) <= tolerance) {
-          grid.delta = 0;
-          return;
+          grid.delta = 0
+          return
         }
-        s.run = Math.abs(gap - Math.round(gap / period) * period) <= tolerance ? s.run + 1 : 0;
-        s.seen = now;
+        s.run = Math.abs(gap - Math.round(gap / period) * period) <= tolerance ? s.run + 1 : 0
+        s.seen = now
         if (s.run >= RECENT) {
           const k = Math.round((now - s.start) / period),
-            on = s.start + k * period;
+            on = s.start + k * period
           if (k > s.steps && Math.abs(now - on) <= tolerance) {
-            grid.delta = (k - s.steps) * period;
-            s.steps = k;
-            grid.time = on;
-            grid.snapped = true;
-            return;
+            grid.delta = (k - s.steps) * period
+            s.steps = k
+            grid.time = on
+            grid.snapped = true
+            return
           }
         }
       }
-      grid.delta = now - last;
-      anchor(now);
+      grid.delta = now - last
+      anchor(now)
     },
     /** The loop was paused (a still scene it slept through, a hidden tab): the intervals before
      *  it are not recent, and the grid starts again at the last frame's own timestamp. */
     restart() {
-      s.run = 0;
-      if (!Number.isNaN(s.seen)) anchor(s.seen);
+      s.run = 0
+      if (!Number.isNaN(s.seen)) anchor(s.seen)
     },
-  };
-  return grid;
+  }
+  return grid
 }

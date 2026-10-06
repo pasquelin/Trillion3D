@@ -4,14 +4,14 @@
 // no path is hardcoded here, and a machine without Chrome installed receives Playwright's error,
 // which names what is missing. The system Chrome is launched, never Playwright's Chromium:
 // measurements and proofs run on the browser used by end users.
-import { chromium } from 'playwright';
-import type { Browser, LaunchOptions, Page } from 'playwright';
-import { isUnitTest } from '../../../scripts/unit-tests.ts';
-import { entryPath, underNodeTest } from '../../core/entryPoint.ts';
-import { CHROME_SUFFIX, isProof } from '../../dawn/proofs.ts';
+import { chromium } from 'playwright'
+import type { Browser, LaunchOptions, Page } from 'playwright'
+import { isUnitTest } from '../../../scripts/unit-tests.ts'
+import { entryPath, underNodeTest } from '../../core/entryPoint.ts'
+import { CHROME_SUFFIX, isProof } from '../../dawn/proofs.ts'
 
 /** How every refusal starts, for the tests that count them. */
-export const CHROME_REFUSED = 'Chrome refused';
+export const CHROME_REFUSED = 'Chrome refused'
 
 /**
  * Throws when Chrome would start from an import instead of a run: with no entry file (`node -e`,
@@ -22,12 +22,12 @@ export const CHROME_REFUSED = 'Chrome refused';
  * the process runs under `node --test`; the guard's own tests set it.
  */
 export function assertBrowserEntryPoint(entry = process.argv[1], testRun = underNodeTest()) {
-  const path = entryPath(entry);
-  if (path && !isUnitTest(path) && (!testRun || isProof(path, CHROME_SUFFIX))) return;
+  const path = entryPath(entry)
+  if (path && !isUnitTest(path) && (!testRun || isProof(path, CHROME_SUFFIX))) return
   throw new Error(
     `${CHROME_REFUSED}: the entry point ${entry || '(none)'} is no explicit run, is a unit test ` +
       'or runs under node --test and is no Chrome proof: no test opens a browser.',
-  );
+  )
 }
 
 /**
@@ -39,8 +39,8 @@ export function assertBrowserEntryPoint(entry = process.argv[1], testRun = under
  * (`assertBrowserEntryPoint`).
  */
 export async function launchChrome(options: LaunchOptions = {}) {
-  assertBrowserEntryPoint();
-  return chromium.launch({ ...options, channel: 'chrome', executablePath: undefined });
+  assertBrowserEntryPoint()
+  return chromium.launch({ ...options, channel: 'chrome', executablePath: undefined })
 }
 
 /**
@@ -55,16 +55,16 @@ export async function onFreshPage<T>(
   run: (page: Page) => Promise<T>,
   watch?: (page: Page, browser: Browser) => void,
 ): Promise<T> {
-  const browser = await launchChrome(launch);
+  const browser = await launchChrome(launch)
   try {
     const page = await browser.newPage({
       viewport: { width: view.width, height: view.height },
       deviceScaleFactor: view.dpr,
-    });
-    watch?.(page, browser);
-    await page.goto(view.url, { waitUntil: 'load' });
-    return await run(page);
+    })
+    watch?.(page, browser)
+    await page.goto(view.url, { waitUntil: 'load' })
+    return await run(page)
   } finally {
-    await browser.close();
+    await browser.close()
   }
 }

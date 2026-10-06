@@ -1,15 +1,15 @@
-import { EngineError, type Texture } from '../../../../../sdk-core/src/index.ts';
-import { poolLayerBytes } from '../../../texture/tiles.ts';
-import { poolTaking } from '../../residency/memoryBudgets.ts';
-import { tileCatalogue } from '../../tile/catalogue.ts';
-import * as grants from '../../residency/poolGrants.ts';
-import { catalogueReport, laneDemand, laneTails, pageTablesReport } from '../prepare/textures.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { textureBytesBeside } from './memory.ts';
-import { prepareHostReductions } from '../../../texture/mips.ts';
+import { EngineError, type Texture } from '../../../../../sdk-core/src/index.ts'
+import { poolLayerBytes } from '../../../texture/tiles.ts'
+import { poolTaking } from '../../residency/memoryBudgets.ts'
+import { tileCatalogue } from '../../tile/catalogue.ts'
+import * as grants from '../../residency/poolGrants.ts'
+import { catalogueReport, laneDemand, laneTails, pageTablesReport } from '../prepare/textures.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { textureBytesBeside } from './memory.ts'
+import { prepareHostReductions } from '../../../texture/mips.ts'
 
 /** The append each session runs last: the next one draws its lane from the pool that one left. */
-const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>();
+const appending = new WeakMap<WebgpuPagesRuntime, Promise<unknown>>()
 
 /**
  * A texture taken by a live session's atlas after open (#847), by the path the open ran: its
@@ -26,10 +26,10 @@ export function appendWebgpuTexture(
   texture: Texture,
   kind: 'color' | 'data',
 ): Promise<number> {
-  const previous = appending.get(rt)?.catch(() => undefined) ?? Promise.resolve();
-  const next = previous.then(() => appendNow(rt, texture, kind));
-  appending.set(rt, next);
-  return next;
+  const previous = appending.get(rt)?.catch(() => undefined) ?? Promise.resolve()
+  const next = previous.then(() => appendNow(rt, texture, kind))
+  appending.set(rt, next)
+  return next
 }
 
 async function appendNow(
@@ -37,28 +37,28 @@ async function appendNow(
   texture: Texture,
   kind: 'color' | 'data',
 ): Promise<number> {
-  const { vis, setup, gpu, run, diag } = rt;
-  const slots = kind === 'color' ? vis.mapLayer : vis.dataLayer;
-  const held = slots.get(texture);
-  if (held !== undefined) return held;
-  rt.signal.throwIfAborted();
+  const { vis, setup, gpu, run, diag } = rt
+  const slots = kind === 'color' ? vis.mapLayer : vis.dataLayer
+  const held = slots.get(texture)
+  if (held !== undefined) return held
+  rt.signal.throwIfAborted()
   const pools = setup.texturePools,
     streamer = vis.textures,
-    device = gpu.device;
+    device = gpu.device
   if (!pools || !streamer || !device || run.lost)
-    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'no texture atlas is open to take it', {});
+    throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'no texture atlas is open to take it', {})
   const { encoding } = pools,
-    coverage = kind === 'color' ? pools.coverage : undefined;
-  const [, entry] = tileCatalogue([texture], () => undefined, undefined, encoding, coverage);
+    coverage = kind === 'color' ? pools.coverage : undefined
+  const [, entry] = tileCatalogue([texture], () => undefined, undefined, encoding, coverage)
   const { lane } = entry,
     atlas = streamer[kind],
-    taken = [...atlas.textures, entry];
+    taken = [...atlas.textures, entry]
   // What each lane takes, by the open's own rule, the new texture counted.
   const tails = laneTails(taken),
     demand = laneDemand(taken),
-    resident = atlas.residentIn(lane);
+    resident = atlas.residentIn(lane)
   const previousPool = pools.pool,
-    previousBudget = setup.texturePoolBudget;
+    previousBudget = setup.texturePoolBudget
   const pool = poolTaking(
     previousPool,
     { kind, lane, resident, tails: tails[lane], streams: demand[lane] > tails[lane] },
@@ -67,17 +67,17 @@ async function appendNow(
       budgetBytes: grants.budgetBeside(setup.texturePoolBudget, textureBytesBeside(rt)).bytes,
       maxLayers: device.limits.maxTextureArrayLayers,
     },
-  );
+  )
   if (pool !== pools.pool) {
     // Out of memory, absorbed: the grown pool is probed before any pool moves, a refusal named.
     const drawn = { poolFor: () => pool },
-      probe = grants.textureProbe(device, encoding);
-    const asked = grants.grantedTexturePool(device, 0, drawn, diag.engineDiagnostic, probe);
-    const granted = await grants.probed(asked);
+      probe = grants.textureProbe(device, encoding)
+    const asked = grants.grantedTexturePool(device, 0, drawn, diag.engineDiagnostic, probe)
+    const granted = await grants.probed(asked)
     if (!granted)
-      throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', { kind, lane });
-    rt.signal.throwIfAborted();
-    if (run.lost) throw new Error('WEBGPU_LOST');
+      throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', { kind, lane })
+    rt.signal.throwIfAborted()
+    if (run.lost) throw new Error('WEBGPU_LOST')
     // A release or budget update can run while the device grants the probe. Recompute its
     // census and admission instead of overwriting those changes with the pre-await snapshot.
     if (
@@ -85,25 +85,25 @@ async function appendNow(
       setup.texturePoolBudget !== previousBudget ||
       atlas.textures.some((texture, index) => texture !== taken[index])
     )
-      return appendNow(rt, texture, kind);
-    streamer.resize(pool.layers);
-    pools.pool = pool;
+      return appendNow(rt, texture, kind)
+    streamer.resize(pool.layers)
+    pools.pool = pool
   }
   // A host texture's mips reduce on the device: what they take compiled before its tail does.
-  if (entry.source.kind === 'host') await prepareHostReductions(device, encoding, [kind]);
-  rt.signal.throwIfAborted();
+  if (entry.source.kind === 'host') await prepareHostReductions(device, encoding, [kind])
+  rt.signal.throwIfAborted()
   const started = performance.now(),
-    before = { ...streamer.counters };
-  let slot: number;
+    before = { ...streamer.counters }
+  let slot: number
   try {
-    slot = streamer.append(kind, entry);
+    slot = streamer.append(kind, entry)
   } finally {
     // Rollback also replaces page-table buffers: readers must stop binding the old ones.
-    run.gate.resourcesChanged();
+    run.gate.resourcesChanged()
   }
-  pools.tails[kind] = tails;
-  pools.demand[kind] = demand;
-  slots.set(texture, slot);
+  pools.tails[kind] = tails
+  pools.demand[kind] = demand
+  slots.set(texture, slot)
   diag.engineDiagnostic('material-texture-appended', 'A texture joined the atlas', {
     kind,
     slot,
@@ -113,8 +113,8 @@ async function appendNow(
     catalogue: catalogueReport(atlas.textures),
     pageTables: pageTablesReport(streamer),
     pool: { layers: pools.pool.layers, bytes: pools.pool.allocatedBytes },
-  });
-  return slot;
+  })
+  return slot
 }
 
 /** The texture is no longer worn: release its places and source, retaining reusable pool capacity. */
@@ -123,14 +123,14 @@ export function releaseWebgpuTexture(
   texture: Texture,
   kind: 'color' | 'data',
 ) {
-  const slots = kind === 'color' ? rt.vis.mapLayer : rt.vis.dataLayer;
+  const slots = kind === 'color' ? rt.vis.mapLayer : rt.vis.dataLayer
   const slot = slots.get(texture),
     streamer = rt.vis.textures,
-    pools = rt.setup.texturePools;
-  if (slot === undefined || !streamer || !pools) return;
-  streamer.release(kind, slot);
-  slots.delete(texture);
-  pools.tails[kind] = laneTails(streamer[kind].textures);
-  pools.demand[kind] = laneDemand(streamer[kind].textures);
-  rt.run.gate.resourcesChanged();
+    pools = rt.setup.texturePools
+  if (slot === undefined || !streamer || !pools) return
+  streamer.release(kind, slot)
+  slots.delete(texture)
+  pools.tails[kind] = laneTails(streamer[kind].textures)
+  pools.demand[kind] = laneDemand(streamer[kind].textures)
+  rt.run.gate.resourcesChanged()
 }

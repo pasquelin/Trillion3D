@@ -1,5 +1,5 @@
-import type { ControlBase } from './base.ts';
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import type { ControlBase } from './base.ts'
+import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
 /**
  * The input every camera controller reads: pointers, wheel, keys. Written once here so the
@@ -20,94 +20,94 @@ import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
  */
 export interface DragHandlers {
   /** One pointer moved by `(dx, dy)` pixels, `button` being the one that started the drag. */
-  drag(dx: number, dy: number, button: number, event: PointerEvent): void;
+  drag(dx: number, dy: number, button: number, event: PointerEvent): void
   /** Two pointers: `ratio` above one means they moved apart; `(dx, dy)` is their midpoint. */
-  pinch?(ratio: number, dx: number, dy: number): void;
-  down?(event: PointerEvent): void;
-  up?(): void;
+  pinch?(ratio: number, dx: number, dy: number): void
+  down?(event: PointerEvent): void
+  up?(): void
 }
 
-type Point = { x: number; y: number };
+type Point = { x: number; y: number }
 
 /** Captures or releases `pointerId` on `surface` when the browser allows it, silently otherwise. */
 function capture(surface: HTMLElement, pointerId: number, on: boolean) {
-  if (on && surface.ownerDocument?.pointerLockElement) return;
+  if (on && surface.ownerDocument?.pointerLockElement) return
   try {
-    if (on) surface.setPointerCapture?.(pointerId);
-    else surface.releasePointerCapture?.(pointerId);
+    if (on) surface.setPointerCapture?.(pointerId)
+    else surface.releasePointerCapture?.(pointerId)
   } catch {
     // `InvalidStateError` or `NotFoundError`: the pointer is locked or no longer active.
   }
 }
 
 export function trackPointers(surface: HTMLElement, base: ControlBase, handlers: DragHandlers) {
-  const pointers = new Map<number, Point>();
+  const pointers = new Map<number, Point>()
   let button = 0,
-    span = 0;
+    span = 0
   const midpoint = (): Point => {
     let x = 0,
-      y = 0;
+      y = 0
     for (const point of pointers.values()) {
-      x += point.x;
-      y += point.y;
+      x += point.x
+      y += point.y
     }
-    return { x: x / pointers.size, y: y / pointers.size };
-  };
+    return { x: x / pointers.size, y: y / pointers.size }
+  }
   const distance = () => {
-    const [a, b] = [...pointers.values()];
-    return hypot2(a.x - b.x, a.y - b.y);
-  };
-  const scrolling = surface.style.touchAction;
-  surface.style.touchAction = 'none';
+    const [a, b] = [...pointers.values()]
+    return hypot2(a.x - b.x, a.y - b.y)
+  }
+  const scrolling = surface.style.touchAction
+  surface.style.touchAction = 'none'
   const letGo = () => {
-    for (const pointerId of pointers.keys()) capture(surface, pointerId, false);
-    if (pointers.size) handlers.up?.();
-    pointers.clear();
-    span = 0;
-  };
+    for (const pointerId of pointers.keys()) capture(surface, pointerId, false)
+    if (pointers.size) handlers.up?.()
+    pointers.clear()
+    span = 0
+  }
   base.undo(() => {
-    surface.style.touchAction = scrolling;
-    letGo();
-  });
-  base.onPause(letGo);
+    surface.style.touchAction = scrolling
+    letGo()
+  })
+  base.onPause(letGo)
   base.listen<PointerEvent>(surface, 'pointerdown', (event) => {
-    if (pointers.size === 0) button = event.button;
-    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (pointers.size === 2) span = distance();
-    capture(surface, event.pointerId, true);
-    event.preventDefault();
-    handlers.down?.(event);
-  });
+    if (pointers.size === 0) button = event.button
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+    if (pointers.size === 2) span = distance()
+    capture(surface, event.pointerId, true)
+    event.preventDefault()
+    handlers.down?.(event)
+  })
   base.listen<PointerEvent>(surface, 'pointermove', (event) => {
-    const previous = pointers.get(event.pointerId);
-    if (!previous) return;
-    const before = pointers.size > 1 ? midpoint() : previous;
+    const previous = pointers.get(event.pointerId)
+    if (!previous) return
+    const before = pointers.size > 1 ? midpoint() : previous
     const beforeX = before.x,
-      beforeY = before.y;
-    previous.x = event.clientX;
-    previous.y = event.clientY;
+      beforeY = before.y
+    previous.x = event.clientX
+    previous.y = event.clientY
     const dx = event.clientX - beforeX,
-      dy = event.clientY - beforeY;
+      dy = event.clientY - beforeY
     // A move that moved nothing is not a gesture: it must not wake a still scene.
-    if (pointers.size === 1 && (dx || dy)) handlers.drag(dx, dy, button, event);
+    if (pointers.size === 1 && (dx || dy)) handlers.drag(dx, dy, button, event)
     else if (pointers.size === 2) {
       const after = midpoint(),
-        next = distance();
-      handlers.pinch?.(span > 0 ? next / span : 1, after.x - beforeX, after.y - beforeY);
-      span = next;
+        next = distance()
+      handlers.pinch?.(span > 0 ? next / span : 1, after.x - beforeX, after.y - beforeY)
+      span = next
     }
-  });
+  })
   const release = (event: PointerEvent) => {
-    if (!pointers.delete(event.pointerId)) return;
-    capture(surface, event.pointerId, false);
-    if (pointers.size < 2) span = 0;
-    if (pointers.size === 0) handlers.up?.();
-  };
-  base.listen<PointerEvent>(surface, 'pointerup', release);
-  base.listen<PointerEvent>(surface, 'pointercancel', release);
+    if (!pointers.delete(event.pointerId)) return
+    capture(surface, event.pointerId, false)
+    if (pointers.size < 2) span = 0
+    if (pointers.size === 0) handlers.up?.()
+  }
+  base.listen<PointerEvent>(surface, 'pointerup', release)
+  base.listen<PointerEvent>(surface, 'pointercancel', release)
   // A secondary-button drag is a pan, so the menu the platform would open must not.
-  base.listen<Event>(surface, 'contextmenu', (event) => event.preventDefault());
-  return pointers;
+  base.listen<Event>(surface, 'contextmenu', (event) => event.preventDefault())
+  return pointers
 }
 
 /**
@@ -123,24 +123,24 @@ export function trackWheel(
     surface,
     'wheel',
     (event) => {
-      event.preventDefault();
-      const steps = event.deltaMode === 0 ? event.deltaY / 100 : event.deltaY;
-      if (steps) onSteps(steps);
+      event.preventDefault()
+      const steps = event.deltaMode === 0 ? event.deltaY / 100 : event.deltaY
+      if (steps) onSteps(steps)
     },
     { passive: false },
-  );
+  )
 }
 
 /** The inputs a key types into (#831): not a checkbox, a slider or a button, which keep the
  *  focus after a click and would swallow every key that drives — a car parked at 0 km/h. */
-const TYPED = /^(text|search|email|url|tel|password|number|date|datetime-local|month|time|week)$/;
+const TYPED = /^(text|search|email|url|tel|password|number|date|datetime-local|month|time|week)$/
 
 /** Whether an event's target takes typed keys itself: a field, a list or an editor. */
 function editable(target: EventTarget | null) {
-  const element = target as { tagName?: string; type?: string; isContentEditable?: boolean } | null;
-  const tag = element?.tagName ?? '';
-  if (tag === 'INPUT') return TYPED.test(element?.type || 'text');
-  return /^(TEXTAREA|SELECT)$/.test(tag) || !!element?.isContentEditable;
+  const element = target as { tagName?: string; type?: string; isContentEditable?: boolean } | null
+  const tag = element?.tagName ?? ''
+  if (tag === 'INPUT') return TYPED.test(element?.type || 'text')
+  return /^(TEXTAREA|SELECT)$/.test(tag) || !!element?.isContentEditable
 }
 
 /**
@@ -159,37 +159,37 @@ export function trackKeys(
   used: readonly (KeyAxis | readonly string[])[],
 ) {
   const pressed = new Set<string>(),
-    steering = new Set(used.flat(2));
-  const document = surface.ownerDocument;
+    steering = new Set(used.flat(2))
+  const document = surface.ownerDocument
   base.listen<KeyboardEvent>(document, 'keydown', (event) => {
-    if (event.metaKey || event.ctrlKey || editable(event.target)) return;
-    if (steering.has(event.code)) event.preventDefault();
-    if (pressed.has(event.code)) return;
-    pressed.add(event.code);
-    onChange();
-  });
+    if (event.metaKey || event.ctrlKey || editable(event.target)) return
+    if (steering.has(event.code)) event.preventDefault()
+    if (pressed.has(event.code)) return
+    pressed.add(event.code)
+    onChange()
+  })
   base.listen<KeyboardEvent>(document, 'keyup', (event) => {
-    if (pressed.delete(event.code)) onChange();
-  });
+    if (pressed.delete(event.code)) onChange()
+  })
   // A window that loses focus never sends the `keyup`: the key would stay held forever. Nor
   // does a paused controller hear it.
   const release = () => {
     if (pressed.size) {
-      pressed.clear();
-      onChange();
+      pressed.clear()
+      onChange()
     }
-  };
-  base.listen<Event>(document.defaultView ?? document, 'blur', release);
-  base.onPause(release);
-  return pressed;
+  }
+  base.listen<Event>(document.defaultView ?? document, 'blur', release)
+  base.onPause(release)
+  return pressed
 }
 
 /** The two key groups of one axis: what drives it positive, what drives it negative. */
-export type KeyAxis = [string[], string[]];
+export type KeyAxis = [string[], string[]]
 
 /** `+1` when the first group is held, `-1` for the second, `0` for both or neither. */
 export function axisOf(pressed: Set<string>, positive: string[], negative: string[]) {
-  const up = positive.some((code) => pressed.has(code)) ? 1 : 0;
-  const down = negative.some((code) => pressed.has(code)) ? 1 : 0;
-  return up - down;
+  const up = positive.some((code) => pressed.has(code)) ? 1 : 0
+  const down = negative.some((code) => pressed.has(code)) ? 1 : 0
+  return up - down
 }

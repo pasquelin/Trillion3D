@@ -1,15 +1,9 @@
-import { hideable, overlay, panelsShown } from './overlay.ts';
-import { profileLines, profiling, startProfile } from './profile.ts';
-import {
-  STATS_CARD,
-  STATS_TERM,
-  STATS_VALUE,
-  statsCorners,
-  type StatsWorld,
-} from './statsLines.ts';
-import type { StatsCorner } from './statsLayout.ts';
-import { statsPanel } from './statsPanel.ts';
-import { engineStages } from './statUnit.ts';
+import { hideable, overlay, panelsShown } from './overlay.ts'
+import { profileLines, profiling, startProfile } from './profile.ts'
+import { STATS_CARD, STATS_TERM, STATS_VALUE, statsCorners, type StatsWorld } from './statsLines.ts'
+import type { StatsCorner } from './statsLayout.ts'
+import { statsPanel } from './statsPanel.ts'
+import { engineStages } from './statUnit.ts'
 
 /**
  * A card of label and value lines in a corner of the example, at the bottom left unless `corner`
@@ -17,22 +11,22 @@ import { engineStages } from './statUnit.ts';
  * third item of its line.
  */
 export function statsCard(corner: StatsCorner = 'bottom-left') {
-  const card = document.createElement('dl');
-  card.className = `${STATS_CARD} ${statsCorners[corner]}`;
-  overlay().append(card);
-  hideable(card);
+  const card = document.createElement('dl')
+  card.className = `${STATS_CARD} ${statsCorners[corner]}`
+  overlay().append(card)
+  hideable(card)
   return (lines: readonly (readonly [string, string, string?])[]) =>
     card.replaceChildren(
       ...lines.flatMap(([label, value, tone = '']) => {
         const term = document.createElement('dt'),
-          text = document.createElement('dd');
-        term.className = STATS_TERM;
-        term.textContent = label;
-        text.className = `${STATS_VALUE} ${tone}`;
-        text.textContent = value;
-        return [term, text];
+          text = document.createElement('dd')
+        term.className = STATS_TERM
+        term.textContent = label
+        text.className = `${STATS_VALUE} ${tone}`
+        text.textContent = value
+        return [term, text]
       }),
-    );
+    )
 }
 
 /**
@@ -47,24 +41,24 @@ export function statsCard(corner: StatsCorner = 'bottom-left') {
 export function stats(world: StatsWorld, corner: StatsCorner = 'bottom-left') {
   // The overlay reads the engine's CPU steps, which only its debug mode files, as a development
   // build's tools: a page without the overlay pays for none of it.
-  if (world.diagnostic) world.diagnostic.debug = true;
-  let profiled: [string, string][] = [];
+  if (world.diagnostic) world.diagnostic.debug = true
+  let profiled: [string, string][] = []
   const stopProfile = profiling()
     ? startProfile(world, (latest) => {
-        profiled = profileLines(latest);
+        profiled = profileLines(latest)
       })
-    : () => {};
+    : () => {}
   // `?profile` times the page's own frame and reads the engine's step window itself: its CPU
   // lines replace the overlay's.
-  const unit = !profiling();
+  const unit = !profiling()
   const { panel, stop } = statsPanel(world, overlay(), {
     corner,
     extra: () => profiled,
     cpu: { open: () => unit && panelsShown(), stages: () => engineStages(world) },
-  });
-  hideable(panel);
+  })
+  hideable(panel)
   return () => {
-    stop();
-    stopProfile();
-  };
+    stop()
+    stopProfile()
+  }
 }

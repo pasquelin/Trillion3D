@@ -1,54 +1,54 @@
-import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/src/page/surface.ts';
-import type { PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts';
+import { surfaceOf, type PageSurface } from '../../../../packages/sdk-browser/src/page/surface.ts'
+import type { PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
 // Bench inputs, realistic and hostile, from a seeded generator: two runs see the exact same floats.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { xorshiftRandom } from '../../../core/index.ts';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { xorshiftRandom } from '../../../core/index.ts'
 
 export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
-  const cam = G.perspectiveCamera(55, aspect, near, 200);
-  cam.position.set(0, 0, z);
-  cam.lookAt(0, 0, 0);
-  cam.updateMatrixWorld();
-  return cam;
+  const cam = G.perspectiveCamera(55, aspect, near, 200)
+  cam.position.set(0, 0, z)
+  cam.lookAt(0, 0, 0)
+  cam.updateMatrixWorld()
+  return cam
 }
 
-const MAUVAIS = [NaN, Infinity, -Infinity, -0];
+const MAUVAIS = [NaN, Infinity, -Infinity, -0]
 
 /** The one root every page and box below ranks: the identity, their `matrix` too, which the
  *  oracles read on them as pages carried it before #1226. */
-const roots = [{ world: new G.Matrix4() }];
+const roots = [{ world: new G.Matrix4() }]
 /** The one root placed, for the consumers that read a list through its locations (#1235). */
 export const located = (count: number): PageLocations => ({
   roots,
   packed: Array.from({ length: count }, () => 0),
   rootOfPacked: Int32Array.of(0),
-});
+})
 
-type Placed = { matrix: G.Matrix4; placementIndex: number };
-const placed = (): Placed => ({ matrix: new G.Matrix4(), placementIndex: 0 });
+type Placed = { matrix: G.Matrix4; placementIndex: number }
+const placed = (): Placed => ({ matrix: new G.Matrix4(), placementIndex: 0 })
 
 /** A page of triangles as `coupe` produces it: geometry, material and its world-space box. */
 export interface ScenePage extends Placed {
-  array: Uint32Array;
-  attributes: { position: G.BufferAttribute };
-  material: PageSurface;
-  clusterId: string;
-  url: string;
-  min: number[];
-  max: number[];
-  triangles: number;
+  array: Uint32Array
+  attributes: { position: G.BufferAttribute }
+  material: PageSurface
+  clusterId: string
+  url: string
+  min: number[]
+  max: number[]
+  triangles: number
 }
 
 /** A box only, without geometry: what Hi-Z projects and sorts. */
 export interface SceneBox extends Placed {
-  min: number[];
-  max: number[];
-  url: string;
-  array: Uint32Array;
+  min: number[]
+  max: number[]
+  url: string
+  array: Uint32Array
 }
 
 /** `[x0, y0, x1, y1, huge]`: a screen rectangle that `hizTestRect` must classify. */
-export type SceneRect = [number, number, number, number, boolean];
+export type SceneRect = [number, number, number, number, boolean]
 
 /** A page of `triangles` triangles at random in a tile; `hostile` plants degenerate ones. */
 function page(
@@ -60,46 +60,46 @@ function page(
   size: number,
 ): ScenePage {
   const positions = new Float32Array(triangles * 3 * 3),
-    indices = new Uint32Array(triangles * 3);
+    indices = new Uint32Array(triangles * 3)
   const px = (alea() - 0.5) * 8,
     py = (alea() - 0.5) * 5,
-    pz = (alea() - 0.5) * 4;
+    pz = (alea() - 0.5) * 4
   const min = [Infinity, Infinity, Infinity],
-    max = [-Infinity, -Infinity, -Infinity];
+    max = [-Infinity, -Infinity, -Infinity]
   for (let t = 0; t < triangles; t++) {
     const degenere = hostile && t % 37 === 0,
       derriere = hostile && t % 53 === 0,
-      casse = hostile && t % 101 === 0;
+      casse = hostile && t % 101 === 0
     const cx = px + (alea() - 0.5) * 3,
       cy = py + (alea() - 0.5) * 2,
-      cz = pz + (alea() - 0.5) * 0.5;
+      cz = pz + (alea() - 0.5) * 0.5
     for (let v = 0; v < 3; v++) {
       const at = (t * 3 + v) * 3,
-        source = degenere ? 0 : v;
-      const y = cy + (source % 2 ? size * 0.9 : -size * 0.9);
+        source = degenere ? 0 : v
+      const y = cy + (source % 2 ? size * 0.9 : -size * 0.9)
       let x = cx + (source - 1) * size,
-        z = cz + (alea() - 0.5) * 0.1;
-      if (derriere) z = 30;
-      if (casse) x = MAUVAIS[(t + v) % MAUVAIS.length];
-      positions[at] = x;
-      positions[at + 1] = y;
-      positions[at + 2] = z;
+        z = cz + (alea() - 0.5) * 0.1
+      if (derriere) z = 30
+      if (casse) x = MAUVAIS[(t + v) % MAUVAIS.length]
+      positions[at] = x
+      positions[at + 1] = y
+      positions[at + 2] = z
       // Reversed winding: the triangles face the camera, the visbuffer keeps them.
-      indices[t * 3 + v] = t * 3 + (2 - v);
+      indices[t * 3 + v] = t * 3 + (2 - v)
       for (let axe = 0; axe < 3; axe++) {
-        const valeur = positions[at + axe];
+        const valeur = positions[at + axe]
         if (Number.isFinite(valeur)) {
-          if (valeur < min[axe]) min[axe] = valeur;
-          if (valeur > max[axe]) max[axe] = valeur;
+          if (valeur < min[axe]) min[axe] = valeur
+          if (valeur > max[axe]) max[axe] = valeur
         }
       }
     }
   }
   for (let axe = 0; axe < 3; axe++) {
-    if (!Number.isFinite(min[axe])) min[axe] = 0;
-    if (!Number.isFinite(max[axe])) max[axe] = 0;
+    if (!Number.isFinite(min[axe])) min[axe] = 0
+    if (!Number.isFinite(max[axe])) max[axe] = 0
   }
-  const attributes = { position: new G.BufferAttribute(positions, 3) };
+  const attributes = { position: new G.BufferAttribute(positions, 3) }
   return {
     array: indices,
     attributes,
@@ -110,7 +110,7 @@ function page(
     min,
     max,
     triangles,
-  };
+  }
 }
 
 /** A complete cut: `pages` pages of `triangles` triangles each, in front of the camera. */
@@ -122,18 +122,18 @@ export function coupe({
   size = 0.16,
   material,
 }: {
-  pages?: number;
-  triangles?: number;
-  hostile?: boolean;
-  seed?: number;
-  size?: number;
-  material?: G.GraphSurface;
+  pages?: number
+  triangles?: number
+  hostile?: boolean
+  seed?: number
+  size?: number
+  material?: G.GraphSurface
 } = {}): ScenePage[] {
   const alea = xorshiftRandom(seed),
-    mat = material ?? G.basicSurface({ color: 0x88aa44 });
-  const list: ScenePage[] = [];
-  for (let i = 0; i < pages; i++) list.push(page(alea, i, triangles, hostile, mat, size));
-  return list;
+    mat = material ?? G.basicSurface({ color: 0x88aa44 })
+  const list: ScenePage[] = []
+  for (let i = 0; i < pages; i++) list.push(page(alea, i, triangles, hostile, mat, size))
+  return list
 }
 
 /** Boxes only, what Hi-Z projects and sorts; `degenerees` adds the empty, inverted and infinite. */
@@ -143,27 +143,27 @@ export function boxes({
   degenerees = true,
 }: { count?: number; seed?: number; degenerees?: boolean } = {}): SceneBox[] {
   const alea = xorshiftRandom(seed),
-    list: SceneBox[] = [];
+    list: SceneBox[] = []
   for (let i = 0; i < count; i++) {
     const cx = (alea() - 0.5) * 40,
       cy = (alea() - 0.5) * 24,
-      cz = -alea() * 80;
-    const demi = 0.05 + alea() * 1.5;
+      cz = -alea() * 80
+    const demi = 0.05 + alea() * 1.5
     let min = [cx - demi, cy - demi, cz - demi],
-      max = [cx + demi, cy + demi, cz + demi];
-    if (degenerees && i % 997 === 0) max = [...min];
+      max = [cx + demi, cy + demi, cz + demi]
+    if (degenerees && i % 997 === 0) max = [...min]
     if (degenerees && i % 1499 === 0) {
-      const echange = min;
-      min = max;
-      max = echange;
+      const echange = min
+      min = max
+      max = echange
     }
     if (degenerees && i % 2003 === 0) {
-      min = [-Infinity, -Infinity, -Infinity];
-      max = [Infinity, Infinity, Infinity];
+      min = [-Infinity, -Infinity, -Infinity]
+      max = [Infinity, Infinity, Infinity]
     }
     if (degenerees && i % 311 === 0) {
-      min = [cx - demi, cy - demi, -0.05];
-      max = [cx + demi, cy + demi, 8];
+      min = [cx - demi, cy - demi, -0.05]
+      max = [cx + demi, cy + demi, 8]
     }
     list.push({
       min,
@@ -171,9 +171,9 @@ export function boxes({
       ...placed(),
       url: `boite-${i}.bin`,
       array: new Uint32Array(3 * (1 + (i % 40))),
-    });
+    })
   }
-  return list;
+  return list
 }
 
 /** Screen rectangles that `hizTestRect` must classify: full screen, empty, off-field, huge. */
@@ -184,15 +184,15 @@ export function rectangles({
   height = 720,
 }: { count?: number; seed?: number; width?: number; height?: number } = {}): SceneRect[] {
   const alea = xorshiftRandom(seed),
-    list: SceneRect[] = [];
+    list: SceneRect[] = []
   for (let i = 0; i < count; i++) {
     const x0 = Math.floor((alea() - 0.2) * width),
-      y0 = Math.floor((alea() - 0.2) * height);
+      y0 = Math.floor((alea() - 0.2) * height)
     const rectWidth = Math.floor(alea() ** 4 * width * 2),
-      rectHeight = Math.floor(alea() ** 4 * height * 2);
-    list.push([x0, y0, x0 + rectWidth, y0 + rectHeight, i % 173 === 0]);
+      rectHeight = Math.floor(alea() ** 4 * height * 2)
+    list.push([x0, y0, x0 + rectWidth, y0 + rectHeight, i % 173 === 0])
   }
-  list.push([0, 0, width - 1, height - 1, false], [5, 5, 4, 4, false], [0, 0, 0, 0, false]);
-  list.push([-1000, -1000, -999, -999, false], [0, 0, 1 << 20, 1 << 20, false]);
-  return list;
+  list.push([0, 0, width - 1, height - 1, false], [5, 5, 4, 4, false], [0, 0, 0, 0, false])
+  list.push([-1000, -1000, -999, -999, false], [0, 0, 1 << 20, 1 << 20, false])
+  return list
 }

@@ -29,17 +29,17 @@
  */
 
 /** Hardware depth units one layer moves a cluster towards the camera. See the calibration above. */
-export const DEPTH_LAYER_BIAS_UNITS = 16;
+export const DEPTH_LAYER_BIAS_UNITS = 16
 /** The layer a line draws on: its segments lie in the faces they outline (a wireframe, the edges of
  *  a shape), and one layer step lifts them over those faces — a step the calibration above set to
  *  dominate float rounding, never enough to reach a surface that sits above. */
-export const LINE_DEPTH_LAYER = 1;
+export const LINE_DEPTH_LAYER = 1
 /** Layers live in four bits of the cache, so the deepest stack the compiler can describe is 15. */
-export const MAX_DEPTH_LAYER = 15;
+export const MAX_DEPTH_LAYER = 15
 
 /** How many hardware units a layer moves a cluster TOWARDS the camera, as a magnitude: zero or
  *  more, never signed. Every path reads this one function and signs it for its own depth test. */
 export function depthLayerUnits(layer: number | undefined) {
-  if (!layer || !Number.isFinite(layer) || layer <= 0) return 0;
-  return Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS;
+  if (!layer || !Number.isFinite(layer) || layer <= 0) return 0
+  return Math.min(Math.floor(layer), MAX_DEPTH_LAYER) * DEPTH_LAYER_BIAS_UNITS
 }

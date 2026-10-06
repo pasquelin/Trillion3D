@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** Camera and projection (`sdk-core`), then the host-camera bridge and sides (`sdk-browser`). */
 
@@ -31,7 +31,7 @@ perspectiveProjection(projection, 50, canvas.width / canvas.height, 0.1, 1);`,
   {
     id: 'viewToRenderOrigin',
   },
-];
+]
 
 export const HOST_CAMERA: EntryNote[] = [
   {
@@ -60,4 +60,4 @@ export const HOST_CAMERA: EntryNote[] = [
     id: 'enginePose',
     replaces: 'getWorldPosition(), getWorldQuaternion()',
   },
-];
+]

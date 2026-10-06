@@ -1,1 +1,1 @@
-export { light, Light, type LightParameters } from './light.ts';
+export { light, Light, type LightParameters } from './light.ts'

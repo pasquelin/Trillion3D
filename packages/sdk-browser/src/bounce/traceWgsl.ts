@@ -2,9 +2,9 @@ import {
   BOUNCE_SETTINGS,
   PROXY_CHILDREN,
   PROXY_TRIANGLE_FLOATS,
-} from '../../../sdk-core/src/index.ts';
-import { PROXY_OWNER_WGSL } from './ownerWgsl.ts';
-import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts';
+} from '../../../sdk-core/src/index.ts'
+import { PROXY_OWNER_WGSL } from './ownerWgsl.ts'
+import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
 
 /**
  * Traversal of the resident proxy: a four-child BVH, ordered by distance, with early
@@ -131,4 +131,4 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
   depth--;node=stack[depth];
  }
  return false;
-}`;
+}`

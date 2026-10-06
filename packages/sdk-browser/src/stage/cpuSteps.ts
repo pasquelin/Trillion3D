@@ -1,4 +1,4 @@
-import type { StageAdd } from './profiler.ts';
+import type { StageAdd } from './profiler.ts'
 
 /**
  * The CPU side of the per-stage profile (`mapping.ts` holds the GPU side, by pass label):
@@ -11,8 +11,8 @@ export function addCpuSteps(
   add: StageAdd,
 ) {
   for (let i = 0; i < stages.length; i++) {
-    const stage = stages[i];
-    if (stage) add(stage, row[i]);
+    const stage = stages[i]
+    if (stage) add(stage, row[i])
   }
 }
 
@@ -25,10 +25,10 @@ export function addCpuSteps(
 export function cpuStepTable<Table extends ReadonlyArray<readonly [string, string | null]>>(
   table: Table,
 ): {
-  names: readonly string[];
-  stages: ReadonlyArray<string | null>;
+  names: readonly string[]
+  stages: ReadonlyArray<string | null>
   /** Index of a bound in the profile row, read by its name and never written by hand. */
-  at: Record<Table[number][0], number>;
+  at: Record<Table[number][0], number>
 } {
   return {
     names: table.map(([name]) => name),
@@ -38,5 +38,5 @@ export function cpuStepTable<Table extends ReadonlyArray<readonly [string, strin
       Table[number][0],
       number
     >,
-  };
+  }
 }

@@ -25,4 +25,4 @@ export const CLASS_FEATURE = {
   HAS_SAMPLING: 2048,
   /** The base colour is multiplied by the vertex colour (`FLAG_HAS_COLOR`). */
   HAS_VERTEX_COLOR: 4096,
-} as const;
+} as const

@@ -1,4 +1,4 @@
-import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts';
+import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts'
 
 /**
  * The engine's one GGX normal distribution, for \`alpha2\` = roughness⁴, of a
@@ -14,7 +14,7 @@ const GGX_DISTRIBUTION_WGSL = `
 fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  let q=sine2+cosine*cosine*alpha2;
  return alpha2/(3.14159265*q*q);
-}`;
+}`
 
 /** Shared opaque/forward lighting of one punctual light: the standard material's GGX lobe and its
  *  Lambert diffuse. The environment's irradiance is added apart (\`environmentLighting\`). Carries
@@ -42,7 +42,7 @@ fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->
  let F=f0+(vec3f(1.0)-f0)*pow(clamp(1.0-VdotH,0.0,1.0),5.0);
  let diffuse=rgb*(1.0-metal)/3.14159265;
  return diffuse*direct+D*Vis*F*direct;
-}`;
+}`
 
 /**
  * WORLD normal of a local normal under a world pose: the inverse-transpose of the 3×3 when
@@ -57,4 +57,4 @@ export const NORMAL_TRANSFORM_WGSL = `
 ${INVERSE_TRANSPOSE_WGSL}
 fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
  return uniteOuZero(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
-}`;
+}`

@@ -1,11 +1,11 @@
-import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts';
-import { appendSurfacesGltf } from './gltf.ts';
-import { codeScenes } from './code-scenes.ts';
-import { fromGeometry, merge } from './mesh.ts';
-import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts';
-import type { GltfDocument } from './gltf-types.ts';
+import { copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
+import { appendSurfacesGltf } from './gltf.ts'
+import { codeScenes } from './code-scenes.ts'
+import { fromGeometry, merge } from './mesh.ts'
+import { placeObj, writeBoxesObj, type BoxRow } from './obj.ts'
+import type { GltfDocument } from './gltf-types.ts'
 
 /**
  * The scenes built around an imported model (`site/assets/examples/models/`, credited in
@@ -19,14 +19,14 @@ async function copyModel(
   files: readonly string[],
   directory: string,
 ) {
-  for (const file of files) await copyFile(resolve(models, name, file), resolve(directory, file));
+  for (const file of files) await copyFile(resolve(models, name, file), resolve(directory, file))
 }
 
 /** A marble bust on a stone pedestal, a wall behind it to catch its shadow. */
 async function bust(models: string, directory: string) {
-  const source = resolve(models, 'marble-bust');
-  await cp(resolve(source, 'textures'), resolve(directory, 'textures'), { recursive: true });
-  await copyModel(models, 'marble-bust', ['marble_bust_01.bin'], directory);
+  const source = resolve(models, 'marble-bust')
+  await cp(resolve(source, 'textures'), resolve(directory, 'textures'), { recursive: true })
+  await copyModel(models, 'marble-bust', ['marble_bust_01.bin'], directory)
   // Per material, boxes `x, y, z, width, height, depth`: the niche's floor and back; the pedestal.
   const surfaces = [
     [0, -1.15, 0, 4, 0.3, 4, 0, 0.3, -1.85, 4, 3.2, 0.3],
@@ -34,14 +34,14 @@ async function bust(models: string, directory: string) {
   ].map((boxes) =>
     merge(
       [0, 6].map((at) => {
-        const [x, y, z, ...size] = boxes.slice(at, at + 6);
-        return fromGeometry(geometry.box(...size).translate(x, y, z));
+        const [x, y, z, ...size] = boxes.slice(at, at + 6)
+        return fromGeometry(geometry.box(...size).translate(x, y, z))
       }),
     ),
-  );
+  )
   const gltf: GltfDocument = JSON.parse(
     await readFile(resolve(source, 'marble_bust_01_1k.gltf'), 'utf8'),
-  );
+  )
   await appendSurfacesGltf(
     gltf,
     directory,
@@ -51,12 +51,12 @@ async function bust(models: string, directory: string) {
       ['Dark stone pedestal', [0.16, 0.15, 0.15, 1], 0, 0.5],
     ],
     surfaces.entries(),
-  );
+  )
 }
 
 /** The marble bust alone, nothing around it: an object to place in a scene of one's own. */
 async function marbleBust(models: string, directory: string) {
-  await cp(resolve(models, 'marble-bust'), directory, { recursive: true });
+  await cp(resolve(models, 'marble-bust'), directory, { recursive: true })
 }
 
 /**
@@ -68,11 +68,11 @@ async function marbleBust(models: string, directory: string) {
  * lit pane and the bulb glow by themselves (`Ke`), a dark pane only mirrors the sky.
  */
 async function streetCorner(models: string, directory: string) {
-  await copyModel(models, 'lantern', ['lantaarn.mtl', 'lantaarn.png'], directory);
+  await copyModel(models, 'lantern', ['lantaarn.mtl', 'lantaarn.png'], directory)
   await placeObj(resolve(models, 'lantern/lantaarn.obj'), resolve(directory, 'lantaarn.obj'), {
     scale: 0.033,
     offset: [1.6, 0, -1.9],
-  });
+  })
   await writeBoxesObj(
     resolve(directory, 'corner.obj'),
     [
@@ -94,7 +94,7 @@ async function streetCorner(models: string, directory: string) {
       wall: [0.5, 0.44, 0.38],
       door: [0.2, 0.12, 0.08],
     },
-  );
+  )
   const fittings = [
     ...cornerWindow([2.4, 1.4, -3], 'z', 1, [1.8, 1.4], true),
     ...cornerWindow([-1.2, 3.7, -3], 'z', 1, [1.1, 1.3], true),
@@ -107,9 +107,9 @@ async function streetCorner(models: string, directory: string) {
     ...cornerWindow([2.5, 1.6, 5.5], 'z', -1, [1.1, 1.3], true),
     ...cornerWindow([0.5, 3.7, 5.5], 'z', -1, [1.1, 1.3], true),
     [[-0.55, 3.95, -1.9], [0.12, 0.12, 0.12], 'bulb'],
-  ] satisfies BoxRow[];
-  const windows = resolve(directory, 'windows.obj');
-  await writeBoxesObj(windows, fittings, {});
+  ] satisfies BoxRow[]
+  const windows = resolve(directory, 'windows.obj')
+  await writeBoxesObj(windows, fittings, {})
   await writeFile(
     windows.replace(/\.obj$/, '.mtl'),
     [
@@ -118,7 +118,7 @@ async function streetCorner(models: string, directory: string) {
       'newmtl litPane\nKd 0 0 0\nKe 1 0.76 0.48\n',
       'newmtl bulb\nKd 0 0 0\nKe 1 0.72 0.4\n',
     ].join('\n'),
-  );
+  )
 }
 
 /**
@@ -133,31 +133,31 @@ function cornerWindow(
   lit: boolean,
 ): BoxRow[] {
   const box = (depth: number, grow: number): BoxRow['1'] =>
-    axis === 'x' ? [depth, height + grow, width + grow] : [width + grow, height + grow, depth];
+    axis === 'x' ? [depth, height + grow, width + grow] : [width + grow, height + grow, depth]
   const at = (offset: number): BoxRow['0'] =>
-    axis === 'x' ? [x + side * offset, y, z] : [x, y, z + side * offset];
+    axis === 'x' ? [x + side * offset, y, z] : [x, y, z + side * offset]
   return [
     [at(0.04), box(0.08, 0.2), 'frame'],
     [at(0.085), box(0.03, 0), lit ? 'litPane' : 'darkPane'],
-  ];
+  ]
 }
 
 /** Three crates on a dark floor, stacked so one spotlight draws their edges and shadows. */
 async function crates(models: string, directory: string) {
-  await copyModel(models, 'crate', ['box1.mtl', 'box1.png'], directory);
+  await copyModel(models, 'crate', ['box1.mtl', 'box1.png'], directory)
   const places: readonly [file: string, offset: readonly [number, number, number]][] = [
     ['crate-a.obj', [-0.9, 0, 0.3]],
     ['crate-b.obj', [0.7, 0, -0.5]],
     ['crate-c.obj', [-0.1, 1.15, -0.1]],
-  ];
+  ]
   for (const [file, offset] of places)
     await placeObj(resolve(models, 'crate/box1.obj'), resolve(directory, file), {
       scale: 0.01,
       offset,
-    });
+    })
   await writeBoxesObj(resolve(directory, 'floor.obj'), [[[0, -0.1, 0], [8, 0.2, 8], 'floor']], {
     floor: [0.16, 0.16, 0.18],
-  });
+  })
 }
 
 export const modelScenes = {
@@ -166,7 +166,7 @@ export const modelScenes = {
   'street-corner': streetCorner,
   crates,
   ...codeScenes,
-};
+}
 
 /** Assembles the source folder of the model scenes `names` under `examples` from `models`. */
 export async function writeModelScenes(
@@ -175,9 +175,9 @@ export async function writeModelScenes(
   names: readonly string[] = Object.keys(modelScenes),
 ) {
   for (const [name, write] of Object.entries(modelScenes)) {
-    if (!names.includes(name)) continue;
-    const directory = resolve(examples, name, 'source');
-    await mkdir(directory, { recursive: true });
-    await write(models, directory);
+    if (!names.includes(name)) continue
+    const directory = resolve(examples, name, 'source')
+    await mkdir(directory, { recursive: true })
+    await write(models, directory)
   }
 }

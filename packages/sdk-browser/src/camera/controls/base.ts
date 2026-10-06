@@ -1,4 +1,4 @@
-import type { CameraControlBase, ChangeListener } from './types.ts';
+import type { CameraControlBase, ChangeListener } from './types.ts'
 
 /**
  * The socle every camera controller is built on: the `change` emitter the host listens to,
@@ -19,60 +19,60 @@ export interface ControlBase {
     type: string,
     handler: (event: T) => void,
     options?: AddEventListenerOptions,
-  ): void;
+  ): void
   /**
    * A teardown `dispose()` runs once, for the state that is not a listener: the surface's
    * `touch-action`, the pointers still captured. Same register, same guarantee.
    */
-  undo(action: () => void): void;
+  undo(action: () => void): void
   /** Runs `action` each time the controller is paused: the input state it holds is let go. */
-  onPause(action: () => void): void;
-  emit(): void;
+  onPause(action: () => void): void
+  emit(): void
   /** The three methods every controller re-publishes as-is. */
-  api: Omit<CameraControlBase, 'object'>;
+  api: Omit<CameraControlBase, 'object'>
 }
 
 export function createControlBase(): ControlBase {
-  const removals: Array<() => void> = [];
+  const removals: Array<() => void> = []
   const listeners = new Set<ChangeListener>(),
-    pauses: Array<() => void> = [];
+    pauses: Array<() => void> = []
   let gone = false,
-    paused = false;
+    paused = false
   const undo = (action: () => void) => {
-    removals.push(action);
-  };
+    removals.push(action)
+  }
   return {
     listen(target, type, handler, options) {
       // A paused controller hears nothing: every listener of the register is muted at once.
-      const bound = ((event: Event) => paused || handler(event as never)) as EventListener;
-      target.addEventListener(type, bound, options);
-      undo(() => target.removeEventListener(type, bound, options));
+      const bound = ((event: Event) => paused || handler(event as never)) as EventListener
+      target.addEventListener(type, bound, options)
+      undo(() => target.removeEventListener(type, bound, options))
     },
     undo,
     onPause: (action) => void pauses.push(action),
     emit() {
-      for (const listener of [...listeners]) listener();
+      for (const listener of [...listeners]) listener()
     },
     api: {
       addEventListener(type, listener) {
-        if (type === 'change') listeners.add(listener);
+        if (type === 'change') listeners.add(listener)
       },
       removeEventListener(type, listener) {
-        if (type === 'change') listeners.delete(listener);
+        if (type === 'change') listeners.delete(listener)
       },
       pause(on) {
-        if (paused === on) return;
-        paused = on;
-        if (on) for (const action of pauses) action();
+        if (paused === on) return
+        paused = on
+        if (on) for (const action of pauses) action()
       },
       dispose() {
-        if (gone) return;
-        gone = true;
-        for (const remove of removals.splice(0)) remove();
-        listeners.clear();
+        if (gone) return
+        gone = true
+        for (const remove of removals.splice(0)) remove()
+        listeners.clear()
       },
     },
-  };
+  }
 }
 
 /**
@@ -81,15 +81,15 @@ export function createControlBase(): ControlBase {
  * `invalidate` is bound to a pose that actually moved and never to a frame that merely passed.
  */
 export function createChangeGate(base: ControlBase, size: number) {
-  const sent = new Float64Array(size);
-  let known = false;
+  const sent = new Float64Array(size)
+  let known = false
   return (values: ArrayLike<number>) => {
-    let moved = !known;
-    for (let i = 0; i < size; i++) moved = moved || sent[i] !== values[i];
-    if (!moved) return false;
-    for (let i = 0; i < size; i++) sent[i] = values[i];
-    known = true;
-    base.emit();
-    return true;
-  };
+    let moved = !known
+    for (let i = 0; i < size; i++) moved = moved || sent[i] !== values[i]
+    if (!moved) return false
+    for (let i = 0; i < size; i++) sent[i] = values[i]
+    known = true
+    base.emit()
+    return true
+  }
 }

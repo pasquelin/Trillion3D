@@ -1,26 +1,25 @@
-import type { MeasuredWorld } from '../session/explorer.ts';
-import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts';
-import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
-import type { World } from './world.ts';
-import { families } from '../../host/families.ts';
-export type { JobProgress };
+import type { MeasuredWorld } from '../session/explorer.ts'
+import type { FrameMetrics, JobProgress } from '../../../../sdk-core/src/index.ts'
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
+import type { World } from './world.ts'
+import { families } from '../../host/families.ts'
+export type { JobProgress }
 
 /** What the families that read a world's engine reach it by, without the page holding it. */
-type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null };
+type Access = { session: () => MeasuredWorld | null; last: () => FrameMetrics | null }
 /** What the world holds for every session it opens (`worldSwitches.ts`). */
-type Held = { particles: ParticlePool[] };
-const worlds = new WeakMap<object, Access & Held>();
+type Held = { particles: ParticlePool[] }
+const worlds = new WeakMap<object, Access & Held>()
 
 export const registerWorld = (world: object, access: Access, held: Held) => {
-  worlds.set(world, { ...access, particles: held.particles });
-};
+  worlds.set(world, { ...access, particles: held.particles })
+}
 
 /** The session drawing `world` now; a world that draws nothing yet is refused by name. */
 export function sessionOf(world: object): MeasuredWorld {
-  const session = worlds.get(world)?.session();
-  if (!session)
-    throw new Error('This world draws nothing yet: add an object or load a model first');
-  return session;
+  const session = worlds.get(world)?.session()
+  if (!session) throw new Error('This world draws nothing yet: add an object or load a model first')
+  return session
 }
 
 /** Steps `pool` on the GPU at every frame `world` draws, its time advanced by the world's frames:
@@ -28,25 +27,25 @@ export function sessionOf(world: object): MeasuredWorld {
  *  The measurement entry's way in (#420) until particles have a public face (#423). Returns the
  *  remover. A pool is attached once, to a made world. */
 export function attachParticles(world: World, pool: ParticlePool) {
-  const pools = worlds.get(world)?.particles;
-  if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world');
-  pools.push(pool);
-  families.particles.get(); // started now: the next frame, which draws the pool, waits for it
+  const pools = worlds.get(world)?.particles
+  if (!pools || pools.includes(pool)) throw new Error('PARTICLES_ATTACH: attached, or no world')
+  pools.push(pool)
+  families.particles.get() // started now: the next frame, which draws the pool, waits for it
   const stops = [
     world.beforeFrame(({ delta }) => pool.advance(delta)),
     world.onFrame(() => pool.moving && world.invalidate()), // after every hook's emission
-  ];
-  world.invalidate();
+  ]
+  world.invalidate()
   return () => {
-    for (const stop of stops) stop();
-    const at = pools.indexOf(pool);
-    if (at >= 0) pools.splice(at, 1);
-    world.invalidate(); // the next image gives the pool's buffers back
-  };
+    for (const stop of stops) stop()
+    const at = pools.indexOf(pool)
+    if (at >= 0) pools.splice(at, 1)
+    world.invalidate() // the next image gives the pool's buffers back
+  }
 }
 
 /** The metrics of the last frame `world` drew, null before its first. */
-export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null;
+export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null
 
 /**
  * `world.awaitPages`: resolves once the pages the current view reads are resident. It takes no
@@ -64,18 +63,18 @@ export async function awaitViewPages(
   onProgress?: (event: JobProgress) => void,
 ) {
   // The session that draws the view opens — or opens again — before the pages it reads are known.
-  onProgress?.({ phase: 'session', completed: 0, total: 1, message: 'The view opens' });
+  onProgress?.({ phase: 'session', completed: 0, total: 1, message: 'The view opens' })
   for (;;) {
-    await runtime.settled();
-    const current = session();
-    if (!current) return;
-    const pages = current.awaitPages({ image: false, onProgress });
-    pages.catch(() => {}); // a session closed first: what it says then is no one's to hear
+    await runtime.settled()
+    const current = session()
+    if (!current) return
+    const pages = current.awaitPages({ image: false, onProgress })
+    pages.catch(() => {}) // a session closed first: what it says then is no one's to hear
     try {
-      await Promise.race([pages, runtime.ended(current)]);
+      await Promise.race([pages, runtime.ended(current)])
     } catch (error) {
-      if (session() === current) throw error;
+      if (session() === current) throw error
     }
-    if (session() === current) return;
+    if (session() === current) return
   }
 }

@@ -1,85 +1,85 @@
-import { EngineError, type Primitive, type ClusterManifest } from '../contracts/index.ts';
-import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts';
+import { EngineError, type Primitive, type ClusterManifest } from '../contracts/index.ts'
+import { MANIFEST_BINARY_VERSION } from './binaryFormat.ts'
 
 /** Where the binary sits and how a cluster, a packed page and a bundle name their object. */
 export interface ManifestBinaryDescriptor {
   /** Format version. */
-  version: number;
+  version: number
   /** Where the binary file is. */
-  url: string;
+  url: string
   /** Fingerprint of its bytes. */
-  sha256: string;
+  sha256: string
   /** Its size. */
-  bytes: number;
+  bytes: number
   /** `{sha}` is replaced by the 64 hexadecimal characters of the object digest. */
-  pageUrl: string;
+  pageUrl: string
   /** Address pattern of a geometry block. */
-  geometryUrl: string;
+  geometryUrl: string
   /** Address pattern of a stream bundle. */
-  bundleUrl: string;
+  bundleUrl: string
   /** Entries of the progressive-level section; zero when the source has no decodable image. */
-  texturePreviews: number;
+  texturePreviews: number
   /** Bytes of the pixel column: entries have no fixed stride, so their total is written here. */
-  texturePreviewBytes: number;
+  texturePreviewBytes: number
   /** Bytes of each block column — the kept chains' tails, family by family — written here too. */
-  texturePreviewBc7Bytes: number;
+  texturePreviewBc7Bytes: number
   /** Bytes of the ASTC block column. */
-  texturePreviewAstcBytes: number;
+  texturePreviewAstcBytes: number
 }
 /** A primitive's culling tree, counted instead of listed. */
 export interface SlimCulling {
   /** Numbers per node. */
-  stride: number;
+  stride: number
   /** How many nodes. */
-  count: number;
+  count: number
 }
 /** A primitive's group links, counted instead of listed. */
 export interface SlimStructure {
   /** Format version. */
-  version: number;
+  version: number
   /** How many groups. */
-  groups: number;
+  groups: number
   /** How many roots. */
-  roots: number;
+  roots: number
 }
 /** A primitive's stream bundles, counted instead of listed. */
 export interface SlimStreams {
   /** Format version. */
-  version: number;
+  version: number
   /** Bundles always kept. */
-  pinned: number;
+  pinned: number
   /** Target bundle size. */
-  bundleBytes: number;
+  bundleBytes: number
   /** Most bundles holding the parents of one bundle's clusters, fixed before packing. */
-  dependencyBound: number;
+  dependencyBound: number
   /** Longest closed dependency list of a bundle. */
-  maxDependencies: number;
+  maxDependencies: number
   /** How many bundles. */
-  pages: number;
+  pages: number
 }
 /** Counts and constants a primitive needs to find its own slice of every column. */
 export interface SlimPrimitiveBinary {
   /** How many pages. */
-  pages: number;
+  pages: number
   /** Its culling tree's counts. */
-  culling?: SlimCulling | null;
+  culling?: SlimCulling | null
   /** Its group links' counts. */
-  structure?: SlimStructure | null;
+  structure?: SlimStructure | null
   /** Its stream bundles' counts. */
-  streams?: SlimStreams | null;
+  streams?: SlimStreams | null
 }
 /** A primitive whose long lists live in the binary file. */
 export type SlimPrimitive = Omit<Primitive, 'pages' | 'culling' | 'structure' | 'streams'> & {
   /** Where to find its lists. */
-  binary: SlimPrimitiveBinary;
-};
+  binary: SlimPrimitiveBinary
+}
 /** A manifest whose long lists live in a binary file beside it. */
 export type SlimClusterManifest = Omit<ClusterManifest, 'primitives'> & {
   /** The binary file. */
-  binary: ManifestBinaryDescriptor;
+  binary: ManifestBinaryDescriptor
   /** Its primitives. */
-  primitives: SlimPrimitive[];
-};
+  primitives: SlimPrimitive[]
+}
 
 /** Counts a descriptor must carry, and what a rejection names. */
 const COUNT_KEYS = {
@@ -88,31 +88,31 @@ const COUNT_KEYS = {
   texturePreviewBc7Bytes: 'texture preview BC block byte length',
   texturePreviewAstcBytes: 'texture preview ASTC block byte length',
   bytes: 'byte length',
-} as const;
-type CountKey = keyof typeof COUNT_KEYS;
+} as const
+type CountKey = keyof typeof COUNT_KEYS
 
 /** Rejects a sidecar this build cannot read, before any byte is fetched. */
 export function assertManifestBinary(binary: unknown): asserts binary is ManifestBinaryDescriptor {
   if (!binary || typeof binary !== 'object' || Array.isArray(binary))
-    throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor is not an object', {});
-  const descriptor = binary as Partial<ManifestBinaryDescriptor>;
+    throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor is not an object', {})
+  const descriptor = binary as Partial<ManifestBinaryDescriptor>
   if (descriptor.version !== MANIFEST_BINARY_VERSION)
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
       `Expected manifest binary version ${MANIFEST_BINARY_VERSION}, received ${String(descriptor.version)}`,
       { version: descriptor.version ?? null, expected: MANIFEST_BINARY_VERSION },
-    );
+    )
   for (const key of ['url', 'sha256', 'pageUrl', 'geometryUrl', 'bundleUrl'] as const)
     if (typeof descriptor[key] !== 'string' || !descriptor[key])
       throw new EngineError('UNSUPPORTED_FORMAT', `Manifest binary descriptor misses ${key}`, {
         key,
-      });
+      })
   for (const [key, what] of Object.entries(COUNT_KEYS) as Array<[CountKey, string]>) {
-    const value = descriptor[key];
+    const value = descriptor[key]
     if (!Number.isSafeInteger(value) || value! < 0)
       throw new EngineError('UNSUPPORTED_FORMAT', `Manifest binary descriptor has no ${what}`, {
         [key]: value ?? null,
-      });
+      })
   }
   for (const key of ['pageUrl', 'geometryUrl', 'bundleUrl'] as const)
     if (!descriptor[key]!.includes('{sha}'))
@@ -120,5 +120,5 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
         'UNSUPPORTED_FORMAT',
         `Manifest binary template ${key} has no {sha} placeholder`,
         { key, template: descriptor[key] },
-      );
+      )
 }

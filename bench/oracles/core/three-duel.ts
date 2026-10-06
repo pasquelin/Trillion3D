@@ -1,68 +1,68 @@
 // A duel between Three.js and sdk-core on one calculation family: same seeded inputs, both sides
 // timed on their own operation alone, Three's result — read untimed — the oracle of the engine's.
 // Three serves as the witness only, never inside a `math*.ts` file.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as THREE from 'three';
-import { copyMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
-import { xorshiftRandom, measure } from '../../core/index.ts';
-import { counter, note } from '../../core/ulp.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as THREE from 'three'
+import { copyMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts'
+import { xorshiftRandom, measure } from '../../core/index.ts'
+import { counter, note } from '../../core/ulp.ts'
 
 /** Elements per line: enough to leave the JIT warm and the caches cold, like a frame's batches. */
-export const N = 200000;
-export const alea = xorshiftRandom(19092026);
-export const rnd = (a = -10, b = 10) => a + alea() * (b - a);
+export const N = 200000
+export const alea = xorshiftRandom(19092026)
+export const rnd = (a = -10, b = 10) => a + alea() * (b - a)
 
 /**
  * The reference rounds the sRGB constants (`c · 0.0773993808`, `c · 0.9478672986 + 0.0521327014`)
  * where the engine writes the curve (`packages/sdk-core/src/math/primitives/color.ts`); the largest gap this leaves, declared once
  * for every bench that measures it.
  */
-export const SRGB_REFERENCE_GAP = 1e-10;
+export const SRGB_REFERENCE_GAP = 1e-10
 /**
  * Three's reverse curve uses exponent 0.41666 instead of 1 / 2.4. On [0, 1], the mean-value
  * theorem bounds the gap by 1.055 * abs(1 / 2.4 - 0.41666) / (Math.E * 0.41666) < 6.3e-6.
  * This is a different direction from SRGB_REFERENCE_GAP; the engine keeps its exact exponent.
  */
-export const LINEAR_SRGB_REFERENCE_GAP = 6.3e-6;
+export const LINEAR_SRGB_REFERENCE_GAP = 6.3e-6
 
 /** A unit quaternion from four seeded draws. */
-export const quaternion = () => new THREE.Quaternion(rnd(), rnd(), rnd(), rnd()).normalize();
+export const quaternion = () => new THREE.Quaternion(rnd(), rnd(), rnd(), rnd()).normalize()
 
 /** One view of `stride` numbers per element, built once, outside every chronometer. */
 export const views = (flat: Float64Array, stride: number) =>
   Array.from({ length: flat.length / stride }, (_, i) =>
     flat.subarray(i * stride, i * stride + stride),
-  );
+  )
 
 /** `n` random translation-rotation-scale matrices: Three objects, one flat buffer, one view each. */
 export function trsMatrices(n: number) {
-  const three: THREE.Matrix4[] = [];
-  const flat = new Float64Array(n * 16);
+  const three: THREE.Matrix4[] = []
+  const flat = new Float64Array(n * 16)
   for (let i = 0; i < n; i++) {
     const m = new THREE.Matrix4().compose(
       new THREE.Vector3(rnd(), rnd(), rnd()),
       quaternion(),
       new THREE.Vector3(rnd(0.2, 3), rnd(0.2, 3), rnd(0.2, 3)),
-    );
-    three.push(m);
-    copyMatrix4(flat, m.elements, i * 16);
+    )
+    three.push(m)
+    copyMatrix4(flat, m.elements, i * 16)
   }
-  return { three, flat, views: views(flat, 16) };
+  return { three, flat, views: views(flat, 16) }
 }
 
 /** `n` random points as Three vectors and one flat buffer. */
 export function points(n: number, low = -10, high = 10) {
-  const three: THREE.Vector3[] = [];
-  const flat = new Float64Array(n * 3);
+  const three: THREE.Vector3[] = []
+  const flat = new Float64Array(n * 3)
   for (let i = 0; i < n; i++) {
-    const v = new THREE.Vector3(rnd(low, high), rnd(low, high), rnd(low, high));
-    three.push(v);
-    flat[i * 3] = v.x;
-    flat[i * 3 + 1] = v.y;
-    flat[i * 3 + 2] = v.z;
+    const v = new THREE.Vector3(rnd(low, high), rnd(low, high), rnd(low, high))
+    three.push(v)
+    flat[i * 3] = v.x
+    flat[i * 3 + 1] = v.y
+    flat[i * 3 + 2] = v.z
   }
-  return { three, flat };
+  return { three, flat }
 }
 
 /**
@@ -76,34 +76,34 @@ export function flatOf(
   out: Float64Array,
 ): Float64Array {
   for (let i = 0; i < objects.length; i++) {
-    const o = objects[i];
-    if (stride === 16) copyMatrix4(out, (o as THREE.Matrix4).elements, i * 16);
+    const o = objects[i]
+    if (stride === 16) copyMatrix4(out, (o as THREE.Matrix4).elements, i * 16)
     else {
-      const v = o as THREE.Vector3;
-      out[i * 3] = v.x;
-      out[i * 3 + 1] = v.y;
-      out[i * 3 + 2] = v.z;
+      const v = o as THREE.Vector3
+      out[i * 3] = v.x
+      out[i * 3 + 1] = v.y
+      out[i * 3 + 2] = v.z
     }
   }
-  return out;
+  return out
 }
 
 /** Parameters of `duel`, generic on the flat result type both sides produce. */
 export interface DuelParams<Sortie extends ArrayLike<number> = Float64Array> {
-  name: string;
-  fichier: string | string[];
-  size?: number;
-  three: () => void;
-  oracle: () => Sortie;
+  name: string
+  fichier: string | string[]
+  size?: number
+  three: () => void
+  oracle: () => Sortie
   /** The engine's operation: it returns the flat result, unless `readCore` reads it. */
-  core: () => unknown;
+  core: () => unknown
   /** Reads the engine's result untimed, when `core` leaves it in objects rather than returning it
    *  flat: the chronometer then times the operation alone on both sides, as `oracle` does Three's. */
-  readCore?: () => Sortie;
-  tolerance?: number;
-  motif?: string | null;
+  readCore?: () => Sortie
+  tolerance?: number
+  motif?: string | null
   /** The declared exception where sdk-core is allowed to run slower than Three, by how much and why. */
-  slower?: { atMost: number; reason: string };
+  slower?: { atMost: number; reason: string }
 }
 
 /**
@@ -132,20 +132,20 @@ export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
   motif,
   slower,
 }: DuelParams<Sortie>) {
-  let maxAbs = 0;
+  let maxAbs = 0
   const differences = (expected: unknown, actual: unknown, path: string) => {
     const [ref, obt] = [expected as Sortie, actual as Sortie],
-      c = counter();
+      c = counter()
     // The strict path refuses a length mismatch; the tolerant path must not let one through.
-    if (ref.length !== obt.length) maxAbs = Infinity;
+    if (ref.length !== obt.length) maxAbs = Infinity
     for (let i = 0; i < ref.length; i++) {
-      note(c, ref[i], obt[i], `${path}[${i}]`);
-      maxAbs = Math.max(maxAbs, Math.abs(ref[i] - obt[i]));
+      note(c, ref[i], obt[i], `${path}[${i}]`)
+      maxAbs = Math.max(maxAbs, Math.abs(ref[i] - obt[i]))
     }
-    return c;
-  };
+    return c
+  }
   // With `readCore`, each side returns a token of its own and the read happens after the clock.
-  const tokens = readCore ? { core: {}, three: {} } : null;
+  const tokens = readCore ? { core: {}, three: {} } : null
   const engine = await measure<null, unknown>({
     name,
     fichier: file,
@@ -153,36 +153,36 @@ export async function duel<Sortie extends ArrayLike<number> = Float64Array>({
     temoin: three,
     calculation: tokens ? () => (core(), tokens.core) : core,
     expected: () => {
-      three();
-      return tokens ? tokens.three : oracle();
+      three()
+      return tokens ? tokens.three : oracle()
     },
     ...(tokens && readCore
       ? { lecture: (_: null, side: unknown) => (side === tokens.core ? readCore() : oracle()) }
       : {}),
     motif,
     ...(tolerance === undefined ? {} : { differences }),
-  });
+  })
   const c = engine.resultats[0],
-    t = c.temoin;
-  if (tolerance !== undefined) c.motif = `largest gap ${maxAbs.toExponential(1)} ; ${c.motif}`;
+    t = c.temoin
+  if (tolerance !== undefined) c.motif = `largest gap ${maxAbs.toExponential(1)} ; ${c.motif}`
   if (slower)
     c.motif = [`declared up to ${slower.atMost}× Three.js: ${slower.reason}`, c.motif]
       .filter(Boolean)
-      .join(' ; ');
+      .join(' ; ')
   test(`${name}: same result as Three.js, at least as fast`, () => {
     if (tolerance !== undefined)
-      assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`);
-    else assert.equal(c.correct, true, `${name}: ${c.difference}`);
-    assert.ok(t, `${name}: Three.js witness produced no measurement`);
+      assert.ok(maxAbs <= tolerance, `${name}: largest difference ${maxAbs} above ${tolerance}`)
+    else assert.equal(c.correct, true, `${name}: ${c.difference}`)
+    assert.ok(t, `${name}: Three.js witness produced no measurement`)
     // The paired median quotient the `vs witness` column prints, `1 + ecartTemoin`: a witness
     // without one (`ecartTemoin` null) fails the gate instead of reading as 1.
-    const ratio = c.ecartTemoin === null ? NaN : 1 + c.ecartTemoin;
-    const ceiling = slower?.atMost ?? 1;
+    const ratio = c.ecartTemoin === null ? NaN : 1 + c.ecartTemoin
+    const ceiling = slower?.atMost ?? 1
     assert.ok(
       ratio <= ceiling,
       `${name}: sdk-core median ${ratio.toFixed(2)}× Three.js, above the declared ${ceiling}×` +
         (slower ? ` (${slower.reason})` : ''),
-    );
-  });
-  return engine;
+    )
+  })
+  return engine
 }

@@ -1,7 +1,7 @@
-import { TONE_MAPPING_RANK as R } from '../../../../sdk-core/src/scene/core/environment.ts';
-import { shaderFloat } from '../../lighting/shaderConstants.ts';
-import { ACES, AGX, CINEON, NEUTRAL } from '../../lighting/toneCurveConstants.ts';
-import { SRGB_ENCODE_GLSL } from '../../texture/srgbEncode.ts';
+import { TONE_MAPPING_RANK as R } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { shaderFloat } from '../../lighting/shaderConstants.ts'
+import { ACES, AGX, CINEON, NEUTRAL } from '../../lighting/toneCurveConstants.ts'
+import { SRGB_ENCODE_GLSL } from '../../texture/srgbEncode.ts'
 
 /**
  * The display chain's last two links, in GLSL, shared by every engine program that writes a
@@ -26,4 +26,4 @@ vec3 toneMap(vec3 c){if(toneCurve==${R.none})return c;if(toneCurve==${R.linear})
 if(toneCurve==${R.reinhard})return clamp(c/(1.0+c),0.0,1.0);
 if(toneCurve==${R.cineon}){vec3 x=max(vec3(0.0),c-${CINEON.offset});return pow(${CINEON.curve},vec3(2.2));}
 if(toneCurve==${R.agx})return agxCurve(c);if(toneCurve==${R.neutral})return neutralCurve(c);return aces(c);}
-${SRGB_ENCODE_GLSL}`;
+${SRGB_ENCODE_GLSL}`

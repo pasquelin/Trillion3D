@@ -1,7 +1,7 @@
-import { refreshTransparentSpans } from './spans.ts';
-import { refreshTransparentCorners } from './occlusionHost.ts';
-import { writeCpuTransparentInstances } from '../blend/selection.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { refreshTransparentSpans } from './spans.ts'
+import { refreshTransparentCorners } from './occlusionHost.ts'
+import { writeCpuTransparentInstances } from '../blend/selection.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /**
  * The transparent instance lists of one image.
@@ -13,27 +13,27 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  */
 export function encodeTransparentInstances(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { blendState, run } = rt,
-    { table, compaction } = blendState;
-  if (!table) return;
-  refreshTransparentSpans(rt);
-  const selection = run.gpuFrameActive ? run.gpuSelection : undefined;
+    { table, compaction } = blendState
+  if (!table) return
+  refreshTransparentSpans(rt)
+  const selection = run.gpuFrameActive ? run.gpuSelection : undefined
   if (selection && compaction?.encode) {
     // The occlusion verdict is written just before the compaction, in the same submission and on
     // this frame's pyramid: the compaction never reads another frame's verdict.
-    refreshTransparentCorners(rt);
-    if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh);
-    else encoder.clearBuffer(compaction.occludedBuffer);
-    compaction.encode(encoder, selection.maskBuffer, selection.maskOffset);
-    return;
+    refreshTransparentCorners(rt)
+    if (blendState.occlusion) blendState.occlusion.encode(encoder, run.hizPyramidFresh)
+    else encoder.clearBuffer(compaction.occludedBuffer)
+    compaction.encode(encoder, selection.maskBuffer, selection.maskOffset)
+    return
   }
   // The packed rank travels beside the record (#1235): the table files a page by that rank alone.
   writeCpuTransparentInstances(blendState, run.drawn, run.drawnPacked, (packed) =>
     packed < 0 ? -1 : table.entryOfPage[packed],
-  );
+  )
   // Without a compaction the CPU lists are still written: the fallback pass reads them (#584).
   compaction?.uploadInstances(
     blendState.cpuInstances,
     blendState.cpuInstanceCount,
     blendState.cpuItemCounts,
-  );
+  )
 }

@@ -1,41 +1,41 @@
 // A WebGL2 session of the effect chain's tests (#349): the engine's scene draw and the composer on
 // a recorded context that renders half floats, the world's refusal and degradation notices, and
 // what they said.
-import * as G from '../../host/graph/graph.fixture.ts';
-import type { RenderBackend } from '../../backend/types.ts';
-import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
-import type { Scene } from '../core/scene.ts';
-import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
-import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
+import * as G from '../../host/graph/graph.fixture.ts'
+import type { RenderBackend } from '../../backend/types.ts'
+import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
+import type { Scene } from '../core/scene.ts'
+import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts'
+import { createTestContext } from '../../webgl/core/testContext.fixture.ts'
 import {
   createWorldNotices,
   listenWorldNotices,
   noticeEffectRefusal,
-} from '../diagnostic/worldNotices.ts';
-import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
-import { createFrameComposer } from './compose.ts';
-import { families } from '../../host/families.ts';
+} from '../diagnostic/worldNotices.ts'
+import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts'
+import { createFrameComposer } from './compose.ts'
+import { families } from '../../host/families.ts'
 
 // The effects' and guides' code, which a frame that draws them waits for (`familyUse.ts`), arrived.
-await Promise.all([families.effects.load(), families.guides.load()]);
+await Promise.all([families.effects.load(), families.guides.load()])
 
-const camera = G.perspectiveCamera();
+const camera = G.perspectiveCamera()
 /** A context that renders half floats, as every desktop WebGL2 does. */
 const HALF_FLOATS = {
   getExtension: (name: string) => (name === 'EXT_color_buffer_float' ? {} : null),
-};
+}
 
 /** A WebGL2 session drawing `scene` with the world's `chain`, its refusals said on a world's
  *  notices; `frame` draws one and returns whether the chain ran and what the scene submitted.
  *  `between` writes the graph after the engine's `render`, as the engine's own frame does
  *  (`../../backend/autonomous/pages.ts`); `hold` says whether the engine holds its frames. */
 export function session(scene: Scene, chain: EffectChain) {
-  const context = createTestContext({ answers: HALF_FLOATS });
-  const notices = createWorldNotices();
+  const context = createTestContext({ answers: HALF_FLOATS })
+  const notices = createWorldNotices()
   const draw = createSceneDraw(context.gl, scene, [], {
     materialDegraded: noticeMaterialDegraded(notices),
-  });
-  let chained = false;
+  })
+  let chained = false
   const backend = {
     id: 'engine',
     scene,
@@ -43,40 +43,40 @@ export function session(scene: Scene, chain: EffectChain) {
     ...draw,
     ...draw.host,
     drawHostGeometry(...args: Parameters<typeof draw.host.drawHostGeometry>) {
-      chained = !!args[1].linear;
-      return draw.host.drawHostGeometry(...args);
+      chained = !!args[1].linear
+      return draw.host.drawHostGeometry(...args)
     },
-  };
-  const refused = noticeEffectRefusal(notices);
+  }
+  const refused = noticeEffectRefusal(notices)
   const compose = createFrameComposer(context.gl, camera, {
     effects: { chain, shown: () => true, refused },
-  });
+  })
   return {
     frame(between?: () => void) {
-      chained = false;
-      const submitted = context.of('drawElements').length;
-      draw.render(camera);
-      between?.();
-      compose(backend as unknown as RenderBackend, null);
+      chained = false
+      const submitted = context.of('drawElements').length
+      draw.render(camera)
+      between?.()
+      compose(backend as unknown as RenderBackend, null)
       return {
         chained,
         submitted: context.of('drawElements').length - submitted,
-      };
+      }
     },
     hold(held: boolean) {
-      backend.frameHeld = held;
+      backend.frameHeld = held
     },
     close: notices.close,
-  };
+  }
 }
 
 /** The kinds of every world notice said while `run` draws `view`, once delivered. */
 export async function heard(view: ReturnType<typeof session>, run: () => void) {
-  const said: string[] = [];
-  const stop = listenWorldNotices((notice) => void said.push(notice.phase));
-  run();
-  await new Promise(setImmediate);
-  view.close();
-  stop();
-  return said;
+  const said: string[] = []
+  const stop = listenWorldNotices((notice) => void said.push(notice.phase))
+  run()
+  await new Promise(setImmediate)
+  view.close()
+  stop()
+  return said
 }

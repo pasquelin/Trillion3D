@@ -3,9 +3,9 @@ import {
   DAG_ERROR_MODEL,
   FORMAT_VERSION,
   type AssetScope,
-} from './base.ts';
-import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts';
-import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts';
+} from './base.ts'
+import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts'
+import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts'
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.
@@ -13,14 +13,14 @@ import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts';
  */
 export class EngineError extends Error {
   /** Which error it is, in capitals: the word a page tests. */
-  readonly code: string;
+  readonly code: string
   /** Facts about the error: the file, the value, the limit. */
-  readonly details: Record<string, unknown>;
+  readonly details: Record<string, unknown>
   constructor(code: string, message: string, details: Record<string, unknown> = {}) {
-    super(message);
-    this.name = 'EngineError';
-    this.code = code;
-    this.details = details;
+    super(message)
+    this.name = 'EngineError'
+    this.code = code
+    this.details = details
   }
 }
 /** Where a model's pages are read from, by key. */
@@ -28,7 +28,7 @@ export interface PageSource {
   /** Reads the bytes of one page; `priority`, when given, is the streamer's (smallest first). A
    *  more urgent read of a page already in flight is asked again to raise it: a source that takes
    *  `priority` joins it to the read in flight rather than transfer the page twice. */
-  read(key: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>;
+  read(key: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>
 }
 /** Refuses a cache format this runtime does not read. */
 export function assertFormat(formatVersion: number) {
@@ -37,7 +37,7 @@ export function assertFormat(formatVersion: number) {
       'UNSUPPORTED_FORMAT',
       `Expected cache format ${FORMAT_VERSION} or ${CLUSTERED_BLEND_FORMAT_VERSION}, received ${formatVersion}`,
       { formatVersion },
-    );
+    )
 }
 
 /**
@@ -48,61 +48,61 @@ export function assertFormat(formatVersion: number) {
  */
 export function assertCachePointer(pointer: unknown, scope: AssetScope): string {
   if (!pointer || typeof pointer !== 'object' || Array.isArray(pointer))
-    throw new EngineError('INVALID_POINTER', 'preparation pointer is not a JSON object', {});
-  const value = pointer as Record<string, unknown>;
+    throw new EngineError('INVALID_POINTER', 'preparation pointer is not a JSON object', {})
+  const value = pointer as Record<string, unknown>
   if (typeof value.status !== 'string' || typeof value.url !== 'string' || !value.url)
     throw new EngineError('INVALID_POINTER', 'preparation pointer carries no valid status/url', {
       status: value.status ?? null,
       url: value.url ?? null,
-    });
+    })
   if (value.status !== 'ready')
     throw new EngineError('CACHE_NOT_READY', 'The preparation pointer is not ready', {
       status: value.status,
-    });
+    })
   if (value.scope !== undefined && value.scope !== scope)
     throw new EngineError('SCOPE_MISMATCH', `Requested ${scope}, pointer contains ${value.scope}`, {
       requestedScope: scope,
       pointerScope: value.scope,
-    });
-  if (value.formatVersion !== undefined) assertFormat(value.formatVersion as number);
-  return value.url;
+    })
+  if (value.formatVersion !== undefined) assertFormat(value.formatVersion as number)
+  return value.url
 }
 /** What a host checks on the root `clusters.json` before any page: the cache is ready, of the
  *  requested scope, in a format this SDK reads. */
 export function assertCacheRoot(root: unknown, scope: AssetScope): void {
   if (!root || typeof root !== 'object' || Array.isArray(root))
-    throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {});
-  const value = root as Record<string, unknown>;
+    throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {})
+  const value = root as Record<string, unknown>
   // The number first: an earlier format is refused by it, never by a field it wrote otherwise.
-  const formatVersion = (value.formatVersion ?? value.schema) as number;
-  assertFormat(formatVersion);
+  const formatVersion = (value.formatVersion ?? value.schema) as number
+  assertFormat(formatVersion)
   if (value.schema !== formatVersion)
     throw new EngineError('UNSUPPORTED_FORMAT', 'Cache schema and formatVersion differ', {
       schema: value.schema,
       formatVersion,
-    });
+    })
   if (value.status !== 'ready')
     throw new EngineError('INVALID_CACHE', 'Unsupported Trillion3D cache', {
       status: value.status ?? null,
-    });
+    })
   if (value.scope !== scope)
     throw new EngineError('SCOPE_MISMATCH', `Requested ${scope}, cache contains ${value.scope}`, {
       requestedScope: scope,
       cacheScope: value.scope,
-    });
+    })
 }
 /** The manifest read through its pages: its root (`assertCacheRoot`) and selected geometry.
  *  Returns that triangle count; the clusters' identity is `assertCacheIdentity`'s. */
 export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
-  assertCacheRoot(metadata, scope);
-  const value = metadata as Record<string, unknown>;
+  assertCacheRoot(metadata, scope)
+  const value = metadata as Record<string, unknown>
   if (
     !Array.isArray(value.primitives) ||
     !Number.isSafeInteger(value.selectedNodes) ||
     typeof value.selectedTriangles !== 'number' ||
     !Number.isFinite(value.selectedTriangles)
   )
-    throw new EngineError('INVALID_CACHE', 'invalid cache schema', {});
+    throw new EngineError('INVALID_CACHE', 'invalid cache schema', {})
   // The one identity statement a slim manifest can make on its own: a DAG cache names the model its
   // clusters were certified with. Older caches name neither and stay readable.
   if (value.clusterStrategy === 'dag-groups' && value.errorModel !== DAG_ERROR_MODEL)
@@ -110,8 +110,8 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
       'STALE_CACHE',
       `Cache error model ${value.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
       { errorModel: value.errorModel ?? null, expected: DAG_ERROR_MODEL },
-    );
-  return value.selectedTriangles;
+    )
+  return value.selectedTriangles
 }
 /**
  * Rejects any cache this runtime cannot draw. The runtime reads one geometry model: a DAG of
@@ -127,14 +127,14 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       'INVALID_CACHE',
       'A manifest with a binary sidecar must be decoded before its identity is checked',
       {},
-    );
-  const formatVersion = metadata.formatVersion ?? metadata.schema;
-  assertFormat(formatVersion);
+    )
+  const formatVersion = metadata.formatVersion ?? metadata.schema
+  assertFormat(formatVersion)
   if (metadata.schema !== formatVersion)
     throw new EngineError('UNSUPPORTED_FORMAT', 'Cache schema and formatVersion differ', {
       schema: metadata.schema,
       formatVersion,
-    });
+    })
   if (
     formatVersion !== CLUSTERED_BLEND_FORMAT_VERSION &&
     metadata.primitives.some((primitive) => primitive.pass === 'clustered-blend')
@@ -143,14 +143,14 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       'UNSUPPORTED_FORMAT',
       `clustered-blend requires cache format ${CLUSTERED_BLEND_FORMAT_VERSION}`,
       { formatVersion },
-    );
-  const missing = metadata.primitives.findIndex((primitive) => !primitiveIsDrawable(primitive));
+    )
+  const missing = metadata.primitives.findIndex((primitive) => !primitiveIsDrawable(primitive))
   if (missing >= 0) {
-    const primitive = metadata.primitives[missing];
+    const primitive = metadata.primitives[missing]
     const cause =
       primitive.pass === UNSPLIT_PASS
         ? `is ${UNSPLIT_PASS} yet carries ${primitive.pages.length} cluster pages`
-        : 'has no per-cluster error band';
+        : 'has no per-cluster error band'
     throw new EngineError(
       'STALE_CACHE',
       `Cache without a cluster DAG cannot be used: primitive ${primitive.mesh}/${primitive.primitive} ${cause}; recompile with ${DAG_ERROR_MODEL}`,
@@ -161,21 +161,21 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
         errorModel: metadata.errorModel ?? null,
         expected: DAG_ERROR_MODEL,
       },
-    );
+    )
   }
   if (metadata.errorModel !== DAG_ERROR_MODEL)
     throw new EngineError(
       'STALE_CACHE',
       `Cache error model ${metadata.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
       { errorModel: metadata.errorModel ?? null, expected: DAG_ERROR_MODEL },
-    );
+    )
   // Texture levels of another version — before 6, block files not laid out in tile records
   // (#962) — would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
-  const { textures } = metadata;
+  const { textures } = metadata
   if (textures && textures.version !== TEXTURE_PREVIEW_VERSION)
     throw new EngineError(
       'STALE_CACHE',
       `Cache texture levels are version ${textures.version ?? 'absent'}, this runtime reads ${TEXTURE_PREVIEW_VERSION}; recompile the cache (trillion3d-compile, or pnpm run compile:caches in the repository)`,
       { textureVersion: textures.version ?? null, expected: TEXTURE_PREVIEW_VERSION },
-    );
+    )
 }

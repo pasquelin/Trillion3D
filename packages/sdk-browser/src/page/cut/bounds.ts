@@ -1,4 +1,4 @@
-import type { ClusterCut } from '../selection/math.ts';
+import type { ClusterCut } from '../selection/math.ts'
 
 /**
  * Per-node bounds of the culling hierarchy, derived once from the clusters it packs.
@@ -15,7 +15,7 @@ import type { ClusterCut } from '../selection/math.ts';
  * threshold too, and the decision taken at the node is word for word the one the descent would
  * have returned.
  */
-export const BOUND_STRIDE = 12;
+export const BOUND_STRIDE = 12
 export const OWN_FLOOR = 0,
   OWN_CEIL = 1,
   PARENT_FLOOR = 2,
@@ -24,7 +24,7 @@ export const OWN_FLOOR = 0,
   /** 1 when the subtree carries a cluster that NOTHING replaces — the coarsest cover. Its
    *  replacement error projects to infinity, so no ceiling certifies the subtree
    *  (`../../gpu/dag/hierarchy.ts`). */
-  HAS_ROOT = 11;
+  HAS_ROOT = 11
 
 /** Grows the bounding sphere stored at `at` to cover the one read at `from`.
  *  Negative radius: accumulator still empty. */
@@ -36,76 +36,76 @@ export function growSphere(
   sphere: ArrayLike<number>,
   from: number,
 ) {
-  const radius = sphere[from + 3];
-  if (!(radius >= 0)) return;
+  const radius = sphere[from + 3]
+  if (!(radius >= 0)) return
   const cx = sphere[from],
     cy = sphere[from + 1],
-    cz = sphere[from + 2];
-  const held = into[at + 3];
+    cz = sphere[from + 2]
+  const held = into[at + 3]
   if (!(held >= 0)) {
-    into[at] = cx;
-    into[at + 1] = cy;
-    into[at + 2] = cz;
-    into[at + 3] = radius;
-    return;
+    into[at] = cx
+    into[at + 1] = cy
+    into[at + 2] = cz
+    into[at + 3] = radius
+    return
   }
   const dx = cx - into[at],
     dy = cy - into[at + 1],
-    dz = cz - into[at + 2];
-  const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-  if (distance + radius <= held) return;
+    dz = cz - into[at + 2]
+  const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  if (distance + radius <= held) return
   if (distance + held <= radius) {
-    into[at] = cx;
-    into[at + 1] = cy;
-    into[at + 2] = cz;
-    into[at + 3] = radius;
-    return;
+    into[at] = cx
+    into[at + 1] = cy
+    into[at + 2] = cz
+    into[at + 3] = radius
+    return
   }
   const next = (distance + held + radius) * 0.5,
-    ratio = (next - held) / distance;
-  into[at] += dx * ratio;
-  into[at + 1] += dy * ratio;
-  into[at + 2] += dz * ratio;
-  into[at + 3] = next;
+    ratio = (next - held) / distance
+  into[at] += dx * ratio
+  into[at + 1] += dy * ratio
+  into[at + 2] += dz * ratio
+  into[at + 3] = next
 }
 
 /** Folds a cluster into the bounds of its leaf node. */
 function foldPage(values: Float64Array, at: number, rec: ClusterCut) {
   const own = rec.lodError,
-    sphere = rec.sphere;
+    sphere = rec.sphere
   if (own === undefined || own === null) {
     // Cluster with no error band: the node no longer certifies anything, neither accept nor reject.
-    values[at + OWN_FLOOR] = 0;
-    values[at + OWN_CEIL] = Infinity;
+    values[at + OWN_FLOOR] = 0
+    values[at + OWN_CEIL] = Infinity
   } else {
-    if (own < values[at + OWN_FLOOR]) values[at + OWN_FLOOR] = own;
+    if (own < values[at + OWN_FLOOR]) values[at + OWN_FLOOR] = own
     // A finite error without a sphere projects to infinity: the ceiling must say so.
-    if (own > 0 && !sphere) values[at + OWN_CEIL] = Infinity;
-    else if (own > values[at + OWN_CEIL]) values[at + OWN_CEIL] = own;
+    if (own > 0 && !sphere) values[at + OWN_CEIL] = Infinity
+    else if (own > values[at + OWN_CEIL]) values[at + OWN_CEIL] = own
   }
-  if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0);
+  if (sphere) growSphere(values, at + OWN_SPHERE, sphere, 0)
   // A cluster that nothing replaces projects to infinity: it lowers no floor.
-  const parent = rec.parentError;
+  const parent = rec.parentError
   if (parent === undefined || parent === null || !Number.isFinite(parent)) {
-    values[at + HAS_ROOT] = 1;
-    return;
+    values[at + HAS_ROOT] = 1
+    return
   }
-  if (parent < values[at + PARENT_FLOOR]) values[at + PARENT_FLOOR] = parent;
-  const band = rec.parentSphere ?? sphere;
-  if (band) growSphere(values, at + PARENT_SPHERE, band, 0);
+  if (parent < values[at + PARENT_FLOOR]) values[at + PARENT_FLOOR] = parent
+  const band = rec.parentSphere ?? sphere
+  if (band) growSphere(values, at + PARENT_SPHERE, band, 0)
 }
 
 /** Folds a child node into its parent's bounds. */
 function foldChild(values: Float64Array, at: number, from: number) {
   if (values[from + OWN_FLOOR] < values[at + OWN_FLOOR])
-    values[at + OWN_FLOOR] = values[from + OWN_FLOOR];
+    values[at + OWN_FLOOR] = values[from + OWN_FLOOR]
   if (values[from + OWN_CEIL] > values[at + OWN_CEIL])
-    values[at + OWN_CEIL] = values[from + OWN_CEIL];
+    values[at + OWN_CEIL] = values[from + OWN_CEIL]
   if (values[from + PARENT_FLOOR] < values[at + PARENT_FLOOR])
-    values[at + PARENT_FLOOR] = values[from + PARENT_FLOOR];
-  growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE);
-  growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE);
-  if (values[from + HAS_ROOT] === 1) values[at + HAS_ROOT] = 1;
+    values[at + PARENT_FLOOR] = values[from + PARENT_FLOOR]
+  growSphere(values, at + OWN_SPHERE, values, from + OWN_SPHERE)
+  growSphere(values, at + PARENT_SPHERE, values, from + PARENT_SPHERE)
+  if (values[from + HAS_ROOT] === 1) values[at + HAS_ROOT] = 1
 }
 
 /**
@@ -117,27 +117,27 @@ export function cullingBounds(
   { nodes, stride }: { nodes: Float64Array; stride: number },
   pages: readonly ClusterCut[],
 ) {
-  const count = (nodes.length / stride) | 0;
-  const values = new Float64Array(count * BOUND_STRIDE);
+  const count = (nodes.length / stride) | 0
+  const values = new Float64Array(count * BOUND_STRIDE)
   for (let node = count - 1; node >= 0; node--) {
     const base = node * stride,
-      at = node * BOUND_STRIDE;
-    values[at + OWN_FLOOR] = Infinity;
-    values[at + OWN_CEIL] = 0;
-    values[at + PARENT_FLOOR] = Infinity;
-    values[at + OWN_SPHERE + 3] = -1;
-    values[at + PARENT_SPHERE + 3] = -1;
-    values[at + HAS_ROOT] = 0;
-    const children = nodes[base + 12];
+      at = node * BOUND_STRIDE
+    values[at + OWN_FLOOR] = Infinity
+    values[at + OWN_CEIL] = 0
+    values[at + PARENT_FLOOR] = Infinity
+    values[at + OWN_SPHERE + 3] = -1
+    values[at + PARENT_SPHERE + 3] = -1
+    values[at + HAS_ROOT] = 0
+    const children = nodes[base + 12]
     if (children > 0) {
-      const first = nodes[base + 11];
+      const first = nodes[base + 11]
       for (let child = 0; child < children; child++)
-        foldChild(values, at, (first + child) * BOUND_STRIDE);
-      continue;
+        foldChild(values, at, (first + child) * BOUND_STRIDE)
+      continue
     }
     const firstPage = nodes[base + 13],
-      pageCount = nodes[base + 14];
-    for (let i = 0; i < pageCount; i++) foldPage(values, at, pages[firstPage + i]);
+      pageCount = nodes[base + 14]
+    for (let i = 0; i < pageCount; i++) foldPage(values, at, pages[firstPage + i])
   }
-  return values;
+  return values
 }

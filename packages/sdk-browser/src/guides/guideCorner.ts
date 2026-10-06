@@ -14,7 +14,7 @@ export const GUIDE_CORNER_WGSL = `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,
  let end=select(na,nb,corner.x>0.5);
  let side=lineClip(end,run*corner.y,shown,viewport,pixelRatio);
  return lineClip(side,(side-end)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
-}`;
+}`
 
 /** The same corner in the WebGL2 program, over `LINE_CLIP_GLSL`'s forward depth. */
 export const GUIDE_CORNER_GLSL = `vec4 guideCorner(vec4 ca,vec4 cb,vec2 corner,float width,vec2 viewport,float pixelRatio){
@@ -25,4 +25,4 @@ export const GUIDE_CORNER_GLSL = `vec4 guideCorner(vec4 ca,vec4 cb,vec2 corner,f
  vec4 end=corner.x>0.5?nb:na;
  vec4 side=lineClip(end,run*corner.y,shown,viewport,pixelRatio);
  return lineClip(side,(side-end)*(corner.y*(1.0-2.0*corner.x)),shown,viewport,pixelRatio);
-}`;
+}`

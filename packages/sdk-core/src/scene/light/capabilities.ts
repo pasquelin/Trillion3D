@@ -6,13 +6,13 @@
  */
 export interface LightingCapabilities {
   /** Declared lights actually light this engine's image. */
-  sceneLights: boolean;
+  sceneLights: boolean
   /** `setLightingView` actually changes this engine's image. */
-  lightingView: boolean;
+  lightingView: boolean
   /** This engine's lights carry shadows. */
-  shadows: boolean;
+  shadows: boolean
   /** `setTransform` actually moves a named node on this engine. */
-  transforms: boolean;
+  transforms: boolean
   /** What the engine does not do and why, in one sentence; absent when everything is applied. */
-  reason?: string;
+  reason?: string
 }

@@ -10,52 +10,52 @@
  * The loader is the witness here and only here, to prove it has nothing left to read. Images are
  * decoded by a stand-in answering the size of the bytes given, so both sides compare the same files.
  */
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { type ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
-import { buildPreparedScene } from './build.ts';
-import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { loadHostVertices, meshes as drawnMeshes } from '../../scene/meshes.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
+import { type ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
+import { buildPreparedScene } from './build.ts'
+import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts'
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { loadHostVertices, meshes as drawnMeshes } from '../../scene/meshes.ts'
 import {
   caches,
   describe,
   describeShape,
   serveFiles,
   type Ranks,
-} from '../../../../../bench/witnesses/three/parity/browser/host/prepared/scenes.fixture.ts';
+} from '../../../../../bench/witnesses/three/parity/browser/host/prepared/scenes.fixture.ts'
 
 async function witness(folder: URL, document: string, text?: string) {
-  text ??= await readFile(new URL(document, folder), 'utf8');
-  const gltf = await new GLTFLoader().parseAsync(text, folder.href);
+  text ??= await readFile(new URL(document, folder), 'utf8')
+  const gltf = await new GLTFLoader().parseAsync(text, folder.href)
   // The engine's mesh casts unless it says otherwise (#456); the loader's keeps `false`.
   gltf.scene.traverse((node) => {
-    if ((node as { isMesh?: boolean }).isMesh) node.castShadow = true;
-  });
-  const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>;
-  const ranks: Ranks = (object) => associations.get(object);
+    if ((node as { isMesh?: boolean }).isMesh) node.castShadow = true
+  })
+  const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>
+  const ranks: Ranks = (object) => associations.get(object)
   // The autonomous document's primitives are one degenerate triangle each: the engine shades the
   // pages they were cut from, which carry the source primitive's normals (#846).
   if (document !== 'source.gltf') {
-    const source = JSON.parse(await readFile(new URL('source.gltf', folder), 'utf8'));
+    const source = JSON.parse(await readFile(new URL('source.gltf', folder), 'utf8'))
     gltf.scene.traverse((node) => {
-      const { meshes, primitives } = ranks(node) ?? {};
-      const cut = source.meshes[meshes!]?.primitives[primitives!];
+      const { meshes, primitives } = ranks(node) ?? {}
+      const cut = source.meshes[meshes!]?.primitives[primitives!]
       if ((node as { isMesh?: boolean }).isMesh && cut?.attributes.NORMAL !== undefined)
-        (node as unknown as { material: { flatShading: boolean } }).material.flatShading = false;
-    });
+        (node as unknown as { material: { flatShading: boolean } }).material.flatShading = false
+    })
   }
-  return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) };
+  return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) }
 }
 
 async function prepared(folder: URL, document: string, written?: unknown) {
-  const file = written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'));
+  const file = written ?? JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'))
   // The caches compared here have no partition (`partition.test.ts` reads those).
-  const tables = { ...assertSceneTables(file), partition: null };
+  const tables = { ...assertSceneTables(file), partition: null }
   const built = await buildPreparedScene({
     tables,
     // The caches compared here draw no cloth: their manifest lists no primitive a cloth draws.
@@ -65,47 +65,47 @@ async function prepared(folder: URL, document: string, written?: unknown) {
     skipBaked: false,
     signal: undefined,
     track: (_resource, read) => read,
-  });
-  const meshes = built.associations as Map<object, ReturnType<Ranks>>;
-  const textures = built.textureIndices as Map<object, number>;
+  })
+  const meshes = built.associations as Map<object, ReturnType<Ranks>>
+  const textures = built.textureIndices as Map<object, number>
   const ranks: Ranks = (object) =>
-    textures.has(object) ? { textures: textures.get(object) } : meshes.get(object);
-  const source = built.source as unknown as Object3D;
-  await loadHostVertices(drawnMeshes(source));
+    textures.has(object) ? { textures: textures.get(object) } : meshes.get(object)
+  const source = built.source as unknown as Object3D
+  await loadHostVertices(drawnMeshes(source))
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),
-  };
+  }
 }
 
 test('the scene built from the tables is the scene the loader built, on every compiled cache', async (t) => {
-  serveFiles(t);
-  const folders = await caches();
+  serveFiles(t)
+  const folders = await caches()
   // Every pointer the fixture scenes hold names one cache folder, and the fixtures hold some.
-  const { glob } = await import('node:fs/promises');
-  const held: string[] = [];
+  const { glob } = await import('node:fs/promises')
+  const held: string[] = []
   for await (const pointer of glob('tests/fixtures/scenes/*/cache{,-*}/native/full/manifest.json', {
     cwd: fileURLToPath(new URL('../../../../../', import.meta.url)),
   }))
-    held.push(pointer);
-  assert.ok(held.length > 0, 'the fixture scenes hold compiled caches');
-  assert.equal(folders.length, held.length, 'every compiled cache the fixtures hold is found');
+    held.push(pointer)
+  assert.ok(held.length > 0, 'the fixture scenes hold compiled caches')
+  assert.equal(folders.length, held.length, 'every compiled cache the fixtures hold is found')
   for (const folder of folders) {
     // A partitioned cache draws its placements from rows, not nodes: `partition.test.ts` proves
     // them against the loader's.
-    const tables = JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'));
-    if (tables.partition) continue;
+    const tables = JSON.parse(await readFile(new URL('scene-tables.json', folder), 'utf8'))
+    if (tables.partition) continue
     for (const document of ['source.gltf', 'scene.gltf']) {
       const exists = await readFile(new URL(document, folder)).then(
         () => true,
         () => false,
-      );
-      if (!exists) continue;
+      )
+      if (!exists) continue
       assert.deepEqual(
         await prepared(folder, document),
         await witness(folder, document),
         `${fileURLToPath(folder)}${document}`,
-      );
+      )
     }
   }
-});
+})

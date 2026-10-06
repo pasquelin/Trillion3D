@@ -5,4 +5,4 @@
  * `writeBuffer` calls. Both declared, not derived: they weigh a call against the bytes a joined gap
  * resends, and change no word the GPU reads.
  */
-export const PAGE_TABLE_RULE = { gap: 16, cap: 64, overflow: 'narrowest' } as const;
+export const PAGE_TABLE_RULE = { gap: 16, cap: 64, overflow: 'narrowest' } as const

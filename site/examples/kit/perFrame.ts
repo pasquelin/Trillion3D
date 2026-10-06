@@ -4,18 +4,18 @@
  * `input` per pointer move, and each run may write a material the world then resolves again.
  */
 export function perFrame(changed: () => void, schedule: (run: () => void) => unknown) {
-  let queued = false;
+  let queued = false
   return (now = false) => {
     if (now) {
-      queued = false;
-      return changed();
+      queued = false
+      return changed()
     }
-    if (queued) return;
-    queued = true;
+    if (queued) return
+    queued = true
     schedule(() => {
-      if (!queued) return;
-      queued = false;
-      changed();
-    });
-  };
+      if (!queued) return
+      queued = false
+      changed()
+    })
+  }
 }

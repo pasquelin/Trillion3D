@@ -1,9 +1,9 @@
-import type { HostMaterials } from '../../host/resources.ts';
-import { importHostSurface } from '../../host/surfaceImport.ts';
-import type { VisMaterial } from '../types.ts';
+import type { HostMaterials } from '../../host/resources.ts'
+import { importHostSurface } from '../../host/surfaceImport.ts'
+import type { VisMaterial } from '../types.ts'
 
-const WHITE: [number, number, number] = [1, 1, 1];
-const BLACK: [number, number, number] = [0, 0, 0];
+const WHITE: [number, number, number] = [1, 1, 1]
+const BLACK: [number, number, number] = [0, 0, 0]
 
 /**
  * Engine defaults for an empty material declaration (`material: []`): white, opaque, front, unlit.
@@ -26,7 +26,7 @@ const DEFAULT_VIS_MATERIAL: VisMaterial = Object.freeze({
   thickness: 0,
   attenuationDistance: 0,
   attenuationColor: WHITE,
-});
+})
 
 /**
  * Surface parameters of a declaration, as the engine holds them: colours, factors and the engine's
@@ -34,11 +34,11 @@ const DEFAULT_VIS_MATERIAL: VisMaterial = Object.freeze({
  * (`../../host/surfaceImport.ts`); everything downstream computes on what comes back from here.
  */
 export function visMaterial(material: HostMaterials): VisMaterial {
-  return importHostSurface(material) ?? DEFAULT_VIS_MATERIAL;
+  return importHostSurface(material) ?? DEFAULT_VIS_MATERIAL
 }
 
 /** Transmission/volume cannot be reconstructed from a visbuffer ID; keep the source mesh on the
  *  forward path. Read on the imported record: this runs per copy and per frame. */
 export function isTransmissive(material: HostMaterials) {
-  return visMaterial(material).transmission > 0;
+  return visMaterial(material).transmission > 0
 }

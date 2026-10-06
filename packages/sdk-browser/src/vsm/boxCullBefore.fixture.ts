@@ -118,7 +118,7 @@ fn vsmShiftedBoxInView(center:vec3f,extent:vec3f,localToWorld:mat4x4f,worldToCli
  if(isOrtho||!nearClip){return vsmShiftedBoxOrtho(center,extent,localToWorld,worldToClip,nearClip);}
  return vsmShiftedBoxPerspective(center,extent,localToWorld,worldToClip,viewToClip);
 }
-`;
+`
 
 /** The render cull's frustum box cull, its mip level of a rect and its rect in pixels
  *  (`renderCullWgsl.ts`). */
@@ -197,4 +197,4 @@ fn vsmRectPixels(viewRect:vec4i,cull:VsmBoxInView)->vec4i{
  pixels=vec4i(max(pixels.xy,viewRect.xy),min(pixels.zw,viewRect.zw-vec2i(1)));
  return pixels;
 }
-`;
+`

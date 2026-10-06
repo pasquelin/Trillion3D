@@ -22,30 +22,30 @@
  * read it no longer walk a forty-eight-byte record for a single flag, and the host only
  * rewrites the words its changes touch. The cold records come last.
  */
-import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts';
-import { stagedRequestsWord } from './readoutWords.ts';
+import { CLUSTER_LEVEL_SHIFT, CLUSTER_NEVER, CLUSTER_TRANSPARENT } from './clusterFlags.ts'
+import { stagedRequestsWord } from './readoutWords.ts'
 export {
   SELECTION_HEADER_WORDS,
   evictionWord,
   EVICTION_BURST,
   differenceWord,
-} from './readoutWords.ts';
+} from './readoutWords.ts'
 
 /** Words of the hot record: `struct Cluster` of the shader holds eleven, and WGSL rounds its
  *  stride to sixteen bytes — the twelfth word is that padding. */
-export const CLUSTER_WORDS = 12;
+export const CLUSTER_WORDS = 12
 /** Words of the cold record; `PAGE_CONE_FLOATS` in `../core/selection.ts` is the public mirror. */
-export const COLD_WORDS = 13;
-const CLUSTER_LEVEL_MAX = 0xffffff;
+export const COLD_WORDS = 13
+const CLUSTER_LEVEL_MAX = 0xffffff
 
 export function packClusterFlags(never: boolean, level: number, transparent = false) {
-  const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX);
+  const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX)
   return (
     ((never ? CLUSTER_NEVER : 0) |
       (transparent ? CLUSTER_TRANSPARENT : 0) |
       (bounded << CLUSTER_LEVEL_SHIFT)) >>>
     0
-  );
+  )
 }
 
 /**
@@ -65,43 +65,43 @@ export function packClusterFlags(never: boolean, level: number, transparent = fa
  * to the CPU cut, which knows how to pick a representable subset. A truncated readout is never
  * adopted as if it were whole. The pool's list (`poolBase`) keeps this cap.
  */
-export const SELECTION_LIST_CAP = 262144;
+export const SELECTION_LIST_CAP = 262144
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
 export const selectionListCap = (pageCount: number) =>
-  Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP);
+  Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP)
 /** Bytes a resident cut's frame copies: everything before the staged requests. */
-export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4;
+export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4
 /** Requests ahead of the camera one sample stages: half its cap. They wait behind the camera's own
  *  staged requests, on their own counter (header word 6, before `OUT_AHEAD_PLACED`), so they never
  *  take a place the camera's requests would have used (`shader/snapshotWgsl.ts`). */
-const aheadRequestCap = (listCap: number) => listCap >>> 1;
+const aheadRequestCap = (listCap: number) => listCap >>> 1
 /** Word of `out` where the snapshot the next difference is taken against waits, behind the staged
  *  requests and outside what the frame copies (`keptAt` of `shader/differenceWgsl.ts`): its two
  *  lengths (`KEPT_HEADER_WORDS`), then the requests' pages and the drawn pages, a list each. */
 export const keptSnapshotWord = (listCap: number) =>
-  stagedRequestsWord(listCap) + listCap + aheadRequestCap(listCap);
+  stagedRequestsWord(listCap) + listCap + aheadRequestCap(listCap)
 /** Words ahead of the kept lists: the length of each of the two. */
-export const KEPT_HEADER_WORDS = 2;
+export const KEPT_HEADER_WORDS = 2
 /** Bytes of `out` with the staged requests behind, the camera's then those ahead, and the kept
  *  snapshot: what the kernels write, more than the frame copies. */
 export const stagedOutputBytes = (listCap: number) =>
-  (keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap) * 4;
+  (keptSnapshotWord(listCap) + KEPT_HEADER_WORDS + 2 * listCap) * 4
 /** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards. It grows with
  *  every rank, so the largest cap that fits is found by halving, without a closed form to keep in
  *  step with each region the readout gains. */
 export function listCapHeld(bytes: number) {
   let low = 0,
-    high = Math.max(0, Math.floor(bytes / 4));
+    high = Math.max(0, Math.floor(bytes / 4))
   while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (stagedOutputBytes(mid) <= bytes) low = mid;
-    else high = mid - 1;
+    const mid = Math.ceil((low + high) / 2)
+    if (stagedOutputBytes(mid) <= bytes) low = mid
+    else high = mid - 1
   }
-  return low;
+  return low
 }
 /** Readback slots the cut alternates between (`dispatch.ts`): the cache reads a drawn list at
  *  most this many frames behind the GPU, plus the frame being encoded. */
-export const DAG_READBACK_SLOTS = 2;
+export const DAG_READBACK_SLOTS = 2
 export const OUT_COUNT = 0,
   OUT_FRUSTUM_REJECTED = 1,
   OUT_LOD_LEVEL = 2,
@@ -109,28 +109,28 @@ export const OUT_COUNT = 0,
   OUT_SELECTED_TRIANGLES = 4,
   OUT_TRANSPARENT_TRIANGLES = 5,
   /** How many requests ahead the snapshot holds, behind every one of the camera's (`dagSortRequests`). */
-  OUT_AHEAD_PLACED = 7;
+  OUT_AHEAD_PLACED = 7
 
 /** First residency word, behind the working table's word per page: the cut rule's `resident(c)`
  *  (`../../page/cut/readiness.ts`, `ready`). */
-export const residentBase = (pageCount: number) => pageCount;
+export const residentBase = (pageCount: number) => pageCount
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
-export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5;
+export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
-export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount);
+export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount)
 /** First word of the pool's list: its count, then a canonical page per held slot (`poolList.ts`). */
-export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount);
+export const poolBase = (pageCount: number) => childBase(pageCount) + residentWords(pageCount)
 /** First word of the key column, one per page: its content key (`evict.ts`). */
-export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount);
+export const keyBase = (pageCount: number) => poolBase(pageCount) + 1 + selectionListCap(pageCount)
 /** First cold record, behind the bit sets, the pool's list and the key column. */
-export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount);
+export const coldBase = (pageCount: number) => keyBase(pageCount) + Math.max(0, pageCount)
 
 /** Hot field ranks, in the order `struct Cluster` of the shader declares them. */
 export const HOT_SPHERE = 0,
   HOT_PARENT_SPHERE = 4,
   HOT_LOD_ERROR = 8,
   HOT_PARENT_ERROR = 9,
-  HOT_FLAGS = 10;
+  HOT_FLAGS = 10
 /** Cold field ranks, in the order `shader/recordWgsl.ts` reads them by word. */
 export const COLD_CONE = 0,
   COLD_MIN = 4,
@@ -139,4 +139,4 @@ export const COLD_CONE = 0,
   /** Owner node, relative to the placement's first node: the same for every placement. */
   COLD_OWNER = 11,
   /** Cluster triangles, read as an INTEGER word: those are what the totals accumulate. */
-  COLD_TRIANGLES = 12;
+  COLD_TRIANGLES = 12

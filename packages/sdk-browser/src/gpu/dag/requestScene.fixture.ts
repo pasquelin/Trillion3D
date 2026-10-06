@@ -1,10 +1,10 @@
-import * as G from '../../host/graph/graph.fixture.ts';
-import { cameraSelectionUniforms } from '../core/selection.ts';
-import { engineCamera } from '../../camera/camera.fixture.ts';
-import { packDagSelection } from './selection.ts';
-import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts';
-import { frontCamera } from '../../page/selection/dag.fixture.ts';
-import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
+import * as G from '../../host/graph/graph.fixture.ts'
+import { cameraSelectionUniforms } from '../core/selection.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { packDagSelection } from './selection.ts'
+import { scenePages, sceneRoots } from './cutFrontierScene.fixture.ts'
+import { frontCamera } from '../../page/selection/dag.fixture.ts'
+import { packedWorldsToRenderOrigin } from './pack.fixture.ts'
 
 /**
  * Frontier-count scene, posed at FOUR DEPTHS: a single pose keeps only one detail stage, hence
@@ -12,15 +12,15 @@ import { packedWorldsToRenderOrigin } from './pack.fixture.ts';
  * stages and the cut carries several bands at once — what a real scene does all the time.
  */
 export function requestScene(threshold: number, feuilles = 4096, levels = 8) {
-  const pages = scenePages(feuilles, levels);
-  const poses = [0, 12, 30, 70].map((z) => new G.Matrix4().makeTranslation(0, 0, -z));
-  const roots = sceneRoots(pages, poses, true);
-  const packed = packDagSelection(roots);
+  const pages = scenePages(feuilles, levels)
+  const poses = [0, 12, 30, 70].map((z) => new G.Matrix4().makeTranslation(0, 0, -z))
+  const roots = sceneRoots(pages, poses, true)
+  const packed = packDagSelection(roots)
   // Posed by the scene builder that owns camera poses, read through the contract.
-  const cam = engineCamera(frontCamera(16, 200));
-  const uni = cameraSelectionUniforms(cam, threshold, [1280, 720]);
+  const cam = engineCamera(frontCamera(16, 200))
+  const uni = cameraSelectionUniforms(cam, threshold, [1280, 720])
   // WebGL2 ranking reads the SAME pose: the relative view of the render frame and the poses
   // brought into it. Giving them in absolute world under a relative view would compare two frames.
-  packedWorldsToRenderOrigin(packed, roots, uni.cameraWorld);
-  return { pages, packed, uni, cam, roots };
+  packedWorldsToRenderOrigin(packed, roots, uni.cameraWorld)
+  return { pages, packed, uni, cam, roots }
 }

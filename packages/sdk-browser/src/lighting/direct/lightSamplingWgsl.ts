@@ -1,13 +1,13 @@
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts'
 
 /** Ranks a sampled image cycles through: past that many, the offset walks the same path again. */
-export const SAMPLED_RANKS = 1024;
+export const SAMPLED_RANKS = 1024
 
 /** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
  *  scene that holds a rectangle (`declaredLightWgsl`, #1369). */
 const RECT_WEIGHT_WGSL = `
- if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`;
+ if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`
 
 /**
  * Sampled resolve of a cell's light list, for a MOVING image that temporal
@@ -101,4 +101,4 @@ fn sampledSliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao
   result+=declaredLight(light,rgb,metal,rough,N,V,P,ao)*factor;
  }
  return result;
-}`;
+}`

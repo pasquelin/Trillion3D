@@ -1,4 +1,4 @@
-import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts';
+import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts'
 
 /**
  * The view AHEAD of the camera: what the camera cut also evaluates so the pages the camera is about
@@ -21,7 +21,7 @@ import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts';
  * counter: the camera's requests keep the whole sample, and their overflow alone declares it
  * truncated (`snapshotWgsl.ts`). Each is ranked by its deadline, then its error (`../aheadDue.ts`).
  */
-export const AHEAD_VIEW = 1;
+export const AHEAD_VIEW = 1
 
 export const DAG_AHEAD_WGSL = `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
 ${DAG_AHEAD_DUE_WGSL}
@@ -53,4 +53,4 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  if(!selects(pixels,views[vi].pixelError)){return;}
  emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
 }
-`;
+`

@@ -1,10 +1,10 @@
 // What a bench run is asked, from its command line (`run.ts` lists the options).
-import { basename } from 'node:path';
-import { parseArgs } from 'node:util';
-import { engineRoot } from './engineRoot.ts';
-import { pageFile } from './page.ts';
-import { PROFILES } from './profiles.ts';
-import { readScenario } from './scenario.ts';
+import { basename } from 'node:path'
+import { parseArgs } from 'node:util'
+import { engineRoot } from './engineRoot.ts'
+import { pageFile } from './page.ts'
+import { PROFILES } from './profiles.ts'
+import { readScenario } from './scenario.ts'
 
 /** The run's page, scenario, machine profile, display, repeats and address switches. */
 export function benchOptions(args = process.argv.slice(2)) {
@@ -26,18 +26,18 @@ export function benchOptions(args = process.argv.slice(2)) {
       dirty: { type: 'boolean', default: false },
       'child-report': { type: 'string' },
     },
-  });
-  const scenario = readScenario(values.scenario);
-  const page = positionals[0] ?? scenario.page;
+  })
+  const scenario = readScenario(values.scenario)
+  const page = positionals[0] ?? scenario.page
   if (!page || positionals.length > 1)
-    throw new Error('usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|<file>] …');
-  const engine = engineRoot(values.engine, values.dirty);
-  const file = pageFile(page, engine.root);
-  const profile = PROFILES[values.profile];
+    throw new Error('usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|<file>] …')
+  const engine = engineRoot(values.engine, values.dirty)
+  const file = pageFile(page, engine.root)
+  const profile = PROFILES[values.profile]
   if (!profile)
-    throw new Error(`BENCH_PROFILE: ${values.profile}; one of ${Object.keys(PROFILES).join(', ')}`);
-  const [size, ratio = '1'] = (values.display ?? '').split('@');
-  const [width, height] = size.split('x').map(Number);
+    throw new Error(`BENCH_PROFILE: ${values.profile}; one of ${Object.keys(PROFILES).join(', ')}`)
+  const [size, ratio = '1'] = (values.display ?? '').split('@')
+  const [width, height] = size.split('x').map(Number)
   return {
     engine,
     file,
@@ -55,10 +55,10 @@ export function benchOptions(args = process.argv.slice(2)) {
     switches: values.switch,
     search: values.switch.length ? `?${values.switch.join('&')}` : '',
     childReport: values['child-report'],
-  };
+  }
 }
 
-export type BenchOptions = ReturnType<typeof benchOptions>;
+export type BenchOptions = ReturnType<typeof benchOptions>
 
 /** Now, as a file name's part: an ISO time with no colon or dot. */
-export const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
+export const stamp = () => new Date().toISOString().replace(/[:.]/g, '-')

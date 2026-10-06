@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** Constants and enums of the runtime: math path, jobs, capabilities, timings, format, sides. */
 
@@ -48,4 +48,4 @@ import { sideOf } from 'trillion3d';
 
 if (sideOf(material) === 'double') { /* rasterize without backface culling */ }`,
   },
-];
+]

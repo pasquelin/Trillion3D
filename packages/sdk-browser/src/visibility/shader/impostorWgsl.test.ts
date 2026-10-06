@@ -2,29 +2,29 @@
 // CPU (`sdk-core/src/impostor/octahedron.fixture.ts`, the compiler's `octahedron.rs` oracle), in the shipped
 // WGSL (`impostorWgsl.ts`) and in its GLSL twin (`impostorGlsl.ts`). The tests run each shader text
 // itself through the software shader harness. Fails on develop: neither text is there.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { IMPOSTOR_CARD_WGSL } from './impostorWgsl.ts';
-import { IMPOSTOR_VIEW_CARD_GLSL } from './impostorGlsl.ts';
-import { runShaderText } from './shaderText.fixture.ts';
-import { functionsOf } from '../../texture/shaderRule.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { IMPOSTOR_CARD_WGSL } from './impostorWgsl.ts'
+import { IMPOSTOR_VIEW_CARD_GLSL } from './impostorGlsl.ts'
+import { runShaderText } from './shaderText.fixture.ts'
+import { functionsOf } from '../../texture/shaderRule.fixture.ts'
 import {
   cellWeights,
   octDecode,
   octEncode,
-} from '../../../../sdk-core/src/impostor/octahedron.fixture.ts';
+} from '../../../../sdk-core/src/impostor/octahedron.fixture.ts'
 
 /** The functions of one shipped shader text, as the software harness runs them. */
 function runnersOf(text: string) {
-  const shaderOf = (name: string) => functionsOf(text, [name]);
-  const impSide = runShaderText<number>(shaderOf('impSide'));
+  const shaderOf = (name: string) => functionsOf(text, [name])
+  const impSide = runShaderText<number>(shaderOf('impSide'))
   return {
     encode: runShaderText<number[]>(shaderOf('impOctEncode'), { impSide }),
     decode: runShaderText<number[]>(shaderOf('impOctDecode'), { impSide }),
     weights: runShaderText<number[]>(shaderOf('impWeights')),
-  };
+  }
 }
-const LANGUAGES = { wgsl: runnersOf(IMPOSTOR_CARD_WGSL), glsl: runnersOf(IMPOSTOR_VIEW_CARD_GLSL) };
+const LANGUAGES = { wgsl: runnersOf(IMPOSTOR_CARD_WGSL), glsl: runnersOf(IMPOSTOR_VIEW_CARD_GLSL) }
 
 for (const [language, run] of Object.entries(LANGUAGES)) {
   // The three-frame weights sum to one on both triangles of a cell, as #817's compiler test proves.
@@ -37,12 +37,12 @@ for (const [language, run] of Object.entries(LANGUAGES)) {
       [0.33, 0.66],
     ]) {
       const weights = run.weights([fx, fy]),
-        oracle = cellWeights([7 + fx, 3 + fy], 12).map((cell) => cell.weight);
-      assert.ok(Math.abs(weights[0] + weights[1] + weights[2] - 1) < 1e-9, `${fx},${fy} sums`);
+        oracle = cellWeights([7 + fx, 3 + fy], 12).map((cell) => cell.weight)
+      assert.ok(Math.abs(weights[0] + weights[1] + weights[2] - 1) < 1e-9, `${fx},${fy} sums`)
       for (let k = 0; k < 3; k++)
-        assert.ok(Math.abs(weights[k] - oracle[k]) < 1e-9, `${fx},${fy} weight ${k}`);
+        assert.ok(Math.abs(weights[k] - oracle[k]) < 1e-9, `${fx},${fy} weight ${k}`)
     }
-  });
+  })
 
   // Direction → uv → direction matches the oracle at every step, for both mappings, on the
   // lattices #817 captures.
@@ -53,16 +53,16 @@ for (const [language, run] of Object.entries(LANGUAGES)) {
           for (let j = 0; j < n; j++) {
             const f = [i / (n - 1), j / (n - 1)],
               cpuDir = octDecode(f, hemi === 1),
-              shaderDir = run.decode(f, hemi);
+              shaderDir = run.decode(f, hemi)
             for (let k = 0; k < 3; k++)
               assert.ok(
                 Math.abs(cpuDir[k] - shaderDir[k]) < 1e-6,
                 `decode ${hemi} ${i},${j} [${k}]`,
-              );
+              )
             const cpuUv = octEncode(cpuDir, hemi === 1),
-              shaderUv = run.encode(cpuDir, hemi);
+              shaderUv = run.encode(cpuDir, hemi)
             for (let k = 0; k < 2; k++)
-              assert.ok(Math.abs(cpuUv[k] - shaderUv[k]) < 1e-6, `encode ${hemi} ${i},${j} [${k}]`);
+              assert.ok(Math.abs(cpuUv[k] - shaderUv[k]) < 1e-6, `encode ${hemi} ${i},${j} [${k}]`)
           }
-  });
+  })
 }

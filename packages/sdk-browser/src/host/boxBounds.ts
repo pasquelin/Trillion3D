@@ -6,14 +6,14 @@
  * `packages/sdk-core/src/math/primitives/sphere.ts`. Writing a box back INTO a host geometry is the opposite crossing and belongs
  * to `geometryBounds.ts`.
  */
-import type { HostBox } from './resources.ts';
+import type { HostBox } from './resources.ts'
 
 /** Copy the six bounds of a host box into a flat array. */
 export function readHostBox(out: Float64Array, box: HostBox) {
-  out[0] = box.min.x;
-  out[1] = box.min.y;
-  out[2] = box.min.z;
-  out[3] = box.max.x;
-  out[4] = box.max.y;
-  out[5] = box.max.z;
+  out[0] = box.min.x
+  out[1] = box.min.y
+  out[2] = box.min.z
+  out[3] = box.max.x
+  out[4] = box.max.y
+  out[5] = box.max.z
 }

@@ -1,4 +1,4 @@
-import { DEPTH_NEAR } from '../../camera/depthConvention.ts';
+import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
 
 /**
  * A column of the light grid and the run of its cells a light's range meets (#1369):
@@ -125,4 +125,4 @@ fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  }
  if(!(lo<=hi)){return vec2u(1u,0u);}
  return vec2u(depthAt(column,centre,lo,RUN_FRONT),depthAt(column,centre,hi,RUN_BACK));
-}`;
+}`

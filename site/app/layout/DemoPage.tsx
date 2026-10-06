@@ -1,31 +1,31 @@
-import { lazy, Suspense, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { exampleAddress, useWords } from '../i18n.ts';
-import { Alert } from '../ui/Alert.tsx';
-import { Button, LinkButton } from '../ui/Button.tsx';
-import { CodeBlock } from '../ui/CodeBlock.tsx';
-import { CodeSurface } from '../ui/CodeSurface.tsx';
-import { Fab } from '../ui/Fab.tsx';
-import { Modal } from '../ui/Modal.tsx';
-import { RenderFrame } from '../ui/RenderFrame.tsx';
-import { Toast, useToast } from '../ui/Toast.tsx';
-import { SITE_NAME } from './DocPage.tsx';
-import { usePortal } from './PortalContext.ts';
-import { useDemo } from './useDemo.ts';
-import { sandboxDocument, useSandbox } from './useSandbox.ts';
+import { lazy, Suspense, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { exampleAddress, useWords } from '../i18n.ts'
+import { Alert } from '../ui/Alert.tsx'
+import { Button, LinkButton } from '../ui/Button.tsx'
+import { CodeBlock } from '../ui/CodeBlock.tsx'
+import { CodeSurface } from '../ui/CodeSurface.tsx'
+import { Fab } from '../ui/Fab.tsx'
+import { Modal } from '../ui/Modal.tsx'
+import { RenderFrame } from '../ui/RenderFrame.tsx'
+import { Toast, useToast } from '../ui/Toast.tsx'
+import { SITE_NAME } from './DocPage.tsx'
+import { usePortal } from './PortalContext.ts'
+import { useDemo } from './useDemo.ts'
+import { sandboxDocument, useSandbox } from './useSandbox.ts'
 
 // The editor, and CodeMirror with it, loads with the sandbox alone.
-const CodeInput = lazy(() => import('../ui/CodeInput.tsx').then((m) => ({ default: m.CodeInput })));
+const CodeInput = lazy(() => import('../ui/CodeInput.tsx').then((m) => ({ default: m.CodeInput })))
 
 interface DemoPageProps {
   /** The standalone HTML file the demo runs, relative to the site root. */
-  file: string;
-  title: string;
+  file: string
+  title: string
   /** Makes the page the sandbox: the source is edited beside the render, under this picker of
    * the example it starts from. Without it, the source is read in a modal. */
-  sandbox?: ReactNode;
+  sandbox?: ReactNode
   /** In the modal of the source, the link that opens it in the sandbox. */
-  sandboxHref?: string;
+  sandboxHref?: string
 }
 
 /**
@@ -35,24 +35,24 @@ interface DemoPageProps {
  * left of it on wide screens, above it on narrow ones — and runs when asked.
  */
 export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
-  const { locale } = usePortal().route;
-  const t = useWords(locale);
-  const demo = useDemo(file);
-  const edits = useSandbox(file, demo.source);
-  const [reading, setReading] = useState(false);
-  const [toast, showToast] = useToast();
-  const view = useRef<HTMLDivElement | null>(null);
+  const { locale } = usePortal().route
+  const t = useWords(locale)
+  const demo = useDemo(file)
+  const edits = useSandbox(file, demo.source)
+  const [reading, setReading] = useState(false)
+  const [toast, showToast] = useToast()
+  const view = useRef<HTMLDivElement | null>(null)
   const share = () =>
     navigator.clipboard.writeText(location.href).then(
       () => showToast(t('demo.linkCopied')),
       () => showToast(t('demo.copyFailed')),
-    );
-  const editing = sandbox !== undefined;
+    )
+  const editing = sandbox !== undefined
   // Run and Reset render again even an unchanged source: the frame restarts.
   const rerun = (change: () => void) => () => {
-    change();
-    demo.restart();
-  };
+    change()
+    demo.restart()
+  }
   return (
     <section
       className={
@@ -177,5 +177,5 @@ export function DemoPage({ file, title, sandbox, sandboxHref }: DemoPageProps) {
       </Modal>
       <Toast message={toast} />
     </section>
-  );
+  )
 }

@@ -1,10 +1,10 @@
-import { DISC_CORNERS } from '../../particles/drawWords.ts';
-import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts';
+import { DISC_CORNERS } from '../../particles/drawWords.ts'
+import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
 /** Slots one workgroup steps. */
-export const PARTICLE_WORKGROUP = 64;
+export const PARTICLE_WORKGROUP = 64
 
 /** One invocation per slot: the ring's record this image replaces it, then a live particle moves
  *  (position from the pool's origin); a dead one nobody emitted into is left as it is. The move is
@@ -29,7 +29,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
     p.velocity = vec4f(p.velocity.xyz + gain, p.velocity.w);
   }
   particles[i] = p;
-}`;
+}`
 
 /** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth; its
  *  coverage is the reactive value (#833), so the temporal pass keeps no trail of it. */
@@ -64,7 +64,7 @@ fn particle(in: Out) -> vec4f {
   return vec4f(draw.color.rgb, 1) * k;
 }
 struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
-@fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }`;
+@fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }`
 
 /** The draw of an image with display layers (\`../blend/displayFilter.ts\`): where the mask
  *  is set, the disc maps the tint and the added value by its display colour, not the lit image. */
@@ -74,4 +74,4 @@ struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2
   let c = particle(in);
   let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
   return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
-}`;
+}`

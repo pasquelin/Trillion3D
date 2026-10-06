@@ -1,16 +1,16 @@
-import type { ShadeClasses } from '../visibility/shadePipelines.ts';
-import type { ShadeCensus } from '../visibility/shadeCensus.ts';
-import { askGuidePass } from '../pages/render/encodeGuides.ts';
-import { askAsIsSeed } from '../../lighting/deferred/asIsShare.ts';
-import { askParticles } from '../particles/webgpuParticleFrame.ts';
-import { wantsAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
-import { ensureGpuRaster } from '../pages/render/encodeVisSetup.ts';
-import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts';
-import { askComposedPlacements } from '../../placement/gpuCompose.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import type { ShadeClasses } from '../visibility/shadePipelines.ts'
+import type { ShadeCensus } from '../visibility/shadeCensus.ts'
+import { askGuidePass } from '../pages/render/encodeGuides.ts'
+import { askAsIsSeed } from '../../lighting/deferred/asIsShare.ts'
+import { askParticles } from '../particles/webgpuParticleFrame.ts'
+import { wantsAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
+import { ensureGpuRaster } from '../pages/render/encodeVisSetup.ts'
+import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts'
+import { askComposedPlacements } from '../../placement/gpuCompose.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The class set each census last asked its classes of. */
-const asked = new WeakMap<ShadeCensus, ShadeClasses>();
+const asked = new WeakMap<ShadeCensus, ShadeClasses>()
 
 /**
  * The census's classes, asked of the set in place once taken anew or once the set was replaced (a
@@ -21,27 +21,27 @@ const asked = new WeakMap<ShadeCensus, ShadeClasses>();
 function askShadeClasses(rt: WebgpuPagesRuntime) {
   const { vis } = rt,
     census = vis.shadeCensus,
-    classes = vis.shadeClasses;
-  if (!census || !classes) return;
-  const retaken = census.retake();
+    classes = vis.shadeClasses
+  if (!census || !classes) return
+  const retaken = census.retake()
   if (census.emits && !vis.writesEmissiveAo) {
-    const layered = classes.withEmissiveAo();
-    let ready = true;
+    const layered = classes.withEmissiveAo()
+    let ready = true
     for (const key of census.keys) {
-      ready = layered.of(key).ask().ready && ready;
-      layered.single(key)?.ask();
+      ready = layered.of(key).ask().ready && ready
+      layered.single(key)?.ask()
     }
-    if (!ready) return;
+    if (!ready) return
     // The drawn view's surfaces take the layer before the resolve (`followEmissiveAo`).
-    vis.shadeClasses = layered;
-    vis.writesEmissiveAo = true;
-    asked.set(census, layered);
+    vis.shadeClasses = layered
+    vis.writesEmissiveAo = true
+    asked.set(census, layered)
   } else if (retaken || asked.get(census) !== classes) {
     for (const key of census.keys) {
-      classes.of(key).ask();
-      classes.single(key)?.ask();
+      classes.of(key).ask()
+      classes.single(key)?.ask()
     }
-    asked.set(census, classes);
+    asked.set(census, classes)
   }
 }
 
@@ -56,17 +56,17 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * the same way before the first frame. A session lost, or not prepared, asks nothing.
  */
 export function askFramePipelines(rt: WebgpuPagesRuntime) {
-  const device = rt.gpu.device;
-  if (!device || rt.run.lost) return;
-  askShadeClasses(rt);
-  askGuidePass(rt, device);
-  askParticles(rt, device);
-  if (wantsAsIsShare(rt)) askAsIsSeed(device);
-  askComposedPlacements(rt, device);
+  const device = rt.gpu.device
+  if (!device || rt.run.lost) return
+  askShadeClasses(rt)
+  askGuidePass(rt, device)
+  askParticles(rt, device)
+  if (wantsAsIsShare(rt)) askAsIsSeed(device)
+  askComposedPlacements(rt, device)
   if (
     rt.vis.visEnabled &&
     requestsComputeRaster(rt.context?.diagnosticGpuVariant) &&
     typeof device.createComputePipeline === 'function'
   )
-    ensureGpuRaster(rt, device);
+    ensureGpuRaster(rt, device)
 }

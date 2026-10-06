@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Button } from './Button.tsx';
+import type { ReactNode } from 'react'
+import { Button } from './Button.tsx'
 
 /**
  * A tool page's bar: a band of its own surface the whole width of the page, right under the
@@ -17,19 +17,19 @@ export function Toolbar({ label, children }: { label: string; children: ReactNod
     >
       {children}
     </div>
-  );
+  )
 }
 
 /** A thin rule between two groups of a toolbar. */
 export function ToolbarDivider() {
-  return <span aria-hidden="true" className="hidden h-6 w-px bg-base-content/15 sm:block" />;
+  return <span aria-hidden="true" className="hidden h-6 w-px bg-base-content/15 sm:block" />
 }
 
 interface SegmentedProps<T extends string> {
-  options: readonly { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  label?: string;
+  options: readonly { value: T; label: string }[]
+  value: T
+  onChange: (value: T) => void
+  label?: string
 }
 
 /** A choice of one among a few, as joined buttons: the chosen one pressed and filled. */
@@ -54,5 +54,5 @@ export function Segmented<T extends string>({
         </Button>
       ))}
     </div>
-  );
+  )
 }

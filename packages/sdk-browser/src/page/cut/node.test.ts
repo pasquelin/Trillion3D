@@ -2,8 +2,8 @@
 // It matches the general path only under the invariant `cullingBounds` maintains — a finite
 // strictly positive bound always comes from a cluster that had its sphere — and the second
 // test proves that. Oracle: `nodeDecision` from before the lot, in `../../../../../bench/oracles/browser/cut-budget.ts`.
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   BOUND_STRIDE,
   OWN_CEIL,
@@ -12,24 +12,24 @@ import {
   PARENT_FLOOR,
   PARENT_SPHERE,
   cullingBounds,
-} from './bounds.ts';
-import type { PageRecord, SelectionState } from './state.ts';
-import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts';
-import { engineCamera } from '../../camera/camera.fixture.ts';
-import { obliqueCamera } from '../selection/dag.fixture.ts';
-import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.ts';
+} from './bounds.ts'
+import type { PageRecord, SelectionState } from './state.ts'
+import { referenceNodeDecision } from '../../../../../bench/oracles/browser/cut-budget.ts'
+import { engineCamera } from '../../camera/camera.fixture.ts'
+import { obliqueCamera } from '../selection/dag.fixture.ts'
+import { nodeDecision, nodeDecisionAtZero } from './nodeDecision.ts'
 
-const camera = obliqueCamera();
-const view = camera.matrixWorldInverse.elements;
+const camera = obliqueCamera()
+const view = camera.matrixWorldInverse.elements
 const STRETCH = 1.25,
-  FOCAL = 640;
+  FOCAL = 640
 const SLOTS = {
   ownFloor: OWN_FLOOR,
   ownCeil: OWN_CEIL,
   parentFloor: PARENT_FLOOR,
   ownSphere: OWN_SPHERE,
   parentSphere: PARENT_SPHERE,
-};
+}
 const state = {
   pixelError: 0,
   flatElements: view,
@@ -37,19 +37,19 @@ const state = {
   flatFocal: FOCAL,
   flatReach: 0,
   cam: engineCamera(camera),
-} as unknown as SelectionState<PageRecord>;
+} as unknown as SelectionState<PageRecord>
 
-const ABSENTE = [0, 0, 0, -1];
+const ABSENTE = [0, 0, 0, -1]
 const NEAR = [0, 0, 20, 2],
-  LOIN = [-40, 5, 90, 30];
+  LOIN = [-40, 5, 90, 30]
 
 /** A finite strictly positive bound requires its sphere: that is what preparation guarantees. */
 function coherente(bound: number, sphere: number[]) {
-  return !(bound > 0 && bound !== Infinity) || sphere[3] >= 0;
+  return !(bound > 0 && bound !== Infinity) || sphere[3] >= 0
 }
 
 test('at threshold zero, the node decision without projection matches the general path', () => {
-  let vus = 0;
+  let vus = 0
   for (const floor of [0, 1e-6, 3, Infinity])
     for (const ceil of [0, 1e-6, 3, Infinity])
       for (const parentFloor of [0, 1e-6, 3, Infinity])
@@ -57,16 +57,16 @@ test('at threshold zero, the node decision without projection matches the genera
           for (const band of [NEAR, LOIN, ABSENTE]) {
             // The ceiling bounds the floor by construction: a node whose floor exceeds its
             // ceiling never leaves `cullingBounds`.
-            if (floor > ceil) continue;
+            if (floor > ceil) continue
             if (!coherente(floor, own) || !coherente(ceil, own) || !coherente(parentFloor, band))
-              continue;
-            vus++;
-            const values = new Float64Array(BOUND_STRIDE);
-            values[OWN_FLOOR] = floor;
-            values[OWN_CEIL] = ceil;
-            values[PARENT_FLOOR] = parentFloor;
-            for (let a = 0; a < 4; a++) values[OWN_SPHERE + a] = own[a];
-            for (let a = 0; a < 4; a++) values[PARENT_SPHERE + a] = band[a];
+              continue
+            vus++
+            const values = new Float64Array(BOUND_STRIDE)
+            values[OWN_FLOOR] = floor
+            values[OWN_CEIL] = ceil
+            values[PARENT_FLOOR] = parentFloor
+            for (let a = 0; a < 4; a++) values[OWN_SPHERE + a] = own[a]
+            for (let a = 0; a < 4; a++) values[PARENT_SPHERE + a] = band[a]
             const reference = referenceNodeDecision(
               values,
               0,
@@ -76,20 +76,20 @@ test('at threshold zero, the node decision without projection matches the genera
               FOCAL,
               camera.near,
               0,
-            );
-            assert.equal(nodeDecision(state, values, 0), reference, `general ${floor}/${ceil}`);
+            )
+            assert.equal(nodeDecision(state, values, 0), reference, `general ${floor}/${ceil}`)
             assert.equal(
               nodeDecisionAtZero(values, 0),
               reference,
               `zero threshold ${floor}/${ceil}`,
-            );
+            )
           }
-  assert.ok(vus > 50, `only ${vus} coherent nodes`);
-});
+  assert.ok(vus > 50, `only ${vus} coherent nodes`)
+})
 
 /** Clusters preparation can produce, plus those it leaves without an error band. */
 function pages(): PageRecord[] {
-  const out: PageRecord[] = [];
+  const out: PageRecord[] = []
   for (const lodError of [0, 1e-6, 2, undefined])
     for (const parentError of [null, 0, 3, Infinity])
       for (const sphere of [NEAR, LOIN])
@@ -101,31 +101,31 @@ function pages(): PageRecord[] {
           sphere: lodError === undefined ? undefined : sphere,
           parentError: parentError === 0 && lodError !== 0 ? null : parentError,
           parentSphere: parentError === null ? null : sphere,
-        });
-  return out;
+        })
+  return out
 }
 
 test('a finite positive node bound always comes from a cluster that had its sphere', () => {
-  const all = pages();
+  const all = pages()
   // A two-level hierarchy: the root, then four leaves that share the clusters.
   const stride = 15,
-    count = 5;
-  const nodes = new Float64Array(count * stride);
-  const perLeaf = Math.ceil(all.length / 4);
-  nodes[11] = 1;
-  nodes[12] = 4;
+    count = 5
+  const nodes = new Float64Array(count * stride)
+  const perLeaf = Math.ceil(all.length / 4)
+  nodes[11] = 1
+  nodes[12] = 4
   for (let leaf = 0; leaf < 4; leaf++) {
-    const base = (leaf + 1) * stride;
-    nodes[base + 13] = leaf * perLeaf;
-    nodes[base + 14] = Math.min(perLeaf, Math.max(0, all.length - leaf * perLeaf));
+    const base = (leaf + 1) * stride
+    nodes[base + 13] = leaf * perLeaf
+    nodes[base + 14] = Math.min(perLeaf, Math.max(0, all.length - leaf * perLeaf))
   }
-  const values = cullingBounds({ nodes, stride }, all);
+  const values = cullingBounds({ nodes, stride }, all)
   for (let node = 0; node < count; node++) {
-    const at = node * BOUND_STRIDE;
+    const at = node * BOUND_STRIDE
     const own = [0, 0, 0, values[at + OWN_SPHERE + 3]],
-      band = [0, 0, 0, values[at + PARENT_SPHERE + 3]];
-    assert.ok(coherente(values[at + OWN_FLOOR], own), `own floor of node ${node}`);
-    assert.ok(coherente(values[at + OWN_CEIL], own), `own ceiling of node ${node}`);
-    assert.ok(coherente(values[at + PARENT_FLOOR], band), `replacement floor, node ${node}`);
+      band = [0, 0, 0, values[at + PARENT_SPHERE + 3]]
+    assert.ok(coherente(values[at + OWN_FLOOR], own), `own floor of node ${node}`)
+    assert.ok(coherente(values[at + OWN_CEIL], own), `own ceiling of node ${node}`)
+    assert.ok(coherente(values[at + PARENT_FLOOR], band), `replacement floor, node ${node}`)
   }
-});
+})

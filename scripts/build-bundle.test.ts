@@ -1,6 +1,6 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { stripShaderComments } from './build-bundle.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { stripShaderComments } from './build-bundle.ts'
 
 test("a shader's comment lines leave the bundle, every line and all its code in place", () => {
   const source = [
@@ -15,9 +15,9 @@ test("a shader's comment lines leave the bundle, every line and all its code in 
     '`;',
     '//# sourceMappingURL=a.js.map',
     '',
-  ].join('\n');
+  ].join('\n')
   assert.equal(
     stripShaderComments(source),
     source.replace(' // the shader compiler never reads this', ''),
-  );
-});
+  )
+})

@@ -11,15 +11,15 @@
 // this difference that is read in `summary/summaryGlobal.ts`. Resolutions, camera, sun, and baked textures
 // are those of the backlog measurements so numbers remain comparable.
 // =====================================================================================
-import { launchChrome } from './harness/chrome.ts';
-import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { campaignIdentity, canResume } from './report/provenance.ts';
-import { parseArgs, scenesOf } from './harness/options.ts';
-import { measureOutput } from '../core/paths.ts';
+import { launchChrome } from './harness/chrome.ts'
+import { spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, appendFileSync, readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { campaignIdentity, canResume } from './report/provenance.ts'
+import { parseArgs, scenesOf } from './harness/options.ts'
+import { measureOutput } from '../core/paths.ts'
 
-const ROOT = resolve(import.meta.dirname, '../..');
+const ROOT = resolve(import.meta.dirname, '../..')
 // Argument groups that lines name in one word, replaced at execution.
 const GROUPS: Record<string, string> = {
   FULL: '--width 2496 --height 1404',
@@ -31,8 +31,8 @@ const GROUPS: Record<string, string> = {
   TWO_SIDES: '--before dist --after dist',
   BARE: '--engine-before three-nu --engine-after webgpu --before dist --after dist',
   LOD: '--engine-before three-lod --engine-after webgpu --before dist --after dist',
-};
-export const BASE = '--engine webgpu --images 60 --textures cache';
+}
+export const BASE = '--engine webgpu --images 60 --textures cache'
 
 // One line per execution: `name | what it isolates | arguments`, uppercase groups.
 const LINES = `
@@ -75,20 +75,20 @@ three-lod-1248 | Three LOD vs the engine at 1248×702 | LOD TWO_VIEWS --pixelErr
 three-lod-no-shadows | Three LOD vs the engine without shadows | LOD TWO_VIEWS --pixelError 1 --sun --shadows off FULL
 three-lod-lights-4 | Three LOD vs the engine, sun and four shadowed point lights | LOD TWO_VIEWS --pixelError 1 MOVING FULL --lights 4
 visible | window open: cadence not capped at 60 Hz | TWO_VIEWS --pixelError 1 MOVING FULL --visible
-`;
+`
 
 /** Words in an argument line, groups replaced. */
 const words = (text: string): string[] =>
   text
     .split(/\s+/)
     .filter(Boolean)
-    .flatMap((word) => (GROUPS[word] ? GROUPS[word].split(' ') : [word]));
+    .flatMap((word) => (GROUPS[word] ? GROUPS[word].split(' ') : [word]))
 
 /** Executions in order: `[name, why, arguments beyond base]`. */
 export const CAMPAIGN: [string, string, string[]][] = LINES.trim()
   .split('\n')
   .map((line) => line.split('|').map((field) => field.trim()))
-  .map(([name, why, args]) => [name, why, words(args)]);
+  .map(([name, why, args]) => [name, why, words(args)])
 
 async function run(
   name: string,
@@ -98,21 +98,21 @@ async function run(
   scene: string,
   browserVersion: string,
 ) {
-  const dir = join(out, scene, name);
+  const dir = join(out, scene, name)
   const identity = await campaignIdentity(
     ROOT,
     scene,
     [...BASE.split(' '), ...args],
     browserVersion,
-  );
+  )
   if (existsSync(join(dir, 'measure.json'))) {
     if (canResume(JSON.parse(readFileSync(join(dir, 'measure.json'), 'utf8')), identity))
-      return 'already measured';
+      return 'already measured'
     throw new Error(
       `Cannot resume ${scene}/${name}: identity changed or run incomplete; use a new --out directory.`,
-    );
+    )
   }
-  mkdirSync(dir, { recursive: true });
+  mkdirSync(dir, { recursive: true })
   const argv = [
     'bench/runner/bench.ts',
     ...BASE.split(' '),
@@ -121,44 +121,44 @@ async function run(
     ...args,
     '--out',
     dir,
-  ];
-  const started = Date.now();
+  ]
+  const started = Date.now()
   const result = spawnSync(process.execPath, argv, {
     cwd: ROOT,
     encoding: 'utf8',
     env: { ...process.env, TRILLION3D_CAMPAIGN_IDENTITY: identity },
-  });
-  appendFileSync(join(dir, 'campagne.log'), `${result.stdout ?? ''}\n${result.stderr ?? ''}`);
-  if (result.status !== 0) process.exitCode = 1;
-  const status = result.status === 0 ? 'ok' : `failed (${result.status})`;
+  })
+  appendFileSync(join(dir, 'campagne.log'), `${result.stdout ?? ''}\n${result.stderr ?? ''}`)
+  if (result.status !== 0) process.exitCode = 1
+  const status = result.status === 0 ? 'ok' : `failed (${result.status})`
   appendFileSync(
     log,
     `${new Date().toISOString()} ${scene}/${name} ${status} ${((Date.now() - started) / 1000).toFixed(0)} s\n`,
-  );
-  return status;
+  )
+  return status
 }
 
 if (import.meta.filename === process.argv[1]) {
-  const flags = parseArgs(process.argv.slice(2));
-  const out = resolve(flags.get('out') ?? measureOutput('global'));
-  const only = flags.get('only')?.split(',').filter(Boolean);
-  const chosen = CAMPAIGN.filter(([name]) => !only || only.includes(name));
-  const scenes = scenesOf(flags);
-  const list = flags.has('list');
-  flags.refuseUnread();
+  const flags = parseArgs(process.argv.slice(2))
+  const out = resolve(flags.get('out') ?? measureOutput('global'))
+  const only = flags.get('only')?.split(',').filter(Boolean)
+  const chosen = CAMPAIGN.filter(([name]) => !only || only.includes(name))
+  const scenes = scenesOf(flags)
+  const list = flags.has('list')
+  flags.refuseUnread()
   if (list) {
     for (const scene of scenes)
-      for (const [name, why] of chosen) console.log(`${`${scene}/${name}`.padEnd(36)} ${why}`);
-    process.exit(0);
+      for (const [name, why] of chosen) console.log(`${`${scene}/${name}`.padEnd(36)} ${why}`)
+    process.exit(0)
   }
-  const browser = await launchChrome({ headless: true });
-  const browserVersion = browser.version();
-  await browser.close();
-  mkdirSync(out, { recursive: true });
-  const log = join(out, 'campagne.log');
+  const browser = await launchChrome({ headless: true })
+  const browserVersion = browser.version()
+  await browser.close()
+  mkdirSync(out, { recursive: true })
+  const log = join(out, 'campagne.log')
   for (const scene of scenes)
     for (const [name, why, args] of chosen) {
-      console.log(`▶ ${scene}/${name} — ${why}`);
-      console.log(`  ${await run(name, args, out, log, scene, browserVersion)}`);
+      console.log(`▶ ${scene}/${name} — ${why}`)
+      console.log(`  ${await run(name, args, out, log, scene, browserVersion)}`)
     }
 }

@@ -1,5 +1,5 @@
-import { readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 
 /**
  * What the release build of the compiler is made from, relative to its crate: the inputs
@@ -20,26 +20,26 @@ const BUILD_INPUTS = [
   '../physics-jolt-wasm/CMakeLists.txt',
   // The C and C++ flags and the target CPU, hashed into the key by `build.rs` (#1352).
   '../../.cargo/config.toml',
-];
+]
 
 function modified(path: string) {
   try {
-    return statSync(path);
+    return statSync(path)
   } catch {
-    return null;
+    return null
   }
 }
 
 /** The first file under `path` modified after `since`, or null; stops at the first one found. */
 export function firstNewer(path: string, since: number): string | null {
-  const entry = modified(path);
-  if (!entry) return null;
-  if (!entry.isDirectory()) return entry.mtimeMs > since ? path : null;
+  const entry = modified(path)
+  if (!entry) return null
+  if (!entry.isDirectory()) return entry.mtimeMs > since ? path : null
   for (const name of readdirSync(path)) {
-    const newer = firstNewer(join(path, name), since);
-    if (newer) return newer;
+    const newer = firstNewer(join(path, name), since)
+    if (newer) return newer
   }
-  return null;
+  return null
 }
 
 /**
@@ -49,11 +49,11 @@ export function firstNewer(path: string, since: number): string | null {
  * a current binary costs one directory walk and no build.
  */
 export function sourceNewerThan(binary: string, crate: string): string | null {
-  const built = modified(binary);
-  if (!built || !modified(join(crate, 'Cargo.toml'))) return null;
+  const built = modified(binary)
+  if (!built || !modified(join(crate, 'Cargo.toml'))) return null
   for (const input of BUILD_INPUTS) {
-    const newer = firstNewer(join(crate, input), built.mtimeMs);
-    if (newer) return newer;
+    const newer = firstNewer(join(crate, input), built.mtimeMs)
+    if (newer) return newer
   }
-  return null;
+  return null
 }

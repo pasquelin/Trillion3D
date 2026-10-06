@@ -9,11 +9,11 @@
 // `maj` (`updateMatrixWorld(force)`), `updateWorld` (`updateWorldMatrix(parents, children)`), `vise`
 // (`lookAt` with an up), `objectif` (new camera settings), `lis` (world reads of a node),
 // `image` (view, view-projection and planes of a camera), `instantane` (world matrices of all live nodes).
-import * as THREE from 'three';
-import type { CameraSpec, HierarchyOp } from './hierarchyScenarios.ts';
+import * as THREE from 'three'
+import type { CameraSpec, HierarchyOp } from './hierarchyScenarios.ts'
 
 const systeme = (webgpu: boolean) =>
-  webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem;
+  webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem
 
 /**
  * Three's projection carried into the engine convention: REVERSED depth, INFINITE far plane
@@ -23,10 +23,10 @@ const systeme = (webgpu: boolean) =>
  * bit-exact: field of view, aspect, zoom and the perspective column.
  */
 function engineProjection(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
-  out.copy(camera.projectionMatrix);
-  out.elements[10] = 0;
-  out.elements[14] = camera.near;
-  return out;
+  out.copy(camera.projectionMatrix)
+  out.elements[10] = 0
+  out.elements[14] = camera.near
+  return out
 }
 
 /**
@@ -37,86 +37,86 @@ function engineProjection(out: THREE.Matrix4, camera: THREE.PerspectiveCamera) {
  * non-numeric once normalized, hence rejecting nothing: an unbounded far.
  */
 function enginePlanes(tronc: THREE.Frustum, vp: THREE.Matrix4, view: THREE.Matrix4, far: number) {
-  tronc.setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem);
-  const brut = tronc.planes.flatMap((plan) => [...plan.normal.toArray(), plan.constant]);
-  const output = [...brut.slice(0, 16), ...brut.slice(20, 24), ...brut.slice(16, 20)];
-  if (!Number.isFinite(far)) return output;
-  const v = view.elements;
-  const loin = new THREE.Plane(new THREE.Vector3(v[2], v[6], v[10]), v[14] + far).normalize();
-  output.splice(16, 4, loin.normal.x, loin.normal.y, loin.normal.z, loin.constant);
-  return output;
+  tronc.setFromProjectionMatrix(vp, THREE.WebGPUCoordinateSystem)
+  const brut = tronc.planes.flatMap((plan) => [...plan.normal.toArray(), plan.constant])
+  const output = [...brut.slice(0, 16), ...brut.slice(20, 24), ...brut.slice(16, 20)]
+  if (!Number.isFinite(far)) return output
+  const v = view.elements
+  const loin = new THREE.Plane(new THREE.Vector3(v[2], v[6], v[10]), v[14] + far).normalize()
+  output.splice(16, 4, loin.normal.x, loin.normal.y, loin.normal.z, loin.constant)
+  return output
 }
 
-const CAMERA_KEYS = ['fov', 'aspect', 'near', 'far', 'zoom'] as const;
+const CAMERA_KEYS = ['fov', 'aspect', 'near', 'far', 'zoom'] as const
 
 function regleCameraThree(camera: THREE.PerspectiveCamera, spec: CameraSpec) {
-  for (const key of CAMERA_KEYS) if (key in spec) camera[key] = spec[key];
-  camera.coordinateSystem = systeme(spec.webgpu);
-  camera.updateProjectionMatrix();
+  for (const key of CAMERA_KEYS) if (key in spec) camera[key] = spec[key]
+  camera.coordinateSystem = systeme(spec.webgpu)
+  camera.updateProjectionMatrix()
 }
 
 /** The operations on Three.js objects. */
 export function joueThree(scenario: HierarchyOp[]): number[][] {
   const objects: THREE.Object3D[] = [],
     vivants: boolean[] = [],
-    sorties: number[][] = [];
+    sorties: number[][] = []
   const vp = new THREE.Matrix4(),
     proj = new THREE.Matrix4(),
-    tronc = new THREE.Frustum();
+    tronc = new THREE.Frustum()
   const v = new THREE.Vector3(),
-    q = new THREE.Quaternion();
+    q = new THREE.Quaternion()
   scenario.forEach((op, rang) => {
-    const o = objects[op[1]];
+    const o = objects[op[1]]
     switch (op[0]) {
       case 'add': {
-        const [, , parent, p, r, s, camera] = op;
-        let n: THREE.Object3D;
+        const [, , parent, p, r, s, camera] = op
+        let n: THREE.Object3D
         if (camera) {
-          const cam = new THREE.PerspectiveCamera();
-          regleCameraThree(cam, camera);
-          n = cam;
-        } else n = new THREE.Object3D();
-        n.position.fromArray(p);
-        n.quaternion.fromArray(r);
-        n.scale.fromArray(s);
-        if (parent >= 0) objects[parent].add(n);
-        objects[op[1]] = n;
-        vivants[op[1]] = true;
-        break;
+          const cam = new THREE.PerspectiveCamera()
+          regleCameraThree(cam, camera)
+          n = cam
+        } else n = new THREE.Object3D()
+        n.position.fromArray(p)
+        n.quaternion.fromArray(r)
+        n.scale.fromArray(s)
+        if (parent >= 0) objects[parent].add(n)
+        objects[op[1]] = n
+        vivants[op[1]] = true
+        break
       }
       case 'pose':
-        if (op[2]) o.position.fromArray(op[2]);
-        if (op[3]) o.quaternion.fromArray(op[3]);
-        if (op[4]) o.scale.fromArray(op[4]);
-        break;
+        if (op[2]) o.position.fromArray(op[2])
+        if (op[3]) o.quaternion.fromArray(op[3])
+        if (op[4]) o.scale.fromArray(op[4])
+        break
       case 'local':
-        o.matrix.fromArray(op[2]);
-        break;
+        o.matrix.fromArray(op[2])
+        break
       case 'auto':
-        o.matrixAutoUpdate = op[2];
-        break;
+        o.matrixAutoUpdate = op[2]
+        break
       case 'rattache':
-        if (op[2] < 0) o.removeFromParent();
-        else objects[op[2]].add(o);
-        break;
+        if (op[2] < 0) o.removeFromParent()
+        else objects[op[2]].add(o)
+        break
       case 'retire':
-        o.removeFromParent();
-        for (const id of op[2]) vivants[id] = false;
-        break;
+        o.removeFromParent()
+        for (const id of op[2]) vivants[id] = false
+        break
       case 'maj':
-        o.updateMatrixWorld(op[2]);
-        break;
+        o.updateMatrixWorld(op[2])
+        break
       case 'updateWorld':
-        o.updateWorldMatrix(op[2], op[3]);
-        break;
+        o.updateWorldMatrix(op[2], op[3])
+        break
       case 'vise':
-        o.up.fromArray(op[3]);
-        o.lookAt(op[2][0], op[2][1], op[2][2]);
-        break;
+        o.up.fromArray(op[3])
+        o.lookAt(op[2][0], op[2][1], op[2][2])
+        break
       case 'objectif':
         // Invariant kept by the scenario generator: `objectif` only ever targets a camera id.
-        regleCameraThree(o as THREE.PerspectiveCamera, op[2]);
-        break;
+        regleCameraThree(o as THREE.PerspectiveCamera, op[2])
+        break
       case 'lis':
         sorties.push([
           rang,
@@ -126,30 +126,30 @@ export function joueThree(scenario: HierarchyOp[]): number[][] {
           ...o.getWorldDirection(v).toArray(),
           o.matrixWorld.determinant() < 0 ? 1 : 0,
           ...o.matrixWorld.elements,
-        ]);
-        break;
+        ])
+        break
       case 'image': {
         // Invariant kept by the scenario generator: `image` only ever targets a camera id.
-        const camera = o as THREE.PerspectiveCamera;
-        camera.updateMatrixWorld();
-        engineProjection(proj, camera);
-        vp.multiplyMatrices(proj, camera.matrixWorldInverse);
+        const camera = o as THREE.PerspectiveCamera
+        camera.updateMatrixWorld()
+        engineProjection(proj, camera)
+        vp.multiplyMatrices(proj, camera.matrixWorldInverse)
         sorties.push([
           rang,
           ...proj.elements,
           ...camera.matrixWorldInverse.elements,
           ...vp.elements,
           ...enginePlanes(tronc, vp, camera.matrixWorldInverse, camera.far),
-        ]);
-        break;
+        ])
+        break
       }
       case 'instantane':
         sorties.push([
           rang,
           ...objects.flatMap((n, id) => (vivants[id] ? n.matrixWorld.elements : [])),
-        ]);
-        break;
+        ])
+        break
     }
-  });
-  return sorties;
+  })
+  return sorties
 }

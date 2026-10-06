@@ -5,15 +5,15 @@ import {
   type CompilationJob,
   type CompilationResult,
   type PrepareOptions,
-} from 'trillion3d';
+} from 'trillion3d'
 
-const options: PrepareOptions = { resourceBaseUrl: 'file:///tmp/resources/' };
+const options: PrepareOptions = { resourceBaseUrl: 'file:///tmp/resources/' }
 export const readCompilation = async (job: CompilationJob): Promise<number> => {
-  const result: CompilationResult = await job.promise;
-  return result.selectedNodes;
-};
+  const result: CompilationResult = await job.promise
+  return result.selectedNodes
+}
 
 // @ts-expect-error resourceBaseUrl is required by the public Node contract.
-const invalidOptions: PrepareOptions = {};
+const invalidOptions: PrepareOptions = {}
 
-export const nodeContract = { FORMAT_VERSION, invalidOptions, options, prepare, prepareMany };
+export const nodeContract = { FORMAT_VERSION, invalidOptions, options, prepare, prepareMany }

@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** Vectors and colours: every read at an offset, every write into a caller's buffer. */
 
@@ -40,7 +40,7 @@ export const VECTORS: EntryNote[] = [
     id: 'transformDirectionVector3',
     replaces: 'Vector3.transformDirection, Vector3.applyMatrix3',
   },
-];
+]
 
 export const COLORS: EntryNote[] = [
   {
@@ -54,4 +54,4 @@ export const COLORS: EntryNote[] = [
     replaces: 'Color.setHSL',
     proof: 'bench Color.setHSL (×1.3)',
   },
-];
+]

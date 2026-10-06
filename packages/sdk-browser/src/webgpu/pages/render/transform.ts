@@ -1,22 +1,22 @@
-import { EngineError, copyMatrix4 } from '../../../../../sdk-core/src/index.ts';
-import { rootedUnder } from '../../../host/world/rooted.ts';
-import { namedNode, poseNode } from '../../../host/world/moveByName.ts';
-import { finishMoves, noteMoved } from './movedBatch.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
+import { EngineError, copyMatrix4 } from '../../../../../sdk-core/src/index.ts'
+import { rootedUnder } from '../../../host/world/rooted.ts'
+import { namedNode, poseNode } from '../../../host/world/moveByName.ts'
+import { finishMoves, noteMoved } from './movedBatch.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 
-const request = new Float32Array(16);
+const request = new Float32Array(16)
 
 /** Moves a named node of the prepared scene (R8): the move of `setWebgpuTransforms` on the node the
  *  name index finds (`host/world/nameIndex.ts`). A host moving nodes frame after frame resolves
  *  them once. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
-  const node = namedNode(rt.setup.source, nodeName, matrix);
-  rt.run.gate.engineWriting();
+  const node = namedNode(rt.setup.source, nodeName, matrix)
+  rt.run.gate.engineWriting()
   try {
-    moveNode(rt, node, matrix);
+    moveNode(rt, node, matrix)
   } finally {
-    moved(rt);
+    moved(rt)
   }
 }
 
@@ -38,30 +38,30 @@ export function setWebgpuTransforms(
   if (matrices.length !== nodes.length * 16)
     throw new EngineError('INVALID_TRANSFORM', `${nodes.length} nodes: sixteen floats each`, {
       length: matrices.length,
-    });
+    })
   // A host pose written in this same task stays owed to the next image's rewrite (`engineWriting`).
-  rt.run.gate.engineWriting();
+  rt.run.gate.engineWriting()
   try {
     for (let k = 0; k < nodes.length; k++) {
-      const node = nodes[k];
+      const node = nodes[k]
       // A handle outlives nothing: a node the host removed from the scene is refused by name.
       if (!rootedUnder(node, rt.setup.source))
         throw new EngineError(
           'UNKNOWN_SCENE_NODE',
           `node ${node.name} missing from the prepared scene`,
           { nodeName: node.name },
-        );
-      copyMatrix4(request, matrices, 0, k * 16);
-      moveNode(rt, node, request);
+        )
+      copyMatrix4(request, matrices, 0, k * 16)
+      moveNode(rt, node, request)
     }
   } finally {
-    moved(rt);
+    moved(rt)
   }
 }
 
 /** One node posed and noted for `finishMoves`; nothing when the move moves nothing. */
 function moveNode(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) {
-  if (poseNode(node, matrix)) noteMoved(rt, node);
+  if (poseNode(node, matrix)) noteMoved(rt, node)
 }
 
 /** The moves of one call taken: one pass of the transform tree — every matrix it holds, page
@@ -69,6 +69,6 @@ function moveNode(rt: WebgpuPagesRuntime, node: Object3D, matrix: Float32Array) 
  *  the moves and any write before them changed, nothing else —, then the moved roots' rows and
  *  boxes (`finishMoves`). */
 function moved(rt: WebgpuPagesRuntime) {
-  rt.setup.worlds.refresh();
-  finishMoves(rt);
+  rt.setup.worlds.refresh()
+  finishMoves(rt)
 }

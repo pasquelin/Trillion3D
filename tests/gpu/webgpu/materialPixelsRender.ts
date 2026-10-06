@@ -1,76 +1,76 @@
 // Rendering one material fixture on each renderer: the witness renderer, the prepared scene, and
 // the images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
-import * as THREE from 'three';
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
-import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts';
-import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts';
-import { untilHeld, PLAFOND } from '../kit/sceneImageProof.ts';
-import { SIZE, type Fixture } from './materialFixtureShape.ts';
-import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
-import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
+import * as THREE from 'three'
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
+import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts'
+import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
+import { untilHeld, PLAFOND } from '../kit/sceneImageProof.ts'
+import { SIZE, type Fixture } from './materialFixtureShape.ts'
+import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts'
+import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts'
 import type {
   BackendFactory,
   BackendDiagnostic,
-} from '../../../packages/sdk-browser/src/backend/types.ts';
-import type * as SdkCore from '../../../packages/sdk-core/src/index.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts'
+import type * as SdkCore from '../../../packages/sdk-core/src/index.ts'
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
-export const CLEAR_COLOR = 0x2a303c;
+export const CLEAR_COLOR = 0x2a303c
 
 /** The witness renderer, configured as the explorer configures its own. */
 export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTMLCanvasElement } {
-  const canvas = document.createElement('canvas');
-  document.body.append(canvas);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-  renderer.setPixelRatio(1);
-  renderer.setSize(SIZE, SIZE, false);
-  renderer.outputColorSpace = G.HOST_COLOUR_SPACE_SRGB;
-  renderer.toneMappingExposure = 1;
-  return { renderer, canvas };
+  const canvas = document.createElement('canvas')
+  document.body.append(canvas)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false })
+  renderer.setPixelRatio(1)
+  renderer.setSize(SIZE, SIZE, false)
+  renderer.outputColorSpace = G.HOST_COLOUR_SPACE_SRGB
+  renderer.toneMappingExposure = 1
+  return { renderer, canvas }
 }
 
 /** The side of the fixture's square, and the side and depth of the square behind it. */
 export const SQUARE_SIDE = 2,
-  BEHIND = { side: 4, z: -1 };
+  BEHIND = { side: 4, z: -1 }
 
 /** The fixture's square: a lit one carries normals, a normal-mapped one its tangents. */
 function square(fixture: Fixture): G.Geometry {
-  const geometry = G.planeGeometry(SQUARE_SIDE, SQUARE_SIDE);
+  const geometry = G.planeGeometry(SQUARE_SIDE, SQUARE_SIDE)
   if (fixture.tangents)
     geometry.setAttribute(
       'tangent',
       G.floatAttribute(Array.from({ length: 4 }, () => [1, 0, 0, 1]).flat(), 4),
-    );
-  return geometry;
+    )
+  return geometry
 }
 
 /** The prepared scene of one fixture: its square, what stands behind it, and the sun when lit. */
 export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
-  const builder = batisseur();
-  const material = fixture.material();
-  const mesh = G.mesh(square(fixture), material);
-  if (fixture.back) mesh.rotation.y = Math.PI;
-  if (fixture.tilt) mesh.rotation.x = fixture.tilt;
-  builder.source.add(mesh);
-  builder.add(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1);
+  const builder = batisseur()
+  const material = fixture.material()
+  const mesh = G.mesh(square(fixture), material)
+  if (fixture.back) mesh.rotation.y = Math.PI
+  if (fixture.tilt) mesh.rotation.x = fixture.tilt
+  builder.source.add(mesh)
+  builder.add(mesh, material.transparent ? 'clustered-blend' : 'exact-clusters', 1)
   if (fixture.behind !== undefined) {
     const back = G.mesh(
       G.planeGeometry(BEHIND.side, BEHIND.side),
       G.basicSurface({ color: fixture.behind }),
-    );
-    back.position.z = BEHIND.z;
-    builder.source.add(back);
-    builder.add(back, 'exact-clusters', 2);
+    )
+    back.position.z = BEHIND.z
+    builder.source.add(back)
+    builder.add(back, 'exact-clusters', 2)
   }
-  if (fixture.lit) builder.source.add(sun);
-  return builder.fini();
+  if (fixture.lit) builder.source.add(sun)
+  return builder.fini()
 }
 
 /** RGB at `(x, y)` of a bottom-left RGBA image of `SIZE` columns. */
 export const rgbAt = (pixels: ArrayLike<number>, [x, y]: number[]): number[] =>
-  [0, 1, 2].map((k) => pixels[(y * SIZE + x) * 4 + k]);
+  [0, 1, 2].map((k) => pixels[(y * SIZE + x) * 4 + k])
 
 /** The witness image of a prepared scene, drawn by the display chain of the witness engine; the
  *  witness copies the source's meshes and lights, so the scene is left for the engine. */
@@ -86,15 +86,15 @@ export function witnessImage(
     indices: scene.indices,
     associations: scene.associations,
     clearColor: CLEAR_COLOR,
-  });
-  renderer.toneMapping = backend.sceneLit!() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
-  backend.render(camera);
-  renderer.render(asHostLibrary<THREE.Scene>(backend.scene), threeCamera(camera));
-  const pixels = new Uint8Array(SIZE * SIZE * 4);
-  const gl = renderer.getContext();
-  gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-  backend.dispose();
-  return pixels;
+  })
+  renderer.toneMapping = backend.sceneLit!() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping
+  backend.render(camera)
+  renderer.render(asHostLibrary<THREE.Scene>(backend.scene), threeCamera(camera))
+  const pixels = new Uint8Array(SIZE * SIZE * 4)
+  const gl = renderer.getContext()
+  gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+  backend.dispose()
+  return pixels
 }
 
 /** The engine image of a prepared scene, held when the engine holds it, the last rendered one
@@ -116,13 +116,13 @@ export async function engineImage(
       clearColor: CLEAR_COLOR,
       sceneLights,
     },
-  );
+  )
   try {
-    await backend.prepare();
-    const { held, rendered } = await untilHeld(backend, camera);
-    return { pixels: held ?? rendered, held: held !== null };
+    await backend.prepare()
+    const { held, rendered } = await untilHeld(backend, camera)
+    return { pixels: held ?? rendered, held: held !== null }
   } finally {
-    release(backend, canvas, scene);
+    release(backend, canvas, scene)
   }
 }
 
@@ -136,12 +136,12 @@ export async function webgl2Image(
   sceneLights: SdkCore.SceneLightStore,
   camera: G.Camera,
 ): Promise<{ pixels: Uint8Array; held: boolean }> {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = SIZE;
-  document.body.append(canvas);
-  const gl = canvas.getContext('webgl2');
-  if (!gl) throw new Error('WebGL2 unavailable');
-  const { metadata, readGeometryPage } = pagedManifest(scene.metadata, scene.geometries);
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = SIZE
+  document.body.append(canvas)
+  const gl = canvas.getContext('webgl2')
+  if (!gl) throw new Error('WebGL2 unavailable')
+  const { metadata, readGeometryPage } = pagedManifest(scene.metadata, scene.geometries)
   const backend = autonomousPagesBackend({
     source: scene.source,
     metadata,
@@ -152,27 +152,27 @@ export async function webgl2Image(
     webglContext: gl,
     clearColor: CLEAR_COLOR,
     sceneLights,
-  });
-  const draw = createFrameComposer(gl, camera);
+  })
+  const draw = createFrameComposer(gl, camera)
   const frame = () => {
-    backend.render(camera);
-    draw(backend, null);
-    const pixels = new Uint8Array(SIZE * SIZE * 4);
-    gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    return pixels;
-  };
+    backend.render(camera)
+    draw(backend, null)
+    const pixels = new Uint8Array(SIZE * SIZE * 4)
+    gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+    return pixels
+  }
   try {
-    await backend.prepare();
+    await backend.prepare()
     let pixels = frame(),
-      held = backend.frameHeld === true;
+      held = backend.frameHeld === true
     for (let i = 1; i < PLAFOND && !held; i++) {
-      await backend.flush?.();
-      pixels = frame();
-      held = backend.frameHeld === true;
+      await backend.flush?.()
+      pixels = frame()
+      held = backend.frameHeld === true
     }
-    return { pixels, held };
+    return { pixels, held }
   } finally {
-    draw.dispose();
-    release(backend, canvas, scene);
+    draw.dispose()
+    release(backend, canvas, scene)
   }
 }

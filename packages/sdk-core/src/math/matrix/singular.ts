@@ -28,10 +28,10 @@
  * single precision: only normalisation crosses that floor, so this threshold no longer judges
  * anything but the shape of the matrix, never its size.
  */
-export const SINGULAR_DETERMINANT = 1e-20;
+export const SINGULAR_DETERMINANT = 1e-20
 
 /** The threshold as WGSL writes it, rendered from the constant: one number, two languages. */
-export const SINGULAR_DETERMINANT_WGSL = SINGULAR_DETERMINANT.toExponential();
+export const SINGULAR_DETERMINANT_WGSL = SINGULAR_DETERMINANT.toExponential()
 
 /**
  * The SCALE of a linear part: the sum of the absolute values of the nine terms of the 3×3 block of a
@@ -49,7 +49,7 @@ export function linearPartScale(m: ArrayLike<number>) {
     Math.abs(m[8]) +
     Math.abs(m[9]) +
     Math.abs(m[10])
-  );
+  )
 }
 
 /**
@@ -60,18 +60,18 @@ export function linearPartScale(m: ArrayLike<number>) {
  * or NaN scale yields `NaN`, which no `> threshold` comparison accepts.
  */
 export function normalizedLinearDeterminant(m: ArrayLike<number>) {
-  const t = linearPartScale(m);
-  if (!(t > 0) || !Number.isFinite(t)) return NaN;
+  const t = linearPartScale(m)
+  if (!(t > 0) || !Number.isFinite(t)) return NaN
   const a0 = m[0] / t,
     a1 = m[1] / t,
-    a2 = m[2] / t;
+    a2 = m[2] / t
   const b0 = m[4] / t,
     b1 = m[5] / t,
-    b2 = m[6] / t;
+    b2 = m[6] / t
   const c0 = m[8] / t,
     c1 = m[9] / t,
-    c2 = m[10] / t;
-  return a0 * (b1 * c2 - b2 * c1) + a1 * (b2 * c0 - b0 * c2) + a2 * (b0 * c1 - b1 * c0);
+    c2 = m[10] / t
+  return a0 * (b1 * c2 - b2 * c1) + a1 * (b2 * c0 - b0 * c2) + a2 * (b0 * c1 - b1 * c0)
 }
 
 /**
@@ -94,8 +94,8 @@ export function normalizedLinearDeterminant(m: ArrayLike<number>) {
  *    A NaN term is not fixed by multiplying it by zero, hence `null` rather than a zero factor.
  */
 export function adjugateFactor(m: ArrayLike<number>, determinant: number) {
-  const normalized = normalizedLinearDeterminant(m);
-  if (Number.isNaN(normalized)) return null;
-  if (determinant === 0 || !(Math.abs(normalized) > SINGULAR_DETERMINANT)) return 1;
-  return 1 / determinant;
+  const normalized = normalizedLinearDeterminant(m)
+  if (Number.isNaN(normalized)) return null
+  if (determinant === 0 || !(Math.abs(normalized) > SINGULAR_DETERMINANT)) return 1
+  return 1 / determinant
 }

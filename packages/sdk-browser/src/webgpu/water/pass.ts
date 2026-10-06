@@ -1,16 +1,16 @@
 // The water pass's frame side: its bounds and its encoding, on the pass the blend stage built
 // once its code arrived (`waterPass.ts`).
-import { countBlendDraws } from '../blend/draw.ts';
-import { beginWaterBounds } from './bounds.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
-import { directLightResources } from '../pages/prepare/lightResources.ts';
+import { countBlendDraws } from '../blend/draw.ts'
+import { beginWaterBounds } from './bounds.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import { directLightResources } from '../pages/prepare/lightResources.ts'
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
 function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
   return (
     rt.run.diagnostic === 'beauty' && !rt.capture.capturing && composes && !!rt.blendState.water
-  );
+  )
 }
 
 /**
@@ -23,13 +23,13 @@ export function boundWaterPass(
   composes: boolean,
   projection: ArrayLike<number>,
 ) {
-  const wanted = composesWater(rt, composes) && rt.blendState.transmissive > 0;
+  const wanted = composesWater(rt, composes) && rt.blendState.transmissive > 0
   beginWaterBounds(
     rt.blendState.waterBounds,
     wanted ? rt.run.gate.cam : undefined,
     projection,
     rt.gpu.targetSize,
-  );
+  )
 }
 
 /**
@@ -37,14 +37,14 @@ export function boundWaterPass(
  * it binds: the pass encodes on it.
  */
 function drawsWater(rt: WebgpuPagesRuntime, composes: boolean) {
-  const { blendState } = rt;
+  const { blendState } = rt
   return (
     composesWater(rt, composes) &&
     blendState.transmissiveInView > 0 &&
     !!blendState.argsBuffer &&
     !!blendState.viewBuffer &&
     !!blendState.lighting
-  );
+  )
 }
 
 /**
@@ -63,11 +63,11 @@ export function encodeWaterPass(
   key?: Partial<ContractKey>,
 ) {
   const { gpu, run, blendState } = rt,
-    water = blendState.water;
+    water = blendState.water
   // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
   // fragment carries that colouring, and the composite has none. A capture from a second camera
   // reads the surface buffer as opaque once the frame is drawn: the surface stage leaves it alone.
-  const { viewBuffer, lighting } = blendState;
+  const { viewBuffer, lighting } = blendState
   if (
     !drawsWater(rt, composes) ||
     !water ||
@@ -75,9 +75,9 @@ export function encodeWaterPass(
     !lighting ||
     !water.frame.bind(gpu, viewBuffer, lighting)
   )
-    return false;
-  const lit = key ?? directLightResources(rt);
-  countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces, lit), true);
-  run.gpuDrawCalls++;
-  return true;
+    return false
+  const lit = key ?? directLightResources(rt)
+  countBlendDraws(rt, water.frame.encode(rt, encoder, water.surfaces, lit), true)
+  run.gpuDrawCalls++
+  return true
 }

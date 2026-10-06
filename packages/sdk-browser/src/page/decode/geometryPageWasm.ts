@@ -1,7 +1,7 @@
-import type { DecodedGeometryPage } from './geometryPage.ts';
-import { checked } from '../../cluster/checked.ts';
-import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts';
-import { morphTargetsOf, pageAttributeNames, pageViews } from './geometryPageBlock.ts';
+import type { DecodedGeometryPage } from './geometryPage.ts'
+import { checked } from '../../cluster/checked.ts'
+import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts'
+import { morphTargetsOf, pageAttributeNames, pageViews } from './geometryPageBlock.ts'
 
 /**
  * Loader of the SDK WebAssembly module (`packages/page-codec-wasm`) and page decoder that uses it.
@@ -26,23 +26,23 @@ const CAUSES = [
   'GEOMETRY_PAGE_VERSION',
   'GEOMETRY_PAGE_BOUNDS',
   'GEOMETRY_PAGE_INDEX',
-];
+]
 /** Result block: status, vertices, indices, flags, decoded bytes, quantization error bits. */
-const MOTS = 6;
+const MOTS = 6
 
 /** Module exports, page decoder and batch compute together. */
 export type SdkWasm = {
-  memory: WebAssembly.Memory;
-  page_alloc(len: number): number;
-  page_free(offset: number, len: number): void;
-  page_decode(offset: number, len: number, maxDecodedBytes: number): number;
-  page_release(offset: number): void;
-  math_contract(): number;
-  math_simd(): number;
-  arena_alloc(bytes: number): number;
-  arena_free(offset: number, bytes: number): void;
-  math_box_transform_batch(out: number, boxes: number, mats: number, n: number): void;
-  math_multiply_matrix4_batch(out: number, a: number, b: number, n: number): void;
+  memory: WebAssembly.Memory
+  page_alloc(len: number): number
+  page_free(offset: number, len: number): void
+  page_decode(offset: number, len: number, maxDecodedBytes: number): number
+  page_release(offset: number): void
+  math_contract(): number
+  math_simd(): number
+  arena_alloc(bytes: number): number
+  arena_free(offset: number, bytes: number): void
+  math_box_transform_batch(out: number, boxes: number, mats: number, n: number): void
+  math_multiply_matrix4_batch(out: number, a: number, b: number, n: number): void
   /** The animation sampler (`../../math/batchAnimation.ts`). */
   anim_sample_tracks(
     tracks: number,
@@ -54,7 +54,7 @@ export type SdkWasm = {
     out: number,
     outLength: number,
     t: number,
-  ): void;
+  ): void
   math_hierarchy_update_batch(
     world: number,
     positions: number,
@@ -62,7 +62,7 @@ export type SdkWasm = {
     scales: number,
     parents: number,
     n: number,
-  ): void;
+  ): void
   /** The cut's node walk (`../cut/walkWasm.ts`): 0 walked, 1 left to the JavaScript descent. */
   cut_walk(
     nodes: number,
@@ -78,7 +78,7 @@ export type SdkWasm = {
     leaves: number,
     leafCapacity: number,
     result: number,
-  ): number;
+  ): number
   /** The normal cone of the run-time cut's clusters (`../../world/page/cutCones.ts`): 0 written,
    *  1 refused. */
   cone_clusters(
@@ -89,34 +89,34 @@ export type SdkWasm = {
     ranges: number,
     clusters: number,
     out: number,
-  ): number;
+  ): number
   /** The compiler's position and texture grids for the run-time cut (`../../world/page/cutGrid.ts`). */
   position_grid_exponent(
     extent: number,
     blended: number,
     finestError: number,
     scale: number,
-  ): number;
-  texture_grid_exponent(span: number, blended: number): number;
-};
-type SourceWasm = BufferSource | (() => Promise<BufferSource>);
+  ): number
+  texture_grid_exponent(span: number, blended: number): number
+}
+type SourceWasm = BufferSource | (() => Promise<BufferSource>)
 
-let pending: Promise<SdkWasm | null> | null = null;
+let pending: Promise<SdkWasm | null> | null = null
 
 /** Resource shipped next to the module: the browser takes it by URL, not from disk. */
 async function ressource(): Promise<BufferSource> {
-  const reponse = await checked(new URL('./pageCodec.wasm', import.meta.url).href);
-  return await reponse.arrayBuffer();
+  const reponse = await checked(new URL('./pageCodec.wasm', import.meta.url).href)
+  return await reponse.arrayBuffer()
 }
 
 async function instancie(source: SourceWasm): Promise<SdkWasm | null> {
   try {
-    if (typeof WebAssembly === 'undefined') return null;
-    const octets = typeof source === 'function' ? await source() : source;
-    const { instance } = await WebAssembly.instantiate(octets, {});
-    return instance.exports as unknown as SdkWasm;
+    if (typeof WebAssembly === 'undefined') return null
+    const octets = typeof source === 'function' ? await source() : source
+    const { instance } = await WebAssembly.instantiate(octets, {})
+    return instance.exports as unknown as SdkWasm
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -125,23 +125,23 @@ async function instancie(source: SourceWasm): Promise<SdkWasm | null> {
  * the bytes — that is what Node does, which cannot follow a file URL with `fetch`.
  */
 export function prepareSdkWasm(source: SourceWasm = ressource): Promise<SdkWasm | null> {
-  pending ??= instancie(source);
-  return pending;
+  pending ??= instancie(source)
+  return pending
 }
 
 /** The decoded page, copied out of linear memory whole before it moves, and read as the
  *  JavaScript decoder lays it out: the indices, then each present attribute's floats. */
 function copie(codec: SdkWasm, bloc: number, influences: number): DecodedGeometryPage {
-  const mots = new Uint32Array(codec.memory.buffer, bloc, MOTS);
-  if (mots[0]) throw new Error(CAUSES[mots[0]] ?? 'GEOMETRY_PAGE_BOUNDS');
+  const mots = new Uint32Array(codec.memory.buffer, bloc, MOTS)
+  if (mots[0]) throw new Error(CAUSES[mots[0]] ?? 'GEOMETRY_PAGE_BOUNDS')
   const vertexCount = mots[1],
     indexCount = mots[2],
     flags = mots[3],
     decodedBytes = mots[4],
-    quantizationError = new Float32Array(codec.memory.buffer, bloc + 20, 1)[0];
-  const block = codec.memory.buffer.slice(bloc + MOTS * 4, bloc + MOTS * 4 + decodedBytes);
+    quantizationError = new Float32Array(codec.memory.buffer, bloc + 20, 1)[0]
+  const block = codec.memory.buffer.slice(bloc + MOTS * 4, bloc + MOTS * 4 + decodedBytes)
   const names = pageAttributeNames(flags),
-    morphTargets = morphTargetsOf(decodedBytes, names, vertexCount, indexCount, influences);
+    morphTargets = morphTargetsOf(decodedBytes, names, vertexCount, indexCount, influences)
   return {
     ...pageViews(block, names, vertexCount, morphTargets, influences),
     vertexCount,
@@ -150,7 +150,7 @@ function copie(codec: SdkWasm, bloc: number, influences: number): DecodedGeometr
     flags,
     decodedBytes,
     quantizationError,
-  };
+  }
 }
 
 /** Same signature, same buffers and same refusals as `decodeGeometryPage`. */
@@ -158,29 +158,29 @@ export async function decodeGeometryPageWasm(
   data: Uint8Array,
   maxDecodedBytes = 16 * 1024 * 1024,
 ): Promise<DecodedGeometryPage> {
-  const codec = await prepareSdkWasm();
+  const codec = await prepareSdkWasm()
   if (!codec) {
-    const { decodeGeometryPage } = await import('./geometryPage.ts');
-    return decodeGeometryPage(data, maxDecodedBytes);
+    const { decodeGeometryPage } = await import('./geometryPage.ts')
+    return decodeGeometryPage(data, maxDecodedBytes)
   }
-  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER');
-  const inputPtr = codec.page_alloc(data.byteLength);
-  if (!inputPtr) throw new Error('GEOMETRY_PAGE_BOUNDS');
-  new Uint8Array(codec.memory.buffer, inputPtr, data.byteLength).set(data);
-  let bloc: number;
+  if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER')
+  const inputPtr = codec.page_alloc(data.byteLength)
+  if (!inputPtr) throw new Error('GEOMETRY_PAGE_BOUNDS')
+  new Uint8Array(codec.memory.buffer, inputPtr, data.byteLength).set(data)
+  let bloc: number
   try {
-    bloc = codec.page_decode(inputPtr, data.byteLength, maxDecodedBytes);
+    bloc = codec.page_decode(inputPtr, data.byteLength, maxDecodedBytes)
   } finally {
-    codec.page_free(inputPtr, data.byteLength);
+    codec.page_free(inputPtr, data.byteLength)
   }
-  if (!bloc) throw new Error('GEOMETRY_PAGE_BOUNDS');
+  if (!bloc) throw new Error('GEOMETRY_PAGE_BOUNDS')
   try {
     return copie(
       codec,
       bloc,
       new DataView(data.buffer, data.byteOffset, data.byteLength).getUint32(96, true),
-    );
+    )
   } finally {
-    codec.page_release(bloc);
+    codec.page_release(bloc)
   }
 }

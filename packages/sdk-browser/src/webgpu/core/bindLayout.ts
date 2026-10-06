@@ -1,4 +1,4 @@
-import { POOL_LANES } from '../../texture/blockFormats.ts';
+import { POOL_LANES } from '../../texture/blockFormats.ts'
 
 /**
  * Binding numbers of the four WebGPU-path layouts, the single source of truth: the layout
@@ -12,11 +12,11 @@ import { POOL_LANES } from '../../texture/blockFormats.ts';
 const atlas = (base: number) => ({
   lanes: POOL_LANES.map((_, index) => base + index),
   pages: base + POOL_LANES.length,
-});
-export type AtlasBindings = ReturnType<typeof atlas>;
+})
+export type AtlasBindings = ReturnType<typeof atlas>
 
 /** Two binding shapes the layouts repeat, written once and for all. */
-export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' };
+export const readOnly: GPUBufferBindingLayout = { type: 'read-only-storage' }
 export const atlasLayoutEntries = (
   bindings: AtlasBindings,
   visibility = GPUShaderStage.FRAGMENT,
@@ -27,10 +27,10 @@ export const atlasLayoutEntries = (
     texture: { sampleType: 'float', viewDimension: '2d-array' } as GPUTextureBindingLayout,
   })),
   { binding: bindings.pages, visibility, buffer: readOnly },
-];
+]
 /** Bytes of the visibility-buffer uniform `Uniforms` (`../../visibility/shader/pageWgsl.ts`): its
  *  nine words after the matrix, rounded up to the struct's 16-byte alignment. */
-export const VIS_UNIFORM_BYTES = 112;
+export const VIS_UNIFORM_BYTES = 112
 export const VIS_BINDINGS = {
   cache: 0,
   position: 1,
@@ -42,7 +42,7 @@ export const VIS_BINDINGS = {
   sampler: 10,
   instances: 11,
   slotOffsets: 12,
-};
+}
 
 export const SHADE_BINDINGS = {
   visView: 0,
@@ -60,7 +60,7 @@ export const SHADE_BINDINGS = {
   receiver: 18,
   /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
   shadeCache: 19,
-};
+}
 
 export const BLEND_BINDINGS = {
   indices: 0,
@@ -100,7 +100,7 @@ export const BLEND_BINDINGS = {
   shadowTranslucentDepth: 27,
   /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
   surfaceCache: 28,
-};
+}
 
 /**
  * The software raster lives entirely in the compute stage, where WebGPU guarantees only eight
@@ -118,7 +118,7 @@ export const SMALL_BINDINGS = {
   sampler: 10,
   work: 11,
   selectionMask: 12,
-};
+}
 
 /** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the old records', atlas,
  *  sampler and translucent depth numbers. */
@@ -127,4 +127,4 @@ export const BLEND_VSM_BINDINGS = {
   projectionData: BLEND_BINDINGS.shadowAtlas,
   uniforms: BLEND_BINDINGS.shadowSampler,
   pool: BLEND_BINDINGS.shadowTranslucentDepth,
-};
+}

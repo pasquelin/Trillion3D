@@ -1,5 +1,5 @@
-import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts';
-import { mapRawRanks, type HeldList } from './heldList.ts';
+import { SELECTION_NONE as NONE } from '../../gpu/core/selection.ts'
+import { mapRawRanks, type HeldList } from './heldList.ts'
 
 /**
  * The difference of a list named by its ids alone: every id through the marks, then every id held
@@ -14,38 +14,38 @@ import { mapRawRanks, type HeldList } from './heldList.ts';
  */
 export function applyHashed(held: HeldList, ids: ArrayLike<number>, count: number) {
   const { mark, recordOf, pages, ids: kept, count: keptCount, next, published } = held,
-    { entered, exited } = held;
+    { entered, exited } = held
   const previous = held.epoch,
-    epoch = ++held.epoch;
+    epoch = ++held.epoch
   let nextCount = 0,
     enteredCount = 0,
     exitedCount = 0,
-    raw: Uint32Array | null = null;
-  held.rawToHeld = false;
+    raw: Uint32Array | null = null
+  held.rawToHeld = false
   for (let i = 0; i < count; i++) {
-    const id = ids[i];
-    published[i] = id;
-    const rec = recordOf(id);
-    const seen = rec ? mark.set(id, epoch) : epoch;
+    const id = ids[i]
+    published[i] = id
+    const rec = recordOf(id)
+    const seen = rec ? mark.set(id, epoch) : epoch
     if (seen === epoch) {
-      raw ??= mapRawRanks(held, count, i);
-      raw[i] = NONE;
-      continue;
+      raw ??= mapRawRanks(held, count, i)
+      raw[i] = NONE
+      continue
     }
-    if (raw) raw[i] = nextCount;
-    if (pages) pages[nextCount] = rec!;
-    next[nextCount++] = id;
-    if (seen !== previous) entered[enteredCount++] = id;
+    if (raw) raw[i] = nextCount
+    if (pages) pages[nextCount] = rec!
+    next[nextCount++] = id
+    if (seen !== previous) entered[enteredCount++] = id
   }
-  if (pages) pages.length = nextCount;
+  if (pages) pages.length = nextCount
   for (let i = 0; i < keptCount; i++) {
-    const id = kept[i];
+    const id = kept[i]
     if (mark.get(id) !== epoch) {
-      exited[exitedCount++] = id;
-      mark.set(id, 0);
+      exited[exitedCount++] = id
+      mark.set(id, 0)
     }
   }
-  held.enteredCount = enteredCount;
-  held.exitedCount = exitedCount;
-  return nextCount;
+  held.enteredCount = enteredCount
+  held.exitedCount = exitedCount
+  return nextCount
 }

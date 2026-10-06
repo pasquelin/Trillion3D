@@ -1,6 +1,6 @@
-import { visibilityEntries } from './bindings.ts';
-import { entriesReady } from '../core/bindIdentity.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { visibilityEntries } from './bindings.ts'
+import { entriesReady } from '../core/bindIdentity.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The bind group of one indirect slot, cached on `rt.vis` until the visibility identity voids it:
  *  slot groups share every resource with the representative slot 0 but their uniform offset,
@@ -14,11 +14,11 @@ export function visGroupFor(
 ) {
   const { vis } = rt,
     layout = vis.visBindGroupLayout,
-    key = slot * 2 + (rest ? 1 : 0);
+    key = slot * 2 + (rest ? 1 : 0)
   // Checked before the cache: a dropped Hi-Z buffer is never bound in the frame it goes.
-  if (!layout || !vis.gpuDraw || !(rest ? vis.gpuHiz?.flags : vis.zeroFlags)) return;
-  if (vis.visSlotGroups[key]) return vis.visSlotGroups[key];
-  const entries = visibilityEntries(rt, rest, slot);
-  if (!entriesReady(entries)) return;
-  return (vis.visSlotGroups[key] = device.createBindGroup({ layout, entries }));
+  if (!layout || !vis.gpuDraw || !(rest ? vis.gpuHiz?.flags : vis.zeroFlags)) return
+  if (vis.visSlotGroups[key]) return vis.visSlotGroups[key]
+  const entries = visibilityEntries(rt, rest, slot)
+  if (!entriesReady(entries)) return
+  return (vis.visSlotGroups[key] = device.createBindGroup({ layout, entries }))
 }

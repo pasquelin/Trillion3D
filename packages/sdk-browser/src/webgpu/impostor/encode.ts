@@ -1,17 +1,17 @@
-import { core } from '../../impostor/borrowed.ts';
-import { CARD_VIEW_FLOATS } from './cardWgsl.ts';
-import { CARD_FLOATS, composeCardWorlds } from '../../impostor/cards.ts';
-import { IMPOSTOR_PASS } from './pipelines.ts';
-import type { WebgpuImpostors } from './frame.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { core } from '../../impostor/borrowed.ts'
+import { CARD_VIEW_FLOATS } from './cardWgsl.ts'
+import { CARD_FLOATS, composeCardWorlds } from '../../impostor/cards.ts'
+import { IMPOSTOR_PASS } from './pipelines.ts'
+import type { WebgpuImpostors } from './frame.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
-const viewWords = new Float32Array(CARD_VIEW_FLOATS);
+const viewWords = new Float32Array(CARD_VIEW_FLOATS)
 
 /** The image's cards (`frame.ts`), when it has any and the visibility buffer draws. */
 const cardsOf = (rt: WebgpuPagesRuntime) => {
-  const state = rt.gpu.impostors;
-  return state?.count && rt.vis.visEnabled ? state : undefined;
-};
+  const state = rt.gpu.impostors
+  return state?.count && rt.vis.visEnabled ? state : undefined
+}
 
 /** One instanced draw per mesh atlas, with `pipeline`, on `pass`. */
 function drawRuns(
@@ -21,14 +21,14 @@ function drawRuns(
   pipeline: GPURenderPipeline,
   image = state.pass.imageGroup(state.count),
 ) {
-  pass.setPipeline(pipeline);
-  pass.setBindGroup(0, image.group);
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, image.group)
   for (let r = 0; r < state.runCount; r++) {
-    const run = state.runs[r];
-    pass.setBindGroup(1, run.group);
-    pass.draw(6, run.count, 0, run.first);
+    const run = state.runs[r]
+    pass.setBindGroup(1, run.group)
+    pass.draw(6, run.count, 0, run.first)
   }
-  rt.run.gpuDrawCalls += state.runCount;
+  rt.run.gpuDrawCalls += state.runCount
 }
 
 /**
@@ -44,18 +44,18 @@ export function drawImpostorVisibility(
   pass: GPURenderPassEncoder,
   hiz: boolean,
 ) {
-  const state = cardsOf(rt);
-  if (!state) return false;
-  const eye = rt.run.gate.cam.eye;
-  viewWords.set(core.viewProj);
-  for (let k = 0; k < 3; k++) viewWords[16 + k] = eye[k];
-  viewWords[19] = 1;
-  const image = state.pass.imageGroup(state.count);
-  composeCardWorlds(state.records, state.worlds, state.count, core.viewProj);
-  device.queue.writeBuffer(state.pass.viewBuffer, 0, viewWords);
-  device.queue.writeBuffer(image.buffer, 0, state.records, 0, state.count * CARD_FLOATS);
-  drawRuns(rt, state, pass, state.pass.visPipeline(hiz), image);
-  return true;
+  const state = cardsOf(rt)
+  if (!state) return false
+  const eye = rt.run.gate.cam.eye
+  viewWords.set(core.viewProj)
+  for (let k = 0; k < 3; k++) viewWords[16 + k] = eye[k]
+  viewWords[19] = 1
+  const image = state.pass.imageGroup(state.count)
+  composeCardWorlds(state.records, state.worlds, state.count, core.viewProj)
+  device.queue.writeBuffer(state.pass.viewBuffer, 0, viewWords)
+  device.queue.writeBuffer(image.buffer, 0, state.records, 0, state.count * CARD_FLOATS)
+  drawRuns(rt, state, pass, state.pass.visPipeline(hiz), image)
+  return true
 }
 
 /**
@@ -69,8 +69,8 @@ export function encodeImpostorVisibilityPass(
   encoder: GPUCommandEncoder,
 ) {
   const { visView } = rt.vis,
-    { depthView } = rt.gpu;
-  if (!cardsOf(rt) || !visView || !depthView) return false;
+    { depthView } = rt.gpu
+  if (!cardsOf(rt) || !visView || !depthView) return false
   const pass = encoder.beginRenderPass({
     label: `${IMPOSTOR_PASS} visibility`,
     colorAttachments: [
@@ -82,12 +82,12 @@ export function encodeImpostorVisibilityPass(
       depthLoadOp: 'clear',
       depthStoreOp: 'store',
     },
-  });
-  const [width, height] = rt.gpu.targetSize;
-  pass.setViewport(0, 0, width, height, 0, 1);
-  drawImpostorVisibility(rt, device, pass, false);
-  pass.end();
-  return true;
+  })
+  const [width, height] = rt.gpu.targetSize
+  pass.setViewport(0, 0, width, height, 0, 1)
+  drawImpostorVisibility(rt, device, pass, false)
+  pass.end()
+  return true
 }
 
 /**
@@ -97,15 +97,15 @@ export function encodeImpostorVisibilityPass(
  */
 export function encodeImpostorCards(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const state = cardsOf(rt),
-    { surfaces, depthView } = rt.gpu;
-  if (!state || !surfaces || !depthView) return;
+    { surfaces, depthView } = rt.gpu
+  if (!state || !surfaces || !depthView) return
   const draw = encoder.beginRenderPass({
     label: IMPOSTOR_PASS,
     colorAttachments: core.surfaceLoadAttachments(surfaces),
     depthStencilAttachment: { view: depthView, depthReadOnly: true },
-  });
-  const [width, height] = rt.gpu.targetSize;
-  draw.setViewport(0, 0, width, height, 0, 1);
-  drawRuns(rt, state, draw, state.pass.pipeline);
-  draw.end();
+  })
+  const [width, height] = rt.gpu.targetSize
+  draw.setViewport(0, 0, width, height, 0, 1)
+  drawRuns(rt, state, draw, state.pass.pipeline)
+  draw.end()
 }

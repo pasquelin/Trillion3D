@@ -1,13 +1,13 @@
-import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
-import { REQUEST_PAGE_MAX } from './request.ts';
-import { SELECTION_NONE as NONE } from '../core/selection.ts';
-import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts';
-import { linksFor } from '../../page/cut/links.ts';
-import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
-import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
-import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts';
-import { writeKeyColumn } from './evict.ts';
-import { createRecordTable } from './packRecords.ts';
+import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts'
+import { REQUEST_PAGE_MAX } from './request.ts'
+import { SELECTION_NONE as NONE } from '../core/selection.ts'
+import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts'
+import { linksFor } from '../../page/cut/links.ts'
+import { cullingBoundsFor, packCullingNodes } from './packNodes.ts'
+import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
+import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts'
+import { writeKeyColumn } from './evict.ts'
+import { createRecordTable } from './packRecords.ts'
 
 /**
  * Pack the cluster bands, their cone/box records and the per-primitive culling nodes.
@@ -20,47 +20,47 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   // Every primitive descends the same hierarchy: the manifest's, or the one packing
   // gives it — once per page array, so placements sharing their pages share it too.
   // One path, and level descent never has a page range without a root.
-  const flats = new Map<DagRoot['pages'], NonNullable<DagRoot['culling']>>();
+  const flats = new Map<DagRoot['pages'], NonNullable<DagRoot['culling']>>()
   const cullings = roots.map((root) => {
-    if (root.culling) return root.culling;
-    let flat = flats.get(root.pages);
-    if (!flat) flats.set(root.pages, (flat = flatHierarchy(root.pages)));
-    return flat;
-  });
+    if (root.culling) return root.culling
+    let flat = flats.get(root.pages)
+    if (!flat) flats.set(root.pages, (flat = flatHierarchy(root.pages)))
+    return flat
+  })
   let clusterCount = 0,
-    nodeCount = 0;
+    nodeCount = 0
   // Levels of every primitive, summed level by level: pass `L`'s queue only holds
   // nodes of level `L`, so this total upper-bounds it, and the pass launches flat.
   //
   // All placements of the same primitive share the node array — collection copies
   // the envelope, not the data — and the walk depends only on it: done once per
   // array, recovered by identity for later placements.
-  const levelTotals: number[] = [];
-  const parTableau = new Map<Float64Array, readonly number[]>();
+  const levelTotals: number[] = []
+  const parTableau = new Map<Float64Array, readonly number[]>()
   // Cut bounds follow the same sharing: the host already derives them per primitive,
   // and a mount that does not supply them receives them here, once per node array.
-  const bornesParTableau = new Map<Float64Array, Float64Array>();
+  const bornesParTableau = new Map<Float64Array, Float64Array>()
   for (let w = 0; w < roots.length; w++) {
-    clusterCount += roots[w].pages.length;
-    nodeCount += cullings[w].nodes.length / cullings[w].stride;
-    let sizes = parTableau.get(cullings[w].nodes);
+    clusterCount += roots[w].pages.length
+    nodeCount += cullings[w].nodes.length / cullings[w].stride
+    let sizes = parTableau.get(cullings[w].nodes)
     if (!sizes) {
-      sizes = hierarchyLevelSizes(cullings[w].nodes, cullings[w].stride);
-      parTableau.set(cullings[w].nodes, sizes);
+      sizes = hierarchyLevelSizes(cullings[w].nodes, cullings[w].stride)
+      parTableau.set(cullings[w].nodes, sizes)
     }
     for (let level = 0; level < sizes.length; level++)
-      levelTotals[level] = (levelTotals[level] ?? 0) + sizes[level];
+      levelTotals[level] = (levelTotals[level] ?? 0) + sizes[level]
   }
-  const levelSizes = Uint32Array.from(levelTotals);
+  const levelSizes = Uint32Array.from(levelTotals)
   // The request word names the page on twenty-two bits (`request.ts`). Beyond that,
   // the readout would return a page for another: better to refuse it by name.
   if (clusterCount > REQUEST_PAGE_MAX)
-    throw new Error(`GPU_SELECTION_PAGE_RANGE: ${clusterCount} > ${REQUEST_PAGE_MAX}`);
+    throw new Error(`GPU_SELECTION_PAGE_RANGE: ${clusterCount} > ${REQUEST_PAGE_MAX}`)
   const nodes = new Float32Array(Math.max(1, nodeCount) * DAG_NODE_FLOATS),
-    nodeInts = new Uint32Array(nodes.buffer);
+    nodeInts = new Uint32Array(nodes.buffer)
   // The working table's word per page: its placement, the only field a placement owns.
-  const pageWorlds = new Uint32Array(clusterCount);
-  const worldSlots = Math.max(1, roots.length);
+  const pageWorlds = new Uint32Array(clusterCount)
+  const worldSlots = Math.max(1, roots.length)
   const worlds = new Float32Array(worldSlots * 16),
     worldStretch = new Float32Array(worldSlots),
     recordShift = new Uint32Array(worldSlots),
@@ -69,24 +69,24 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     rootNodes = new Uint32Array(worldSlots).fill(NONE),
     rootBases = new Uint32Array(worldSlots).fill(NONE),
     // The whole frame word: the mark's bits, and the deformation reach above them (`markReach`).
-    mark = new Uint32Array(worldSlots);
-  const records = createRecordTable();
+    mark = new Uint32Array(worldSlots)
+  const records = createRecordTable()
   // Culling links, shared by the placements of one node array as the hierarchy is.
-  const cutLinks: DagCutLinks[] = [];
+  const cutLinks: DagCutLinks[] = []
   let cluster = 0,
     node = 0,
-    rootClusters = 0;
+    rootClusters = 0
   for (let w = 0; w < roots.length; w++) {
     const root = roots[w],
       pageBase = cluster,
       nodeBase = node,
-      culling = cullings[w];
-    worlds.set(root.world.elements, w * 16);
-    worldStretch[w] = maxStretch(root.world.elements);
-    const owner = new Uint32Array(root.pages.length).fill(NONE);
-    rootBases[w] = nodeBase;
-    rootNodes[w] = root.parked ? NONE : nodeBase;
-    mark[w] = root.mark ?? 0;
+      culling = cullings[w]
+    worlds.set(root.world.elements, w * 16)
+    worldStretch[w] = maxStretch(root.world.elements)
+    const owner = new Uint32Array(root.pages.length).fill(NONE)
+    rootBases[w] = nodeBase
+    rootNodes[w] = root.parked ? NONE : nodeBase
+    mark[w] = root.mark ?? 0
     const packedNodes = packCullingNodes(
       nodes,
       nodeInts,
@@ -94,9 +94,9 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       cullingBoundsFor(culling, root.pages, bornesParTableau),
       { world: w, nodeBase, pageBase },
       owner,
-    );
-    node += packedNodes;
-    const links = linksFor(culling, root.pages.length);
+    )
+    node += packedNodes
+    const links = linksFor(culling, root.pages.length)
     cutLinks.push({
       structure: root.structure,
       links,
@@ -104,26 +104,25 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
       pageCount: root.pages.length,
       nodeBase,
       nodeCount: packedNodes,
-    });
-    recordShift[w] = (records.place(root.pages, culling.nodes, owner, nodeBase) - pageBase) >>> 0;
-    pageWorlds.fill(w, pageBase, pageBase + root.pages.length);
+    })
+    recordShift[w] = (records.place(root.pages, culling.nodes, owner, nodeBase) - pageBase) >>> 0
+    pageWorlds.fill(w, pageBase, pageBase + root.pages.length)
     for (const rec of root.pages) {
-      if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError)))
-        rootClusters++;
+      if (!(typeof rec.parentError === 'number' && Number.isFinite(rec.parentError))) rootClusters++
     }
-    cluster += root.pages.length;
+    cluster += root.pages.length
   }
   // The hot record only holds what all five passes of a frame reread; the owner
   // node and the cone go to the cold, which the open pass alone reads. Residency bits
   // follow the working table: one word for thirty-two pages, written by delta.
   const recordSlots = Math.max(1, records.count),
-    coldAt = coldBase(clusterCount);
+    coldAt = coldBase(clusterCount)
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
-    pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS);
-  new Uint32Array(pageCones.buffer).set(pageWorlds);
-  writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount));
-  records.finish(clusters, pageCones, coldAt);
-  const world = roots.findIndex((root) => root.origins);
+    pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS)
+  new Uint32Array(pageCones.buffer).set(pageWorlds)
+  writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount))
+  records.finish(clusters, pageCones, coldAt)
+  const world = roots.findIndex((root) => root.origins)
   return {
     kind: 'dag',
     clusters,
@@ -145,7 +144,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
     pageUrlOf: pageUrlReader(roots, cutLinks, pageCones, clusterCount),
     cutLinks,
     ...(world >= 0 && { world: { root: world, origins: roots[world].origins! } }),
-  };
+  }
 }
 
 /** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`, and its translation
@@ -158,11 +157,11 @@ export function rootWorldsToRenderOrigin(
   translations: Float64Array,
 ) {
   for (let w = 0; w < roots.length; w++) {
-    const world = roots[w].world.elements;
-    worldToRenderOrigin(worlds, world, origin, w * 16);
-    translations[w * 3] = world[12];
-    translations[w * 3 + 1] = world[13];
-    translations[w * 3 + 2] = world[14];
+    const world = roots[w].world.elements
+    worldToRenderOrigin(worlds, world, origin, w * 16)
+    translations[w * 3] = world[12]
+    translations[w * 3 + 1] = world[13]
+    translations[w * 3 + 2] = world[14]
   }
 }
 
@@ -178,13 +177,13 @@ export function rootWorldsMoved(
 ) {
   for (let w = 0; w < roots.length; w++) {
     const world = roots[w].world.elements,
-      at = w * 16;
+      at = w * 16
     for (let i = 0; i < 16; i++) {
-      const value = i >= 12 && i < 15 ? world[i] - origin[i - 12] : world[i];
-      if (worlds[at + i] !== Math.fround(value)) return true;
+      const value = i >= 12 && i < 15 ? world[i] - origin[i - 12] : world[i]
+      if (worlds[at + i] !== Math.fround(value)) return true
     }
   }
-  return false;
+  return false
 }
 
 /**
@@ -202,11 +201,11 @@ export function rootTranslationsToRenderOrigin(
 ) {
   const x = origin[0],
     y = origin[1],
-    z = origin[2];
+    z = origin[2]
   for (let t = 0, at = 12; t < translations.length; t += 3, at += 16) {
-    worlds[at] = translations[t] - x;
-    worlds[at + 1] = translations[t + 1] - y;
-    worlds[at + 2] = translations[t + 2] - z;
+    worlds[at] = translations[t] - x
+    worlds[at + 1] = translations[t + 1] - y
+    worlds[at + 2] = translations[t + 2] - z
   }
 }
 
@@ -222,10 +221,10 @@ function pageUrlReader(
   pageCones: Float32Array,
   pageCount: number,
 ) {
-  const worldOfPage = new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCount);
+  const worldOfPage = new Uint32Array(pageCones.buffer, pageCones.byteOffset, pageCount)
   return (page: number) => {
-    if (!(page >= 0 && page < pageCount)) return undefined;
-    const w = worldOfPage[page];
-    return roots[w]?.pages[page - cutLinks[w].pageBase]?.url;
-  };
+    if (!(page >= 0 && page < pageCount)) return undefined
+    const w = worldOfPage[page]
+    return roots[w]?.pages[page - cutLinks[w].pageBase]?.url
+  }
 }

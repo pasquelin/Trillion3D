@@ -9,9 +9,9 @@
 import {
   upscaleRun,
   type UpscaleFrame,
-} from '../../../packages/sdk-browser/src/taa/upscaleRun.fixture.ts';
+} from '../../../packages/sdk-browser/src/taa/upscaleRun.fixture.ts'
 
-const DISPLAY = 16;
+const DISPLAY = 16
 
 /** Mean fetches per display pixel of a frame drawn at `scale`, `moving` or still, by the flagless
  *  or the `asIs` resolve; `reactive`, a frame whose blends wrote a reactive value, otherwise none
@@ -23,8 +23,8 @@ export function countTaaFetches(
   moving = true,
   reactive = false,
 ) {
-  const render = DISPLAY * scale;
-  let ids = 0;
+  const render = DISPLAY * scale
+  let ids = 0
   const frame: UpscaleFrame = {
     render: [render, render],
     display: [DISPLAY, DISPLAY],
@@ -36,11 +36,11 @@ export function countTaaFetches(
     reactive: reactive ? () => 0 : undefined,
     // Every texel shows placement 0, identity 1 in the geometry history: identity 2 was another.
     tags: () => [(uncovered ? 2 : 1) / 255, 0, 0, 1],
-  };
-  const run = upscaleRun(frame, asIs, false, scale === 1);
-  let fetches = 0;
-  for (let y = 0; y < DISPLAY; y++) for (let x = 0; x < DISPLAY; x++) fetches += run(x, y).fetches;
-  return { fetches: fetches / (DISPLAY * DISPLAY), ids: ids / (DISPLAY * DISPLAY) };
+  }
+  const run = upscaleRun(frame, asIs, false, scale === 1)
+  let fetches = 0
+  for (let y = 0; y < DISPLAY; y++) for (let x = 0; x < DISPLAY; x++) fetches += run(x, y).fetches
+  return { fetches: fetches / (DISPLAY * DISPLAY), ids: ids / (DISPLAY * DISPLAY) }
 }
 
 function main() {
@@ -53,9 +53,9 @@ function main() {
         ...countTaaFetches(scale, uncovered, false, moving),
       })),
     ),
-  );
-  console.log('Flagless resolve: fetches per display pixel');
-  console.table(rows);
+  )
+  console.log('Flagless resolve: fetches per display pixel')
+  console.table(rows)
 }
 
-if (import.meta.main) main();
+if (import.meta.main) main()

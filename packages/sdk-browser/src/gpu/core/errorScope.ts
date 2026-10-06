@@ -1,15 +1,15 @@
-import { gpuDeviceLedgerOf } from './deviceLedger.ts';
+import { gpuDeviceLedgerOf } from './deviceLedger.ts'
 
 /** Roll back only resources made synchronously by this construction, never across an await. */
 export function constructGpuResources<T>(device: GPUDevice, build: () => T): T {
-  const allocation = gpuDeviceLedgerOf(device)?.transaction();
+  const allocation = gpuDeviceLedgerOf(device)?.transaction()
   try {
-    return build();
+    return build()
   } catch (error) {
-    allocation?.rollback();
-    throw error;
+    allocation?.rollback()
+    throw error
   } finally {
-    allocation?.commit();
+    allocation?.commit()
   }
 }
 
@@ -27,19 +27,19 @@ export async function validationScope<T>(
   filter: GPUErrorFilter = 'validation',
 ): Promise<{ value: T; error: GPUError | null }> {
   if (typeof device.pushErrorScope !== 'function' || typeof device.popErrorScope !== 'function')
-    return { value: await constructGpuResources(device, build), error: null };
-  device.pushErrorScope(filter);
-  let value: T;
+    return { value: await constructGpuResources(device, build), error: null }
+  device.pushErrorScope(filter)
+  let value: T
   try {
     // A build that returns at once is popped at once: no other scope opens between its push and
     // its pop, so a grant stays nested inside any scope still open around it.
-    const built = constructGpuResources(device, build);
-    value = built instanceof Promise ? await built : built;
+    const built = constructGpuResources(device, build)
+    value = built instanceof Promise ? await built : built
   } catch (error) {
-    await device.popErrorScope().catch(() => null);
-    throw error;
+    await device.popErrorScope().catch(() => null)
+    throw error
   }
-  return { value, error: await device.popErrorScope() };
+  return { value, error: await device.popErrorScope() }
 }
 
 /** What `build` made, or `undefined` when it made nothing or the device refused part of it — a
@@ -50,17 +50,17 @@ export async function validated<T>(
   filter: GPUErrorFilter = 'validation',
 ): Promise<T | undefined> {
   try {
-    const { value, error } = await validationScope(device, build, filter);
-    return error ? undefined : value;
+    const { value, error } = await validationScope(device, build, filter)
+    return error ? undefined : value
   } catch (error) {
-    if (pipelineRefused(error)) return undefined;
-    throw error;
+    if (pipelineRefused(error)) return undefined
+    throw error
   }
 }
 
 /** A pipeline the device refused to compile off the thread (`GPUPipelineError`). */
 const pipelineRefused = (error: unknown) =>
-  typeof GPUPipelineError !== 'undefined' && error instanceof GPUPipelineError;
+  typeof GPUPipelineError !== 'undefined' && error instanceof GPUPipelineError
 
 /**
  * What `make` allocates when the device grants it, now: made under an out-of-memory scope, and
@@ -70,22 +70,22 @@ export async function deviceMade<R extends { destroy(): void }>(
   device: GPUDevice,
   make: () => R,
 ): Promise<R | undefined> {
-  const { value, error } = await validationScope(device, make, 'out-of-memory');
-  if (!error) return value;
-  value.destroy();
-  return undefined;
+  const { value, error } = await validationScope(device, make, 'out-of-memory')
+  if (!error) return value
+  value.destroy()
+  return undefined
 }
 
 /** What the device is asked under `deviceMade` — a pool, the frame targets —, `settled` once done. */
-export type DeviceGrant = { settled: boolean; done: Promise<void> };
+export type DeviceGrant = { settled: boolean; done: Promise<void> }
 
 /** `work` as a grant, `key` its record: settled once `work` is. */
 export function startGrant<K extends object>(work: Promise<void>, key = {} as K) {
-  const grant: K & DeviceGrant = Object.assign(key, { settled: false, done: work });
-  grant.done = work.finally(() => (grant.settled = true));
-  return grant;
+  const grant: K & DeviceGrant = Object.assign(key, { settled: false, done: work })
+  grant.done = work.finally(() => (grant.settled = true))
+  return grant
 }
 
 /** What the device still answers for `grant`, while it answers. */
 export const grantPending = (grant: DeviceGrant | undefined) =>
-  grant && !grant.settled ? grant.done : undefined;
+  grant && !grant.settled ? grant.done : undefined

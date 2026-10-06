@@ -1,4 +1,4 @@
-import { Camera, type CameraParameters, type CameraPose } from './camera.ts';
+import { Camera, type CameraParameters, type CameraPose } from './camera.ts'
 
 /**
  * The `camera` family. A cube, stereo or array camera is a set of perspective eyes placed as its
@@ -20,7 +20,7 @@ export const camera = {
    * @param p - The nearest and farthest distances the six eyes draw.
    */
   cube(p: { near?: number; far?: number } = {}) {
-    const rig = new Camera('perspective', { fov: 90, near: p.near, far: p.far });
+    const rig = new Camera('perspective', { fov: 90, near: p.near, far: p.far })
     for (const [x, y, z] of [
       [1, 0, 0],
       [-1, 0, 0],
@@ -29,31 +29,31 @@ export const camera = {
       [0, 0, 1],
       [0, 0, -1],
     ]) {
-      const face = new Camera('perspective', { fov: 90, near: p.near, far: p.far });
-      rig.add(face);
-      face.up.set(0, y === 0 ? -1 : 0, y === 0 ? 0 : z === 0 ? y : 1);
-      face.lookAt(x, y, z);
+      const face = new Camera('perspective', { fov: 90, near: p.near, far: p.far })
+      rig.add(face)
+      face.up.set(0, y === 0 ? -1 : 0, y === 0 ? 0 : z === 0 ? y : 1)
+      face.lookAt(x, y, z)
     }
-    return rig;
+    return rig
   },
   /** Two eyes `eyeSep` apart on the x axis: a human interocular distance, 64 mm. */
   stereo() {
-    const eyeSep = 0.064;
+    const eyeSep = 0.064
     const left = new Camera('perspective'),
-      right = new Camera('perspective');
-    left.position.x = -eyeSep / 2;
-    right.position.x = eyeSep / 2;
-    return { left, right, eyeSep };
+      right = new Camera('perspective')
+    left.position.x = -eyeSep / 2
+    right.position.x = eyeSep / 2
+    return { left, right, eyeSep }
   },
   /**
    * One node holding the given eyes.
    * @param cameras - The eyes to hold.
    */
   array(cameras: Camera[]) {
-    const rig = new Camera('perspective');
-    rig.add(...cameras);
-    return rig;
+    const rig = new Camera('perspective')
+    rig.add(...cameras)
+    return rig
   },
-};
+}
 
-export { Camera, type CameraParameters, type CameraPose };
+export { Camera, type CameraParameters, type CameraPose }

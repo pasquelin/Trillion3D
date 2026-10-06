@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** Boxes, spheres, frustums and cones: what decides, per frame, whether a cluster is drawn. */
 
@@ -30,4 +30,4 @@ export const BOUNDS: EntryNote[] = [
   {
     id: 'boxConeRejects',
   },
-];
+]

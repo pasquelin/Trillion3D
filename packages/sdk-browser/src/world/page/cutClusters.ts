@@ -1,11 +1,11 @@
 /** The clusters of the runtime cutter (`runtimeCut.ts`) and the texture spans that set its grid. */
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
  *  the compiler cuts (`docs/FORMAT.md`). */
 const CLUSTER_TRIANGLES = 128,
-  CLUSTER_VERTICES = 255;
+  CLUSTER_VERTICES = 255
 
 /**
  * The squared diagonal of the least box that holds `CLUSTER_TRIANGLES` triangles of total area
@@ -15,38 +15,38 @@ const CLUSTER_TRIANGLES = 128,
  */
 function compactSquared(count: number, area: number, longest: number) {
   const held = (CLUSTER_TRIANGLES * area) / count,
-    side = Math.max(longest, Math.sqrt(held));
-  return side ? side * side + (held / side) ** 2 : 0;
+    side = Math.max(longest, Math.sqrt(held))
+  return side ? side * side + (held / side) ** 2 : 0
 }
 
 /** A run of consecutive triangles of `positions`: its box, its triangles' area, their longest edge. */
 function createRun(positions: Float32Array) {
   const box = new Float64Array(6),
-    grown = new Float64Array(6);
+    grown = new Float64Array(6)
   let count = 0,
     area = 0,
     longest = 0,
     /** The last triangle measured: its area and longest edge, the run's box grown by it. */
     nextArea = 0,
-    nextLongest = 0;
-  const p = (v: number, axis: number) => positions[v * 3 + axis];
+    nextLongest = 0
+  const p = (v: number, axis: number) => positions[v * 3 + axis]
   const edge = (u: number, v: number) =>
-    hypot3(p(v, 0) - p(u, 0), p(v, 1) - p(u, 1), p(v, 2) - p(u, 2));
-  const grow = (v: number) => boxExpandByPoint(grown, 0, p(v, 0), p(v, 1), p(v, 2));
+    hypot3(p(v, 0) - p(u, 0), p(v, 1) - p(u, 1), p(v, 2) - p(u, 2))
+  const grow = (v: number) => boxExpandByPoint(grown, 0, p(v, 0), p(v, 1), p(v, 2))
   const measure = (a: number, b: number, c: number) => {
     const ux = p(b, 0) - p(a, 0),
       uy = p(b, 1) - p(a, 1),
       uz = p(b, 2) - p(a, 2),
       vx = p(c, 0) - p(a, 0),
       vy = p(c, 1) - p(a, 1),
-      vz = p(c, 2) - p(a, 2);
-    nextArea = hypot3(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2;
-    nextLongest = Math.max(edge(a, b), edge(b, c), edge(c, a));
-    grown.set(box);
-    grow(a);
-    grow(b);
-    grow(c);
-  };
+      vz = p(c, 2) - p(a, 2)
+    nextArea = hypot3(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2
+    nextLongest = Math.max(edge(a, b), edge(b, c), edge(c, a))
+    grown.set(box)
+    grow(a)
+    grow(b)
+    grow(c)
+  }
   return {
     /**
      * Adds triangle `(a, b, c)` to the run while the run reaches no farther than a compact cluster
@@ -55,24 +55,24 @@ function createRun(positions: Float32Array) {
      */
     add(a: number, b: number, c: number, fresh: boolean) {
       if (!fresh) {
-        measure(a, b, c);
+        measure(a, b, c)
         const diagonal =
-          (grown[3] - grown[0]) ** 2 + (grown[4] - grown[1]) ** 2 + (grown[5] - grown[2]) ** 2;
+          (grown[3] - grown[0]) ** 2 + (grown[4] - grown[1]) ** 2 + (grown[5] - grown[2]) ** 2
         fresh =
-          diagonal > compactSquared(count + 1, area + nextArea, Math.max(longest, nextLongest));
+          diagonal > compactSquared(count + 1, area + nextArea, Math.max(longest, nextLongest))
       }
       if (fresh) {
-        count = area = longest = 0;
-        boxEmpty(box, 0);
-        measure(a, b, c);
+        count = area = longest = 0
+        boxEmpty(box, 0)
+        measure(a, b, c)
       }
-      box.set(grown);
-      count++;
-      area += nextArea;
-      longest = Math.max(longest, nextLongest);
-      return fresh;
+      box.set(grown)
+      count++
+      area += nextArea
+      longest = Math.max(longest, nextLongest)
+      return fresh
     },
-  };
+  }
 }
 
 /** The widest range of either texture coordinate over the corners of one cluster; with no
@@ -82,29 +82,28 @@ export function widestUvSpan(
   indices: Uint32Array | null,
   ranges: [number, number][],
 ) {
-  let widest = 0;
+  let widest = 0
   for (const [start, end] of ranges)
     for (let c = 0; c < 2; c++) {
       let lo = Infinity,
-        hi = -Infinity;
+        hi = -Infinity
       for (let i = start; i < end; i++) {
-        const value = uvs[(indices ? indices[i] : i) * 2 + c];
-        lo = Math.min(lo, value);
-        hi = Math.max(hi, value);
+        const value = uvs[(indices ? indices[i] : i) * 2 + c]
+        lo = Math.min(lo, value)
+        hi = Math.max(hi, value)
       }
-      widest = Math.max(widest, hi - lo);
+      widest = Math.max(widest, hi - lo)
     }
-  return widest;
+  return widest
 }
 
 /** The widest range of either texture coordinate over every vertex: the span the compiler sets a
  *  primitive's texture grid by (`primitive_uv_exponent`). */
-export const primitiveUvSpan = (uvs: Float32Array) =>
-  widestUvSpan(uvs, null, [[0, uvs.length / 2]]);
+export const primitiveUvSpan = (uvs: Float32Array) => widestUvSpan(uvs, null, [[0, uvs.length / 2]])
 
 /** The index ranges a compiled primitive's own clusters take, `ends[k]` the end of cluster `k`. */
 export const givenClusters = (ends: Uint32Array): [number, number][] =>
-  Array.from(ends, (end, k) => [k ? ends[k - 1] : 0, end]);
+  Array.from(ends, (end, k) => [k ? ends[k - 1] : 0, end])
 
 /**
  * Index ranges of consecutive triangles, each within the cluster's triangle and vertex bounds.
@@ -124,35 +123,35 @@ export function* clusters(
   compactAt?: Float32Array,
 ): Generator<[number, number]> {
   const taken = new Uint32Array(vertexCount),
-    run = compactAt && createRun(compactAt);
+    run = compactAt && createRun(compactAt)
   let start = 0,
     cluster = 1,
-    held = 0;
+    held = 0
   const take = (v: number) => {
-    if (taken[v] === cluster) return;
-    taken[v] = cluster;
-    held++;
-  };
+    if (taken[v] === cluster) return
+    taken[v] = cluster
+    held++
+  }
   for (let t = 0; t < indices.length; t += 3) {
     const a = indices[t],
       b = indices[t + 1],
-      c = indices[t + 2];
+      c = indices[t + 2]
     const fresh =
       Number(taken[a] !== cluster) +
       Number(taken[b] !== cluster && b !== a) +
-      Number(taken[c] !== cluster && c !== a && c !== b);
+      Number(taken[c] !== cluster && c !== a && c !== b)
     const full = (t - start) / 3 >= CLUSTER_TRIANGLES,
-      ends = full || held + fresh > CLUSTER_VERTICES;
+      ends = full || held + fresh > CLUSTER_VERTICES
     // A compact run also ends where its triangle would take it too far (`add`).
     if ((run ? run.add(a, b, c, ends || t === start) : ends) && t > start) {
-      yield [start, t];
-      start = t;
-      cluster++;
-      held = 0;
+      yield [start, t]
+      start = t
+      cluster++
+      held = 0
     }
-    take(a);
-    take(b);
-    take(c);
+    take(a)
+    take(b)
+    take(c)
   }
-  if (start < indices.length) yield [start, indices.length];
+  if (start < indices.length) yield [start, indices.length]
 }

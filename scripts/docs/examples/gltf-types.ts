@@ -1,4 +1,4 @@
-import type { PhysicsOption } from '../../../packages/sdk-core/src/physics/options.ts';
+import type { PhysicsOption } from '../../../packages/sdk-core/src/physics/options.ts'
 
 /** The glTF shapes the example recipe writes, and the material row its scenes list. */
 
@@ -10,69 +10,69 @@ export type MaterialRow = readonly [
   metallicFactor: number,
   roughnessFactor: number,
   extra?: Partial<GltfMaterial>,
-];
+]
 
 export interface BufferView {
-  buffer: number;
-  byteOffset: number;
-  byteLength: number;
-  target: number;
+  buffer: number
+  byteOffset: number
+  byteLength: number
+  target: number
 }
 
 export interface Accessor {
-  bufferView: number;
-  componentType: number;
-  type: string;
-  count: number;
-  min?: readonly number[];
-  max?: readonly number[];
+  bufferView: number
+  componentType: number
+  type: string
+  count: number
+  min?: readonly number[]
+  max?: readonly number[]
 }
 
 export interface Primitive {
-  material: number;
-  attributes: { POSITION: number; NORMAL: number; TEXCOORD_0?: number };
-  indices: number;
+  material: number
+  attributes: { POSITION: number; NORMAL: number; TEXCOORD_0?: number }
+  indices: number
 }
 
 export interface GltfMaterial {
-  name: string;
-  doubleSided?: boolean;
+  name: string
+  doubleSided?: boolean
   pbrMetallicRoughness: {
-    baseColorFactor?: readonly [number, number, number, number];
-    metallicFactor?: number;
-    roughnessFactor?: number;
-    baseColorTexture?: { index: number };
-  };
-  normalTexture?: { index: number; scale: number };
-  emissiveFactor?: readonly [number, number, number];
-  alphaMode?: string;
-  alphaCutoff?: number;
-  extensions?: Record<string, unknown>;
+    baseColorFactor?: readonly [number, number, number, number]
+    metallicFactor?: number
+    roughnessFactor?: number
+    baseColorTexture?: { index: number }
+  }
+  normalTexture?: { index: number; scale: number }
+  emissiveFactor?: readonly [number, number, number]
+  alphaMode?: string
+  alphaCutoff?: number
+  extensions?: Record<string, unknown>
 }
 
 /** The shape read from and written to `geometry.gltf`, the fields this recipe touches. */
 export interface GltfDocument {
-  asset: { version: string; generator: string; copyright?: string };
-  scene?: number;
-  scenes: { nodes: number[] }[];
-  nodes: GltfNode[];
-  meshes: { name: string; primitives: Primitive[] }[];
-  materials: GltfMaterial[];
-  buffers: { uri: string; byteLength: number }[];
-  bufferViews: BufferView[];
-  accessors: Accessor[];
-  images?: { uri: string }[];
-  textures?: { sampler: number; source: number }[];
-  samplers?: { magFilter: number; minFilter: number; wrapS: number; wrapT: number }[];
+  asset: { version: string; generator: string; copyright?: string }
+  scene?: number
+  scenes: { nodes: number[] }[]
+  nodes: GltfNode[]
+  meshes: { name: string; primitives: Primitive[] }[]
+  materials: GltfMaterial[]
+  buffers: { uri: string; byteLength: number }[]
+  bufferViews: BufferView[]
+  accessors: Accessor[]
+  images?: { uri: string }[]
+  textures?: { sampler: number; source: number }[]
+  samplers?: { magFilter: number; minFilter: number; wrapS: number; wrapT: number }[]
 }
 
 export interface GltfNode {
-  name?: string;
-  mesh?: number;
-  translation?: readonly number[];
-  rotation?: readonly number[];
-  scale?: readonly number[];
-  children?: number[];
+  name?: string
+  mesh?: number
+  translation?: readonly number[]
+  rotation?: readonly number[]
+  scale?: readonly number[]
+  children?: number[]
   /** What the compiler reads beside the node: a soft body's `physics` options. */
-  extras?: { physics?: PhysicsOption };
+  extras?: { physics?: PhysicsOption }
 }

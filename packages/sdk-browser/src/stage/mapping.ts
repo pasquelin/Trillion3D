@@ -1,16 +1,16 @@
-import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts';
-import type { StageAdd } from './profiler.ts';
-import { VSM_PASS_PREFIX } from './passLabels.ts';
-import { type GpuPassBlock, PASSES, gpuShadowPartOf } from './passTable.ts';
+import type { GpuPassTiming, GpuPassTimings } from '../../../sdk-core/src/index.ts'
+import type { StageAdd } from './profiler.ts'
+import { VSM_PASS_PREFIX } from './passLabels.ts'
+import { type GpuPassBlock, PASSES, gpuShadowPartOf } from './passTable.ts'
 
-export type { GpuPassBlock } from './passTable.ts';
+export type { GpuPassBlock } from './passTable.ts'
 
 /** Stage of a pass, by its label: the table's, or `shadows` for a virtual shadow map pass
  *  (`VSM_PASS_PREFIX`). Unknown is `geometry`. */
 export const gpuPassStageOf = (name: string) =>
-  PASSES[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry');
+  PASSES[name]?.[0] ?? (name.startsWith(VSM_PASS_PREFIX) ? 'shadows' : 'geometry')
 /** Block of a pass, by its label. Unknown is `other`. */
-export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other';
+export const gpuPassBlockOf = (name: string): GpuPassBlock => PASSES[name]?.[1] ?? 'other'
 
 /** Stages the WebGPU engine can name, in the order they occur. */
 export const WEBGPU_STAGES = [
@@ -37,7 +37,7 @@ export const WEBGPU_STAGES = [
   'lighting',
   'antialiasing',
   'present',
-] as const;
+] as const
 
 /**
  * A pass's own share of the image, ms, or `null` unmeasured: its span less what a pass the queue
@@ -48,7 +48,7 @@ export const WEBGPU_STAGES = [
  * pass at a time (WebGL2) gives no share: there the span is the share.
  */
 export const passOwnMs = (pass: GpuPassTiming) =>
-  pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs);
+  pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs)
 
 /**
  * GPU duration of a sample by pass group, in one walk, `classify` naming each pass's group or none
@@ -61,26 +61,26 @@ export function gpuTotalsBy<Group extends string>(
   sample: GpuPassTimings | null | undefined,
   classify: (name: string) => Group | undefined,
 ) {
-  const totals = new Map<Group, number | null>();
-  if (!sample || sample.truncated) return totals;
+  const totals = new Map<Group, number | null>()
+  if (!sample || sample.truncated) return totals
   for (const pass of sample.passes) {
-    const group = classify(pass.name);
-    if (group === undefined) continue;
-    const total = totals.get(group);
-    if (total === null) continue;
-    const ms = passOwnMs(pass);
-    totals.set(group, ms === null ? null : (total ?? 0) + ms);
+    const group = classify(pass.name)
+    if (group === undefined) continue
+    const total = totals.get(group)
+    if (total === null) continue
+    const ms = passOwnMs(pass)
+    totals.set(group, ms === null ? null : (total ?? 0) + ms)
   }
-  return totals;
+  return totals
 }
 
 /** GPU duration of each profile stage. */
 const gpuStageTotals = (sample: GpuPassTimings | null | undefined) =>
-  gpuTotalsBy(sample, gpuPassStageOf);
+  gpuTotalsBy(sample, gpuPassStageOf)
 
 /** Split a sample onto profile stages: what is not measured is not deposited. */
 export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: StageAdd) {
-  for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms);
+  for (const [stage, ms] of gpuStageTotals(sample)) if (ms !== null) add(stage, ms)
 }
 
 /**
@@ -89,18 +89,18 @@ export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: Sta
  * timestamps yield `null`, and the servo does not move rather than follow a zero.
  */
 export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {
-  return gpuStageTotals(sample).get('bounce') ?? null;
+  return gpuStageTotals(sample).get('bounce') ?? null
 }
 
 /** The direct-lighting durations of the frame, read from the same sample by label. */
 export function directLightTimings(sample: GpuPassTimings | null | undefined) {
   const totals = gpuStageTotals(sample),
-    parts = gpuTotalsBy(sample, gpuShadowPartOf);
+    parts = gpuTotalsBy(sample, gpuShadowPartOf)
   return {
     gpuLightListsMs: totals.get('lightLists') ?? null,
     gpuShadowsMs: totals.get('shadows') ?? null,
     gpuShadowCullMs: parts.get('cull') ?? null,
     gpuShadowRasterMs: parts.get('raster') ?? null,
     gpuLightingMs: totals.get('lighting') ?? null,
-  };
+  }
 }

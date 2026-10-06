@@ -1,4 +1,4 @@
-import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts';
+import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 
 /**
  * Addressing mode of a texture, a nibble of bits carried in its header of the page table
@@ -11,10 +11,10 @@ import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts';
 export const WRAP_S_REPEAT = 1,
   WRAP_S_MIRROR = 2,
   WRAP_T_REPEAT = 4,
-  WRAP_T_MIRROR = 8;
+  WRAP_T_MIRROR = 8
 
 /** The two repeat bits: without them, no period wraps, so no seam. */
-const WRAP_REPEATS = WRAP_S_REPEAT | WRAP_T_REPEAT;
+const WRAP_REPEATS = WRAP_S_REPEAT | WRAP_T_REPEAT
 
 /** Rank of each map a pixel can name in its tile request (`../webgpu/tile/requestWgsl.ts`). */
 export const WRAP_MAP = {
@@ -24,16 +24,16 @@ export const WRAP_MAP = {
   normal: 3,
   ao: 4,
   emissive: 5,
-} as const;
+} as const
 
 /** Nibble of a map: no bit when clamping, one bit per axis otherwise, never both of the same axis. */
 export function wrapNibble(map: Texture | undefined) {
-  if (!map) return 0;
+  if (!map) return 0
   const axis = (wrap: WrapMode, repeat: number, mirror: number) =>
-    wrap === 'clamp' ? 0 : wrap === 'mirror' ? mirror : repeat;
+    wrap === 'clamp' ? 0 : wrap === 'mirror' ? mirror : repeat
   return (
     axis(map.wrapS, WRAP_S_REPEAT, WRAP_S_MIRROR) | axis(map.wrapT, WRAP_T_REPEAT, WRAP_T_MIRROR)
-  );
+  )
 }
 
 /**
@@ -78,4 +78,4 @@ fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
  let x=wrapAxis(uv.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u,texels.x);
  let y=wrapAxis(uv.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u,texels.y);
  return WrapTaps(vec2f(x.x,y.x),vec2f(x.y,y.y),vec2f(x.z,y.z),x.w+y.w>0.0);
-}`;
+}`

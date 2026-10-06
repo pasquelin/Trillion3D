@@ -1,14 +1,14 @@
-import { copyMatrix4, multiplyMatrix4 } from '../matrix/matrix4.ts';
-import { composeMatrix4 } from '../matrix/matrix4Trs.ts';
+import { copyMatrix4, multiplyMatrix4 } from '../matrix/matrix4.ts'
+import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
 import {
   NODE_AUTO_UPDATE,
   NODE_LOCAL_CHANGED,
   NODE_TRS_DIRTY,
   NODE_WORLD_NEEDS_UPDATE,
   type TransformTree,
-} from './transformTree.ts';
-import { nextStamp, visitSubtree } from './structure.ts';
-import { nextInSubtree } from './links.ts';
+} from './transformTree.ts'
+import { nextStamp, visitSubtree } from './structure.ts'
+import { nextInSubtree } from './links.ts'
 
 /**
  * World-matrix update, batched and without allocation, with the semantics of a scene-graph
@@ -28,29 +28,29 @@ import { nextInSubtree } from './links.ts';
  * past it. This is the mark the plain walk sets in that case, and the only way to set it here.
  */
 export function markNodeWorldNeedsUpdate(tree: TransformTree, node: number) {
-  tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE;
+  tree.flags[node] |= NODE_WORLD_NEEDS_UPDATE
 }
 
 const composePosition = new Float64Array(3),
   composeQuaternion = new Float64Array(4),
-  composeScale = new Float64Array(3);
+  composeScale = new Float64Array(3)
 
 /** The local matrix from the node's position, rotation and scale. */
 function composeLocal(tree: TransformTree, node: number) {
-  const { position, quaternion, scale } = tree;
+  const { position, quaternion, scale } = tree
   const p = node * 3,
-    q = node * 4;
-  composePosition[0] = position[p];
-  composePosition[1] = position[p + 1];
-  composePosition[2] = position[p + 2];
-  composeQuaternion[0] = quaternion[q];
-  composeQuaternion[1] = quaternion[q + 1];
-  composeQuaternion[2] = quaternion[q + 2];
-  composeQuaternion[3] = quaternion[q + 3];
-  composeScale[0] = scale[p];
-  composeScale[1] = scale[p + 1];
-  composeScale[2] = scale[p + 2];
-  composeMatrix4(tree.localViews[node], composePosition, composeQuaternion, composeScale);
+    q = node * 4
+  composePosition[0] = position[p]
+  composePosition[1] = position[p + 1]
+  composePosition[2] = position[p + 2]
+  composeQuaternion[0] = quaternion[q]
+  composeQuaternion[1] = quaternion[q + 1]
+  composeQuaternion[2] = quaternion[q + 2]
+  composeQuaternion[3] = quaternion[q + 3]
+  composeScale[0] = scale[p]
+  composeScale[1] = scale[p + 1]
+  composeScale[2] = scale[p + 2]
+  composeMatrix4(tree.localViews[node], composePosition, composeQuaternion, composeScale)
 }
 
 /**
@@ -62,33 +62,33 @@ function composeLocal(tree: TransformTree, node: number) {
 export function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean) {
   const flags = tree.flags[node],
     auto = (flags & NODE_AUTO_UPDATE) !== 0,
-    compose = auto && (flags & NODE_TRS_DIRTY) !== 0;
-  if (compose) composeLocal(tree, node);
-  let next = compose ? flags & ~NODE_TRS_DIRTY : flags;
+    compose = auto && (flags & NODE_TRS_DIRTY) !== 0
+  if (compose) composeLocal(tree, node)
+  let next = compose ? flags & ~NODE_TRS_DIRTY : flags
   if (fromWorldMatrix) {
-    if (auto) next |= NODE_WORLD_NEEDS_UPDATE;
-  } else next &= ~NODE_WORLD_NEEDS_UPDATE;
+    if (auto) next |= NODE_WORLD_NEEDS_UPDATE
+  } else next &= ~NODE_WORLD_NEEDS_UPDATE
   const parent = tree.parent[node],
     version = tree.version,
-    changed = compose || (flags & NODE_LOCAL_CHANGED) !== 0;
+    changed = compose || (flags & NODE_LOCAL_CHANGED) !== 0
   if (parent < 0) {
     if (changed) {
-      copyMatrix4(tree.worldViews[node], tree.localViews[node]);
-      tree.seen[node] = 0;
-      version[node] = (version[node] + 1) >>> 0;
+      copyMatrix4(tree.worldViews[node], tree.localViews[node])
+      tree.seen[node] = 0
+      version[node] = (version[node] + 1) >>> 0
     }
   } else {
-    const parentVersion = version[parent];
+    const parentVersion = version[parent]
     if (changed || tree.seen[node] !== parentVersion) {
-      multiplyMatrix4(tree.worldViews[node], tree.worldViews[parent], tree.localViews[node]);
-      tree.seen[node] = parentVersion;
-      version[node] = (version[node] + 1) >>> 0;
+      multiplyMatrix4(tree.worldViews[node], tree.worldViews[parent], tree.localViews[node])
+      tree.seen[node] = parentVersion
+      version[node] = (version[node] + 1) >>> 0
     }
   }
-  tree.flags[node] = next & ~NODE_LOCAL_CHANGED;
+  tree.flags[node] = next & ~NODE_LOCAL_CHANGED
 }
 
-const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true);
+const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true)
 
 /**
  * The subtree update of `node` with `force`: the node and its whole subtree, parents first, and how many
@@ -98,21 +98,21 @@ const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree,
  * `2 · traversal + reached`: what its children read of it.
  */
 export function updateNodeMatrixWorld(tree: TransformTree, node: number, force = false) {
-  const { parent, stamp, flags } = tree;
+  const { parent, stamp, flags } = tree
   const visited = nextStamp(tree) * 2,
-    reach = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
-  const reached = force || (flags[node] & reach) !== 0;
-  if (reached) refreshNode(tree, node, false);
-  stamp[node] = reached ? visited | 1 : visited;
-  let walked = 1;
+    reach = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE
+  const reached = force || (flags[node] & reach) !== 0
+  if (reached) refreshNode(tree, node, false)
+  stamp[node] = reached ? visited | 1 : visited
+  let walked = 1
   for (let j = nextInSubtree(tree, node, node); j >= 0; j = nextInSubtree(tree, j, node)) {
-    walked++;
+    walked++
     if (stamp[parent[j]] !== visited || (flags[j] & reach) !== 0) {
-      refreshNode(tree, j, false);
-      stamp[j] = visited | 1;
-    } else stamp[j] = visited;
+      refreshNode(tree, j, false)
+      stamp[j] = visited | 1
+    } else stamp[j] = visited
   }
-  return walked;
+  return walked
 }
 
 /**
@@ -126,11 +126,11 @@ export function updateNodeWorldMatrix(
   updateChildren: boolean,
 ) {
   if (updateParents) {
-    const { chain, parent } = tree;
-    let links = 0;
-    for (let walk = parent[node]; walk >= 0; walk = parent[walk]) chain[links++] = walk;
-    while (links > 0) refreshNode(tree, chain[--links], true);
+    const { chain, parent } = tree
+    let links = 0
+    for (let walk = parent[node]; walk >= 0; walk = parent[walk]) chain[links++] = walk
+    while (links > 0) refreshNode(tree, chain[--links], true)
   }
-  if (updateChildren) visitSubtree(tree, node, stepWorldMatrix);
-  else refreshNode(tree, node, true);
+  if (updateChildren) visitSubtree(tree, node, stepWorldMatrix)
+  else refreshNode(tree, node, true)
 }

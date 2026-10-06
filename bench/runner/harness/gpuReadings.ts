@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
+import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
 
 /**
  * The device's readings of a series, one per sampled image and not per render — the device is
@@ -7,18 +7,18 @@ import type { FrameMetrics } from '../../../packages/sdk-core/src/index.ts';
  */
 export function gpuReadings() {
   const gpuFrameMs: number[] = [],
-    gpuIdleMs: number[] = [];
-  let sampled: number | null = null;
+    gpuIdleMs: number[] = []
+  let sampled: number | null = null
   return {
     gpuFrameMs,
     gpuIdleMs,
     /** A render's metrics: kept once per sampled image. */
     push(frame: Partial<FrameMetrics>) {
-      const sample = frame.gpuPassMs;
-      if (!sample || sample.frame === sampled) return;
-      sampled = sample.frame;
-      if (typeof frame.gpuFrameMs === 'number') gpuFrameMs.push(frame.gpuFrameMs);
-      if (typeof frame.gpuIdleMs === 'number') gpuIdleMs.push(frame.gpuIdleMs);
+      const sample = frame.gpuPassMs
+      if (!sample || sample.frame === sampled) return
+      sampled = sample.frame
+      if (typeof frame.gpuFrameMs === 'number') gpuFrameMs.push(frame.gpuFrameMs)
+      if (typeof frame.gpuIdleMs === 'number') gpuIdleMs.push(frame.gpuIdleMs)
     },
-  };
+  }
 }

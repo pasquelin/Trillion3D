@@ -1,8 +1,8 @@
-import { type NumberSink } from '../matrix/matrix4.ts';
-import { decomposeMatrix4 } from '../matrix/matrix4Trs.ts';
-import { normalizeVector3 } from '../primitives/vector.ts';
-import type { TransformTree } from './transformTree.ts';
-import { updateNodeWorldMatrix } from './update.ts';
+import { type NumberSink } from '../matrix/matrix4.ts'
+import { decomposeMatrix4 } from '../matrix/matrix4Trs.ts'
+import { normalizeVector3 } from '../primitives/vector.ts'
+import type { TransformTree } from './transformTree.ts'
+import { updateNodeWorldMatrix } from './update.ts'
 
 /**
  * World reads of a node, output passed in. Each read first updates the ancestors and
@@ -11,16 +11,16 @@ import { updateNodeWorldMatrix } from './update.ts';
 
 const decomposedPosition = new Float64Array(3),
   decomposedScale = new Float64Array(3),
-  direction = new Float64Array(3);
+  direction = new Float64Array(3)
 
 /** World position: the translation column of the world matrix. */
 export function nodeWorldPosition<T extends NumberSink>(out: T, tree: TransformTree, node: number) {
-  updateNodeWorldMatrix(tree, node, true, false);
-  const world = tree.worldViews[node];
-  out[0] = world[12];
-  out[1] = world[13];
-  out[2] = world[14];
-  return out;
+  updateNodeWorldMatrix(tree, node, true, false)
+  const world = tree.worldViews[node]
+  out[0] = world[12]
+  out[1] = world[13]
+  out[2] = world[14]
+  return out
 }
 
 /** World rotation `(x, y, z, w)`, from the world-matrix decomposition. */
@@ -29,9 +29,9 @@ export function nodeWorldQuaternion<T extends NumberSink>(
   tree: TransformTree,
   node: number,
 ) {
-  updateNodeWorldMatrix(tree, node, true, false);
-  decomposeMatrix4(tree.worldViews[node], decomposedPosition, out, decomposedScale);
-  return out;
+  updateNodeWorldMatrix(tree, node, true, false)
+  decomposeMatrix4(tree.worldViews[node], decomposedPosition, out, decomposedScale)
+  return out
 }
 
 /**
@@ -44,16 +44,16 @@ export function nodeWorldDirection<T extends NumberSink>(
   node: number,
   cameraForward: boolean,
 ) {
-  updateNodeWorldMatrix(tree, node, true, false);
-  const world = tree.worldViews[node];
-  direction[0] = world[8];
-  direction[1] = world[9];
-  direction[2] = world[10];
-  normalizeVector3(direction);
+  updateNodeWorldMatrix(tree, node, true, false)
+  const world = tree.worldViews[node]
+  direction[0] = world[8]
+  direction[1] = world[9]
+  direction[2] = world[10]
+  normalizeVector3(direction)
   // Computed in double before the write: a single-precision output rounds only once.
-  const sign = cameraForward ? -1 : 1;
-  out[0] = sign * direction[0];
-  out[1] = sign * direction[1];
-  out[2] = sign * direction[2];
-  return out;
+  const sign = cameraForward ? -1 : 1
+  out[0] = sign * direction[0]
+  out[1] = sign * direction[1]
+  out[2] = sign * direction[2]
+  return out
 }

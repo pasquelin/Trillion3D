@@ -1,10 +1,10 @@
-import { withEmissiveAo } from '../../../scene/surfaceBuffer.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { withEmissiveAo } from '../../../scene/surfaceBuffer.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** A diagnostic GPU variant, or the feedback A/B's session: their stages have no twin without an
  *  output, so the pipelines keep every one (`wantsEmissiveAo`, `wantsFeedback`). */
 export const keepsEveryOutput = ({ context }: Pick<WebgpuPagesRuntime, 'context'>) =>
-  !!context.diagnosticGpuVariant || context.feedbackTargetAB === true;
+  !!context.diagnosticGpuVariant || context.feedbackTargetAB === true
 
 /**
  * Whether an image needs the emission-and-occlusion layer, as its preparation sees it: one of its
@@ -15,10 +15,10 @@ export const keepsEveryOutput = ({ context }: Pick<WebgpuPagesRuntime, 'context'
  * the image until the classes that write the layer are compiled (`../../frame/framePipelines.ts`).
  */
 export function wantsEmissiveAo(rt: WebgpuPagesRuntime) {
-  const { blendState, gpu, vis } = rt;
-  if (keepsEveryOutput(rt)) return true;
-  if (blendState.transmissive > 0 || gpu.impostorCode) return true;
-  return !!vis.shadeCensus?.emits;
+  const { blendState, gpu, vis } = rt
+  if (keepsEveryOutput(rt)) return true
+  if (blendState.transmissive > 0 || gpu.impostorCode) return true
+  return !!vis.shadeCensus?.emits
 }
 
 /**
@@ -30,13 +30,13 @@ export function wantsEmissiveAo(rt: WebgpuPagesRuntime) {
  * without it.
  */
 export function followEmissiveAo(rt: WebgpuPagesRuntime) {
-  const { vis, gpu } = rt;
+  const { vis, gpu } = rt
   if (vis.emissiveAoShown && !vis.writesEmissiveAo && vis.shadeClasses) {
-    vis.shadeClasses = vis.shadeClasses.withEmissiveAo();
-    vis.writesEmissiveAo = true;
+    vis.shadeClasses = vis.shadeClasses.withEmissiveAo()
+    vis.writesEmissiveAo = true
   }
-  const surfaces = gpu.surfaces;
-  if (!vis.writesEmissiveAo || !surfaces || surfaces.hasEmissiveAo || !gpu.device) return;
-  gpu.surfaces = withEmissiveAo(gpu.device, surfaces);
-  gpu.targetBytes += gpu.surfaces.allocationBytes - surfaces.allocationBytes;
+  const surfaces = gpu.surfaces
+  if (!vis.writesEmissiveAo || !surfaces || surfaces.hasEmissiveAo || !gpu.device) return
+  gpu.surfaces = withEmissiveAo(gpu.device, surfaces)
+  gpu.targetBytes += gpu.surfaces.allocationBytes - surfaces.allocationBytes
 }

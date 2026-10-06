@@ -1,5 +1,5 @@
-import { reflectionConeShader } from './coneShader.ts';
-import { reflectionConeFilterShader } from './coneFilterShader.ts';
+import { reflectionConeShader } from './coneShader.ts'
+import { reflectionConeFilterShader } from './coneFilterShader.ts'
 
 export const REFLECTION_CONE_WGSL = `
 @group(1) @binding(4) var reflectionBounds:texture_2d<f32>;
@@ -16,4 +16,4 @@ fn reflectionMipColorAt(p:vec2i,level:i32)->vec4f{
 }
 ${reflectionConeFilterShader('wgsl')}
 ${reflectionConeShader('wgsl')}
-`;
+`

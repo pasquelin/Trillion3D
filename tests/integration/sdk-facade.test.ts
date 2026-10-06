@@ -1,22 +1,22 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { build } from 'esbuild';
-import { execFileSync } from 'node:child_process';
-import * as common from '../../packages/sdk/index.ts';
-import * as core from '../../packages/sdk-core/src/index.ts';
-import * as browser from '../../packages/sdk/browser.ts';
-import * as browserLegacy from '../../packages/sdk-browser/src/index.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { build } from 'esbuild'
+import { execFileSync } from 'node:child_process'
+import * as common from '../../packages/sdk/index.ts'
+import * as core from '../../packages/sdk-core/src/index.ts'
+import * as browser from '../../packages/sdk/browser.ts'
+import * as browserLegacy from '../../packages/sdk-browser/src/index.ts'
 
 test('the facade keeps canonical binding identity across environments', () => {
-  assert.equal(common.LOD_QUALITY, core.LOD_QUALITY);
-  assert.equal(browser.LOD_QUALITY, core.LOD_QUALITY);
-  assert.equal(browser.createWorld, browserLegacy.createWorld);
-});
+  assert.equal(common.LOD_QUALITY, core.LOD_QUALITY)
+  assert.equal(browser.LOD_QUALITY, core.LOD_QUALITY)
+  assert.equal(browser.createWorld, browserLegacy.createWorld)
+})
 
 test('importing each facade starts no browser resource or native process', () => {
   for (const entry of ['index.ts', 'browser.ts', 'node.mts']) {
-    const url = new URL(`../../packages/sdk/${entry}`, import.meta.url).href;
+    const url = new URL(`../../packages/sdk/${entry}`, import.meta.url).href
     const probe = `
       import childProcess from 'node:child_process';
       import { syncBuiltinESMExports } from 'node:module';
@@ -32,7 +32,7 @@ test('importing each facade starts no browser resource or native process', () =>
       globalThis.requestAnimationFrame = forbidden('requestAnimationFrame');
       globalThis.fetch = forbidden('fetch');
       await import(${JSON.stringify(url)});
-    `;
+    `
     execFileSync(
       process.execPath,
       ['--experimental-strip-types', '--input-type=module', '-e', probe],
@@ -40,9 +40,9 @@ test('importing each facade starts no browser resource or native process', () =>
         timeout: 30_000,
         stdio: 'pipe',
       },
-    );
+    )
   }
-});
+})
 
 test('the five-import hierarchy example composes parents before children', () => {
   const {
@@ -51,24 +51,24 @@ test('the five-import hierarchy example composes parents before children', () =>
     POSITION_VALUES,
     QUATERNION_VALUES,
     hierarchyUpdateBatch,
-  } = common;
-  const count = 3;
+  } = common
+  const count = 3
   // The guide's five-import example, run as written: the portal demo (`site/demos/batch.ts`) shows its own copy.
   // jscpd:ignore-start
   const views = (buffer: Float64Array, stride: number): Float64Array[] =>
     Array.from({ length: count }, (_, index) =>
       buffer.subarray(index * stride, (index + 1) * stride),
-    );
-  const world = new Float64Array(count * MATRIX_VALUES);
-  const positions = new Float64Array(count * POSITION_VALUES);
-  const rotations = new Float64Array(count * QUATERNION_VALUES);
-  const scales = new Float64Array(count * POSITION_VALUES).fill(1);
+    )
+  const world = new Float64Array(count * MATRIX_VALUES)
+  const positions = new Float64Array(count * POSITION_VALUES)
+  const rotations = new Float64Array(count * QUATERNION_VALUES)
+  const scales = new Float64Array(count * POSITION_VALUES).fill(1)
   // jscpd:ignore-end
-  const parents = new Uint32Array([HIERARCHY_ROOT, 0, 1]);
-  rotations[3] = rotations[7] = rotations[11] = 1;
-  positions[0] = 2;
-  positions[3] = 3;
-  positions[6] = 5;
+  const parents = new Uint32Array([HIERARCHY_ROOT, 0, 1])
+  rotations[3] = rotations[7] = rotations[11] = 1
+  positions[0] = 2
+  positions[3] = 3
+  positions[6] = 5
   hierarchyUpdateBatch(
     views(world, MATRIX_VALUES),
     views(positions, POSITION_VALUES),
@@ -77,54 +77,54 @@ test('the five-import hierarchy example composes parents before children', () =>
     parents,
     count,
     new Float64Array(MATRIX_VALUES),
-  );
-  assert.deepEqual([world[12], world[28], world[44]], [2, 5, 10]);
-});
+  )
+  assert.deepEqual([world[12], world[28], world[44]], [2, 5, 10])
+})
 
 interface InventoryEntry {
-  name: string;
-  kind: string;
-  disposition?: string;
-  bindingIdentity: string;
-  currentEntryPoints: string[];
+  name: string
+  kind: string
+  disposition?: string
+  bindingIdentity: string
+  currentEntryPoints: string[]
 }
 interface Inventory {
-  exports: InventoryEntry[];
-  collisions: unknown[];
-  shadowed: { name: string }[];
+  exports: InventoryEntry[]
+  collisions: unknown[]
+  shadowed: { name: string }[]
 }
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
-  );
+  )
   // 737 since the cleanup waves: the old shadow atlas, the CPU transport experiment, the nested
   // Hi-Z oracles and the example-only helpers left the public API (789 before); then four names
   // the public signatures already carried joined it: PageHome, PageHomes, QualityResolution and
   // WorldQualityOptions.
-  assert.equal(inventory.exports.length, 741);
-  assert.deepEqual(inventory.collisions, []);
+  assert.equal(inventory.exports.length, 741)
+  assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
   // the CPU transport experiment).
   assert.deepEqual(
     inventory.shadowed.map((entry) => entry.name),
     ['CameraPose', 'Material', 'Primitive', 'Side', 'Texture'],
-  );
-  assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())));
-  assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')));
+  )
+  assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes(process.cwd())))
+  assert.ok(inventory.exports.every((entry) => !entry.bindingIdentity.includes('file://')))
   assert.ok(
     inventory.exports.some(
       (entry) => entry.name === 'sideOf' && entry.disposition === 'newly exposed',
     ),
-  );
+  )
   for (const name of ['openMeasuredWorld', 'MeasuredWorld', 'MeasuredWorldOptions'])
     assert.ok(
       !inventory.exports.some((row) => row.name === name),
       `${name} belongs to the measurement entry, not the package`,
-    );
+    )
   // The world's side of a joint, typed on its member (#558, #795): no page names it.
-  assert.ok(!inventory.exports.some((row) => row.name === 'JointHost'), 'JointHost is internal');
+  assert.ok(!inventory.exports.some((row) => row.name === 'JointHost'), 'JointHost is internal')
   for (const [name, entryPoint] of [
     ['CameraPose', 'trillion3d (common)'],
     ['CameraPose', 'trillion3d (browser condition)'],
@@ -137,15 +137,15 @@ test('generated inventory and explicit facade files are current', async () => {
   ]) {
     const entry = inventory.exports.find(
       (row) => row.name === name && row.currentEntryPoints.includes(entryPoint),
-    );
-    assert.ok(entry, `${name} is missing from the inventory`);
-    assert.equal(entry.kind, 'type', `${name} must remain a named public type`);
+    )
+    assert.ok(entry, `${name} is missing from the inventory`)
+    assert.equal(entry.kind, 'type', `${name} must remain a named public type`)
     assert.ok(
       entry.currentEntryPoints.includes(entryPoint),
       `${name} must remain reachable from ${entryPoint}`,
-    );
+    )
   }
-});
+})
 
 test('a maths-only bundle keeps baseline bytes and excludes platform modules', async () => {
   const bundle = (entry: string) =>
@@ -161,30 +161,30 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
       metafile: true,
       treeShaking: true,
       minify: true,
-    });
-  const baseline = await bundle('./packages/sdk-core/src/index.ts');
-  const proposed = await bundle('./packages/sdk/index.ts');
-  const browserProposed = await bundle('./packages/sdk/browser.ts');
-  const inputs = Object.keys(proposed.metafile.inputs);
-  assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')));
-  assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
+    })
+  const baseline = await bundle('./packages/sdk-core/src/index.ts')
+  const proposed = await bundle('./packages/sdk/index.ts')
+  const browserProposed = await bundle('./packages/sdk/browser.ts')
+  const inputs = Object.keys(proposed.metafile.inputs)
+  assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')))
+  assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
   // The engine entry shrank with the retired exports (4 396 to 3 868); the two others grew with the
   // machine-independent quaternion normalisation and arc trigonometry (determinism).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_868);
-  assert.equal(proposed.outputFiles[0].contents.length, 2_141);
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821);
+  assert.equal(baseline.outputFiles[0].contents.length, 3_868)
+  assert.equal(proposed.outputFiles[0].contents.length, 2_141)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
-  );
-  const browserOutput = Object.values(browserProposed.metafile.outputs)[0];
+  )
+  const browserOutput = Object.values(browserProposed.metafile.outputs)[0]
   assert.ok(
     !Object.entries(browserOutput.inputs).some(
       ([path, contribution]) => path.includes('/sdk-browser/') && contribution.bytesInOutput > 0,
     ),
-  );
-});
+  )
+})
 
 test('one dot product is public, on three components: no N-dimensional one beside it', () => {
   for (const entry of [common, core, browser] as Record<string, unknown>[])
-    assert.equal(entry.dot, undefined);
-});
+    assert.equal(entry.dot, undefined)
+})

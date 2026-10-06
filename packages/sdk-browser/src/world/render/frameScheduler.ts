@@ -1,6 +1,6 @@
 /** Frames the loop draws on its own, nothing arriving, before it pauses; an invalidate resets the
  *  count. */
-const SETTLE_LIMIT = 120;
+const SETTLE_LIMIT = 120
 
 /**
  * One coalesced frame, with asynchronous work waited outside the rendering callback.
@@ -18,13 +18,13 @@ const SETTLE_LIMIT = 120;
  * than the limit is drawn to its last page instead of pausing on a coarse cut (#836).
  */
 export function createExplorerFrameScheduler(inputs: {
-  request: (callback: FrameRequestCallback) => number;
-  cancel: (id: number) => void;
-  render: () => void;
-  pending: () => Promise<boolean>;
-  error: (error: unknown) => void;
-  limited: () => void;
-  progress?: () => number;
+  request: (callback: FrameRequestCallback) => number
+  cancel: (id: number) => void
+  render: () => void
+  pending: () => Promise<boolean>
+  error: (error: unknown) => void
+  limited: () => void
+  progress?: () => number
 }) {
   let frame: number | undefined,
     disposed = false,
@@ -33,61 +33,61 @@ export function createExplorerFrameScheduler(inputs: {
     asked = false,
     idle = 0,
     arrived = 0,
-    revision = 0;
+    revision = 0
   const schedule = () => {
-    if (disposed || frame !== undefined) return;
+    if (disposed || frame !== undefined) return
     if (idle >= SETTLE_LIMIT) {
-      inputs.limited();
-      return;
+      inputs.limited()
+      return
     }
-    frame = inputs.request(draw);
-  };
+    frame = inputs.request(draw)
+  }
   const fail = (error: unknown) => {
-    if (disposed) return;
-    dispose();
-    inputs.error(error);
-  };
+    if (disposed) return
+    dispose()
+    inputs.error(error)
+  }
   const drain = () => {
-    if (waiting || disposed) return;
-    waiting = true;
-    const submitted = revision;
+    if (waiting || disposed) return
+    waiting = true
+    const submitted = revision
     void inputs.pending().then((again) => {
-      waiting = false;
-      if (again || submitted !== revision) schedule();
+      waiting = false
+      if (again || submitted !== revision) schedule()
       else if (frame !== undefined && !asked) {
-        inputs.cancel(frame);
-        frame = undefined;
+        inputs.cancel(frame)
+        frame = undefined
       }
-    }, fail);
-  };
+    }, fail)
+  }
   function draw() {
-    frame = undefined;
-    if (disposed || (waiting && !asked)) return;
+    frame = undefined
+    if (disposed || (waiting && !asked)) return
     try {
-      asked = false;
-      revision++;
-      inputs.render();
-      const count = inputs.progress?.() ?? arrived;
-      if (count === arrived) idle++;
-      arrived = count;
-      drain();
+      asked = false
+      revision++
+      inputs.render()
+      const count = inputs.progress?.() ?? arrived
+      if (count === arrived) idle++
+      arrived = count
+      drain()
       // At the limit the feedback says whether the loop pauses (`limited`), as it did.
-      if (idle < SETTLE_LIMIT) schedule();
+      if (idle < SETTLE_LIMIT) schedule()
     } catch (error) {
-      fail(error);
+      fail(error)
     }
   }
   function dispose() {
-    disposed = true;
-    if (frame !== undefined) inputs.cancel(frame);
-    frame = undefined;
+    disposed = true
+    if (frame !== undefined) inputs.cancel(frame)
+    frame = undefined
   }
   return {
     invalidate() {
-      asked = true;
-      idle = 0;
-      schedule();
+      asked = true
+      idle = 0
+      schedule()
     },
     dispose,
-  };
+  }
 }

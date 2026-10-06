@@ -12,13 +12,13 @@
 import type {
   TableDocument,
   TablePrimitive,
-} from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
-import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
-import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { normalisedScale, preparedAccessors, type PreparedBinary } from './accessors.ts';
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+} from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
+import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
+import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts'
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
+import { normalisedScale, preparedAccessors, type PreparedBinary } from './accessors.ts'
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
 const NAMES: Record<string, string> = {
@@ -32,13 +32,13 @@ const NAMES: Record<string, string> = {
   COLOR_0: 'color',
   WEIGHTS_0: 'skinWeight',
   JOINTS_0: 'skinIndex',
-};
+}
 /** A set of runs as the loader keys it: semantics in order, each with its accessor rank. */
 const runs = (set: Readonly<Record<string, number>>) =>
   Object.keys(set)
     .sort()
     .map((semantic) => `${semantic}:${set[semantic]};`)
-    .join('');
+    .join('')
 
 /** The morph targets of a primitive, laid on its geometry as the loader lays them: one list per
  *  morphed attribute, zero displacement standing in for an absent target semantic. */
@@ -47,9 +47,9 @@ function morph(
   declared: TablePrimitive,
   attributeOf: ReturnType<typeof preparedAccessors>,
 ) {
-  const targets = declared.targets ?? [];
+  const targets = declared.targets ?? []
   for (const [semantic, name] of MORPHED) {
-    if (!targets.some((target) => target[semantic] !== undefined)) continue;
+    if (!targets.some((target) => target[semantic] !== undefined)) continue
     geometry.morphAttributes[name] = targets.map((target) =>
       target[semantic] !== undefined
         ? attributeOf(target[semantic])
@@ -59,9 +59,9 @@ function morph(
             ),
             name === 'color' ? 4 : 3,
           ),
-    );
+    )
   }
-  if (Object.keys(geometry.morphAttributes).length) geometry.morphTargetsRelative = true;
+  if (Object.keys(geometry.morphAttributes).length) geometry.morphTargetsRelative = true
 }
 
 /** The attributes a morph target may move, by glTF semantic and host name. */
@@ -69,80 +69,80 @@ const MORPHED = [
   ['POSITION', 'position'],
   ['NORMAL', 'normal'],
   ['COLOR_0', 'color'],
-] as const;
+] as const
 
 /**
  * The geometry of each primitive of `document`, built on first request and shared after it; its
  * vertices are read by `binary` when a reader loads them (`Geometry.loadVertices`).
  */
 export function preparedGeometries(document: TableDocument, binary: PreparedBinary) {
-  const attributeOf = preparedAccessors(document, binary);
-  const geometries = new Map<string, Geometry>();
+  const attributeOf = preparedAccessors(document, binary)
+  const geometries = new Map<string, Geometry>()
 
   /** A run's declared corner, at the scale a normalised run is read at. */
   const corner = (rank: number, which: 'min' | 'max') => {
-    const accessor = document.accessors[rank];
-    const scale = accessor.normalized ? normalisedScale(accessor.componentType) : 1;
-    const at = accessor[which];
-    return at && [at[0] * scale, at[1] * scale, at[2] * scale];
-  };
+    const accessor = document.accessors[rank]
+    const scale = accessor.normalized ? normalisedScale(accessor.componentType) : 1
+    const at = accessor[which]
+    return at && [at[0] * scale, at[1] * scale, at[2] * scale]
+  }
 
   /** The box the positions declare, grown by the largest displacement a morph target declares
    *  (the loader's rule: not conservative, but the size of the shapes it blends). */
   const bound = (geometry: Geometry, declared: TablePrimitive) => {
-    const position = declared.attributes.POSITION;
-    const low = position === undefined ? null : corner(position, 'min');
-    const high = position === undefined ? null : corner(position, 'max');
-    if (!low || !high) return;
-    const displacement = [0, 0, 0];
+    const position = declared.attributes.POSITION
+    const low = position === undefined ? null : corner(position, 'min')
+    const high = position === undefined ? null : corner(position, 'max')
+    if (!low || !high) return
+    const displacement = [0, 0, 0]
     for (const target of declared.targets ?? []) {
-      if (target.POSITION === undefined) continue;
-      const [min, max] = [corner(target.POSITION, 'min'), corner(target.POSITION, 'max')];
-      if (!min || !max) continue;
+      if (target.POSITION === undefined) continue
+      const [min, max] = [corner(target.POSITION, 'min'), corner(target.POSITION, 'max')]
+      if (!min || !max) continue
       for (let c = 0; c < 3; c++)
-        displacement[c] = Math.max(displacement[c], Math.max(Math.abs(min[c]), Math.abs(max[c])));
+        displacement[c] = Math.max(displacement[c], Math.max(Math.abs(min[c]), Math.abs(max[c])))
     }
     if (declared.targets)
       for (let c = 0; c < 3; c++) {
-        low[c] -= displacement[c];
-        high[c] += displacement[c];
+        low[c] -= displacement[c]
+        high[c] += displacement[c]
       }
     geometry.boundingBox = new Box3(
       new Vector3(low[0], low[1], low[2]),
       new Vector3(high[0], high[1], high[2]),
-    );
-    const [dx, dy, dz] = [low[0] - high[0], low[1] - high[1], low[2] - high[2]];
+    )
+    const [dx, dy, dz] = [low[0] - high[0], low[1] - high[1], low[2] - high[2]]
     const centre = geometry.boundingBox.isEmpty()
       ? new Vector3(0, 0, 0)
-      : new Vector3((low[0] + high[0]) * 0.5, (low[1] + high[1]) * 0.5, (low[2] + high[2]) * 0.5);
-    geometry.boundingSphere = new Sphere(centre, Math.sqrt(dx * dx + dy * dy + dz * dz) / 2);
-  };
+      : new Vector3((low[0] + high[0]) * 0.5, (low[1] + high[1]) * 0.5, (low[2] + high[2]) * 0.5)
+    geometry.boundingSphere = new Sphere(centre, Math.sqrt(dx * dx + dy * dy + dz * dz) / 2)
+  }
 
   return (mesh: number, primitive: number): Geometry => {
-    const declared = document.meshes[mesh].primitives[primitive];
-    const semantics = Object.keys(declared.attributes);
+    const declared = document.meshes[mesh].primitives[primitive]
+    const semantics = Object.keys(declared.attributes)
     const key = `${declared.indices}:${runs(declared.attributes)}${(declared.targets ?? [])
       .map((target) => `:${runs(target)}`)
-      .join('')}`;
-    let geometry = geometries.get(key);
-    if (geometry) return geometry;
-    geometry = new Geometry();
-    geometry._owner = 'host';
+      .join('')}`
+    let geometry = geometries.get(key)
+    if (geometry) return geometry
+    geometry = new Geometry()
+    geometry._owner = 'host'
     for (const semantic of semantics) {
-      const skin = /^(JOINTS|WEIGHTS)_(\d+)$/.exec(semantic);
+      const skin = /^(JOINTS|WEIGHTS)_(\d+)$/.exec(semantic)
       const name =
         NAMES[semantic] ??
         (skin
           ? `${skin[1] === 'JOINTS' ? 'skinIndex' : 'skinWeight'}${skin[2]}`
-          : semantic.toLowerCase());
+          : semantic.toLowerCase())
       if (!(name in geometry.attributes))
-        geometry.setAttribute(name, attributeOf(declared.attributes[semantic]));
+        geometry.setAttribute(name, attributeOf(declared.attributes[semantic]))
     }
     if (declared.indices !== null)
-      geometry.setIndex(attributeOf(declared.indices) as BufferAttribute);
-    bound(geometry, declared);
-    morph(geometry, declared, attributeOf);
-    geometries.set(key, geometry);
-    return geometry;
-  };
+      geometry.setIndex(attributeOf(declared.indices) as BufferAttribute)
+    bound(geometry, declared)
+    morph(geometry, declared, attributeOf)
+    geometries.set(key, geometry)
+    return geometry
+  }
 }

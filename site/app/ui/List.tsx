@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from 'react'
 
 interface Link {
-  id: string;
-  href: string;
-  label: ReactNode;
+  id: string
+  href: string
+  label: ReactNode
   /** One line under the name: what it does. */
-  summary?: ReactNode;
+  summary?: ReactNode
 }
 
 /** A DaisyUI menu of links, each a code name with what it does under it. */
@@ -25,5 +25,5 @@ export function LinkMenu({ links }: { links: Link[] }) {
         </li>
       ))}
     </ul>
-  );
+  )
 }

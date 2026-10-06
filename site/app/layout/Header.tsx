@@ -1,18 +1,18 @@
-import { useWords } from '../i18n.ts';
-import { LANGUAGES } from '../../content/i18n/dictionary.ts';
-import { useTheme } from '../hooks/useTheme.ts';
-import { Button, NavLink } from '../ui/Button.tsx';
-import { Icon } from '../ui/Icon.tsx';
-import { Flag } from '../ui/Flag.tsx';
-import { LinkDropdown } from '../ui/LinkDropdown.tsx';
-import { navLinks, routeHref } from '../portal/routes.ts';
-import { usePortal } from './PortalContext.ts';
+import { useWords } from '../i18n.ts'
+import { LANGUAGES } from '../../content/i18n/dictionary.ts'
+import { useTheme } from '../hooks/useTheme.ts'
+import { Button, NavLink } from '../ui/Button.tsx'
+import { Icon } from '../ui/Icon.tsx'
+import { Flag } from '../ui/Flag.tsx'
+import { LinkDropdown } from '../ui/LinkDropdown.tsx'
+import { navLinks, routeHref } from '../portal/routes.ts'
+import { usePortal } from './PortalContext.ts'
 
 /** The header's areas, as a bar on wide screens and as a grid at the top of the drawer; the
  * current one active. */
 export function PrimaryNavigation({ drawer = false }: { drawer?: boolean }) {
-  const { route } = usePortal();
-  const t = useWords(route.locale);
+  const { route } = usePortal()
+  const t = useWords(route.locale)
   return (
     <nav
       className={
@@ -32,22 +32,22 @@ export function PrimaryNavigation({ drawer = false }: { drawer?: boolean }) {
         </NavLink>
       ))}
     </nav>
-  );
+  )
 }
 
 interface HeaderProps {
-  drawerOpen: boolean;
-  onMenu: () => void;
-  onSearch: () => void;
+  drawerOpen: boolean
+  onMenu: () => void
+  onSearch: () => void
 }
 
 /** The site header: the menu button on narrow screens, the brand, the areas, then the search,
  * the language and the theme. */
 export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
-  const { route } = usePortal();
-  const toggleTheme = useTheme();
-  const { locale } = route;
-  const t = useWords(locale);
+  const { route } = usePortal()
+  const toggleTheme = useTheme()
+  const { locale } = route
+  const t = useWords(locale)
   const languages = LANGUAGES.map(({ code, name, hreflang, flag }) => ({
     href: routeHref({ ...route, locale: code }),
     label: name,
@@ -55,8 +55,8 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
     current: code === locale,
     // The name follows the flag: the flag says nothing more to assistive technology.
     icon: <Flag region={flag} label="" />,
-  }));
-  const current = LANGUAGES.find(({ code }) => code === locale)!;
+  }))
+  const current = LANGUAGES.find(({ code }) => code === locale)!
   return (
     <header className="relative z-40 flex h-16 shrink-0 items-center gap-2 border-b border-base-300 bg-neutral px-3 text-neutral-content sm:gap-4 sm:px-6">
       <Button
@@ -110,5 +110,5 @@ export function Header({ drawerOpen, onMenu, onSearch }: HeaderProps) {
         </Button>
       </div>
     </header>
-  );
+  )
 }

@@ -1,5 +1,5 @@
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts';
-import { INVERSE_PI } from '../shaderConstants.ts';
+import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { INVERSE_PI } from '../shaderConstants.ts'
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
@@ -33,7 +33,7 @@ fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,roug
  if(any(thinSubsurface!=vec3f(0.0))){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${term(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
  return ${term(pair, (rgb, metal) => `(standardLighting(${rgb},${metal},rough,N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
-}`;
+}`
 
 /**
  * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a
@@ -43,10 +43,10 @@ fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,roug
  * reads no albedo, so it is read once and both terms are those of two walks, bit for bit.
  */
 const LIGHT_PAIR_WGSL = `
-struct LightPair{lit:vec3f,specular:vec3f,}`;
-const zero = (pair: boolean) => (pair ? 'LightPair(vec3f(0.0),vec3f(0.0))' : 'vec3f(0.0)');
+struct LightPair{lit:vec3f,specular:vec3f,}`
+const zero = (pair: boolean) => (pair ? 'LightPair(vec3f(0.0),vec3f(0.0))' : 'vec3f(0.0)')
 const term = (pair: boolean, of: (rgb: string, metal: string) => string) =>
-  pair ? `LightPair(${of('rgb', 'metal')},${of('vec3f(0.0)', '0.0')})` : of('rgb', 'metal');
+  pair ? `LightPair(${of('rgb', 'metal')},${of('vec3f(0.0)', '0.0')})` : of('rgb', 'metal')
 
 /** A rectangle light's term, before any punctual one's: \`declaredLight\` with \`rects\`. */
 const rectBranchWgsl = (pair: boolean) => `
@@ -54,7 +54,7 @@ const rectBranchWgsl = (pair: boolean) => `
   var transmitted=vec3f(0.0);
   if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*${INVERSE_PI}*light.colorIntensity.rgb*light.colorIntensity.w;}
   return ${term(pair, (rgb, metal) => `rectLight(light,${rgb},${metal},rough,N,V,P,ao)+transmitted`)};
- }`;
+ }`
 
 const shadeWgsl = (pair: boolean) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
@@ -63,7 +63,7 @@ const shadeWgsl = (pair: boolean) => `
  let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
  let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,toward),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
  let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,shadowBiasNormal(select(N,-N,back),shadowReceiverPlane),facing);
- if(shade<=0.0){return ${zero(pair)};}`;
+ if(shade<=0.0){return ${zero(pair)};}`
 
 /**
  * The one loop that shades a pixel's lights in full: the lights of a cell's list (`cellSlice`) — or,
@@ -86,13 +86,13 @@ fn sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:ve
   ${pair ? PAIR_SUM_WGSL : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);'}
  }
  return result;
-}`;
+}`
 
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
 const PAIR_SUM_WGSL = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao);
-  result.lit+=term.lit;result.specular+=term.specular;`;
+  result.lit+=term.lit;result.specular+=term.specular;`
 
 const RANGE_REJECT_WGSL = `
   let sphere=directLights.items[light].positionRange;
   let offset=sphere.xyz-P;
-  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`;
+  if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`

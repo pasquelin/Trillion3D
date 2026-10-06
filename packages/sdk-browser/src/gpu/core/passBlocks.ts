@@ -1,22 +1,22 @@
-import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts';
+import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts'
 import {
   gpuPassBlockOf,
   gpuPassStageOf,
   gpuTotalsBy,
   type GpuPassBlock,
-} from '../../stage/mapping.ts';
+} from '../../stage/mapping.ts'
 
-export { gpuPassBlockOf, gpuPassStageOf, type GpuPassBlock };
+export { gpuPassBlockOf, gpuPassStageOf, type GpuPassBlock }
 
 /** GPU time of a frame in three blocks: visibility, materials, the rest. */
 export type GpuPassBlockTotals = {
   /** Time to find what is visible. */
-  visibilityMs: number | null;
+  visibilityMs: number | null
   /** Time to shade materials. */
-  materialsMs: number | null;
+  materialsMs: number | null
   /** Everything else. */
-  otherMs: number | null;
-};
+  otherMs: number | null
+}
 
 /**
  * GPU duration of each block in a sample (`../../stage/mapping.ts` says which is which).
@@ -29,10 +29,10 @@ export type GpuPassBlockTotals = {
  * duration.
  */
 export function gpuPassBlockTotals(sample: GpuPassTimings | null | undefined): GpuPassBlockTotals {
-  const totals = gpuTotalsBy(sample, gpuPassBlockOf);
+  const totals = gpuTotalsBy(sample, gpuPassBlockOf)
   return {
     visibilityMs: totals.get('visibility') ?? null,
     materialsMs: totals.get('materials') ?? null,
     otherMs: totals.get('other') ?? null,
-  };
+  }
 }

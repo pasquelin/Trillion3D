@@ -1,4 +1,4 @@
-import { shaderLanguage } from '../math/shaderLanguage.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts'
 
 /** GGX split-sum kernel moments for an order-2 radiance field, in either graphics API.
  * With z=N.L, its normalized density is z/(1+k+(k-1)z)^2, k=roughness^4.
@@ -32,4 +32,4 @@ fn reflectionProbeBands(rough:f32)->vec3f{
  return vec3f(1.0,moments.y/moments.x,0.5*(3.0*moments.z/moments.x-1.0));
 }`,
     language,
-  );
+  )

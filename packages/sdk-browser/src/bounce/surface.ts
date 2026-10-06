@@ -1,12 +1,12 @@
-import { BOUNCE_SETTINGS, bounceBatchOf } from '../../../sdk-core/src/index.ts';
-import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts';
-import { BOUNCE_ATLAS_FORMAT, atlasExtent } from './atlas.ts';
-import { BOUNCE_SURFACE_SHADER, SURFACE_WORKGROUP, surfaceCacheBytes } from './surfaceWgsl.ts';
-import { surfaceCacheTexels } from './sizes.ts';
-import type { GpuBounceProxy } from './proxy.ts';
-import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
-import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts';
+import { BOUNCE_SETTINGS, bounceBatchOf } from '../../../sdk-core/src/index.ts'
+import { bounceGroup, bounceLayout, type BounceSlot } from './bindings.ts'
+import { BOUNCE_ATLAS_FORMAT, atlasExtent } from './atlas.ts'
+import { BOUNCE_SURFACE_SHADER, SURFACE_WORKGROUP, surfaceCacheBytes } from './surfaceWgsl.ts'
+import { surfaceCacheTexels } from './sizes.ts'
+import type { GpuBounceProxy } from './proxy.ts'
+import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
+import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
+import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
  *  cache — the two atlases of `atlas.ts`. */
@@ -18,9 +18,9 @@ const SURFACE_TYPES: BounceSlot[] = [
   'atlas-array',
   'atlas-out',
   'uniform',
-];
+]
 
-export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>>;
+export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>>
 
 /**
  * Proxy surface cache and the pass that sweeps it (LR5).
@@ -35,60 +35,60 @@ export async function createGpuBounceSurface(
   lights: () => GPUBuffer,
   grid: { uniform: GPUBuffer; snapshot: GPUTextureView },
 ) {
-  const texels = surfaceCacheTexels(proxy.triangleCount);
-  const bytes = surfaceCacheBytes(proxy.triangleCount);
+  const texels = surfaceCacheTexels(proxy.triangleCount)
+  const bytes = surfaceCacheBytes(proxy.triangleCount)
   const texture = device.createTexture({
     label: 'Trillion3D bounce surface cache v2',
     size: atlasExtent(texels),
     format: BOUNCE_ATLAS_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-  });
-  const view = texture.createView();
+  })
+  const view = texture.createView()
   const span = device.createBuffer({
     label: 'Trillion3D bounce surface span v1',
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  });
+  })
   const release = () => {
-    texture.destroy();
-    span.destroy();
-  };
+    texture.destroy()
+    span.destroy()
+  }
   const module = await createCheckedShaderModule(
     device,
     BOUNCE_SURFACE_SHADER,
     'BOUNCE_SURFACE_SHADER',
-  );
-  const layout = bounceLayout(device, SURFACE_TYPES);
-  let pipeline: GPUComputePipeline;
+  )
+  const layout = bounceLayout(device, SURFACE_TYPES)
+  let pipeline: GPUComputePipeline
   try {
     pipeline = await buildComputePipeline(device, {
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateSurface' },
-    });
+    })
   } catch (error) {
-    release();
-    throw error;
+    release()
+    throw error
   }
-  const bound = createWebgpuBindIdentity();
-  let group: GPUBindGroup | undefined;
+  const bound = createWebgpuBindIdentity()
+  let group: GPUBindGroup | undefined
   /** The group, made again when the light buffer it names was replaced. */
   const groupOf = (current: GPUBuffer) => {
-    bound.next[0] = current;
+    bound.next[0] = current
     if (bound.moved() || !group)
       group = bounceGroup(
         device,
         layout,
         [grid.uniform, proxy.buffer, proxy.albedo, current, grid.snapshot, view, span],
         SURFACE_TYPES,
-      );
-    return group;
-  };
-  const ceiling = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels);
-  const words = new Uint32Array(4);
+      )
+    return group
+  }
+  const ceiling = Math.min(BOUNCE_SETTINGS.surfaceTexelsPerFrame, texels)
+  const words = new Uint32Array(4)
   let cursor = 0,
     sweeps = 0,
     updated = 0,
-    batch = ceiling;
+    batch = ceiling
   return {
     /** The cache's atlas, which the probe pass and the lit passes read. */
     view,
@@ -97,41 +97,41 @@ export async function createGpuBounceSurface(
     bytes,
     /** Frames of a full cache sweep at the current batch: the other half of the lag. */
     get sweepFrames() {
-      return Math.max(1, Math.ceil(texels / Math.max(1, batch)));
+      return Math.max(1, Math.ceil(texels / Math.max(1, batch)))
     },
     /** Full sweeps since the last invalidation. */
     get sweeps() {
-      return sweeps;
+      return sweeps
     },
     /** Cells updated by the last encoded frame. */
     get lastTexels() {
-      return updated;
+      return updated
     },
     /** A light changed: the whole cache is stale, the sweep resumes where it was.
      *  Rewinding the cursor would only redo the same cells every frame of a moving light. */
     restart() {
-      sweeps = 0;
+      sweeps = 0
     },
     /**
      * Encodes a cell batch whose size is the fraction of the ceiling the millisecond budget
      * kept, as a dispatch of the bounce's open compute `pass`, before the probes read the cache.
      */
     encode(pass: GPUComputePassEncoder, load: number) {
-      batch = bounceBatchOf(ceiling, load);
-      words[0] = cursor;
-      words[1] = batch;
-      words[2] = texels;
-      device.queue.writeBuffer(span, 0, words);
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, groupOf(lights()));
-      pass.dispatchWorkgroups(Math.ceil(batch / SURFACE_WORKGROUP), 1, 1);
-      updated = batch;
-      cursor += batch;
+      batch = bounceBatchOf(ceiling, load)
+      words[0] = cursor
+      words[1] = batch
+      words[2] = texels
+      device.queue.writeBuffer(span, 0, words)
+      pass.setPipeline(pipeline)
+      pass.setBindGroup(0, groupOf(lights()))
+      pass.dispatchWorkgroups(Math.ceil(batch / SURFACE_WORKGROUP), 1, 1)
+      updated = batch
+      cursor += batch
       if (cursor >= texels) {
-        cursor = 0;
-        sweeps++;
+        cursor = 0
+        sweeps++
       }
     },
     dispose: release,
-  };
+  }
 }

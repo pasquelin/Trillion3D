@@ -1,17 +1,17 @@
-import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts';
-import { orderEye, refreshEyeKeys } from './order.ts';
-import { orderBlendPlanCpu } from './expandCpu.ts';
-import { RUN_WORDS } from './planLayout.ts';
-import { precedes } from './sortPlan.ts';
-import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
+import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts'
+import { orderEye, refreshEyeKeys } from './order.ts'
+import { orderBlendPlanCpu } from './expandCpu.ts'
+import { RUN_WORDS } from './planLayout.ts'
+import { precedes } from './sortPlan.ts'
+import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
 
 /** A blend state holding `items`, its statics and encoding plan built as a frame would. */
 export function blendSceneOf(items: readonly BlendGpuItem[]) {
-  const blendState = createWebgpuBlendState();
-  blendState.blendGpu.push(...items);
-  buildBlendStatics(blendState);
-  refreshBlendPlan(blendState);
-  return blendState;
+  const blendState = createWebgpuBlendState()
+  blendState.blendGpu.push(...items)
+  buildBlendStatics(blendState)
+  refreshBlendPlan(blendState)
+  return blendState
 }
 
 /**
@@ -20,8 +20,8 @@ export function blendSceneOf(items: readonly BlendGpuItem[]) {
  * the order kernel gives them (`orderBlendPlanCpu`): what the ranking tests compare.
  */
 export function paintOutcome(blendState: ReturnType<typeof blendSceneOf>) {
-  const drawn = blendState.runCount.some(Boolean);
-  if (drawn) refreshEyeKeys(blendState, orderEye(blendState));
+  const drawn = blendState.runCount.some(Boolean)
+  if (drawn) refreshEyeKeys(blendState, orderEye(blendState))
   return {
     runCount: [...blendState.runCount],
     ownSeeds: blendState.ownSeeds.map((own) => Array.from(own)),
@@ -32,7 +32,7 @@ export function paintOutcome(blendState: ReturnType<typeof blendSceneOf>) {
     runs: blendState.runs.map((runs, pass) =>
       Array.from(runs.subarray(0, blendState.runCount[pass] * RUN_WORDS)),
     ),
-  };
+  }
 }
 
 /**
@@ -41,13 +41,13 @@ export function paintOutcome(blendState: ReturnType<typeof blendSceneOf>) {
  * entries the CPU ranks must all match.
  */
 export function referenceOrder(seeds: Uint32Array, items: readonly BlendGpuItem[]) {
-  const ranked = (seed: number) => items[planItem(seeds[seed])];
+  const ranked = (seed: number) => items[planItem(seeds[seed])]
   return Array.from(seeds.keys())
     .sort((a, b) => {
-      const [x, y] = [ranked(a), ranked(b)];
-      if (precedes(x.orderKey, x.orderRank, y.orderKey, y.orderRank)) return 1;
-      if (precedes(y.orderKey, y.orderRank, x.orderKey, x.orderRank)) return -1;
-      return a - b;
+      const [x, y] = [ranked(a), ranked(b)]
+      if (precedes(x.orderKey, x.orderRank, y.orderKey, y.orderRank)) return 1
+      if (precedes(y.orderKey, y.orderRank, x.orderKey, x.orderRank)) return -1
+      return a - b
     })
-    .map((seed) => seeds[seed]);
+    .map((seed) => seeds[seed])
 }

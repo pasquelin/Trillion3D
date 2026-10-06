@@ -1,12 +1,12 @@
-import { fallbackUniform } from './pipelineFor.ts';
-import { pageTableBuffer } from '../render/pageTable.ts';
-import { zeroFlagsBuffer } from '../../visibility/shaders.ts';
-import { growShadowRows } from '../../shadow/rowBuffers.ts';
-import { pendingAll, pendingBuffers, type PendingGrowth } from '../../../gpu/core/tableGrowth.ts';
-import { restSlotCount } from '../../../gpu/draw/contract.ts';
-import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
-import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { fallbackUniform } from './pipelineFor.ts'
+import { pageTableBuffer } from '../render/pageTable.ts'
+import { zeroFlagsBuffer } from '../../visibility/shaders.ts'
+import { growShadowRows } from '../../shadow/rowBuffers.ts'
+import { pendingAll, pendingBuffers, type PendingGrowth } from '../../../gpu/core/tableGrowth.ts'
+import { restSlotCount } from '../../../gpu/draw/contract.ts'
+import { UNIFORM_STRIDE } from '../../blend/uniforms.ts'
+import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * EVERY GPU BUFFER SIZED BY ROW, made for `drawSlots` visibility rows and `casterSlots` rows in
@@ -27,28 +27,28 @@ export function gpuGrowth(
     { gpuDraw: draw, gpuHiz: hiz } = vis,
     pageTable = rt.layout.rows.pageTableFloats,
     // The draw compact's entries, `perRow` a visibility row: the tested half's copy and rows.
-    compacted = drawSlots * (draw?.perRow ?? 1);
-  const uniformBytes = Math.max(1, slots) * UNIFORM_STRIDE;
+    compacted = drawSlots * (draw?.perRow ?? 1)
+  const uniformBytes = Math.max(1, slots) * UNIFORM_STRIDE
   const uniform =
     gpu.uniformBuffer && gpu.uniformBuffer.size < uniformBytes
       ? fallbackUniform(device, uniformBytes)
-      : undefined;
+      : undefined
   return pendingAll([
     replaced(vis.zeroFlags && zeroFlagsBuffer(device, drawSlots), (next) => {
-      const old = vis.zeroFlags;
-      vis.zeroFlags = next;
-      return old;
+      const old = vis.zeroFlags
+      vis.zeroFlags = next
+      return old
     }),
     replaced(pageTable && pageTableBuffer(device, casterSlots * PAGE_INFO_STRIDE), (next) => {
-      const old = vis.pageTable;
-      vis.pageTable = next;
-      return old;
+      const old = vis.pageTable
+      vis.pageTable = next
+      return old
     }),
     replaced(uniform, (next) => {
-      const old = gpu.uniformBuffer;
-      gpu.uniformBuffer = next;
-      gpu.uniformPacked = new Float32Array(uniformBytes / 4);
-      return old;
+      const old = gpu.uniformBuffer
+      gpu.uniformBuffer = next
+      gpu.uniformPacked = new Float32Array(uniformBytes / 4)
+      return old
     }),
     draw?.grow(drawSlots),
     hiz?.growFlags(drawSlots),
@@ -63,7 +63,7 @@ export function gpuGrowth(
       })),
     vis.gpuRestCompact?.growWork(compacted, restSlotCount(vis.drawLayerSlots), compacted),
     ...growShadowRows(lights, device, casterSlots),
-  ]);
+  ])
 }
 
 /** `next`, made now, put in place by `adopt`, which returns the buffer it replaced. */
@@ -71,5 +71,5 @@ function replaced(
   next: GPUBuffer | undefined,
   adopt: (next: GPUBuffer) => GPUBuffer | undefined,
 ): PendingGrowth | undefined {
-  return next && pendingBuffers([next], () => [adopt(next)]);
+  return next && pendingBuffers([next], () => [adopt(next)])
 }

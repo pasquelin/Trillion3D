@@ -3,24 +3,24 @@ import {
   RUNGS,
   tablePartition,
   type TableCell,
-} from '../../../sdk-core/src/scene/core/tablePartition.ts';
-import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
-import { createCellBoxes } from './boxes.ts';
-import { createCellIndex, type CellIndex, type IndexPage } from './cellIndex.ts';
+} from '../../../sdk-core/src/scene/core/tablePartition.ts'
+import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
+import { createCellBoxes } from './boxes.ts'
+import { createCellIndex, type CellIndex, type IndexPage } from './cellIndex.ts'
 
-type Box = readonly number[];
-const bits = new DataView(new ArrayBuffer(8));
-const hex = (value: number, width: number) => value.toString(16).padStart(width, '0');
+type Box = readonly number[]
+const bits = new DataView(new ArrayBuffer(8))
+const hex = (value: number, width: number) => value.toString(16).padStart(width, '0')
 /** The sixteen hexadecimal digits of the bits of `value`. */
 const f64 = (value: number) => (
   bits.setFloat64(0, value),
   bits.getBigUint64(0).toString(16).padStart(16, '0')
-);
-let serial = 0;
+)
+let serial = 0
 
 /** The union of `boxes`. */
 const union = (boxes: readonly Box[]) =>
-  [0, 1, 2, 3, 4, 5].map((axis) => (axis < 3 ? Math.min : Math.max)(...boxes.map((b) => b[axis])));
+  [0, 1, 2, 3, 4, 5].map((axis) => (axis < 3 ? Math.min : Math.max)(...boxes.map((b) => b[axis])))
 
 /** The core ranks `cells` hang nodes under, each once in rank order, eight hexadecimal digits
  *  each, run together. */
@@ -29,11 +29,11 @@ const parentsOf = (cells: readonly TableCell[]) =>
     .filter((rank) => rank !== null)
     .sort((a, b) => a - b)
     .map((rank) => hex(rank, 8))
-    .join('');
+    .join('')
 
 /** How a test lays the root's rows (`partition/pages/rows.rs`): the side of the first rung and
  *  each mesh's rows at each rung. By default every rung holds every node. */
-type Ladder = { cube: number; rows: (mesh: number, total: number, rung: number) => number };
+type Ladder = { cube: number; rows: (mesh: number, total: number, rung: number) => number }
 
 /**
  * The partition of `cells` as the cook pages it (`partition/pages.rs`): halved in order down to
@@ -48,32 +48,32 @@ export function paged(
   declared: (cell: TableCell) => Box = (cell) => cell.parents[0][1],
   ladder: Ladder = { cube: 1, rows: (_, total) => total },
 ) {
-  const files = new Map<string, Uint8Array>();
+  const files = new Map<string, Uint8Array>()
   const write = (body: object, box: Box, list: readonly TableCell[]) => {
-    const json = JSON.stringify({ version: 4, ...body });
-    const sha = hex(++serial, 64);
-    files.set(`scene-page-${sha}.json`, new TextEncoder().encode(json));
-    return { slot: `${sha}${hex(json.length, 8)}${box.map(f64).join('')}`, box, list };
-  };
-  type Page = ReturnType<typeof write>;
+    const json = JSON.stringify({ version: 4, ...body })
+    const sha = hex(++serial, 64)
+    files.set(`scene-page-${sha}.json`, new TextEncoder().encode(json))
+    return { slot: `${sha}${hex(json.length, 8)}${box.map(f64).join('')}`, box, list }
+  }
+  type Page = ReturnType<typeof write>
   const build = (from: number, to: number): Page => {
-    const list = cells.slice(from, to);
+    const list = cells.slice(from, to)
     if (to - from <= per)
-      return write({ first: from, cells: list, meshPages: [] }, union(list.map(declared)), list);
-    const middle = (from + to) >> 1;
-    const halves = [build(from, middle), build(middle, to)];
+      return write({ first: from, cells: list, meshPages: [] }, union(list.map(declared)), list)
+    const middle = (from + to) >> 1
+    const halves = [build(from, middle), build(middle, to)]
     const body = {
       pages: halves.map((h) => h.slot),
       parents: halves.map((h) => parentsOf(h.list)),
-    };
-    return write(body, union(halves.map((h) => h.box)), list);
-  };
-  const totals = new Map<number, number>();
+    }
+    return write(body, union(halves.map((h) => h.box)), list)
+  }
+  const totals = new Map<number, number>()
   for (const cell of cells)
-    for (const [mesh, nodes] of cell.meshes) totals.set(mesh, (totals.get(mesh) ?? 0) + nodes);
-  const top = build(0, cells.length);
+    for (const [mesh, nodes] of cell.meshes) totals.set(mesh, (totals.get(mesh) ?? 0) + nodes)
+  const top = build(0, cells.length)
   const rungs = (mesh: number, total: number) =>
-    Array.from({ length: RUNGS }, (_, rung) => hex(ladder.rows(mesh, total, rung), 8)).join('');
+    Array.from({ length: RUNGS }, (_, rung) => hex(ladder.rows(mesh, total, rung), 8)).join('')
   const root = {
     version: 4,
     pages: [top.slot, ...Array<string>(7).fill('0'.repeat(168))],
@@ -82,8 +82,8 @@ export function paged(
       .sort(([a], [b]) => a - b)
       .map(([m, n]) => hex(m, 8) + hex(n, 8) + rungs(m, n)),
     cube: f64(ladder.cube),
-  };
-  return { partition: tablePartition(root), files, root };
+  }
+  return { partition: tablePartition(root), files, root }
 }
 
 /** Opens every page of `index` its walk from `eye` meets within `radius`, reading `files`, level
@@ -94,9 +94,9 @@ export function openAll(
   eye: ArrayLike<number> = [0, 0, 0],
   radius = Infinity,
 ) {
-  const none = { has: () => false };
+  const none = { has: () => false }
   for (let unread: IndexPage[] = [null!]; unread.length;) {
-    unread = [];
+    unread = []
     index.near(
       eye,
       radius,
@@ -104,10 +104,10 @@ export function openAll(
       none,
       () => {},
       (page) => void unread.push(page),
-    );
+    )
     for (const page of unread) {
-      const name = page.slot.url.split('/').at(-1)!;
-      index.open(page, readCellPage(files.get(name)!, name));
+      const name = page.slot.url.split('/').at(-1)!
+      index.open(page, readCellPage(files.get(name)!, name))
     }
   }
 }
@@ -115,12 +115,12 @@ export function openAll(
 /** The index of `cells` in region pages of four, every page on the way from `eye` within
  *  `radius` opened, then walked once more: the cells it finds and what it tested. */
 export function walked(cells: TableCell[], eye: ArrayLike<number>, radius: number) {
-  const { partition, files } = paged(cells, 4);
-  const boxes = createCellBoxes([], new Group(), []);
-  boxes.refresh();
-  const index = createCellIndex(partition.pages, 'https://cache.test/', boxes);
-  openAll(index, files, eye, radius);
-  const found: number[] = [];
+  const { partition, files } = paged(cells, 4)
+  const boxes = createCellBoxes([], new Group(), [])
+  boxes.refresh()
+  const index = createCellIndex(partition.pages, 'https://cache.test/', boxes)
+  openAll(index, files, eye, radius)
+  const found: number[] = []
   const tested = index.near(
     eye,
     radius,
@@ -128,6 +128,6 @@ export function walked(cells: TableCell[], eye: ArrayLike<number>, radius: numbe
     { has: () => false },
     (cell) => found.push(cell),
     () => {},
-  );
-  return { index, found, tested };
+  )
+  return { index, found, tested }
 }

@@ -3,55 +3,55 @@ import {
   textureLevelUrl,
   type ClusterManifest,
   type TextureLevelFormat,
-} from '../../../sdk-core/src/index.ts';
-import { checked } from '../cluster/checked.ts';
-import type { TextureLevelStore } from './levelStore.ts';
-import { tiledLevelBytes } from './tileRecords.ts';
+} from '../../../sdk-core/src/index.ts'
+import { checked } from '../cluster/checked.ts'
+import type { TextureLevelStore } from './levelStore.ts'
+import { tiledLevelBytes } from './tileRecords.ts'
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
  *  or, block-compressed, the bytes as the file holds them, which the GPU reads as they are. */
-export type TextureLevel = ImageBitmap | Uint8Array;
+export type TextureLevel = ImageBitmap | Uint8Array
 /** A level to read: its address, and the format the session samples. */
 export type TextureLevelRequest = {
   /** Fingerprint of the source image. */
-  sha256: string;
+  sha256: string
   /** Which atlas. */
-  atlas: number;
+  atlas: number
   /** Which level. */
-  level: number;
+  level: number
   /** Which format. */
-  format: TextureLevelFormat;
+  format: TextureLevelFormat
   /** The level's own address, when the cache lists one — an impostor atlas level
    *  (`maps.<name>.levels[k].url`, #1239). Read through this same reader, resolved against `base`,
    *  in place of the `textures.url` template: one loader, one budget. */
-  url?: string;
+  url?: string
   /** A block level's bytes to read alone — one tile's record (`tileRecords.ts`) —, by an HTTP
    *  Range; a server that ignores it answers the whole file. */
-  range?: { offset: number; bytes: number };
-};
+  range?: { offset: number; bytes: number }
+}
 // The explorer's reader also names the store its session holds the levels in: its world's
 // (`levelStore.ts`).
 /** A function that fetches one baked texture level. */
 export type TextureLevelReader = ((request: TextureLevelRequest) => Promise<TextureLevel>) & {
-  readonly store?: TextureLevelStore;
+  readonly store?: TextureLevelStore
   /** The cook the reader was made for: its levels are held in `store` under it. */
-  readonly key?: string;
-};
+  readonly key?: string
+}
 
 /** Host bytes a decoded bitmap of `width` × `height` texels holds. */
-const bitmapBytes = (width: number, height: number) => width * height * 4;
+const bitmapBytes = (width: number, height: number) => width * height * 4
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
 export const textureLevelBytes = (level: TextureLevel) =>
-  level instanceof Uint8Array ? level.byteLength : bitmapBytes(level.width, level.height);
+  level instanceof Uint8Array ? level.byteLength : bitmapBytes(level.width, level.height)
 /** Host bytes the whole level `request` names will hold once read, `width` × `height` texels. */
 export const requestedLevelBytes = (
   { format }: TextureLevelRequest,
   [width, height]: readonly [number, number],
 ) =>
-  format === PREVIEW_LOSSLESS_FORMAT ? bitmapBytes(width, height) : tiledLevelBytes(width, height);
+  format === PREVIEW_LOSSLESS_FORMAT ? bitmapBytes(width, height) : tiledLevelBytes(width, height)
 export const closeTextureLevel = (level: TextureLevel) => {
-  if (!(level instanceof Uint8Array)) level.close();
-};
+  if (!(level instanceof Uint8Array)) level.close()
+}
 
 /**
  * Reader of a cache's baked levels, built by the explorer that knows the manifest address; the
@@ -73,8 +73,8 @@ export function createTextureLevelReader(
   store?: TextureLevelStore,
   signal?: AbortSignal,
 ): TextureLevelReader | undefined {
-  store?.keepOnly(key);
-  if (!textures || typeof createImageBitmap !== 'function') return undefined;
+  store?.keepOnly(key)
+  if (!textures || typeof createImageBitmap !== 'function') return undefined
   const read = async ({
     sha256,
     atlas,
@@ -84,15 +84,15 @@ export function createTextureLevelReader(
     range,
   }: TextureLevelRequest) => {
     const url = new URL(direct ?? textureLevelUrl(textures.url, sha256, atlas, level, format), base)
-      .href;
-    const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` };
-    const response = await checked(url, signal, undefined, headers);
+      .href
+    const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` }
+    const response = await checked(url, signal, undefined, headers)
     if (format === PREVIEW_LOSSLESS_FORMAT)
       return createImageBitmap(await response.blob(), {
         premultiplyAlpha: 'none',
         colorSpaceConversion: 'none',
-      });
-    return new Uint8Array(await response.arrayBuffer());
-  };
-  return Object.assign(read, { store, key });
+      })
+    return new Uint8Array(await response.arrayBuffer())
+  }
+  return Object.assign(read, { store, key })
 }

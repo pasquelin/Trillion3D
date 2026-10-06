@@ -1,4 +1,4 @@
-import type { ExplorerSwitch } from './explorerSwitches.ts';
+import type { ExplorerSwitch } from './explorerSwitches.ts'
 
 /** Every explorer switch by name: the compiler refuses this record if one is missing or unknown. */
 export const EXPLORER_SWITCH_NAMES = Object.keys({
@@ -9,4 +9,4 @@ export const EXPLORER_SWITCH_NAMES = Object.keys({
   importedLights: 0,
   autonomousGeometry: 0,
   stageProfile: 0,
-} satisfies Record<ExplorerSwitch, 0>) as ExplorerSwitch[];
+} satisfies Record<ExplorerSwitch, 0>) as ExplorerSwitch[]

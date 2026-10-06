@@ -2,12 +2,12 @@
 // eight contract lights — more than the samples a moving pixel shades — rendered still until held,
 // then under a sub-pixel camera shake that keeps every image moving. Nothing internal is read:
 // lights go through the host store, images through `capture`.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import {
   createSceneLightStore,
   type SceneLightStore,
-} from '../../../packages/sdk-core/src/index.ts';
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
+} from '../../../packages/sdk-core/src/index.ts'
+import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   VIEWPORT,
   batisseur as sceneBuilder,
@@ -15,33 +15,33 @@ import {
   cameraFace as facingCamera,
   release as release,
   engine,
-} from '../kit/sharedSceneProof.ts';
-import { image, untilHeld } from '../kit/sceneImageProof.ts';
-import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts';
+} from '../kit/sharedSceneProof.ts'
+import { image, untilHeld } from '../kit/sceneImageProof.ts'
+import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
 
 /** Moving images rendered under the shake: enough for the history to settle again. */
-const SHAKES = 24;
+const SHAKES = 24
 /** Contract lights on a ring in front of the square: two colours, so a drawn subset of them
  *  differs from the whole in chroma, never only in brightness. */
-const LIGHTS = 8;
+const LIGHTS = 8
 
 /** One grey, rough, lit square facing the camera. */
 function scene() {
-  const builder = sceneBuilder();
+  const builder = sceneBuilder()
   const plane = G.mesh(
     square(1.2),
     G.standardSurface({ color: 0x9a9a9a, roughness: 0.7, metalness: 0 }),
-  );
-  plane.name = 'plane';
-  builder.source.add(plane);
-  builder.add(plane, 'exact-clusters', 1.2);
-  return builder.fini();
+  )
+  plane.name = 'plane'
+  builder.source.add(plane)
+  builder.add(plane, 'exact-clusters', 1.2)
+  return builder.fini()
 }
 
 /** The ring of lights, declared to the host store as any host would. */
 function ring(store: SceneLightStore) {
   for (let i = 0; i < LIGHTS; i++) {
-    const angle = (i / LIGHTS) * Math.PI * 2;
+    const angle = (i / LIGHTS) * Math.PI * 2
     store.add({
       id: `light-${i}`,
       kind: 'point',
@@ -50,41 +50,41 @@ function ring(store: SceneLightStore) {
       intensity: 1.2,
       range: 4,
       castsShadow: false,
-    });
+    })
   }
 }
 
 /** One run: still until held, then shaken. `temporal` picks the option. */
 async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) {
   const prepared = scene(),
-    store = createSceneLightStore();
-  ring(store);
+    store = createSceneLightStore()
+  ring(store)
   const { backend, canvas } = engine(webgpuPagesBackend, prepared, device, (e) => events.push(e), {
     temporalAntialiasing: temporal,
     sceneLights: store,
-  });
+  })
   try {
-    await backend.prepare();
-    const { held, rendues: rendered } = await untilHeld(backend, facingCamera());
+    await backend.prepare()
+    const { held, rendues: rendered } = await untilHeld(backend, facingCamera())
     // The shake: a hair to the left, then to the right, a hundredth of a pixel at this distance.
     // Every image moves, none is held, and the pose never leaves the still one.
     let first: number[] = [],
       last: number[] = [],
-      heldWhileShaken = 0;
+      heldWhileShaken = 0
     for (let i = 1; i <= SHAKES; i++) {
-      const frame = await image(backend, facingCamera(i % 2 ? 0.0003 : -0.0003));
-      if (i === 1) first = Array.from(frame.pixels);
-      if (i === SHAKES) last = Array.from(frame.pixels);
-      if (frame.metrics.frameHeld) heldWhileShaken++;
+      const frame = await image(backend, facingCamera(i % 2 ? 0.0003 : -0.0003))
+      if (i === 1) first = Array.from(frame.pixels)
+      if (i === SHAKES) last = Array.from(frame.pixels)
+      if (frame.metrics.frameHeld) heldWhileShaken++
     }
-    return { held, rendered, first, last, heldWhileShaken };
+    return { held, rendered, first, last, heldWhileShaken }
   } finally {
-    release(backend, canvas, prepared);
+    release(backend, canvas, prepared)
   }
 }
 
 /** Without accumulation, with it, and with it again as the A/A witness; the viewport and the light
  *  count. */
 export async function run() {
-  return { viewport: VIEWPORT, lights: LIGHTS, ...(await withAndWithoutAccumulation(fullRun)) };
+  return { viewport: VIEWPORT, lights: LIGHTS, ...(await withAndWithoutAccumulation(fullRun)) }
 }

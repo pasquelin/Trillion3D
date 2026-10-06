@@ -1,7 +1,7 @@
 /** `to` holding the first `kept` values of `from`. */
 function widen<T extends Uint32Array | Uint8Array | Int32Array>(from: T, to: T, kept: number) {
-  if (kept) to.set(from.subarray(0, kept));
-  return to;
+  if (kept) to.set(from.subarray(0, kept))
+  return to
 }
 
 /** Per-page values compared plan to plan, reduced by `flagOf` to what a light cut sees. */
@@ -9,33 +9,33 @@ function createResidenceTracker(flagOf: (value: number) => number) {
   let seen = new Uint32Array(0),
     marked = new Uint8Array(0),
     pending = new Int32Array(0),
-    count = 0;
+    count = 0
   return {
     /** `pages` counts the catalogue: one that grew in place keeps what was seen and noted. */
     note(page: number, pages: number) {
       if (seen.length !== pages) {
-        const kept = seen.length < pages ? seen.length : 0;
-        seen = widen(seen, new Uint32Array(pages), kept);
-        marked = widen(marked, new Uint8Array(pages), kept);
-        pending = widen(pending, new Int32Array(pages), kept && count);
-        if (!kept) count = 0;
+        const kept = seen.length < pages ? seen.length : 0
+        seen = widen(seen, new Uint32Array(pages), kept)
+        marked = widen(marked, new Uint8Array(pages), kept)
+        pending = widen(pending, new Int32Array(pages), kept && count)
+        if (!kept) count = 0
       }
-      if (page < 0 || marked[page]) return;
-      marked[page] = 1;
-      pending[count++] = page;
+      if (page < 0 || marked[page]) return
+      marked[page] = 1
+      pending[count++] = page
     },
     flush(values: ArrayLike<number>, changed?: (page: number) => void) {
       for (let i = 0; i < count; i++) {
         const page = pending[i],
-          flag = flagOf(values[page]);
-        marked[page] = 0;
-        if (flag === seen[page]) continue;
-        seen[page] = flag;
-        changed?.(page);
+          flag = flagOf(values[page])
+        marked[page] = 0
+        if (flag === seen[page]) continue
+        seen[page] = flag
+        changed?.(page)
       }
-      count = 0;
+      count = 0
     },
-  };
+  }
 }
 
 /**
@@ -53,7 +53,7 @@ function createResidenceTracker(flagOf: (value: number) => number) {
  */
 export function createShadowResidence() {
   const rows = createResidenceTracker((flag) => flag),
-    pool = createResidenceTracker((words) => (words >= 0 ? 1 : 0));
+    pool = createResidenceTracker((words) => (words >= 0 ? 1 : 0))
   return {
     /** Page `page`'s row flag flipped: it is compared at the next GPU plan. */
     noteRow: rows.note,
@@ -67,8 +67,8 @@ export function createShadowResidence() {
       gpuCut: boolean,
       changed: (page: number) => void,
     ) {
-      if (gpuCut) rows.flush(rowFlags, changed);
-      pool.flush(poolWords, gpuCut ? undefined : changed);
+      if (gpuCut) rows.flush(rowFlags, changed)
+      pool.flush(poolWords, gpuCut ? undefined : changed)
     },
-  };
+  }
 }

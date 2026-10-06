@@ -4,16 +4,16 @@
 // #1333), so a scene opens without it; it imports no engine code, so the CDN bundle makes one
 // chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's
 // (`worldRootsPage.ts`, `worldSuperRoots.ts`).
-import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
+import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts'
 import type {
   WorldRoots,
   WorldRootsCluster,
   WorldRootsPage,
-} from '../../../sdk-core/src/manifest/worldRoots.ts';
+} from '../../../sdk-core/src/manifest/worldRoots.ts'
 
 /** The world address of one page: its binary, its bundle and its byte offset inside that bundle. */
 export const worldRootsPageAddress = (url: string, bundle: number, offset: number) =>
-  `${url}#${bundle}:${offset}`;
+  `${url}#${bundle}:${offset}`
 
 /**
  * The world clusters of a table in the cook's rank, each the fields the cut projects and its page
@@ -25,44 +25,37 @@ export const worldRootsPageAddress = (url: string, bundle: number, offset: numbe
  */
 export function worldRootPages(clusters: readonly WorldRootsCluster[], url: string) {
   const roots: number[] = [],
-    origins = new Int32Array(clusters.length);
+    origins = new Int32Array(clusters.length)
   const pages = clusters.map((cluster, rank) => {
     if (cluster.cluster !== rank)
-      throw new Error(`WORLD_CLUSTER_RANK: ${cluster.cluster} at ${rank}`);
-    if (cluster.parentError === null) roots.push(rank);
-    origins[rank] = cluster.origin ?? -1;
-    const {
-      bundle,
-      offset,
-      cluster: _rank,
-      material: _material,
-      origin: _origin,
-      ...cut
-    } = cluster;
+      throw new Error(`WORLD_CLUSTER_RANK: ${cluster.cluster} at ${rank}`)
+    if (cluster.parentError === null) roots.push(rank)
+    origins[rank] = cluster.origin ?? -1
+    const { bundle, offset, cluster: _rank, material: _material, origin: _origin, ...cut } = cluster
     return {
       ...cut,
       url: bundle === null || offset === null ? '' : worldRootsPageAddress(url, bundle, offset),
-    };
-  });
-  return { roots, pages, origins };
+    }
+  })
+  return { roots, pages, origins }
 }
 
 /** The bundle and the offset inside it that a world page address names. */
 function worldRootsPageLocation(address: string): { bundle: number; offset: number } {
-  const named = /#(\d+):(\d+)$/.exec(address);
-  if (!named) throw new Error(`WORLD_PAGE_ADDRESS: ${address}`);
-  return { bundle: Number(named[1]), offset: Number(named[2]) };
+  const named = /#(\d+):(\d+)$/.exec(address)
+  if (!named) throw new Error(`WORLD_PAGE_ADDRESS: ${address}`)
+  return { bundle: Number(named[1]), offset: Number(named[2]) }
 }
 
 /** The pages of one bundle of the table, verified, in binary order. */
-type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>;
+type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>
 
 /** What a caller takes of a page: one of its two WebGPU halves, or the whole page at once. */
-type View = 'read' | 'attributes' | 'whole';
+type View = 'read' | 'attributes' | 'whole'
 
 /** How many bundles may wait for the other GPU view of one of their pages, by default: the
  *  streamer's pending budget (capped like its pending page requests), never a scene's. */
-const WORLD_PENDING_BUNDLES = 64;
+const WORLD_PENDING_BUNDLES = 64
 
 /**
  * The page server of `table`, its bundles read through `bundlePages`: a page is resolved at its
@@ -77,32 +70,32 @@ export function worldPageServer(
 ) {
   // Each bundle's page offsets in binary order: a page's rank among them is its place in it,
   // resolved once here rather than searched per request.
-  const offsets = new Map<number, number[]>();
+  const offsets = new Map<number, number[]>()
   for (let page = 0; page < table.pages.count; page++) {
     const entry = table.pages.at(page),
-      known = offsets.get(entry.bundle);
-    if (known) known.push(entry.offset);
-    else offsets.set(entry.bundle, [entry.offset]);
+      known = offsets.get(entry.bundle)
+    if (known) known.push(entry.offset)
+    else offsets.set(entry.bundle, [entry.offset])
   }
-  const ranks = new Map<number, Map<number, number>>();
+  const ranks = new Map<number, Map<number, number>>()
   for (const [bundle, known] of offsets)
-    ranks.set(bundle, new Map(known.sort((a, b) => a - b).map((offset, rank) => [offset, rank])));
+    ranks.set(bundle, new Map(known.sort((a, b) => a - b).map((offset, rank) => [offset, rank])))
   /** A bundle read once: its pages, the callers still on it, and each page whose GPU half (`read`
    *  or `attributes`) is served and whose other half is still owed. */
   type Streamed = {
-    bundle: number;
-    pages: Promise<WorldRootsPage[]>;
-    users: number;
-    owed: Map<number, View>;
-  };
-  const streamed = new Map<number, Streamed>();
+    bundle: number
+    pages: Promise<WorldRootsPage[]>
+    users: number
+    owed: Map<number, View>
+  }
+  const streamed = new Map<number, Streamed>()
   /** The bundles owing a view, oldest first: past `pendingBundles`, the oldest is let go. */
-  const owing = new Set<Streamed>();
+  const owing = new Set<Streamed>()
   const letGo = (own: Streamed) => {
-    if (own.owed.size === 0) owing.delete(own);
+    if (own.owed.size === 0) owing.delete(own)
     if (own.users === 0 && own.owed.size === 0 && streamed.get(own.bundle) === own)
-      streamed.delete(own.bundle);
-  };
+      streamed.delete(own.bundle)
+  }
   // A bundle's read is shared by every caller, so it carries no caller's signal: one caller
   // aborting must not fail another's page (`serve` checks its own signal after the read). It is
   // kept while a caller is on it or a page owes its other GPU view, so the two views of a page come
@@ -110,50 +103,50 @@ export function worldPageServer(
   // A page whose other half aborts, or a bundle pushed past the pending budget (a view never asked:
   // a WebGL2 run, an evicted slot), owes nothing more, so the retention is bounded.
   const serve = async (address: string, view: View, signal?: AbortSignal) => {
-    const { bundle, offset } = worldRootsPageLocation(address);
-    if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`);
-    let own = streamed.get(bundle);
+    const { bundle, offset } = worldRootsPageLocation(address)
+    if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
+    let own = streamed.get(bundle)
     if (!own) {
-      const fresh: Streamed = { bundle, pages: bundlePages(bundle), users: 0, owed: new Map() };
-      fresh.pages.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)));
-      streamed.set(bundle, (own = fresh));
+      const fresh: Streamed = { bundle, pages: bundlePages(bundle), users: 0, owed: new Map() }
+      fresh.pages.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
+      streamed.set(bundle, (own = fresh))
     }
-    own.users++;
+    own.users++
     try {
       const pages = await own.pages,
-        index = ranks.get(bundle)?.get(offset) ?? -1;
+        index = ranks.get(bundle)?.get(offset) ?? -1
       if (signal?.aborted) {
-        own.owed.delete(index);
-        signal.throwIfAborted();
+        own.owed.delete(index)
+        signal.throwIfAborted()
       }
-      if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`);
-      const other = own.owed.get(index);
-      if (view === 'whole' || (other && other !== view)) own.owed.delete(index);
+      if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`)
+      const other = own.owed.get(index)
+      if (view === 'whole' || (other && other !== view)) own.owed.delete(index)
       else if (!other) {
-        own.owed.set(index, view);
+        own.owed.set(index, view)
         // Newest last, so the budget lets go of the bundle owed longest, never the one just served.
-        owing.delete(own);
-        owing.add(own);
+        owing.delete(own)
+        owing.add(own)
         for (const oldest of owing) {
-          if (owing.size <= pendingBundles) break;
-          oldest.owed.clear();
-          letGo(oldest);
+          if (owing.size <= pendingBundles) break
+          oldest.owed.clear()
+          letGo(oldest)
         }
       }
-      return pages[index];
+      return pages[index]
     } finally {
-      own.users--;
-      letGo(own);
+      own.users--
+      letGo(own)
     }
-  };
+  }
   return {
     /** The bytes of the bundles it keeps (in flight, or owing a page's other GPU view) past the
      *  pinned top that `held` does not hold. */
     keptBytes(held: { has(bundle: number): boolean }) {
-      let kept = 0;
+      let kept = 0
       for (const bundle of streamed.keys())
-        if (bundle >= table.pinned && !held.has(bundle)) kept += table.bundles[bundle].bytes;
-      return kept;
+        if (bundle >= table.pinned && !held.has(bundle)) kept += table.bundles[bundle].bytes
+      return kept
     },
     /** The page at `address`: world-space vertices, `u16` triangles. */
     page: (address: string, signal?: AbortSignal) => serve(address, 'whole', signal),
@@ -166,18 +159,18 @@ export function worldPageServer(
     /** Its decoded shape, the one WebGL2 draws. */
     decoded: async (address: string, signal?: AbortSignal) =>
       decodedWorldRootsPage(await serve(address, 'whole', signal)),
-  };
+  }
 }
 
 /** The `u32` indices of a world page: the `u16` local list widened one-to-one, the width both the
  *  WebGPU `array<u32>` and WebGL2's `UNSIGNED_INT` draw read. */
-const worldRootsIndices = (page: WorldRootsPage) => new Uint32Array(page.indices);
+const worldRootsIndices = (page: WorldRootsPage) => new Uint32Array(page.indices)
 
 /** The engine's decoded shape of a world page: `u32` indices, a world-space position list, and no
  *  other attribute — the world page carries no normal, UV or colour. */
 function decodedWorldRootsPage(page: WorldRootsPage): DecodedGeometryPage {
   const indices = worldRootsIndices(page),
-    positions = page.positions as Float32Array<ArrayBuffer>;
+    positions = page.positions as Float32Array<ArrayBuffer>
   return {
     indices,
     attributes: { position: positions },
@@ -185,7 +178,7 @@ function decodedWorldRootsPage(page: WorldRootsPage): DecodedGeometryPage {
     flags: 0,
     decodedBytes: positions.byteLength + indices.byteLength,
     quantizationError: 0,
-  };
+  }
 }
 
-export type WorldPageServer = ReturnType<typeof worldPageServer>;
+export type WorldPageServer = ReturnType<typeof worldPageServer>

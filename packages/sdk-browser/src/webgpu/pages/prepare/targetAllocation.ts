@@ -1,24 +1,24 @@
-import { wantsSubsurface, subsurfaceBytes, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
-import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts';
-import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts';
-import { reflectionHistoryBytes } from '../../../reflections/historyTargets.ts';
-import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts';
-import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from '../../../reflections/source.ts';
-import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts';
+import { wantsSubsurface, subsurfaceBytes, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts'
+import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts'
+import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts'
+import { reflectionHistoryBytes } from '../../../reflections/historyTargets.ts'
+import { REFLECTION_RESOLVE_VIEW_BYTES } from '../../../reflections/resolveWgsl.ts'
+import { REFLECTION_SOURCE_BYTES_PER_PIXEL } from '../../../reflections/source.ts'
+import { REFLECTION_SOURCE_VIEW_BYTES } from '../../../reflections/sourceWgsl.ts'
 import {
   checkSurfaceSize,
   emissiveAoBytes,
   FEEDBACK_BYTES,
   frameTargetBytes,
-} from '../../../scene/surfaceBuffer.ts';
-import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts';
-import { wantsAsIsShare } from './asIsShareTarget.ts';
-import { backdropBytes } from '../../transparent/transmission.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { FrameSize } from '../state/renderScale.ts';
+} from '../../../scene/surfaceBuffer.ts'
+import { AS_IS_SHARE_BYTES } from '../../../lighting/deferred/asIsShare.ts'
+import { wantsAsIsShare } from './asIsShareTarget.ts'
+import { backdropBytes } from '../../transparent/transmission.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { FrameSize } from '../state/renderScale.ts'
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
-const DISPLAY_BYTES = 4;
+const DISPLAY_BYTES = 4
 
 /**
  * Whether a frame of `size` makes a display colour of its own at the render size (`Trillion3D
@@ -30,7 +30,7 @@ const DISPLAY_BYTES = 4;
 export const ownsDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   !size.apart ||
   (rt.blendState.transmissive > 0 &&
-    (size.renderWidth !== size.width || size.renderHeight !== size.height));
+    (size.renderWidth !== size.width || size.renderHeight !== size.height))
 
 /** Proposed image targets, passed to the existing global memory admission before allocation.
  * Device dimensions remain hard limits; streamable pools retain their coverage/tail minima.
@@ -40,10 +40,10 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
   const hiz = !!rt.vis?.gpuHiz,
     gpuDevice = rt.gpu.device,
     { renderWidth: width, renderHeight: height } = size,
-    display = size.apart ? size.width * size.height : 0;
-  if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
-  const plan = reflectionPlan(rt);
-  checkSurfaceSize(gpuDevice, size.width, size.height, 1);
+    display = size.apart ? size.width * size.height : 0
+  if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE')
+  const plan = reflectionPlan(rt)
+  checkSurfaceSize(gpuDevice, size.width, size.height, 1)
   return (
     frameTargetBytes(width, height, hiz) -
     (ownsDisplayColor(rt, size) ? 0 : width * height * DISPLAY_BYTES) -
@@ -67,7 +67,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     (plan.rough ? reflectionHistoryBytes(width, height) + REFLECTION_RESOLVE_VIEW_BYTES : 0) +
     display * DISPLAY_BYTES +
     REFLECTION_VIEW_BYTES
-  );
+  )
 }
 
 /** What a frame of `size` asks of the budget beside its targets (`frameTargetAllocation`'s
@@ -75,4 +75,4 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
  *  transmission's backdrop at the render size. */
 export const frameExtraBytes = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   (rt.capture.surfaceCapture ? 0 : rt.capture.captureAllocationBytes) +
-  backdropBytes(rt, size.renderWidth, size.renderHeight);
+  backdropBytes(rt, size.renderWidth, size.renderHeight)

@@ -1,9 +1,9 @@
-import type { Object3D } from '../../../packages/sdk-browser/src/index.ts';
-import { addCommand, isWithin, removeCommand, reparentCommand, valueCommand } from './commands.ts';
-import { build, type AddKind } from './objects.ts';
-import type { Session } from './session.ts';
-import { buildStarter, type StarterNames } from './starter.ts';
-import { clearAutosave, readAutosave } from './storage.ts';
+import type { Object3D } from '../../../packages/sdk-browser/src/index.ts'
+import { addCommand, isWithin, removeCommand, reparentCommand, valueCommand } from './commands.ts'
+import { build, type AddKind } from './objects.ts'
+import type { Session } from './session.ts'
+import { buildStarter, type StarterNames } from './starter.ts'
+import { clearAutosave, readAutosave } from './storage.ts'
 
 /**
  * What the menus and the outliner do to the scene, each edit one command of the history. `name`
@@ -14,30 +14,30 @@ export function sceneActions(
   name: (kind: AddKind) => string,
   failed: (error: unknown) => void,
 ) {
-  const { engine, world } = session;
-  const { scene } = world;
+  const { engine, world } = session
+  const { scene } = world
   /** Replaces the scene with a saved one; the history of the old one goes with it. */
   const read = async (json: unknown) => {
-    await scene.fromJSON(json, world.camera);
-    session.replaced();
-  };
+    await scene.fromJSON(json, world.camera)
+    session.replaced()
+  }
   return {
     add(kind: AddKind) {
-      const node = build(engine, kind, name(kind));
-      session.run(addCommand(node, scene));
-      session.select(node);
+      const node = build(engine, kind, name(kind))
+      session.run(addCommand(node, scene))
+      session.select(node)
     },
     remove() {
-      const node = session.selected;
-      if (node?.parent) session.run(removeCommand(node, session.select));
+      const node = session.selected
+      if (node?.parent) session.run(removeCommand(node, session.select))
     },
     /** A copy of the selection beside it, sharing nothing with it (`object.clone`). */
     duplicate() {
-      const node = session.selected;
-      const copy = node?.parent && engine.object.clone(node);
-      if (!node?.parent || !copy) return;
-      session.run(addCommand(copy, node.parent));
-      session.select(copy);
+      const node = session.selected
+      const copy = node?.parent && engine.object.clone(node)
+      if (!node?.parent || !copy) return
+      session.run(addCommand(copy, node.parent))
+      session.select(copy)
     },
     /** Moves `node` under `parent`, keeping where it stands; never under itself. */
     reparent(node: Object3D, parent: Object3D) {
@@ -47,20 +47,20 @@ export function sceneActions(
         node.parent === parent ||
         isWithin(parent, node)
       )
-        return;
-      session.run(reparentCommand(node, parent));
+        return
+      session.run(reparentCommand(node, parent))
     },
     rename(node: Object3D, next: string) {
       if (next !== node.name)
-        session.run(valueCommand((value: string) => (node.name = value), node.name, next));
+        session.run(valueCommand((value: string) => (node.name = value), node.name, next))
     },
     setVisible(node: Object3D, visible: boolean) {
-      session.run(valueCommand((value: boolean) => (node.visible = value), node.visible, visible));
+      session.run(valueCommand((value: boolean) => (node.visible = value), node.visible, visible))
     },
     /** An empty scene: every object goes, the grid, the axes and the handles stay. */
     newScene() {
-      scene.remove(...session.content);
-      session.replaced();
+      scene.remove(...session.content)
+      session.replaced()
     },
     /** The scene as the JSON a file keeps. */
     save: () => JSON.stringify(scene.toJSON(world.camera), null, 2),
@@ -68,26 +68,26 @@ export function sceneActions(
     /** A cooked model, loaded from its manifest's address and added as one undoable edit. */
     async loadSample(url: string, label: string) {
       try {
-        const model = await scene.load(url);
-        model.name = label;
-        session.record(addCommand(model, scene));
-        session.select(model);
+        const model = await scene.load(url)
+        model.name = label
+        session.record(addCommand(model, scene))
+        session.select(model)
       } catch (error) {
-        failed(error);
+        failed(error)
       }
     },
     /** The scene saved in this browser on the last visit, the starter scene when there is none;
      *  a saved one that fails is forgotten, a starter that fails is never saved, so the next
      *  visit builds it again. */
     async restore(starter: StarterNames) {
-      const json = readAutosave();
-      if (!json) return buildStarter(session, starter).then(session.replaced, failed);
+      const json = readAutosave()
+      if (!json) return buildStarter(session, starter).then(session.replaced, failed)
       await read(json).catch((error: unknown) => {
-        clearAutosave();
-        failed(error);
-      });
+        clearAutosave()
+        failed(error)
+      })
     },
-  };
+  }
 }
 
-export type SceneActions = ReturnType<typeof sceneActions>;
+export type SceneActions = ReturnType<typeof sceneActions>

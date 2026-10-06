@@ -1,17 +1,17 @@
 // Page side of the ground truth (#443): a fixture that declares `truth` is cast again on the CPU
 // (`groundTruth.ts`) from its own map, square and camera, and both renderers' images are measured
 // against it.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { groundTruth, truthGap, type TruthGap } from './groundTruth.ts';
-import { SIZE, type Fixture } from './materialFixtureShape.ts';
-import { BEHIND, CLEAR_COLOR, SQUARE_SIDE } from './materialPixelsRender.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { groundTruth, truthGap, type TruthGap } from './groundTruth.ts'
+import { SIZE, type Fixture } from './materialFixtureShape.ts'
+import { BEHIND, CLEAR_COLOR, SQUARE_SIDE } from './materialPixelsRender.ts'
 
 /** Both renderers' gaps to the truth, and the pixels the engine may show over one level — `null`
  *  when the gaps are only reported. */
 export interface TruthReading {
-  tolerance: number | null;
-  reference: TruthGap;
-  engine: TruthGap;
+  tolerance: number | null
+  reference: TruthGap
+  engine: TruthGap
 }
 
 /** The fixture's truth and both gaps to it, or nothing when it declares no truth: its map, a
@@ -22,9 +22,9 @@ export function truthOf(
   reference: ArrayLike<number>,
   engine: ArrayLike<number>,
 ): TruthReading | undefined {
-  if (fixture.truth === undefined || engine.length === 0) return; // no frame: `held` names it
+  if (fixture.truth === undefined || engine.length === 0) return // no frame: `held` names it
   const surface = fixture.material(),
-    map = surface.map as G.GraphTexture | null;
+    map = surface.map as G.GraphTexture | null
   if (
     !map ||
     fixture.lit ||
@@ -40,9 +40,9 @@ export function truthOf(
     throw new Error(
       `${fixture.name}: the ground truth reads an opaque white unlit front face wearing an ` +
         'unflipped, repeated, bilinear map',
-    );
-  map.updateMatrix();
-  const canvas = map.image as HTMLCanvasElement;
+    )
+  map.updateMatrix()
+  const canvas = map.image as HTMLCanvasElement
   const truth = groundTruth({
     size: SIZE,
     camera,
@@ -64,11 +64,11 @@ export function truthOf(
             colour: fixture.behind,
           },
     clear: CLEAR_COLOR,
-  });
-  surface.dispose();
+  })
+  surface.dispose()
   return {
     tolerance: fixture.truth,
     reference: truthGap(reference, truth),
     engine: truthGap(engine, truth),
-  };
+  }
 }

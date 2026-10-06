@@ -1,5 +1,5 @@
-import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts';
-import type { VisMaterial } from '../visibility/materialType.ts';
+import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts'
+import type { VisMaterial } from '../visibility/materialType.ts'
 
 /**
  * THE EMISSION-AND-OCCLUSION TEXEL, READ ONLY WHERE IT HOLDS SOMETHING (#1369).
@@ -26,14 +26,14 @@ import type { VisMaterial } from '../visibility/materialType.ts';
  *  surfaces could have set the bit. */
 export const EMISSIVE_AO_FLAG_WGSL = `
 override EMISSIVE_AO:bool=true;
-fn emissiveAoFlag(emissive:vec3f,ao:f32)->u32{return select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,EMISSIVE_AO&&(any(bitcast<vec3u>(emissive)!=vec3u(0u))||ao!=1.0));}`;
+fn emissiveAoFlag(emissive:vec3f,ao:f32)->u32{return select(0u,${EMISSIVE_AO_SURFACE_FLAG}u,EMISSIVE_AO&&(any(bitcast<vec3u>(emissive)!=vec3u(0u))||ao!=1.0));}`
 
 /** Bytes a pixel of the emission-and-occlusion layer takes (`rgba16float`). */
-export const EMISSIVE_AO_BYTES = 8;
+export const EMISSIVE_AO_BYTES = 8
 
 /** The f32 bits of `x` are not all zero: a negative zero and a NaN count, as the GPU compares bits;
  *  a value the conversion flushes to zero counts too, which only keeps the layer. */
-const bitsSet = (x: number) => x !== 0 || Object.is(x, -0);
+const bitsSet = (x: number) => x !== 0 || Object.is(x, -0)
 
 /**
  * Whether a surface can write a texel other than `(0, 0, 0, 1)`, the one `emissiveAoFlag` leaves
@@ -44,7 +44,7 @@ const bitsSet = (x: number) => x !== 0 || Object.is(x, -0);
 export function surfaceEmitsOrOccludes(
   mat: Pick<VisMaterial, 'emissive' | 'emissiveMap' | 'aoMap' | 'aoIntensity'>,
 ) {
-  const [r, g, b] = mat.emissive;
+  const [r, g, b] = mat.emissive
   return (
     !!mat.emissiveMap ||
     !!mat.aoMap ||
@@ -52,7 +52,7 @@ export function surfaceEmitsOrOccludes(
     bitsSet(g) ||
     bitsSet(b) ||
     !Number.isFinite(Math.fround(mat.aoIntensity))
-  );
+  )
 }
 
 /** The pixel's emission and occlusion: the texel under the bit, `(0, 0, 0, 1)` without it. Needs
@@ -61,4 +61,4 @@ export const SURFACE_EMISSIVE_AO_WGSL = `
 fn surfaceEmissiveAo(coord:vec2i,surfaceFlag:u32)->vec4f{
  if((surfaceFlag&${EMISSIVE_AO_SURFACE_FLAG}u)==0u){return vec4f(0.0,0.0,0.0,1.0);}
  return textureLoad(emissiveAo,coord,0);
-}`;
+}`

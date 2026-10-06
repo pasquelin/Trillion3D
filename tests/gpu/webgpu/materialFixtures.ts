@@ -5,28 +5,28 @@
 // far the two images may differ there — and why.
 //
 // The materials are built in the proof's page, where the maps' canvases are drawn.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import * as img from './materialImages.ts';
-import { SIZE, type Fixture } from './materialFixtureShape.ts';
-import { hostSurface } from '../../../packages/sdk-browser/src/world/core/worldSurface.ts';
-import { material } from '../../../packages/sdk-core/src/world/material/index.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import * as img from './materialImages.ts'
+import { SIZE, type Fixture } from './materialFixtureShape.ts'
+import { hostSurface } from '../../../packages/sdk-browser/src/world/core/worldSurface.ts'
+import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 
 /** Two engines that quantise the same value: at most one 8-bit step apart, per channel. */
-const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' };
+const QUANTISATION = { difference: [0, 1], reason: 'same value, two 8-bit roundings' }
 
 /** Points inside the square, away from its edges: the centre and the four quadrant centres. */
-const CENTRE = [SIZE >> 1, SIZE >> 1];
+const CENTRE = [SIZE >> 1, SIZE >> 1]
 const QUADRANTS = [
   [SIZE * 0.32, SIZE * 0.32],
   [SIZE * 0.68, SIZE * 0.32],
   [SIZE * 0.32, SIZE * 0.68],
   [SIZE * 0.68, SIZE * 0.68],
-].map((p) => p.map(Math.round));
-const INSIDE = [CENTRE, ...QUADRANTS];
+].map((p) => p.map(Math.round))
+const INSIDE = [CENTRE, ...QUADRANTS]
 /** A row across the middle of a square at a grazing angle (`tilt`), inside its width. */
-const GRAZING_ROW = Array.from({ length: 49 }, (_, i) => [24 + i, SIZE >> 1]);
+const GRAZING_ROW = Array.from({ length: 49 }, (_, i) => [24 + i, SIZE >> 1])
 /** Levels of spread along `GRAZING_ROW` anisotropy 16 must add to 1, on each engine. */
-export const ANISOTROPY_GAIN = 64;
+export const ANISOTROPY_GAIN = 64
 
 /** An unlit fixture: a basic material, read within one level unless `extra` says otherwise. */
 const unlit = (
@@ -39,7 +39,7 @@ const unlit = (
   points: INSIDE,
   ...QUANTISATION,
   ...extra,
-});
+})
 
 /** A lit fixture: a standard material under the sun, read within one level. */
 const lit = (
@@ -53,14 +53,14 @@ const lit = (
   points: INSIDE,
   ...QUANTISATION,
   ...extra,
-});
+})
 
 /** The blended square: pure red at half opacity, whatever it is composed over. */
 const BLEND = (): G.SurfaceParameters => ({
   color: 0xff2020,
   transparent: true,
   opacity: 0.5,
-});
+})
 
 /**
  * Each fixture: `material()` builds it in the page; `lit` declares the sun on both sides;
@@ -109,12 +109,12 @@ export const fixtures: Fixture[] = [
   unlit(
     'map repeated and turned',
     () => {
-      const map = img.colourMap(img.FOUR_COLOURS);
-      map.wrapS = map.wrapT = G.HOST_WRAP_REPEAT;
-      map.magFilter = G.HOST_FILTER_LINEAR;
-      map.repeat.set(4, 4);
-      map.rotation = Math.PI / 6;
-      return { map };
+      const map = img.colourMap(img.FOUR_COLOURS)
+      map.wrapS = map.wrapT = G.HOST_WRAP_REPEAT
+      map.magFilter = G.HOST_FILTER_LINEAR
+      map.repeat.set(4, 4)
+      map.rotation = Math.PI / 6
+      return { map }
     },
     {
       points: INSIDE,
@@ -187,4 +187,4 @@ export const fixtures: Fixture[] = [
     pair: ['webgpu', 'webgl2'],
     ...QUANTISATION,
   },
-];
+]

@@ -5,11 +5,11 @@
  * ancestor (`../../page/cut/rule.ts`).
  */
 export interface WebgpuBudgetState {
-  coverageBudgetLimited: boolean;
+  coverageBudgetLimited: boolean
   /** The verdict just changed: published once by the flush, as `coverage-budget`. */
-  coverageBudgetEvent: Record<string, unknown> | undefined;
+  coverageBudgetEvent: Record<string, unknown> | undefined
 }
 
 export function createWebgpuBudgetState(): WebgpuBudgetState {
-  return { coverageBudgetLimited: false, coverageBudgetEvent: undefined };
+  return { coverageBudgetLimited: false, coverageBudgetEvent: undefined }
 }

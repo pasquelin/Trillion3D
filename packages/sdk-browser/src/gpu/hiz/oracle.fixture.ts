@@ -1,57 +1,57 @@
-import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.fixture.ts';
-import { pyramidBytes } from './oracle.ts';
-import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts';
-import type { HizPyramid } from '../../hiz/types.ts';
-import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts';
+import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
+import { pyramidBytes } from './oracle.ts'
+import { VERDICT_REJECTED, VERDICT_KEPT } from '../partition/contract.ts'
+import type { HizPyramid } from '../../hiz/types.ts'
+import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts'
 
 /** One ceil-2×2 min reduction of a packed level: the farthest of each square, the engine's depth
  *  being reversed. */
 export function evaluateHizReduce(src: Float32Array, srcWidth: number, srcHeight: number) {
-  const reduced = hizReduceCeil(rowsOf(src, srcWidth, srcHeight));
+  const reduced = hizReduceCeil(rowsOf(src, srcWidth, srcHeight))
   const height = reduced.length,
-    width = height ? reduced[0].length : 0;
-  const data = new Float32Array(Math.max(1, width * height));
-  for (let y = 0; y < height; y++) data.set(reduced[y], y * width);
-  return { data, width, height };
+    width = height ? reduced[0].length : 0
+  const data = new Float32Array(Math.max(1, width * height))
+  for (let y = 0; y < height; y++) data.set(reduced[y], y * width)
+  return { data, width, height }
 }
 
 /** Pack level-0 rows into the full ceil-max pyramid used by the GPU kernel. */
 export function packHizPyramid(level0: readonly (readonly number[])[]): PackedHiz {
-  const levels = hizBuildPyramid(level0);
-  const { sizes, offsets, texels } = pyramidBytes(level0[0].length, level0.length);
-  const data = new Float32Array(texels);
+  const levels = hizBuildPyramid(level0)
+  const { sizes, offsets, texels } = pyramidBytes(level0[0].length, level0.length)
+  const data = new Float32Array(texels)
   for (let i = 0; i < levels.length; i++) {
     const level = levels[i],
       [w] = sizes[i],
-      base = offsets[i];
-    for (let y = 0; y < level.length; y++) data.set(level[y], base + y * w);
+      base = offsets[i]
+    for (let y = 0; y < level.length; y++) data.set(level[y], base + y * w)
   }
-  return { data, sizes, offsets };
+  return { data, sizes, offsets }
 }
 
 /** Same rejection as `hizRejects` (mip-selected inclusive footprint, near clips never hide). */
 export function evaluateHizTest(packed: PackedHiz, bounds: HizBounds[], bias = 0) {
-  const pyramid = pyramidFromPacked(packed);
-  const flags = new Uint32Array(bounds.length);
+  const pyramid = pyramidFromPacked(packed)
+  const flags = new Uint32Array(bounds.length)
   for (let i = 0; i < bounds.length; i++)
-    flags[i] = hizRejects(pyramid, bounds[i], bias) ? VERDICT_REJECTED : VERDICT_KEPT;
-  return flags;
+    flags[i] = hizRejects(pyramid, bounds[i], bias) ? VERDICT_REJECTED : VERDICT_KEPT
+  return flags
 }
 
 export type PackedHiz = {
-  data: Float32Array<ArrayBuffer>;
-  sizes: Array<[number, number]>;
-  offsets: number[];
-};
+  data: Float32Array<ArrayBuffer>
+  sizes: Array<[number, number]>
+  offsets: number[]
+}
 
 function rowsOf(data: Float32Array, width: number, height: number) {
-  const rows: number[][] = [];
+  const rows: number[][] = []
   for (let y = 0; y < height; y++) {
-    const row = new Array<number>(width);
-    for (let x = 0; x < width; x++) row[x] = data[y * width + x];
-    rows.push(row);
+    const row = new Array<number>(width)
+    for (let x = 0; x < width; x++) row[x] = data[y * width + x]
+    rows.push(row)
   }
-  return rows;
+  return rows
 }
 
 /** The GPU kernel's pack is already flat: the CPU test's pyramid reads it without copying it. */
@@ -62,5 +62,5 @@ function pyramidFromPacked(packed: PackedHiz): HizPyramid {
     widths: Int32Array.from(packed.sizes, ([w]) => w),
     heights: Int32Array.from(packed.sizes, ([, h]) => h),
     count: packed.sizes.length,
-  };
+  }
 }

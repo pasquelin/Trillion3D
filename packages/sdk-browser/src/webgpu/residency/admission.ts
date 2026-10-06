@@ -1,10 +1,10 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { createGpuPageCache } from '../../gpu/page/pages.ts';
-import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { pageAddress } from '../row/pageSlots.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { createGpuPageCache } from '../../gpu/page/pages.ts'
+import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
+import { pageAddress } from '../row/pageSlots.ts'
 
-type PoolCache = Pick<ReturnType<typeof createGpuPageCache>, 'get' | 'load' | 'pin'>;
-type Tracking = ReturnType<typeof createWebgpuPageTracking>;
+type PoolCache = Pick<ReturnType<typeof createGpuPageCache>, 'get' | 'load' | 'pin'>
+type Tracking = ReturnType<typeof createWebgpuPageTracking>
 
 /**
  * Install order, the one rule of every path that fills the pool: a page is loaded only after the
@@ -28,48 +28,48 @@ type Tracking = ReturnType<typeof createWebgpuPageTracking>;
  * a prefetch, so the view's loading `total` never counts it (#408).
  */
 export function createPageAdmission(options: {
-  getCache: () => PoolCache | undefined;
-  tracking: Pick<Tracking, 'keyOf' | 'wanted' | 'markPinned'>;
-  bootstrapKey: Uint8Array;
-  signal?: AbortSignal;
-  isLost: () => boolean;
-  hasBytes: (rec: PageRec) => boolean;
-  parentsOf: (rec: PageRec) => readonly PageRec[];
+  getCache: () => PoolCache | undefined
+  tracking: Pick<Tracking, 'keyOf' | 'wanted' | 'markPinned'>
+  bootstrapKey: Uint8Array
+  signal?: AbortSignal
+  isLost: () => boolean
+  hasBytes: (rec: PageRec) => boolean
+  parentsOf: (rec: PageRec) => readonly PageRec[]
 }) {
-  const { getCache, tracking, bootstrapKey, signal, isLost, hasBytes, parentsOf } = options;
+  const { getCache, tracking, bootstrapKey, signal, isLost, hasBytes, parentsOf } = options
   const current = () => {
-    const cache = getCache();
-    if (isLost() || !cache) throw new Error('WEBGPU_LOST');
-    return cache;
-  };
-  const holds = (rec: PageRec) => !!getCache()?.get(pageAddress(rec));
+    const cache = getCache()
+    if (isLost() || !cache) throw new Error('WEBGPU_LOST')
+    return cache
+  }
+  const holds = (rec: PageRec) => !!getCache()?.get(pageAddress(rec))
   /** One load, pinned when the image holds the page: the wanted set or the root cover. */
   const load = async (rec: PageRec, priority?: number) => {
     const address = pageAddress(rec),
       key = tracking.keyOf(rec),
-      held = !!bootstrapKey[key];
+      held = !!bootstrapKey[key]
     // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
-    await current().load(address, signal, held ? 'held' : undefined, priority);
+    await current().load(address, signal, held ? 'held' : undefined, priority)
     if (held || tracking.wanted.has(key)) {
-      if (!held) current().pin(address);
-      tracking.markPinned(key);
+      if (!held) current().pin(address)
+      tracking.markPinned(key)
     }
-  };
+  }
   const admit = async (rec: PageRec, priority?: number): Promise<number> => {
-    const parents = parentsOf(rec);
-    let loaded = 0;
+    const parents = parentsOf(rec)
+    let loaded = 0
     for (const parent of parents) {
-      if (holds(parent)) continue;
-      if (!hasBytes(parent)) return -1;
-      const more = await admit(parent, priority);
-      if (more < 0) return -1;
-      loaded += more;
+      if (holds(parent)) continue
+      if (!hasBytes(parent)) return -1
+      const more = await admit(parent, priority)
+      if (more < 0) return -1
+      loaded += more
     }
-    for (const parent of parents) if (!holds(parent)) return -1;
-    await load(rec, priority);
-    return loaded + 1;
-  };
-  return admit;
+    for (const parent of parents) if (!holds(parent)) return -1
+    await load(rec, priority)
+    return loaded + 1
+  }
+  return admit
 }
 
 /**
@@ -80,11 +80,11 @@ export function createPageAdmission(options: {
  * is not touched — the same pages in the same order, each load joining the read under way.
  */
 export function createAdmissionReads(options: {
-  hasBytes: (rec: PageRec) => boolean;
-  parentsOf: (rec: PageRec) => readonly PageRec[];
-  prefetch: (rec: PageRec, signal: AbortSignal, priority?: number) => void;
+  hasBytes: (rec: PageRec) => boolean
+  parentsOf: (rec: PageRec) => readonly PageRec[]
+  prefetch: (rec: PageRec, signal: AbortSignal, priority?: number) => void
 }) {
-  const { hasBytes, parentsOf, prefetch } = options;
+  const { hasBytes, parentsOf, prefetch } = options
   return (
     pages: readonly PageRec[],
     limit: number,
@@ -95,20 +95,20 @@ export function createAdmissionReads(options: {
   ) => {
     // `refused`: a page whose walk stopped, so the pages under a shared ancestor walk it once.
     const asked = new Set<string>(),
-      refused = new Set<string>();
+      refused = new Set<string>()
     const walk = (rec: PageRec): boolean => {
-      const address = pageAddress(rec);
-      if (pool.get(address) || asked.has(address)) return true;
-      if (refused.has(address)) return false;
+      const address = pageAddress(rec)
+      if (pool.get(address) || asked.has(address)) return true
+      if (refused.has(address)) return false
       if (!hasBytes(rec) || !parentsOf(rec).every(walk) || asked.size >= limit) {
-        refused.add(address);
-        return false;
+        refused.add(address)
+        return false
       }
-      asked.add(address);
-      prefetch(rec, signal, priority);
-      return true;
-    };
+      asked.add(address)
+      prefetch(rec, signal, priority)
+      return true
+    }
     for (let i = 0; i < pages.length && asked.size < limit; i++)
-      if (admits(pages[i])) walk(pages[i]);
-  };
+      if (admits(pages[i])) walk(pages[i])
+  }
 }

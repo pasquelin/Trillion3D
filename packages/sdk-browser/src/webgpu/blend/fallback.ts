@@ -1,19 +1,19 @@
-import { viewProj } from '../pages/helpers.ts';
-import { FALLBACK_UNIFORM, UNIFORM_STRIDE, writeFallbackUniform } from './uniforms.ts';
-import { voidStaleBlendGroups } from './identity.ts';
-import { fallbackBindEntries } from '../core/fallbackEntries.ts';
-import { refreshSurface } from '../../page/surface.ts';
-import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
-import { drawnBlending } from '../../scene/materialBlending.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import type { createWebgpuBlendState } from './state.ts';
-import { fallbackMode } from '../pages/prepare/shaders.ts';
-import { FLAG_CLUSTER_PAGE } from '../../visibility/buffer.ts';
+import { viewProj } from '../pages/helpers.ts'
+import { FALLBACK_UNIFORM, UNIFORM_STRIDE, writeFallbackUniform } from './uniforms.ts'
+import { voidStaleBlendGroups } from './identity.ts'
+import { fallbackBindEntries } from '../core/fallbackEntries.ts'
+import { refreshSurface } from '../../page/surface.ts'
+import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
+import { drawnBlending } from '../../scene/materialBlending.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import type { createWebgpuBlendState } from './state.ts'
+import { fallbackMode } from '../pages/prepare/shaders.ts'
+import { FLAG_CLUSTER_PAGE } from '../../visibility/buffer.ts'
 
-type BlendState = ReturnType<typeof createWebgpuBlendState>;
+type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /** Words of one fallback draw: the visible item, its first index word, its index count. */
-export const DRAW_WORDS = 3;
+export const DRAW_WORDS = 3
 
 /**
  * The fallback pass's draws of the image into `blendState.fallbackDraws`, `DRAW_WORDS` each. An
@@ -30,25 +30,25 @@ export function listFallbackBlendDraws(blendState: BlendState, gpuCut: boolean) 
     cpuInstances,
     cpuItemCounts,
     fallbackDraws: list,
-  } = blendState;
-  list.length = 0;
+  } = blendState
+  list.length = 0
   for (let i = 0; i < items.length; i++) {
-    const { paged, pagedIndex, count } = items[i];
+    const { paged, pagedIndex, count } = items[i]
     if (!paged || !table || pagedIndex === undefined) {
-      list.push(i, 0, count);
-      continue;
+      list.push(i, 0, count)
+      continue
     }
-    if (gpuCut) throw new Error('FALLBACK_BLEND_WITHOUT_CPU_CUT');
+    if (gpuCut) throw new Error('FALLBACK_BLEND_WITHOUT_CPU_CUT')
     // The base the CPU cut wrote this item's instances at (`writeCpuTransparentInstances`), read
     // from the table: `item.tableBase` is only set by the transparent plan, which a prepare that
     // failed before the blend resources never builds.
-    const tableBase = table.itemRanges[pagedIndex * 2];
+    const tableBase = table.itemRanges[pagedIndex * 2]
     for (let k = tableBase; k < tableBase + cpuItemCounts[pagedIndex]; k++) {
-      const span = cpuInstances[k] * 4;
-      if (table.spans[span + 1]) list.push(i, table.spans[span], table.spans[span + 1]);
+      const span = cpuInstances[k] * 4
+      if (table.spans[span + 1]) list.push(i, table.spans[span], table.spans[span + 1])
     }
   }
-  return list;
+  return list
 }
 
 /**
@@ -67,26 +67,26 @@ export function writeFallbackBlendUniforms(
     items = blendState.visibleBlend,
     draws = list.length / DRAW_WORDS,
     { uniformPacked } = rt.gpu,
-    uniformBuffer = rt.gpu.uniformBuffer!;
-  const words = UNIFORM_STRIDE / 4;
+    uniformBuffer = rt.gpu.uniformBuffer!
+  const words = UNIFORM_STRIDE / 4
   const packedInts = new Uint32Array(
     uniformPacked.buffer,
     uniformPacked.byteOffset,
     uniformPacked.length,
-  );
+  )
   let last = -1,
-    surface = undefined as ReturnType<typeof refreshSurface> | undefined;
+    surface = undefined as ReturnType<typeof refreshSurface> | undefined
   for (let d = 0; d < draws; d++) {
     const at = d * DRAW_WORDS,
       item = items[list[at]],
-      base = (uniformBase + d) * words;
+      base = (uniformBase + d) * words
     // The draws of one item follow each other: its surface is read, and checked, once.
     if (list[at] !== last) {
-      last = list[at];
-      surface = refreshSurface(item.surface);
+      last = list[at]
+      surface = refreshSurface(item.surface)
       // This path reads float positions and no direction: a line quad could not be widened
       // (`lineClip`), and is refused by name rather than dropped.
-      if ((surface.lineWidth ?? 0) > 0) throw new Error('FALLBACK_TRANSPARENT_LINES_UNSUPPORTED');
+      if ((surface.lineWidth ?? 0) > 0) throw new Error('FALLBACK_TRANSPARENT_LINES_UNSUPPORTED')
     }
     writeFallbackUniform(uniformPacked, packedInts, base, {
       projection: viewProj,
@@ -97,15 +97,15 @@ export function writeFallbackBlendUniforms(
       indexCount: list[at + 2],
       mode: fallbackMode(run.diagnostic, (item.flags & FLAG_CLUSTER_PAGE) !== 0),
       identity: item.flags,
-    });
+    })
     // Line words are disabled above; sprites retain the encoding shared by every raster.
-    writeSpriteWords(uniformPacked, base + FALLBACK_UNIFORM.sprite, surface!.sprite);
+    writeSpriteWords(uniformPacked, base + FALLBACK_UNIFORM.sprite, surface!.sprite)
   }
   device.queue.writeBuffer(
     uniformBuffer,
     uniformBase * UNIFORM_STRIDE,
     uniformPacked.subarray(uniformBase * words, (uniformBase + draws) * words),
-  );
+  )
 }
 
 /** Encodes the fallback pass: one bind group per item and one dynamic offset per draw, and the
@@ -119,41 +119,41 @@ export function drawFallbackBlendPass(
 ) {
   const { gpu, run, blendState } = rt,
     items = blendState.visibleBlend,
-    draws = list.length / DRAW_WORDS;
-  let unpaged = 0;
-  voidStaleBlendGroups(rt);
+    draws = list.length / DRAW_WORDS
+  let unpaged = 0
+  voidStaleBlendGroups(rt)
   const pass = encoder.beginRenderPass({
     label: 'Trillion3D transparents',
     colorAttachments: [{ view: gpu.colorView!, loadOp: 'load', storeOp: 'store' }],
     depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
-  });
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
+  })
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   let bound: GPURenderPipeline | undefined,
-    last = -1;
+    last = -1
   for (let d = 0; d < draws; d++) {
     const at = d * DRAW_WORDS,
       item = items[list[at]],
-      indices = list[at + 2];
+      indices = list[at + 2]
     if (list[at] !== last) {
-      last = list[at];
+      last = list[at]
       // Each item in its own mode, the one table's equation: a mode no path draws is refused by
       // name. Its draws follow each other, so the pipeline and the group are resolved once.
-      const mode = drawnBlending(refreshSurface(item.surface).blending, !!item.transmissive);
-      const pipeline = gpu.pipelineBlend!.at(mode, 0);
-      if (pipeline !== bound) pass.setPipeline((bound = pipeline));
+      const mode = drawnBlending(refreshSurface(item.surface).blending, !!item.transmissive)
+      const pipeline = gpu.pipelineBlend!.at(mode, 0)
+      if (pipeline !== bound) pass.setPipeline((bound = pipeline))
       item.group ??= device.createBindGroup({
         layout: gpu.bindGroupLayout!,
         entries: fallbackBindEntries(rt, item),
-      });
+      })
     }
-    pass.setBindGroup(0, item.group!, [(uniformBase + d) * UNIFORM_STRIDE]);
-    pass.draw(indices);
+    pass.setBindGroup(0, item.group!, [(uniformBase + d) * UNIFORM_STRIDE])
+    pass.draw(indices)
     // A paged item's triangles are the cut's, counted with it.
-    if (!item.paged) unpaged += indices / 3;
+    if (!item.paged) unpaged += indices / 3
   }
-  pass.end();
-  run.gpuDrawCalls += draws;
-  run.blendDrawCalls += draws;
-  run.blendUnpagedTriangles += unpaged;
-  run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles;
+  pass.end()
+  run.gpuDrawCalls += draws
+  run.blendDrawCalls += draws
+  run.blendUnpagedTriangles += unpaged
+  run.blendSubmittedTriangles = run.blendPagedTriangles + run.blendUnpagedTriangles
 }

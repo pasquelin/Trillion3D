@@ -1,9 +1,9 @@
-import { createSessionDeformation } from './session.ts';
-import { prepareWebgpuGeometry, type VertexPoolGrowth } from '../webgpu/core/geometryPrepare.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { families } from '../host/families.ts';
-import { followPooledBlocks } from './slotLayout.ts';
-import { refreshBlendScene } from '../webgpu/blend/resources.ts';
+import { createSessionDeformation } from './session.ts'
+import { prepareWebgpuGeometry, type VertexPoolGrowth } from '../webgpu/core/geometryPrepare.ts'
+import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { families } from '../host/families.ts'
+import { followPooledBlocks } from './slotLayout.ts'
+import { refreshBlendScene } from '../webgpu/blend/resources.ts'
 
 /**
  * A growth of the float pool (`prepareWebgpuGeometry`'s `grown`, #1293): its wider buffers and the
@@ -13,10 +13,10 @@ import { refreshBlendScene } from '../webgpu/blend/resources.ts';
  * (`refreshBlendScene`).
  */
 function followPoolGrowth(rt: WebgpuPagesRuntime, device: GPUDevice, growth: VertexPoolGrowth) {
-  Object.assign(rt.vis, growth);
-  followPooledBlocks(rt);
-  refreshBlendScene(rt, device);
-  rt.run.gate.resourcesChanged();
+  Object.assign(rt.vis, growth)
+  followPooledBlocks(rt)
+  refreshBlendScene(rt, device)
+  rt.run.gate.resourcesChanged()
 }
 
 /**
@@ -26,17 +26,17 @@ function followPoolGrowth(rt: WebgpuPagesRuntime, device: GPUDevice, growth: Ver
  * any frame (#1353); one that does not loads none of it, and its pool holds no whole copy.
  */
 export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { vis, layout, setup, blendState } = rt;
-  vis.wholeDeformation?.table.destroy();
-  vis.wholeDeformation = undefined;
-  vis.geometryBlocks.clear();
-  vis.deformationCode = undefined; // a refused import below leaves no earlier prepare's code
+  const { vis, layout, setup, blendState } = rt
+  vis.wholeDeformation?.table.destroy()
+  vis.wholeDeformation = undefined
+  vis.geometryBlocks.clear()
+  vis.deformationCode = undefined // a refused import below leaves no earlier prepare's code
   vis.deformation = createSessionDeformation(
     layout.selectionRoots,
     setup.blendCopies.filter((copy) => !copy.userData.pagedBlend),
-  );
-  const deforms = vis.deformation.any || setup.allPages.some((page) => page.deformationOutput);
-  vis.deformationCode = deforms ? await families.deformation.load() : undefined;
+  )
+  const deforms = vis.deformation.any || setup.allPages.some((page) => page.deformationOutput)
+  vis.deformationCode = deforms ? await families.deformation.load() : undefined
   Object.assign(
     vis,
     prepareWebgpuGeometry(
@@ -48,5 +48,5 @@ export async function prepareDeformationGeometry(rt: WebgpuPagesRuntime, device:
       (growth) => followPoolGrowth(rt, device, growth),
       vis.deformationCode?.wholeDeformationPool,
     ),
-  );
+  )
 }

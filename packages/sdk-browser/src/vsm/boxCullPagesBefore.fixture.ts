@@ -13,7 +13,7 @@ export const INVALIDATION_FLAGS_BEFORE = {
   VSM_BOX_SHAPE_CUTOFF: 16,
   VSM_BOX_NO_SHAPE_STALE: 32,
   VSM_BOX_MOVING: 64,
-};
+}
 
 /** The invalidation's page rect, page tests and instance invalidation (`invalidationWgsl.ts`). */
 export const INVALIDATION_PAGES = /* wgsl */ `
@@ -131,7 +131,7 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
   }
  }
 }
-`;
+`
 
 /** The render cull's page overlap and fine-caster test (`renderCullWgsl.ts`). */
 export const RENDER_PAGES = /* wgsl */ `
@@ -167,4 +167,4 @@ fn vsmIsFineCaster(staticLayer:bool,casterPixelRadius:f32)->bool{
  if(staticLayer){return casterPixelRadius<vsm.detailPixelsStatic;}
  return casterPixelRadius<vsm.detailPixelsDynamic;
 }
-`;
+`

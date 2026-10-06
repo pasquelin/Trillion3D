@@ -1,5 +1,5 @@
 // The sun the shadow tests share: straight overhead, and it casts.
-import type { SceneLight } from '../light/contracts.ts';
+import type { SceneLight } from '../light/contracts.ts'
 
 export const SUN: SceneLight = {
   id: 'sun',
@@ -8,4 +8,4 @@ export const SUN: SceneLight = {
   color: [1, 1, 1],
   intensity: 1,
   castsShadow: true,
-};
+}

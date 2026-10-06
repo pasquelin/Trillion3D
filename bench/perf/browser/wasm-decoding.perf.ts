@@ -1,47 +1,47 @@
 // Rust/WebAssembly page decoder against JavaScript.
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
-import type { DecodedGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts'
+import type { DecodedGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts'
 import {
   decodeGeometryPageWasm,
   prepareSdkWasm,
-} from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts';
-import { RACINE, measure, stress, rapport } from '../../core/index.ts';
-import { page, pageForgee } from './support/pagesWasm.ts';
+} from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts'
+import { RACINE, measure, stress, rapport } from '../../core/index.ts'
+import { page, pageForgee } from './support/pagesWasm.ts'
 
-const MODULE = join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm');
-const codec = await prepareSdkWasm(readFileSync(MODULE));
-if (!codec) throw new Error('H2B_WASM_ABSENT: run `pnpm run build:wasm`');
+const MODULE = join(RACINE, 'packages/sdk-browser/src/page/decode/pageCodec.wasm')
+const codec = await prepareSdkWasm(readFileSync(MODULE))
+if (!codec) throw new Error('H2B_WASM_ABSENT: run `pnpm run build:wasm`')
 
 const dense = page(65535, true),
   moyenne = page(2048, true),
   nue = page(2048, false),
-  petite = page(96, true);
+  petite = page(96, true)
 
 const outsideBound = pageForgee([0, 1, 3]),
   tronquee = moyenne.subarray(0, moyenne.length - 1),
   courte = moyenne.subarray(0, 16),
   faussee = Uint8Array.from(moyenne),
-  tooWide = Uint8Array.from(moyenne);
-faussee[0] ^= 1;
+  tooWide = Uint8Array.from(moyenne)
+faussee[0] ^= 1
 // A position width past the format's 24 bits: refused by the header, before any stream.
-tooWide[20] = 25;
+tooWide[20] = 25
 
 /** One lap: every page in the case, decoded; a rejection becomes its cause, compared as well. */
 const tour =
   (decode: (data: Uint8Array) => Promise<DecodedGeometryPage> | DecodedGeometryPage) =>
   async (pages: Uint8Array[]) => {
-    const output: (DecodedGeometryPage | { refusal: string })[] = [];
+    const output: (DecodedGeometryPage | { refusal: string })[] = []
     for (const octets of pages) {
       try {
-        output.push(await decode(octets));
+        output.push(await decode(octets))
       } catch (error) {
-        output.push({ refusal: error instanceof Error ? error.message : String(error) });
+        output.push({ refusal: error instanceof Error ? error.message : String(error) })
       }
     }
-    return output;
-  };
+    return output
+  }
 
 const resWasm = await measure({
   name: 'page decode, wasm against JS',
@@ -55,7 +55,7 @@ const resWasm = await measure({
   calculation: tour(decodeGeometryPageWasm),
   expected: tour(decodeGeometryPage),
   options: { tours: 40, budgetMs: 2000 },
-});
+})
 
 const refusalResult = await measure({
   name: 'page rejection, wasm against JS',
@@ -70,13 +70,13 @@ const refusalResult = await measure({
   calculation: tour(decodeGeometryPageWasm),
   expected: tour(decodeGeometryPage),
   options: { tours: 40, budgetMs: 2000 },
-});
+})
 
 await stress({
   name: 'decodeGeometryPageWasm extremes',
   calculation: async (octets) => {
     try {
-      await decodeGeometryPageWasm(octets);
+      await decodeGeometryPageWasm(octets)
     } catch {
       // Expected rejections
     }
@@ -85,10 +85,10 @@ await stress({
     { name: 'tronquee', input: moyenne.subarray(0, moyenne.length - 1) },
     { name: 'courte', input: moyenne.subarray(0, 16) },
   ],
-});
+})
 
 rapport(
   'decodage-wasm',
   [resWasm, refusalResult],
   'H2b yields the exact same buffers and rejections as the JavaScript decoder',
-);
+)

@@ -2,62 +2,62 @@
 // the scene watch: without care, the host's write was taken as the engine's own, the next image did
 // not walk the world index, and only the named node's rows were rewritten — the other model kept
 // its old world, corners and windings in the visibility table while the GPU cut saw it moved.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import * as G from '../../../host/graph/graph.fixture.ts';
-import { setWebgpuTransform } from './transform.ts';
-import { runtime } from '../../core/transformShear.fixture.ts';
-import { hostWorldPlacements } from '../../../host/world/placements.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import * as G from '../../../host/graph/graph.fixture.ts'
+import { setWebgpuTransform } from './transform.ts'
+import { runtime } from '../../core/transformShear.fixture.ts'
+import { hostWorldPlacements } from '../../../host/world/placements.ts'
 
 /** Two drawn models, A and B, watched by the gate as the first image leaves them — or, not
  *  `hooked`, before any image. */
 function twoModels(hooked = true) {
   const source = new G.Group(),
     a = G.mesh(),
-    b = G.mesh();
-  a.name = 'A';
-  b.name = 'B';
-  source.add(a, b);
+    b = G.mesh()
+  a.name = 'A'
+  b.name = 'B'
+  source.add(a, b)
   const worlds = hostWorldPlacements(source),
-    { rt, run } = runtime(source, [], worlds);
+    { rt, run } = runtime(source, [], worlds)
   if (hooked) {
-    run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }]);
-    run.gate.updateWorlds(worlds);
+    run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }])
+    run.gate.updateWorlds(worlds)
   }
-  return { source, a, b, worlds, rt, run };
+  return { source, a, b, worlds, rt, run }
 }
 
-const moved = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1]);
+const moved = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1])
 
 test('A written by the host, then B moved: the next image walks, and every row is rewritten', () => {
-  const { a, worlds, rt, run } = twoModels();
-  a.position.x = 100;
-  setWebgpuTransform(rt, 'B', moved);
+  const { a, worlds, rt, run } = twoModels()
+  a.position.x = 100
+  setWebgpuTransform(rt, 'B', moved)
   // `render.ts` rewrites the whole table (`tableEpoch`) when this walk happens: A's rows with them.
-  assert.equal(run.gate.updateWorlds(worlds), true, 'the host write is not swallowed');
-  assert.equal(worlds.of(a).elements[12], 100);
-});
+  assert.equal(run.gate.updateWorlds(worlds), true, 'the host write is not swallowed')
+  assert.equal(worlds.of(a).elements[12], 100)
+})
 
 test('B moved alone: the next image walks nothing, and only its rows travel', () => {
-  const { worlds, rt, run } = twoModels();
-  setWebgpuTransform(rt, 'B', moved);
-  assert.equal(run.gate.updateWorlds(worlds), false);
-});
+  const { worlds, rt, run } = twoModels()
+  setWebgpuTransform(rt, 'B', moved)
+  assert.equal(run.gate.updateWorlds(worlds), false)
+})
 
 test('before the first image, A written by the host then B moved: A stands where the host put it', () => {
-  const { a, worlds, rt } = twoModels(false);
+  const { a, worlds, rt } = twoModels(false)
   // Nothing is hooked yet: no watch announces the write, the move walks the whole index (#915).
-  a.position.x = 100;
-  setWebgpuTransform(rt, 'B', moved);
-  assert.equal(worlds.of(a).elements[12], 100);
-});
+  a.position.x = 100
+  setWebgpuTransform(rt, 'B', moved)
+  assert.equal(worlds.of(a).elements[12], 100)
+})
 
 test('A written by the host, an image held before its world pass, then B moved: A is walked', () => {
-  const { source, a, b, worlds, rt, run } = twoModels();
-  a.position.x = 100;
+  const { source, a, b, worlds, rt, run } = twoModels()
+  a.position.x = 100
   // The scan reports the write, then the image returns early (readback in flight): no pass ran.
-  run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }]);
-  setWebgpuTransform(rt, 'B', moved);
-  assert.equal(worlds.of(a).elements[12], 100, 'the move walks the whole index');
-  assert.equal(run.gate.updateWorlds(worlds), true, 'and the next image rewrites every row');
-});
+  run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }])
+  setWebgpuTransform(rt, 'B', moved)
+  assert.equal(worlds.of(a).elements[12], 100, 'the move walks the whole index')
+  assert.equal(run.gate.updateWorlds(worlds), true, 'and the next image rewrites every row')
+})

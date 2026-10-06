@@ -4,20 +4,20 @@
 // visibility shading — built into pipelines on a device opened as the engine opens it.
 //
 //   node bench/dawn/proofs.ts tests/gpu/reflections/reflection-history.gpu.ts
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { SHADE_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/shadeWgsl.ts';
-import { stochasticReflectionShader } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts';
-import { GGX_REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/ggxSampleWgsl.ts';
-import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts';
-import { REFLECTION_RESOLVE_WGSL } from '../../../packages/sdk-browser/src/reflections/resolveWgsl.ts';
-import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/math/hashUnitWgsl.ts';
-import { contractLightingShader } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts';
-import { withScreenReflections } from '../../../packages/sdk-browser/src/reflections/screenWgsl.ts';
-import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts';
-import { computeReadback } from '../kit/computeReadback.ts';
-import { runOnDawn } from '../kit/onDawn.ts';
-import { openGpuDevice } from '../kit/webgpuDevice.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { SHADE_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/shadeWgsl.ts'
+import { stochasticReflectionShader } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts'
+import { GGX_REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/ggxSampleWgsl.ts'
+import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
+import { REFLECTION_RESOLVE_WGSL } from '../../../packages/sdk-browser/src/reflections/resolveWgsl.ts'
+import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/math/hashUnitWgsl.ts'
+import { contractLightingShader } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { withScreenReflections } from '../../../packages/sdk-browser/src/reflections/screenWgsl.ts'
+import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'
+import { computeReadback } from '../kit/computeReadback.ts'
+import { runOnDawn } from '../kit/onDawn.ts'
+import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 // The sample at normal incidence (R = N = z): its direction, its weight against the explicit PDF
 // ratio, and the lobe's mean cosine at four roughnesses; then a long f16 history of a constant
@@ -46,35 +46,35 @@ const SAMPLE_WGSL = `${HASH_UNIT_WGSL}${GGX_REFLECTION_SAMPLE_WGSL}${STANDARD_LI
  let a=stochasticReflection(N,N,0.5,vec2f(hashUnit(9u),hashUnit(10u)));
  let b=stochasticReflection(N,N,0.5,vec2f(hashUnit(9u),hashUnit(10u)));
  output[4]=vec4f(mean,highlight,distance(a,b),abs(hashUnit(9u)-hashUnit(11u)));
-}`;
+}`
 
 /** A program built into a render pipeline: its source and fragment entry point, and whether it
  *  is the visibility shading, drawn by `shade_vs` into the surface targets. */
-type Program = { code: string; entry: string; visibility?: boolean };
+type Program = { code: string; entry: string; visibility?: boolean }
 const SURFACE_TARGETS: GPUTextureFormat[] = [
   'rgba16float',
   'rgba16float',
   'rgba16float',
   'r8uint',
   'r32uint',
-];
+]
 
 async function run({ sample, programs }: { sample: string; programs: Program[] }) {
-  const gpu = await openGpuDevice();
-  if (!gpu) throw new Error('no WebGPU adapter');
-  const { device, errors } = gpu;
+  const gpu = await openGpuDevice()
+  if (!gpu) throw new Error('no WebGPU adapter')
+  const { device, errors } = gpu
   const compile = async (code: string, label: string) => {
-    const module = device.createShaderModule({ code });
-    const messages = await shaderErrors(module);
-    errors.push(...messages.map((message) => `${label}: ${message.message}`));
-    return messages.length ? undefined : module;
-  };
+    const module = device.createShaderModule({ code })
+    const messages = await shaderErrors(module)
+    errors.push(...messages.map((message) => `${label}: ${message.message}`))
+    return messages.length ? undefined : module
+  }
   // Every program built at once: the device compiles them side by side.
   await Promise.all(
     programs.map(async ({ code, entry, visibility }) => {
-      const module = await compile(code, entry);
-      if (!module) return;
-      const targets = visibility ? SURFACE_TARGETS : (['rgba16float'] as GPUTextureFormat[]);
+      const module = await compile(code, entry)
+      if (!module) return
+      const targets = visibility ? SURFACE_TARGETS : (['rgba16float'] as GPUTextureFormat[])
       await device
         .createRenderPipelineAsync({
           layout: 'auto',
@@ -86,44 +86,44 @@ async function run({ sample, programs }: { sample: string; programs: Program[] }
             constants: visibility ? { CLASS_KEY: 513 } : {},
           },
         })
-        .catch((error: unknown) => errors.push(`${entry}: ${String(error)}`));
+        .catch((error: unknown) => errors.push(`${entry}: ${String(error)}`))
     }),
-  );
-  const module = await compile(sample, 'sample');
+  )
+  const module = await compile(sample, 'sample')
   if (!module) {
-    await gpu.fermer();
-    return { values: [], errors };
+    await gpu.fermer()
+    return { values: [], errors }
   }
   const pipeline = await device.createComputePipelineAsync({
     layout: 'auto',
     compute: { module, entryPoint: 'main' },
-  });
-  const values = await computeReadback(device, pipeline, 80, 1);
-  await gpu.fermer();
-  return { values, errors };
+  })
+  const values = await computeReadback(device, pipeline, 80, 1)
+  await gpu.fermer()
+  return { values, errors }
 }
 
 test('the GGX sample weighs by its PDF, the f16 history holds, the opaque programs build', async () => {
   const programs: Program[] = [
     { code: REFLECTION_RESOLVE_WGSL, entry: 'resolveRoughReflection' },
     { code: SHADE_SHADER, entry: 'shade_fs', visibility: true },
-  ];
+  ]
   for (const bounce of [false, true])
     for (const narrow of [false, true]) {
-      const shader = contractLightingShader(bounce, narrow);
-      programs.push({ code: stochasticReflectionShader(shader), entry: 'traceRoughReflection' });
-      programs.push({ code: withScreenReflections(shader, true), entry: 'lightSurface' });
+      const shader = contractLightingShader(bounce, narrow)
+      programs.push({ code: stochasticReflectionShader(shader), entry: 'traceRoughReflection' })
+      programs.push({ code: withScreenReflections(shader, true), entry: 'lightSurface' })
     }
-  const { values, errors } = await runOnDawn(run, { sample: SAMPLE_WGSL, programs });
-  assert.deepEqual(errors, []);
+  const { values, errors } = await runOnDawn(run, { sample: SAMPLE_WGSL, programs })
+  assert.deepEqual(errors, [])
   for (let r = 0; r < 4; r++) {
-    assert.ok(values[r * 4] < 1e-5, 'a unit reflected direction');
-    assert.ok(values[r * 4 + 1] < 1e-5, 'the explicit PDF cancels to the ratio weight');
-    assert.ok(values[r * 4 + 3] > 0, 'a lobe with weight');
-    if (r) assert.ok(values[r * 4 + 2] < values[(r - 1) * 4 + 2], 'roughness spreads the lobe');
+    assert.ok(values[r * 4] < 1e-5, 'a unit reflected direction')
+    assert.ok(values[r * 4 + 1] < 1e-5, 'the explicit PDF cancels to the ratio weight')
+    assert.ok(values[r * 4 + 3] > 0, 'a lobe with weight')
+    if (r) assert.ok(values[r * 4 + 2] < values[(r - 1) * 4 + 2], 'roughness spreads the lobe')
   }
-  assert.equal(values[16], 32000, 'a long history keeps a constant HDR source');
-  assert.ok(values[17] > 32000 && values[17] < 64000, 'the f16 history still takes a highlight');
-  assert.equal(values[18], 0, 'one seed replays the same sample');
-  assert.ok(values[19] > 0, 'another rank draws another sample');
-});
+  assert.equal(values[16], 32000, 'a long history keeps a constant HDR source')
+  assert.ok(values[17] > 32000 && values[17] < 64000, 'the f16 history still takes a highlight')
+  assert.equal(values[18], 0, 'one seed replays the same sample')
+  assert.ok(values[19] > 0, 'another rank draws another sample')
+})

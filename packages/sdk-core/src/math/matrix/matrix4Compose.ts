@@ -1,5 +1,5 @@
-import type { NumberSink } from './matrix4.ts';
-import { MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES } from '../batch/strides.ts';
+import type { NumberSink } from './matrix4.ts'
+import { MATRIX_VALUES, POSITION_VALUES, QUATERNION_VALUES } from '../batch/strides.ts'
 
 /**
  * `out = T · R · S`, written at `at`, from a position at `pi`, a quaternion at `qi` and a scale
@@ -29,41 +29,41 @@ export function composeMatrix4At(
   const qx = quaternion[qi],
     qy = quaternion[qi + 1],
     qz = quaternion[qi + 2],
-    qw = quaternion[qi + 3];
+    qw = quaternion[qi + 3]
   const tx = qx + qx,
     ty = qy + qy,
-    tz = qz + qz;
+    tz = qz + qz
   // Twice the squares, twice the cross products, and the skew part qw·t.
   const sqx = qx * tx,
     sqy = qy * ty,
-    sqz = qz * tz;
+    sqz = qz * tz
   const cxy = qx * ty,
     cxz = qx * tz,
-    cyz = qy * tz;
+    cyz = qy * tz
   const ax = qw * tx,
     ay = qw * ty,
-    az = qw * tz;
+    az = qw * tz
   // Column j of R · S is column j of R times the scale along j.
   const s0 = scale[si],
     s1 = scale[si + 1],
-    s2 = scale[si + 2];
-  out[at] = (1 - (sqy + sqz)) * s0;
-  out[at + 1] = (cxy + az) * s0;
-  out[at + 2] = (cxz - ay) * s0;
-  out[at + 3] = 0;
-  out[at + 4] = (cxy - az) * s1;
-  out[at + 5] = (1 - (sqx + sqz)) * s1;
-  out[at + 6] = (cyz + ax) * s1;
-  out[at + 7] = 0;
-  out[at + 8] = (cxz + ay) * s2;
-  out[at + 9] = (cyz - ax) * s2;
-  out[at + 10] = (1 - (sqx + sqy)) * s2;
-  out[at + 11] = 0;
+    s2 = scale[si + 2]
+  out[at] = (1 - (sqy + sqz)) * s0
+  out[at + 1] = (cxy + az) * s0
+  out[at + 2] = (cxz - ay) * s0
+  out[at + 3] = 0
+  out[at + 4] = (cxy - az) * s1
+  out[at + 5] = (1 - (sqx + sqz)) * s1
+  out[at + 6] = (cyz + ax) * s1
+  out[at + 7] = 0
+  out[at + 8] = (cxz + ay) * s2
+  out[at + 9] = (cyz - ax) * s2
+  out[at + 10] = (1 - (sqx + sqy)) * s2
+  out[at + 11] = 0
   // T only adds the last column: the position, read as it is written.
-  out[at + 12] = position[pi];
-  out[at + 13] = position[pi + 1];
-  out[at + 14] = position[pi + 2];
-  out[at + 15] = 1;
+  out[at + 12] = position[pi]
+  out[at + 13] = position[pi + 1]
+  out[at + 14] = position[pi + 2]
+  out[at + 15] = 1
 }
 
 /** `out = T · R · S`, each input read at its own start. */
@@ -73,8 +73,8 @@ export function composeMatrix4<T extends NumberSink>(
   quaternion: ArrayLike<number>,
   scale: ArrayLike<number>,
 ): T {
-  composeMatrix4At(out, 0, position, 0, quaternion, 0, scale, 0);
-  return out;
+  composeMatrix4At(out, 0, position, 0, quaternion, 0, scale, 0)
+  return out
 }
 
 /**
@@ -91,14 +91,14 @@ export function composeMatrix4Batch(
   quaternions: ArrayLike<number>,
   scales: ArrayLike<number>,
   n: number,
-): void;
+): void
 export function composeMatrix4Batch(
   out: readonly NumberSink[],
   positions: readonly ArrayLike<number>[],
   quaternions: readonly ArrayLike<number>[],
   scales: readonly ArrayLike<number>[],
   n: number,
-): void;
+): void
 export function composeMatrix4Batch(
   out: NumberSink | readonly NumberSink[],
   positions: ArrayLike<number> | readonly ArrayLike<number>[],
@@ -110,17 +110,17 @@ export function composeMatrix4Batch(
     const views = out as readonly NumberSink[],
       p = positions as readonly ArrayLike<number>[],
       q = quaternions as readonly ArrayLike<number>[],
-      s = scales as readonly ArrayLike<number>[];
-    for (let i = 0; i < n; i++) composeMatrix4At(views[i], 0, p[i], 0, q[i], 0, s[i], 0);
-    return;
+      s = scales as readonly ArrayLike<number>[]
+    for (let i = 0; i < n; i++) composeMatrix4At(views[i], 0, p[i], 0, q[i], 0, s[i], 0)
+    return
   }
   const flat = out as NumberSink,
     p = positions as ArrayLike<number>,
     q = quaternions as ArrayLike<number>,
-    s = scales as ArrayLike<number>;
+    s = scales as ArrayLike<number>
   // Position and scale share their stride, so one offset serves both.
   for (let i = 0; i < n; i++) {
-    const three = i * POSITION_VALUES;
-    composeMatrix4At(flat, i * MATRIX_VALUES, p, three, q, i * QUATERNION_VALUES, s, three);
+    const three = i * POSITION_VALUES
+    composeMatrix4At(flat, i * MATRIX_VALUES, p, three, q, i * QUATERNION_VALUES, s, three)
   }
 }

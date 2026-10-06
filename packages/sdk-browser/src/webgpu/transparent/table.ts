@@ -1,18 +1,18 @@
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { ClusterRoot } from '../../page/selection/types.ts';
-import type { BlendGpuItem } from '../blend/state.ts';
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
+import type { PageRec } from '../../page/selection/selection.ts'
+import type { ClusterRoot } from '../../page/selection/types.ts'
+import type { BlendGpuItem } from '../blend/state.ts'
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 
 /** Entries one counting group of the compaction covers. Item ranges are aligned on it, so a group
  *  never spans two items and the per-item prefix is a walk over whole groups. */
-export const TRANSPARENT_GROUP = 64;
+export const TRANSPARENT_GROUP = 64
 /** Padding entry: an index no cluster has, never selected, never drawn. */
-export const TRANSPARENT_NONE = 0xffffffff;
+export const TRANSPARENT_NONE = 0xffffffff
 
-export type TransparentTable = ReturnType<typeof createTransparentTable>;
+export type TransparentTable = ReturnType<typeof createTransparentTable>
 
 /** The draw rank of a transparent cluster: the rank its source recorded, the catalogue rank else. */
-const drawRank = (rec: PageRec) => rec.sourceOrder ?? rec.id;
+const drawRank = (rec: PageRec) => rec.sourceOrder ?? rec.id
 
 /**
  * The order the cluster cut visits a primitive's pages in, whatever it ends up keeping.
@@ -25,27 +25,27 @@ const drawRank = (rec: PageRec) => rec.sourceOrder ?? rec.id;
  * it — which is exactly what a stable sort by rank needs to reproduce the draw order it had.
  */
 function visitOrder(root: ClusterRoot<PageRec>) {
-  const order = new Int32Array(root.pages.length).fill(root.pages.length);
-  const culling = root.culling;
+  const order = new Int32Array(root.pages.length).fill(root.pages.length)
+  const culling = root.culling
   if (!culling) {
-    for (let i = 0; i < order.length; i++) order[i] = i;
-    return order;
+    for (let i = 0; i < order.length; i++) order[i] = i
+    return order
   }
-  const { nodes, stride } = culling;
-  const stack = [0];
-  let rank = 0;
+  const { nodes, stride } = culling
+  const stack = [0]
+  let rank = 0
   while (stack.length) {
     const base = stack.pop()! * stride,
-      children = nodes[base + 12];
+      children = nodes[base + 12]
     if (children > 0) {
-      const first = nodes[base + 11];
-      for (let child = 0; child < children; child++) stack.push(first + child);
-      continue;
+      const first = nodes[base + 11]
+      for (let child = 0; child < children; child++) stack.push(first + child)
+      continue
     }
-    const firstPage = nodes[base + 13];
-    for (let i = 0; i < nodes[base + 14]; i++) order[firstPage + i] = rank++;
+    const firstPage = nodes[base + 13]
+    for (let i = 0; i < nodes[base + 14]; i++) order[firstPage + i] = rank++
   }
-  return order;
+  return order
 }
 
 /**
@@ -67,61 +67,61 @@ export function createTransparentTable(
   items: readonly BlendGpuItem[],
 ) {
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
-  const { recordOf } = createPageCatalogue(packedPages);
+  const { recordOf } = createPageCatalogue(packedPages)
   /** Where each root's pages start in the catalogue, and how the cut walks them, by the world of
    *  their root: a paged item and the root of its placement read the same one. */
-  const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
-  let base = 0;
+  const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>()
+  let base = 0
   for (const root of roots) {
-    const first = root.pages[0];
-    if (first?.transparent) rootOfPlacement.set(root.world, { base, root });
-    base += root.pages.length;
+    const first = root.pages[0]
+    if (first?.transparent) rootOfPlacement.set(root.world, { base, root })
+    base += root.pages.length
   }
-  const paged = items.filter((item) => item.paged);
-  const orders: number[][] = [];
+  const paged = items.filter((item) => item.paged)
+  const orders: number[][] = []
   let length = 0,
-    maxVertexWords = 0;
+    maxVertexWords = 0
   for (const item of paged) {
-    const owner = rootOfPlacement.get(item.matrix);
-    const order: number[] = [];
+    const owner = rootOfPlacement.get(item.matrix)
+    const order: number[] = []
     if (owner) {
-      const visited = visitOrder(owner.root);
-      const local = owner.root.pages.map((_, index) => index);
+      const visited = visitOrder(owner.root)
+      const local = owner.root.pages.map((_, index) => index)
       // Source rank first, the cut's own walk to separate the clusters that share one.
       local.sort(
         (a, b) =>
           drawRank(owner.root.pages[a]) - drawRank(owner.root.pages[b]) || visited[a] - visited[b],
-      );
-      for (const index of local) order.push(owner.base + index);
+      )
+      for (const index of local) order.push(owner.base + index)
     }
-    orders.push(order);
-    length += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP;
+    orders.push(order)
+    length += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP
   }
-  const capacity = Math.max(TRANSPARENT_GROUP, length);
-  const entries = new Uint32Array(capacity).fill(TRANSPARENT_NONE);
+  const capacity = Math.max(TRANSPARENT_GROUP, length)
+  const entries = new Uint32Array(capacity).fill(TRANSPARENT_NONE)
   /** Words of the resident page, then the index words it holds: what one instance draws. */
-  const spans = new Uint32Array(capacity * 4);
-  const pageOfEntry = new Int32Array(capacity).fill(-1);
-  const entryOfPage = new Int32Array(Math.max(1, packedPages.length)).fill(-1);
+  const spans = new Uint32Array(capacity * 4)
+  const pageOfEntry = new Int32Array(capacity).fill(-1)
+  const entryOfPage = new Int32Array(Math.max(1, packedPages.length)).fill(-1)
   /** The paged item whose range holds each entry, -1 for padding: a CPU cut files a page by it. */
-  const itemOfEntry = new Int32Array(capacity).fill(-1);
-  const itemRanges = new Uint32Array(Math.max(1, paged.length) * 2);
-  let at = 0;
+  const itemOfEntry = new Int32Array(capacity).fill(-1)
+  const itemRanges = new Uint32Array(Math.max(1, paged.length) * 2)
+  let at = 0
   for (let item = 0; item < paged.length; item++) {
-    const order = orders[item];
-    itemRanges[item * 2] = at;
-    itemRanges[item * 2 + 1] = order.length;
+    const order = orders[item]
+    itemRanges[item * 2] = at
+    itemRanges[item * 2 + 1] = order.length
     for (let i = 0; i < order.length; i++) {
       const pageIndex = order[i],
         entry = at + i,
-        words = recordOf(pageIndex)!.triangles * 3;
-      entries[entry] = pageIndex;
-      pageOfEntry[entry] = pageIndex;
-      entryOfPage[pageIndex] = entry;
-      itemOfEntry[entry] = item;
-      if (words > maxVertexWords) maxVertexWords = words;
+        words = recordOf(pageIndex)!.triangles * 3
+      entries[entry] = pageIndex
+      pageOfEntry[entry] = pageIndex
+      entryOfPage[pageIndex] = entry
+      itemOfEntry[entry] = item
+      if (words > maxVertexWords) maxVertexWords = words
     }
-    at += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP;
+    at += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP
   }
   return {
     entries,
@@ -138,5 +138,5 @@ export function createTransparentTable(
     groupCount: Math.max(1, Math.ceil(capacity / TRANSPARENT_GROUP)),
     /** Vertices one instance draws: the longest index run any transparent cluster holds. */
     maxVertexWords,
-  };
+  }
 }

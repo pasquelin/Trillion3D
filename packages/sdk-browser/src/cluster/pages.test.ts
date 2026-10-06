@@ -1,41 +1,41 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { sha256Hex } from '../streaming/sha256Hex.ts';
-import { loadClusterPages } from './pages.ts';
-import { untilAborted } from './answers.fixture.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { sha256Hex } from '../streaming/sha256Hex.ts'
+import { loadClusterPages } from './pages.ts'
+import { untilAborted } from './answers.fixture.ts'
 test('a corrupt page aborts sibling fetches before they allocate remaining indices', async () => {
   const started: string[] = [],
-    finished: string[] = [];
+    finished: string[] = []
   const pages = [
     { url: 'good.bin', bytes: 4, sha256: 'pending' },
     { url: 'bad.bin', bytes: 4, sha256: 'nope' },
     { url: 'later.bin', bytes: 4, sha256: 'pending' },
-  ];
-  const bytes = new Uint8Array([1, 2, 3, 4]);
-  const sha = await sha256Hex(bytes.buffer);
-  pages[0].sha256 = pages[2].sha256 = sha;
-  let resolveHold: (() => void) | undefined;
+  ]
+  const bytes = new Uint8Array([1, 2, 3, 4])
+  const sha = await sha256Hex(bytes.buffer)
+  pages[0].sha256 = pages[2].sha256 = sha
+  let resolveHold: (() => void) | undefined
   const hold = {
     promise: new Promise<void>((resolve) => {
-      resolveHold = resolve;
+      resolveHold = resolve
     }),
     resolve: () => resolveHold?.(),
-  };
-  globalThis.fetch = async (url, init) => {
-    const name = String(url).split('/').pop() ?? '';
-    started.push(name);
-    const signal = init?.signal;
-    if (name === 'later.bin') await Promise.race([hold.promise, untilAborted(signal)]);
-    finished.push(name);
-    return new Response(bytes, { status: 200 });
-  };
-  try {
-    const loading = loadClusterPages(pages, 'http://cache/', undefined, () => {});
-    await assert.rejects(loading, { code: 'INVALID_CACHE', message: /Corrupt cache object/ });
-    hold.resolve();
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(finished.includes('later.bin'), false);
-  } finally {
-    hold.resolve();
   }
-});
+  globalThis.fetch = async (url, init) => {
+    const name = String(url).split('/').pop() ?? ''
+    started.push(name)
+    const signal = init?.signal
+    if (name === 'later.bin') await Promise.race([hold.promise, untilAborted(signal)])
+    finished.push(name)
+    return new Response(bytes, { status: 200 })
+  }
+  try {
+    const loading = loadClusterPages(pages, 'http://cache/', undefined, () => {})
+    await assert.rejects(loading, { code: 'INVALID_CACHE', message: /Corrupt cache object/ })
+    hold.resolve()
+    await new Promise((resolve) => setImmediate(resolve))
+    assert.equal(finished.includes('later.bin'), false)
+  } finally {
+    hold.resolve()
+  }
+})

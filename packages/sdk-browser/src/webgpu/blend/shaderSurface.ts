@@ -1,10 +1,10 @@
-import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts';
-import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
-import { FACING_SHIFT } from './facing.ts';
+import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
+import { FACING_SHIFT } from './facing.ts'
 
 /** The pixel's footprint at lit point \`P\`, in metres: what the blend's shadow reads at
  *  (\`shadowFootprint\`). */
-const BLEND_SHADOW_FOOTPRINT_WGSL = `fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}`;
+const BLEND_SHADOW_FOOTPRINT_WGSL = `fn blendShadowFootprint(P:vec3f)->f32{return select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-P),uni.camPos.w!=0.0);}`
 
 const BLEND_SURFACE_NORMAL_WGSL = `/** The normal before any normal map: the vertex attribute, turned on the back of a two-sided
  *  material, or the face's own from screen derivatives \`q0\`, \`q1\` of the point: what the blend
@@ -27,7 +27,7 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
   if((flags&${FLAG_DOUBLE}u)!=0u){N*=face;}
  }
  return N;
-}`;
+}`
 
 /**
  * What a transparent fragment reads on its material, before any lighting: base colour and
@@ -92,4 +92,4 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),in.uv,gradX,gradY,sampled).rgb;}
  return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin);
 }
-${BLEND_SHADOW_FOOTPRINT_WGSL}`;
+${BLEND_SHADOW_FOOTPRINT_WGSL}`

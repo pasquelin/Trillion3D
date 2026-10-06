@@ -1,7 +1,7 @@
-import { LIGHT_KIND } from '../../../../sdk-core/src/index.ts';
-import { MODEL_FLAG } from '../../scene/surfaceModel.ts';
-import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
-import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../shaderConstants.ts';
+import { LIGHT_KIND } from '../../../../sdk-core/src/index.ts'
+import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
+import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
+import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../shaderConstants.ts'
 
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
@@ -86,7 +86,7 @@ fn rectIrradiance(light:DirectLight,P:vec3f,N:vec3f)->vec4f{
  if(r.window<=0.0){return vec4f(0.0);}
  let f=polygonFormFactor(r.a,r.b,r.c,r.d,N);
  return vec4f(f.xyz,${PI}*f.w*r.window);
-}`;
+}`
 
 /** The rectangle's fitted lobe at (roughness, cos θ_v): bilinear over the table's cells, texel
  *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`). */
@@ -98,7 +98,7 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  let i=min(vec2u(at),vec2u(LTC_SIZE-2u));let f=at-vec2f(i);
  let low=mix(ltcTexel(i.x,i.y,k),ltcTexel(i.x+1u,i.y,k),f.x);
  return mix(low,mix(ltcTexel(i.x,i.y+1u,k),ltcTexel(i.x+1u,i.y+1u,k),f.x),f.y);
-}`;
+}`
 
 /** The shading of a rectangle at a surface point, colour and intensity included: the diffuse of
  *  its exact irradiance, the specular of its fitted lobe. */
@@ -132,4 +132,4 @@ fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:v
  let f0=mix(vec3f(0.04),rgb,metal);
  let specular=(f0*t.x+(vec3f(1.0)-f0)*t.y)*lobe*light.colorIntensity.w*r.window;
  return (rgb*(1.0-metal)*${INVERSE_PI}*E+specular)*tint;
-}`;
+}`

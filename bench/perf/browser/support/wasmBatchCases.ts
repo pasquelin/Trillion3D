@@ -2,17 +2,17 @@
 // Everything that separates one floating-point arithmetic from another is here — negative scales,
 // shear, homogeneous division by a zero `w`, NaN, signed zeros, infinities, exponent extremes —
 // and the rest of the batch is seeded pseudo-random, so two runs see the exact same inputs.
-import { xorshiftRandom } from '../../../core/index.ts';
+import { xorshiftRandom } from '../../../core/index.ts'
 
 /** Measured batch sizes: from what a frame moves to what a whole scene carries. */
-export const TAILLES = [1_000, 10_000, 100_000];
+export const TAILLES = [1_000, 10_000, 100_000]
 
-const identite = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+const identite = () => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 const identityWith = (changements: [number, number][]) => {
-  const m = identite();
-  for (const [i, v] of changements) m[i] = v;
-  return m;
-};
+  const m = identite()
+  for (const [i, v] of changements) m[i] = v
+  return m
+}
 
 /** Hostile matrices, column-major. */
 const MATRICES = [
@@ -52,7 +52,7 @@ const MATRICES = [
     [5, 1e-308],
     [10, 5e-324],
   ]),
-];
+]
 
 /** Hostile boxes: canonical empty, inverted empty, flat, NaN, signed zeros, infinities. */
 const BOXES = [
@@ -63,18 +63,18 @@ const BOXES = [
   [-Infinity, -1, -1, Infinity, 1, 1],
   [2, 2, 2, 1, 1, 1],
   [0, 0, 0, 0, 0, 0],
-];
+]
 
 /** The first elements of the batch cross every hostile case; beyond that, a seeded draw. */
-const HOSTILES = MATRICES.length * BOXES.length;
+const HOSTILES = MATRICES.length * BOXES.length
 
 /** An ordinary matrix: a hand-written arbitrary rotation, translation and non-uniform scale. */
 function matriceOrdinaire(alea: () => number) {
   const c = Math.cos(alea() * 6.283185307179586),
-    s = Math.sin(alea() * 6.283185307179586);
+    s = Math.sin(alea() * 6.283185307179586)
   const sx = 0.5 + alea() * 2,
     sy = 0.5 + alea() * 2,
-    sz = 0.5 + alea() * 2;
+    sz = 0.5 + alea() * 2
   return [
     c * sx,
     s * sx,
@@ -92,35 +92,35 @@ function matriceOrdinaire(alea: () => number) {
     alea() * 200 - 100,
     alea() * 200 - 100,
     1,
-  ];
+  ]
 }
 
 /** Fills `boxes` (6 · n) and `mats` (16 · n) of the box-transform batch. */
 export function fillsBoxes(lot: { mats: Float64Array; boxes: Float64Array }, n: number) {
-  const alea = xorshiftRandom(0x4d35);
+  const alea = xorshiftRandom(0x4d35)
   for (let i = 0; i < n; i++) {
-    const m = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea);
+    const m = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea)
     const b =
       i < HOSTILES
         ? BOXES[Math.floor(i / MATRICES.length) % BOXES.length]
-        : [alea() * -50, alea() * -50, alea() * -50, alea() * 50, alea() * 50, alea() * 50];
-    for (let k = 0; k < 16; k++) lot.mats[i * 16 + k] = m[k];
-    for (let k = 0; k < 6; k++) lot.boxes[i * 6 + k] = b[k];
+        : [alea() * -50, alea() * -50, alea() * -50, alea() * 50, alea() * 50, alea() * 50]
+    for (let k = 0; k < 16; k++) lot.mats[i * 16 + k] = m[k]
+    for (let k = 0; k < 6; k++) lot.boxes[i * 6 + k] = b[k]
   }
 }
 
 /** Fills `a` and `b` (16 · n each) of the 4×4 product batch. */
 export function remplitMatrices(lot: { a: Float64Array; b: Float64Array }, n: number) {
-  const alea = xorshiftRandom(0x7f21);
+  const alea = xorshiftRandom(0x7f21)
   for (let i = 0; i < n; i++) {
-    const g = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea);
+    const g = i < HOSTILES ? MATRICES[i % MATRICES.length] : matriceOrdinaire(alea)
     const d =
       i < HOSTILES
         ? MATRICES[Math.floor(i / MATRICES.length) % MATRICES.length]
-        : matriceOrdinaire(alea);
+        : matriceOrdinaire(alea)
     for (let k = 0; k < 16; k++) {
-      lot.a[i * 16 + k] = g[k];
-      lot.b[i * 16 + k] = d[k];
+      lot.a[i * 16 + k] = g[k]
+      lot.b[i * 16 + k] = d[k]
     }
   }
 }

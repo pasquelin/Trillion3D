@@ -9,10 +9,10 @@
  */
 
 /** The two passes: blend, then transmission over the frozen background. */
-export const EXPAND_PASSES = 2;
+export const EXPAND_PASSES = 2
 /** Plan entries a kernel thread GROUP covers, and therefore its threads: the shader interpolates
  *  this value in its `@workgroup_size`, so the two cannot diverge. */
-export const EXPAND_GROUP = 64;
+export const EXPAND_GROUP = 64
 
 /**
  * TWO words per run: its first entry and their count, and nothing more.
@@ -20,15 +20,15 @@ export const EXPAND_GROUP = 64;
  * A slot's pipeline and buffers are the CPU's (`draw.ts`): the main class's, or its own entry's; a
  * run of no entry draws nothing (`runs.ts`).
  */
-export const RUN_WORDS = 2;
+export const RUN_WORDS = 2
 
 /** Draw slots a pass of `entries` plan entries can need: one per entry that draws its own, and one
  *  around each of them for the pass's main class (`runs.ts`). */
-export const slotCapacity = (entries: number) => 2 * entries + 1;
+export const slotCapacity = (entries: number) => 2 * entries + 1
 
 /** Words of the plan array per entry a pass can hold: its seed, its sorted place, and the two words
  *  of each of its two slots, plus the one slot left over. Local: `planRegions` reads it. */
-const PLAN_ENTRY_WORDS = 2 + 2 * RUN_WORDS;
+const PLAN_ENTRY_WORDS = 2 + 2 * RUN_WORDS
 
 /**
  * Bits of a plan entry the vertex words leave, so the expansion kernel, the CPU model beside it and
@@ -40,33 +40,33 @@ const PLAN_ENTRY_WORDS = 2 + 2 * RUN_WORDS;
  * this pass.
  */
 export const blendVertexShift = (maxVertexWords: number) => {
-  let shift = 2;
-  while (shift < 30 && 1 << shift < Math.max(4, maxVertexWords)) shift++;
-  return shift;
-};
+  let shift = 2
+  while (shift < 30 && 1 << shift < Math.max(4, maxVertexWords)) shift++
+  return shift
+}
 
 /** Vertices an instance of an UNPAGED primitive draws: the largest multiple of three the
  *  addressing stride lets through, and never more than the primitive carries. */
 export const blendChunkWords = (shift: number, indexCount: number) =>
-  Math.max(3, Math.min(indexCount, 3 * Math.floor((1 << shift) / 3)));
+  Math.max(3, Math.min(indexCount, 3 * Math.floor((1 << shift) / 3)))
 
 /** What each pass occupies: its seeded entries, their sorted order and its runs in the plan, its
  *  indirect arguments. */
 export function planRegions(maxEntries: number) {
   const regions = [],
-    passWords = maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS;
+    passWords = maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS
   for (let pass = 0; pass < EXPAND_PASSES; pass++)
     regions.push({
       seeds: pass * passWords,
       order: pass * passWords + maxEntries,
       runs: pass * passWords + 2 * maxEntries,
       args: pass * slotCapacity(maxEntries) * 4,
-    });
-  return regions;
+    })
+  return regions
 }
 
 /** Words the plan and the kernel scratch occupy for the whole scene. */
 export const planWords = (maxEntries: number) =>
-  (maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS) * EXPAND_PASSES;
+  (maxEntries * PLAN_ENTRY_WORDS + RUN_WORDS) * EXPAND_PASSES
 export const scratchWords = (maxEntries: number) =>
-  maxEntries + Math.ceil(maxEntries / EXPAND_GROUP);
+  maxEntries + Math.ceil(maxEntries / EXPAND_GROUP)

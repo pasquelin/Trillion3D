@@ -1,16 +1,16 @@
-import { Select } from './Input.tsx';
+import { Select } from './Input.tsx'
 
 interface JumpToItem {
   /** The id of the heading this option jumps to. */
-  id: string;
-  label: string;
-  count: number;
+  id: string
+  label: string
+  count: number
 }
 
 interface JumpToProps {
-  'aria-label': string;
-  placeholder: string;
-  items: JumpToItem[];
+  'aria-label': string
+  placeholder: string
+  items: JumpToItem[]
 }
 
 /**
@@ -28,18 +28,18 @@ export function JumpTo({ 'aria-label': ariaLabel, placeholder, items }: JumpToPr
         aria-label={ariaLabel}
         defaultValue=""
         onChange={(event) => {
-          const heading = document.getElementById(event.target.value);
+          const heading = document.getElementById(event.target.value)
           setTimeout(() => {
-            if (!heading) return;
+            if (!heading) return
             // The heading takes the focus (without scrolling): the select keeps none that the
             // browser would scroll back into view.
-            heading.tabIndex = -1;
-            heading.focus({ preventScroll: true });
-            heading.scrollIntoView({ behavior: 'instant', block: 'start' });
-          });
+            heading.tabIndex = -1
+            heading.focus({ preventScroll: true })
+            heading.scrollIntoView({ behavior: 'instant', block: 'start' })
+          })
           // Uncontrolled: reset by hand so the field always shows its placeholder, a jump menu
           // rather than a record of the section last read.
-          event.target.value = '';
+          event.target.value = ''
         }}
       >
         <option value="" disabled>
@@ -52,5 +52,5 @@ export function JumpTo({ 'aria-label': ariaLabel, placeholder, items }: JumpToPr
         ))}
       </Select>
     </div>
-  );
+  )
 }

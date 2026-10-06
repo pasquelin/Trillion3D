@@ -1,27 +1,27 @@
-import { useState } from 'react';
-import { useWords } from '../i18n.ts';
-import { Select } from '../ui/Input.tsx';
-import { viewName } from './model/names.ts';
-import { Card } from '../ui/Card.tsx';
-import { runOf, sceneName } from './model/presentation.ts';
-import { ProfileReading } from './ProfileReading.tsx';
-import type { Report, ReportRecord } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
+import { useState } from 'react'
+import { useWords } from '../i18n.ts'
+import { Select } from '../ui/Input.tsx'
+import { viewName } from './model/names.ts'
+import { Card } from '../ui/Card.tsx'
+import { runOf, sceneName } from './model/presentation.ts'
+import { ProfileReading } from './ProfileReading.tsx'
+import type { Report, ReportRecord } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
 
 interface ProfilesProps {
-  report: Report;
-  locale: Locale;
+  report: Report
+  locale: Locale
 }
 
 function SceneProfiles({ records, report, locale }: ProfilesProps & { records: ReportRecord[] }) {
-  const t = useWords(locale);
+  const t = useWords(locale)
   const [view, setView] = useState('ground'),
-    [quality, setQuality] = useState('1');
-  const views = [...new Set(records.map((r) => r.view))];
-  const selectedView = views.includes(view) ? view : views[0];
-  const readings = records.filter((r) => r.view === selectedView);
-  const active = readings.find((r) => String(r.quality) === quality) ?? readings[0];
-  if (!active) return null;
+    [quality, setQuality] = useState('1')
+  const views = [...new Set(records.map((r) => r.view))]
+  const selectedView = views.includes(view) ? view : views[0]
+  const readings = records.filter((r) => r.view === selectedView)
+  const active = readings.find((r) => String(r.quality) === quality) ?? readings[0]
+  if (!active) return null
   return (
     <ProfileReading
       record={active}
@@ -59,11 +59,11 @@ function SceneProfiles({ records, report, locale }: ProfilesProps & { records: R
         </div>
       }
     />
-  );
+  )
 }
 
 export function Profiles({ report, locale }: ProfilesProps) {
-  const records = report.records.filter((r) => runOf(report, r) === 'mobile');
+  const records = report.records.filter((r) => runOf(report, r) === 'mobile')
   return (
     <>
       {[...new Set(records.map((r) => r.scene))].map((scene) => (
@@ -75,5 +75,5 @@ export function Profiles({ report, locale }: ProfilesProps) {
         </Card>
       ))}
     </>
-  );
+  )
 }

@@ -1,5 +1,5 @@
-import { EVICT_AGES, EVICT_LEVELS, KEY_PAGE_BITS } from '../evict.ts';
-import { EVICTION_BURST } from '../layout.ts';
+import { EVICT_AGES, EVICT_LEVELS, KEY_PAGE_BITS } from '../evict.ts'
+import { EVICTION_BURST } from '../layout.ts'
 
 /**
  * `dagListEvictions`: the eviction queue behind the drawn list (`evictionWord`, `../layout.ts`), a
@@ -41,4 +41,4 @@ fn dagListEvictions(@builtin(local_invocation_index) lane:u32){
  workgroupBarrier();
  sweepPool(lane,now,true);
 }
-`;
+`

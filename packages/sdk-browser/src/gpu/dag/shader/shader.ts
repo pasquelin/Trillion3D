@@ -1,28 +1,28 @@
-import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts';
-import { DAG_BINDINGS_WGSL } from './bindings.ts';
-import { DAG_ERROR_WGSL } from './error.ts';
-import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts';
-import { DAG_COMPACT_WGSL } from './compactWgsl.ts';
-import { DAG_TOTALS_WGSL } from './totalsWgsl.ts';
-import { DAG_READING_WGSL } from './snapshotWgsl.ts';
-import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts';
-import { DAG_REQUEST_WGSL } from '../requestWgsl.ts';
-import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
-import { DAG_LIVE_WGSL } from './liveWgsl.ts';
-import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
-import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
-import { DAG_EVICT_WGSL } from './evictWgsl.ts';
-import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
-import { DAG_GRID_WGSL } from './gridWgsl.ts';
-import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
-import { DAG_VIEWS_WGSL } from './viewsWgsl.ts';
-import { DAG_RECORD_WGSL } from './recordWgsl.ts';
-import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
-import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
-import { DAG_CONE_WGSL } from './coneWgsl.ts';
-import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
-import { FRAME_VEC4 } from '../types.ts';
-import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts';
+import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts'
+import { DAG_BINDINGS_WGSL } from './bindings.ts'
+import { DAG_ERROR_WGSL } from './error.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts'
+import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
+import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
+import { DAG_READING_WGSL } from './snapshotWgsl.ts'
+import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts'
+import { DAG_REQUEST_WGSL } from '../requestWgsl.ts'
+import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
+import { DAG_LIVE_WGSL } from './liveWgsl.ts'
+import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
+import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
+import { DAG_EVICT_WGSL } from './evictWgsl.ts'
+import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
+import { DAG_GRID_WGSL } from './gridWgsl.ts'
+import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
+import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
+import { DAG_RECORD_WGSL } from './recordWgsl.ts'
+import { DAG_AHEAD_WGSL } from './aheadWgsl.ts'
+import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
+import { DAG_CONE_WGSL } from './coneWgsl.ts'
+import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
+import { FRAME_VEC4 } from '../types.ts'
+import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
@@ -152,4 +152,4 @@ ${DAG_FLOOR_WGSL}
 ${DAG_GRID_WGSL}
 ${DAG_VIEWS_WGSL}
 ${DAG_RECORD_WGSL}
-${DAG_AHEAD_WGSL}`;
+${DAG_AHEAD_WGSL}`

@@ -1,47 +1,47 @@
-import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { cameraAdopter } from './worldLink.ts';
-import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts';
-import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts';
-import type { WorldRenderer } from '../capability/worldReady.ts';
-import { holdWorldDevice, worldRecovered } from './worldDevice.ts';
-import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts';
-import { createWorldRuntime } from './worldRuntime.ts';
-import { Scene, sceneFogOf, type LoadOptions } from './scene.ts';
-import { worldModelLoader } from './worldLoader.ts';
-import { worldSceneMethods } from './worldSceneMethods.ts';
-import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts';
-import { sessionOptions, type WorldOptions } from './worldOptions.ts';
-import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts';
-import { sessionPools, worldBudget, worldPools } from './worldBudget.ts';
-import { noticeEffectBudget } from '../diagnostic/worldNotices.ts';
-import { worldTelemetry } from './worldTelemetry.ts';
-import { createWorldPhysics } from '../../physics/worldPhysics.ts';
-import { noVehicle } from './worldControlTargets.ts';
-import { worldSwitches } from './worldSwitches.ts';
-import { worldMaterialMethods } from './worldMaterialMethods.ts';
-import { worldMixerView } from './worldMixerView.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import { cameraAdopter } from './worldLink.ts'
+import type { ToneMapping } from '../../../../sdk-core/src/world/constants/index.ts'
+import { resolveWorldTarget, type WorldTarget } from './worldTarget.ts'
+import type { WorldRenderer } from '../capability/worldReady.ts'
+import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
+import { createWorldFrames, type BeforeFrameInfo, type FrameInfo } from './worldFrames.ts'
+import { createWorldRuntime } from './worldRuntime.ts'
+import { Scene, sceneFogOf, type LoadOptions } from './scene.ts'
+import { worldModelLoader } from './worldLoader.ts'
+import { worldSceneMethods } from './worldSceneMethods.ts'
+import { awaitViewPages, registerWorld, type JobProgress } from './worldSession.ts'
+import { sessionOptions, type WorldOptions } from './worldOptions.ts'
+import { worldControlsHandle, worldDiagnostic } from './worldHandles.ts'
+import { sessionPools, worldBudget, worldPools } from './worldBudget.ts'
+import { noticeEffectBudget } from '../diagnostic/worldNotices.ts'
+import { worldTelemetry } from './worldTelemetry.ts'
+import { createWorldPhysics } from '../../physics/worldPhysics.ts'
+import { noVehicle } from './worldControlTargets.ts'
+import { worldSwitches } from './worldSwitches.ts'
+import { worldMaterialMethods } from './worldMaterialMethods.ts'
+import { worldMixerView } from './worldMixerView.ts'
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
  * @param options - How the world draws and listens; saying nothing is the normal case.
  * @example const world = createWorld('viewer', { controls: 'orbit' });
  * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
-  if (options.controls === 'vehicle') throw noVehicle();
-  const { canvas, release: releaseCanvas } = resolveWorldTarget(target);
-  const frames = createWorldFrames();
-  const pools = worldPools();
+  if (options.controls === 'vehicle') throw noVehicle()
+  const { canvas, release: releaseCanvas } = resolveWorldTarget(target)
+  const frames = createWorldFrames()
+  const pools = worldPools()
   let camera = new Camera('perspective'),
     toneMapping: ToneMapping = 'aces',
     exposure = 1,
     animating = false,
-    disposed = false;
+    disposed = false
   const device = holdWorldDevice(canvas, options.renderer, (lostAt) =>
     worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
-  );
-  const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer));
-  const invalidate = () => runtime.invalidate();
-  const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug);
-  const switches = worldSwitches(options, () => runtime, device, frames, diagnostic.notices);
+  )
+  const scene = new Scene(worldModelLoader(device.ready, options.signal, () => device.renderer))
+  const invalidate = () => runtime.invalidate()
+  const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug)
+  const switches = worldSwitches(options, () => runtime, device, frames, diagnostic.notices)
   const runtime = createWorldRuntime({
     canvas,
     ready: () => device.pending,
@@ -56,96 +56,96 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         currentClearColor: () => scene.background?.getHex(),
         beforeFrame: () => (ahead(controls), runtime.beforeFrame()),
         onFrame: (metrics) => {
-          frames.dispatch(metrics);
-          if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
+          frames.dispatch(metrics)
+          if (animating) invalidate() // a clip still playing asks for the next; the last pauses
         },
       }),
     opened(explorer) {
-      device.renderer = explorer.backend === 'webgpu-page-raster' ? 'webgpu' : 'webgl2';
-      diagnostic.apply(explorer);
+      device.renderer = explorer.backend === 'webgpu-page-raster' ? 'webgpu' : 'webgl2'
+      diagnostic.apply(explorer)
     },
     frame: frames.dispatch,
     drawn: () => frames.last !== null,
     display: () => ({ exposure, toneMapping, fog: sceneFogOf(scene.fog) }),
     diagnostic,
-  });
-  const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
-  const adopt = cameraAdopter(invalidate); // a camera outside the scene redraws when it moves
-  adopt(camera);
-  worldMixerView(scene, canvas, () => camera);
-  const kind = options.controls ?? 'none';
-  const controls = worldControlsHandle(kind, () => camera, canvas, invalidate, physics.character);
-  const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics));
+  })
+  const physics = createWorldPhysics(runtime, scene, () => camera, options.physics)
+  const adopt = cameraAdopter(invalidate) // a camera outside the scene redraws when it moves
+  adopt(camera)
+  worldMixerView(scene, canvas, () => camera)
+  const kind = options.controls ?? 'none'
+  const controls = worldControlsHandle(kind, () => camera, canvas, invalidate, physics.character)
+  const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics))
   const live = () => {
-    if (disposed) throw new Error('World disposed');
-    return runtime.explorer;
-  };
+    if (disposed) throw new Error('World disposed')
+    return runtime.explorer
+  }
   const world = {
     /** The canvas the world draws into. */ canvas,
     /** A promise that settles once the world knows how it will draw. */ ready: device.ready,
     /** The scene: everything added to it is drawn. */ scene,
     /** The mouse and keyboard controller that moves the camera. */ controls,
     /** `'webgpu'` or `'webgl2'`: how the world draws; `null` before `ready`. */ get renderer() {
-      return device.renderer;
+      return device.renderer
     },
     /** The camera the image is seen through; set another to switch. */ get camera() {
-      return camera;
+      return camera
     },
     set camera(next: Camera) {
-      camera = adopt(next);
-      controls.follow();
-      invalidate();
+      camera = adopt(next)
+      controls.follow()
+      invalidate()
     },
     /** The curve that brings scene radiance into the display range; ACES by default. */
     get toneMapping() {
-      return toneMapping;
+      return toneMapping
     },
     set toneMapping(curve: ToneMapping) {
-      toneMapping = curve;
-      runtime.displayChanged();
+      toneMapping = curve
+      runtime.displayChanged()
     },
     /** Scene exposure, the multiplier the lighting applies before presentation. */
     get exposure() {
-      return exposure;
+      return exposure
     },
     set exposure(value: number) {
-      exposure = value;
-      runtime.displayChanged();
+      exposure = value
+      runtime.displayChanged()
     },
     /** The DAG cut's screen error, in pixels; the page's value holds over a quality preset. */
     get pixelError() {
-      return switches.pixelError;
+      return switches.pixelError
     },
     set pixelError(value: number) {
-      live();
-      switches.pixelError = value;
+      live()
+      switches.pixelError = value
     },
     /** The quality: a preset, each group's level over it, and the resolution the image is drawn at. */
     quality: switches.quality,
     /** Light bounced off the surfaces, traced against the resident proxy; off by default. Applied
      *  in place on a path that carries it, taken by the next opening on one that does not. */
     get bounce() {
-      return switches.bounce;
+      return switches.bounce
     },
     set bounce(on: boolean) {
-      switches.bounce = on;
+      switches.bounce = on
     },
     /** Temporal antialiasing: sub-pixel jitter accumulated over frames; on by default. Written, it
      *  takes effect at the next frame, history dropped, no session reopened. Read, it is what the
      *  image carries: false on WebGL2, and while the program compiles after it was turned on. */
     get temporalAntialiasing() {
-      return switches.temporalAntialiasing;
+      return switches.temporalAntialiasing
     },
     set temporalAntialiasing(on: boolean) {
-      switches.temporalAntialiasing = on;
+      switches.temporalAntialiasing = on
     },
     /** The fraction of the display per axis the image is drawn at (`WorldOptions.renderScale`),
      *  from the next frame. Read, the scale of the last image drawn. */
     get renderScale(): number {
-      return switches.renderScale;
+      return switches.renderScale
     },
     set renderScale(scale: import('../../frame/renderScaleOption.ts').RenderScale) {
-      switches.renderScale = scale;
+      switches.renderScale = scale
     },
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
@@ -173,14 +173,14 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
      *  cannot draw yet — its session opening, a part of the engine on its way — is drawn once it
      *  can, once however many were asked meanwhile. */
     render() {
-      live();
-      runtime.render(() => ahead(null));
+      live()
+      runtime.render(() => ahead(null))
     },
     /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
      *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */
     resize(width = canvas.clientWidth, height = canvas.clientHeight) {
-      live()?.resize(Math.floor(width), Math.floor(height));
-      invalidate();
+      live()?.resize(Math.floor(width), Math.floor(height))
+      invalidate()
     },
     ...worldTelemetry(live),
     /** Resolves once the pages the current view reads are resident (`awaitViewPages`).
@@ -188,20 +188,20 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     awaitPages: (options?: { onProgress?: (event: JobProgress) => void }) =>
       awaitViewPages(runtime, live, options?.onProgress),
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
-      if (disposed) return;
-      disposed = true;
-      for (const part of [controls, physics, runtime]) part.dispose();
-      pools.pageCache.clear();
-      diagnostic.close();
-      frames.clear();
-      device.dispose();
-      releaseCanvas();
+      if (disposed) return
+      disposed = true
+      for (const part of [controls, physics, runtime]) part.dispose()
+      pools.pageCache.clear()
+      diagnostic.close()
+      frames.clear()
+      device.dispose()
+      releaseCanvas()
     },
-  };
-  frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
-  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held);
-  return world;
+  }
+  frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices))
+  registerWorld(world, { session: () => runtime.explorer, last: () => frames.last }, switches.held)
+  return world
 }
 
-/** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>;
-export type { FrameInfo, BeforeFrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions };
+/** What `createWorld` returns: one view. */ export type World = ReturnType<typeof createWorld>
+export type { FrameInfo, BeforeFrameInfo, WorldTarget, WorldRenderer, LoadOptions, WorldOptions }

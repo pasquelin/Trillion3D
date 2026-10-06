@@ -1,27 +1,27 @@
-import { EngineError } from '../contracts/cache.ts';
-import { Matrix4 } from '../world/math/matrix4.ts';
-import type { CookedBody, CookedMass, ImplicitShape } from './cooked.ts';
-import { SHAPE } from './layout.ts';
-import type { PhysicsPrimitive } from './options.ts';
-import { primitive, type ResolvedShape } from './shape.ts';
+import { EngineError } from '../contracts/cache.ts'
+import { Matrix4 } from '../world/math/matrix4.ts'
+import type { CookedBody, CookedMass, ImplicitShape } from './cooked.ts'
+import { SHAPE } from './layout.ts'
+import type { PhysicsPrimitive } from './options.ts'
+import { primitive, type ResolvedShape } from './shape.ts'
 
-type Scale = { x: number; y: number; z: number };
+type Scale = { x: number; y: number; z: number }
 
 /** A `KHR_implicit_shapes` shape as the page's primitives name it, sizes the extension leaves out
  *  at its defaults; `null` for a shape the module has no primitive of (a capsule that tapers). */
 function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
   if (s.type === 'box') {
-    const [x, y, z] = s.box?.size ?? [1, 1, 1];
-    return { type: 'box', halfExtents: [x / 2, y / 2, z / 2] };
+    const [x, y, z] = s.box?.size ?? [1, 1, 1]
+    return { type: 'box', halfExtents: [x / 2, y / 2, z / 2] }
   }
-  if (s.type === 'sphere') return { type: 'sphere', radius: s.sphere?.radius ?? 0.5 };
-  const rounded = s.type === 'capsule' ? s.capsule : s.cylinder;
-  const { height = 0.5, radiusTop = 0.25, radiusBottom = 0.25 } = rounded ?? {};
+  if (s.type === 'sphere') return { type: 'sphere', radius: s.sphere?.radius ?? 0.5 }
+  const rounded = s.type === 'capsule' ? s.capsule : s.cylinder
+  const { height = 0.5, radiusTop = 0.25, radiusBottom = 0.25 } = rounded ?? {}
   if (s.type === 'cylinder')
-    return { type: 'cylinder', halfHeight: height / 2, radius: radiusTop, radiusBottom };
+    return { type: 'cylinder', halfHeight: height / 2, radius: radiusTop, radiusBottom }
   return radiusTop === radiusBottom
     ? { type: 'capsule', halfHeight: height / 2, radius: radiusTop }
-    : null;
+    : null
 }
 
 /**
@@ -31,48 +31,48 @@ function implicitPrimitive(s: ImplicitShape): PhysicsPrimitive | null {
  */
 export function declaredShape({ node, shape }: CookedBody, scale: Scale): ResolvedShape {
   if (shape.type === 'cooked')
-    return { shape: SHAPE.cooked, size: [scale.x, scale.y, scale.z], triangles: 0 };
-  const declared = implicitPrimitive(shape);
-  const found = declared && primitive(declared, scale);
-  if (found) return found;
+    return { shape: SHAPE.cooked, size: [scale.x, scale.y, scale.z], triangles: 0 }
+  const declared = implicitPrimitive(shape)
+  const found = declared && primitive(declared, scale)
+  if (found) return found
   throw new EngineError(
     'PHYSICS_FAILED',
     `The body of node ${node} declares a ${shape.type} Jolt cannot make at scale ${scale.x}, ${scale.y}, ${scale.z}.`,
     { node },
-  );
+  )
 }
 
 /** `m`, weighed at one scale, as the same solid weighs at `r` times it. */
 function rescaled({ mass, centerOfMass, inertia }: CookedMass, r: readonly number[]) {
-  const k = Math.abs(r[0] * r[1] * r[2]);
+  const k = Math.abs(r[0] * r[1] * r[2])
   // The second moments, tr(I) / 2 − I, scale as their two axes; the inertia is tr − them again.
-  const half = (inertia[0] + inertia[4] + inertia[8]) / 2;
-  const moments = inertia.map((v, n) => ((n % 4 ? 0 : half) - v) * k * r[n % 3] * r[(n / 3) | 0]);
-  const trace = moments[0] + moments[4] + moments[8];
+  const half = (inertia[0] + inertia[4] + inertia[8]) / 2
+  const moments = inertia.map((v, n) => ((n % 4 ? 0 : half) - v) * k * r[n % 3] * r[(n / 3) | 0])
+  const trace = moments[0] + moments[4] + moments[8]
   return {
     mass: mass * k,
     centerOfMass: centerOfMass.map((c, i) => c * r[i]),
     inertia: moments.map((v, n) => (n % 4 ? 0 : trace) - v),
-  };
+  }
 }
 
 /** The inertia whose principal moments `d` turn by `q`: R diag(d) Rᵀ, nine, column-major. */
 function turned(d: readonly number[], [x, y, z, w]: readonly number[] = [0, 0, 0, 1]) {
-  const e = new Matrix4().makeRotationFromQuaternion({ x, y, z, w }).elements;
+  const e = new Matrix4().makeRotationFromQuaternion({ x, y, z, w }).elements
   const at = (row: number, col: number) =>
-    e[row] * d[0] * e[col] + e[4 + row] * d[1] * e[4 + col] + e[8 + row] * d[2] * e[8 + col];
-  return Array.from({ length: 9 }, (_, n) => at(n % 3, (n / 3) | 0));
+    e[row] * d[0] * e[col] + e[4 + row] * d[1] * e[4 + col] + e[8 + row] * d[2] * e[8 + col]
+  return Array.from({ length: 9 }, (_, n) => at(n % 3, (n / 3) | 0))
 }
 
 /** The cooked weighing's inertia `inertia`, taken to `mass`, and moved from its centre of mass to
  *  a declared centre `to` by the parallel axis theorem: I + m(|d|² E − d dᵀ), nine, column-major. */
 function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: readonly number[]) {
-  const d = to ? to.map((c, i) => c - cooked.centerOfMass[i]) : [0, 0, 0];
-  const dd = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+  const d = to ? to.map((c, i) => c - cooked.centerOfMass[i]) : [0, 0, 0]
+  const dd = d[0] * d[0] + d[1] * d[1] + d[2] * d[2]
   return cooked.inertia.map((v, n) => {
-    const [row, col] = [n % 3, (n / 3) | 0];
-    return (v * mass) / cooked.mass + mass * ((row === col ? dd : 0) - d[row] * d[col]);
-  });
+    const [row, col] = [n % 3, (n / 3) | 0]
+    return (v * mass) / cooked.mass + mass * ((row === col ? dd : 0) - d[row] * d[col])
+  })
 }
 
 /**
@@ -85,16 +85,16 @@ function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: reado
  */
 export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: Scale) {
   const s = [scale.x, scale.y, scale.z],
-    r = s.map((v, i) => v / cookedAt[i]);
+    r = s.map((v, i) => v / cookedAt[i])
   // Stryker disable next-line ConditionalExpression: an implicit shape carries no `mass`
-  const cooked = shape.type === 'cooked' && shape.mass ? rescaled(shape.mass, r) : null;
-  const mass = motion.mass ?? cooked?.mass ?? 0;
-  const declared = motion.centerOfMass?.map((c, i) => c * s[i]);
+  const cooked = shape.type === 'cooked' && shape.mass ? rescaled(shape.mass, r) : null
+  const mass = motion.mass ?? cooked?.mass ?? 0
+  const declared = motion.centerOfMass?.map((c, i) => c * s[i])
   const inertia = motion.inertiaDiagonal
     ? turned(motion.inertiaDiagonal, motion.inertiaOrientation)
     : cooked
       ? inertiaAt(cooked, mass, declared)
-      : undefined;
-  const centre = declared ?? cooked?.centerOfMass ?? (inertia && [0, 0, 0]);
-  return { mass, massFrame: centre && [...centre, ...(inertia ?? [])] };
+      : undefined
+  const centre = declared ?? cooked?.centerOfMass ?? (inertia && [0, 0, 0])
+  return { mass, massFrame: centre && [...centre, ...(inertia ?? [])] }
 }

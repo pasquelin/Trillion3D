@@ -1,7 +1,7 @@
-import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts';
-import { allocated } from './allocation.ts';
-import type { FramePass } from './frameTimer.ts';
-export type { FramePass } from './frameTimer.ts';
+import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { allocated } from './allocation.ts'
+import type { FramePass } from './frameTimer.ts'
+export type { FramePass } from './frameTimer.ts'
 /**
  * An engine-owned render target: one colour texture and, unless declined, one 24-bit depth
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a
@@ -12,39 +12,39 @@ export type { FramePass } from './frameTimer.ts';
  * A `float` target holds 32-bit floats read texel by texel (`EXT_color_buffer_float`): state a
  * pass carries from image to image with no precision lost.
  */
-export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>;
+export type WebglRenderTarget = ReturnType<typeof createWebglRenderTarget>
 
 /** Where a host draw lands — the page's drawing buffer for a `null` framebuffer — and whether
  *  the scene's light calls for tone mapping; `width` and `height` are the viewport's. */
 export type HostDrawOutput = {
   /** Whether the display curve applies. */
-  toneMapped: boolean;
+  toneMapped: boolean
   /** The display curve the scene chose; ACES when absent. */
-  toneMapping?: SceneToneMapping;
+  toneMapping?: SceneToneMapping
   /** Where to draw; `null` for the screen. */
-  framebuffer: WebGLFramebuffer | null;
+  framebuffer: WebGLFramebuffer | null
   /** Width in pixels. */
-  width: number;
+  width: number
   /** Height in pixels. */
-  height: number;
+  height: number
   /** The width the image is shown at when drawn below it (`world.renderScale`): texture levels
    *  and line widths follow the ratio. `width` when absent. */
-  displayWidth?: number;
+  displayWidth?: number
   /** Linear radiance, neither tone-mapped nor encoded, over transparent black: the effect chain's
    *  input, whose alpha is coverage. */
-  linear?: boolean;
+  linear?: boolean
   /** Names the GPU passes of this draw for the frame timer, in order, when one is reading
    *  (`../core/frameTimer.ts`); absent on a draw nothing times. */
-  pass?: FramePass;
-};
+  pass?: FramePass
+}
 
 /** Whether the context renders into half floats, the extension enabled on the way. */
 export const halfFloatTargets = (gl: WebGL2RenderingContext) =>
-  ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'].some((name) => gl.getExtension(name));
+  ['EXT_color_buffer_float', 'EXT_color_buffer_half_float'].some((name) => gl.getExtension(name))
 
 /** Whether the context renders into 32-bit floats, the extension enabled on the way. */
 export const floatTargets = (gl: WebGL2RenderingContext) =>
-  !!gl.getExtension('EXT_color_buffer_float');
+  !!gl.getExtension('EXT_color_buffer_float')
 
 export function createWebglRenderTarget(
   gl: WebGL2RenderingContext,
@@ -56,84 +56,83 @@ export function createWebglRenderTarget(
     ? [gl.RGBA32F, gl.FLOAT, gl.NEAREST]
     : options.hdr
       ? [gl.RGBA16F, gl.HALF_FLOAT, gl.LINEAR]
-      : [gl.RGBA8, gl.UNSIGNED_BYTE, gl.NEAREST];
+      : [gl.RGBA8, gl.UNSIGNED_BYTE, gl.NEAREST]
   const texture = gl.createTexture()!,
     depth = options.depth === false ? null : gl.createRenderbuffer()!,
-    framebuffer = gl.createFramebuffer()!;
+    framebuffer = gl.createFramebuffer()!
   let currentWidth = 0,
-    currentHeight = 0;
+    currentHeight = 0
   // The texture is allocated on unit 0 and unbound after: left on a unit a program samples,
   // it would make every draw into this target a feedback loop the browser refuses.
   const allocate = (nextWidth: number, nextHeight: number) => {
-    currentWidth = nextWidth;
-    currentHeight = nextHeight;
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, format, nextWidth, nextHeight, 0, gl.RGBA, type, null);
-    gl.bindTexture(gl.TEXTURE_2D, null);
+    currentWidth = nextWidth
+    currentHeight = nextHeight
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+    gl.texImage2D(gl.TEXTURE_2D, 0, format, nextWidth, nextHeight, 0, gl.RGBA, type, null)
+    gl.bindTexture(gl.TEXTURE_2D, null)
     if (depth) {
-      gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
-      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, nextWidth, nextHeight);
+      gl.bindRenderbuffer(gl.RENDERBUFFER, depth)
+      gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, nextWidth, nextHeight)
     }
     // Refused: sized again at the next resize (`allocation.ts`).
-    allocated(gl, 'target', () => (currentWidth = currentHeight = 0));
-  };
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  allocate(width, height);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-  if (depth)
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth);
-  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error(`RENDER_TARGET_INCOMPLETE:${status}`);
+    allocated(gl, 'target', () => (currentWidth = currentHeight = 0))
+  }
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+  allocate(width, height)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0)
+  if (depth) gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depth)
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+  if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error(`RENDER_TARGET_INCOMPLETE:${status}`)
   return {
     framebuffer,
     texture,
     get width() {
-      return currentWidth;
+      return currentWidth
     },
     get height() {
-      return currentHeight;
+      return currentHeight
     },
     resize(nextWidth: number, nextHeight: number) {
-      if (nextWidth === currentWidth && nextHeight === currentHeight) return false;
-      allocate(nextWidth, nextHeight);
-      return true;
+      if (nextWidth === currentWidth && nextHeight === currentHeight) return false
+      allocate(nextWidth, nextHeight)
+      return true
     },
     dispose() {
-      gl.deleteFramebuffer(framebuffer);
-      if (depth) gl.deleteRenderbuffer(depth);
-      gl.deleteTexture(texture);
+      gl.deleteFramebuffer(framebuffer)
+      if (depth) gl.deleteRenderbuffer(depth)
+      gl.deleteTexture(texture)
     },
-  };
+  }
 }
 
 /** Binds a target — or the page's drawing buffer — and sets the viewport to its whole size,
  *  which it returns. */
 export function bindWebglTarget(gl: WebGL2RenderingContext, target: WebglRenderTarget | null) {
   const width = target?.width ?? gl.drawingBufferWidth,
-    height = target?.height ?? gl.drawingBufferHeight;
-  gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null);
-  gl.viewport(0, 0, width, height);
-  return { width, height };
+    height = target?.height ?? gl.drawingBufferHeight
+  gl.bindFramebuffer(gl.FRAMEBUFFER, target?.framebuffer ?? null)
+  gl.viewport(0, 0, width, height)
+  return { width, height }
 }
 
 /** Clears the bound target whole — colour, far depth, stencil — to the opaque `colour`, or to
  *  transparent black without one. */
 export function clearWebglTarget(gl: WebGL2RenderingContext, colour?: readonly number[]) {
-  gl.disable(gl.SCISSOR_TEST);
-  gl.colorMask(true, true, true, true);
-  gl.depthMask(true);
-  gl.clearColor(colour?.[0] ?? 0, colour?.[1] ?? 0, colour?.[2] ?? 0, colour ? 1 : 0);
-  gl.clearDepth(1);
-  gl.clearStencil(0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+  gl.disable(gl.SCISSOR_TEST)
+  gl.colorMask(true, true, true, true)
+  gl.depthMask(true)
+  gl.clearColor(colour?.[0] ?? 0, colour?.[1] ?? 0, colour?.[2] ?? 0, colour ? 1 : 0)
+  gl.clearDepth(1)
+  gl.clearStencil(0)
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT)
 }
 
 /** Binds `texture` on texture unit `unit` for the next draw to sample. */
@@ -142,6 +141,6 @@ export function bindWebglTexture(
   unit: number,
   texture: WebGLTexture | null,
 ) {
-  gl.activeTexture(gl.TEXTURE0 + unit);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.activeTexture(gl.TEXTURE0 + unit)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
 }

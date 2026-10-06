@@ -7,13 +7,13 @@ import {
   SPEC_PAGE_INDEX,
   SPEC_STREAM_OFFSET,
   SPEC_TRIANGLES,
-} from './integrationContracts.ts';
+} from './integrationContracts.ts'
 
 /**
  * Length beyond which insertion ceases to be the best sort: up to there an almost
  * ordered list moves nothing, beyond a disordered list would cost its square.
  */
-const SORT_INSERTION_MAX = 64;
+const SORT_INSERTION_MAX = 64
 
 /**
  * In-place increasing sort of a prefix of a page-index array.
@@ -25,31 +25,31 @@ const SORT_INSERTION_MAX = 64;
  */
 export function sortPages(pages: Int32Array, count: number) {
   if (count > SORT_INSERTION_MAX) {
-    pages.subarray(0, count).sort();
-    return;
+    pages.subarray(0, count).sort()
+    return
   }
   for (let i = 1; i < count; i++) {
-    const page = pages[i];
-    let j = i - 1;
+    const page = pages[i]
+    let j = i - 1
     while (j >= 0 && pages[j] > page) {
-      pages[j + 1] = pages[j];
-      j--;
+      pages[j + 1] = pages[j]
+      j--
     }
-    pages[j + 1] = page;
+    pages[j + 1] = page
   }
 }
 
 /** Plan of an arrival: one slice per record, and the page ranks it moves. */
 export type PageIntegrationPlan = {
   /** Where each cluster goes in the pack. */
-  slices: Int32Array;
+  slices: Int32Array
   /** How many clusters. */
-  count: number;
+  count: number
   /** The page ranks it moves. */
-  pages: Int32Array;
+  pages: Int32Array
   /** How many pages. */
-  pageCount: number;
-};
+  pageCount: number
+}
 
 /**
  * Integration plan of an arrived pack, computed from the catalogue integers alone.
@@ -69,37 +69,37 @@ export function planPageIntegration(
   into: PageIntegrationPlan,
 ): PageIntegrationPlan {
   const count = (specs.length / PAGE_SPEC_STRIDE) | 0,
-    { slices, pages } = into;
+    { slices, pages } = into
   let pageCount = 0,
     sorted = true,
-    last = -1;
+    last = -1
   for (let i = 0; i < count; i++) {
     const spec = i * PAGE_SPEC_STRIDE,
       offset = specs[spec + SPEC_STREAM_OFFSET],
       page = specs[spec + SPEC_PAGE_INDEX],
       slice = i * PAGE_SLICE_STRIDE,
-      whole = offset < 0;
-    slices[slice + SLICE_OFFSET_WORDS] = whole ? 0 : offset / 4;
-    slices[slice + SLICE_WORDS] = whole ? words : specs[spec + SPEC_TRIANGLES] * 3;
-    slices[slice + SLICE_PAGE_INDEX] = page;
-    if (page < 0) continue;
-    if (page <= last) sorted = false;
-    last = page;
-    pages[pageCount++] = page;
+      whole = offset < 0
+    slices[slice + SLICE_OFFSET_WORDS] = whole ? 0 : offset / 4
+    slices[slice + SLICE_WORDS] = whole ? words : specs[spec + SPEC_TRIANGLES] * 3
+    slices[slice + SLICE_PAGE_INDEX] = page
+    if (page < 0) continue
+    if (page <= last) sorted = false
+    last = page
+    pages[pageCount++] = page
   }
-  if (!sorted) sortPages(pages, pageCount);
-  into.count = count;
-  into.pageCount = pageCount;
-  return into;
+  if (!sorted) sortPages(pages, pageCount)
+  into.count = count
+  into.pageCount = pageCount
+  return into
 }
 
 /** Buffers of a plan, sized for the catalogue's fullest request. */
 export function createPageIntegrationPlan(records: number): PageIntegrationPlan {
-  const room = Math.max(1, records);
+  const room = Math.max(1, records)
   return {
     slices: new Int32Array(room * PAGE_SLICE_STRIDE),
     count: 0,
     pages: new Int32Array(room),
     pageCount: 0,
-  };
+  }
 }

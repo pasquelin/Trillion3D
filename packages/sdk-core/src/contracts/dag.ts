@@ -4,38 +4,38 @@
  *  across every texture seam it advances), `unreducible` (neither advances), `border-lost` (a
  *  shared position disappeared on every retry), `unusable-error`. */
 export type DagStallCause =
-  'too-small' | 'seam-locked' | 'border-locked' | 'unreducible' | 'border-lost' | 'unusable-error';
+  'too-small' | 'seam-locked' | 'border-locked' | 'unreducible' | 'border-lost' | 'unusable-error'
 /** What the stalls of a primitive come to: the level-0 triangles left as roots, the cause of
  *  the stalls holding the most triangles (`null` without a stall), and the seam, locked and
  *  texture-island counts summed over its stalled groups. */
 export interface DagStallSummary {
   /** Triangles left at the roots. */
-  rootTriangles: number;
+  rootTriangles: number
   /** Why it stopped. */
-  cause: DagStallCause | null;
+  cause: DagStallCause | null
   /** Vertices on seams. */
-  seamVertices: number;
+  seamVertices: number
   /** Vertices it could not move. */
-  lockedVertices: number;
+  lockedVertices: number
   /** Separate UV pieces. */
-  uvIslands: number;
+  uvIslands: number
 }
 /** One stalled group: the level it was built for, its cause, its live triangles, its positions
  *  used under several texture coordinates, those shared with another group, and its connected
  *  texture islands. */
 export interface DagStall {
   /** The level it stopped at. */
-  level: number;
+  level: number
   /** Why it stopped. */
-  cause: DagStallCause;
+  cause: DagStallCause
   /** Triangles left. */
-  triangles: number;
+  triangles: number
   /** Vertices on seams. */
-  seamVertices: number;
+  seamVertices: number
   /** Vertices it could not move. */
-  lockedVertices: number;
+  lockedVertices: number
   /** Separate UV pieces. */
-  uvIslands: number;
+  uvIslands: number
 }
 /** A DAG that the compiler did not coarsen: the coarsest level is what renders in the distance;
  *  a primitive without a single root renders finely at any distance. `DAG_FLAT` has no coarse levels;
@@ -43,27 +43,27 @@ export interface DagStall {
  *  stall summary says why. */
 export interface DagWarning extends DagStallSummary {
   /** Which warning. */
-  code: 'DAG_FLAT' | 'DAG_ROOTS';
+  code: 'DAG_FLAT' | 'DAG_ROOTS'
   /** Roots left. */
-  roots: number;
+  roots: number
   /** Pages made. */
-  pages: number;
+  pages: number
   /** Groups per level. */
-  groups: Record<string, number>;
+  groups: Record<string, number>
 }
 /** DAG report for a primitive; only its warnings are consumed by the runtime engine. A report
  *  listing its stalls carries their summary. */
 export type DagReport = { warnings?: DagWarning[] } & (
   { stalls?: undefined } | ({ stalls: DagStall[] } & DagStallSummary)
-);
+)
 /** A compiler warning attached to the primitive carrying it, and where it sits in the cache. */
 export type PrimitiveDagWarning = DagWarning & {
   /** Its rank in the manifest. */
-  index: number;
+  index: number
   /** Its mesh's number. */
-  mesh: number;
+  mesh: number
   /** Its number in the mesh. */
-  primitive: number;
-};
+  primitive: number
+}
 /** The stall summary of a primitive with at least one stalled group, warned about or not. */
-export type PrimitiveDagStall = DagStallSummary & Omit<PrimitiveDagWarning, keyof DagWarning>;
+export type PrimitiveDagStall = DagStallSummary & Omit<PrimitiveDagWarning, keyof DagWarning>

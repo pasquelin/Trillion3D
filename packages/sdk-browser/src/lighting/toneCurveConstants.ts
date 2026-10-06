@@ -3,9 +3,9 @@
  * languages: the matrices as numbers, column after column, and the expressions whose text both
  * languages read alike as text. Each is the curve the display pass evaluates.
  */
-import { glslMatrix3, shaderFloat, wgslMatrix3 } from './shaderConstants.ts';
+import { glslMatrix3, shaderFloat, wgslMatrix3 } from './shaderConstants.ts'
 
-const both = (m: readonly number[]) => ({ wgsl: wgslMatrix3(m), glsl: glslMatrix3(m) });
+const both = (m: readonly number[]) => ({ wgsl: wgslMatrix3(m), glsl: glslMatrix3(m) })
 
 /** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
  *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole
@@ -18,7 +18,7 @@ export const ACES = {
   ]),
   numerator: 'c*(c+0.0245786)-0.000090537',
   denominator: 'c*(0.983729*c+0.4329510)+0.238081',
-};
+}
 
 /** The log-domain curve. declared: a conversion to the BT.2020 primaries and back, an inset and an
  *  outset matrix, the log2 range in EV and a sixth-degree contrast fit over `c`, `c2 = c²`,
@@ -39,13 +39,13 @@ export const AGX = {
   low: -12.47393,
   high: 4.026069,
   contrast: '15.5*c4*c2-40.14*c4*c+31.96*c4-6.868*c2*c+0.4298*c2+0.1191*c-0.00232',
-};
+}
 
 /** The filmic rational fit of `x = max(0, c − 0.004)`, display gamma included. */
 export const CINEON = {
   offset: shaderFloat(0.004),
   curve: '(x*(6.2*x+0.5))/(x*(6.2*x+1.7)+0.06)',
-};
+}
 
 /** The neutral operator: its toe below 0.08, its knee at 0.76, its shoulder. */
 export const NEUTRAL = {
@@ -55,4 +55,4 @@ export const NEUTRAL = {
   knee: shaderFloat(0.76),
   top: '1.0-0.0576/(peak-0.52)',
   blend: '1.0-1.0/(0.15*(peak-top)+1.0)',
-};
+}

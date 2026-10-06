@@ -1,20 +1,20 @@
 // The nine terms of the order-2 basis (`irradianceBasis.ts`), in the engine's band order.
-import { IRRADIANCE_BAND } from './environment.ts';
+import { IRRADIANCE_BAND } from './environment.ts'
 
 /** One term of the basis. */
 export interface IrradianceTerm {
   /** Normalisation of the real harmonic: `Y_k(ω) = basis · polynomial(ω)`. */
-  basis: number;
+  basis: number
   /** Cosine-lobe factor `Â_l · basis`: the term's irradiance is `L_k · band · polynomial(n)`. */
-  band: number;
+  band: number
   /** The polynomial in the components of a unit vector named `v`, as shader text valid in WGSL
    *  and GLSL alike. */
-  polynomial: (v: string) => string;
+  polynomial: (v: string) => string
 }
 
 const constant = 0.2820948,
   linear = 0.4886025,
-  cross = 1.0925484;
+  cross = 1.0925484
 
 /** The nine terms, in band order. */
 export const IRRADIANCE_TERMS: readonly IrradianceTerm[] = [
@@ -35,4 +35,4 @@ export const IRRADIANCE_TERMS: readonly IrradianceTerm[] = [
     band: IRRADIANCE_BAND.quadraticDifference,
     polynomial: (v) => `${v}.x*${v}.x-${v}.y*${v}.y`,
   },
-];
+]

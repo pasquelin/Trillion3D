@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** The transform tree: the engine's scene graph, data-oriented. */
 
@@ -27,4 +27,4 @@ export const TREE: EntryNote[] = [
     id: 'lookAtNode',
     replaces: 'Object3D.lookAt',
   },
-];
+]

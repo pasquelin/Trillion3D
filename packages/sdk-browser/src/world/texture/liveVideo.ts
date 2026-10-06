@@ -1,9 +1,9 @@
-import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts';
+import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 
 /** What a live video texture needs of its element: a frame clock, or its play state. */
 type VideoClock = Pick<HTMLVideoElement, 'paused' | 'ended' | 'addEventListener'> & {
-  requestVideoFrameCallback?: HTMLVideoElement['requestVideoFrameCallback'];
-};
+  requestVideoFrameCallback?: HTMLVideoElement['requestVideoFrameCallback']
+}
 
 /**
  * Makes a video texture LIVE (#362): each new frame the video presents moves the texture's
@@ -18,25 +18,25 @@ export function followVideoFrames(
   video: VideoClock,
   nextFrame: (callback: () => void) => unknown = (callback) => requestAnimationFrame(callback),
 ) {
-  const held = new WeakRef(texture);
-  let waiting = false;
+  const held = new WeakRef(texture)
+  let waiting = false
   const frame = () => {
-    waiting = false;
-    const live = held.deref();
-    if (!live) return;
-    live.needsUpdate = true;
-    watch();
-  };
+    waiting = false
+    const live = held.deref()
+    if (!live) return
+    live.needsUpdate = true
+    watch()
+  }
   const watch = () => {
-    if (waiting) return;
+    if (waiting) return
     if (video.requestVideoFrameCallback) {
-      waiting = true;
-      video.requestVideoFrameCallback(frame);
+      waiting = true
+      video.requestVideoFrameCallback(frame)
     } else if (!video.paused && !video.ended) {
-      waiting = true;
-      nextFrame(frame);
+      waiting = true
+      nextFrame(frame)
     }
-  };
-  video.addEventListener('play', watch);
-  watch();
+  }
+  video.addEventListener('play', watch)
+  watch()
 }

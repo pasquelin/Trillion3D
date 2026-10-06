@@ -24,22 +24,22 @@ export function slabCut(
   d: ArrayLike<number>,
 ) {
   let near = span[0],
-    far = span[1];
+    far = span[1]
   for (let k = 0; k < 3; k++) {
     const lower = low[lowAt + k],
-      upper = high[highAt + k];
+      upper = high[highAt + k]
     if (d[k] === 0) {
-      if (o[k] < lower || o[k] > upper) return false;
-      continue;
+      if (o[k] < lower || o[k] > upper) return false
+      continue
     }
     let a = (lower - o[k]) / d[k],
-      b = (upper - o[k]) / d[k];
-    if (a > b) [a, b] = [b, a];
-    if (a > near) near = a;
-    if (b < far) far = b;
-    if (near > far) return false;
+      b = (upper - o[k]) / d[k]
+    if (a > b) [a, b] = [b, a]
+    if (a > near) near = a
+    if (b < far) far = b
+    if (near > far) return false
   }
-  span[0] = near;
-  span[1] = far;
-  return true;
+  span[0] = near
+  span[1] = far
+  return true
 }

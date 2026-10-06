@@ -1,36 +1,31 @@
-import { FULLSCREEN_X_WGSL, FULLSCREEN_Y_WGSL } from '../../math/fullscreenTriangle.ts';
+import { FULLSCREEN_X_WGSL, FULLSCREEN_Y_WGSL } from '../../math/fullscreenTriangle.ts'
 import {
   FRAMEBUFFER_WGSL,
   PIXEL_BARY_WGSL,
   PIXEL_TRIANGLE_WGSL,
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
-} from './pixelTriangleWgsl.ts';
-import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
-import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
-import {
-  BARY_WEIGHTS_WGSL,
-  EDGE_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-  normalAtlasWgsl,
-} from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
+} from './pixelTriangleWgsl.ts'
+import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
+import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   tileDeclarations,
-} from '../../webgpu/tile/wgsl.ts';
-import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts';
-import { SHADE_REQUEST_WGSL } from './request.ts';
-import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts';
-import { MATERIAL_CLASS_WGSL } from './materialClass.ts';
-import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts';
-import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
-import { SHADING_POINT_WGSL } from './shadingPoint.ts';
-import { receiverStoreWgsl } from './receiverTargetWgsl.ts';
-import { shadeCacheReadWgsl } from './shadeCacheWgsl.ts';
+} from '../../webgpu/tile/wgsl.ts'
+import { TILE_REQUEST_WGSL } from '../../webgpu/tile/requestWgsl.ts'
+import { SHADE_REQUEST_WGSL } from './request.ts'
+import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
+import { MATERIAL_TILE_DRAW_WGSL } from './materialTilesWgsl.ts'
+import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts'
+import { SHADING_POINT_WGSL } from './shadingPoint.ts'
+import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
+import { shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
 
 /**
  * Screen gradients (per pixel in x, then y) of the perspective-correct coordinate at `p` in the
@@ -49,7 +44,7 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  let dUds=-uva*iw0+uvb*iw1;let dUdt=-uva*iw0+uvc*iw2;let dWds=-iw0+iw1;let dWdt=-iw0+iw2;
  let dUdx=dUds*dsdx+dUdt*dtdx;let dUdy=dUds*dsdy+dUdt*dtdy;let dWdx=dWds*dsdx+dWdt*dtdx;let dWdy=dWds*dsdy+dWdt*dtdy;
  return mat2x2f((dUdx*W-U*dWdx)/(W*W),(dUdy*W-U*dWdy)/(W*W));
-}`;
+}`
 
 /**
  * Declarations of the surface resolve: its bindings, the page reads, the atlas reads, the tile
@@ -108,4 +103,4 @@ fn classTriangle(i:u32)->vec4f{
 }
 @vertex fn shade_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return classTriangle(i);}
 ${MATERIAL_TILE_DRAW_WGSL}
-`;
+`

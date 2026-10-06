@@ -1,4 +1,4 @@
-import { REQUEST_PRIORITY_MAX } from '../request.ts';
+import { REQUEST_PRIORITY_MAX } from '../request.ts'
 
 /**
  * SNAPSHOT write: what the GPU reports to the CPU, and the ceiling that bounds it.
@@ -74,4 +74,4 @@ fn placeRanks()->u32{
  for(var r=RANKS;r>0u;r--){let held=atomicLoad(&rankPlace[r-1u]);atomicStore(&rankPlace[r-1u],place);place+=held;}
  return place;
 }
-`;
+`

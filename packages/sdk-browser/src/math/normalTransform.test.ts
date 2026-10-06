@@ -15,11 +15,11 @@
 // Only text checks remaining here cover COMPILATION and single writing: duplicate declaration
 // would not compile, and two arithmetic copies would drift — exactly Bug 9. CRITERION judging
 // a rendered normal is tested separately in `normalTransformCriterion.test.ts`.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts';
-import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts';
-import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts'
+import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts'
+import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts'
 import {
   DEG,
   DROPOUT_DEG,
@@ -28,48 +28,48 @@ import {
   normalVerdict,
   xformNormalBefore,
   xformNormalModel,
-} from '../../../../tests/gpu/math/inverseTransposeF32.ts';
+} from '../../../../tests/gpu/math/inverseTransposeF32.ts'
 import {
   FLATTENED,
   CASES,
   COLLAPSED,
   TINY_REGULAR,
   THRESHOLD_SCALE,
-} from '../../../../tests/gpu/math/normalTransformCases.ts';
+} from '../../../../tests/gpu/math/normalTransformCases.ts'
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { truth: number[] }, rendered: number[]) =>
-  normalVerdict(rendered, cas.truth, DROPOUT_DEG);
+  normalVerdict(rendered, cas.truth, DROPOUT_DEG)
 
 test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => {
-  assert.ok(CASES.length >= 300, `sample too small : ${CASES.length}`);
+  assert.ok(CASES.length >= 300, `sample too small : ${CASES.length}`)
   for (const cas of CASES) {
-    const v = verdict(cas, xformNormalModel(cas.world, cas.normal));
-    assert.ok(v.ok, `${cas.name} : ${v.reason}`);
+    const v = verdict(cas, xformNormalModel(cas.world, cas.normal))
+    assert.ok(v.ok, `${cas.name} : ${v.reason}`)
   }
   // Without effective rotation, these cases prove nothing: true normal must have moved.
-  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * DEG > 10).length;
-  assert.ok(tournees > CASES.length / 2, `only ${tournees} cases rotate normal`);
-});
+  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * DEG > 10).length
+  assert.ok(tournees > CASES.length / 2, `only ${tournees} cases rotate normal`)
+})
 
 test('absolute threshold before batch dropped out, and exactly below s³ = 1e-20', () => {
   const decroches = CASES.filter(
     (cas) => !verdict(cas, xformNormalBefore(cas.world, cas.normal)).ok,
-  );
-  assert.ok(decroches.length > 0, 'reproduction no longer reproduces: review cases');
+  )
+  assert.ok(decroches.length > 0, 'reproduction no longer reproduces: review cases')
   // What batch was meant to change, and nothing else: above threshold, old code was already correct.
   // Dropout outside band would mean bug was not what we thought.
   for (const cas of decroches)
     assert.ok(
       cas.s < THRESHOLD_SCALE,
       `${cas.name} : dropout outside threshold band (s = ${cas.s} ≥ ${THRESHOLD_SCALE})`,
-    );
+    )
   // And across threshold, behavior toggles: 2.154e-7 inside, 2.16e-7 outside.
   // Without these two scales, bound would not be tested, only crossed from afar.
-  const a = (s: number) => decroches.some((cas) => cas.s === s);
-  assert.ok(a(2.154e-7), 'just below threshold: former code should have dropped out');
-  assert.ok(!a(2.16e-7), 'just above threshold: former code should not have dropped out');
-});
+  const a = (s: number) => decroches.some((cas) => cas.s === s)
+  assert.ok(a(2.154e-7), 'just below threshold: former code should have dropped out')
+  assert.ok(!a(2.16e-7), 'just above threshold: former code should not have dropped out')
+})
 
 test('outside threshold band, batch did not move rendered normal', () => {
   for (const cas of CASES.filter((c) => c.s >= 1e-6)) {
@@ -77,10 +77,10 @@ test('outside threshold band, batch did not move rendered normal', () => {
       angleBetween(
         xformNormalModel(cas.world, cas.normal),
         xformNormalBefore(cas.world, cas.normal),
-      ) * DEG;
-    assert.ok(gap < 1e-4, `${cas.name} : normal moved by ${gap}° outside band`);
+      ) * DEG
+    assert.ok(gap < 1e-4, `${cas.name} : normal moved by ${gap}° outside band`)
   }
-});
+})
 
 test('singular poses: flattened face keeps normal, collapsed face has none', () => {
   // One expectation per case, calculated by hand in `normalTransformCases.ts`: cross product of
@@ -88,31 +88,31 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
   // rendered as is — described bug, not convention: on `scale (1,1,0) then 90° around Y` it left +Z
   // where transformed face looks at +X.
   for (const cas of FLATTENED) {
-    const v = verdict(cas, xformNormalModel(cas.world, cas.normal));
-    assert.ok(v.ok, `${cas.name} : ${v.reason}`);
-    const gap = angleBetween(cas.truth, unit(cas.normal)) * DEG;
-    assert.ok(gap > 10, `${cas.name} : local and true normals differ by only ${gap}°`);
+    const v = verdict(cas, xformNormalModel(cas.world, cas.normal))
+    assert.ok(v.ok, `${cas.name} : ${v.reason}`)
+    const gap = angleBetween(cas.truth, unit(cas.normal)) * DEG
+    assert.ok(gap > 10, `${cas.name} : local and true normals differ by only ${gap}°`)
   }
   for (const cas of COLLAPSED)
     assert.deepEqual(
       xformNormalModel(cas.world, cas.normal),
       [0, 0, 0],
       `${cas.name} : face without world area does not light — zero, never NaN nor local`,
-    );
+    )
   // And guard must not be greedy: tiny but regular matrix passes.
-  const v = verdict(TINY_REGULAR, xformNormalModel(TINY_REGULAR.world, TINY_REGULAR.normal));
-  assert.ok(v.ok, `${TINY_REGULAR.name} : caught by guard — ${v.reason}`);
-});
+  const v = verdict(TINY_REGULAR, xformNormalModel(TINY_REGULAR.world, TINY_REGULAR.normal))
+  assert.ok(v.ok, `${TINY_REGULAR.name} : caught by guard — ${v.reason}`)
+})
 
 // --- Single writing and compilation --------------------------------------------------------------
-const occurrences = (text: string, motif: RegExp) => text.match(motif)?.length ?? 0;
+const occurrences = (text: string, motif: RegExp) => text.match(motif)?.length ?? 0
 
 test('selection kernel and lighting read exact same text, character for character', () => {
   for (const [nom, shader] of [
     ['lighting', NORMAL_TRANSFORM_WGSL],
     ['DAG selection', DAG_SELECTION_SHADER],
   ] as const) {
-    assert.ok(shader.includes(INVERSE_TRANSPOSE_WGSL), `${nom} : shared text absent`);
+    assert.ok(shader.includes(INVERSE_TRANSPOSE_WGSL), `${nom} : shared text absent`)
     for (const fonction of [
       'inverseTranspose3',
       'invTranspose3Prep',
@@ -123,22 +123,18 @@ test('selection kernel and lighting read exact same text, character for characte
         occurrences(shader, new RegExp(`fn ${fonction}\\(`, 'g')),
         1,
         `${nom} : « fn ${fonction} » declared twice, WGSL module would not compile`,
-      );
+      )
   }
-});
+})
 
 test('lighting normal passes through shared inverse-transpose, without recomputing it', () => {
-  const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0];
-  assert.equal(
-    occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g),
-    1,
-    'xformNormal duplicated',
-  );
-  assert.ok(corps.includes('inverseTranspose3('), 'xformNormal no longer calls shared kernel');
-  assert.ok(corps.includes('uniteOuZero('), 'xformNormal must return unit or zero direction');
+  const corps = NORMAL_TRANSFORM_WGSL.split('fn xformNormal')[1].split('\n}')[0]
+  assert.equal(occurrences(NORMAL_TRANSFORM_WGSL, /fn xformNormal\(/g), 1, 'xformNormal duplicated')
+  assert.ok(corps.includes('inverseTranspose3('), 'xformNormal no longer calls shared kernel')
+  assert.ok(corps.includes('uniteOuZero('), 'xformNormal must return unit or zero direction')
   assert.doesNotMatch(
     corps,
     /\bdet\b|cross\(/,
     'xformNormal recomputes inverse-transpose instead of calling it: that was Bug 9',
-  );
-});
+  )
+})

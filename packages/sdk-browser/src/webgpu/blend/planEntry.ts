@@ -16,9 +16,9 @@
 export const PLAN_SHIFT = 6,
   PLAN_PIPELINE_MASK = 15,
   PLAN_SHARED_BIT = 16,
-  PLAN_VERTEX_CULL_BIT = 32;
+  PLAN_VERTEX_CULL_BIT = 32
 export const planEntry = (item: number, pipeline: number, shared: boolean, vertexCull = false) =>
   (item << PLAN_SHIFT) |
   (vertexCull ? PLAN_VERTEX_CULL_BIT : 0) |
   (shared ? PLAN_SHARED_BIT : 0) |
-  pipeline;
+  pipeline

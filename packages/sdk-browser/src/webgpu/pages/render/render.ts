@@ -1,23 +1,23 @@
-import { sameHizView } from '../../../hiz/hiz.ts';
-import { createEngineCamera, holdCameraWorld, type HostCamera } from '../../../camera/world.ts';
-import { fallbackToCpuCut, invalidateTemporalPyramid } from '../io/drops.ts';
-import { renderGpuCut } from './gpuCut.ts';
-import { renderCpuCut } from './cpu.ts';
-import { uploadWorlds } from './worldUpload.ts';
-import { setWindingEpoch } from './winding.ts';
-import { holdWebgpuFrame } from '../../frame/hold.ts';
-import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts';
-import { deviceAnswering } from '../../frame/deviceAnswer.ts';
-import { pumpResidentTiles } from '../prepare/lightResources.ts';
-import { refreshBlendBoxes } from '../../blend/hierarchy.ts';
-import { refreshBlendScene } from '../../blend/resources.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { followLiveTextures } from '../io/memory.ts';
-import { followFeedback } from '../prepare/feedbackVariant.ts';
-import { beginTaaFrame } from '../../../taa/frame.ts';
-import { restartTaaOnLanding } from '../../../taa/landing.ts';
-import { frameStart } from '../../../frame/scheduling.ts';
-import { askFramePipelines } from '../../frame/framePipelines.ts';
+import { sameHizView } from '../../../hiz/hiz.ts'
+import { createEngineCamera, holdCameraWorld, type HostCamera } from '../../../camera/world.ts'
+import { fallbackToCpuCut, invalidateTemporalPyramid } from '../io/drops.ts'
+import { renderGpuCut } from './gpuCut.ts'
+import { renderCpuCut } from './cpu.ts'
+import { uploadWorlds } from './worldUpload.ts'
+import { setWindingEpoch } from './winding.ts'
+import { holdWebgpuFrame } from '../../frame/hold.ts'
+import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
+import { deviceAnswering } from '../../frame/deviceAnswer.ts'
+import { pumpResidentTiles } from '../prepare/lightResources.ts'
+import { refreshBlendBoxes } from '../../blend/hierarchy.ts'
+import { refreshBlendScene } from '../../blend/resources.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { followLiveTextures } from '../io/memory.ts'
+import { followFeedback } from '../prepare/feedbackVariant.ts'
+import { beginTaaFrame } from '../../../taa/frame.ts'
+import { restartTaaOnLanding } from '../../../taa/landing.ts'
+import { frameStart } from '../../../frame/scheduling.ts'
+import { askFramePipelines } from '../../frame/framePipelines.ts'
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -25,18 +25,18 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   const { run, gpu, vis, capture, context, blendState } = rt,
     { source } = rt.setup,
     gpuDevice = gpu.device,
-    { rows } = rt.layout;
-  if (capture.capturing && !capture.surfaceRenderAllowed) throw new Error('SURFACE_CAPTURE_BUSY');
-  if (context.signal?.aborted) context.signal.throwIfAborted();
-  if (run.lost) throw new Error('WEBGPU_LOST');
-  if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE');
-  const marks = rt.timing.marks;
-  marks.preStart = performance.now();
+    { rows } = rt.layout
+  if (capture.capturing && !capture.surfaceRenderAllowed) throw new Error('SURFACE_CAPTURE_BUSY')
+  if (context.signal?.aborted) context.signal.throwIfAborted()
+  if (run.lost) throw new Error('WEBGPU_LOST')
+  if (!gpuDevice || !gpu.cache) throw new Error('WEBGPU_UNAVAILABLE')
+  const marks = rt.timing.marks
+  marks.preStart = performance.now()
   // The display's cadence, read on the main view's frames at the frame's rAF timestamp: the
   // render-scale budget, and its cost where the device cannot timestamp.
   if (rt.views.active === rt.views.main && !capture.capturing)
-    rt.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true);
-  run.lastCamera = camera;
+    rt.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true)
+  run.lastCamera = camera
   // Image entry: order and its guarantees live in `../../../frame/gateCore.ts`, which also copies the host
   // camera into the engine's — everything that follows only reads the latter. The list of nodes
   // the host can write is only built at a scene change, never per image — twelve instances of the
@@ -49,89 +49,89 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     source,
     rt.watchedSources,
     aspect,
-  );
+  )
   // Targets that no longer fit the view are asked; the frame is held until granted.
-  void requestFrameTargets(rt, gpuDevice);
+  void requestFrameTargets(rt, gpuDevice)
   const pixelError = run.gate.pixelError,
-    cam = run.gate.cam;
+    cam = run.gate.cam
   // The atlases' records brought up to their host textures once for the image (#360, #361): a
   // sampling or a placement moved rewrites the texture's header, a resource change that releases a
   // held image. A filter rule switched on or off moves the resolve class of the pages that wear
   // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again.
   if (vis.textures?.followSampling()) {
-    rows.tableEpoch++;
-    vis.shadeCensus?.moved();
-    refreshBlendScene(rt, gpuDevice);
+    rows.tableEpoch++
+    vis.shadeCensus?.moved()
+    refreshBlendScene(rt, gpuDevice)
   }
-  followLiveTextures(rt);
+  followLiveTextures(rt)
   // Textures that came or went switch the pipelines' feedback output, the target following.
-  followFeedback(rt, gpuDevice);
+  followFeedback(rt, gpuDevice)
   // What entered the scene since has its pipelines asked, compiled off the thread: the frame is
   // held on them below (`deviceAnswering`), never compiles one.
-  askFramePipelines(rt);
+  askFramePipelines(rt)
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   // A frame the device still answers for (targets, shadow pool) is held even when forced.
   if (rt.feedbackAB?.force && !frameTargetsAwaited(rt) && !deviceAnswering(rt)) {
     // Replay the settled TAA sample and history while forcing the real GPU passes.
-    beginTaaFrame(rt, run.gate.cam, true);
-    run.frameHeld = false;
-  } else if (holdWebgpuFrame(rt, gpuDevice)) return;
+    beginTaaFrame(rt, run.gate.cam, true)
+    run.frameHeld = false
+  } else if (holdWebgpuFrame(rt, gpuDevice)) return
   // This frame is drawn: the canvas holds its display colour only once the frame presents it.
-  gpu.presenter?.forget();
-  run.diagnosticPixelError = pixelError;
+  gpu.presenter?.forget()
+  run.diagnosticPixelError = pixelError
   // Nothing is held by default: only adoption of an already-read readback declares it, and every
   // path that does not go through it — CPU cut, surface capture, pending image — remakes everything.
-  run.cutHeld = false;
-  setWindingEpoch(rows.tableEpoch);
+  run.cutHeld = false
+  setWindingEpoch(rows.tableEpoch)
   // What the previous image's feedback requested becomes resident, under the budgets. The pass
   // times itself on its budget clock — the one bound the textures stage reads —; the marks only
   // keep `worldMs` below to the world step alone.
-  marks.gateEnd = performance.now();
-  restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging));
-  marks.tilesEnd = performance.now();
-  const worldsMoved = uploadWorlds(rt, cam);
+  marks.gateEnd = performance.now()
+  restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging))
+  marks.tilesEnd = performance.now()
+  const worldsMoved = uploadWorlds(rt, cam)
   // The GPU deformation of this image, on the poses just uploaded (#357).
-  rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved);
+  rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
   // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
   // only chooses the pass where a cluster is drawn, and this image's pyramid remains the sole
   // judge of what is withdrawn. The GPU partition still learns of the move: while the view
   // stands still, a row the test has kept is not sent back to the tested half — that is what
   // lets the halves converge under the antialiasing jitter, and an image be held.
-  run.hizViewMoved = !sameHizView(run.previousHizView, cam);
+  run.hizViewMoved = !sameHizView(run.previousHizView, cam)
   if (run.hizViewMoved) {
-    invalidateTemporalPyramid(run);
+    invalidateTemporalPyramid(run)
     // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
-    run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);
+    run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam)
   }
-  marks.blendStart = performance.now();
+  marks.blendStart = performance.now()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
   if (worldsMoved && gpuDevice) {
-    refreshBlendBoxes(blendState);
+    refreshBlendBoxes(blendState)
     // Records, boxes and the plan follow the scene, not the camera: it is here, and nowhere in
     // the image, that the transparent list is walked again.
-    refreshBlendScene(rt, gpuDevice);
+    refreshBlendScene(rt, gpuDevice)
   }
-  const cpuStart = performance.now();
+  const cpuStart = performance.now()
   // No more scene light is packed per image: declared lamps live in a store that encoding only
   // pushes to the GPU if its revision has moved (P6). The CPU "Lights" step is therefore zero
   // because the work has disappeared, not because it is not measured.
-  const lightsEnd = cpuStart;
-  run.overBudget = false;
-  run.submittedTriangles = 0;
-  run.blendPagedTriangles = 0;
-  run.blendUnpagedTriangles = 0;
-  run.blendSubmittedTriangles = 0;
-  run.blendDrawCalls = 0;
-  run.frame++;
-  run.feedbackWritten = false;
-  run.gpuFrameActive = false;
-  run.hizPyramidFresh = false;
-  run.gpuMetricsReady = false;
-  if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
+  const lightsEnd = cpuStart
+  run.overBudget = false
+  run.submittedTriangles = 0
+  run.blendPagedTriangles = 0
+  run.blendUnpagedTriangles = 0
+  run.blendSubmittedTriangles = 0
+  run.blendDrawCalls = 0
+  run.frame++
+  run.feedbackWritten = false
+  run.gpuFrameActive = false
+  run.hizPyramidFresh = false
+  run.gpuMetricsReady = false
+  if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed')
   // The impostor plan: the cards, and the card bit of the roots they replace, read by both cuts.
-  rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam);
+  rt.gpu.impostorCode?.planWebgpuImpostors(rt, cam)
   // The GPU cut is the main view's: a view drawn aside — a capture's — draws the CPU cut.
   if (
     rt.views.active === rt.views.main &&
@@ -139,6 +139,6 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     vis.gpuDraw &&
     vis.visEnabled
   ) {
-    if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
-  } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
+    if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera)
+  } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd)
 }

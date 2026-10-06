@@ -1,22 +1,22 @@
-import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts';
-import type { ExplorerProbe } from '../session/capabilityProbe.ts';
-import type { ExplorerSource } from '../session/prepare.ts';
-import type { ExplorerRuntimeSurface } from '../render/hostRuntime.ts';
-import { createExplorerCameraApi } from './cameraApi.ts';
-import { createExplorerDiagnosticApi } from './diagnosticApi.ts';
-import { createExplorerSceneApi } from './sceneApi.ts';
-import { createExplorerRenderApi } from './renderApi.ts';
-import { createExplorerSelectionApi } from './selectionApi.ts';
-import { createExplorerViewportApi } from './viewportApi.ts';
-import { createExplorerTelemetryApi } from './telemetryApi.ts';
-import { createExplorerLightApi } from './lightApi.ts';
-import { createExplorerMaterialApi } from './materialApi.ts';
+import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts'
+import type { ExplorerProbe } from '../session/capabilityProbe.ts'
+import type { ExplorerSource } from '../session/prepare.ts'
+import type { ExplorerRuntimeSurface } from '../render/hostRuntime.ts'
+import { createExplorerCameraApi } from './cameraApi.ts'
+import { createExplorerDiagnosticApi } from './diagnosticApi.ts'
+import { createExplorerSceneApi } from './sceneApi.ts'
+import { createExplorerRenderApi } from './renderApi.ts'
+import { createExplorerSelectionApi } from './selectionApi.ts'
+import { createExplorerViewportApi } from './viewportApi.ts'
+import { createExplorerTelemetryApi } from './telemetryApi.ts'
+import { createExplorerLightApi } from './lightApi.ts'
+import { createExplorerMaterialApi } from './materialApi.ts'
 
 type Inputs = ExplorerRuntimeSurface & {
-  capabilities: ExplorerProbe['capabilities'];
-  preparationMs: number;
-  moveNamed?: ExplorerSource['moveNamed'];
-};
+  capabilities: ExplorerProbe['capabilities']
+  preparationMs: number
+  moveNamed?: ExplorerSource['moveNamed']
+}
 
 export function createExplorerApi(inputs: Inputs) {
   const {
@@ -54,12 +54,12 @@ export function createExplorerApi(inputs: Inputs) {
     setCapturingSurface,
     setMeasuring,
     setComparison,
-  } = inputs;
-  const materialReleases: (() => void)[] = [];
+  } = inputs
+  const materialReleases: (() => void)[] = []
   return {
     capabilities,
     get fallbackReason() {
-      return state.fallbackReason;
+      return state.fallbackReason
     },
     preparationMs,
     camera,
@@ -77,8 +77,8 @@ export function createExplorerApi(inputs: Inputs) {
     /** The WebGPU device the session draws on, when it has one: a world reopening keeps it. */
     gpuDevice,
     dispose() {
-      materialReleases.splice(0).forEach((release) => release());
-      dispose();
+      materialReleases.splice(0).forEach((release) => release())
+      dispose()
     },
     setPose,
     awaitPages,
@@ -115,8 +115,8 @@ export function createExplorerApi(inputs: Inputs) {
       context,
     }),
     get comparison() {
-      const { comparisonLayout, comparisonPair, wipe, toggle } = state;
-      return { layout: comparisonLayout, pair: comparisonPair, wipe, toggle };
+      const { comparisonLayout, comparisonPair, wipe, toggle } = state
+      return { layout: comparisonLayout, pair: comparisonPair, wipe, toggle }
     },
     ...createExplorerCameraApi({
       check,
@@ -133,10 +133,10 @@ export function createExplorerApi(inputs: Inputs) {
       hostedControls,
     }),
     get backend() {
-      return state.active.id;
+      return state.active.id
     },
     get diagnostic() {
-      return state.diagnostic;
+      return state.diagnostic
     },
     diagnostics: DIAGNOSTICS,
     ...createExplorerDiagnosticApi({
@@ -165,5 +165,5 @@ export function createExplorerApi(inputs: Inputs) {
       active: () => state.active,
     }),
     ...createExplorerTelemetryApi(profiler, () => state.active),
-  };
+  }
 }

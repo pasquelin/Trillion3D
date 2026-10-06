@@ -2,7 +2,7 @@ import {
   previewFirstLevel,
   previewLastLevel,
   previewLevelSize,
-} from '../../../sdk-core/src/index.ts';
+} from '../../../sdk-core/src/index.ts'
 
 /**
  * Virtual-texture tile geometry: what the physical pool, the page table and the shader
@@ -22,40 +22,39 @@ import {
  * prepare. A missing streamed tile therefore always shows at least the tail — the same
  * pyramid the sidecar already carries in the manifest.
  */
-export const TILE_SIZE = 128;
-export const TILE_BORDER = 4;
-export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER;
-const TILES_PER_ROW = 30;
+export const TILE_SIZE = 128
+export const TILE_BORDER = 4
+export const TILE_PITCH = TILE_SIZE + 2 * TILE_BORDER
+const TILES_PER_ROW = 30
 /**
  * The layer's side is the tile grid rounded up to a power of two, and a tap snaps its in-tile
  * position to `POOL_SUBTEXEL` steps per texel: a pool coordinate is then exact in f32, and the
  * sampler filters with the same weights wherever the streamer placed the tile (#26).
  */
-export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH));
+export const POOL_LAYER_SIDE = 2 ** Math.ceil(Math.log2(TILES_PER_ROW * TILE_PITCH))
 /** The finest grid f32's 24-bit significand holds at every place of a layer. */
-export const POOL_SUBTEXEL = 2 ** 24 / POOL_LAYER_SIDE;
+export const POOL_SUBTEXEL = 2 ** 24 / POOL_LAYER_SIDE
 /** One step of that grid in pool coordinates: 2^-24. */
-export const POOL_STEP = 1 / (POOL_SUBTEXEL * POOL_LAYER_SIDE);
-export const TILES_PER_LAYER = TILES_PER_ROW * TILES_PER_ROW;
+export const POOL_STEP = 1 / (POOL_SUBTEXEL * POOL_LAYER_SIDE)
+export const TILES_PER_LAYER = TILES_PER_ROW * TILES_PER_ROW
 /** Bytes of a tile and of a layer, for a pool whose texel costs `texelBytes` — four in RGBA8,
  *  one in a block format: memory follows the format, the tile geometry does not. */
-export const tileBytes = (texelBytes: number) => TILE_PITCH * TILE_PITCH * texelBytes;
-export const poolLayerBytes = (texelBytes: number) =>
-  POOL_LAYER_SIDE * POOL_LAYER_SIDE * texelBytes;
+export const tileBytes = (texelBytes: number) => TILE_PITCH * TILE_PITCH * texelBytes
+export const poolLayerBytes = (texelBytes: number) => POOL_LAYER_SIDE * POOL_LAYER_SIDE * texelBytes
 /** Most levels a texture may have: 2^15 texels a side, the device limit. */
-export const MAX_LEVELS = 16;
+export const MAX_LEVELS = 16
 
 /** Dimensions of a texture's `level`, never less than one texel per side. */
-export const levelSize = previewLevelSize;
+export const levelSize = previewLevelSize
 
 /** Full mip chain length for a texture of the given size, down to 1×1: both GPU paths' chains. */
 export const mipLevelCountFor = (width: number, height: number) =>
-  previewLastLevel(width, height) + 1;
+  previewLastLevel(width, height) + 1
 
 /** Tiles of a streamed level, columns then rows. */
 export function tilesAt(width: number, height: number, level: number): [number, number] {
-  const [w, h] = levelSize(width, height, level);
-  return [Math.ceil(w / TILE_SIZE), Math.ceil(h / TILE_SIZE)];
+  const [w, h] = levelSize(width, height, level)
+  return [Math.ceil(w / TILE_SIZE), Math.ceil(h / TILE_SIZE)]
 }
 
 /**
@@ -64,45 +63,45 @@ export function tilesAt(width: number, height: number, level: number): [number, 
  * level lands on a block boundary; the 1×1 level therefore starts at 128, and its padded block
  * ends at 132, inside the gutter. The shader (`../webgpu/tile/wgsl.ts`) applies the same rule.
  */
-export const tailOffset = (rank: number) => (TILE_SIZE - (TILE_SIZE >> rank) + 3) & ~3;
+export const tailOffset = (rank: number) => (TILE_SIZE - (TILE_SIZE >> rank) + 3) & ~3
 
 /** Layout of a texture: its streamed levels, their table entries, and its tail. */
 export type TileLayout = {
-  width: number;
-  height: number;
+  width: number
+  height: number
   /** First tail level; streamed levels are `0 … tail - 1`. */
-  tail: number;
-  last: number;
+  tail: number
+  last: number
   /** First table entry of each streamed level in the texture table. */
-  offsets: number[];
+  offsets: number[]
   /** Texture table entries: one per tile of each streamed level. */
-  entries: number;
-};
+  entries: number
+}
 
 export function tileLayout(width: number, height: number): TileLayout {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
-    throw new Error('INVALID_TEXTURE_SIZE');
+    throw new Error('INVALID_TEXTURE_SIZE')
   // The tail starts at the level whose both sides fit under 64 texels, and ends at one texel.
   const tail = previewFirstLevel(width, height),
-    last = previewLastLevel(width, height);
-  if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE');
-  const offsets: number[] = [];
-  let entries = 0;
+    last = previewLastLevel(width, height)
+  if (last >= MAX_LEVELS) throw new Error('TEXTURE_TOO_LARGE')
+  const offsets: number[] = []
+  let entries = 0
   for (let level = 0; level < tail; level++) {
-    offsets.push(entries);
-    const [tw, th] = tilesAt(width, height, level);
-    entries += tw * th;
+    offsets.push(entries)
+    const [tw, th] = tilesAt(width, height, level)
+    entries += tw * th
   }
-  return { width, height, tail, last, offsets, entries };
+  return { width, height, tail, last, offsets, entries }
 }
 
 /** A pool slot: tile column, row and layer. */
-export type TilePlace = { x: number; y: number; layer: number };
+export type TilePlace = { x: number; y: number; layer: number }
 
 export function placeOf(index: number): TilePlace {
   const layer = Math.floor(index / TILES_PER_LAYER),
-    rest = index - layer * TILES_PER_LAYER;
-  return { x: rest % TILES_PER_ROW, y: Math.floor(rest / TILES_PER_ROW), layer };
+    rest = index - layer * TILES_PER_LAYER
+  return { x: rest % TILES_PER_ROW, y: Math.floor(rest / TILES_PER_ROW), layer }
 }
 
 /**
@@ -110,7 +109,7 @@ export function placeOf(index: number): TilePlace {
  * may be coarser than the entry's when the requested tile is still missing. The high bit
  * says the entry is served; zero says "nothing streamed here, read the tail".
  */
-const ENTRY_SERVED = 0x80000000;
+const ENTRY_SERVED = 0x80000000
 export const packEntry = (place: TilePlace, level: number) =>
-  (ENTRY_SERVED | place.x | (place.y << 8) | (place.layer << 16) | (level << 24)) >>> 0;
-export const entryLevel = (word: number) => (word >>> 24) & 0x7f;
+  (ENTRY_SERVED | place.x | (place.y << 8) | (place.layer << 16) | (level << 24)) >>> 0
+export const entryLevel = (word: number) => (word >>> 24) & 0x7f

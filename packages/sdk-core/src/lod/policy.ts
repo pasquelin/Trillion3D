@@ -32,18 +32,18 @@ export const LOD_QUALITY = {
     anisotropy: 'source',
     adaptive: true,
   },
-} as const;
+} as const
 /** The name of a detail preset. */
-export type LodQualityId = keyof typeof LOD_QUALITY;
+export type LodQualityId = keyof typeof LOD_QUALITY
 /** The detail preset named `id`, or the balanced one. */
 export function lodQuality(id: string) {
-  const value = LOD_QUALITY[id as LodQualityId];
-  if (!value) throw new Error(`Unknown LOD quality: ${id}`);
-  return value;
+  const value = LOD_QUALITY[id as LodQualityId]
+  if (!value) throw new Error(`Unknown LOD quality: ${id}`)
+  return value
 }
 /** Adaptive threshold rises with camera speed so a moving view may coarsen; a stationary view uses the base pixelError. */
 export function adaptivePixelError(base: number, speed: number, radius: number) {
-  if (!Number.isFinite(base) || base < 0) throw new Error('Invalid base pixelError');
-  if (!Number.isFinite(speed) || speed < 0 || !Number.isFinite(radius) || radius <= 0) return base;
-  return base * (1 + Math.min(4, speed / Math.max(radius / 8, 1e-6)));
+  if (!Number.isFinite(base) || base < 0) throw new Error('Invalid base pixelError')
+  if (!Number.isFinite(speed) || speed < 0 || !Number.isFinite(radius) || radius <= 0) return base
+  return base * (1 + Math.min(4, speed / Math.max(radius / 8, 1e-6)))
 }

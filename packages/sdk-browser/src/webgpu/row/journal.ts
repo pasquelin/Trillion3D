@@ -1,5 +1,5 @@
-import { sortPages } from '../../../../sdk-core/src/index.ts';
-import { createDenseKeySet } from '../cut/denseKeys.ts';
+import { sortPages } from '../../../../sdk-core/src/index.ts'
+import { createDenseKeySet } from '../cut/denseKeys.ts'
 
 /**
  * The two lists that drive the row table.
@@ -17,33 +17,33 @@ import { createDenseKeySet } from '../cut/denseKeys.ts';
  * either.
  */
 export function createWebgpuRowJournal() {
-  const changed = createDenseKeySet();
+  const changed = createDenseKeySet()
   const residencyChanges = {
     get pages() {
-      return changed.list;
+      return changed.list
     },
     get count() {
-      return changed.count;
+      return changed.count
     },
     sorted: true,
-  };
+  }
   /** Sorts the journal: GPU selection reads ranges, therefore increasing indices. */
   const sortResidencyChanges = () => {
-    sortPages(changed.list, changed.count);
-  };
+    sortPages(changed.list, changed.count)
+  }
   const clearResidencyChanges = () => {
-    changed.clear();
-    residencyChanges.sorted = true;
-  };
-  const touchedSet = createDenseKeySet();
+    changed.clear()
+    residencyChanges.sorted = true
+  }
+  const touchedSet = createDenseKeySet()
   const touched = {
     get pages() {
-      return touchedSet.list;
+      return touchedSet.list
     },
     get count() {
-      return touchedSet.count;
+      return touchedSet.count
     },
-  };
+  }
   /**
    * Who else wants to know a page has just been named. `touchPage` is the only place the three ways
    * a cluster's coverage flips go through — bytes received, bytes returned, cache slot taken or
@@ -51,11 +51,11 @@ export function createWebgpuRowJournal() {
    * call, duplicates included: what it does is idempotent, and a flip both ways must not go unseen.
    * One only, because cut publication is unique: a subscriber list would suggest the opposite.
    */
-  let watcher: ((page: number) => void) | undefined;
+  let watcher: ((page: number) => void) | undefined
   const touchPage = (page: number) => {
-    touchedSet.add(page);
-    if (watcher) watcher(page);
-  };
+    touchedSet.add(page)
+    if (watcher) watcher(page)
+  }
   return {
     residencyChanges,
     noteResidencyChange: (page: number) => void changed.add(page),
@@ -65,5 +65,5 @@ export function createWebgpuRowJournal() {
     touchPage,
     watchTouched: (abonne: (page: number) => void) => void (watcher = abonne),
     clearTouched: touchedSet.clear,
-  };
+  }
 }

@@ -1,8 +1,8 @@
-import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/partition/contract.ts';
-import { visLayerTop } from '../visibility/uniforms.ts';
-import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { rootOf } from '../../page/selection/placements.ts';
+import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/partition/contract.ts'
+import { visLayerTop } from '../visibility/uniforms.ts'
+import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
+import { rootOf } from '../../page/selection/placements.ts'
 
 /**
  * What an image sent to the GPU partition, and what the partition wrote of it, row by row.
@@ -18,27 +18,27 @@ import { rootOf } from '../../page/selection/placements.ts';
  */
 export interface PartitionAudit {
   /** Rows checked. */
-  rows: number;
+  rows: number
   /** Width in pixels. */
-  width: number;
+  width: number
   /** Height in pixels. */
-  height: number;
+  height: number
   /** Nearest distance. */
-  near: number;
+  near: number
   /** View and view-projection elements in double precision, as the image posted them. */
-  view: Float64Array;
+  view: Float64Array
   /** The camera's view-projection. */
-  viewProj: Float64Array;
+  viewProj: Float64Array
   /** World corners in double precision, eight per row: the exact input of both calculations. */
-  corners: Float64Array;
+  corners: Float64Array
   /** Coplanar layer of each row, as the draw row carries it. */
-  layers: Uint32Array;
+  layers: Uint32Array
   /** Unclipped screen rectangle the GPU wrote, four integers per row. */
-  rect: Int32Array;
+  rect: Int32Array
   /** Depth bound the GPU wrote, layer bias included. */
-  nearest: Float32Array;
+  nearest: Float32Array
   /** 1 when the row carries the cut flag, therefore can never be rejected. */
-  clips: Uint8Array;
+  clips: Uint8Array
 }
 
 /**
@@ -48,35 +48,35 @@ export interface PartitionAudit {
 export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<PartitionAudit | null> {
   const partition = rt.vis.gpuPartition,
     device = rt.gpu.device,
-    frame = partition?.lastFrame;
-  if (rt.run.lost || !partition || !device || !frame) return null;
-  const { rows } = frame;
-  if (rows < 1) return null;
-  const words = await partition.readRowData(rows);
-  if (!words) return null;
+    frame = partition?.lastFrame
+  if (rt.run.lost || !partition || !device || !frame) return null
+  const { rows } = frame
+  if (rows < 1) return null
+  const words = await partition.readRowData(rows)
+  if (!words) return null
   const rect = new Int32Array(rows * 4),
     nearest = new Float32Array(rows),
     clips = new Uint8Array(rows),
     layers = new Uint32Array(rows),
-    corners = new Float64Array(rows * BOX_CORNER_VALUES);
+    corners = new Float64Array(rows * BOX_CORNER_VALUES)
   const ints = new Int32Array(words.buffer, words.byteOffset, words.length),
-    floats = new Float32Array(words.buffer, words.byteOffset, words.length);
-  const { rows: table } = rt.layout;
+    floats = new Float32Array(words.buffer, words.byteOffset, words.length)
+  const { rows: table } = rt.layout
   for (let row = 0; row < rows; row++) {
-    const base = row * ROW_DATA_U32;
-    for (let k = 0; k < 4; k++) rect[row * 4 + k] = ints[base + k];
-    nearest[row] = floats[base + ROW_NEAREST];
-    clips[row] = words[base + ROW_FLAGS] & FLAG_CLIP ? 1 : 0;
-    const rec = table.packedRecs[row];
-    layers[row] = rec ? Math.min(rec.depthLayer, visLayerTop(rt.vis)) : 0;
-    if (!rec) continue;
+    const base = row * ROW_DATA_U32
+    for (let k = 0; k < 4; k++) rect[row * 4 + k] = ints[base + k]
+    nearest[row] = floats[base + ROW_NEAREST]
+    clips[row] = words[base + ROW_FLAGS] & FLAG_CLIP ? 1 : 0
+    const rec = table.packedRecs[row]
+    layers[row] = rec ? Math.min(rec.depthLayer, visLayerTop(rt.vis)) : 0
+    if (!rec) continue
     // The corners the GPU read are these, rounded to single precision for transport: the reference
     // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
     const root = rootOf(
       rt.layout.selectionRoots,
       rt.layout.placement.rootOfPacked[table.packedPageIndex[row]],
-    );
-    pageCornersInto(corners, row * BOX_CORNER_VALUES, rec, root.world, root.reach);
+    )
+    pageCornersInto(corners, row * BOX_CORNER_VALUES, rec, root.world, root.reach)
   }
   return {
     rows,
@@ -90,5 +90,5 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     rect,
     nearest,
     clips,
-  };
+  }
 }

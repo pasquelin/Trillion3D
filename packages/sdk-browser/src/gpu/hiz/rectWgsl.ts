@@ -1,4 +1,4 @@
-import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts';
+import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 
 /**
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
@@ -41,7 +41,7 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  }
  return vec3u(0u,0u,0u);
 }
-`;
+`
 
 /**
  * Whether the farthest depth of a box's footprint in a pyramid mip — in reverse-Z, the MINIMUM —
@@ -72,7 +72,7 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  if(shift>0u&&texelsHide(minX>>shift,minY>>shift,maxX>>shift,maxY>>shift,coarseOffset,coarseWidth,nearest)){return true;}
  return texelsHide(minX,minY,maxX,maxY,offset,width,nearest);
 }
-`;
+`
 
 /**
  * Whether a pyramid hides a projected box: the unclipped rectangle is clipped to the viewport,
@@ -95,4 +95,4 @@ fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
   uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u],nearest,
   uni.levelOffset[c>>2u][c&3u],uni.levelWidth[c>>2u][c&3u],c-l);
 }
-`;
+`

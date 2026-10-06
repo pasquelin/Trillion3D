@@ -3,10 +3,10 @@
  * repository's own module. The engine names no rendering library (issue #275), and the build
  * proves it on its own product: a runtime file that folds in a module of one is refused.
  */
-import { build } from 'esbuild';
-import { copyFile, mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { inlineModules } from './inline-modules.ts';
+import { build } from 'esbuild'
+import { copyFile, mkdir } from 'node:fs/promises'
+import { resolve } from 'node:path'
+import { inlineModules } from './inline-modules.ts'
 
 /** The two modules an example page imports, `../runtime/<name>.js`. */
 const RUNTIME_ENTRIES = {
@@ -14,10 +14,10 @@ const RUNTIME_ENTRIES = {
   // The examples' own panels and pieces, imported beside the engine; they bundle nothing of it,
   // and a piece builds with the engine families the page hands it.
   kit: 'site/examples/kit/index.ts',
-};
+}
 
 export async function buildRuntime(root: string, outdir: string) {
-  await mkdir(outdir, { recursive: true });
+  await mkdir(outdir, { recursive: true })
   const { metafile } = await build({
     absWorkingDir: root,
     metafile: true,
@@ -46,14 +46,14 @@ export async function buildRuntime(root: string, outdir: string) {
     // The kit bundles what a `.inline.ts` module computes at build time, not what it reads.
     plugins: [inlineModules],
     logLevel: 'warning',
-  });
+  })
   const folded = Object.entries(metafile.outputs).flatMap(([output, { inputs }]) =>
     Object.keys(inputs)
       .filter((input) => /(?:^|\/)node_modules\/three\//.test(input))
       .map((input) => `${output} <- ${input}`),
-  );
+  )
   if (folded.length)
-    throw new Error(`the runtime folds in a rendering library:\n${folded.join('\n')}`);
+    throw new Error(`the runtime folds in a rendering library:\n${folded.join('\n')}`)
   for (const wasm of [
     'page/decode/pageCodec.wasm',
     'physics/joltPhysics.wasm',
@@ -62,10 +62,7 @@ export async function buildRuntime(root: string, outdir: string) {
     await copyFile(
       resolve(root, 'packages/sdk-browser/src', wasm),
       resolve(outdir, wasm.slice(wasm.lastIndexOf('/') + 1)),
-    );
+    )
   // Jolt's licence travels with the physics modules it is built into.
-  await copyFile(
-    resolve(root, 'THIRD_PARTY_NOTICES.md'),
-    resolve(outdir, 'THIRD_PARTY_NOTICES.md'),
-  );
+  await copyFile(resolve(root, 'THIRD_PARTY_NOTICES.md'), resolve(outdir, 'THIRD_PARTY_NOTICES.md'))
 }

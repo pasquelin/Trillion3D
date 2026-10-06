@@ -1,6 +1,6 @@
-import { ERR_K, INPUT_K, wgslFloat } from '../partition/margins.ts';
+import { ERR_K, INPUT_K, wgslFloat } from '../partition/margins.ts'
 const K = wgslFloat(ERR_K),
-  IN = wgslFloat(INPUT_K);
+  IN = wgslFloat(INPUT_K)
 
 /** Shared conservative dot and quotient arithmetic used by camera and shadow occlusion. */
 export const PROJECTION_SLACK_WGSL = `
@@ -22,4 +22,4 @@ fn slackOf(term:vec3f)->f32{return ${K}*term.y+${IN}*term.z;}
 fn quotientSlack(value:f32,num:vec3f,den:vec3f)->f32{
  return (slackOf(num)+abs(value)*slackOf(den))/den.x+${K}*abs(value);
 }
-`;
+`

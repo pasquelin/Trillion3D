@@ -22,9 +22,9 @@ override LIVE_GROUPS:u32;
  if(list==2u){at=LIVE_GROUPS;}
  args[list*3u]=work[at];
  args[list*3u+1u]=work[at+1u];
-}`;
+}`
 
 /** Byte offset of each list's record in `args`: the order `dagArm` writes them in. */
-export const DAG_ARGS = { drawn: 0, cand: 12, live: 24 } as const;
+export const DAG_ARGS = { drawn: 0, cand: 12, live: 24 } as const
 /** `args` as made: three records, each one deep. */
-export const DAG_ARGS_INITIAL = new Uint32Array([0, 0, 1, 0, 0, 1, 0, 0, 1]);
+export const DAG_ARGS_INITIAL = new Uint32Array([0, 0, 1, 0, 0, 1, 0, 0, 1])

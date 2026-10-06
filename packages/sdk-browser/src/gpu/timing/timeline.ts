@@ -1,4 +1,4 @@
-import { nanosecondsToMs } from './types.ts';
+import { nanosecondsToMs } from './types.ts'
 
 /**
  * The device's idle between two consecutive images (#1451).
@@ -19,10 +19,10 @@ import { nanosecondsToMs } from './types.ts';
  *  `../../frame/refreshClock.ts`). The loop sleeps on a still scene and wakes seconds later, and a
  *  device clock can stop (a frozen tab, a device loss): such a gap is withheld, never published as
  *  an idle the frame period cannot hold. */
-const IDLE_CEILING_MS = 100;
+const IDLE_CEILING_MS = 100
 
 /** An image's first and last timestamps on the device timeline, ns. */
-export type ImageSpan = { beginNs: bigint; endNs: bigint };
+export type ImageSpan = { beginNs: bigint; endNs: bigint }
 
 /**
  * The idle from `previous`'s last timestamp to `span`'s first, ms, or `null` when the two are not
@@ -30,15 +30,15 @@ export type ImageSpan = { beginNs: bigint; endNs: bigint };
  * past `IDLE_CEILING_MS`. Zero is a measurement: the image began the nanosecond the last ended.
  */
 function idleBetweenMs(span: ImageSpan | null, previous: ImageSpan | null): number | null {
-  if (!span || !previous || span.beginNs < previous.endNs) return null;
-  const idle = nanosecondsToMs(Number(span.beginNs - previous.endNs));
-  return idle > IDLE_CEILING_MS ? null : idle;
+  if (!span || !previous || span.beginNs < previous.endNs) return null
+  const idle = nanosecondsToMs(Number(span.beginNs - previous.endNs))
+  return idle > IDLE_CEILING_MS ? null : idle
 }
 
 /** The last image's span, kept by the timer that runs the images, and the idle read against it. */
 export function createTimeline() {
   let frame = Number.NaN,
-    previous: ImageSpan | null = null;
+    previous: ImageSpan | null = null
   return {
     /**
      * Image `at` resolved `span` (`null` when not whole): returns its idle since image `at − 1`,
@@ -46,11 +46,11 @@ export function createTimeline() {
      * nothing, so the end kept is always the latest image's.
      */
     read(at: number, span: ImageSpan | null) {
-      if (at <= frame) return null;
-      const idle = at === frame + 1 ? idleBetweenMs(span, previous) : null;
-      frame = at;
-      previous = span;
-      return idle;
+      if (at <= frame) return null
+      const idle = at === frame + 1 ? idleBetweenMs(span, previous) : null
+      frame = at
+      previous = span
+      return idle
     },
-  };
+  }
 }

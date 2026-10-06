@@ -1,40 +1,40 @@
 // A bench report as Markdown: what was played and how, each segment's frame (GPU, CPU, hitches,
 // stability, same images), its GPU by stage and pass and its commands, the CPU by engine step and
 // by function, the engine's counters, and what went wrong.
-import { REFRESH_MS } from './frames.ts';
-import type { BenchReport } from './merge.ts';
-import type { Spread } from './summary.ts';
+import { REFRESH_MS } from './frames.ts'
+import type { BenchReport } from './merge.ts'
+import type { Spread } from './summary.ts'
 
 export const ms = (value: number | null | undefined, digits = 2) =>
-  value === null || value === undefined || !Number.isFinite(value) ? '—' : value.toFixed(digits);
-const range = (s: Spread | null) => (s ? `${ms(s.median)} (${ms(s.min)}–${ms(s.max)})` : '—');
+  value === null || value === undefined || !Number.isFinite(value) ? '—' : value.toFixed(digits)
+const range = (s: Spread | null) => (s ? `${ms(s.median)} (${ms(s.min)}–${ms(s.max)})` : '—')
 export const percent = (share: number | null) =>
-  share === null ? '—' : `${(share * 100).toFixed(1)} %`;
+  share === null ? '—' : `${(share * 100).toFixed(1)} %`
 export const table = (head: string[], rows: (string | number)[][]) =>
   [
     `| ${head.join(' | ')} |`,
     `|${head.map(() => '---').join('|')}|`,
     ...rows.map((row) => `| ${row.join(' | ')} |`),
-  ].join('\n');
+  ].join('\n')
 
 /** The frames per second a GPU time allows on a 120 Hz display, a frame that misses its refresh
  *  waiting for the next: the GPU alone, the browser's compositing not counted. */
 const perSecond = (spanMs: number | null | undefined) =>
-  spanMs ? (1000 / (Math.ceil(spanMs / REFRESH_MS - 1e-9) * REFRESH_MS)).toFixed(0) : '—';
+  spanMs ? (1000 / (Math.ceil(spanMs / REFRESH_MS - 1e-9) * REFRESH_MS)).toFixed(0) : '—'
 
-type Segment = BenchReport['segments'][number];
+type Segment = BenchReport['segments'][number]
 /** Whether a segment's plays drew the same images: `—` when no two were compared. */
 export const sameImages = (segment: Segment) =>
   segment.sameImages.length === 0
     ? '—'
     : segment.sameImages.every((d) => d && d.pixels === 0)
       ? 'identical'
-      : segment.sameImages.map((d) => (d ? `${d.pixels} px` : '?')).join(', ');
+      : segment.sameImages.map((d) => (d ? `${d.pixels} px` : '?')).join(', ')
 
 /** One measured segment's GPU by pass on the bench's timer, the engine's own stages, and its
  *  commands per frame. */
 function segmentDetail(segment: Segment) {
-  const { passes, benchPasses, counts } = segment;
+  const { passes, benchPasses, counts } = segment
   return [
     `### ${segment.name}`,
     '',
@@ -94,11 +94,11 @@ function segmentDetail(segment: Segment) {
         )
         .join(' · '),
     '',
-  ];
+  ]
 }
 
 export function reportText(report: BenchReport) {
-  const { bench } = report;
+  const { bench } = report
   // A play the other programs kept the GPU busy around (`gpuBusy.ts`) is marked disturbed.
   const busy = report.gpuBusy
     .map((b) =>
@@ -106,9 +106,9 @@ export function reportText(report: BenchReport) {
         ? `${b.before.median}→${b.after?.median ?? '?'} %${b.before.busy || b.after?.busy ? ' DISTURBED' : ''}`
         : '?',
     )
-    .join(', ');
-  const measured = report.segments.filter((segment) => segment.measured);
-  const engine = report.engine as Record<string, unknown>;
+    .join(', ')
+  const measured = report.segments.filter((segment) => segment.measured)
+  const engine = report.engine as Record<string, unknown>
   const lines = [
     `# GPU bench — ${bench.page}, scenario ${bench.scenario}${bench.switches.length ? ` (${bench.switches.join(', ')})` : ''}`,
     '',
@@ -192,6 +192,6 @@ export function reportText(report: BenchReport) {
     '',
     report.errors.length ? report.errors.map((error) => `- ${error}`).join('\n') : 'None.',
     '',
-  ];
-  return lines.join('\n');
+  ]
+  return lines.join('\n')
 }

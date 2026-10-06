@@ -1,19 +1,19 @@
-import { evictOldest } from './evictOldest.ts';
-import { createEvictionOrder } from './cacheEvictionOrder.ts';
-import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts';
+import { evictOldest } from './evictOldest.ts'
+import { createEvictionOrder } from './cacheEvictionOrder.ts'
+import { createTextureLevelStore, textureLevelShare } from '../texture/levelStore.ts'
 
 /** The CPU total by default. Streaming bundles are far larger than a single cluster page, so a
  *  cache bounded only by entry count would hold hundreds of megabytes. */
-export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024;
+export const DEFAULT_CACHED_BYTES = 256 * 1024 * 1024
 
 /** A session's hold on the cache: what it reserves off the total, which may change while it reads,
  *  the bytes of the pages it keeps or reads (`held`), and how it evicts — past its pins and its
  *  transfers — when the total shrinks. */
-type Holder = { reserved(): number; held(): number; evict(): void };
+type Holder = { reserved(): number; held(): number; evict(): void }
 
 const checkBytes = (bytes: number) => {
-  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET');
-};
+  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error('INVALID_PAGE_CACHE_BUDGET')
+}
 
 /**
  * The decoded-page cache: the bytes of every page and bundle read, least recently used first, and
@@ -30,49 +30,49 @@ const checkBytes = (bytes: number) => {
  * applies at once: pages leave by last use until they fit, save those the session pins.
  */
 export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
-  checkBytes(cpuBytes);
-  const pages = new Map<string, Uint8Array>();
+  checkBytes(cpuBytes)
+  const pages = new Map<string, Uint8Array>()
   /** The pages' eviction order past the reading session's holds (`cacheEvictionOrder.ts`). */
-  const order = createEvictionOrder((url) => pages.get(url)!.byteLength);
+  const order = createEvictionOrder((url) => pages.get(url)!.byteLength)
   /** The fingerprint each page's bytes were verified against when read: they leave with them. */
-  const fingerprints = new WeakMap<Uint8Array, string>();
+  const fingerprints = new WeakMap<Uint8Array, string>()
   /** The one file kept whole beside the pages: its read, the bytes it takes off the total, and the
    *  cancellation that is the cache's, not a session's. */
   let slot:
-    { key: string; bytes: number; read: Promise<ArrayBuffer>; abort: AbortController } | undefined;
+    { key: string; bytes: number; read: Promise<ArrayBuffer>; abort: AbortController } | undefined
   /** Lets the kept file go; `cancel` stops its read too, which no one waits for any longer. */
   const release = (cancel: boolean) => {
-    if (cancel) slot?.abort.abort(new DOMException('Kept file released', 'AbortError'));
-    slot = undefined;
-  };
+    if (cancel) slot?.abort.abort(new DOMException('Kept file released', 'AbortError'))
+    slot = undefined
+  }
   let bytes = 0,
     total = cpuBytes,
-    holder: Holder | undefined;
+    holder: Holder | undefined
   const drop = (url: string) => {
-    const held = pages.get(url);
-    if (!held) return;
-    bytes -= held.byteLength;
-    order.drop(url);
-    pages.delete(url);
-  };
+    const held = pages.get(url)
+    if (!held) return
+    bytes -= held.byteLength
+    order.drop(url)
+    pages.delete(url)
+  }
   /** Pages leave by last use until they fit: through the session in place, which keeps its pins
    *  and its transfers, or all of them evictable when none reads. */
   const evict = () => {
-    if (holder) holder.evict();
+    if (holder) holder.evict()
     else
       evictOldest(
         pages.keys(),
         () => bytes > cache.budgetBytes,
         () => false,
         drop,
-      );
-  };
+      )
+  }
   // With no session reading — between a lost device and its next session — every page is held
   // for the next one: a level landing then takes no page's place.
   const levels = createTextureLevelStore(textureLevelShare(cpuBytes), {
     roomBeside: () => cache.levelRoom(holder ? holder.held() : bytes),
     onHeld: evict,
-  });
+  })
   const cache = {
     /** The pages' eviction order: only the session holding the cache marks its holds there. */
     order,
@@ -80,35 +80,35 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
     pages: pages as ReadonlyMap<string, Uint8Array>,
     /** Bytes the pages hold. */
     get bytes() {
-      return bytes;
+      return bytes
     },
     /** The CPU total: pages, manifest tables, transfer queue and engine tables together. */
     get cpuBytes() {
-      return total;
+      return total
     },
     /** Bytes reserved off the total: the session's in place, and those held beside the pages. */
     get reservedBytes() {
-      return (holder?.reserved() ?? 0) + cache.besideBytes;
+      return (holder?.reserved() ?? 0) + cache.besideBytes
     },
     /** Bytes the texture levels may take beside the kept file and `held` bytes of pages the
      *  session keeps or reads; negative when those do not fit. */
     levelRoom: (held: number) => total - (holder?.reserved() ?? 0) - cache.keptBytes - held,
     /** Bytes held beside the pages: the kept file's and the decoded texture levels'. */
     get besideBytes() {
-      return cache.keptBytes + levels.bytes;
+      return cache.keptBytes + levels.bytes
     },
     /** Bytes the pages may hold: the total less what is reserved (`reservedBytes`). */
     get budgetBytes() {
-      return Math.max(0, total - cache.reservedBytes);
+      return Math.max(0, total - cache.reservedBytes)
     },
     /** Puts `array` as the most recently used page at `url`; `sha256` when it was just read and
      *  verified. */
     touch(url: string, array: Uint8Array, sha256?: string) {
-      drop(url);
-      pages.set(url, array);
-      order.touch(url);
-      bytes += array.byteLength;
-      if (sha256) fingerprints.set(array, sha256);
+      drop(url)
+      pages.set(url, array)
+      order.touch(url)
+      bytes += array.byteLength
+      if (sha256) fingerprints.set(array, sha256)
     },
     drop,
     /** Drops every page held as other bytes than the file `catalog` names at its url: another
@@ -117,9 +117,9 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
      *  size. The same fingerprint is the same bytes, verified at read, under any base. */
     dropForeign(catalog: ReadonlyMap<string, { bytes: number; sha256: string }>) {
       for (const [url, held] of pages) {
-        const page = catalog.get(url);
+        const page = catalog.get(url)
         if (page && (fingerprints.get(held) !== page.sha256 || held.byteLength !== page.bytes))
-          drop(url);
+          drop(url)
       }
     },
     /**
@@ -130,69 +130,69 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
      * `keepOnly` no longer names it, or it yields (`yieldKept`). A read that fails leaves at once.
      */
     keep(key: string, bytes: number, start: (signal: AbortSignal) => Promise<ArrayBuffer>) {
-      if (slot?.key === key) return slot.read;
-      release(true);
-      const abort = new AbortController();
-      const kept = { key, bytes, read: start(abort.signal), abort };
-      slot = kept;
+      if (slot?.key === key) return slot.read
+      release(true)
+      const abort = new AbortController()
+      const kept = { key, bytes, read: start(abort.signal), abort }
+      slot = kept
       kept.read.catch(() => {
-        if (slot === kept) slot = undefined;
-      });
-      evict();
-      return kept.read;
+        if (slot === kept) slot = undefined
+      })
+      evict()
+      return kept.read
     },
     /** Charge decoded allocations only while this file is still kept. */
     resizeKept(key: string, bytes: number) {
-      if (slot?.key !== key || slot.bytes === bytes) return;
-      slot.bytes = bytes;
-      evict();
+      if (slot?.key !== key || slot.bytes === bytes) return
+      slot.bytes = bytes
+      evict()
     },
     /** The decoded texture levels, kept across sessions as the pages are (`levelStore.ts`); they
      *  yield first to the pages a frame keeps (`streaming/cache.ts`). */
     levels,
     /** Bytes the kept file takes off the total. */
     get keptBytes() {
-      return slot?.bytes ?? 0;
+      return slot?.bytes ?? 0
     },
     /** Lets the kept file go, its read cancelled, unless `key` names it: a scene gone. */
     keepOnly(key?: string) {
-      if (slot?.key !== key) release(true);
+      if (slot?.key !== key) release(true)
     },
     /** Gives the kept file's bytes back to the pages, its read left to whoever waits for it: the
      *  pages a frame keeps come first (`streaming/cache.ts`). */
     yieldKept() {
-      release(false);
+      release(false)
     },
     /** Sets the total, and evicts at once what no longer fits. */
     resize(cpu: number) {
-      checkBytes(cpu);
-      total = cpu;
-      levels.resize(textureLevelShare(cpu));
-      evict();
+      checkBytes(cpu)
+      total = cpu
+      levels.resize(textureLevelShare(cpu))
+      evict()
     },
     /** A session reads through the cache until the returned release; one at a time. */
     hold(next: Holder) {
-      holder = next;
-      order.releaseAll();
+      holder = next
+      order.releaseAll()
       return () => {
-        if (holder !== next) return;
-        holder = undefined;
-        order.releaseAll();
-      };
+        if (holder !== next) return
+        holder = undefined
+        order.releaseAll()
+      }
     },
     /** Whether `session` is the one reading through the cache, whose holds `order` keeps. */
     holds: (session: Holder) => holder === session,
     /** Empties the cache: its owner is gone. */
     clear() {
-      pages.clear();
-      order.clear();
-      release(true);
-      levels.close();
-      bytes = 0;
+      pages.clear()
+      order.clear()
+      release(true)
+      levels.close()
+      bytes = 0
     },
-  };
-  return cache;
+  }
+  return cache
 }
 
 /** The decoded-page cache a session reads through (`createPageCache`). */
-export type PageCache = ReturnType<typeof createPageCache>;
+export type PageCache = ReturnType<typeof createPageCache>

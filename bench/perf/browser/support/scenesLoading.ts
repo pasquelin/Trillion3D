@@ -1,11 +1,11 @@
 // Batch F fixtures: a cluster manifest and the Three.js scene that goes with it, drawn from a
 // seeded generator. Loading reads them once, so the fixture must be large: hundreds of
 // primitives, thousands of pages, and the exact coverage the collector checks.
-import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import { xorshiftRandom } from '../../../core/index.ts';
-import { material, porte } from './scenesCut.ts';
-import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
-import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts';
+import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
+import { xorshiftRandom } from '../../../core/index.ts'
+import { material, porte } from './scenesCut.ts'
+import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts'
+import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../packages/sdk-core/src/index.ts'
 
 /** A page as `manifesteEtScene` builds it: bounds, cluster error, sphere, index triplet it covers,
  *  plus `sha256`, which `ClusterManifest['primitives'][number]['pages']` requires but nothing in
@@ -26,19 +26,19 @@ type LoadedPage = Pick<
   | 'source'
   | 'depthLayer'
 > & {
-  bytes: number;
-  count: number;
-  start: number | undefined;
-  sha256: string;
-};
+  bytes: number
+  count: number
+  start: number | undefined
+  sha256: string
+}
 
 /** A primitive of the manifest: its pages, and an optional culling hierarchy of one node. */
 interface LoadedPrimitive {
-  mesh: number;
-  primitive: number;
-  pass: string;
-  pages: LoadedPage[];
-  culling?: { stride: number; count: number; nodes: number[] };
+  mesh: number
+  primitive: number
+  pass: string
+  pages: LoadedPage[]
+  culling?: { stride: number; count: number; nodes: number[] }
 }
 
 /** A page: bounds, cluster error, sphere, and index triplet it covers. */
@@ -52,8 +52,8 @@ function pageDe(
 ): LoadedPage {
   const cx = (alea() - 0.5) * 20,
     cy = (alea() - 0.5) * 12,
-    cz = (alea() - 0.5) * 8;
-  const rayon = 0.5 + alea();
+    cz = (alea() - 0.5) * 8
+  const rayon = 0.5 + alea()
   return {
     id,
     url,
@@ -72,7 +72,7 @@ function pageDe(
     depthLayer: id % 3 === 0 ? 1 : 0,
     start: depart,
     sha256: '',
-  };
+  }
 }
 
 /**
@@ -86,58 +86,58 @@ export function manifesteEtScene({
   triangles = 8,
   seed = 4201,
 }: { primitives?: number; pages?: number; triangles?: number; seed?: number } = {}) {
-  const alea = xorshiftRandom(seed);
-  const source = new G.Group();
-  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>();
-  const indices = new Map<string, Uint32Array>();
-  const list: LoadedPrimitive[] = [];
-  let idPage = 0;
+  const alea = xorshiftRandom(seed)
+  const source = new G.Group()
+  const associations = new Map<G.HostMesh, { meshes: number; primitives: number }>()
+  const indices = new Map<string, Uint32Array>()
+  const list: LoadedPrimitive[] = []
+  let idPage = 0
   for (let p = 0; p < primitives; p++) {
-    const pagesPrimitive: LoadedPage[] = [];
-    const morceaux: Uint32Array[] = [];
-    let vertex = 0;
+    const pagesPrimitive: LoadedPage[] = []
+    const morceaux: Uint32Array[] = []
+    let vertex = 0
     for (let k = 0; k < pages; k++) {
-      const url = `page/${p}/${k}`;
-      const page = pageDe(alea, idPage++, url, triangles, 'exact', k * triangles * 3);
-      const bloc = new Uint32Array(triangles * 3);
-      for (let i = 0; i < bloc.length; i++) bloc[i] = vertex++;
-      indices.set(url, bloc);
-      morceaux.push(bloc);
-      pagesPrimitive.push(page);
+      const url = `page/${p}/${k}`
+      const page = pageDe(alea, idPage++, url, triangles, 'exact', k * triangles * 3)
+      const bloc = new Uint32Array(triangles * 3)
+      for (let i = 0; i < bloc.length; i++) bloc[i] = vertex++
+      indices.set(url, bloc)
+      morceaux.push(bloc)
+      pagesPrimitive.push(page)
     }
     if (p % 4 === 0) {
-      const url = `coarse/${p}`;
-      const page = pageDe(alea, idPage++, url, triangles, 'coarse', undefined);
-      indices.set(url, new Uint32Array(triangles * 3));
-      pagesPrimitive.push(page);
+      const url = `coarse/${p}`
+      const page = pageDe(alea, idPage++, url, triangles, 'coarse', undefined)
+      indices.set(url, new Uint32Array(triangles * 3))
+      pagesPrimitive.push(page)
     }
-    const total = morceaux.reduce((n, bloc) => n + bloc.length, 0);
-    const sourceIndex = new Uint32Array(total);
-    let at = 0;
+    const total = morceaux.reduce((n, bloc) => n + bloc.length, 0)
+    const sourceIndex = new Uint32Array(total)
+    let at = 0
     for (const bloc of morceaux) {
-      sourceIndex.set(bloc, at);
-      at += bloc.length;
+      sourceIndex.set(bloc, at)
+      at += bloc.length
     }
-    const geometry = new G.Geometry();
-    geometry.setIndex(new G.BufferAttribute(sourceIndex, 1));
-    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(vertex * 3), 3));
-    const mesh = G.mesh(geometry, material(p));
-    mesh.position.set(p % 10, Math.floor(p / 10), 0);
-    source.add(mesh);
-    associations.set(mesh, { meshes: p, primitives: 0 });
+    const geometry = new G.Geometry()
+    geometry.setIndex(new G.BufferAttribute(sourceIndex, 1))
+    geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(vertex * 3), 3))
+    const mesh = G.mesh(geometry, material(p))
+    mesh.position.set(p % 10, Math.floor(p / 10), 0)
+    source.add(mesh)
+    associations.set(mesh, { meshes: p, primitives: 0 })
     const primitive: LoadedPrimitive = {
       mesh: p,
       primitive: 0,
       pass: 'opaque',
       pages: pagesPrimitive,
-    };
-    if (p % 5 === 0) {
-      const node = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, pagesPrimitive.length];
-      primitive.culling = { stride: 15, count: 1, nodes: node };
     }
-    list.push(primitive);
+    if (p % 5 === 0) {
+      const node = [-20, -12, -8, 20, 12, 8, 0, 0, 0, 30, -1, 0, 0, 0, pagesPrimitive.length]
+      primitive.culling = { stride: 15, count: 1, nodes: node }
+    }
+    list.push(primitive)
   }
-  source.updateMatrixWorld(true);
+  source.updateMatrixWorld(true)
   // The rest of `ClusterManifest` (schema, status, key, scope, node counts) is never read by
   // the loading path this bench measures: only `primitives` is.
   const metadata: ClusterManifest = {
@@ -150,12 +150,12 @@ export function manifesteEtScene({
     selectedNodes: 0,
     totalNodes: 0,
     primitives: list,
-  };
-  return { source, associations, metadata, indices };
+  }
+  return { source, associations, metadata, indices }
 }
 
 /** Fields the cones/catalogue paths never read: shared across every fixture page. */
-const DUMMY_BOUNDS: number[] = [0, 0, 0];
+const DUMMY_BOUNDS: number[] = [0, 0, 0]
 
 /** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
 export function catalogueDePages({
@@ -163,17 +163,17 @@ export function catalogueDePages({
   materials = 60,
   seed = 5309,
 }: { pages?: number; materials?: number; seed?: number } = {}): PageRec[] {
-  const alea = xorshiftRandom(seed);
-  const list: PageRec[] = [];
-  const attributs: { position: G.BufferAttribute }[] = [];
+  const alea = xorshiftRandom(seed)
+  const list: PageRec[] = []
+  const attributs: { position: G.BufferAttribute }[] = []
   for (let i = 0; i < materials; i++) {
-    const positions = new Float32Array(3 * 3 * 64);
-    for (let k = 0; k < positions.length; k++) positions[k] = alea() * 4 - 2;
-    attributs.push({ position: new G.BufferAttribute(positions, 3) });
+    const positions = new Float32Array(3 * 3 * 64)
+    for (let k = 0; k < positions.length; k++) positions[k] = alea() * 4 - 2
+    attributs.push({ position: new G.BufferAttribute(positions, 3) })
   }
   for (let i = 0; i < pages; i++) {
-    const array = i % 9 ? new Uint32Array(3 * (1 + (i % 12))) : undefined;
-    if (array) for (let k = 0; k < array.length; k++) array[k] = k % 192;
+    const array = i % 9 ? new Uint32Array(3 * (1 + (i % 12))) : undefined
+    if (array) for (let k = 0; k < array.length; k++) array[k] = k % 192
     list.push({
       id: i,
       url: `p/${i % (pages - 7)}`,
@@ -188,7 +188,7 @@ export function catalogueDePages({
       depthLayer: 0,
       renderOrder: 0,
       cone: undefined,
-    });
+    })
   }
-  return list;
+  return list
 }

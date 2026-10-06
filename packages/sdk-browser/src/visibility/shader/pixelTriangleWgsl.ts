@@ -5,13 +5,13 @@
  */
 
 /** The surface resolve's uniform: its camera, viewport and page count. */
-export const SHADE_UNI_WGSL = `struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,depthRamp:vec4f,}`;
+export const SHADE_UNI_WGSL = `struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,depthRamp:vec4f,}`
 
 /** A clip position on the resolve's framebuffer: pixels, then the depth. */
 export const FRAMEBUFFER_WGSL = `fn framebuffer(clip:vec4f)->vec3f{
  let ndc=clip.xyz/clip.w;
  return vec3f((ndc.x*0.5+0.5)*uni.viewport.x,(-ndc.y*0.5+0.5)*uni.viewport.y,ndc.z);
-}`;
+}`
 
 /** The perspective-correct barycentrics of `p` in the screen triangle `s0..s2` of clip corners
  *  `c0..c2` and signed area `area`; a fixed third each on a degenerate triangle. `perspectiveBary`
@@ -24,7 +24,7 @@ fn perspectiveBary(s0:vec3f,s1:vec3f,s2:vec3f,iw:vec3f,p:vec2f,area:f32)->vec3f{
  let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
  let p0w=a0*iw.x;let p1w=a1*iw.y;let p2w=a2*iw.z;let sum=p0w+p1w+p2w;
  return select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);
-}`;
+}`
 
 /**
  * The triangle's three vertex normals in the world, one per column, turned to `side`. The three
@@ -40,7 +40,7 @@ export const VERTEX_NORMALS_WGSL = `fn vertexNormals(page:PageInfo,h:ClusterHead
 }
 fn transformedNormals(page:PageInfo,h:ClusterHeader,corners:vec3u,invT:InvT3,side:f32)->mat3x3f{
  return mat3x3f(uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,corners.x)))*side,uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,corners.y)))*side,uniteOuZero(invTranspose3Apply(invT,pageNormal(page,h,corners.z)))*side);
-}`;
+}`
 
 /**
  * The triangle a pixel shades, all the resolve reads of its page: each corner on the framebuffer —
@@ -66,4 +66,4 @@ fn decodeTriangle(page:PageInfo,tri:u32,invT:InvT3)->PixelTriangle{
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
  let n=transformedNormals(page,h,corners,invT,select(1.0,-1.0,(page.flags&256u)!=0u));
  return PixelTriangle(vec4f(s0.xy,c0.zw),vec4f(s1.xy,c1.zw),vec4f(s2.xy,c2.zw),w0,w1,w2,n[0],n[1],n[2],pageUv(page,h,i0),pageUv(page,h,i1),pageUv(page,h,i2),vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w));
-}`;
+}`

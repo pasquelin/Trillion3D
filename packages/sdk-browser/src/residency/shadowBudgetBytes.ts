@@ -1,14 +1,14 @@
-import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts';
-import { bounceProbeBytes } from '../bounce/limits.ts';
-import { vsmLayout, vsmResourceBytes } from '../vsm/layout.ts';
+import { BOUNCE_SETTINGS } from '../../../sdk-core/src/bounce/contracts.ts'
+import { bounceProbeBytes } from '../bounce/limits.ts'
+import { vsmLayout, vsmResourceBytes } from '../vsm/layout.ts'
 import {
   VSM_RENDER_PAIR_CAPACITY,
   VSM_RENDER_CMD_BYTES,
   VSM_RENDER_PAIR_BYTES,
-} from '../vsm/constants.ts';
-import { vsmTransmissionBytes } from '../vsm/transmissionLayout.ts';
+} from '../vsm/constants.ts'
+import { vsmTransmissionBytes } from '../vsm/transmissionLayout.ts'
 
-const MiB = 1024 * 1024;
+const MiB = 1024 * 1024
 
 /**
  * The virtual shadow maps of one sun on a device whose storage bindings hold `binding` bytes, at
@@ -21,9 +21,9 @@ const MiB = 1024 * 1024;
  * never a pass: the core holds this budget, and no shadow pass (`scripts/core-sources.ts`).
  */
 function oneSunShadowMaps(binding = 128 * MiB) {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, binding);
-  const lists = VSM_RENDER_PAIR_CAPACITY * (VSM_RENDER_PAIR_BYTES + VSM_RENDER_CMD_BYTES);
-  return { layout, bytes: vsmResourceBytes(layout) + lists + vsmTransmissionBytes(layout) };
+  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }, binding)
+  const lists = VSM_RENDER_PAIR_CAPACITY * (VSM_RENDER_PAIR_BYTES + VSM_RENDER_CMD_BYTES)
+  return { layout, bytes: vsmResourceBytes(layout) + lists + vsmTransmissionBytes(layout) }
 }
 
 /**
@@ -32,7 +32,7 @@ function oneSunShadowMaps(binding = 128 * MiB) {
  * cannot drift from them; `world/core/worldBudget.test.ts` holds it, within a MiB, to the same maps
  * summed again from their parts (`budget.fixture.ts`).
  */
-export const SHADOW_POOL_BYTES = Math.ceil(oneSunShadowMaps().bytes / MiB) * MiB;
+export const SHADOW_POOL_BYTES = Math.ceil(oneSunShadowMaps().bytes / MiB) * MiB
 
 /**
  * GPU bytes of the bounce probe cascades at their largest — every level of `cascadeSize³` probes,
@@ -40,4 +40,4 @@ export const SHADOW_POOL_BYTES = Math.ceil(oneSunShadowMaps().bytes / MiB) * MiB
  * probes and the snapshot frozen before each update). Fixed whatever the scene.
  */
 export const BOUNCE_PROBE_BYTES =
-  2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3);
+  2 * bounceProbeBytes(BOUNCE_SETTINGS.cascadeLevels * BOUNCE_SETTINGS.cascadeSize ** 3)

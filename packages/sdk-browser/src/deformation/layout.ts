@@ -11,25 +11,25 @@
  * last, one a target; current and previous world/inverse matrices, sixteen each, which the waves
  * are read through; then current and previous blocks of eight floats per wave (`WAVE_FLOATS`).
  */
-import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
+import { PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts'
 
 export const KIND_SKIN = 1,
   KIND_MORPH = 2,
   KIND_WAVE = 4,
-  KIND_SOFT = 8;
-export const RECORD_HEAD = 8;
+  KIND_SOFT = 8
+export const RECORD_HEAD = 8
 /** Floats of one wave: direction x/z, wave number, amplitude, lateral amplitude, phase, two pads. */
-export const WAVE_FLOATS = 8;
+export const WAVE_FLOATS = 8
 
 /** Counts a record is laid out for. */
-export type RecordShape = { joints: number; targets: number; waves: number; soft?: number };
+export type RecordShape = { joints: number; targets: number; waves: number; soft?: number }
 
 /** Where each part of a record starts, from its first float. */
 export function recordLayout({ joints, targets, waves, soft = 0 }: RecordShape) {
   const palette = RECORD_HEAD,
     weights = palette + 2 * joints * PALETTE_FLOATS,
     world = weights + 2 * targets,
-    wave = world + (waves ? 64 : 0);
-  const simulation = wave + 2 * waves * WAVE_FLOATS;
-  return { palette, weights, world, wave, simulation, floats: simulation + soft * 12 };
+    wave = world + (waves ? 64 : 0)
+  const simulation = wave + 2 * waves * WAVE_FLOATS
+  return { palette, weights, world, wave, simulation, floats: simulation + soft * 12 }
 }

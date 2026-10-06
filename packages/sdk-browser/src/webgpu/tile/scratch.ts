@@ -1,11 +1,11 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { texelsRefusal, textureRgba } from '../../visibility/types.ts';
-import { premultipliedByte } from '../../visibility/math.ts';
-import { generateMaterialMips, type MipChain } from '../../texture/mipBatch.ts';
-import { mipLevelCountFor } from '../../texture/tiles.ts';
-import type { CoverageReaders } from '../../texture/coverage.ts';
-import { writeRgba } from './write.ts';
-import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts'
+import { texelsRefusal, textureRgba } from '../../visibility/types.ts'
+import { premultipliedByte } from '../../visibility/math.ts'
+import { generateMaterialMips, type MipChain } from '../../texture/mipBatch.ts'
+import { mipLevelCountFor } from '../../texture/tiles.ts'
+import type { CoverageReaders } from '../../texture/coverage.ts'
+import { writeRgba } from './write.ts'
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 
 /**
  * Working texture of a host texture: the whole source, transferred once, and its mip chain built
@@ -21,34 +21,34 @@ import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
  * one of its own size, refilled in place at each new picture (`fill`, #362).
  */
 export type TileScratch = {
-  texture: GPUTexture;
+  texture: GPUTexture
   /** Bytes it holds, mips included (`textureBytesOf`). */
-  bytes: number;
+  bytes: number
   /** Writes the source's current picture again, mips included: what a live texture keeps. */
-  fill(): void;
+  fill(): void
   /** Builds its mips again from the picture it holds, under its readers' rule now (#42). */
-  reduce(): void;
+  reduce(): void
   /** Its mips not built since its first picture: `reduce`, or a batch taking its `chain`. */
-  readonly stale: boolean;
+  readonly stale: boolean
   /** What `reduce` hands `generateMaterialMips`, for a batch that reduces several at once: the
    *  mips are then built, no longer `stale`. */
-  chain(): MipChain;
-  destroy(): void;
-};
+  chain(): MipChain
+  destroy(): void
+}
 
 export function createTileScratch(
   device: GPUDevice,
   options: {
-    map: Texture;
-    width: number;
-    height: number;
-    format: GPUTextureFormat;
-    errorCode: string;
+    map: Texture
+    width: number
+    height: number
+    format: GPUTextureFormat
+    errorCode: string
     /** The colour census's readers, whose rule each reduction asks; none for a data texture. */
-    coverage?: CoverageReaders;
+    coverage?: CoverageReaders
   },
 ): TileScratch {
-  const { width, height, format } = options;
+  const { width, height, format } = options
   const descriptor: GPUTextureDescriptor = {
     label: 'Trillion3D texture scratch',
     size: { width, height, depthOrArrayLayers: 1 },
@@ -59,65 +59,65 @@ export function createTileScratch(
       GPUTextureUsage.COPY_DST |
       GPUTextureUsage.COPY_SRC |
       GPUTextureUsage.RENDER_ATTACHMENT,
-  };
-  const texture = device.createTexture(descriptor);
+  }
+  const texture = device.createTexture(descriptor)
   /** The texels as uploaded, when they differ from the source's: one array kept for every fill —
    *  a live texture refills at each video frame, and its size never changes. */
-  let staged: Uint8Array | undefined;
-  let stale = true;
+  let staged: Uint8Array | undefined
+  let stale = true
   /** Sends the picture as it is now, in the same texture, its mips not built. `flipY` and
    *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
    *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
   const upload = () => {
-    const { map } = options;
-    const rgba = textureRgba(map);
+    const { map } = options
+    const rgba = textureRgba(map)
     if (rgba) {
-      const refusal = texelsRefusal(map);
-      if (refusal) throw new Error(refusal);
-      if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
+      const refusal = texelsRefusal(map)
+      if (refusal) throw new Error(refusal)
+      if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE')
       const texels =
         map.flipY || map.premultiplyAlpha
           ? uploadedRgba(map, rgba.data, (staged ??= new Uint8Array(width * height * 4)), width)
-          : rgba.data;
-      writeRgba(device.queue, texture, [0, 0, 0], texels, width, height);
+          : rgba.data
+      writeRgba(device.queue, texture, [0, 0, 0], texels, width, height)
     } else {
-      const image = map.image as GPUCopyExternalImageSource | undefined;
+      const image = map.image as GPUCopyExternalImageSource | undefined
       if (!image || typeof device.queue.copyExternalImageToTexture !== 'function')
-        throw new Error(options.errorCode);
+        throw new Error(options.errorCode)
       device.queue.copyExternalImageToTexture(
         { source: image, flipY: map.flipY },
         { texture, premultipliedAlpha: map.premultiplyAlpha },
         [width, height],
-      );
+      )
     }
-  };
+  }
   const chain = (): MipChain => {
-    stale = false;
-    const cutoff = options.coverage?.cutoff(options.map);
-    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff };
-  };
-  const reduce = () => generateMaterialMips(device, [chain()]);
+    stale = false
+    const cutoff = options.coverage?.cutoff(options.map)
+    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff }
+  }
+  const reduce = () => generateMaterialMips(device, [chain()])
   try {
-    upload();
+    upload()
   } catch (error) {
     // A picture refused at its first fill leaves no texture behind: its tile asks again.
-    texture.destroy();
-    throw error;
+    texture.destroy()
+    throw error
   }
   return {
     texture,
     bytes: textureBytesOf(descriptor) ?? 0,
     fill: () => {
-      upload();
-      reduce();
+      upload()
+      reduce()
     },
     reduce,
     get stale() {
-      return stale;
+      return stale
     },
     chain,
     destroy: () => texture.destroy(),
-  };
+  }
 }
 
 /** RGBA8 texels as the WebGL2 upload stores them, written into `out`, which it returns: rows in
@@ -125,14 +125,14 @@ export function createTileScratch(
  *  the CPU twin's rule). */
 function uploadedRgba(map: Texture, data: Uint8Array, out: Uint8Array, width: number) {
   const row = width * 4,
-    height = out.length / row;
+    height = out.length / row
   for (let y = 0; y < height; y++) {
     const from = y * row,
-      to = (map.flipY ? height - 1 - y : y) * row;
-    out.set(data.subarray(from, from + row), to);
+      to = (map.flipY ? height - 1 - y : y) * row
+    out.set(data.subarray(from, from + row), to)
     if (map.premultiplyAlpha)
       for (let x = to; x < to + row; x += 4)
-        for (let c = 0; c < 3; c++) out[x + c] = premultipliedByte(out[x + c], out[x + 3]);
+        for (let c = 0; c < 3; c++) out[x + c] = premultipliedByte(out[x + c], out[x + 3])
   }
-  return out;
+  return out
 }

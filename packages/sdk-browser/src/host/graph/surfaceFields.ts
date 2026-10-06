@@ -2,17 +2,17 @@
  * The fields of the surface families (`surface.ts`), grouped by what they drive, at
  * the default values a surface takes when a scene leaves them unsaid.
  */
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
+import { Color } from '../../../../sdk-core/src/world/math/color.ts'
+import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import {
   HOST_BLENDING_NORMAL,
   HOST_DEPTH_LESS_EQUAL,
   HOST_NORMAL_MAP_TANGENT_SPACE,
-} from '../surfaceConstants.ts';
-import { hostSide } from '../../scene/materialSide.ts';
+} from '../surfaceConstants.ts'
+import { hostSide } from '../../scene/materialSide.ts'
 
 /** A colour of three linear components, as a scene or a world record declares it. */
-export const linearColour = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2]);
+export const linearColour = (rgb: readonly number[]) => new Color().setRGB(rgb[0], rgb[1], rgb[2])
 
 /** The raster state every family carries, at its default values. */
 export const raster = () => ({
@@ -38,7 +38,7 @@ export const raster = () => ({
   forceSinglePass: false,
   transparentShadow: false,
   toneMapped: true,
-});
+})
 /** A base colour and the maps an unlit surface samples. */
 export const coloured = () => ({
   color: new Color().setRGB(1, 1, 1),
@@ -49,7 +49,7 @@ export const coloured = () => ({
   alphaMap: null,
   envMap: null,
   wireframe: false,
-});
+})
 /** The relief a shaded surface reads: bump, normal and displacement maps. */
 export const relief = () => ({
   bumpMap: null,
@@ -58,7 +58,7 @@ export const relief = () => ({
   normalScale: new Vector2(1, 1),
   displacementMap: null,
   flatShading: false,
-});
+})
 /** The light a surface gives off by itself. */
 export const glow = () => ({
   subsurfaceColor: new Color().setRGB(0, 0, 0),
@@ -66,14 +66,14 @@ export const glow = () => ({
   emissive: new Color().setRGB(0, 0, 0),
   emissiveIntensity: 1,
   emissiveMap: null,
-});
+})
 /** The metal-rough model's factors and maps. */
 export const metalRough = () => ({
   roughness: 1,
   metalness: 0,
   roughnessMap: null,
   metalnessMap: null,
-});
+})
 /** The physical extensions, silent. */
 export const extensions = () => ({
   anisotropy: 0,
@@ -107,4 +107,4 @@ export const extensions = () => ({
   specularIntensityMap: null,
   specularColor: new Color().setRGB(1, 1, 1),
   specularColorMap: null,
-});
+})

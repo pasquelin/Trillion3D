@@ -1,13 +1,13 @@
-import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
-import { EngineError } from '../../../sdk-core/src/index.ts';
-import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../backend/common.ts';
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { EngineError } from '../../../sdk-core/src/index.ts'
+import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../backend/common.ts'
 import {
   assertFullShadowPool,
   referenceTilePlan,
   type ReferenceTilePlan,
-} from './referenceTiles.ts';
-import type { MeasuredWorldOptions } from '../world/session/options.ts';
-import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts';
+} from './referenceTiles.ts'
+import type { MeasuredWorldOptions } from '../world/session/options.ts'
+import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
 
 /**
  * THE ENGINE'S REFERENCE MODE (#1281): the image a rendering technique is held to (CONTRIBUTING.md,
@@ -33,32 +33,32 @@ import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenc
  *  and every approximation it names. */
 export interface ReferenceMode {
   /** Samples per output pixel and axis the tiles reach. */
-  factor: number;
-  approximations: typeof REFERENCE_APPROXIMATIONS;
+  factor: number
+  approximations: typeof REFERENCE_APPROXIMATIONS
   /** The tiles the image is drawn in, each box-filtered and placed in linear light. */
-  tiles: ReferenceTilePlan;
+  tiles: ReferenceTilePlan
 }
 
 /** The options a session opens on: `options` itself outside reference mode; in it, every named
  *  approximation off. The reference is drawn at the display, tile by tile (`referenceTiles.ts`),
  *  so the canvas keeps the display's size. */
 export function referenceOptions(options: MeasuredWorldOptions): {
-  options: MeasuredWorldOptions;
-  reference: ReferenceMode | null;
+  options: MeasuredWorldOptions
+  reference: ReferenceMode | null
 } {
-  if (!options.reference) return { options, reference: null };
+  if (!options.reference) return { options, reference: null }
   // A resize would change the tile plan under the reference: a reference is a still capture of a
   // fixed size, never a live canvas.
   if (explorerSwitch(options, 'interactive'))
     throw new EngineError(
       'REFERENCE_INTERACTIVE',
       'Reference mode draws a fixed size: open it without `interactive`',
-    );
+    )
   const tiles = referenceTilePlan(
     options.width ?? DEFAULT_WIDTH,
     options.height ?? DEFAULT_HEIGHT,
     options.pixelRatio ?? DEFAULT_PIXEL_RATIO,
-  );
+  )
   return {
     options: {
       ...options,
@@ -67,7 +67,7 @@ export function referenceOptions(options: MeasuredWorldOptions): {
       bounceBudgetMs: REFERENCE_BOUNCE_BUDGET_MS,
     },
     reference: { factor: tiles.factor, approximations: REFERENCE_APPROXIMATIONS, tiles },
-  };
+  }
 }
 
 /**
@@ -81,9 +81,9 @@ export function referenceCapture(
   reference: ReferenceMode | null,
   shadowBias: () => number | null | undefined,
 ) {
-  if (!reference) return capture;
+  if (!reference) return capture
   return () => {
-    assertFullShadowPool(shadowBias());
-    return capture();
-  };
+    assertFullShadowPool(shadowBias())
+    return capture()
+  }
 }

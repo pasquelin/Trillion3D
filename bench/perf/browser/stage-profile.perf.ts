@@ -1,38 +1,38 @@
 // per-stage profile breakdown, done every frame: CPU bounds deposited on their
 // stages, and GPU passes read by their label.
-import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts';
-import { addCpuSteps } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts';
+import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
+import { addCpuSteps } from '../../../packages/sdk-browser/src/stage/cpuSteps.ts'
 import {
   addGpuPasses,
   directLightTimings,
-} from '../../../packages/sdk-browser/src/stage/mapping.ts';
-import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts';
+} from '../../../packages/sdk-browser/src/stage/mapping.ts'
+import type { StageAdd } from '../../../packages/sdk-browser/src/stage/profiler.ts'
 import {
   CPU_STEP_NAMES,
   CPU_STEP_STAGES,
-} from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts';
-import { xorshiftRandom, measure, parElement, stress, rapport } from '../../core/index.ts';
+} from '../../../packages/sdk-browser/src/webgpu/pages/render/cpuStepTable.ts'
+import { xorshiftRandom, measure, parElement, stress, rapport } from '../../core/index.ts'
 import {
   referenceAddCpuSteps,
   referenceDirectLightTimings,
   referenceGpuStages,
-} from '../../oracles/browser/stage-profile.ts';
+} from '../../oracles/browser/stage-profile.ts'
 
-const alea = xorshiftRandom(113);
+const alea = xorshiftRandom(113)
 
-const NB_BORNES = CPU_STEP_NAMES.length;
+const NB_BORNES = CPU_STEP_NAMES.length
 
 const lignes = (images: number): Float64Array[] =>
-  Array.from({ length: images }, () => Float64Array.from({ length: NB_BORNES }, () => alea() * 10));
+  Array.from({ length: images }, () => Float64Array.from({ length: NB_BORNES }, () => alea() * 10))
 
 const depose =
   <Row>(ventile: (row: Row, add: StageAdd) => void) =>
   (rows: Row[]) => {
-    const total = new Map<string, number>();
-    const add: StageAdd = (stage, ms) => total.set(stage, (total.get(stage) ?? 0) + ms);
-    for (const row of rows) ventile(row, add);
-    return total;
-  };
+    const total = new Map<string, number>()
+    const add: StageAdd = (stage, ms) => total.set(stage, (total.get(stage) ?? 0) + ms)
+    for (const row of rows) ventile(row, add)
+    return total
+  }
 
 const measureCpu = await measure({
   name: 'CPU bounds per stage',
@@ -43,7 +43,7 @@ const measureCpu = await measure({
   ],
   calculation: depose((row, add) => addCpuSteps(CPU_STEP_STAGES, row, add)),
   expected: depose((row, add) => referenceAddCpuSteps(CPU_STEP_STAGES, row, add)),
-});
+})
 
 // A sample carries known passes, one unknown pass — which joins "geometry" —, a virtual shadow
 // map pass — which joins "shadows" by its label's prefix — and, once in ten, a `null` duration
@@ -63,28 +63,28 @@ const ETIQUETTES = [
   'Trillion3D deferred lighting',
   'Trillion3D HDR composition + present',
   'Trillion3D unknown pass',
-];
+]
 const reading = (passes: number): GpuPassTimings => ({
   frame: 0,
   totalMs: null,
   truncated: false,
   passes: Array.from({ length: passes }, (_, i) => {
-    const gpuMs = alea() < 0.1 ? null : alea() * 2;
-    const ownMs = gpuMs !== null && alea() < 0.5 ? alea() * gpuMs : undefined;
+    const gpuMs = alea() < 0.1 ? null : alea() * 2
+    const ownMs = gpuMs !== null && alea() < 0.5 ? alea() * gpuMs : undefined
     return {
       name: ETIQUETTES[i % ETIQUETTES.length],
       gpuMs,
       ...(ownMs === undefined ? {} : { ownMs }),
-    };
+    }
   }),
-});
+})
 const releves = (n: number, passes: number): GpuPassTimings[] =>
-  Array.from({ length: n }, () => reading(passes));
+  Array.from({ length: n }, () => reading(passes))
 
 const truncatedSample: (GpuPassTimings | null)[] = [
   { frame: 0, totalMs: null, truncated: true, passes: [] },
-];
-const sansEchantillon: (GpuPassTimings | null)[] = [null];
+]
+const sansEchantillon: (GpuPassTimings | null)[] = [null]
 
 const measureGpu = await measure({
   name: 'GPU passes per stage',
@@ -96,7 +96,7 @@ const measureGpu = await measure({
   ],
   calculation: depose(addGpuPasses),
   expected: depose(referenceGpuStages),
-});
+})
 
 const measureLighting = await measure({
   name: 'direct-lighting durations',
@@ -104,13 +104,13 @@ const measureLighting = await measure({
   cas: [{ name: '1 000 samples', input: releves(1000, ETIQUETTES.length), size: 1000 }],
   calculation: parElement((sample: GpuPassTimings) => directLightTimings(sample)),
   expected: (input: GpuPassTimings[]) => input.map(referenceDirectLightTimings),
-});
+})
 
 await stress({
   name: 'extreme per-stage profile',
   calculation: (sample) => {
-    addGpuPasses(sample, () => {});
-    directLightTimings(sample);
+    addGpuPasses(sample, () => {})
+    directLightTimings(sample)
   },
   extremes: [
     {
@@ -123,10 +123,10 @@ await stress({
       },
     },
   ],
-});
+})
 
 rapport(
   'profil-etapes',
   [measureCpu, measureGpu, measureLighting],
   'the per-stage profile deposits the same durations as its reference',
-);
+)

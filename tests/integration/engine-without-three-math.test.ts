@@ -1,9 +1,9 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
-import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile, readdir } from 'node:fs/promises'
+import { PUBLIC_FAMILIES } from './engine-without-three-lists.ts'
 
-const browser = new URL('../../packages/sdk-browser/src/', import.meta.url);
+const browser = new URL('../../packages/sdk-browser/src/', import.meta.url)
 
 // COMPUTATION BOUNDARY OF LOADING AND EXPLORER (M4a batch).
 // Engine numbers are computed by `sdk-core`, never by the host 3D library: same formulas,
@@ -53,7 +53,7 @@ const M4A = [
   'webgpu/pages/prepare/prepare',
   'webgpu/pages/prepare/setup',
   'webgpu/frame/presentationSetup',
-].map((nom) => `${nom}.ts`);
+].map((nom) => `${nom}.ts`)
 
 /** Host library COMPUTATION methods and constructors, replaced by core. */
 const CALCULS = [
@@ -75,7 +75,7 @@ const CALCULS = [
   'new THREE.Vector3',
   'new THREE.Box3',
   'new THREE.Sphere',
-];
+]
 
 /** File -> exact line -> why this line is a host boundary and not a computation. */
 const FRONTIERE: Record<string, Record<string, string>> = {
@@ -92,7 +92,7 @@ const FRONTIERE: Record<string, Record<string, string>> = {
   'world/api/viewportApi.ts': {
     'view.updateMatrixWorld();': 'the capture view is a host camera, set then resolved',
   },
-};
+}
 
 /** Lines triggering a pattern, comments excluded. */
 const lignesFautives = (text: string): string[] =>
@@ -100,79 +100,79 @@ const lignesFautives = (text: string): string[] =>
     .split('\n')
     .filter((ligne) => !/^\s*(?:\/\/|\*|\/\*)/.test(ligne))
     .map((ligne) => ligne.trim())
-    .filter((ligne) => CALCULS.some((motif) => ligne.includes(motif)));
+    .filter((ligne) => CALCULS.some((motif) => ligne.includes(motif)))
 
 test('loading and explorer no longer compute using the host library', async () => {
   const fuites: string[] = [],
-    inutiles: string[] = [];
+    inutiles: string[] = []
   for (const file of M4A) {
-    const text = await readFile(new URL(file, browser), 'utf8');
+    const text = await readFile(new URL(file, browser), 'utf8')
     const permis = FRONTIERE[file] ?? {},
-      seen = new Set<string>();
+      seen = new Set<string>()
     for (const ligne of lignesFautives(text)) {
-      if (permis[ligne]) seen.add(ligne);
-      else fuites.push(`${file} computes through the host library: ${ligne}`);
+      if (permis[ligne]) seen.add(ligne)
+      else fuites.push(`${file} computes through the host library: ${ligne}`)
     }
     for (const ligne of Object.keys(permis))
       if (!seen.has(ligne))
-        inutiles.push(`${file} declares a boundary that no longer exists: ${ligne}`);
+        inutiles.push(`${file} declares a boundary that no longer exists: ${ligne}`)
   }
-  assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`);
-  assert.deepEqual(inutiles, [], 'a vanished boundary is removed from the list');
-});
+  assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`)
+  assert.deepEqual(inutiles, [], 'a vanished boundary is removed from the list')
+})
 
 test('each file in M4a batch still exists under its name', async () => {
   for (const file of M4A)
     await assert.doesNotReject(
       readFile(new URL(file, browser), 'utf8'),
       `${file} was renamed or deleted: the M4a lot list must follow`,
-    );
-});
+    )
+})
 
 // PAGE MATRIX IS COPIED, NEVER COMPUTED.
 // `PageRec.matrix` and `ClusterRoot.world` are host library matrices filled by ENGINE (`packages/sdk-browser/src/host/world/placements.ts`);
 // `RenderBackend.addInstance/updateInstance` receives them from host. What engine does with them is closed:
 // it reads the sixteen floats from `.elements` and passes them to core.
 const CALCULE_UNE_MATRICE =
-  /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/;
+  /\.(?:matrix|matrixWorld|world|transform|normalMatrix)\??\.(?:clone|copy|multiply|premultiply|multiplyMatrices|invert|decompose|compose|applyMatrix4|transformDirection|setFromMatrixPosition|extractRotation|transpose|setPosition|makeRotationFromQuaternion)\s*\(/
 
 /** Witness files are written with host library: rule does not target them. Nor does the
  *  engine's own graph (`host/graph/`): its nodes ARE host objects of the engine's making, whose
  *  matrices the core's `Matrix4` composes as the reference does — a host resolution the engine
  *  path still only reads. */
 const WITNESSES =
-  /^(?:backend\/(?:referenceBackend|exact\/|autonomous\/)|host\/three\/lod|host\/graph\/|cluster\/(?:batch|blendCopyMesh)|measurement\/comparison|lighting\/observation\/(?!experimentBackend))/;
+  /^(?:backend\/(?:referenceBackend|exact\/|autonomous\/)|host\/three\/lod|host\/graph\/|cluster\/(?:batch|blendCopyMesh)|measurement\/comparison|lighting\/observation\/(?!experimentBackend))/
 
 /** File -> exact line -> why it SETS a host matrix instead of computing one. Empty since the
  *  second capture view became the host camera itself, read at the aspect ratio of the surface
  *  written into (`readCameraWorld`): no engine file composes into a host matrix any more. The
  *  boundary that gives a campaign its camera back writes the sixteen floats it was handed
  *  (`copyElements`), which is a copy and not a composition. */
-const ECRIT_L_HOST: Record<string, Record<string, string>> = {};
+const ECRIT_L_HOST: Record<string, Record<string, string>> = {}
 
 test('engine reads the host matrix, it does not compute with it', async () => {
   const fichiers = (await readdir(browser, { recursive: true })).filter(
     (nom) => nom.endsWith('.ts') && !nom.endsWith('.test.ts') && !PUBLIC_FAMILIES.test(nom),
-  );
-  assert.ok(fichiers.length > 100, 'the browser package must be found');
+  )
+  assert.ok(fichiers.length > 100, 'the browser package must be found')
   const fuites: string[] = [],
-    inutiles: string[] = [];
+    inutiles: string[] = []
   for (const file of fichiers) {
-    if (WITNESSES.test(file)) continue;
+    if (WITNESSES.test(file)) continue
     const permis = ECRIT_L_HOST[file] ?? {},
-      seen = new Set<string>();
-    const text = await readFile(new URL(file, browser), 'utf8');
+      seen = new Set<string>()
+    const text = await readFile(new URL(file, browser), 'utf8')
     for (const ligne of text
       .split('\n')
       .filter((l) => !/^\s*(?:\/\/|\*|\/\*)/.test(l) && CALCULE_UNE_MATRICE.test(l))
       .map((l) => l.trim())) {
-      if (permis[ligne]) seen.add(ligne);
-      else fuites.push(`${file} computes a host matrix: ${ligne}`);
+      if (permis[ligne]) seen.add(ligne)
+      else fuites.push(`${file} computes a host matrix: ${ligne}`)
     }
     for (const ligne of Object.keys(permis))
       if (!seen.has(ligne))
-        inutiles.push(`${file} declares a write that no longer exists: ${ligne}`);
+        inutiles.push(`${file} declares a write that no longer exists: ${ligne}`)
   }
-  assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`);
-  assert.deepEqual(inutiles, [], 'a vanished write is removed from the list');
-});
+  assert.deepEqual(fuites, [], `boundary declared in ${import.meta.url}`)
+  assert.deepEqual(inutiles, [], 'a vanished write is removed from the list')
+})

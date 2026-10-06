@@ -1,53 +1,53 @@
-import type { CameraPose, DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
-import type { createComparisonCompositor, ComparisonLayout } from '../../measurement/comparison.ts';
-import { families } from '../../host/families.ts';
-import { createFrameComposer } from './compose.ts';
-import { pixelRatioOf } from '../../backend/common.ts';
-import type { createExplorerDiagnosticApi } from '../api/diagnosticApi.ts';
-import type { prepareExplorer } from '../session/prepare.ts';
-import { boundToContext } from '../../webgl/core/contextBound.ts';
-import { createWebglRenderTarget, type WebglRenderTarget } from '../../webgl/core/renderTarget.ts';
-import type { WebglSurface } from '../../webgl/core/surface.ts';
+import type { CameraPose, DiagnosticMode } from '../../../../sdk-core/src/index.ts'
+import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts'
+import type { createComparisonCompositor, ComparisonLayout } from '../../measurement/comparison.ts'
+import { families } from '../../host/families.ts'
+import { createFrameComposer } from './compose.ts'
+import { pixelRatioOf } from '../../backend/common.ts'
+import type { createExplorerDiagnosticApi } from '../api/diagnosticApi.ts'
+import type { prepareExplorer } from '../session/prepare.ts'
+import { boundToContext } from '../../webgl/core/contextBound.ts'
+import { createWebglRenderTarget, type WebglRenderTarget } from '../../webgl/core/renderTarget.ts'
+import type { WebglSurface } from '../../webgl/core/surface.ts'
 
 /** The host materials the diagnostic modes swap and create, held by the session. */
-type DiagnosticInputs = Parameters<typeof createExplorerDiagnosticApi>[0];
+type DiagnosticInputs = Parameters<typeof createExplorerDiagnosticApi>[0]
 
-type Prepared = Awaited<ReturnType<typeof prepareExplorer>>;
+type Prepared = Awaited<ReturnType<typeof prepareExplorer>>
 /** A composition target that outlives a context loss: `current()` is the live one. */
-export type BoundTarget = ReturnType<typeof boundToContext<WebglRenderTarget>>;
+export type BoundTarget = ReturnType<typeof boundToContext<WebglRenderTarget>>
 
-type Compositor = ReturnType<typeof createComparisonCompositor>;
+type Compositor = ReturnType<typeof createComparisonCompositor>
 /** The comparison compositor, the measurement's code (`../../host/families.ts`): made by the
  *  first frame that composes two engines, which waited for it (`../session/familyUse.ts`). */
 function comparisonCompositor(gl: WebGL2RenderingContext) {
-  let made: Compositor | undefined;
+  let made: Compositor | undefined
   return {
     render: (...args: Parameters<Compositor['render']>) =>
       (made ??= families.measurement.get()?.createComparisonCompositor(gl))?.render(...args),
     dispose: () => made?.dispose(),
-  };
+  }
 }
 
 /** The mutable state of one explorer host; every service reads and writes this same object. */
 export type ExplorerHostState = {
-  fallbackReason: string | null;
-  active: RenderBackend;
-  disposed: boolean;
-  diagnostic: DiagnosticMode;
-  capturingSurface: boolean;
-  measuring: boolean;
-  hostFrame: number;
-  comparisonLayout: ComparisonLayout;
-  comparisonPair: [string, string];
-  wipe: number;
-  toggle: 0 | 1;
-  pairTargetA?: BoundTarget;
-  pairTargetB?: BoundTarget;
-  measurementTarget?: BoundTarget;
-  loaded: number;
-  pageBytesRead: number;
-};
+  fallbackReason: string | null
+  active: RenderBackend
+  disposed: boolean
+  diagnostic: DiagnosticMode
+  capturingSurface: boolean
+  measuring: boolean
+  hostFrame: number
+  comparisonLayout: ComparisonLayout
+  comparisonPair: [string, string]
+  wipe: number
+  toggle: 0 | 1
+  pairTargetA?: BoundTarget
+  pairTargetB?: BoundTarget
+  measurementTarget?: BoundTarget
+  loaded: number
+  pageBytesRead: number
+}
 
 export function createExplorerHostState(
   prepared: Prepared,
@@ -57,9 +57,8 @@ export function createExplorerHostState(
   webglSurface: WebglSurface | undefined,
   signal?: AbortSignal,
 ) {
-  const { camera, center } = prepared;
-  const baseline =
-    backends.find((backend) => backend.id === 'three-webgl-reference') ?? backends[0];
+  const { camera, center } = prepared
+  const baseline = backends.find((backend) => backend.id === 'three-webgl-reference') ?? backends[0]
   // The engine's own paths render: the WebGPU page raster, else the autonomous WebGL2 path.
   // A host-library witness only becomes active in a session that holds nothing else, which is to say
   // a session whose host named one itself (`chooseBackends`).
@@ -67,7 +66,7 @@ export function createExplorerHostState(
     backends.find((backend) => backend.id === 'webgpu-page-raster') ??
     backends.find((backend) => backend.id === 'autonomous-pages-webgl') ??
     backends.find((backend) => backend.id === 'exact-cluster-pages') ??
-    baseline;
+    baseline
   const state: ExplorerHostState = {
     fallbackReason: null,
     active: optimized,
@@ -86,17 +85,17 @@ export function createExplorerHostState(
     toggle: 0,
     loaded: prepared.pageSources.loaded,
     pageBytesRead: prepared.pageSources.pageBytesRead,
-  };
+  }
   if (prepared.directGpu && state.comparisonLayout !== 'single')
-    throw new Error('SINGLE_BACKEND_COMPARISON');
-  const beautyMaterials: DiagnosticInputs['beautyMaterials'] = new Map();
-  const overlays: DiagnosticInputs['overlays'] = [];
-  const hostedControls: { dispose(): void }[] = [];
-  const lookAtTarget = center.clone();
+    throw new Error('SINGLE_BACKEND_COMPARISON')
+  const beautyMaterials: DiagnosticInputs['beautyMaterials'] = new Map()
+  const overlays: DiagnosticInputs['overlays'] = []
+  const hostedControls: { dispose(): void }[] = []
+  const lookAtTarget = center.clone()
   // The composition lives on the engine's context: the composer, which puts an engine's image
   // on the surface or a target for the frame and the explicit capture alike, and the comparison
   // compositor. The direct GPU path composes nothing.
-  const gl = webglSurface?.context;
+  const gl = webglSurface?.context
   const composition = gl
     ? {
         compose: createFrameComposer(gl, camera, {
@@ -115,15 +114,15 @@ export function createExplorerHostState(
     : {
         compose: Object.assign(
           () => {
-            throw new Error('The direct GPU path has no host composer');
+            throw new Error('The direct GPU path has no host composer')
           },
           { dispose() {}, effectBytes: () => 0, renderSize: () => null },
         ),
         compositor: undefined,
-      };
+      }
   /** One side of a comparison or the measurement surface, at the drawing-buffer size. */
   const ensureTarget = (current?: BoundTarget) => {
-    if (!gl) throw new Error('The direct GPU path has no host render target');
+    if (!gl) throw new Error('The direct GPU path has no host render target')
     return (
       current ??
       boundToContext(
@@ -131,22 +130,22 @@ export function createExplorerHostState(
         () => createWebglRenderTarget(gl, canvas.width, canvas.height),
         (target) => target.dispose(),
       )
-    );
-  };
+    )
+  }
   const check = () => {
-    if (state.disposed) throw new Error('MeasuredWorld disposed');
-    if (state.capturingSurface) throw new Error('SURFACE_CAPTURE_BUSY');
-    signal?.throwIfAborted();
-  };
+    if (state.disposed) throw new Error('MeasuredWorld disposed')
+    if (state.capturingSurface) throw new Error('SURFACE_CAPTURE_BUSY')
+    signal?.throwIfAborted()
+  }
   const setPose = (pose: CameraPose) => {
-    camera.position.fromArray(pose.position);
-    camera.fov = pose.fov;
-    camera.near = pose.near;
-    camera.far = pose.far;
-    camera.lookAt(lookAtTarget.fromArray(pose.target));
-    camera.updateProjectionMatrix();
-    camera.updateMatrixWorld();
-  };
+    camera.position.fromArray(pose.position)
+    camera.fov = pose.fov
+    camera.near = pose.near
+    camera.far = pose.far
+    camera.lookAt(lookAtTarget.fromArray(pose.target))
+    camera.updateProjectionMatrix()
+    camera.updateMatrixWorld()
+  }
   return {
     state,
     baseline,
@@ -157,11 +156,11 @@ export function createExplorerHostState(
     lookAtTarget,
     ...composition,
     disposeComposition() {
-      composition.compose.dispose();
-      composition.compositor?.dispose();
+      composition.compose.dispose()
+      composition.compositor?.dispose()
     },
     ensureTarget,
     check,
     setPose,
-  };
+  }
 }

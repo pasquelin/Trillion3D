@@ -3,43 +3,43 @@
 // WebGL2 program — hands its lit colour through `fogged` before the display chain, measured from
 // the eye each pass carries. An unlit material is fogged too; a normal or depth
 // material, the diagnostic views and the composition are left as they were.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { CONTRACT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './deferred/shaders.ts';
-import { BLEND_VIEW_WGSL } from '../webgpu/blend/shader.ts';
-import { BLEND_VIEW_SIZE } from '../webgpu/blend/uniforms.ts';
-import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
-import { SURFACE_MODEL } from '../scene/surfaceModel.ts';
-import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { CONTRACT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './deferred/shaders.ts'
+import { BLEND_VIEW_WGSL } from '../webgpu/blend/shader.ts'
+import { BLEND_VIEW_SIZE } from '../webgpu/blend/uniforms.ts'
+import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts'
+import { SURFACE_MODEL } from '../scene/surfaceModel.ts'
+import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   WATER_COMPOSITE_SHADER,
-} from '../gpu/core/shaderTexts.fixture.ts';
+} from '../gpu/core/shaderTexts.fixture.ts'
 
 test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.yzw', () => {
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(
       shader,
       /var rgb=lit\+ambient\+emissive\.rgb[^;]*;\s*if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
-    );
+    )
   // An unlit or matcap surface (flag 1) is fogged; a diagnostic, normal or depth one (flag 3) is not.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
-    assert.match(shader, /if\(flag==3u\)\{return vec4f\(base\.rgb,1\.0\);\}/);
+    assert.match(shader, /if\(flag==3u\)\{return vec4f\(base\.rgb,1\.0\);\}/)
     assert.match(
       shader,
       /if\(flag==1u\)\{var rgb=base\.rgb;if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
-    );
+    )
   }
   assert.match(
     SURFACE_SHADE,
     /select\(3u,1u\|select\(0u,128u,\(page\.flags&1048576u\)!=0u\),model==4u\)/,
-  );
-  assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/);
+  )
+  assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/)
   for (const shader of Object.values(CONTRACT_COMPOSITIONS.plain))
-    assert.doesNotMatch(shader, /fogged/);
-});
+    assert.doesNotMatch(shader, /fogged/)
+})
 
 test('blended and water surfaces, lit or unlit, are fogged from the eye of the blend view', () => {
   // The lit sum, including the mirror term, closes inside the lit branch; the fog closes
@@ -47,26 +47,26 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   assert.match(
     BLEND_SHADER,
     /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
-  );
+  )
   assert.match(
     WATER_COMPOSITE_SHADER,
     /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\|\|vol\.attenuation\.w!=0\.0\)/,
-  );
+  )
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
   // ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
   // layers' exposure and curve (#558) follow it, in the struct's 16-byte alignment.
-  assert.match(BLEND_VIEW_WGSL, /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,\}/);
-  assert.equal(BLEND_VIEW_SIZE, 144);
-});
+  assert.match(BLEND_VIEW_WGSL, /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,\}/)
+  assert.equal(BLEND_VIEW_SIZE, 144)
+})
 
 test('the WebGL2 program fogs every surface before its display curve, a depth or diagnostic one excepted', () => {
   // A diagnostic view's surface declares itself fog-free (`materialBinding.test.ts`).
   const fogAt = CLUSTER_FRAGMENT.indexOf(
     '\nif(!fogFree&&!reflectionCapture&&!reflectionOutput)rgb=fogged(rgb);',
-  );
-  assert.ok(fogAt > CLUSTER_FRAGMENT.indexOf('if(lit)rgb+=mirrorLighting('));
-  assert.ok(fogAt > 0);
+  )
+  assert.ok(fogAt > CLUSTER_FRAGMENT.indexOf('if(lit)rgb+=mirrorLighting('))
+  assert.ok(fogAt > 0)
   // A depth material's ramp is written over the fogged colour.
-  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf(`if(surfaceModel==${SURFACE_MODEL.depth})rgb=`));
-  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(toneMapped)rgb=toneMap(rgb);'));
-});
+  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf(`if(surfaceModel==${SURFACE_MODEL.depth})rgb=`))
+  assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf('if(toneMapped)rgb=toneMap(rgb);'))
+})

@@ -1,5 +1,5 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import test from 'node:test'
+import assert from 'node:assert/strict'
 import {
   levelBlockBytes,
   previewBlockBytes,
@@ -7,34 +7,34 @@ import {
   previewGeometry,
   previewLastLevel,
   previewLevelSize,
-} from './previewLevels.ts';
-import { referenceExpectedGeometry } from '../../../../bench/oracles/core/preview-texture.ts';
+} from './previewLevels.ts'
+import { referenceExpectedGeometry } from '../../../../bench/oracles/core/preview-texture.ts'
 
 // Behaviour 5: the TypeScript geometry is the exact mirror of
 // `packages/asset-compiler-rust/src/texture_preview/levels.rs`, checked here on the same cases —
 // a texture that already fits under the base, an odd texture, a non-square texture.
 test('previewFirstLevel/Last/Size and previewGeometry match the Rust geometry on the same cases', () => {
   // 4×4: already fits under the base, three levels down to 1×1.
-  assert.equal(previewFirstLevel(4, 4), 0);
-  assert.equal(previewLastLevel(4, 4), 2);
-  assert.equal(previewGeometry(4, 4).levelCount, 3);
-  assert.equal(previewGeometry(4, 4).pixelBytes, 84);
+  assert.equal(previewFirstLevel(4, 4), 0)
+  assert.equal(previewLastLevel(4, 4), 2)
+  assert.equal(previewGeometry(4, 4).levelCount, 3)
+  assert.equal(previewGeometry(4, 4).pixelBytes, 84)
 
   // 17×9: odd and dissimilar dimensions, five levels.
-  assert.equal(previewFirstLevel(17, 9), 0);
-  assert.equal(previewLastLevel(17, 9), 4);
-  assert.equal(previewGeometry(17, 9).levelCount, 5);
-  assert.deepEqual(previewLevelSize(17, 9, 1), [8, 4]);
-  assert.deepEqual(previewLevelSize(17, 9, 4), [1, 1]);
-  assert.equal(previewGeometry(17, 9).pixelBytes, 784);
+  assert.equal(previewFirstLevel(17, 9), 0)
+  assert.equal(previewLastLevel(17, 9), 4)
+  assert.equal(previewGeometry(17, 9).levelCount, 5)
+  assert.deepEqual(previewLevelSize(17, 9, 1), [8, 4])
+  assert.deepEqual(previewLevelSize(17, 9, 4), [1, 1])
+  assert.equal(previewGeometry(17, 9).pixelBytes, 784)
 
   // 128×64: non-square, seven sides exceeding the base by a single step.
-  assert.equal(previewFirstLevel(128, 64), 1);
-  assert.equal(previewLastLevel(128, 64), 7);
-  assert.equal(previewGeometry(128, 64).levelCount, 7);
-  assert.deepEqual(previewLevelSize(128, 64, 1), [64, 32]);
-  assert.equal(previewGeometry(128, 64).pixelBytes, 10_924);
-});
+  assert.equal(previewFirstLevel(128, 64), 1)
+  assert.equal(previewLastLevel(128, 64), 7)
+  assert.equal(previewGeometry(128, 64).levelCount, 7)
+  assert.deepEqual(previewLevelSize(128, 64, 1), [64, 32])
+  assert.equal(previewGeometry(128, 64).pixelBytes, 10_924)
+})
 
 // G11: `previewGeometry` computes the first and last level once then derives the
 // three numbers, instead of `../manifest/binaryPreview.ts` calling `previewFirstLevel`/`previewLevelCount`/
@@ -54,21 +54,21 @@ test('previewGeometry yields exactly what the three separate calls yielded, host
     [65536, 65536],
     [-1, -1],
     [-7, 20],
-  ];
+  ]
   for (const [width, height] of cas) {
-    const { blockBytes: _blocks, sizes: _sizes, ...geometry } = previewGeometry(width, height);
-    assert.deepEqual(geometry, referenceExpectedGeometry(width, height), `${width}x${height}`);
+    const { blockBytes: _blocks, sizes: _sizes, ...geometry } = previewGeometry(width, height)
+    assert.deepEqual(geometry, referenceExpectedGeometry(width, height), `${width}x${height}`)
   }
-});
+})
 
 // Behaviour: a block-compressed tail is whole 4×4 blocks of sixteen bytes per level — a 1×1
 // level costs one block —, the same count in both formats, mirror of `levels.rs`.
 test('previewBlockBytes counts whole blocks per carried level', () => {
   // 4×4: one block at 4×4, one at 2×2, one at 1×1.
-  assert.equal(previewBlockBytes(4, 4), 3 * 16);
-  assert.equal(levelBlockBytes(17, 9), 5 * 3 * 16);
+  assert.equal(previewBlockBytes(4, 4), 3 * 16)
+  assert.equal(levelBlockBytes(17, 9), 5 * 3 * 16)
   // 17×9 → 17×9, 8×4, 4×2, 2×1, 1×1: 15 + 2 + 1 + 1 + 1 blocks.
-  assert.equal(previewBlockBytes(17, 9), 20 * 16);
+  assert.equal(previewBlockBytes(17, 9), 20 * 16)
   // 128×64 tail starts at 64×32: 128 + 32 + 8 + 2 + 1 + 1 + 1 blocks.
-  assert.equal(previewBlockBytes(128, 64), 173 * 16);
-});
+  assert.equal(previewBlockBytes(128, 64), 173 * 16)
+})

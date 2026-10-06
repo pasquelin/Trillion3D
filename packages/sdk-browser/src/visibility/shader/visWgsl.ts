@@ -1,14 +1,14 @@
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL } from './pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, UV_READ } from './pageGeometryWgsl.ts';
+import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL } from './pageWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, UV_READ } from './pageGeometryWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   maskAlphaWgsl,
   tileDeclarations,
-} from '../../webgpu/tile/wgsl.ts';
-import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
-import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts';
-import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts';
+} from '../../webgpu/tile/wgsl.ts'
+import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts'
+import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
 
 /**
  * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
@@ -111,4 +111,4 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 // and a tile GPU's hidden-surface removal resolves their overdraw before they run (#831).
 @fragment fn vis_hiz_opaque_fs(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
 @fragment fn vis_opaque_fs(in:VSOut)->@location(0) u32{return in.id;}
-`;
+`

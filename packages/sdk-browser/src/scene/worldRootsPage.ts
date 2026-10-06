@@ -24,12 +24,12 @@
  * The world matrix stays the identity: the positions are already in world space, so a page is
  * bound and drawn as it was cooked, never placed by a per-cluster pose.
  */
-import type { PageSource } from '../../../sdk-core/src/contracts/cache.ts';
-import type { HostAttributes } from '../host/resources.ts';
-import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
-import { hostPageGeometry } from '../host/pageObjects.ts';
-import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
-import type { WorldPageServer } from './worldPageServe.ts';
+import type { PageSource } from '../../../sdk-core/src/contracts/cache.ts'
+import type { HostAttributes } from '../host/resources.ts'
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
+import { hostPageGeometry } from '../host/pageObjects.ts'
+import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
+import type { WorldPageServer } from './worldPageServe.ts'
 
 /**
  * The detached page source over `server` (`worldPageServe.ts`, the world stream's family, which
@@ -49,9 +49,9 @@ export function worldRootsPageSource(server: WorldPageServer) {
      *  bounded by the box its world-space positions span (no pose: the matrix is the identity). */
     geometry: async (address: string, signal?: AbortSignal) => {
       const decoded = await server.decoded(address, signal),
-        box = new Box3().setFromArray(decoded.attributes.position);
-      return hostPageGeometry(decoded, () => 3, box.min.toArray(), box.max.toArray());
+        box = new Box3().setFromArray(decoded.attributes.position)
+      return hostPageGeometry(decoded, () => 3, box.min.toArray(), box.max.toArray())
     },
-  };
-  return source satisfies PageSource;
+  }
+  return source satisfies PageSource
 }

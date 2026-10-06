@@ -1,4 +1,4 @@
-import { summarize } from './stats.ts';
+import { summarize } from './stats.ts'
 
 /**
  * Per-stage profile of a frame: where time goes, on the CPU and on the GPU.
@@ -6,28 +6,28 @@ import { summarize } from './stats.ts';
  * the same time. `null` means "unmeasured" and is not zero: a stage that did not run,
  * a device without timestamps and a truncated sample all yield `null`, never `0`.
  */
-export type StageQuantiles = { p50: number; p95: number } | null;
+export type StageQuantiles = { p50: number; p95: number } | null
 
 /** A profile row: a stage, its CPU duration and its GPU duration. */
 export interface StageProfileEntry {
   /** The step's short name. */
-  stage: string;
+  stage: string
   /** The step's name for a person. */
-  label: string;
+  label: string
   /** CPU time spread. */
-  cpuMs: StageQuantiles;
+  cpuMs: StageQuantiles
   /** GPU time spread. */
-  gpuMs: StageQuantiles;
+  gpuMs: StageQuantiles
   /** Why a column is `null`, when the reason is known. */
-  cpuReason?: string;
+  cpuReason?: string
   /** Why GPU time is missing. */
-  gpuReason?: string;
+  gpuReason?: string
   /** Stage-specific counters (redrawn shadow faces, shadow draw calls, ...). */
-  counts?: Readonly<Record<string, number>>;
+  counts?: Readonly<Record<string, number>>
 }
 
 /** How the GPU is timed: WebGPU timestamps, or the WebGL2 timer query. */
-export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2';
+export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webgl2'
 
 /**
  * The full profile, over a sliding span of frames. `gpuImageMs` is the GPU envelope of the
@@ -38,27 +38,27 @@ export type GpuTimingMethod = 'timestamp-query' | 'EXT_disjoint_timer_query_webg
  */
 export interface StageProfile {
   /** Format version. */
-  version: 1;
+  version: 1
   /** Whether profiling runs. */
-  enabled: boolean;
+  enabled: boolean
   /** The renderer profiled. */
-  backend: string;
+  backend: string
   /** CPU frames and GPU samples actually retained by the span. */
-  cpuFrames: number;
+  cpuFrames: number
   /** GPU samples taken. */
-  gpuSamples: number;
+  gpuSamples: number
   /** Frames in the sliding span. */
-  windowFrames: number;
+  windowFrames: number
   /** How the GPU was timed. */
-  gpuMethod: GpuTimingMethod | null;
+  gpuMethod: GpuTimingMethod | null
   /** Why GPU time is missing. */
-  gpuReason: string | null;
+  gpuReason: string | null
   /** GPU time of whole images. */
-  gpuImageMs: StageQuantiles;
+  gpuImageMs: StageQuantiles
   /** CPU cost of the profile itself, per frame. This is what must be subtracted to be fair. */
-  overheadMs: StageQuantiles;
+  overheadMs: StageQuantiles
   /** Each step. */
-  stages: StageProfileEntry[];
+  stages: StageProfileEntry[]
 }
 
 /** Nameable stages of a frame, in the order they occur. */
@@ -88,15 +88,15 @@ export const STAGE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   antialiasing: 'Temporal antialiasing',
   present: 'Present',
   frame: 'Whole frame',
-});
+})
 
 /** The name a person reads for a frame step. */
-export const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage;
+export const stageLabel = (stage: string) => STAGE_LABELS[stage] ?? stage
 
 /** p50 and p95 of a series, or `null` if it is empty: nothing is inferred from a missing series. */
 export function stageQuantiles(values: readonly number[]): StageQuantiles {
-  const summary = summarize(values);
-  return summary ? { p50: summary.p50, p95: summary.p95 } : null;
+  const summary = summarize(values)
+  return summary ? { p50: summary.p50, p95: summary.p95 } : null
 }
 
 /** Profile of an engine that keeps none: everything is "unmeasured", nothing is zero. */
@@ -113,5 +113,5 @@ export function disabledStageProfile(backend: string, reason: string): StageProf
     gpuImageMs: null,
     overheadMs: null,
     stages: [],
-  };
+  }
 }

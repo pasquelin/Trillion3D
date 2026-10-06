@@ -1,12 +1,12 @@
-import type { WitnessPage as PageRec } from './pose.ts';
-import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
-import { ClusterBatches } from './batches/batches.ts';
-import type { WholeMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts';
-import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts';
+import type { WitnessPage as PageRec } from './pose.ts'
+import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts'
+import { ClusterBatches } from './batches/batches.ts'
+import type { WholeMesh } from '../../../packages/sdk-browser/src/cluster/batchMesh.ts'
+import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
 
 /** The whole-mesh reading of a host mesh the engine placed itself: the same object, seen through
  *  the fields a diagnostic submission draws. */
-const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh;
+const asWholeMesh = (mesh: HostMesh): WholeMesh => mesh as unknown as WholeMesh
 
 export function createExactPagesResidency(
   shown: PageRec[],
@@ -17,29 +17,29 @@ export function createExactPagesResidency(
   getDiagnostic: () => DiagnosticMode,
   counters: { pagesDetached: number },
 ) {
-  const diagnosticMeshes: WholeMesh[] = [];
-  const displayList = () => (shown.length ? shown : desired);
+  const diagnosticMeshes: WholeMesh[] = []
+  const displayList = () => (shown.length ? shown : desired)
   const syncResident = () => {
-    const display = displayList();
-    const diagnostic = getDiagnostic();
-    diagnosticMeshes.length = 0;
+    const display = displayList()
+    const diagnostic = getDiagnostic()
+    diagnosticMeshes.length = 0
     // The cut is walked once: marking resident pages, counting exits, rebuilding
     // the displayed-page list. No scan of the scene's whole page set.
-    for (let i = 0; i < display.length; i++) if (display[i].array) display[i].resident = true;
-    for (let i = 0; i < attached.length; i++) if (!attached[i].resident) counters.pagesDetached++;
-    attached.length = 0;
+    for (let i = 0; i < display.length; i++) if (display[i].array) display[i].resident = true
+    for (let i = 0; i < attached.length; i++) if (!attached[i].resident) counters.pagesDetached++
+    attached.length = 0
     for (let i = 0; i < display.length; i++) {
-      const rec = display[i];
-      if (!rec.array) continue;
-      rec.resident = false;
-      attached.push(rec);
+      const rec = display[i]
+      if (!rec.array) continue
+      rec.resident = false
+      attached.push(rec)
       if (diagnostic !== 'beauty') {
-        attach(rec);
-        if (rec.mesh) diagnosticMeshes.push(asWholeMesh(rec.mesh));
+        attach(rec)
+        if (rec.mesh) diagnosticMeshes.push(asWholeMesh(rec.mesh))
       }
     }
-    if (diagnostic === 'beauty') batches.update(display);
-    else batches.showPages(diagnosticMeshes);
-  };
-  return syncResident;
+    if (diagnostic === 'beauty') batches.update(display)
+    else batches.showPages(diagnosticMeshes)
+  }
+  return syncResident
 }

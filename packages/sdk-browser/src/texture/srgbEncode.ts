@@ -12,8 +12,8 @@ const THRESHOLD = '0.0031308',
   SLOPE = '12.92',
   EXPONENT = '0.416666667',
   SCALE = '1.055',
-  OFFSET = '0.055';
+  OFFSET = '0.055'
 
-export const SRGB_ENCODE_WGSL = `fn linearToSrgb(c:vec3f)->vec3f{return select(${SCALE}*pow(max(c,vec3f(0.0)),vec3f(${EXPONENT}))-${OFFSET},c*${SLOPE},c<=vec3f(${THRESHOLD}));}`;
+export const SRGB_ENCODE_WGSL = `fn linearToSrgb(c:vec3f)->vec3f{return select(${SCALE}*pow(max(c,vec3f(0.0)),vec3f(${EXPONENT}))-${OFFSET},c*${SLOPE},c<=vec3f(${THRESHOLD}));}`
 
-export const SRGB_ENCODE_GLSL = `vec3 linearToSrgb(vec3 x){bvec3 low=lessThanEqual(x,vec3(${THRESHOLD}));return mix(${SCALE}*pow(max(x,vec3(0.0)),vec3(${EXPONENT}))-${OFFSET},${SLOPE}*x,low);}`;
+export const SRGB_ENCODE_GLSL = `vec3 linearToSrgb(vec3 x){bvec3 low=lessThanEqual(x,vec3(${THRESHOLD}));return mix(${SCALE}*pow(max(x,vec3(0.0)),vec3(${EXPONENT}))-${OFFSET},${SLOPE}*x,low);}`

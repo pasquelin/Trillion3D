@@ -1,9 +1,9 @@
 interface FlagProps {
   /** The ISO 3166 region code of the flag, served by the site build under `flags/`. */
-  region: string;
+  region: string
   /** What the flag stands for, read by assistive technology; empty where the text beside it
    *  already says it. */
-  label: string;
+  label: string
 }
 
 /** A small 4:3 flag with rounded corners, the height of a line of text: an SVG file, drawn the
@@ -18,5 +18,5 @@ export function Flag({ region, label }: FlagProps) {
       height={12}
       loading="lazy"
     />
-  );
+  )
 }

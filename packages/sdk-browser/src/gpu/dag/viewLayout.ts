@@ -16,11 +16,11 @@
  * `cameraWorld` is twelve bytes yet cannot start at word 47, it waits for word 48.
  */
 type Field = {
-  readonly name: string;
-  readonly type: string;
-  readonly words: number;
-  readonly align: number;
-};
+  readonly name: string
+  readonly type: string
+  readonly words: number
+  readonly align: number
+}
 
 /** The block, in order. `as const` is what makes `FieldName` a union of the twenty names rather
  *  than `string`: annotated `readonly Field[]`, the literal types widen and a typo in `viewWord`
@@ -46,32 +46,32 @@ const VIEW_FIELDS = [
   { name: 'lightOriginHigh', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightOriginLow', type: 'vec4f', words: 4, align: 4 },
   { name: 'lightPlanes', type: 'array<vec4f,6>', words: 24, align: 4 },
-] as const satisfies readonly Field[];
+] as const satisfies readonly Field[]
 
 /** The first word of a field, by WGSL's alignment: its offset rounded up to the field's own. */
 const firstWord = (field: Field, after: number): number =>
-  Math.ceil(after / field.align) * field.align;
+  Math.ceil(after / field.align) * field.align
 
 /** The word each field starts at, in declaration order. */
 const VIEW_WORD: Readonly<Record<string, number>> = Object.freeze(
   Object.fromEntries(
     VIEW_FIELDS.reduce<{ at: number; words: [string, number][] }>(
       (acc, field) => {
-        const at = firstWord(field, acc.at);
-        acc.words.push([field.name, at]);
-        acc.at = at + field.words;
-        return acc;
+        const at = firstWord(field, acc.at)
+        acc.words.push([field.name, at])
+        acc.at = at + field.words
+        return acc
       },
       { at: 0, words: [] },
     ).words,
   ),
-);
+)
 
 /** Words one view's block holds: the stride of the uniform array, and the size the host allocates. */
 export const VIEW_BLOCK_WORDS = VIEW_FIELDS.reduce(
   (at, field) => firstWord(field, at) + field.words,
   0,
-);
+)
 
 /** The word a field starts at. `viewWord('ahead')` is where the host writes what the kernels read
  *  as `views[vi].ahead`; nothing else may hold that number.
@@ -79,22 +79,22 @@ export const VIEW_BLOCK_WORDS = VIEW_FIELDS.reduce(
  *  `field` is a union of the table's names, so a typo is a type error rather than a throw thrown
  *  mid-frame: the compiler and the shader are checked against the same list. */
 export const viewWord = (field: FieldName): number => {
-  const at = VIEW_WORD[field];
-  if (at === undefined) throw new Error(`${field} is not a field of a view's uniform block`);
-  return at;
-};
+  const at = VIEW_WORD[field]
+  if (at === undefined) throw new Error(`${field} is not a field of a view's uniform block`)
+  return at
+}
 
 /** The name of a field of the block, as the union the compiler and the host are checked against: a
  *  typo is a type error, not a throw thrown mid-frame. */
-export type FieldName = (typeof VIEW_FIELDS)[number]['name'];
+export type FieldName = (typeof VIEW_FIELDS)[number]['name']
 
 /** The stride must be a whole number of four-word units: WGSL lays a uniform array out with a
  *  sixteen-byte aligned stride, and a block of 65 words would fail at shader-compile time, on a
  *  device, rather than here. */
 if (VIEW_BLOCK_WORDS % 4 !== 0)
-  throw new Error(`a view's uniform block is ${VIEW_BLOCK_WORDS} words, not a multiple of four`);
+  throw new Error(`a view's uniform block is ${VIEW_BLOCK_WORDS} words, not a multiple of four`)
 
 /** The WGSL struct the kernels bind, built from the same table the host writes against. */
 export const VIEW_UNIFORM_STRUCT = `struct Uniforms{${VIEW_FIELDS.map(
   (field) => `${field.name}:${field.type}`,
-).join(',')},}`;
+).join(',')},}`

@@ -7,11 +7,11 @@
  * proportion to its radiance.
  */
 
-import { shaderFloat } from '../lighting/shaderConstants.ts';
-import { BLOOM_LEVELS } from './bloomLevels.ts';
+import { shaderFloat } from '../lighting/shaderConstants.ts'
+import { BLOOM_LEVELS } from './bloomLevels.ts'
 
 /** One bilinear tap: an offset in texels of the level read, and its weight. */
-export type BloomTap = readonly [x: number, y: number, weight: number];
+export type BloomTap = readonly [x: number, y: number, weight: number]
 
 /**
  * The 13-tap downsample, offsets in texels of the level read: five
@@ -32,7 +32,7 @@ export const BLOOM_DOWN_TAPS: readonly BloomTap[] = [
   [1, 1, 0.125],
   [-1, -1, 0.125],
   [1, -1, 0.125],
-];
+]
 
 /** The 3×3 tent upsample, offsets in texels of the level read, scaled
  *  by the bloom's `radius`. The WebGPU programs read it in four bilinear taps at radius 1, the same
@@ -48,28 +48,28 @@ export const BLOOM_UP_TAPS: readonly BloomTap[] = [
   [-1, -1, 1 / 16],
   [0, -1, 2 / 16],
   [1, -1, 1 / 16],
-];
+]
 
 /** Bytes per texel of every bloom target: `rgba16float`. */
-export const BLOOM_TEXEL_BYTES = 8;
+export const BLOOM_TEXEL_BYTES = 8
 
 /** Size of each level for an image, the first half the image. */
 export function bloomLevelSizes(width: number, height: number) {
-  const sizes: [number, number][] = [];
+  const sizes: [number, number][] = []
   for (let level = 1; level <= BLOOM_LEVELS; level++) {
     const w = Math.floor(width / 2 ** level),
-      h = Math.floor(height / 2 ** level);
-    if (w < 1 || h < 1) break;
-    sizes.push([w, h]);
+      h = Math.floor(height / 2 ** level)
+    if (w < 1 || h < 1) break
+    sizes.push([w, h])
   }
-  return sizes;
+  return sizes
 }
 
 /** Bytes of a bloom's level chain for an image. */
 export function bloomLevelBytes(width: number, height: number) {
-  let texels = 0;
-  for (const [w, h] of bloomLevelSizes(width, height)) texels += w * h;
-  return texels * BLOOM_TEXEL_BYTES;
+  let texels = 0
+  for (const [w, h] of bloomLevelSizes(width, height)) texels += w * h
+  return texels * BLOOM_TEXEL_BYTES
 }
 
 /**
@@ -78,7 +78,7 @@ export function bloomLevelBytes(width: number, height: number) {
  * levels, each of which carries the image's energy.
  */
 export function bloomBlend(intensity: number, levels: number) {
-  return { keep: 1 - intensity, glow: levels ? intensity / levels : 0 };
+  return { keep: 1 - intensity, glow: levels ? intensity / levels : 0 }
 }
 
 /**
@@ -95,5 +95,5 @@ export function bloomTapText(
       ([x, y, w]) =>
         `c+=${sample(`${vec2}(${shaderFloat(x)},${shaderFloat(y)})`)}*${shaderFloat(w)};`,
     )
-    .join('\n');
+    .join('\n')
 }

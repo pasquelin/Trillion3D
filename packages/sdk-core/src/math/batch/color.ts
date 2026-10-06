@@ -1,4 +1,4 @@
-import { linearToSrgb, srgbToLinear } from '../primitives/color.ts';
+import { linearToSrgb, srgbToLinear } from '../primitives/color.ts'
 
 /**
  * Converts `n` encoded sRGB channel values in `[0, 1]` to linear: `out[i] = srgbToLinear(values[i])`,
@@ -11,7 +11,7 @@ import { linearToSrgb, srgbToLinear } from '../primitives/color.ts';
  */
 export function srgbToLinearBatch(out: Float64Array, values: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {
-    out[i] = srgbToLinear(values[i]);
+    out[i] = srgbToLinear(values[i])
   }
 }
 
@@ -24,6 +24,6 @@ export function srgbToLinearBatch(out: Float64Array, values: ArrayLike<number>, 
  */
 export function linearToSrgbBatch(out: Float64Array, values: ArrayLike<number>, n: number): void {
   for (let i = 0; i < n; i++) {
-    out[i] = linearToSrgb(values[i]);
+    out[i] = linearToSrgb(values[i])
   }
 }

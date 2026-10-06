@@ -1,30 +1,30 @@
-import { useState } from 'react';
-import { useWords } from '../i18n.ts';
-import type { ReactNode } from 'react';
-import { Collapse } from '../ui/Collapse.tsx';
-import { Tabs } from '../ui/Tabs.tsx';
-import { Alert } from '../ui/Alert.tsx';
-import { formatValue, metricValue } from './model/metrics.ts';
-import { recordLabel } from './model/presentation.ts';
-import { BarChart } from '../ui/BarChart.tsx';
-import { Details } from './Details.tsx';
-import { Conditions } from './Conditions.tsx';
-import { Diagnostics } from './Diagnostics.tsx';
-import type { Report, ReportRecord } from './model/types.ts';
-import type { Locale } from '../../content/locale.ts';
-import type { BarChartRow } from '../ui/BarChart.tsx';
+import { useState } from 'react'
+import { useWords } from '../i18n.ts'
+import type { ReactNode } from 'react'
+import { Collapse } from '../ui/Collapse.tsx'
+import { Tabs } from '../ui/Tabs.tsx'
+import { Alert } from '../ui/Alert.tsx'
+import { formatValue, metricValue } from './model/metrics.ts'
+import { recordLabel } from './model/presentation.ts'
+import { BarChart } from '../ui/BarChart.tsx'
+import { Details } from './Details.tsx'
+import { Conditions } from './Conditions.tsx'
+import { Diagnostics } from './Diagnostics.tsx'
+import type { Report, ReportRecord } from './model/types.ts'
+import type { Locale } from '../../content/locale.ts'
+import type { BarChartRow } from '../ui/BarChart.tsx'
 
 interface ProfileReadingProps {
-  record: ReportRecord;
-  report: Report;
-  locale: Locale;
-  filters?: ReactNode;
+  record: ReportRecord
+  report: Report
+  locale: Locale
+  filters?: ReactNode
 }
 
 /** One reading's CPU and GPU charts, with its exact values and conditions folded below. */
 export function ProfileReading({ record: r, report, locale, filters }: ProfileReadingProps) {
-  const [clock, setClock] = useState('cpu');
-  const t = useWords(locale);
+  const [clock, setClock] = useState('cpu')
+  const t = useWords(locale)
   const charts: { id: string; label: string; rows: BarChartRow[] }[] = [
     {
       id: 'cpu',
@@ -48,7 +48,7 @@ export function ProfileReading({ record: r, report, locale, filters }: ProfileRe
         p95: p.gpuMs?.p95,
       })),
     },
-  ];
+  ]
   return (
     <>
       <p>
@@ -98,5 +98,5 @@ export function ProfileReading({ record: r, report, locale, filters }: ProfileRe
         )}
       </Collapse>
     </>
-  );
+  )
 }

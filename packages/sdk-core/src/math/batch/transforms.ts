@@ -1,8 +1,8 @@
-import { IDENTITY_MATRIX4, copyMatrix4, determinantMatrix4 } from '../matrix/matrix4.ts';
-import { invertMatrix4 } from '../matrix/matrix4Inverse.ts';
-import { normalMatrix3 } from '../matrix/matrix3.ts';
-import { decomposeMatrix4 } from '../matrix/matrix4Trs.ts';
-import { NORMAL_MATRIX_VALUES } from './strides.ts';
+import { IDENTITY_MATRIX4, copyMatrix4, determinantMatrix4 } from '../matrix/matrix4.ts'
+import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
+import { normalMatrix3 } from '../matrix/matrix3.ts'
+import { decomposeMatrix4 } from '../matrix/matrix4Trs.ts'
+import { NORMAL_MATRIX_VALUES } from './strides.ts'
 
 /**
  * Inverts `n` 4×4 matrices: `out[i] = mats[i]⁻¹`.
@@ -27,13 +27,13 @@ export function invertMatrix4Batch(
   singular?: Uint8Array,
 ): void {
   for (let i = 0; i < n; i++) {
-    const dst = out[i];
+    const dst = out[i]
     // `invertMatrix4` yields the zero matrix on an exactly zero determinant and states that the
     // caller reads the determinant, never the output: a regular inverse may hold those four zeros.
-    const zero = determinantMatrix4(mats[i]) === 0;
-    if (zero) copyMatrix4(dst, IDENTITY_MATRIX4);
-    else invertMatrix4(dst, mats[i]);
-    if (singular) singular[i] = zero ? 1 : 0;
+    const zero = determinantMatrix4(mats[i]) === 0
+    if (zero) copyMatrix4(dst, IDENTITY_MATRIX4)
+    else invertMatrix4(dst, mats[i])
+    if (singular) singular[i] = zero ? 1 : 0
   }
 }
 
@@ -49,11 +49,11 @@ export function normalMatrix3Batch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    normalMatrix3(out, mats[i], i * NORMAL_MATRIX_VALUES);
+    normalMatrix3(out, mats[i], i * NORMAL_MATRIX_VALUES)
   }
 }
 
-export { composeMatrix4Batch } from '../matrix/matrix4Compose.ts';
+export { composeMatrix4Batch } from '../matrix/matrix4Compose.ts'
 
 /**
  * Decomposes `n` 4×4 matrices into positions, quaternions and scales.
@@ -68,6 +68,6 @@ export function decomposeMatrix4Batch(
   n: number,
 ): void {
   for (let i = 0; i < n; i++) {
-    decomposeMatrix4(mats[i], positions[i], quaternions[i], scales[i]);
+    decomposeMatrix4(mats[i], positions[i], quaternions[i], scales[i])
   }
 }

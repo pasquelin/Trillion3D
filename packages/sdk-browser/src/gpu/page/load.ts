@@ -1,6 +1,6 @@
-import type { GpuPageContext, ResidentPage } from './types.ts';
-import { commitGpuPage, homeOf } from './commit.ts';
-import { refusedStatus, retriableError } from '../../cluster/checked.ts';
+import type { GpuPageContext, ResidentPage } from './types.ts'
+import { commitGpuPage, homeOf } from './commit.ts'
+import { refusedStatus, retriableError } from '../../cluster/checked.ts'
 
 /** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
  *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its read's. */
@@ -8,15 +8,15 @@ export function createGpuPageLoader(
   context: GpuPageContext,
   pin: (key: string, tier: 'held' | 'pinned') => void,
 ) {
-  const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context;
-  const { report, emit, now, readBytes, fetchBytes } = reader;
+  const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context
+  const { report, emit, now, readBytes, fetchBytes } = reader
   return function load(
     key: string,
     signal?: AbortSignal,
     tier?: 'held' | 'pinned',
     priority?: number,
   ): Promise<ResidentPage> {
-    const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
+    const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal
     const abortListener =
       report && signal
         ? () =>
@@ -25,48 +25,48 @@ export function createGpuPageLoader(
               key,
               reason: String(signal.reason ?? 'aborted'),
             }))
-        : undefined;
-    if (abortListener) signal?.addEventListener('abort', abortListener, { once: true });
-    const requestStarted = now();
+        : undefined
+    if (abortListener) signal?.addEventListener('abort', abortListener, { once: true })
+    const requestStarted = now()
     emit?.('gpu-page-request', 'GPU page request received', () => ({
       version: 1,
       key,
       resident: resident.has(key),
       loading: fetches.has(key),
-    }));
+    }))
     const fetched =
-      !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined;
+      !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined
     const operation = state.pending.then(async () => {
-      const queueStarted = now();
+      const queueStarted = now()
       try {
-        check(combined);
+        check(combined)
         emit?.('gpu-page-queue-wait', 'GPU load CPU queue wait finished', () => ({
           version: 1,
           key,
           durationMs: report ? queueStarted - requestStarted : null,
-        }));
-        const existing = resident.get(key);
+        }))
+        const existing = resident.get(key)
         if (existing) {
-          resident.delete(key);
-          resident.set(key, existing);
+          resident.delete(key)
+          resident.set(key, existing)
           emit?.('gpu-page-cache-hit', 'GPU page already resident', () => ({
             version: 1,
             key,
             slot: existing.slot,
             generation: existing.generation,
             source: 'resident-cache',
-          }));
-          if (tier) pin(key, tier);
-          return existing;
+          }))
+          if (tier) pin(key, tier)
+          return existing
         }
         emit?.('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
           version: 1,
           key,
           source: 'page-source',
-        }));
-        let bytes: Uint8Array;
+        }))
+        let bytes: Uint8Array
         try {
-          bytes = await (fetched ?? fetchBytes(key, combined, priority));
+          bytes = await (fetched ?? fetchBytes(key, combined, priority))
         } catch (err) {
           // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
           if (!combined.aborted && !state.disposed && retriableError(err)) {
@@ -76,14 +76,14 @@ export function createGpuPageLoader(
               attempt: 1,
               nextAttempt: 2,
               error: String(err),
-            }));
-            bytes = await readBytes(key, combined, 2, priority);
-          } else throw err;
+            }))
+            bytes = await readBytes(key, combined, 2, priority)
+          } else throw err
         }
-        check(combined);
+        check(combined)
         // A page fills its own home at most, where the pool holds the whole catalogue: one
         // past it would write over its neighbour.
-        const room = homeOf(context, key)?.bytes ?? pageBytes;
+        const room = homeOf(context, key)?.bytes ?? pageBytes
         if (bytes.byteLength > room || bytes.byteLength === 0) {
           emit?.('gpu-page-corruption', 'Unexpected GPU page size', () => ({
             version: 1,
@@ -91,19 +91,19 @@ export function createGpuPageLoader(
             reason: 'page-size-mismatch',
             expectedBytes: room,
             actualBytes: bytes.byteLength,
-          }));
+          }))
           emit?.('gpu-page-admission-blocked', 'Page refused by a GPU slot capacity', () => ({
             version: 1,
             key,
             reason: 'page-size-mismatch',
             expectedBytes: room,
             actualBytes: bytes.byteLength,
-          }));
-          throw new Error('PAGE_SIZE_MISMATCH');
+          }))
+          throw new Error('PAGE_SIZE_MISMATCH')
         }
-        const page = commitGpuPage(context, key, bytes, requestStarted);
-        if (tier) pin(key, tier);
-        return page;
+        const page = commitGpuPage(context, key, bytes, requestStarted)
+        if (tier) pin(key, tier)
+        return page
       } catch (error) {
         emit?.('gpu-page-error', 'GPU load failed', () => ({
           version: 1,
@@ -113,14 +113,14 @@ export function createGpuPageLoader(
           error: String(error),
           resident: resident.size,
           pinned: pins.size,
-        }));
-        throw error;
+        }))
+        throw error
       } finally {
-        if (abortListener) signal?.removeEventListener('abort', abortListener);
-        fetches.delete(key);
+        if (abortListener) signal?.removeEventListener('abort', abortListener)
+        fetches.delete(key)
       }
-    });
-    state.pending = operation.catch(() => {});
-    return operation;
-  };
+    })
+    state.pending = operation.catch(() => {})
+    return operation
+  }
 }

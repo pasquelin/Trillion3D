@@ -13,9 +13,9 @@ export function githubApi(repo: string, token: string) {
         'x-github-api-version': '2022-11-28',
       },
       body: payload && JSON.stringify(payload),
-    });
+    })
     if (!response.ok)
-      throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
-    return response.json() as Promise<T>;
-  };
+      throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`)
+    return response.json() as Promise<T>
+  }
 }

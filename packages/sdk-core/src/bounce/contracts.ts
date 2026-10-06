@@ -84,7 +84,7 @@ export const BOUNCE_SETTINGS = {
   normalBias: 0.35,
   /** Probe ray reach as fraction of scene bounding diagonal. */
   rayReachFraction: 1,
-} as const;
+} as const
 
 /**
  * Maximum probes updated per frame: ray budget ceiling divided by rays per probe.
@@ -92,7 +92,7 @@ export const BOUNCE_SETTINGS = {
 export const BOUNCE_PROBES_PER_FRAME = Math.max(
   1,
   Math.floor(BOUNCE_SETTINGS.raysPerFrame / BOUNCE_SETTINGS.raysPerProbe),
-);
+)
 
 /**
  * Probe floats layout in GPU storage buffer: 11 × `vec4f`.
@@ -100,4 +100,4 @@ export const BOUNCE_PROBES_PER_FRAME = Math.max(
  * 9 vectors store spherical harmonics L2 coefficients (constant, 3 linear, 5 quadratic);
  * 2 vectors store 6 directional mean visibility distances. The `w` components store probe state.
  */
-export const PROBE_FLOATS = 44;
+export const PROBE_FLOATS = 44

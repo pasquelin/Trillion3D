@@ -1,12 +1,12 @@
-import { createSelectionResult } from '../../../page/selection/selection.ts';
-import { createSelectionUniforms } from '../../../gpu/core/selection.ts';
-import { createHizCounts } from '../../../hiz/hiz.ts';
-import { unmirroredDrawn } from '../helpers.ts';
-import { createFrameGateCore } from '../../../frame/gateCore.ts';
-import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts';
-import { createWebgpuBudgetState } from '../../residency/budgetState.ts';
-import { RASTER_BACKGROUND } from '../../../page/raster.ts';
-import type { WebgpuRunState } from './run.ts';
+import { createSelectionResult } from '../../../page/selection/selection.ts'
+import { createSelectionUniforms } from '../../../gpu/core/selection.ts'
+import { createHizCounts } from '../../../hiz/hiz.ts'
+import { unmirroredDrawn } from '../helpers.ts'
+import { createFrameGateCore } from '../../../frame/gateCore.ts'
+import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts'
+import { createWebgpuBudgetState } from '../../residency/budgetState.ts'
+import { RASTER_BACKGROUND } from '../../../page/raster.ts'
+import type { WebgpuRunState } from './run.ts'
 
 export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
   return {
@@ -86,5 +86,5 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     // No frame before the first image: it rebases, whatever happens.
     worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
     occluderSignature: 0,
-  };
+  }
 }

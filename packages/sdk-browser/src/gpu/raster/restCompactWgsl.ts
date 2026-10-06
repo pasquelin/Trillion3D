@@ -1,10 +1,10 @@
-import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts';
-import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts';
-import { HIZ_REJECTED_WGSL } from '../partition/contract.ts';
-import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts';
+import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { BASE_SLOTS, HALF_SLOTS, INSTANCE_WORD_WGSL } from '../draw/contract.ts'
+import { HIZ_REJECTED_WGSL } from '../partition/contract.ts'
+import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 
 /** Instances of one tile: the threads of a count or scatter workgroup. */
-export const REST_COMPACT_WORKGROUP = 64;
+export const REST_COMPACT_WORKGROUP = 64
 
 /**
  * Stable compaction of the tested half, between the occlusion test and the second geometry pass.
@@ -110,4 +110,4 @@ fn restScatter(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index) 
  let rank=laneScan(lane,kept)-kept;
  if(kept!=0u){instances[start+work[tileWord(n,t)]+rank]=row;}
 }
-`;
+`

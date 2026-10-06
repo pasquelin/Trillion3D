@@ -26,22 +26,22 @@
  */
 
 /** Depth comparison of every pipeline: in reversed depth, the greater wins. */
-export const DEPTH_COMPARE: GPUCompareFunction = 'greater';
+export const DEPTH_COMPARE: GPUCompareFunction = 'greater'
 /** The same comparison, equality included: what a resolve redraws on its own depth. */
-export const DEPTH_COMPARE_OR_EQUAL: GPUCompareFunction = 'greater-equal';
+export const DEPTH_COMPARE_OR_EQUAL: GPUCompareFunction = 'greater-equal'
 
 /** Near-plane depth. Nothing can be nearer. */
-export const DEPTH_NEAR = 1;
+export const DEPTH_NEAR = 1
 
 /**
  * Far depth, hence the clear value of a depth target and the background of software
  * depth buffers. With the infinite far plane, no surface reaches it.
  */
-export const DEPTH_CLEAR = 0;
+export const DEPTH_CLEAR = 0
 
 /** Is `a` strictly nearer the eye than `b`? The only place that says so. */
 export function depthNearer(a: number, b: number) {
-  return a > b;
+  return a > b
 }
 
 /**
@@ -50,7 +50,7 @@ export function depthNearer(a: number, b: number) {
  * an oracle can mount a view-projection without mounting a whole camera; it is an owned
  * buffer, as everywhere the core multiplies matrices (`packages/sdk-core/src/math/matrix/matrix4.ts`).
  */
-export type DepthCamera = { viewProjection: Float64Array };
+export type DepthCamera = { viewProjection: Float64Array }
 
 /**
  * The grey ramp a depth material shows, in one convention whatever the depth buffer holds:
@@ -68,9 +68,9 @@ export function writeDepthRamp(
   far: number,
   perspective: number,
 ) {
-  const span = far - near;
-  out[offset] = -perspective / span;
-  out[offset + 1] = (perspective * far) / span;
-  out[offset + 2] = 1 - perspective;
-  return out;
+  const span = far - near
+  out[offset] = -perspective / span
+  out[offset + 1] = (perspective * far) / span
+  out[offset + 2] = 1 - perspective
+  return out
 }

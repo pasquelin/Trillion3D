@@ -1,10 +1,10 @@
 interface Tile {
-  id: string;
-  href: string;
-  src: string;
-  label: string;
+  id: string
+  href: string
+  src: string
+  label: string
   /** A flagship, twice as wide and twice as tall as the others. */
-  large?: boolean;
+  large?: boolean
 }
 
 /** Pictures side by side at the renders' 16:10, each opening its page, its title at the bottom
@@ -32,5 +32,5 @@ export function Mosaic({ tiles }: { tiles: Tile[] }) {
         </a>
       ))}
     </div>
-  );
+  )
 }

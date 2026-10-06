@@ -194,4 +194,4 @@ fn dDiv(a:vec2u,b:vec2u)->vec2u{
  if((x.x|x.y)!=0u){q.y=q.y|1u;}
  return dRound(sign,scale,q);
 }
-`;
+`

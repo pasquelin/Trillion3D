@@ -1,23 +1,23 @@
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path'
 
 /** One emitted chunk: its path under the bundle's root, and its text. */
 export interface EmittedChunk {
-  path: string;
-  text: string;
+  path: string
+  text: string
 }
 
 /** What a chunk naming `marker` must find in its own folder: the modules it fetches by its own
  *  URL (`new URL('./x', import.meta.url)`) and the workers it starts (`besideModule`). */
 export interface BesideRule {
-  marker: string;
-  beside: string[];
+  marker: string
+  beside: string[]
 }
 
 /** Jolt's two modules with the worker that runs them: the physics a page fetches. */
 export const PHYSICS_RULE: BesideRule = {
   marker: 'joltPhysics.wasm',
   beside: ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'],
-};
+}
 
 /** The engine's modules, each fetched beside the chunk that names it: the page decoder's, the
  *  physics', and the animation worker the sampler starts (`besideModule('animationWorker', …)`). */
@@ -25,7 +25,7 @@ const BESIDE_RULES: BesideRule[] = [
   { marker: 'pageCodec.wasm', beside: ['pageCodec.wasm'] },
   PHYSICS_RULE,
   { marker: 'animationWorker', beside: ['animationWorker.js'] },
-];
+]
 
 /** Every rule's module found missing beside a chunk that names it, as one line each; a rule no
  *  chunk names is a line too — the bundle lost the code that loads it. Paths are checked in the
@@ -35,14 +35,14 @@ export function missingBeside(
   assets: string[],
   rules: BesideRule[] = BESIDE_RULES,
 ): string[] {
-  const present = new Set(assets);
+  const present = new Set(assets)
   return rules.flatMap(({ marker, beside }) => {
-    const naming = chunks.filter(({ text }) => text.includes(marker));
-    if (!naming.length) return [`no chunk names ${marker}`];
+    const naming = chunks.filter(({ text }) => text.includes(marker))
+    if (!naming.length) return [`no chunk names ${marker}`]
     return naming.flatMap(({ path }) =>
       beside
         .filter((file) => !present.has(join(dirname(path), file)))
         .map((file) => `${path} does not find ${basename(file)} beside it`),
-    );
-  });
+    )
+  })
 }

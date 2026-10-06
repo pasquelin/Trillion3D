@@ -1,4 +1,4 @@
-import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
+import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts'
 
 /** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mipsWgsl.ts`) under `weighted`;
  *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
@@ -18,4 +18,4 @@ void main(){
  vec3 byAlpha=(s0.rgb*s0.a+s1.rgb*s1.a+s2.rgb*s2.a+s3.rgb*s3.a)/dot(a,vec4(1.0));
  uint t=cutoff>0u?toByte(texelFetch(source,ivec2(0,extent.y),0).a):0u;
  color=vec4(any(notEqual(a,vec4(s0.a)))?byAlpha:mean.rgb,reducedAlpha(a,cutoff,t));
-}`;
+}`

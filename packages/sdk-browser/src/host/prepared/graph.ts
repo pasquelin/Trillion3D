@@ -13,129 +13,129 @@
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
-import { readPreparedSourceRank, registerPreparedNodeRank } from './sourceRanks.ts';
-import { numbered } from '../graph/serial.ts';
-import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
-import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
-import { camera, light, pose, uniqueNames, weigh } from './nodes.ts';
-import { drawnByCloth, surfaceVariantOf, type SurfaceVariant } from './materials.ts';
-import type { GraphSurface } from '../graph/surface.ts';
-import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { isDrawnNode } from '../graph/kinds.ts';
-import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-import { placedMeshes } from './placed.ts';
-import { registerPagedSource } from './pagedSource.ts';
-import { bindSkins, clipsOf, movedNodes } from './motion.ts';
-import type { RowLink } from '../../partition/rows.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts';
+import { readPreparedSourceRank, registerPreparedNodeRank } from './sourceRanks.ts'
+import { numbered } from '../graph/serial.ts'
+import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
+import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
+import { camera, light, pose, uniqueNames, weigh } from './nodes.ts'
+import { drawnByCloth, surfaceVariantOf, type SurfaceVariant } from './materials.ts'
+import type { GraphSurface } from '../graph/surface.ts'
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
+import { isDrawnNode } from '../graph/kinds.ts'
+import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
+import { placedMeshes } from './placed.ts'
+import { registerPagedSource } from './pagedSource.ts'
+import { bindSkins, clipsOf, movedNodes } from './motion.ts'
+import type { RowLink } from '../../partition/rows.ts'
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import { drawnTwoSided } from '../../../../sdk-core/src/physics/soft.ts'
 
 /** What the engine knows a drawn mesh by: its mesh and primitive ranks, and the rows placing it
  *  when a partition's cells do. */
-type MeshRanks = RowLink;
+type MeshRanks = RowLink
 
 type Inputs = {
-  tables: PreparedSceneTables;
-  meshes: TableDocument['meshes'];
+  tables: PreparedSceneTables
+  meshes: TableDocument['meshes']
   /** The meshes the drawn pages were cut from, when not `meshes`: the source document's, at the
    *  same ranks, for the autonomous one, whose primitives are one degenerate triangle each. */
-  pagedFrom?: TableDocument['meshes'];
+  pagedFrom?: TableDocument['meshes']
   /** The geometry of each of those, read when a class change cuts its pages again (#846). */
-  pagedGeometryOf?: (mesh: number, primitive: number) => Geometry;
-  geometryOf: (mesh: number, primitive: number) => Geometry;
-  materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
+  pagedGeometryOf?: (mesh: number, primitive: number) => Geometry
+  geometryOf: (mesh: number, primitive: number) => Geometry
+  materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>
   /** Whether a cloth draws the primitive (`drawnTwoSided`), once its manifest lists it. */
-  clothOf?: (mesh: number, primitive: number) => Promise<boolean>;
-};
+  clothOf?: (mesh: number, primitive: number) => Promise<boolean>
+}
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
 export async function preparedGraph(inputs: Inputs) {
-  const { tables, meshes, pagedFrom, geometryOf, materialOf, clothOf } = inputs;
-  const unique = uniqueNames();
-  const ranks = new Map<Object3D, MeshRanks>();
-  const scene = new Group();
-  if (tables.scene.name) scene.name = unique(tables.scene.name);
+  const { tables, meshes, pagedFrom, geometryOf, materialOf, clothOf } = inputs
+  const unique = uniqueNames()
+  const ranks = new Map<Object3D, MeshRanks>()
+  const scene = new Group()
+  if (tables.scene.name) scene.name = unique(tables.scene.name)
   const refs = (field: 'mesh' | 'light' | 'camera') => {
-    const counts = new Map<number, number>();
+    const counts = new Map<number, number>()
     for (const node of tables.nodes)
-      if (node[field] !== null) counts.set(node[field], (counts.get(node[field]) ?? 0) + 1);
-    return counts;
-  };
-  const counts = { mesh: refs('mesh'), light: refs('light'), camera: refs('camera') };
-  const uses = new Map<string, number>();
+      if (node[field] !== null) counts.set(node[field], (counts.get(node[field]) ?? 0) + 1)
+    return counts
+  }
+  const counts = { mesh: refs('mesh'), light: refs('light'), camera: refs('camera') }
+  const uses = new Map<string, number>()
   /** The object a node names, or its copy when several nodes name it. */
   const reference = (kind: keyof typeof counts, rank: number, made: Object3D) => {
-    if ((counts[kind].get(rank) ?? 0) <= 1) return made;
-    const copy = numbered(made.clone());
+    if ((counts[kind].get(rank) ?? 0) <= 1) return made
+    const copy = numbered(made.clone())
     const walk = (from: Object3D, to: Object3D) => {
-      if (from !== made && from.name) to.name = unique(from.name);
-      const held = ranks.get(from);
-      if (held) ranks.set(to, held);
-      from.children.forEach((child, i) => walk(child, to.children[i]));
-    };
-    walk(made, copy);
-    const key = `${kind}:${rank}`;
-    const use = uses.get(key) ?? 0;
-    uses.set(key, use + 1);
-    copy.name += `_instance_${use}`;
-    return copy;
-  };
+      if (from !== made && from.name) to.name = unique(from.name)
+      const held = ranks.get(from)
+      if (held) ranks.set(to, held)
+      from.children.forEach((child, i) => walk(child, to.children[i]))
+    }
+    walk(made, copy)
+    const key = `${kind}:${rank}`
+    const use = uses.get(key) ?? 0
+    uses.set(key, use + 1)
+    copy.name += `_instance_${use}`
+    return copy
+  }
   // Names first, depth first: node, then its camera, then its light; each camera and each light
   // is built at its first use.
-  const cameras = new Map<number, Camera>();
-  const lights = new Map<number, Light>();
-  const nodeNames = new Map<number, string>();
-  const order: number[] = [];
-  const named = new Set<number>();
+  const cameras = new Map<number, Camera>()
+  const lights = new Map<number, Light>()
+  const nodeNames = new Map<number, string>()
+  const order: number[] = []
+  const named = new Set<number>()
   // A node a clip moves or a skin bends by is found by name: one the file left unnamed gets one.
-  const moved = movedNodes(tables);
+  const moved = movedNodes(tables)
   const reserve = (id: number) => {
-    const node = tables.nodes[id];
-    const name = node.name || (moved.has(id) ? `node_${id}` : '');
-    nodeNames.set(id, name ? unique(name) : '');
+    const node = tables.nodes[id]
+    const name = node.name || (moved.has(id) ? `node_${id}` : '')
+    nodeNames.set(id, name ? unique(name) : '')
     if (node.mesh !== null && !named.has(node.mesh)) {
-      named.add(node.mesh);
-      order.push(node.mesh);
+      named.add(node.mesh)
+      order.push(node.mesh)
     }
     if (node.camera !== null && !cameras.has(node.camera)) {
-      const declared = tables.cameras[node.camera];
-      const made = camera(declared);
-      if (declared.name) made.name = unique(declared.name);
-      cameras.set(node.camera, made);
+      const declared = tables.cameras[node.camera]
+      const made = camera(declared)
+      if (declared.name) made.name = unique(declared.name)
+      cameras.set(node.camera, made)
     }
     if (node.light !== null && !lights.has(node.light)) {
-      const declared = tables.lights[node.light];
-      lights.set(node.light, light(declared, unique(declared.name || `light_${node.light}`)));
+      const declared = tables.lights[node.light]
+      lights.set(node.light, light(declared, unique(declared.name || `light_${node.light}`)))
     }
-    for (const child of node.children) reserve(child);
-  };
-  for (const root of tables.scene.nodes) reserve(root);
+    for (const child of node.children) reserve(child)
+  }
+  for (const root of tables.scene.nodes) reserve(root)
   // The meshes the partition's cells place are built with the others, whatever cell brings them.
   for (const rank of tables.partition?.meshes ?? [])
     if (!named.has(rank)) {
-      named.add(rank);
-      order.push(rank);
+      named.add(rank)
+      order.push(rank)
     }
   // Meshes, in the order they were first named. Every surface is asked for before any is waited
   // on: their images load together, as the loader loaded them.
   const drawn = order.map((rank) =>
     meshes[rank].primitives.map((primitive, p) => {
-      const geometry = geometryOf(rank, p);
+      const geometry = geometryOf(rank, p)
       // The variant waits for the manifest to list the primitive: a cloth's is drawn on both faces.
       const material = (clothOf?.(rank, p) ?? Promise.resolve(false)).then((cloth) => {
-        if (cloth) drawnByCloth(geometry);
-        const variant = surfaceVariantOf(geometry);
+        if (cloth) drawnByCloth(geometry)
+        const variant = surfaceVariantOf(geometry)
         // The pages carry the normals of the primitive they were cut from: flat only without them.
-        const cut = pagedFrom?.[rank]?.primitives[p];
-        if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
-        return materialOf(primitive.material, variant);
-      });
-      return { geometry, material };
+        const cut = pagedFrom?.[rank]?.primitives[p]
+        if (cut) variant.flatShading = cut.attributes.NORMAL === undefined
+        return materialOf(primitive.material, variant)
+      })
+      return { geometry, material }
     }),
-  );
+  )
   // Each mesh is named when its surfaces are ready, as the loader named it: meshes whose
   // surfaces land together keep the order they were first named in. The ranks are recorded
   // afterwards in that first order, whatever order the images landed in.
@@ -143,69 +143,69 @@ export async function preparedGraph(inputs: Inputs) {
     order.map((rank, at) =>
       Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
         drawn[at].map(({ geometry }, p) => {
-          const mesh = numbered(new Mesh(geometry, surfaces[p]));
-          if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights);
-          mesh.name = unique(meshes[rank].name || `mesh_${rank}`);
-          return mesh;
+          const mesh = numbered(new Mesh(geometry, surfaces[p]))
+          if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights)
+          mesh.name = unique(meshes[rank].name || `mesh_${rank}`)
+          return mesh
         }),
       ),
     ),
-  );
-  const built = new Map<number, Object3D>();
+  )
+  const built = new Map<number, Object3D>()
   for (const [at, rank] of order.entries()) {
-    const parts = made[at];
-    parts.forEach((mesh, p) => ranks.set(mesh, { meshes: rank, primitives: p }));
-    if (parts.length === 1) built.set(rank, parts[0]);
+    const parts = made[at]
+    parts.forEach((mesh, p) => ranks.set(mesh, { meshes: rank, primitives: p }))
+    if (parts.length === 1) built.set(rank, parts[0])
     else {
-      const group = new Group();
-      ranks.set(group, { meshes: rank });
-      for (const part of parts) group.add(part);
-      built.set(rank, group);
+      const group = new Group()
+      ranks.set(group, { meshes: rank })
+      for (const part of parts) group.add(part)
+      built.set(rank, group)
     }
   }
   /** The host node of each rank, which a cell's node may hang under. */
-  const nodes: Object3D[] = [];
+  const nodes: Object3D[] = []
   const assemble = (id: number): Object3D => {
-    const declared = tables.nodes[id];
-    const carried: Object3D[] = [];
+    const declared = tables.nodes[id]
+    const carried: Object3D[] = []
     if (declared.mesh !== null) {
-      const mesh = reference('mesh', declared.mesh, built.get(declared.mesh)!);
+      const mesh = reference('mesh', declared.mesh, built.get(declared.mesh)!)
       // Weights a node declares override its mesh's, on every primitive it draws.
       if (declared.weights)
-        mesh.traverse((part) => isDrawnNode(part) && weigh(part, declared.weights));
-      carried.push(mesh);
+        mesh.traverse((part) => isDrawnNode(part) && weigh(part, declared.weights))
+      carried.push(mesh)
     }
     if (declared.camera !== null)
-      carried.push(reference('camera', declared.camera, cameras.get(declared.camera)!));
+      carried.push(reference('camera', declared.camera, cameras.get(declared.camera)!))
     if (declared.light !== null)
-      carried.push(reference('light', declared.light, lights.get(declared.light)!));
+      carried.push(reference('light', declared.light, lights.get(declared.light)!))
     const node =
       carried.length === 1
         ? carried[0]
         : carried.length
           ? new Group().add(...carried)
-          : new Object3D();
-    if (declared.name) node.userData.name = declared.name;
-    if (nodeNames.get(id)) node.name = nodeNames.get(id)!;
-    pose(node, declared);
+          : new Object3D()
+    if (declared.name) node.userData.name = declared.name
+    if (nodeNames.get(id)) node.name = nodeNames.get(id)!
+    pose(node, declared)
     // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
-    node.visible = declared.visible;
-    nodes[id] = node;
-    registerPreparedNodeRank(node, readPreparedSourceRank(declared.sourceNode, id));
-    for (const child of declared.children) node.add(assemble(child));
-    return node;
-  };
-  for (const root of tables.scene.nodes) scene.add(assemble(root));
-  bindSkins(tables, nodes);
-  const clips = clipsOf(tables, nodes);
-  const at = new Map(order.map((rank, index) => [rank, index]));
-  const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!]);
-  const { pagedGeometryOf } = inputs;
+    node.visible = declared.visible
+    nodes[id] = node
+    registerPreparedNodeRank(node, readPreparedSourceRank(declared.sourceNode, id))
+    for (const child of declared.children) node.add(assemble(child))
+    return node
+  }
+  for (const root of tables.scene.nodes) scene.add(assemble(root))
+  bindSkins(tables, nodes)
+  const clips = clipsOf(tables, nodes)
+  const at = new Map(order.map((rank, index) => [rank, index]))
+  const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!])
+  const { pagedGeometryOf } = inputs
   if (pagedGeometryOf)
     for (const [mesh, { meshes: rank, primitives: p }] of ranks)
       if (rank !== undefined && p !== undefined)
-        registerPagedSource(mesh, () => pagedGeometryOf(rank, p));
-  return { scene, ranks, nodes, placed, clips };
+        registerPagedSource(mesh, () => pagedGeometryOf(rank, p))
+  return { scene, ranks, nodes, placed, clips }
 }
 
 /** Whether a cloth draws primitive `primitive` of mesh `mesh`: the soft body kind the compiler
@@ -220,7 +220,7 @@ export function clothPrimitives(metadata: ClusterManifest, listed: Promise<unkno
           .filter((p) => drawnTwoSided(p.deformation?.softKind))
           .map((p) => `${p.mesh}:${p.primitive}`),
       ),
-  );
+  )
   return (mesh: number, primitive: number) =>
-    cloths.then((listed) => listed.has(`${mesh}:${primitive}`));
+    cloths.then((listed) => listed.has(`${mesh}:${primitive}`))
 }

@@ -17,4 +17,4 @@ fn projectedBound(error:f32,v:vec3f,radius:f32,stretch:f32,focal:f32,near:f32,pe
  if(!(slant>=nearest&&slant<INF)){return INF;}
  return ((shift*focal)/nearest)*(slant/closest);
 }
-`;
+`

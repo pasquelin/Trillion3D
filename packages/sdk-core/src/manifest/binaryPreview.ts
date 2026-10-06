@@ -1,37 +1,37 @@
-import { EngineError, type TexturePreview } from '../contracts/index.ts';
-import * as format from './binaryFormat.ts';
-import { previewGeometry } from '../texture/previewLevels.ts';
-import { checkEntryHeader, levelLengths } from './binaryPreviewEntry.ts';
+import { EngineError, type TexturePreview } from '../contracts/index.ts'
+import * as format from './binaryFormat.ts'
+import { previewGeometry } from '../texture/previewLevels.ts'
+import { checkEntryHeader, levelLengths } from './binaryPreviewEntry.ts'
 
 type PreviewColumns = {
-  count: number;
-  previewWords: Uint32Array;
-  previewShaText: string;
-  previewPixels: Uint8Array<ArrayBuffer>;
+  count: number
+  previewWords: Uint32Array
+  previewShaText: string
+  previewPixels: Uint8Array<ArrayBuffer>
   /** The block-compressed tails, one column per format, entries contiguous in order. */
-  previewBlocks: Record<format.TextureBlockFormat, Uint8Array<ArrayBuffer>>;
-};
+  previewBlocks: Record<format.TextureBlockFormat, Uint8Array<ArrayBuffer>>
+}
 
 /** The layout a family's word names, or a refusal of a word no layout owns. */
 function layoutOf(entry: number, name: format.TextureBlockFormat, word: number) {
-  const layout = format.PREVIEW_LAYOUT_NAMES[word];
+  const layout = format.PREVIEW_LAYOUT_NAMES[word]
   if (layout === undefined)
     throw new EngineError('INVALID_CACHE', 'A texture preview names an unknown block layout', {
       entry,
       format: name,
       word,
-    });
-  return layout;
+    })
+  return layout
 }
 
 /** Consecutive views of `lengths` bytes out of `column` from `at`, and where they end. */
 function slices(column: Uint8Array<ArrayBuffer>, at: number, lengths: readonly number[]) {
   const views = lengths.map((length) => {
-    const view = column.subarray(at, at + length);
-    at += length;
-    return view;
-  });
-  return { views, end: at };
+    const view = column.subarray(at, at + length)
+    at += length
+    return view
+  })
+  return { views, end: at }
 }
 
 /**
@@ -43,28 +43,28 @@ function slices(column: Uint8Array<ArrayBuffer>, at: number, lengths: readonly n
  * entry has none, and a column that ends before or after the last entry is refused whole.
  */
 export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[] {
-  const { count, previewWords, previewShaText, previewPixels, previewBlocks } = columns;
-  const previews: TexturePreview[] = new Array(count);
+  const { count, previewWords, previewShaText, previewPixels, previewBlocks } = columns
+  const previews: TexturePreview[] = new Array(count)
   let previous = -1,
-    consumed = 0;
-  const blocksAt = { bc7: 0, astc: 0 } as Record<format.TextureBlockFormat, number>;
+    consumed = 0
+  const blocksAt = { bc7: 0, astc: 0 } as Record<format.TextureBlockFormat, number>
   for (let entry = 0; entry < count; entry++) {
-    const base = entry * format.PREVIEW_WORDS;
-    const texture = previewWords[base + format.PREVIEW_TEXTURE];
+    const base = entry * format.PREVIEW_WORDS
+    const texture = previewWords[base + format.PREVIEW_TEXTURE]
     const width = previewWords[base + format.PREVIEW_WIDTH],
-      height = previewWords[base + format.PREVIEW_HEIGHT];
+      height = previewWords[base + format.PREVIEW_HEIGHT]
     const atlas = previewWords[base + format.PREVIEW_ATLAS],
-      bakedLevels = previewWords[base + format.PREVIEW_BAKED_LEVELS];
-    const expected = previewGeometry(width, height);
-    const header = { texture, atlas, width, height, bakedLevels };
-    previous = checkEntryHeader(entry, header, previous, expected.firstLevel);
-    const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL];
+      bakedLevels = previewWords[base + format.PREVIEW_BAKED_LEVELS]
+    const expected = previewGeometry(width, height)
+    const header = { texture, atlas, width, height, bakedLevels }
+    previous = checkEntryHeader(entry, header, previous, expected.firstLevel)
+    const firstLevel = previewWords[base + format.PREVIEW_FIRST_LEVEL]
     const declared = {
       firstLevel,
       levelCount: previewWords[base + format.PREVIEW_LEVEL_COUNT],
       pixelBytes: previewWords[base + format.PREVIEW_PIXEL_BYTES],
-    };
-    const offset = previewWords[base + format.PREVIEW_PIXEL_OFFSET];
+    }
+    const offset = previewWords[base + format.PREVIEW_PIXEL_OFFSET]
     if (
       declared.firstLevel !== expected.firstLevel ||
       declared.levelCount !== expected.levelCount ||
@@ -74,7 +74,7 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
         'INVALID_CACHE',
         'A texture preview level geometry is not the one its dimensions imply',
         { entry, width, height, declared, expected },
-      );
+      )
     if (offset !== consumed || offset + declared.pixelBytes > previewPixels.length)
       throw new EngineError('INVALID_CACHE', 'A texture preview pixel range is not contiguous', {
         entry,
@@ -82,30 +82,30 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
         expected: consumed,
         bytes: declared.pixelBytes,
         column: previewPixels.length,
-      });
-    const lengths = levelLengths(expected);
-    const pixels = slices(previewPixels, offset, lengths.rgba);
-    consumed = pixels.end;
+      })
+    const lengths = levelLengths(expected)
+    const pixels = slices(previewPixels, offset, lengths.rgba)
+    consumed = pixels.end
     const layouts = {} as TexturePreview['layouts'],
-      blocks = {} as TexturePreview['blocks'];
+      blocks = {} as TexturePreview['blocks']
     format.PREVIEW_BLOCK_FORMATS.forEach((name, family) => {
-      layouts[name] = layoutOf(entry, name, previewWords[base + format.PREVIEW_LAYOUTS + family]);
+      layouts[name] = layoutOf(entry, name, previewWords[base + format.PREVIEW_LAYOUTS + family])
       if (layouts[name] === 'lossless') {
-        blocks[name] = [];
-        return;
+        blocks[name] = []
+        return
       }
-      const column = previewBlocks[name];
+      const column = previewBlocks[name]
       if (blocksAt[name] + expected.blockBytes > column.length)
         throw new EngineError('INVALID_CACHE', 'A texture preview block column is too short', {
           entry,
           format: name,
           column: column.length,
-        });
-      const sliced = slices(column, blocksAt[name], lengths.blocks);
-      blocks[name] = sliced.views;
-      blocksAt[name] = sliced.end;
-    });
-    const sourceKind = previewWords[base + format.PREVIEW_SOURCE_KIND];
+        })
+      const sliced = slices(column, blocksAt[name], lengths.blocks)
+      blocks[name] = sliced.views
+      blocksAt[name] = sliced.end
+    })
+    const sourceKind = previewWords[base + format.PREVIEW_SOURCE_KIND]
     previews[entry] = {
       texture,
       image: previewWords[base + format.PREVIEW_IMAGE],
@@ -123,7 +123,7 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       levels: pixels.views,
       layouts,
       blocks,
-    };
+    }
   }
   for (const name of format.PREVIEW_BLOCK_FORMATS)
     if (blocksAt[name] !== previewBlocks[name].length)
@@ -131,6 +131,6 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
         format: name,
         column: previewBlocks[name].length,
         expected: blocksAt[name],
-      });
-  return previews;
+      })
+  return previews
 }

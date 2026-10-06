@@ -10,40 +10,40 @@
  * and its `maxParentError` bounds every `parentError` below it, so the selected set is identical
  * with or without the hierarchy.
  */
-import type { GpuSelection } from '../core/selection.ts';
-import type { PackedDag } from './types.ts';
-import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-import { createDagResources } from './resources.ts';
-import { createDagRuntime } from './runtime.ts';
-import { dagDeviceRefusal } from './deviceRefusal.ts';
-export { packDagSelection } from './pack.ts';
-export type { PackedDag } from './types.ts';
+import type { GpuSelection } from '../core/selection.ts'
+import type { PackedDag } from './types.ts'
+import { selectionRepeat, type DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts'
+import { createDagResources } from './resources.ts'
+import { createDagRuntime } from './runtime.ts'
+import { dagDeviceRefusal } from './deviceRefusal.ts'
+export { packDagSelection } from './pack.ts'
+export type { PackedDag } from './types.ts'
 
 export async function createGpuDagSelection(
   device: GPUDevice,
   packed: PackedDag,
   options: {
-    residentCut?: boolean;
-    diagnosticGpuVariant?: DiagnosticGpuVariant;
+    residentCut?: boolean
+    diagnosticGpuVariant?: DiagnosticGpuVariant
     /** Told why a scene that has a cut gets no GPU cut: the host says so (`gpuSelectionFallback`). */
-    onRefused?: (reason: string, details?: Record<string, unknown>) => void;
+    onRefused?: (reason: string, details?: Record<string, unknown>) => void
   } = {},
 ): Promise<GpuSelection | undefined> {
-  if (typeof device.createComputePipeline !== 'function' || packed.pageCount < 1) return undefined;
-  const refusal = dagDeviceRefusal(device.limits, packed);
+  if (typeof device.createComputePipeline !== 'function' || packed.pageCount < 1) return undefined
+  const refusal = dagDeviceRefusal(device.limits, packed)
   if (refusal) {
-    options.onRefused?.('camera cut past the device limits', refusal);
-    return undefined;
+    options.onRefused?.('camera cut past the device limits', refusal)
+    return undefined
   }
   const resources = await createDagResources(
     device,
     packed,
     !!options.residentCut,
     selectionRepeat(options.diagnosticGpuVariant),
-  );
+  )
   if (!resources) {
-    options.onRefused?.('camera cut creation failed');
-    return undefined;
+    options.onRefused?.('camera cut creation failed')
+    return undefined
   }
-  return createDagRuntime(resources);
+  return createDagRuntime(resources)
 }

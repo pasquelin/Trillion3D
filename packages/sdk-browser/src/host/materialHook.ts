@@ -12,16 +12,16 @@
 /** The deepest declaration of `onBeforeCompile` in a material's prototype chain: the library's
  *  own empty hook, whatever the material's family. */
 function inheritedHook(material: object) {
-  let base: unknown;
+  let base: unknown
   for (let proto = Object.getPrototypeOf(material); proto; proto = Object.getPrototypeOf(proto)) {
-    const declared = Object.getOwnPropertyDescriptor(proto, 'onBeforeCompile')?.value;
-    if (typeof declared === 'function') base = declared;
+    const declared = Object.getOwnPropertyDescriptor(proto, 'onBeforeCompile')?.value
+    if (typeof declared === 'function') base = declared
   }
-  return base;
+  return base
 }
 
 /** True when the material reaches a compile hook other than the one it inherits. */
 export function declaresCompileHook(material: { readonly onBeforeCompile?: unknown }) {
-  const hook = material.onBeforeCompile;
-  return typeof hook === 'function' && hook !== inheritedHook(material);
+  const hook = material.onBeforeCompile
+  return typeof hook === 'function' && hook !== inheritedHook(material)
 }

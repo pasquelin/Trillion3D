@@ -1,17 +1,17 @@
-import type { Object3D } from './object3d.ts';
+import type { Object3D } from './object3d.ts'
 
 /** What a node reports to the world it hangs in: a pose moved, the tree changed, a content changed. */
 export interface SceneLink {
-  /** A node moved. */ pose(node: Object3D): void;
+  /** A node moved. */ pose(node: Object3D): void
   /** Many nodes moved at once, written straight into their tree (the physics' bodies): told once. */
-  posed(nodes: readonly Object3D[]): void;
-  /** A node gained or lost children. */ structure(node: Object3D): void;
+  posed(nodes: readonly Object3D[]): void
+  /** A node gained or lost children. */ structure(node: Object3D): void
   /** A node entered this world: told once for each node of the subtree an add brings in, so one
    *  that left and came back in the same burst has its children read again — those it gained while
    *  out of the world included. A node the world never knew is read with its parent. */
-  entered?(node: Object3D): void;
-  /** A node's shape or material changed. */ content(node: Object3D): void;
-  /** A node's `castShadow` changed: nothing moved. */ shadow?(node: Object3D): void;
+  entered?(node: Object3D): void
+  /** A node's shape or material changed. */ content(node: Object3D): void
+  /** A node's `castShadow` changed: nothing moved. */ shadow?(node: Object3D): void
   /**
    * The row `node` is drawn from, or `null` when it holds none: sixteen column-major floats at
    * `row * 16` of `batch.rows.matrices`, read in place by the renderer. An owner placing nodes by
@@ -19,11 +19,11 @@ export interface SceneLink {
    * stands, and names the rows it wrote through `placed`.
    */
   seat?(node: Object3D): {
-    readonly batch: { readonly rows: { readonly matrices: Float64Array } | null };
-    readonly row: number;
-  } | null;
+    readonly batch: { readonly rows: { readonly matrices: Float64Array } | null }
+    readonly row: number
+  } | null
   /** Moves whenever a row is taken, freed or reallocated: every `seat` answer before it is stale. */
-  seatEpoch?(): number;
+  seatEpoch?(): number
   /** Rows `from` to `to` of `batch` were written through `seat`: drawn at the next frame. */
-  placed?(batch: object, from: number, to: number): void;
+  placed?(batch: object, from: number, to: number): void
 }

@@ -1,6 +1,6 @@
-import { createMobilityState, ensureLayout, holdsPose, touchRank } from './mobilityState.ts';
-import { followLead, moveLeadSlot, moveRank, settleMoving } from './mobilityMoves.ts';
-import { writeMobilityRows } from './mobilityWrite.ts';
+import { createMobilityState, ensureLayout, holdsPose, touchRank } from './mobilityState.ts'
+import { followLead, moveLeadSlot, moveRank, settleMoving } from './mobilityMoves.ts'
+import { writeMobilityRows } from './mobilityWrite.ts'
 
 /**
  * WHICH PLACEMENTS MOVE, as the shadow pages see them. A
@@ -25,13 +25,13 @@ import { writeMobilityRows } from './mobilityWrite.ts';
  * `mobilityWrite.ts`.
  */
 export function createShadowMobility() {
-  const s = createMobilityState();
+  const s = createMobilityState()
   return {
     moves: (rank: number) => s.moving[rank] === 1,
     poseOf: (rank: number) =>
       rank >= 0 && rank < s.moving.length ? s.poses.subarray(rank * 16, rank * 16 + 16) : undefined,
     get rowWords() {
-      return s.rows;
+      return s.rows
     },
     holds: (rank: number, world: ArrayLike<number>, box?: ArrayLike<number>) =>
       holdsPose(s, rank, world, box),
@@ -45,7 +45,7 @@ export function createShadowMobility() {
       settleMoving(s, threshold, turnedStatic),
     touch: (rank: number) => touchRank(s, rank),
     writeRows: writeMobilityRows.bind(null, s),
-  };
+  }
 }
 
-export type ShadowMobility = ReturnType<typeof createShadowMobility>;
+export type ShadowMobility = ReturnType<typeof createShadowMobility>

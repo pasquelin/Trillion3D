@@ -1,6 +1,6 @@
 // The table of an image's CPU bounds, alone: the timing state reads its names without the
 // frame code that fills them.
-import { cpuStepTable } from '../../../stage/cpuSteps.ts';
+import { cpuStepTable } from '../../../stage/cpuSteps.ts'
 
 /**
  * CPU bounds of an image, in order: for each, its public name and the profile stage it deposits
@@ -39,8 +39,8 @@ const CPU = cpuStepTable([
   ['submitMs', 'submit'],
   ['encodeSubmitMs', null],
   ['totalMs', null],
-] as const);
-export const CPU_STEP_NAMES = CPU.names;
-export const CPU_STEP = CPU.at;
+] as const)
+export const CPU_STEP_NAMES = CPU.names
+export const CPU_STEP = CPU.at
 /** Stage of each bound, in profile-row order; `null` for a sum. */
-export const CPU_STEP_STAGES = CPU.stages;
+export const CPU_STEP_STAGES = CPU.stages

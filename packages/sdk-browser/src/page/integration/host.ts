@@ -1,30 +1,30 @@
-import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts';
-import { createPageIntegrationLane } from './lane.ts';
-import { createPageIntegrationRunner } from './task.ts';
-import type { PageIntegrationAnswer } from '../../../../sdk-core/src/index.ts';
+import { PAGE_INTEGRATION_PROTOCOL } from '../../../../sdk-core/src/index.ts'
+import { createPageIntegrationLane } from './lane.ts'
+import { createPageIntegrationRunner } from './task.ts'
+import type { PageIntegrationAnswer } from '../../../../sdk-core/src/index.ts'
 
 /** What a planned arrival returns to the main thread: integers, already in the record's order. */
 export type ArrivalPlan = {
   /** The bundle that arrived. */
-  url: string;
+  url: string
   /** Where each cluster goes in the pack. */
-  slices: Int32Array;
+  slices: Int32Array
   /** How many clusters. */
-  count: number;
+  count: number
   /** The page ranks it moves. */
-  pages: Int32Array;
+  pages: Int32Array
   /** How many pages. */
-  pageCount: number;
-};
+  pageCount: number
+}
 
-const counters = { plans: 0, offThread: 0, planMs: 0 };
+const counters = { plans: 0, offThread: 0, planMs: 0 }
 /** Fallback: the same task, the same function, run on the main thread. */
-const inline = createPageIntegrationRunner();
-const inlineKnown = new Set<string>();
-let lane: ReturnType<typeof createPageIntegrationLane> | undefined;
-let laneKnown = new Set<string>();
+const inline = createPageIntegrationRunner()
+const inlineKnown = new Set<string>()
+let lane: ReturnType<typeof createPageIntegrationLane> | undefined
+let laneKnown = new Set<string>()
 /** `undefined` until the startup check has answered, then its verdict. */
-let started: boolean | undefined;
+let started: boolean | undefined
 
 /**
  * The integration lane if its startup probe has already succeeded, `undefined` otherwise.
@@ -33,34 +33,34 @@ let started: boolean | undefined;
  * a worker starting. A lane broken after its start does not come back.
  */
 function openLane() {
-  if (started === false) return undefined;
+  if (started === false) return undefined
   if (!lane) {
-    lane = createPageIntegrationLane();
+    lane = createPageIntegrationLane()
     void lane.start().then((ok) => {
-      started = ok;
-      if (!ok) lane = undefined;
-    });
+      started = ok
+      if (!ok) lane = undefined
+    })
   }
   if (started && !lane.alive) {
-    started = false;
-    return undefined;
+    started = false
+    return undefined
   }
-  return started ? lane : undefined;
+  return started ? lane : undefined
 }
 
 const read = (answer: PageIntegrationAnswer, offThread: boolean): ArrivalPlan | undefined => {
-  if (!answer.ok) return undefined;
-  counters.plans++;
-  counters.planMs += answer.taskMs;
-  if (offThread) counters.offThread++;
+  if (!answer.ok) return undefined
+  counters.plans++
+  counters.planMs += answer.taskMs
+  if (offThread) counters.offThread++
   return {
     url: answer.url,
     slices: new Int32Array(answer.slices),
     count: answer.count,
     pages: new Int32Array(answer.pages),
     pageCount: answer.pageCount,
-  };
-};
+  }
+}
 
 /**
  * The plan made inline, with the record the caller holds: it fails only if that is
@@ -68,8 +68,8 @@ const read = (answer: PageIntegrationAnswer, offThread: boolean): ArrivalPlan | 
  * waiting for its plan calls.
  */
 export function planArrivalHere(url: string, words: number, specs: Int32Array | undefined) {
-  const send = !inlineKnown.has(url);
-  if (send && specs) inlineKnown.add(url);
+  const send = !inlineKnown.has(url)
+  if (send && specs) inlineKnown.add(url)
   return read(
     inline.run({
       protocol: PAGE_INTEGRATION_PROTOCOL,
@@ -79,7 +79,7 @@ export function planArrivalHere(url: string, words: number, specs: Int32Array | 
       specs: send && specs ? (specs.slice().buffer as ArrayBuffer) : null,
     }),
     false,
-  );
+  )
 }
 
 /**
@@ -103,44 +103,40 @@ export function planArrival(
   words: number,
   specs: Int32Array | undefined,
 ): ArrivalPlan | undefined | Promise<ArrivalPlan | undefined> {
-  const open = openLane();
+  const open = openLane()
   // Without a record, and without a record already known to the lane, there is nothing to
   // plan: the inline fallback says so at once rather than sending a message for a refusal.
-  if (!open || (!specs && !laneKnown.has(url))) return planArrivalHere(url, words, specs);
-  const send = !laneKnown.has(url);
-  if (send && specs) laneKnown.add(url);
-  const sent = open.submit(
-    url,
-    words,
-    send && specs ? (specs.slice().buffer as ArrayBuffer) : null,
-  );
+  if (!open || (!specs && !laneKnown.has(url))) return planArrivalHere(url, words, specs)
+  const send = !laneKnown.has(url)
+  if (send && specs) laneKnown.add(url)
+  const sent = open.submit(url, words, send && specs ? (specs.slice().buffer as ArrayBuffer) : null)
   return sent.then((answer) => {
     // A vanished worker, or a worker without the record, loses nothing: the bytes stayed
     // with their owner, and the main thread can make the same plan.
     if (!answer.ok) {
-      if (!open.alive) laneKnown = new Set();
-      else laneKnown.delete(url);
-      return planArrivalHere(url, words, specs);
+      if (!open.alive) laneKnown = new Set()
+      else laneKnown.delete(url)
+      return planArrivalHere(url, words, specs)
     }
-    return read(answer, true);
-  });
+    return read(answer, true)
+  })
 }
 
 /** Off-thread plans and cumulative plan time. `null` when nothing was planned: an
  *  unmeasured metric is not a zero. */
 export function pageIntegrationStats() {
-  if (!counters.plans) return { offThread: null, planMs: null };
-  return { offThread: counters.offThread, planMs: counters.planMs };
+  if (!counters.plans) return { offThread: null, planMs: null }
+  return { offThread: counters.offThread, planMs: counters.planMs }
 }
 
 /** Closes the lane and resets the counters to their unmeasured state. */
 export function releasePageIntegration() {
-  lane?.retire();
-  lane = undefined;
-  started = undefined;
-  laneKnown = new Set();
-  inlineKnown.clear();
-  counters.plans = 0;
-  counters.offThread = 0;
-  counters.planMs = 0;
+  lane?.retire()
+  lane = undefined
+  started = undefined
+  laneKnown = new Set()
+  inlineKnown.clear()
+  counters.plans = 0
+  counters.offThread = 0
+  counters.planMs = 0
 }

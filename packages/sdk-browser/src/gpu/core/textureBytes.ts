@@ -28,7 +28,7 @@ const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
   rgba16uint: 8,
   rgba32float: 16,
   rgba32uint: 16,
-};
+}
 /** Bytes per 4×4 block of the compressed formats: what T5 will allocate. */
 const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc1-rgba-unorm': 8,
@@ -41,35 +41,35 @@ const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
   'bc7-rgba-unorm-srgb': 16,
   'astc-4x4-unorm': 16,
   'astc-4x4-unorm-srgb': 16,
-};
+}
 
 function extent(size: GPUExtent3D): [number, number, number] {
-  if (Array.isArray(size)) return [size[0] ?? 1, size[1] ?? 1, size[2] ?? 1];
-  const s = size as GPUExtent3DDict;
-  return [s.width, s.height ?? 1, s.depthOrArrayLayers ?? 1];
+  if (Array.isArray(size)) return [size[0] ?? 1, size[1] ?? 1, size[2] ?? 1]
+  const s = size as GPUExtent3DDict
+  return [s.width, s.height ?? 1, s.depthOrArrayLayers ?? 1]
 }
 
 /** Bytes of a texture, every mip level included; `null` on a format outside the table. */
 export function textureBytesOf(
   descriptor: Partial<GPUTextureDescriptor> & Pick<GPUTextureDescriptor, 'size' | 'format'>,
 ): number | null {
-  const perTexel = BYTES_PER_TEXEL[descriptor.format];
-  const perBlock = BYTES_PER_BLOCK[descriptor.format];
-  if (perTexel === undefined && perBlock === undefined) return null;
-  const [width, height, depth] = extent(descriptor.size);
-  const levels = descriptor.mipLevelCount ?? 1;
-  const volume = descriptor.dimension === '3d';
-  let bytes = 0;
+  const perTexel = BYTES_PER_TEXEL[descriptor.format]
+  const perBlock = BYTES_PER_BLOCK[descriptor.format]
+  if (perTexel === undefined && perBlock === undefined) return null
+  const [width, height, depth] = extent(descriptor.size)
+  const levels = descriptor.mipLevelCount ?? 1
+  const volume = descriptor.dimension === '3d'
+  let bytes = 0
   for (let level = 0; level < levels; level++) {
     const w = Math.max(1, width >> level),
       h = Math.max(1, height >> level),
-      d = volume ? Math.max(1, depth >> level) : depth;
+      d = volume ? Math.max(1, depth >> level) : depth
     bytes +=
       perTexel !== undefined
         ? w * h * d * perTexel
-        : Math.ceil(w / 4) * Math.ceil(h / 4) * d * perBlock!;
+        : Math.ceil(w / 4) * Math.ceil(h / 4) * d * perBlock!
   }
-  return bytes * (descriptor.sampleCount ?? 1);
+  return bytes * (descriptor.sampleCount ?? 1)
 }
 
 /** Bytes of a texture already made, from what it says of itself (`textureBytesOf`); 0 for a
@@ -81,7 +81,7 @@ export const madeTextureBytes = (texture: GPUTexture) =>
     mipLevelCount: texture.mipLevelCount,
     sampleCount: texture.sampleCount,
     dimension: texture.dimension,
-  }) ?? 0;
+  }) ?? 0
 
 /** Bytes of levels 1 and up of a `levels`-level chain: the mips beside a level 0 held elsewhere. */
 export function mipTailBytes(
@@ -90,8 +90,8 @@ export function mipTailBytes(
   format: GPUTextureFormat,
   levels: number,
 ): number {
-  const size: GPUExtent3D = [width, height];
+  const size: GPUExtent3D = [width, height]
   return (
     textureBytesOf({ size, format, mipLevelCount: levels })! - textureBytesOf({ size, format })!
-  );
+  )
 }

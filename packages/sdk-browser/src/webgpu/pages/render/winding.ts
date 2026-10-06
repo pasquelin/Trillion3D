@@ -1,6 +1,6 @@
-import { matrixWindingCw } from '../../../../../sdk-core/src/index.ts';
-import type { ClusterRoot } from '../../../page/selection/types.ts';
-import { rootOf } from '../../../page/selection/placements.ts';
+import { matrixWindingCw } from '../../../../../sdk-core/src/index.ts'
+import type { ClusterRoot } from '../../../page/selection/types.ts'
+import { rootOf } from '../../../page/selection/placements.ts'
 
 /**
  * Winding of a placement: true when its root's world matrix reverses orientation, which swaps the
@@ -12,11 +12,11 @@ import { rootOf } from '../../../page/selection/placements.ts';
  * have moved: `renderWebgpuPages` posts it at the head of the image, and a root whose epoch
  * matches yields the already-computed value. One extra epoch only recomputes.
  */
-let epoque = 0;
+let epoque = 0
 
 /** Posts the image's epoch. Beyond it, every memoised winding is taken back to zero. */
 export function setWindingEpoch(valeur: number) {
-  epoque = valeur;
+  epoque = valeur
 }
 
 /** The winding of the root of rank `rank` in `roots`. */
@@ -24,10 +24,10 @@ export function windingCw(
   roots: readonly Pick<ClusterRoot<unknown>, 'world' | 'windingCw' | 'windingEpoch'>[],
   rank: number,
 ) {
-  const root = rootOf(roots, rank);
-  if (root.windingEpoch === epoque && root.windingCw !== undefined) return root.windingCw;
-  const cw = matrixWindingCw(root.world.elements);
-  root.windingEpoch = epoque;
-  root.windingCw = cw;
-  return cw;
+  const root = rootOf(roots, rank)
+  if (root.windingEpoch === epoque && root.windingCw !== undefined) return root.windingCw
+  const cw = matrixWindingCw(root.world.elements)
+  root.windingEpoch = epoque
+  root.windingCw = cw
+  return cw
 }

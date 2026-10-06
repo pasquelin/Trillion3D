@@ -3,13 +3,13 @@
 // what the resolve stored before (`shadeWgsl.ts` up to #1410, its statements kept below but the
 // line widening, whose result it never stored), on the same pages, pixels and shared routines: the
 // same operations in the same order give the same bits, here in double precision.
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts';
-import { perspectiveProjection } from '../../../../sdk-core/src/index.ts';
-import { CLASS_FEATURE } from './classWords.ts';
-import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
+import { perspectiveProjection } from '../../../../sdk-core/src/index.ts'
+import { CLASS_FEATURE } from './classWords.ts'
+import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
 
 /** The resolve's statements that wrote the offset before #1410, in their order; a discarded or
  *  empty pixel stored nothing, which the readers never read. */
@@ -56,37 +56,37 @@ const STORED_WGSL = `fn storedOffset(pos:vec2f)->vec3f{
   if(page.sprite.y==0.0&&page.lineWidth==0.0){stored=offset;}
  }
  return stored;
-}`;
+}`
 
-type V = number[];
+type V = number[]
 const cross = builtins.cross as (a: V, b: V) => V,
-  dot = builtins.dot as (a: V, b: V) => number;
-const det3 = (m: V[]) => dot(m[0], cross(m[1], m[2]));
+  dot = builtins.dot as (a: V, b: V) => number
+const det3 = (m: V[]) => dot(m[0], cross(m[1], m[2]))
 /** A page's world, a matrix the WGSL both multiplies and reads by column: `Mat` holds both. */
-const world = (m: V) => new Mat(m);
+const world = (m: V) => new Mat(m)
 
 // A curved patch — a sphere's cap facing the camera, its normals radial: the penumbra fixture.
 const positions: V[] = [],
-  normals: V[] = [];
-const GRID = 3;
+  normals: V[] = []
+const GRID = 3
 for (let i = 0; i < GRID; i++)
   for (let j = 0; j < GRID; j++) {
     const theta = (i / (GRID - 1) - 0.5) * 1.1,
-      phi = (j / (GRID - 1) - 0.5) * 0.8;
-    const n = [Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)];
-    normals.push(n);
-    positions.push([n[0] * 2, n[1] * 2, n[2] * 2 - 6]);
+      phi = (j / (GRID - 1) - 0.5) * 0.8
+    const n = [Math.sin(theta) * Math.cos(phi), Math.sin(phi), Math.cos(theta) * Math.cos(phi)]
+    normals.push(n)
+    positions.push([n[0] * 2, n[1] * 2, n[2] * 2 - 6])
   }
-const corners: number[] = [];
+const corners: number[] = []
 for (let i = 0; i + 1 < GRID; i++)
   for (let j = 0; j + 1 < GRID; j++) {
-    const a = i * GRID + j;
-    corners.push(a, a + GRID, a + 1, a + 1, a + GRID, a + GRID + 1);
+    const a = i * GRID + j
+    corners.push(a, a + GRID, a + 1, a + 1, a + GRID, a + GRID + 1)
   }
 const TRIANGLES = corners.length / 3,
   NORMAL = CLASS_FEATURE.HAS_VERTEX_NORMAL,
-  TWO_SIDED = NORMAL | CLASS_FEATURE.DOUBLE_SIDED;
-const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  TWO_SIDED = NORMAL | CLASS_FEATURE.DOUBLE_SIDED
+const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 const row = (over: object = {}) => ({
   world: world(IDENTITY),
   indexCount: corners.length,
@@ -95,7 +95,7 @@ const row = (over: object = {}) => ({
   lineWidth: 0,
   flags: 0,
   ...over,
-});
+})
 const pages = [
   row(),
   // Sheared and scaled: the normals go through the inverse transpose.
@@ -110,11 +110,11 @@ const pages = [
   row({ lineWidth: 2 }),
   row({ materialClass: 0 }),
   row({ indexCount: 3 }),
-];
-const viewport = [64, 48];
-const projection = perspectiveProjection(new Float64Array(16), 50, 64 / 48, 0.1, 1);
-let id = 0;
-type Page = (typeof pages)[number];
+]
+const viewport = [64, 48]
+const projection = perspectiveProjection(new Float64Array(16), 50, 64 / 48, 0.1, 1)
+let id = 0
+type Page = (typeof pages)[number]
 const scope = {
   vis: {},
   uni: { viewProj: new Mat([...projection]), viewport, pageCount: pages.length },
@@ -134,9 +134,9 @@ const scope = {
   }),
   invTranspose3Apply: (t: { adj: V[]; scale: number }, v: V) =>
     [0, 1, 2].map((r) => t.scale * (t.adj[0][r] * v[0] + t.adj[1][r] * v[1] + t.adj[2][r] * v[2])),
-};
+}
 // The shipped text the readers insert, which carries the shared routines both sides call.
-const SHIPPED = receiverOffsetWgsl(0);
+const SHIPPED = receiverOffsetWgsl(0)
 const HELPERS = [
   'framebuffer',
   'edge',
@@ -147,34 +147,34 @@ const HELPERS = [
   'transformedNormals',
   'uniteOuZero',
   'shadingPointOffset',
-];
+]
 const { shadowReceiver } = shaderRun<{ shadowReceiver: (pixel: V) => { offset: V } }>(
   SHIPPED,
   ['shadowReceiver', ...HELPERS],
   { ...scope, ShadowReceiver: (offset: V, plane: V) => ({ offset, plane }) },
-);
+)
 const { storedOffset } = shaderRun<{ storedOffset: (pixel: V) => V }>(
   `${STORED_WGSL}\n${SHIPPED}`,
   ['storedOffset', ...HELPERS],
   scope,
-);
+)
 
 test('the recomputed receiver offset is the stored one, bit for bit, on every page and pixel', () => {
   let curved = 0,
-    checked = 0;
+    checked = 0
   // Every row, and one past the table; the background too.
-  const ids = [0];
+  const ids = [0]
   for (let page = 0; page <= pages.length; page++)
-    for (let tri = 0; tri < TRIANGLES; tri++) ids.push(((page + 1) << 8) | tri);
+    for (let tri = 0; tri < TRIANGLES; tri++) ids.push(((page + 1) << 8) | tri)
   for (const pixelId of ids)
     for (let y = 4; y < viewport[1]; y += 8)
       for (let x = 4; x < viewport[0]; x += 8) {
-        id = pixelId;
-        const pixel = [x + 0.5, y + 0.5];
-        const expected = storedOffset(pixel);
-        assert.deepEqual(shadowReceiver(pixel).offset, expected, `id ${pixelId} at ${pixel}`);
-        if (expected.some((v) => v !== 0)) curved++;
-        checked++;
+        id = pixelId
+        const pixel = [x + 0.5, y + 0.5]
+        const expected = storedOffset(pixel)
+        assert.deepEqual(shadowReceiver(pixel).offset, expected, `id ${pixelId} at ${pixel}`)
+        if (expected.some((v) => v !== 0)) curved++
+        checked++
       }
-  assert.ok(curved > 0, `a curved patch raises its receivers: ${curved} of ${checked}`);
-});
+  assert.ok(curved > 0, `a curved patch raises its receivers: ${curved} of ${checked}`)
+})

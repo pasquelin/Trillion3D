@@ -10,26 +10,26 @@
  */
 export function createRequestLoop(pass: () => Promise<void> | void) {
   let wanted = false,
-    running: Promise<void> | null = null;
+    running: Promise<void> | null = null
   const run = async () => {
     try {
       while (wanted) {
-        wanted = false;
-        await pass();
+        wanted = false
+        await pass()
       }
     } finally {
-      running = null;
+      running = null
     }
-  };
+  }
   return {
     /** Asks for one more pass; starts the loop when none runs. */
     request() {
-      wanted = true;
-      running ??= run();
+      wanted = true
+      running ??= run()
     },
     /** The loop in flight, or `null`. */
     get running() {
-      return running;
+      return running
     },
-  };
+  }
 }

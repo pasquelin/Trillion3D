@@ -1,7 +1,7 @@
-import { EngineError } from '../../../sdk-core/src/index.ts';
-import { verifyPageBytes } from '../page/decode/host.ts';
-import { unmetered, type ByteMeter } from './byteMeter.ts';
-import { checked } from './checked.ts';
+import { EngineError } from '../../../sdk-core/src/index.ts'
+import { verifyPageBytes } from '../page/decode/host.ts'
+import { unmetered, type ByteMeter } from './byteMeter.ts'
+import { checked } from './checked.ts'
 /** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
 export const corruptObject = (
   url: string,
@@ -21,7 +21,7 @@ export const corruptObject = (
       sha256: sha256 ?? null,
       expectedSha256: announced.sha256,
     },
-  );
+  )
 
 /**
  * Reads the cache object at `url` (`checked`) and hands its bytes back only when they are the ones
@@ -35,14 +35,14 @@ export async function fetchVerified(
   signal?: AbortSignal,
   meter: ByteMeter = unmetered,
 ) {
-  const buffer = await meter.read(await checked(url, signal), url).arrayBuffer();
-  const bytes = buffer.byteLength;
-  signal?.throwIfAborted();
-  if (bytes !== announced.bytes) throw corruptObject(url, announced, bytes, undefined);
-  const verified = await verifyPageBytes(buffer);
+  const buffer = await meter.read(await checked(url, signal), url).arrayBuffer()
+  const bytes = buffer.byteLength
+  signal?.throwIfAborted()
+  if (bytes !== announced.bytes) throw corruptObject(url, announced, bytes, undefined)
+  const verified = await verifyPageBytes(buffer)
   if (verified.sha256 !== announced.sha256)
-    throw corruptObject(url, announced, bytes, verified.sha256);
-  return verified.source;
+    throw corruptObject(url, announced, bytes, verified.sha256)
+  return verified.source
 }
 export async function loadClusterPages(
   pages: Array<{ url: string; bytes: number; sha256: string }>,
@@ -53,29 +53,29 @@ export async function loadClusterPages(
 ) {
   const indices = new Map<string, Uint32Array>(),
     abort = new AbortController(),
-    combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
+    combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal
   let next = 0,
     loaded = 0,
-    pageBytesRead = 0;
+    pageBytesRead = 0
   const workers = Array.from(
     { length: Math.min(Math.max(1, workerCount), pages.length) },
     async () => {
       while (next < pages.length) {
-        combined.throwIfAborted();
-        const page = pages[next++];
-        const buffer = await fetchVerified(new URL(page.url, base).href, page, combined);
-        indices.set(page.url, new Uint32Array(buffer));
-        pageBytesRead += buffer.byteLength;
-        progress(++loaded, pages.length);
+        combined.throwIfAborted()
+        const page = pages[next++]
+        const buffer = await fetchVerified(new URL(page.url, base).href, page, combined)
+        indices.set(page.url, new Uint32Array(buffer))
+        pageBytesRead += buffer.byteLength
+        progress(++loaded, pages.length)
       }
     },
-  );
+  )
   try {
-    await Promise.all(workers);
+    await Promise.all(workers)
   } catch (error) {
-    abort.abort(error instanceof Error ? error : String(error));
-    await Promise.all(workers.map((worker) => worker.catch(() => {})));
-    throw error;
+    abort.abort(error instanceof Error ? error : String(error))
+    await Promise.all(workers.map((worker) => worker.catch(() => {})))
+    throw error
   }
-  return { indices, loaded, pageBytesRead };
+  return { indices, loaded, pageBytesRead }
 }

@@ -1,7 +1,7 @@
-import { EVICTION_BURST } from '../readoutWords.ts';
-import { KEPT_HEADER_WORDS } from '../layout.ts';
-import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts';
-import { rankBlockWord } from './floorWgsl.ts';
+import { EVICTION_BURST } from '../readoutWords.ts'
+import { KEPT_HEADER_WORDS } from '../layout.ts'
+import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts'
+import { rankBlockWord } from './floorWgsl.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -68,8 +68,8 @@ fn dagCutKeep(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
   if(s==0u){out.pages[keptAt(l)]=listCount(l);}
  }
 }
-`;
+`
 
 /** Workgroups of each kernel above, for a list of `listCap` ranks: a thread a rank. */
 export const differenceGroups = (listCap: number) =>
-  Math.max(1, Math.ceil(listCap / SELECTION_WORKGROUP));
+  Math.max(1, Math.ceil(listCap / SELECTION_WORKGROUP))

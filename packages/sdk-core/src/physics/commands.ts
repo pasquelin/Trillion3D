@@ -1,7 +1,7 @@
-import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, VIEW_WORDS } from './layout.ts';
-import type { BodyRecord } from './bodyRecord.ts';
-import type { JointRecord } from './jointRecord.ts';
-import { SpareBuffers } from './spareBuffers.ts';
+import { ADD_WORDS, DAMPING, JOINT_WORDS, OP, PART_WORDS, VIEW_WORDS } from './layout.ts'
+import type { BodyRecord } from './bodyRecord.ts'
+import type { JointRecord } from './jointRecord.ts'
+import { SpareBuffers } from './spareBuffers.ts'
 
 /**
  * A growable command buffer: the page writes a frame's commands, then hands the words over in one
@@ -10,156 +10,156 @@ import { SpareBuffers } from './spareBuffers.ts';
  * nor per frame once enough buffers go back and forth.
  */
 export class CommandWriter {
-  private words = new Uint32Array(1024);
-  private floats = new Float32Array(this.words.buffer);
-  private spare = new SpareBuffers();
+  private words = new Uint32Array(1024)
+  private floats = new Float32Array(this.words.buffer)
+  private spare = new SpareBuffers()
   /** Words written since the last `take`. */
-  length = 0;
+  length = 0
 
   private reserve(count: number) {
-    if (this.length + count <= this.words.length) return;
-    let size = this.words.length * 2;
-    while (size < this.length + count) size *= 2;
-    const grown = new Uint32Array(size);
-    grown.set(this.words.subarray(0, this.length));
-    this.words = grown;
-    this.floats = new Float32Array(grown.buffer);
+    if (this.length + count <= this.words.length) return
+    let size = this.words.length * 2
+    while (size < this.length + count) size *= 2
+    const grown = new Uint32Array(size)
+    grown.set(this.words.subarray(0, this.length))
+    this.words = grown
+    this.floats = new Float32Array(grown.buffer)
   }
   private op(op: number, index: number, values: ArrayLike<number>) {
-    this.put([op, index], values);
+    this.put([op, index], values)
   }
   /** A command of whole words, then floats (the vehicles', `vehicleCommands.ts`), then bytes padded
    *  with zeros to whole words (a cooked shape's or soft body's native binary state). */
   put(words: ArrayLike<number>, floats: ArrayLike<number>, bytes?: Uint8Array) {
-    const padded = Math.ceil((bytes?.length ?? 0) / 4);
-    this.reserve(words.length + floats.length + padded);
-    for (let i = 0; i < words.length; i++) this.words[this.length++] = words[i] >>> 0;
-    for (let i = 0; i < floats.length; i++) this.floats[this.length++] = floats[i];
-    if (!bytes?.length) return;
-    this.words[this.length + padded - 1] = 0;
-    new Uint8Array(this.words.buffer).set(bytes, this.length * 4);
-    this.length += padded;
+    const padded = Math.ceil((bytes?.length ?? 0) / 4)
+    this.reserve(words.length + floats.length + padded)
+    for (let i = 0; i < words.length; i++) this.words[this.length++] = words[i] >>> 0
+    for (let i = 0; i < floats.length; i++) this.floats[this.length++] = floats[i]
+    if (!bytes?.length) return
+    this.words[this.length + padded - 1] = 0
+    new Uint8Array(this.words.buffer).set(bytes, this.length * 4)
+    this.length += padded
   }
   /** Creates a body. */
   add(body: BodyRecord) {
-    const vertexCount = body.vertices ? body.vertices.length / 3 : 0;
-    const dataWords = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS;
-    const indexCount = dataWords + (body.massFrame?.length ?? 0);
-    this.reserve(ADD_WORDS + vertexCount * 3 + indexCount);
+    const vertexCount = body.vertices ? body.vertices.length / 3 : 0
+    const dataWords = body.indices?.length ?? (body.parts?.length ?? 0) * PART_WORDS
+    const indexCount = dataWords + (body.massFrame?.length ?? 0)
+    this.reserve(ADD_WORDS + vertexCount * 3 + indexCount)
     const w = this.words,
       f = this.floats,
-      at = this.length;
-    w.set([OP.add, body.id, body.motion, body.layer, body.shape, body.flags], at);
-    f.set(body.position, at + 6);
-    f.set(body.quaternion, at + 9);
-    f.set(body.size, at + 13);
-    f.set([body.mass, body.density, body.friction, body.restitution, body.gravityScale], at + 16);
-    f.set(body.damping ?? [DAMPING, DAMPING], at + 21);
-    w[at + 23] = vertexCount;
-    w[at + 24] = indexCount;
-    if (body.vertices) f.set(body.vertices, at + ADD_WORDS);
-    if (body.indices) w.set(body.indices, at + ADD_WORDS + vertexCount * 3);
-    if (body.massFrame) f.set(body.massFrame, at + ADD_WORDS + vertexCount * 3 + dataWords);
+      at = this.length
+    w.set([OP.add, body.id, body.motion, body.layer, body.shape, body.flags], at)
+    f.set(body.position, at + 6)
+    f.set(body.quaternion, at + 9)
+    f.set(body.size, at + 13)
+    f.set([body.mass, body.density, body.friction, body.restitution, body.gravityScale], at + 16)
+    f.set(body.damping ?? [DAMPING, DAMPING], at + 21)
+    w[at + 23] = vertexCount
+    w[at + 24] = indexCount
+    if (body.vertices) f.set(body.vertices, at + ADD_WORDS)
+    if (body.indices) w.set(body.indices, at + ADD_WORDS + vertexCount * 3)
+    if (body.massFrame) f.set(body.massFrame, at + ADD_WORDS + vertexCount * 3 + dataWords)
     body.parts?.forEach((part, i) => {
-      const p = at + ADD_WORDS + i * PART_WORDS;
-      w[p] = part.shape;
-      f.set(part.size, p + 1);
-      f.set(part.position, p + 4);
-      f.set(part.quaternion, p + 7);
-    });
-    this.length += ADD_WORDS + vertexCount * 3 + indexCount;
+      const p = at + ADD_WORDS + i * PART_WORDS
+      w[p] = part.shape
+      f.set(part.size, p + 1)
+      f.set(part.position, p + 4)
+      f.set(part.quaternion, p + 7)
+    })
+    this.length += ADD_WORDS + vertexCount * 3 + indexCount
   }
   /** Removes a body. */
   remove(index: number) {
-    this.op(OP.remove, index, []);
+    this.op(OP.remove, index, [])
   }
   /** Moves a body at once, velocity kept (`position.set` on a dynamic body). */
   teleport(index: number, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
-    this.pose(OP.teleport, index, position, quaternion);
+    this.pose(OP.teleport, index, position, quaternion)
   }
   /** Drives a kinematic body to a pose over the next step, pushing what it meets. */
   moveKinematic(index: number, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
-    this.pose(OP.moveKinematic, index, position, quaternion);
+    this.pose(OP.moveKinematic, index, position, quaternion)
   }
   /** A command whose arguments are a position (3 numbers) and a quaternion (4). */
   private pose(op: number, index: number, position: ArrayLike<number>, turn: ArrayLike<number>) {
-    this.op(op, index, []);
-    this.reserve(7);
-    this.floats.set(position, this.length);
-    this.floats.set(turn, this.length + 3);
-    this.length += 7;
+    this.op(op, index, [])
+    this.reserve(7)
+    this.floats.set(position, this.length)
+    this.floats.set(turn, this.length + 3)
+    this.length += 7
   }
   /** Sets the linear velocity, m/s (waking the body). */
   velocity(index: number, linear: ArrayLike<number>) {
-    this.op(OP.velocity, index, linear);
+    this.op(OP.velocity, index, linear)
   }
   /** Adds an impulse at the centre of mass, in N·s. */
   impulse(index: number, impulse: ArrayLike<number>) {
-    this.op(OP.impulse, index, impulse);
+    this.op(OP.impulse, index, impulse)
   }
   /** Wakes a sleeping body. */
   wake(index: number) {
-    this.op(OP.wake, index, []);
+    this.op(OP.wake, index, [])
   }
   /** Restores a cooked shape's native binary state under `handle`, for the ADDs that follow. */
   restore(handle: number, bytes: Uint8Array) {
-    this.put([OP.restore, handle, bytes.length], [], bytes);
+    this.put([OP.restore, handle, bytes.length], [], bytes)
   }
   /** Drops a restored shape's handle; the bodies built from it keep the shape. */
   release(handle: number) {
-    this.op(OP.release, handle, []);
+    this.op(OP.release, handle, [])
   }
   /** Replaces a body's flag bits (`FLAG`). */
   flags(index: number, flags: number) {
-    this.put([OP.flags, index, flags], []);
+    this.put([OP.flags, index, flags], [])
   }
   /** Scales gravity for one body. */
   gravityScale(index: number, scale: number) {
-    this.op(OP.gravityScale, index, [scale]);
+    this.op(OP.gravityScale, index, [scale])
   }
   /** Sets friction and restitution. */
   material(index: number, friction: number, restitution: number) {
-    this.op(OP.material, index, [friction, restitution]);
+    this.op(OP.material, index, [friction, restitution])
   }
   /** Sets the page's view: the eye, the way it faces, the cone's half angle and the range. */
   view(eye: ArrayLike<number>, facing: ArrayLike<number>, halfCone: number, range: number) {
-    this.reserve(VIEW_WORDS);
-    this.words[this.length] = OP.view;
-    this.floats.set(eye, this.length + 1);
-    this.floats.set(facing, this.length + 4);
-    this.floats[this.length + 7] = halfCone;
-    this.floats[this.length + 8] = range;
-    this.length += VIEW_WORDS;
+    this.reserve(VIEW_WORDS)
+    this.words[this.length] = OP.view
+    this.floats.set(eye, this.length + 1)
+    this.floats.set(facing, this.length + 4)
+    this.floats[this.length + 7] = halfCone
+    this.floats[this.length + 8] = range
+    this.length += VIEW_WORDS
   }
   /** Sets the world's gravity, m/s². */
   gravity(vector: ArrayLike<number>) {
-    this.put([OP.gravity], vector);
+    this.put([OP.gravity], vector)
   }
   /** Connects two bodies, or a body and the world. */
   joint(j: JointRecord) {
-    const { mode, target, maxForce, axis } = j.motor;
-    const values = [0, 0, 0, 0, 0, 0, ...j.frameA, ...j.frameB, ...j.limits, target, maxForce];
-    this.op(OP.joint, j.id, [...values, j.breakForce, ...j.extra]);
-    const at = this.length - JOINT_WORDS - j.extra.length;
-    this.words.set([j.kind, j.a >>> 0, j.b >>> 0, mode, axis, j.extra.length], at + 2);
+    const { mode, target, maxForce, axis } = j.motor
+    const values = [0, 0, 0, 0, 0, 0, ...j.frameA, ...j.frameB, ...j.limits, target, maxForce]
+    this.op(OP.joint, j.id, [...values, j.breakForce, ...j.extra])
+    const at = this.length - JOINT_WORDS - j.extra.length
+    this.words.set([j.kind, j.a >>> 0, j.b >>> 0, mode, axis, j.extra.length], at + 2)
   }
   /** Takes a joint out; one that broke or was never made is ignored. */
   unjoint(id: number) {
-    this.op(OP.unjoint, id, []);
+    this.op(OP.unjoint, id, [])
   }
   /** Sets a joint's motor. */
   motor(id: number, { mode, target, maxForce, axis }: JointRecord['motor']) {
-    this.op(OP.motor, id, [0, 0, target, maxForce]);
-    this.words.set([mode, axis], this.length - 4);
+    this.op(OP.motor, id, [0, 0, target, maxForce])
+    this.words.set([mode, axis], this.length - 4)
   }
   /** The words written so far, in a buffer of their own (`SpareBuffers`); the writer emptied. */
   take(): Uint32Array<ArrayBuffer> {
-    const out = this.spare.copy(this.words, this.length);
-    this.length = 0;
-    return out;
+    const out = this.spare.copy(this.words, this.length)
+    this.length = 0
+    return out
   }
   /** Buffers `take` gave out, handed back once the worker ran them. */
   recycle(buffers: readonly ArrayBuffer[]) {
-    this.spare.recycle(buffers);
+    this.spare.recycle(buffers)
   }
 }

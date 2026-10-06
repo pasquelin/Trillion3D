@@ -1,33 +1,33 @@
-import type { ReportCanvas, ReportSource, SourceReadingRecord } from './types.ts';
+import type { ReportCanvas, ReportSource, SourceReadingRecord } from './types.ts'
 
 interface SourceSideMeasurement {
-  engine?: string;
-  canvas?: ReportCanvas | null;
+  engine?: string
+  canvas?: ReportCanvas | null
 }
 
 interface SourceSeriesEntry {
-  view?: string;
-  pixelError?: number;
-  sides?: Record<string, SourceSideMeasurement>;
+  view?: string
+  pixelError?: number
+  sides?: Record<string, SourceSideMeasurement>
 }
 
 /** The shape bench/runner/series/series.ts writes to each run's own measurement file; unlike report.json
  * this is fetched raw and never runs through `assertReport`, so it is trusted, not validated. */
 interface SourceData {
-  scene?: string;
-  series: SourceSeriesEntry[];
+  scene?: string
+  series: SourceSeriesEntry[]
 }
 
 export function readingGroups(sources: ReportSource[]) {
-  const groups = new Map<string, SourceReadingRecord[]>();
+  const groups = new Map<string, SourceReadingRecord[]>()
   for (const { run, data } of sources) {
     // The only place this per-run raw JSON is inspected: see the SourceData comment above.
-    const { series, ...metadata } = data as SourceData;
+    const { series, ...metadata } = data as SourceData
     for (const [index, entry] of (series.length ? series : [{ sides: {} }]).entries()) {
-      const { sides, ...conditions } = entry;
+      const { sides, ...conditions } = entry
       const sideEntries = Object.keys(sides ?? {}).length
         ? Object.entries(sides ?? {})
-        : ([['unavailable', {}]] as [string, SourceSideMeasurement][]);
+        : ([['unavailable', {}]] as [string, SourceSideMeasurement][])
       const records: SourceReadingRecord[] = sideEntries.map(([side, measured]) => ({
         id: `${run.id}-${index}-${side}`,
         runId: run.id,
@@ -42,9 +42,9 @@ export function readingGroups(sources: ReportSource[]) {
           frame: { ...conditions },
           measurement: { ...measured },
         },
-      }));
-      if (records.length) groups.set(`${run.id}-${index}`, records);
+      }))
+      if (records.length) groups.set(`${run.id}-${index}`, records)
     }
   }
-  return groups;
+  return groups
 }

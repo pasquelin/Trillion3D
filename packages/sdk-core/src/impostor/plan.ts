@@ -15,85 +15,85 @@
  * `switched`, so the cut skips its clusters in the same breath. A card without the skip would draw
  * the object twice; the skip without the card would be a hole (CONTRIBUTING, Streaming rule 1).
  */
-import { hypot3 } from '../math/primitives/hypot.ts';
-import { transformAffinePoint } from '../math/primitives/vector.ts';
-import { maxStretch } from '../math/projectionOracles.ts';
+import { hypot3 } from '../math/primitives/hypot.ts'
+import { transformAffinePoint } from '../math/primitives/vector.ts'
+import { maxStretch } from '../math/projectionOracles.ts'
 import {
   impostorMeshBaked,
   type ImpostorMap,
   type ImpostorMaps,
   type ImpostorMesh,
   type ImpostorSection,
-} from '../contracts/impostor.ts';
+} from '../contracts/impostor.ts'
 import {
   impostorRadius,
   impostorSwitchOf,
   impostorTexelDepth,
   impostorTriangleDepth,
-} from './switch.ts';
+} from './switch.ts'
 
 /** What the plan needs of one root: its compiled mesh number and the world matrix that places it. */
 export interface ImpostorRoot {
   /** Compiled mesh number (`Primitive.mesh`); absent on a root no impostor may replace. */
-  mesh?: number;
+  mesh?: number
   /** World matrix of the placement, column-major (`MatrixElements`). */
-  world: { elements: ArrayLike<number> };
+  world: { elements: ArrayLike<number> }
 }
 
 /** One camera-facing card the runtime draws in place of a switched root's clusters. */
 export interface ImpostorCard {
   /** Rank of the root it replaces in the plan's `roots`. */
-  root: number;
+  root: number
   /** Its compiled mesh number. */
-  mesh: number;
+  mesh: number
   /** The root's world matrix, as given. */
-  world: ArrayLike<number>;
+  world: ArrayLike<number>
   /** World-space pivot, the bounding-sphere centre under the root's world. */
-  centre: [number, number, number];
+  centre: [number, number, number]
   /** World-space radius `R = objectRadius × the root's world scale`. */
-  radius: number;
+  radius: number
   /** Frames a side. */
-  frames: number;
+  frames: number
   /** Whether the frames are upper hemi-octahedral. */
-  hemi: boolean;
+  hemi: boolean
   /** The three maps the card samples: colour+coverage, normal+depth, packed ORM. */
-  maps: { colourCoverage: ImpostorMap; normalDepth: ImpostorMap; orm: ImpostorMap };
+  maps: { colourCoverage: ImpostorMap; normalDepth: ImpostorMap; orm: ImpostorMap }
 }
 
 /** The cut's verdict: the cards to draw, and the roots whose clusters it suppresses. */
 export interface ImpostorPlan {
   /** One card per switched root, in root order. */
-  cards: ImpostorCard[];
+  cards: ImpostorCard[]
   /** Root ranks the cut suppresses: 1 at a switched root, 0 elsewhere. */
-  switched: Uint8Array;
+  switched: Uint8Array
 }
 
 /** The section's baked meshes, keyed by their compiled mesh number; refused entries are left out. */
 export function impostorBakedByMesh(
   section: ImpostorSection | undefined,
 ): Map<number, ImpostorMesh & { maps: ImpostorMaps; frames: number; frameSide: number }> {
-  const byMesh: BakedByMesh = new Map();
+  const byMesh: BakedByMesh = new Map()
   if (section)
-    for (const mesh of section.meshes) if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh);
-  return byMesh;
+    for (const mesh of section.meshes) if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh)
+  return byMesh
 }
 
 /** Baked meshes by mesh number: each entry holds the maps, frames and frame side the card reads. */
-type BakedByMesh = ReturnType<typeof impostorBakedByMesh>;
+type BakedByMesh = ReturnType<typeof impostorBakedByMesh>
 /** The same, read by a root's mesh number, which a root no impostor may replace lacks. */
-type BakedLookup = ReadonlyMap<number | undefined, NonNullable<ReturnType<BakedByMesh['get']>>>;
-const EMPTY_MESHES: BakedLookup = new Map();
+type BakedLookup = ReadonlyMap<number | undefined, NonNullable<ReturnType<BakedByMesh['get']>>>
+const EMPTY_MESHES: BakedLookup = new Map()
 /** The section's baked meshes, built once per section: the plan runs every frame, the map does not. */
-const bakedBySection = new WeakMap<ImpostorSection, BakedLookup>();
+const bakedBySection = new WeakMap<ImpostorSection, BakedLookup>()
 function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
-  if (!section) return EMPTY_MESHES;
-  let byMesh = bakedBySection.get(section);
-  if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)));
-  return byMesh;
+  if (!section) return EMPTY_MESHES
+  let byMesh = bakedBySection.get(section)
+  if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)))
+  return byMesh
 }
 
 /** The pivot's view-space point, reused: the plan runs every image. */
-const point = /* @__PURE__ */ new Float64Array(3);
+const point = /* @__PURE__ */ new Float64Array(3)
 
 /**
  * Whether the switch holds for a pivot at view-space point `v`. The two depths of `switch.ts` hold
@@ -106,11 +106,11 @@ const point = /* @__PURE__ */ new Float64Array(3);
  */
 function switchesAt(texelDepth: number, triangleDepth: number, v: Float64Array) {
   const depth = Math.abs(v[2]),
-    cosine = depth / hypot3(v[0], v[1], v[2]);
-  return depth * cosine >= texelDepth && depth * Math.sqrt(cosine) >= triangleDepth;
+    cosine = depth / hypot3(v[0], v[1], v[2])
+  return depth * cosine >= texelDepth && depth * Math.sqrt(cosine) >= triangleDepth
 }
 
-type BakedEntry = NonNullable<ReturnType<BakedLookup['get']>>;
+type BakedEntry = NonNullable<ReturnType<BakedLookup['get']>>
 
 /**
  * WHAT THE SWITCH READS OF A ROOT THAT THE VIEW DOES NOT MOVE: its baked entry, its radius `R` —
@@ -121,21 +121,21 @@ type BakedEntry = NonNullable<ReturnType<BakedLookup['get']>>;
  * on the same inputs —, so every verdict is the same, bit for bit.
  */
 type SwitchTable = {
-  roots: readonly ImpostorRoot[];
-  section: ImpostorSection | undefined;
-  focal: number;
+  roots: readonly ImpostorRoot[]
+  section: ImpostorSection | undefined
+  focal: number
   /** The root each rank held when its numbers were taken, and its entry; none where no impostor
    *  may replace it. */
-  held: (ImpostorRoot | undefined)[];
-  entries: (BakedEntry | undefined)[];
+  held: (ImpostorRoot | undefined)[]
+  entries: (BakedEntry | undefined)[]
   /** The nine linear numbers of the world each radius was taken from. */
-  linear: Float64Array;
-  radius: Float64Array;
-  texelDepth: Float64Array;
-  triangleDepth: Float64Array;
-};
-const tables = new WeakMap<ImpostorPlan, SwitchTable>();
-const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10];
+  linear: Float64Array
+  radius: Float64Array
+  texelDepth: Float64Array
+  triangleDepth: Float64Array
+}
+const tables = new WeakMap<ImpostorPlan, SwitchTable>()
+const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
 
 /** The plan's table, made again for another root list or section; a new focal length retakes the
  *  depths it scales. */
@@ -145,14 +145,14 @@ function switchTable(
   section: ImpostorSection | undefined,
   focal: number,
 ) {
-  let table = tables.get(plan);
+  let table = tables.get(plan)
   if (
     !table ||
     table.roots !== roots ||
     table.section !== section ||
     table.held.length !== roots.length
   ) {
-    const n = roots.length;
+    const n = roots.length
     table = {
       roots,
       section,
@@ -164,35 +164,35 @@ function switchTable(
       radius: new Float64Array(n),
       texelDepth: new Float64Array(n),
       triangleDepth: new Float64Array(n),
-    };
-    tables.set(plan, table);
+    }
+    tables.set(plan, table)
   }
   if (table.focal !== focal) {
-    table.focal = focal;
+    table.focal = focal
     for (let rank = 0; rank < roots.length; rank++) {
-      const entry = table.entries[rank];
-      if (entry && table.held[rank]) depthsOf(table, rank, entry);
+      const entry = table.entries[rank]
+      if (entry && table.held[rank]) depthsOf(table, rank, entry)
     }
   }
-  return table;
+  return table
 }
 
 /** The two switch depths of a root of radius `table.radius[rank]` at the table's focal length. */
 function depthsOf(table: SwitchTable, rank: number, entry: BakedEntry) {
-  const radius = table.radius[rank];
-  table.texelDepth[rank] = impostorTexelDepth(radius, entry.frameSide, table.focal);
+  const radius = table.radius[rank]
+  table.texelDepth[rank] = impostorTexelDepth(radius, entry.frameSide, table.focal)
   table.triangleDepth[rank] = impostorTriangleDepth(
     radius,
     entry.rootTriangles,
     entry.coverage as number,
     table.focal,
-  );
+  )
 }
 
 /** Whether the nine linear numbers held from `at` are the world's. */
 function sameLinear(held: Float64Array, at: number, world: ArrayLike<number>) {
-  for (let k = 0; k < LINEAR.length; k++) if (held[at + k] !== world[LINEAR[k]]) return false;
-  return true;
+  for (let k = 0; k < LINEAR.length; k++) if (held[at + k] !== world[LINEAR[k]]) return false
+  return true
 }
 
 /**
@@ -201,23 +201,23 @@ function sameLinear(held: Float64Array, at: number, world: ArrayLike<number>) {
  */
 function rootSwitch(table: SwitchTable, rank: number, root: ImpostorRoot, byMesh: BakedLookup) {
   if (table.held[rank] !== root) {
-    table.held[rank] = root;
-    const entry = byMesh.get(root.mesh);
+    table.held[rank] = root
+    const entry = byMesh.get(root.mesh)
     // A refused switch input does not depend on the placement: the entry alone decides.
-    table.entries[rank] = entry && impostorSwitchOf(entry) ? entry : undefined;
-    table.linear[rank * LINEAR.length] = NaN;
+    table.entries[rank] = entry && impostorSwitchOf(entry) ? entry : undefined
+    table.linear[rank * LINEAR.length] = NaN
   }
-  const entry = table.entries[rank];
-  if (!entry) return undefined;
+  const entry = table.entries[rank]
+  if (!entry) return undefined
   const world = root.world.elements,
-    at = rank * LINEAR.length;
+    at = rank * LINEAR.length
   if (!sameLinear(table.linear, at, world)) {
     // Taken before the copy: a world `maxStretch` refuses throws again on the next frame, as it did.
-    table.radius[rank] = impostorRadius(entry.objectRadius as number, maxStretch(world));
-    for (let k = 0; k < LINEAR.length; k++) table.linear[at + k] = world[LINEAR[k]];
-    depthsOf(table, rank, entry);
+    table.radius[rank] = impostorRadius(entry.objectRadius as number, maxStretch(world))
+    for (let k = 0; k < LINEAR.length; k++) table.linear[at + k] = world[LINEAR[k]]
+    depthsOf(table, rank, entry)
   }
-  return entry;
+  return entry
 }
 
 /**
@@ -235,34 +235,34 @@ export function planImpostors(
   focalPixels: number,
   into?: ImpostorPlan,
 ): ImpostorPlan {
-  const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) };
-  if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length);
-  else plan.switched.fill(0);
-  const { cards, switched } = plan;
-  let count = 0;
+  const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) }
+  if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length)
+  else plan.switched.fill(0)
+  const { cards, switched } = plan
+  let count = 0
   const byMesh = bakedLookup(section),
-    table = switchTable(plan, roots, section, focalPixels);
+    table = switchTable(plan, roots, section, focalPixels)
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank],
-      entry = rootSwitch(table, rank, root, byMesh);
-    if (!entry) continue;
-    const world = root.world.elements;
-    transformAffinePoint(point, view, world[12], world[13], world[14]);
-    if (!switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) continue;
-    switched[rank] = 1;
-    const card = (cards[count++] ??= {} as ImpostorCard);
-    card.root = rank;
-    card.mesh = entry.mesh;
-    card.world = world;
-    card.centre ??= [0, 0, 0];
-    card.centre[0] = world[12];
-    card.centre[1] = world[13];
-    card.centre[2] = world[14];
-    card.radius = table.radius[rank];
-    card.frames = entry.frames;
-    card.hemi = entry.hemi === true;
-    card.maps = entry.maps;
+      entry = rootSwitch(table, rank, root, byMesh)
+    if (!entry) continue
+    const world = root.world.elements
+    transformAffinePoint(point, view, world[12], world[13], world[14])
+    if (!switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) continue
+    switched[rank] = 1
+    const card = (cards[count++] ??= {} as ImpostorCard)
+    card.root = rank
+    card.mesh = entry.mesh
+    card.world = world
+    card.centre ??= [0, 0, 0]
+    card.centre[0] = world[12]
+    card.centre[1] = world[13]
+    card.centre[2] = world[14]
+    card.radius = table.radius[rank]
+    card.frames = entry.frames
+    card.hemi = entry.hemi === true
+    card.maps = entry.maps
   }
-  cards.length = count;
-  return plan;
+  cards.length = count
+  return plan
 }

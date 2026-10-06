@@ -1,24 +1,24 @@
-import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts';
-import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts';
-import type { BackendFactory } from './types.ts';
-import { engineBackends } from './engines.ts';
-import { autonomousCacheReady } from './autonomousCacheReady.ts';
+import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
+import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts'
+import type { BackendFactory } from './types.ts'
+import { engineBackends } from './engines.ts'
+import { autonomousCacheReady } from './autonomousCacheReady.ts'
 
 /** What renders when the host named nothing, and why that path and not another. */
 export type BackendChoice = {
-  factories: BackendFactory[];
+  factories: BackendFactory[]
   /** The session reads the cache's prepared scene and its geometry pages, not `source.gltf`. */
-  autonomous: boolean;
+  autonomous: boolean
   /** `host` = the list came from the options; `default` = the engine chose it from the machine. */
-  origin: 'host' | 'default';
+  origin: 'host' | 'default'
   /** Short sentence naming the capability that decided; reported as a diagnostic. */
-  reason: string;
+  reason: string
   /** Id of the backend that draws, or `null` when the host named the list itself. */
-  renderer: string | null;
-};
+  renderer: string | null
+}
 
 /** A choice before its default: a path is not autonomous unless it says so. */
-type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, 'autonomous'>>;
+type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, 'autonomous'>>
 
 /** The paths of a session the host left to the engine: the WebGPU page raster where a device was
  *  granted, the engine's own WebGL2 page path otherwise. The host-library witnesses
@@ -27,9 +27,9 @@ type Decided = Omit<BackendChoice, 'autonomous'> & Partial<Pick<BackendChoice, '
  *  `options.backends`. A machine offering neither WebGPU nor WebGL2 fails by name. */
 export function chooseBackends(
   options: {
-    backends?: BackendFactory[];
-    autonomousGeometry?: boolean;
-    renderer?: 'webgpu' | 'webgl2';
+    backends?: BackendFactory[]
+    autonomousGeometry?: boolean
+    renderer?: 'webgpu' | 'webgl2'
   },
   metadata: ClusterManifest,
   gpuDevice: GPUDevice | undefined,
@@ -37,20 +37,20 @@ export function chooseBackends(
 ): BackendChoice {
   // `autonomous` is stated, never derived from the factory: a host list naming the autonomous
   // backend without `autonomousGeometry` keeps reading `source.gltf`, as it always has.
-  const choice = (part: Decided): BackendChoice => ({ autonomous: false, ...part });
+  const choice = (part: Decided): BackendChoice => ({ autonomous: false, ...part })
   if (explorerSwitch(options, 'autonomousGeometry')) {
     if (options.backends || !autonomousCacheReady(metadata))
       throw new EngineError(
         'AUTONOMOUS_SCENE_UNAVAILABLE',
         'Autonomous geometry requires a prepared static scene and the autonomous backend',
-      );
+      )
     return choice({
       factories: [engineBackends.webgl2],
       autonomous: true,
       origin: 'host',
       reason: 'the host asked for the autonomous WebGL2 path',
       renderer: 'autonomous-pages-webgl',
-    });
+    })
   }
   // A host list is taken as it stands, witnesses included; only a single-entry autonomous list
   // reads the cache's prepared scene, and that list is the one above.
@@ -60,29 +60,29 @@ export function chooseBackends(
       origin: 'host',
       reason: 'the host named the backends itself',
       renderer: null,
-    });
+    })
   if (options.renderer === 'webgpu' && !gpuDevice)
     throw new EngineError(
       'WEBGPU_UNAVAILABLE',
       'The renderer "webgpu" was requested, and this machine granted no WebGPU device.',
-    );
+    )
   if (gpuDevice && options.renderer !== 'webgl2')
     return choice({
       factories: [engineBackends.webgpu],
       origin: 'default',
       reason: 'a WebGPU device was granted',
       renderer: 'webgpu-page-raster',
-    });
+    })
   if (!webgl2)
     throw new EngineError(
       options.renderer === 'webgl2' ? 'NO_WEBGL2' : 'NO_ENGINE_BACKEND',
       'No engine path is available: this machine granted neither a WebGPU device nor a WebGL2 ' +
         'context. Name a backend in options.backends to render anyway.',
-    );
+    )
   // Until the compiler writes a prepared scene for a cache that blends, it writes none at all:
   // one `clustered-blend` primitive is enough for it to refuse. The same page path draws either
   // cache — only the file it reads its materials and placements from changes.
-  const prepared = autonomousCacheReady(metadata);
+  const prepared = autonomousCacheReady(metadata)
   return choice({
     factories: [engineBackends.webgl2],
     autonomous: prepared,
@@ -91,7 +91,7 @@ export function chooseBackends(
       ? 'no WebGPU device; the cache carries a prepared autonomous scene'
       : 'no WebGPU device and no prepared autonomous scene; the same path reads source.gltf',
     renderer: 'autonomous-pages-webgl',
-  });
+  })
 }
 
 /**
@@ -108,13 +108,13 @@ export function resolveTextureSource(
   factories: readonly BackendFactory[],
 ): 'host' | 'cache' {
   const readsBakedLevels =
-    factories.length > 0 && factories.every((factory) => factory.renderer === 'webgpu');
-  if (!readsBakedLevels || typeof createImageBitmap !== 'function') return 'host';
-  return asked ?? 'cache';
+    factories.length > 0 && factories.every((factory) => factory.renderer === 'webgpu')
+  if (!readsBakedLevels || typeof createImageBitmap !== 'function') return 'host'
+  return asked ?? 'cache'
 }
 
 /** Whether the paths that will draw load the host vertices they read themselves, and only those:
  *  the engine's own two (#876). A witness named by the host reads the whole host graph, so its
  *  session loads every vertex before building it. */
 export const loadsOwnVertices = (factories: readonly BackendFactory[]) =>
-  factories.every((factory) => !!factory.renderer);
+  factories.every((factory) => !!factory.renderer)

@@ -1,5 +1,5 @@
-import { BOUNCE_SETTINGS } from './contracts.ts';
-import { hypot3 } from '../math/primitives/hypot.ts';
+import { BOUNCE_SETTINGS } from './contracts.ts'
+import { hypot3 } from '../math/primitives/hypot.ts'
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
@@ -20,39 +20,39 @@ import { hypot3 } from '../math/primitives/hypot.ts';
  */
 export interface BounceCascadeLevel {
   /** Spacing of this level, in meters. */
-  spacing: number;
+  spacing: number
   /** World cell index carried by the level's zero-index probe, on each axis. */
-  base: [number, number, number];
+  base: [number, number, number]
   /** False for the last level, which remains fixed in world space. */
-  moving: boolean;
+  moving: boolean
 }
 
 /** The grids of light probes around the camera, finer near it. */
 export interface BounceCascades {
   /** Probes along one axis and per level. */
-  size: number;
+  size: number
   /** Probes per level. */
-  probesPerLevel: number;
+  probesPerLevel: number
   /** Probes in all. */
-  probes: number;
+  probes: number
   /** Fixed capacity reserved before transforms can enlarge the scene. */
-  reserveCount: number;
+  reserveCount: number
   /** Levels whose spacing or presence changed during the last replan. Base shifts use cell stamps. */
-  invalidLevels: number;
+  invalidLevels: number
   /** Reapply the existing spatial-resolution policy to current geometry bounds. */
-  replan(bounds: readonly number[]): boolean;
+  replan(bounds: readonly number[]): boolean
   /** Each level. */
-  levels: BounceCascadeLevel[];
+  levels: BounceCascadeLevel[]
   /** Ray reach: extent diagonal, beyond which there is nothing to hit. */
-  reach: number;
+  reach: number
   /** Work batch probes per frame, by level: published shares applied to a total batch. */
-  shareOf(total: number): number[];
+  shareOf(total: number): number[]
   /**
    * Repositions mobile levels around a viewpoint. Returns true when at least one base cell
    * index changed: this is the only signal convergence needs to restart, costing
    * no GPU readback.
    */
-  follow(viewpoint: ArrayLike<number>): boolean;
+  follow(viewpoint: ArrayLike<number>): boolean
 }
 
 /**
@@ -64,32 +64,32 @@ export interface BounceCascades {
  * expands to cover the extent: no scene part remains out of reach of a probe.
  */
 function spacingsOf(bounds: readonly number[]): number[] {
-  const { cascadeLevels, cascadeSize, cascadeSpacingMetres, cascadeLayersAcross } = BOUNCE_SETTINGS;
-  const sizes = [0, 1, 2].map((axis) => Math.max(bounds[3 + axis] - bounds[axis], 1e-3));
-  const extent = Math.max(...sizes);
+  const { cascadeLevels, cascadeSize, cascadeSpacingMetres, cascadeLayersAcross } = BOUNCE_SETTINGS
+  const sizes = [0, 1, 2].map((axis) => Math.max(bounds[3 + axis] - bounds[axis], 1e-3))
+  const extent = Math.max(...sizes)
   // The finest level never exceeds its ceiling and tightens until it retains enough
   // layers across the thinnest scene dimension.
   // A cube of `cascadeSize` probes only covers `cascadeSize - 3` useful cells: one boundary cell
   // on each side, plus one because a probe is at the center of its cell.
-  const useful = cascadeSize - 3;
+  const useful = cascadeSize - 3
   // The finest spacing is also the one that, doubled at each step, allows the last level
   // to cover the extent: all spacings are power-of-two multiples of the finest, and the
   // occupancy map of a level is the exact reduction of the previous level's map.
   const finest = Math.max(
     Math.min(cascadeSpacingMetres, Math.min(...sizes) / cascadeLayersAcross),
     extent / (useful * 2 ** (cascadeLevels - 1)),
-  );
-  const spacings: number[] = [];
+  )
+  const spacings: number[] = []
   for (let level = 0; level < cascadeLevels; level++) {
-    spacings.push(finest * 2 ** level);
-    if (spacings[level] * useful >= extent) break;
+    spacings.push(finest * 2 ** level)
+    if (spacings[level] * useful >= extent) break
   }
-  return spacings;
+  return spacings
 }
 
 /** Base cell indices of the three axes, from each axis cell index. */
 function baseOf(cellOf: (axis: number) => number): [number, number, number] {
-  return [cellOf(0), cellOf(1), cellOf(2)];
+  return [cellOf(0), cellOf(1), cellOf(2)]
 }
 
 /**
@@ -97,27 +97,27 @@ function baseOf(cellOf: (axis: number) => number): [number, number, number] {
  * a ground point offset along its normal would fall outside the level, yielding zero bounce.
  */
 function fixedBase(spacing: number, bounds: readonly number[]) {
-  return baseOf((axis) => Math.floor(bounds[axis] / spacing) - 1);
+  return baseOf((axis) => Math.floor(bounds[axis] / spacing) - 1)
 }
 
 /** Base cell index of a level following camera: cube is centered on viewpoint. */
 function movingBase(spacing: number, viewpoint: ArrayLike<number>) {
-  const half = BOUNCE_SETTINGS.cascadeSize / 2;
-  return baseOf((axis) => Math.floor(viewpoint[axis] / spacing) - half);
+  const half = BOUNCE_SETTINGS.cascadeSize / 2
+  return baseOf((axis) => Math.floor(viewpoint[axis] / spacing) - half)
 }
 
 /** The probe grids that cover a scene's box. */
 export function createBounceCascades(bounds: readonly number[]): BounceCascades {
-  const size = BOUNCE_SETTINGS.cascadeSize;
-  const probesPerLevel = size * size * size;
-  const spacings = spacingsOf(bounds);
+  const size = BOUNCE_SETTINGS.cascadeSize
+  const probesPerLevel = size * size * size
+  const spacings = spacingsOf(bounds)
   const levels: BounceCascadeLevel[] = spacings.map((spacing, level) => ({
     spacing,
     base: fixedBase(spacing, bounds),
     moving: level < spacings.length - 1,
-  }));
-  let shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length);
-  let weight = shares.reduce((sum, share) => sum + share, 0) || 1;
+  }))
+  let shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length)
+  let weight = shares.reduce((sum, share) => sum + share, 0) || 1
   const cascades: BounceCascades = {
     size,
     probesPerLevel,
@@ -129,49 +129,49 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
       hypot3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
       BOUNCE_SETTINGS.rayReachFraction,
     replan(nextBounds) {
-      const planned = spacingsOf(nextBounds);
+      const planned = spacingsOf(nextBounds)
       const reach =
         hypot3(
           nextBounds[3] - nextBounds[0],
           nextBounds[4] - nextBounds[1],
           nextBounds[5] - nextBounds[2],
-        ) * BOUNCE_SETTINGS.rayReachFraction;
-      cascades.invalidLevels = 0;
-      for (let i = planned.length; i < levels.length; i++) cascades.invalidLevels |= 1 << i;
+        ) * BOUNCE_SETTINGS.rayReachFraction
+      cascades.invalidLevels = 0
+      for (let i = planned.length; i < levels.length; i++) cascades.invalidLevels |= 1 << i
       for (let i = 0; i < planned.length; i++) {
         const spacing = planned[i],
-          moving = i < planned.length - 1;
-        const previous = levels[i];
+          moving = i < planned.length - 1
+        const previous = levels[i]
         // Mobile bases are retained while their lattice is unchanged; follow() places them.
         const base =
           previous?.moving && moving && previous.spacing === spacing
             ? previous.base
-            : fixedBase(spacing, nextBounds);
-        if (!previous || previous.spacing !== spacing) cascades.invalidLevels |= 1 << i;
-        levels[i] = { spacing, moving, base };
+            : fixedBase(spacing, nextBounds)
+        if (!previous || previous.spacing !== spacing) cascades.invalidLevels |= 1 << i
+        levels[i] = { spacing, moving, base }
       }
-      levels.length = planned.length;
-      cascades.probes = probesPerLevel * levels.length;
-      cascades.reach = reach;
-      shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length);
-      weight = shares.reduce((sum, share) => sum + share, 0) || 1;
-      return cascades.invalidLevels !== 0;
+      levels.length = planned.length
+      cascades.probes = probesPerLevel * levels.length
+      cascades.reach = reach
+      shares = BOUNCE_SETTINGS.cascadeShares.slice(0, levels.length)
+      weight = shares.reduce((sum, share) => sum + share, 0) || 1
+      return cascades.invalidLevels !== 0
     },
     shareOf(total) {
       // At least one probe per level: a level left with nothing by rounding would never
       // converge, and the last level — carrying background geometry — would be lost.
-      return shares.map((share) => Math.max(1, Math.round((total * share) / weight)));
+      return shares.map((share) => Math.max(1, Math.round((total * share) / weight)))
     },
     follow(viewpoint) {
-      let moved = false;
+      let moved = false
       for (const level of levels) {
-        if (!level.moving) continue;
-        const base = movingBase(level.spacing, viewpoint);
-        if (base.some((value, axis) => value !== level.base[axis])) moved = true;
-        level.base = base;
+        if (!level.moving) continue
+        const base = movingBase(level.spacing, viewpoint)
+        if (base.some((value, axis) => value !== level.base[axis])) moved = true
+        level.base = base
       }
-      return moved;
+      return moved
     },
-  };
-  return cascades;
+  }
+  return cascades
 }

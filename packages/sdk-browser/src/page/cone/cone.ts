@@ -1,4 +1,4 @@
-import { surfaceFrontOnly, type PageSurface } from '../surface.ts';
+import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
 import {
   CONE_LENGTH_RATIO,
   CONE_ORTHO_EPS,
@@ -6,18 +6,18 @@ import {
   boxConeRejects,
   linearPartScale,
   normalMatrix3,
-} from '../../../../sdk-core/src/index.ts';
-import type { MatrixElements } from '../../math/matrixElements.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+} from '../../../../sdk-core/src/index.ts'
+import type { MatrixElements } from '../../math/matrixElements.ts'
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
 
-export type NormalCone = { axis: [number, number, number]; angle: number };
+export type NormalCone = { axis: [number, number, number]; angle: number }
 /** Never rejects. */
-export const OPEN_CONE: NormalCone = { axis: [0, 0, 1], angle: Math.PI };
+export const OPEN_CONE: NormalCone = { axis: [0, 0, 1], angle: Math.PI }
 
 /** The cone a leaf is culled by: none for a surface seen from both sides. */
 export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): NormalCone {
-  if (page.material && !surfaceFrontOnly(page.material)) return OPEN_CONE;
-  return page.cone ?? OPEN_CONE;
+  if (page.material && !surfaceFrontOnly(page.material)) return OPEN_CONE
+  return page.cone ?? OPEN_CONE
 }
 
 /**
@@ -31,29 +31,29 @@ export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): N
  *  same 9 terms, same order, so exact same bits as before.
  */
 function isConformal(e: ArrayLike<number>) {
-  const t = linearPartScale(e);
-  if (!(t > 0) || !Number.isFinite(t)) return false;
+  const t = linearPartScale(e)
+  if (!(t > 0) || !Number.isFinite(t)) return false
   const x0 = e[0] / t,
     x1 = e[1] / t,
-    x2 = e[2] / t;
+    x2 = e[2] / t
   const y0 = e[4] / t,
     y1 = e[5] / t,
-    y2 = e[6] / t;
+    y2 = e[6] / t
   const z0 = e[8] / t,
     z1 = e[9] / t,
-    z2 = e[10] / t;
+    z2 = e[10] / t
   const lx2 = x0 * x0 + x1 * x1 + x2 * x2,
     ly2 = y0 * y0 + y1 * y1 + y2 * y2,
-    lz2 = z0 * z0 + z1 * z1 + z2 * z2;
+    lz2 = z0 * z0 + z1 * z1 + z2 * z2
   const maxl = Math.max(lx2, ly2, lz2),
-    minl = Math.min(lx2, ly2, lz2);
-  if (maxl > minl * CONE_LENGTH_RATIO) return false;
-  const eps = maxl * CONE_ORTHO_EPS;
+    minl = Math.min(lx2, ly2, lz2)
+  if (maxl > minl * CONE_LENGTH_RATIO) return false
+  const eps = maxl * CONE_ORTHO_EPS
   return (
     Math.abs(x0 * y0 + x1 * y1 + x2 * y2) <= eps &&
     Math.abs(x0 * z0 + x1 * z1 + x2 * z2) <= eps &&
     Math.abs(y0 * z0 + y1 * z1 + y2 * z2) <= eps
-  );
+  )
 }
 
 /**
@@ -66,16 +66,16 @@ function isConformal(e: ArrayLike<number>) {
  * never initializes it.
  */
 export type ConeContext = {
-  ready: boolean;
-  conformal: boolean;
-  scale: number;
-  normal: Float64Array;
-  camX: number;
-  camY: number;
-  camZ: number;
+  ready: boolean
+  conformal: boolean
+  scale: number
+  normal: Float64Array
+  camX: number
+  camY: number
+  camZ: number
   /** 1 when `cam` is the eye, 0 when it is the direction back to an orthographic camera. */
-  camW: number;
-};
+  camW: number
+}
 
 /** Reused context of a cut: selection is synchronous, like its `selectionScratch`. */
 export function createConeContext(): ConeContext {
@@ -88,24 +88,24 @@ export function createConeContext(): ConeContext {
     camY: 0,
     camZ: 0,
     camW: 1,
-  };
+  }
 }
 
 /** Fills context for a root transform and the camera's homogeneous view point
  *  (`EngineCamera.viewPoint`); a three-component eye is a point. */
 export function coneContextFor(into: ConeContext, world: MatrixElements, eye: ArrayLike<number>) {
-  const e = world.elements;
-  into.ready = true;
-  into.conformal = isConformal(e);
-  if (!into.conformal) return into;
-  into.scale = hypot3(e[0], e[1], e[2]);
-  normalMatrix3(into.normal, e);
+  const e = world.elements
+  into.ready = true
+  into.conformal = isConformal(e)
+  if (!into.conformal) return into
+  into.scale = hypot3(e[0], e[1], e[2])
+  normalMatrix3(into.normal, e)
   // The view point comes from the engine camera (`cam.viewPoint`): the frame sets it once.
-  into.camX = eye[0];
-  into.camY = eye[1];
-  into.camZ = eye[2];
-  into.camW = eye[3] ?? 1;
-  return into;
+  into.camX = eye[0]
+  into.camY = eye[1]
+  into.camZ = eye[2]
+  into.camW = eye[3] ?? 1
+  return into
 }
 
 /** Cluster cone culling, root context already initialized.
@@ -119,9 +119,9 @@ export function coneCullsPageWith(
   max: number[],
   surface?: PageSurface,
 ): boolean {
-  if (surface && !surfaceFrontOnly(surface)) return false;
-  if (!ctx.conformal) return false;
-  if (cone.angle >= HALF_PI) return false;
+  if (surface && !surfaceFrontOnly(surface)) return false
+  if (!ctx.conformal) return false
+  if (cone.angle >= HALF_PI) return false
   return boxConeRejects(
     cone.axis,
     cone.angle,
@@ -134,5 +134,5 @@ export function coneCullsPageWith(
     ctx.camY,
     ctx.camZ,
     ctx.camW,
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import type { FrameMetrics } from '../../../sdk-core/src/index.ts';
+import type { FrameMetrics } from '../../../sdk-core/src/index.ts'
 
 /**
  * The measurements an engine publishes as-is and the host copies one by one, `null` when that
@@ -102,7 +102,7 @@ export const BACKEND_METRIC_KEYS = [
   'gpuShadowCullMs',
   'gpuShadowRasterMs',
   'gpuLightingMs',
-] as const;
+] as const
 
 /** Measurements the host composes itself, from the engine and its own counters. */
 type ComposedMetric =
@@ -111,18 +111,18 @@ type ComposedMetric =
   | 'residentPages'
   | 'geometryAllocationBytes'
   | 'cacheEvictions'
-  | 'totalSubmittedTriangles';
+  | 'totalSubmittedTriangles'
 
 /** What an engine publishes of its frame: the measurements copied as-is, and those the
  *  host composes. */
 export type BackendMetrics = Partial<
   Pick<FrameMetrics, (typeof BACKEND_METRIC_KEYS)[number] | ComposedMetric>
->;
+>
 /** Draw counters a WebGL2 engine adds to its metrics. */
 export type BackendDrawCounters = {
-  drawCalls?: number;
-  batchRebuilds?: number;
-  batchIndexBytesUpdated?: number;
-  pageRangeWrites?: number;
-  subDraws?: number;
-};
+  drawCalls?: number
+  batchRebuilds?: number
+  batchIndexBytesUpdated?: number
+  pageRangeWrites?: number
+  subDraws?: number
+}

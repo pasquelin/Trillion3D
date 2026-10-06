@@ -1,12 +1,12 @@
-import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/src/index.ts';
-import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts';
-import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
-import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS, POINT_FACES } from '../../../../sdk-core/src/index.ts'
+import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts'
+import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
+import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 
 /** Words of a cell record of the light grid (#1369): its count — the high bit set when a light of
  *  its list holds a shadow slot, the per-cell fact the moving resolve reads once (#1249) —, then
  *  where its list starts in the view's pool. */
-export const TILE_STRIDE_WORDS = 2;
+export const TILE_STRIDE_WORDS = 2
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -86,5 +86,5 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  *  this many times its squared range, far above the f32 roundings of \`length\`, so
  *  \`directIncidence\` and \`rectView\` would have given it zero there. */
 const RANGE_REJECT:f32=1.0001;
-`;
-export const DIRECT_LIGHT_WGSL = directLightWgsl();
+`
+export const DIRECT_LIGHT_WGSL = directLightWgsl()

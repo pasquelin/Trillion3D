@@ -1,59 +1,59 @@
-import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
-import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
-import { autonomousPlacements } from '../../placement/autonomousPlacements.ts';
-import { createDynamicReach } from './dynamicReach.ts';
-import { backendMetrics } from './metrics.ts';
-import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
-import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
-import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
-import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
-import { createAutonomousGeometry } from './geometry.ts';
-import { createPageDraws } from './pageDraws.ts';
-import { createAutonomousInstances } from './instances.ts';
-import { createClassPages } from './classPages.ts';
+import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts'
+import { pageDiagnostics } from '../../host/pageDiagnostics.ts'
+import { autonomousPlacements } from '../../placement/autonomousPlacements.ts'
+import { createDynamicReach } from './dynamicReach.ts'
+import { backendMetrics } from './metrics.ts'
+import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts'
+import { createAutonomousRender, createAutonomousRenderState } from './render.ts'
+import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts'
+import { createWebglFrameGate } from '../../webgl/core/frameGate.ts'
+import { createAutonomousGeometry } from './geometry.ts'
+import { createPageDraws } from './pageDraws.ts'
+import { createAutonomousInstances } from './instances.ts'
+import { createClassPages } from './classPages.ts'
 import {
   prepareAutonomousManifest,
   autonomousBootstrap,
   readPages,
   showRootCover,
-} from './manifest.ts';
-import { createAutonomousResidency } from './residency.ts';
-import { createAutonomousPool } from './poolApi.ts';
-import { createHeldFloor } from './heldFloor.ts';
-import { createWebglViews } from './views.ts';
-import { autonomousRenderScale } from './renderScale.ts';
-import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
-import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
-import { engineRenderer } from '../engines.ts';
-import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
-import type { HostMaterial } from '../../host/resources.ts';
-import { createWebglDeformation } from '../../deformation/webglFrame.ts';
-import { webglImpostorTier } from '../../webgl/impostor/code.ts';
+} from './manifest.ts'
+import { createAutonomousResidency } from './residency.ts'
+import { createAutonomousPool } from './poolApi.ts'
+import { createHeldFloor } from './heldFloor.ts'
+import { createWebglViews } from './views.ts'
+import { autonomousRenderScale } from './renderScale.ts'
+import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts'
+import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts'
+import { engineRenderer } from '../engines.ts'
+import { createBlendCopy } from '../../cluster/blendCopyMesh.ts'
+import type { HostMaterial } from '../../host/resources.ts'
+import { createWebglDeformation } from '../../deformation/webglFrame.ts'
+import { webglImpostorTier } from '../../webgl/impostor/code.ts'
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
-  const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
+  const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata)
   const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
       blendCopy: createBlendCopy,
       pendingPlaced: true, // mounted in place once the view reads them (#751)
-    });
-  const [baseRoots, basePages] = [roots.slice(), allPages.slice()];
+    })
+  const [baseRoots, basePages] = [roots.slice(), allPages.slice()]
   const bootstrap = autonomousBootstrap(roots),
-    baseBootstrap = bootstrap.slice();
+    baseBootstrap = bootstrap.slice()
   const byUrl = indexPagesByUrl(allPages, (rec) => rec.url), // by page, not by stream bundle
-    bootstrapUrls = new Set(bootstrap.map((page) => page.url));
+    bootstrapUrls = new Set(bootstrap.map((page) => page.url))
   const hostCeiling = context.maxResidentPages ?? Infinity,
     pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
-    scene = hostPageScene(blendCopies);
-  const draws = createPageDraws(roots);
-  for (const rec of allPages) draws.forEachDraw(rec, (draw) => (draw.material = rec.declaration));
+    scene = hostPageScene(blendCopies)
+  const draws = createPageDraws(roots)
+  for (const rec of allPages) draws.forEachDraw(rec, (draw) => (draw.material = rec.declaration))
   const declared = () =>
       allPages.flatMap((rec) => (draws.materialOf(rec) ? [draws.materialOf(rec)!] : [])),
     colorMaterials = new Map<HostMaterial, HostMaterial>(),
-    modifiedPages = new Set<string>();
+    modifiedPages = new Set<string>()
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     deformation = createWebglDeformation(roots, blendCopies), // the roots' records (#357)
@@ -62,32 +62,32 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     cards = impostors?.cards,
     hosts = { ...context, deformation: deformation.source, cards, cardBytes: impostors?.bytes },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
-  const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
-  let ready = false;
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared)
+  const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged)
+  let ready = false
   const geometryStore = createAutonomousGeometry({
     ...{ scene, roots, allPages, bootstrap, views, byUrl, descriptors },
     ...{ draws, colorMaterials, modifiedPages, deformWord: deformation.wordOf },
-  });
-  const { sync, acceptGeometryPage } = geometryStore;
-  const classes = createClassPages({ context, roots, draws, geometryStore, wears, gate });
+  })
+  const { sync, acceptGeometryPage } = geometryStore
+  const classes = createClassPages({ context, roots, draws, geometryStore, wears, gate })
   // The tables a placement enters: instances and instance-buffer rows append to the same.
-  const tables = { roots, allPages, bootstrap, byUrl, draws, blendOf };
-  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, draws, hostCeiling });
+  const tables = { roots, allPages, bootstrap, byUrl, draws, blendOf }
+  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, draws, hostCeiling })
   const ceiling =
-    hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
+    hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes())
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
     ...{ ...tables, baseRoots, basePages, baseBootstrap, geometryStore, hostCeiling },
     overCeiling: heldFloor.overCeiling,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.placed,
-  });
+  })
   const residency = createAutonomousResidency({
     bootstrapUrls,
     modifiedPages,
     views: views.all,
     geometryStore,
-  });
+  })
   const pool = createAutonomousPool({
     ...tables,
     context,
@@ -102,7 +102,7 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     heldFloor,
     instanceCount,
     views,
-  });
+  })
   const frame = createAutonomousRender({
     ...{ state, context, gate, lighting, roots, draws, blendCopies, worlds, deformation, ceiling },
     impostors,
@@ -111,12 +111,12 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     geometry: geometryStore,
     residency,
     pool: pool.budget,
-  });
+  })
   const placements = autonomousPlacements({
     ...{ ...tables, context, descriptors, bootstrapUrls, blendCopies },
     ...{ scene, gate, geometryStore, coverChanged: heldFloor.placed },
-  });
-  const dynamicReach = createDynamicReach(roots, () => heldFloor.placements);
+  })
+  const dynamicReach = createDynamicReach(roots, () => heldFloor.placements)
   return {
     id: 'autonomous-pages-webgl',
     scene,
@@ -125,32 +125,32 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     captureAside: views.captureAside,
     capabilities: autonomousCapabilities(!!context.metadata.simplification),
     get overBudget() {
-      return state.overBudget;
+      return state.overBudget
     },
     get frameHeld() {
-      return state.frameHeld;
+      return state.frameHeld
     },
     async prepare() {
-      if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
-      const urls = [...bootstrapUrls];
+      if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING')
+      if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET')
+      const urls = [...bootstrapUrls]
       // The draw's own preparation and the impostor tier's code, before any frame (`sceneDraw.ts`).
       const [pages] = await Promise.all([
         readPages(context, urls, sourced),
         hostDraw.prepare(),
         impostors?.prepare(),
-      ]);
-      pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
-      heldFloor.changed();
-      ready = true;
-      showRootCover(roots, views.live.shown, views.live.shownPacked);
-      sync();
-      residency.keptChanged();
-      publishAutonomousCapabilities(context.onDiagnostic);
+      ])
+      pages.forEach((data, i) => acceptGeometryPage(urls[i], data))
+      heldFloor.changed()
+      ready = true
+      showRootCover(roots, views.live.shown, views.live.shownPacked)
+      sync()
+      residency.keptChanged()
+      publishAutonomousCapabilities(context.onDiagnostic)
     },
     render(camera) {
-      hostDraw.render(camera);
-      if (ready) frame(camera);
+      hostDraw.render(camera)
+      if (ready) frame(camera)
     },
     ...hostDraw.host,
     ...hostDraw.materials,
@@ -175,10 +175,10 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
     ),
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
-      if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
-      if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed();
-      if (alpha) classes.follow(alpha, allPages);
-      (values ? gate.sceneChanged : gate.resourcesChanged)();
+      if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin))
+      if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed()
+      if (alpha) classes.follow(alpha, allPages)
+      ;(values ? gate.sceneChanged : gate.resourcesChanged)()
     },
     metrics: () =>
       backendMetrics({
@@ -193,14 +193,14 @@ export const autonomousPagesBackend = engineRenderer('webgl2', (context) => {
         ready,
       }),
     dispose() {
-      ready = false;
-      hostDraw.dispose();
-      impostors?.dispose();
-      geometryStore.dispose();
-      disposeOwnedMaterials();
-      for (const material of colorMaterials.values()) releaseHostSurface(material);
-      scene.clear();
-      gate.release();
+      ready = false
+      hostDraw.dispose()
+      impostors?.dispose()
+      geometryStore.dispose()
+      disposeOwnedMaterials()
+      for (const material of colorMaterials.values()) releaseHostSurface(material)
+      scene.clear()
+      gate.release()
     },
-  };
-});
+  }
+})

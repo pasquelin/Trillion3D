@@ -1,16 +1,16 @@
-import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { isDrawnNode, isLightNode } from '../../host/graph/kinds.ts';
-import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
-import type { HostMesh } from '../../host/resources.ts';
-import { firstMaterial } from '../../scene/materialSide.ts';
-import { physicsLink } from '../../physics/physicsLink.ts';
-import { createChangedSubtrees } from './changedSubtrees.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { isDrawnNode, isLightNode } from '../../host/graph/kinds.ts'
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
+import type { HostMesh } from '../../host/resources.ts'
+import { firstMaterial } from '../../scene/materialSide.ts'
+import { physicsLink } from '../../physics/physicsLink.ts'
+import { createChangedSubtrees } from './changedSubtrees.ts'
 
-const NO_LIGHTS: readonly Light[] = [];
+const NO_LIGHTS: readonly Light[] = []
 
 /** A list member's surface still sends it where it stands: a see-through surface to the
  *  see-through list, an opaque one to the opaque list unless `copies` names it. */
-const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent;
+const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent
 
 /**
  * THE DRAW LISTS OF A DISPLAY GRAPH, KEPT BETWEEN IMAGES (#984, CPU-22): every visible mesh under
@@ -33,45 +33,45 @@ const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent;
  * whole for its matrices.
  */
 export function createDrawLists(scene: Object3D, copies: readonly object[]) {
-  const copied = new Set<object>();
+  const copied = new Set<object>()
   const opaque: HostMesh[] = [],
     seeThrough: HostMesh[] = [],
-    lights: Light[] = [];
+    lights: Light[] = []
   // Each node the last walk reached, and whether it was shown: a move leaves it as it was.
-  const shown = new WeakMap<Object3D, boolean>();
-  let stale = true;
-  const previous = scene._link;
-  const matrices = createChangedSubtrees(scene);
+  const shown = new WeakMap<Object3D, boolean>()
+  let stale = true
+  const previous = scene._link
+  const matrices = createChangedSubtrees(scene)
   // The link chained as the physics chains its own (`physicsLink`): the one it replaces hears all.
   const link = physicsLink(previous, {
     pose(node) {
-      matrices.heard(node);
-      const was = shown.get(node);
-      if (was !== undefined && was !== node.visible) stale = true;
+      matrices.heard(node)
+      const was = shown.get(node)
+      if (was !== undefined && was !== node.visible) stale = true
     },
     posed(nodes) {
-      for (const node of nodes) matrices.heard(node);
+      for (const node of nodes) matrices.heard(node)
     },
     structure(node) {
-      matrices.heard(node);
-      stale = true;
+      matrices.heard(node)
+      stale = true
     },
     content() {},
-  });
-  scene.traverse((node) => (node._link = link));
+  })
+  scene.traverse((node) => (node._link = link))
   const collect = (node: Object3D) => {
-    shown.set(node, node.visible);
-    if (!node.visible) return;
-    if (isDrawnNode(node)) (copied.has(node) || see(node) ? seeThrough : opaque).push(node);
-    else if (isLightNode(node)) lights.push(node);
-    for (const child of node.children) collect(child);
-  };
+    shown.set(node, node.visible)
+    if (!node.visible) return
+    if (isDrawnNode(node)) (copied.has(node) || see(node) ? seeThrough : opaque).push(node)
+    else if (isLightNode(node)) lights.push(node)
+    for (const child of node.children) collect(child)
+  }
   /** A member whose surface moved it to the other list. */
   const resorted = () => {
-    for (const mesh of opaque) if (see(mesh)) return true;
-    for (const mesh of seeThrough) if (!copied.has(mesh) && !see(mesh)) return true;
-    return false;
-  };
+    for (const mesh of opaque) if (see(mesh)) return true
+    for (const mesh of seeThrough) if (!copied.has(mesh) && !see(mesh)) return true
+    return false
+  }
   return {
     /** Visible opaque meshes, in graph order: read, never written. */
     opaque: opaque as readonly HostMesh[],
@@ -80,23 +80,23 @@ export function createDrawLists(scene: Object3D, copies: readonly object[]) {
     /** Visible lights, in graph order: read, never written. None while the graph itself is
      *  hidden, as a light's shown chain says; its meshes still draw, as they always have. */
     get lights(): readonly Light[] {
-      return scene.visible ? lights : NO_LIGHTS;
+      return scene.visible ? lights : NO_LIGHTS
     },
     /** Brings the graph's world matrices, then the lists, to the graph as it stands. */
     refresh() {
-      matrices.run();
+      matrices.run()
       for (let i = copied.size; i < copies.length; i++) {
-        copied.add(copies[i]);
-        stale = true;
+        copied.add(copies[i])
+        stale = true
       }
-      if (!stale && !resorted()) return;
-      stale = false;
-      opaque.length = seeThrough.length = lights.length = 0;
-      for (const child of scene.children) collect(child);
+      if (!stale && !resorted()) return
+      stale = false
+      opaque.length = seeThrough.length = lights.length = 0
+      for (const child of scene.children) collect(child)
     },
     /** Gives the graph back the link it had. */
     dispose() {
-      scene.traverse((node) => (node._link = previous));
+      scene.traverse((node) => (node._link = previous))
     },
-  };
+  }
 }

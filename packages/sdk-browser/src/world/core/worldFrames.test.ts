@@ -1,107 +1,107 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts';
-import { createExplorerMetrics } from '../diagnostic/metrics.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts';
-import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { createWorldFrames, NOT_DRAWN } from './worldFrames.ts'
+import { createExplorerMetrics } from '../diagnostic/metrics.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts'
+import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 
 test('the first frame after a pause spans at most two of the intervals the loop measured', (t) => {
-  let now = 1000;
-  t.mock.method(performance, 'now', () => now);
-  const frames = createWorldFrames();
-  const deltas: number[] = [];
-  frames.add((frame) => deltas.push(frame.delta));
+  let now = 1000
+  t.mock.method(performance, 'now', () => now)
+  const frames = createWorldFrames()
+  const deltas: number[] = []
+  frames.add((frame) => deltas.push(frame.delta))
   for (const at of [1500, 1516, 1532]) {
-    now = at;
-    frames.dispatch({ ...NOT_DRAWN });
+    now = at
+    frames.dispatch({ ...NOT_DRAWN })
   }
   // The first frame spans nothing; the running loop's own interval is kept as measured.
-  assert.deepEqual(deltas, [0, 0.016, 0.016]);
-  now = 6532; // Five seconds of a still scene, or of a hidden tab.
-  frames.advance();
-  now = 11532;
-  assert.equal(frames.advance(), 0.032);
-  frames.dispatch({ ...NOT_DRAWN });
+  assert.deepEqual(deltas, [0, 0.016, 0.016])
+  now = 6532 // Five seconds of a still scene, or of a hidden tab.
+  frames.advance()
+  now = 11532
+  assert.equal(frames.advance(), 0.032)
+  frames.dispatch({ ...NOT_DRAWN })
   // The frame drawn is told what both steps since the last one integrated, each bounded.
-  assert.equal(deltas.at(-1), 0.064);
-});
+  assert.equal(deltas.at(-1), 0.064)
+})
 
 test('the controllers integrate from step to step, the render time included', (t) => {
-  let now = 1000;
-  t.mock.method(performance, 'now', () => now);
-  const frames = createWorldFrames();
-  const stepped: number[] = [];
+  let now = 1000
+  t.mock.method(performance, 'now', () => now)
+  const frames = createWorldFrames()
+  const stepped: number[] = []
   for (const at of [1000, 1016, 1032]) {
-    now = at;
-    stepped.push(frames.advance());
-    now = at + 5; // The frame renders for 5 ms before it is dispatched.
-    frames.dispatch({ ...NOT_DRAWN });
+    now = at
+    stepped.push(frames.advance())
+    now = at + 5 // The frame renders for 5 ms before it is dispatched.
+    frames.dispatch({ ...NOT_DRAWN })
   }
-  assert.deepEqual(stepped, [0, 0.016, 0.016]);
-});
+  assert.deepEqual(stepped, [0, 0.016, 0.016])
+})
 
 test('a frame steps the controls, then the before hooks, then draws, then the after hooks', (t) => {
-  let now = 1000;
-  t.mock.method(performance, 'now', () => now);
-  const frames = createWorldFrames();
+  let now = 1000
+  t.mock.method(performance, 'now', () => now)
+  const frames = createWorldFrames()
   const scene = new Object3D(),
     eye = new Object3D(),
-    body = new Object3D();
-  scene.add(body);
-  const order: string[] = [];
+    body = new Object3D()
+  scene.add(body)
+  const order: string[] = []
   const controls = {
     autoUpdate: true,
     update(delta: number) {
-      order.push('controls');
-      eye.position.x += delta;
+      order.push('controls')
+      eye.position.x += delta
     },
-  };
+  }
   // The body rides the eye: placed ahead of the frame, it is drawn at the pose of this frame.
   const stop = frames.before(({ delta }) => {
-    order.push(`before ${delta}`);
-    body.position.copy(eye.position);
-  });
-  frames.add(() => order.push('after'));
-  const drawn: number[] = [];
+    order.push(`before ${delta}`)
+    body.position.copy(eye.position)
+  })
+  frames.add(() => order.push('after'))
+  const drawn: number[] = []
   for (const at of [1000, 1016]) {
-    now = at;
-    frames.step(controls, scene);
-    drawn.push(body.position.x - eye.position.x);
-    order.push('draw');
-    frames.dispatch({ ...NOT_DRAWN });
+    now = at
+    frames.step(controls, scene)
+    drawn.push(body.position.x - eye.position.x)
+    order.push('draw')
+    frames.dispatch({ ...NOT_DRAWN })
   }
-  assert.deepEqual(drawn, [0, 0]);
-  assert.equal(eye.position.x, 0.016);
+  assert.deepEqual(drawn, [0, 0])
+  assert.equal(eye.position.x, 0.016)
   assert.deepEqual(order.slice(0, 8), [
     ...['controls', 'before 0', 'draw', 'after'],
     ...['controls', 'before 0.016', 'draw', 'after'],
-  ]);
+  ])
   // A page that takes the controller's step is never stepped by the loop; a removed hook stops.
-  controls.autoUpdate = false;
-  stop();
-  order.length = 0;
-  frames.step(controls, scene);
-  assert.deepEqual(order, []);
-});
+  controls.autoUpdate = false
+  stop()
+  order.length = 0
+  frames.step(controls, scene)
+  assert.deepEqual(order, [])
+})
 
 test('a frame sets the physics’ time before the controller moves, and runs the physics after', (t) => {
-  let now = 1000;
-  t.mock.method(performance, 'now', () => now);
-  const frames = createWorldFrames();
-  const order: string[] = [];
-  const controls = { autoUpdate: true, update: () => void order.push('controls') };
+  let now = 1000
+  t.mock.method(performance, 'now', () => now)
+  const frames = createWorldFrames()
+  const order: string[] = []
+  const controls = { autoUpdate: true, update: () => void order.push('controls') }
   const physics = {
     time: (seconds: number) => void order.push(`time ${seconds}`),
     frame: () => (order.push('physics'), false),
-  };
-  frames.step(controls, new Object3D(), physics);
-  now = 1016;
-  frames.step(controls, new Object3D(), physics);
+  }
+  frames.step(controls, new Object3D(), physics)
+  now = 1016
+  frames.step(controls, new Object3D(), physics)
   // The character the controller moves is drawn at the time the bodies then are.
-  assert.deepEqual(order, ['time 0', 'controls', 'physics', 'time 0.016', 'controls', 'physics']);
-});
+  assert.deepEqual(order, ['time 0', 'controls', 'physics', 'time 0.016', 'controls', 'physics'])
+})
 
 test('the GPU frame time the engine measured reaches the page hook; an unmeasured one reads null', () => {
   // The host's own path, without a browser: the engine's `metrics()`, copied key by key through
@@ -116,7 +116,7 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
       hits: 0,
       misses: 0,
     }),
-  } as unknown as ReturnType<typeof createPageStreamer>;
+  } as unknown as ReturnType<typeof createPageStreamer>
   const { metricsScratch, fillMetrics } = createExplorerMetrics(
     {} as ClusterManifest,
     {} as MeasuredWorldOptions,
@@ -131,13 +131,13 @@ test('the GPU frame time the engine measured reaches the page hook; an unmeasure
       effectBytes: 0,
       gpu: { frameMs: null, passes: null },
     }),
-  );
-  const frames = createWorldFrames();
-  const seen: (number | null | undefined)[] = [];
-  frames.add((frame) => seen.push(frame.metrics.gpuFrameMs));
+  )
+  const frames = createWorldFrames()
+  const seen: (number | null | undefined)[] = []
+  frames.add((frame) => seen.push(frame.metrics.gpuFrameMs))
   for (const published of [{ gpuFrameMs: 3.2 }, {}]) {
-    fillMetrics({ metrics: () => published } as unknown as RenderBackend);
-    frames.dispatch(metricsScratch);
+    fillMetrics({ metrics: () => published } as unknown as RenderBackend)
+    frames.dispatch(metricsScratch)
   }
-  assert.deepEqual(seen, [3.2, null]);
-});
+  assert.deepEqual(seen, [3.2, null])
+})

@@ -1,4 +1,4 @@
-import { nextFrame } from '../../frame/scheduling.ts';
+import { nextFrame } from '../../frame/scheduling.ts'
 
 /**
  * The main thread's budget, one definition for every stage that spends it (CONTRIBUTING.md
@@ -14,27 +14,27 @@ import { nextFrame } from '../../frame/scheduling.ts';
  * loop and yields past it, a bounded number per frame (`createSharePace`,
  * `../../webgpu/residency/residentEnsurer.ts`).
  */
-export type FrameBudget = { admits(): boolean; spend(): void };
+export type FrameBudget = { admits(): boolean; spend(): void }
 /** A budget with its clock: the frame that owns it opens it. */
-export type FrameClock = ReturnType<typeof createFrameBudget>;
+export type FrameClock = ReturnType<typeof createFrameBudget>
 
 /** `now` is the clock the budget is read on: `performance.now` unless a test drives it. */
 export function createFrameBudget(ms: number, now = () => performance.now()) {
   let started = 0,
     used = 0,
-    spent = 0;
+    spent = 0
   return {
     /** Starts the clock: every piece until the next `open` shares it. Returns the time it read. */
     open() {
-      spent = used = 0;
-      return (started = now());
+      spent = used = 0
+      return (started = now())
     },
     /** Stops the clock: what runs until `resume` is not integration and spends none of it. */
     pause: () => void (used += now() - started),
     resume: () => void (started = now()),
     admits: () => spent === 0 || used + now() - started < ms,
     spend: () => void spent++,
-  };
+  }
 }
 
 /**
@@ -48,42 +48,42 @@ export function createFrameBudget(ms: number, now = () => performance.now()) {
  */
 const yieldToEventLoop = () =>
   new Promise<void>((done) => {
-    const channel = new MessageChannel();
+    const channel = new MessageChannel()
     channel.port1.onmessage = () => {
-      channel.port1.close();
-      done();
-    };
-    channel.port2.postMessage(0);
-  });
+      channel.port1.close()
+      done()
+    }
+    channel.port2.postMessage(0)
+  })
 
 /** The longest a share waits for a frame: past it, a visible page whose frames stopped (an iframe
  *  scrolled out of view) loads a share per task, as a hidden one, until a frame comes again. */
-const FRAME_WAIT_MS = 100;
+const FRAME_WAIT_MS = 100
 
 /** Whether the page's frames come: a hidden page has none. */
 const pageVisible = () =>
   typeof document !== 'undefined' &&
   document.visibilityState === 'visible' &&
-  typeof requestAnimationFrame === 'function';
+  typeof requestAnimationFrame === 'function'
 
 /** The page's next frame (true), or the page hidden meanwhile, or `FRAME_WAIT_MS` without one. */
 function nextPageFrame() {
   const page = document,
     stop = new AbortController(),
     hidden = () => {
-      if (page.visibilityState === 'hidden') stop.abort();
+      if (page.visibilityState === 'hidden') stop.abort()
     },
-    late = setTimeout(() => stop.abort(), FRAME_WAIT_MS);
-  page.addEventListener('visibilitychange', hidden);
+    late = setTimeout(() => stop.abort(), FRAME_WAIT_MS)
+  page.addEventListener('visibilitychange', hidden)
   return nextFrame(stop.signal)
     .then(
       () => true,
       () => false,
     )
     .finally(() => {
-      clearTimeout(late);
-      page.removeEventListener('visibilitychange', hidden);
-    });
+      clearTimeout(late)
+      page.removeEventListener('visibilitychange', hidden)
+    })
 }
 
 /**
@@ -96,20 +96,20 @@ function nextPageFrame() {
 export function createSharePace(open: () => void, shares: number) {
   let opened = 0,
     framed = true,
-    tick: Promise<void> | undefined;
+    tick: Promise<void> | undefined
   return async () => {
     // `tick` is set whenever a share opened since the last frame of a visible page.
-    if (framed && opened >= shares && pageVisible()) await tick;
-    await yieldToEventLoop();
+    if (framed && opened >= shares && pageVisible()) await tick
+    await yieldToEventLoop()
     // Read again: the page may have been hidden or shown during the wait.
     if (pageVisible()) {
       tick ??= nextPageFrame().then((came) => {
-        tick = undefined;
-        opened = 0;
-        framed = came;
-      });
-      opened++;
+        tick = undefined
+        opened = 0
+        framed = came
+      })
+      opened++
     }
-    open();
-  };
+    open()
+  }
 }

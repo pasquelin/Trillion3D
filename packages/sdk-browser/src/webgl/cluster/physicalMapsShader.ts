@@ -1,6 +1,6 @@
-import { SAMPLING_FOOTPRINT_WGSL } from '../../texture/samplingFootprint.ts';
-import { SAMPLE_WRAP_SHIFT } from '../../texture/sampling.ts';
-import { WRAP_S_MIRROR } from '../../visibility/wrapModes.ts';
+import { SAMPLING_FOOTPRINT_WGSL } from '../../texture/samplingFootprint.ts'
+import { SAMPLE_WRAP_SHIFT } from '../../texture/sampling.ts'
+import { WRAP_S_MIRROR } from '../../visibility/wrapModes.ts'
 
 /** The existing virtual-texture footprint rule, translated without changing its arithmetic. */
 const types: Record<string, string> = {
@@ -16,7 +16,7 @@ const types: Record<string, string> = {
   mag: 'bool',
   lod: 'float',
   nearest: 'bool',
-};
+}
 const footprint = SAMPLING_FOOTPRINT_WGSL.replace(
   /\b(?:let|var) (\w+)=/g,
   (_, name: string) => `${types[name]} ${name}=`,
@@ -34,7 +34,7 @@ const footprint = SAMPLING_FOOTPRINT_WGSL.replace(
   .replace(/\bvec2f\b/g, 'vec2')
   .replace(/\bf32\b/g, 'float')
   .replace(/\bu32\b/g, 'uint')
-  .replace(/\bselect\(/g, 'footSelect(');
+  .replace(/\bselect\(/g, 'footSelect(')
 
 /** Four independent native-size data images in one array; padded texels are never sampled.
  * Exact integer wrapping is applied to each bilinear corner, including repeat seams. */
@@ -84,4 +84,4 @@ vec4 physicalMap(int image){
  }
  return sum/float(rule.taps);
 }
-`;
+`

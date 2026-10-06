@@ -7,29 +7,29 @@
  * A texture slot names a glTF rank, never a host object: the tables are read by a runtime that
  * has no rendering library, and the rank is what ties a slot to the previews the sidecar bakes.
  */
-import { EngineError } from '../../contracts/cache.ts';
-import type { TableDocument } from './tableDocuments.ts';
-import type { TableMaterial, TableTexture } from './tableSurfaces.ts';
-import type { TableAnimation, TableSkin } from './tableMotion.ts';
+import { EngineError } from '../../contracts/cache.ts'
+import type { TableDocument } from './tableDocuments.ts'
+import type { TableMaterial, TableTexture } from './tableSurfaces.ts'
+import type { TableAnimation, TableSkin } from './tableMotion.ts'
 import {
   assertTablePartition,
   type TablePartition,
   type TablePartitionRoot,
-} from './tablePartition.ts';
+} from './tablePartition.ts'
 
 /** The name of the file that holds the scene tables. */
-export const SCENE_TABLES_FILE = 'scene-tables.json';
+export const SCENE_TABLES_FILE = 'scene-tables.json'
 /** Version of the product as a whole; each table it carries is versioned in turn. 5 names the
  *  manifest pages the node table needs (`meshPages`, #751), 6 carries the skins and the clips
  *  (#357). */
-const SCENE_TABLES_VERSION = 6;
+const SCENE_TABLES_VERSION = 6
 /** The version of the node table this runtime reads: every node but those a cell places, with its
  *  local pose, whether it is visible and the skin it bends its mesh by. */
-const NODE_TABLE_VERSION = 5;
+const NODE_TABLE_VERSION = 5
 /** The version of the material table this runtime reads. */
-const MATERIAL_TABLE_VERSION = 4;
+const MATERIAL_TABLE_VERSION = 4
 /** The version of the geometry layout this runtime reads. */
-const GEOMETRY_TABLE_VERSION = 1;
+const GEOMETRY_TABLE_VERSION = 1
 
 /**
  * One node of the scene graph, at its glTF rank: its children, the mesh, the punctual light and
@@ -38,109 +38,109 @@ const GEOMETRY_TABLE_VERSION = 1;
  */
 export interface TableNode {
   /** Original u32 source rank as eight lowercase hexadecimal digits: fixed-width through partition renumbering. */
-  sourceNode?: string;
+  sourceNode?: string
   /** The node's name. */
-  name: string;
+  name: string
   /** Its children, in order. */
-  children: readonly number[];
+  children: readonly number[]
   /** The mesh it draws. */
-  mesh: number | null;
+  mesh: number | null
   /** The light it hangs. */
-  light: number | null;
+  light: number | null
   /** The camera it carries. */
-  camera: number | null;
+  camera: number | null
   /** The skin its mesh bends by, a rank of `skins`. */
-  skin: number | null;
+  skin: number | null
   /** Morph weights that override its mesh's; `null` when silent. */
-  weights: readonly number[] | null;
+  weights: readonly number[] | null
   /** Its local matrix, column-major. */
-  matrix: readonly number[] | null;
+  matrix: readonly number[] | null
   /** Where it stands. */
-  translation: readonly number[] | null;
+  translation: readonly number[] | null
   /** How it is turned, as a quaternion. */
-  rotation: readonly number[] | null;
+  rotation: readonly number[] | null
   /** How it is stretched. */
-  scale: readonly number[] | null;
+  scale: readonly number[] | null
   /** `false` when it declares itself hidden (`KHR_node_visibility`): it and the nodes under it
    *  are not drawn until a page shows it. */
-  visible: boolean;
+  visible: boolean
 }
 /** A punctual light as `KHR_lights_punctual` declares it, each silent field `null`. */
 export interface TableLight {
   /** Its name. */
-  name: string;
+  name: string
   /** Its kind. */
-  type: 'directional' | 'point' | 'spot';
+  type: 'directional' | 'point' | 'spot'
   /** Its colour, linear. */
-  color: readonly [number, number, number] | null;
+  color: readonly [number, number, number] | null
   /** Its intensity, photometric. */
-  intensity: number | null;
+  intensity: number | null
   /** Its reach. */
-  range: number | null;
+  range: number | null
   /** Inner cone of a spot. */
-  innerConeAngle: number | null;
+  innerConeAngle: number | null
   /** Outer cone of a spot. */
-  outerConeAngle: number | null;
+  outerConeAngle: number | null
 }
 /** A camera as the glTF file declares it, each silent field `null`. */
 export interface TableCamera {
   /** Its name. */
-  name: string;
+  name: string
   /** Its projection. */
-  type: 'perspective' | 'orthographic';
+  type: 'perspective' | 'orthographic'
   /** Vertical field of view of a perspective camera, in radians. */
-  yfov: number | null;
+  yfov: number | null
   /** Width over height of a perspective camera. */
-  aspectRatio: number | null;
+  aspectRatio: number | null
   /** Half width of an orthographic camera. */
-  xmag: number | null;
+  xmag: number | null
   /** Half height of an orthographic camera. */
-  ymag: number | null;
+  ymag: number | null
   /** Nearest distance drawn. */
-  znear: number | null;
+  znear: number | null
   /** Farthest distance drawn. */
-  zfar: number | null;
+  zfar: number | null
 }
 /** The tables a compiled model carries. */
 export interface PreparedSceneTables {
   /** Product version. */
-  version: number;
+  version: number
   /** Node table version. */
-  nodeTableVersion: number;
+  nodeTableVersion: number
   /** Material table version. */
-  materialTableVersion: number;
+  materialTableVersion: number
   /** Geometry layout version. */
-  geometryTableVersion: number;
+  geometryTableVersion: number
   /** The scene the host opens, and the nodes at its top. */
-  scene: { name: string; nodes: readonly number[] };
+  scene: { name: string; nodes: readonly number[] }
   /** Every node the cells do not place, at its rank in this table. */
-  nodes: TableNode[];
+  nodes: TableNode[]
   /** The cells that place the other nodes, read by distance; `null` when the scene has none. */
-  partition: TablePartition | null;
+  partition: TablePartition | null
   /** The slots of the manifest's mesh pages the meshes of `nodes` lie in: what a runtime that
    *  holds the manifest by the view reads at open, the cells naming the rest (#751). */
-  meshPages: readonly string[];
+  meshPages: readonly string[]
   /** The lights the nodes hang. */
-  lights: TableLight[];
+  lights: TableLight[]
   /** The cameras the nodes carry. */
-  cameras: TableCamera[];
+  cameras: TableCamera[]
   /** The skins the nodes' meshes bend by. */
-  skins: TableSkin[];
+  skins: TableSkin[]
   /** The clips the file plays. */
-  animations: TableAnimation[];
+  animations: TableAnimation[]
   /** The surfaces. */
-  materials: TableMaterial[];
+  materials: TableMaterial[]
   /** The textures. */
-  textures: TableTexture[];
+  textures: TableTexture[]
   /** The geometry layout of each published scene file, by its name. */
-  documents: Readonly<Record<string, TableDocument>>;
+  documents: Readonly<Record<string, TableDocument>>
 }
 
 /** The tables as `scene-tables.json` carries them: of the partition, only its root
  *  (`tablePartition`), whose pages the runtime reads as its view reaches them. */
 export type SceneTablesFile = Omit<PreparedSceneTables, 'partition'> & {
-  partition: TablePartitionRoot | null;
-};
+  partition: TablePartitionRoot | null
+}
 
 /**
  * The tables, or a named refusal. An unknown version is never guessed at: a product written by
@@ -148,9 +148,9 @@ export type SceneTablesFile = Omit<PreparedSceneTables, 'partition'> & {
  * half way would turn a format change into a wrong image.
  */
 export function assertSceneTables(value: unknown): SceneTablesFile {
-  const tables = value as SceneTablesFile | null;
+  const tables = value as SceneTablesFile | null
   if (!tables || typeof tables !== 'object' || Array.isArray(tables))
-    throw new EngineError('INVALID_SCENE_TABLES', 'scene tables are not a JSON object', {});
+    throw new EngineError('INVALID_SCENE_TABLES', 'scene tables are not a JSON object', {})
   for (const [field, expected] of [
     ['version', SCENE_TABLES_VERSION],
     ['nodeTableVersion', NODE_TABLE_VERSION],
@@ -164,7 +164,7 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
           `the cache was written by another compiler — recompile it with this one ` +
           `(pnpm run build:native, then trillion3d-compiler <source> <cache> …)`,
         { [field]: tables[field] ?? null },
-      );
+      )
   const tabled = [
     'nodes',
     'meshPages',
@@ -174,8 +174,8 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
     'animations',
     'materials',
     'textures',
-  ] as const;
-  const missing = tabled.filter((field) => !Array.isArray(tables[field]));
+  ] as const
+  const missing = tabled.filter((field) => !Array.isArray(tables[field]))
   if (missing.length || !tables.scene || !tables.documents || typeof tables.documents !== 'object')
     throw new EngineError('INVALID_SCENE_TABLES', 'scene tables miss a table', {
       missing: [
@@ -183,7 +183,7 @@ export function assertSceneTables(value: unknown): SceneTablesFile {
         ...(tables.scene ? [] : ['scene']),
         ...(tables.documents ? [] : ['documents']),
       ],
-    });
-  tables.partition = assertTablePartition(tables.partition);
-  return tables;
+    })
+  tables.partition = assertTablePartition(tables.partition)
+  return tables
 }

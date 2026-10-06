@@ -1,9 +1,9 @@
-import { prepareExplorerBackends } from './backends.ts';
-import type { BackendContext, RenderBackend } from '../../backend/types.ts';
-import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import type { ExplorerSession } from './session.ts';
+import { prepareExplorerBackends } from './backends.ts'
+import type { BackendContext, RenderBackend } from '../../backend/types.ts'
+import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
+import type { ExplorerSession } from './session.ts'
 
-type PageSources = Parameters<typeof prepareExplorerBackends>[1]['pageSources'];
+type PageSources = Parameters<typeof prepareExplorerBackends>[1]['pageSources']
 
 /**
  * The context `prepareExplorerBackends` hands the engines of a session on `metadata`, as one probe
@@ -19,19 +19,19 @@ export async function probeBackendContext(
     session = {},
     base = 'http://localhost/cache/',
   }: {
-    options?: object;
-    probe?: Partial<RenderBackend>;
-    session?: Partial<ExplorerSession>;
-    base?: string;
+    options?: object
+    probe?: Partial<RenderBackend>
+    session?: Partial<ExplorerSession>
+    base?: string
   } = {},
 ) {
-  let seen: BackendContext | undefined;
+  let seen: BackendContext | undefined
   const backend = {
     id: 'probe',
     prepare: async () => {},
     dispose: () => {},
     ...probe,
-  } as unknown as RenderBackend;
+  } as unknown as RenderBackend
   const opened = {
     canvas: { width: 4, height: 4 },
     options: { ...options, importedLights: false },
@@ -41,7 +41,7 @@ export async function probeBackendContext(
     emit: () => {},
     diagnose: () => {},
     ...session,
-  } as unknown as ExplorerSession;
+  } as unknown as ExplorerSession
   await prepareExplorerBackends(opened, {
     source: {} as never,
     associations: new Map(),
@@ -50,13 +50,13 @@ export async function probeBackendContext(
     directGpu: false,
     factories: [
       (context) => {
-        seen = context;
-        return backend;
+        seen = context
+        return backend
       },
     ],
     backends: [],
     base,
     worldRoots: [],
-  });
-  return seen!;
+  })
+  return seen!
 }

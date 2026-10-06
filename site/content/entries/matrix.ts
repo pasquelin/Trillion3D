@@ -1,4 +1,4 @@
-import type { EntryNote } from '../model.ts';
+import type { EntryNote } from '../model.ts'
 
 /** 4×4 and 3×3 matrices, and the singularity rule the normal matrix follows. */
 
@@ -50,4 +50,4 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
     replaces: 'Matrix4.makeBasis + setPosition; Matrix4.makeScale + setPosition',
     proof: 'bench Matrix4.makeBasis (×1.7), Matrix4.makeScale (×2.3)',
   },
-];
+]

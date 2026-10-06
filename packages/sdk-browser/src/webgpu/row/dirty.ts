@@ -4,14 +4,14 @@
  * rows are scattered across the table sends those rows and no row of the terrain between them.
  */
 export function createDirtyRows(drawSlots: number) {
-  const span = { from: drawSlots, to: -1 };
-  let writes = 0;
+  const span = { from: drawSlots, to: -1 }
+  let writes = 0
   const dirty = {
     marks: new Uint8Array(drawSlots),
     span,
     /** Occupant writes since the table was made, never cleared: what `rowsMoved` compares. */
     get writes() {
-      return writes;
+      return writes
     },
     /**
      * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
@@ -19,36 +19,36 @@ export function createDirtyRows(drawSlots: number) {
      * moves every image does not walk every row again (#410).
      */
     markWords(from: number, to = from) {
-      if (to === from) dirty.marks[from] = 1;
-      else dirty.marks.fill(1, from, to + 1);
-      if (from < span.from) span.from = from;
-      if (to > span.to) span.to = to;
+      if (to === from) dirty.marks[from] = 1
+      else dirty.marks.fill(1, from, to + 1)
+      if (from < span.from) span.from = from
+      if (to > span.to) span.to = to
     },
     /** Declares rows `[from, to]` dirty: an occupant, a surface or a class may have changed. */
     mark(from: number, to = from) {
-      writes++;
-      dirty.markWords(from, to);
+      writes++
+      dirty.markWords(from, to)
     },
     /** Every row uploaded: the marks cleared on the span alone. */
     clear() {
-      if (span.to >= span.from) dirty.marks.fill(0, span.from, span.to + 1);
-      span.from = dirty.marks.length;
-      span.to = -1;
+      if (span.to >= span.from) dirty.marks.fill(0, span.from, span.to + 1)
+      span.from = dirty.marks.length
+      span.to = -1
     },
     /** The table grew to `rows` (`grow.ts`): the marks held so far are kept. */
     grow(rows: number) {
-      const marks = new Uint8Array(rows);
-      marks.set(dirty.marks);
-      dirty.marks = marks;
-      if (span.to < span.from) span.from = rows;
+      const marks = new Uint8Array(rows)
+      marks.set(dirty.marks)
+      dirty.marks = marks
+      if (span.to < span.from) span.from = rows
     },
-  };
-  return dirty;
+  }
+  return dirty
 }
 
 /** What a reader derived from rows `[0, count)` of `table` was read at, `writes` marks in. */
-export type RowsReading = { table: object | undefined; count: number; writes: number };
-export const rowsUnread = (): RowsReading => ({ table: undefined, count: -1, writes: -1 });
+export type RowsReading = { table: object | undefined; count: number; writes: number }
+export const rowsUnread = (): RowsReading => ({ table: undefined, count: -1, writes: -1 })
 
 /**
  * True when rows `[0, count)` of `table` may hold other words than when `reading` was taken, which
@@ -62,15 +62,15 @@ export function rowsMoved(
   count: number,
   writes: number,
 ) {
-  if (reading.table === table && reading.count === count && reading.writes === writes) return false;
-  reading.table = table;
-  reading.count = count;
-  reading.writes = writes;
-  return true;
+  if (reading.table === table && reading.count === count && reading.writes === writes) return false
+  reading.table = table
+  reading.count = count
+  reading.writes = writes
+  return true
 }
 
 /** A reader of row runs; `ctx` spares it a closure allocated per image. */
-export type RowRunVisitor<C> = (ctx: C, from: number, to: number) => void;
+export type RowRunVisitor<C> = (ctx: C, from: number, to: number) => void
 
 /** Calls `visit` once per maximal run of marked rows within `[from, to]`, in increasing order. */
 export function forEachDirtyRun<C>(
@@ -80,14 +80,14 @@ export function forEachDirtyRun<C>(
   ctx: C,
   visit: RowRunVisitor<C>,
 ) {
-  let row = Math.max(0, from);
+  let row = Math.max(0, from)
   while (row <= to) {
-    const start = marks.indexOf(1, row);
-    if (start < 0 || start > to) return;
-    const after = marks.indexOf(0, start);
-    const end = after < 0 || after > to ? to : after - 1;
-    visit(ctx, start, end);
-    row = end + 1;
+    const start = marks.indexOf(1, row)
+    if (start < 0 || start > to) return
+    const after = marks.indexOf(0, start)
+    const end = after < 0 || after > to ? to : after - 1
+    visit(ctx, start, end)
+    row = end + 1
   }
 }
 
@@ -103,8 +103,8 @@ export function forEachRewrittenRun<C>(
   visit: RowRunVisitor<C>,
 ) {
   const last = rows.packedCount - 1,
-    grown = rows.packedCount > held;
-  const to = Math.min(rows.dirtyTo, grown ? held - 1 : last);
-  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, to, ctx, visit);
-  if (grown) visit(ctx, held, last);
+    grown = rows.packedCount > held
+  const to = Math.min(rows.dirtyTo, grown ? held - 1 : last)
+  forEachDirtyRun(rows.dirtyMarks, rows.dirtyFrom, to, ctx, visit)
+  if (grown) visit(ctx, held, last)
 }

@@ -7,22 +7,22 @@
  * they live beside the bench, not here: `bench/witnesses/measurement.ts` re-exports this entry
  * with them added. Nothing reached from this file imports the host library.
  */
-export * from '../index.ts';
-import { openMeasuredWorld } from '../world/session/explorer.ts';
-import type { MeasuredWorldTarget } from '../world/session/target.ts';
-import type { MeasuredWorldOptions } from '../backend/types.ts';
+export * from '../index.ts'
+import { openMeasuredWorld } from '../world/session/explorer.ts'
+import type { MeasuredWorldTarget } from '../world/session/target.ts'
+import type { MeasuredWorldOptions } from '../backend/types.ts'
 
-export { openMeasuredWorld } from '../world/session/explorer.ts';
-export type { MeasuredWorld } from '../world/session/explorer.ts';
-export type { MeasuredWorldTarget } from '../world/session/target.ts';
-export type { RenderBackend, BackendFactory, MeasuredWorldOptions } from '../backend/types.ts';
-export { replicateInstances } from '../scene/replicateInstances.ts';
-export { autonomousPagesBackend } from '../backend/autonomous/pages.ts';
-export { webgpuPagesBackend } from '../webgpu/pages/pages.ts';
-export { attachParticles } from '../world/core/worldSession.ts';
+export { openMeasuredWorld } from '../world/session/explorer.ts'
+export type { MeasuredWorld } from '../world/session/explorer.ts'
+export type { MeasuredWorldTarget } from '../world/session/target.ts'
+export type { RenderBackend, BackendFactory, MeasuredWorldOptions } from '../backend/types.ts'
+export { replicateInstances } from '../scene/replicateInstances.ts'
+export { autonomousPagesBackend } from '../backend/autonomous/pages.ts'
+export { webgpuPagesBackend } from '../webgpu/pages/pages.ts'
+export { attachParticles } from '../world/core/worldSession.ts'
 // The screen-error measure reads a drawn mesh's side the way the engine does (`bench/runner`).
-export { sideOf } from '../scene/materialSide.ts';
-export { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+export { sideOf } from '../scene/materialSide.ts'
+export { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 
 /** Browser job adapter. A completed session is owned by the caller; cancel/fail after construct disposes it. */
 export async function createMeasuredWorldJob(
@@ -30,7 +30,7 @@ export async function createMeasuredWorldJob(
   target: MeasuredWorldTarget,
   options: MeasuredWorldOptions,
 ) {
-  const { createJob } = await import('../../../sdk-core/src/index.ts');
+  const { createJob } = await import('../../../sdk-core/src/index.ts')
   return createJob(
     id,
     ({ signal, progress }) =>
@@ -40,5 +40,5 @@ export async function createMeasuredWorldJob(
         onPreparation: (event) => progress({ ...event }),
       }),
     { signal: options.signal },
-  );
+  )
 }

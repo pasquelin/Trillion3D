@@ -1,17 +1,17 @@
-import { RESIDENT_PROXY_BINDING, residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
-import { directLightWgsl } from './lightWgsl.ts';
-import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
-import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
-import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
-import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts';
-import { directLightSamplingWgsl } from './lightSamplingWgsl.ts';
-import { CONTRACT_VSM_BINDINGS, directShadowWgsl, type VsmConsumerBindings } from './shadowWgsl.ts';
-import { ALL_SHADOW_KINDS, type ShadowKinds } from './shadowKinds.ts';
-import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts';
-import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts';
-import { INVERSE_PI } from '../shaderConstants.ts';
-import { FOG_WGSL } from '../fogShader.ts';
+import { RESIDENT_PROXY_BINDING, residentProxyWgsl } from '../../bounce/nodeWgsl.ts'
+import { directLightWgsl } from './lightWgsl.ts'
+import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { RECT_SHADING_WGSL } from './rectLightWgsl.ts'
+import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
+import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
+import { directLightSamplingWgsl } from './lightSamplingWgsl.ts'
+import { CONTRACT_VSM_BINDINGS, directShadowWgsl, type VsmConsumerBindings } from './shadowWgsl.ts'
+import { ALL_SHADOW_KINDS, type ShadowKinds } from './shadowKinds.ts'
+import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts'
+import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
+import { INVERSE_PI } from '../shaderConstants.ts'
+import { FOG_WGSL } from '../fogShader.ts'
 
 /** Shadow bindings past the virtual shadow maps' own (`CONTRACT_VSM_BINDINGS`), on the numbers the
  *  water composite reads them at too: the opaque resolve's mask — a forward pass's transmission
@@ -19,7 +19,7 @@ import { FOG_WGSL } from '../fogShader.ts';
 export const CONTRACT_SHADOW_BINDINGS = {
   transmittance: 18,
   translucentDepth: CONTRACT_VSM_BINDINGS.pool,
-};
+}
 
 /** A cell's list of lights — what the resolves walk, and the virtual shadow maps' marking
  *  pass (`../../vsm/markingWgsl.ts`). */
@@ -29,7 +29,7 @@ export const TILE_SLICE_WGSL = `
 fn cellSlice(base:u32)->vec2u{
  let first=tileLights[base+1u];
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
-}`;
+}`
 /**
  * A pixel's cell of the light grid, read by the opaque resolve (`surfaceWgsl.ts`) and the virtual shadow maps'
  * marking pass (`../../vsm/markingWgsl.ts`), both on the deferred view (#1369). Without
@@ -44,7 +44,7 @@ fn pixelCell(pixel:vec2f,z:f32)->u32{
 }
 /** Whether a shadow is read in the cell: its list holds a light with a shadow slot, the high bit
  *  of its count. */
-fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`;
+fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
  * single declared light at the point, its shadow included — the engine's only lighting
@@ -87,7 +87,7 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  let E=${irradianceShader((k) => `e[${k}].rgb`, 'N')};
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
-${TILE_SLICE_WGSL}${sliceLightingWgsl(!shadowed, pair)}`;
+${TILE_SLICE_WGSL}${sliceLightingWgsl(!shadowed, pair)}`
 
 /**
  * Resolve of the direct-lighting contract in the visibility buffer. The pixel loop is bounded
@@ -129,7 +129,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let rank=u32(view.viewport.w);
  if(rank==0u||!shadowed||slice.x==TILE_NO_SLICE||!sampledList(slice.y)){return sliceLighting(rgb,metal,rough,N,V,P,ao,slice);}
  return sampledSliceLighting(rgb,metal,rough,N,V,P,ao,slice,rank,pixel);
-}`;
+}`
 
 /**
  * Declared lights that light a blend surface, taken from the list of the cell its own depth `z`
@@ -167,4 +167,4 @@ fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V
  var slice=vec2u(TILE_NO_SLICE,directLights.count);
  if(cell!=TILE_NO_SLICE){slice=cellSlice(cell);}
  return sliceLighting${pair ? 'Pair' : ''}(rgb,metal,rough,N,V,P,ao,slice);
-}`;
+}`

@@ -7,20 +7,20 @@
  * Nothing built is committed: every consumer builds the tree on demand and the site
  * deployment builds it from main (docs/LEARNING_PORTAL.md).
  */
-import { buildSite, trackedOutput } from './site.ts';
-import { heavyStep } from '../heavy-lock.ts';
+import { buildSite, trackedOutput } from './site.ts'
+import { heavyStep } from '../heavy-lock.ts'
 
 if (!process.argv.includes('--untracked'))
   await heavyStep('build:docs', () =>
     buildSite(undefined, undefined, process.argv.includes('--published')),
-  );
+  )
 else {
-  const tracked = trackedOutput();
+  const tracked = trackedOutput()
   if (tracked.length) {
     console.error(
       `The built site is never tracked:\n${tracked.map((file) => `  ${file}`).join('\n')}`,
-    );
-    process.exit(1);
+    )
+    process.exit(1)
   }
-  console.log('No file of the built site is tracked.');
+  console.log('No file of the built site is tracked.')
 }

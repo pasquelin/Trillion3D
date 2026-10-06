@@ -1,10 +1,10 @@
-import assert from 'node:assert/strict';
-import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
-import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
-import type { MockDraw } from './mockEncoder.ts';
+import assert from 'node:assert/strict'
+import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
+import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
+import type { MockDraw } from './mockEncoder.ts'
 
 /** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
-const STORAGE_OFFSET_ALIGN = 256;
+const STORAGE_OFFSET_ALIGN = 256
 
 /**
  * Indirect commands of a hardware-raster image, with the invariants they all hold: at most one call
@@ -13,11 +13,11 @@ const STORAGE_OFFSET_ALIGN = 256;
  */
 export function indirectDraws(draws: readonly MockDraw[]) {
   // The material classes draw their tiles indirectly too (`materialTiles.ts`): not the raster's.
-  const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs');
-  assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS);
-  assert.ok(vis.every((draw) => draw.firstInstance === 0));
-  assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % STORAGE_OFFSET_ALIGN === 0));
-  return vis;
+  const vis = draws.filter((draw) => draw.indirect && draw.entryPoint !== 'shade_tile_vs')
+  assert.ok(vis.length >= 1 && vis.length <= BASE_SLOTS)
+  assert.ok(vis.every((draw) => draw.firstInstance === 0))
+  assert.ok(vis.every((draw) => (draw.bindOffset ?? 0) % STORAGE_OFFSET_ALIGN === 0))
+  return vis
 }
 
 export function installGpuGlobals() {
@@ -43,21 +43,21 @@ export function installGpuGlobals() {
     },
     GPUShaderStage: { VERTEX: 1, FRAGMENT: 2, COMPUTE: 4 },
     GPUMapMode: { READ: 1, WRITE: 2 },
-  });
+  })
 }
 
 /** `writeBuffer`'s window: `dataOffset` and `size` count elements of `data`, bytes for an ArrayBuffer. */
 export function bytesOf(data: GPUAllowSharedBufferSource, dataOffset = 0, size?: number) {
   if (!ArrayBuffer.isView(data))
-    return new Uint8Array(data, dataOffset, size ?? data.byteLength - dataOffset);
+    return new Uint8Array(data, dataOffset, size ?? data.byteLength - dataOffset)
   const view = data,
-    element = (view as { BYTES_PER_ELEMENT?: number }).BYTES_PER_ELEMENT ?? 1;
-  const start = view.byteOffset + dataOffset * element;
+    element = (view as { BYTES_PER_ELEMENT?: number }).BYTES_PER_ELEMENT ?? 1
+  const start = view.byteOffset + dataOffset * element
   return new Uint8Array(
     view.buffer,
     start,
     size === undefined ? view.byteLength - dataOffset * element : size * element,
-  );
+  )
 }
 
 /**
@@ -71,13 +71,13 @@ export function compactDrawnPages(
   nodeCount: number,
   pageCount: number,
 ) {
-  const marks = new Uint32Array(flagBytes.buffer, flagBytes.byteOffset, flagBytes.byteLength / 4);
-  const out = new Uint32Array(outBytes.buffer, outBytes.byteOffset, outBytes.byteLength / 4);
+  const marks = new Uint32Array(flagBytes.buffer, flagBytes.byteOffset, flagBytes.byteLength / 4)
+  const out = new Uint32Array(outBytes.buffer, outBytes.byteOffset, outBytes.byteLength / 4)
   const head = SELECTION_HEADER_WORDS,
-    base = head + pageCount;
-  let found = 0;
-  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) out[base + head + found++] = id;
-  out[base] = found;
+    base = head + pageCount
+  let found = 0
+  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) out[base + head + found++] = id
+  out[base] = found
 }
 
 /**
@@ -91,14 +91,14 @@ export function drawnPageIds(
   nodeCount: number,
   pageCount: number,
 ) {
-  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG flags');
-  if (!buffer) throw new Error('Trillion3D DAG flags buffer absent');
+  const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG flags')
+  if (!buffer) throw new Error('Trillion3D DAG flags buffer absent')
   const marks = new Uint32Array(
     buffer.data.buffer,
     buffer.data.byteOffset,
     buffer.data.byteLength / 4,
-  );
-  const ids: number[] = [];
-  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) ids.push(id);
-  return ids;
+  )
+  const ids: number[] = []
+  for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) ids.push(id)
+  return ids
 }

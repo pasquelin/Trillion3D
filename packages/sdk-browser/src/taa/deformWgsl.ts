@@ -1,4 +1,4 @@
-import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts';
+import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 
 /**
  * Per-vertex motion of a deformed surface (#357): where the last frame drew the surface point a
@@ -33,4 +33,4 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  let d0=pagePreviousPosition(page,h,corners.x)-c0;let d1=pagePreviousPosition(page,h,corners.y)-c1;
  let d2=pagePreviousPosition(page,h,corners.z)-c2;
  return vec4f(q+m*(b.x*d0+b.y*d1+b.z*d2),1.0);
-}`;
+}`

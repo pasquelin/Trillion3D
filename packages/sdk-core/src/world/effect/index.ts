@@ -1,7 +1,7 @@
-import { Bloom, type BloomOptions } from './bloom.ts';
+import { Bloom, type BloomOptions } from './bloom.ts'
 
-export { Bloom, type BloomOptions } from './bloom.ts';
-export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './chain.ts';
+export { Bloom, type BloomOptions } from './bloom.ts'
+export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './chain.ts'
 
 /** The `effect` family: the passes `world.effects` draws over the image. */
 export const effect = {
@@ -10,4 +10,4 @@ export const effect = {
    * @param options - `intensity` and `radius`; the defaults when absent.
    */
   bloom: (options?: BloomOptions) => new Bloom(options),
-};
+}

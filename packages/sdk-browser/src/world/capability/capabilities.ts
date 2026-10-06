@@ -1,13 +1,13 @@
 /** WebGL mode never reads or calls navigator.gpu and never binds the host canvas. */
 let cachedWebgl:
   | {
-      tier: 'baseline';
-      renderer: 'webgl2' | null;
-      extensions: string[];
-      reason: string;
-      adapter: null;
+      tier: 'baseline'
+      renderer: 'webgl2' | null
+      extensions: string[]
+      reason: string
+      adapter: null
     }
-  | undefined;
+  | undefined
 /** Checks what this machine can draw with, and says why when it cannot. */
 export async function detectCapabilities(
   mode: 'webgl' | 'webgpu',
@@ -15,28 +15,28 @@ export async function detectCapabilities(
   environment: { gpu?: GPU; createWebglCanvas?: () => HTMLCanvasElement } = {},
 ) {
   if (mode === 'webgl') {
-    if (!environment.createWebglCanvas && cachedWebgl) return cachedWebgl;
+    if (!environment.createWebglCanvas && cachedWebgl) return cachedWebgl
     const probe =
       environment.createWebglCanvas?.() ??
-      (typeof document === 'undefined' ? undefined : document.createElement('canvas'));
+      (typeof document === 'undefined' ? undefined : document.createElement('canvas'))
     const gl = probe?.getContext('webgl2', {
       antialias: false,
       alpha: false,
       preserveDrawingBuffer: false,
-    });
-    const extensions = gl?.getSupportedExtensions() ?? [];
-    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    })
+    const extensions = gl?.getSupportedExtensions() ?? []
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
     const result = {
       tier: 'baseline' as const,
       renderer: gl ? ('webgl2' as const) : null,
       extensions,
       reason: gl ? 'Engine WebGL2 path available' : 'WebGL2 unavailable',
       adapter: null,
-    };
-    if (!environment.createWebglCanvas) cachedWebgl = result;
-    return result;
+    }
+    if (!environment.createWebglCanvas) cachedWebgl = result
+    return result
   }
-  const gpu = environment.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu);
+  const gpu = environment.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu)
   if (!gpu)
     return {
       tier: 'baseline' as const,
@@ -44,8 +44,8 @@ export async function detectCapabilities(
       extensions: [],
       reason: 'WebGPU unavailable; create a separate WebGL canvas',
       adapter: null,
-    };
-  const adapter = await gpu.requestAdapter();
+    }
+  const adapter = await gpu.requestAdapter()
   return {
     tier: adapter
       ? adapter.features.has('timestamp-query')
@@ -58,5 +58,5 @@ export async function detectCapabilities(
       ? 'WebGPU adapter available; backend-specific capabilities still require checking'
       : 'No WebGPU adapter; use baseline',
     adapter,
-  };
+  }
 }

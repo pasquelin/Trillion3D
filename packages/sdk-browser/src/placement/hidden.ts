@@ -1,20 +1,20 @@
-import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts';
-import type { ClusterRoot } from '../page/selection/types.ts';
-import { rowParked, type PlacementOf } from './rows.ts';
-import { markShadowless } from '../visibility/shader/spriteWgsl.ts';
-import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import { BOX_VALUES, boxEmpty, boxIsEmpty, boxUnionBatch } from '../../../sdk-core/src/index.ts'
+import type { ClusterRoot } from '../page/selection/types.ts'
+import { rowParked, type PlacementOf } from './rows.ts'
+import { markShadowless } from '../visibility/shader/spriteWgsl.ts'
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** A see-through draw — a WebGPU blend item, a WebGL2 blended copy — as visibility reads it:
  *  hidden with its source node, parked with its row. */
-export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf };
+export type SeeThrough = { hidden?: boolean; readonly placement?: PlacementOf }
 
 /** True when `entry` is not drawn: its source node is hidden, or its row parked. */
-export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement);
+export const notDrawn = (entry: SeeThrough) => !!entry.hidden || rowParked(entry.placement)
 
 /** True when `node` and every node above it are visible. */
 export function shownChain(node: Object3D) {
-  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false;
-  return true;
+  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (!walk.visible) return false
+  return true
 }
 
 /**
@@ -27,25 +27,25 @@ function followHidden<E extends { hidden?: boolean }>(
   flipped: (entry: E, rank: number) => void,
 ) {
   let last: Object3D | undefined,
-    lastHidden = false;
+    lastHidden = false
   for (let rank = 0; rank < entries.length; rank++) {
     const entry = entries[rank],
-      source = sourceOf(entry);
-    if (!source) continue;
+      source = sourceOf(entry)
+    if (!source) continue
     if (source !== last) {
-      last = source;
-      lastHidden = !shownChain(source);
+      last = source
+      lastHidden = !shownChain(source)
     }
-    if (lastHidden === !!entry.hidden) continue;
-    entry.hidden = lastHidden;
-    flipped(entry, rank);
+    if (lastHidden === !!entry.hidden) continue
+    entry.hidden = lastHidden
+    flipped(entry, rank)
   }
 }
 
 /** The box the roots that flipped cover, as one union, and its two corners. */
 const moved = new Float64Array(BOX_VALUES),
   movedMin = moved.subarray(0, 3),
-  movedMax = moved.subarray(3, 6);
+  movedMax = moved.subarray(3, 6)
 
 /**
  * Brings the roots and the see-through draws level with the visibility the host wrote on the
@@ -62,37 +62,37 @@ const moved = new Float64Array(BOX_VALUES),
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
   seeThrough: {
-    entries: readonly S[];
-    sourceOf: (entry: S) => Object3D | undefined;
-    flipped?: (entry: S) => void;
+    entries: readonly S[]
+    sourceOf: (entry: S) => Object3D | undefined
+    flipped?: (entry: S) => void
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   moves?: (rank: number) => boolean,
 ) {
-  boxEmpty(moved, 0);
-  let movingOnly = true;
+  boxEmpty(moved, 0)
+  let movingOnly = true
   const flipped = (rank: number, root: ClusterRoot<T>) => {
-    movingOnly &&= !!moves?.(rank);
-    flip?.(rank, root);
-  };
+    movingOnly &&= !!moves?.(rank)
+    flip?.(rank, root)
+  }
   followHidden(
     roots,
     (root) => root.pages[0]?.sourceMesh,
     (root, rank) => {
-      const parked = !!root.hidden || rowParked(root.placement);
-      if (parked === !!root.parked) return;
-      root.parked = parked;
-      flipped(rank, root);
-      if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1);
+      const parked = !!root.hidden || rowParked(root.placement)
+      if (parked === !!root.parked) return
+      root.parked = parked
+      flipped(rank, root)
+      if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1)
     },
-  );
+  )
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank],
-      source = root.pages[0]?.sourceMesh;
-    if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue;
-    flipped(rank, root);
-    if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
+      source = root.pages[0]?.sourceMesh
+    if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue
+    flipped(rank, root)
+    if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1)
   }
-  followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry));
-  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly };
+  followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry))
+  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly }
 }

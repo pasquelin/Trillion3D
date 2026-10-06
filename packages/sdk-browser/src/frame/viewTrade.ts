@@ -10,8 +10,8 @@ export function tradeView<T, K extends keyof T>(
   keys: readonly K[],
 ) {
   for (const key of keys) {
-    from[key] = live[key];
-    live[key] = to[key];
+    from[key] = live[key]
+    live[key] = to[key]
   }
 }
 
@@ -19,8 +19,8 @@ export function tradeView<T, K extends keyof T>(
  *  engines' switch. Each engine then tells its hold (`gateCore.ts`): WebGPU hands the gate the
  *  view's own hold, WebGL2 breaks its one hold, its attached scene being the other view's. */
 export function tradeCamera<C>(gate: { cam: C }, from: { cam: C }, to: { cam: C }) {
-  from.cam = gate.cam;
-  gate.cam = to.cam;
+  from.cam = gate.cam
+  gate.cam = to.cam
 }
 
 /** Whether the drawn view is a capture, not the main view: both engines then rank its cut first
@@ -29,4 +29,4 @@ export function tradeCamera<C>(gate: { cam: C }, from: { cam: C }, to: { cam: C 
 export const captureDrawn = (
   views: { active: object; main: object },
   capture: { capturing: boolean },
-) => views.active !== views.main && capture.capturing;
+) => views.active !== views.main && capture.capturing

@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { pathToFileURL } from 'node:url';
-import { gitPaths as readGitPaths } from './git-paths.ts';
+import { existsSync, readFileSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
+import { gitPaths as readGitPaths } from './git-paths.ts'
 
-export const MAX_LINES = 200;
-const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
+export const MAX_LINES = 200
+const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/
 
 /**
  * The bound the runtime source no longer answers to, and what answers in its place.
@@ -21,8 +21,8 @@ const sourceFile = /\.(?:[cm]?js|[cm]?ts|jsx|tsx|rs)$/;
  * are read whole, one gate or one step each.
  */
 /** The maintained runtime modules `check:cohesion` reads instead. */
-const RUNTIME_SOURCE = /^packages\/(?:sdk-core|sdk-browser|sdk-node|page-codec)\/src\//;
-const TEST_FILE = /\.(?:test|fixture|perf|gpu)\.m?ts$/;
+const RUNTIME_SOURCE = /^packages\/(?:sdk-core|sdk-browser|sdk-node|page-codec)\/src\//
+const TEST_FILE = /\.(?:test|fixture|perf|gpu)\.m?ts$/
 
 /** Whether the file still answers to the bound. A maintained runtime module of TypeScript does not,
  *  and `check:cohesion` reads it instead; a test, a fixture, a script, the site, the bench and the
@@ -32,7 +32,7 @@ export const keepsLineBound = (file: string): boolean =>
   !RUNTIME_SOURCE.test(file) ||
   TEST_FILE.test(file) ||
   file.endsWith('/index.ts') ||
-  file.endsWith('/index.mts');
+  file.endsWith('/index.mts')
 
 /**
  * `-z` is an option, not a path. Placed after the `--` that opens the list of files, it is
@@ -41,19 +41,19 @@ export const keepsLineBound = (file: string): boolean =>
  * the separator, or at the end of arguments when there is none.
  */
 export function nulSeparated(args: string[]): string[] {
-  const separator = args.indexOf('--');
+  const separator = args.indexOf('--')
   return separator === -1
     ? [...args, '-z']
-    : [...args.slice(0, separator), '-z', ...args.slice(separator)];
+    : [...args.slice(0, separator), '-z', ...args.slice(separator)]
 }
 
 function gitPaths(args: string[]): Promise<string[]> {
-  return readGitPaths(nulSeparated(args));
+  return readGitPaths(nulSeparated(args))
 }
 
 export function lineCount(source: string): number {
-  if (!source) return 0;
-  return source.split('\n').length - Number(source.endsWith('\n'));
+  if (!source) return 0
+  return source.split('\n').length - Number(source.endsWith('\n'))
 }
 
 /** Every selected file that keeps the bound must fit it. A runtime module that does not is read by
@@ -63,18 +63,18 @@ export function lineLimitViolations(
   lines: Map<string, number>,
   selected: Set<string> = new Set(lines.keys()),
 ): string[] {
-  const errors: string[] = [];
+  const errors: string[] = []
   for (const file of selected) {
-    const count = lines.get(file);
+    const count = lines.get(file)
     if (count !== undefined && count > MAX_LINES && keepsLineBound(file))
-      errors.push(`${file}: ${count} lines; maximum ${MAX_LINES}`);
+      errors.push(`${file}: ${count} lines; maximum ${MAX_LINES}`)
   }
-  return errors;
+  return errors
 }
 
 async function main(): Promise<void> {
-  const changedOnly = process.argv.includes('--changed');
-  const paths = new Set(await gitPaths(['ls-files', '-co', '--exclude-standard']));
+  const changedOnly = process.argv.includes('--changed')
+  const paths = new Set(await gitPaths(['ls-files', '-co', '--exclude-standard']))
   const changed = new Set(
     changedOnly
       ? [
@@ -87,20 +87,20 @@ async function main(): Promise<void> {
           ...(await gitPaths(['ls-files', '--others', '--exclude-standard'])),
         ]
       : [...paths],
-  );
+  )
   const lines = new Map(
     [...paths]
       .filter((file) => sourceFile.test(file) && existsSync(file))
       .map((file): [string, number] => [file, lineCount(readFileSync(file, 'utf8'))]),
-  );
-  const selected = new Set([...changed].filter((file) => sourceFile.test(file)));
-  const errors = lineLimitViolations(lines, selected);
+  )
+  const selected = new Set([...changed].filter((file) => sourceFile.test(file)))
+  const errors = lineLimitViolations(lines, selected)
   if (errors.length) {
-    console.error(errors.join('\n'));
-    process.exitCode = 1;
+    console.error(errors.join('\n'))
+    process.exitCode = 1
   } else {
-    console.log(`All checked source files have at most ${MAX_LINES} lines.`);
+    console.log(`All checked source files have at most ${MAX_LINES} lines.`)
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()

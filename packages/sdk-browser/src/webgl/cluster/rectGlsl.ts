@@ -1,11 +1,11 @@
-import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts';
-import { INVERSE_TWO_PI } from '../../lighting/shaderConstants.ts';
-import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts'
+import { INVERSE_TWO_PI } from '../../lighting/shaderConstants.ts'
+import { SURFACE_MODEL } from '../../scene/surfaceModel.ts'
 
 /** The WebGL2 program's rank of a rectangle in `lightData`, after its ambient (3). */
-export const WEBGL_RECT_KIND = 4;
+export const WEBGL_RECT_KIND = 4
 /** Texture unit of the fitted lobe, after the six material maps and the two backdrop units. */
-export const LTC_UNIT = 8;
+export const LTC_UNIT = 8
 
 /**
  * Isotropic rectangular lighting preserves the WebGPU path's evaluation
@@ -56,15 +56,15 @@ if(surfaceModel==${SURFACE_MODEL.diffuse})return through+modelLight(base,metal,N
 if(surfaceModel==${SURFACE_MODEL.toon})return through+modelLight(base,metal,N,F.xyz,colorIntensity.w*PI*polygonFormFactor(a,b,c,d,F.xyz).w*window,ao)*colorIntensity.rgb;
 vec3 f0=mix(vec3(0.04),base,metal);
 vec3 specular=rectSpecular(a,b,c,d,N,V,f0,rough,physicalRead.x)*colorIntensity.w*window;
-return through+(base*(1.0-metal)/PI*E+specular)*colorIntensity.rgb;}`;
+return through+(base*(1.0-metal)/PI*E+specular)*colorIntensity.rgb;}`
 
 /** The fitted lobe of the rectangles (`ltcTable.ts`) as a float texture read by `texelFetch`:
  *  two texels a cell, no filtering asked of the device. */
 export function createLtcTexture(gl: WebGL2RenderingContext) {
-  const texture = gl.createTexture()!;
-  gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  const texture = gl.createTexture()!
+  gl.activeTexture(gl.TEXTURE0 + LTC_UNIT)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
@@ -75,8 +75,8 @@ export function createLtcTexture(gl: WebGL2RenderingContext) {
     gl.RGBA,
     gl.FLOAT,
     ltcTable(),
-  );
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  return texture;
+  )
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+  return texture
 }

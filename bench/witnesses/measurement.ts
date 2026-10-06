@@ -5,11 +5,11 @@
  * `scripts/build-witnesses.ts` bundles this file alone into `dist/witnesses/measurement.js`, the
  * engine modules it names staying the dist's own files, and the package's `files` leave it out.
  */
-export * from '../../packages/sdk-browser/src/measurement/measurement.ts';
+export * from '../../packages/sdk-browser/src/measurement/measurement.ts'
 // The light group the bench's witness page builds (`../runner/witness/witnessPage.ts`) is of the graph.
-export { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
-export { Light } from '../../packages/sdk-core/src/world/light/light.ts';
-export { numbered } from '../../packages/sdk-browser/src/host/graph/serial.ts';
-export { referenceBackend } from './referenceBackend.ts';
-export { exactPagesBackend } from './exact/backend.ts';
-export { threeLodBackend } from './three/lod.ts';
+export { Group } from '../../packages/sdk-core/src/world/object/object3d.ts'
+export { Light } from '../../packages/sdk-core/src/world/light/light.ts'
+export { numbered } from '../../packages/sdk-browser/src/host/graph/serial.ts'
+export { referenceBackend } from './referenceBackend.ts'
+export { exactPagesBackend } from './exact/backend.ts'
+export { threeLodBackend } from './three/lod.ts'

@@ -7,12 +7,12 @@ export {
   DEFAULT_SCOPE,
   FORMAT_VERSION,
   SDK_VERSION,
-} from '../../sdk-core/src/contracts/base.ts';
+} from '../../sdk-core/src/contracts/base.ts'
 export type {
   AssetScope,
   CameraPose,
   PreparationProgress,
   StablePreview,
-} from '../../sdk-core/src/contracts/base.ts';
-export { userNotice } from '../../sdk-core/src/runtime/events.ts';
-export type { RuntimeEvent, UserNotice } from '../../sdk-core/src/runtime/events.ts';
+} from '../../sdk-core/src/contracts/base.ts'
+export { userNotice } from '../../sdk-core/src/runtime/events.ts'
+export type { RuntimeEvent, UserNotice } from '../../sdk-core/src/runtime/events.ts'

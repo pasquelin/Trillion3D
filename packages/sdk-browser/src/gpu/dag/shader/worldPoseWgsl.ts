@@ -5,4 +5,4 @@ fn worldPose(w:u32)->mat4x4f{
  return mat4x4f(worlds[at],worlds[at+1u],worlds[at+2u],worlds[at+3u]);
 }
 fn planesOf(w:u32)->u32{return slotOf(w)*FRAME;}
-`;
+`

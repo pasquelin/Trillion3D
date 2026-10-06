@@ -1,9 +1,9 @@
-import { proxyIdentity } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts';
-import { SCENE_PROXY_VERSION, type SceneProxy } from '../../../packages/sdk-core/src/index.ts';
+import { proxyIdentity } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts'
+import { SCENE_PROXY_VERSION, type SceneProxy } from '../../../packages/sdk-core/src/index.ts'
 
 /** One bounded leaf, shared by the known-radiance fragment proof and real backend bounce setup. */
 export function mirrorProxy(offsetX = 0, albedo = 0xffffffff): SceneProxy {
-  const bounds: SceneProxy['bounds'] = [-0.7 + offsetX, -0.6, 1, 0.6 + offsetX, 0.71, 1];
+  const bounds: SceneProxy['bounds'] = [-0.7 + offsetX, -0.6, 1, 0.6 + offsetX, 0.71, 1]
   return {
     version: SCENE_PROXY_VERSION,
     url: 'synthetic-mirror-proxy.bin',
@@ -41,5 +41,5 @@ export function mirrorProxy(offsetX = 0, albedo = 0xffffffff): SceneProxy {
       nodeBounds: new Float32Array(bounds),
       nodeChildren: new Uint32Array([0xff000000, 0x0101ffff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     },
-  };
+  }
 }

@@ -1,10 +1,10 @@
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
-import { worldControls, type WorldControls } from './worldCamera.ts';
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts';
-import { controlSettingAccessors } from './worldControlsAccessors.ts';
-import { characterSettingAccessors } from './worldCharacterAccessors.ts';
-import { controlTargets, noVehicle, type CharacterSource } from './worldControlTargets.ts';
+import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { worldControls, type WorldControls } from './worldCamera.ts'
+import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
+import { CONTROL_SETTINGS, type ControlSetting, type Controller } from './worldControlsSettings.ts'
+import { controlSettingAccessors } from './worldControlsAccessors.ts'
+import { characterSettingAccessors } from './worldCharacterAccessors.ts'
+import { controlTargets, noVehicle, type CharacterSource } from './worldControlTargets.ts'
 
 /**
  * `world.controls`: the controller driving the world's camera from the canvas, live. Changing
@@ -34,69 +34,69 @@ export function worldControlsHandle(
 ) {
   let kind = initial,
     enabled = true,
-    current: Controller | null = null;
+    current: Controller | null = null
   const standingTarget = new Vector3(),
-    settings = { ...CONTROL_SETTINGS };
+    settings = { ...CONTROL_SETTINGS }
   /** Whether the controller in place moves on its own — cruising, a stick input held, a turn —
    *  and so is sent its first frame; the ones after follow from its own `change`. */
   const wake = (live: Record<string, unknown>) => {
-    const moving = live.autoForward === true || live.pitchInput || live.yawInput || live.rollInput;
-    if (enabled && (moving || live.autoRotate)) invalidate();
-  };
+    const moving = live.autoForward === true || live.pitchInput || live.yawInput || live.rollInput
+    if (enabled && (moving || live.autoRotate)) invalidate()
+  }
   /** Hands every kept setting to the controller in place, where it has them. */
   const bound = () => {
-    const live = current as Record<string, unknown> | null;
-    if (!live) return;
+    const live = current as Record<string, unknown> | null
+    if (!live) return
     for (const name of Object.keys(settings) as ControlSetting[])
-      if (name in live) live[name] = settings[name];
-    targets.bind(live);
-    wake(live);
-  };
+      if (name in live) live[name] = settings[name]
+    targets.bind(live)
+    wake(live)
+  }
   const setting = <K extends ControlSetting>(name: K, value: (typeof CONTROL_SETTINGS)[K]) => {
-    settings[name] = value;
-    const live = current as Record<string, unknown> | null;
+    settings[name] = value
+    const live = current as Record<string, unknown> | null
     if (live && name in live) {
-      live[name] = value;
-      wake(live);
+      live[name] = value
+      wake(live)
     }
     // A pivot controller re-reads its pose under the new setting, and redraws if it moved.
-    if (enabled && current?.target) current.update?.();
-  };
+    if (enabled && current?.target) current.update?.()
+  }
   const rebuild = () => {
-    standingTarget.copy(current?.target ?? standingTarget);
-    current?.dispose();
-    current = worldControls(kind, camera(), surface) as Controller | null;
-    current?.pause(!enabled);
-    bound();
+    standingTarget.copy(current?.target ?? standingTarget)
+    current?.dispose()
+    current = worldControls(kind, camera(), surface) as Controller | null
+    current?.pause(!enabled)
+    bound()
     if (current?.target) {
-      current.target.copy(standingTarget);
-      if (enabled) current.update?.();
+      current.target.copy(standingTarget)
+      if (enabled) current.update?.()
     }
-    current?.addEventListener('change', invalidate);
-  };
+    current?.addEventListener('change', invalidate)
+  }
   const targets = controlTargets(
     physics,
     () => {
-      targets.bind(current as Record<string, unknown> | null);
-      invalidate();
+      targets.bind(current as Record<string, unknown> | null)
+      invalidate()
     },
     () => kind === 'vehicle',
-  );
+  )
   // The world's physics started or stopped: the character's body follows it.
   physics?.watch(() => {
-    targets.bind(current as Record<string, unknown> | null);
-    invalidate();
-  });
-  rebuild();
+    targets.bind(current as Record<string, unknown> | null)
+    invalidate()
+  })
+  rebuild()
   const handle = {
     /** Which controller steers the camera; set another name to switch. */
     get kind() {
-      return kind;
+      return kind
     },
     set kind(next: WorldControls) {
-      if (next === 'vehicle' && !targets.accessors.vehicle) throw noVehicle();
-      kind = next;
-      rebuild();
+      if (next === 'vehicle' && !targets.accessors.vehicle) throw noVehicle()
+      kind = next
+      rebuild()
     },
     /**
      * Whether the controller listens to the mouse and keyboard and moves the camera. `false`
@@ -104,17 +104,17 @@ export function worldControlsHandle(
      * orientation and turn are kept, and `true` resumes exactly where it stopped.
      */
     get enabled() {
-      return enabled;
+      return enabled
     },
     set enabled(on: boolean) {
-      if (on === enabled) return;
-      enabled = on;
-      current?.pause(!on);
-      if (on) invalidate();
+      if (on === enabled) return
+      enabled = on
+      current?.pause(!on)
+      if (on) invalidate()
     },
     /** The point a pivot controller turns around. */
     get target(): Vector3 {
-      return current?.target ?? standingTarget;
+      return current?.target ?? standingTarget
     },
     /** Whether the world's loop calls `update` ahead of each frame, before `world.beforeFrame`
      *  hooks. `false` hands the step to the page, which calls `update` from such a hook, as
@@ -122,39 +122,39 @@ export function worldControlsHandle(
     autoUpdate: true,
     /** Character only: the body's velocity in metres per second, a copy; zero otherwise. */
     get velocity(): Vector3 {
-      const v = (current as { velocity?: ArrayLike<number> } | null)?.velocity;
-      return v ? new Vector3(v[0], v[1], v[2]) : new Vector3();
+      const v = (current as { velocity?: ArrayLike<number> } | null)?.velocity
+      return v ? new Vector3(v[0], v[1], v[2]) : new Vector3()
     },
     /** Character only: whether the feet are on a floor; `false` for any other controller. */
     get onGround(): boolean {
-      return (current as { onGround?: boolean } | null)?.onGround === true;
+      return (current as { onGround?: boolean } | null)?.onGround === true
     },
     /** Character only: the stride's phase in radians, a foot striking at 0 and π; 0 otherwise. */
     get stride(): number {
-      return (current as { stride?: number } | null)?.stride ?? 0;
+      return (current as { stride?: number } | null)?.stride ?? 0
     },
     /** Integrates a steered controller over `delta` seconds; a pivot one re-reads its pose,
      *  and an orbit turns by `autoRotate`. A paused controller does nothing. */
     update(delta = 0) {
-      if (!enabled) return;
-      current?.update?.(delta);
+      if (!enabled) return
+      current?.update?.(delta)
     },
     /** The world's camera changed: the controller follows it. */
     follow: rebuild,
     /** Stops the controller and removes its listeners from the canvas. */
     dispose() {
-      current?.dispose();
-      current = null;
+      current?.dispose()
+      current = null
     },
-  };
+  }
   // The settings are accessors of their own module; they join the handle as accessors, live.
   const kept = {
     ...Object.getOwnPropertyDescriptors(controlSettingAccessors(settings, setting)),
     ...Object.getOwnPropertyDescriptors(characterSettingAccessors(settings, setting)),
     ...Object.getOwnPropertyDescriptors(targets.accessors),
-  };
+  }
   type Kept = ReturnType<typeof controlSettingAccessors> &
     ReturnType<typeof characterSettingAccessors> &
-    typeof targets.accessors;
-  return Object.defineProperties(handle, kept) as typeof handle & Kept;
+    typeof targets.accessors
+  return Object.defineProperties(handle, kept) as typeof handle & Kept
 }

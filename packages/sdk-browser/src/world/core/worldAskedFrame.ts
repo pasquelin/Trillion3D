@@ -2,14 +2,14 @@
 type Parts<T> = {
   /** What the world lacks to draw now — its session opening, the families the frame draws with
    *  on their way (`../session/familyUse.ts`) —, nothing when it lacks nothing. */
-  waits: () => Promise<unknown> | null | undefined;
+  waits: () => Promise<unknown> | null | undefined
   /** The frame, `ahead` stepping first: its image, or null when the world has none to draw. */
-  draw: (ahead?: () => void) => T | null;
+  draw: (ahead?: () => void) => T | null
   /** The world was disposed: a frame that waited is drawn no more. */
-  closed: () => boolean;
+  closed: () => boolean
   /** A frame drawn once it could throws past the page's call that asked it. */
-  failed: (error: unknown) => void;
-};
+  failed: (error: unknown) => void
+}
 
 /**
  * The frame a page asks of its world (`world.render`): drawn now when the world can draw it, else
@@ -21,30 +21,30 @@ type Parts<T> = {
  */
 export function askedFrame<T>({ waits, draw, closed, failed }: Parts<T>) {
   /** The frame waiting, with the step it takes once drawn; null when none waits. */
-  let asked: { ahead?: () => void } | null = null;
+  let asked: { ahead?: () => void } | null = null
   const wait = (waiting: Promise<unknown>, ahead?: () => void) => {
-    if (asked) return void (asked.ahead = ahead);
-    const mine = (asked = { ahead });
+    if (asked) return void (asked.ahead = ahead)
+    const mine = (asked = { ahead })
     void waiting.then(() => {
-      if (asked !== mine) return;
-      asked = null;
-      if (closed()) return;
+      if (asked !== mine) return
+      asked = null
+      if (closed()) return
       try {
-        frame(mine.ahead);
+        frame(mine.ahead)
       } catch (error) {
-        failed(error);
+        failed(error)
       }
-    });
-  };
+    })
+  }
   const frame = (ahead?: () => void): T | null => {
-    const waiting = waits();
-    if (waiting) return (wait(waiting, ahead), null);
-    asked = null;
-    const image = draw(ahead);
+    const waiting = waits()
+    if (waiting) return (wait(waiting, ahead), null)
+    asked = null
+    const image = draw(ahead)
     // What the frame applied closed the session (a reopen): drawn again once the next one opens.
-    const reopening = image === null ? waits() : undefined;
-    if (reopening) wait(reopening, ahead);
-    return image;
-  };
-  return frame;
+    const reopening = image === null ? waits() : undefined
+    if (reopening) wait(reopening, ahead)
+    return image
+  }
+  return frame
 }

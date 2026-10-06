@@ -17,17 +17,17 @@ export function sphereFromBounds(
   maxZ: number,
 ) {
   if (maxX < minX || maxY < minY || maxZ < minZ) {
-    out[o] = 0;
-    out[o + 1] = 0;
-    out[o + 2] = 0;
-    out[o + 3] = -1;
-    return;
+    out[o] = 0
+    out[o + 1] = 0
+    out[o + 2] = 0
+    out[o + 3] = -1
+    return
   }
-  out[o] = (minX + maxX) * 0.5;
-  out[o + 1] = (minY + maxY) * 0.5;
-  out[o + 2] = (minZ + maxZ) * 0.5;
+  out[o] = (minX + maxX) * 0.5
+  out[o + 1] = (minY + maxY) * 0.5
+  out[o + 2] = (minZ + maxZ) * 0.5
   const sx = maxX - minX,
     sy = maxY - minY,
-    sz = maxZ - minZ;
-  out[o + 3] = Math.sqrt(sx * sx + sy * sy + sz * sz) * 0.5;
+    sz = maxZ - minZ
+  out[o + 3] = Math.sqrt(sx * sx + sy * sy + sz * sz) * 0.5
 }

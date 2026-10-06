@@ -1,5 +1,5 @@
 /** Colour demos: the engine's own curve and HSL conversion, on values the reader moves. */
-import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './engine.ts';
+import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './engine.ts'
 import {
   showVector as show,
   canvasView,
@@ -7,16 +7,16 @@ import {
   slider,
   swatchView,
   valueView,
-} from './kit.ts';
-import type { DemoDef } from './kit.ts';
-import { drawCurve } from './draw.ts';
+} from './kit.ts'
+import type { DemoDef } from './kit.ts'
+import { drawCurve } from './draw.ts'
 
 export const COLOR_DEMOS: Record<string, DemoDef> = {
   srgbToLinear: {
     controls: [slider('v', 'encoded sRGB value', 0, 1, 0.5, 0.01)],
     run(state) {
-      const linear = srgbToLinear(state.v);
-      const back = linearToSrgb(linear);
+      const linear = srgbToLinear(state.v)
+      const back = linearToSrgb(linear)
       return [
         valueView('the curve, both ways', [
           ['srgbToLinear(c)', formatNumber(linear)],
@@ -32,7 +32,7 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
           (context, width, height) => drawCurve(context, width, height, srgbToLinear),
           180,
         ),
-      ];
+      ]
     },
   },
   hslToLinearRgb: {
@@ -42,9 +42,9 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
       slider('l', 'lightness', 0, 1, 0.5, 0.01),
     ],
     run(state) {
-      const rgb = new Float64Array(3);
-      hslToLinearRgb(rgb, 0, state.h, state.s, state.l);
-      const encoded = Array.from(rgb, linearToSrgb);
+      const rgb = new Float64Array(3)
+      hslToLinearRgb(rgb, 0, state.h, state.s, state.l)
+      const encoded = Array.from(rgb, linearToSrgb)
       return [
         valueView('hslToLinearRgb(out, 0, h, s, l)', [
           ['linear rgb', show(rgb)],
@@ -56,12 +56,12 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
             label: 'the colour',
           },
         ]),
-      ];
+      ]
     },
   },
-};
+}
 
 function grey(value: number) {
-  const level = Math.round(Math.min(1, Math.max(0, value)) * 255);
-  return `rgb(${level},${level},${level})`;
+  const level = Math.round(Math.min(1, Math.max(0, value)) * 255)
+  return `rgb(${level},${level},${level})`
 }

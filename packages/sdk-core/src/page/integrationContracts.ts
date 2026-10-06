@@ -10,63 +10,63 @@
  * rank), and the arrived pack length is enough for the rest. No cache buffer is therefore
  * copied or detached to be planned — the transfer question does not arise.
  */
-export const PAGE_INTEGRATION_PROTOCOL = 1;
+export const PAGE_INTEGRATION_PROTOCOL = 1
 
 /** Integers per record in a request sheet. */
-export const PAGE_SPEC_STRIDE = 3;
+export const PAGE_SPEC_STRIDE = 3
 /** Byte offset of the record in the pack, or `-1` when the request carries only one page. */
-export const SPEC_STREAM_OFFSET = 0;
+export const SPEC_STREAM_OFFSET = 0
 /** Triangles of the record: three index words each. */
-export const SPEC_TRIANGLES = 1;
+export const SPEC_TRIANGLES = 1
 /** Rank of the page in the table, or `-1` when it is not in it. */
-export const SPEC_PAGE_INDEX = 2;
+export const SPEC_PAGE_INDEX = 2
 
 /** Integers per record in the returned plan. */
-export const PAGE_SLICE_STRIDE = 3;
+export const PAGE_SLICE_STRIDE = 3
 /** First word of the record in the pack. */
-export const SLICE_OFFSET_WORDS = 0;
+export const SLICE_OFFSET_WORDS = 0
 /** Index words of the record. */
-export const SLICE_WORDS = 1;
+export const SLICE_WORDS = 1
 /** Page rank, copied from the sheet: the main thread no longer looks it up. */
-export const SLICE_PAGE_INDEX = 2;
+export const SLICE_PAGE_INDEX = 2
 
 /** A message asking a worker to plan where arriving pages go. */
 export interface PageIntegrationRequest {
   /** Message format version. */
-  protocol: number;
+  protocol: number
   /** Request number. */
-  id: number;
+  id: number
   /** Address of the arrived request: the key under which the executor keeps its sheet. */
-  url: string;
+  url: string
   /** Length of the arrived pack, in index words. */
-  words: number;
+  words: number
   /**
    * The request sheet, transferred on the first arrival of this address and `null` afterwards:
    * it depends only on the catalogue, which does not move, and the executor keeps it.
    */
-  specs: ArrayBuffer | null;
+  specs: ArrayBuffer | null
 }
 
 /** A worker's answer when an arrival was planned. */
 export interface PageIntegrationDone {
   /** Message format version. */
-  protocol: number;
+  protocol: number
   /** The request answered. */
-  id: number;
+  id: number
   /** Always `true`. */
-  ok: true;
+  ok: true
   /** The bundle that arrived. */
-  url: string;
+  url: string
   /** `PAGE_SLICE_STRIDE` integers per record, in the sheet order. Transferred. */
-  slices: ArrayBuffer;
+  slices: ArrayBuffer
   /** Records described by `slices`. */
-  count: number;
+  count: number
   /** Distinct and increasing page ranks that the arrival moves. Transferred. */
-  pages: ArrayBuffer;
+  pages: ArrayBuffer
   /** Pages in it. */
-  pageCount: number;
+  pageCount: number
   /** Task time, measured by the executor itself. */
-  taskMs: number;
+  taskMs: number
 }
 
 /**
@@ -77,25 +77,25 @@ export interface PageIntegrationDone {
 export const PAGE_INTEGRATION_FAILURES = [
   'PAGE_INTEGRATION_UNKNOWN',
   'PAGE_INTEGRATION_WORKER',
-] as const;
+] as const
 /** The name of a way an arrival plan can fail. */
-export type PageIntegrationFailureCode = (typeof PAGE_INTEGRATION_FAILURES)[number];
+export type PageIntegrationFailureCode = (typeof PAGE_INTEGRATION_FAILURES)[number]
 
 /** A worker's answer when an arrival could not be planned. */
 export interface PageIntegrationFailed {
   /** Message format version. */
-  protocol: number;
+  protocol: number
   /** The request answered. */
-  id: number;
+  id: number
   /** Always `false`. */
-  ok: false;
+  ok: false
   /** The bundle that arrived. */
-  url: string;
+  url: string
   /** Why it failed. */
-  code: PageIntegrationFailureCode;
+  code: PageIntegrationFailureCode
   /** Words for a person to read. */
-  message: string;
+  message: string
 }
 
 /** A worker's answer to an arrival: planned or failed. */
-export type PageIntegrationAnswer = PageIntegrationDone | PageIntegrationFailed;
+export type PageIntegrationAnswer = PageIntegrationDone | PageIntegrationFailed

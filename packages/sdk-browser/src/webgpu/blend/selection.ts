@@ -1,9 +1,9 @@
-import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { locationOf, type PageLocations } from '../../page/selection/placements.ts';
-import { notDrawn } from '../../placement/hidden.ts';
-import type { createWebgpuBlendState } from './state.ts';
-type BlendState = ReturnType<typeof createWebgpuBlendState>;
+import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { locationOf, type PageLocations } from '../../page/selection/placements.ts'
+import { notDrawn } from '../../placement/hidden.ts'
+import type { createWebgpuBlendState } from './state.ts'
+type BlendState = ReturnType<typeof createWebgpuBlendState>
 
 /**
  * Transparent draw list of the FALLBACK PATH, the one for devices without a visibility buffer.
@@ -19,25 +19,25 @@ export function selectWebgpuBlend(
   /** `packed` is the packed rank of each drawn page, rank by rank (#1235). */
   cut?: PageLocations & { drawn: readonly PageRec[] },
 ) {
-  const selected = blendState.cpuSelectedPlacements;
-  selected.clear();
-  blendState.visibleBlend.length = 0;
+  const selected = blendState.cpuSelectedPlacements
+  selected.clear()
+  blendState.visibleBlend.length = 0
   if (cut)
     for (let i = 0; i < cut.drawn.length; i++)
-      if (cut.drawn[i].transparent) selected.add(locationOf(cut, i).world);
-  let rejected = 0;
+      if (cut.drawn[i].transparent) selected.add(locationOf(cut, i).world)
+  let rejected = 0
   for (const item of blendState.blendGpu) {
-    if (notDrawn(item)) continue;
-    if (cut && item.paged && !selected.has(item.matrix)) continue;
-    const box = item.bounds;
+    if (notDrawn(item)) continue
+    if (cut && item.paged && !selected.has(item.matrix)) continue
+    const box = item.bounds
     if (
       box &&
       frustumExcludesBox(blendState.blendPlanes, box[0], box[1], box[2], box[3], box[4], box[5])
     )
-      rejected++;
-    else blendState.visibleBlend.push(item);
+      rejected++
+    else blendState.visibleBlend.push(item)
   }
-  return rejected;
+  return rejected
 }
 
 /**
@@ -54,40 +54,40 @@ export function writeCpuTransparentInstances(
   packed: readonly number[],
   entryOf: (packed: number) => number,
 ) {
-  const { table } = blendState;
-  if (!table) return;
+  const { table } = blendState
+  if (!table) return
   if (blendState.cpuInstances.length < table.capacity)
-    blendState.cpuInstances = new Uint32Array(table.capacity);
+    blendState.cpuInstances = new Uint32Array(table.capacity)
   if (blendState.cpuItemCounts.length < table.pagedItems.length)
-    blendState.cpuItemCounts = new Uint32Array(Math.max(1, table.pagedItems.length));
+    blendState.cpuItemCounts = new Uint32Array(Math.max(1, table.pagedItems.length))
   const instances = blendState.cpuInstances,
-    counts = blendState.cpuItemCounts;
-  counts.fill(0);
-  let highest = 0;
+    counts = blendState.cpuItemCounts
+  counts.fill(0)
+  let highest = 0
   for (let i = 0; i < drawn.length; i++) {
-    if (!drawn[i].transparent) continue;
-    const entry = entryOf(packed[i]);
-    if (entry < 0) continue;
+    if (!drawn[i].transparent) continue
+    const entry = entryOf(packed[i])
+    if (entry < 0) continue
     // The entry names its item: no search by placement per record.
     const index = table.itemOfEntry[entry],
-      base = table.itemRanges[index * 2];
-    instances[base + counts[index]++] = entry;
-    if (base + counts[index] > highest) highest = base + counts[index];
+      base = table.itemRanges[index * 2]
+    instances[base + counts[index]++] = entry
+    if (base + counts[index] > highest) highest = base + counts[index]
   }
   for (const item of table.pagedItems) {
     const index = item.pagedIndex!,
       base = table.itemRanges[index * 2],
-      count = counts[index];
+      count = counts[index]
     // The list almost always arrives already increasing — the reread publishes its pages in
     // catalogue order, and table entries are stored by source rank. One walk checks that, where
     // an unconditional sort sorted per primitive and per frame.
-    let ordonnee = true;
+    let ordonnee = true
     for (let k = base + 1; k < base + count; k++)
       if (instances[k - 1] > instances[k]) {
-        ordonnee = false;
-        break;
+        ordonnee = false
+        break
       }
-    if (!ordonnee) instances.subarray(base, base + count).sort();
+    if (!ordonnee) instances.subarray(base, base + count).sort()
   }
-  blendState.cpuInstanceCount = highest;
+  blendState.cpuInstanceCount = highest
 }

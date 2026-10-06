@@ -46,4 +46,4 @@ fn pixelFootprint(coord:vec2i,pixel:vec2f,z:f32,P:vec3f)->f32{
  let centre=pixel+view.jitter.xy;let held=unjitteredDepth(coord,z);
  let at=worldAt(centre,held);
  return length(worldAt(centre+vec2f(1.0,0.0),held)-at);
-}`;
+}`

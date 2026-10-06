@@ -1,33 +1,33 @@
 // What the engine-proof scenes share: an indexed square, the smallest legal DAG
 // that describes it, and the face-on camera. Nothing names a bench scene — the engine
 // only sees passes and materials, as for any imported scene.
-import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type {
   BackendContext,
   BackendDiagnostic,
   BackendFactory,
   RenderBackend,
-} from '../../../packages/sdk-browser/src/backend/types.ts';
-import { DAG } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts';
+} from '../../../packages/sdk-browser/src/backend/types.ts'
+import { DAG } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts'
 import type {
   ClusterManifest,
   ClusterStructure,
   Page,
   Primitive,
-} from '../../../packages/sdk-core/src/index.ts';
+} from '../../../packages/sdk-core/src/index.ts'
 
-export const VIEWPORT: [number, number] = [96, 96];
+export const VIEWPORT: [number, number] = [96, 96]
 
 /** An indexed square of half-side `half` in the plane `z = 0`, its two triangles already bounded. */
 export function square(half: number): G.Geometry {
-  const geometry = new G.Geometry();
+  const geometry = new G.Geometry()
   geometry.setAttribute(
     'position',
     G.floatAttribute([-half, -half, 0, half, -half, 0, half, half, 0, -half, half, 0], 3),
-  );
-  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
-  geometry.computeBoundingBox();
-  return geometry;
+  )
+  geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]))
+  geometry.computeBoundingBox()
+  return geometry
 }
 
 /**
@@ -40,12 +40,12 @@ export function batisseur() {
     associations = new Map<G.Object3D, { meshes?: number; primitives?: number }>(),
     primitives: Primitive[] = [],
     geometries: G.Geometry[] = [],
-    materials: G.GraphSurface[] = [];
+    materials: G.GraphSurface[] = []
   return {
     source,
     add(mesh: G.HostMesh, pass: string, half: number) {
       const rank = primitives.length,
-        radius = half * Math.SQRT2;
+        radius = half * Math.SQRT2
       const pages: Page[] = [0, 1].map((id) => ({
         id,
         url: `carreau-${rank}-${id}`,
@@ -63,8 +63,8 @@ export function batisseur() {
         parentSphere: null,
         group: null,
         source: null,
-      }));
-      const structure: ClusterStructure = { version: 1, roots: [0, 1], groups: [] };
+      }))
+      const structure: ClusterStructure = { version: 1, roots: [0, 1], groups: [] }
       primitives.push({
         mesh: rank,
         primitive: 0,
@@ -72,16 +72,16 @@ export function batisseur() {
         clusterStrategy: 'dag-groups',
         pages,
         structure,
-      });
-      const triangles = mesh.geometry.index!.array;
+      })
+      const triangles = mesh.geometry.index!.array
       for (const page of pages)
-        indices.set(page.url, new Uint32Array(triangles.slice(page.start, page.start! + 3)));
-      associations.set(mesh, { meshes: rank, primitives: 0 });
-      geometries.push(mesh.geometry);
-      materials.push(mesh.material as G.GraphSurface);
+        indices.set(page.url, new Uint32Array(triangles.slice(page.start, page.start! + 3)))
+      associations.set(mesh, { meshes: rank, primitives: 0 })
+      geometries.push(mesh.geometry)
+      materials.push(mesh.material as G.GraphSurface)
     },
     fini() {
-      source.updateMatrixWorld(true);
+      source.updateMatrixWorld(true)
       // The identity fields (`schema`, `status`, `key`, `scope`, the triangle/node counts) are
       // not read by this rig; `DAG` and these placeholders are the same minimal manifest the
       // engine's own scene fixtures use (`packages/sdk-browser/src/backend/pagesBackend.fixture.ts`).
@@ -96,7 +96,7 @@ export function batisseur() {
         selectedNodes: 0,
         totalNodes: primitives.length,
         primitives,
-      };
+      }
       return {
         source,
         metadata,
@@ -104,25 +104,25 @@ export function batisseur() {
         associations,
         geometries,
         materials,
-      };
+      }
     },
-  };
+  }
 }
 
 /** A prepared scene as `batisseur().fini()` returns it. */
-export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>;
+export type ScenePreparee = ReturnType<ReturnType<typeof batisseur>['fini']>
 
 /** A host-library matrix, column-major, ready for `setTransform`. */
-export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(matrice.elements);
+export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(matrice.elements)
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */
 export function cameraFace(x = 0): G.Camera {
-  const camera = G.perspectiveCamera(55, 1, 0.1, 100);
-  camera.position.set(x, 0, 3);
-  camera.lookAt(x, 0, 0);
-  camera.updateMatrixWorld(true);
-  return camera;
+  const camera = G.perspectiveCamera(55, 1, 0.1, 100)
+  camera.position.set(x, 0, 3)
+  camera.lookAt(x, 0, 0)
+  camera.updateMatrixWorld(true)
+  return camera
 }
 
 /** The real WebGPU engine mounted on a built scene, with its own canvas. `options` completes
@@ -136,8 +136,8 @@ export function engine(
   onDiagnostic: (diagnostic: BackendDiagnostic) => void,
   options: Partial<BackendContext> = {},
 ): { backend: RenderBackend; canvas: HTMLCanvasElement } {
-  const canvas = document.createElement('canvas');
-  document.body.append(canvas);
+  const canvas = document.createElement('canvas')
+  document.body.append(canvas)
   const backend = webgpuPagesBackend({
     source: scene.source,
     metadata: scene.metadata,
@@ -152,8 +152,8 @@ export function engine(
     temporalAntialiasing: false,
     onDiagnostic,
     ...options,
-  });
-  return { backend, canvas };
+  })
+  return { backend, canvas }
 }
 
 /** Public counters of a profile stage, or `null` when the host did not ask for it. */
@@ -161,8 +161,8 @@ export function countsStep(
   backend: RenderBackend,
   stage: string,
 ): Readonly<Record<string, number>> | null {
-  const profile = backend.stageProfile?.();
-  return profile?.stages?.find((input) => input.stage === stage)?.counts ?? null;
+  const profile = backend.stageProfile?.()
+  return profile?.stages?.find((input) => input.stage === stage)?.counts ?? null
 }
 
 /** Releases the engine of a proof and its scene: geometries, materials and their textures. */
@@ -171,22 +171,22 @@ export function release(
   canvas: HTMLCanvasElement,
   scene: ScenePreparee,
 ): void {
-  backend.dispose();
-  canvas.remove();
-  releaseScene(scene);
+  backend.dispose()
+  canvas.remove()
+  releaseScene(scene)
 }
 
 /** Releases a prepared scene: its geometries, its materials and their textures. */
 export function releaseScene(scene: ScenePreparee): void {
-  for (const g of scene.geometries) g.dispose();
+  for (const g of scene.geometries) g.dispose()
   for (const m of scene.materials) {
     // A material's texture-valued properties are not typed generically by the witness library: read as
     // `unknown` and narrow at this one boundary.
-    const values: unknown[] = Object.values(m);
+    const values: unknown[] = Object.values(m)
     for (const value of values) {
-      const texture = value as { isTexture?: boolean; dispose?: () => void } | undefined;
-      if (texture?.isTexture) texture.dispose?.();
+      const texture = value as { isTexture?: boolean; dispose?: () => void } | undefined
+      if (texture?.isTexture) texture.dispose?.()
     }
-    m.dispose();
+    m.dispose()
   }
 }

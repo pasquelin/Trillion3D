@@ -1,19 +1,19 @@
-import { BLEND_BINDINGS } from '../core/bindLayout.ts';
-import { BLEND_ITEM_WGSL } from './items.ts';
-import * as itemFlags from '../../visibility/buffer.ts';
-import * as surfaceModel from '../../scene/surfaceModel.ts';
-import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts';
-import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
-import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts';
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
-import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts';
-import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts';
-import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts';
-import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
-import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
+import { BLEND_BINDINGS } from '../core/bindLayout.ts'
+import { BLEND_ITEM_WGSL } from './items.ts'
+import * as itemFlags from '../../visibility/buffer.ts'
+import * as surfaceModel from '../../scene/surfaceModel.ts'
+import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
+import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
+import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts'
+import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
+import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
+import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
+import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts'
 
 /** The pass's view uniform (`uniforms.ts`), the water composite's too (`displayFilter.ts`). */
-export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec3f,frameNoise:f32,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`;
+export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec3f,frameNoise:f32,pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,}`
 /**
  * The vertex stage of the transparent runs and all it reads: the view, the item records, the
  * paged geometry and the plan's instances. Every module that draws the runs starts from it — the
@@ -119,4 +119,4 @@ ${FACING_WGSL}
  }
  out.uv=pageUv(page,h,v);
  return out;
-}`;
+}`

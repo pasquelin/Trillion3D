@@ -1,12 +1,12 @@
-import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import {
   NODE_AUTO_UPDATE,
   NODE_WORLD_NEEDS_UPDATE,
-} from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
-import { updateNodeMatrixWorld } from '../../../../sdk-core/src/math/transform-tree/update.ts';
+} from '../../../../sdk-core/src/math/transform-tree/transformTree.ts'
+import { updateNodeMatrixWorld } from '../../../../sdk-core/src/math/transform-tree/update.ts'
 
 /** The flags that make the tree's rule reach a node (`reach` in `updateNodeMatrixWorld`). */
-const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
+const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE
 
 /**
  * THE WORLD MATRICES OF A DISPLAY GRAPH, BROUGHT UP TO DATE WHERE IT CHANGED (#984, CPU-22): the
@@ -24,35 +24,35 @@ const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
  * the pass that takes it back walks it again (a reparent marks it).
  */
 export function createChangedSubtrees(scene: Object3D) {
-  const pending = new Set<Object3D>([scene]);
+  const pending = new Set<Object3D>([scene])
   return {
     /** `node`'s pose or children changed: its subtree is walked at the next `run`. */
     heard(node: Object3D) {
-      pending.add(node);
+      pending.add(node)
     },
     /** Walks the subtree of every heard node still under `scene`, parents first; how many nodes
      *  it walked. */
     run() {
-      let walked = 0;
+      let walked = 0
       for (const node of pending) {
         // A node taken off the graph since it was heard lost the graph's link, and one destroyed
         // was taken off first: neither is drawn, and a destroyed one may not be read.
-        if (node._link !== scene._link) continue;
+        if (node._link !== scene._link) continue
         // One climb to `scene`: cut short above a heard node (its pass walks `node`) or a root
         // (`node` is no longer drawn); on the way, whether the full pass would reach `node`.
         let at = node,
-          reached = false;
+          reached = false
         while (at !== scene) {
-          const parent: Object3D | null = at.parent;
-          if (!parent || pending.has(parent)) break;
-          reached ||= (Object3D._treeOf(parent).flags[parent.index] & NODE_REACH) !== 0;
-          at = parent;
+          const parent: Object3D | null = at.parent
+          if (!parent || pending.has(parent)) break
+          reached ||= (Object3D._treeOf(parent).flags[parent.index] & NODE_REACH) !== 0
+          at = parent
         }
         if (at === scene)
-          walked += updateNodeMatrixWorld(Object3D._treeOf(node), node.index, reached);
+          walked += updateNodeMatrixWorld(Object3D._treeOf(node), node.index, reached)
       }
-      pending.clear();
-      return walked;
+      pending.clear()
+      return walked
     },
-  };
+  }
 }

@@ -1,18 +1,18 @@
-import { useId } from 'react';
+import { useId } from 'react'
 
 interface SidebarMenuItem {
-  key: string;
-  label: string;
-  href: string;
-  active?: boolean;
+  key: string
+  label: string
+  href: string
+  active?: boolean
   /** A dot after the label: the item is in development. */
-  dot?: string;
+  dot?: string
 }
 
 export interface SidebarMenuGroup {
-  id: string;
-  title: string;
-  items: SidebarMenuItem[];
+  id: string
+  title: string
+  items: SidebarMenuItem[]
 }
 
 /** The sidebar's DaisyUI menu, an accordion: one row per group with its count, one group open at
@@ -21,11 +21,11 @@ export interface SidebarMenuGroup {
  * menu, the examples' excepted. */
 export function SidebarMenu({ groups }: { groups: SidebarMenuGroup[] }) {
   // One accordion: the details share a name, so opening one closes the other.
-  const accordion = useId();
+  const accordion = useId()
   const current = Math.max(
     0,
     groups.findIndex((group) => group.items.some((item) => item.active)),
-  );
+  )
   return (
     <ul className="menu menu-md w-full min-w-0 flex-nowrap gap-1 p-0">
       {groups.map((group, index) => (
@@ -60,5 +60,5 @@ export function SidebarMenu({ groups }: { groups: SidebarMenuGroup[] }) {
         </li>
       ))}
     </ul>
-  );
+  )
 }

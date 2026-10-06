@@ -1,8 +1,8 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 
-const BEGIN = '# Local files begin';
-const END = '# Local files end';
+const BEGIN = '# Local files begin'
+const END = '# Local files end'
 
 /**
  * The paths `.gitignore` declares local: personal instructions, assistant roles and graph
@@ -12,25 +12,25 @@ const END = '# Local files end';
  * rather than guessed at.
  */
 export function localPaths(root: string): string[] {
-  const file = join(root, '.gitignore');
-  if (!existsSync(file)) return [];
-  const lines = readFileSync(file, 'utf8').split('\n');
-  const begin = lines.indexOf(BEGIN);
-  const end = lines.indexOf(END);
-  if (begin === -1 || end <= begin) return [];
+  const file = join(root, '.gitignore')
+  if (!existsSync(file)) return []
+  const lines = readFileSync(file, 'utf8').split('\n')
+  const begin = lines.indexOf(BEGIN)
+  const end = lines.indexOf(END)
+  if (begin === -1 || end <= begin) return []
   return lines
     .slice(begin + 1, end)
     .map((line) => line.trim().replace(/^\/+/, '').replace(/\/+$/, ''))
-    .filter((line) => line !== '' && !line.startsWith('#') && !line.includes('*'));
+    .filter((line) => line !== '' && !line.startsWith('#') && !line.includes('*'))
 }
 
 /** Whether `path` exists, a broken symbolic link included — which `existsSync` reports as absent. */
 function present(path: string): boolean {
   try {
-    lstatSync(path);
-    return true;
+    lstatSync(path)
+    return true
   } catch {
-    return false;
+    return false
   }
 }
 
@@ -49,19 +49,19 @@ export function linkLocalFiles(
       `Local file ${join(main, path)} leads nowhere (a dangling or looping link): not linked`,
     ),
 ): string[] {
-  if (resolve(root) === resolve(main)) return [];
-  const linked: string[] = [];
+  if (resolve(root) === resolve(main)) return []
+  const linked: string[] = []
   for (const path of localPaths(main)) {
-    const source = join(main, path);
-    const target = join(root, path);
-    if (!present(source) || present(target)) continue;
+    const source = join(main, path)
+    const target = join(root, path)
+    if (!present(source) || present(target)) continue
     if (!existsSync(source)) {
-      refuse(path);
-      continue;
+      refuse(path)
+      continue
     }
-    mkdirSync(dirname(target), { recursive: true });
-    symlinkSync(source, target);
-    linked.push(path);
+    mkdirSync(dirname(target), { recursive: true })
+    symlinkSync(source, target)
+    linked.push(path)
   }
-  return linked;
+  return linked
 }

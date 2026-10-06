@@ -1,15 +1,15 @@
-import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts';
-import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
-import { rowsMoved, type RowsReading } from '../row/dirty.ts';
+import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
+import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts'
+import { rowsMoved, type RowsReading } from '../row/dirty.ts'
 
 /** Which classes an image draws: a stamp per class key, the keys stamped by the last walk, and
  *  the rows that walk read. */
 export type PresentClasses = {
-  stamps: Uint32Array;
-  keys: number[];
-  stamp: number;
-  read: RowsReading;
-};
+  stamps: Uint32Array
+  keys: number[]
+  stamp: number
+  read: RowsReading
+}
 
 /**
  * Classes of the packed rows: one word read per row, on the same table the GPU draws from, each
@@ -23,15 +23,15 @@ export function markPresentClasses(
   into: PresentClasses,
   writes: number,
 ) {
-  if (!rowsMoved(into.read, ints, packedCount, writes)) return into.keys;
+  if (!rowsMoved(into.read, ints, packedCount, writes)) return into.keys
   const stride = PAGE_INFO_STRIDE / 4,
-    stamp = ++into.stamp;
-  into.keys.length = 0;
+    stamp = ++into.stamp
+  into.keys.length = 0
   for (let row = 0; row < packedCount; row++) {
-    const key = ints[row * stride + ROW_MATERIAL_CLASS_WORD];
-    if (into.stamps[key] === stamp) continue;
-    into.stamps[key] = stamp;
-    into.keys.push(key);
+    const key = ints[row * stride + ROW_MATERIAL_CLASS_WORD]
+    if (into.stamps[key] === stamp) continue
+    into.stamps[key] = stamp
+    into.keys.push(key)
   }
-  return into.keys;
+  return into.keys
 }

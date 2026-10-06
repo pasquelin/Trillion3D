@@ -16,25 +16,25 @@
 //   (`vsm/markingWgsl.ts`), whatever the draw shades.
 //
 //   node bench/runner/lighting/resolveWorkCount.ts [--width 3456] [--height 2234] [--slots 64]
-import { parseArgs } from 'node:util';
-import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
-import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts';
-import { reaches, walkGrid } from './lightGridWalk.ts';
-import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
-import type { Light } from './lightTileCity.ts';
+import { parseArgs } from 'node:util'
+import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'
+import { camera } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
+import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
+import { reaches, walkGrid } from './lightGridWalk.ts'
+import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
+import type { Light } from './lightTileCity.ts'
 
 const SAMPLES = LIGHT_SETTINGS.samplesPerPixel,
-  LIST = LIGHT_SETTINGS.tileLights;
+  LIST = LIGHT_SETTINGS.tileLights
 
 export type Work = {
-  setup: number;
-  weights: number;
-  shaded: number;
-  shadows: number;
-  demand: number;
-};
-const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0, demand: 0 });
+  setup: number
+  weights: number
+  shaded: number
+  shadows: number
+  demand: number
+}
+const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0, demand: 0 })
 
 /** Sums over the covered pixels of `view`, `before` (develop) and `after`; `slotted[rank]` whether
  *  a light holds a shadow slot. */
@@ -44,26 +44,26 @@ export function countResolveWork(
   lights: Light[],
   slotted: boolean[],
 ) {
-  const sums = { covered: 0, before: zero(), after: zero() };
+  const sums = { covered: 0, before: zero(), after: zero() }
   walkGrid(view, depths, lights, (p, listed) => {
     const L = listed.length,
       flagged = listed.some((rank) => slotted[rank]),
-      drawn = flagged && L > SAMPLES && L <= LIST;
-    const reaching = listed.filter((rank) => slotted[rank] && reaches(p, lights[rank])).length;
-    const shadows = drawn ? Math.min(SAMPLES, reaching) : reaching;
-    sums.covered++;
+      drawn = flagged && L > SAMPLES && L <= LIST
+    const reaching = listed.filter((rank) => slotted[rank] && reaches(p, lights[rank])).length
+    const shadows = drawn ? Math.min(SAMPLES, reaching) : reaching
+    sums.covered++
     for (const [side, walks, setup] of [
       [sums.before, 3, true],
       [sums.after, 2, flagged],
     ] as const) {
-      side.setup += +setup;
-      side.weights += drawn ? walks * L : 0;
-      side.shaded += drawn ? SAMPLES : L;
-      side.shadows += shadows;
-      side.demand += reaching;
+      side.setup += +setup
+      side.weights += drawn ? walks * L : 0
+      side.shaded += drawn ? SAMPLES : L
+      side.shadows += shadows
+      side.demand += reaching
     }
-  });
-  return sums;
+  })
+  return sums
 }
 
 async function main() {
@@ -73,29 +73,29 @@ async function main() {
       height: { type: 'string', default: '2234' },
       slots: { type: 'string', default: '64' },
     },
-  });
-  const [width, height, slots] = [values.width, values.height, values.slots].map(Number);
-  const lights = atriumLamps(200, 4);
+  })
+  const [width, height, slots] = [values.width, values.height, values.slots].map(Number)
+  const lights = atriumLamps(200, 4)
   const rows = ATRIUM_POSES.flatMap(({ eye, yaw, pitch }, pose) => {
-    const view = camera(eye, yaw, pitch, 60, width, height);
+    const view = camera(eye, yaw, pitch, 60, width, height)
     const s = countResolveWork(
       view,
       atriumDepth(view),
       lights,
       lights.map((_, rank) => rank < slots),
-    );
+    )
     return (['before', 'after'] as const).map((side) => ({
       pose,
       side,
       ...Object.fromEntries(
         Object.entries(s[side]).map(([k, v]) => [k, (v / s.covered).toFixed(2)]),
       ),
-    }));
-  });
+    }))
+  })
   console.log(
     `Moving image, 200 lamps of range 4 m, ${slots} holding a shadow slot, ${width} × ${height}, per covered pixel:`,
-  );
-  console.table(rows);
+  )
+  console.table(rows)
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) await main()

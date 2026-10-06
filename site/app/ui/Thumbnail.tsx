@@ -1,12 +1,12 @@
-import type { SyntheticEvent } from 'react';
+import type { SyntheticEvent } from 'react'
 
 interface ThumbnailProps {
-  href: string;
-  src: string;
-  label: string;
-  fallbackSrc?: string;
+  href: string
+  src: string
+  label: string
+  fallbackSrc?: string
   /** The page the reader is on: outlined, and named current. */
-  active?: boolean;
+  active?: boolean
 }
 
 /** Replaces a missing capture once, leaving the shared placeholder failure inert. */
@@ -14,7 +14,7 @@ export function showFallbackImage(
   image: Pick<HTMLImageElement, 'getAttribute' | 'src'>,
   fallbackSrc: string,
 ) {
-  if (image.getAttribute('src') !== fallbackSrc) image.src = fallbackSrc;
+  if (image.getAttribute('src') !== fallbackSrc) image.src = fallbackSrc
 }
 
 /** A render the width of its column at 16:10, loaded when it scrolls near. */
@@ -24,7 +24,7 @@ function Cover({ src, fallbackSrc }: { src: string; fallbackSrc?: string }) {
         onError: (event: SyntheticEvent<HTMLImageElement>) =>
           showFallbackImage(event.currentTarget, fallbackSrc),
       }
-    : {};
+    : {}
   return (
     <img
       className="aspect-[16/10] w-full rounded-lg bg-base-300 object-cover"
@@ -33,7 +33,7 @@ function Cover({ src, fallbackSrc }: { src: string; fallbackSrc?: string }) {
       loading="lazy"
       {...fallback}
     />
-  );
+  )
 }
 
 /** A picture that opens a page: the render the width of its column, its title under it on at most
@@ -49,5 +49,5 @@ export function Thumbnail({ href, src, label, fallbackSrc, active = false }: Thu
       <Cover src={src} fallbackSrc={fallbackSrc} />
       <span className="line-clamp-2 text-sm font-medium">{label}</span>
     </a>
-  );
+  )
 }

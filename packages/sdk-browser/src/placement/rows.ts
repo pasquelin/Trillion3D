@@ -14,72 +14,72 @@
  * larger buffer, which the session grows into in place where its engine can
  * (`growth.ts`), and is opened again with otherwise.
  */
-import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
+import type { MatrixElements } from '../math/matrixElements.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
   /** Original owners of mirrored rows; their animation sources stay live when rows are reused. */
-  sources?: readonly (Mesh | null)[];
+  sources?: readonly (Mesh | null)[]
   /** Meshes sharing this resource, including those waiting for a placement row. */
-  sourceModels?: ReadonlySet<Mesh>;
+  sourceModels?: ReadonlySet<Mesh>
   /** Sixteen column-major floats per row, written by the owner. */
-  readonly matrices: Float64Array;
+  readonly matrices: Float64Array
   /** 1 where the row places the resource, 0 where it is parked. */
-  readonly live: Uint8Array;
+  readonly live: Uint8Array
   /** 1 where the row casts no shadow (its mesh's `castShadow` is `false`), 0 where it casts. */
-  readonly shadowless: Uint8Array;
+  readonly shadowless: Uint8Array
   /** Rows that fit before it grows. */
-  readonly capacity: number;
-};
+  readonly capacity: number
+}
 
 export function createPlacementRows(capacity: number): PlacementRows {
-  const rows = Math.max(1, capacity);
+  const rows = Math.max(1, capacity)
   return {
     matrices: new Float64Array(rows * 16),
     live: new Uint8Array(rows),
     shadowless: new Uint8Array(rows),
     capacity: rows,
-  };
+  }
 }
 
 /** The capacity a table holding `held` entries grows to when it needs `needed`: twice as large at
  *  least, so growing one entry at a time grows it a logarithmic number of times. */
-export const grownCapacity = (held: number, needed: number) => Math.max(needed, held * 2);
+export const grownCapacity = (held: number, needed: number) => Math.max(needed, held * 2)
 
 /** A larger buffer for `needed` rows (`grownCapacity`): `before`'s rows copied first, the new
  *  ones parked. */
 export function growPlacementRows(before: PlacementRows | null, needed: number) {
-  const rows = createPlacementRows(grownCapacity(before?.capacity ?? 0, needed));
+  const rows = createPlacementRows(grownCapacity(before?.capacity ?? 0, needed))
   if (before) {
-    rows.sources = before.sources;
-    rows.sourceModels = before.sourceModels;
-    rows.matrices.set(before.matrices);
-    rows.live.set(before.live);
-    rows.shadowless.set(before.shadowless);
+    rows.sources = before.sources
+    rows.sourceModels = before.sourceModels
+    rows.matrices.set(before.matrices)
+    rows.live.set(before.live)
+    rows.shadowless.set(before.shadowless)
   }
-  return rows;
+  return rows
 }
 
 /** The world matrix of row `index`: a view on the buffer, never a copy. */
 export const placementWorld = (rows: PlacementRows, index: number): MatrixElements => ({
   elements: rows.matrices.subarray(index * 16, index * 16 + 16),
-});
+})
 
 /** What a root or a blended copy carries of the row it was collected from: the rows, and its rank
  *  in them. */
-export type PlacementOf = { rows: PlacementRows; index: number };
+export type PlacementOf = { rows: PlacementRows; index: number }
 
 /** True when `placement` names a row the owner parked: its draw is skipped, its place kept. */
 export const rowParked = (placement: PlacementOf | undefined) =>
-  !!placement && placement.rows.live[placement.index] === 0;
+  !!placement && placement.rows.live[placement.index] === 0
 
 /** True when `placement` names a row whose mesh casts no shadow. */
 export const rowShadowless = (placement: PlacementOf) =>
-  placement.rows.shadowless[placement.index] === 1;
+  placement.rows.shadowless[placement.index] === 1
 
 /** True when one of `placed` — blended copies, blend items — is posed by a row of `rows`. */
 export const placedBy = (
   placed: readonly { readonly placement?: PlacementOf }[],
   rows: PlacementRows,
-) => placed.some((entry) => entry.placement?.rows === rows);
+) => placed.some((entry) => entry.placement?.rows === rows)

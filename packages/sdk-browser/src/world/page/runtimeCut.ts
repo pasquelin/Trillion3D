@@ -7,26 +7,26 @@
  * lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */
-import { encodeGeometryPage, UV_EXPONENT } from '../../../../page-codec/src/geometryPage.ts';
-import { gridExponentFor } from '../../../../page-codec/src/pageGrids.ts';
-import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts';
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
-import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
-import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
-export { packDrawn, unpackDrawn } from './runtimePack.ts';
-import type { CutWay } from './runtimePack.ts';
-import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
-import { sha256Hex } from '../../streaming/sha256Hex.ts';
-import { clusterCones } from './cutCones.ts';
-import { clusters, givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts';
-import { positionGridExponent, textureGridExponent, type GridInputs } from './cutGrid.ts';
+import { encodeGeometryPage, UV_EXPONENT } from '../../../../page-codec/src/geometryPage.ts'
+import { gridExponentFor } from '../../../../page-codec/src/pageGrids.ts'
+import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts'
+import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts'
+export { packDrawn, unpackDrawn } from './runtimePack.ts'
+import type { CutWay } from './runtimePack.ts'
+import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
+import { sha256Hex } from '../../streaming/sha256Hex.ts'
+import { clusterCones } from './cutCones.ts'
+import { clusters, givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts'
+import { positionGridExponent, textureGridExponent, type GridInputs } from './cutGrid.ts'
 
 /**
  * A compiled primitive cut again in session (#846): its own clusters, `ends[k]` the end of cluster
  * `k` in the indices, each the corners of one of its pages in order, and what the compiler knew
  * of it beside its vertices (`GridInputs`), so its pages take the grids the compiler would give it.
  */
-export type Recut = GridInputs & { ends: Uint32Array };
+export type Recut = GridInputs & { ends: Uint32Array }
 
 /**
  * Cuts drawn triangles into single-level clusters of the format's size, in index order, each
@@ -53,14 +53,14 @@ export async function cutDrawnTriangles(
   blended: boolean,
   { recut, held = false }: CutWay = {},
 ): Promise<PageCutPayload> {
-  const { positions, normals, uvs, colors, indices } = drawn;
-  const bounds = new Float64Array(6);
-  boxEmpty(bounds, 0);
+  const { positions, normals, uvs, colors, indices } = drawn
+  const bounds = new Float64Array(6)
+  boxEmpty(bounds, 0)
   for (let i = 0; i + 2 < positions.length; i += 3)
-    boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2]);
-  const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
+    boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2])
+  const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2])
   // Asked first, awaited last: the module loads while the clusters are cut.
-  const grid = positionGridExponent(extent, blended, recut);
+  const grid = positionGridExponent(extent, blended, recut)
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
     ...(drawn.deformation?.joints && drawn.deformation.weights
@@ -78,22 +78,22 @@ export async function cutDrawnTriangles(
     ...(normals.length ? { NORMAL: { itemSize: 3, array: normals } } : {}),
     ...(uvs ? { TEXCOORD_0: { itemSize: 2, array: uvs } } : {}),
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
-  };
-  const compactAt = blended && held && cones ? positions : undefined;
+  }
+  const compactAt = blended && held && cones ? positions : undefined
   const ranges = recut
     ? givenClusters(recut.ends)
-    : [...clusters(indices, positions.length / 3, compactAt)];
+    : [...clusters(indices, positions.length / 3, compactAt)]
   const texture = (span: number) =>
-    gridExponentFor(span, blended && span > 0 ? -Infinity : UV_EXPONENT);
+    gridExponentFor(span, blended && span > 0 ? -Infinity : UV_EXPONENT)
   const uvExponent =
     (recut && uvs ? await textureGridExponent(primitiveUvSpan(uvs), blended) : null) ??
-    texture(uvs ? widestUvSpan(uvs, indices, ranges) : 0);
-  const built = cones && !held ? await clusterCones(positions, indices, ranges) : null;
-  const positionExponent = (await grid) ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
-  const cut = [];
-  let maxPositionError = 0;
+    texture(uvs ? widestUvSpan(uvs, indices, ranges) : 0)
+  const built = cones && !held ? await clusterCones(positions, indices, ranges) : null
+  const positionExponent = (await grid) ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity)
+  const cut = []
+  let maxPositionError = 0
   for (const [start, end] of ranges) {
-    const corners = indices.slice(start, end);
+    const corners = indices.slice(start, end)
     const page = encodeGeometryPage(
       corners,
       attributes,
@@ -103,15 +103,15 @@ export async function cutDrawnTriangles(
         POSITION: { itemSize: 3, array: target.positions },
         NORMAL: { itemSize: 3, array: target.normals },
       })),
-    );
-    maxPositionError = Math.max(maxPositionError, page.quantizationError);
-    const box = new Float64Array(6);
-    boxEmpty(box, 0);
+    )
+    maxPositionError = Math.max(maxPositionError, page.quantizationError)
+    const box = new Float64Array(6)
+    boxEmpty(box, 0)
     for (const v of corners)
-      boxExpandByPoint(box, 0, positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]);
-    const sphere = new Float64Array(4);
-    sphereFromBounds(sphere, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
-    cut.push({ start, corners, page, box, sphere, geometry: page.data.slice().buffer });
+      boxExpandByPoint(box, 0, positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
+    const sphere = new Float64Array(4)
+    sphereFromBounds(sphere, 0, box[0], box[1], box[2], box[3], box[4], box[5])
+    cut.push({ start, corners, page, box, sphere, geometry: page.data.slice().buffer })
   }
   const pages: PageCutPage[] = await Promise.all(
     cut.map(async ({ start, corners, page, box, sphere, geometry }, k) => ({
@@ -130,6 +130,6 @@ export async function cutDrawnTriangles(
       uncompressedBytes: page.uncompressedBytes,
       ...(built ? { cone: built[k] } : {}),
     })),
-  );
-  return { pages, positionExponent, uvExponent, maxPositionError };
+  )
+  return { pages, positionExponent, uvExponent, maxPositionError }
 }

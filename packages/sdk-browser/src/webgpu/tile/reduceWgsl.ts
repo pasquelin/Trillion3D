@@ -1,8 +1,8 @@
-import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts';
+import { FEEDBACK_EVERY, FEEDBACK_STRIDE } from './feedback.ts'
 
 /** Phase pixels on one side of a workgroup of the reduction (`reduce.ts`). */
-export const REDUCE_WORKGROUP = 8;
-const STRIDE_MASK = FEEDBACK_STRIDE - 1;
+export const REDUCE_WORKGROUP = 8
+const STRIDE_MASK = FEEDBACK_STRIDE - 1
 
 export const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
 @group(0) @binding(0) var requests:texture_2d<u32>;
@@ -14,4 +14,4 @@ export const REDUCE_WGSL = `struct ReduceUni{size:vec2u,feedback:u32,pad:u32,}
  if(p.x>=uni.size.x||p.y>=uni.size.y){return;}
  let request=textureLoad(requests,p,0).r;
  if(request!=0u){atomicAdd(&tileFeedback[request-1u],1u);}
-}`;
+}`

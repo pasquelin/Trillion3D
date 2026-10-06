@@ -1,9 +1,9 @@
-import { reflectionConeShader } from './coneShader.ts';
-import { reflectionConeFilterShader } from './coneFilterShader.ts';
-import { screenTraceShader } from './traceShader.ts';
-import { screenRadianceShader } from './screenRadianceShader.ts';
-import { WEBGL_SCREEN_RADIANCE } from './webglScreenRadiance.ts';
-import { mirrorLightingShader, mirrorWeightShader } from './modelShader.ts';
+import { reflectionConeShader } from './coneShader.ts'
+import { reflectionConeFilterShader } from './coneFilterShader.ts'
+import { screenTraceShader } from './traceShader.ts'
+import { screenRadianceShader } from './screenRadianceShader.ts'
+import { WEBGL_SCREEN_RADIANCE } from './webglScreenRadiance.ts'
+import { mirrorLightingShader, mirrorWeightShader } from './modelShader.ts'
 
 export const SCREEN_REFLECTION_GLSL = `
 uniform sampler2D reflectionColor,reflectionDepth;
@@ -37,4 +37,4 @@ ${reflectionConeShader('glsl')}
 // the reduced image is written into the reflectionColor unit after the resolve pass, so no trace
 // runs over the receiver again. The resolve pass itself reads the full-detail source above.
 ${screenRadianceShader('glsl', WEBGL_SCREEN_RADIANCE)}
-${mirrorLightingShader('glsl')}`;
+${mirrorLightingShader('glsl')}`

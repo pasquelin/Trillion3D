@@ -1,5 +1,5 @@
-import { join } from 'node:path';
-import type { Run, Write } from './contracts.ts';
+import { join } from 'node:path'
+import type { Run, Write } from './contracts.ts'
 
 export function proveInstalledTypes({
   fixture,
@@ -7,10 +7,10 @@ export function proveInstalledTypes({
   run,
   write,
 }: {
-  fixture: string;
-  packageName: string;
-  run: Run;
-  write: Write;
+  fixture: string
+  packageName: string
+  run: Run
+  write: Write
 }): void {
   write(
     'common.ts',
@@ -24,7 +24,7 @@ export function proveInstalledTypes({
       `// @ts-expect-error implementation paths are not public.\nimport('${packageName}/dist/sdk-core/src/index.js');\n` +
       `// @ts-expect-error the safe fallback excludes browser values.\nimport { createWorld } from '${packageName}';\n` +
       `export {matrix,snapshot,invalid};\n`,
-  );
+  )
   write(
     'node.ts',
     `import { prepare as compile, type CompilationJob, type CompilationResult, type JobSnapshot, type PrepareOptions } from '${packageName}';\n` +
@@ -35,7 +35,7 @@ export function proveInstalledTypes({
       `const invalid:PrepareOptions={resourceBaseUrl:12};\n` +
       `// @ts-expect-error the Node condition excludes browser values.\nimport { createWorld } from '${packageName}';\n` +
       `export {result,snapshot,invalid};\n`,
-  );
+  )
   write(
     'browser.ts',
     `import { createWorld, type CameraPose as Pose, type World, type WorldOptions } from '${packageName}';\n` +
@@ -46,7 +46,7 @@ export function proveInstalledTypes({
       `const invalid:WorldOptions={renderer:'webgl1'};\n` +
       `// @ts-expect-error the browser condition excludes Node values.\nimport { prepare } from '${packageName}';\n` +
       `export {world,invalid};\n`,
-  );
+  )
   const configurations: [string, Record<string, unknown>][] = [
     ['common', { module: 'ESNext', moduleResolution: 'Bundler', lib: ['ES2023'], types: ['node'] }],
     [
@@ -63,12 +63,12 @@ export function proveInstalledTypes({
         types: ['@webgpu/types'],
       },
     ],
-  ];
+  ]
   for (const [name, options] of configurations) {
     write(
       `tsconfig-${name}.json`,
       `${JSON.stringify({ compilerOptions: { ...options, target: 'ES2023', strict: true, noEmit: true }, files: [`${name}.ts`] }, null, 2)}\n`,
-    );
-    run(join(fixture, 'node_modules/.bin/tsc'), ['-p', `tsconfig-${name}.json`], fixture);
+    )
+    run(join(fixture, 'node_modules/.bin/tsc'), ['-p', `tsconfig-${name}.json`], fixture)
   }
 }

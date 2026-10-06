@@ -11,19 +11,19 @@ import {
   normalMatrix3,
   normalizedLinearDeterminant,
   uniformScaleMatrix4,
-} from './engine.ts';
-import { formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts';
-import type { DemoDef, DemoState } from './kit.ts';
+} from './engine.ts'
+import { formatNumber, matrixView, slider, valueView, verdictView } from './kit.ts'
+import type { DemoDef, DemoState } from './kit.ts'
 
-const scratch = () => new Float64Array(16);
+const scratch = () => new Float64Array(16)
 
 /** `out = T · R · S` from a pose the reader moves, and the decomposition that comes back. */
 function poseMatrix(state: DemoState) {
-  const half = state.turn * 0.5;
-  const quaternion = [0, Math.sin(half), 0, Math.cos(half)];
-  const model = scratch();
-  composeMatrix4(model, [state.x, 0, 0], quaternion, [state.scale, state.scale, state.scale]);
-  return { model, quaternion };
+  const half = state.turn * 0.5
+  const quaternion = [0, Math.sin(half), 0, Math.cos(half)]
+  const model = scratch()
+  composeMatrix4(model, [state.x, 0, 0], quaternion, [state.scale, state.scale, state.scale])
+  return { model, quaternion }
 }
 
 export const MATRIX_DEMOS: Record<string, DemoDef> = {
@@ -34,11 +34,11 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
       slider('scale', 'uniform scale', 0.2, 3, 1, 0.05),
     ],
     run(state) {
-      const { model } = poseMatrix(state);
+      const { model } = poseMatrix(state)
       const position = new Float64Array(3),
         quaternion = new Float64Array(4),
-        scale = new Float64Array(3);
-      decomposeMatrix4(model, position, quaternion, scale);
+        scale = new Float64Array(3)
+      decomposeMatrix4(model, position, quaternion, scale)
       return [
         matrixView(
           'composeMatrix4(out, position, quaternion, scale)',
@@ -50,7 +50,7 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
           ['quaternion', Array.from(quaternion, formatNumber).join(', ')],
           ['scale', Array.from(scale, formatNumber).join(', ')],
         ]),
-      ];
+      ]
     },
   },
   multiplyMatrix4: {
@@ -60,14 +60,14 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
       slider('scale', 'scale of B', 0.2, 3, 1.5, 0.05),
     ],
     run(state) {
-      const a = poseMatrix({ ...state, scale: 1 }).model;
-      const b = scratch();
-      uniformScaleMatrix4(b, state.scale, [0, 0, 0]);
+      const a = poseMatrix({ ...state, scale: 1 }).model
+      const b = scratch()
+      uniformScaleMatrix4(b, state.scale, [0, 0, 0])
       const ab = scratch(),
-        ba = scratch();
-      multiplyMatrix4(ab, a, b);
-      multiplyMatrix4(ba, b, a);
-      return [matrixView('A · B', ab), matrixView('B · A — the product does not commute', ba)];
+        ba = scratch()
+      multiplyMatrix4(ab, a, b)
+      multiplyMatrix4(ba, b, a)
+      return [matrixView('A · B', ab), matrixView('B · A — the product does not commute', ba)]
     },
   },
   invertMatrix4: {
@@ -77,13 +77,13 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
       slider('scale', 'scale', 0, 3, 1, 0.05),
     ],
     run(state) {
-      const { model } = poseMatrix(state);
+      const { model } = poseMatrix(state)
       const inverse = scratch(),
-        product = scratch();
-      invertMatrix4(inverse, model);
-      multiplyMatrix4(product, model, inverse);
-      const determinant = determinantMatrix4(model);
-      const singular = Array.from(inverse).every((value) => value === 0);
+        product = scratch()
+      invertMatrix4(inverse, model)
+      multiplyMatrix4(product, model, inverse)
+      const determinant = determinantMatrix4(model)
+      const singular = Array.from(inverse).every((value) => value === 0)
       return [
         matrixView('invertMatrix4(out, m)', inverse),
         matrixView('m · m⁻¹ — the identity, up to the last bits', product),
@@ -94,7 +94,7 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
             ? `determinant ${formatNumber(determinant)}: sixteen zeros — test the determinant, never the output`
             : `determinant ${formatNumber(determinant)}`,
         ),
-      ];
+      ]
     },
   },
   determinantMatrix4: {
@@ -103,7 +103,7 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
       slider('turn', 'rotation (rad)', 0, 6.28, 0.6, 0.01),
     ],
     run(state) {
-      const { model } = poseMatrix({ ...state, x: 0 });
+      const { model } = poseMatrix({ ...state, x: 0 })
       return [
         matrixView('the matrix under test', model),
         valueView('what the two determinants say', [
@@ -117,7 +117,7 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
             ? 'positive: the draw keeps its front faces'
             : 'negative: the transform mirrors, and the draw swaps front and back',
         ),
-      ];
+      ]
     },
   },
   normalMatrix3: {
@@ -127,12 +127,12 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
       slider('sz', 'scale z', 0, 3, 1, 0.05),
     ],
     run(state) {
-      const model = scratch();
-      composeMatrix4(model, [0, 0, 0], [0, 0, 0, 1], [state.sx, state.sy, state.sz]);
-      const normal = new Float64Array(9);
-      normalMatrix3(normal, model);
-      const determinant = normalizedLinearDeterminant(model);
-      const factor = adjugateFactor(model, linearPartDeterminant(model));
+      const model = scratch()
+      composeMatrix4(model, [0, 0, 0], [0, 0, 0, 1], [state.sx, state.sy, state.sz])
+      const normal = new Float64Array(9)
+      normalMatrix3(normal, model)
+      const determinant = normalizedLinearDeterminant(model)
+      const factor = adjugateFactor(model, linearPartDeterminant(model))
       return [
         valueView('normalMatrix3(out, m) — nine numbers, column-major', [
           ['column 0', Array.from(normal.subarray(0, 3), formatNumber).join(', ')],
@@ -158,7 +158,7 @@ export const MATRIX_DEMOS: Record<string, DemoDef> = {
               ? 'no finite scale: nine zeros'
               : 'regular: the inverse-transpose, at the reference bits',
         ),
-      ];
+      ]
     },
   },
-};
+}

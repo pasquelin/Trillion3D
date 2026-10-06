@@ -1,7 +1,7 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { SplineCurve } from './curves.ts';
-import { Vector3 } from './vector3.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { SplineCurve } from './curves.ts'
+import { Vector3 } from './vector3.ts'
 
 /**
  * Points of the spline pinned to the bit, as the span computed them before `splineSpan` was
@@ -118,23 +118,23 @@ const pinned: { closed: boolean; points: number[]; at: number[][] }[] = [
       [2 / 3, -0.00050000000000000001, -0.0097000000000000003, 0.00069999999999999999],
     ],
   },
-];
+]
 
 test('a spline point keeps every bit the span has always given it', () => {
   for (const { closed, points, at } of pinned) {
     const corners = Array.from(
       { length: points.length / 3 },
       (_, k) => new Vector3(points[3 * k], points[3 * k + 1], points[3 * k + 2]),
-    );
-    const curve = new SplineCurve(corners, closed);
+    )
+    const curve = new SplineCurve(corners, closed)
     for (const [t, ...expected] of at) {
-      const point = curve.getPoint(t);
-      [point.x, point.y, point.z].forEach((actual, axis) =>
+      const point = curve.getPoint(t)
+      ;[point.x, point.y, point.z].forEach((actual, axis) =>
         assert.ok(
           Object.is(actual, expected[axis]),
           `${closed ? 'closed' : 'open'} ${points.length / 3} points, t = ${t}, axis ${axis}: ${actual} ≠ ${expected[axis]}`,
         ),
-      );
+      )
     }
   }
-});
+})

@@ -1,22 +1,22 @@
-import { PHYSICAL_GLSL } from './physicalGlsl.ts';
-import { SCREEN_REFLECTION_GLSL } from '../../reflections/screenGlsl.ts';
-import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
-import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
-import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
-import { PROBE_IRRADIANCE_GLSL } from './probe.ts';
-import { SUBSURFACE_UNIT } from './materialMaps.ts';
-import { LIGHT_TEXTURE_GLSL } from './lightTexture.ts';
-import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightGrid.ts';
-import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
-import { FOG_GLSL } from '../../lighting/fogShader.ts';
-import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
-import { SPRITE_GLSL } from '../../visibility/shader/spriteWgsl.ts';
+import { PHYSICAL_GLSL } from './physicalGlsl.ts'
+import { SCREEN_REFLECTION_GLSL } from '../../reflections/screenGlsl.ts'
+import { TRANSMISSION_GLSL } from './transmissionGlsl.ts'
+import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts'
+import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts'
+import { PROBE_IRRADIANCE_GLSL } from './probe.ts'
+import { SUBSURFACE_UNIT } from './materialMaps.ts'
+import { LIGHT_TEXTURE_GLSL } from './lightTexture.ts'
+import { LIGHT_GRID_GLSL, LIGHT_LOOP_GLSL } from './lightGrid.ts'
+import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { FOG_GLSL } from '../../lighting/fogShader.ts'
+import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts'
+import { SPRITE_GLSL } from '../../visibility/shader/spriteWgsl.ts'
 import {
   NORMAL_VIEW_COLOR_GLSL,
   SURFACE_MODEL,
   SURFACE_MODEL_GLSL,
-} from '../../scene/surfaceModel.ts';
-import { DEFORM_GLSL } from '../../deformation/deformGlsl.ts';
+} from '../../scene/surfaceModel.ts'
+import { DEFORM_GLSL } from '../../deformation/deformGlsl.ts'
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
 // then the normal, scaled back by the matrix's axes before it is turned.
@@ -47,7 +47,7 @@ texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;
 if(lineWidth>0.0){vec4 along=instanced?instanceMatrix*vec4(normal,0.0):vec4(normal,0.0);
 gl_Position=lineClip(gl_Position,projectionMatrix*(modelViewMatrix*along),lineWidth,viewport,pixelRatio);}
 if(sprite.y!=0.0){view=spriteAt(projectionMatrix,instanced?modelViewMatrix*instanceMatrix:modelViewMatrix,position.xy,sprite);
-toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
+toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`
 
 // The view vector reads the camera as one homogeneous point (`EngineCamera.viewPoint`), in view
 // space: the origin under a perspective projection, +z under an orthographic one — its weight p
@@ -150,16 +150,16 @@ if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);
 if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
 float alpha=base.a;if(transmissive&&!reflectionOutput){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
 if(reflectionOutput)rgb=reflectedRadiance(viewPosition,N,reflect(-V,N),rough);
-if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`;
+if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`
 
 /** Replaces `from` in `text`, which must hold it once — or, given `upTo`, the span from `from` up
  *  to the next `upTo`, kept —: a variant never drifts off its source. */
 export function variant(text: string, from: string, to: string, upTo?: string) {
   const start = text.indexOf(from),
-    end = upTo === undefined ? start + from.length : text.indexOf(upTo, start);
+    end = upTo === undefined ? start + from.length : text.indexOf(upTo, start)
   if (start < 0 || end < start || start !== text.lastIndexOf(from))
-    throw new Error(`CLUSTER_FRAGMENT_VARIANT:${from}`);
-  return text.slice(0, start) + to + text.slice(end);
+    throw new Error(`CLUSTER_FRAGMENT_VARIANT:${from}`)
+  return text.slice(0, start) + to + text.slice(end)
 }
 
 /**
@@ -178,4 +178,4 @@ export const CLUSTER_LINEAR_FRAGMENT = variant(
   ),
   'if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}',
   'outColor=vec4(rgb,covering?1.0:alpha);untoned=vec4(toneMapped?0.0:1.0,0.0,0.0,outColor.a);}',
-);
+)

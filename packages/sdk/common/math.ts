@@ -11,7 +11,7 @@ export {
   transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../sdk-core/src/math/primitives/vector.ts';
+} from '../../sdk-core/src/math/primitives/vector.ts'
 export {
   addTransformNode,
   createTransformTree,
@@ -21,19 +21,19 @@ export {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../sdk-core/src/math/transform-tree/transformTree.ts';
-export type { TransformTree } from '../../sdk-core/src/math/transform-tree/transformTree.ts';
+} from '../../sdk-core/src/math/transform-tree/transformTree.ts'
+export type { TransformTree } from '../../sdk-core/src/math/transform-tree/transformTree.ts'
 export {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   rotateByQuaternion,
-} from '../../sdk-core/src/math/matrix/quaternion.ts';
+} from '../../sdk-core/src/math/matrix/quaternion.ts'
 export {
   basisMatrix4,
   decomposeMatrix4,
   uniformScaleMatrix4,
-} from '../../sdk-core/src/math/matrix/matrix4Trs.ts';
+} from '../../sdk-core/src/math/matrix/matrix4Trs.ts'
 export {
   BOX_VALUES,
   boxCornersInto,
@@ -42,7 +42,7 @@ export {
   boxIsEmpty,
   boxTransform,
   boxUnion,
-} from '../../sdk-core/src/math/primitives/box.ts';
+} from '../../sdk-core/src/math/primitives/box.ts'
 export {
   boxConeRejects,
   CONE_LENGTH_RATIO,
@@ -51,7 +51,7 @@ export {
   CONE_ORTHO_EPS_WGSL,
   HALF_PI,
   HALF_PI_WGSL,
-} from '../../sdk-core/src/math/primitives/cone.ts';
+} from '../../sdk-core/src/math/primitives/cone.ts'
 export {
   boxTransformBatch,
   boxTransformUnionBatch,
@@ -59,110 +59,110 @@ export {
   HIERARCHY_ROOT,
   hierarchyUpdateBatch,
   multiplyMatrix4Batch,
-} from '../../sdk-core/src/math/batch/batch.ts';
+} from '../../sdk-core/src/math/batch/batch.ts'
 export {
   createCameraFrame,
   orthographicProjection,
   perspectiveProjection,
   updateCameraFrame,
-} from '../../sdk-core/src/math/primitives/camera.ts';
-export type { CameraFrame } from '../../sdk-core/src/math/primitives/camera.ts';
+} from '../../sdk-core/src/math/primitives/camera.ts'
+export type { CameraFrame } from '../../sdk-core/src/math/primitives/camera.ts'
 export {
   clipPlanesFromMatrix,
   FRUSTUM_PLANE_VALUES,
   frustumFarPlane,
   frustumPlanesFromMatrix,
-} from '../../sdk-core/src/math/frustum/frustum.ts';
+} from '../../sdk-core/src/math/frustum/frustum.ts'
 export {
   composeMatrix4,
   composeMatrix4Batch,
-} from '../../sdk-core/src/math/matrix/matrix4Compose.ts';
-export { coneRejects, maxStretch } from '../../sdk-core/src/math/projectionOracles.ts';
+} from '../../sdk-core/src/math/matrix/matrix4Compose.ts'
+export { coneRejects, maxStretch } from '../../sdk-core/src/math/projectionOracles.ts'
 export {
   copyMatrix4,
   determinantMatrix4,
   IDENTITY_MATRIX4,
   linearPartDeterminant,
   multiplyMatrix4,
-} from '../../sdk-core/src/math/matrix/matrix4.ts';
-export type { NumberSink } from '../../sdk-core/src/math/matrix/matrix4.ts';
+} from '../../sdk-core/src/math/matrix/matrix4.ts'
+export type { NumberSink } from '../../sdk-core/src/math/matrix/matrix4.ts'
 export {
   createPathGovernor,
   PATH_EXPLORE_EVERY,
   PATH_MIN_SAMPLES,
   PATH_SWITCH_RUNS,
-} from '../../sdk-core/src/math/path/governor.ts';
-export type { PathGovernor } from '../../sdk-core/src/math/path/governor.ts';
+} from '../../sdk-core/src/math/path/governor.ts'
+export type { PathGovernor } from '../../sdk-core/src/math/path/governor.ts'
 export {
   decomposeMatrix4Batch,
   invertMatrix4Batch,
   normalMatrix3Batch,
-} from '../../sdk-core/src/math/batch/transforms.ts';
-export { frustumClipBox, frustumExcludesBox } from '../../sdk-core/src/math/frustum/box.ts';
+} from '../../sdk-core/src/math/batch/transforms.ts'
+export { frustumClipBox, frustumExcludesBox } from '../../sdk-core/src/math/frustum/box.ts'
 export {
   frustumKeepsBoxBatch,
   sphereFromBoundsBatch,
-} from '../../sdk-core/src/math/batch/culling.ts';
+} from '../../sdk-core/src/math/batch/culling.ts'
 export {
   HIZ_NOTHING,
   hizBuildFlat,
   hizFlatLayout,
   hizFlatLevels,
-} from '../../sdk-core/src/hiz/pyramidFlat.ts';
-export type { HizFlat } from '../../sdk-core/src/hiz/pyramidFlat.ts';
+} from '../../sdk-core/src/hiz/pyramidFlat.ts'
+export type { HizFlat } from '../../sdk-core/src/hiz/pyramidFlat.ts'
 export {
   hslToLinearRgb,
   linearToSrgb,
   srgbToLinear,
-} from '../../sdk-core/src/math/primitives/color.ts';
-export { invertMatrix4 } from '../../sdk-core/src/math/matrix/matrix4Inverse.ts';
+} from '../../sdk-core/src/math/primitives/color.ts'
+export { invertMatrix4 } from '../../sdk-core/src/math/matrix/matrix4Inverse.ts'
 export {
   linearPartScale,
   SINGULAR_DETERMINANT_WGSL,
   SINGULAR_DETERMINANT,
   adjugateFactor,
   normalizedLinearDeterminant,
-} from '../../sdk-core/src/math/matrix/singular.ts';
-export { linearToSrgbBatch, srgbToLinearBatch } from '../../sdk-core/src/math/batch/color.ts';
-export { lookAtNode } from '../../sdk-core/src/math/transform-tree/lookAt.ts';
+} from '../../sdk-core/src/math/matrix/singular.ts'
+export { linearToSrgbBatch, srgbToLinearBatch } from '../../sdk-core/src/math/batch/color.ts'
+export { lookAtNode } from '../../sdk-core/src/math/transform-tree/lookAt.ts'
 export {
   markNodeWorldNeedsUpdate,
   updateNodeMatrixWorld,
   updateNodeWorldMatrix,
-} from '../../sdk-core/src/math/transform-tree/update.ts';
-export { MATH_PATH_CONTRACT } from '../../sdk-core/src/math/path/contracts.ts';
+} from '../../sdk-core/src/math/transform-tree/update.ts'
+export { MATH_PATH_CONTRACT } from '../../sdk-core/src/math/path/contracts.ts'
 export type {
   MathPath,
   MathPathMetrics,
   MathPathMode,
   MathPathOperation,
-} from '../../sdk-core/src/math/path/contracts.ts';
+} from '../../sdk-core/src/math/path/contracts.ts'
 export {
   MATRIX_VALUES,
   NORMAL_MATRIX_VALUES,
   POSITION_VALUES,
   QUATERNION_VALUES,
   SPHERE_VALUES,
-} from '../../sdk-core/src/math/batch/strides.ts';
+} from '../../sdk-core/src/math/batch/strides.ts'
 export {
   matrixAtRenderOrigin,
   viewToRenderOrigin,
   worldToRenderOrigin,
-} from '../../sdk-core/src/math/primitives/renderOrigin.ts';
-export { matrixWindingCw } from '../../sdk-core/src/math/matrix/orientation.ts';
+} from '../../sdk-core/src/math/primitives/renderOrigin.ts'
+export { matrixWindingCw } from '../../sdk-core/src/math/matrix/orientation.ts'
 export {
   nodeWorldDirection,
   nodeWorldPosition,
   nodeWorldQuaternion,
-} from '../../sdk-core/src/math/transform-tree/read.ts';
-export { normalMatrix3 } from '../../sdk-core/src/math/matrix/matrix3.ts';
+} from '../../sdk-core/src/math/transform-tree/read.ts'
+export { normalMatrix3 } from '../../sdk-core/src/math/matrix/matrix3.ts'
 export {
   removeTransformNode,
   reparentTransformNode,
-} from '../../sdk-core/src/math/transform-tree/structure.ts';
-export { sphereFromBounds } from '../../sdk-core/src/math/primitives/sphere.ts';
+} from '../../sdk-core/src/math/transform-tree/structure.ts'
+export { sphereFromBounds } from '../../sdk-core/src/math/primitives/sphere.ts'
 export {
   transformDirectionsBatch,
   transformPointsBatch,
   transformPointsByMatricesBatch,
-} from '../../sdk-core/src/math/batch/points.ts';
+} from '../../sdk-core/src/math/batch/points.ts'

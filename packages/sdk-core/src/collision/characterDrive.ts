@@ -4,9 +4,9 @@ import {
   type CharacterEvents,
   type CharacterInput,
   type CharacterSettings,
-} from './characterSettings.ts';
-import { hypot2 } from '../math/primitives/hypot.ts';
-import { gripOf } from './grip.ts';
+} from './characterSettings.ts'
+import { hypot2 } from '../math/primitives/hypot.ts'
+import { gripOf } from './grip.ts'
 
 /**
  * WHAT A CHARACTER WISHES OVER ONE TICK, before it meets anything: the speed it gathers or loses,
@@ -27,14 +27,14 @@ import { gripOf } from './grip.ts';
  */
 export interface CharacterDrive {
   /** Metres per second, relative to what the body stands on. */
-  readonly velocity: Float64Array;
+  readonly velocity: Float64Array
   /** Whether the feet are on a floor. */
-  grounded: boolean;
+  grounded: boolean
   /** Seconds since the feet left a floor, and since the jump key went down. */
-  sinceGround: number;
-  sinceJump: number;
+  sinceGround: number
+  sinceJump: number
   /** The friction of the floor's matter (`PhysicsMatter.friction`), as last stood on. */
-  floor: number;
+  floor: number
 }
 
 /** A drive at rest on its feet, no jump pending. */
@@ -44,13 +44,13 @@ export const createDrive = (): CharacterDrive => ({
   sinceGround: 0,
   sinceJump: Infinity,
   floor: DECLARED_FLOOR,
-});
+})
 
 /** The horizontal move of one tick, and whether it started with a jump. */
 export interface DriveStep {
-  dx: number;
-  dz: number;
-  jumped: boolean;
+  dx: number
+  dz: number
+  jumped: boolean
 }
 
 /** Whether the drive stands on its feet with no speed and no key: a tick then moves nothing. */
@@ -59,10 +59,10 @@ export const driveAtRest = (drive: CharacterDrive, input: CharacterInput) =>
   input.wishX === 0 &&
   input.wishZ === 0 &&
   drive.velocity[0] === 0 &&
-  drive.velocity[2] === 0;
+  drive.velocity[2] === 0
 
 /** Remaining glide below which a grounded body with no key stops dead: 0.1 mm. */
-const REST = 1e-4;
+const REST = 1e-4
 
 /**
  * Lives one tick of `h` seconds: jumps when the key was pressed within `jumpBuffer` of a floor
@@ -79,40 +79,40 @@ export function driveTick(
   events: CharacterEvents,
   step: DriveStep,
 ) {
-  const velocity = drive.velocity;
-  drive.sinceGround = drive.grounded ? 0 : drive.sinceGround + h;
-  drive.sinceJump += h;
-  const speed = input.sprint ? settings.sprintSpeed : settings.walkSpeed;
+  const velocity = drive.velocity
+  drive.sinceGround = drive.grounded ? 0 : drive.sinceGround + h
+  drive.sinceJump += h
+  const speed = input.sprint ? settings.sprintSpeed : settings.walkSpeed
   const tx = input.wishX * speed,
     tz = input.wishZ * speed,
-    wishing = tx !== 0 || tz !== 0;
-  step.jumped = false;
+    wishing = tx !== 0 || tz !== 0
+  step.jumped = false
   if (
     canJump &&
     drive.sinceJump <= settings.jumpBuffer &&
     drive.sinceGround <= settings.coyoteTime
   ) {
-    velocity[1] = settings.jumpSpeed;
-    drive.grounded = false;
-    step.jumped = true;
-    drive.sinceGround = drive.sinceJump = Infinity;
-    events.onJump?.();
+    velocity[1] = settings.jumpSpeed
+    drive.grounded = false
+    step.jumped = true
+    drive.sinceGround = drive.sinceJump = Infinity
+    events.onJump?.()
   }
-  if (driveAtRest(drive, input)) return false;
+  if (driveAtRest(drive, input)) return false
   const gather = -Math.log(RESPONSE_LEFT) / settings.responseTime,
-    brake = -Math.log(RESPONSE_LEFT) / settings.stopTime;
+    brake = -Math.log(RESPONSE_LEFT) / settings.stopTime
   const rate = drive.grounded
     ? wishing
       ? gather
       : brake
     : wishing
       ? gather * settings.airControl
-      : 0;
-  const push = drive.grounded ? gripOf(drive.floor) * settings.gravity : Infinity;
-  approach(velocity, tx, tz, rate, push, h, step);
+      : 0
+  const push = drive.grounded ? gripOf(drive.floor) * settings.gravity : Infinity
+  approach(velocity, tx, tz, rate, push, h, step)
   if (drive.grounded && !wishing && hypot2(velocity[0], velocity[2]) < REST * rate)
-    velocity[0] = velocity[2] = 0;
-  return true;
+    velocity[0] = velocity[2] = 0
+  return true
 }
 
 /**
@@ -132,16 +132,16 @@ function approach(
 ) {
   const gx = velocity[0] - tx,
     gz = velocity[2] - tz,
-    gap = hypot2(gx, gz);
+    gap = hypot2(gx, gz)
   const linear = gap > push / rate ? Math.min(h, (gap - push / rate) / push) : 0,
     middle = linear > 0 ? gap - push * linear : gap,
     decay = Math.exp(-rate * (h - linear)),
-    reach = rate > 0 ? (1 - decay) / rate : h - linear;
+    reach = rate > 0 ? (1 - decay) / rate : h - linear
   // The gap's integral over the tick, then the gap left, as fractions of the gap at its start.
   const along = gap > 0 ? (((gap + middle) / 2) * linear + middle * reach) / gap : 0,
-    left = gap > 0 ? (middle * decay) / gap : 0;
-  step.dx = tx * h + gx * along;
-  step.dz = tz * h + gz * along;
-  velocity[0] = tx + gx * left;
-  velocity[2] = tz + gz * left;
+    left = gap > 0 ? (middle * decay) / gap : 0
+  step.dx = tx * h + gx * along
+  step.dz = tz * h + gz * along
+  velocity[0] = tx + gx * left
+  velocity[2] = tz + gz * left
 }

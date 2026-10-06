@@ -1,80 +1,79 @@
 // One measured view of the oracle campaign: engine capture, compiler oracle, gap and delay.
 // Split from `references/oracle.ts` to keep it under the file line budget.
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { Page } from 'playwright';
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
-import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts';
-import * as options from '../harness/options.ts';
-import type { Capture } from '../../../tests/kit/server/staticServer.ts';
-import { measureIrradiance } from './oraclePage.ts';
-import type { LightsPlan } from '../lighting/lamps.ts';
-import type { SideBase } from '../harness/dists.ts';
-import { compareIrradiance, convergenceDelay, oracleJob, runOracle } from './oracleCompare.ts';
-import type { OracleReport } from './oracleCompare.ts';
-import { sdkEntryUrl } from '../harness/dists.ts';
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { Page } from 'playwright'
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import * as options from '../harness/options.ts'
+import type { Capture } from '../../../tests/kit/server/staticServer.ts'
+import { measureIrradiance } from './oraclePage.ts'
+import type { LightsPlan } from '../lighting/lamps.ts'
+import type { SideBase } from '../harness/dists.ts'
+import { compareIrradiance, convergenceDelay, oracleJob, runOracle } from './oracleCompare.ts'
+import type { OracleReport } from './oracleCompare.ts'
+import { sdkEntryUrl } from '../harness/dists.ts'
 
 /** The oracle campaign's own settings, read once from flags. */
 export interface OracleSettings {
-  width: number;
-  height: number;
-  samples: number;
-  bounces: number;
-  exposure: number;
-  converge: number;
-  delayFrames: number;
-  delayMargin: number;
-  floor: number;
-  cadenceHz: number;
-  lamps: number;
-  intensity: number;
-  rangeFactor: number;
-  shadows: boolean;
-  pixelError: number;
-  maxPages: number;
-  source: string;
+  width: number
+  height: number
+  samples: number
+  bounces: number
+  exposure: number
+  converge: number
+  delayFrames: number
+  delayMargin: number
+  floor: number
+  cadenceHz: number
+  lamps: number
+  intensity: number
+  rangeFactor: number
+  shadows: boolean
+  pixelError: number
+  maxPages: number
+  source: string
 }
 
 /** One measured view: the engine/oracle gap and the reconvergence delay, or a page failure. */
 export type OracleView =
   | { view?: string; error: string }
   | {
-      view: string;
-      error?: undefined;
-      pose: CameraPose;
-      lights: number;
-      bounce: Record<string, unknown> | null;
-      oracle: OracleReport;
-      gap: ReturnType<typeof compareIrradiance> | { error: string };
-      delay: ReturnType<typeof convergenceDelay>;
-    };
+      view: string
+      error?: undefined
+      pose: CameraPose
+      lights: number
+      bounce: Record<string, unknown> | null
+      oracle: OracleReport
+      gap: ReturnType<typeof compareIrradiance> | { error: string }
+      delay: ReturnType<typeof convergenceDelay>
+    }
 
 /** Light movement used to measure delay: a clear step, not a slight flicker. */
 const MOVED = (
   position: readonly [number, number, number],
   step: number,
-): [number, number, number] => [position[0] + step, position[1], position[2] + step];
+): [number, number, number] => [position[0] + step, position[1], position[2] + step]
 
 /** One view's context: everything `runView` needs, nothing it infers. */
 export interface RunViewCtx {
-  side: SideBase;
-  manifestUrl: string;
-  settings: OracleSettings;
-  pose: CameraPose;
-  view: string;
-  lights: LightsPlan;
-  moving: { id: string; position: [number, number, number] };
-  step: number;
-  out: string;
-  captures: Map<string, Capture>;
-  root: string;
+  side: SideBase
+  manifestUrl: string
+  settings: OracleSettings
+  pose: CameraPose
+  view: string
+  lights: LightsPlan
+  moving: { id: string; position: [number, number, number] }
+  step: number
+  out: string
+  captures: Map<string, Capture>
+  root: string
 }
 
 /** One view: engine converged image, oracle image, gap, and measured delay. */
 export async function runView(page: Page, ctx: RunViewCtx): Promise<OracleView> {
-  const { side, manifestUrl, settings, pose, view, lights, moving, step, out, captures, root } =
-    ctx;
-  const captureFile = `${view}-irradiance.png`;
+  const { side, manifestUrl, settings, pose, view, lights, moving, step, out, captures, root } = ctx
+  const captureFile = `${view}-irradiance.png`
   const result = await page.evaluate(measureIrradiance, {
     sdkUrl: sdkEntryUrl(side),
     manifestUrl,
@@ -92,14 +91,14 @@ export async function runView(page: Page, ctx: RunViewCtx): Promise<OracleView> 
     movingLight: moving.id,
     originalPosition: moving.position,
     movedPosition: MOVED(moving.position, step),
-  });
-  if ('error' in result) return { view, error: result.error };
-  const capture = captures.get(captureFile);
+  })
+  if ('error' in result) return { view, error: result.error }
+  const capture = captures.get(captureFile)
   if (capture)
-    await writeFile(join(out, captureFile), encodePng(capture.w, capture.h, capture.body, true));
-  const reference = join(out, `${view}.f32`);
-  const job = oracleJob(settings, pose, lights.lights, reference);
-  const oracle = runOracle(root, job, out, view);
+    await writeFile(join(out, captureFile), encodePng(capture.w, capture.h, capture.body, true))
+  const reference = join(out, `${view}.f32`)
+  const job = oracleJob(settings, pose, lights.lights, reference)
+  const oracle = runOracle(root, job, out, view)
   return {
     view,
     pose,
@@ -110,5 +109,5 @@ export async function runView(page: Page, ctx: RunViewCtx): Promise<OracleView> 
       ? compareIrradiance(capture, reference, settings.exposure, settings.floor)
       : { error: 'capture missing' },
     delay: convergenceDelay(result.gaps, settings),
-  };
+  }
 }

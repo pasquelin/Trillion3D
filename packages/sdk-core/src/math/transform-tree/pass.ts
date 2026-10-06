@@ -1,7 +1,7 @@
-import { NODE_ALIVE, NODE_LISTED, type TransformTree } from './transformTree.ts';
-import { nextStamp } from './structure.ts';
-import { nextInSubtree } from './links.ts';
-import { refreshNode } from './update.ts';
+import { NODE_ALIVE, NODE_LISTED, type TransformTree } from './transformTree.ts'
+import { nextStamp } from './structure.ts'
+import { nextInSubtree } from './links.ts'
+import { refreshNode } from './update.ts'
 
 /**
  * THE FRAME PASS: one walk per frame over what changed, never over the tree.
@@ -23,17 +23,17 @@ import { refreshNode } from './update.ts';
  */
 function byDepth(tree: TransformTree) {
   const { listed, depth, order } = tree,
-    count = tree.listedCount;
-  let deepest = 0;
-  for (let i = 0; i < count; i++) deepest = Math.max(deepest, depth[listed[i]]);
-  if (tree.buckets.length < deepest + 2) tree.buckets = new Int32Array(2 * (deepest + 2));
-  const buckets = tree.buckets;
-  buckets.fill(0, 0, deepest + 2);
-  for (let i = 0; i < count; i++) buckets[depth[listed[i]] + 1]++;
-  for (let d = 1; d <= deepest; d++) buckets[d] += buckets[d - 1];
-  for (let i = 0; i < count; i++) order[buckets[depth[listed[i]]]++] = listed[i];
-  tree.listedCount = 0;
-  return count;
+    count = tree.listedCount
+  let deepest = 0
+  for (let i = 0; i < count; i++) deepest = Math.max(deepest, depth[listed[i]])
+  if (tree.buckets.length < deepest + 2) tree.buckets = new Int32Array(2 * (deepest + 2))
+  const buckets = tree.buckets
+  buckets.fill(0, 0, deepest + 2)
+  for (let i = 0; i < count; i++) buckets[depth[listed[i]] + 1]++
+  for (let d = 1; d <= deepest; d++) buckets[d] += buckets[d - 1]
+  for (let i = 0; i < count; i++) order[buckets[depth[listed[i]]]++] = listed[i]
+  tree.listedCount = 0
+  return count
 }
 
 /**
@@ -43,20 +43,20 @@ function byDepth(tree: TransformTree) {
  * earlier walk's stamp equals it.
  */
 export function updateTransformTree(tree: TransformTree) {
-  if (!tree.listedCount) return 0;
+  if (!tree.listedCount) return 0
   const count = byDepth(tree),
     { order, flags, stamp } = tree,
-    walked = nextStamp(tree) * 2 + 1;
-  let visited = 0;
+    walked = nextStamp(tree) * 2 + 1
+  let visited = 0
   for (let k = 0; k < count; k++) {
     const node = order[k],
-      bits = flags[node];
-    flags[node] = bits & ~NODE_LISTED;
-    if (!(bits & NODE_ALIVE) || stamp[node] === walked) continue;
+      bits = flags[node]
+    flags[node] = bits & ~NODE_LISTED
+    if (!(bits & NODE_ALIVE) || stamp[node] === walked) continue
     for (let j = node; j >= 0; j = nextInSubtree(tree, j, node), visited++) {
-      refreshNode(tree, j, true);
-      stamp[j] = walked;
+      refreshNode(tree, j, true)
+      stamp[j] = walked
     }
   }
-  return visited;
+  return visited
 }

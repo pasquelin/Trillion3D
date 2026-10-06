@@ -10,51 +10,51 @@
 // raw indirect irradiance multiplied by exposure. Oracle computes same value on source triangles.
 // NO TIMING PROMISED HERE: this is a fidelity measurement, not a speed test.
 // =====================================================================================
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
-import { launchChrome } from '../harness/chrome.ts';
-import * as options from '../harness/options.ts';
-import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts';
-import { readStreet } from '../street/street.ts';
-import { benchLights } from '../lighting/lamps.ts';
-import { oracleBuilt } from './oracleCompare.ts';
-import { machineLoad } from '../summary/summary.ts';
-import { runView } from './oracleView.ts';
-import type { OracleSettings, OracleView } from './oracleView.ts';
-import { sdkEntryUrl } from '../harness/dists.ts';
-import { measureOutput } from '../../core/paths.ts';
+import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join, resolve } from 'node:path'
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import { launchChrome } from '../harness/chrome.ts'
+import * as options from '../harness/options.ts'
+import { startServer, type Capture } from '../../../tests/kit/server/staticServer.ts'
+import { readStreet } from '../street/street.ts'
+import { benchLights } from '../lighting/lamps.ts'
+import { oracleBuilt } from './oracleCompare.ts'
+import { machineLoad } from '../summary/summary.ts'
+import { runView } from './oracleView.ts'
+import type { OracleSettings, OracleView } from './oracleView.ts'
+import { sdkEntryUrl } from '../harness/dists.ts'
+import { measureOutput } from '../../core/paths.ts'
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..');
-const args = process.argv.slice(2);
+const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..')
+const args = process.argv.slice(2)
 // Same flag reader as benchmark: `--name value`, `--name=value`, `--name` alone.
-const flags = options.parseArgs(args);
-function flag(name: string): string | undefined;
-function flag(name: string, fallback: string): string;
+const flags = options.parseArgs(args)
+function flag(name: string): string | undefined
+function flag(name: string, fallback: string): string
 function flag(name: string, fallback?: string): string | undefined {
-  return flags.get(name) ?? fallback;
+  return flags.get(name) ?? fallback
 }
-const number = (name: string, fallback: number) => Number(flag(name, String(fallback)));
+const number = (name: string, fallback: number) => Number(flag(name, String(fallback)))
 
 /** Three comma-separated numbers, or null. Used for manual poses. */
 const triple = (name: string): [number, number, number] | null => {
-  const value = flag(name);
-  if (!value || value === 'true') return null;
-  const parts = value.split(',').map(Number);
+  const value = flag(name)
+  if (!value || value === 'true') return null
+  const parts = value.split(',').map(Number)
   if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part)))
-    throw new Error(`--${name} expects three comma-separated numbers`);
-  return parts as [number, number, number];
-};
+    throw new Error(`--${name} expects three comma-separated numbers`)
+  return parts as [number, number, number]
+}
 
 async function main() {
-  const cache = options.resolveCache(flag('cache'));
-  if (!cache) throw new Error('--cache is required: the compiled cache derived directory');
-  const source = resolve(flag('source', ''));
-  if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
-  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
-  const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)));
+  const cache = options.resolveCache(flag('cache'))
+  if (!cache) throw new Error('--cache is required: the compiled cache derived directory')
+  const source = resolve(flag('source', ''))
+  if (!existsSync(source)) throw new Error(`--source not found: ${source}`)
+  if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`')
+  const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)))
   const settings: OracleSettings = {
     width: number('width', 160),
     height: number('height', 120),
@@ -74,36 +74,36 @@ async function main() {
     pixelError: number('pixelError', 0),
     maxPages: number('max-pages', 100000),
     source,
-  };
-  const after = flag('after');
-  const resources = flag('resources');
-  const visible = flag('visible', 'false') === 'true';
+  }
+  const after = flag('after')
+  const resources = flag('resources')
+  const visible = flag('visible', 'false') === 'true'
   // Read before the refusal: the step's default needs the scene bounds, known only in the page.
-  const stepFlag = flag('step');
+  const stepFlag = flag('step')
   const camera = triple('pose'),
-    target = triple('target');
-  const views = flag('views', 'overview').split(',');
-  flags.refuseUnread();
-  await mkdir(out, { recursive: true });
-  const sides = options.resolveSides({ after, root: ROOT });
-  const side = sides[0];
-  side.cache = cache;
-  const manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
-  side.manifestUrl = manifestUrl;
-  const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null);
-  const captures = new Map<string, Capture>();
-  const { server, port } = await startServer({ mounts, captures });
+    target = triple('target')
+  const views = flag('views', 'overview').split(',')
+  flags.refuseUnread()
+  await mkdir(out, { recursive: true })
+  const sides = options.resolveSides({ after, root: ROOT })
+  const side = sides[0]
+  side.cache = cache
+  const manifestUrl = `/cache/${side.name}/native/full/manifest.json`
+  side.manifestUrl = manifestUrl
+  const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null)
+  const captures = new Map<string, Capture>()
+  const { server, port } = await startServer({ mounts, captures })
   const browser = await launchChrome({
     headless: !visible,
     args: options.ENGINES.webgpu.flags,
-  });
+  })
   const report: {
-    startedAt: string;
-    command: string;
-    head: string;
-    settings: typeof settings;
-    load: { before: number[]; after?: number[] };
-    views: OracleView[];
+    startedAt: string
+    command: string
+    head: string
+    settings: typeof settings
+    load: { before: number[]; after?: number[] }
+    views: OracleView[]
   } = {
     startedAt: new Date().toISOString(),
     command: `node bench/runner/references/oracle.ts ${args.join(' ')}`,
@@ -111,21 +111,21 @@ async function main() {
     settings,
     load: { before: machineLoad() },
     views: [],
-  };
+  }
   try {
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
-    });
-    page.on('pageerror', (error) => report.views.push({ error: String(error) }));
+    })
+    page.on('pageerror', (error) => report.views.push({ error: String(error) }))
     // A rejected shader does not come through `pageerror`: it logs as console warning/error.
     page.on('console', (m) => {
       if (m.type() === 'error' || m.type() === 'warning')
-        console.error('[page]', m.type(), m.text().slice(0, 600));
-    });
-    await page.goto(`http://127.0.0.1:${port}/`);
+        console.error('[page]', m.type(), m.text().slice(0, 600))
+    })
+    await page.goto(`http://127.0.0.1:${port}/`)
     // The box, then the street the eye-level views walk (`street/street.ts`), as the bench reads it.
-    const urls = { sdkUrl: sdkEntryUrl(side), manifestUrl };
-    const bounds = await readStreet(page, urls);
+    const urls = { sdkUrl: sdkEntryUrl(side), manifestUrl }
+    const bounds = await readStreet(page, urls)
     const lights = benchLights(bounds, {
       lights: settings.lamps,
       lightShadows: settings.shadows,
@@ -133,20 +133,20 @@ async function main() {
       lightRangeFactor: settings.rangeFactor,
       sun: false,
       movingLight: false,
-    });
-    const movingCandidate = lights && lights.lights.find((light) => light.kind === 'point');
+    })
+    const movingCandidate = lights && lights.lights.find((light) => light.kind === 'point')
     if (!lights || !movingCandidate || !movingCandidate.position)
-      throw new Error('--lights must declare at least one point light');
-    const moving = { id: movingCandidate.id, position: movingCandidate.position };
+      throw new Error('--lights must declare at least one point light')
+    const moving = { id: movingCandidate.id, position: movingCandidate.position }
     // Light step: clear enough that rebound must reconverge.
-    const step = Number(stepFlag ?? Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
+    const step = Number(stepFlag ?? Math.max(1, (bounds.max.x - bounds.min.x) * 0.25))
     for (const view of views) {
       // Manual pose overrides benchmark trajectory.
-      const known = options.VIEWS[view as keyof typeof options.VIEWS];
-      if (!known && !camera) throw new Error(`unknown view: ${view}`);
+      const known = options.VIEWS[view as keyof typeof options.VIEWS]
+      if (!known && !camera) throw new Error(`unknown view: ${view}`)
       const pose: CameraPose = camera
         ? { ...options.poseAt(bounds, 0), position: camera, target: target ?? [0, 0, 0] }
-        : options.poseAt(bounds, known.index);
+        : options.poseAt(bounds, known.index)
       report.views.push(
         await runView(page, {
           side,
@@ -161,16 +161,16 @@ async function main() {
           captures,
           root: ROOT,
         }),
-      );
+      )
     }
   } finally {
-    await browser.close();
-    server.close();
+    await browser.close()
+    server.close()
   }
-  report.load.after = machineLoad();
-  await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1));
-  console.log(JSON.stringify(report, null, 1));
-  if (report.views.some((view) => view.error)) process.exitCode = 1;
+  report.load.after = machineLoad()
+  await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1))
+  console.log(JSON.stringify(report, null, 1))
+  if (report.views.some((view) => view.error)) process.exitCode = 1
 }
 
-await main();
+await main()

@@ -1,6 +1,6 @@
-import { upscaleMipBias } from '../../../taa/jitter.ts';
-import { renderExtent, type RenderScaleBounds } from '../../../frame/renderScaleOption.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { upscaleMipBias } from '../../../taa/jitter.ts'
+import { renderExtent, type RenderScaleBounds } from '../../../frame/renderScaleOption.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * The session's render-scale bounds where the drawn view's frame may be drawn below the display:
@@ -13,49 +13,48 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  */
 function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
   const { gpu, run, vis } = rt,
-    { bounds } = rt.scale;
+    { bounds } = rt.scale
   const reconstructed =
     !!gpu.temporal &&
     run.diagnostic === 'beauty' &&
     !rt.context.diagnosticGpuVariant &&
-    vis.visEnabled;
-  return reconstructed && bounds.min < 1 && gpu.temporal!.upscales() ? bounds : undefined;
+    vis.visEnabled
+  return reconstructed && bounds.min < 1 && gpu.temporal!.upscales() ? bounds : undefined
 }
 
 /** Render pixels per CSS pixel: the host's ratio times the render-to-display one, so a line drawn
  *  below the display keeps its display width. The host's own at native size. */
 export const renderPixelRatio = (rt: WebgpuPagesRuntime) =>
-  rt.setup.pixelRatio() * (rt.gpu.targetSize[0] / rt.gpu.displaySize[0]);
+  rt.setup.pixelRatio() * (rt.gpu.targetSize[0] / rt.gpu.displaySize[0])
 
 /** Texture level offset of the frame (`upscaleMipBias`), the same for the read and the request:
  *  zero at native size. */
 export const renderMipBias = (rt: WebgpuPagesRuntime) =>
-  upscaleMipBias(rt.gpu.targetSize[0], rt.gpu.displaySize[0]);
+  upscaleMipBias(rt.gpu.targetSize[0], rt.gpu.displaySize[0])
 
 /** A frame's sizes: the display's, the one its render targets are made at, and whether the display
  *  colour is a target apart, which the resolve reconstructs a frame drawn below the display into. */
 export interface FrameSize {
-  width: number;
-  height: number;
-  renderWidth: number;
-  renderHeight: number;
-  apart: boolean;
+  width: number
+  height: number
+  renderWidth: number
+  renderHeight: number
+  apart: boolean
 }
 
 /** The view's size, the key a memory cap of the render scale is learnt at (`capMemory`). */
 export const viewKey = (rt: WebgpuPagesRuntime) => {
-  const [width, height] = rt.setup.viewport;
+  const [width, height] = rt.setup.viewport
   if (key.width !== width || key.height !== height)
-    key = { width, height, text: `${width}x${height}` };
-  return key.text;
-};
+    key = { width, height, text: `${width}x${height}` }
+  return key.text
+}
 /** The last key built: the string is made again only when the viewport changes, not each frame. */
-let key = { width: NaN, height: NaN, text: '' };
+let key = { width: NaN, height: NaN, text: '' }
 
 /** Whether the drawn view's targets follow the controller's bounds (`ScaleControl.allocated`): only
  *  then may a memory cap lower them (`ScaleControl.capMemory`). */
-export const scalesTargets = (rt: WebgpuPagesRuntime) =>
-  !!scaledBounds(rt) && rt.gpu.temporalWanted;
+export const scalesTargets = (rt: WebgpuPagesRuntime) => !!scaledBounds(rt) && rt.gpu.temporalWanted
 
 /** The drawn view's frame size, written into `into`: its viewport, and that at the scale its
  *  targets are made at — the bounds' maximum, under a memory cap (`ScaleControl.allocated`),
@@ -66,13 +65,13 @@ export const scalesTargets = (rt: WebgpuPagesRuntime) =>
 export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize, full = false) {
   const bounds = scaledBounds(rt),
     scaled = bounds && rt.gpu.temporalWanted,
-    scale = !scaled ? 1 : full ? bounds.max : rt.scale.allocated(viewKey(rt));
-  into.width = Math.max(1, rt.setup.viewport[0]);
-  into.height = Math.max(1, rt.setup.viewport[1]);
-  into.renderWidth = renderExtent(into.width, scale);
-  into.renderHeight = renderExtent(into.height, scale);
-  into.apart = !!bounds;
-  return into;
+    scale = !scaled ? 1 : full ? bounds.max : rt.scale.allocated(viewKey(rt))
+  into.width = Math.max(1, rt.setup.viewport[0])
+  into.height = Math.max(1, rt.setup.viewport[1])
+  into.renderWidth = renderExtent(into.width, scale)
+  into.renderHeight = renderExtent(into.height, scale)
+  into.apart = !!bounds
+  return into
 }
 
 /** True when `a` and `b` are the same frame size, all sizes alike. */
@@ -81,11 +80,11 @@ export const sameFrameSize = (a: FrameSize, b: FrameSize) =>
   a.height === b.height &&
   a.renderWidth === b.renderWidth &&
   a.renderHeight === b.renderHeight &&
-  a.apart === b.apart;
+  a.apart === b.apart
 
 /** True when the targets hold a display colour of its own, which the resolve reconstructs into. */
 export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
-  !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture;
+  !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture
 
 /**
  * Draws this image at `scale` in the targets in place, made at the bounds' maximum
@@ -100,19 +99,19 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
 export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = false, still = false) {
   const { gpu } = rt,
     { allocatedSize, displaySize, targetSize } = gpu,
-    apart = displayApart(gpu);
+    apart = displayApart(gpu)
   const axis = (i: number) =>
-    apart ? Math.min(allocatedSize[i], renderExtent(displaySize[i], scale)) : allocatedSize[i];
+    apart ? Math.min(allocatedSize[i], renderExtent(displaySize[i], scale)) : allocatedSize[i]
   const width = axis(0),
-    height = axis(1);
-  if (width !== targetSize[0] || height !== targetSize[1]) rt.run.noOccluderHistory = true;
-  targetSize[0] = width;
-  targetSize[1] = height;
-  rt.vis.gpuHiz?.extent(width, height);
+    height = axis(1)
+  if (width !== targetSize[0] || height !== targetSize[1]) rt.run.noOccluderHistory = true
+  targetSize[0] = width
+  targetSize[1] = height
+  rt.vis.gpuHiz?.extent(width, height)
   const drawn = !apart
     ? 1
     : width === renderExtent(displaySize[0], scale)
       ? scale
-      : width / displaySize[0];
-  rt.scale.drew(drawn, apart && steered && drawn === scale, still);
+      : width / displaySize[0]
+  rt.scale.drew(drawn, apart && steered && drawn === scale, still)
 }

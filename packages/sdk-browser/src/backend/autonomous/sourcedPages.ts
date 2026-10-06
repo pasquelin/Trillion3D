@@ -1,9 +1,9 @@
-import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { setGeometryBounds } from '../../host/geometryBounds.ts';
-import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
-import type { BackendContext } from '../types.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
+import { setGeometryBounds } from '../../host/geometryBounds.ts'
+import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts'
+import type { BackendContext } from '../types.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
 
 /**
  * THE WEBGL2 PATH'S DYNAMIC PAGES (#573). A world's dynamic geometry is paged by its index alone
@@ -14,7 +14,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * (`bufferSubData`, `../../webgl/cluster/buffers.ts`).
  */
 export async function readSourcedPage(context: BackendContext, url: string) {
-  const indices = new Uint32Array(await context.readPage!(url));
+  const indices = new Uint32Array(await context.readPage!(url))
   return {
     indices,
     attributes: {},
@@ -22,7 +22,7 @@ export async function readSourcedPage(context: BackendContext, url: string) {
     flags: 0,
     decodedBytes: indices.byteLength,
     quantizationError: 0,
-  } satisfies DecodedGeometryPage;
+  } satisfies DecodedGeometryPage
 }
 
 /** The geometry a dynamic page is drawn as: its corners over `source`'s own lists, bounded by
@@ -33,18 +33,18 @@ export function sourcedPageGeometry(
   min: ArrayLike<number>,
   max: ArrayLike<number>,
 ) {
-  const geometry = new Geometry();
-  geometry._owner = 'host';
-  geometry.usage = 'dynamic';
-  geometry.setIndex(new BufferAttribute(indices, 1));
+  const geometry = new Geometry()
+  geometry._owner = 'host'
+  geometry.usage = 'dynamic'
+  geometry.setIndex(new BufferAttribute(indices, 1))
   // Set as they are, not through `setAttribute`: the lists stay their geometry's, which hears them.
-  Object.assign(geometry.attributes, source.attributes);
-  setGeometryBounds(geometry, min, max);
-  return geometry;
+  Object.assign(geometry.attributes, source.attributes)
+  setGeometryBounds(geometry, min, max)
+  return geometry
 }
 
 /** The host geometry a dynamic page reads its lists from; undefined for any other page. */
 export function dynamicSource(rec: PageRec) {
-  const source = rec.sourceMesh?.geometry as Geometry | undefined;
-  return !rec.geometryPage && source?.usage === 'dynamic' ? source : undefined;
+  const source = rec.sourceMesh?.geometry as Geometry | undefined
+  return !rec.geometryPage && source?.usage === 'dynamic' ? source : undefined
 }

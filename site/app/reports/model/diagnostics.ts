@@ -1,5 +1,5 @@
-import { readPath } from './contract.ts';
-import type { ReportRecord } from './types.ts';
+import { readPath } from './contract.ts'
+import type { ReportRecord } from './types.ts'
 
 /** Domain groups stay explicit: these counters are not interchangeable memory totals. Each group
  *  and field is named by `report.diagnostics.<id>`; a field is `[id, path, unit]`. */
@@ -34,16 +34,16 @@ export const DIAGNOSTICS = [
       ['pagesDecodedWasm', 'metrics.pagesDecodedWasm', ''],
     ],
   },
-] as const;
+] as const
 
 export function diagnosticValue(record: ReportRecord | null | undefined, path: string) {
   if (path.startsWith('stage:')) {
-    const [, stage, key] = path.split(':');
+    const [, stage, key] = path.split(':')
     const value = record?.data.stageProfile?.stages?.find((item) => item.stage === stage)?.counts?.[
       key
-    ];
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    ]
+    return typeof value === 'number' && Number.isFinite(value) ? value : null
   }
-  const value = readPath(record?.data, path);
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const value = readPath(record?.data, path)
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
 }

@@ -36,19 +36,19 @@
  *  version-8 reader lacks.
  *  Version 10 cuts the manifest into pages (`paged.ts`): a sidecar holds the columns of one page,
  *  the head's the texture previews alone. */
-export const MANIFEST_BINARY_VERSION = 10;
+export const MANIFEST_BINARY_VERSION = 10
 /** The geometry-page format a version-10 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
-export const GEOMETRY_PAGE_FORMAT_VERSION = 7;
+export const GEOMETRY_PAGE_FORMAT_VERSION = 7
 /** The codec geometry pages are written with. */
-export const GEOMETRY_PAGE_CODEC = 'quantized';
+export const GEOMETRY_PAGE_CODEC = 'quantized'
 /** 'W','G','M','B' read as a little-endian u32. */
-export const MANIFEST_BINARY_MAGIC = 0x424d4757;
-export const MANIFEST_BINARY_HEADER_WORDS = 4;
+export const MANIFEST_BINARY_MAGIC = 0x424d4757
+export const MANIFEST_BINARY_HEADER_WORDS = 4
 
-import { PREVIEW_WORDS } from '../texture/previewFormat.ts';
-export * from '../texture/previewFormat.ts';
-export * from './binaryPageWords.ts';
+import { PREVIEW_WORDS } from '../texture/previewFormat.ts'
+export * from '../texture/previewFormat.ts'
+export * from './binaryPageWords.ts'
 
 export const COLUMN_NAMES = [
   'pageBounds',
@@ -80,10 +80,10 @@ export const COLUMN_NAMES = [
   'bundleDependencyCount',
   'bundleDependency',
   'pageCone',
-] as const;
-export type ColumnName = (typeof COLUMN_NAMES)[number];
+] as const
+export type ColumnName = (typeof COLUMN_NAMES)[number]
 /** How one column of the binary manifest is stored. */
-export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8';
+export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
 /**
  * How each column of the binary manifest is stored: decimals, whole numbers or bytes.
  * @property pageBounds - Each page's box.
@@ -146,7 +146,7 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   bundleDependencyCount: 'u32',
   bundleDependency: 'u32',
   pageCone: 'f64',
-};
+}
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
 export const COLUMN_STRIDE: Record<ColumnName, number> = {
@@ -182,8 +182,8 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   bundleDependencyCount: 1,
   bundleDependency: 1,
   pageCone: 4,
-};
-export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 };
+}
+export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 }
 
 /** `pageInt` slots. -1 is «absent or null»; the flag word says which. */
 export const INT_ID = 0,
@@ -193,7 +193,7 @@ export const INT_ID = 0,
   INT_STREAM = 4,
   INT_STREAM_OFFSET = 5,
   INT_COUNT = 6,
-  INT_START = 7;
+  INT_START = 7
 /** `pageU32` slots. */
 export const U32_BYTES = 0,
-  U32_FLAGS = 1;
+  U32_FLAGS = 1

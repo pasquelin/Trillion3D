@@ -1,26 +1,26 @@
-import { TRANSLUCENT_SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
-import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
-import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts';
-import * as surfaceModel from '../../scene/surfaceModel.ts';
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
-import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
-import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
-import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts';
+import { TRANSLUCENT_SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts'
+import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
+import { shadowKindsOf } from '../../lighting/direct/shadowKinds.ts'
+import * as surfaceModel from '../../scene/surfaceModel.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
+import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts'
+import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
   TILE_POOL_WGSL,
   tileDeclarations,
-} from '../tile/wgsl.ts';
-import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts';
-import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts';
-import { BLEND_REQUEST_WGSL } from './requestWgsl.ts';
-import * as itemFlags from '../../visibility/buffer.ts';
-import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
-import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
-import { BLEND_VERTEX_WGSL } from './vertexWgsl.ts';
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts';
-export { BLEND_VIEW_WGSL } from './vertexWgsl.ts';
+} from '../tile/wgsl.ts'
+import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts'
+import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
+import { BLEND_REQUEST_WGSL } from './requestWgsl.ts'
+import * as itemFlags from '../../visibility/buffer.ts'
+import { BLEND_SURFACE_WGSL } from './shaderSurface.ts'
+import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts'
+import { BLEND_VERTEX_WGSL } from './vertexWgsl.ts'
+import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+export { BLEND_VIEW_WGSL } from './vertexWgsl.ts'
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). */
 export const blendShader = (key: Partial<ContractKey> = {}) => `${BLEND_VERTEX_WGSL}
@@ -94,4 +94,4 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
 // A filtered image's pipelines read the display mask (group 2); every other one reads none.
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,maskAt(in.position));}
-`;
+`

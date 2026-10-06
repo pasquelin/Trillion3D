@@ -4,22 +4,22 @@
  * the pages whose residency flipped, as the WebGPU rank journal and the WebGL2 page store do, and
  * counts the residency answers its cuts asked for.
  */
-import { selectVisiblePages } from './cut.ts';
-import type { SelectionResult } from './state.ts';
-import { createHeldResidency, type HeldResidency } from './held.ts';
-import { postPackedBases, type PlacementIndex } from '../selection/placements.ts';
-import { createImageCut } from '../../backend/autonomous/imageCut.ts';
-import { placements, stripCamera } from './cutRuleBackends.fixture.ts';
-import type { RuleDag } from './cutRule.fixture.ts';
-import type { ClusterRoot, PageRec } from '../selection/types.ts';
+import { selectVisiblePages } from './cut.ts'
+import type { SelectionResult } from './state.ts'
+import { createHeldResidency, type HeldResidency } from './held.ts'
+import { postPackedBases, type PlacementIndex } from '../selection/placements.ts'
+import { createImageCut } from '../../backend/autonomous/imageCut.ts'
+import { placements, stripCamera } from './cutRuleBackends.fixture.ts'
+import type { RuleDag } from './cutRule.fixture.ts'
+import type { ClusterRoot, PageRec } from '../selection/types.ts'
 
 /** The packed rank of each record: the DAG fixture's pages are unique per placement. */
 function ranksOf(roots: readonly ClusterRoot<PageRec>[], placement: PlacementIndex) {
-  const rank = new Map<PageRec, number>();
+  const rank = new Map<PageRec, number>()
   for (let r = 0; r < roots.length; r++)
     for (let p = 0; p < roots[r].pages.length; p++)
-      rank.set(roots[r].pages[p], placement.baseOfRoot[r] + p);
-  return rank;
+      rank.set(roots[r].pages[p], placement.baseOfRoot[r] + p)
+  return rank
 }
 
 /** A backend over `roots`' pool: each frame `load`s the pages whose residency flipped, names each
@@ -34,23 +34,23 @@ function hostBackend(
 ) {
   const rank = ranksOf(roots, placement),
     pages = roots.flatMap((root) => root.pages),
-    now = new Uint8Array(pages.length);
-  held.track(roots);
+    now = new Uint8Array(pages.length)
+  held.track(roots)
   const frame = (resident: Uint8Array) => {
     pages.forEach((page, at) => {
-      if (now[at] === resident[at]) return;
-      now[at] = resident[at];
-      const packed = rank.get(page)!;
-      load(page, packed, resident[at] === 1);
-      held.moved(packed, page);
-    });
-    const result = cutOf();
+      if (now[at] === resident[at]) return
+      now[at] = resident[at]
+      const packed = rank.get(page)!
+      load(page, packed, resident[at] === 1)
+      held.moved(packed, page)
+    })
+    const result = cutOf()
     return {
       drawn: Array.from(result.shownPacked.subarray(0, result.shown.length)),
       wanted: Array.from(result.wantedPacked.subarray(0, result.wanted.length)),
-    };
-  };
-  return Object.assign(frame, { held, reads });
+    }
+  }
+  return Object.assign(frame, { held, reads })
 }
 
 /** The CPU cut (`./cut.ts`) with the host answering for residency, as the WebGPU CPU path asks it: the rule on `./held.ts`'s readiness, its descent pruned on the open counts. */
@@ -63,20 +63,20 @@ export function cpuBackend(
   unrouted = -1,
 ) {
   const cam = stripCamera(dag),
-    on: boolean[] = [];
+    on: boolean[] = []
   const placement = postPackedBases(roots),
-    rank = ranksOf(roots, placement);
-  if (unrouted >= 0) placement.baseOfRoot[unrouted] = -1;
-  let reads = 0;
-  const isResident = (page: PageRec) => (reads++, on[rank.get(page)!] === true);
+    rank = ranksOf(roots, placement)
+  if (unrouted >= 0) placement.baseOfRoot[unrouted] = -1
+  let reads = 0
+  const isResident = (page: PageRec) => (reads++, on[rank.get(page)!] === true)
   const options = {
     pixelError: threshold,
     viewport: [1280, 720] as [number, number],
     held: createHeldResidency({ isResident }, placement),
-  };
-  const load = (_page: PageRec, packed: number, resident: boolean) => void (on[packed] = resident);
-  const cut = () => selectVisiblePages(roots, cam, options);
-  return hostBackend(roots, options.held, placement, load, cut, () => reads);
+  }
+  const load = (_page: PageRec, packed: number, resident: boolean) => void (on[packed] = resident)
+  const cut = () => selectVisiblePages(roots, cam, options)
+  return hostBackend(roots, options.held, placement, load, cut, () => reads)
 }
 
 /** The WebGL2 image's cut (`../../backend/autonomous/imageCut.ts`) over `roots`, under a pool
@@ -95,7 +95,7 @@ export const webgl2Cut = (roots: ClusterRoot<PageRec>[], held = createHeldReside
     revision: () => 0,
     pool: { admit: (asked) => asked.length, fit: (asked) => asked.length, held: {} },
     held,
-  });
+  })
 
 /** The WebGL2 image's cut of the DAG, each page resident when it holds its index array, as the
  *  WebGL2 page store loads and releases them. */
@@ -103,18 +103,18 @@ export function webgl2Backend(dag: RuleDag, threshold: number, roots = placement
   const cam = stripCamera(dag),
     placement = postPackedBases(roots),
     held = createHeldResidency({}, placement),
-    cut = webgl2Cut(roots, held);
-  let reads = 0;
+    cut = webgl2Cut(roots, held)
+  let reads = 0
   for (const root of roots)
     for (const page of root.pages) {
-      let array: Uint32Array | undefined;
+      let array: Uint32Array | undefined
       Object.defineProperty(page, 'array', {
         get: () => (reads++, array),
         set: (value?: Uint32Array) => void (array = value),
-      });
+      })
     }
   const load = (page: PageRec, _packed: number, resident: boolean) =>
-    void (page.array = resident ? new Uint32Array(3) : undefined);
+    void (page.array = resident ? new Uint32Array(3) : undefined)
   return hostBackend(
     roots,
     held,
@@ -122,5 +122,5 @@ export function webgl2Backend(dag: RuleDag, threshold: number, roots = placement
     load,
     () => cut(cam, threshold),
     () => reads,
-  );
+  )
 }

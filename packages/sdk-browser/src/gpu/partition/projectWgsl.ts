@@ -11,7 +11,7 @@ import {
   ST_HISTORY_OCCLUDERS,
   ST_WITHDRAWN,
   VERDICT_REJECTED,
-} from './contract.ts';
+} from './contract.ts'
 
 /**
  * Projection of a resident row, and what the frame keeps of it: the occluder history, the row's
@@ -87,4 +87,4 @@ fn projectRow(i:u32){
  rowData[base+${ROW_FLAGS}u]=${FLAG_PROJECTED}u|select(0u,${FLAG_CLIP}u,box.clips!=0u)
   |select(0u,${FLAG_HISTORY}u,drawn!=0u)|select(0u,${FLAG_KEPT}u,kept);
 }
-`;
+`

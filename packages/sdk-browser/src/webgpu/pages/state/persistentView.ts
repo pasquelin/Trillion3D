@@ -1,11 +1,11 @@
-import type { HostCamera } from '../../../camera/world.ts';
-import { rigViewTemporal } from '../../../taa/prepare.ts';
-import { releaseSettledCapture } from '../io/captureAside.ts';
-import { renderWebgpuPages } from '../render/render.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
-import type { PresentRect } from '../../../gpu/core/presentAt.ts';
-import { createWebgpuView, type WebgpuView } from './view.ts';
-import { onView } from './viewSwitch.ts';
+import type { HostCamera } from '../../../camera/world.ts'
+import { rigViewTemporal } from '../../../taa/prepare.ts'
+import { releaseSettledCapture } from '../io/captureAside.ts'
+import { renderWebgpuPages } from '../render/render.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { PresentRect } from '../../../gpu/core/presentAt.ts'
+import { createWebgpuView, type WebgpuView } from './view.ts'
+import { onView } from './viewSwitch.ts'
 
 /**
  * The persistent-view base (#1097), which `world.addView` wraps (#1138): the capture's view
@@ -22,42 +22,42 @@ export async function addWebgpuView(rt: WebgpuPagesRuntime, rect: PresentRect) {
     y: Math.round(rect.y),
     width: Math.max(1, Math.round(rect.width)),
     height: Math.max(1, Math.round(rect.height)),
-  };
-  const view = createWebgpuView(at.width, at.height);
-  view.rect = at;
-  rt.views.persistent.push(view);
+  }
+  const view = createWebgpuView(at.width, at.height)
+  view.rect = at
+  rt.views.persistent.push(view)
   try {
     // What presents it at its rectangle, compiled before its first frame does; refused, its present
     // asks it again and the device says why, as any refused pipeline.
     await Promise.all([
       rigViewTemporal(rt, view),
       rt.gpu.presenter?.preparePlaced().catch(() => {}),
-    ]);
+    ])
   } catch (error) {
     // Never handed to the caller, it would never leave: it leaves now.
-    await removeWebgpuView(rt, view);
-    throw error;
+    await removeWebgpuView(rt, view)
+    throw error
   }
-  return view;
+  return view
 }
 
 /** Draws `view` from `camera` at its rectangle's shape, then the main view is drawn again; the
  *  frame counts as held only when the main view's and this one's both are. */
 export function renderWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView, camera: HostCamera) {
   const { run, capture } = rt,
-    rect = view.rect;
-  if (!rect || !rt.views.persistent.includes(view)) throw new Error('VIEW_RELEASED');
-  if (capture.capturing) throw new Error('SURFACE_CAPTURE_BUSY');
-  const mainHeld = run.frameHeld;
-  onView(rt, view, () => renderWebgpuPages(rt, camera, rect.width / rect.height));
-  run.frameHeld &&= mainHeld;
+    rect = view.rect
+  if (!rect || !rt.views.persistent.includes(view)) throw new Error('VIEW_RELEASED')
+  if (capture.capturing) throw new Error('SURFACE_CAPTURE_BUSY')
+  const mainHeld = run.frameHeld
+  onView(rt, view, () => renderWebgpuPages(rt, camera, rect.width / rect.height))
+  run.frameHeld &&= mainHeld
 }
 
 /** `view` leaves: once the device has answered what it asked, its targets, pyramid, history and
  *  effect chain are released, and its cut leaves the residency's union. */
 export async function removeWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
-  const at = rt.views.persistent.indexOf(view);
-  if (at < 0) return;
-  rt.views.persistent.splice(at, 1);
-  await releaseSettledCapture(rt, view);
+  const at = rt.views.persistent.indexOf(view)
+  if (at < 0) return
+  rt.views.persistent.splice(at, 1)
+  await releaseSettledCapture(rt, view)
 }

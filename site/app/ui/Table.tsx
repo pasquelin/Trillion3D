@@ -1,13 +1,13 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from 'react'
 
 interface TableProps {
-  children: ReactNode;
-  label?: string;
-  wide?: boolean;
+  children: ReactNode
+  label?: string
+  wide?: boolean
   /** Small type, unstriped, as wide as its figures rather than its column: a matrix, a short
    *  grid. */
-  compact?: boolean;
-  className?: string;
+  compact?: boolean
+  className?: string
 }
 
 /** Shared, horizontally scrollable DaisyUI table; striping is consistent across the site. */
@@ -23,7 +23,7 @@ export function Table({
       <div className="overflow-x-auto">
         <table className="table table-xs w-auto">{children}</table>
       </div>
-    );
+    )
   }
   return (
     <div
@@ -38,7 +38,7 @@ export function Table({
         {children}
       </table>
     </div>
-  );
+  )
 }
 
 /** A table of named fields — a parameter, a member, a value — under its column heads: the name
@@ -47,8 +47,8 @@ export function FieldTable({
   head,
   rows,
 }: {
-  head: string[];
-  rows: { key: string; cells: ReactNode[] }[];
+  head: string[]
+  rows: { key: string; cells: ReactNode[] }[]
 }) {
   return (
     <Table>
@@ -76,5 +76,5 @@ export function FieldTable({
         ))}
       </tbody>
     </Table>
-  );
+  )
 }

@@ -1,7 +1,7 @@
-import { createDeformationFrame } from './frame.ts';
-import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts';
-import type { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
-import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { createDeformationFrame } from './frame.ts'
+import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts'
+import type { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
+import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /**
  * The pages runtime `updateWebgpuDeformation` reads, around one deformation `frame`: placements
@@ -14,14 +14,14 @@ export function deformationRuntime(
   selectionRoots: object[],
   rows: object,
 ) {
-  const lights = createWebgpuLightState();
-  lights.mobility.ensure(1, 2, () => world.elements);
-  const changed: number[][] = [];
+  const lights = createWebgpuLightState()
+  lights.mobility.ensure(1, 2, () => world.elements)
+  const changed: number[][] = []
   Object.assign(lights.changes, {
     worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>) => {
-      changed.push([...Array.from(min), ...Array.from(max)]);
+      changed.push([...Array.from(min), ...Array.from(max)])
     },
-  });
+  })
   const rt = {
     // A zero pixel error skips no placement (`screen.ts`).
     vis: {
@@ -34,6 +34,6 @@ export function deformationRuntime(
     run: { gate: { pixelError: 0 }, temporalHizState: {} },
     setup: {},
     blendState: { blendGpu: [] },
-  } as unknown as WebgpuPagesRuntime;
-  return { rt, changed };
+  } as unknown as WebgpuPagesRuntime
+  return { rt, changed }
 }

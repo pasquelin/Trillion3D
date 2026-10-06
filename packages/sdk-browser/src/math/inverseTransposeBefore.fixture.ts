@@ -1,4 +1,4 @@
-import { inverseTransposeKernel } from './inverseTransposeKernel.ts';
+import { inverseTransposeKernel } from './inverseTransposeKernel.ts'
 
 /**
  * Prepare from BEFORE defect 6: absolute threshold `abs(det)<1e-20` on the RAW 3×3, and factor
@@ -9,7 +9,7 @@ import { inverseTransposeKernel } from './inverseTransposeKernel.ts';
  */
 const PREP_BEFORE_DEFECT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  let det=dot(a,cross(b,c));
- return InvT3(mat3x3f(cross(b,c),cross(c,a),cross(a,b)),1.0/det,!(abs(det)<1e-20));`;
+ return InvT3(mat3x3f(cross(b,c),cross(c,a),cross(a,b)),1.0/det,!(abs(det)<1e-20));`
 
 /**
  * The same kernel with the prepare from before defect 6, TO REPLAY THE DEFECT ONLY: no
@@ -27,4 +27,4 @@ const PREP_BEFORE_DEFECT_6 = ` let a=m[0];let b=m[1];let c=m[2];
  * ignores face swap under reflection: it counted 119 legitimate rejects as defects and missed
  * 215.
  */
-export const INVERSE_TRANSPOSE_BEFORE_WGSL = inverseTransposeKernel(PREP_BEFORE_DEFECT_6, 'v');
+export const INVERSE_TRANSPOSE_BEFORE_WGSL = inverseTransposeKernel(PREP_BEFORE_DEFECT_6, 'v')

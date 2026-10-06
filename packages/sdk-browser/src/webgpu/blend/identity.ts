@@ -2,15 +2,15 @@ import {
   blendBindEntries,
   type BlendBindResources,
   type BlendLighting,
-} from '../core/bindEntries.ts';
-import { liveResources } from '../core/liveEntries.ts';
-import { fallbackBindEntries } from '../core/fallbackEntries.ts';
-import { BLEND_VIEW_SIZE } from './uniforms.ts';
-import type { BlendGpuItem } from './state.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+} from '../core/bindEntries.ts'
+import { liveResources } from '../core/liveEntries.ts'
+import { fallbackBindEntries } from '../core/fallbackEntries.ts'
+import { BLEND_VIEW_SIZE } from './uniforms.ts'
+import type { BlendGpuItem } from './state.ts'
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The deferred stand-ins' normal atlas: one row of zeros (`../visibility/receiver.ts`). */
-const emptyNormals = (rt: WebgpuPagesRuntime) => rt.gpu.deferred?.placeholders.emptyNormals;
+const emptyNormals = (rt: WebgpuPagesRuntime) => rt.gpu.deferred?.placeholders.emptyNormals
 
 /** One resource contract for construction and invalidation, with owners read lazily. */
 export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
@@ -41,7 +41,7 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
       proxy: () => rt.blendState.lighting?.proxy,
       surfaceCache: () => rt.blendState.lighting?.surfaceCache,
     }),
-  );
+  )
 }
 
 /** The representative paged and fallback groups cover the resources shared by every item. Also
@@ -49,11 +49,11 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
  *  read: the fallback pass calls it without, and names no lighting. */
 export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLighting) {
   const { gpu, vis, blendState } = rt,
-    identity = blendState.identity;
-  blendState.lighting = lighting;
-  identity.entries[0] ??= blendEntries(rt);
-  identity.entries[1] ??= fallbackBindEntries(rt);
-  if (!identity.entriesMoved(vis.blendBindGroupLayout, gpu.bindGroupLayout)) return;
-  blendState.pagedGroup = undefined;
-  for (const item of blendState.blendGpu) item.group = undefined;
+    identity = blendState.identity
+  blendState.lighting = lighting
+  identity.entries[0] ??= blendEntries(rt)
+  identity.entries[1] ??= fallbackBindEntries(rt)
+  if (!identity.entriesMoved(vis.blendBindGroupLayout, gpu.bindGroupLayout)) return
+  blendState.pagedGroup = undefined
+  for (const item of blendState.blendGpu) item.group = undefined
 }

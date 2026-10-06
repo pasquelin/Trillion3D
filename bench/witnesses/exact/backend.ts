@@ -18,14 +18,14 @@ import {
   type DiagnosticMode,
   type BackendFactory,
   type CameraMotion,
-} from './engine.ts';
-import { baseCapabilities, CONTRACT_LIGHTS_UNSUPPORTED } from '../capabilities.ts';
-import { createExactPagesMetrics } from './metrics.ts';
-import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts';
-import { createExactPagesMaterials } from './materials.ts';
-import { isDrawnNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
-import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
-import { createExactPagesClusterBatches } from './clusterBatches.ts';
+} from './engine.ts'
+import { baseCapabilities, CONTRACT_LIGHTS_UNSUPPORTED } from '../capabilities.ts'
+import { createExactPagesMetrics } from './metrics.ts'
+import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts'
+import { createExactPagesMaterials } from './materials.ts'
+import { isDrawnNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts'
+import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts'
+import { createExactPagesClusterBatches } from './clusterBatches.ts'
 
 export const exactPagesBackend: BackendFactory = (context) => {
   const {
@@ -36,59 +36,59 @@ export const exactPagesBackend: BackendFactory = (context) => {
     maxResidentPages,
     viewport,
     clearColor = DEFAULT_CLEAR_COLOR,
-  } = context;
+  } = context
   // The witness draws its transparent surfaces with its host library: its copies are host meshes.
   const collected = collectClusterPages(source, metadata, indices, associations, {
     blendCopy: createBlendCopy,
-  });
+  })
   const { requestCount, prepared, worlds } = collected,
     roots = posedRoots(collected.roots),
-    [allPages, bootstrap] = [collected.allPages, collected.bootstrap] as PageRec[][];
-  const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
+    [allPages, bootstrap] = [collected.allPages, collected.bootstrap] as PageRec[][]
+  const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []))
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
-    scene = numbered(new Scene());
-  const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
+    scene = numbered(new Scene())
+  const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source)
   const [shown, desired, attached]: PageRec[][] = [[], [], []],
     shownPacked: number[] = [],
-    desiredPacked: number[] = [];
-  const requestData = createExactPagesRequestData(allPages, requestCount);
+    desiredPacked: number[] = []
+  const requestData = createExactPagesRequestData(allPages, requestCount)
   const { batches, refusal, drawHostGeometry } = createExactPagesClusterBatches(
     scene,
     allPages,
     blendCopies,
     context,
-  );
-  const indexByUrl = pageIndexBuffers(allPages);
-  let diagnostic: DiagnosticMode = 'beauty';
-  const renderState = createExactPagesRenderState();
-  const gate = createWebglFrameGate();
+  )
+  const indexByUrl = pageIndexBuffers(allPages)
+  let diagnostic: DiagnosticMode = 'beauty'
+  const renderState = createExactPagesRenderState()
+  const gate = createWebglFrameGate()
   // Contract lights; with none declared, the source graph lights alone, image pixel for pixel.
-  const contract = contractLightingApi(scene, context.sceneLights, sceneLights, gate.sceneChanged);
-  const motion: CameraMotion = {};
+  const contract = contractLightingApi(scene, context.sceneLights, sceneLights, gate.sceneChanged)
+  const motion: CameraMotion = {}
   const { profile: cpuProfile, methods: cpuMethods } = createExactPagesCpu(
     context.onDiagnostic,
     () => renderState.frame,
     context.stageProfile === true,
     () => renderState.cpuSelectMs,
-  );
+  )
   const materials = createExactPagesMaterials({
     blendCopies,
     viewport,
     get diagnostic() {
-      return diagnostic;
+      return diagnostic
     },
     get cam() {
-      return renderState.cam;
+      return renderState.cam
     },
     get lastPixelError() {
-      return renderState.lastPixelError;
+      return renderState.lastPixelError
     },
-  });
-  const { materialFor, paint, paintBlend } = materials;
-  const attach = createExactPagesAttachment(indexByUrl, materialFor, paint);
-  const metricsSeen = new Set<ArrayBufferView>();
-  const disposeGeometry = disposePageGeometry;
-  const counters = { pagesDetached: 0 };
+  })
+  const { materialFor, paint, paintBlend } = materials
+  const attach = createExactPagesAttachment(indexByUrl, materialFor, paint)
+  const metricsSeen = new Set<ArrayBufferView>()
+  const disposeGeometry = disposePageGeometry
+  const counters = { pagesDetached: 0 }
   const syncResident = createExactPagesResidency(
     shown,
     desired,
@@ -97,7 +97,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
     attach,
     () => diagnostic,
     counters,
-  );
+  )
   const requestMethods = createExactPagesRequests({
     ...requestData,
     resourcesChanged: gate.resourcesChanged,
@@ -111,10 +111,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
     indexByUrl,
     disposeGeometry,
     get frame() {
-      return renderState.frame;
+      return renderState.frame
     },
     urlStamp: 0,
-  });
+  })
   const metricMethods = createExactPagesMetrics({
     batches,
     blendCopies,
@@ -127,10 +127,10 @@ export const exactPagesBackend: BackendFactory = (context) => {
     scene,
     gate,
     get diagnostic() {
-      return diagnostic;
+      return diagnostic
     },
     state: renderState,
-  });
+  })
   const renderFrame = createExactPagesRender({
     state: renderState,
     context,
@@ -149,13 +149,13 @@ export const exactPagesBackend: BackendFactory = (context) => {
     syncResident,
     cpuProfile,
     gate,
-  });
+  })
   return {
     setDiagnostic(mode) {
-      diagnostic = mode;
-      gate.sceneChanged();
-      paintBlend();
-      syncResident();
+      diagnostic = mode
+      gate.sceneChanged()
+      paintBlend()
+      syncResident()
     },
     id: 'exact-cluster-pages',
     capabilities: {
@@ -166,18 +166,18 @@ export const exactPagesBackend: BackendFactory = (context) => {
     },
     scene,
     prepare: async () => {
-      if (refusal) throw refusal;
+      if (refusal) throw refusal
     },
     get overBudget() {
-      return renderState.overBudget;
+      return renderState.overBudget
     },
     get frameHeld() {
-      return renderState.frameHeld;
+      return renderState.frameHeld
     },
     ...contract,
     setClearColor: graphBackground(scene, gate.resourcesChanged),
     render(camera) {
-      renderFrame(camera);
+      renderFrame(camera)
     },
     selectedPageIds: () => (shown.length ? shown : desired).map((rec) => rec.clusterId),
     drawHostGeometry,
@@ -185,9 +185,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
     ...cpuMethods,
     ...requestMethods,
     syncResident() {
-      gate.resourcesChanged();
-      syncResident();
+      gate.resourcesChanged()
+      syncResident()
     },
     ...metricMethods,
-  };
-};
+  }
+}

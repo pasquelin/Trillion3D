@@ -1,13 +1,13 @@
 // The page side of one series: the payload sent into the page, and running it there.
 // Split from `series/series.ts` to keep it under the file line budget.
-import type { Page } from 'playwright';
-import type { CameraPose } from '../../../packages/sdk-core/src/index.ts';
-import { reservoirs } from './seriesPools.ts';
-import type { Side } from '../harness/sideOptions.ts';
-import type { BenchSettings } from '../harness/options.ts';
-import type { LightsPlan } from '../lighting/lamps.ts';
-import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts';
-import { sdkEntryUrl } from '../harness/dists.ts';
+import type { Page } from 'playwright'
+import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
+import { reservoirs } from './seriesPools.ts'
+import type { Side } from '../harness/sideOptions.ts'
+import type { BenchSettings } from '../harness/options.ts'
+import type { LightsPlan } from '../lighting/lamps.ts'
+import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
+import { sdkEntryUrl } from '../harness/dists.ts'
 
 /** The payload one series sends into the page: everything `measureView` needs. */
 export function measurePayload(
@@ -20,9 +20,9 @@ export function measurePayload(
   lights: LightsPlan | null,
   manifest: string | null,
 ): MeasureViewOptions {
-  const ENGINE = side.engine;
-  const manifestUrl = side.manifestUrl ?? manifest;
-  if (!manifestUrl) throw new Error(`no manifest URL for side ${side.name}`);
+  const ENGINE = side.engine
+  const manifestUrl = side.manifestUrl ?? manifest
+  if (!manifestUrl) throw new Error(`no manifest URL for side ${side.name}`)
   return {
     sdkUrl: sdkEntryUrl(side),
     manifestUrl,
@@ -70,7 +70,7 @@ export function measurePayload(
     mathPath: settings.mathPath === 'auto' ? null : settings.mathPath,
     movingNode: settings.movingNode,
     movingNodeRadius: settings.movingNodeRadius,
-  };
+  }
 }
 
 /**
@@ -89,27 +89,27 @@ export async function runInPage(
       const module = (await import(`${o.modulesUrl}${o.page}`)) as {
         measureView(
           options: typeof o,
-        ): Promise<import('../harness/measureOptions.ts').MeasureViewResult>;
-      };
-      const result = await module.measureView(o);
-      if ('error' in result) return result;
-      return { ...result, size: { ...result.size, dpr: devicePixelRatio } };
+        ): Promise<import('../harness/measureOptions.ts').MeasureViewResult>
+      }
+      const result = await module.measureView(o)
+      if ('error' in result) return result
+      return { ...result, size: { ...result.size, dpr: devicePixelRatio } }
     }, payload),
-  );
+  )
 }
 
 /** Runs `run` on `page`; a failure is rethrown with the GPU incidents the page published. */
 export async function withGpuIncidents<T>(page: Page, run: () => Promise<T>): Promise<T> {
   try {
-    return await run();
+    return await run()
   } catch (error) {
     const incidents: string[] = await page
       .evaluate(() => globalThis.gpuIncidents ?? [])
-      .catch(() => []);
-    const err = error instanceof Error ? error : new Error(String(error));
-    if (!incidents.length) throw err;
+      .catch(() => [])
+    const err = error instanceof Error ? error : new Error(String(error))
+    if (!incidents.length) throw err
     throw new Error(`${err.message}\nGPU incidents:\n${incidents.join('\n')}`, {
       cause: error,
-    });
+    })
   }
 }

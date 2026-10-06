@@ -1,11 +1,11 @@
-import { runInstalledBrowser } from './browser.ts';
-import type { InstalledBrowserProof } from './browser-result.ts';
+import { runInstalledBrowser } from './browser.ts'
+import type { InstalledBrowserProof } from './browser-result.ts'
 
-const canvases = '<canvas id="primer"></canvas><canvas id="replay"></canvas>';
+const canvases = '<canvas id="primer"></canvas><canvas id="replay"></canvas>'
 
 interface CacheUrls {
-  manifestUrl: string;
-  replayUrl: string;
+  manifestUrl: string
+  replayUrl: string
 }
 
 export function proveInstalledBrowser({
@@ -14,13 +14,13 @@ export function proveInstalledBrowser({
   browserEntry,
   ...urls
 }: {
-  fixture: string;
-  packageName: string;
-  browserEntry: string;
+  fixture: string
+  packageName: string
+  browserEntry: string
 } & CacheUrls): Promise<InstalledBrowserProof> {
   const imports = {
     [packageName]: `/node_modules/${packageName}/${browserEntry}`,
-  };
+  }
   return runInstalledBrowser({
     root: fixture,
     html: `<!doctype html>${canvases}<script type="importmap">${JSON.stringify({ imports })}</script>`,
@@ -30,14 +30,14 @@ export function proveInstalledBrowser({
     commonWorkerPath: '/common-worker.js',
     allowNodeModules: true,
     ...urls,
-  });
+  })
 }
 
 export function proveBundledInstalledBrowser({
   outputRoot,
   ...urls
 }: {
-  outputRoot: string;
+  outputRoot: string
 } & CacheUrls): Promise<InstalledBrowserProof> {
   return runInstalledBrowser({
     root: outputRoot,
@@ -47,5 +47,5 @@ export function proveBundledInstalledBrowser({
     integrationWorkerPath: '/pageIntegrationWorker.js',
     commonWorkerPath: '/common-worker.js',
     ...urls,
-  });
+  })
 }

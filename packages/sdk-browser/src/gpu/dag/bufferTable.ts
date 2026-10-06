@@ -1,14 +1,14 @@
-import { storageBufferCap } from '../../residency/pools.ts';
-import { SELECTION_WORKGROUP } from '../core/selection.ts';
-import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { dagFlagsWords } from './shader/lastUseWgsl.ts';
-import { stagedOutputBytes } from './layout.ts';
-import { type PackedDag } from './types.ts';
-import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts';
-import { type TableSplit } from './splitFlags.ts';
+import { storageBufferCap } from '../../residency/pools.ts'
+import { SELECTION_WORKGROUP } from '../core/selection.ts'
+import { dagWorkLayout } from './shader/floorWgsl.ts'
+import { dagFlagsWords } from './shader/lastUseWgsl.ts'
+import { stagedOutputBytes } from './layout.ts'
+import { type PackedDag } from './types.ts'
+import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
+import { type TableSplit } from './splitFlags.ts'
 
 /** One storage buffer of a cut: its label, its bytes, and whether a copy reads it. */
-export type DagBufferRow = { label: string; size: number; copySource?: boolean };
+export type DagBufferRow = { label: string; size: number; copySource?: boolean }
 
 /** `row` made a buffer by `make` — a device's `createBuffer`, or a cut's own (`resources.ts`). */
 export const makeDagBuffer = (make: (d: GPUBufferDescriptor) => GPUBuffer, row: DagBufferRow) =>
@@ -19,22 +19,22 @@ export const makeDagBuffer = (make: (d: GPUBufferDescriptor) => GPUBuffer, row: 
       GPUBufferUsage.STORAGE |
       GPUBufferUsage.COPY_DST |
       (row.copySource ? GPUBufferUsage.COPY_SRC : 0),
-  });
+  })
 
 /** The rows of a table in parts of `per` elements of `bytes` each, over `total` bytes: the first
  *  under `row`'s label, the others numbered behind it. A whole table is `row` itself. */
 function partRows(row: DagBufferRow, total: number, per: number, parts: number) {
-  if (parts === 1) return [row];
+  if (parts === 1) return [row]
   return Array.from({ length: parts }, (_, k) => ({
     ...row,
     label: k ? `${row.label} ${k}` : row.label,
     size: Math.min(per, total - k * per),
-  }));
+  }))
 }
 
 /** Each part of `parts` a row of the one table, named `name`, `name1`… as the kernel binds them. */
 const namedParts = (name: string, parts: DagBufferRow[]) =>
-  Object.fromEntries(parts.map((row, k) => [k ? `${name}${k}` : name, row]));
+  Object.fromEntries(parts.map((row, k) => [k ? `${name}${k}` : name, row]))
 
 /**
  * THE BUFFERS OF A CAMERA CUT, as `createDagResources` makes them: one table read by the resources
@@ -51,15 +51,15 @@ export function cameraCutBuffers(
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = Math.ceil(packed.pageCount / SELECTION_WORKGROUP),
-    workLayout = dagWorkLayout(blockCount);
-  const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount);
+    workLayout = dagWorkLayout(blockCount)
+  const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount)
   const split = dagSplit(limits, packed, {
     clusters: packed.clusters.byteLength,
     nodes: packed.nodes.byteLength,
     cold: packed.pageCones.byteLength,
-  });
+  })
   const table = (label: string, bytes: number, least: number, part: TableSplit, element: number) =>
-    partRows({ label, size: Math.max(least, bytes) }, bytes, part.per * element, part.parts);
+    partRows({ label, size: Math.max(least, bytes) }, bytes, part.per * element, part.parts)
   const parts = {
     clusters: table(
       'Trillion3D DAG clusters',
@@ -90,7 +90,7 @@ export function cameraCutBuffers(
       flagWords,
       true,
     ),
-  };
+  }
   return {
     blockCount,
     workLayout,
@@ -103,7 +103,7 @@ export function cameraCutBuffers(
       ...namedParts('flags', parts.flags),
       work: { label: 'Trillion3D DAG work', size: Math.max(8, workLayout.words * 4) },
     } satisfies Record<string, DagBufferRow>,
-  };
+  }
 }
 
 /** The rows of a `flags` of `words` cut at `cuts` (`split.ts`); a camera's are copy sources. */
@@ -115,12 +115,12 @@ function flagRows(
   words: number,
   copySource?: true,
 ): DagBufferRow[] {
-  const sizes = flagPartWords(cuts, queueCap, pageCount, words);
+  const sizes = flagPartWords(cuts, queueCap, pageCount, words)
   return sizes.map((part, k) => ({
     label: k ? `${label} ${k}` : label,
     size: Math.max(16, part * 4),
     ...(copySource && { copySource }),
-  }));
+  }))
 }
 
 /** The readout of a cut whose list holds `listCap` ranks, as `createDagList` makes it (`listCap.ts`). */
@@ -128,7 +128,7 @@ export const readoutRow = (listCap: number): DagBufferRow => ({
   label: 'Trillion3D DAG readback',
   size: stagedOutputBytes(listCap),
   copySource: true,
-});
+})
 
 /** THE ONE FIT RULE of a cut's buffers: the first of `rows` past one storage binding of this
  *  device, by name, or `undefined` when the device holds them all. */
@@ -136,8 +136,8 @@ export function pastBinding(
   limits: Parameters<typeof storageBufferCap>[0],
   rows: Record<string, DagBufferRow>,
 ) {
-  const limit = storageBufferCap(limits);
+  const limit = storageBufferCap(limits)
   for (const [buffer, { size }] of Object.entries(rows))
-    if (size > limit) return { buffer, bytes: size, limit };
-  return undefined;
+    if (size > limit) return { buffer, bytes: size, limit }
+  return undefined
 }

@@ -1,22 +1,21 @@
-import type { ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
 export interface CardProps extends Omit<ComponentPropsWithoutRef<'section'>, 'title'> {
-  title?: ReactNode;
+  title?: ReactNode
   /** A picture above the title: the card of a page a list opens. */
-  media?: ReactNode;
+  media?: ReactNode
   /** A short tag between the picture and the title: the theme or state of what the card opens. */
-  eyebrow?: ReactNode;
-  surface?: 'default' | 'nested' | 'inset';
+  eyebrow?: ReactNode
+  surface?: 'default' | 'nested' | 'inset'
 }
 
 const surfaces: Record<NonNullable<CardProps['surface']>, string> = {
   default: 'bg-base-200',
   nested: 'bg-base-100',
   inset: 'bg-base-300',
-};
+}
 
-export const surfaceClass = (surface: CardProps['surface'] = 'default'): string =>
-  surfaces[surface];
+export const surfaceClass = (surface: CardProps['surface'] = 'default'): string => surfaces[surface]
 
 /** The DaisyUI card: one surface, one border, one title level for every boxed section. */
 export function Card({
@@ -40,5 +39,5 @@ export function Card({
         {children}
       </div>
     </section>
-  );
+  )
 }

@@ -1,4 +1,4 @@
-import type { HostAttributes } from '../../host/resources.ts';
+import type { HostAttributes } from '../../host/resources.ts'
 
 /**
  * Vertex colours of the geometry the WebGPU passes read as floats — a transparent primitive, a
@@ -9,16 +9,16 @@ import type { HostAttributes } from '../../host/resources.ts';
  * finds the tail from the buffer's own length. A quantized page carries its colours itself
  * (`../../cluster/decodeWgsl.ts`).
  */
-export const UV_FLOATS = 2;
-export const COLOR_FLOATS = 4;
+export const UV_FLOATS = 2
+export const COLOR_FLOATS = 4
 
 /** Floats of a UV buffer of `vertices` vertices, with the colour tail when `coloured`. */
 export const uvBufferFloats = (vertices: number, coloured: boolean) =>
-  vertices * (UV_FLOATS + (coloured ? COLOR_FLOATS : 0));
+  vertices * (UV_FLOATS + (coloured ? COLOR_FLOATS : 0))
 
 /** The float vertex `vertex`'s colour starts at, in the tail of a buffer of `vertices` vertices. */
 export const colorFloatAt = (vertices: number, vertex: number) =>
-  vertices * UV_FLOATS + vertex * COLOR_FLOATS;
+  vertices * UV_FLOATS + vertex * COLOR_FLOATS
 
 /** Writes up to `count` colours of `color` at vertex `base` of the tail of a buffer of `vertices`
  *  vertices; a three-component colour takes an alpha of one, as the forward path reads it. */
@@ -31,8 +31,7 @@ export function writeVertexColors(
 ) {
   for (let i = 0; i < Math.min(count, color.count); i++)
     for (let c = 0; c < COLOR_FLOATS; c++)
-      into[colorFloatAt(vertices, base + i) + c] =
-        c < color.itemSize ? color.getComponent(i, c) : 1;
+      into[colorFloatAt(vertices, base + i) + c] = c < color.itemSize ? color.getComponent(i, c) : 1
 }
 
 /** Colour of source vertex `id`, read in the tail of the `uvs` buffer the host declares.
@@ -40,4 +39,4 @@ export function writeVertexColors(
 export const VERTEX_COLOR_WGSL = `fn vertColor(id:u32)->vec4f{
  let i=arrayLength(&uvs)/${UV_FLOATS + COLOR_FLOATS}u*${UV_FLOATS}u+id*${COLOR_FLOATS}u;
  return vec4f(uvs[i],uvs[i+1u],uvs[i+2u],uvs[i+3u]);
-}`;
+}`

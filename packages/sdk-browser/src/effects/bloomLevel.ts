@@ -1,12 +1,12 @@
-import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts';
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
+import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts'
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 
 /** Bytes of one bloom uniform slot, and the stride between slots: dynamic offsets align on 256. */
-export const BLOOM_UNIFORM_BYTES = 32;
-export const BLOOM_UNIFORM_STRIDE = 256;
+export const BLOOM_UNIFORM_BYTES = 32
+export const BLOOM_UNIFORM_STRIDE = 256
 
 /** A bilinear read of the level at `uv` plus `offset` texels of `stride`: every filter's tap. */
-export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`;
+export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`
 
 /**
  * One bloom level as a program reads it, at the bindings of group `group`: the level, its bilinear
@@ -40,7 +40,7 @@ return (fetchLevel(a)*(wa.x*wa.y)+fetchLevel(vec2f(b.x,a.y))*(wb.x*wa.y)
 +fetchLevel(vec2f(a.x,b.y))*(wa.x*wb.y)+fetchLevel(b)*(wb.x*wb.y))*0.0625;
 }
 fn tent(uv:vec2f)->vec4f{if(bloom.radius!=1.0){return tent9(uv);}return tent4(uv);}
-fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`;
+fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`
 
 /**
  * The last blend as the composition reads it (#963), group 1 beside the composition's own: the
@@ -54,12 +54,12 @@ fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel
  */
 export const BLOOM_COMPOSE_WGSL = `${bloomLevelWgsl(1)}
 fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(65520.0);
-return select(v*3.4e38,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-65504.0),vec4f(65504.0))),held);}`;
+return select(v*3.4e38,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-65504.0),vec4f(65504.0))),held);}`
 
 /** The layout of a level's group, one per device: the bloom's passes and the composition that
  *  blends its last level in bind the same groups. */
 export const bloomLevelLayout = oncePerDevice((device) => {
-  const visibility = GPUShaderStage.FRAGMENT;
+  const visibility = GPUShaderStage.FRAGMENT
   return device.createBindGroupLayout({
     label: 'Trillion3D bloom level',
     entries: [
@@ -71,5 +71,5 @@ export const bloomLevelLayout = oncePerDevice((device) => {
         buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: BLOOM_UNIFORM_BYTES },
       },
     ],
-  });
-});
+  })
+})

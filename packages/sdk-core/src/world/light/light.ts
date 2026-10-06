@@ -1,43 +1,43 @@
-import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts';
-import { Object3D } from '../object/object3d.ts';
-import { Color, type ColorInput } from '../math/color.ts';
-import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts';
-import { listen, unlisten } from '../math/observed.ts';
-import { noteNodeWrite } from '../../scene/core/nodeEdits.ts';
+import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
+import { Object3D } from '../object/object3d.ts'
+import { Color, type ColorInput } from '../math/color.ts'
+import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
+import { listen, unlisten } from '../math/observed.ts'
+import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 
 /** What a page may pass to a light member. */
 export interface LightParameters {
   /** The light's colour. */
-  color?: ColorInput;
+  color?: ColorInput
   /** How strong the light is. */
-  intensity?: number;
+  intensity?: number
   /** Where the light stands. */
-  position?: Vec3Input;
+  position?: Vec3Input
   /** The point a directional or spot light shines at. */
-  target?: Vec3Input;
+  target?: Vec3Input
   /** Whether objects in this light cast shadows. */
-  castShadow?: boolean;
+  castShadow?: boolean
   /** How far a point or spot light reaches; 0 means no limit. */
-  distance?: number;
+  distance?: number
   /** How fast the light fades with distance; 2 is how real light fades. */
-  decay?: number;
+  decay?: number
   /** Half the opening of a spot light's cone, in radians. */
-  angle?: number;
+  angle?: number
   /** How soft a spot light's edge is, from 0 (sharp) to 1. */
-  penumbra?: number;
+  penumbra?: number
   /** The colour a hemisphere light gives from below. */
-  groundColor?: ColorInput;
+  groundColor?: ColorInput
   /** Width of a rectangle light. */
-  width?: number;
+  width?: number
   /** Height of a rectangle light. */
-  height?: number;
+  height?: number
   /** Radius of the emitting sphere of a point or spot light: its soft shadow's size. */
-  radius?: number;
+  radius?: number
   /** Directional source angular radius, in radians. */
-  angularRadius?: number;
+  angularRadius?: number
   /** A probe's irradiance: 27 numbers, nine RGB spherical-harmonic coefficients in the band
    *  order of `scene/core/environment.ts`, scaled by `intensity`. Absent, the probe is uniform. */
-  sh?: ArrayLike<number>;
+  sh?: ArrayLike<number>
 }
 
 /** The numbers a light carries, each a property whose write reaches the world at once. */
@@ -51,11 +51,11 @@ const NUMBERS = [
   'height',
   'radius',
   'angularRadius',
-] as const;
-type LightNumber = (typeof NUMBERS)[number];
+] as const
+type LightNumber = (typeof NUMBERS)[number]
 /** The kinds placed by a direction: a sky's is its position seen from the origin. */
-const AIMED = new Set(['directional', 'spot', 'hemisphere']);
-const point = new Vector3();
+const AIMED = new Set(['directional', 'spot', 'hemisphere'])
+const point = new Vector3()
 
 /**
  * A light placed in the scene. Its numbers are accessors: a write reaches the world's light
@@ -65,51 +65,51 @@ const point = new Vector3();
 export class Light extends Object3D {
   /** Always `true`: tells a light apart from any other object. */
   get isLight(): true {
-    return true;
+    return true
   }
   /** The light's colour; change it in place with `set`, or announce channels written straight
    *  with `needsUpdate = true`. */
-  readonly color: Color;
+  readonly color: Color
   /** A hemisphere light's colour from below. */
-  readonly groundColor: Color;
+  readonly groundColor: Color
   /** The node a directional or spot light shines at; move it to aim the light. */
-  readonly target = new Object3D();
+  readonly target = new Object3D()
   /** A probe's coefficients (`LightParameters.sh`); written in place, then `needsUpdate`. */
-  sh: number[] | null = null;
-  readonly _values: Record<LightNumber, number>;
+  sh: number[] | null = null
+  readonly _values: Record<LightNumber, number>
   /** How strong the light is; a write reaches the world at once. */
-  declare intensity: number;
+  declare intensity: number
   /** How far a point or spot light reaches; 0 means no limit. */
-  declare distance: number;
+  declare distance: number
   /** How fast the light fades with distance. */
-  declare decay: number;
+  declare decay: number
   /** Half the opening of a spot light's cone, in radians. */
-  declare angle: number;
+  declare angle: number
   /** How soft a spot light's edge is, from 0 to 1. */
-  declare penumbra: number;
+  declare penumbra: number
   /** Width of a rectangle light. */
-  declare width: number;
+  declare width: number
   /** Height of a rectangle light. */
-  declare height: number;
+  declare height: number
   /** Radius of the emitting sphere; `emitterRadius` in the engine's store. */
-  declare radius: number;
+  declare radius: number
   /** Angular radius of a directional light's disk, in radians: its soft shadow's size; 0 gives hard
    *  shadows. A sun defaults to the solar disk (`LIGHT_SETTINGS.sunAngularRadius`). */
-  declare angularRadius: number;
+  declare angularRadius: number
 
   /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
-  readonly kind: string;
+  readonly kind: string
   /** What its colours and its target's place call while it is in a world; made on its first entry. */
-  declare private _heard?: () => void;
+  declare private _heard?: () => void
   constructor(kind: string, p: LightParameters = {}) {
-    super();
-    this.kind = kind;
-    this.type = `${kind}Light`;
-    this.color = new Color(p.color ?? 0xffffff);
-    this.groundColor = new Color(p.groundColor ?? 0x000000);
+    super()
+    this.kind = kind
+    this.type = `${kind}Light`
+    this.color = new Color(p.color ?? 0xffffff)
+    this.groundColor = new Color(p.groundColor ?? 0x000000)
     // A colour written is counted, in a world or not: a watch reads the count, not the colour.
-    listen(this.color, noteNodeWrite);
-    listen(this.groundColor, noteNodeWrite);
+    listen(this.color, noteNodeWrite)
+    listen(this.groundColor, noteNodeWrite)
     this._values = {
       intensity: p.intensity ?? 1,
       distance: p.distance ?? 0,
@@ -121,74 +121,74 @@ export class Light extends Object3D {
       radius: p.radius ?? 0,
       angularRadius:
         p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
-    };
-    if (p.position) this.position.set(...readVec3(p.position));
-    else if (AIMED.has(kind)) this.position.set(0, 1, 0);
-    if (p.sh) this.sh = Array.from(p.sh);
-    if (p.target) this.target.position.set(...readVec3(p.target));
-    this.castShadow = p.castShadow ?? false;
+    }
+    if (p.position) this.position.set(...readVec3(p.position))
+    else if (AIMED.has(kind)) this.position.set(0, 1, 0)
+    if (p.sh) this.sh = Array.from(p.sh)
+    if (p.target) this.target.position.set(...readVec3(p.target))
+    this.castShadow = p.castShadow ?? false
   }
   /** Only a light in a world hears its colours and its target's place: out of one, they hold no
    *  reference to it, and a write reaches nothing. */
   protected override linked(inWorld: boolean) {
-    const heard = (this._heard ??= () => this._link?.content(this));
+    const heard = (this._heard ??= () => this._link?.content(this))
     for (const value of [this.color, this.groundColor, this.target.position])
-      if (inWorld) listen(value, heard);
-      else unlisten(value, heard);
+      if (inWorld) listen(value, heard)
+      else unlisten(value, heard)
   }
   protected override get looksDownNegativeZ() {
-    return true;
+    return true
   }
   protected override blank(): this {
-    return new Light(this.kind) as this;
+    return new Light(this.kind) as this
   }
   /** Takes `source`'s node values and, from a light, its numbers, colours, coefficients and aim;
    *  its own `kind` stays. */
   override copy(source: Object3D, recursive = true) {
-    super.copy(source, recursive);
-    if (!(source instanceof Light)) return this;
-    (this as { _values: Light['_values'] })._values = { ...source._values };
-    this.color.copy(source.color);
-    this.groundColor.copy(source.groundColor);
-    this.sh = source.sh && [...source.sh];
-    this.target.position.copy(source.target.position);
-    this._link?.content(this);
-    return this;
+    super.copy(source, recursive)
+    if (!(source instanceof Light)) return this
+    ;(this as { _values: Light['_values'] })._values = { ...source._values }
+    this.color.copy(source.color)
+    this.groundColor.copy(source.groundColor)
+    this.sh = source.sh && [...source.sh]
+    this.target.position.copy(source.target.position)
+    this._link?.content(this)
+    return this
   }
   /** `light.needsUpdate = true` after writing `sh` in place, or a colour's `r`, `g`, `b` straight:
    *  the write is counted (`nodeWrites`), and the world and the scene watch read it again. */
   set needsUpdate(_value: boolean) {
-    noteNodeWrite();
-    this._link?.content(this);
+    noteNodeWrite()
+    this._link?.content(this)
   }
   get needsUpdate() {
-    return false;
+    return false
   }
   /** Aims the light at a world point: a directional or spot light moves its `target` there — its
    *  direction reads from it —, and the node turns too, which is what a rectangle faces by. */
   override lookAt(x: number | { x: number; y: number; z: number }, y = 0, z = 0) {
-    super.lookAt(x, y, z);
-    if (typeof x === 'number') point.set(x, y, z);
-    else point.set(x.x, x.y, x.z);
-    this.target.parent?.worldToLocal(point);
-    this.target.position.copy(point);
+    super.lookAt(x, y, z)
+    if (typeof x === 'number') point.set(x, y, z)
+    else point.set(x.x, x.y, x.z)
+    this.target.parent?.worldToLocal(point)
+    this.target.position.copy(point)
   }
 }
 
 for (const name of NUMBERS)
   Object.defineProperty(Light.prototype, name, {
     get(this: Light) {
-      return this._values[name];
+      return this._values[name]
     },
     set(this: Light, value: number) {
-      this._values[name] = value;
-      noteNodeWrite();
-      this._link?.content(this);
+      this._values[name] = value
+      noteNodeWrite()
+      this._link?.content(this)
     },
-  });
+  })
 
 /** A member building one kind of light. */
-const kind = (name: string) => (p?: LightParameters) => new Light(name, p);
+const kind = (name: string) => (p?: LightParameters) => new Light(name, p)
 /** The `light` family: each kind placed as a node of the scene. */
 export const light = {
   /** A light that reaches everything evenly, from no direction. */
@@ -205,4 +205,4 @@ export const light = {
   rectArea: kind('rectArea'),
   /** Light measured around a point and given back to what is near it. */
   probe: kind('probe'),
-};
+}

@@ -1,24 +1,24 @@
-import type { ReactNode } from 'react';
-import { Card } from './Card.tsx';
-import { Badge } from './Badge.tsx';
-import type { BadgeTone } from './Badge.tsx';
+import type { ReactNode } from 'react'
+import { Card } from './Card.tsx'
+import { Badge } from './Badge.tsx'
+import type { BadgeTone } from './Badge.tsx'
 
 export interface BarChartRow {
-  id?: string | number;
-  label: ReactNode;
-  value: number | null;
-  missing?: string;
-  tone?: BadgeTone;
-  status?: ReactNode;
-  p95?: number | null;
+  id?: string | number
+  label: ReactNode
+  value: number | null
+  missing?: string
+  tone?: BadgeTone
+  status?: ReactNode
+  p95?: number | null
 }
 
 interface BarChartProps {
-  title: ReactNode;
-  note?: ReactNode;
-  rows: BarChartRow[];
-  format: (value: number) => string;
-  missingLabel?: string;
+  title: ReactNode
+  note?: ReactNode
+  rows: BarChartRow[]
+  format: (value: number) => string
+  missingLabel?: string
 }
 
 const TONES: Record<BadgeTone, string> = {
@@ -30,11 +30,11 @@ const TONES: Record<BadgeTone, string> = {
   warning: 'progress-warning',
   error: 'progress-error',
   neutral: 'progress-neutral',
-};
+}
 
 /** A shared card and DaisyUI progress bars, with one zero-based scale per metric. */
 export function BarChart({ title, note, rows, format, missingLabel }: BarChartProps) {
-  const max = Math.max(0, ...rows.map((r) => r.value ?? 0));
+  const max = Math.max(0, ...rows.map((r) => r.value ?? 0))
   return (
     <Card surface="nested" title={title} className="min-w-0" data-chart>
       {note && <p className="text-sm text-base-content/75">{note}</p>}
@@ -69,5 +69,5 @@ export function BarChart({ title, note, rows, format, missingLabel }: BarChartPr
         ))}
       </ul>
     </Card>
-  );
+  )
 }

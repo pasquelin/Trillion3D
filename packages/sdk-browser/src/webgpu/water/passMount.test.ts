@@ -1,91 +1,91 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import { createWebgpuBlendPipelines } from '../blend/pipelines.ts';
-import { drawBlendPass } from '../blend/draw.ts';
-import { encodeWaterPass } from './pass.ts';
-import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts';
-import type { BlendGpuItem } from '../blend/state.ts';
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { createWebgpuBlendPipelines } from '../blend/pipelines.ts'
+import { drawBlendPass } from '../blend/draw.ts'
+import { encodeWaterPass } from './pass.ts'
+import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts'
+import type { BlendGpuItem } from '../blend/state.ts'
 
 const items = (count: number, transmissive: boolean, blending = 'normal') =>
-  Array.from({ length: count }, () => ({ transmissive, surface: { blending } }) as BlendGpuItem);
+  Array.from({ length: count }, () => ({ transmissive, surface: { blending } }) as BlendGpuItem)
 
 test('the water pass is mounted with the blend pipelines only for a scene that transmits', async () => {
-  const opaque = mountDevice();
-  const none = await createWebgpuBlendPipelines(opaque.device, items(3, false));
-  assert.equal(none.water, undefined, 'no transmissive item, no pass');
-  assert.deepEqual(opaque.pipelines, ['fs', 'fs', 'fs'], 'the three blend pipelines only');
-  const water = mountDevice();
-  const some = await createWebgpuBlendPipelines(water.device, items(3, true));
-  assert.ok(some.water, 'a transmissive item mounts the pass');
+  const opaque = mountDevice()
+  const none = await createWebgpuBlendPipelines(opaque.device, items(3, false))
+  assert.equal(none.water, undefined, 'no transmissive item, no pass')
+  assert.deepEqual(opaque.pipelines, ['fs', 'fs', 'fs'], 'the three blend pipelines only')
+  const water = mountDevice()
+  const some = await createWebgpuBlendPipelines(water.device, items(3, true))
+  assert.ok(some.water, 'a transmissive item mounts the pass')
   assert.deepEqual(
     water.pipelines,
     ['fs', 'fs', 'fs', 'fsWater', 'fsWater', 'fsWater', 'composeWater', 'restore_fs'],
     'the surface stage at the three cull modes, the composite, then the cropped depth restore',
-  );
-});
+  )
+})
 
 test('a device that refuses the water pipelines keeps the blends, and the refusal is named', async () => {
-  const mount = mountDevice();
+  const mount = mountDevice()
   // The asynchronous creation, the one a device that offers it is asked for.
-  const create = mount.device.createRenderPipelineAsync;
+  const create = mount.device.createRenderPipelineAsync
   mount.device.createRenderPipelineAsync = async (descriptor: GPURenderPipelineDescriptor) => {
-    if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO');
-    return create(descriptor);
-  };
-  const built = await createWebgpuBlendPipelines(mount.device, items(2, true));
-  assert.equal(built.water, undefined, 'no water pass');
-  assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named');
-  const made = mount.pipelines.length;
-  for (const cull of [0, 1, 2]) assert.ok(built.blendPipelines.at(cull));
-  assert.equal(mount.pipelines.length, made, 'the three normal blends are kept');
-});
+    if (descriptor.fragment?.entryPoint === 'fsWater') throw new Error('DEVICE_SAYS_NO')
+    return create(descriptor)
+  }
+  const built = await createWebgpuBlendPipelines(mount.device, items(2, true))
+  assert.equal(built.water, undefined, 'no water pass')
+  assert.match(String(built.waterRefused), /DEVICE_SAYS_NO/, 'the device error is what is named')
+  const made = mount.pipelines.length
+  for (const cull of [0, 1, 2]) assert.ok(built.blendPipelines.at(cull))
+  assert.equal(mount.pipelines.length, made, 'the three normal blends are kept')
+})
 
 test('without the pass, the transmission slice draws as one more blend', () => {
-  const { blendState, gpu } = prepared();
-  targets(gpu);
-  const { rt, encoder, passes, counters } = replay(blendState, gpu);
+  const { blendState, gpu } = prepared()
+  targets(gpu)
+  const { rt, encoder, passes, counters } = replay(blendState, gpu)
   // What `encodeBlend` does after the blends: the pass, or the slice as a blend.
-  const composed = encodeWaterPass(rt, encoder);
-  if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true);
-  assert.equal(composed, false);
-  assert.equal(counters.copies, 0, 'no backdrop copy without the pass');
+  const composed = encodeWaterPass(rt, encoder)
+  if (blendState.transmissive && !composed) drawBlendPass(rt, device, encoder, true)
+  assert.equal(composed, false)
+  assert.equal(counters.copies, 0, 'no backdrop copy without the pass')
   assert.deepEqual(
     passes.map(({ label, drawn }) => ({ label, drawn })),
     [{ label: 'Trillion3D transmission', drawn: [1] }],
     'the slice, as a blend',
-  );
-  assert.equal(rt.run.blendDrawCalls, 1);
-});
+  )
+  assert.equal(rt.run.blendDrawCalls, 1)
+})
 
 // #346: a mode a blend item declares compiles its three pipelines, beside the normal ones.
 test('the blend pipelines are built for normal and for every mode a blend item declares', async () => {
-  const glow = mountDevice();
-  const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'));
-  assert.equal(glow.pipelines.length, 6, 'normal and additive, three culls each');
+  const glow = mountDevice()
+  const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'))
+  assert.equal(glow.pipelines.length, 6, 'normal and additive, three culls each')
   // Additive sits right after normal: its ranks draw what was compiled, compiling nothing.
-  for (const rank of [0, 1, 2, 3, 4, 5]) assert.ok(built.blendPipelines.at(rank));
-  assert.equal(glow.pipelines.length, 6);
-});
+  for (const rank of [0, 1, 2, 3, 4, 5]) assert.ok(built.blendPipelines.at(rank))
+  assert.equal(glow.pipelines.length, 6)
+})
 
 // #346: a blending written on a surface after the pass was built is compiled by the first draw
 // that asks for it, once, and never drawn as another mode.
 test('a mode first drawn after the pass was built compiles its three pipelines then', async () => {
-  const plain = mountDevice();
-  const built = await createWebgpuBlendPipelines(plain.device, items(2, false));
-  assert.equal(plain.pipelines.length, 3, 'a plain scene compiles the three normal pipelines');
-  const multiplyBack = 3 * 3 + 2;
-  const pipeline = built.blendPipelines.at(multiplyBack);
-  assert.ok(pipeline, 'the multiply back-face pipeline is drawn');
+  const plain = mountDevice()
+  const built = await createWebgpuBlendPipelines(plain.device, items(2, false))
+  assert.equal(plain.pipelines.length, 3, 'a plain scene compiles the three normal pipelines')
+  const multiplyBack = 3 * 3 + 2
+  const pipeline = built.blendPipelines.at(multiplyBack)
+  assert.ok(pipeline, 'the multiply back-face pipeline is drawn')
   // Its back-face cull at once, its two other culls started off the thread.
-  assert.equal(plain.pipelines.length, 6, 'multiply compiled its three culls, nothing else');
-  assert.equal(built.blendPipelines.at(multiplyBack), pipeline, 'compiled once');
-  assert.equal(plain.pipelines.length, 6);
-  assert.throws(() => built.blendPipelines.at(15), /names no blending mode/);
-});
+  assert.equal(plain.pipelines.length, 6, 'multiply compiled its three culls, nothing else')
+  assert.equal(built.blendPipelines.at(multiplyBack), pipeline, 'compiled once')
+  assert.equal(plain.pipelines.length, 6)
+  assert.throws(() => built.blendPipelines.at(15), /names no blending mode/)
+})
 
 test("a reference session's water pass is mounted with the whole mirror walk (#1279)", async () => {
   const composite = async (unboundedReflections: boolean) => {
-    const mount = mountDevice();
+    const mount = mountDevice()
     await createWebgpuBlendPipelines(
       mount.device,
       items(1, true),
@@ -96,10 +96,10 @@ test("a reference session's water pass is mounted with the whole mirror walk (#1
       {
         unboundedReflections,
       },
-    );
-    const pipeline = mount.renderPipelines.find((p) => p.fragment!.entryPoint === 'composeWater');
-    return (pipeline!.fragment!.module as { label: string }).label;
-  };
-  assert.equal(await composite(false), 'WATER_COMPOSITE');
-  assert.equal(await composite(true), 'WATER_COMPOSITE_UNBOUNDED');
-});
+    )
+    const pipeline = mount.renderPipelines.find((p) => p.fragment!.entryPoint === 'composeWater')
+    return (pipeline!.fragment!.module as { label: string }).label
+  }
+  assert.equal(await composite(false), 'WATER_COMPOSITE')
+  assert.equal(await composite(true), 'WATER_COMPOSITE_UNBOUNDED')
+})

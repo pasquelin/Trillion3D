@@ -1,22 +1,22 @@
-import { PAGE_DECODE_PROTOCOL, pageDecodeWorkerCount } from '../../../../sdk-core/src/index.ts';
-import { createPageDecodePool, type PageDecodePool } from './pool.ts';
-import { restorePageDecode, runPageDecodeTask } from './task.ts';
-import type { DecodedGeometryPage } from './geometryPage.ts';
-import type { PageDecodeAnswer, PageDecodeOp } from '../../../../sdk-core/src/index.ts';
-import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
+import { PAGE_DECODE_PROTOCOL, pageDecodeWorkerCount } from '../../../../sdk-core/src/index.ts'
+import { createPageDecodePool, type PageDecodePool } from './pool.ts'
+import { restorePageDecode, runPageDecodeTask } from './task.ts'
+import type { DecodedGeometryPage } from './geometryPage.ts'
+import type { PageDecodeAnswer, PageDecodeOp } from '../../../../sdk-core/src/index.ts'
+import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts'
 
 /** Decoded-byte ceiling of a page, identical to the original synchronous path. */
-const MAX_DECODED_BYTES = 16 * 1024 * 1024;
-const counters = { tasks: 0, offThread: 0, wasm: 0, decodeMs: 0 };
+const MAX_DECODED_BYTES = 16 * 1024 * 1024
+const counters = { tasks: 0, offThread: 0, wasm: 0, decodeMs: 0 }
 let admissionLimit = 1,
-  pool: PageDecodePool | undefined;
+  pool: PageDecodePool | undefined
 /** `undefined` until the startup check has answered, then its verdict; `starting` is that check. */
-let started: boolean | undefined, starting: Promise<unknown> | undefined;
+let started: boolean | undefined, starting: Promise<unknown> | undefined
 
 /** Bounds the pool to the admission already in force for page transfers. Call before the
  *  first decode; a later call does not resize an already-open pool. */
 export function configurePageDecoders(limit: number) {
-  admissionLimit = limit;
+  admissionLimit = limit
 }
 
 /**
@@ -28,38 +28,38 @@ export function configurePageDecoders(limit: number) {
  * caller its bytes intact.
  */
 function openPool() {
-  if (started === false) return undefined;
+  if (started === false) return undefined
   if (!pool) {
     if (typeof Worker === 'undefined') {
-      started = false;
-      return undefined;
+      started = false
+      return undefined
     }
     const cores = (globalThis.navigator as { hardwareConcurrency?: number } | undefined)
-      ?.hardwareConcurrency;
-    const workers = pageDecodeWorkerCount(cores, admissionLimit);
-    pool = createPageDecodePool(workers);
+      ?.hardwareConcurrency
+    const workers = pageDecodeWorkerCount(cores, admissionLimit)
+    pool = createPageDecodePool(workers)
     starting = pool.start().then((ok) => {
-      started = ok;
-      if (!ok) pool = undefined;
-    });
+      started = ok
+      if (!ok) pool = undefined
+    })
   }
   // A pool broken after start does not come back: its workers are gone, and relaunching
   // the probe on every page would turn a failure into a loop. Fallback takes over for good.
-  if (started && !pool.alive) started = false;
-  return started ? pool : undefined;
+  if (started && !pool.alive) started = false
+  return started ? pool : undefined
 }
 
 function count(answer: PageDecodeAnswer, offThread: boolean) {
-  counters.tasks++;
-  if (offThread) counters.offThread++;
+  counters.tasks++
+  if (offThread) counters.offThread++
   if (answer.ok) {
-    counters.decodeMs += answer.taskMs;
-    if (answer.wasm) counters.wasm++;
+    counters.decodeMs += answer.taskMs
+    if (answer.wasm) counters.wasm++
   }
-  return answer;
+  return answer
 }
 function refuse(answer: PageDecodeAnswer): never {
-  throw new Error(answer.ok ? 'PAGE_DECODE_FAILED' : answer.message);
+  throw new Error(answer.ok ? 'PAGE_DECODE_FAILED' : answer.message)
 }
 /** A view's buffer, without a copy when the view covers it as an integer — what every cache
  *  page does — and a copy otherwise: the task reads an `ArrayBuffer`, never a leftover shared buffer. */
@@ -68,7 +68,7 @@ function ownBuffer(bytes: Uint8Array) {
     bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength
       ? bytes.buffer
       : bytes.slice().buffer
-  ) as ArrayBuffer;
+  ) as ArrayBuffer
 }
 /** Fallback: the contract task, the same function, run on the main thread. */
 async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
@@ -78,8 +78,8 @@ async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
     op,
     source,
     maxDecodedBytes: MAX_DECODED_BYTES,
-  });
-  return count(answer, false);
+  })
+  return count(answer, false)
 }
 
 /**
@@ -89,18 +89,18 @@ async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
  * reference is detached.
  */
 export async function verifyPageBytes(source: ArrayBuffer) {
-  const open = openPool();
-  let answer: PageDecodeAnswer;
+  const open = openPool()
+  let answer: PageDecodeAnswer
   if (open) {
-    answer = await open.submit('verify', source, 0).answer;
+    answer = await open.submit('verify', source, 0).answer
     // A worker that vanished before it took the bytes leaves them whole — a transferred buffer
     // reads empty —: the main thread verifies them, as it decodes for a vanished worker.
     if (!answer.ok && answer.code === 'PAGE_DECODE_WORKER' && source.byteLength > 0)
-      answer = await onThread('verify', source);
-    else count(answer, true);
-  } else answer = await onThread('verify', source);
-  if (!answer.ok || !answer.source || answer.sha256 === null) refuse(answer);
-  return { sha256: answer.sha256, source: answer.source };
+      answer = await onThread('verify', source)
+    else count(answer, true)
+  } else answer = await onThread('verify', source)
+  if (!answer.ok || !answer.source || answer.sha256 === null) refuse(answer)
+  return { sha256: answer.sha256, source: answer.source }
 }
 
 /**
@@ -116,16 +116,16 @@ export async function decodePageOffThread(
   bytes: Uint8Array,
   signal?: AbortSignal,
 ): Promise<DecodedGeometryPage> {
-  const open = openPool();
-  let answer: PageDecodeAnswer;
+  const open = openPool()
+  let answer: PageDecodeAnswer
   if (open) {
-    const task = open.submit('decode', bytes.slice().buffer as ArrayBuffer, MAX_DECODED_BYTES);
-    const cancel = () => open.cancel(task.id);
-    signal?.addEventListener('abort', cancel, { once: true });
+    const task = open.submit('decode', bytes.slice().buffer as ArrayBuffer, MAX_DECODED_BYTES)
+    const cancel = () => open.cancel(task.id)
+    signal?.addEventListener('abort', cancel, { once: true })
     try {
-      answer = await task.answer;
+      answer = await task.answer
     } finally {
-      signal?.removeEventListener('abort', cancel);
+      signal?.removeEventListener('abort', cancel)
     }
     // A vanished worker, or a worker without a decoder, loses nothing: the compressed
     // bytes stayed with the caller, and the main thread can do the same work.
@@ -133,12 +133,12 @@ export async function decodePageOffThread(
       !answer.ok &&
       (answer.code === 'PAGE_DECODE_WORKER' || answer.code === 'PAGE_DECODE_UNAVAILABLE')
     )
-      answer = await onThread('decode', ownBuffer(bytes));
-    else count(answer, true);
-  } else answer = await onThread('decode', ownBuffer(bytes));
-  signal?.throwIfAborted();
-  if (!answer.ok || !answer.decoded) refuse(answer);
-  return restorePageDecode(answer.decoded);
+      answer = await onThread('decode', ownBuffer(bytes))
+    else count(answer, true)
+  } else answer = await onThread('decode', ownBuffer(bytes))
+  signal?.throwIfAborted()
+  if (!answer.ok || !answer.decoded) refuse(answer)
+  return restorePageDecode(answer.decoded)
 }
 
 /**
@@ -152,44 +152,44 @@ export async function patientTask(
   source: Uint8Array,
   name?: string,
 ) {
-  if (!openPool() && started === undefined) await starting;
-  const open = openPool();
-  const copy = () => source.slice().buffer as ArrayBuffer;
-  let answer = open ? await open.submit(op, copy(), 0, name).answer : undefined;
+  if (!openPool() && started === undefined) await starting
+  const open = openPool()
+  const copy = () => source.slice().buffer as ArrayBuffer
+  let answer = open ? await open.submit(op, copy(), 0, name).answer : undefined
   if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER')) {
-    const request = { protocol: PAGE_DECODE_PROTOCOL, id: 0, op, maxDecodedBytes: 0, name };
-    answer = (await runPageDecodeTask({ ...request, source: ownBuffer(source) })).answer;
+    const request = { protocol: PAGE_DECODE_PROTOCOL, id: 0, op, maxDecodedBytes: 0, name }
+    answer = (await runPageDecodeTask({ ...request, source: ownBuffer(source) })).answer
   }
-  return answer;
+  return answer
 }
 
 /** Drawn triangles, packed by `packDrawn`, cut into pages (`patientTask`). **The caller yields
  *  its buffer.** */
 export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPayload> {
-  const answer = await patientTask('cut', new Uint8Array(packed));
-  if (!answer.ok || !answer.cut) refuse(answer);
-  return answer.cut;
+  const answer = await patientTask('cut', new Uint8Array(packed))
+  if (!answer.ok || !answer.cut) refuse(answer)
+  return answer.cut
 }
 
 /** Off-thread decoded pages, pages decoded by the WebAssembly module, cumulative decode
  *  time, pool size. `null` when nothing was decoded: an unmeasured metric is not a zero. */
 export function pageDecodeStats() {
-  if (!counters.tasks) return { offThread: null, wasm: null, decodeMs: null, workers: null };
+  if (!counters.tasks) return { offThread: null, wasm: null, decodeMs: null, workers: null }
   return {
     offThread: counters.offThread,
     wasm: counters.wasm,
     decodeMs: counters.decodeMs,
     workers: pool?.alive ? pool.workers : 0,
-  };
+  }
 }
 
 /** Closes the pool without cutting an in-flight decode and resets counters to unmeasured. */
 export function releasePageDecoders() {
-  pool?.retire();
-  pool = undefined;
-  started = starting = undefined;
-  counters.tasks = 0;
-  counters.offThread = 0;
-  counters.wasm = 0;
-  counters.decodeMs = 0;
+  pool?.retire()
+  pool = undefined
+  started = starting = undefined
+  counters.tasks = 0
+  counters.offThread = 0
+  counters.wasm = 0
+  counters.decodeMs = 0
 }

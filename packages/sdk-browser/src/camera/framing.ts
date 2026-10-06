@@ -1,13 +1,13 @@
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
 
 /** Perspective framing from a bounding-sphere radius. `near` scales with the asset; there is no absolute centimetre floor. */
 export function framingFromBounds(radius: number, aspect: number) {
-  if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds');
-  if (!Number.isFinite(aspect) || aspect <= 0) throw new Error('Invalid aspect');
+  if (!Number.isFinite(radius) || radius <= 0) throw new Error('Empty scene bounds')
+  if (!Number.isFinite(aspect) || aspect <= 0) throw new Error('Invalid aspect')
   const near = radius / 10000,
     far = radius * 20,
     scale = (radius * 1.9) / Math.min(1, aspect),
-    len = hypot3(0.85, 0.65, 1);
+    len = hypot3(0.85, 0.65, 1)
   return {
     near,
     far,
@@ -16,5 +16,5 @@ export function framingFromBounds(radius: number, aspect: number) {
       number,
       number,
     ],
-  };
+  }
 }

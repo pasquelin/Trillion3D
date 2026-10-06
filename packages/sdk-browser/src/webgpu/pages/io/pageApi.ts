@@ -1,17 +1,17 @@
-import { acceptPageArray } from '../../../page/selection/selection.ts';
-import { applyArrivalPlan } from '../../../page/integration/arrivalSpecs.ts';
-import { pageSourceBytes } from './catalogue.ts';
-import { pageAddress } from '../../row/pageSlots.ts';
-import type { ArrivalPlan } from '../../../page/integration/host.ts';
-import type { PageRec } from '../../../page/selection/selection.ts';
-import type { WebgpuPagesCore } from '../runtime.ts';
+import { acceptPageArray } from '../../../page/selection/selection.ts'
+import { applyArrivalPlan } from '../../../page/integration/arrivalSpecs.ts'
+import { pageSourceBytes } from './catalogue.ts'
+import { pageAddress } from '../../row/pageSlots.ts'
+import type { ArrivalPlan } from '../../../page/integration/host.ts'
+import type { PageRec } from '../../../page/selection/selection.ts'
+import type { WebgpuPagesCore } from '../runtime.ts'
 
 /** Names to the rank journal every packed instance of `rec`: they all share its pool address. */
 function touchInstances(
   rows: Pick<WebgpuPagesCore['layout']['rows'], 'instances' | 'touchPage'>,
   rec: PageRec,
 ) {
-  rows.instances.each(pageAddress(rec), rows.touchPage);
+  rows.instances.each(pageAddress(rec), rows.touchPage)
 }
 
 /**
@@ -34,29 +34,29 @@ export function acceptPage(
 ) {
   const { run, diag } = rt,
     { rows } = rt.layout,
-    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
-  run.deferredDrops.delete(url);
-  const recs = byUrl.get(url);
-  if (!recs) return;
+    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup
+  run.deferredDrops.delete(url)
+  const recs = byUrl.get(url)
+  if (!recs) return
   // One request can carry a whole bundle: each cluster takes the view at its own offset, and that
   // view — not the bundle — is what the GPU cache uploads under the cluster key.
-  const planned = applyArrivalPlan(recs, array, plan);
-  if (!planned) acceptPageArray(recs, array);
+  const planned = applyArrivalPlan(recs, array, plan)
+  if (!planned) acceptPageArray(recs, array)
   // The cache reads a cluster's bytes by its address, which twelve placements share: the table by
   // address is what yields them, whichever placement just received them.
   for (let i = 0; i < recs.length; i++) {
-    const bytes = pageSourceBytes(recs[i]);
-    if (bytes) sourceBytes.set(pageAddress(recs[i]), bytes);
+    const bytes = pageSourceBytes(recs[i])
+    if (bytes) sourceBytes.set(pageAddress(recs[i]), bytes)
   }
   // Bytes the image draws, queues, waits for or casts a shadow with have arrived: the list of pages
   // still waited for is no longer the previous one, and the next frame must read them.
   if (!affectsImage || affectsImage(recs)) {
-    run.pageArrayEpoch++;
-    run.gate.resourcesChanged();
+    run.pageArrayEpoch++
+    run.gate.resourcesChanged()
   }
   // Every instance of each record is named: one record serves all its primitive's placements
   // (#1235), and each placement's row and cut readiness follow its own packed rank.
-  for (let i = 0; i < recs.length; i++) touchInstances(rows, recs[i]);
+  for (let i = 0; i < recs.length; i++) touchInstances(rows, recs[i])
   // The sample is a function, not an object: its three sweeps of the cluster list — a packet holds
   // hundreds — run only if "trace" detail is requested. Built ahead, it cost those sweeps on every
   // arrived page, including when nobody was reading them.
@@ -68,16 +68,16 @@ export function acceptPage(
     bootstrap: recs.some((rec) => bootstrapUrls.has(pageAddress(rec))),
     wanted: recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec))),
     pinned: recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
-  }));
+  }))
 }
 
 /** Releases one request, unless a cluster it carries is pinned, wanted or part of the bootstrap. */
 export function dropPage(rt: WebgpuPagesCore, url: string) {
   const { run, gpu, diag } = rt,
     { rows } = rt.layout,
-    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup;
-  const recs = byUrl.get(url);
-  if (!recs) return;
+    { byUrl, sourceBytes, tracking, bootstrapUrls } = rt.setup
+  const recs = byUrl.get(url)
+  if (!recs) return
   // A request is kept whole: dropping it would take away every cluster it carries, so one pinned
   // cluster is enough to refuse or defer the drop.
   if (recs.some((rec) => bootstrapUrls.has(pageAddress(rec)))) {
@@ -85,13 +85,13 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
       'page-drop-deferred',
       'Bootstrap page drop ignored to preserve coverage',
       () => ({ frame: run.frame, url, reason: 'bootstrap-pinned' }),
-    );
-    return;
+    )
+    return
   }
   const pinned = recs.some((rec) => tracking.pinned.has(tracking.keyOf(rec))),
-    wanted = recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec)));
+    wanted = recs.some((rec) => tracking.wanted.has(tracking.keyOf(rec)))
   if (pinned || wanted) {
-    run.deferredDrops.add(url);
+    run.deferredDrops.add(url)
     diag.traceDiagnostic(
       'page-drop-deferred',
       'Page drop deferred during the coverage transition',
@@ -103,23 +103,23 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
         wanted,
         deferred: [...run.deferredDrops],
       }),
-    );
-    return;
+    )
+    return
   }
-  run.deferredDrops.delete(url);
-  run.pageArrayEpoch++;
-  run.gate.resourcesChanged();
+  run.deferredDrops.delete(url)
+  run.pageArrayEpoch++
+  run.gate.resourcesChanged()
   for (let i = 0; i < recs.length; i++) {
-    const rec = recs[i];
-    rec.array = undefined;
-    rec.indexBytes = rec.triangles * 12;
+    const rec = recs[i]
+    rec.array = undefined
+    rec.indexBytes = rec.triangles * 12
     // A cluster's bytes are what make it drawable the same way as its cache slot: the page is named
     // AFTER the drop, so what rereads it does read the page without bytes — every instance of it.
-    touchInstances(rows, rec);
-    const address = pageAddress(rec);
-    sourceBytes.delete(address);
-    gpu.cache?.unload?.(address);
-    tracking.unmarkPinned(tracking.keyOf(rec));
+    touchInstances(rows, rec)
+    const address = pageAddress(rec)
+    sourceBytes.delete(address)
+    gpu.cache?.unload?.(address)
+    tracking.unmarkPinned(tracking.keyOf(rec))
   }
   diag.traceDiagnostic('page-dropped', 'CPU/GPU page released', () => ({
     frame: run.frame,
@@ -127,5 +127,5 @@ export function dropPage(rt: WebgpuPagesCore, url: string) {
     clusters: recs.length,
     reason: 'host-request',
     deferred: false,
-  }));
+  }))
 }

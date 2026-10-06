@@ -1,4 +1,4 @@
-import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts';
+import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -71,4 +71,4 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u){
  for(var j=begin;j<i;j++){if(selected(j)){rank=rank+1u;}}
  instances[groupOffsets[group]+rank]=i;
 }
-`;
+`

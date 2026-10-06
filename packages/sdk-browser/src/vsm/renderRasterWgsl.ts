@@ -33,31 +33,31 @@
  * less flags / uniform / instances / slot offsets). Group 1: 0 pairs (vertex), 1 projection
  * data (vertex), 2.. pool slices × parts (fragment, atomic).
  */
-import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts';
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts';
-import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts';
-import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts';
+import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
+import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
+import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
   COLOR_SAMPLE_WGSL,
   maskAlphaWgsl,
   tileDeclarations,
   tilePoolWgsl,
-} from '../webgpu/tile/wgsl.ts';
-import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts';
-import { VSM_HANDLE_WGSL } from './pageTableWgsl.ts';
-import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts';
-import type { VsmLayout } from './layout.ts';
+} from '../webgpu/tile/wgsl.ts'
+import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts'
+import { VSM_HANDLE_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Group 1 of the raster: projection data (vertex) at 1, the pool (fragment, atomic) from 2. */
 export const VSM_RENDER_RASTER_VERTEX_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'projectionData', binding: 1 },
-];
+]
 export const VSM_RENDER_RASTER_FRAGMENT_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'pagePool', binding: 2, access: 'atomic' },
-];
+]
 /** The dummy attachment: one page. */
-export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm';
+export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm'
 
 export const vsmRenderRasterWgsl = (layout: VsmLayout) => /* wgsl */ `
 ${PAGE_INFO_WGSL}
@@ -160,4 +160,4 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  let texel=physical*VSM_PAGE_TEXELS+min(vec2u(in.position.xy),vec2u(VSM_PAGE_TEXEL_MASK));
  vsmPoolAtomicMax(texel,in.dest.y,bitcast<u32>(clamp(in.position.z,0.0,1.0)));
 }
-`;
+`

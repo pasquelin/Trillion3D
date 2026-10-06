@@ -12,30 +12,30 @@
  * split high/low), the local bounds and two flags (casts shadows, cached as dynamic). Items address
  * it as batch items (offset, count, payload).
  */
-import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts';
-import { VSM_CONSTANTS_WGSL } from './constants.ts';
+import { VSM_BOX_CULL_WGSL } from './boxCullWgsl.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_STRUCTS_WGSL,
-} from './pageTableWgsl.ts';
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts';
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
-import type { VsmLayout } from './layout.ts';
+} from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Thread group size of the instance load balancer. */
-export const VSM_INVALIDATION_GROUP_SIZE = 64;
+export const VSM_INVALIDATION_GROUP_SIZE = 64
 /** Bytes per `VsmInvalidationInstance`. */
-export const VSM_INVALIDATION_INSTANCE_BYTES = 96;
+export const VSM_INVALIDATION_INSTANCE_BYTES = 96
 /** Bytes of `VsmInvalidationParams`. */
-export const VSM_INVALIDATION_PARAMS_BYTES = 16;
+export const VSM_INVALIDATION_PARAMS_BYTES = 16
 
 /** Instance flags, the two the host knows of a box: it casts shadows (a valid instance), and it is
  *  cached as dynamic (the engine's box moving), else as static. */
-export const VSM_BOX_CASTS = 1 << 0;
-export const VSM_BOX_MOVING = 1 << 1;
+export const VSM_BOX_CASTS = 1 << 0
+export const VSM_BOX_MOVING = 1 << 1
 
 /** Group 0: the previous frame's VSM state */
 export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
@@ -55,7 +55,7 @@ export const VSM_INVALIDATION_SPECS: readonly VsmBindingSpec[] = [
     access: 'atomic',
     name: 'vsmPageRequests',
   },
-];
+]
 
 /** Group 1: 0 params (uniform), 1 instances, 2 items. */
 const VSM_INVALIDATION_GROUP1_WGSL = /* wgsl */ `
@@ -77,7 +77,7 @@ struct VsmInvalidationItem{firstBox:u32,boxCount:u32,payload:u32,prefix:u32,}
 const VSM_BOX_CASTS:u32=${VSM_BOX_CASTS}u;
 const VSM_BOX_MOVING:u32=${VSM_BOX_MOVING}u;
 const VSM_INVALIDATION_GROUP_SIZE:u32=${VSM_INVALIDATION_GROUP_SIZE}u;
-`;
+`
 
 /** Page-rect overlap and static caching (the box cull, its rect and the fine-caster test are the
  *  shared `VSM_BOX_CULL_WGSL`'s). */
@@ -111,7 +111,7 @@ fn vsmTouchesMappedPage(h:VsmHandle,mipLevel:u32,pagesRectIn:vec4u,askedMarks:u3
 fn vsmCachesAsStatic(inst:VsmInvalidationInstance,viewUncached:bool)->bool{
  return !viewUncached&&(inst.flags&VSM_BOX_MOVING)==0u;
 }
-`;
+`
 
 /** The instance page invalidation and its load-balanced entry point. */
 const VSM_INVALIDATE_INSTANCE_PAGES_WGSL = /* wgsl */ `
@@ -208,7 +208,7 @@ fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_inde
  let pd=vsmProjectionOf(vsmHandleFromId(mapId));
  vsmStaleBoxPages(pd,inst);
 }
-`;
+`
 
 /** The whole instance invalidation module (entry `vsmStaleBoxes`). */
 export function vsmInvalidationWgsl(layout: VsmLayout) {
@@ -226,5 +226,5 @@ export function vsmInvalidationWgsl(layout: VsmLayout) {
     VSM_BOX_CULL_WGSL,
     VSM_PAGE_OVERLAP_WGSL,
     VSM_INVALIDATE_INSTANCE_PAGES_WGSL,
-  ].join('\n');
+  ].join('\n')
 }

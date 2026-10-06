@@ -1,10 +1,10 @@
-import { createWebgpuRowJournal } from './journal.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts';
-import { pageAddress } from './pageSlots.ts';
-import { flatInstances, type PackedInstances } from './instances.ts';
-import { createDirtyRows } from './dirty.ts';
-import { growRowState, widened } from './grow.ts';
+import { createWebgpuRowJournal } from './journal.ts'
+import type { PageRec } from '../../page/selection/selection.ts'
+import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { pageAddress } from './pageSlots.ts'
+import { flatInstances, type PackedInstances } from './instances.ts'
+import { createDirtyRows } from './dirty.ts'
+import { growRowState, widened } from './grow.ts'
 /**
  * Stable row and residency arrays shared by the cut, visibility pass, and cache journal.
  *
@@ -23,40 +23,40 @@ export function createWebgpuRowState(
    *  primitive page (`./instances.ts`); made here over a flat list built without one. */
   instances: PackedInstances = flatInstances(packedPages),
 ) {
-  const casterSlots = drawSlots + blendSlots;
-  const catalogue = createPageCatalogue(packedPages);
+  const casterSlots = drawSlots + blendSlots
+  const catalogue = createPageCatalogue(packedPages)
   /** Pages named by the cache and those whose residency flag just flipped. */
-  const journal = createWebgpuRowJournal();
-  const residentFlags = new Uint32Array(packedPages.length);
-  const residentOffsetWords = new Int32Array(packedPages.length).fill(-1);
-  const rowPageIndex = new Int32Array(drawSlots).fill(-1);
-  const rowOffsetWords = new Int32Array(drawSlots).fill(-1);
-  const rowEpoch = new Int32Array(drawSlots);
-  const packedPageIndex = new Int32Array(casterSlots);
-  const newRowPage = new Int32Array(drawSlots);
-  const newRowSource = new Int32Array(drawSlots);
-  const rowOfPage = new Int32Array(packedPages.length).fill(-1);
-  const rowRewrites = new Int32Array(drawSlots);
-  const packedRecs: Array<PageRec | undefined> = new Array(casterSlots).fill(undefined);
+  const journal = createWebgpuRowJournal()
+  const residentFlags = new Uint32Array(packedPages.length)
+  const residentOffsetWords = new Int32Array(packedPages.length).fill(-1)
+  const rowPageIndex = new Int32Array(drawSlots).fill(-1)
+  const rowOffsetWords = new Int32Array(drawSlots).fill(-1)
+  const rowEpoch = new Int32Array(drawSlots)
+  const packedPageIndex = new Int32Array(casterSlots)
+  const newRowPage = new Int32Array(drawSlots)
+  const newRowSource = new Int32Array(drawSlots)
+  const rowOfPage = new Int32Array(packedPages.length).fill(-1)
+  const rowRewrites = new Int32Array(drawSlots)
+  const packedRecs: Array<PageRec | undefined> = new Array(casterSlots).fill(undefined)
   /** Per catalogue page, the shadow-only row a blended cluster casts from, or -1. */
-  const blendRowOf = new Int32Array(packedPages.length).fill(-1);
-  const packedPositions: Array<GPUBuffer | undefined> = new Array(drawSlots).fill(undefined);
-  const pagePositions: Array<GPUBuffer | undefined> = new Array(packedPages.length).fill(undefined);
+  const blendRowOf = new Int32Array(packedPages.length).fill(-1)
+  const packedPositions: Array<GPUBuffer | undefined> = new Array(drawSlots).fill(undefined)
+  const pagePositions: Array<GPUBuffer | undefined> = new Array(packedPages.length).fill(undefined)
   let rowCount = 0,
     tableEpoch = 1,
-    rowsEpoch = 0;
-  const dirtyRows = createDirtyRows(casterSlots);
+    rowsEpoch = 0
+  const dirtyRows = createDirtyRows(casterSlots)
   let candidateCount = 0,
-    candidateOverflow = 0;
+    candidateOverflow = 0
   /**
    * Age of the row table itself. Any write of ranks by a path other than the incremental allocator
    * advances it, and the allocator then rebuilds rather than trusting a page → rank mapping it did
    * not post.
    */
-  let rowsRevision = 0;
+  let rowsRevision = 0
   let packedCount = 0,
-    rowsChanged = true;
-  let pageTableFloats: Float32Array | undefined, pageTableInts: Uint32Array | undefined;
+    rowsChanged = true
+  let pageTableFloats: Float32Array | undefined, pageTableInts: Uint32Array | undefined
   const state = {
     ...journal,
     /** First shadow-only row, and the end of the table: `[drawSlots, casterSlots)`. */
@@ -88,82 +88,82 @@ export function createWebgpuRowState(
     markRowWords: dirtyRows.markWords,
     clearDirty: dirtyRows.clear,
     get dirtyMarks() {
-      return dirtyRows.marks;
+      return dirtyRows.marks
     },
     get rowCount() {
-      return rowCount;
+      return rowCount
     },
     set rowCount(value: number) {
-      rowCount = value;
+      rowCount = value
     },
     get tableEpoch() {
-      return tableEpoch;
+      return tableEpoch
     },
     set tableEpoch(value: number) {
-      tableEpoch = value;
+      tableEpoch = value
     },
     get rowsEpoch() {
-      return rowsEpoch;
+      return rowsEpoch
     },
     set rowsEpoch(value: number) {
-      rowsEpoch = value;
+      rowsEpoch = value
     },
     /** First and last dirty rows: the span that bounds every mark. */
     get dirtyFrom() {
-      return dirtyRows.span.from;
+      return dirtyRows.span.from
     },
     get dirtyTo() {
-      return dirtyRows.span.to;
+      return dirtyRows.span.to
     },
     /** Row writes since the table was made (`rowsMoved`). */
     get rowWrites() {
-      return dirtyRows.writes;
+      return dirtyRows.writes
     },
     get candidateCount() {
-      return candidateCount;
+      return candidateCount
     },
     set candidateCount(value: number) {
-      candidateCount = value;
+      candidateCount = value
     },
     get rowsRevision() {
-      return rowsRevision;
+      return rowsRevision
     },
     set rowsRevision(value: number) {
-      rowsRevision = value;
+      rowsRevision = value
     },
     get candidateOverflow() {
-      return candidateOverflow;
+      return candidateOverflow
     },
     set candidateOverflow(value: number) {
-      candidateOverflow = value;
+      candidateOverflow = value
     },
     get packedCount() {
-      return packedCount;
+      return packedCount
     },
     set packedCount(value: number) {
-      packedCount = value;
+      packedCount = value
     },
     get rowsChanged() {
-      return rowsChanged;
+      return rowsChanged
     },
     set rowsChanged(value: boolean) {
-      rowsChanged = value;
+      rowsChanged = value
     },
     get pageTableFloats() {
-      return pageTableFloats;
+      return pageTableFloats
     },
     set pageTableFloats(value: Float32Array | undefined) {
-      pageTableFloats = value;
+      pageTableFloats = value
     },
     get pageTableInts() {
-      return pageTableInts;
+      return pageTableInts
     },
     set pageTableInts(value: Uint32Array | undefined) {
-      pageTableInts = value;
+      pageTableInts = value
     },
     /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
     grow(drawSlots: number, blendSlots: number) {
-      growRowState(state, dirtyRows, drawSlots, blendSlots);
+      growRowState(state, dirtyRows, drawSlots, blendSlots)
     },
     /**
      * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): `instances` indexes
@@ -172,19 +172,19 @@ export function createWebgpuRowState(
      * each is named to the journal.
      */
     addPages(first: number) {
-      instances.add();
-      const n = packedPages.length;
-      state.residentFlags = widened(state.residentFlags, new Uint32Array(n), 0);
-      state.residentOffsetWords = widened(state.residentOffsetWords, new Int32Array(n), -1);
-      state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1);
-      state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1);
+      instances.add()
+      const n = packedPages.length
+      state.residentFlags = widened(state.residentFlags, new Uint32Array(n), 0)
+      state.residentOffsetWords = widened(state.residentOffsetWords, new Int32Array(n), -1)
+      state.rowOfPage = widened(state.rowOfPage, new Int32Array(n), -1)
+      state.blendRowOf = widened(state.blendRowOf, new Int32Array(n), -1)
       for (let page = first; page < n; page++) {
-        const sibling = instances.first(pageAddress(catalogue.recordOf(page)!))!;
-        state.residentOffsetWords[page] = state.residentOffsetWords[sibling];
-        state.pagePositions[page] = state.pagePositions[sibling];
-        state.touchPage(page);
+        const sibling = instances.first(pageAddress(catalogue.recordOf(page)!))!
+        state.residentOffsetWords[page] = state.residentOffsetWords[sibling]
+        state.pagePositions[page] = state.pagePositions[sibling]
+        state.touchPage(page)
       }
     },
-  };
-  return state;
+  }
+  return state
 }
