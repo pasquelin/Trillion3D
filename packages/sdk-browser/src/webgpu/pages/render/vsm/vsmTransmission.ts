@@ -8,8 +8,6 @@ import {
 import {
   createVsmTransmission,
   encodeVsmTransmission,
-  vsmTransmissionBytes,
-  vsmTransmissionFirstCaps,
   vsmTransmissionFits,
   vsmTransmissionFloorBytes,
   type VsmTransmission,
@@ -19,6 +17,10 @@ import { VSM_PRESSURE_CALM_FRAMES } from '../../../../vsm/constants.ts';
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts';
 import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts';
 import type { EngineVsm } from './engineVsm.ts';
+import {
+  vsmTransmissionBytes,
+  vsmTransmissionFirstCaps,
+} from '../../../../vsm/transmissionLayout.ts';
 
 /** The least draw context the first atlas brings for the frame's blended rows and views. */
 function transmissionFloor(

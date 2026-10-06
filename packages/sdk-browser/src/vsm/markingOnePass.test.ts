@@ -9,7 +9,8 @@ import { readFileSync } from 'node:fs';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { createVsmMarking } from './markingPass.ts';
 import { vsmMarkingClears, vsmResetPageTableWgsl, type VsmClearTarget } from './markingWgsl.ts';
-import { createVsmResources, vsmLayout } from './resources.ts';
+import { createVsmResources } from './resources.ts';
+import { vsmLayout } from './layout.ts';
 
 const TARGETS: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks', 'receiverCover'];
 

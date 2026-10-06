@@ -33,10 +33,11 @@ import {
   VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts';
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { type VsmBindingSpec, type VsmLayout, vsmBindingsWgsl } from './resources.ts';
+import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts';
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts';
 import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** Bind group indices of every page management kernel. */
 export const VSM_PM_GROUP_RESOURCES = 0;

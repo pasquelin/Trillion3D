@@ -31,10 +31,15 @@
 import { writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts';
 import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts';
 import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts';
-import { VSM_MIPS, VSM_PAGE_TEXELS } from './constants.ts';
 import {
-  ceilDiv,
-  roundUpPow2,
+  VSM_MIPS,
+  VSM_PAGE_TEXELS,
+  VSM_RENDER_CANDIDATE_BYTES,
+  VSM_RENDER_CMD_BYTES,
+  VSM_RENDER_PAIR_BYTES,
+  VSM_RENDER_PAIR_CAPACITY,
+} from './constants.ts';
+import {
   vsmBufferEntry,
   vsmComputePipe,
   vsmDynamicUniformEntry,
@@ -60,13 +65,10 @@ import {
   VSM_RENDER_ARGS_EXPAND,
   VSM_RENDER_ARGS_STRIDE_WORDS,
   VSM_RENDER_ARGS_WGSL,
-  VSM_RENDER_CANDIDATE_BYTES,
-  VSM_RENDER_CMD_BYTES,
   VSM_RENDER_COUNTS_HEAD,
   VSM_RENDER_CULL_SPECS,
   VSM_RENDER_EXPAND_SPECS,
   VSM_RENDER_GROUP,
-  VSM_RENDER_PAIR_BYTES,
   VSM_RENDER_PARAMS_SLOT,
   VSM_RENDER_VIEW_DIRECTIONAL,
   vsmRenderCandidatesWgsl,
@@ -81,12 +83,12 @@ import {
 } from './renderRasterWgsl.ts';
 import {
   type VsmFrameBuffers,
-  type VsmLayout,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   vsmPerFrameSet,
 } from './resources.ts';
+import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts';
 
 /** The main view whose level of detail the casters take (the level of detail the main view draws). */
 interface VsmRenderCamera {
@@ -123,10 +125,6 @@ export interface VsmRenderScene {
    *  page. */
   rowSpheres: VsmRowSpheres;
 }
-
-/** Pairs a chunk holds by default, the most its pair and command lists then grow to (16 B each):
- *  the memory budget's shadow share counts both at it (`residency/shadowBudgetBytes.ts`). */
-export const VSM_RENDER_PAIR_CAPACITY = 1 << 21;
 
 /** Declared: a caster whose radius is under a hundredth of its distance from the eye (0.57°, about
  *  5 pixels of radius in a 1 080-pixel, 90° view) is not drawn into an uncached map; squared, as the

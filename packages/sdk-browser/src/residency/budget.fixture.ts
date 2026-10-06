@@ -2,10 +2,13 @@
 // default canvas (`DEFAULT_BUDGET_CANVAS`).
 import { DEFAULT_BUDGET_CANVAS, defaultGpuBudget } from './memoryBudget.ts';
 import { effectTargetReserve } from './effectReserve.ts';
-import { vsmLayout, vsmResourceBytes } from '../vsm/resources.ts';
-import { VSM_RENDER_PAIR_CAPACITY } from '../vsm/renderPass.ts';
-import { VSM_RENDER_CMD_BYTES, VSM_RENDER_PAIR_BYTES } from '../vsm/renderCullWgsl.ts';
-import { vsmTransmissionBytes } from '../vsm/transmissionPass.ts';
+import { vsmLayout, vsmResourceBytes } from '../vsm/layout.ts';
+import {
+  VSM_RENDER_PAIR_CAPACITY,
+  VSM_RENDER_CMD_BYTES,
+  VSM_RENDER_PAIR_BYTES,
+} from '../vsm/constants.ts';
+import { vsmTransmissionBytes } from '../vsm/transmissionLayout.ts';
 
 /** The GPU total by default, on the default canvas. */
 export const DEFAULT_GPU_BUDGET = defaultGpuBudget();

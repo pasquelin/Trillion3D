@@ -9,8 +9,9 @@ import {
   encodeVsmPageMapping,
 } from './pageManagementPass.ts';
 import { VSM_PM_PARAMS_BYTES, vsmPhysicalPageKernels } from './physicalPagesWgsl.ts';
-import { createVsmResources, vsmLayout } from './resources.ts';
+import { createVsmResources } from './resources.ts';
 import { wgslStructLayout } from './wgslStructLayout.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const options = { fullMapCapacity: 127, sunMapCapacity: 35 };
 

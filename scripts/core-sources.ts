@@ -37,14 +37,20 @@ const NOT_IN_CORE = {
   diagnostics: ['sdk-browser/src/host/scene/graphDiagnostic.js'],
   'the WebGPU renderer': ['sdk-browser/src/webgpu/pages/'],
   'the WebGL2 renderer': ['sdk-browser/src/backend/autonomous/', 'sdk-browser/src/webgl/cluster/'],
-  'the WebGPU shadows': ['sdk-browser/src/gpu/shadow/', 'sdk-browser/src/webgpu/shadow/'],
+  'the WebGPU shadows': [
+    'sdk-browser/src/gpu/shadow/',
+    'sdk-browser/src/webgpu/shadow/',
+    'sdk-browser/src/vsm/',
+  ],
 };
-/** The shadows' lean size modules, which no shader text nor pipeline imports: the memory budget
- *  the core splits at a world's creation reads its shadow shares from them
- *  (`residency/shadowBudgetBytes.ts`), and only them of the shadows' folders. */
+/** The shadows' constants and lean size modules, which import no pass, pipeline nor other shader
+ *  text: the world's settings read the shadows' defaults from the constants, and the memory budget
+ *  the core splits at a world's creation reads its shadow shares from the size modules
+ *  (`residency/shadowBudgetBytes.ts`): only them of the shadows' folders. */
 const SHADOW_SIZES = [
-  'sdk-browser/src/webgpu/shadow/allocLayout.js',
-  'sdk-browser/src/webgpu/shadow/freshLayout.js',
+  'sdk-browser/src/vsm/constants.js',
+  'sdk-browser/src/vsm/layout.js',
+  'sdk-browser/src/vsm/transmissionLayout.js',
 ];
 
 /** The folder a source is listed under: its package's own `src/` and the folder below it. */

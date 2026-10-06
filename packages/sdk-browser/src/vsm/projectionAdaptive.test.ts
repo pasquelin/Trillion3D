@@ -7,9 +7,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { IDENTITY } from './pageWorld.fixture.ts';
-import { vsmLayout } from './resources.ts';
 import { vsmProjectionWgsl } from './projectionWgsl.ts';
 import { VSM_TRACE_VOTE_AFTER, VSM_TRACE_RAYS_SUN } from './constants.ts';
+import { vsmLayout } from './layout.ts';
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,

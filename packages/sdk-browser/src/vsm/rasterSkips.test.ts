@@ -7,9 +7,10 @@ import assert from 'node:assert/strict';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { FLAG_MASK } from '../visibility/types.ts';
-import { vsmBindingsWgsl, vsmLayout } from './resources.ts';
+import { vsmBindingsWgsl } from './resources.ts';
 import { VSM_RENDER_RASTER_FRAGMENT_SPECS, vsmRenderRasterWgsl } from './renderRasterWgsl.ts';
 import { seeded } from './planFrames.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27);
 const CODE = vsmRenderRasterWgsl(LAYOUT);

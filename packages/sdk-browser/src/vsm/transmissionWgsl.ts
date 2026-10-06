@@ -69,7 +69,17 @@ import {
   VSM_RENDER_PARAMS_WGSL,
   VSM_RENDER_ROWS_WGSL,
 } from './renderCullWgsl.ts';
-import { type VsmBindingSpec, type VsmLayout, vsmBindingsWgsl } from './resources.ts';
+import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts';
+import type { VsmLayout } from './layout.ts';
+import {
+  headerRows,
+  VSM_TRANSMISSION_BLOCK_TEXELS,
+  VSM_TRANSMISSION_COUNTERS,
+  VSM_TRANSMISSION_FORMAT,
+  VSM_TRANSMISSION_RECORD_WORDS,
+  vsmTransmissionRegions,
+  VSM_TRANSMISSION_WIDTH,
+} from './transmissionLayout.ts';
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
 
 /** Texels a side of a cell. */
@@ -77,12 +87,8 @@ const VSM_TRANSMISSION_CELL = 8;
 /** Cells a side of a page. */
 const VSM_TRANSMISSION_CELLS = VSM_PAGE_TEXELS / VSM_TRANSMISSION_CELL;
 const CELL_COUNT = VSM_TRANSMISSION_CELLS ** 2;
-/** Texels of a block: 2 048 words, so a sea page's slice (~1 300 words) takes one. */
-const VSM_TRANSMISSION_BLOCK_TEXELS = 512;
 /** Blocks a slice chains at most: 65 536 words, a sun at 5° over two layers of 10-pixel triangles. */
 const VSM_TRANSMISSION_CHAIN = 32;
-/** The readable memory's width in texels: two blocks a row. */
-export const VSM_TRANSMISSION_WIDTH = 2 * VSM_TRANSMISSION_BLOCK_TEXELS;
 /** The shifts that divide by a block, by the width, by the pages a header row holds (four words a
  *  texel, two a page): every size a power of two, so the read folds by mask and shift. */
 const BLOCK_SHIFT = Math.log2(VSM_TRANSMISSION_BLOCK_TEXELS);
@@ -93,15 +99,8 @@ const HEADER_TEXELS = CELL_COUNT / 4;
 const RECORDS_TEXEL = HEADER_TEXELS + VSM_TRANSMISSION_CHAIN / 4;
 /** No block, no slice number, no list entry. */
 export const VSM_TRANSMISSION_NONE = 0xffffffff;
-/** The readable memory's format. */
-export const VSM_TRANSMISSION_FORMAT: GPUTextureFormat = 'rgba32uint';
-/** Bytes of the frame uniform (`VsmTransmissionFrame`). */
-export const VSM_TRANSMISSION_UNIFORM_BYTES = 48;
 /** The resolve's binding of the memory: the old shadow requests' number, free since the VSM. */
 export const VSM_TRANSMISSION_RESOLVE_BINDING = 14;
-/** Words of a record in the build buffer: its 16, then its slice key, its index in the slice, its
- *  patch's first word in the build buffer, and its cells (`vsmTCellsWord`). */
-const VSM_TRANSMISSION_RECORD_WORDS = 20;
 /** Bytes of a command's header in the chunk's page list (row, map | mip | flags, first page, page
  *  count) and of one of its pages (slice key, virtual page). */
 export const VSM_TRANSMISSION_HEADER_BYTES = 16;
@@ -110,45 +109,6 @@ export const VSM_TRANSMISSION_PAGE_BYTES = 8;
 const TEXTURED_BIT = 1 << 24;
 /** A record's cells word (\`vsmTCellsWord\`): the triangle turns clockwise. */
 const CLOCKWISE_BIT = 1 << 16;
-
-/** The build buffer's counters (`VsmTransmission.build`, its first words), what the feedback reads. */
-export const VSM_TRANSMISSION_COUNTERS = {
-  slices: 0,
-  records: 1,
-  patchWords: 2,
-  /** Blocks the slices this frame asked for and the pool did not hold. */
-  blocksShort: 3,
-  /** Slices past `VSM_TRANSMISSION_CHAIN` blocks. */
-  full: 4,
-  dirty: 5,
-} as const;
-export const VSM_TRANSMISSION_COUNTER_WORDS = 8;
-
-/** Where each region of the build buffer starts, in words, for `pages` physical pages and the
- *  capacities `caps`: per slice key (two slices a page) its stamp, its first record in the frame's
- *  order, its record and patch-word counts; the frame's slices by number, the dirty list, the order
- *  (each slice's records together), then the records and the patches. */
-export function vsmTransmissionRegions(pages: number, caps: VsmTransmissionCaps) {
-  const keys = 2 * pages;
-  const stamps = VSM_TRANSMISSION_COUNTER_WORDS,
-    first = stamps + keys,
-    counts = first + keys,
-    patchCounts = counts + keys,
-    sliceKeys = patchCounts + keys,
-    dirty = sliceKeys + keys,
-    order = dirty + keys,
-    records = order + caps.records,
-    patches = records + caps.records * VSM_TRANSMISSION_RECORD_WORDS,
-    words = patches + caps.patchWords;
-  return { stamps, first, counts, patchCounts, sliceKeys, dirty, order, records, patches, words };
-}
-
-/** The build buffer's and the block pool's capacities. */
-export interface VsmTransmissionCaps {
-  records: number;
-  patchWords: number;
-  blocks: number;
-}
 
 const COUNTERS_WGSL = Object.entries(VSM_TRANSMISSION_COUNTERS)
   .map(([name, at]) => `const VSM_TC_${name.toUpperCase()}:u32=${at}u;`)
@@ -184,10 +144,6 @@ const VSM_T_HEADER_ROWS:u32=${headerRows(P)}u;
 fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}
 fn vsmTGroup(wid:vec3u,nwg:vec3u)->u32{return wid.y*nwg.x+wid.x;}`;
 };
-
-/** Rows of page headers in the memory: four words a texel, two a physical page. */
-export const headerRows = (pages: number) =>
-  Math.ceil(Math.ceil(pages / 2) / VSM_TRANSMISSION_WIDTH);
 
 /** One dispatch's arguments for `n` groups, wrapped into y. */
 const ARGS_WGSL = /* wgsl */ `
@@ -756,11 +712,6 @@ fn vsmTRecordsOf(key:u32)->u32{
  }
 }
 `;
-/** Words of the dispatch arguments: the place's, the resolve's, the headers'. */
-export const VSM_TRANSMISSION_ARGS_WORDS = 9;
-/** Bytes into the dispatch arguments of each. */
-export const VSM_TRANSMISSION_ARGS_AT = { place: 0, resolve: 12, headers: 24 } as const;
-
 /** `vsmTransmissionPlace`, a thread a record: its index in the order, at its slice's first place
  *  plus its own. Group 0: 0 frame uniform, 1 build buffer. */
 export const vsmTransmissionPlaceWgsl = (layout: VsmLayout) => /* wgsl */ `

@@ -9,12 +9,12 @@ import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { vsmLayout } from './resources.ts';
 import { VSM_MASK_TABLE_WGSL, vsmProjectionWgsl } from './projectionWgsl.ts';
 import { createVsmMaskTable, vsmMaskTableReadWgsl } from './projectionMaskTable.ts';
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts';
 import { createDeferredPlaceholders } from '../lighting/deferred/setup.ts';
 import { VSM_TRACE_RAYS_SUN, VSM_TRACE_RAYS_LOCAL } from './constants.ts';
+import { vsmLayout } from './layout.ts';
 
 const f = Math.fround;
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {

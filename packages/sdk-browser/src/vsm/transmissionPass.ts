@@ -33,9 +33,9 @@ import {
   type VsmChunk,
   type VsmRowBound,
 } from './rowPageBound.ts';
-import { textureBytesOf } from '../gpu/core/textureBytes.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts';
-import { ceilDiv, roundUpPow2, vsmBufferEntry, vsmComputePipe } from './passKit.ts';
+import { vsmBufferEntry, vsmComputePipe } from './passKit.ts';
+import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts';
 import { storageBufferCap } from '../residency/pools.ts';
 import { PORTABLE_TEXTURE_SIDE } from '../frame/referenceTilePlacement.ts';
 import { createVsmReadbackRing } from './readbackRing.ts';
@@ -72,51 +72,46 @@ import {
 } from './renderPass.ts';
 import {
   type VsmFrameBuffers,
-  type VsmLayout,
   type VsmResources,
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   vsmPerFrameSet,
 } from './resources.ts';
 import {
-  headerRows,
-  VSM_TRANSMISSION_ARGS_AT,
-  VSM_TRANSMISSION_ARGS_WORDS,
   VSM_TRANSMISSION_CLEAR_SPECS,
-  VSM_TRANSMISSION_COUNTER_WORDS,
-  VSM_TRANSMISSION_COUNTERS,
-  VSM_TRANSMISSION_FORMAT,
   VSM_TRANSMISSION_HEADER_BYTES,
   VSM_TRANSMISSION_NONE,
   VSM_TRANSMISSION_PAGE_BYTES,
   VSM_TRANSMISSION_PAGE_GROUP,
   VSM_TRANSMISSION_PAGES_SPECS,
-  VSM_TRANSMISSION_UNIFORM_BYTES,
-  VSM_TRANSMISSION_WIDTH,
   vsmTransmissionBinWgsl,
   vsmTransmissionCandidatesWgsl,
   vsmTransmissionClearWgsl,
   vsmTransmissionNumberWgsl,
   vsmTransmissionPagesWgsl,
   vsmTransmissionPlaceWgsl,
-  vsmTransmissionRegions,
   vsmTransmissionResolveWgsl,
-  type VsmTransmissionCaps,
 } from './transmissionWgsl.ts';
+import {
+  headerRows,
+  VSM_TRANSMISSION_ARGS_AT,
+  VSM_TRANSMISSION_ARGS_WORDS,
+  VSM_TRANSMISSION_BLOCKS_A_ROW,
+  VSM_TRANSMISSION_COUNTER_WORDS,
+  VSM_TRANSMISSION_COUNTERS,
+  VSM_TRANSMISSION_FEEDBACK_BYTES,
+  VSM_TRANSMISSION_FORMAT,
+  VSM_TRANSMISSION_UNIFORM_BYTES,
+  VSM_TRANSMISSION_WIDTH,
+  vsmTransmissionBytes,
+  vsmTransmissionFirstCaps,
+  vsmTransmissionMemoryDescriptor,
+  vsmTransmissionRegions,
+  type VsmTransmissionCaps,
+} from './transmissionLayout.ts';
 
 /** Blended candidates a chunk takes: its page list holds this many times the pool's pages. */
 const CHUNK_ROWS = 64;
-/** Blocks two texel rows of the memory hold. */
-const BLOCKS_A_ROW = 2;
-
-/** The first capacities for `pages` physical pages (the derivation in the header above). */
-export function vsmTransmissionFirstCaps(pages: number): VsmTransmissionCaps {
-  return {
-    records: 64 * pages,
-    patchWords: roundUpPow2(130 * 130),
-    blocks: pages,
-  };
-}
 
 /** The tables, the build buffer and the readable memory, made for one VSM resource set. */
 export interface VsmTransmission {
@@ -153,20 +148,6 @@ export interface VsmTransmission {
   destroy(): void;
 }
 
-/** The readable memory: the page headers' rows, then two blocks a row. Its bytes do not depend
- *  on `usage`, so they are counted where no WebGPU global exists. */
-function memoryDescriptor(layout: VsmLayout, blocks: number, usage: GPUTextureUsageFlags) {
-  return {
-    label: 'vsm.transmission.memory',
-    size: [VSM_TRANSMISSION_WIDTH, headerRows(layout.poolPages) + ceilDiv(blocks, BLOCKS_A_ROW)],
-    format: VSM_TRANSMISSION_FORMAT,
-    usage,
-  };
-}
-
-/** The feedback copies the build buffer's counters (`VSM_TRANSMISSION_COUNTERS`). */
-const FEEDBACK_BYTES = VSM_TRANSMISSION_COUNTER_WORDS * 4;
-
 /**
  * The largest capacities a device of `limits` holds for `layout`: the blocks the largest texture
  * holds below the page headers, and the build buffer within one storage binding
@@ -178,7 +159,7 @@ export function vsmTransmissionMostCaps(
 ) {
   const side = limits?.maxTextureDimension2D ?? PORTABLE_TEXTURE_SIDE;
   return {
-    blocks: (side - headerRows(layout.poolPages)) * BLOCKS_A_ROW,
+    blocks: (side - headerRows(layout.poolPages)) * VSM_TRANSMISSION_BLOCKS_A_ROW,
     buildWords: Math.floor(storageBufferCap(limits) / 4),
   };
 }
@@ -193,25 +174,6 @@ export function vsmTransmissionFits(
   return (
     caps.blocks <= most.blocks &&
     vsmTransmissionRegions(layout.poolPages, caps).words <= most.buildWords
-  );
-}
-
-/** Every byte `createVsmTransmission` asks the device for at `caps`: table, pool, links, build
- *  buffer, dispatch arguments, frame uniform, memory, the two feedback copies. */
-export function vsmTransmissionBytes(
-  layout: VsmLayout,
-  caps = vsmTransmissionFirstCaps(layout.poolPages),
-) {
-  const pages = layout.poolPages;
-  return (
-    2 * pages * 4 +
-    (caps.blocks + 2) * 4 +
-    caps.blocks * 4 +
-    vsmTransmissionRegions(pages, caps).words * 4 +
-    VSM_TRANSMISSION_ARGS_WORDS * 4 +
-    VSM_TRANSMISSION_UNIFORM_BYTES +
-    textureBytesOf(memoryDescriptor(layout, caps.blocks, 0))! +
-    2 * FEEDBACK_BYTES
   );
 }
 
@@ -274,7 +236,7 @@ export function createVsmTransmission(
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const memory = device.createTexture(
-    memoryDescriptor(
+    vsmTransmissionMemoryDescriptor(
       layout,
       caps.blocks,
       GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
@@ -291,7 +253,12 @@ export function createVsmTransmission(
   // The counters, read back a few frames late.
   const feedback = createVsmReadbackRing(
     device,
-    { label: 'vsm.transmission.feedback', bytes: FEEDBACK_BYTES, count: 2, eager: true },
+    {
+      label: 'vsm.transmission.feedback',
+      bytes: VSM_TRANSMISSION_FEEDBACK_BYTES,
+      count: 2,
+      eager: true,
+    },
     (mapped) => {
       const counters = new Uint32Array(mapped);
       trans.full = counters[VSM_TRANSMISSION_COUNTERS.full];
@@ -317,7 +284,7 @@ export function createVsmTransmission(
     readFeedback(encoder) {
       // A copy whose frame was never submitted is still pending: this frame's copy reuses it.
       const buffer = feedback.take();
-      if (buffer) encoder.copyBufferToBuffer(build, 0, buffer, 0, FEEDBACK_BYTES);
+      if (buffer) encoder.copyBufferToBuffer(build, 0, buffer, 0, VSM_TRANSMISSION_FEEDBACK_BYTES);
     },
     afterSubmit: feedback.submitted,
     bytes: vsmTransmissionBytes(layout, caps),

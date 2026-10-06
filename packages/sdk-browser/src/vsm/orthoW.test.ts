@@ -9,10 +9,11 @@ import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { VsmCacheManager } from './cacheManager.ts';
 import { createVsmClipmap } from './clipmap.ts';
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts';
-import { createVsmResources, vsmLayout } from './resources.ts';
+import { createVsmResources } from './resources.ts';
 import { encodeVirtualShadowProjection } from './projectionPass.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { orthographicProjection } from '../../../sdk-core/src/math/primitives/camera.ts';
+import { vsmLayout } from './layout.ts';
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0];
 const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];

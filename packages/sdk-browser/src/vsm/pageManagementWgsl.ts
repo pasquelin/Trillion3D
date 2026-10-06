@@ -6,9 +6,10 @@
  * storage buffer (`vsmPageMarkIndex(t, m)`, `vsmCoverIndex(t, m)`), so one atomic binding
  * covers mip 0 (read) and the hierarchy (atomicOr).
  */
-import type { VsmBindingSpec, VsmLayout } from './resources.ts';
+import type { VsmBindingSpec } from './resources.ts';
 import { type VsmPmKernel, vsmPmModule } from './physicalPagesWgsl.ts';
 import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** Mask mips: 8x4 bits → 4x4, 8x8 (gathered 2x2) → 4x4, 4x4 → placed 2x2. */
 const VSM_MIP_MASK_WGSL = /* wgsl */ `

@@ -5,18 +5,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts';
-import {
-  createVsmResources,
-  vsmLayout,
-  vsmPoolWithin,
-  vsmResourceBytes,
-  type VsmResourceOptions,
-} from './resources.ts';
-import {
-  createVsmTransmission,
-  vsmTransmissionBytes,
-  vsmTransmissionFirstCaps,
-} from './transmissionPass.ts';
+import { createVsmResources } from './resources.ts';
+import { createVsmTransmission } from './transmissionPass.ts';
+import { vsmLayout, vsmPoolWithin, vsmResourceBytes, type VsmResourceOptions } from './layout.ts';
+import { vsmTransmissionBytes, vsmTransmissionFirstCaps } from './transmissionLayout.ts';
 
 const BINDING = 1 << 27;
 /** The engine's one-sun set (`engineVsmOptions`): two page-table rows, the mask for two suns. */

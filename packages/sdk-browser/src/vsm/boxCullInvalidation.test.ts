@@ -11,8 +11,8 @@ import { INVALIDATION_BOX_CULL } from './boxCullBefore.fixture.ts';
 import { INVALIDATION_FLAGS_BEFORE, INVALIDATION_PAGES } from './boxCullPagesBefore.fixture.ts';
 import { handle, lightView, record, run, tables, use } from './boxCullTables.fixture.ts';
 import { VSM_BOX_MOVING, VSM_BOX_CASTS, vsmInvalidationWgsl } from './invalidationWgsl.ts';
-import { vsmLayout } from './resources.ts';
 import { inputs, sameBits } from './sameBits.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const INVALIDATION = vsmInvalidationWgsl(vsmLayout({ fullMapCapacity: 63 }, 1 << 27));
 const CASES = 12000;

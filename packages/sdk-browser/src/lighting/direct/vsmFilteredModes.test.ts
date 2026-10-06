@@ -3,14 +3,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts';
-import { VSM_UNIFORMS_BYTES, VSM_UNIFORMS_WGSL, writeVsmUniforms } from '../../vsm/uniforms.ts';
-import { vsmLayout } from '../../vsm/resources.ts';
+import { VSM_UNIFORMS_WGSL, writeVsmUniforms } from '../../vsm/uniforms.ts';
 import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts';
 import { vsmTraceWgsl } from '../../vsm/traceWgsl.ts';
 import { wgslStructLayout } from '../../vsm/wgslStructLayout.fixture.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { type V, MAP, run } from './vsmFilteredRead.fixture.ts';
 import { SUN_READ as READ, sunWorld } from './vsmFilteredSample.fixture.ts';
+import { VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts';
+import { vsmLayout } from '../../vsm/layout.ts';
 
 type Read = { vsmShadowRead: (...a: unknown[]) => number; testTransmission: () => V };
 

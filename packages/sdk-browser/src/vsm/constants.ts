@@ -71,6 +71,18 @@ export const VSM_FEEDBACK_POOL = 0;
  * corner, the range), rounded up to the 16-byte alignment its matrices give the struct.
  */
 export const VSM_PROJECTION_RECORD_BYTES = 3 * 64 + 4 * 16 + Math.ceil((7 * 4) / 16) * 16; // 288
+/** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
+export const VSM_UNIFORMS_BYTES = 208;
+
+/** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `renderCullWgsl.ts`), one
+ *  command and one pair (vec4u). */
+export const VSM_RENDER_CANDIDATE_BYTES = 48;
+export const VSM_RENDER_CMD_BYTES = 16;
+export const VSM_RENDER_PAIR_BYTES = 16;
+/** Pairs a chunk of the raster holds by default (`renderPass.ts`), the most its pair and command
+ *  lists then grow to (16 B each): the memory budget's shadow share counts both at it
+ *  (`residency/shadowBudgetBytes.ts`). */
+export const VSM_RENDER_PAIR_CAPACITY = 1 << 21;
 
 // Flags of the next-frame data of a map.
 export const VSM_NEXT_KEEPS_PAGES = 1 << 0;

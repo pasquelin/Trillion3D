@@ -3,8 +3,9 @@
 // device are capped as a device limit, never asked of it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { vsmTransmissionBytes, vsmTransmissionMostCaps } from '../../../../vsm/transmissionPass.ts';
+import { vsmTransmissionMostCaps } from '../../../../vsm/transmissionPass.ts';
 import { shortTransmission } from './vsmTransmission.fixture.ts';
+import { vsmTransmissionBytes } from '../../../../vsm/transmissionLayout.ts';
 
 test('a first transmission the room cannot hold is never made, said once', () => {
   const a = shortTransmission((grown, held) => grown - held);

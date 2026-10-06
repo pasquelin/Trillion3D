@@ -1,4 +1,3 @@
-import { vsmLayout } from '../../vsm/resources.ts';
 import { vsmInvalidationWgsl } from '../../vsm/invalidationWgsl.ts';
 import {
   vsmMarkingClears,
@@ -26,6 +25,7 @@ import {
   vsmTransmissionPlaceWgsl,
   vsmTransmissionResolveWgsl,
 } from '../../vsm/transmissionWgsl.ts';
+import { vsmLayout } from '../../vsm/layout.ts';
 
 /** Every virtual shadow map module, for the layout the engine makes for one sun (`../../webgpu/pages/render/vsm/vsmEncode.ts`)
  *  at WebGPU's default binding size: the projection with and without subgroups and the receiver

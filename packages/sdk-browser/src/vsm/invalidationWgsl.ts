@@ -21,8 +21,9 @@ import {
   VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts';
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
-import { vsmBindingsWgsl, type VsmBindingSpec, type VsmLayout } from './resources.ts';
+import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts';
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** Thread group size of the instance load balancer. */
 export const VSM_INVALIDATION_GROUP_SIZE = 64;

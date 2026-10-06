@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { type Fn } from './triangleScene.fixture.ts';
 import { vsmRenderRasterWgsl } from '../../vsm/renderRasterWgsl.ts';
-import { vsmLayout } from '../../vsm/resources.ts';
 import * as F from '../types.ts';
 import { ROWS } from './pointHeader.fixture.ts';
+import { vsmLayout } from '../../vsm/layout.ts';
 
 const VSM_CODE = vsmRenderRasterWgsl(vsmLayout({ fullMapCapacity: 63, poolPages: 256 }, 1 << 27));
 

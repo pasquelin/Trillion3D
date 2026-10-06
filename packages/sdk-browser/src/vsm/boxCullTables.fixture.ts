@@ -8,8 +8,8 @@ import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { VSM_CONSTANTS_WGSL } from './constants.ts';
 import { vsmInvalidationWgsl } from './invalidationWgsl.ts';
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts';
-import { vsmLayout } from './resources.ts';
 import { MORE_BUILTINS, hashWord, inputs, withArrays } from './sameBits.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 export type Draw = ReturnType<typeof inputs>;
 const LAYOUT = vsmLayout({ fullMapCapacity: 63 }, 1 << 27);

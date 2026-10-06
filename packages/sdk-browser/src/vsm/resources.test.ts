@@ -8,10 +8,7 @@ import {
   createVsmResources,
   vsmBindGroupEntries,
   vsmBindingsWgsl,
-  vsmLayout,
-  vsmResourceBytes,
   type VsmBindingSpec,
-  type VsmResourceOptions,
 } from './resources.ts';
 import { VSM_INVALIDATION_SPECS } from './invalidationWgsl.ts';
 import {
@@ -30,6 +27,7 @@ import {
 } from './renderRasterWgsl.ts';
 import { VSM_TRANSMISSION_CLEAR_SPECS } from './transmissionWgsl.ts';
 import { SHADOW_POOL_BYTES } from '../residency/shadowBudgetBytes.ts';
+import { vsmLayout, vsmResourceBytes, type VsmResourceOptions } from './layout.ts';
 
 const MiB = 1024 * 1024;
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */

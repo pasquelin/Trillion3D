@@ -14,10 +14,14 @@
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts';
 import { frustumPlanesFromMatrix } from '../../../sdk-core/src/math/frustum/frustum.ts';
 import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts';
-import { VSM_SINGLE_PAGE_MAP_SLOTS, VSM_PROJECTION_RECORD_BYTES } from './constants.ts';
+import {
+  VSM_SINGLE_PAGE_MAP_SLOTS,
+  VSM_PROJECTION_RECORD_BYTES,
+  VSM_UNIFORMS_BYTES,
+} from './constants.ts';
 import { vsmProjectionWords, writeVsmProjectionData } from './projectionData.ts';
 import type { VsmResources } from './resources.ts';
-import { VSM_UNIFORMS_BYTES, writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts';
+import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts';
 import { vsmWriteChanged } from './writeChanged.ts';
 import {
   VsmCacheManager,

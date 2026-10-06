@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { createVsmResources, vsmLayout } from './resources.ts';
+import { createVsmResources } from './resources.ts';
 import {
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_VIEW_BYTES,
@@ -14,6 +14,7 @@ import {
 } from './projectionWgsl.ts';
 import { encodeVirtualShadowProjection, type VsmProjectionLight } from './projectionPass.ts';
 import { camera, sun } from './projectionScene.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
   subgroups: false,

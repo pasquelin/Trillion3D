@@ -20,12 +20,13 @@ import { VSM_CONSTANTS_WGSL } from './constants.ts';
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_STRUCTS_WGSL } from './pageTableWgsl.ts';
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts';
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
-import { vsmBindingsWgsl, type VsmBindingSpec, type VsmLayout } from './resources.ts';
+import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts';
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../lighting/deferred/shaders.ts';
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
 import { TILE_SLICE_WGSL, pixelCellWgsl } from '../lighting/direct/lightingWgsl.ts';
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts';
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** The group side of the page marks from pixels pass. */
 export const VSM_MARK_PIXELS_GROUP_XY = 8;

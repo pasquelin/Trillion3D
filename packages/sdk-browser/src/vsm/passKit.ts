@@ -1,7 +1,8 @@
 /**
  * What the shadow maps' compute passes share: a buffer binding's layout entries, the compute
  * pipeline of a WGSL source described once a device and compiled the engine's one way
- * (`preparedComputePipeline`), the sizes the buffers and the dispatches round to.
+ * (`preparedComputePipeline`). How sizes and dispatches round (`ceilDiv`, `roundUpPow2`) is
+ * `layout.ts`'s.
  */
 import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts';
 
@@ -67,9 +68,3 @@ export function vsmComputePipe(
   }
   return p;
 }
-
-/** The groups of `size` that `count` takes, the last one part full. */
-export const ceilDiv = (count: number, size: number) => Math.ceil(count / size);
-
-/** The least power of two not under `v`, 1 at least. */
-export const roundUpPow2 = (v: number) => (v <= 1 ? 1 : 2 ** Math.ceil(Math.log2(v)));

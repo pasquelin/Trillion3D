@@ -10,8 +10,8 @@ import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { wgslConstants } from '../texture/shaderRule.fixture.ts';
 import { vsmPhysicalPageKernels } from './physicalPagesWgsl.ts';
-import { vsmLayout } from './resources.ts';
 import { seeded } from './planFrames.fixture.ts';
+import { vsmLayout } from './layout.ts';
 
 const KERNELS = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 }, 2 ** 27));
 const LISTS = ['pmListStart', 'pmListItem', 'pmSetListItem', 'pmListCount', 'pmSetListCount'];

@@ -56,7 +56,7 @@ import {
   VSM_PROJECTION_DATA_WGSL,
   VSM_PROJECTION_SAMPLE_WGSL,
 } from './projectionDataWgsl.ts';
-import { vsmBindingsWgsl, type VsmBindingSpec, type VsmLayout } from './resources.ts';
+import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts';
 import {
   VSM_TRACE_RESULT_WGSL,
   VSM_TRACE_COMMON_WGSL,
@@ -66,6 +66,7 @@ import {
   vsmTraceWgsl,
 } from './traceWgsl.ts';
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts';
+import type { VsmLayout } from './layout.ts';
 
 /** Pixels a side of a projection group, a tile of the mask's tile words: 8, a power of two. */
 export const VSM_PROJECTION_GROUP_SHIFT = 3;

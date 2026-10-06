@@ -7,9 +7,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shaderRun } from '../texture/shaderRun.fixture.ts';
 import { functionText } from '../bounce/wgslBody.fixture.ts';
-import { vsmBindingsWgsl, vsmLayout, type VsmLayout } from './resources.ts';
+import { vsmBindingsWgsl } from './resources.ts';
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts';
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS } from './constants.ts';
+import { vsmLayout, type VsmLayout } from './layout.ts';
 
 /** The TS mirror of `vsmPoolTexelIndexWgsl`. */
 function vsmPoolTexelIndex(layout: VsmLayout, x: number, y: number) {
