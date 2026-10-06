@@ -122,3 +122,14 @@ test('a shared shape’s bytes are claimed in the bodies’ ledger under it, che
   bodies.claimShape(other, 2)
   assert.equal(bodies.count.collisionBytes, 2)
 })
+
+test('a shape whose last holder let go while it was read is never restored', async () => {
+  stubFetch(cooked([], []), new Uint8Array(4))
+  const { bodies, writer } = modelStreamer()
+  const { restored } = recorded(writer)
+  const shapes = new SharedShapes({ writer, bodies, failed: assert.fail })
+  const shape = shapes.hold('hull', 'https://cache.test/model/x.bin', 0, {})
+  const made = shapes.restored(shape)
+  shapes.letGo(shape)
+  assert.deepEqual([await made, shape.handle, restored], [false, -1, []])
+})

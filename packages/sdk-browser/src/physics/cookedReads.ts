@@ -7,10 +7,9 @@ import { retriableError } from '../cluster/checked.ts'
 const REFUSED = new Error('A refused cooked object is not read again while it is held.')
 
 /**
- * `shape`'s object, read once — `tries` requests — for every caller until it lands; landed, the
- * next caller asks it again, but a soft body's settings, kept while the shape is held. A failed
- * read is reported once, to `failed`, its callers only dropping it; asked again, but a 4xx:
- * refused while the shape is held.
+ * `shape`'s object, read once — `tries` requests — for every caller; landed, kept while the
+ * shape is held until restored (`SharedShapes.restore`). A failed read is reported once, to
+ * `failed`, its callers only dropping it; asked again, but a 4xx: refused while it is held.
  */
 export function readShared(
   shape: SharedShape,
@@ -24,9 +23,8 @@ export function readShared(
   const settled = (error?: unknown) => {
     if (abort.signal.aborted || shape.read !== read) return
     shape.abort = null
-    if (error === undefined && shape.kind === 'settings') return
-    shape.read = null
     if (error === undefined) return
+    shape.read = null
     failed(error as EngineError)
     // A refusal another request would meet again: an HTTP 4xx.
     shape.refused = !retriableError(error)

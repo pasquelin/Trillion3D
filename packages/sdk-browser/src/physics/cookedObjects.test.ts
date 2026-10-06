@@ -53,7 +53,7 @@ test('a declared body’s hull counts no static collision: a share the tiles fil
 test('a hull lives while its opening holds it, every body of it refused, and leaves with it', async () => {
   const { file, crates } = hulled(3, 'hull.bin', 5)
   const { tiles, scene, bodies, released, fetched } = await opened(file, crates)
-  tiles.refused(crateIds(bodies))
+  for (const id of crateIds(bodies)) tiles.refused(id)
   assert.deepEqual([released, bodies.count.bodies], [[], 1], 'its opening holds it')
   scene.clear()
   tiles.scan(scene)

@@ -44,8 +44,8 @@ test('the bodies of a tile all reference its one shape, released once its last b
 })
 
 test('the collision share counts a shared tile once and each placement one body: the farther wait for a body', async () => {
-  // A share of 2 bytes, the tile's alone, and 600 bodies of the tiles for 1,000 placements.
-  const streamer = await streamed(1000, { memoryBytes: 4, bodies: 1200 })
+  // A share of 2 bytes, the tile's alone, and 600 bodies for 1,000 placements.
+  const streamer = await streamed(1000, { memoryBytes: 4, bodies: 600 })
   const { bodies, errors, restored, reads } = streamer
   await settle(streamer, [0, 0, 0], 1e5)
   assert.deepEqual([bodies.count.collisionBytes, bodies.count.bodies, errors], [2, 600, []])
@@ -86,20 +86,17 @@ test('an update builds a bounded number of tile bodies, nearest first: a thousan
   assert.equal(bodies.count.bodies, 1000)
 })
 
-test('tile bodies hold half the body budget at most: the page’s bodies keep the rest', async () => {
+test('tile bodies take every free slot; a page body that needs one takes the farthest tile’s', async () => {
   const streamer = await streamed(100, { bodies: 8 })
   const { scene, bodies, errors } = streamer
   await settle(streamer, [0, 0, 0], 1e5)
-  assert.equal(bodies.count.bodies, 4, 'the four nearest placements')
-  for (let i = 0; i < 4; i++) {
-    const crate = new Mesh(box(1, 1, 1), new Material('meshStandard'))
-    crate.physics = 'dynamic'
-    scene.add(crate)
-  }
+  assert.deepEqual([bodies.count.bodies, Math.max(...residentAt(bodies, 8))], [8, 70])
+  const crate = new Mesh(box(1, 1, 1), new Material('meshStandard'))
+  crate.physics = 'dynamic'
+  scene.add(crate)
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
-  assert.deepEqual([bodies.count.bodies, errors], [8, []])
+  assert.deepEqual([bodies.count.bodies, Math.max(...residentAt(bodies, 8)), errors], [8, 60, []])
 })
-
 test('the bodies an update leaves unbuilt ask another frame; none left, none is asked', async () => {
   const streamer = await streamed(100)
   const { tiles, bodies, heard } = streamer
@@ -120,7 +117,7 @@ test('a body the worker refuses takes its placement out alone: the others stay o
   await settle(streamer, [0, 0, 0], 1e5)
   const owner = bodies.slots.at(0)
   assert.ok(owner && 'tile' in owner)
-  tiles.refused([owner.tile.id])
+  tiles.refused(owner.tile.id)
   await settle(streamer, [0, 0, 0], 1e5)
   assert.deepEqual([bodies.count.bodies, released, builtOn.length], [2, [], 3], 'never built again')
 })
@@ -139,20 +136,35 @@ test('a tile that fails as it lands is reported, never left unhandled', async ()
   )
 })
 
-test('a tile all of whose bodies the worker refuses has its shape refused: it leaves whole', async () => {
-  const streamer = await streamed(3)
-  const { tiles, bodies, builtOn, reads } = streamer
-  await settle(streamer, [0, 0, 0], 1e5)
-  const ids = Array.from({ length: 6 }, (_, slot) => bodies.slots.at(slot)).flatMap((owner) =>
-    owner && 'tile' in owner ? [owner.tile.id] : [],
-  )
-  tiles.refused(ids)
-  await settle(streamer, [0, 0, 0], 1e5)
-  assert.deepEqual([bodies.count.bodies, builtOn.length, reads()], [0, 3, 1], 'built on no more')
-})
-
 test('a model placing a tile 200,000 times opens: its placements are no call’s arguments', async () => {
   const streamer = await streamed(200_000, { bodies: 16 })
   await settle(streamer, [0, 0, 0], 25)
   assert.deepEqual([streamer.bodies.count.bodies, streamer.errors], [3, []])
+})
+
+test('a refused body takes its placement out alone, whatever else the tile holds', async () => {
+  const streamer = await streamed(100, { bodies: 1 })
+  const { tiles, bodies, reads } = streamer
+  await settle(streamer, [0, 0, 0], 1e5)
+  const owner = bodies.slots.at(0)
+  assert.ok(owner && 'tile' in owner)
+  const { shape, id } = owner.tile
+  // Named twice: it leaves once.
+  tiles.refused(id)
+  tiles.refused(id)
+  await settle(streamer, [0, 0, 0], 1e5)
+  assert.deepEqual([bodies.count.bodies, shape.holders, reads()], [1, 99, 1], 'the next one built')
+})
+
+test('a tile landing while no update wants it keeps its bytes for the next that does', async () => {
+  const { tiles, bodies, reads } = await streamed(1)
+  tiles.update([0, 0, 0], 5)
+  // Out of range before its bytes land, then back.
+  tiles.update([100, 0, 0], 5)
+  await landed()
+  // Back: restored from the bytes it kept, then built.
+  tiles.update([0, 0, 0], 5)
+  await landed()
+  tiles.update([0, 0, 0], 5)
+  assert.deepEqual([bodies.count.bodies, reads()], [1, 1], 'restored with no read again')
 })

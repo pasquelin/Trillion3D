@@ -12,7 +12,7 @@ export interface ResolvedShape {
   vertices?: Float32Array
   indices?: Uint32Array
   parts?: CompoundPart[]
-  /** Triangles, counted `TRIANGLE_BYTES` each against the static collision (`collisionShareOf`). */
+  /** Triangles, counted `TRIANGLE_BYTES` each against the static collision (`collisionBytesOf`). */
   triangles: number
 }
 

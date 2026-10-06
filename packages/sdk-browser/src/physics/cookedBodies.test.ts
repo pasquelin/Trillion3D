@@ -87,7 +87,7 @@ test('a dynamic box its model places no node for is held kinematic where drawn, 
   const rest = run(jolt, 2)
   assert.ok(Math.abs(rest.get(60)![1] - 2.75) < 0.02, `a crate rests on it: ${rest.get(60)![1]}`)
   assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body, where it is drawn')
-  tiles.refused([held.w[1]])
+  tiles.refused(held.w[1])
   await settled(tiles, [0, 0, 0], 1000)
   const [back, ...others] = adds(writer.take())
   assert.deepEqual([back.w[4], back.f[6], others], [SHAPE.cooked, 0, []], 'refused, its tile back')

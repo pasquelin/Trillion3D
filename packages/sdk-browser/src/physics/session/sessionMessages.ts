@@ -46,7 +46,7 @@ function receiveRecovered(c: SessionParts, data: Message<'recovered'>) {
 /** The worker refused or lost bodies: refused shapes leave, tiles and cooked soft bodies by their
  *  owner; diverged, joints break. */
 function receiveRefused(c: SessionParts, data: Message<'error'>) {
-  c.tiles.refused(data.bodies ?? [])
+  for (const id of data.bodies ?? []) c.tiles.refused(id)
   const refused = (data.bodies ?? []).map(c.bodies.meshOf).filter((mesh) => mesh !== null)
   for (const mesh of refused) c.retire(mesh.physics._index, data.code === 'PHYSICS_DIVERGED')
   const names = refused.map((mesh) => mesh.name)

@@ -68,7 +68,7 @@ export function createPhysicsBodies(
         'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
         { name: mesh.name },
       )
-    check('bodies', 1)
+    // Its slot claimed below (`claim`): a tile body's taken for it, when none is free.
     if (p.decorative) check('decorative', 1)
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
@@ -110,7 +110,10 @@ export function createPhysicsBodies(
     p._attach(host, index, state)
   }
   /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. */
+  /** Frees a slot when none is left for a body no tile holds (`onFull`). */
+  let makeRoom = () => {}
   const claim = (bytes: number, softVertices: number, owner: SlotOwner) => {
+    if (count.bodies >= budget.bodies && !('tile' in owner)) makeRoom()
     check('bodies', 1)
     check('collisionBytes', bytes)
     check('softVertices', softVertices)
@@ -139,7 +142,7 @@ export function createPhysicsBodies(
     /** By slot: the compiled nodes bodies move (`createBodySlots`), their last step (`state`). */
     ...{ nested: slots.nested, state },
     generation: slots.generation,
-    count,
+    ...{ count, shared: ledger.shared },
     add,
     removeAt,
     /** The mesh an engine id names, or `null` once that body left its slot. */
@@ -151,13 +154,14 @@ export function createPhysicsBodies(
     /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
-    /** A shape bodies share: its collision `bytes` claimed under it — refused past the budget —,
-     *  then given back. */
+    /** A shape bodies share: its collision `bytes` claimed under it (`check`), then given back. */
     claimShape(shape: object, bytes: number) {
       check('collisionBytes', bytes)
       ledger.hold(shape, bytes, 0)
     },
     releaseShape: ledger.give,
+    /** The farthest tile body leaving for a body that needs a slot (`tiles.ts`): `free`. */
+    onFull: (free: () => void) => void (makeRoom = free),
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
      *  is set again; a soft body placed off `scale`, the one it was made at, until back at it. */
     retire(index: number, scale: readonly number[] | null = null) {

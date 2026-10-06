@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { refuses } from '../contracts/cache.fixture.ts'
 import {
   checkPhysicsBudget,
-  collisionShareOf,
+  collisionBytesOf,
   DEFAULT_PHYSICS_BUDGET,
   physicsBudgetOf,
   type PhysicsBudget,
@@ -34,18 +34,15 @@ test('the default budget opens the physics module', () => {
 
 test('the static collision holds a share of the memory, never more than all of it', () => {
   for (const memoryBytes of [1001, DEFAULT_PHYSICS_BUDGET.memoryBytes]) {
-    const bytes = collisionShareOf({ memoryBytes }, 'memoryBytes')
+    const bytes = collisionBytesOf({ memoryBytes })
     assert.ok(Number.isInteger(bytes) && bytes > 0 && bytes < memoryBytes, `${bytes}`)
   }
-  assert.equal(
-    collisionShareOf({ memoryBytes: 2000 }, 'memoryBytes'),
-    2 * collisionShareOf({ memoryBytes: 1000 }, 'memoryBytes'),
-  )
+  assert.equal(collisionBytesOf({ memoryBytes: 2000 }), 2 * collisionBytesOf({ memoryBytes: 1000 }))
 })
 
 test('a request at its limit fits, the first past it is refused naming the governing budget', () => {
   const budget = physicsBudgetOf(declared)
-  const collision = collisionShareOf(budget, 'memoryBytes')
+  const collision = collisionBytesOf(budget)
   for (const [key, limit] of [
     ['bodies', declared.bodies],
     ['decorative', declared.decorative],

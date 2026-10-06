@@ -20,7 +20,7 @@ export function followModel<O>(
   writer: CommandWriter,
   model: Model,
   opening: Moving<O>,
-  remake: (model: Model, opening: O, one: Refused, scale: number[]) => CookedMadeBody | null | void,
+  remake: (model: Model, opening: O, one: Refused, scale: number[]) => CookedMadeBody | null,
   release: (index: number) => void,
 ) {
   const { made, refused } = opening

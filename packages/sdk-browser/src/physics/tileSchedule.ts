@@ -15,12 +15,7 @@ const LOADS = 2
  *  an eye arriving among a thousand placements of a resident tile adds them over frames. */
 const BUILDS = 64
 
-/** An open model's opening: its tiles, empty until its file lands, and the abort its leaving lets
- *  go of its file's read by — one back while it was on its way lands once, the later. */
-export type TileOpening = { placed: Placed[]; abort: AbortController }
-
-/** What a schedule reads and acts on: the session's bodies, the models' declared ones, the
- *  shared shapes and the tile bodies, and where it asks a frame and reports a failure. */
+/** What a schedule reads and acts on, and where it asks a frame and reports a failure. */
 type ScheduleParts = {
   bodies: ReturnType<typeof createPhysicsBodies>
   declared: ReturnType<typeof createModelBodies>
@@ -42,9 +37,8 @@ const selectNearest = (list: Placed[], count: number, k: number) =>
  * by its nearest placement; `admit` lets in those that fit; `start` builds their bodies on their
  * resident tiles and reads the others, nearest first within the caps — `FETCHES` reads in flight,
  * `LOADS` reads and `BUILDS` bodies an update, another frame asked while bodies wait —, then lets
- * the tiles no one uses go. Only the U tiles wanted are sorted: the P placements (P ≫ U for a prop
- * repeated over a world) are only partitioned and selected, O(P) on average. Nothing is allocated
- * per update: the lists are scratch, kept from one to the next.
+ * the tiles no one uses go. Only the U tiles wanted are sorted, the P placements (P ≫ U) only
+ * partitioned and selected, O(P); nothing is allocated per update, the lists kept as scratch.
  */
 export class TileSchedule {
   private readonly wanted: Placed[] = []
@@ -123,7 +117,8 @@ export class TileSchedule {
     const tiles = this.tiles
     for (let i = 0, loads = LOADS; i < tiles.length && loads && this.fetching < FETCHES; i++) {
       const shape = tiles[i]
-      if (shape.wanted !== this.pass || shape.handle >= 0 || shape.read) continue
+      // Its read in flight, it waits; landed and kept, it is restored now, nothing asked again.
+      if (shape.wanted !== this.pass || shape.handle >= 0 || shape.abort) continue
       loads--
       this.read(shape)
     }
@@ -132,6 +127,15 @@ export class TileSchedule {
   /** Lets go of the tiles no one uses, but those the last update let in. */
   settle() {
     this.parts.shapes.settle(this.pass)
+  }
+  /** Evicts the farthest tile body the last update let in, for a body that needs its slot. */
+  evictFarthest() {
+    let far: Placed | null = null
+    for (let i = 0; i < this.in; i++) {
+      const p = this.wanted[i]
+      if (p.id >= 0 && (!far || p.near > far.near)) far = p
+    }
+    if (far) this.parts.resident.evict(far)
   }
   /** Lists the placements of `opening` wanted, and their tiles, each with its nearest; evicts the
    *  others, and takes those of a refused tile out of `opening` for good, its model's opening. */
@@ -181,8 +185,7 @@ export class TileSchedule {
       .catch((error) => parts.failed(error as EngineError))
       .finally(() => this.fetching--)
   }
-  /** `shape`'s bytes landed: restored if the last update let it in and they fit, its bodies built
-   *  by the next, asked at once; else they are let go, and it is read again once it fits. */
+  /** `shape`'s bytes landed: restored if the last update let it in, else kept for one that does. */
   private land(shape: TileShape, bytes: Uint8Array) {
     if (!shape.holders || shape.wanted !== this.pass) return
     try {

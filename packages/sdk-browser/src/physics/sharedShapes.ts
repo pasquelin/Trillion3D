@@ -20,11 +20,11 @@ export interface SharedShape {
   /** The bodies built on it; and the placements and openings naming it. */
   users: number
   holders: number
-  /** Its read in flight — a soft body's settings, landed too, kept while held —, and the abort
-   *  its last holder leaving lets it go by. */
+  /** Its read — in flight, with the abort its last holder leaving lets it go by; or landed, kept
+   *  while it is held until restored —: what every caller asks. */
   read: Promise<Uint8Array> | null
   abort: AbortController | null
-  /** Refused — its object a 4xx, or its shape the module —: not asked again while it is held. */
+  /** Its object answered a 4xx: not asked again while it is held. */
   refused: boolean
   /** The last update that wanted it restored (`tileSchedule.ts`): kept through it bodiless. */
   wanted: number
@@ -49,8 +49,6 @@ type SharedParts = {
  * before nor twice.
  */
 export class SharedShapes {
-  /** The bytes the restored shapes count: the tiles'. */
-  restoredBytes = 0
   private readonly known = new Map<string, SharedShape>()
   private readonly handles = createSimulatedIds<SharedShape>()
   /** Restored shapes whose users fell to zero, or none came yet: `settle` reads them. */
@@ -93,20 +91,21 @@ export class SharedShapes {
     if (shape.handle >= 0) return true
     const bytes = await this.read(shape).catch(() => null)
     try {
-      if (bytes) this.restore(shape, bytes)
+      // No restore without a holder: one that let go meanwhile wants none.
+      if (bytes && shape.holders) this.restore(shape, bytes)
     } catch (error) {
       this.parts.failed(error as EngineError)
     }
     return shape.handle >= 0
   }
   /** Restores `shape` from its object's `bytes`, its bytes claimed (`claimShape`): refused past
-   *  the share. */
+   *  the share. Its read let go of: the module holds the shape. */
   restore(shape: SharedShape, bytes: Uint8Array) {
     if (shape.handle >= 0) return
     this.parts.bodies.claimShape(shape, shape.bytes)
     shape.handle = this.handles.take(shape)
     this.parts.writer.restore(shape.handle, bytes)
-    this.restoredBytes += shape.bytes
+    shape.read = null
     this.list(shape)
   }
   /** A body built on `shape`. */
@@ -147,7 +146,6 @@ export class SharedShapes {
     this.parts.writer.release(shape.handle)
     this.handles.release(shape.handle)
     this.parts.bodies.releaseShape(shape)
-    this.restoredBytes -= shape.bytes
     shape.handle = -1
     this.forget(shape)
   }

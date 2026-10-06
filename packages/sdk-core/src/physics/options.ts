@@ -95,7 +95,7 @@ export const DEFAULT_MATTER: PhysicsMatter = { density: 1000, friction: 0.5, res
 
 /** The fixed envelopes of a world's physics; never read from the machine. */
 export interface PhysicsBudget {
-  /** Bodies of every kind at once; half at most the static ones a compiled model's tiles stream. */
+  /** Bodies of every kind at once. */
   bodies: number
   /** Decorative bodies at once. */
   decorative: number
@@ -164,12 +164,13 @@ export function physicsBudgetOf(budget: Partial<PhysicsBudget> = {}): PhysicsBud
   return Object.seal({ ...DEFAULT_PHYSICS_BUDGET, ...budget })
 }
 
+/** The share of `memoryBytes` the static collision holds at once. */
+const COLLISION_SHARE = 0.5
 /** Bytes the module holds a static triangle by: what a cooked tile takes, bounding tree included. */
 export const TRIANGLE_BYTES = 16
-/** Of `budget`'s `memoryBytes` or `bodies`, the half the static collision holds at once: bytes of
- *  tiles and static triangle meshes together, or the bodies of the tiles streamed in. */
-export const collisionShareOf = (budget: Partial<PhysicsBudget>, of: 'memoryBytes' | 'bodies') =>
-  Math.floor((budget[of] ?? 0) / 2)
+/** Bytes of static collision `budget` holds at once: tiles and static triangle meshes together. */
+export const collisionBytesOf = (budget: Pick<PhysicsBudget, 'memoryBytes'>) =>
+  Math.floor(budget.memoryBytes * COLLISION_SHARE)
 
 /** A fixed step of 60 Hz: the simulation's clock, whatever the display's rate; the frames owe it
  *  their time in such steps (`sdk-browser/src/physics/stepClock.ts`). */
@@ -194,6 +195,6 @@ export function checkPhysicsBudget(
   requested: number,
 ) {
   const collision = key === 'collisionBytes'
-  const limit = collision ? collisionShareOf(budget, 'memoryBytes') : budget[key]
+  const limit = collision ? collisionBytesOf(budget) : budget[key]
   if (requested > limit) throw physicsBudgetError(collision ? 'memoryBytes' : key, limit, requested)
 }

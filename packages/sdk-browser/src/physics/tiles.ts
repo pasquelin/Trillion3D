@@ -1,7 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
   BODY_INDEX,
-  collisionShareOf,
+  collisionBytesOf,
   type CommandWriter,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts'
@@ -10,7 +10,7 @@ import type { createPhysicsBodies } from './bodies.ts'
 import { createModelBodies } from './modelBodies.ts'
 import { SharedShapes } from './sharedShapes.ts'
 import { createResidentTiles } from './tileResident.ts'
-import { TileSchedule, type TileOpening } from './tileSchedule.ts'
+import { TileSchedule } from './tileSchedule.ts'
 import {
   cookedPhysics,
   isModel,
@@ -19,30 +19,21 @@ import {
   tilePose,
   type Model,
   type Placed,
-  type TileShape,
 } from './tilePlace.ts'
 
-/** The placements of tiles the worker refused a body of: a tile all of whose bodies it refused
- *  had its shape refused, which leaves whole (`tileSchedule.ts`), each of these bodies `evict`ed;
- *  another, its refused placements alone (`leave`). */
-function refuseTiles(refused: Placed[], evict: (p: Placed) => void, leave: (p: Placed) => void) {
-  const counts = new Map<TileShape, number>()
-  for (const { shape } of refused) counts.set(shape, (counts.get(shape) ?? 0) + 1)
-  for (const [shape, count] of counts) shape.refused ||= count === shape.users
-  for (const p of refused)
-    if (p.shape.refused) evict(p)
-    else leave(p)
-}
+/** An open model's opening: its tiles, empty until its file lands, and the abort its leaving lets
+ *  go of its file's read by — one back while it was on its way lands once, the later. */
+type TileOpening = { placed: Placed[]; abort: AbortController }
 
 /**
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
- * simulation within the static collision's share of `budget.memoryBytes` and of `budget.bodies`
- * (`collisionShareOf`), the other bodies keeping the rest: tiles load around every moving body
- * first, then around the eye up to the active range — the camera's draw distance, the scene's
- * own —, nearest first, and leave once no longer wanted. A scene is never
- * refused for its size: a tile that does not fit waits, the farther ones leaving for it. A tile
- * is restored from the module's binary state, never rebuilt; so are the bodies its nodes declare
- * (`cookedBodies.ts`), made as it opens.
+ * simulation within the static collision's share of `budget.memoryBytes` (`collisionBytesOf`) and
+ * the bodies `budget.bodies` leaves, the farthest tile bodies leaving for a body that needs a slot:
+ * tiles load around every moving body first, then around the eye up to the active range — the
+ * camera's draw distance, the scene's own —, nearest first, and leave once no longer wanted. A
+ * scene is never refused for its size: a tile that does not fit waits, the farther ones leaving
+ * for it. A tile is restored from the module's binary state, never rebuilt; so are the bodies its
+ * nodes declare (`cookedBodies.ts`), made as it opens.
  *
  * A tile is one shape for the session (`sharedShapes.ts`), however many placements and models
  * place it. With U tiles of b bytes wanted by P placements (P ≫ U for a prop repeated over a
@@ -60,12 +51,12 @@ export function createTileStreamer(
 ) {
   const models = new Map<Model, TileOpening>()
   // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
-  const share = collisionShareOf(budget, 'memoryBytes'),
-    bodyShare = collisionShareOf(budget, 'bodies')
+  const share = collisionBytesOf(budget)
   const shapes = new SharedShapes({ writer, bodies, failed })
   const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
   const resident = createResidentTiles(writer, bodies, shapes)
   const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
+  bodies.onFull(() => schedule.evictFarthest())
   function open(model: Model) {
     const opening: TileOpening = { placed: [], abort: new AbortController() }
     const { signal } = opening.abort
@@ -83,9 +74,12 @@ export function createTileStreamer(
   }
   /** Placement `p` out of its opening for good, until its model opens again. */
   const leave = (p: Placed) => {
-    const placed = models.get(p.model)!.placed
+    const placed = models.get(p.model)?.placed,
+      at = placed?.indexOf(p) ?? -1
+    // Out already: left, or its model gone.
+    if (at < 0) return
     resident.remove(p)
-    placed.splice(placed.indexOf(p), 1)
+    placed!.splice(at, 1)
   }
   /** Everything `model` holds out: its tiles, their shapes let go of, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {
@@ -119,24 +113,19 @@ export function createTileStreamer(
       const count = bodies.count,
         held = resident.held.bodies
       schedule.admit(
-        share - count.collisionBytes + shapes.restoredBytes,
-        Math.min(bodyShare, budget.bodies - count.bodies + held),
+        share - count.collisionBytes + bodies.shared.bytes,
+        budget.bodies - count.bodies + held,
       )
       schedule.start()
     },
     /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
-    /** The worker refused the bodies `ids`: a cooked body leaves alone, until its model opens
-     *  again. A tile all of whose bodies it refused had its shape refused, which leaves whole
-     *  with every placement of it (`tileSchedule.ts`); another, its refused placements alone. */
-    refused(ids: readonly number[]) {
-      const tiles: Placed[] = []
-      for (const id of ids) {
-        const owner = bodies.slots.of(id)
-        if (owner && 'tile' in owner) tiles.push(owner.tile)
-        else if (owner) declared.refused(owner)
-      }
-      refuseTiles(tiles, resident.evict, leave)
+    /** The worker refused body `id`: a cooked body, or the placement of a tile, leaves alone
+     *  until its model opens again — a tile leaves whole only by a 4xx on its read. */
+    refused(id: number) {
+      const owner = bodies.slots.of(id)
+      if (owner && 'tile' in owner) leave(owner.tile)
+      else if (owner) declared.refused(owner)
       schedule.settle()
     },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */
