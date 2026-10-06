@@ -25,10 +25,7 @@ export function rangedReader(url: string, signal?: AbortSignal) {
     const own = { promise: response.arrayBuffer(), askers: 0, stop }
     const forget = () => void (whole === own && (whole = undefined))
     stop.signal.addEventListener('abort', forget, { once: true })
-    own.promise.then((buffer) => {
-      stop.signal.removeEventListener('abort', forget)
-      held = buffer.byteLength
-    }, forget)
+    own.promise.then((buffer) => void (held = buffer.byteLength), forget)
     whole = own
   }
   /** One request of `[offset, offset + length)`, on a signal of its own that its asker's stops

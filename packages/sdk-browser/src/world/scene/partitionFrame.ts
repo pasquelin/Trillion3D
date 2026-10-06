@@ -102,16 +102,15 @@ type Inputs = {
   wake?: () => void
 }
 
-/** One timer at a time, for the earliest failed hold's wait: it asks `wake` for the frame that
- *  holds it again, which arms the next. */
-function createWaker(wake?: () => void) {
+/** One timer, set for the earliest failed hold's wait, `due`: it asks `wake` for a frame then. */
+function wakeAt(wake: () => void) {
   let timer: ReturnType<typeof setTimeout> | undefined,
     armed = Infinity
   return (due: number) => {
-    if (due >= armed || due === Infinity || !wake) return
+    if (due === armed) return
     clearTimeout(timer)
     armed = due
-    timer = setTimeout(() => ((armed = Infinity), wake()), due - performance.now())
+    if (due < Infinity) timer = setTimeout(wake, due - performance.now())
   }
 }
 
@@ -124,8 +123,8 @@ function createWaker(wake?: () => void) {
  * failed hold's wait: one timer asks the loop for the frame that holds it again (`wake`).
  */
 export function createPartitionFrame(inputs: Inputs) {
-  const { partitions, streamer, camera, active, renew, budget } = inputs
-  const wakeAt = createWaker(inputs.wake)
+  const { partitions, streamer, camera, active, renew, budget, wake } = inputs
+  const arm = wake ? wakeAt(wake) : () => {}
   if (!partitions.length) return null
   const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew })
   const manifests = partitions.map((cells) => cellHoldings(cells).manifest)
@@ -174,12 +173,8 @@ export function createPartitionFrame(inputs: Inputs) {
     }
     const { eye, reach } = viewOf(camera)
     later = false
-    let due = Infinity
-    for (const cells of partitions) {
-      later = cells.frame(eye, reach, io, budget) || later
-      due = Math.min(due, cells.due())
-    }
-    wakeAt(due)
+    for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
+    arm(partitions.reduce((due, cells) => Math.min(due, cells.due()), Infinity))
   }
   return Object.assign(step, { pending })
 }
