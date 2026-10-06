@@ -146,7 +146,7 @@ test('the uniform carries the camera parallax, the flicker rates and a pixel wid
     writeTaaView(device, {} as GPUBuffer, state, cam, [960, 540], [1920, 1080], false);
     return writes.at(-1)!.data as Float32Array;
   };
-  let u = written();
+  const u = written();
   // `previous · (lastEye − eye, 0)`: the identity's image of (−0.5, 0, 0, 0).
   assert.deepEqual([...u.subarray(68, 72)], [-0.5, 0, 0, 0]);
   assert.ok(Math.abs(u[72] - (1 - 0.95 ** 2)) < 1e-7, 'two images a period: 1 − 0.95²');
