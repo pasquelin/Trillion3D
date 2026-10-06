@@ -93,7 +93,13 @@ function createFailedHolds() {
       failed.set(cell, due)
       next = Math.min(next, due)
     },
-    delete: (cell: number) => failed.delete(cell),
+    /** `cell` left: the earliest wait is read again when it was its own. */
+    delete(cell: number) {
+      const due = failed.get(cell)
+      if (!failed.delete(cell)) return false
+      if (due === next) next = Math.min(Infinity, ...failed.values())
+      return true
+    },
     due: () => next,
     /** The failed holds due at `now`, each taken out as it is given. */
     *take(now: number) {

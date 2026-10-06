@@ -130,3 +130,21 @@ test('a cell that leaves while its hold reads lets its world reads go at once', 
   held.release(3)
   assert.deepEqual([asked[0].priority, asked[0].signal!.aborted], [1.25, true])
 })
+
+test('a failed cell that leaves takes its wait with it: the earliest is the next one', async () => {
+  const { pages, land } = countedPages(new Set())
+  const waits = [500, 2000]
+  const held = createCellPages(pages, cell([]), {
+    async hold(cell) {
+      throw Object.assign(new Error('refused'), { due: waits[cell] })
+    },
+    release() {},
+  })
+  held.hold(0)
+  held.hold(1)
+  land()
+  await settled(held)
+  assert.equal(held.due(), 500)
+  held.release(0)
+  assert.equal(held.due(), 2000, 'the frame wakes for a cell still waiting')
+})
