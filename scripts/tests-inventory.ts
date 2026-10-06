@@ -45,7 +45,7 @@ export function withInventory(text: string, inventory: string): string {
   const begin = text.indexOf(BEGIN);
   const end = text.indexOf(END);
   if (begin === -1 || end < begin) throw new Error(`docs/TESTS.md has no ${BEGIN} … ${END} block`);
-  return `${text.slice(0, begin + BEGIN.length)}\n${inventory}\n${text.slice(end)}`;
+  return `${text.slice(0, begin + BEGIN.length)}\n\n${inventory}\n\n${text.slice(end)}`;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
