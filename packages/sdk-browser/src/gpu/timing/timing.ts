@@ -8,7 +8,8 @@ import {
   type TimingPart,
   type TimingResources,
 } from './encoder.ts';
-import { createSampleEmitter, failedSample, summarizeTimestamps, timingEntries } from './sample.ts';
+import { createSampleEmitter, failedSample, timingEntries } from './sample.ts';
+import { readImageTimestamps } from './readImage.ts';
 import { createSlotMemory } from './slotMemory.ts';
 import { createTimeline } from './timeline.ts';
 import { PARTS, QUERY_COUNT, TIMED_PASSES } from './queries.ts';
@@ -122,18 +123,19 @@ export function createGpuTiming(
         used = state.cursor * 8;
       const readback = (async () => {
         try {
-          // Only the timestamps the image wrote are mapped.
-          await staging.mapAsync(GPUMapMode.READ, 0, used);
-          if (disposed) return;
-          const values = new BigUint64Array(staging.getMappedRange(0, used));
-          const { sample, span } = summarizeTimestamps(
+          const read = await readImageTimestamps(
+            staging,
+            used,
             entries,
-            values,
             truncated,
-            slots.read(state.frame),
+            state.frame,
+            slots,
+            timeline,
+            () => disposed,
           );
+          if (!read) return;
+          const { sample, idleBetweenMs } = read;
           invalidSamples += sample.pairs.invalid;
-          const idleBetweenMs = timeline.read(state.frame, span);
           emit({ ...metadata, frame: state.frame, ...sample, idleBetweenMs });
           completedSamples++;
         } catch (error) {
