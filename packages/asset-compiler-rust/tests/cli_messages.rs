@@ -112,7 +112,7 @@ fn a_failure_carries_its_public_code() {
         );
         assert_eq!(told["level"], "error");
         assert!(
-            told["action"].is_string() && told["docs"].is_string(),
+            told["action"].is_string() && told["cause"].is_string(),
             "{told}"
         );
     }
