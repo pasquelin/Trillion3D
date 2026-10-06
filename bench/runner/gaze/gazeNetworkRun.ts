@@ -1,11 +1,11 @@
 import type { Page } from 'playwright';
-import { VIEWS, trajectoryPoses } from './poses.ts';
-import { measurePayload } from './series/seriesPage.ts';
+import { VIEWS, trajectoryPoses } from '../poses.ts';
+import { measurePayload } from '../series/seriesPage.ts';
 import { gazeNetworkCounter } from './gazeNetworkCounter.ts';
-import type { MeasureViewOptions } from './measureOptions.ts';
-import type { Bounds } from './poses.ts';
-import type { RunContext } from './report/types.ts';
-import type { Side } from './sideOptions.ts';
+import type { MeasureViewOptions } from '../measureOptions.ts';
+import type { Bounds } from '../poses.ts';
+import type { RunContext } from '../report/types.ts';
+import type { Side } from '../sideOptions.ts';
 
 export type GazeNetworkReading = {
   view: string;
@@ -35,7 +35,7 @@ async function measureGazeNetwork(page: Page, payload: MeasureViewOptions) {
   });
   try {
     await page.evaluate(async (options) => {
-      const module = await import(`${options.modulesUrl}gazeNetworkPage.ts`);
+      const module = await import(`${options.modulesUrl}gaze/gazeNetworkPage.ts`);
       await module.runGazeNetwork(options);
     }, payload);
     // Let requests issued by the last observed frame finish. No new frame or settle barrier runs.

@@ -1,8 +1,8 @@
 // A camera session for bandwidth measurement. It never calls the image-settling barrier:
 // only the ordinary, budgeted frames of the observed trajectory request texture levels.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
-import type { MeasureViewOptions } from './measureOptions.ts';
-import { explorerOptions } from './explorerPage.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
+import type { MeasureViewOptions } from '../measureOptions.ts';
+import { explorerOptions } from '../explorerPage.ts';
 
 type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.BackendFactory | undefined>;
 

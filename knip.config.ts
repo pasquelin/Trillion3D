@@ -66,7 +66,7 @@ const config: KnipConfig = {
         'bench/runner/deformationEnvelope.ts',
         'bench/runner/deformationWitness.ts',
         'bench/runner/feedback/feedbackTargetPage.ts',
-        'bench/runner/gazeNetworkPage.ts',
+        'bench/runner/gaze/gazeNetworkPage.ts',
         'bench/runner/limits.ts',
         'bench/runner/screenError/screenErrorPage.ts',
         // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
