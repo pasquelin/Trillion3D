@@ -13,7 +13,7 @@ import type { Page } from 'playwright';
 import { onFreshPage } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { readStreet } from './street.ts';
+import { readStreet } from './street/street.ts';
 import { imageDiff } from './references/imageDiff.ts';
 import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';

@@ -1,10 +1,10 @@
 // The model's street, read off its own geometry (#1016): where the bench camera walks at eye level.
 // Node chooses the columns and the street among them; the page only asks the physics
-// (`streetPage.ts`). Nothing names a scene, and no share of the box is assumed open.
+// (`street/streetPage.ts`). Nothing names a scene, and no share of the box is assumed open.
 import type { Page } from 'playwright';
-import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from './trajectory/poses.ts';
+import { STREET_REACH, eyeHeight, modelFloor, type Bounds } from '../trajectory/poses.ts';
 import { probeColumns } from './streetPage.ts';
-import { readBounds } from './page.ts';
+import { readBounds } from '../page.ts';
 
 /** The street the camera walks: a column under open sky, its ground, and the radius around it at
  *  eye height that no wall crosses. */

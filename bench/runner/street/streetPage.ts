@@ -1,6 +1,6 @@
-// What runs INSIDE the page to find the model's street (`street.ts`). Playwright serialises this
+// What runs INSIDE the page to find the model's street (`street/street.ts`). Playwright serialises this
 // function: it reads nothing outside its single argument, the columns Node chose.
-import type * as SdkBrowser from '../witnesses/measurement.ts';
+import type * as SdkBrowser from '../../witnesses/measurement.ts';
 import type { ColumnProbes, StreetProbeOptions } from './street.ts';
 
 /** The world `readBounds` left for the probe, and how to close it. */

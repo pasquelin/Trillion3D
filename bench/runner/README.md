@@ -56,7 +56,7 @@ engines they are the union of both sides' requirements.
 1. The autonomous engine decodes geometry pages itself, hence the only one incrementing
    `pagesDecodedWasm`. It needs a cache of exact clusters only: otherwise `autonomousScene` is null
    and the explorer rejects the run with `AUTONOMOUS_SCENE_UNAVAILABLE`.
-2. Eye-level views walk the model's street, read off its geometry (`street.ts`): its cooked
+2. Eye-level views walk the model's street, read off its geometry (`street/street.ts`): its cooked
    `physics.json` is asked, column by column, for ground, nearest wall at eye height and open sky;
    the roomiest open-sky column is the street, the nearer the centre between equals; an unanswered
    column is unknown, never the street; no clearance reaches past the box. No `physics.json` or no

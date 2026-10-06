@@ -1,4 +1,4 @@
-// A stand-in for the SDK a street probe imports by URL (`page.ts`, `streetPage.ts`): it counts the
+// A stand-in for the SDK a street probe imports by URL (`page.ts`, `street/streetPage.ts`): it counts the
 // worlds opened, the models loaded and the worlds closed; its physics finds a wall two metres
 // away along every heading, no ground above the floor and no roof — a model open to the sky.
 export const opened = { worlds: 0, loads: 0, disposed: 0, physics: [] as boolean[] };

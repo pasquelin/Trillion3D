@@ -5,7 +5,7 @@ import type {
   GpuPassTimings,
 } from '../../../packages/sdk-core/src/index.ts';
 import { poseAt } from '../trajectory/poses.ts';
-import { streetBounds } from '../street.ts';
+import { streetBounds } from '../street/street.ts';
 import { posterCapture } from '../measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
 import { type SpatialFeedback } from '../../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts';
@@ -87,7 +87,7 @@ export async function runFeedbackTarget(options: {
       !backend.feedbackAbSpatial
     )
       return unsupported('FEEDBACK_AB_UNAVAILABLE');
-    // The box and the street the bench's eye-level views walk (`street.ts`), read in this page.
+    // The box and the street the bench's eye-level views walk (`street/street.ts`), read in this page.
     const bounds = await streetBounds(options);
     const pose = poseAt(bounds, options.view);
     explorer.setPose(pose);

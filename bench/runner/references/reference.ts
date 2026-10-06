@@ -25,7 +25,7 @@ import {
   type ReferenceRecord,
 } from './referenceStore.ts';
 import { measurePayload, withGpuIncidents } from '../series/seriesPage.ts';
-import { readStreet } from '../street.ts';
+import { readStreet } from '../street/street.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../../..');
 const git = (...args: string[]) =>

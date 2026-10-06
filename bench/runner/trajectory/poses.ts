@@ -2,10 +2,10 @@
 // any host that wants to replay the same bench copies it from here. `PATH_VERSION` rises at every
 // change of the points, so two readings only compare at equal trajectory.
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts';
-import type { Street } from '../street.ts';
+import type { Street } from '../street/street.ts';
 
 const PATH_VERSION = 9;
-/** Where a path point stands. `street`: at the model's street (`street.ts`), `x` and `z` as shares
+/** Where a path point stands. `street`: at the model's street (`street/street.ts`), `x` and `z` as shares
  *  of its clearance — the radius no wall crosses at eye height — and `height` in eyes above its
  *  ground; every share stays within `STREET_REACH` of the column, so a segment between two street
  *  points stays in that disc. `over`: one eye above the model's top, `x` and `z` as shares of the
@@ -38,7 +38,7 @@ const POINTS: PathPoint[] = [
   over(0.72, 0.78),
 ];
 /** The farthest a street point stands from its column, as a share of the clearance: the square the
- *  probe keeps open over the street (`street.ts`) and the disc every street segment stays in. */
+ *  probe keeps open over the street (`street/street.ts`) and the disc every street segment stays in. */
 export const STREET_REACH = Math.max(
   ...POINTS.filter((p) => p.at === 'street').map((p) => Math.hypot(p.x, p.z)),
 );
@@ -63,12 +63,12 @@ interface FloorBounds {
 }
 
 /** A model's axis-aligned box, as read off a `THREE.Box3` or a bench report's plain JSON bounds,
- *  and the street the bench read off its geometry (`street.ts`), when it did. */
+ *  and the street the bench read off its geometry (`street/street.ts`), when it did. */
 export interface Bounds {
   min: { x: number; y: number; z: number };
   max: { x: number; y: number; z: number };
   street?: Street | null;
-  /** Why no street was read, by name (`street.ts`): the camera walks the box's (`boxStreet`). */
+  /** Why no street was read, by name (`street/street.ts`): the camera walks the box's (`boxStreet`). */
   noStreet?: string;
 }
 
@@ -87,7 +87,7 @@ export function eyeHeight(bounds: Bounds) {
   return Math.max(Math.max(sx, sz) * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
 }
 
-/** The street of a model none was read off (`street.ts`): its box centre on its floor, with the
+/** The street of a model none was read off (`street/street.ts`): its box centre on its floor, with the
  *  room its own footprint gives — half its narrower side, so every street point stays inside it. */
 export function boxStreet(bounds: Bounds) {
   const { min, max } = bounds;
