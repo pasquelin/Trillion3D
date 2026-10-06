@@ -2520,6 +2520,12 @@
       "name": "`cells`, `cellPage`: o arquivo de onde a fonte foi lida, que uma recusa nomeia."
     }
   },
+  "PageHome": {
+    "summary": "O lugar próprio de uma página num reservatório que guarda todo o catálogo: o seu posto, o seu primeiro byte e a sua largura."
+  },
+  "PageHomes": {
+    "summary": "O lugar de cada página por chave, e os bytes que ocupam juntas."
+  },
   "PageIntegrationAnswer": {
     "summary": "A resposta de um worker a uma chegada: planejada ou falhou."
   },
@@ -2806,6 +2812,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Números por rotação em um lote: quatro."
+  },
+  "QualityResolution": {
+    "summary": "A resolução em que um mundo desenha: um modo, ou uma `scale` do ecrã por eixo que substitui a do modo, fixa ou `dynamic` — o orçamento de fotograma escolhe então a escala entre metade dela e ela própria.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` ou `'turbo'`: 1, 1/1,5, 1/1,7, 1/2 ou 1/3 do ecrã por eixo.",
+      "scale": "Uma fração do ecrã por eixo, em vez da do modo.",
+      "dynamic": "Se o orçamento de fotograma baixa a escala enquanto a imagem se move."
+    }
   },
   "Quaternion": {
     "summary": "Uma rotação como um quatérnio unitário sobre `math/matrix/quaternion.ts`.",
@@ -7359,6 +7373,14 @@
       "budget": "Limites fixos, lidos uma vez no arranque da física.",
       "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (`world.physics.simulationRange`); `null` segue `camera.far`.",
       "gravity": "A gravidade do mundo: uma predefinição ou um vetor."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "A qualidade que uma página pede ao criar um mundo (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Cada grupo no nível deste nome.",
+      "groups": "Grupos que a página fixa num nível próprio, por cima da predefinição.",
+      "resolution": "A resolução; `WorldOptions.renderScale`, quando dada, prevalece."
     }
   },
   "VehicleDriver": {

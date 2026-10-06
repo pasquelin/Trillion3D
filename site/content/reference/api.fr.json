@@ -4627,6 +4627,12 @@
       "name": "`cells`, `cellPage` : le fichier d’où la source a été lue, qu’un refus nomme."
     }
   },
+  "PageHome": {
+    "summary": "La place propre d'une page dans un réservoir qui tient tout le catalogue : son rang, son premier octet et sa largeur."
+  },
+  "PageHomes": {
+    "summary": "La place de chaque page par clé, et les octets qu'elles prennent ensemble."
+  },
   "pageDecodeWorkerCount": {
     "summary": "Taille du réservoir de décodage : jamais plus que les cœurs qu’annonce la machine, jamais plus que le plafond du paquet, jamais plus que la limite d’admission déjà en vigueur sur les transferts, et au moins un.",
     "description": "Une valeur absente ou non entière vaut un seul exécutant : sur une plateforme qui ne dit rien, on n’invente pas de parallélisme."
@@ -5105,6 +5111,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Nombres par rotation dans un lot : quatre."
+  },
+  "QualityResolution": {
+    "summary": "La résolution à laquelle un monde dessine : un mode, ou une `scale` de l'affichage par axe qui remplace celle du mode, fixe ou `dynamic` — le budget d'image choisit alors l'échelle entre sa moitié et elle-même.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` ou `'turbo'` : 1, 1/1,5, 1/1,7, 1/2 ou 1/3 de l'affichage par axe.",
+      "scale": "Une fraction de l'affichage par axe, à la place de celle du mode.",
+      "dynamic": "Si le budget d'image baisse l'échelle tant que l'image bouge."
+    }
   },
   "Ray": {
     "summary": "Une demi-droite : origine et direction unitaire.",
@@ -7359,6 +7373,14 @@
       "budget": "Enveloppes fixes, lues une fois au démarrage de la physique.",
       "simulationRange": "Mètres autour de la caméra dans lesquels les corps sont simulés (`world.physics.simulationRange`) ; `null` suit `camera.far`.",
       "gravity": "La gravité du monde : un préréglage ou un vecteur."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "La qualité qu'une page demande en créant un monde (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Chaque groupe au niveau de ce nom.",
+      "groups": "Les groupes que la page règle à un niveau propre, par-dessus le préréglage.",
+      "resolution": "La résolution ; `WorldOptions.renderScale`, quand il est donné, l'emporte."
     }
   },
   "VehicleDriver": {

@@ -2520,6 +2520,12 @@
       "name": "`cells`、`cellPage`：ソースを読み込んだファイル。拒否はこれを名指しする。"
     }
   },
+  "PageHome": {
+    "summary": "カタログ全体を保持するプールの中で、ページ自身が占める場所。そのランク、先頭バイト、幅。"
+  },
+  "PageHomes": {
+    "summary": "キーごとの各ページの場所と、それらが合わせて占めるバイト数。"
+  },
   "PageIntegrationAnswer": {
     "summary": "ある到着に対するワーカーの回答: 計画済みか失敗か。"
   },
@@ -2806,6 +2812,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "バッチ内の1つの回転あたりの数値数: 4。"
+  },
+  "QualityResolution": {
+    "summary": "ワールドが描画する解像度。モード、または軸ごとの画面に対する `scale`(モードのものに置き換わる)。固定か `dynamic` で、後者ではフレーム予算がその半分からその値までの間でスケールを選びます。",
+    "members": {
+      "mode": "`'native'`、`'sharp'`、`'mixed'`、`'fast'`、`'turbo'`。軸ごとの画面の 1、1/1.5、1/1.7、1/2、1/3。",
+      "scale": "モードのものの代わりに用いる、軸ごとの画面に対する割合。",
+      "dynamic": "画像が動いている間、フレーム予算がスケールを下げるかどうか。"
+    }
   },
   "Quaternion": {
     "summary": "`math/matrix/quaternion.ts`にもとづく、単位クォータニオンとしての回転。",
@@ -7359,6 +7373,14 @@
       "budget": "固定の上限。物理の開始時に一度読まれる。",
       "simulationRange": "物体がシミュレートされるカメラ周囲の距離（メートル、`world.physics.simulationRange`）。`null` は `camera.far` に従います。",
       "gravity": "ワールドの重力：プリセットかベクトル。"
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "ページがワールドを作るときに求める品質(`WorldOptions.quality`)。",
+    "members": {
+      "preset": "すべてのグループをこの名前のレベルにします。",
+      "groups": "ページがプリセットの上から独自のレベルに設定するグループ。",
+      "resolution": "解像度。`WorldOptions.renderScale` が指定されていればそちらが優先されます。"
     }
   },
   "VehicleDriver": {

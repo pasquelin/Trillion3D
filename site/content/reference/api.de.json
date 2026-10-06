@@ -4619,6 +4619,12 @@
       "name": "`cells`, `cellPage`: die Datei, aus der die Quelle gelesen wurde und die eine Ablehnung nennt."
     }
   },
+  "PageHome": {
+    "summary": "Der eigene Platz einer Seite in einem Reservoir, das den ganzen Katalog hält: ihr Rang, ihr erstes Byte und ihre Breite."
+  },
+  "PageHomes": {
+    "summary": "Das Zuhause jeder Seite nach Schlüssel und die Bytes, die sie zusammen belegen."
+  },
   "pageDecodeWorkerCount": {
     "summary": "Größe des Dekodierungsreservoirs: nie mehr als die von der Maschine angekündigten Kerne, nie mehr als die Obergrenze des Pakets, nie mehr als die bereits geltende Zulassungsgrenze für Übertragungen, und mindestens eins.",
     "description": "Ein fehlender oder nicht ganzzahliger Wert bedeutet einen einzigen Ausführenden: auf einer Plattform, die nichts sagt, wird keine Parallelität erfunden."
@@ -5097,6 +5103,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Zahlen pro Rotation in einem Stapel: vier."
+  },
+  "QualityResolution": {
+    "summary": "Die Auflösung, in der eine Welt zeichnet: ein Modus oder eine `scale` der Anzeige je Achse, die die des Modus ersetzt, fest oder `dynamic` — das Bildbudget wählt dann die Skala zwischen der Hälfte davon und ihr selbst.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'` oder `'turbo'`: 1, 1/1,5, 1/1,7, 1/2 oder 1/3 der Anzeige je Achse.",
+      "scale": "Ein Bruchteil der Anzeige je Achse anstelle des Bruchteils des Modus.",
+      "dynamic": "Ob das Bildbudget die Skala senkt, solange sich das Bild bewegt."
+    }
   },
   "Ray": {
     "summary": "Ein Strahl: Ursprung und Einheitsrichtung.",
@@ -7359,6 +7373,14 @@
       "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
       "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (`world.physics.simulationRange`); `null` folgt `camera.far`.",
       "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "Die Qualität, die eine Seite beim Erstellen einer Welt verlangt (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Jede Gruppe auf der Stufe dieses Namens.",
+      "groups": "Gruppen, die die Seite auf eine eigene Stufe über der Voreinstellung setzt.",
+      "resolution": "Die Auflösung; `WorldOptions.renderScale` hat Vorrang, wenn angegeben."
     }
   },
   "VehicleDriver": {

@@ -2538,6 +2538,12 @@
       "name": "`cells`, `cellPage`: berkas tempat sumber dibaca, yang disebut oleh penolakan."
     }
   },
+  "PageHome": {
+    "summary": "Tempat milik sebuah halaman dalam kolam yang menampung seluruh katalog: peringkatnya, byte pertamanya, dan lebarnya."
+  },
+  "PageHomes": {
+    "summary": "Tempat setiap halaman menurut kuncinya, dan byte yang mereka pakai bersama."
+  },
   "PageIntegrationAnswer": {
     "summary": "Jawaban seorang worker untuk sebuah kedatangan: direncanakan atau gagal."
   },
@@ -2824,6 +2830,14 @@
   },
   "QUATERNION_VALUES": {
     "summary": "Angka per rotasi dalam sebuah batch: empat."
+  },
+  "QualityResolution": {
+    "summary": "Resolusi yang digunakan dunia untuk menggambar: sebuah mode, atau `scale` layar per sumbu yang menggantikan skala mode, tetap atau `dynamic` — anggaran bingkai lalu memilih skala di antara setengahnya dan skala itu sendiri.",
+    "members": {
+      "mode": "`'native'`, `'sharp'`, `'mixed'`, `'fast'`, atau `'turbo'`: 1, 1/1,5, 1/1,7, 1/2, atau 1/3 dari layar per sumbu.",
+      "scale": "Pecahan layar per sumbu, sebagai pengganti pecahan mode.",
+      "dynamic": "Apakah anggaran bingkai menurunkan skala saat gambar bergerak."
+    }
   },
   "Quaternion": {
     "summary": "Sebuah rotasi sebagai quaternion satuan atas `math/matrix/quaternion.ts`.",
@@ -7360,6 +7374,14 @@
       "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
       "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (`world.physics.simulationRange`); `null` mengikuti `camera.far`.",
       "gravity": "Gravitasi dunia: preset atau vektor."
+    }
+  },
+  "WorldQualityOptions": {
+    "summary": "Kualitas yang diminta halaman saat membuat dunia (`WorldOptions.quality`).",
+    "members": {
+      "preset": "Setiap grup pada tingkat bernama ini.",
+      "groups": "Grup yang diatur halaman pada tingkatnya sendiri, di atas preset.",
+      "resolution": "Resolusinya; `WorldOptions.renderScale`, bila diberikan, diutamakan."
     }
   },
   "VehicleDriver": {
