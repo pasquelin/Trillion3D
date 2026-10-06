@@ -26,48 +26,43 @@ export interface Counts {
    *  contiguous, nothing for a chain the family left lossless. */
   previewBlockBytes: Record<TextureBlockFormat, number>;
 }
+/** Which row count each column holds one element per: a part of `Counts`, or a block format's bytes. */
+type RowCount = Exclude<keyof Counts, 'previewBlockBytes'> | TextureBlockFormat;
+
+const COLUMN_ROWS: Record<ColumnName, RowCount> = {
+  pageBounds: 'pages',
+  pageSphere: 'pages',
+  pageParentSphere: 'pages',
+  pageError: 'pages',
+  pageInt: 'pages',
+  pageU32: 'pages',
+  pageSha: 'pages',
+  geometrySha: 'pages',
+  geometryU32: 'pages',
+  pageDepthLayer: 'pages',
+  pageCone: 'pages',
+  cullingNodes: 'cullingNodes',
+  groupLevel: 'groups',
+  groupError: 'groups',
+  groupSphere: 'groups',
+  groupChildCount: 'groups',
+  groupOutputCount: 'groups',
+  groupChild: 'children',
+  groupOutput: 'outputs',
+  structureRoot: 'roots',
+  bundleU32: 'bundles',
+  bundleSha: 'bundles',
+  bundleDependencyCount: 'bundles',
+  bundleDependency: 'bundleDependencies',
+  texturePreviewU32: 'previews',
+  texturePreviewSha: 'previews',
+  texturePreviewPixels: 'previewBytes',
+  texturePreviewBc7: 'bc7',
+  texturePreviewAstc: 'astc',
+};
+
+/** The element count of column `name`: its row count's part of `counts`. */
 export function columnElements(name: ColumnName, counts: Counts) {
-  switch (name) {
-    case 'pageBounds':
-    case 'pageSphere':
-    case 'pageParentSphere':
-    case 'pageError':
-    case 'pageInt':
-    case 'pageU32':
-    case 'pageSha':
-    case 'geometrySha':
-    case 'geometryU32':
-    case 'pageDepthLayer':
-    case 'pageCone':
-      return counts.pages;
-    case 'cullingNodes':
-      return counts.cullingNodes;
-    case 'groupLevel':
-    case 'groupError':
-    case 'groupSphere':
-    case 'groupChildCount':
-    case 'groupOutputCount':
-      return counts.groups;
-    case 'groupChild':
-      return counts.children;
-    case 'groupOutput':
-      return counts.outputs;
-    case 'structureRoot':
-      return counts.roots;
-    case 'bundleU32':
-    case 'bundleSha':
-    case 'bundleDependencyCount':
-      return counts.bundles;
-    case 'bundleDependency':
-      return counts.bundleDependencies;
-    case 'texturePreviewU32':
-    case 'texturePreviewSha':
-      return counts.previews;
-    case 'texturePreviewPixels':
-      return counts.previewBytes;
-    case 'texturePreviewBc7':
-      return counts.previewBlockBytes.bc7;
-    case 'texturePreviewAstc':
-      return counts.previewBlockBytes.astc;
-  }
+  const rows = COLUMN_ROWS[name];
+  return rows === 'bc7' || rows === 'astc' ? counts.previewBlockBytes[rows] : counts[rows];
 }
