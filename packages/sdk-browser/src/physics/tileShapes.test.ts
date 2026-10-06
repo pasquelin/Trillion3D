@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
+import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
+import { Material } from '../../../sdk-core/src/world/material/material.ts'
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { recorded, repeated, residentAt, settle } from './tileShapes.fixture.ts'
 import { landed, streamedModel } from './tiles.fixture.ts'
 
@@ -41,16 +44,16 @@ test('the bodies of a tile all reference its one shape, released once its last b
 })
 
 test('the collision share counts a shared tile once and each placement one body: the farther wait for a body', async () => {
-  // A share of 2 bytes, the tile's alone, and 600 bodies for 1,000 placements.
-  const streamer = await streamed(1000, { memoryBytes: 4, bodies: 600 })
+  // A share of 2 bytes, the tile's alone, and 600 bodies of the tiles for 1,000 placements.
+  const streamer = await streamed(1000, { memoryBytes: 4, bodies: 1200 })
   const { bodies, errors, restored, reads } = streamer
   await settle(streamer, [0, 0, 0], 1e5)
   assert.deepEqual([bodies.count.collisionBytes, bodies.count.bodies, errors], [2, 600, []])
-  assert.equal(Math.max(...residentAt(bodies, 600)), 5990, 'the 600 nearest')
+  assert.equal(Math.max(...residentAt(bodies, 1200)), 5990, 'the 600 nearest')
   // Nearer the other end: each body that leaves makes room for one that waited, on the shape held.
   await settle(streamer, [10_000, 0, 0], 1e5)
   assert.deepEqual([bodies.count.bodies, restored.length, reads(), errors], [600, 1, 1, []])
-  assert.equal(Math.min(...residentAt(bodies, 600)), 4000, 'the 600 nearest the other end')
+  assert.equal(Math.min(...residentAt(bodies, 1200)), 4000, 'the 600 nearest the other end')
 })
 
 test('a placement coming within range while its tile is resident gets its body with no read', async () => {
@@ -81,4 +84,57 @@ test('an update builds a bounded number of tile bodies, nearest first: a thousan
     `${built}`,
   )
   assert.equal(bodies.count.bodies, 1000)
+})
+
+test('tile bodies hold half the body budget at most: the page’s bodies keep the rest', async () => {
+  const streamer = await streamed(100, { bodies: 8 })
+  const { scene, bodies, errors } = streamer
+  await settle(streamer, [0, 0, 0], 1e5)
+  assert.equal(bodies.count.bodies, 4, 'the four nearest placements')
+  for (let i = 0; i < 4; i++) {
+    const crate = new Mesh(box(1, 1, 1), new Material('meshStandard'))
+    crate.physics = 'dynamic'
+    scene.add(crate)
+  }
+  bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
+  assert.deepEqual([bodies.count.bodies, errors], [8, []])
+})
+
+test('the bodies an update leaves unbuilt ask another frame; none left, none is asked', async () => {
+  const streamer = await streamed(100)
+  const { tiles, bodies, heard } = streamer
+  /** Whether `tiles.update` asks another frame before its reads land. */
+  const asks = async () => {
+    const asked = heard().then(() => true)
+    tiles.update([0, 0, 0], 1e5)
+    return Promise.race([asked, landed().then(() => false)])
+  }
+  await asks()
+  assert.deepEqual([await asks(), bodies.count.bodies], [true, 64], 'thirty-six still to build')
+  assert.deepEqual([await asks(), bodies.count.bodies], [false, 100])
+})
+
+test('a tile the worker refuses leaves with every placement of it, built on no more', async () => {
+  const streamer = await streamed(3)
+  const { tiles, bodies, restored, released, builtOn } = streamer
+  await settle(streamer, [0, 0, 0], 1e5)
+  const owner = bodies.slots.at(0)
+  assert.ok(owner && 'tile' in owner)
+  tiles.refused(owner.tile.id)
+  await settle(streamer, [0, 0, 0], 1e5)
+  assert.deepEqual([bodies.count.bodies, released, builtOn.length], [0, restored, 3])
+})
+
+test('a tile that fails as it lands is reported, never left unhandled', async () => {
+  const streamer = await streamed(1)
+  const { tiles, writer, errors } = streamer
+  writer.restore = () => {
+    throw new Error('the module is gone')
+  }
+  tiles.update([0, 0, 0], 1e5)
+  await landed()
+  assert.deepEqual(
+    errors.map((error) => (error as unknown as Error).message),
+    ['the module is gone'],
+  )
 })

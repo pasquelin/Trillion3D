@@ -1,6 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
   BODY_INDEX,
+  COLLISION_SHARE,
   collisionBytesOf,
   type CommandWriter,
   type PhysicsBudget,
@@ -16,9 +17,9 @@ import { cookedPhysics, isModel, locate, placedOf, tilePose, type Model } from '
 /**
  * The cooked collision of the compiled models in a scene (`physics.json`), streamed into the
  * simulation within the static collision's share of `budget.memoryBytes` (`collisionBytesOf`) and
- * the bodies `budget.bodies` leaves it: tiles load around every moving body first, then around the
- * eye up to the active range — the camera's draw distance, the scene's own —, nearest first, and
- * leave once no longer wanted. A scene is never refused for its size: a tile that does not fit
+ * of `budget.bodies` (`COLLISION_SHARE`), the other bodies keeping the rest: tiles load around
+ * every moving body first, then around the eye up to the active range — the camera's draw
+ * distance, the scene's own —, nearest first, and leave once no longer wanted. A scene is never refused for its size: a tile that does not fit
  * waits, the farther ones leaving for it. A tile is restored from the module's binary state, never
  * rebuilt; so are the bodies its nodes declare (`cookedBodies.ts`), made as it opens.
  *
@@ -40,8 +41,9 @@ export function createTileStreamer(
   const shapes = new SharedShapes(writer, bodies)
   const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
   const resident = createResidentTiles(writer, bodies, shapes)
-  const schedule = new TileSchedule(bodies, declared, shapes, resident, invalidate, failed)
-  const share = collisionBytesOf(budget)
+  const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
+  // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
+  const [share, bodyShare] = [collisionBytesOf(budget), Math.floor(budget.bodies * COLLISION_SHARE)]
   function open(model: Model) {
     const opening: TileOpening = { placed: [], abort: new AbortController() }
     const { signal } = opening.abort
@@ -60,10 +62,7 @@ export function createTileStreamer(
   /** Everything `model` holds out: its tiles, each letting its shape go, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {
     abort.abort()
-    for (const p of placed) {
-      resident.evict(p)
-      shapes.letGo(p.shape)
-    }
+    placed.forEach(resident.remove)
     declared.forget(model)
   }
   return {
@@ -89,24 +88,24 @@ export function createTileStreamer(
       if (!models.size) return
       declared.carry()
       schedule.want(models, eye, range)
-      const count = bodies.count
+      const count = bodies.count,
+        held = resident.held.bodies
       schedule.admit(
-        share - count.collisionBytes + shapes.heldBytes,
-        budget.bodies - count.bodies + resident.held.bodies,
+        share - count.collisionBytes + shapes.tileBytes,
+        Math.min(bodyShare, budget.bodies - count.bodies + held),
       )
       schedule.start()
     },
     /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
-    /** The worker refused body `id`: a tile or a cooked body leaves until its model opens again. */
+    /** The worker refused body `id`: a cooked body leaves until its model opens again; a tile's
+     *  shape is refused, every placement of it leaving with it while it is held. */
     refused(id: number) {
       const owner = bodies.slots.of(id)
-      if (!owner || !('tile' in owner)) return owner && declared.refused(owner)
-      const p = owner.tile,
-        placed = models.get(owner.model)!.placed
-      resident.evict(p)
-      shapes.letGo(p.shape)
-      placed.splice(placed.indexOf(p), 1)
+      if (owner && 'tile' in owner) {
+        owner.tile.shape.refused = true
+        resident.evict(owner.tile)
+      } else if (owner) declared.refused(owner)
       schedule.settle()
     },
     /** The glTF material of a tile body's triangles, `-1` for none or for another body. */

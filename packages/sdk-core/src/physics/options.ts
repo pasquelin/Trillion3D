@@ -95,7 +95,7 @@ export const DEFAULT_MATTER: PhysicsMatter = { density: 1000, friction: 0.5, res
 
 /** The fixed envelopes of a world's physics; never read from the machine. */
 export interface PhysicsBudget {
-  /** Bodies of every kind at once. */
+  /** Bodies of every kind at once; half at most the static ones a compiled model's tiles stream. */
   bodies: number
   /** Decorative bodies at once. */
   decorative: number
@@ -164,8 +164,8 @@ export function physicsBudgetOf(budget: Partial<PhysicsBudget> = {}): PhysicsBud
   return Object.seal({ ...DEFAULT_PHYSICS_BUDGET, ...budget })
 }
 
-/** The share of `memoryBytes` the static collision holds at once. */
-const COLLISION_SHARE = 0.5
+/** The share of `memoryBytes`, and of `bodies`, the streamed static collision holds at once. */
+export const COLLISION_SHARE = 0.5
 /** Bytes the module holds a static triangle by: what a cooked tile takes, bounding tree included. */
 export const TRIANGLE_BYTES = 16
 /** Bytes of static collision `budget` holds at once: tiles and static triangle meshes together. */

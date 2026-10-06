@@ -1,6 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import type { createModelBodies } from './modelBodies.ts'
+import { partition, selectNearest } from './nearest.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import type { createResidentTiles } from './tileResident.ts'
 import { moversOf, nearness, type Placed, type TileShape } from './tilePlace.ts'
@@ -18,142 +19,157 @@ const BUILDS = 64
  *  go of its file's read by — one back while it was on its way lands once, the later. */
 export type TileOpening = { placed: Placed[]; abort: AbortController }
 
-const byNear = (a: Placed, b: Placed) => a.near - b.near
+/** What a schedule reads and acts on: the session's bodies, the models' declared ones, the
+ *  shared shapes and the tile bodies, and where it asks a frame and reports a failure. */
+type ScheduleParts = {
+  bodies: ReturnType<typeof createPhysicsBodies>
+  declared: ReturnType<typeof createModelBodies>
+  shapes: SharedShapes
+  resident: ReturnType<typeof createResidentTiles>
+  invalidate: () => void
+  failed: (error: EngineError) => void
+}
+
+const byNear = (a: TileShape, b: TileShape) => a.near - b.near
 
 /**
- * What an update does for the tiles, in three steps: `want` lists the placements wanted, nearest
- * first, the others evicted; `admit` lets in those that fit; `start` builds their bodies on their
- * resident tiles and reads the others, within the caps — `FETCHES` reads in flight, `LOADS` reads
- * and `BUILDS` bodies an update —, then lets the tiles no one uses go. Nothing is allocated per
- * update: the placements wanted are a scratch list sorted by their own nearness.
+ * What an update does for the tiles: `want` lists the placements wanted and their tiles, each tile
+ * by its nearest placement; `admit` lets in those that fit; `start` builds their bodies on their
+ * resident tiles and reads the others, nearest first within the caps — `FETCHES` reads in flight,
+ * `LOADS` reads and `BUILDS` bodies an update, another frame asked while bodies wait —, then lets
+ * the tiles no one uses go. Only the U tiles wanted are sorted: the P placements (P ≫ U for a prop
+ * repeated over a world) are only partitioned and selected, O(P) on average. Nothing is allocated
+ * per update: the lists are scratch, kept from one to the next.
  */
 export class TileSchedule {
   private readonly wanted: Placed[] = []
+  private readonly tiles: TileShape[] = []
   private readonly movers: number[] = []
   private fetching = 0
   private pass = 0
+  /** The placements the last `admit` let in: the front of `wanted`. */
+  private in = 0
   private eye: ArrayLike<number> = []
   private range = 0
-  private readonly bodies: ReturnType<typeof createPhysicsBodies>
-  private readonly declared: ReturnType<typeof createModelBodies>
-  private readonly shapes: SharedShapes
-  private readonly resident: ReturnType<typeof createResidentTiles>
-  private readonly invalidate: () => void
-  private readonly failed: (error: EngineError) => void
+  private readonly parts: ScheduleParts
 
-  constructor(
-    bodies: ReturnType<typeof createPhysicsBodies>,
-    declared: ReturnType<typeof createModelBodies>,
-    shapes: SharedShapes,
-    resident: ReturnType<typeof createResidentTiles>,
-    invalidate: () => void,
-    failed: (error: EngineError) => void,
-  ) {
-    this.bodies = bodies
-    this.declared = declared
-    this.shapes = shapes
-    this.resident = resident
-    this.invalidate = invalidate
-    this.failed = failed
+  constructor(parts: ScheduleParts) {
+    this.parts = parts
   }
   /** Lists the placements of `openings` wanted around `eye` within `range` and the moving bodies
-   *  (`nearness`), nearest first; one unwanted, absent, or whose node a declared body holds, is
-   *  evicted. */
+   *  (`nearness`), and their tiles nearest first; one unwanted, of a refused tile, or whose node a
+   *  declared body holds, is evicted. */
   want(
     openings: ReadonlyMap<unknown, { placed: Placed[] }>,
     eye: ArrayLike<number>,
     range: number,
   ) {
-    const bodies = this.bodies
+    const bodies = this.parts.bodies
     moversOf(bodies.meshes, bodies.nested, bodies.state.velocity, this.movers)
     this.eye = eye
     this.range = range
+    this.pass++
     openings.forEach(this.collect)
-    this.wanted.sort(byNear)
+    this.tiles.sort(byNear)
   }
   /**
-   * Lets in, nearest first, the placements wanted within `free` bytes of the share and `slots`
-   * bodies: a tile's bytes counted once, at its nearest placement; each placement one body. Past
-   * the first tile whose bytes do not fit, no other tile's are counted — the room kept for it —,
-   * but the placements of a tile counted already still come in while bodies remain; a tile past
-   * the whole share never fits, and holds no one back. The others are evicted.
+   * Lets in the placements wanted within `free` bytes of the share and `slots` bodies: the tiles'
+   * bytes counted once each, nearest tile first — past the first that does not fit, no farther one
+   * is, the room kept for it; one past the whole share never fits, and holds no one back —, then
+   * the `slots` nearest placements of the tiles counted. The others are evicted.
    */
   admit(free: number, slots: number) {
-    const wanted = this.wanted,
-      pass = ++this.pass
-    let bytes = free,
-      stopped = false
+    const tiles = this.tiles,
+      wanted = this.wanted
+    let bytes = free
+    for (let i = 0; i < tiles.length; i++) {
+      const shape = tiles[i]
+      if (shape.bytes > free) continue
+      if (shape.bytes > bytes) break
+      bytes -= shape.bytes
+      shape.counted = this.pass
+    }
+    const counted = partition(wanted, 0, wanted.length, this.counted),
+      n = Math.min(counted, Math.max(slots, 0))
+    if (n < counted) selectNearest(wanted, counted, n)
     for (let i = 0; i < wanted.length; i++) {
-      const p = wanted[i],
-        shape = p.shape,
-        fresh = shape.wanted !== pass
-      if (fresh && shape.bytes <= free && shape.bytes > bytes) stopped = true
-      p.out = slots < 1 || (fresh && (stopped || shape.bytes > free))
-      if (p.out) {
-        this.resident.evict(p)
-        continue
-      }
-      if (fresh) bytes -= shape.bytes
-      shape.wanted = pass
-      slots--
+      const p = wanted[i]
+      p.out = i >= n
+      if (p.out) this.parts.resident.evict(p)
+      else p.shape.wanted = this.pass
     }
+    this.in = n
   }
-  /** Builds the bodies of the placements let in on their resident tiles and reads the others,
-   *  nearest first, until the caps are spent; then lets go of the tiles no one uses. */
+  /** Builds the `BUILDS` nearest bodies the placements let in wait for on their resident tiles,
+   *  asking another frame for the others, and reads the `LOADS` nearest tiles still to read; then
+   *  lets go of the tiles no one uses. */
   start() {
-    const wanted = this.wanted
-    let loads = LOADS,
-      builds = BUILDS
-    for (let i = 0; i < wanted.length && (builds || (loads && this.fetching < FETCHES)); i++) {
-      const p = wanted[i],
-        shape = p.shape
-      if (p.out || p.id >= 0) continue
-      if (shape.handle >= 0) {
-        if (!builds) continue
-        builds--
-        this.resident.build(p)
-      } else if (loads && this.fetching < FETCHES && !shape.read) {
-        loads--
-        this.read(shape)
-      }
+    const wanted = this.wanted,
+      parts = this.parts
+    const waiting = partition(wanted, 0, this.in, this.buildable)
+    if (waiting > BUILDS) {
+      selectNearest(wanted, waiting, BUILDS)
+      parts.invalidate()
     }
-    wanted.length = 0
+    for (let i = 0; i < waiting && i < BUILDS; i++) parts.resident.build(wanted[i])
+    const tiles = this.tiles
+    for (let i = 0, loads = LOADS; i < tiles.length && loads && this.fetching < FETCHES; i++) {
+      const shape = tiles[i]
+      if (shape.wanted !== this.pass || shape.handle >= 0 || shape.read) continue
+      loads--
+      this.read(shape)
+    }
+    wanted.length = tiles.length = 0
     this.settle()
   }
-  /** Lets go of the tiles no one uses, but those the last update admitted. */
+  /** Lets go of the tiles no one uses, but those the last update let in. */
   settle() {
-    this.shapes.settle(this.pass)
+    this.parts.shapes.settle(this.pass)
   }
-  /** Lists the placements of `opening` wanted, their nearness kept; evicts the others. */
+  /** Lists the placements of `opening` wanted, and their tiles, each with its nearest; evicts the
+   *  others. */
   private readonly collect = (opening: { placed: Placed[] }) => {
-    const placed = opening.placed
+    const placed = opening.placed,
+      parts = this.parts
     for (let i = 0; i < placed.length; i++) {
       const p = placed[i],
+        shape = p.shape,
         near = nearness(p, this.eye, this.range, this.movers)
-      if (near === Infinity || p.shape.absent || this.declared.holds(p.model, p.instance.node))
-        this.resident.evict(p)
-      else {
-        p.near = near
-        this.wanted.push(p)
+      if (near === Infinity || shape.refused || parts.declared.holds(p.model, p.instance.node)) {
+        parts.resident.evict(p)
+        continue
       }
+      p.near = near
+      this.wanted.push(p)
+      if (shape.seen !== this.pass) {
+        shape.seen = this.pass
+        shape.near = near
+        this.tiles.push(shape)
+      } else if (near < shape.near) shape.near = near
     }
   }
+  /** Whether placement `p`'s tile had its bytes counted by this update. */
+  private readonly counted = (p: Placed) => p.shape.counted === this.pass
+  /** Whether placement `p` waits for its body on its resident tile. */
+  private readonly buildable = (p: Placed) => p.id < 0 && p.shape.handle >= 0
   /** One request: a tile still wanted is asked again at the next update, but for a 4xx; a read
-   *  its last holder let go of is no failure. */
+   *  its last holder let go of is no failure, one that cannot land is. */
   private read(shape: TileShape) {
+    const parts = this.parts
     this.fetching++
-    void this.shapes
+    void parts.shapes
       .read(shape, ONE_REQUEST)
       .then(
         (bytes) => this.land(shape, bytes),
-        (error) => shape.holders && this.failed(error as EngineError),
+        (error) => shape.holders && parts.failed(error as EngineError),
       )
+      .catch((error) => parts.failed(error as EngineError))
       .finally(() => this.fetching--)
   }
-  /** `shape`'s bytes landed: restored if the last update admitted it and they fit, its bodies
-   *  built by the next; else they are let go, and it is read again once it fits. */
+  /** `shape`'s bytes landed: restored if the last update let it in and they fit, its bodies built
+   *  by the next, asked at once; else they are let go, and it is read again once it fits. */
   private land(shape: TileShape, bytes: Uint8Array) {
-    if (shape.holders && shape.wanted === this.pass && this.shapes.restore(shape, bytes))
-      this.invalidate()
+    if (shape.holders && shape.wanted === this.pass && this.parts.shapes.restore(shape, bytes))
+      this.parts.invalidate()
   }
 }

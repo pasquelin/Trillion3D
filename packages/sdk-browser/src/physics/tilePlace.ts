@@ -48,8 +48,15 @@ export interface Placed {
   near: number
 }
 
-/** A cooked tile as the session shares it (`sharedShapes.ts`): its manifest entry beside. */
-export type TileShape = SharedShape & { tile: CookedTile }
+/** A cooked tile as the session shares it (`sharedShapes.ts`), its manifest entry beside, and the
+ *  marks an update leaves on it (`tileSchedule.ts`): how near its nearest wanted placement is, the
+ *  update that saw it wanted, and the one that counted its bytes against the share. */
+export type TileShape = SharedShape & {
+  tile: CookedTile
+  near: number
+  seen: number
+  counted: number
+}
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
 const LOOKAHEAD_S = 1
@@ -93,7 +100,7 @@ export function placedOf(
   const hold = (tile: CookedTile) => {
     let href = hrefs.get(tile.url)
     if (!href) hrefs.set(tile.url, (href = cookedHref(model, tile.url)))
-    return shapes.hold(href, tile.bytes, { tile })
+    return shapes.hold('tile', href, tile.bytes, { tile, near: Infinity, seen: -1, counted: -1 })
   }
   return cooked.instances.flatMap((instance) => {
     const { tiles, material } = cooked.colliders[instance.collider]

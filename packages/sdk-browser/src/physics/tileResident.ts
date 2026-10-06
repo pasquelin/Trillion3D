@@ -21,6 +21,14 @@ export function createResidentTiles(
   shapes: SharedShapes,
 ) {
   const held = { bodies: 0 }
+  const evict = (p: Placed) => {
+    p.out = true
+    if (p.id < 0) return
+    bodies.release(p.id & BODY_INDEX)
+    p.id = -1
+    shapes.done(p.shape)
+    held.bodies--
+  }
   return {
     held,
     /** Builds tile `p`'s static body on its restored shape. */
@@ -39,13 +47,11 @@ export function createResidentTiles(
       held.bodies++
     },
     /** Leaves tile `p` out, its body removed. */
-    evict(p: Placed) {
-      p.out = true
-      if (p.id < 0) return
-      bodies.release(p.id & BODY_INDEX)
-      p.id = -1
-      shapes.done(p.shape)
-      held.bodies--
+    evict,
+    /** Takes tile `p` out for good, its model leaving: its body removed, its tile let go of. */
+    remove(p: Placed) {
+      evict(p)
+      shapes.letGo(p.shape)
     },
   }
 }

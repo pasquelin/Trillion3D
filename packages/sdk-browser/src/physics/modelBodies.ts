@@ -16,7 +16,7 @@ export function createModelBodies(
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  const softs = createCookedSoftBodies(writer, bodies, invalidate, failed)
+  const softs = createCookedSoftBodies(writer, bodies, shapes, invalidate, failed)
   const rigid = createCookedBodies(writer, bodies, shapes, invalidate, failed)
   const both = [softs, rigid]
   return {
