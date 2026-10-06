@@ -89,13 +89,17 @@ export async function createDeferredProgram(
       : undefined,
     createCompositions(device, sources.compose, sources.label),
   ])
-  /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
-  let identity = createWebgpuBindIdentity(),
+  /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). Two
+   *  identities are held, and a group for each: the shadow maps' tables are double-buffered, this
+   *  frame's then the other's, and their frames take turns. */
+  let identity = createWebgpuBindIdentity(2),
     boundSurface: SurfaceBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     /** The bound surface's flags: the share the lit image is composed with. */
     boundFlags: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined
+  /** By identity slot, the light group made for it and the flags it was made with. */
+  const held: ({ group: GPUBindGroup; flags: GPUTextureView } | undefined)[] = []
   // The virtual shadow maps' stand-ins as a frame's group (`DirectLightResources.vsm`), made once:
   // a frame without maps binds them and allocates nothing.
   const vsmPlaceholders = {
@@ -168,8 +172,15 @@ export async function createDeferredProgram(
       next[8 + receiver.length] = vsm.uniforms
       next[9 + receiver.length] = vsmTransmission
       next[10 + receiver.length] = maskTiles
-      if (!identity.moved()) return
       boundSurface = surface
+      const kept = identity.moved() ? undefined : held[identity.slot]
+      if (kept) {
+        lightGroup = kept.group
+        boundFlags = kept.flags
+        return
+      }
+      // Until it is made, the slot holds no group: a refused one is asked again.
+      held[identity.slot] = undefined
       boundFlags = surface.views()[3]
       const entries: GPUBindGroupEntry[] = [
         ...surface.views().map((resource, binding) => ({ binding, resource })),
@@ -204,9 +215,11 @@ export async function createDeferredProgram(
           { binding: BOUNCE_SURFACE_BINDING, resource: direct.surfaceCache },
         )
       lightGroup = device.createBindGroup({ layout: lightingLayout, entries })
+      held[identity.slot] = { group: lightGroup, flags: boundFlags }
     },
     release() {
-      identity = createWebgpuBindIdentity()
+      identity = createWebgpuBindIdentity(2)
+      held.length = 0
       boundSurface = boundHdr = boundFlags = lightGroup = undefined
       composed = new WeakMap()
     },

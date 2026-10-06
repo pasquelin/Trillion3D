@@ -96,6 +96,24 @@ test('a still frame binds nothing new: the group and the descriptors survive the
   assert.equal(groups.created, built + 2, 'a resized backdrop rebuilds depth and composite groups')
 })
 
+test("the shadow maps' double-buffered tables taking turns build one composite group each, once", async () => {
+  const { rt, encoder, groups, blendState } = await mounted()
+  const lighting = blendState.lighting!,
+    tables = [lighting.shadowData, {} as GPUBuffer]
+  const frame = (k: number) => {
+    blendState.lighting = { ...lighting, shadowData: tables[k % 2] }
+    encodeWaterPass(rt, encoder)
+  }
+  frame(0)
+  const built = groups.created
+  frame(1)
+  assert.equal(groups.created, built + 1, "the other table's frame builds its own group")
+  for (let k = 2; k < 8; k++) frame(k)
+  assert.equal(groups.created, built + 1, 'then the frames take turns and build nothing')
+  const shadowData = groups.last.get(WATER_BINDINGS.shadowData) as GPUBufferBinding
+  assert.equal(shadowData.buffer, tables[1])
+})
+
 test('glass behind the camera: no copy, no surface pass, no composite', async () => {
   const { rt, encoder, passes, counters, blendState } = await mounted()
   // A frustum whose near plane faces +z rejects a box that lies entirely beyond z = -1.
