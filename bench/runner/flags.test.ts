@@ -19,13 +19,12 @@ const NAMED = [
   /(?<![\w-])--([a-z][\w-]*)/g,
 ];
 
-/** The harness sources, tests left out: a test may name a retired flag to prove it refused. */
+/** The harness sources, in every folder of the runner, tests left out: a test may name a retired
+ *  flag to prove it refused. */
 function harnessSources() {
-  return ['.', 'scenes'].flatMap((dir) =>
-    readdirSync(join(HERE, dir))
-      .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
-      .map((file) => read(join(dir, file))),
-  );
+  return readdirSync(HERE, { recursive: true, encoding: 'utf8' })
+    .filter((file) => file.endsWith('.ts') && !file.endsWith('.test.ts'))
+    .map((file) => read(file));
 }
 
 /** Every capture of `pattern` in `text`, split on commas. */
