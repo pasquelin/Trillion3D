@@ -49,12 +49,14 @@ test("a cell's mesh pages wait in the session's queue, at the priority its hold 
   }
 })
 
-test('a mesh page no hold wants any more leaves the session catalogue, read or failed', async (t) => {
+test('a mesh page no hold wants any more leaves the session catalogue, its refusal kept', async (t) => {
   const { root, files } = pagedManifest(manifest(), false, true)
   const [read, failed] = root.pages as string[]
   const refused = `manifest-page-${failed.slice(0, 64)}.json`
+  const sent: string[] = []
   t.mock.method(globalThis, 'fetch', async (url: string) => {
     const name = url.split('/').at(-1)!
+    sent.push(name)
     return name === refused
       ? new Response('', { status: 404 })
       : new Response(files.get(name)!.slice())
@@ -71,7 +73,9 @@ test('a mesh page no hold wants any more leaves the session catalogue, read or f
   pages.release([read, failed])
   for (const slot of [read, failed])
     await assert.rejects(streamer.readBytes(url(slot)), /Unknown page/)
-  assert.equal(streamer.stats().failed, 0, 'its failure left with it')
+  const asked = sent.length
+  await assert.rejects(pages.hold([failed]), /PAGE_STREAM_FAILED/)
+  assert.equal(sent.length, asked, 'held again, refused at once: a 404 is never asked again')
 })
 
 test('a mesh page read through the queue is held by its primitives alone: the page cache never keeps it', async (t) => {

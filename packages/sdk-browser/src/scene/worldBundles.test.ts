@@ -64,10 +64,10 @@ test('a run the server refuses for good (404) is never asked again', async (t) =
   assert.equal(queue.failed(`http://world/world-roots.bin#2-4`), true)
   roots.release(1)
   roots.release(1)
-  assert.deepEqual([roots.held(), queue.stats().failed], [[], 0], 'let go, it leaves')
+  assert.deepEqual([roots.held(), queue.stats().failed], [[], 1], 'let go, its refusal stays')
 })
 
-test('a run no hold wants any more leaves the catalogue, failed or not', async (t) => {
+test('a run no hold wants any more leaves the catalogue, failed or not, its wait still in force', async (t) => {
   const world = served(t, {
     answer: async (from, _to, respond) =>
       from === world.table.bundles[1].offset ? new Response('', { status: 503 }) : respond(),
@@ -78,10 +78,10 @@ test('a run no hold wants any more leaves the catalogue, failed or not', async (
   assert.equal(queue.failed(run), true, 'its failure waits its turn while the cell wants it')
   roots.release(0)
   await assert.rejects(queue.readBytes(run), /Unknown page/)
-  assert.deepEqual([roots.held(), queue.stats().failed], [[], 0])
+  assert.deepEqual([roots.held(), queue.failed(run)], [[], true])
 })
 
-test('a bundle read for one page request alone leaves the catalogue, failed or not', async (t) => {
+test('a bundle read for one page request alone leaves the catalogue; asked again, its wait holds', async (t) => {
   const { clusters, groups } = worldRootsDag()
   const world = served(t, {
     dag: { clusters, groups },
@@ -93,7 +93,9 @@ test('a bundle read for one page request alone leaves the catalogue, failed or n
   const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
   await assert.rejects(stream.source.page(far.url), /PAGE_STREAM_FAILED/)
   await assert.rejects(queue.readBytes('http://world/world-roots.bin#2-3'), /Unknown page/)
-  assert.equal(queue.stats().failed, 0, 'its failure left with it')
+  const asked = world.ranges.length
+  await assert.rejects(stream.source.page(far.url), /PAGE_STREAM_FAILED/)
+  assert.equal(world.ranges.length, asked, 'refused at once, never asked every frame')
 })
 
 test('a cell let go while its run transfers and held again joins that read: read once', async (t) => {

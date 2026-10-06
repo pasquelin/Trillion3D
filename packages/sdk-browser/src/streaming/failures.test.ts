@@ -38,11 +38,11 @@ test('a read that may pass waits 0.5 s · 2^k up to 8 s, refused at once meanwhi
   }
 })
 
-test('a read another request would meet again (404) is refused for good', async (t) => {
-  const { streamer, sent, frames } = refusing(t, 404)
+test('a read another request would meet again (404) is refused for good, and said once', async (t) => {
+  const { streamer, sent, said, frames } = refusing(t, 404)
   try {
     await frames(10_000)
-    assert.deepEqual(sent, [0])
+    assert.deepEqual([sent, said], [[0], ['a.bin']])
     assert.equal(streamer.failed('a.bin'), true)
   } finally {
     streamer.dispose()
