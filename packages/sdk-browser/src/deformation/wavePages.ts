@@ -63,7 +63,7 @@ const boundable = (rec: PageRec) =>
 /** The record sets of `roots` every placement of which the waves alone move, their pages all
  *  boundable: the sets `PageRec.moved` bounds for every placement that reads it. */
 function groupsOf(roots: WebgpuPagesRuntime['layout']['selectionRoots'], frame: DeformationFrame) {
-  let plan = plans.get(frame);
+  const plan = plans.get(frame);
   if (plan?.roots === roots.length) return plan.groups;
   const byPages = new Map<readonly PageRec[], number[]>();
   roots.forEach(({ pages }, i) => {
@@ -78,7 +78,7 @@ function groupsOf(roots: WebgpuPagesRuntime['layout']['selectionRoots'], frame: 
       pages.every(boundable)
     )
       groups.push({ ranks, boxes: new Float64Array(pages.length * BOX_VALUES) });
-  plans.set(frame, (plan = { roots: roots.length, groups }));
+  plans.set(frame, { roots: roots.length, groups });
   return groups;
 }
 
