@@ -61,9 +61,12 @@ function createPageRequests(base: string) {
       if (!reader) files.set(file, (reader = { read: rangedReader(file), own: true }))
       return reader.read(page.range.offset, page.bytes, { attempts: ONE_REQUEST, signal })
     },
-    /** The ranges of `file` are read through `read`, which its owner counts. */
+    /** The ranges of `file` are read through `read`, which its owner counts: handed in before any
+     *  read of the file, once — one reader a file. */
     readFrom(file: string, read: RangeReader) {
-      files.set(new URL(file, base).href, { read, own: false })
+      const href = new URL(file, base).href
+      if (files.has(href)) throw new Error(`RANGE_READER_TAKEN: ${href} has its reader`)
+      files.set(href, { read, own: false })
     },
     /** The bytes of the files its own readers kept whole for servers that ignore the Range. */
     keptBytes() {

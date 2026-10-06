@@ -5,6 +5,7 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
+import { rangedReader } from '../cluster/ranged.ts'
 
 /** A file of two parts of four bytes, `gap` bytes apart, served by Range, each answer held until
  *  `release`: the pages of its ranges, the ranges asked, and the signals they were asked with. */
@@ -76,4 +77,16 @@ test('a range whose last asker lets go while it transfers is read to its end: as
   release()
   assert.equal((await again).byteLength, 8)
   assert.deepEqual(asked, ['bytes=0-7'], 'read once')
+})
+
+test('a file has one reader: one handed in after its first read, or a second, is refused', async (t) => {
+  const { page, release } = await served(t)
+  release()
+  const streamer = createPageStreamer([page('range')], 'http://cache/')
+  t.after(() => streamer.dispose())
+  const reader = rangedReader('http://cache/other.bin')
+  streamer.readFrom('other.bin', reader)
+  assert.throws(() => streamer.readFrom('other.bin', reader), /RANGE_READER_TAKEN/)
+  await streamer.readBytes('range') // the queue's own reader of world.bin
+  assert.throws(() => streamer.readFrom('world.bin', reader), /RANGE_READER_TAKEN/)
 })
