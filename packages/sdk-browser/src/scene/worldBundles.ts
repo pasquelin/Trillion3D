@@ -89,11 +89,11 @@ function createRuns(table: WorldRoots, url: string, held: Map<number, Held>) {
       for (const own of owns) if (own.run) waits.add(own.run)
       await Promise.all([...waits].map((own) => land(own, asked.signal, asked.priority)))
     },
-    /** No held bundle waits on `own` any more: its page leaves the catalogue, with its failure if
+    /** No held bundle waits on `own`'s page any more: it leaves the catalogue, with its failure if
      *  it failed. */
     forsake(own: Run) {
       for (let bundle = own.first; bundle < own.end; bundle++)
-        if (held.get(bundle)?.run === own) return
+        if (held.get(bundle)?.run?.url === own.url) return
       queue?.forget([own.url])
     },
     bind(session: PageQueue) {
@@ -156,14 +156,21 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       const bundles = cellDependencies(table, cell)
       await readAtOpen(bundles, bundles.map(take), read)
     },
-    /** A bundle's pages: the pinned top's or a held one's, else read for the one request at the
-     *  view's priority, joining the run on its way (the GPU page pool keeps what it uploads). */
+    /** A bundle's pages: the pinned top's or a held one's, joining the run on its way, else read
+     *  for the one request at the view's priority, its page left once read, landed or failed (the
+     *  GPU page pool keeps what it uploads). */
     async pages(bundle: number) {
       if (bundle < table.pinned) return top[bundle]
-      const own = held.get(bundle)
+      const own = held.get(bundle),
+        run = own?.run
       if (own?.pages) return own.pages
-      const run = own?.run ?? runs.run(bundle, bundle + 1)
-      return bundleIn(await runs.land(run), table, run.first, bundle)
+      if (run) return bundleIn(await runs.land(run), table, run.first, bundle)
+      const alone = runs.run(bundle, bundle + 1)
+      try {
+        return bundleIn(await runs.land(alone), table, bundle, bundle)
+      } finally {
+        runs.forsake(alone)
+      }
     },
     /** The bundles held now, ascending. */
     held: () => [...held.keys()].sort((a, b) => a - b),

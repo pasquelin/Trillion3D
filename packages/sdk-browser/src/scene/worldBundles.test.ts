@@ -3,6 +3,7 @@
 // one the server refuses for good is never asked again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { worldRootsDag } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { opened, rangeOf, served } from './worldRoots.fixture.ts'
 
 test("a cell's bundles contiguous in the binary are one ranged read", async (t) => {
@@ -67,4 +68,19 @@ test('a run no hold wants any more leaves the catalogue, failed or not', async (
   roots.release(0)
   await assert.rejects(queue.readBytes(run), /Unknown page/)
   assert.deepEqual([roots.held(), queue.stats().failed], [[], 0])
+})
+
+test('a bundle read for one page request alone leaves the catalogue, failed or not', async (t) => {
+  const { clusters, groups } = worldRootsDag()
+  const world = served(t, {
+    dag: { clusters, groups },
+    answer: async (from, _to, respond) =>
+      from === world.table.bundles[2].offset ? new Response('', { status: 503 }) : respond(),
+  })
+  const { roots, queue } = await opened(t, world.manifest)
+  const stream = await roots.stream()
+  const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
+  await assert.rejects(stream.source.page(far.url), /PAGE_STREAM_FAILED/)
+  await assert.rejects(queue.readBytes('http://world/world-roots.bin#2-3'), /Unknown page/)
+  assert.equal(queue.stats().failed, 0, 'its failure left with it')
 })
