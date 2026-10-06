@@ -72,7 +72,7 @@ export function dag({
 }
 
 /** A selection root without a culling hierarchy: descent takes the pages in order. */
-export function racine(pages: DagPage[]): ClusterRoot<DagPage> {
+export function root(pages: DagPage[]): ClusterRoot<DagPage> {
   const monde = new G.Matrix4();
   const box = new Float64Array(BOX_VALUES);
   boxEmpty(box, 0);

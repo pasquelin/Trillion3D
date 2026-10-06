@@ -3,7 +3,7 @@ import type { BackendDiagnostic } from '../types.ts';
 import {
   dag,
   dagCamera,
-  racine,
+  root,
   type DagPage,
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { engineCamera } from '../../camera/camera.fixture.ts';
@@ -58,7 +58,7 @@ export function mount(
     diagnostics: BackendDiagnostic[] = [];
   for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url);
   const roots = primitives.map((pages, i) => ({
-    ...racine(pages),
+    ...root(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[];
   // The per-placement tables and the packed rank of each page, as the layout posts them (#1235):
