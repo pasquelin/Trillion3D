@@ -105,14 +105,11 @@ export async function createExplorerPageSources(
 
 /** `prepare`, run while it owns `streamer`, the session's queue: a preparation that fails at any
  *  step, or is aborted, closes it; one that succeeds hands it to the session. */
-export async function ownedUntilReady<T>(streamer: { dispose(): void }, prepare: () => Promise<T>) {
-  try {
-    return await prepare()
-  } catch (error) {
+export const ownedUntilReady = <T>(streamer: { dispose(): void }, prepare: () => Promise<T>) =>
+  prepare().catch((error: unknown) => {
     streamer.dispose()
     throw error
-  }
-}
+  })
 
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
  *  its partitions' index pages catalogued, and its readers — world roots, a lazy manifest's mesh
