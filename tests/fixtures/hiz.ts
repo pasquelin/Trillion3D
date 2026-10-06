@@ -87,3 +87,12 @@ export function occluderPyramid(occluders: VisPage[], cam: EngineCamera, size: [
   const ids = rasterVisibilityIds(occluders, locations, cam, size);
   return buildHizPyramid(visibilityDepth(ids, occluders, locations, cam, size), ...size);
 }
+
+/** A small deterministic generator in [0, 1): the same seed gives the same generated cases. */
+export function seededRandom(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
