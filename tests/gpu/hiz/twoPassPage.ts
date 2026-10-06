@@ -28,8 +28,7 @@ async function untilHeld(backend: RenderBackend, camera: Camera) {
     last = await image(backend, camera);
     withdrawn = Math.max(withdrawn, comptesEtape(backend, 'partition')?.pyramidWithdrawn ?? 0);
     rejected = Math.max(rejected, last.metrics.hizRejectedClusters ?? 0);
-    if (last.metrics.frameHeld)
-      return { pixels: last.pixels, images: i + 1, withdrawn, rejected };
+    if (last.metrics.frameHeld) return { pixels: last.pixels, images: i + 1, withdrawn, rejected };
   }
   if (!last) throw new Error('no image was rendered');
   return { pixels: last.pixels, images: null, withdrawn, rejected };

@@ -23,11 +23,7 @@ interface DeviceResult {
  * identically; `R` names the fields a proof adds to the common result.
  */
 export async function runOnDevice<R extends object = object>(
-  body: (
-    device: GPUDevice,
-    events: unknown[],
-    result: Partial<R> & DeviceResult,
-  ) => Promise<void>,
+  body: (device: GPUDevice, events: unknown[], result: Partial<R> & DeviceResult) => Promise<void>,
   requiredLimits?: Record<string, number>,
 ): Promise<Partial<R> & DeviceResult> {
   const gpu = await openGpuDevice([], requiredLimits);

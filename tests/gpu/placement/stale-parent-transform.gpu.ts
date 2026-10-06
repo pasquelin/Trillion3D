@@ -7,11 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import {
-  runPageProof,
-  publishAndVerify,
-  type PageProofResult,
-} from '../kit/enginePageProof.ts';
+import { runPageProof, publishAndVerify, type PageProofResult } from '../kit/enginePageProof.ts';
 
 interface Pass {
   steps: { name: string; held: boolean }[];
