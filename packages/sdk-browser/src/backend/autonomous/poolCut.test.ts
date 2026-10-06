@@ -1,6 +1,6 @@
 // The WebGL2 image under its geometry pool (`imageCut.ts`, `pool.ts`, `requests.ts`): the cut is
 // drawn at the host's threshold whatever the budget, the pool bounds what the image asks for, and
-// the cut rule draws the nearest resident ancestor of what the pool does not hold (#486).
+// the cut rule draws the nearest resident ancestor of what the pool does not hold.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PAGE } from './pool.fixture.ts'
@@ -73,7 +73,7 @@ test('a pool at the root cover plus a tenth draws every leaf once, and never a h
   }
 })
 
-// #490: the WebGL2 image publishes its holes from the cut it takes. A missing fine page is drawn
+// The WebGL2 image publishes its holes from the cut it takes. A missing fine page is drawn
 // by its ancestor, no hole; a missing root-cover page has nothing coarser, and its triangles read
 // uncovered — the reading the no-hole proof takes under WebGL2.
 test('the image cut counts as uncovered only a surface nothing resident draws', () => {
@@ -92,7 +92,7 @@ test('the image cut counts as uncovered only a surface nothing resident draws', 
   assert.equal(cut().uncoveredTriangles, root.triangles, 'its triangles read uncovered')
 })
 
-// #839: a budget cut mid-session — to about half the fine cut, and down to the starvation run's root
+// A budget cut mid-session — to about half the fine cut, and down to the starvation run's root
 // cover plus a tenth — is paid one level per image: every page an image drew survives to the next
 // cut, the residency holds the ancestors each surface falls back to, and the pool converges.
 for (const [label, budget] of [
@@ -109,7 +109,7 @@ for (const [label, budget] of [
     assert.ok(state.allocationBytes <= pool.held.allocatedBytes, 'the pool converged to its budget')
   })
 
-// #1237: at the smallest budget the pool still holds its floor — the root cover and the pages its
+// At the smallest budget the pool still holds its floor — the root cover and the pages its
 // groups replace —, and admits those first: a root whose error the view refuses is replaced by
 // them, a root drawn only where the view accepts it, and every surface still drawn once.
 test('at the smallest budget no root the view refuses is drawn, and no hole', () => {

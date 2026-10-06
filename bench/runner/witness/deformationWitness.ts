@@ -1,4 +1,4 @@
-// Recette-only reference pose: original public glTF, independent Three animation evaluation.
+// Witness-only reference pose: original public glTF, independent host-library animation evaluation.
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 import { clone } from 'three/addons/utils/SkeletonUtils.js'

@@ -65,7 +65,7 @@ const resized = [small, small, large, large, small, disposed, large]
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {}
 const DUMMY_BOUNDS: number[] = [0, 0, 0]
 const emptyMesh = () => new Mesh(new Geometry(), [])
-/** A record with the host mesh its draw state carries (#1234). */
+/** A record with the host mesh its draw state carries. */
 type Page = PageRec & { mesh?: HostMesh }
 const pageOf = (mesh?: HostMesh): Page => ({
   ...{ id: 0, url: '', clusterId: '', triangles: 0, indexBytes: 0, depthLayer: 0 },

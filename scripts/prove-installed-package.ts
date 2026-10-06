@@ -30,18 +30,18 @@ const installedThree = (fixture: string) =>
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 const { fixture, logs, run, write, bundle, installedVersion } = createInstalledFixture(root)
-// `--archives <folder>`: the six archives of a release (`scripts/release.ts pack`, #1354) installed
+// `--archives <folder>`: the six archives of a release (`scripts/release.ts pack`) installed
 // as the registry would serve them, nothing built here; the compiler proved is the one they carry.
 const archivesAt = process.argv.indexOf('--archives')
 const release = archivesAt >= 0 ? readRelease(resolve(process.argv[archivesAt + 1])) : null
 
 try {
   const proveBrowser = process.argv.includes('--browser')
-  // `--bundle`: the browser bundle emitted and checked, no browser launched (#568).
+  // `--bundle`: the browser bundle emitted and checked, no browser launched.
   const proveBundle = process.argv.includes('--bundle') && !proveBrowser
   const proveNative =
     release !== null || process.argv.includes('--native') || proveBrowser || proveBundle
-  // The compiler reaches the application in this machine's platform package (#1352): the
+  // The compiler reaches the application in this machine's platform package: the
   // checkout's build just made, refused if older than its sources; a release builds nothing.
   let built: string | null = null
   if (!release) run(pnpm, ['run', 'build'])
@@ -53,7 +53,7 @@ try {
   const archive = join(fixture, basename(packed.filename)) // where the CDN proof unpacks it
   if (release) writeFileSync(archive, readFileSync(packed.filename))
   const source = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as PackageJson
-  // The consumer installs the package alone: since #275 it neither declares nor needs the host
+  // The consumer installs the package alone: it neither declares nor needs the host
   // library, and the proof reads the installed tree to say so.
   const dependencies: Record<string, string> = { [source.name]: `file:${archive}` }
   const devDependencies = Object.fromEntries(

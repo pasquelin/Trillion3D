@@ -1,4 +1,4 @@
-// Common tools for tests and volume benchmarks (batch M2): Three.js Box3 built from six
+// Common tools for tests and volume benchmarks: Three.js Box3 built from six
 // flat floats and read back flat; the bitwise comparison lives in `tests/kit/assert/bits.ts`.
 // Three is only used as a reference, never in a math*.ts file.
 import * as THREE from 'three'

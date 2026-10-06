@@ -17,7 +17,7 @@ export const RESIDENCY_RULE: RangeRule = { gap: 64, cap: 32, overflow: 'whole' }
  * Groups the `count` increasing, distinct indices of `sorted` into ranges under `rule`, written
  * into `into` as `[first, last]` pairs (room for `rule.cap` of them); returns their count. One
  * coalescer for every flush that sends what changed: the residency bits and nodes, the texture
- * page tables (#961).
+ * page tables.
  */
 export function coalesceRanges(
   sorted: Int32Array,

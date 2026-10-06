@@ -24,7 +24,7 @@ export const unit = (a: Vec3): Vec3 => divide(a, magnitude(a))
 
 /** Degrees per radian: the criterion is judged in degrees wherever it is read. */
 export const DEG = 180 / Math.PI
-/** The dropout: beyond it, a rendered normal is no longer the rotated surface's. */
+/** The dropout: beyond it, a rendered normal is not the rotated surface's. */
 export const DROPOUT_DEG = 1e-3
 
 /**

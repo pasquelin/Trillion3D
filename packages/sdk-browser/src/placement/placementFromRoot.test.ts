@@ -1,7 +1,7 @@
-// #1226 step A: a page record carries no placement values. Every reader takes the world, the row
-// and the winding from the root that places it, so a placement is no longer copied
-// into each of its pages — the step before one record per primitive (#1235).
-// #1233 step B1: the cut publishes its instances as packed catalogue ranks, and the consumers read
+// A page record carries no placement values. Every reader takes the world, the row
+// and the winding from the root that places it, so a placement is never copied
+// into each of its pages.
+// The cut publishes its instances as packed catalogue ranks, and the consumers read
 // a record back through the one accessor, `recordOf`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -24,7 +24,7 @@ const OFFSET_WORD = 24
 function digest({ rt }: Session) {
   const { rows, drawItemWords, cornerPacked } = rt.layout
   const hash = createHash('sha256')
-  // #33 fills former padding with physical-surface fields; the placement oracle compares
+  // Padding words hold physical-surface fields; the placement oracle compares
   // the original row contract, leaving those independently tested material words out.
   const originalWords = 64,
     stride = PAGE_INFO_STRIDE / 4
@@ -38,7 +38,7 @@ function digest({ rt }: Session) {
     for (const word of [OFFSET_WORD, 38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0
   for (const words of [table, rows.packedPageIndex, drawItemWords, cornerPacked])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength))
-  // The instances as packed ranks, rank by rank (#1235): a record serves every placement.
+  // The instances as packed ranks, rank by rank: a record serves every placement.
   hash.update(
     JSON.stringify([
       rows.packedCount,
@@ -115,7 +115,7 @@ async function steps<T>(look: (session: Session) => T, light?: SceneLight) {
 const noBudget = { admits: () => true, spend() {} }
 
 test('rows, draw items and cut of repeated and moved placements are those of develop', async () => {
-  // Recorded on develop at 7b95f02b3d, the pool's offsets left out (`OFFSET_WORD`).
+  // The digests exclude the pool's offsets (`OFFSET_WORD`).
   assert.deepEqual(await steps(digest), [
     '4c9667c088a4d0da',
     '52cef678cafd5756',
@@ -134,7 +134,7 @@ test('each row names its page at the home the pool gave it, whatever the placeme
 test('the shadow raster reads each row at its own placement, moving once that placement moved', async () => {
   // A light that casts: the shadow rows are derived only then.
   const seen = await steps(casterRows, SUN)
-  // One record serves every placement of its primitive (#1235): the scene draws a record twice.
+  // One record serves every placement of its primitive: the scene draws a record twice.
   const urls = seen[0].map((row) => row.url)
   assert.ok(new Set(urls).size < urls.length, `a record two placements draw: ${urls.join(', ')}`)
   // One triangle a row, which casts and is no cutout.

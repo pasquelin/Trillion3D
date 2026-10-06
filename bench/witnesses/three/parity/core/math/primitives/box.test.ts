@@ -1,4 +1,4 @@
-// Batch M2, box.ts: empty and inverted box, union, expansion, matrix transformation — each
+// box.ts: empty and inverted box, union, expansion, matrix transformation — each
 // function tested against the host library's box arithmetic, bitwise (Object.is).
 import test from 'node:test'
 import assert from 'node:assert/strict'

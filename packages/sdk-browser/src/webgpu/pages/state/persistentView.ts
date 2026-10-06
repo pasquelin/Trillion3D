@@ -8,7 +8,7 @@ import { createWebgpuView, type WebgpuView } from './view.ts'
 import { onView } from './viewSwitch.ts'
 
 /**
- * The persistent-view base (#1097), which `world.addView` wraps (#1138): the capture's view
+ * The persistent-view base, which `world.addView` wraps: the capture's view
  * (`../io/captureAside.ts`), kept and drawn every frame beside the main one from a camera of its
  * own, and presented at `rect` of the canvas. It holds its own cut, targets, held frame, Hi-Z
  * pyramid, anti-aliasing history and effect chain; it is no capture, so texture feedback, the

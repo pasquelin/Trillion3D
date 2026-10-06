@@ -1,5 +1,5 @@
 /**
- * THE IMAGE'S IMPOSTOR CARDS, one plan for both GPU paths (#1335, #1336): `planImpostors` over the
+ * THE IMAGE'S IMPOSTOR CARDS, one plan for both GPU paths: `planImpostors` over the
  * cut's roots at the engine's focal length, planned again in place, then each card the image draws
  * written as one record, grouped by mesh into runs that share an atlas. WebGPU binds a run's atlas
  * as a bind group (`webgpu/impostor/`), WebGL2 as three textures (`webgl/impostor/`): `G` is that

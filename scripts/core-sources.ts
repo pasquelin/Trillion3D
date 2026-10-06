@@ -26,7 +26,7 @@ export function bundleSources(metafile: Metafile, dist: string): BundleSources {
 }
 
 /**
- * What the core must never hold, by source (#1353): the debug tools, fetched only in debug mode —
+ * What the core must never hold, by source: the debug tools, fetched only in debug mode —
  * the measurement's code and the diagnostic views —, and each renderer's own code, fetched only
  * by the page that draws with it — the WebGPU page raster and its shadow passes, the WebGL2 page
  * path. A family's own module the core holds already fails the gate by name (`familiesInCore`);

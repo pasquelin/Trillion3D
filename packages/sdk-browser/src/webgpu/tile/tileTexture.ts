@@ -7,7 +7,7 @@ import type { PoolLane, TailBytes } from '../../texture/blockFormats.ts'
  * Where a texture's texels come from. `bytes`: everything fits in the sidecar tail, nothing is
  * streamed. `baked`: the tail comes from the sidecar, streamed levels are read cooked from the
  * cache. `host`: neither, the host image goes through a working texture, mips weighted as its
- * `coverage` readers say (#42). A tail holds every encoding; the atlas pins its lane's.
+ * `coverage` readers say. A tail holds every encoding; the atlas pins its lane's.
  */
 type TileSource =
   | { kind: 'bytes'; tail: TailBytes }

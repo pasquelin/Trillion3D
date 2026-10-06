@@ -1,5 +1,5 @@
 /**
- * The world roots' records (docs/FORMAT.md, World super-roots; #1232): `world-roots.table` and
+ * The world roots' records (docs/FORMAT.md, World super-roots): `world-roots.table` and
  * `world-roots.dag`, read straight from their bytes, as the cook writes them
  * (`compiler_world_roots/records.rs`). Never one string of the whole world, which a JavaScript
  * engine refuses past 512 MiB: the open world's table weighed 866 MiB as JSON. A record is read at

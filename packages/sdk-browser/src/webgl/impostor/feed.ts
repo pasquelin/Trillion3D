@@ -24,7 +24,7 @@ const atlasBytes = (maps: ImpostorMaps) =>
   )
 
 /**
- * THE PER-MESH ATLAS FEED on WebGL2 (#1336): the shared feed (`impostor/feed.ts`), the same reads,
+ * THE PER-MESH ATLAS FEED on WebGL2: the shared feed (`impostor/feed.ts`), the same reads,
  * room and order as WebGPU's, each atlas copied once into three immutable textures with their
  * whole mip chain — the colour stored sRGB, the normal, depth and ORM linear, sampled linearly
  * between mips and clamped at the edge as the WebGPU sampler does. A refused allocation is read at

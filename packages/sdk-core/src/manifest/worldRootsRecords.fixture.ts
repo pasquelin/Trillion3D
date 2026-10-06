@@ -1,5 +1,5 @@
 /**
- * The world roots' records as the cook writes them (`compiler_world_roots/records.rs`, #1232), for
+ * The world roots' records as the cook writes them (`compiler_world_roots/records.rs`), for
  * a test that hands the reader a table or a DAG it states plainly: a header, fixed-size records,
  * then the `u32` pool their lists lie in.
  */

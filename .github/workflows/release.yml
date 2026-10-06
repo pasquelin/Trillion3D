@@ -1,6 +1,6 @@
 name: Release
 
-# The npm release (#1354): a release pull request merged into `main` builds the five compilers
+# The npm release: a release pull request merged into `main` builds the five compilers
 # (`compiler.yml`), packs them with `trillion3d` at one version (`scripts/release.ts pack`), proves
 # those very archives installed on macOS, Linux and Windows (`scripts/prove-installed-package.ts
 # --archives`: the package installed, `trillion3d-compile` run from its platform package on the

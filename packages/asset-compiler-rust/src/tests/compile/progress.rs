@@ -1,5 +1,5 @@
-//! A17 — announced progress of a job never goes backwards. A host draws a bar
-//! with this one number: a phase missing from the table used to send it back to
+//! Announced progress of a job never goes backwards. A host draws a bar
+//! with this one number: a phase missing from the table would send it back to
 //! zero after ninety-nine percent, and the job looked like it was restarting.
 use super::*;
 
@@ -79,7 +79,7 @@ fn a_reused_folder_is_a_known_phase_and_the_bar_still_ends_at_one() {
 }
 
 // Behaviour: every event carries the process peak resident bytes, never decreasing, and the
-// manifest publishes the peak its compilation reached (#50).
+// manifest publishes the peak its compilation reached.
 #[cfg(unix)]
 #[test]
 fn every_event_carries_the_process_peak_rss() {

@@ -2,7 +2,7 @@
 export const SDK_VERSION = '0.2.0'
 /** Cache format this runtime reads. Format 5 added `scene-tables.json`, the node and material
  *  tables the prepared scene is checked against; format 7 carries `selectedNodes` as a count, not
- *  a list (#404); format 9 makes `clusters.json` the fixed-size root of a page tree (#762). Earlier
+ *  a list; format 9 makes `clusters.json` the fixed-size root of a page tree. Earlier
  *  formats are refused by their number rather than half-read. */
 export const FORMAT_VERSION = 9
 /**
@@ -21,7 +21,7 @@ export const CLUSTERED_BLEND_FORMAT_VERSION = 10
 /**
  * Cache identity for per-cluster DAG errors: absolute group QEM error over positions, normals and
  * texture coordinates, clamped to the group's extent, never below the sampled Hausdorff distance
- * between a group's children and its outputs (#929); v1 and v2 caches are refused.
+ * between a group's children and its outputs; v1 and v2 caches are refused.
  */
 export const DAG_ERROR_MODEL = 'dag-group-qem-v3'
 /** The scope a model is compiled at when none is named: streamed in pages. */

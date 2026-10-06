@@ -33,7 +33,7 @@ export type CutDelta = {
   readonly changed: boolean
   /** True when the id belongs to the held shown list. */
   has(id: number): boolean
-  /** The held id sequence, in the order `pages` was written (#1235): the packed ranks a reader
+  /** The held id sequence, in the order `pages` was written: the packed ranks a reader
    *  of a record list needs to name its instances' placements. */
   readonly ids: ArrayLike<number>
   /** Reports no difference: the cut is the one already held, records included. */
@@ -66,7 +66,7 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * the difference omits it: no record list is then built, and the shown list costs only its own
  * length.
  *
- * Every table follows the cut, never the catalogue (#483 rule 6): membership is an epoch mark held
+ * Every table follows the cut, never the catalogue: membership is an epoch mark held
  * in a sparse map (`../../page/cut/sparseInts.ts`) for the ids the cut holds, an id that leaves
  * loses its mark, and the lists grow to the longest cut seen, then are rewritten in place. A frame
  * that adopts the shown list it already holds writes nothing at all.

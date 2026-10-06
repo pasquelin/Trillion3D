@@ -1,4 +1,4 @@
-// #360, #361, #362: the WebGL2 binder uploads a texture again at every version it moves to — in
+// The WebGL2 binder uploads a texture again at every version it moves to — in
 // place in the texture it holds while the size stays —, sets its sampler alone when only its
 // sampling moved, and grants anisotropy as the WebGPU path and the
 // host-library witness do: to a linear magnification over a chain mixed across levels, or not at all.
@@ -71,7 +71,7 @@ test('a version uploads the texture again, a sampling sets its sampler alone', (
   assert.deepEqual([calls.uploads, calls.inPlace], [1, 1], 'pixels written: copied in place')
 })
 
-// #362: a canvas redrawn and a video frame are copied into the texture already held, 120 frames
+// A canvas redrawn and a video frame are copied into the texture already held, 120 frames
 // long; only a new size allocates the level again, still in the same texture.
 test('120 new pictures copy in place into one texture, a new size reallocates it', () => {
   const { gl, calls } = context()
@@ -103,7 +103,7 @@ test('anisotropy is granted only to a linear magnification mixed across levels',
   }
 })
 
-// #360, #361: the UV placement is not the binder's — the material binding uploads it at every
+// The UV placement is not the binder's — the material binding uploads it at every
 // draw —, so moving it alone uploads nothing.
 test('a placement moved without a version uploads nothing', () => {
   const { gl, calls } = context()
@@ -141,7 +141,7 @@ test('a sampler change selects the unit of its texture, already bound or not', (
   )
 })
 
-// #362: a canvas and a video frame upload with their rows flipped, as the WebGPU working texture
+// A canvas and a video frame upload with their rows flipped, as the WebGPU working texture
 // copies them (`../../webgpu/tile/scratch.ts`); raw texels that say `flipY: false` do not.
 test('each upload flips its rows as its texture says, in place too', () => {
   const { gl } = context()
@@ -160,7 +160,7 @@ test('each upload flips its rows as its texture says, in place too', () => {
   assert.deepEqual(flips, [true, true, true, false])
 })
 
-// #840: a map the context refused is sent again at its next bind, at the same version: a surface
+// A map the context refused is sent again at its next bind, at the same version: a surface
 // is never drawn without its picture.
 test('a refused map is sent again at its next bind', () => {
   let refuse = false

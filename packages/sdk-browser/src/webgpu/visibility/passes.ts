@@ -90,7 +90,7 @@ export function encodeWebgpuVisibilityPasses(
         // Level 0 of the pyramid is a DEPTH: its clear is the far plane, not 1. In reversed Z,
         // clearing it to 1 filled every uncovered texel with the near plane, and the min reduction
         // then yielded 1 over a whole background block — enough to reject any page that projects
-        // there. Those are the holes a campaign used to see by the thousands of pixels.
+        // there. Those are the holes, by the thousands of pixels.
         view: gpuHiz.level0View,
         loadOp,
         storeOp: 'store' as const,

@@ -1,4 +1,4 @@
-//! What six axis cameras see of a cooked cut, against its source (#415).
+//! What six axis cameras see of a cooked cut, against its source.
 //!
 //! A cut at threshold `t` is every page whose own error is at most `t` and whose parent's is above
 //! it: the pages a renderer draws at that distance. Each camera looks along one signed axis and

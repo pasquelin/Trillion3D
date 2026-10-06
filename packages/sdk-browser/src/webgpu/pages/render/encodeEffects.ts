@@ -40,7 +40,7 @@ export function encodeEffects(
   if (!gpu.effects) return accumulated
   // After the resolve: at the display's size.
   const [width, height] = gpu.displaySize
-  // The composition blends the last bloom in once its programs are compiled (#963): same image.
+  // The composition blends the last bloom in once its programs are compiled: same image.
   const fuse =
     passes.at(-1)?.kind === 'bloom' &&
     !!gpu.deferred?.composesBloom((error) =>

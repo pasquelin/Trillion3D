@@ -33,13 +33,13 @@ test('a scene copy outside the frustum is skipped unless it declares itself neve
   assert.deepEqual(copies.plain, [inView, neverCulled], 'frustumCulled false always draws')
   assert.deepEqual(copies.transmissive, [glassInView])
   assert.deepEqual(copies.blended, [blended], 'a blended copy draws after the transmissive ones')
-  // The painted glass of a diagnostic mode no longer transmits: it draws as a whole mesh.
+  // The painted glass of a diagnostic mode does not transmit: it draws as a whole mesh.
   glassInView.material = G.basicSurface()
   copies.cull([glassInView], readHostDrawCamera(createHostDrawCamera(), camera))
   assert.deepEqual([copies.plain, copies.blended, copies.transmissive], [[glassInView], [], []])
 })
 
-// Issue #275: a copy is culled at its WORLD box — a parent carries it — and an instanced copy on
+// a copy is culled at its WORLD box — a parent carries it — and an instanced copy on
 // its placements' bounds, never on its geometry's box alone.
 test('a copy is culled where its parent and its placements carry it', () => {
   const camera = readHostDrawCamera(createHostDrawCamera(), G.perspectiveCamera(60, 1, 0.1, 10)),

@@ -1,4 +1,4 @@
-// The view ahead's requests reach their tier with each new readback, and only then (#488): a moving
+// The view ahead's requests reach their tier with each new readback, and only then: a moving
 // camera's readback names them, a still camera's names none, and a held readback repeats nothing.
 // The view ahead changes no drawn page: once the camera stops, the last readback of the move — cut
 // at the pose it stopped at — is the still camera's cut, adopted with no readback more.

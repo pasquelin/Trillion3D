@@ -1,4 +1,4 @@
-// #364: a sprite that keeps its size on screen (`neverCulled`) is never rejected by an occlusion
+// A sprite that keeps its size on screen (`neverCulled`) is never rejected by an occlusion
 // test, a blend item's box or a WebGL2 copy's frustum test, while its quad may be on screen.
 import test from 'node:test'
 import assert from 'node:assert/strict'

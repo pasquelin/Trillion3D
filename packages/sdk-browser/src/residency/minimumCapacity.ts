@@ -1,16 +1,16 @@
 import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
 
 /**
- * THE MINIMUM CAPACITY (#1237, the #484 follow-up): memory never forces a cut the view refuses.
+ * THE MINIMUM CAPACITY: memory never forces a cut the view refuses.
  *
  * The cook drops a part only at a level whose error covers it, so a root drops every part smaller
  * than its published error. Drawn at a view that refuses that error, it loses them: a lost column.
  * The smallest pool therefore holds, beside the root cover, the pages of the group each root
  * replaces — one level finer, where the cook kept those parts —, and admits them before any other
  * page the view asks for, whatever their level: a root the view refuses is then replaced by its
- * children, and a root the view accepts is drawn as before, its children never asked for. The
+ * children, and a root the view accepts is drawn as itself, its children never asked for. The
  * slots this rule costs are the pool's floor with the root cover (`geometryPoolFor`, `root-cover`)
- * and published with it; they follow the roots the view holds, never the world (#483 rule 6).
+ * and published with it; they follow the roots the view holds, never the world.
  *
  * Marks each page of the group a root of `roots` replaces (`rootChild`) and returns them, one
  * record per placement: the caller counts them by its own key.

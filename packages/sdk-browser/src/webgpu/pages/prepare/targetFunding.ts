@@ -146,7 +146,7 @@ export const poolFundingPending = (rt: WebgpuPagesRuntime) => grantPending(refre
 
 /**
  * The targets in place fit: the pools are funded again beside the frames, never holding one — a
- * budget moves quality, never presentation (#1362). A refusal is said (`refuse`) and keeps the
+ * budget moves quality, never presentation. A refusal is said (`refuse`) and keeps the
  * pools in place. Prepare and capture await the answer.
  */
 export function refreshTargetGrant(

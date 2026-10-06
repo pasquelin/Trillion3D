@@ -222,7 +222,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   }
   const { state } = vsm
   // Residency changed since the last frame: a cluster that entered or left is another caster;
-  // its box joins the change list at once, as the old scheduler's did (#831).
+  // its box joins the change list at once.
   const { rows, recordOf, selectionRoots, placement } = rt.layout
   lights.residence.flush(
     rows.residentFlags,

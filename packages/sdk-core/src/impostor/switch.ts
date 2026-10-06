@@ -1,6 +1,6 @@
 /**
  * When a distant object becomes its impostor, derived from the baked data and the view and never
- * tuned (#817, "When to switch"; runtime card #1239). With `f` the focal length in pixels, `z` the
+ * tuned ("When to switch"). With `f` the focal length in pixels, `z` the
  * view depth of the pivot, `R` the object radius times the largest world scale of the mesh's
  * placements, `T` the DAG root's triangles, `c` the baked mean coverage and `r_f` the frame side
  * in texels:

@@ -1,4 +1,4 @@
-// The open city of the R&D audit's light-tile model (#924, OMB-03, `t03_tiles_sim.py`), rebuilt in
+// The open city of the R&D audit's light-tile model (OMB-03, `t03_tiles_sim.py`), rebuilt in
 // TypeScript with the repository's seeded sequence: a 40 × 40 grid of 60 m blocks, one 44 m
 // building per block, 6 to 90 m high, 8 % of blocks left empty; street lamps every 20 m along both
 // axes, 1,500 lit windows and 40 large lights. Synthetic: it stands for an aerial view over many

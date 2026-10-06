@@ -1,5 +1,5 @@
-//! The dependency lists of real cooks: a grid, a site scene and an open-world cell (#485, #483
-//! rule 9). Each holds the published bound, closes its lists and reaches the root cover.
+//! The dependency lists of real cooks: a grid, a site scene and an open-world cell.
+//! Each holds the published bound, closes its lists and reaches the root cover.
 use super::site_scene::{cook_site_scene, SiteScene};
 use super::*;
 

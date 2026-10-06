@@ -64,7 +64,7 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // reprojection follows it without ever dividing before the previous matrix.
   assert.match(TAA_REPROJECT_WGSL, /view\.invViewProj\*vec4f\(ndc,depthValue,1\.0\)/)
   // Neither record nor matrix is read until a placement has moved; the identifier is the one the
-  // resolve read once for its tag (#1369).
+  // resolve read once for its tag.
   assert.match(
     TAA_REPROJECT_WGSL,
     /if\(view\.params\.z!=0\.0&&id!=0u\)\{position=motion\[placementOf\(id\)\]\*position;\}/,
@@ -73,7 +73,7 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec4f\(0\.0\);\}/)
 })
 
-// OMB-11: with no as-is pixel every neighbour's share is 0, and history is clamped to [0, 0]: the
+// With no as-is pixel every neighbour's share is 0, and history is clamped to [0, 0]: the
 // flag-reading resolve writes 0 wherever its colour is finite. The flagless one writes that 0 and
 // is otherwise the same text — the colour and the geometry line for line —, reading neither flags
 // nor the as-is share history.
@@ -105,7 +105,7 @@ test('the flagless resolve is the flag-reading one without its share, written as
   for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line)
 })
 
-// #1369: `previousUv` takes the identifier its caller read once, never the texel to read it at: the
+// `previousUv` takes the identifier its caller read once, never the texel to read it at: the
 // reflections' reprojections hand it theirs, as the resolve does.
 test('every reprojection hands previousUv the identifier it read', () => {
   for (const shader of [TAA_SHADER, REFLECTION_RESOLVE_WGSL, REFLECTION_SOURCE_WGSL]) {

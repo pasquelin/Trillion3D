@@ -12,7 +12,7 @@ import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts'
 
 const turn = () => new Promise((wake) => setImmediate(wake))
 
-test('a host-led frame waits for a family on its way: nothing steps nor draws, then it draws once (#1353)', async () => {
+test('a host-led frame waits for a family on its way: nothing steps nor draws, then it draws once', async () => {
   const ready = Promise.resolve()
   const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'))
   const { session } = sessionStandIn()

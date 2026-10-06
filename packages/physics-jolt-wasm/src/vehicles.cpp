@@ -329,8 +329,8 @@ const VehicleTransmission &vehicleGearbox(const Vehicle &v) {
 /// Holds a parked vehicle's brakes, its engine turning nothing: it idles. Jolt lets a vehicle
 /// sleep only once its engine idles (`VehicleEngine::AllowSleep`); left to spin down from
 /// 2,500 rpm for seven seconds, a car braked to a stop stayed awake, its body shaking 0.4 mm a
-/// step on its brakes, and every shadow page under it and its wheels was drawn again each frame
-/// (#831). A tracked vehicle pivoting on the spot is parked too, but drives: its engine runs.
+/// step on its brakes, and every shadow page under it and its wheels was drawn again each frame.
+/// A tracked vehicle pivoting on the spot is parked too, but drives: its engine runs.
 float holdParked(Vehicle &v) {
   VehicleEngine &engine = vehicleEngine(v);
   if (!engine.AllowSleep()) engine.SetCurrentRPM(engine.mMinRPM);

@@ -60,7 +60,7 @@ export type TimingEntry = { slot: number; name: string; part: number }
 
 /**
  * Sets each timed pass's own share of the image, ms: its span less what a pass the queue ran before
- * it already covered (#1279). A device that overlaps passes reports each one's whole span, so their
+ * it already covered. A device that overlaps passes reports each one's whole span, so their
  * durations add up past the image; these shares count an overlap once, on the pass submitted first,
  * and add up to the time the timed passes cover. `timed` is in the queue's order — the parts as the
  * image submits them, each one's passes as encoded —, never sorted by beginning: a tiled GPU
@@ -192,7 +192,7 @@ export function summarizeTimestamps(
   const hostGapMs = frameMs === null || submittedMs === null ? null : frameMs - submittedMs
   // The image's two ends on the device timeline, whole or none: a truncated image's last timed
   // pass is not its last, a pass whose pair cannot be read may be, and the idle to the next image
-  // would count the untimed rest (#1451). A skipped pass ran nothing: the passes that ran hold
+  // would count the untimed rest. A skipped pass ran nothing: the passes that ran hold
   // the image's two ends.
   const span = pairs.invalid > 0 ? null : whole
   return {

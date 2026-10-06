@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The measured screen error of what WebGPU and WebGL2 draw, against the source (#959).
+// The measured screen error of what WebGPU and WebGL2 draw, against the source.
 //
 //   node bench/runner/screenError/screenError.ts --scene sponza --poses bench|orbit|terrain \
 //     [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out .mesure/out/959]

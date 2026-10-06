@@ -1,4 +1,4 @@
-// #347: the diffuse alpha is multiplied by the vertex colour's before the alpha test,
+// The diffuse alpha is multiplied by the vertex colour's before the alpha test,
 // so a masked surface that reads its vertex colours is cut at base map alpha × vertex alpha. The
 // rasters did read the base map alone.
 import test from 'node:test'
@@ -48,7 +48,7 @@ test('the CPU raster cuts a masked surface at base map alpha times vertex alpha'
   assert.equal(covered({ vertexColors: false, map: false, alpha: 0.2 }), true)
 })
 
-// #748: glTF 2.0 cuts the base colour's alpha, the factor's times the map's, and WebGL2 did; the
+// GlTF 2.0 cuts the base colour's alpha, the factor's times the map's, and WebGL2 did; the
 // WebGPU cutout read the map's alone.
 test('a masked surface is cut at its opacity times its map alpha, in both WebGPU tests', () => {
   assert.equal(covered({ vertexColors: false, map: true, alpha: 1, opacity: 0.4 }), false)

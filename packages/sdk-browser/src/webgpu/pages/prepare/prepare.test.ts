@@ -1,7 +1,7 @@
 // Lot F, F18: three calculations of a WebGPU engine prepare. `indexSourceBytes` and
 // `materialsAndTangentsCount` (../io/catalogue.ts) replace a `flatMap` of a pair per page and
-// a `map`/two table copies with one walk each; their oracles are the implementations from before
-// lot F. `prepareCones` no longer computes a cone: it posts the one the compiler cooked (#272).
+// a `map`/two table copies with one walk each; their oracles are the straightforward
+// implementations. `prepareCones` computes no cone: it posts the one the compiler cooked.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
@@ -107,7 +107,7 @@ test('posting a cone declares its root; a root whose pages carry no cone stays d
   assert.equal(roots[1].cones, false)
 })
 
-test('a cooked cluster whose indices are not held posts its cone all the same (#828)', () => {
+test('a cooked cluster whose indices are not held posts its cone all the same', () => {
   // A streamed cluster, or an opaque one drawn from its geometry page, holds no index array at
   // prepare time: its cone is the compiler's, read from no index, and the cut culls it.
   const streamed = { ...triangle(G.basicSurface()), array: undefined } as unknown as PageRec

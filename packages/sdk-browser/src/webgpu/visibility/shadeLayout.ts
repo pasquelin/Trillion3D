@@ -21,7 +21,7 @@ export function shadeLayout(device: GPUDevice) {
       { binding: b.cache, visibility: fragment, buffer: readOnly },
       { binding: b.position, visibility: fragment, buffer: readOnly },
       { binding: b.uv, visibility: fragment, buffer: readOnly },
-      // The float pool's normal atlas (`../core/floatAtlas.ts`, #1410).
+      // The float pool's normal atlas (`../core/floatAtlas.ts`).
       {
         binding: b.normal,
         visibility: fragment,

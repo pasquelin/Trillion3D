@@ -1,4 +1,4 @@
-// #558: the display layers, tint and added value, follow the colour through the temporal resolve —
+// The display layers, tint and added value, follow the colour through the temporal resolve —
 // the native one and the upscaling one, run from their shipped text (`upscaleRun.fixture.ts`):
 // weighed as the colour, clamped to their own 3×3 box, mixed with their history by the colour's
 // weights once that history holds the last image's, and never read before.
@@ -88,7 +88,7 @@ test('the upscaling resolve clamps the layers to their box and mixes their writt
     jitter: JITTER,
     color: () => flat,
     layer: checker,
-    // Moving, since a still image below the display averages by its own weights (#1343); a
+    // Moving, since a still image below the display averages by its own weights; a
     // reactive value of 0.25 holds the current share at 0.25 whatever each pixel's reach.
     moving: true,
     reactive: () => 0.25,

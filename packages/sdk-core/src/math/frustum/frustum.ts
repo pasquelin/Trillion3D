@@ -93,7 +93,7 @@ export function clipPlanesFromMatrix(out: Float64Array, m: ArrayLike<number>) {
 /**
  * The FAR plane of a frustum whose projection does not have one, written into `out` at `at`.
  *
- * Engine projection has an INFINITE far plane: its depth row no longer bounds anything and the
+ * Engine projection has an INFINITE far plane: its depth row bounds nothing and the
  * clip bounds give a zero plane, which rejects nothing. The frustum, however, keeps the far plane
  * DECLARED by the host — otherwise a scene would suddenly gain all objects that the camera was not
  * showing. That plane is not read from the clip matrix but from the VIEW matrix, whose third row

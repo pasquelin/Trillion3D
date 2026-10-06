@@ -58,7 +58,7 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   assert.deepEqual(read, ['bc7'], "the level file of the texture's lane, read once")
 })
 
-// STR-12, #962: a block tile is one request of its record, by Range, written as the file holds
+// A block tile is one request of its record, by Range, written as the file holds
 // it; a server that ignores Range sends the whole file once, and every tile of the level is cut
 // from it with no second request. Until the first answer says which, one read goes alone: six
 // tiles asked at once from a server that ignores Range would each download the whole file.
@@ -120,7 +120,7 @@ test('a block tile is read by its Range; a whole-file answer serves the whole le
   assert.deepEqual(await run(false), [ranges[0]], 'the whole file, once, for the probe')
 })
 
-// #42, the wiring from the material census to the GPU reduction: a hosted colour texture reduces
+// The wiring from the material census to the GPU reduction: a hosted colour texture reduces
 // with the weighted pipeline only when every surface reading it takes its alpha for coverage —
 // masked or blended by its alpha —; one read by an opaque surface, also as an emissive map, or by
 // a surface whose blending draws the colour under alpha 0 (`none`) or that transmits, stays plain.
@@ -168,8 +168,8 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   const rulesOf = async (...slots: number[]) => {
     const { device, renderPipelines, submits, textures: made } = mockGpu({ compute: true })
     const { sources, pass } = on(device, slots)
-    // STR-13, #962: the pass that asks builds nothing — no texture, no upload, no submit —; a task
-    // after it builds the working textures asked, their mips in one submit (OMB-29, #961).
+    // The pass that asks builds nothing — no texture, no upload, no submit —; a task
+    // after it builds the working textures asked, their mips in one submit.
     const before = made.length
     assert.ok(pass().every((verdict) => verdict === 'waiting'))
     sources.endPass()

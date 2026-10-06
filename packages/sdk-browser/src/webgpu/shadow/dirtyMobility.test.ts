@@ -1,4 +1,4 @@
-// The mobility words follow the table's dirty runs, not its span (#831): two models moving at both
+// The mobility words follow the table's dirty runs, not its span: two models moving at both
 // ends of the table write their own rows, and the GPU holds, word for word, what the span wrote.
 import test from 'node:test'
 import assert from 'node:assert/strict'

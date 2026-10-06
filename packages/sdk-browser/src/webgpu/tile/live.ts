@@ -15,7 +15,7 @@ export function pictureFits({ layout, source }: TileTexture) {
 
 /**
  * A live texture's new picture, copied from its working texture into every place the texture
- * already holds (#362): its tail and each resident tile, at the level it serves, where they are —
+ * already holds: its tail and each resident tile, at the level it serves, where they are —
  * read from the pool at copy time, since a pool resize moves them. Nothing is requested, evicted
  * or re-registered: the page table does not move, and no image shows a coarser level while the
  * tiles are copied again. One submit.

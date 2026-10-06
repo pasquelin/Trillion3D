@@ -123,7 +123,7 @@ export class LoadedModel extends Object3D {
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
  * WebGPU world's first model does; any other path samples the images themselves. `lazy` holds the
- * manifest by the view (#751), as a WebGL2 world does, whose session mounts it in place. `onProgress`
+ * manifest by the view, as a WebGL2 world does, whose session mounts it in place. `onProgress`
  * hears `bytes` against the files it reads (`plannedFiles`) as each chunk lands (`byteMeter`), the
  * manifest read, the scene tables read, then each resource the scene reads (`loadPreparedScene`).
  */

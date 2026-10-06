@@ -1,4 +1,4 @@
-//! The audit's tower as a hard-surface game asset (`gen_meshes.py::building_welded`): 24 × 16 m,
+//! A tower as a hard-surface game asset: 24 × 16 m,
 //! 60 floors of 3.2 m, every facade a grid whose cells match edge for edge, window cells recessed
 //! by 0.25 m, flat shading by per-face vertex copies, outward winding.
 use super::meshes::{Mesh, V};

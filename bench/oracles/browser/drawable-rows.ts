@@ -1,5 +1,5 @@
-// Batch F oracles, row-table side: `packages/sdk-browser/src/webgpu/row/state.ts:5-14,46`, `packages/sdk-browser/src/webgpu/row/commit.ts:91-97`
-// and `packages/sdk-browser/src/webgpu/row/sync.ts:79` from before batch F, copied as-is.
+// Oracles, row-table side: `packages/sdk-browser/src/webgpu/row/state.ts:5-14,46`, `packages/sdk-browser/src/webgpu/row/commit.ts:91-97`
+// and `packages/sdk-browser/src/webgpu/row/sync.ts:79`, copied as-is.
 import {
   PAGE_INFO_STRIDE,
   VIS_TRIANGLE_BITS,
@@ -23,12 +23,12 @@ type RowWriter = (
   ints: Uint32Array,
 ) => void
 
-/** Row state before batch F: a page's rank lived in a hash table. */
+/** Row state: a page's rank lived in a hash table. */
 export function referenceRowState(packedPages: readonly PageRec[], drawSlots: number) {
   const pageIndexByRec = new Map<PageRec, number>()
   for (let i = 0; i < packedPages.length; i++) pageIndexByRec.set(packedPages[i], i)
-  // The journal of named pages and residencies that moved during the pass: later than
-  // batch F, it is not the optimisation this oracle splits, and it is taken as-is so
+  // The journal of named pages and residencies that moved during the pass: it is not
+  // the optimisation this oracle splits, and it is taken as-is so
   // the shared rank sync runs identically on both sides.
   const journal = createWebgpuRowJournal()
   const state = {
@@ -55,9 +55,9 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
     candidateOverflow: 0,
     packedCount: 0,
     rowsChanged: true,
-    // Age of the rank allocator, also later than batch F.
+    // Age of the rank allocator, outside the optimisation this oracle splits.
     rowsRevision: 0,
-    // The table's size as the rank sync reads it at each use (#216), later than batch F too.
+    // The table's size as the rank sync reads it at each use, outside it too.
     blendFirst: drawSlots,
     casterSlots: drawSlots,
     pageTableFloats: undefined as Float32Array | undefined,
@@ -73,7 +73,7 @@ export function referenceRowState(packedPages: readonly PageRec[], drawSlots: nu
 
 type ReferenceRows = ReturnType<typeof referenceRowState>
 
-/** `packages/sdk-browser/src/webgpu/row/commit.ts` before batch F: the queue rewrote the four arrays row by row. */
+/** `packages/sdk-browser/src/webgpu/row/commit.ts`: the queue rewrote the four arrays row by row. */
 export function referenceRowCommit(rows: ReferenceRows, writePageRow: RowWriter) {
   const commitRows = (count: number, monotone: boolean) => {
     const floats = rows.pageTableFloats,
@@ -143,7 +143,7 @@ export function referenceRowCommit(rows: ReferenceRows, writePageRow: RowWriter)
     if (count !== rows.rowCount) rows.rowsChanged = true
     rows.rowCount = count
     rows.packedCount = count
-    // Later than batch F, like the journal: the CPU cut has posed its own ranks, so
+    // Like the journal: the CPU cut has posed its own ranks, so
     // the incremental allocator restarts from the catalogue. Taken here so both sides
     // advance together.
     rows.rowsRevision++

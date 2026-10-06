@@ -15,7 +15,7 @@
 //! `image-float-unsupported`) that asks for it explicitly, and a driver that returns it. The
 //! driver is already split for that: `codec` names the codec and its block geometry, `header`
 //! returns the surface and the offset of its raw bytes, `blocks` is only the reconstruction —
-//! the only part that will become the fallback. BC6H (float HDR) therefore no longer waits on
+//! the only part meant to be the fallback. BC6H (float HDR) therefore does not wait on
 //! the contract, which already has its float output: it waits on this `Blocks` variant, like
 //! the other raw codecs.
 //!

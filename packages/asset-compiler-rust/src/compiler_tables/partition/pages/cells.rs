@@ -1,12 +1,11 @@
-//! The pages of the cell records (#750): each region page names the mesh pages its cells use
-//! (#792).
+//! The pages of the cell records: each region page names the mesh pages its cells use.
 use super::*;
 
 /// The slots of the mesh pages each mesh's primitives lie in, by mesh rank.
 pub(crate) type MeshSlots = BTreeMap<u64, Vec<String>>;
 
 /// The slots of the mesh pages the meshes of ranks `meshes` lie in, sorted and each once: a region
-/// page's list (#792), and the scene tables' for the node table (#751).
+/// page's list, and the scene tables' for the node table.
 pub(crate) fn slots_of(
     meshes: impl Iterator<Item = u64>,
     mesh_pages: &MeshSlots,
@@ -20,9 +19,9 @@ pub(crate) fn slots_of(
 /// Writes the pages of the cells `tree` halved, whose records and world boxes are `records` and
 /// `bounds`; returns the root. A region page lists beside its records the rank of its first cell,
 /// `first`: its `n`-th record is `scene-cell-<first + n>.json`, the rank the world roots name that
-/// cell by (#1237), whatever page a view opens first. It lists too the slots of the mesh pages its
-/// cells' primitives lie in, `mesh_pages` by mesh rank (#792), each once; an index page and the
-/// root list beside each page the core parents its cells hang under (#575), which is all a moved
+/// cell by, whatever page a view opens first. It lists too the slots of the mesh pages its
+/// cells' primitives lie in, `mesh_pages` by mesh rank, each once; an index page and the
+/// root list beside each page the core parents its cells hang under, which is all a moved
 /// parent may carry them by; the root also lists the rows a view holds (`view_rows`).
 pub(crate) fn write_pages(
     tree: &Region,

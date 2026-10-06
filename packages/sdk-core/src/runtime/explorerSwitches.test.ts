@@ -17,7 +17,7 @@ test('a non-boolean value reads as the engine always read it', () => {
   assert.equal(explorerSwitch({ temporalAntialiasing: 0 as never }, 'temporalAntialiasing'), true)
   // Off by default and strict: only `true` turns it on.
   assert.equal(explorerSwitch({ bounce: 'yes' as never }, 'bounce'), false)
-  // Off by default, read as truthy since before this owner existed.
+  // Off by default, read as truthy.
   assert.equal(explorerSwitch({ interactive: 1 as never }, 'interactive'), true)
   assert.equal(explorerSwitch({ lodAdaptive: 1 as never }, 'lodAdaptive'), true)
 })

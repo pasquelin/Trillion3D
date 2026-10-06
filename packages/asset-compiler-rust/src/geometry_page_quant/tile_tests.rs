@@ -103,7 +103,7 @@ fn the_tile_is_measured_in_metres_of_the_world() {
             "{extent} {scale}"
         );
     }
-    // A hall modelled in centimetre-like units, 3,720 of them at a scale of 0.008 (Sponza): no
+    // A hall modelled in centimetre-like units, 3,720 of them at a scale of 0.008: no
     // coarser a world step than a hall modelled in metres.
     let hall = [0.0, 0.0, 0.0, 3720.0, 1550.0, 2290.0];
     let step = 2f64.powi(primitive_exponent(

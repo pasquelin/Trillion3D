@@ -8,7 +8,7 @@
 //! is counted, never silenced.
 //!
 //! A file that does not describe its active scene — no global block, no master collection — is
-//! not guessed: all its objects are then read, as before, and nothing is counted.
+//! not guessed: all its objects are then read, and nothing is counted.
 use super::*;
 
 /// Maximum depth of a collection tree, cycle included.

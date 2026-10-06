@@ -133,18 +133,18 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample)
   }
-  // A moving capture waits for its pose's pages as the still warmup does (#1016, WebGL2 held without).
+  // A moving capture waits for its pose's pages as the still warmup does (WebGL2 held without).
   if (poses) {
     explorer.setPose(current)
     await explorer.awaitPages()
   }
   await explorer.flush()
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
-  // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
+  // journey into the A/A witness (still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current
   const stageProfile = options.stageProfile ? explorer.stageProfile() : null
   // The engine's CPU bounds over the same window as the stage profile, read once, before the
-  // drain and the calm below file images of their own. A dist older than #80 has no such function.
+  // drain and the calm below file images of their own. A dist without `cpuSteps` is skipped.
   const cpuBounds =
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null
   // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames

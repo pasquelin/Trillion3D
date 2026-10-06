@@ -1,5 +1,5 @@
-// Oracles of the "shared TS formulas" batch: the code from before the factorisation, copied
-// as-is from `develop` at commit 2dcc8fc. These copies are wanted duplicates — it is against
+// Oracles of the shared TS formulas: the unfactored code, copied
+// as-is. These copies are wanted duplicates — it is against
 // them that the shared functions are opposed, value by value, by `Object.is`.
 
 /** A vertex whose only two screen coordinates matter, as `packages/sdk-browser/src/visibility/projection.ts` reads it. */

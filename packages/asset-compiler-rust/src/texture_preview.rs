@@ -48,11 +48,11 @@ pub use levels::*;
 /// binary sidecar version carrying it. Version 3 is GPU rule and full chain,
 /// both atlases included; version 4 adds the gated block-compressed levels and
 /// tails. A new chain under a name of its own moves no existing file and needs
-/// no increment: the `Coverage` chain (#42) is one, and so is each cutoff's
-/// coverage-preserving chain (#44), `srgb-coverage-<C>`. Version 5 counts that
-/// chain's coverage on the filtered cut (#43): its bytes move under the same
+/// no increment: the `Coverage` chain is one, and so is each cutoff's
+/// coverage-preserving chain, `srgb-coverage-<C>`. Version 5 counts that
+/// chain's coverage on the filtered cut: its bytes move under the same
 /// names, and level files are written only when missing. Version 6 lays a block
-/// level file out in tile records, one HTTP Range each (#962, `tile_records`);
+/// level file out in tile records, one HTTP Range each (`tile_records`);
 /// the manifest's `textures.version` names it for the engine.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 6;
 pub(crate) use bake_write::png;

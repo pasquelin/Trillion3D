@@ -1,4 +1,4 @@
-// The model's street, read off its own geometry (#1016): where the bench camera walks at eye level.
+// The model's street, read off its own geometry: where the bench camera walks at eye level.
 // Node chooses the columns and the street among them; the page only asks the physics
 // (`street/streetPage.ts`). Nothing names a scene, and no share of the box is assumed open.
 import type { Page } from 'playwright'

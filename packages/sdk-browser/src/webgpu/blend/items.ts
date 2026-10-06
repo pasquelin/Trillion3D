@@ -18,7 +18,7 @@ import type { SessionDeformation } from '../../deformation/session.ts'
 export const BLEND_ITEM_WORDS = 52
 
 /** Atlas tables the record cites: each texture's slot, per atlas, and the atlases; and the
- *  session's GPU deformation, whose record a paged item of a deformed placement names (#357). */
+ *  session's GPU deformation, whose record a paged item of a deformed placement names. */
 export type BlendAtlasTables = MaterialLayers & {
   deformation?: Pick<SessionDeformation, 'wordOfWorld'>
 }
@@ -32,7 +32,7 @@ export function writeBlendItemRecord(
   tables: BlendAtlasTables,
 ) {
   const base = index * BLEND_ITEM_WORDS,
-    // Read as the host holds it now: a surface rewritten in place is refilled here (#335).
+    // Read as the host holds it now: a surface rewritten in place is refilled here.
     mat = refreshSurface(item.surface)
   const layer = layerSlot(tables.mapLayer, mat.map),
     emissive = layerSlot(tables.mapLayer, mat.emissiveMap),
@@ -46,7 +46,7 @@ export function writeBlendItemRecord(
   floats[base + 17] = mat.baseColor[1]
   floats[base + 18] = mat.baseColor[2]
   floats[base + 19] = mat.opacity
-  // Where the instance reads what it draws, it takes it from the expanded list; the record now
+  // Where the instance reads what it draws, it takes it from the expanded list; the record
   // carries only what belongs to the item — its indices, first vertex, flags, maps.
   ints[base + 20] = item.count
   ints[base + 21] = item.vertexBase ?? 0

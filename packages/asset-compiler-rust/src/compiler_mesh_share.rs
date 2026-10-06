@@ -7,7 +7,7 @@
 //! accessor is its declared layout and the bytes of its elements read through its view and
 //! stride, so two copies of a buffer in two views are one content, and a single differing bit
 //! (−0 against +0, another NaN payload) keeps two meshes apart. A sparse accessor, or one that
-//! cannot be read, is only ever equal to itself: validation further on reports it as before. A
+//! cannot be read, is only ever equal to itself: validation further on reports it. A
 //! mesh a skinned node names is left alone, so no mesh becomes skinned by sharing. Whole meshes
 //! are compared: two meshes that share only some of their primitives are cooked apart.
 use super::*;

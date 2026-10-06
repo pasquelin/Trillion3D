@@ -1,5 +1,5 @@
 /**
- * THE CARD PROGRAM ON WEBGL2 (#1336): the impostor drawn as a masked surface lit by the WebGL2
+ * THE CARD PROGRAM ON WEBGL2: the impostor drawn as a masked surface lit by the WebGL2
  * path's one lighting formula, in the forward base
  * pass. The vertex stage reads the card's record (`CARD_FLOATS`, the WebGPU
  * card's layout, `impostor/cards.ts`) from a float texture by its instance, takes its four corners —

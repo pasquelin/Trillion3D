@@ -39,7 +39,7 @@ export interface Side extends SideBase {
   compression: TextureCompression | null
   errorMetric: ScreenErrorVariant | null
   /** The fraction of the display per axis the WebGPU frame is drawn at before the temporal resolve
-   *  reconstructs it (`renderScale`, #816); `null` leaves the engine's, the display. */
+   *  reconstructs it (`renderScale`); `null` leaves the engine's, the display. */
   renderScale: number | null
 }
 

@@ -10,7 +10,7 @@ const scratch = new Float64Array(3)
  * Height of the surface above the world position `(x, z)`. The rest point that lands there
  * solves `p + D(p) = (x, z)`; `HEIGHT_ITERATIONS` Newton steps find it (the Jacobian costs no
  * extra sine), then its height is read. A plain fixed point `p ← (x, z) − D(p)` converges at the
- * rate `Σ Qᵢ·Aᵢ·kᵢ`: near 1, three of its steps leave centimetres (measured on #419).
+ * rate `Σ Qᵢ·Aᵢ·kᵢ`: near 1, three of its steps leave centimetres (measured).
  */
 export function waveHeight(waves: Waves, x: number, z: number) {
   waveRest(waves, x, z, scratch)

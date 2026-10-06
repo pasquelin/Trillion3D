@@ -63,7 +63,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     globalIllumination: false,
   })
   // The lit program starts now, beside every other program, and prepare ends once it landed: the
-  // first image is lit, never the unlit stand-in (#1362). Its later arrival (a light turned on) is a
+  // first image is lit, never the unlit stand-in. Its later arrival (a light turned on) is a
   // new resource, or a held image would stay as it was. Both are awaited, each kept as built.
   const programs = await step('lighting and antialiasing programs', () =>
     Promise.allSettled([
@@ -178,7 +178,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   // One thread per cluster, each with its own error band; a device that cannot hold it is said.
   // The GPU cut packs a node per placement and claims a row per resident instance: a scene whose
   // instances pass the rows a view holds is cut on the CPU, which claims a row per cluster it
-  // selects, so neither its DAG nor its rows grow with the placements (#1232).
+  // selects, so neither its DAG nor its rows grow with the placements.
   if (vis.gpuDraw && selectionRoots.length && cutsOnCpu(packedPages.length))
     fallbackToCpuCut(rt, 'view rows', { instances: packedPages.length, viewRows: VIEW_ROWS })
   else if (vis.gpuDraw && selectionRoots.length) {

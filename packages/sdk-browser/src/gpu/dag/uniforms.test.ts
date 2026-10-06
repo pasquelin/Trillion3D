@@ -1,9 +1,10 @@
-// A11: parseDagOutput sizes its arrays ahead of time instead of a typed-array spread and a
-// `push` with no capacity. Oracle: the version from before batch A, in `../../../../../bench/oracles/browser/residency.ts`.
+// parseDagOutput sizes its arrays ahead of time instead of a typed-array spread and a `push` with
+// no capacity. Oracle: the spreading version, in
+// `../../../../../bench/oracles/browser/residency.ts`.
 //
-// THE HEADER HAS CHANGED WIDTH since then: four words at first — a count, frustum reject, the
-// level, the flags — eight now, the next four carrying the triangle totals the GPU holds
-// (`layout.ts`). The oracle is frozen at four. Each side therefore receives a readback IN
+// THE HEADER IS WIDER THAN THE ORACLE'S: the oracle's four words — a count, frustum reject, the
+// level, the flags — are the first of eight, the next four carrying the triangle totals the GPU
+// holds (`layout.ts`). The oracle is frozen at four. Each side therefore receives a readback IN
 // ITS OWN LAYOUT, with the same values, and the comparison is on what they extract: it is the
 // decode that is compared, not the placement of the words.
 import test from 'node:test'
@@ -24,8 +25,8 @@ const HEAD_ORACLE = 4
  * The readback reduced to what both sides can carry. `drawablePageIds` is normalised — the oracle
  * only wrote the key when a mask existed, the reused readback always carries it. Fields that only
  * one of the two produces — `truncated`, `requestPriorities` that only the oracle publishes,
- * `aheadPageIds` that only the reader of the view ahead splits off (#488),
- * `complete` that only the oracle still reads (the cut rule leaves no surface undrawn, #486), the
+ * `aheadPageIds` that only the reader of the view ahead splits off,
+ * `complete` that only the oracle still reads (the cut rule leaves no surface undrawn), the
  * difference only the GPU takes (`shader/differenceWgsl.ts`), and the four totals — are STRIPPED
  * and asserted separately: comparing them would ask a side for something it never knew.
  */
@@ -72,11 +73,10 @@ const pair = (header: number[], pageIds: number[]) => ({
 const lire = (bytes: ArrayBuffer) => parseDagOutput(bytes, 0, bytes.byteLength, 0)
 const lireOracle = (bytes: ArrayBuffer) => referenceParseDagOutput(bytes, 0, bytes.byteLength, 0)
 
-// Bit 0 of word 3 changed meaning with the readback cap (`layout.ts`). It used to say "the
-// cut wrote more ranks than there are clusters", i.e. a failure, and the oracle returned `null`:
-// GPU selection was abandoned for the session. It now says "the cut did not fit under the cap", a
-// normal situation for an extreme scene — the kernels ran, the frame mask is correct, only the
-// LIST is truncated. The readback is returned, and marked.
+// Bit 0 of word 3 means, with the readback cap (`layout.ts`), "the cut did not fit under the cap",
+// a normal situation for an extreme scene — the kernels ran, the frame mask is correct, only the
+// LIST is truncated. The readback is returned, and marked; the oracle, which reads that bit as a
+// failure ("the cut wrote more ranks than there are clusters"), returns `null`.
 test('bit 0 of word 3 declares the readback truncated, without discarding it', () => {
   const { neuf, oracle } = pair([5, 0, 0, 1], [1, 2, 3, 4, 5])
   const reading = lire(neuf)

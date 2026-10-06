@@ -37,7 +37,7 @@ function writeError(
 }
 
 /**
- * Writes row `row`'s detail (#831): the world error of its own form and of the coarser one that
+ * Writes row `row`'s detail: the world error of its own form and of the coarser one that
  * replaces it, each at its level-of-detail sphere's world centre, as the GPU cut projects them
  * (`../../gpu/dag/shader/error.ts`): the local error, grown by the placement's deformation reach
  * past the finest level, by the placement's stretch (`worldStretch`, the cut's own). The cut rule's residency is folded in
@@ -62,7 +62,7 @@ export function writeRowLod(
   if (box && box[3] >= box[0])
     out[at + 18] = 0.5 * hypot3(box[3] - box[0], box[4] - box[1], box[5] - box[2])
   if (!root || !rec?.sphere || rec.lodError === undefined) return
-  // A page bounded where its vertices are (`rowBox`, #573) takes its box's sphere, which no reach
+  // A page bounded where its vertices are (`rowBox`) takes its box's sphere, which no reach
   // grows; its errors still grow by the reach, as far as the deformation carries a finer form from
   // the coarser one — a dynamic page, a leaf with no coarser form, has none to grow.
   const grow = rowGrowth(rec, root.reach),

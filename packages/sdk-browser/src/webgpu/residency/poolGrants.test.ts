@@ -67,7 +67,7 @@ test('a geometry pool the device refuses is drawn at half its bytes until grante
 })
 
 test('a budget pays first for the bytes held beside its pool, and a refusal halves the pool alone', async () => {
-  // #487's pages: 2,848 bytes, beside 48 bytes of vertex buffers.
+  // The pages of the scene: 2,848 bytes, beside 48 bytes of vertex buffers.
   const rule = (budgetBytes: number) =>
     geometryPoolFor({ budgetBytes, pageBytes: 2848, uniquePages: 276, rootPages: 4 })
   for (const budget of [393_048, 393_024, 300_001, 4 * 2848 + 48]) {
@@ -130,7 +130,7 @@ test('a texture pool the device refuses is drawn with fewer layers, down to one 
   assert.equal(seen[0].grantedBytes, pool.allocatedBytes)
 })
 
-// Behaviour (#726): the floor is where half the bytes draws no smaller pool, not a clamp name: one
+// Behaviour: the floor is where half the bytes draws no smaller pool, not a clamp name: one
 // atlas held at its tails' floor (`minimum`) leaves the other to shrink until the device grants it.
 test('a texture atlas at its floor lets the other shrink until the device grants the pool', async () => {
   const encoding = poolEncoding('bc7'),

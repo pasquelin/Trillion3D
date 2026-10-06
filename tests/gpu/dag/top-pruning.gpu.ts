@@ -1,7 +1,7 @@
 // Top-down pruning removes work, never pages: the shipped kernel against the same text whose
 // `floorPrunes` always answers false, on the same scene, cameras and threshold. The pages kept
 // must be identical — pruning only drops subtrees no cluster of which is fine enough — and the
-// descent must list fewer candidates: the work the five passes after it no longer walk.
+// descent must list fewer candidates: the work the five passes after it do not walk.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'

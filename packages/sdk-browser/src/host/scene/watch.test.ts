@@ -1,7 +1,7 @@
-// GEO-03: the host is allowed to write the source graph directly — `mesh.position.x = 100`,
-// a lamp's intensity and pose — without calling any engine API. No revision
-// announced it, and the frame was held on a stale scene. A pose write is what announces
-// itself now (#6): the hooked field increments the watch's revision and the frame compares one
+// The host is allowed to write the source graph directly — `mesh.position.x = 100`,
+// a lamp's intensity and pose — without calling any engine API. Without a revision
+// to announce it, the frame would be held on a stale scene. A pose write announces
+// itself: the hooked field increments the watch's revision and the frame compares one
 // integer; the other fields are a few values per node, taken by the same read.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -165,7 +165,7 @@ test('a lamp written directly by the host is copied on the next frame', () => {
   dispose()
 })
 
-test('a bone posed by the host is seen: it moves the skin it deforms (#357)', () => {
+test('a bone posed by the host is seen: it moves the skin it deforms', () => {
   const { source, mesh } = graphe()
   const bone = new G.Group()
   source.add(bone)

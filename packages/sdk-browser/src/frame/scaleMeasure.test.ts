@@ -1,4 +1,4 @@
-// #831: an 'auto' world that drew through explicit renders before its loop began (`awaitPages`,
+// An 'auto' world that drew through explicit renders before its loop began (`awaitPages`,
 // `world.render()`) was never held to measure the display: a page heavy from its first frame read
 // half the refresh from its stretched intervals. The loop's first frames measure whatever came first.
 import test from 'node:test'

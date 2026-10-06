@@ -1,4 +1,4 @@
-//! One scene, one output (#1370): what a run reports of itself — the pages it found already built,
+//! One scene, one output: what a run reports of itself — the pages it found already built,
 //! its times — stays in its result, so a compile into a cache that already holds the scene's
 //! objects writes the same bytes as the first.
 use super::reuse::textured;

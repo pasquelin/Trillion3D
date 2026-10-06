@@ -1,4 +1,4 @@
-//! A part leaves the DAG only where the error covers it (#484): in every cut the runtime may draw,
+//! A part leaves the DAG only where the error covers it: in every cut the runtime may draw,
 //! the root cover — what `memory-on-a-budget` draws at its smallest budget — included, a part of
 //! the model none of whose vertices the cut names is no wider than the cut's error, and every root
 //! face lies within twice its error of the model (what `signature-architecture` lost:

@@ -29,7 +29,7 @@ const vertexColorsOf = (vertexColors: boolean, colors: boolean) => {
   return worn(root.children[0] as HostMesh).vertexColors
 }
 
-// #347: the material decides, through `material.vertexColors`; a geometry's
+// The material decides, through `material.vertexColors`; a geometry's
 // `color` attribute alone tints nothing, and a geometry without one has nothing to tint by.
 test('a world surface tints by vertex colours only when its material asks', () => {
   assert.equal(vertexColorsOf(false, true), false, 'coloured geometry, material says no')

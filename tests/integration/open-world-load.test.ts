@@ -1,5 +1,5 @@
-// #1232: the open world (pasquelin/Trillion3D-openworld: 118 436 nodes, 17.5 M instances, 1 326
-// primitives) opens and draws its first image on WebGPU at the boss's case (1728×1117 CSS pixels,
+// The open world (pasquelin/Trillion3D-openworld: 118 436 nodes, 17.5 M instances, 1 326
+// primitives) opens and draws its first image on WebGPU at a stated case (1728×1117 CSS pixels,
 // DPR 2), on the mock device with an Apple M2's limits, under a stated memory cap
 // (`view-rows-load.fixture.ts`). Its world roots weighed 866 MiB as one JSON string, past the
 // 512 MiB V8 holds, so develop could not open it in Node or in Chrome; cooked as records

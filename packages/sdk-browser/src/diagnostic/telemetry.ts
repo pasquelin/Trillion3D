@@ -34,7 +34,7 @@ const waitingReport = (): TelemetryReport => ({
 
 /**
  * Watches frame after frame and says how smoothly the engine runs, and what slows it. As a
- * shipping build strips its stat tools (#1353), the core holds only this facade: its code is the
+ * shipping build strips its stat tools, the core holds only this facade: its code is the
  * measurement's chunk (`FrameProfile`, `../host/families.ts`), fetched once debug mode turns on or
  * the profiler is first used. Until it has arrived a frame is not counted and the report says it
  * waits (`docs/SDK.md`).

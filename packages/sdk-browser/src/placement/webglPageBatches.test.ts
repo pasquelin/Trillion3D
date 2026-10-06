@@ -1,4 +1,4 @@
-// #1235: one record serves every row of its page. A frame that shows the same record on another row
+// One record serves every row of its page. A frame that shows the same record on another row
 // shows the same records as the last frame, but at other matrices: the instanced batch draws again.
 import test from 'node:test'
 import assert from 'node:assert/strict'

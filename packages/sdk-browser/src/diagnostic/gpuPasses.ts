@@ -6,7 +6,7 @@ import type {
 } from '../gpu/core/passBlocks.ts'
 import { families } from '../host/families.ts'
 
-// The public pass mapping (#1353): as a shipping build strips its stat tools, the core holds only
+// The public pass mapping: as a shipping build strips its stat tools, the core holds only
 // these three facades, and the pass table they read is the measurement's chunk
 // (`../gpu/core/passBlocks.ts`, `../host/families.ts`), fetched on their first call or once debug
 // mode turns on. Until it has arrived a pass reads as unknown — stage `geometry`, block `other` —

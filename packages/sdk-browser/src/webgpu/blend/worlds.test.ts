@@ -1,4 +1,4 @@
-// World box of transparent items. Their MATRIX is no longer copied: an item carries the one the
+// World box of transparent items. Their MATRIX is not copied: an item carries the one the
 // engine holds for its source mesh (`../../host/world/placements.ts`), so a move is already written there
 // before the frame starts.
 import test from 'node:test'

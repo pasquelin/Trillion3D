@@ -1,4 +1,4 @@
-// The GPU paint order against the CPU (#831, GPU wave 1): the order kernel, run in `shaderRun` on
+// The GPU paint order against the CPU: the order kernel, run in `shaderRun` on
 // generated scenes (`orderKernel.fixture.ts`), sorts exactly as the CPU model
 // (`orderBlendPlanCpu`), keys each item to the bit, and gives each slot the same run.
 import test from 'node:test'

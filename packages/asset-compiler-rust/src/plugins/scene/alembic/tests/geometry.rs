@@ -99,7 +99,7 @@ fn a_concave_polygon_keeps_its_own_area() {
     );
 }
 
-// Finding 27: cancellation is reread inside a mesh. Checked between objects only, a single mesh
+// Cancellation is reread inside a mesh. Checked between objects only, a single mesh
 // of a million faces posed them all before stopping.
 #[test]
 fn a_raised_token_stops_a_mesh_before_its_last_face() {

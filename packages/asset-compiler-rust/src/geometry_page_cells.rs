@@ -108,7 +108,7 @@ pub fn grids(
 }
 
 /// The positions the page stores and, when it stores each once, every vertex's link to its own
-/// (CMP-10, #960): a flat-shaded page repeats a corner's position under every face normal meeting
+/// position: a flat-shaded page repeats a corner's position under every face normal meeting
 /// there. The distinct positions, in first-use order, are kept when they and the links take fewer
 /// words than one position per vertex; otherwise every vertex keeps its own, with no link. The
 /// decoded vertices are the same either way.

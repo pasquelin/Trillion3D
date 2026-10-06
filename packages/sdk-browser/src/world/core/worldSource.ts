@@ -15,7 +15,7 @@ import type { PlacementMount } from '../../placement/backendSceneUpdates.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
 
 /** Each primitive with absolute addresses, made once however often a session reopens: a model
- *  whose manifest the view holds (#751) lists more or fewer of them from one opening to another. */
+ * whose manifest the view holds lists more or fewer of them from one opening to another. */
 const absolute = new WeakMap<Primitive, Primitive>()
 function absolutePrimitives(model: LoadedModel) {
   const { metadata, base } = model.record
@@ -66,7 +66,7 @@ export function buildWorldSource(plan: WorldPlan) {
       associations.set(node, moved)
     }
     // Past every rank its primitives and its meshes name: a mesh whose primitive the view has not
-    // read yet (#751) keeps its rank from the next model's.
+    // read yet keeps its rank from the next model's.
     let last = -1
     for (const { mesh } of metadata.primitives) last = Math.max(last, mesh)
     for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1)

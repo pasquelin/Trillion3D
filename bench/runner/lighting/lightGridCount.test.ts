@@ -1,4 +1,4 @@
-// #1369: each pixel walks its cell's list, a few lights above those that reach it — never one that
+// Each pixel walks its cell's list, a few lights above those that reach it — never one that
 // reaches it missed —, and the grid pass reads no depth: its tests follow its columns and lights.
 import test from 'node:test'
 import assert from 'node:assert/strict'

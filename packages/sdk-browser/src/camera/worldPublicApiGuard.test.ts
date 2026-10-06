@@ -1,21 +1,19 @@
 // WHAT THESE TWO PUBLIC APIS EXPECT, AND WHAT THEY REFUSE.
 //
-// BEFORE (develop, fe285470): `cameraSelectionUniforms(camera: G.GraphCamera, …)` and
-// `rasterVisibility(pages, camera: G.GraphCamera, viewport)`.
-// AFTER (M3b): `cameraSelectionUniforms(cam: EngineCamera, …)` (../gpu/core/selection.ts) and
+// The two APIs are `cameraSelectionUniforms(cam: EngineCamera, …)` (../gpu/core/selection.ts) and
 // `rasterVisibility(pages, cam: EngineCamera, viewport)` (../visibility/raster.ts) — both read
-// `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera.
+// `cam.planes`/`cam.view`/`cam.viewProjection`, absent from a raw host camera
+// (`G.GraphCamera`).
 //
-// THE CHOICE, AND IT IS FINAL: these APIs take the ENGINE camera and reject a raw host camera
+// THE CHOICE: these APIs take the ENGINE camera and reject a raw host camera
 // outright. They do not convert at the boundary: converting would put `readCameraWorld` —
 // a matrix invert and six planes — back into a function the cut calls every frame, and would
 // hide the unwalked rig the contract exists to catch. A host therefore enters through
 // `engineCamera(…)`, as frame entry does.
 //
-// `test:gpu` had failed on four hosts of `test/*.gpu.ts` that stayed on the raw camera;
-// they moved to `engineCamera` (in-repo fixtures, not third-party hosts). `pnpm test` had not
-// seen it: they are scripts outside `pnpm test`, that only `pnpm run test:gpu` runs —
-// these tests therefore reproduce both calls without a browser, the faulty one and the right one.
+// The hosts of `test/*.gpu.ts` enter through `engineCamera` (in-repo fixtures, not third-party
+// hosts). They are scripts outside `pnpm test`, that only `pnpm run test:gpu` runs — these tests
+// therefore reproduce both calls without a browser, the faulty one and the right one.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'

@@ -1,4 +1,4 @@
-// #685: the image the screen reflections read is a render pass of its own, before the lighting.
+// The image the screen reflections read is a render pass of its own, before the lighting.
 // A GPU timing names a pass by its label: without one it read `beginRenderPass`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -31,7 +31,7 @@ test('a reflecting image draws its reflection source, then the lighting, each un
   lighting.dispose()
 })
 
-// #1157: the frame counts what `light` returns; it must be the passes it began, never a guess.
+// The frame counts what `light` returns; it must be the passes it began, never a guess.
 test('the lighting counts exactly the passes it draws, mirror or not, contract or not', async () => {
   const h = await contractLighting()
   const { lighting, encoder, target: view, bind } = h
@@ -50,7 +50,7 @@ test('the lighting counts exactly the passes it draws, mirror or not, contract o
   lighting.dispose()
 })
 
-// #1342: the source is the last lit image reprojected, never a second lighting of the surfaces.
+// The source is the last lit image reprojected, never a second lighting of the surfaces.
 test('only the final pass lights a surface: the source reprojects, the rough trace reads it', async () => {
   const h = await contractLighting()
   const { lighting, encoder, target } = h
@@ -77,7 +77,7 @@ test('only the final pass lights a surface: the source reprojects, the rough tra
   lighting.dispose()
 })
 
-// #1342: the source reprojected the HDR target, which by then held camera fog, the mirror term,
+// The source reprojected the HDR target, which by then held camera fog, the mirror term,
 // transparents, water and particles. The one lighting pass writes the source beside the lit image.
 test('the reflecting lighting pass writes the next source as its second target, once kept', async () => {
   const h = await contractLighting()

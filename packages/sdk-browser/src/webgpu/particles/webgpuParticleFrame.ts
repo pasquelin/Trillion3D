@@ -9,7 +9,7 @@ import { opensDisplayFilter } from '../pages/render/encodeDisplayFilter.ts'
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles)
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, which draws them (#755), once a frame whatever the views drawn. */
+ *  transparent stage, which draws them, once a frame whatever the views drawn. */
 export function encodeParticles(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,

@@ -32,7 +32,7 @@ const cell =
   (at: number) =>
     lists[at]
 
-// #751: a cell that leaves while its read is in flight, the read then failing, drops no page
+// A cell that leaves while its read is in flight, the read then failing, drops no page
 // another placed cell still holds.
 test('a cell that leaves mid-read releases nothing more when its read fails', async () => {
   const { pages, counts, land } = countedPages(new Set(['y']))
@@ -68,7 +68,7 @@ test('a cell that leaves mid-read releases its pages once they land', async () =
   assert.deepEqual([counts.get('x'), held.held()], [0, 0])
 })
 
-// #1237: a placed cell also holds the world bundles its objects' roots depend on; a hold whose
+// A placed cell also holds the world bundles its objects' roots depend on; a hold whose
 // world read fails lets its pages go, and the whole hold is asked again at the next frame.
 test('a placed cell holds its world bundles with its pages, both or neither', async () => {
   const { pages, counts, land } = countedPages(new Set())

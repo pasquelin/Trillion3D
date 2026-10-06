@@ -1,9 +1,9 @@
-// #1363: a pixel's footprint, from the shipped `pixelFootprint` run through `shaderRun` over a floor
+// A pixel's footprint, from the shipped `pixelFootprint` run through `shaderRun` over a floor
 // the camera looks down at, rasterized at each phase of the TAA's jitter cycle: the level of every
-// floor pixel's footprint (its log2, floored) is the same at every phase — where develop's
-// footprint, taken at the jittered sample, moves some of them —, and with no jitter the footprint is
-// develop's, to the bit. So on a strip of that floor one pixel wide, background on both sides, as a
-// wire, a bar or a far thin part: its levels hold every phase too.
+// floor pixel's footprint (its log2, floored) is the same at every phase — where a
+// footprint taken at the jittered sample moves some of them —, and with no jitter the footprint is
+// that sample's, to the bit. So on a strip of that floor one pixel wide, background on both sides,
+// as a wire, a bar or a far thin part: its levels hold every phase too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { invertMatrix4, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
@@ -87,8 +87,8 @@ const levelOf = (footprint: number) =>
   Math.max(Math.trunc(Math.floor(Math.log2(Math.max(footprint, 1e-30)))), FINEST)
 
 /** Every floor pixel whose two neighbours above and below are floor too — and on the whole floor,
- *  its two on each side —, at every phase: its levels, the shipped read's and develop's, one row
- *  per phase. */
+ *  its two on each side —, at every phase: its levels, the shipped read's and the jittered read's,
+ *  one row per phase. */
 function levelsAcrossPhases(thin = false) {
   const shipped = new Map<number, string[]>(),
     developed = new Map<number, string[]>(),
@@ -121,7 +121,7 @@ test('the footprint level of a pixel is the same at every phase of the TAA jitte
   const moved = (reads: Map<number, string[]>) =>
     floor.filter((i) => new Set(reads.get(i)).size > 1)
   assert.deepEqual(moved(shipped), [], 'no floor pixel changes its footprint level')
-  // The floor crosses several levels: develop's read moves pixels along them.
+  // The floor crosses several levels: the jittered read moves pixels along them.
   assert.ok(new Set(floor.map((i) => shipped.get(i)![0])).size >= 4, 'several levels on the floor')
   assert.ok(moved(developed).length > 0, 'develop moves pixels along the level boundaries')
 })

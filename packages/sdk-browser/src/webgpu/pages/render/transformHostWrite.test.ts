@@ -1,4 +1,4 @@
-// A host pose write, then `setTransform` on another node in the same task (#358). The move settles
+// A host pose write, then `setTransform` on another node in the same task. The move settles
 // the scene watch: without care, the host's write was taken as the engine's own, the next image did
 // not walk the world index, and only the named node's rows were rewritten — the other model kept
 // its old world, corners and windings in the visibility table while the GPU cut saw it moved.
@@ -46,7 +46,7 @@ test('B moved alone: the next image walks nothing, and only its rows travel', ()
 
 test('before the first image, A written by the host then B moved: A stands where the host put it', () => {
   const { a, worlds, rt } = twoModels(false)
-  // Nothing is hooked yet: no watch announces the write, the move walks the whole index (#915).
+  // Nothing is hooked yet: no watch announces the write, the move walks the whole index.
   a.position.x = 100
   setWebgpuTransform(rt, 'B', moved)
   assert.equal(worlds.of(a).elements[12], 100)

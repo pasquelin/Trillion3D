@@ -4,8 +4,8 @@
 //! by the same function, through the SDK module (`wasm_cone.rs`), for the pages the world cuts at
 //! run time (`packages/sdk-browser/src/world/page/runtimeCut.ts`). This is the only cone builder.
 //!
-//! Two cones are built and the narrower kept (#929). The mean cone is `triangleCone`
-//! (`tests/kit/reference/cone.ts`), which the prepare ran until #272, operation for operation in float64:
+//! Two cones are built and the narrower kept. The mean cone is `triangleCone`
+//! (`tests/kit/reference/cone.ts`), operation for operation in float64:
 //! its axis keeps its bits, `Math.hypot` to the bit (`math::hypot`). Its angle cannot: the
 //! JavaScript `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from
 //! fdlibm), so it is fdlibm's (`acos.rs`, the same bits everywhere) raised by
@@ -31,7 +31,7 @@ fn face_cross(pos: &[f32], triangle: [u32; 3]) -> [f64; 3] {
 }
 
 /// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`:
-/// the narrower of the mean cone and the narrowest cone, never looser than the mean one (#929).
+/// the narrower of the mean cone and the narrowest cone, never looser than the mean one.
 /// Degenerate faces are skipped; with none left, or normals that cancel out, the cone is open.
 pub fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
     let faces = faces(pos, indices);

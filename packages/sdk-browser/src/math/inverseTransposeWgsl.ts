@@ -20,11 +20,11 @@ import { inverseTransposeKernel } from './inverseTransposeKernel.ts'
  * WHAT A SINGULAR MATRIX BECOMES. Singular does not mean gone: a scale (1, 1, 0) followed by a
  * rotation flattens a primitive onto a PLANE, and its faces keep a non-zero area there and a
  * perfectly defined normal. Returning the local vector then — the normal from BEFORE the
- * transform — lit the surface as if it had not rotated; returning zero extinguished it. The
- * engine convention, the same for every surface, opaque, masked or transparent:
+ * transform — would light the surface as if it had not rotated; returning zero would extinguish it.
+ * The engine convention, the same for every surface, opaque, masked or transparent:
  *
  *  1. Regular matrix: `scale*(adjoint*v)`, the inverse-transpose, unchanged to the bit.
- *  2. Rank-2 singular matrix: `adjoint*v`, WITHOUT the factor — which is ±∞ since the
+ *  2. Rank-2 singular matrix: `adjoint*v`, WITHOUT the factor — which is ±∞ as the
  *     determinant is zero. This is not a fallback, it is the right compute: the cofactor
  *     identity gives `cof(M)·(e1 × e2) = (M e1) × (M e2)`, so the adjoint applied to the local
  *     normal IS the cross product of the transformed edges, up to a positive 1/t² factor. A
@@ -46,7 +46,7 @@ import { inverseTransposeKernel } from './inverseTransposeKernel.ts'
  * All of that depends only on the matrix: normalisation, the determinant and the adjoint's
  * three cross products are therefore gathered in `invTranspose3Prep`, computed once, and
  * `invTranspose3Apply` keeps per vector only the 3×3 product and the factor. A shading that
- * transforms a triangle's three normals with the same matrix no longer remakes the prologue
+ * transforms a triangle's three normals with the same matrix does not remake the prologue
  * three times. Operands and their per-vector order do not move — `scale*(adjoint*v)`, as
  * before — so the regular case stays the previous one, to the bit. `inverseTranspose3` remains
  * the public writing for an isolated vector.

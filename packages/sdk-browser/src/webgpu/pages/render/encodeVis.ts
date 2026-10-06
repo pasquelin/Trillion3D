@@ -44,7 +44,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const [width, height] = gpu.targetSize
   // Row words, spheres, mobility and corners follow only the row table: this image's dirty rows.
   // An image with no visibility row sends them too: the blended casters' rows, behind, still feed
-  // its shadows, and rows left dirty would keep the frame from being held (#198).
+  // its shadows, and rows left dirty would keep the frame from being held.
   timing.encodeCounts.itemsUploaded = 0
   followDirtyRows(rt, device)
   encodeComposedRows(rt, device, timing.frameEncoder ?? openFrameEncoder(rt, device))

@@ -1,4 +1,4 @@
-//! `KHR_node_visibility` (#519): a hidden node's mesh is compiled, to be shown later, and the node
+//! `KHR_node_visibility`: a hidden node's mesh is compiled, to be shown later, and the node
 //! table says it hidden; no coplanar surface, proxy triangle, oracle triangle or collider comes
 //! from it. Provenance: the coplanar golden `full-overlap` (two coplanar squares, one per node),
 //! its second node declaring itself hidden or not, and a body on it.

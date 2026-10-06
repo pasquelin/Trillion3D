@@ -86,7 +86,7 @@ test('readable summary names blocks in p50/p95 milliseconds and "unmeasured" wit
   assert.deepEqual(passes(null), ['- GPU passes: no reading', ''])
 })
 
-test('overlapping passes are told apart by their own share beside their whole span (#1279)', () => {
+test('overlapping passes are told apart by their own share beside their whole span', () => {
   const sample: GpuPassTimings = {
     frame: 12,
     totalMs: 85,

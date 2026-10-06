@@ -1,15 +1,15 @@
 /**
- * THE CELLS A PARTITION HOLDS BY THEIR SUPER-ROOTS ALONE (#1332).
+ * THE CELLS A PARTITION HOLDS BY THEIR SUPER-ROOTS ALONE.
  *
  * As World Partition's streaming policy does each update, a frame's plan (`plan.ts`) chooses each
  * cell's state from the source's real data: placed, its objects read and drawn, or held far, drawn
  * by its super-roots — the world bundles its objects' roots need held (`../scene/worldRoots.ts`), its
  * object pages unread. That choice is the cut's, on the cut's own lens (`superRoots.ts`), and only
- * once the cut packs the world DAG (`GpuSelection.packsWorld`, #1333): until then no cell is ever
+ * once the cut packs the world DAG (`GpuSelection.packsWorld`): until then no cell is ever
  * held far, since nothing would draw its super-roots, and the plan is the one it always was.
  *
  * The super-roots' bound per cell comes from the world stream (`WorldRootsHold.stream`), opened
- * here on the first frame whose cut packs the world DAG: a load never reads the DAG file (#1232).
+ * here on the first frame whose cut packs the world DAG: a load never reads the DAG file.
  * A far cell's bundles are held as a placed cell's are (`createCellPages`), counted once per cell.
  */
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
@@ -72,7 +72,7 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
       leave: (cell: number) => void,
     ) {
       const reading = superRoots(eye, lens)
-      // A cell placed since draws its objects; and a cut that no longer packs the world DAG draws
+      // A cell placed since draws its objects; and a cut that does not pack the world DAG draws
       // no super-root: neither stays held far.
       for (const cell of far) if (!reading || placed.has(cell)) release(cell)
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading)

@@ -11,8 +11,8 @@
 // here: everything comes from `explorer.lights()`, hence from the compiled cache and the
 // contract, never from a named scene or a position placed by hand.
 //
-// Both engines then receive the same lighting, and their per-pixel delta finally measures
-// materials and rendering, no longer the lighting convention.
+// Both engines then receive the same lighting, and their per-pixel delta measures
+// materials and rendering, not the lighting convention.
 //
 // What the witness does not render, named rather than guessed: no cast shadows. The SDK's
 // Three renderer does not enable its shadow maps, and a light that asked for them would

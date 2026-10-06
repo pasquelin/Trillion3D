@@ -32,7 +32,7 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
     // Under root coverage: raised to it, by name; roots never leave.
     const shrunk = await backend.setMemoryBudgets!({ geometryPoolBytes: 1, texturePoolBytes: 1 })
     assert.equal(shrunk.geometryPool.clamp, 'root-cover')
-    // The quad has no map: no texture layer at any budget, nothing raised to a floor (#1345).
+    // The quad has no map: no texture layer at any budget, nothing raised to a floor.
     assert.equal(shrunk.texturePool?.clamp, null)
     assert.equal(shrunk.texturePool?.layers.color.lossless, 0)
     assert.ok(shrunk.durationMs >= 0)
@@ -112,7 +112,7 @@ test('a texture budget set before prepare is kept and drawn by prepare, the repo
     assert.equal(backend.metrics().texturePoolClamp, null)
     await backend.prepare()
     backend.render(camera())
-    // Drawn at the one-byte budget: no layer, the quad having no map (#1345).
+    // Drawn at the one-byte budget: no layer, the quad having no map.
     const after = await backend.setMemoryBudgets!({})
     assert.equal(after.texturePool?.budgetBytes, 1)
     assert.equal(after.texturePool?.allocatedBytes, 0)

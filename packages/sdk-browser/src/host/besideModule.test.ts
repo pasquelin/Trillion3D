@@ -24,7 +24,7 @@ test("a worker of the page's own origin starts on its module", () => {
   ])
 })
 
-test('a worker served from a CDN starts on a same-origin module that imports it (#1353)', async () => {
+test('a worker served from a CDN starts on a same-origin module that imports it', async () => {
   const started = stubbedWorkers('https://site.test')
   const cdn = 'https://cdn.test/npm/trillion3d/dist/physicsWorker.js'
   startModuleWorker(cdn)

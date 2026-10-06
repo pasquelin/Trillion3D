@@ -1,5 +1,5 @@
 /**
- * THE MESHES OF A PARTITION'S CELLS A SESSION DRAWS, MOUNTED AS THE VIEW READS THEM (#751).
+ * THE MESHES OF A PARTITION'S CELLS A SESSION DRAWS, MOUNTED AS THE VIEW READS THEM.
  *
  * A model whose manifest the view holds lists only the primitives of the pages its placed cells
  * hold (`scene/partition/cellPages.ts`): its session opened on those listed then, the other meshes

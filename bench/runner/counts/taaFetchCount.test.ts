@@ -1,4 +1,4 @@
-// #1369: a pixel's resolve issues a bounded number of fetches per display pixel. The 3×3 depths come
+// A pixel's resolve issues a bounded number of fetches per display pixel. The 3×3 depths come
 // in four gathers and their identifiers in four more, the nearest's identifier among them; the
 // geometry history's 2×2 in two (`geometryHistoryWgsl.ts`); the history is read beside the
 // geometry test, an uncovered pixel's as a kept one's, then dropped (`historyWgsl.ts`); a still

@@ -5,14 +5,14 @@ import { INVERSE_PI } from '../shaderConstants.ts'
  * The contribution of one declared light at the point, its shadow included — the engine's only
  * lighting formula. A light out of range, or fully in shadow, yields exactly zero.
  *
- * Without `shadowed` (#1249), the program of a scene no light of which holds a shadow slot: every
+ * Without `shadowed`, the program of a scene no light of which holds a shadow slot: every
  * light's `shadowFactor` answers exactly one and a transmission of exactly one, so the same terms
  * without them are the same product, bit for bit (`tests/gpu/lighting/narrow-resolve.gpu.ts`),
  * with none of the shadow code compiled in. That code costs an unshadowed light 40 % of its
  * evaluation although it runs none of it — the registers it holds lower the pixels in flight —,
  * timed on the resolve of 64 lamps; the program is chosen per frame (`contractVariants.ts`).
  *
- * Without `rects` (#1369), the program of a scene that holds no rectangle light: \`isRect\` answers
+ * Without `rects`, the program of a scene that holds no rectangle light: \`isRect\` answers
  * false for every light, so the branch it guards never runs and its absence changes no term. The
  * rectangle's shading — its clipped polygon and fitted lobe (\`rectLightWgsl.ts\`) — is the largest
  * code of the loop: left out, every punctual light of the loop runs without the registers it holds.
@@ -69,7 +69,7 @@ const shadeWgsl = (pair: boolean) => `
  * The one loop that shades a pixel's lights in full: the lights of a cell's list (`cellSlice`) — or,
  * from `TILE_NO_SLICE`, every light of the scene — in increasing rank.
  *
- * With `reject` — the program with no shadow code (#1249) — a light is first rejected on its
+ * With `reject` — the program with no shadow code — a light is first rejected on its
  * sphere alone, before its record is read in full, where it lies past its range by a
  * ten-thousandth of its squared range (`RANGE_REJECT`): there `directIncidence` would have returned
  * zero before any shading, so the sum loses an exact zero only. The kind is read alone

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The portal's Install page, walked through (#1355): its English commands run in a clean folder,
+ * The portal's Install page, walked through: its English commands run in a clean folder,
  * as a newcomer copies them. Until `trillion3d` is on npm, the registry is the one stand-in:
  * `npm install trillion3d` installs the archive this checkout packs, and the folder's `overrides`
  * point the compiler's platform packages at theirs. The page's `npx trillion3d-compile` compiles
@@ -8,7 +8,7 @@
  * — the CDN of its `importmap` played by the installed package, from another origin — and opened in
  * Chrome, where it must draw the model.
  *
- * `node scripts/prove-install-page.ts [--model <file>]`: a Chrome proof, the recette's (AGENTS.md
+ * `node scripts/prove-install-page.ts [--model <file>]`: a Chrome proof (AGENTS.md
  * rule 2). The default model is the morphing cube of the examples, a 2-unit cube at the origin.
  */
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'

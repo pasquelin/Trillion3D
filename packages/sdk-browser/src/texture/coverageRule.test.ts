@@ -1,4 +1,4 @@
-// #748, #769: the card's two chains pick `t` and scale as the compiler does. The shipped WGSL and
+// The card's two chains pick `t` and scale as the compiler does. The shipped WGSL and
 // GLSL are run here (`shaderRule.fixture.ts`), on the table the compiler's test reads too
 // (`texture_preview/tests/coverage_alpha.rs`): one expected answer for every builder.
 import test from 'node:test'
@@ -67,8 +67,8 @@ for (const [language, source] of Object.entries(languages))
     }
   })
 
-// #44's `cutoff_byte`, the product the engine cuts, and a texture cut at the lowest cutoff of its
-// masked readers, not at all once one of them blends or its chain does not weigh by alpha.
+// The compiler's `cutoff_byte`, the product the engine cuts, and a texture cut at the lowest cutoff
+// of its masked readers, not at all once one of them blends or its chain does not weigh by alpha.
 test('a chain is cut at its readers’ lowest cutoff byte, 0 once one blends', () => {
   assert.deepEqual(
     [0.5, 0.25, 1 / 255, 1].map((cutoff) => cutoffByte(cutoff, 1)),

@@ -1,4 +1,4 @@
-// Both triangle sums are kept at retain time, no longer swept after the cut. They
+// Both triangle sums are kept at retain time, not swept after the cut. They
 // must stay, term for term and in the same order, those of the returned arrays — including
 // when a fallback shortens `shown` then fills it again.
 import test from 'node:test'
@@ -8,7 +8,7 @@ import { dagFixture, wideCamera } from './dag.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.ts'
 
-/** The sum the sweeps from before this batch computed: left to right, without reassociation. */
+/** The sum a sweep after the cut computes: left to right, without reassociation. */
 function sum(pages: readonly PageRec[]) {
   let total = 0
   for (let i = 0; i < pages.length; i++) total += pages[i].triangles

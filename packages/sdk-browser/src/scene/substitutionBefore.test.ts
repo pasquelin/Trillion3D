@@ -1,15 +1,14 @@
-// What reconstructing the pre-batch form is worth, in the reproduction benches of
-// defects 6 and 9 (`tests/gpu/math/inverse-transpose-small-scale.gpu.ts` and
+// What reconstructing the previous form is worth, in the reproduction benches of the
+// inverse-transpose and normal-transform defects
+// (`tests/gpu/math/inverse-transpose-small-scale.gpu.ts` and
 // `normal-transform-small-scale.gpu.ts`).
 //
-// THE PREVIOUS STATE, for the record: both benches rebuilt the pre-batch shader with
-// `text.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_BEFORE_WGSL)`, guarded by a single
-// `assert.notEqual(result, text)`. That guard catches the case where the shipped block is no
-// longer found — so the substitution was not complete silence — but it only says "something
-// moved": it lets a partial substitution through (shipped block present twice, only the first
-// replaced) and a crooked substitution (`$&`, `` $` ``, `$'`, `$$` interpreted in the
-// replacement). In both cases the bench replays a shader that is NOT the pre-batch one,
-// and concludes on it.
+// A bare `text.replace(INVERSE_TRANSPOSE_WGSL, INVERSE_TRANSPOSE_BEFORE_WGSL)`, guarded by a single
+// `assert.notEqual(result, text)`, catches the case where the shipped block is not
+// found, but it only says "something moved": it lets a partial substitution through (shipped
+// block present twice, only the first replaced) and a crooked substitution (`$&`, `` $` ``, `$'`,
+// `$$` interpreted in the replacement). In both cases the bench would replay a shader that is NOT
+// the previous form, and conclude on it.
 //
 // `substitutionBefore.ts` replaces that guard with a proof. This test keeps its failure messages:
 // a substitution that does not happen must say which case we are in, and where to go.

@@ -1,4 +1,4 @@
-// A black capture never passes as 0 px (#1016): the diff names it, the report refuses it by file.
+// A black capture never passes as 0 px: the diff names it, the report refuses it by file.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { imageDiff, referenceDiff, refuseBlackCaptures } from './imageDiff.ts'
@@ -21,7 +21,7 @@ test('two identical drawn captures differ by 0 px', () => {
   })
 })
 
-// #816: a resampled image is held to the native one by its mean and 99.9th-percentile channel
+// A resampled image is held to the native one by its mean and 99.9th-percentile channel
 // error, alpha aside; a few far pixels move the maximum, not the percentile.
 test('the channel errors give their mean and 99.9th percentile, in 1/255 steps', () => {
   const size = 1000,
@@ -64,7 +64,7 @@ test('every black capture is an error of the report, by its file name', () => {
   ])
 })
 
-// #1280: a rendering technique is held to its named reference by mean and p99.9 channel error and
+// A rendering technique is held to its named reference by mean and p99.9 channel error and
 // the mean LDR-FLIP error; the FLIP values are NVIDIA's `flip-evaluator` 1.7 on the same inputs.
 /** A 16 × 1 reference, grey 128 on the left half and 200 on the right, and its RGB `transform`. */
 function halves(transform = (rgb: number[]) => rgb) {

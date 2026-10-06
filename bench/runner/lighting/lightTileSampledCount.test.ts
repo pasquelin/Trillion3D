@@ -1,6 +1,6 @@
-// #1249: a moving image whose tile list holds no shadowed light walks it once, `L` evaluations a
-// pixel, where the drawn resolve walks it twice and shades four more, `2·L + 4` (#1369); a list with
-// a shadowed light is drawn as before. Counted on the shipped WGSL, over a sponza-sized atrium.
+// A moving image whose tile list holds no shadowed light walks it once, `L` evaluations a
+// pixel, where the drawn resolve walks it twice and shades four more, `2·L + 4`; a list with
+// a shadowed light is drawn the same way. Counted on the shipped WGSL, over a sponza-sized atrium.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts'

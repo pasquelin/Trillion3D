@@ -88,7 +88,7 @@ test('flat projection and split reproduce the object forms to the bit, including
   assert.deepEqual(split.slice(0, inFront), ranked)
 })
 
-test('temporal Hi-Z keeps or rejects each placement of a shared record on its own (#1235)', () => {
+test('temporal Hi-Z keeps or rejects each placement of a shared record on its own', () => {
   const wallMat = G.basicSurface({ color: 0xff0000 })
   const propMat = G.basicSurface({ color: 0x00ff00 })
   const wall = quad(wallMat, [-1, -1, 0], [1, 1, 0], 'wall')

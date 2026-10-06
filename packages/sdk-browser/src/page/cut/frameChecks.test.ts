@@ -1,5 +1,5 @@
-// #980, VIS-16: the CPU cut checks its frame's stretch, focal length, near plane and projection once
-// per root (`selectFlat`, `flatSound`), no longer in every cluster's projection; an unsound frame is
+// The CPU cut checks its frame's stretch, focal length, near plane and projection once
+// per root (`selectFlat`, `flatSound`), not in every cluster's projection; an unsound frame is
 // still refused, by name, at the first cluster that projects, and never by a root that projects none.
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'

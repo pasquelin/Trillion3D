@@ -4,7 +4,7 @@ import { preparedTextures, type TextureRanks } from './textures.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 
-// Issue #275: a texture whose only image is an `EXT_texture_webp` one reads the image the table
+// A texture whose only image is an `EXT_texture_webp` one reads the image the table
 // names — the compiler carries the extension's source — as the host loader reads it.
 test('a texture reads the image rank its table row names, a WebP-only one included', async () => {
   const tables = {

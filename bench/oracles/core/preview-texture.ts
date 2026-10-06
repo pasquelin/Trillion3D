@@ -1,4 +1,4 @@
-// Oracle for point G11: geometry of a preview entry before batch G, copied as is.
+// Oracle: geometry of a preview entry, copied as is.
 import {
   previewFirstLevel,
   previewLastLevel,

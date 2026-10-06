@@ -3,7 +3,7 @@
 // shipped one does. So the bench's scene must draw a cut no such drop changes, or the assertion
 // measures the descents' difference instead of a regression. Played here on the engine's Node
 // mirror of the kernel: a scene whose residency said every finer group missing drew each coarse
-// page the former descent kept, 11,905 pages against 6,000 (#486).
+// page the former descent kept, 11,905 pages against 6,000.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DISPATCH_SCENE, sceneView } from '../../../tests/gpu/dag/cutScene.ts'

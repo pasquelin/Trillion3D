@@ -91,7 +91,7 @@ export const BLEND_BINDINGS = {
   /** Resident proxy, the very one the opaque resolve binds, on a single binding. */
   proxy: 24,
   /** Parameters of each transparent item, indexed by its rank in the scene: world matrix, colour,
-   *  the six maps and their factors. They do not depend on the frame, so a draw no longer has a
+   *  the six maps and their factors. They do not depend on the frame, so a draw has no
    *  dynamic offset or a bind group of its own. */
   items: 25,
   /** The translucent casters' transmission atlas, then the virtual shadow maps' pool
@@ -120,7 +120,7 @@ export const SMALL_BINDINGS = {
   selectionMask: 12,
 }
 
-/** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the old records', atlas,
+/** The virtual shadow maps a transparent samples (`vsmConsumerWgsl`): on the records', atlas,
  *  sampler and translucent depth numbers. */
 export const BLEND_VSM_BINDINGS = {
   pageTable: BLEND_BINDINGS.shadowData,

@@ -19,7 +19,7 @@ pub(crate) fn strays(chain: &[Vec<u8>], cutoff: u8) -> Vec<usize> {
         .collect()
 }
 
-// #43: coverage is counted on the bilinearly filtered cut, not on the texels. On this noise the
+// Coverage is counted on the bilinearly filtered cut, not on the texels. On this noise the
 // two disagree — a chain holding the texel counts strays at 8² —, and the compiler's filtered
 // counts are the table every builder of the card stays within 2.5 % of (`leafCoverage.test.ts`).
 #[test]
@@ -49,7 +49,7 @@ fn coverage_holds_on_the_filtered_cut() {
     assert_eq!(counts, expected[..counts.len()]);
 }
 
-// #43: the bin search starts between a square's lowest and highest corners, and four equal
+// The bin search starts between a square's lowest and highest corners, and four equal
 // corners take their byte as bin with no search. Both are exact: every square below, at every
 // cutoff, lands in the bin a scan of all 255 `t` finds, on the rule's arithmetic written out.
 #[test]

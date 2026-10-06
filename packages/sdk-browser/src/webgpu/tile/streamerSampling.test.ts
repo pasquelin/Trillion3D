@@ -1,4 +1,4 @@
-// #360, #361: a texture's sampling follows its host, not the surfaces that wear it — the records
+// A texture's sampling follows its host, not the surfaces that wear it — the records
 // brought up at each render, before the hold verdict, then the headers written where a word
 // moved, whichever pass reads the texture —, and a moved colour texture is signalled as a landed
 // tile is, so the cutout shadows that read it follow and a held image is released.
@@ -100,7 +100,7 @@ test('the headers follow their hosts at each render, only what moved written', a
   textures.destroy()
 })
 
-// Review of #389: two engines hold the same record. Each keeps the counters it wrote its header
+// Two engines hold the same record. Each keeps the counters it wrote its header
 // at: the second to follow in the image learns the change the first brought up.
 test('two engines over the same texture both write the change', async () => {
   const colour = host()
@@ -153,7 +153,7 @@ test('a filter changed on a held image releases it, and the image draws it', asy
   textures.destroy()
 })
 
-// #402: the follow walked every slot and read every host at every image, held or not.
+// The follow walked every slot and read every host at every image, held or not.
 test('a still image reads no host and walks no slot', async () => {
   const colour = host()
   const { textures, writes } = streamer([record(colour)], record(host()))

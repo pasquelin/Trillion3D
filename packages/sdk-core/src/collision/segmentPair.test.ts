@@ -50,7 +50,8 @@ test('two segments: the distance and the pair of their nearest points, degenerat
 })
 
 test('a clamped end is the end itself, not its start plus the whole difference', () => {
-  // 10000.1 + 1·(0.7 − 10000.1) is 0.7000000000007276: the old pair read 2.0000000000014553.
+  // 10000.1 + 1·(0.7 − 10000.1) is 0.7000000000007276; the start plus
+  // the whole difference reads 2.0000000000014553.
   const out = new Float64Array(6)
   const squared = closestBetweenSegments(out, [10000.1, 0, 0, 0.7, 0, 0], [-0.3, 1, 0, -0.3, 3, 0])
   assert.deepEqual([...out], [0.7, 0, 0, -0.3, 1, 0])

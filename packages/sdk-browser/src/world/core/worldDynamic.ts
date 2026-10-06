@@ -14,7 +14,7 @@ import { createPageMotion, type PageMotion } from './pageMotion.ts'
 import { fits, heldBox, readInPlace, readingOf, type Reading } from './worldDynamicRead.ts'
 import type { Cut } from './worldCuts.ts'
 
-/** THE PER-FRAME UPLOAD BUDGET OF DYNAMIC GEOMETRY, in bytes sent the GPU (#573): past it an
+/** THE PER-FRAME UPLOAD BUDGET OF DYNAMIC GEOMETRY, in bytes sent the GPU: past it an
  *  upload waits for the next frame, never dropped; a larger one still goes as a frame's first. Not
  *  derived from a scene: 4 MiB, a 60 × 60 m sea at 15 cm, 480 MB/s at 120 Hz. */
 export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024
@@ -34,7 +34,7 @@ type Options = NonNullable<Parameters<typeof drawnTriangles>[2]>
 type Made = (cut: Cut) => void
 
 /**
- * THE DYNAMIC GEOMETRY OF A WORLD (#573). A geometry that declares `usage: 'dynamic'`, or whose
+ * THE DYNAMIC GEOMETRY OF A WORLD. A geometry that declares `usage: 'dynamic'`, or whose
  * version changes on two consecutive frames — said once under `geometry-dynamic`, naming the
  * mesh —, is cut into pages once, index pages alone (`servePrimitive`), and never again while its
  * triangles keep their corners: a new version is read, and its changed vertices wait for

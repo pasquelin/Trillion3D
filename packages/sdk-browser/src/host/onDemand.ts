@@ -6,7 +6,7 @@ import { RETRY_AFTER_CAP_MS } from '../cluster/retryCap.ts'
 const FAMILY_LOAD_FAILED_ID = 'T3D-E090'
 
 /**
- * The engine's one on-demand loader (#1353, #1404): a module imported on its first use, which the
+ * The engine's one on-demand loader: a module imported on its first use, which the
  * CDN bundle makes a chunk of its own (`scripts/bundle-fold.ts`) that a page without that family
  * never downloads. An import that fails is tried again as the HTTP loader asks a file again
  * (`checked`, `HTTP_ATTEMPTS` in all: a failed import carries no status, which `checked` treats as

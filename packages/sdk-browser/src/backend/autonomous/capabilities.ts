@@ -3,7 +3,7 @@ import { TAA_CAPABILITY, UPSCALE_CAPABILITY } from '../../taa/capability.ts'
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts'
 
 /** What the autonomous WebGL2 page path renders, and what it cannot carry, named, never silent
- *  (#483 rule 8): published by `publishAutonomousCapabilities`. */
+ *: published by `publishAutonomousCapabilities`. */
 export function autonomousCapabilities(simplification: boolean): BackendCapabilities {
   return {
     renderer: 'WebGL2 autonomous prepared pages',

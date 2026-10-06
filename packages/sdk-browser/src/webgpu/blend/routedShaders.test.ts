@@ -1,6 +1,6 @@
-// #558: the transparent layers' routed fragments — particles, water and the blend pass — run from
+// The transparent layers' routed fragments — particles, water and the blend pass — run from
 // their shipped text (`shaderRun`): where the display mask is set a layer leaves the lit target
-// and maps the tint and the added value by its display colour, elsewhere it draws as before.
+// and maps the tint and the added value by its display colour, elsewhere it draws unchanged.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'

@@ -2,7 +2,7 @@
  *  `clusters.json`, its head page (every other field, the previews' sidecar) and its mesh pages
  *  (slim primitives, their sidecar), read through the scene partition's pager
  *  (`tablePartition.ts`): whole (`readPagedManifest`), or its head and the mesh pages a view
- *  holds (`openPagedManifest`, #751). */
+ *  holds (`openPagedManifest`). */
 import { EngineError, type ClusterManifest, type Primitive } from '../contracts/index.ts'
 import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/tablePages.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
@@ -82,7 +82,7 @@ export interface ManifestPages {
 }
 
 /**
- * The manifest under `root` with its head read and no mesh page (#751): its primitives are those
+ * The manifest under `root` with its head read and no mesh page: its primitives are those
  * of the pages `pages` holds, read through `read` on their first hold and passed through `accept`
  * — which checks and places them — before they join `metadata.primitives`.
  */

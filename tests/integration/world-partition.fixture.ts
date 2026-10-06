@@ -1,4 +1,4 @@
-// A synthetic world laid out as the open world lays its own (#404): flat scene roots, one node per
+// A synthetic world laid out as the open world lays its own: flat scene roots, one node per
 // placed instance of a handful of meshes — rocks, trees, houses —, turned and scaled, and a few
 // lamps. `world-partition.test.ts` compiles it at two sizes and opens it the way a page does, on
 // a machine stand-in: every byte fetched is counted, and the GPU is a context that answers all.

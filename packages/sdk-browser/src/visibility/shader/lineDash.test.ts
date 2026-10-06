@@ -1,5 +1,5 @@
-// #359: a dashed line draws `dashSize`, then leaves `gapSize` empty, along the line. The real text of both shaders and its CPU twin decide it, and
-// every path that draws a line reads that one formula.
+// A dashed line draws `dashSize`, then leaves `gapSize` empty, along the line. The real text of
+// both shaders and its CPU twin decide it, and every path that draws a line reads that one formula.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LINE_DASH_GLSL, LINE_DASH_WGSL, lineDash } from './lineWgsl.ts'
@@ -34,7 +34,7 @@ function dashes(run: Dash, length: number, dash: number[]) {
   return runs
 }
 
-// The issue's fixture: a 4 m line, dash 0.3, gap 0.2, draws eight dashes, each 0.3 long, one
+// A 4 m line, dash 0.3, gap 0.2, draws eight dashes, each 0.3 long, one
 // every 0.5 from the first vertex.
 for (const [language, run] of Object.entries(DASHES))
   test(`${language}: a 4 m line of dash 0.3 and gap 0.2 draws eight dashes at their distances`, () => {

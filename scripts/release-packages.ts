@@ -1,5 +1,5 @@
 /**
- * The npm release of `trillion3d` and its five compiler packages (#1354), in the steps the
+ * The npm release of `trillion3d` and its five compiler packages, in the steps the
  * `Release` workflow runs: `packRelease` stages the compilers the `Compiler` workflow built and packs
  * the six packages at one version; `publishRelease` refuses an incomplete release, skips a package
  * already published at that version, dry-runs the rest, and only then, when asked, publishes them.
@@ -51,7 +51,7 @@ const compilers = (root: string) =>
   })
 
 /** The released packages in publication order: `trillion3d` last, so that it never names a
- *  compiler package not yet out. */
+ *  compiler package that is not out. */
 export const releaseNames = () => [...compilers('').map(({ name }) => name), 'trillion3d']
 
 const releaseFolders = (root: string) => [...compilers(root).map(({ folder }) => folder), root]

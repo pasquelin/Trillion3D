@@ -1,7 +1,7 @@
-// #486, over budget: a cut larger than the page pool is a steady state under the one cut rule —
+// Over budget: a cut larger than the page pool is a steady state under the one cut rule —
 // the pages past the budget are drawn by their nearest resident ancestor and never arrive. The
-// image must still settle and hold once the pages the pool accepted are resident; before, the
-// budget flag and the pending count of the refused pages kept a still camera redrawing forever.
+// image must still settle and hold once the pages the pool accepted are resident; the
+// budget flag and the pending count of the refused pages must not keep a still camera redrawing.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createCutPending } from '../cut/pending.ts'

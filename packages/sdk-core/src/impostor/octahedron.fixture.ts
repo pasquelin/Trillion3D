@@ -1,7 +1,7 @@
 /**
  * The octahedral mapping of the impostor atlas on the CPU: a port of the compiler's
  * `packages/asset-compiler-rust/src/impostor/octahedron.rs` (and its tests), used as the oracle the
- * runtime's WGSL card is proven against (#1239). Object space, +Y up, pivot at the bounding-sphere
+ * runtime's WGSL card is proven against. Object space, +Y up, pivot at the bounding-sphere
  * centre. Direction `d` to the plane `[-1, 1]²`, the full octahedron or the upper hemi-octahedron.
  */
 

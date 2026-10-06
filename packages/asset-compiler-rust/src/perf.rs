@@ -1,7 +1,7 @@
 //! Durations per phase, attached to the job that spends them.
 //!
-//! Global counters used to add up the phases of every job in the same process:
-//! the second job of a batch published the first's simplification, which had no
+//! Global counters would add up the phases of every job in the same process:
+//! the second job of a batch would publish the first's simplification, which had no
 //! group to simplify. Each compilation therefore creates its own counters, attaches
 //! them to the thread that leads it and to each worker of its pool, and rereads
 //! only those.

@@ -1,4 +1,4 @@
-// Issue #1353: what npm and the tools that read no `exports` find in `package.json`.
+// What npm and the tools that read no `exports` find in `package.json`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

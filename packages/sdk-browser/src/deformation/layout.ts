@@ -1,5 +1,5 @@
 /**
- * THE DEFORMATION RECORD (#357): what the GPU deformation stage reads of one placement each frame,
+ * THE DEFORMATION RECORD: what the GPU deformation stage reads of one placement each frame,
  * as floats in one block the page passes bind, one record per deformed placement. A row names its
  * record (`PageInfo.deform`, the record's first float plus one; zero, none), and the page fetch of
  * every pass — visibility, compute raster, shadow depth, resolve, transparent, temporal — moves

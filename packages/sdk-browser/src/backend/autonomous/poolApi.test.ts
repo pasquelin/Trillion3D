@@ -30,7 +30,7 @@ test('page copies follow the records that own a geometry, and the classic instan
     ['twice', [rec('twice'), rec('twice')]],
     ['rows', [rec('rows'), rec('rows'), rec('rows')]],
   ])
-  // `twice` is replaced by the root's group: the floor holds it with the root (#1237).
+  // `twice` is replaced by the root's group: the floor holds it with the root.
   const copies = pageCopies(
     byUrl,
     // The rows' pages are laid out by rank 1, which reads its world from a row.
@@ -72,7 +72,7 @@ test('the floor counts the root cover and the replaced pages, read again only on
   // A pose or a material announces nothing: nothing is walked.
   const extra = rec('root')
   bootstrap.push(extra)
-  // The same root grown by a record: its instances carry their draw state (#1234, #1235).
+  // The same root grown by a record: its instances carry their draw state.
   root.pages = [...bootstrap, page]
   draws.layOut([root])
   draws.drawing(extra).geometry = pageGeometry(3)

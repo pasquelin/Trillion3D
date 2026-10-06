@@ -1,4 +1,4 @@
-// Oracle for batch 4: `bench/oracles/browser/cpu-image/shadingNormal.ts` before refactoring to core, copied as is. The
+// Oracle: `bench/oracles/browser/cpu-image/shadingNormal.ts` written on the host library, copied as is. The
 // tangent frame was assembled using host library `Matrix3` and `Vector3` —
 // `applyMatrix3`, `transformDirection`, `normalize`, `addScaledVector`, `crossVectors`,
 // `multiplyScalar`, `lengthSq`. It serves as bit-by-bit reference for new code. What previous

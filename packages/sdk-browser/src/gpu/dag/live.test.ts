@@ -1,4 +1,4 @@
-// The cut no longer visits any cluster flat: level descent dispatches over the queue
+// The cut visits no cluster flat: level descent dispatches over the queue
 // the previous level filled, `dagWanted` over candidate pages only, and the kernels
 // that follow over the live-cluster list. This file holds the list each kernel walks;
 // `encode.test.ts` holds the number of commands a frame opens.
@@ -17,7 +17,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
     assert.equal(byKernel.get(kernel)?.groups, 'indirect', `${kernel} follows a list`)
     assert.equal(byKernel.get(kernel)?.list, LIVE, `${kernel} follows the live list`)
   }
-  // Candidate pages, and them alone: a page under a rejected node is no longer read.
+  // Candidate pages, and them alone: a page under a rejected node is not read.
   assert.equal(byKernel.get('dagWanted')?.list, CAND)
   // Descent: pass 0 starts from the roots, from a count known at packing, and each
   // following level from its level's node count — known at packing too. No
@@ -81,7 +81,7 @@ test('without a resident cut, the mask follows the list and nothing is compacted
 })
 
 test('list kernels read their cluster from the list, not from their thread id', () => {
-  // The rejection these kernels used to do themselves — `visible` — has left their body: a cluster
+  // The rejection — `visible` — is not in these kernels' body: a cluster
   // missing from the list is exactly a cluster whose `visible` was false.
   for (const kernel of ['dagMask']) {
     const corps = DAG_SELECTION_SHADER.split(`fn ${kernel}(`)[1].split('\n}')[0]

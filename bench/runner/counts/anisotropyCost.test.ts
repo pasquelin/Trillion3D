@@ -1,4 +1,4 @@
-// #360, #361: the anisotropy cost measure reads English options, and checks them.
+// The anisotropy cost measure reads English options, and checks them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { anisotropyOptions } from './anisotropyCost.ts'

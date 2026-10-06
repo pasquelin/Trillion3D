@@ -104,7 +104,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
-  // With neither shadow nor rectangle code (#1249, #1369): each branch they drop names nothing left.
+  // With neither shadow nor rectangle code: each branch they drop names nothing left.
   DIRECT_UNSHADOWED_RECTLESS: contractLightingShader(false, false, false, false),
   // The resolve that reads one kind of shadowed light's shadow (`ShadowKinds`).
   DIRECT_SUNLESS: contractLightingShader(

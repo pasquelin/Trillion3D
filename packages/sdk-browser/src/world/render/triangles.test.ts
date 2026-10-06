@@ -95,7 +95,7 @@ test('triangles publishes the engine submitted total as soon as it exists', () =
   }
 })
 
-// #264: the guides that follow a node are moved once per frame, before it draws. #404: the frame's
+// The guides that follow a node are moved once per frame, before it draws. The frame's
 // one budget runs around its integration only, and stops before the engine draws, on every path.
 test('each frame moves the followed guides once, and integrates within its budget, before it draws', () => {
   const order: string[] = []
@@ -107,7 +107,7 @@ test('each frame moves the followed guides once, and integrates within its budge
   assert.deepEqual(order, ['follow', 'open', 'drain', 'pause'], 'a drain that throws still pauses')
 })
 
-// #1353: the frame report is a debug tool, as a development build's: a page that never asks for
+// The frame report is a debug tool, as a development build's: a page that never asks for
 // debug mode files no frame into it.
 test('a frame is filed into the frame report only in debug mode', (t) => {
   t.after(() => setDebugMode(false))

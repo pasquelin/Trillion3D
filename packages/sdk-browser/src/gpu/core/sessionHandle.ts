@@ -2,12 +2,12 @@
  * A session's handle on a device the world keeps across sessions (`deviceOwners.ts` says why).
  *
  * A plain object built once per session. Its `create*` join the session's tag to the label, so
- * that an error naming an object names its session (a view is named by its texture: Dawn writes
- * `[TextureView of Texture "label"]`); `limits`, `features` and `lost` are the device's, and its
- * `queue` forwards to the device's. Once released, the handle is inert: a `create*` throws an
- * `AbortError`, so the work still running stops there, and the queue writes and submits nothing.
- * Nothing is allocated per call: each tagged label is made once, and set on the caller's
- * descriptor for the call only.
+ * that an error naming an object names its session (a view is named by its texture: the
+ * implementation writes `[TextureView of Texture "label"]`); `limits`, `features` and `lost` are
+ * the device's, and its `queue` forwards to the device's. Once released, the handle is inert: a
+ * `create*` throws an `AbortError`, so the work still running stops there, and the queue writes and
+ * submits nothing. Nothing is allocated per call: each tagged label is made once, and set on the
+ * caller's descriptor for the call only.
  */
 const TAG = /@t3d:(\d+)/g
 const TAGGED = /@t3d:\d+$/

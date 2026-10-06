@@ -23,7 +23,7 @@ fn material<'a>(gltf: &'a Value, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("no material named {name}"))
 }
 
-// Finding 19: image plugged into color does not hide multiplying scalar weight.
+// Image plugged into color does not hide multiplying scalar weight.
 // `.dc` of lambert and `.e` of `standardSurface` gave white factors (2x bright);
 // now passed to factor, texture remaining in place.
 #[test]
@@ -59,7 +59,7 @@ fn the_scalar_weight_of_a_textured_colour_reaches_the_gltf_factor() {
     assert!(lit["emissiveTexture"]["index"].is_number(), "{lit}");
 }
 
-// Finding 20: `bump2d` is normal map only when `bumpInterp` says so. Taken
+// `bump2d` is normal map only when `bumpInterp` says so. Taken
 // as-is, height bump output as `normalTexture`, lighting surface
 // with non-orientation image. Only tangent mode passes, `bumpDepth` carrying
 // scale; other two counted by name.
@@ -103,7 +103,7 @@ fn only_a_tangent_space_bump_becomes_a_normal_texture() {
     );
 }
 
-// Finding 21: `wrapU` and `wrapV` two attributes, glTF sampler two axes. Only
+// `wrapU` and `wrapV` two attributes, glTF sampler two axes. Only
 // `wrapU` read, `wrapV` followed: texture repeated on one axis clamped
 // output clamped on both.
 #[test]
@@ -123,7 +123,7 @@ fn wrap_u_and_wrap_v_reach_the_two_axes_of_the_sampler() {
     );
 }
 
-// Finding 21, other end: `place2dTexture` placement — repeat, offset, rotation,
+// Other end: `place2dTexture` placement — repeat, offset, rotation,
 // mirror — not supported in glTF without `KHR_texture_transform`.
 // Unsupported items counted by name instead of silent loss.
 #[test]

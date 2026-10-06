@@ -13,7 +13,7 @@ import {
   type Vec4,
 } from '../../../../../bench/oracles/browser/mat4HoistOracle.ts'
 
-// D1: shader.ts now computes viewProj*world and the linear determinant once per page
+// shader.ts computes viewProj*world and the linear determinant once per page
 // (per workgroup) instead of recomputing them for every triangle. Structure: the sharing really
 // exists in the shader. Behavior: the hoisted product and determinant equal exactly what per-triangle
 // calculation would yield, on hostile matrices (mirror, near-singular, large scale) — no approximation.

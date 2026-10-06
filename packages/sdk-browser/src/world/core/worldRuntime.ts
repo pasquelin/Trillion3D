@@ -41,7 +41,7 @@ export function createWorldRuntime(inputs: Inputs) {
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet'
   const invalidate = () => explorer?.invalidate()
-  // A move by name through the session (#972), and the one the world offers its page.
+  // A move by name through the session, and the one the world offers its page.
   const moveNamed = namedMove(scene, poses, invalidate)
   const relight = () => ((lightsChanged = true), invalidate())
   /** One opening: the session in place closed, the next one opened on what the scene holds. */
@@ -74,7 +74,7 @@ export function createWorldRuntime(inputs: Inputs) {
       const scope = built.source.metadata.scope // its first model's scope, or the default
       await inputs.ready() // a lost device is asked again: it opens on what is granted, or fails
       const given = inputs.options()
-      // The session's own loop hands its frames on as `render()` does: bytes told (#573).
+      // The session's own loop hands its frames on as `render()` does: bytes told.
       const onFrame: typeof given.onFrame = (m) => (cuts.dynamic.drew(m), given.onFrame?.(m))
       const options = track.options({ ...given, scope, onFrame })
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
@@ -135,7 +135,7 @@ export function createWorldRuntime(inputs: Inputs) {
       contents.seat(session?.growsPlacements() ? session : undefined)
       if (session && mirror) mounts.apply(mirror, session)
       if (contents.reopenNeeded() || (!session && !reopens.running)) track.request('scene-change')
-      // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
+      // Values or pictures alone repaint the built surface; a reopened one is new.
       const painted = contents.repainted(),
         open = explorer === session ? session : null
       if (painted.length && mirror && !mirror.repaint(painted, open?.refreshMaterials.bind(open)))
@@ -191,7 +191,7 @@ export function createWorldRuntime(inputs: Inputs) {
   return {
     beforeFrame,
     invalidate,
-    /** A move by name the world offers its page (`world.setTransform`, #972). */
+    /** A move by name the world offers its page (`world.setTransform`). */
     moveNamed,
     /** A session option changed, or the device was lost: the next opening takes it. */
     renew: track.request,

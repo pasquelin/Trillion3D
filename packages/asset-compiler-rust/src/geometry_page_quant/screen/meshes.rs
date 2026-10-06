@@ -1,7 +1,5 @@
-//! The R&D audit's four procedural meshes (the audit's `gen_meshes.py`, #930), rebuilt
-//! with the benches' xorshift in place of the audit script's generator: a 1,024 m terrain, a smooth sphere,
-//! a hard-surface tower (`building.rs`) and a tree of leaf cards (`vegetation.rs`). Same shapes, sizes and attributes; the random
-//! phases and leaf placements are drawn from another stream.
+//! Four procedural meshes built with the benches' xorshift: a 1,024 m terrain, a smooth sphere,
+//! a hard-surface tower (`building.rs`) and a tree of leaf cards (`vegetation.rs`).
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
 use std::collections::HashMap;
@@ -15,7 +13,7 @@ pub(super) fn normalize(v: V) -> V {
     crate::shared_math::normalized_or(v, [0.0, 0.0, 1.0])
 }
 
-/// A mesh as the audit wrote it: positions, normals, optional texture coordinates, triangles.
+/// A mesh: positions, normals, optional texture coordinates, triangles.
 #[derive(Default)]
 pub(super) struct Mesh {
     pub positions: Vec<f32>,

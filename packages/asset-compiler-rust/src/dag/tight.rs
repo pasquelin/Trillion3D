@@ -1,4 +1,4 @@
-//! Tighter projection spheres for the finished cluster DAG (#929, #977).
+//! Tighter projection spheres for the finished cluster DAG.
 //!
 //! The builder's spheres are an AABB-centre sphere per level-0 cluster and a sequential merge per
 //! group (`bounds.rs`). The runtime projects every error with them, so a looser sphere only draws

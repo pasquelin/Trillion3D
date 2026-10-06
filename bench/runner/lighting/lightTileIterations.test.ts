@@ -1,4 +1,4 @@
-// #924: light iterations are counted per COVERED pixel — a sky pixel walks no list —, and the cost
+// Light iterations are counted per COVERED pixel — a sky pixel walks no list —, and the cost
 // model multiplies them by the covered pixels, never by every pixel of the image.
 import test from 'node:test'
 import assert from 'node:assert/strict'

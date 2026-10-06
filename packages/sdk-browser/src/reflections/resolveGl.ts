@@ -4,7 +4,7 @@ import { REFLECTION_RESOLVE_PIXELS } from './resolvePixels.ts'
 /** Texture units of the reduced-resolution mirror resolve: its colour, then the depth it tests.
  *  They alias the frozen source's (`captureGl.target`), which the display pass no longer reads
  *  once the reduced image is bound there — no extra fragment texture unit, the program's budget
- *  full (#1292). */
+ *  full. */
 export const REFLECTION_RESOLVE_UNITS: [number, number] = [LTC_UNIT + 1, LTC_UNIT + 2]
 
 /** The pixel size the mirror resolve traces at for a `width` x `height` image: the image itself

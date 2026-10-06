@@ -14,8 +14,8 @@
  *  asked for beside the lossless files — the BC family for desktop cards, ASTC 4×4 for mobile ones,
  *  one byte per texel — for the chains a quality gate kept; a chain under the bar stays lossless
  *  in that family, and its entry's layout word says so. Version 5 counts the coverage-preserving
- *  chains' coverage on the filtered cut (#43), in the same layout. Version 6 lays a block level
- *  file out in tile records, one HTTP Range each (#962, `sdk-browser/src/texture/tileRecords.ts`). */
+ *  chains' coverage on the filtered cut, in the same layout. Version 6 lays a block level
+ *  file out in tile records, one HTTP Range each (`sdk-browser/src/texture/tileRecords.ts`). */
 export const TEXTURE_PREVIEW_VERSION = 6
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
@@ -42,7 +42,7 @@ export const PREVIEW_ATLAS_COLOR = 0,
   PREVIEW_ATLAS_DATA = 1,
   /** A chain of the colour atlas, for a texture every reader of which takes its alpha for coverage
    *  (the base colour of MASK or BLEND materials only): the one chain whose colours are weighted
-   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`, #42). */
+   *  by alpha, named apart from the plain one (`reduce.rs`, `AtlasKind::Coverage`). */
   PREVIEW_ATLAS_COVERAGE = 2
 /** The `{kind}` a baked level's path carries for each atlas, as `reduce.rs` names them; a coverage
  *  chain cut at byte C adds `-C`. */
@@ -51,7 +51,7 @@ export const PREVIEW_ATLAS_NAMES = ['srgb', 'linear', 'srgb-coverage'] as const
 const atlasByte = (atlas: number) => atlas & 0xff
 /** The `{kind}` of an atlas word, `undefined` for a word no compiler writes. A coverage word's
  *  second byte is its cutoff byte `C`, whose share of covered texels every level keeps
- *  (`coverage.rs`, #44), and its chain is `srgb-coverage-C`; 0 when one of its readers blends, or
+ *  (`coverage.rs`), and its chain is `srgb-coverage-C`; 0 when one of its readers blends, or
  *  when no byte reaches a reader's cutoff, and the chain keeps the median alone. */
 export function previewAtlasName(atlas: number): string | undefined {
   if (!Number.isInteger(atlas) || atlas < 0 || atlas > 0xffff) return undefined

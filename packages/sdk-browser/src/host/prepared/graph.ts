@@ -43,7 +43,7 @@ type Inputs = {
   /** The meshes the drawn pages were cut from, when not `meshes`: the source document's, at the
    *  same ranks, for the autonomous one, whose primitives are one degenerate triangle each. */
   pagedFrom?: TableDocument['meshes']
-  /** The geometry of each of those, read when a class change cuts its pages again (#846). */
+  /** The geometry of each of those, read when a class change cuts its pages again. */
   pagedGeometryOf?: (mesh: number, primitive: number) => Geometry
   geometryOf: (mesh: number, primitive: number) => Geometry
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>
@@ -210,7 +210,7 @@ export async function preparedGraph(inputs: Inputs) {
 
 /** Whether a cloth draws primitive `primitive` of mesh `mesh`: the soft body kind the compiler
  *  wrote into the primitive's deformation (`drawnTwoSided`), read once `listed` — the manifest
- *  pages naming the scene's meshes held (#751), at once for a manifest read whole — has put every
+ *  pages naming the scene's meshes held, at once for a manifest read whole — has put every
  *  primitive in `metadata.primitives`. */
 export function clothPrimitives(metadata: ClusterManifest, listed: Promise<unknown>) {
   const cloths = listed.then(

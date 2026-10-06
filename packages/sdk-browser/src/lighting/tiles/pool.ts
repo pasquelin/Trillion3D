@@ -13,7 +13,7 @@ const STATE_BYTES = 16
 const HEADROOM = 1.25
 
 /**
- * The view's light-index pool, after the cell records in the same buffer (#849, #1369): each column
+ * The view's light-index pool, after the cell records in the same buffer: each column
  * of the light grid takes the room of its cells' lists there. Sampled one frame in fifteen, an
  * overflow is named (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times what it
  * reserved, within `MOST_WORDS_PER_TILE`; until then, and past it, a column with no room walks

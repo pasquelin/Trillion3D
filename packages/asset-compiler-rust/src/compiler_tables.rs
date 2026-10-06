@@ -31,8 +31,8 @@ use textures::texture_table;
 /// distance (`partition.rs`), and the node table keeps the others, renumbered; version 4 keeps
 /// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`); version 5
 /// names the manifest's mesh pages the node table needs (`meshPages`), which a runtime reads at open
-/// while the cells' own are read with them (#751).
-/// Version 6 carries the skins and the animation clips (`motion.rs`, #357).
+/// while the cells' own are read with them.
+/// Version 6 carries the skins and the animation clips (`motion.rs`).
 const SCENE_TABLES_VERSION: u32 = 6;
 /// The node table's version: 4 says whether each node declares itself visible
 /// (`KHR_node_visibility`), 5 names the skin a node bends its mesh by.
@@ -145,7 +145,7 @@ pub(super) fn stage_scene_tables(
 }
 
 /// The slots of the mesh pages the meshes `nodes` draw lie in, sorted and each once: what a runtime
-/// reads before its first frame, the cells naming the rest (#751).
+/// reads before its first frame, the cells naming the rest.
 fn core_pages(nodes: &[Value], by_mesh: &partition::pages::MeshSlots) -> Vec<String> {
     let meshes = nodes.iter().filter_map(|node| node["mesh"].as_u64());
     partition::pages::slots_of(meshes, by_mesh)

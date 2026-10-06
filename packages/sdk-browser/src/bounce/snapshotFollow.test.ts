@@ -1,5 +1,5 @@
-// The probes' snapshot no longer takes a copy of the whole atlas each image (2 × the atlas's bytes,
-// #1410): it takes, by a dispatch of the probe pass after the update, the texels of the probes the
+// The probes' snapshot takes no copy of the whole atlas each image (2 × the atlas's bytes): it
+// takes, by a dispatch of the probe pass after the update, the texels of the probes the
 // queue names (`followSnapshot`). Run here on the shipped text over atlases of random words: after
 // an update that writes the texels the update kernel stores, the snapshot equals the probes word
 // for word — which is what the copy gave the next image to read.

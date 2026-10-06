@@ -1,13 +1,13 @@
-// Lot F, F4 and F5: F4 (commit.ts) no longer rewrites the page, offset, epoch and inverse
-// rank of a row that `sourceRowOf` made exact; F5 (state.ts) gives a catalogue page's rank as the
-// oracle's hash table does — read by pool address since #1235, one record serving every placement.
-// The oracles are the implementations from before lot F, copied as-is into
+// The commit (`commit.ts`) does not rewrite the page, offset, epoch and inverse rank of a row
+// that `sourceRowOf` made exact; the state (`state.ts`) gives a catalogue page's rank as the
+// oracle's hash table does — read by pool address, one record serving every placement.
+// The oracles are the reference implementations, copied as-is into
 // `bench/oracles/browser/drawable-rows.ts`. The comparison is on the full array state after a
 // sequence of images, not on a single image: that is where reused rows show.
 //
-// What this comparison CANNOT prove: what lot F did not change. `sourceRowOf` is the same word for
-// word on both sides, so its anti-alias guard shows in no delta — it is `recycle.test.ts`
-// that proves it, directly.
+// What this comparison CANNOT prove: what those two do not change. `sourceRowOf` is the same word
+// for word on both sides, so its anti-alias guard shows in no delta — it is `recycle.test.ts` that
+// proves it, directly.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuRowState } from './state.ts'
@@ -55,8 +55,8 @@ function images(): Plan[] {
 
 test('F4: the row table stays identical image after image, including empty, reversed and replayed', (t) => {
   // No clock decides what a sync writes: a pass handed no frame budget writes every owed row
-  // (`claims.ts`). The claims were once served under a wall-clock budget read in place, and a
-  // loaded machine left one side a row short (`candidateCount`, #573). Here time leaps back and
+  // (`claims.ts`). A claim served under a wall-clock budget read in place would let a
+  // loaded machine leave one side a row short (`candidateCount`). Here time leaps back and
   // forth a thousand seconds at every read: a pass that read it would not write what the other does.
   let reads = 0
   t.mock.method(performance, 'now', () => (reads++ % 2) * 1e6)

@@ -12,7 +12,7 @@ const readJson = async (path: string) =>
   JSON.parse(await readFile(new URL(path, ROOT), 'utf8')) as Record<string, unknown>
 
 // Behaviour: an application that installed `trillion3d` finds the compiler of its platform package,
-// with no TRILLION3D_COMPILER_BIN and no checkout beside it (#1352).
+// with no TRILLION3D_COMPILER_BIN and no checkout beside it.
 test('the installed platform package is the compiler, without TRILLION3D_COMPILER_BIN', async () => {
   const fixture = await realpath(await mkdtemp(join(tmpdir(), 'trillion3d-platform-')))
   const from = pathToFileURL(join(fixture, 'app.mjs'))
@@ -55,7 +55,7 @@ test('the installed platform package is the compiler, without TRILLION3D_COMPILE
 })
 
 // Behaviour: in this checkout the platform package is a workspace link to `packages/compiler/`, not
-// an install: a binary copied there does not pass the checkout's own build (#1352).
+// an install: a binary copied there does not pass the checkout's own build.
 test('a workspace link to the platform package is not an installed compiler', async () => {
   const fixture = await realpath(await mkdtemp(join(tmpdir(), 'trillion3d-workspace-')))
   const from = pathToFileURL(join(fixture, 'app.mjs'))

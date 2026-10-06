@@ -1,4 +1,4 @@
-// #817 "When to switch": each depth is the distance at which its condition turns true, the switch
+// "When to switch": each depth is the distance at which its condition turns true, the switch
 // is the later of the two, and a manifest entry yields the switch input only when it is drawable.
 import assert from 'node:assert/strict'
 import test from 'node:test'

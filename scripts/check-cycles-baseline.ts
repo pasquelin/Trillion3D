@@ -5,7 +5,7 @@
  * failed on them would be red on the day it was written, and a gate that is red is not a gate — so the
  * five are named here, and a group this file does not name fails.
  *
- * A name the tree no longer holds is a group that was broken: it is reported, so the file shrinks
+ * A name the tree does not hold is a group that was broken: it is reported, so the file shrinks
  * with every fix and a group of the same modules cannot come back under a line nobody removed.
  * `--write-baseline` prints the groups the tree holds, for that shrinking.
  */
@@ -27,7 +27,7 @@ export const readBaseline = (root: string): string[] => {
 export interface RingReport {
   /** A group the tree holds and the baseline does not name. */
   fresh: string[][]
-  /** A name the baseline carries that no longer matches any group. */
+  /** A name the baseline carries that matches no group. */
   stale: string[]
   /** How many groups the tree holds. */
   held: number

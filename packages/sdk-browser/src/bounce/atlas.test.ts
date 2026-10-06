@@ -1,4 +1,4 @@
-// #1410: the bounce probes and surface cache left their storage buffers for float atlases, so the
+// The bounce probes and surface cache left their storage buffers for float atlases, so the
 // deferred lighting with bounce holds the eight storage buffers WebGPU guarantees. Defects these
 // tests catch: two probe vectors written to one texel (a probe then reads its neighbour's
 // coefficients), an atlas that drops the last entries or outgrows the 2D texture limit, a value

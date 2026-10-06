@@ -1,4 +1,4 @@
-// The scene the tests of the shipped stages run over (#831): quantized pages of 1 to 128 triangles
+// The scene the tests of the shipped stages run over: quantized pages of 1 to 128 triangles
 // under every row kind, a source-buffer page, far from the origin; `stages` runs a shipped text
 // over it.
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'

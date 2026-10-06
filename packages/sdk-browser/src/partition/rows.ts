@@ -3,7 +3,7 @@
  * one host mesh per primitive whose association carries an instance buffer (`placement/rows.ts`):
  * a cell's node takes the same row in every one of them, and gives it back — parked — when its
  * cell leaves. The buffers are sized when a session opens, before its engines read them
- * (`sizeRows`), for every node its view can hold at once (`sizing.ts`, #575): only a reach or a
+ * (`sizeRows`), for every node its view can hold at once (`sizing.ts`): only a reach or a
  * parent's stretch past that grows them, in place, under the engine that draws them.
  */
 import {
@@ -20,7 +20,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows }
 
 /** One mesh the cells place: its primitives' links, sharing one row numbering, and the host mesh
- *  of each, which a session mounts once the view read its primitive (#751). */
+ *  of each, which a session mounts once the view read its primitive. */
 export type PlacedMesh = {
   readonly links: readonly RowLink[]
   readonly nodes: readonly Object3D[]

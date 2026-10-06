@@ -21,7 +21,7 @@ import { blendMoves, isAssignment, type AlphaChange } from '../../placement/back
 const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
   primitive.pass === 'clustered-blend' || surface.transparent
 /** The meshes whose pages a collection drew, whichever read them: a resource mounted in place
- *  (#572) is its own collection, and moves class with the open's records (#837). */
+ * is its own collection, and moves class with the open's records. */
 const collected = new WeakSet<object>()
 
 export function collectClusterPages(
@@ -32,7 +32,7 @@ export function collectClusterPages(
   options: {
     allowMissing?: boolean
     blendCopy?: typeof createBlendCopyRecord
-    /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later (#751). */
+    /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later. */
     pendingPlaced?: boolean
   } = {},
 ) {
@@ -49,7 +49,7 @@ export function collectClusterPages(
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true)
   // Cover pages already taken, so the bootstrap holds each record once however many placements
-  // of its primitive the scene carries (#1235).
+  // of its primitive the scene carries.
   const covered = new Set<PageRec>()
   let order = 0
   for (const mesh of objects(source)) {
@@ -78,7 +78,7 @@ export function collectClusterPages(
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
     const { structure, culling } = shape
-    // ONE record per primitive page (#1235), shared by every placement of this source object: its
+    // ONE record per primitive page, shared by every placement of this source object: its
     // world, its row and its packed rank are the layout's, never a field here.
     const pages = createPageRecords(primitive, template, mesh, surface, transparent, order)
     for (const rec of pages) allPages.push(rec)
@@ -112,7 +112,7 @@ export function collectClusterPages(
         boxes: true,
         parked,
         placement,
-        // How far its GPU deformation can move a vertex, measured by the compiler (#357).
+        // How far its GPU deformation can move a vertex, measured by the compiler.
         ...(primitive.deformation ? { deformation: primitive.deformation } : {}),
         // A row says whether its placement casts; a node placed at its own world, its mesh.
         mark:
@@ -143,7 +143,7 @@ export function collectClusterPages(
     wears,
     /**
      * The open's assignment, run again once a material moved into or out of blended inside the
-     * session (#846): each record takes `blendOf`; true when one moved. An engine that sorts its
+     * session: each record takes `blendOf`; true when one moved. An engine that sorts its
      * meshes by surface at every draw — WebGL2's display graph — has only this left to follow:
      * whether a record rows place is drawn instanced (`drawnInstanced`).
      */

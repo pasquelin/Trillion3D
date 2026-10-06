@@ -42,7 +42,7 @@ function selectCpuCut(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: num
     run.shown,
   )
   // The packed ranks the cut published, rank by rank, kept beside the records: one record serves
-  // every placement of its primitive (#1235).
+  // every placement of its primitive.
   copyPacked(run.shownPacked, selected.shownPacked, run.shown.length)
   return selected
 }
@@ -75,7 +75,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     run.cpuHizCounted = true
     run.culledScratch.length = 0
     appendAll(run.culledScratch, cut.shown, partitionByPass(ready, true, run.transparentScratch))
-    // Written in place: the GPU cut's adopter and the row sync hold this very array (#1235).
+    // Written in place: the GPU cut's adopter and the row sync hold this very array.
     run.drawnPacked.length = 0
     appendAll(
       run.drawnPacked,

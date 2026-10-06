@@ -1,4 +1,4 @@
-// A sponza-sized atrium for the light-tile work counts (#1249): a 30 × 14 m court 14 m high, two
+// A sponza-sized atrium for the light-tile work counts: a 30 × 14 m court 14 m high, two
 // storeys of arcades on each long side — columns every 3 m, lintels, gallery floors —, hanging
 // drapes and end walls, open to the sky over the court. Synthetic: it stands for sponza's depth
 // (near columns in front of far walls in the same tiles), never for its image. `atriumDepth`

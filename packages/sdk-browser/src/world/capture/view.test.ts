@@ -1,7 +1,7 @@
 /**
  * A capture draws the session's camera at the capture's shape: an orthographic camera keeps its
  * box's matrix through the draw and after it, whatever aspect the capture writes, and a box
- * fitted to the canvas's shape (`fitAspect`) is fitted to the capture's (#1097).
+ * fitted to the canvas's shape (`fitAspect`) is fitted to the capture's.
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'

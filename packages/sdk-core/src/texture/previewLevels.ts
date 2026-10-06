@@ -47,7 +47,7 @@ export function levelBlockBytes(width: number, height: number) {
 /**
  * Full geometry of an entry: its first carried level, their count, the dimensions of each,
  * their RGBA8 bytes and their block-compressed bytes. All of it is deduced from the same two
- * bounds in one walk. Asking for them one by one used to recompute `previewFirstLevel` three
+ * bounds in one walk. Asking for them one by one would recompute `previewFirstLevel` three
  * times and `previewLastLevel` twice for the same dimensions, and `previewFirstLevel` loops up
  * to thirty-one times.
  */

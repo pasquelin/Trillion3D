@@ -7,7 +7,7 @@ import type { WorldRenderer } from '../capability/worldReady.ts'
  * The one door for every model a world's scene loads: its format is read from its content, then
  * its loader — today the compiled manifest's alone — reads it (`modelFormat.ts`), once the world
  * knows how it draws. The first model of a WebGPU world leaves its baked images to the cache; a
- * WebGL2 world's models hold their manifest by the view (#751).
+ * WebGL2 world's models hold their manifest by the view.
  */
 export function worldModelLoader(
   ready: Promise<unknown>,
@@ -22,7 +22,7 @@ export function worldModelLoader(
       signal: load.signal ?? signal,
       onProgress: load.onProgress,
       textureSource: renderer() === 'webgpu' && models++ === 0 ? 'cache' : 'host',
-      // WebGPU reads the whole manifest until its session grows in place (#216).
+      // WebGPU reads the whole manifest until its session grows in place.
       lazy: renderer() === 'webgl2',
     } as const
     return loadModelOfAnyFormat(url, read, { manifest: loadModel })

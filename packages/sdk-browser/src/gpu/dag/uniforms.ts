@@ -111,7 +111,7 @@ export function parseDagOutput(
   // Arrays written rank after rank, then cut to their length, and never sized ahead: an array whose
   // length is set before its ranks are written holds holes from then on, and each of the reads
   // that follow — the cut's difference, its records, its packed ranks, several a frame on a
-  // hundred thousand ranks — pays the hole check, near six times a packed read (#831). A frame reuses
+  // hundred thousand ranks — pays the hole check, near six times a packed read. A frame reuses
   // the arrays it grew; a typed-array iterator is never unrolled.
   const { result, drawable, evict } = scratch,
     pageIds = result.pageIds
@@ -139,7 +139,7 @@ export function parseDagOutput(
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0
   result.drawablePageIds = undefined
-  // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
+  // The drawable list arrives already compacted, in increasing order: the CPU does not walk
   // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
     result.drawablePageIds = readCountedList(ints, drawnWordOffset, drawable)

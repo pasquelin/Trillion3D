@@ -108,7 +108,7 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 }
 // The two stages above for a slot that holds no cutout row (no \`FLAG_MASK\`): \`maskKeep\` keeps
 // every pixel of such a row, so these write the same words without reading its page or discarding,
-// and a tile GPU's hidden-surface removal resolves their overdraw before they run (#831).
+// and a tile GPU's hidden-surface removal resolves their overdraw before they run.
 @fragment fn vis_hiz_opaque_fs(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
 @fragment fn vis_opaque_fs(in:VSOut)->@location(0) u32{return in.id;}
 `

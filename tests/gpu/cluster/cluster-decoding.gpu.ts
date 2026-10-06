@@ -30,7 +30,7 @@ function page(triangles: number, exponent: number, flat = false) {
 }
 
 /** The ring flat-shaded: every triangle on three vertices of its own under its first corner's
- *  normal, so the page stores each position once and links its vertices to them (#960). */
+ *  normal, so the page stores each position once and links its vertices to them. */
 function flatShaded(
   { indices, attributes }: { indices: number[]; attributes: PageAttributes },
   exponent: number,

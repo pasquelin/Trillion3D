@@ -43,7 +43,7 @@ export function prepareAutonomousManifest(input: ClusterManifest) {
   return { metadata, descriptors, sourced }
 }
 
-/** The root cover the open draws before any cut, each page with its packed rank (#1235): a spread
+/** The root cover the open draws before any cut, each page with its packed rank: a spread
  *  over the roots would overflow the stack. Writes `shown` and `shownPacked` in place. */
 export function showRootCover(
   roots: readonly ClusterRoot<PageRec>[],

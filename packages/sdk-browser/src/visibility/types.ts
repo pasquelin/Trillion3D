@@ -61,7 +61,7 @@ export const FLAG_LIT = 1,
   /** Frame flag of the transparent draw: a diagnostic view is shown, the surface's own lighting is
    *  not (`../webgpu/blend/uniforms.ts`, `diagnosticBits`). */
   FLAG_DIAGNOSTIC_VIEW = 0x40000000
-/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
+/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass. */
 export const FLAG_FOG_FREE = 1 << 20,
   FLAG_DYNAMIC = 1 << 21
 export type VisPage = {
@@ -89,7 +89,7 @@ export const texelsReason = ({ format, image }: { format?: number; image: unknow
 
 /** Why the texels a record holds in memory cannot be read as `textureRgba` reads them, in
  *  `texelsReason`'s words: its host's format for raw texels, RGBA for any other picture. The
- *  WebGPU fill throws it (#43), as the WebGL2 gate refuses the host by `texelsReason`. */
+ *  WebGPU fill throws it, as the WebGL2 gate refuses the host by `texelsReason`. */
 export const texelsRefusal = (texture: Texture) =>
   texelsReason({ format: texelFormatOf(texture) ?? HOST_FORMAT_RGBA, image: texture.image })
 

@@ -1,6 +1,6 @@
-// #1239: the runtime plan. A switched root yields a card and its clusters are suppressed, one
+// The runtime plan. A switched root yields a card and its clusters are suppressed, one
 // decision; the switch is the engine's one CPU oracle over the baked numbers and the view, so two
-// meshes of different R and T flip at different distances. Fails on develop: `plan.ts` is new.
+// meshes of different R and T flip at different distances.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planImpostors, impostorBakedByMesh, type ImpostorRoot } from './plan.ts'
@@ -157,7 +157,7 @@ test('off the view axis a root switches only where one atlas texel stays within 
   for (const q of [0.25, 0.6, 1.03, 1.18]) {
     // At d = z_s a texel spans 1+q² pixels; the switch waits for z = √(1+q²)·z_s, d = (1+q²)·z_s.
     const z = depth * Math.sqrt(1 + q * q) * (1 + 1e-9)
-    const onAxis = (depth / Math.sqrt(1 + q * q)) * (1 + 1e-9) // d just past z_s, as before
+    const onAxis = (depth / Math.sqrt(1 + q * q)) * (1 + 1e-9) // d just past z_s
     assert.equal(decide(q * onAxis, onAxis), 0, `q ${q}: the distance alone no longer switches`)
     assert.equal(decide(q * z, z), 1, `q ${q}: switched once (2R/r_f)·f·d/z² ≤ 1`)
     assert.equal(decide(q * z * (1 - 1e-6), z * (1 - 1e-6)), 0, `q ${q}: whole just nearer`)

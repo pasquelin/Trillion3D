@@ -1,4 +1,4 @@
-// #360, #361: a sampling written on a map reaches its texture's page-table header before the image
+// A sampling written on a map reaches its texture's page-table header before the image
 // that follows is submitted — that very image draws it —, so a host that renders on demand sees
 // the change at its next image, not one image late.
 import test from 'node:test'
@@ -24,7 +24,7 @@ test('a filter written on a map is in its header before the image that draws it 
     backend.render(cam)
     const written = header().slice(before)
     assert.ok(written.length > 0, 'the header was written')
-    // The image is the render's last submit: the copy of the picture `needsUpdate` moved (#362)
+    // The image is the render's last submit: the copy of the picture `needsUpdate` moved
     // is submitted before it.
     const submit = gpu.submits.slice(submitted).at(-1)
     assert.ok(submit !== undefined, 'the image was submitted')

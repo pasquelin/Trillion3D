@@ -13,7 +13,7 @@ import { dirname, join, resolve } from 'node:path'
 
 // The heavy local steps (a test run, `build`, `build:docs`, `build:native`, `compile:caches`) of
 // every worktree on the machine run one at a time, at low priority: several agents checking at once
-// otherwise start dozens of processes together (#1348). The lock is a file in the main checkout's
+// otherwise start dozens of processes together. The lock is a file in the main checkout's
 // `.worktrees/logs/`, which every worktree shares; a lock whose process is dead is taken over. The
 // CI runs each job on its own machine, and takes no lock.
 
@@ -58,7 +58,7 @@ function holder(path: string): { pid: number; step: string; cwd: string } | unde
 
 /**
  * Removes the lock at `path` of the dead process `dead`. The lock is first moved aside, which only
- * one waiter can do to a given file; a lock that is no longer the dead one's (another waiter took
+ * one waiter can do to a given file; a lock that is not the dead one's (another waiter took
  * it over first and was granted it) is put back, unless the lock was taken again meanwhile.
  */
 export function takeOver(path: string, dead: number): void {

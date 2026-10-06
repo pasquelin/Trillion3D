@@ -91,7 +91,7 @@ test('the lit view without a light is no longer an albedo view', () => {
   assert.equal(store.unlit, true)
 })
 
-test('300 lights: every one is published, in the grown table the GPU reads (#822)', () => {
+test('300 lights: every one is published, in the grown table the GPU reads', () => {
   const store = createSceneLightStore()
   const first = store.packed
   for (let i = 0; i < 300; i++)

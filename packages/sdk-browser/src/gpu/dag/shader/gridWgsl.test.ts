@@ -1,4 +1,4 @@
-// A cut's dispatch past one dimension's workgroups runs in rows instead of being refused (#974):
+// A cut's dispatch past one dimension's workgroups runs in rows instead of being refused:
 // the host's flat dispatches and the kernel's indirect arguments take the same rows, and the
 // kernels' flat index reaches every thread of them once. The kernel's functions run in Node.
 import test from 'node:test'

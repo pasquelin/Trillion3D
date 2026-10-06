@@ -16,7 +16,7 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>
  */
 export function selectWebgpuBlend(
   blendState: BlendState,
-  /** `packed` is the packed rank of each drawn page, rank by rank (#1235). */
+  /** `packed` is the packed rank of each drawn page, rank by rank. */
   cut?: PageLocations & { drawn: readonly PageRec[] },
 ) {
   const selected = blendState.cpuSelectedPlacements

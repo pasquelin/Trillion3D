@@ -37,7 +37,7 @@ function channel(component: GPUBlendComponent, s: number, a: number, d: number) 
   return s * factors[component.srcFactor!] + d * factors[component.dstFactor!]
 }
 
-// #346, #558: the pixel each mode leaves over a known background, in linear light, colour and
+// The pixel each mode leaves over a known background, in linear light, colour and
 // alpha as the witness composes them.
 test('each mode composes source and background by its own equation', () => {
   const s = 0.5,

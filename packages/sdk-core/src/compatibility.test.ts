@@ -63,7 +63,7 @@ test('a cache without a cluster DAG is refused by name, with the primitive that 
     ],
   }
   assertCacheIdentity(base)
-  // The old page tree: clusters with no band of their own. Refused, and the message says which one.
+  // A page tree whose clusters with no band of their own. Refused, and the message says which one.
   const tree = {
     ...base,
     primitives: [
@@ -84,7 +84,7 @@ test('a cache without a cluster DAG is refused by name, with the primitive that 
       () => assertCacheIdentity({ ...base, errorModel }),
       (error: unknown) => error instanceof EngineError && error.code === 'STALE_CACHE',
     )
-  // #962: texture levels of another version are refused by name, the recompile command given.
+  // Texture levels of another version are refused by name, the recompile command given.
   assertCacheIdentity({ ...base, textures: { url: 'u', version: TEXTURE_PREVIEW_VERSION } })
   for (const version of [5, undefined])
     assert.throws(

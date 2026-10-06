@@ -6,7 +6,7 @@ const CONVERGE_LIMIT = 64
  *  served — at a low render scale a round outnumbers the turns. */
 export const convergeBound = (phases: number) => CONVERGE_LIMIT + 2 * phases
 
-/** True when the barrier changed the raster: TAA must restart its still average (#25). */
+/** True when the barrier changed the raster: TAA must restart its still average. */
 export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
   tilesServed > 0 || shadowFrames > 0
 
@@ -26,6 +26,6 @@ export const texturesConverged = (
 
 /** True while the drain draws one more image: a page made or unmade resident after the last image
  *  (`seen`, `now`: the pool's residency revision), which no shadow map saw yet — the pages it
- *  stales are drawn again before the still average, not during it (#1016); or shadows unsettled. */
+ *  stales are drawn again before the still average, not during it; or shadows unsettled. */
 export const drainsAgain = (seen: unknown, now: unknown, unsettled: () => boolean) =>
   seen !== now || unsettled()

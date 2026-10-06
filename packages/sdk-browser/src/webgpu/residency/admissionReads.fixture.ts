@@ -1,4 +1,4 @@
-// Random residency jobs for the admission reads' tests (#921, STR-08): one world, one job over it,
+// Random residency jobs for the admission reads' tests: one world, one job over it,
 // reading ahead or not, every read and load logged in order.
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'

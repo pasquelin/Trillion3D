@@ -16,7 +16,7 @@ const ROOT = resolve(import.meta.dirname, '..')
 const refuse = () => assert.fail('no owner reads dist/: nothing to build')
 const project = (name: string) => parseProject(resolve(ROOT, name))
 
-// The #1071 case: a browser proof handed `page.evaluate` a `string[]` where its callback takes a
+// A browser proof handed `page.evaluate` a `string[]` where its callback takes a
 // `[string, string]`; `check:changed` let it through, and CI's `check:tools-types` refused it.
 const proof = (names: string) => `import type { Page } from 'playwright';
 export async function pair(page: Page, names: ${names}): Promise<string> {

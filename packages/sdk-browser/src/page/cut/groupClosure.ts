@@ -19,22 +19,22 @@ import { createSparseInts, grown } from './sparseInts.ts'
  * itself when nothing replaces it. The difference it publishes is the one of the pages held, in
  * the same shape as the cut's (`IdDelta`), so every reader downstream is unchanged.
  *
- * Every placement of a primitive shares its records (#1235), and what the cache holds is a record,
+ * Every placement of a primitive shares its records, and what the cache holds is a record,
  * never an instance: so a group is held once per primitive, named at the packed ranks of the first
- * placement that asked for it, however many placements the cut selects it on (#1232). The tables
+ * placement that asked for it, however many placements the cut selects it on. The tables
  * follow the records the cut closes over — bounded by the view's rows —, never the world's instances.
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>
 
 /**
  * Every table is sparse (`./sparseInts.ts`): it holds the groups and pages the cut closes over,
- * never the placements' catalogue (#483 rule 6). A placement's pages are packed contiguously from
- * its root's packed base (`postPackedBases`, #1235), and a group is keyed by its first member's packed id, which no
+ * never the placements' catalogue. A placement's pages are packed contiguously from
+ * its root's packed base (`postPackedBases`), and a group is keyed by its first member's packed id, which no
  * other group shares.
  */
 export function createGroupClosure(
   roots: readonly ClusterRoot<PageRec>[],
-  /** The per-placement tables: the packed base of each root, the root of each packed rank (#1235). */
+  /** The per-placement tables: the packed base of each root, the root of each packed rank. */
   placement: PlacementIndex,
   /** The packed catalogue `forEachHeld` resolves ids in. */
   packedPages: PageList = [],

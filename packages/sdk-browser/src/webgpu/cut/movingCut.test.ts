@@ -7,8 +7,8 @@ import { mockDagDevice } from '../../gpu/dag/selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { kernelUniforms, packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
 
-// A loaded model moved on every frame (#358, defect 4). Each move used to drop the cut in hand and
-// every readback in flight: no cut was ever adopted, `selectedTriangles` stayed 0 and the terrain
+// A loaded model moved on every frame. A move that dropped the cut in hand and
+// every readback in flight would adopt no cut, leave `selectedTriangles` at 0 and the terrain
 // at its coarsest level. A cut read back under a pose a placement has left since only chooses the
 // clusters — the draw reads this frame's mask — so it is adopted one frame late, as a camera's is;
 // it only never lets an image be held.

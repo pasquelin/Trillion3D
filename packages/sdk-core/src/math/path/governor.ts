@@ -24,9 +24,9 @@ import {
  *
  * It switches only when the other path is clearly and lastingly better, and it keeps
  * the other median fresh by playing it from time to time. A clock too coarse to time one execution
- * (no cross-origin isolation) times pooled batches instead (CPU-20, #919): consecutive executions of
+ * (no cross-origin isolation) times pooled batches instead (CPU-20): consecutive executions of
  * a path are summed until they span `POOLED_CLOCK_STEPS` clock steps, and each pool is one sample.
- * On a fine clock every execution is its own sample, exactly as before. Only a clock that never
+ * On a fine clock every execution is its own sample. Only a clock that never
  * moves leaves it on the JavaScript path, the baseline.
  */
 

@@ -108,7 +108,7 @@ pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bo
 ///
 /// Returns the corners no such copy exists for, welded by `weld_seam`: a coarse face whose
 /// corners only ever belonged to faces turned another way — the underside of a board its
-/// thickness collapsed onto the top — would inherit another face's normal (#484). The caller
+/// thickness collapsed onto the top — would inherit another face's normal. The caller
 /// retries with them locked.
 pub fn own_normals(
     simplified: &mut [u32],

@@ -139,7 +139,7 @@ test('captureSurfaceView hands the backend a finite view aimed at the pose targe
   assert.deepEqual([elements[12], elements[13], elements[14]], [4, 0, 0])
 })
 
-// #1096: the WebGL2 path draws no material surfaces, so it cannot draw a surface capture in a view
+// The WebGL2 path draws no material surfaces, so it cannot draw a surface capture in a view
 // of its own; it refuses it by a documented name, never by a bare message.
 test('a surface capture the drawing path cannot draw is refused by name', async () => {
   const api = createExplorerViewportApi({

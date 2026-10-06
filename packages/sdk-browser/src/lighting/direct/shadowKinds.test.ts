@@ -1,9 +1,9 @@
 // A lit program compiled for one kind of shadowed light (`ShadowKinds`) holds, in each shadow read,
 // the branch of that kind alone, the same text the program with both holds for it: the full program
-// is the text from before the kinds, byte for byte (`if(directional)` the sun's clipmap, the rest the
-// local light's map), and each read of a variant is that text with the other branch cut out, but
-// for the blank in front of it — so a light of a kept kind runs the same code as in the program with
-// every code path.
+// is the text with no kind selection, byte for byte (`if(directional)` the sun's clipmap, the rest
+// the local light's map), and each read of a variant is that text with the other branch cut out,
+// but for the blank in front of it — so a light of a kept kind runs the same code as in the program
+// with every code path.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../../texture/shaderRule.fixture.ts'

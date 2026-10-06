@@ -1,8 +1,8 @@
-// Batch F oracles, WebGPU engine-prepare side: the source-byte table and the texture diagnostic
-// counters (`packages/sdk-browser/src/webgpu/pages/io/catalogue.ts`) as they were before batch F.
+// Oracles, WebGPU engine-prepare side: the source-byte table and the texture diagnostic
+// counters (`packages/sdk-browser/src/webgpu/pages/io/catalogue.ts`).
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 
-/** Source-byte table before batch F: one `flatMap` of a pair per page. */
+/** Source-byte table: one `flatMap` of a pair per page. */
 export function referenceIndexSourceBytes(allPages: PageRec[]) {
   return new Map(
     allPages.flatMap((page) =>
@@ -18,7 +18,7 @@ export function referenceIndexSourceBytes(allPages: PageRec[]) {
   )
 }
 
-/** Diagnostic counters before batch F: a full `map` and two copies of the table. */
+/** Diagnostic counters: a full `map` and two copies of the table. */
 export function referenceMaterialsAndTangentsCount(
   allPages: readonly PageRec[],
   geometryBlocks: ReadonlyMap<unknown, { hasTangent: boolean }>,

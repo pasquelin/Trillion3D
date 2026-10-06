@@ -12,7 +12,7 @@ function widened(bounds: number[], sign: number, slack: number) {
 }
 
 /**
- * ONE record per primitive page (#1235), shared by every placement of the primitive — its rows, its
+ * ONE record per primitive page, shared by every placement of the primitive — its rows, its
  * replicas, every source object that names it. Its world, its row and its packed rank belong to the
  * layout, never to the record; only what the compiler computed of the page and the declaration it
  * was read from live here. Built once per primitive, never per placement.
@@ -43,7 +43,7 @@ export function createPageRecords(
       geometryPage: page.geometry,
       min: widened(page.min, -1, slack),
       max: widened(page.max, 1, slack),
-      // A dynamic page's box this frame (#573), set by its rewrites: one record shape for all.
+      // A dynamic page's box this frame, set by its rewrites: one record shape for all.
       moved: undefined,
       role: page.role,
       level: cut.level,
@@ -62,7 +62,7 @@ export function createPageRecords(
       transparent,
       sourceMesh: mesh,
       // A flat cut has no tree: transparent pages recover their draw order from the source rank,
-      // recorded for every class, since a page may turn blended in the session (#846).
+      // recorded for every class, since a page may turn blended in the session.
       sourceOrder: template.sourceOrder[pageIndex],
       renderOrder: order,
       cone: page.cone,

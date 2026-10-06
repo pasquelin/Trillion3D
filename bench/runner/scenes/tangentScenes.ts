@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // =====================================================================================
 // Four normal-mapped scenes derived from the public `normal-tangent-mirror-test`: its authored
-// tangents, mirrored on half the texture, drawn paged and unpaged, blended and opaque (#875).
+// tangents, mirrored on half the texture, drawn paged and unpaged, blended and opaque.
 //
 //   node bench/runner/scenes/tangentScenes.ts   (prints the `assets.ts --only` line that compiles them)
 //

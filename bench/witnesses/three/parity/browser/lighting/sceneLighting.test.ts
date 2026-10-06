@@ -90,7 +90,7 @@ test('a point, an ambient and a probe are placed with no aim node', () => {
   assert.equal(added.length, 3, 'each light aims at nothing: its copy alone')
 })
 
-// #558 (D): a casting lamp shown or hidden after the copy is heard at the placement that sees it,
+// A casting lamp shown or hidden after the copy is heard at the placement that sees it,
 // so WebGL2 never draws it unshadowed silently.
 test('a source lamp shown, hidden or set to cast after the copy changes the casting list', () => {
   const sun = G.directionalLight()

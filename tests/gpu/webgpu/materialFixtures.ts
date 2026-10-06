@@ -92,7 +92,7 @@ export const fixtures: Fixture[] = [
   ),
   // The engine composes a blend surface over the display background in display space, as the
   // witness does: the two agree to the level. With no opaque row there is no occluder history to
-  // establish, and the still image is held like any other (#198).
+  // establish, and the still image is held like any other.
   unlit('blend over the background', BLEND),
   // Between two drawn surfaces the engine blends in linear radiance and encodes at composition
   // (`docs/ENGINE.md` § Proofs); the witness blends the encoded output.
@@ -104,7 +104,7 @@ export const fixtures: Fixture[] = [
     difference: [44, 46],
     reason: 'linear blend before the display encode, display-space blend in the witness',
   }),
-  // #360: the four-colour map repeated four times each way and turned 30°, mixed under
+  // The four-colour map repeated four times each way and turned 30°, mixed under
   // magnification. A read at the raw UV shows the four quadrants once, upright.
   unlit(
     'map repeated and turned',
@@ -122,10 +122,10 @@ export const fixtures: Fixture[] = [
       reason: 'a mixed read between two texels, and the period seam the engine mixes by hand',
     },
   ),
-  // #361: at the quadrant points the square's UV falls 0.15 to 0.3 of a texel from an edge of
+  // At the quadrant points the square's UV falls 0.15 to 0.3 of a texel from an edge of
   // the 8×8 checker: nearest reads one texel, black or white, the mixed read a grey.
   unlit('nearest checker magnified', () => ({ map: img.checkerMap() }), { points: QUADRANTS }),
-  // #361: stripes on a square turned 75° away, a footprint four times longer along V: anisotropy
+  // Stripes on a square turned 75° away, a footprint four times longer along V: anisotropy
   // 1 greys them out at the level of V, 16 keeps the level of U. Hardware and shader footprints
   // differ, so the proof is the contrast each engine gains (`ANISOTROPY_GAIN`, the runner).
   ...[1, 16].map((anisotropy) =>
@@ -134,13 +134,13 @@ export const fixtures: Fixture[] = [
       points: GRAZING_ROW,
       difference: [0, 255],
       reason: 'judged by the contrast each engine gains from anisotropy, not texel by texel',
-      // #443: 16× is judged against the ground truth, 1× only reported beside it.
+      // 16× is judged against the ground truth, 1× only reported beside it.
       truth: anisotropy === 16 ? 0 : null,
     }),
   ),
-  // Review of #389: the camera raster alone cuts, on the colour read's alpha as the witness does
-  // (`maskKeep`); a second cut in the resolve left holes, 51 at 80°, 33 at 84° on Apple M3. At 88°
-  // (past the 16:1 grant, clamped by each sampler its own way) leaf edges are judged by holes.
+  // The camera raster alone cuts, on the colour read's alpha as the witness does (`maskKeep`); a
+  // second cut in the resolve leaves holes, 51 at 80°, 33 at 84° on one machine. At 88° (past the 16:1
+  // grant, clamped by each sampler its own way) leaf edges are judged by holes.
   ...[80, 84, 88].map((degrees) =>
     unlit(`foliage at a grazing angle of ${degrees}°, anisotropy 16`, img.foliage, {
       tilt: (-degrees * Math.PI) / 180,
@@ -168,10 +168,10 @@ export const fixtures: Fixture[] = [
     () => ({ color: 0x808080, roughness: 0.8, normalMap: img.texture(img.TILTED_NORMAL) }),
     { tangents: true },
   ),
-  // #479: glass built through the world API (`meshPhysical` → `hostSurface`, the route a world
-  // takes on either renderer) over an opaque square under the sun, as #337's repro, read on WebGL2
-  // against WebGPU. Both draw it with the engine's one lighting model, transmitted over a frozen
-  // linear backdrop (#120, #337): the same value, so the same window as any value two engines
+  // Glass built through the world API (`meshPhysical` → `hostSurface`, the route a world
+  // takes on either renderer) over an opaque square under the sun, read on WebGL2 against
+  // WebGPU. Both draw it with the engine's one lighting model, transmitted over a frozen
+  // linear backdrop: the same value, so the same window as any value two engines
   // quantise.
   {
     name: 'world glass over an opaque surface',

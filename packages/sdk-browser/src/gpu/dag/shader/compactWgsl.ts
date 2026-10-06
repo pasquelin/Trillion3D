@@ -9,15 +9,15 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts'
  * increasing list of pages to draw. These two kernels return it already compacted: the snapshot
  * now reports only a count and that many identifiers.
  *
- * Order is that of the old walk, page by increasing page, not that of an atomic counter: each
+ * Order is that of a serial walk, page by increasing page, not that of an atomic counter: each
  * block of sixty-four pages knows how many of its pages are drawn, the shared lane scan
  * (`../../core/laneScanWgsl.ts`) gives each block its offset, then each page finds its rank in its
  * own block. Sum in u32, associative; a block's offset depends only on the blocks before it. The
  * returned list is therefore term for term the one the CPU built.
  *
- * A block's count is no longer reread afterwards: `dagMask`, alone in setting a draw flag,
- * accumulates it in its own page's block. One fewer dispatch, and two million fewer flags
- * reread — the sum remains that of the same terms, integer addition being commutative.
+ * A block's count is not reread afterwards: `dagMask`, alone in setting a draw flag,
+ * accumulates it in its own page's block. No extra dispatch and no flag reread —
+ * the sum remains that of the same terms, integer addition being commutative.
  *
  * No new buffer: a stage's ceiling is eight storage buffers, already reached. Block counts, block
  * offsets and draw masks live behind the `work` thresholds, the list behind the wanted pages of

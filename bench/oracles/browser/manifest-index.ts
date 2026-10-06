@@ -1,5 +1,4 @@
-// Batch F oracles, page-source side: `packages/sdk-browser/src/world/session/pageSources.ts:20-49` from before
-// batch F, copied as-is. No host library here: the unit tests read these.
+// Oracles, page-source side: `packages/sdk-browser/src/world/session/pageSources.ts:20-49`, copied as-is. No host library here: the unit tests read these.
 import type {
   ClusterManifest,
   GeometryPageDescriptor,
@@ -10,7 +9,7 @@ import type {
 type PageWithGeometry = Page & { geometry: GeometryPageDescriptor }
 const hasGeometry = (page: Page): page is PageWithGeometry => !!page.geometry
 
-/** `createExplorerPageSources` before batch F: four `flatMap` over every page of the manifest. */
+/** `createExplorerPageSources`: four `flatMap` over every page of the manifest. */
 export function referenceIndexManifestPages(metadata: ClusterManifest) {
   const pages = [
     ...new Map(metadata.primitives.flatMap((p) => p.pages).map((p) => [p.url, p])).values(),
@@ -34,7 +33,7 @@ export function referenceIndexManifestPages(metadata: ClusterManifest) {
   return { pages, geometryPages, geometryUrls, pageIdByUrl }
 }
 
-/** Streaming bundles before batch F: one more `flatMap`. */
+/** Streaming bundles: one more `flatMap`. */
 export function referenceIndexManifestBundles(metadata: ClusterManifest) {
   return [
     ...new Map(

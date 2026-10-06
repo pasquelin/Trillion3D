@@ -1,7 +1,7 @@
 // G3: lighting.ts hoists the hemispheric-lighting constants (sun direction, its
 // length, ground and sky colour) out of `shadeLit`, called per pixel, instead of recomputing and
-// reallocating them at every call. Oracle: the pre-lot-G version, copied as-is into
-// `bench/oracles/browser/pixel-lighting.ts`, its ground colour on the exact sRGB curve since #76.
+// reallocating them at every call. Oracle: the version that recomputes them, copied as-is into
+// `bench/oracles/browser/pixel-lighting.ts`, its ground colour on the exact sRGB curve.
 import type { Texture } from '../../../../packages/sdk-core/src/index.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

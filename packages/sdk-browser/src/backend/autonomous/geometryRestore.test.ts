@@ -1,5 +1,5 @@
-// #846: a class change restores some of the records a rowed page shares: the geometry the others
-// still draw is not given back. #1234: the draw state lives in a `PageDraws` table.
+// A class change restores some of the records a rowed page shares: the geometry the others
+// still draw is not given back. The draw state lives in a `PageDraws` table.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'

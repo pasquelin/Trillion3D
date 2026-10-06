@@ -3,8 +3,8 @@
 const CONE_FLOATS = 12,
   FLAG = 11
 
-/** Output shape of the oracle, from before batch A: a per-page flag mask, not the compacted
- *  drawable list `packages/sdk-browser/src/gpu/dag/uniforms.ts` now returns. */
+/** Output shape of the oracle: a per-page flag mask, not the compacted
+ *  drawable list `packages/sdk-browser/src/gpu/dag/uniforms.ts` returns. */
 interface DagOutputOracle {
   pageIds: number[]
   frustumRejected: number
@@ -13,7 +13,7 @@ interface DagOutputOracle {
   drawablePageIds?: number[]
 }
 
-/** `packages/sdk-browser/src/gpu/dag/runtime.ts:94-101` before batch A: the residency column read through the cones, one
+/** `packages/sdk-browser/src/gpu/dag/runtime.ts:94-101`: the residency column read through the cones, one
  *  float per cluster. Bit residency poses the same verdicts on far fewer bytes. */
 export function referenceUpdateResidency(next: Uint32Array, pageCones: Float32Array) {
   let changed = false
@@ -36,7 +36,7 @@ export function residencyColumn(bits: Uint32Array, base: number, count: number) 
   return column
 }
 
-/** `packages/sdk-browser/src/gpu/dag/uniforms.ts:31-52` before batch A: spread of a typed array and `push` without capacity. */
+/** `packages/sdk-browser/src/gpu/dag/uniforms.ts:31-52`: spread of a typed array and `push` without capacity. */
 export function referenceParseDagOutput(
   bytes: ArrayBufferLike,
   byteOffset: number,

@@ -5,20 +5,17 @@ import { events, startModule, type Module } from './module.fixture.ts'
 import { addBox, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts'
 import { stateDump } from './stateDump.fixture.ts'
 
-/** `stateDump`'s motion as develop's module simulated it, which simulated this scene as it did
- *  before PHY-09 and PHY-10; taken again apart from the vertices when PHY-06 rounded them (#975),
- *  and again with each step's events hashed as a set, develop's module giving it too. It proves the
- *  poses, the soft words and the event set equal develop's, not its event order: the canonical
- *  order is the accepted route (boss's yes, 29 Sept., #934). Taken again on 4 Oct. 2026, when a soft
- *  body took a 1 cm thickness (`SOFT_VERTEX_RADIUS`): the same module built with a radius of 0 gave
- *  develop's own, `d54edc7d…` (motion) and `014b9452…` (whole), so the thickness alone moves it.
- *  Taken again the same day, when a contact's impulse took its bodies' turn and bounce: with every
- *  event's impulse word zeroed, the modules before and after give the same two hashes (`167f1388…`
- *  and `6bd49e2d…`), so only the impulses moved. */
+/** `stateDump`'s motion as the reference module simulates this scene, with each step's events
+ *  hashed as a set. It proves the poses, the soft words and the event set equal the reference's,
+ *  not its event order: the canonical order of the merged records is the accepted route. A soft
+ *  body takes a 1 cm thickness (`SOFT_VERTEX_RADIUS`): the same module built with a radius of 0
+ *  gives the reference's own, `d54edc7d…` (motion) and `014b9452…` (whole), so the thickness alone
+ *  moves it. A contact's impulse takes its bodies' turn and bounce: with every event's impulse
+ *  word zeroed, the modules with and without the turn and bounce give the same two hashes
+ *  (`167f1388…` and `6bd49e2d…`), so only the impulses move. */
 const DEVELOP_MOTION = '308bb20ef804ca2a490e90baeea7180d13f75878210c9854a8f3d0e99d4e44c9'
 /** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it, the
- *  events in the order the engine sent them (see `stateDump`), not the module's callback order
- *  (#934). */
+ *  events in the order the engine sent them (see `stateDump`), not the module's callback order. */
 const FULL_DUMP = 'd5cc715a70b4c1b33da212a274cff7973116a4651951e7c0f42b78f51f7d7ec2'
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch and the thickness of soft bodies', async () => {

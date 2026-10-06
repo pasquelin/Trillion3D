@@ -10,7 +10,7 @@ import { createWebgpuView, type WebgpuView } from '../state/view.ts'
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-/** Targets asked of the device, or pools funded again beside them (#1362), while a capture draws:
+/** Targets asked of the device, or pools funded again beside them, while a capture draws:
  *  it waits for them and draws again, never reading pages a funding moved. */
 const targetsMoving = (rt: WebgpuPagesRuntime) =>
   rt.gpu.targetGrant !== undefined || poolFundingPending(rt) !== undefined

@@ -135,7 +135,7 @@ for (let e = 0; e < spans.length / 2; e++) {
   spans[e * 2 + 1] = MOTS
 }
 
-/** One side of the bench: its blend state, its plan in the old format, and its output buffers. */
+/** One side of the bench: its blend state, its plan in the host format, and its output buffers. */
 export function benchSide(side: THREE.Side) {
   const blendState: BlendState = createWebgpuBlendState()
   // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`: only the

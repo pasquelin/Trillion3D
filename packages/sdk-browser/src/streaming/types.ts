@@ -5,8 +5,8 @@ import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
  * Rank is set once and for all by the catalogue, `urls` translates it, and only entries and
- * exits are walked — a cut of fifteen thousand pages that changes only ten therefore no
- * longer costs ten thousand string hashes per frame. `held` carries full membership: it is
+ * exits are walked — a cut of fifteen thousand pages that changes only ten therefore
+ * costs no ten thousand string hashes per frame. `held` carries full membership: it is
  * used to take over when another engine wrote the pins.
  */
 export interface HostRetentionDelta {
@@ -43,7 +43,7 @@ export interface StreamPage {
   /** Fingerprint of its bytes. */
   sha256: string
 }
-/** The pages a resource mounted in the open session brings (#572): `admit`-ted before they are
+/** The pages a resource mounted in the open session brings: `admit`-ted before they are
  *  read, `forget`-ten with their bytes once it is unmounted. */
 export type PageCatalogue = {
   admit(pages: readonly StreamPage[]): void

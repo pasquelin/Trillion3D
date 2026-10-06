@@ -60,7 +60,7 @@ test('a dispose withdraws the same things without announcing a loss', (t) => {
   assert.equal(logged.mock.callCount(), 0)
 })
 
-// #1364: Playwright's headless shell hands an invalid canvas texture, then drops the device; the
+// Playwright's headless shell hands an invalid canvas texture, then drops the device; the
 // error abandons it first, and the device's own cause, heard after, was dropped.
 test('the device lost after an error of its own keeps both causes, said on the console', async (t) => {
   const logged = t.mock.method(console, 'error', () => {})

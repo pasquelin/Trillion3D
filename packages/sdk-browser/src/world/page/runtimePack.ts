@@ -3,13 +3,13 @@ import type { Recut } from './runtimeCut.ts'
 
 /** The words before the arrays: five lengths, whether the pages keep a cone, whether a blended
  *  material wears them, the length of a recut's `ends`, its two inputs as 64-bit floats, a
- *  deformation's influences and targets, then whether the triangles are held (#573). */
+ * deformation's influences and targets, then whether the triangles are held. */
 const HEADER_WORDS = 16
 const drawnCones = (d: DrawnTriangles) => !d.lines && d.spriteRadius === undefined
 
 /** How a cut takes drawn triangles beside their content: the compiled primitive they `recut`, or
- *  `held`, faces that move after the cut — a dynamic geometry's (#573), a mesh the waves carry
- *  (#357) —, cut in compact runs when blended (`cutDrawnTriangles`). */
+ * `held`, faces that move after the cut — a dynamic geometry's, a mesh the waves carry
+ * —, cut in compact runs when blended (`cutDrawnTriangles`). */
 export type CutWay = { recut?: Recut; held?: boolean }
 
 /** Drawn triangles as one buffer: its header (`HEADER_WORDS`), then the five arrays and a recut's

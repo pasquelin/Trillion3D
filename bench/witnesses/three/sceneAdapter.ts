@@ -23,7 +23,7 @@ import {
  * uploaded once for the whole session, as the host's own adapter did.
  *
  * Every draw starts from a reset state: the engine's programs and copies wrote the context in
- * between, and the renderer's cache no longer describes it. A render target of the engine is a
+ * between, and the renderer's cache does not describe it. A render target of the engine is a
  * display surface the renderer does not own, exactly what its XR layer is to it: it is bound the
  * way the library's own XR manager binds that layer — `setRenderTargetFramebuffer` on a wrapper
  * flagged `isXRRenderTarget`, so that the output colour space and the tone mapping apply as on

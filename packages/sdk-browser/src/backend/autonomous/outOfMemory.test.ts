@@ -1,6 +1,6 @@
-// #840: out of memory on WebGL2 is absorbed. An allocation the context refuses marks it once the
+// Out of memory on WebGL2 is absorbed. An allocation the context refuses marks it once the
 // frame after reads it (`../../webgl/core/allocation.ts`); the next image halves the geometry pool
-// (`pool.ts`), and the residency pays it one DAG level per image, as a budget cut mid-session (#839).
+// (`pool.ts`), and the residency pays it one DAG level per image, as a budget cut mid-session.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { upload } from '../../webgl/cluster/buffers.ts'

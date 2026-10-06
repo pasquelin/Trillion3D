@@ -7,7 +7,7 @@ import { isUnitTest, runUnitTests } from '../unit-tests.ts'
 
 // The unit tests that read documentation, site translations or example thumbnails: a change of
 // those files alone skips the build, the type check and the rest of the suite, but still runs these
-// (`check:changed` locally, `test:docs` in the CI's `quick` job) (#1348). The set is found, never
+// (`check:changed` locally, `test:docs` in the CI's `quick` job). The set is found, never
 // listed: a test is in it when it, or a script or site module it imports, names such a file in a
 // string, so a new reader joins it by itself. The engine (`packages/`) reads no documentation.
 

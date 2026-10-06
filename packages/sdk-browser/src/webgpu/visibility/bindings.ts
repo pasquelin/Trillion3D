@@ -21,7 +21,7 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -
   )
 }
 
-/** The descriptors used to create the groups are also their identity, including atlas tables.
+/** The descriptors that create the groups are also their identity, including atlas tables.
  *  Slot groups differ from the representative slot 0 by their uniform offset alone. */
 function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
   const { vis } = rt,

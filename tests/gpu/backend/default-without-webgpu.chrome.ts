@@ -1,7 +1,7 @@
-// With no `backends` option, a machine without WebGPU draws on the engine's own WebGL2 path, alone
-// (#274), in Chrome: on a cache that carries a prepared autonomous scene, `autonomous-pages-webgl`
+// With no `backends` option, a machine without WebGPU draws on the engine's own WebGL2 path, alone,
+// in Chrome: on a cache that carries a prepared autonomous scene, `autonomous-pages-webgl`
 // draws it, every selected triangle submitted; on a cache whose blended primitive leaves no prepared
-// autonomous scene (#297), the same path reads the source's materials and placements and draws too.
+// autonomous scene, the same path reads the source's materials and placements and draws too.
 // Both sample the host's images. The WebGPU machine's choice is proved on Dawn
 // (`default-backend.gpu.ts`).
 import test from 'node:test'

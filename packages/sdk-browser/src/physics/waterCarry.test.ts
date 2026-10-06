@@ -1,4 +1,4 @@
-// The meshes the world's water carries (`waterCarry.ts`, #357): a plane laid flat at the water's
+// The meshes the world's water carries (`waterCarry.ts`): a plane laid flat at the water's
 // level is the water's surface, its `waves` the world's, set again in place when the water is;
 // moved off the level, removed, or the water gone, it is released; the page's own waves, `null`
 // among them, and a body are never touched; each change tells the world the mesh's content, and a

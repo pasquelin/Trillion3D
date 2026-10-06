@@ -14,7 +14,7 @@ export function encodeDeformation(rt: WebgpuPagesRuntime, encoder: GPUCommandEnc
   followDirtyRows(rt, device)
   buffers[0] = cache.buffer
   buffers[1] = vis.concatPos
-  buffers[2] = vis.concatNrm // the normal atlas's view (#1410)
+  buffers[2] = vis.concatNrm // the normal atlas's view
   buffers[3] = vis.pageTable
   buffers[4] = vis.concatUv
   vis.deformationCompute.encode(

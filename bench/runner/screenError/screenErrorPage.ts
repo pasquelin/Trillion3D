@@ -1,4 +1,4 @@
-// What the screen-error measure (#959) reads INSIDE the page, served under `/runner/` and imported
+// What the screen-error measure reads INSIDE the page, served under `/runner/` and imported
 // by its URL like `series/cutPage.ts`. One world on one backend holds each pose until its cut is held,
 // then hands back what it drew: WebGPU the clusters its cut selected (`selectedClusterIds`,
 // decoded in Node by `screenError/screenErrorSurface.ts`), WebGL2 the triangles of the meshes it drew, decoded

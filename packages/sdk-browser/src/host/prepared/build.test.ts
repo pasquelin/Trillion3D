@@ -32,14 +32,14 @@ import {
 async function witness(folder: URL, document: string, text?: string) {
   text ??= await readFile(new URL(document, folder), 'utf8')
   const gltf = await new GLTFLoader().parseAsync(text, folder.href)
-  // The engine's mesh casts unless it says otherwise (#456); the loader's keeps `false`.
+  // The engine's mesh casts unless it says otherwise; the loader's keeps `false`.
   gltf.scene.traverse((node) => {
     if ((node as { isMesh?: boolean }).isMesh) node.castShadow = true
   })
   const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>
   const ranks: Ranks = (object) => associations.get(object)
   // The autonomous document's primitives are one degenerate triangle each: the engine shades the
-  // pages they were cut from, which carry the source primitive's normals (#846).
+  // pages they were cut from, which carry the source primitive's normals.
   if (document !== 'source.gltf') {
     const source = JSON.parse(await readFile(new URL('source.gltf', folder), 'utf8'))
     gltf.scene.traverse((node) => {

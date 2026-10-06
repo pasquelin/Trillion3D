@@ -7,7 +7,7 @@ let asked = false
 const profileAsked = addressFlag((params) => params.has('profile'))
 
 /**
- * The engine's debug mode (#1353), a development build's tools against a shipping build: the
+ * The engine's debug mode, a development build's tools against a shipping build: the
  * frames are filed into the CPU step profile (`world.cpuSteps`) and the frame report
  * (`getReport`) only in it, and the measurement's code (`families.measurement`) — the frame
  * report's and the pass table's — is fetched only once it turns on, or by what reads it — a

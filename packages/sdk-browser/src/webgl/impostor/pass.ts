@@ -1,5 +1,5 @@
 /**
- * What the WebGL2 cluster renderer and the impostor card draw share (#1336): the pass a card draws
+ * What the WebGL2 cluster renderer and the impostor card draw share: the pass a card draws
  * in and the draw's call. Kept apart from the draw, so the renderer — the core — loads none of the
  * card's code, which the impostor family brings (`code.ts`).
  */

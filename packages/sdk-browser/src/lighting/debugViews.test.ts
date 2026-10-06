@@ -1,4 +1,4 @@
-// Debug views are output untouched (#365): a normal or depth material is never exposed nor tone
+// Debug views are output untouched: a normal or depth material is never exposed nor tone
 // mapped, so on WebGPU a normal or depth surface carries one flag through the resolve
 // and the lighting pass, and the composition keeps exposure and the display curve off it — from
 // the surface flag of a still image, from the share the temporal pass accumulated beside the

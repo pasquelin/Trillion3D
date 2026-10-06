@@ -103,7 +103,7 @@ test('cells are read nearest first within their reach, ahead past it, and leave 
   assert.deepEqual(planCells([wide], [1000 + past, 0.5, 0.5], reach, new Set([0])).leave, [0])
 })
 
-test('a cell is drawn by its super-roots until the cut needs its objects (#1332)', () => {
+test('a cell is drawn by its super-roots until the cut needs its objects', () => {
   const reach = 100,
     eye = [0, 0.5, 0.5],
     target = 1
@@ -129,7 +129,7 @@ test('a cell is drawn by its super-roots until the cut needs its objects (#1332)
   const placed = plan([0, 1, 2, 3], [0, 1, 2, 3])
   assert.deepEqual(placed.demoted, [3], 'only the cell past the keep margin leaves its objects')
   assert.deepEqual([placed.visible, placed.ahead, placed.far, placed.leave], [[], [], [], []])
-  // Without super-roots the plan reads every cell's objects, as before.
+  // Without super-roots the plan reads every cell's objects.
   const plain = planCells(cells, eye, reach, new Set())
   assert.deepEqual([plain.visible, plain.far, plain.demoted], [[0, 1, 2, 3], [], []])
 })

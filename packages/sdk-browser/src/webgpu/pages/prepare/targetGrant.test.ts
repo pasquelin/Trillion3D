@@ -1,4 +1,4 @@
-// #725, #483 rule 5: out of memory on a frame target is absorbed. The targets are granted under
+// Out of memory on a frame target is absorbed. The targets are granted under
 // the device's out-of-memory check before a frame draws with them; a refusal drops Hi-Z first,
 // and what cannot be made is refused by name, never reported as a lost device.
 import test from 'node:test'

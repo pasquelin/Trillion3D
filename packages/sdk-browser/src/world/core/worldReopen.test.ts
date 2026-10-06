@@ -1,4 +1,4 @@
-// #837: a reopen that remains — a lost device, an option the engine cannot take in place — keeps
+// A reopen that remains — a lost device, an option the engine cannot take in place — keeps
 // the image on screen, is said with its cause, and never fails a wait on the view's pages.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

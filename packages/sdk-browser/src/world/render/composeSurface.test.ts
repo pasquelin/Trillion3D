@@ -121,7 +121,7 @@ function presentation(options: object, background: unknown) {
 /** A background changed after the session opened is written in place on the active engine's own
  *  scene (`graphBackground`), never on `options.clearColor`: the presentation diagnostic must
  *  read that live colour, or a background changed without a reopen reads as a false mismatch
- *  (#342). */
+ *. */
 test('the presentation diagnostic follows a changed background, not the colour the session opened on', () => {
   for (const entry of presentation({}, { getHex: () => 0x2244ff })) {
     assert.equal(entry.clearColor, '#2244ff', 'read the stale, opened-on colour')
@@ -129,7 +129,7 @@ test('the presentation diagnostic follows a changed background, not the colour t
   }
 })
 
-// #402: the WebGPU engine keeps its background as a linear record without `getHex`, so the
+// The WebGPU engine keeps its background as a linear record without `getHex`, so the
 // diagnostic fell back to the colour the session opened on: it reads the world's colour now.
 test('the presentation diagnostic reads the world’s colour whatever record the engine keeps', () => {
   const record = { isColor: true, r: 0.016, g: 0.058, b: 1 }

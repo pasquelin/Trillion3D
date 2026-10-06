@@ -1,6 +1,6 @@
-// A9: a placement's winding is memoised on its root (#1226) and invalidated only when the row table's epoch
-// changes, instead of a 3×3 determinant recomputed on every read. Oracle: the uncached version from
-// before lot A, in `../../../../../../bench/oracles/browser/pages-webgpu.ts`.
+// A placement's winding is memoised on its root and invalidated only when the row table's epoch
+// changes, instead of a 3×3 determinant recomputed on every read. Oracle: the uncached version, in
+// `../../../../../../bench/oracles/browser/pages-webgpu.ts`.
 import test from 'node:test'
 import { asHostLibrary } from '../../../host/resources.ts'
 import assert from 'node:assert/strict'

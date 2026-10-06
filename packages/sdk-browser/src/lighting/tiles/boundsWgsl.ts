@@ -1,7 +1,7 @@
 import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
 
 /**
- * A column of the light grid and the run of its cells a light's range meets (#1369):
+ * A column of the light grid and the run of its cells a light's range meets:
  * `bench/oracles/browser/gpuLightGridOracle.ts` ports it line by line.
  *
  * The column is the cell's square of the image from the near plane to infinity: its corners

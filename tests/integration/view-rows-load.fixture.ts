@@ -1,5 +1,5 @@
-// The child of `view-rows-load.test.ts` (#1232): one cooked world opened the way a page opens it
-// (`openMeasuredWorld`), on WebGPU, on the mock device with an Apple M2's limits, at the boss's
+// The child of `view-rows-load.test.ts`: one cooked world opened the way a page opens it
+// (`openMeasuredWorld`), on WebGPU, on the mock device with an Apple M2's limits, at a stated
 // case (1728×1117 CSS pixels, DPR 2), under a memory cap. A renderer's memory holds the JS heap
 // and its array buffers alike, and the tab dies past it; Node caps only the first
 // (`--max-old-space-size`), so this process caps the sum itself, polled while the world opens and
@@ -40,7 +40,7 @@ const M2_LIMITS = {
 const [WIDTH, HEIGHT] = [1728 * 2, 1117 * 2]
 const MB = 1 << 20
 
-/** A canvas of the boss's case whose WebGPU context presents into a mock texture; the WebGL2
+/** A canvas of that case whose WebGPU context presents into a mock texture; the WebGL2
  *  context the world probes answers every call. */
 function canvasOf(device: GPUDevice) {
   const context = {

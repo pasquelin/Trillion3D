@@ -5,7 +5,7 @@ import { families } from '../../../host/families.ts'
 import { askGuidePass } from './encodeGuides.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
-test("a WebGPU world that shows no guide never fetches the guides' code (#1353)", async () => {
+test("a WebGPU world that shows no guide never fetches the guides' code", async () => {
   const guides = createGuideSet()
   const rt = {
     gpu: { displayView: {}, depthView: {} },

@@ -18,7 +18,7 @@ import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
  * price is paid in transfer, measured, never in resident bytes. The cache's cooked chain is the
  * reference path; this one exists only so that no scene is refused. A LIVE texture — one whose
  * picture moved since the session opened: a video, a canvas redrawn — keeps its working texture,
- * one of its own size, refilled in place at each new picture (`fill`, #362).
+ * one of its own size, refilled in place at each new picture (`fill`).
  */
 export type TileScratch = {
   texture: GPUTexture
@@ -26,7 +26,7 @@ export type TileScratch = {
   bytes: number
   /** Writes the source's current picture again, mips included: what a live texture keeps. */
   fill(): void
-  /** Builds its mips again from the picture it holds, under its readers' rule now (#42). */
+  /** Builds its mips again from the picture it holds, under its readers' rule now. */
   reduce(): void
   /** Its mips not built since its first picture: `reduce`, or a batch taking its `chain`. */
   readonly stale: boolean
@@ -67,7 +67,7 @@ export function createTileScratch(
   let stale = true
   /** Sends the picture as it is now, in the same texture, its mips not built. `flipY` and
    *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
-   *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
+   *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0. */
   const upload = () => {
     const { map } = options
     const rgba = textureRgba(map)

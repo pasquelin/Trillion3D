@@ -32,7 +32,7 @@ fn main(@builtin(global_invocation_id) id: vec3u) {
 }`
 
 /** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth; its
- *  coverage is the reactive value (#833), so the temporal pass keeps no trail of it. */
+ *  coverage is the reactive value, so the temporal pass keeps no trail of it. */
 export const PARTICLE_DRAW_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
 struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f }

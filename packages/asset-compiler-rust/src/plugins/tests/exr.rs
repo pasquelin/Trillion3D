@@ -53,7 +53,7 @@ fn both_precisions_yield_the_reference_values() {
     assert_eq!(pixels("flottant.exr"), opaque);
 }
 
-// Reproduction of finding 53: an OpenEXR's alpha is associated — the Academy Software
+// An OpenEXR's alpha is associated — the Academy Software
 // Foundation specification says RGB are premultiplied —, while the output contract asks for
 // straight alpha. Yielding the samples as-is delivered an image twice-premultiplied downstream,
 // where the preview premultiplies in turn. Here each component is divided by the pixel's alpha,

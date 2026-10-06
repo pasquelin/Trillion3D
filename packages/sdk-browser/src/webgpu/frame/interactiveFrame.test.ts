@@ -1,6 +1,6 @@
 // A light that lands on an unlit view starts the lit program's compile; until it lands, the frame is
-// held (`deviceAnswer`), never drawn with the unlit stand-in, and its arrival asks the lit frame
-// (#370, #536, #1362). Real bricks: `pendingWebgpuFrame`, the deferred lighting, the hold.
+// held (`deviceAnswer`), never drawn with the unlit stand-in, and its arrival asks the lit frame.
+// Real bricks: `pendingWebgpuFrame`, the deferred lighting, the hold.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'

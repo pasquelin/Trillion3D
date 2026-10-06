@@ -24,8 +24,8 @@ fn sparse_position_fixture(count: u64) -> (PathBuf, Options) {
     (root, options)
 }
 
-/// A01: `count = 2^61` fits in a `usize`, so neither admission nor validation
-/// sees it pass; only the dense reservation of `count × 3` floats used to notice,
+/// `count = 2^61` fits in a `usize`, so neither admission nor validation
+/// sees it pass; only the dense reservation of `count × 3` floats would notice,
 /// by panicking.
 #[test]
 fn a01_a_sparse_position_of_2_pow_61_is_refused_without_panic() {
@@ -38,7 +38,7 @@ fn a01_a_sparse_position_of_2_pow_61_is_refused_without_panic() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-/// A01 bis: a realistic sparse, whose dense expansion exceeds the 64 MiB budget
+/// A realistic sparse, whose dense expansion exceeds the 64 MiB budget
 /// without overflowing any integer, must be refused by admission and not allocated.
 #[test]
 fn a01_a_realistic_sparse_over_budget_is_refused_by_admission() {
@@ -50,8 +50,8 @@ fn a01_a_realistic_sparse_over_budget_is_refused_by_admission() {
 
 /// Two primitives of an 18,432-triangle grid, compiled with as many threads as 60 MiB of workers
 /// take: under the fixture's 64 MiB budget their page records leave no room for both at once, so
-/// they compile one wave each instead of being refused (#50,
-/// `tests::cache::run_settings::a_small_and_a_large_ram_budget_write_the_same_bytes`).
+/// they compile one wave each instead of being refused
+/// (`tests::cache::run_settings::a_small_and_a_large_ram_budget_write_the_same_bytes`).
 pub(in crate::tests) fn two_grids() -> (PathBuf, Options) {
     let n = 96usize;
     let mut bin = Vec::new();

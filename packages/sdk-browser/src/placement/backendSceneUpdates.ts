@@ -6,7 +6,7 @@ import type { PlacementRows } from './rows.ts'
 import type { HostAttributes, HostMaterials } from '../host/resources.ts'
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 
-/** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
+/** A range of one vertex list a dynamic geometry rewrote: vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
 export type VertexRange = {
   name: 'position' | 'normal' | 'uv' | 'color'
@@ -14,11 +14,11 @@ export type VertexRange = {
   count: number
 }
 
-/** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
+/** How a material's alpha moved (`world/api/materialApi.ts`): the host surfaces written,
  *  and the modes before and after — equal when only a cutout's cutoff moved. */
 export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode }
 
-/** A created material given to drawables (`assignMaterial`, #847): each source mesh and the
+/** A created material given to drawables (`assignMaterial`): each source mesh and the
  *  surface it wears from now on — the material's variant its geometry asks for —, `surfaces`
  *  those variants, `from` a mode one of them leaves whose blended-or-not differs from `to`, if
  *  any does. */
@@ -65,7 +65,7 @@ export const growsInPlaceOf = (
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
-  /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
+  /** Moves a named node of the prepared scene; applied to the next frame, without allocation. */
   setTransform?(nodeName: string, matrix: Float32Array): void
   /** `setTransform` on nodes of the prepared scene the host holds, sixteen floats each, one pass. */
   setTransforms?(nodes: readonly Object3D[], matrices: Float32Array): void
@@ -87,14 +87,14 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
     whole: boolean,
   ): boolean
   /** The cut's uniforms while it packs the world DAG (`GpuSelection.packsWorld`), which a
-   *  partition's plan projects its far cells with (#1332); `undefined` while none packs it. */
+   *  partition's plan projects its far cells with; `undefined` while none packs it. */
   worldCut?(): SelectionUniforms | undefined
-  /** A resource the session was not opened with enters it (#572): its pages join the same cache,
+  /** A resource the session was not opened with enters it: its pages join the same cache,
    *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
    *  the session again. */
   mountPlacements?(mount: PlacementMount): Promise<void>
   /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
-   *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
+   *  geometry's — were rewritten in place, its moved vertices within `box` (local, where
    *  they were and where they go), each vertex at most `reach` from where its page is bounded on
    *  an axis (`world/page/runtimePrimitive.ts`), each page's vertices within its box of `boxes`
    *  (`world/core/pageMotion.ts`), when given: the engine writes those vertices into the buffers
@@ -108,7 +108,7 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
     reach: number,
     boxes?: Float64Array,
   ): boolean
-  /** The bytes `updateVertices` sends the GPU for `ranges`; absent, the lists' own (#573). */
+  /** The bytes `updateVertices` sends the GPU for `ranges`; absent, the lists' own. */
   vertexBytes?(attributes: HostAttributes, ranges: readonly VertexRange[]): number
   /** The resource `rows` place leaves the session: its roots, pages and copies. */
   unmountPlacements?(rows: PlacementRows): void
@@ -131,7 +131,7 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose
-   *  picture changed size where its layout is fixed (#362) —, the owner opens the session again.
+   *  picture changed size where its layout is fixed —, the owner opens the session again.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the
    *  frame follows those itself, and nothing a value feeds, a page-table row, is written again.
    *  `alpha` when surfaces changed alpha mode or cutoff, a class change the engine said it takes
@@ -141,8 +141,8 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** Why the engine cannot move these surfaces from `from` to `to` inside the session, `undefined`
    *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
   materialClassRefusal?(alpha: AlphaChange): string | undefined
-  /** The source meshes of `assignment` wear its surface from now on, one their owner keeps
-   *  (#847): their records follow it, before `refreshMaterials(true, assignment)`; a mesh no
+  /** The source meshes of `assignment` wear its surface from now on, one their owner keeps:
+   *  their records follow it, before `refreshMaterials(true, assignment)`; a mesh no
    *  page draws was refused before (`materialClassRefusal`). Absent, only a new session will. */
   wearSurface?(assignment: SurfaceAssignment): void
   /** Admit a runtime surface's maps through the engine's existing texture path. */

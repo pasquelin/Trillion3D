@@ -1,4 +1,4 @@
-/** The vertices a seam-locked solve placed (#877): numbered past the source's, held by the coarse
+/** The vertices a seam-locked solve placed: numbered past the source's, held by the coarse
  *  geometry pages naming them alone, read there by the class re-cut (`classPages.ts`). */
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts'

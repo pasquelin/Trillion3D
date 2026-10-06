@@ -1,5 +1,5 @@
 //! A page's streams unpacked into one block of words — the mirror of `decodeGeometryPage` —, each
-//! stream walked once by a `BitReader` (STR-01, #238): the same bits as develop's decoder, which
+//! stream walked once by a `BitReader` (STR-01): the same bits as the reference decoder, which
 //! reads every field at random (`unpack_reference.rs`), as the equivalence harness proves.
 
 use crate::bits::{dequant, le_words, oct_decode_stream, BitReader, Quant};

@@ -123,7 +123,7 @@ export function buildWorldMirror(input: MirrorInput) {
   }
   /** Takes down a placed host mesh, its geometry with `cut`, the last one reading it, and its
    *  surface with the last mesh wearing it: out of the cache a repaint writes, given back with
-   *  the textures no other surface reads (#837). */
+   * the textures no other surface reads. */
   const unplace = (mesh: Mesh<GraphSurface>, cut?: Cut) => {
     associations.delete(mesh)
     root.remove(mesh)
@@ -179,7 +179,7 @@ export function buildWorldMirror(input: MirrorInput) {
     const [first, ...others] = moved.values()
     return refresh(values, first) && others.every((alpha) => refresh(false, alpha))
   }
-  /** The host geometry of `cut`, once placed: the vertices a dynamic resource rewrites (#573). */
+  /** The host geometry of `cut`, once placed: the vertices a dynamic resource rewrites. */
   const geometryOf = (cut: Cut) => geometries.get(cut)
   return { root, twins, associations, repaint, placed, place, unplace, geometryOf }
 }

@@ -3,7 +3,7 @@ import { LIGHT_ROW_TEXELS } from '../webgl/cluster/lightTexture.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 
 /**
- * THE GPU DEFORMATION STAGE (#357) in the WebGL2 program's vertex stage: `DEFORM_WGSL`
+ * THE GPU DEFORMATION STAGE in the WebGL2 program's vertex stage: `DEFORM_WGSL`
  * (`deformWgsl.ts`) operation for operation, on the same records (`layout.ts`) — morph targets,
  * then the joints' linear blend, then the waves on the world point. The block is a float texture
  * of `LIGHT_ROW_TEXELS` texels a row (`../webgl/cluster/deformation.ts`), each record on a texel boundary, its

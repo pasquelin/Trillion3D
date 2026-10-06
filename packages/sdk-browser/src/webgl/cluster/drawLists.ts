@@ -13,10 +13,10 @@ const NO_LIGHTS: readonly Light[] = []
 const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent
 
 /**
- * THE DRAW LISTS OF A DISPLAY GRAPH, KEPT BETWEEN IMAGES (#984, CPU-22): every visible mesh under
+ * THE DRAW LISTS OF A DISPLAY GRAPH, KEPT BETWEEN IMAGES (CPU-22): every visible mesh under
  * the graph's children in graph order, split into the opaque ones and the see-through ones — a
  * transparent surface, or a transparent copy `copies` names — and every visible light, the one
- * list a WebGL2 frame reads its lights from (#835). `refresh()` walks the graph again
+ * list a WebGL2 frame reads its lights from. `refresh()` walks the graph again
  * only when it may have changed shape; otherwise the lists stand, and it reads only their members'
  * surfaces.
  *

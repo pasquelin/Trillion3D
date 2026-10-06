@@ -1,8 +1,8 @@
-// Batch M3a, lookAt.ts: `lookAt` for an object and for a camera, edge case of
+// lookAt.ts: `lookAt` for an object and for a camera, edge case of
 // the aim collinear with up, removal of the parent rotation, and zero-scale parent (no
 // division by zero that would throw).
 //
-// Batch M4a: `writeAimBasis` keeps the squared length instead of recomputing it (except the
+// `writeAimBasis` keeps the squared length instead of recomputing it (except the
 // branch of an aim along up), and `writeColumnRotation` reads the parent's world matrix. The three
 // tests below confront these paths bit-exact (Object.is) with the host library's own aiming.
 import test from 'node:test'

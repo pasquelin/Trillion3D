@@ -1,4 +1,4 @@
-// #1097: each view keeps its own held-frame witness. A switch hands the gate the drawn view's hold
+// Each view keeps its own held-frame witness. A switch hands the gate the drawn view's hold
 // and breaks none: what one view draws never resets another's, while a change of the scene or the
 // resources, which every view shows, still reaches all of them.
 import test from 'node:test'

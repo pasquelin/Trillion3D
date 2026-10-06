@@ -121,7 +121,7 @@ export async function runPageDecodeTask(
         ok: false,
         code: pageDecodeFailureCode(message),
         message,
-        // A named refusal keeps its code across the thread (#575).
+        // A named refusal keeps its code across the thread.
         ...(error instanceof EngineError ? { refusal: error.code } : {}),
       },
       transfer: [],

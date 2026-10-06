@@ -7,7 +7,7 @@ import { GraphSurface } from '../../../../../../../packages/sdk-browser/src/host
 import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { placementsCentre } from '../../../../../../../packages/sdk-browser/src/webgl/cluster/placementSpheres.ts'
 
-// Issue #275: an instanced mesh is sorted by the union of its placements' spheres, grown as the
+// An instanced mesh is sorted by the union of its placements' spheres, grown as the
 // reference grows it, never by its geometry's sphere alone.
 test('an instanced mesh sorts on the union of its placement spheres, as the reference computes it', async () => {
   const {
@@ -62,7 +62,7 @@ test('an instanced mesh sorts on the union of its placement spheres, as the refe
   assert.notEqual(placementsCentre(placed, geometry.boundingSphere!), centre)
 })
 
-// Issue #275: a mesh is sorted on the normalised-device z of its sphere's centre, the clip z over
+// A mesh is sorted on the normalised-device z of its sphere's centre, the clip z over
 // the clip w, so two meshes behind the camera order by that number.
 test('the sort depth is the normalised-device z, behind the camera as in front', async () => {
   const { Matrix4, PerspectiveCamera, Vector3 } = await import('three')

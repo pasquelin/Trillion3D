@@ -1,4 +1,4 @@
-// #816: the fallback draw paints the colour target; a frame drawn below the display presents a
+// The fallback draw paints the colour target; a frame drawn below the display presents a
 // display colour of its own, which that draw never writes. That image waits for targets at the
 // display's size, the last one shown meanwhile, rather than presenting the previous or a blank
 // display colour; once they land the fallback draws it at the display, nothing lost.

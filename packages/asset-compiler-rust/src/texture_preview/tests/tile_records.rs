@@ -1,6 +1,6 @@
 use super::*;
 
-// #962: a block level file holds its tile records — each the blocks of its tile
+// A block level file holds its tile records — each the blocks of its tile
 // and gutter, clipped at the level's edge —, tile rows then tiles, block rows in
 // each. The offsets are pinned by the same numbers as the engine's reader
 // (`packages/sdk-browser/src/texture/tileRecords.test.ts`).

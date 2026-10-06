@@ -49,7 +49,7 @@ fn queuedProbe(entry:u32)->QueuedProbe{
  *
  * Damping is adaptive: a probe whose estimate jumps converges fast, a stable probe barely
  * moves. Nothing allocates, nothing loops unbounded, and a scene without a declared light
- * writes exactly zero (P6). The grid is read from a snapshot frozen before the update and
+ * writes exactly zero. The grid is read from a snapshot frozen before the update and
  * written elsewhere: an update never sees a neighbour half-written, and the steady-state
  * frame does not depend on the order in which the GPU scheduled its threads. The snapshot then
  * takes, by the pass's next dispatch, the texels the update wrote (`BOUNCE_SNAPSHOT_SHADER`).
@@ -182,7 +182,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  * written — the `PROBE_VECTORS` texels of each probe its queue names — copied from the probes'
  * atlas to the snapshot, one thread per texel. The two atlases were equal before the update
  * (zeroed together, cleared together), so they are equal after it, and the next update reads its
- * frozen grid without the copy of the whole atlas each image paid (#1410). A probe the update
+ * frozen grid without the copy of the whole atlas each image paid. A probe the update
  * skipped — asleep — copies the texels it holds already.
  */
 export const BOUNCE_SNAPSHOT_SHADER = `

@@ -1,4 +1,4 @@
-// #364: a sprite is a unit square every raster turns to the camera, its
+// A sprite is a unit square every raster turns to the camera, its
 // picture placed on its origin by `center`, its material a see-through picture with `rotation`
 // and `sizeAttenuation`.
 import test from 'node:test'

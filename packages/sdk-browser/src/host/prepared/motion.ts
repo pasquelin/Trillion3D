@@ -1,5 +1,5 @@
 /**
- * What moves in the prepared scene (#357), built from the scene tables alone
+ * What moves in the prepared scene, built from the scene tables alone
  * (`sdk-core/src/scene/core/tableMotion.ts`): each skinned mesh's skeleton — its joints are the
  * scene's own nodes — and the file's clips, whose tracks name the nodes they move, so a mixer
  * on the model plays them (`animation.createMixer(model)`).

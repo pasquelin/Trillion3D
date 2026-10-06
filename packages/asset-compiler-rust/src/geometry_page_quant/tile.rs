@@ -1,4 +1,4 @@
-//! Tiles of a kilometre primitive (#930): a primitive wider than a tile of the world is quantized
+//! Tiles of a kilometre primitive: a primitive wider than a tile of the world is quantized
 //! as if each tile spanned 2^16 steps, so its grid follows the tile rather than its own size.
 
 /// A tile's extent and width for a primitive the largest world `scale` places, the scale the

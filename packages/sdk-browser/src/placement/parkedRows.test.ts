@@ -1,4 +1,4 @@
-// #831: the boss's parked car (0 km/h) was read staling about 126 shadow pages a frame as moving.
+// A parked car (0 km/h) stales no shadow page as moving.
 // A car the physics poses writes its placement rows (`physics/placer.ts`): a pose written again
 // within a float32 step of the one its shadows last saw — a parked body's pose rounded again, frame
 // after frame — stales no page; a millimetre does, its moving casters alone.

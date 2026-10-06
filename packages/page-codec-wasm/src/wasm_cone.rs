@@ -8,7 +8,7 @@ use crate::normal_cone::cluster_cones;
 /// The position grid exponent of a primitive of widest `extent` (`primitive_grid_exponent`):
 /// `finest_error` the finest error its DAG published and `scale` the largest world scale that
 /// places it, each none when not positive — a world's drawn triangles have neither, a compiled
-/// primitive cut again in session both (#846); `blended` is 0 or 1.
+/// primitive cut again at run time both; `blended` is 0 or 1.
 #[no_mangle]
 pub extern "C" fn position_grid_exponent(
     extent: f64,

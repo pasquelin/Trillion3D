@@ -61,7 +61,7 @@ fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
     }
 }
 
-// Finding 22: an edge marked hard separates the two faces it borders, even smooth ones. The
+// An edge marked hard separates the two faces it borders, even smooth ones. The
 // roof ridge yielded a vertical normal on both sides — a sharp edge rounded —, whereas the file
 // declares it hard: each slope now keeps its own grade on its four corners.
 #[test]
@@ -89,7 +89,7 @@ fn a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders() {
     );
 }
 
-// Finding 22, file side: it is indeed the fixture's `sharp_edge` attribute that decides. The
+// File side: it is indeed the fixture's `sharp_edge` attribute that decides. The
 // same fixture, once with all edges soft and once with all edges hard, yielded exactly the same
 // mesh: the file's mark was never read.
 #[test]

@@ -1,4 +1,4 @@
-// Lot H2: the real entry point of the decode worker, run by a real `worker_threads` thread
+// The real entry point of the decode worker, run by a real `worker_threads` thread
 // (the bridge of `../../../../../bench/oracles/browser/pageDecodeNodeWorker.ts`), without touching the file itself.
 // Hostile inputs: a message of another contract version, a cancellation before any work.
 import test from 'node:test'

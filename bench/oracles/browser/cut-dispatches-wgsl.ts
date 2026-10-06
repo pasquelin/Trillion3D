@@ -66,7 +66,7 @@ function shippedFn(name: string) {
 
 /** Taken from the shipped descent, not copied: the flags layout (`queueBase`, `candBase`: for a
  *  camera `queueCap` is `nodeCount`, so queues 0 and 1 are the frozen ones, and the shipped stages
- *  reach queue 3 through `lastUseAt`, #477), `rootOf`, and `markOf`/`tooCoarse`, which other shipped
+ *  reach queue 3 through `lastUseAt`), `rootOf`, and `markOf`/`tooCoarse`, which other shipped
  *  stages call. `descend` is rewritten: the shipped one appends to queues this layout lacks. */
 const BEFORE_SHIMS = `${['queueBase', 'candBase', 'rootOf', 'markOf', 'tooCoarse'].map(shippedFn).join('\n')}
 fn descend(src:u32,node:CullNode){

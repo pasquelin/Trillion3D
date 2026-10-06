@@ -1,8 +1,7 @@
-// #1234 step B2: the WebGL2 autonomous per-instance draw state is keyed by packed index, as the
-// WebGPU consumers are (#1233). Equivalence: the draw lists (the page meshes the display graph
-// carries) and the residency (which packed instances are resident) of a scene of repeated
-// placements are those of develop, recorded before this batch. The test reads the new per-packed
-// index API, so it cannot run on develop.
+// The WebGL2 autonomous per-instance draw state is keyed by packed index, as the WebGPU consumers
+// are. Equivalence: the draw lists (the page meshes the display graph carries) and the residency
+// (which packed instances are resident) of a scene of repeated placements are those a recorded
+// run of the unpacked state gave. The test reads the per-packed index API.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
@@ -84,7 +83,7 @@ function scene() {
   return { store, graph }
 }
 
-/** The draw lists and the residency, by packed index, as develop saw them. */
+/** The draw lists and the residency, by packed index. */
 function fingerprint(store: Store, children: readonly G.Mesh[]) {
   const hash = createHash('sha256')
   hash.update(`meshes:${children.length};`)
@@ -104,9 +103,9 @@ function fingerprint(store: Store, children: readonly G.Mesh[]) {
   return hash.digest('hex').slice(0, 16)
 }
 
-test('the WebGL2 draw lists and residency of repeated placements are those of develop', () => {
-  // Recorded on develop at 1d6b3ffc4, where each record carried its geometry, mesh and `attached`
-  // flag, and the residency was per record: the same draw lists and the same packed state.
+test('the WebGL2 draw lists and residency of repeated placements are those of a per-record state', () => {
+  // Recorded where each record carried its geometry, mesh and `attached` flag, and the
+  // residency was per record: the same draw lists and the same packed state.
   const { store, graph } = scene()
   store.sync()
   assert.equal(fingerprint(store, graph.children), '62220a019a6df6f6')

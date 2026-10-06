@@ -23,9 +23,9 @@ export function createWebglFrameGate() {
      * clusters, in the same order, so they draw the same image.
      *
      * Identity of the cut is the hash of the displayed identifiers, not a walk counter. A frustum
-     * reject counts visited nodes: the forcing fallback redescends the tree and used to count
-     * them twice, so two images with an identical cut looked different and a still pose never
-     * converged.
+     * reject counts visited nodes: the forcing fallback redescends the tree and counts
+     * them twice, so two images with an identical cut would look different and a still pose never
+     * converge.
      */
     keep(
       visible: number,

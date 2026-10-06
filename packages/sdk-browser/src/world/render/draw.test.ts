@@ -5,7 +5,8 @@ import { referencePushPending } from '../../../../../bench/oracles/browser/strea
 
 // G6: missing addresses that an in-flight request will send again later accumulate in a
 // `Set` (`pushPending`) instead of an array tested by `includes` on every added address.
-// Oracle: the hand-deduped array from before batch G, copied into `../../../../../bench/oracles/browser/streaming-lookups.ts`.
+// Oracle: the hand-deduped array, copied into
+// `../../../../../bench/oracles/browser/streaming-lookups.ts`.
 test('an empty set receives the same addresses, in the same order, as a hand-deduped array', () => {
   const ensemble = new Set<string>()
   const tableau: string[] = []

@@ -1,4 +1,4 @@
-// Behaviour this batch changed: a root declares once that each of its pages carries its box,
+// A root declares once that each of its pages carries its box,
 // and the cut stops checking it per cluster under a node entirely in the frustum. The
 // declaration is a contract; these three tests hold both ends — who writes it, who reads it.
 import test from 'node:test'

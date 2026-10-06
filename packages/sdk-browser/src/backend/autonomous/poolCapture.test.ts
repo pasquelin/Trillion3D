@@ -1,6 +1,6 @@
-// The WebGL2 union under budget pressure (#1199): a capture keeps the detail pages it keeps alone,
-// its requests ranked before the union's (`poolUnion.ts`), as WebGPU's queue does (#268); the main
-// and persistent views rank the union coarsest first, as before.
+// The WebGL2 union under budget pressure: a capture keeps the detail pages it keeps alone,
+// its requests ranked before the union's (`poolUnion.ts`), as WebGPU's queue does; the main
+// and persistent views rank the union coarsest first.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { PAGE } from './pool.fixture.ts'
@@ -16,7 +16,7 @@ const urls = (list: readonly PageRec[]) => list.map((page) => page.url)
 /** A camera `height` units above `(x, y)` of the DAG's plane, looking straight down at it. */
 const above = (x: number, y: number, height: number) =>
   dagCamera(height, x, y) as unknown as HostCamera
-const MAIN = above(0, 0, 20), // coarser pages than the capture's, which rank first on develop
+const MAIN = above(0, 0, 20), // coarser pages than the capture's, which rank first
   CAPTURE = above(2, 2, 7)
 const pagesOf = () => dag({ feuilles: 256, seed: 11, residentes: 0 })
 

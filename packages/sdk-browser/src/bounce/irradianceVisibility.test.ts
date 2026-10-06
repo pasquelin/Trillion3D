@@ -1,4 +1,4 @@
-// #29: the surface cache's direct term traced a shadow ray for the first four shadow-casting
+// The surface cache's direct term traced a shadow ray for the first four shadow-casting
 // lights only; from the fifth on, a light behind a wall lit the cell through it, and the bounce
 // carried that light into the room. The shipped `directIrradiance` runs here against a flat wall.
 import test from 'node:test'

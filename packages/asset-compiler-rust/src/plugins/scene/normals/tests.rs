@@ -1,7 +1,6 @@
-//! A10: an edge that more than two faces share has no fan to read. The helper had promised it
-//! all along, but it united from the second encounter, before knowing a third face existed: the
-//! first two faces of the file smoothed together, the third stayed alone, and changing face
-//! order changed the output.
+//! An edge that more than two faces share has no fan to read. A helper that united from the
+//! second encounter, before knowing a third face existed, would smooth the first two faces of
+//! the file together, leave the third alone, and make the output depend on face order.
 use super::*;
 
 /// Five vertices: the shared edge, then one free vertex per face.
@@ -57,7 +56,7 @@ fn assert_aucun_lissage(shaded: &Shaded, order: &[usize], case: &str) {
     }
 }
 
-// Finding A10: three faces on an edge, and no corner is united — whatever order the file writes
+// Three faces on an edge, and no corner is united — whatever order the file writes
 // them in. Guessing a fan where there is none would yield a corner at random.
 #[test]
 fn an_edge_with_three_faces_unites_no_corner_whatever_the_order() {

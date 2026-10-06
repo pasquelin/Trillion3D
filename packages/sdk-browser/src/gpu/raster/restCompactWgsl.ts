@@ -14,8 +14,8 @@ export const REST_COMPACT_WORKGROUP = 64
  * vertices one by one — the vertex count of the model's largest page per rejected instance. Here
  * each tested slot keeps its surviving instances only — the negation of the same `hizRejected` as
  * the vertex stage — in the order the draw compaction gave them, and its command counts them. A
- * rejected instance drew nothing: the frame is identical by construction, and no vertex is
- * launched for it any more.
+ * rejected instance draws nothing: the frame is identical by construction, and no vertex is
+ * launched for it.
  *
  * Three dispatches, all in one pass:
  *  - `restCount`, a workgroup per tile of 64 instances of a slot: each lane copies its instance
@@ -28,7 +28,7 @@ export const REST_COMPACT_WORKGROUP = 64
  *
  * `work` holds the copy over the instance list's own range (`uni.copyWords`), then each slot's
  * instance count as it was, then `uni.tiles` tile words per slot. Only `uni.tiles` tiles of a slot
- * are read: the instances past them are dropped, as the truncation before this compaction did.
+ * are read: the instances past them are dropped, as a truncation does.
  */
 export const REST_COMPACT_SHADER = `${PAGE_INFO_STRUCT_WGSL}
 struct Uniforms{restSlots:u32,tiles:u32,copyWords:u32,pad0:u32,}

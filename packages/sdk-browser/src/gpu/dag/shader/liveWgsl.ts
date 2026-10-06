@@ -15,7 +15,7 @@ import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
  * is unchanged: they all started with `visible`, and a cluster absent from the list is precisely
  * a cluster whose `visible` was false — hence a cluster they did nothing with.
  *
- * The workgroup count is no longer pulled afterwards by a single-thread kernel: the append
+ * The workgroup count is not pulled afterwards by a single-thread kernel: the append
  * that opens a sixty-four-wide slice — the one whose rank is a multiple of the group size —
  * raises the count itself, in rows past one dimension (`gridWgsl.ts`). It is therefore exactly
  * `ceil(live / 64)`, with no extra dispatch and without the fixed latency a single-thread

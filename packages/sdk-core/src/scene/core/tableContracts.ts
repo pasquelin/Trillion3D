@@ -20,8 +20,7 @@ import {
 /** The name of the file that holds the scene tables. */
 export const SCENE_TABLES_FILE = 'scene-tables.json'
 /** Version of the product as a whole; each table it carries is versioned in turn. 5 names the
- *  manifest pages the node table needs (`meshPages`, #751), 6 carries the skins and the clips
- *  (#357). */
+ *  manifest pages the node table needs (`meshPages`), 6 carries the skins and the clips. */
 const SCENE_TABLES_VERSION = 6
 /** The version of the node table this runtime reads: every node but those a cell places, with its
  *  local pose, whether it is visible and the skin it bends its mesh by. */
@@ -118,7 +117,7 @@ export interface PreparedSceneTables {
   /** The cells that place the other nodes, read by distance; `null` when the scene has none. */
   partition: TablePartition | null
   /** The slots of the manifest's mesh pages the meshes of `nodes` lie in: what a runtime that
-   *  holds the manifest by the view reads at open, the cells naming the rest (#751). */
+   *  holds the manifest by the view reads at open, the cells naming the rest. */
   meshPages: readonly string[]
   /** The lights the nodes hang. */
   lights: TableLight[]

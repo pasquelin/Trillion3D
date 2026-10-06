@@ -1,13 +1,15 @@
-// What the deferred resolve of a MOVING image spends per covered pixel beyond its G-buffer reads
-// (#1369), develop's resolve against this branch's, both on the light grid's lists (`lighting/lightGridWalk.ts`),
-// each pixel's point against each listed light's range. COUNTED, never timed; upper bounds where a
-// term depends on a weight or a facing the atrium does not model.
+// What the deferred resolve of a MOVING image spends per covered pixel beyond its G-buffer reads,
+// the `before` resolve (every sampled rank drawn) against the `after` one, both on the light grid's
+// lists (`lighting/lightGridWalk.ts`), each pixel's point against each listed light's range.
+// COUNTED, never timed; upper bounds where a term depends on a weight or a facing the atrium does
+// not model.
 //
 // - `setup`: the pixels that set up a shadow read — eight neighbour depths for the unjittered
-//   footprint and the receiver offset recomputed from the visibility buffer (`shadowSetup`, #1410):
-//   develop at every lit pixel, now where the cell's list holds a shadowed light (`cellShadowed`).
+//   footprint and the receiver offset recomputed from the visibility buffer (`shadowSetup`):
+//   `before` at every lit pixel, `after` where the cell's list holds a shadowed light
+//   (`cellShadowed`).
 // - `weights`: `lightWeight` evaluations of a drawn list (`sampledSliceLighting`): three walks of
-//   its `L` lights on develop, two now.
+//   its `L` lights `before`, two `after`.
 // - `shaded`: lights shaded in full (`declaredLight`): a full sum's `L`, a drawn list's at most
 //   `LIGHT_SAMPLES`.
 // - `shadows`: shadow reads, at most the shaded lights holding a slot that reach the pixel, each
@@ -36,7 +38,7 @@ export type Work = {
 }
 const zero = (): Work => ({ setup: 0, weights: 0, shaded: 0, shadows: 0, demand: 0 })
 
-/** Sums over the covered pixels of `view`, `before` (develop) and `after`; `slotted[rank]` whether
+/** Sums over the covered pixels of `view`, `before` and `after`; `slotted[rank]` whether
  *  a light holds a shadow slot. */
 export function countResolveWork(
   view: TileView,

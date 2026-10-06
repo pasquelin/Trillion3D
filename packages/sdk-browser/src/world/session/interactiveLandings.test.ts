@@ -1,4 +1,4 @@
-// The loop's settle limit follows the engine's own landings (#836): a view whose pages come back
+// The loop's settle limit follows the engine's own landings: a view whose pages come back
 // from memory, no fetch counted, is still drawn to its last page before the loop pauses.
 import test from 'node:test'
 import assert from 'node:assert/strict'

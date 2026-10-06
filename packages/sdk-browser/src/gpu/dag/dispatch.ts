@@ -115,7 +115,7 @@ export function createDagDispatch(
         .then(async () => {
           try {
             // `dispose` destroyed the buffers: a read queued behind the other slot's maps nothing,
-            // since mapping a destroyed buffer is a validation error on the device (#334).
+            // since mapping a destroyed buffer is a validation error on the device.
             if (state.disposed) return
             await readback[i].mapAsync(GPUMapMode.READ)
             const bytes = readback[i].getMappedRange(),

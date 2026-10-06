@@ -16,7 +16,7 @@ const PIXEL: [u8; 70] = [
     0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
 ];
 
-// Finding 33: a material's alpha mode comes from its render properties, never from
+// A material's alpha mode comes from its render properties, never from
 // the alpha of its colour. `_Mode: 0` declares an opaque material: the alpha stays
 // in the base-colour factor, and the material does not become blended because that
 // value is less than one.
@@ -48,7 +48,7 @@ fn an_opaque_material_stays_opaque_whatever_the_alpha_of_its_colour() {
     );
 }
 
-// Finding 34: URP and HDRP declare the render mode under `_SurfaceType` rather than
+// URP and HDRP declare the render mode under `_SurfaceType` rather than
 // `_Mode`. The driver reads both names as the same quantity: transparent gives
 // `BLEND`, cut-out alone `MASK` with its `_AlphaCutoff` threshold, and a material
 // that declares neither stays opaque.
@@ -95,7 +95,7 @@ fn the_surface_type_of_an_hdrp_material_declares_its_alpha_mode() {
     );
 }
 
-// Finding 51: the model a scene cites is read by the driver of its format, which
+// The model a scene cites is read by the driver of its format, which
 // also counts what it could not yield. That report belongs to the Unity scene: its
 // codes rise there under their own name, and two models that miss the same thing add up.
 #[test]
@@ -116,7 +116,7 @@ fn the_report_of_the_model_driver_reaches_the_unity_report() {
     );
 }
 
-// Finding 52: a texture's `.meta` declares how to sample it — wrap of each axis and
+// A texture's `.meta` declares how to sample it — wrap of each axis and
 // filtering. The glTF sampler carries them: a texture clamped on one axis and
 // repeated on the other keeps both modes, and nearest filtering is not smoothed.
 #[test]

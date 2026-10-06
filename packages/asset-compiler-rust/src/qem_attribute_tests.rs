@@ -1,4 +1,4 @@
-//! The simplifier's attribute-aware options (#484): normals and texture sets in the error, the
+//! The simplifier's attribute-aware options: normals and texture sets in the error, the
 //! error clamped to the region, protected seams, pruned parts.
 use super::tests::{CUBE_INDICES, CUBE_POSITIONS};
 use super::*;

@@ -11,7 +11,7 @@ import { cellReductionWgsl } from './cellReduction.ts'
  * Alpha of a foliage map is not a colour: it is what a masked material compares to its threshold.
  * A mean pulls each level toward the map's mean alpha; above the threshold, the silhouette grows
  * from one level to the next until the whole quad passes the test, loses its holes and combs into
- * an opaque rectangle in front of what is behind — which loading used to make visible, since the
+ * an opaque rectangle in front of what is behind — visible while loading, since the
  * cutout then reads the finest RESIDENT level, therefore a coarse level.
  *
  * The median of four values, itself, passes a GIVEN threshold exactly when two of the four texels
@@ -26,7 +26,7 @@ import { cellReductionWgsl } from './cellReduction.ts'
  * Under `weighted`, four texels whose alphas differ average their colours
  * weighted by alpha, and `select` keeps the plain mean everywhere else, byte for byte: the rule the
  * compiler bakes, and its reasons (`packages/asset-compiler-rust/src/texture_preview/reduce.rs`,
- * `halve`, #42).
+ * `halve`).
  *
  * `extent` is the source's size, then a coverage chain's cutoff byte `C` and the level's `t`: with
  * `C`, the median byte is scaled to keep level 0's coverage (`coverageMips.ts`); without, the
@@ -62,8 +62,8 @@ export const MIP_SHADER = `
  * `choose` then picks that level's `t`, one thread, and leaves it in bin 0, which it never reads
  * (`t >= 1`). `level`: the source's extent, `C`, `t`, then level
  * 0's extent and the level. A texel's square reads its neighbours' alphas: the workgroup reads its
- * 9×9 alphas once into its own memory, not four times each (OMB-29, #961) — the same alphas,
- * clamped at the edge as before, so the same bins.
+ * 9×9 alphas once into its own memory, not four times each — the same alphas,
+ * clamped at the edge, so the same bins.
  */
 export const COVERAGE_WGSL = `
  @group(0) @binding(0) var source:texture_2d<f32>;

@@ -9,7 +9,7 @@ type Source = NonNullable<ReturnType<typeof buildWorldSource>>
 type Mounting = Pick<MeasuredWorld, 'mountsPlacements' | 'mountPlacements' | 'unmountPlacements'>
 
 /**
- * THE MOUNT IN PLACE (#572): after each seating, the batches no mesh draws leave the open session
+ * THE MOUNT IN PLACE: after each seating, the batches no mesh draws leave the open session
  * and those it was not opened with enter it (`mountPlacements`). A mount drawn asks the next
  * seating (`schedule`), a failed one the next opening (`reopen`), while `open` is its session.
  */

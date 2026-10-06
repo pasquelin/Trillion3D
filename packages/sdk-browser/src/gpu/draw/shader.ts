@@ -28,8 +28,8 @@ import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from '
  * thread totals a contiguous run of groups, the sixty-four run totals are scanned in workgroup
  * memory, and each thread writes the offsets of its run from its exclusive prefix. The result is
  * that of the serial walk term for term — u32 addition is associative, and a slot starts where
- * the totals of the slots before it end, an unused slot adding nothing. Where the slots used to
- * fall one per thread, each walking every group alone, the groups are now spread over the lanes.
+ * the totals of the slots before it end, an unused slot adding nothing. The slots do not
+ * fall one per thread, each walking every group alone: the groups are spread over the lanes.
  * `../../../../../bench/oracles/browser/gpuDrawPrefixOracle.ts` carries the kernels and
  * `prefixEquivalence.test.ts` the proof.
  */

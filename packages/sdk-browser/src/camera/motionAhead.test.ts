@@ -1,5 +1,5 @@
-// The view ahead (#921): it reads the eye's velocity smoothed (STR-10) over a horizon that grows
-// with the pages' round trip (STR-09). What the image reads of the motion — the speed of the
+// The view ahead: it reads the eye's velocity smoothed over a horizon that grows
+// with the pages' round trip. What the image reads of the motion — the speed of the
 // adaptive threshold, the velocity, the turn — is the one of before, and a still camera still
 // sends no view ahead at all.
 import test from 'node:test'

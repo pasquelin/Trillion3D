@@ -9,7 +9,7 @@ use super::*;
 /// GUID of each case's model, and that of the scene that cites it.
 const MODEL: &str = "0000000000000000000000000000000a";
 
-// Finding 29: a model referenced by the scene has its own hierarchy, and each
+// A model referenced by the scene has its own hierarchy, and each
 // node carries its transform — written as a matrix or as translation, rotation
 // and scale. The driver composes them down to the mesh: the poured child comes
 // out at the place the model gives it, not at the origin.
@@ -39,7 +39,7 @@ fn the_transforms_of_an_imported_model_compose_down_to_its_meshes() {
     );
 }
 
-// Finding 30: a model instance's overrides each name their object. The one that
+// A model instance's overrides each name their object. The one that
 // aims at the root applies there; the one that aims at an object the driver does
 // not yield separately is counted, never poured into another's transform. Ten
 // runs yield the same scene, byte for byte.
@@ -75,7 +75,7 @@ fn each_prefab_override_names_its_own_object_and_ten_runs_agree() {
     }
 }
 
-// Finding 31: a sixty-four-bit `fileID` names a precise object. Read through a
+// A sixty-four-bit `fileID` names a precise object. Read through a
 // float, `2^53 + 1` falls back to `2^53`: the `.meta` name table yields nothing
 // and the whole model is instanced in place of the only requested mesh.
 #[test]
@@ -104,7 +104,7 @@ fn a_meta_file_id_beyond_the_float_range_still_names_its_mesh() {
     );
 }
 
-// Finding 32: a material that is both transparent and cut out stays blended. The
+// A material that is both transparent and cut out stays blended. The
 // alpha-mode rule is read on the material properties: transparent wins, cutout
 // alone yields `MASK`.
 #[test]

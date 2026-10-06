@@ -31,7 +31,7 @@ test('transparent mirrors use the opaque reflection model and bind its surface r
     textures: { color: atlas, data: atlas },
   } as unknown as BlendBindResources)
   const binding = entries.find((entry) => entry.binding === BLEND_BINDINGS.surfaceCache)
-  // The whole cache atlas is bound, its view as-is (#1410).
+  // The whole cache atlas is bound, its view as-is.
   assert.equal(binding?.resource, surfaceCache)
 })
 

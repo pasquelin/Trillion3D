@@ -1,4 +1,4 @@
-//! The paged index (#750): records lie in pages, each the node of the halving (`split.rs`) whose
+//! The paged index: records lie in pages, each the node of the halving (`split.rs`) whose
 //! records fit one page, under index pages of at most `FAN_OUT` pages cut from the same tree — no
 //! second spatial partition. A root keeps only `FAN_OUT` slots of one width: its size does not
 //! grow with the world. Each kind of record is paged so, under its own files and version (`Kind`).
@@ -63,7 +63,7 @@ pub(crate) fn write_page(
 /// only measured: only then does it write the files beside it.
 pub(crate) type Leaf<'a> = dyn Fn(Range<usize>, bool) -> Result<Value> + 'a;
 /// What an index page and the root list beside each page they name, from that page's range of
-/// records, under `parents`: for the cell index, the core parents its cells hang under (#575).
+/// records, under `parents`: for the cell index, the core parents its cells hang under.
 pub(crate) type Beside<'a> = dyn Fn(Range<usize>) -> String + 'a;
 
 /// The records of one kind of page, their boxes, and where each record starts once written.

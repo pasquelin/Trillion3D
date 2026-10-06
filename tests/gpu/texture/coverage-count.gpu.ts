@@ -1,4 +1,4 @@
-// The coverage count reads each workgroup's alphas once, into workgroup memory (#961): on the GPU,
+// The coverage count reads each workgroup's alphas once, into workgroup memory: on the GPU,
 // its bins equal, word for word, those of the same kernel reading each texel's four alphas
 // directly — on random, flat transparent and flat opaque alphas, from 1×1 to odd and wide sizes,
 // on level 0 and on reduced levels.

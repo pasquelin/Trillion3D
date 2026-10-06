@@ -78,8 +78,8 @@ pub fn build_dag_tallied(
 }
 
 /// Continues the DAG above clusters that already exist: the root clusters of placed objects, in
-/// world space, each with the error and the sphere it was published at (`compiler_world_roots`,
-/// #23): a parent's sphere then holds the published one, never a tighter sphere of the triangles.
+/// world space, each with the error and the sphere it was published at (`compiler_world_roots`):
+/// a parent's sphere then holds the published one, never a tighter sphere of the triangles.
 /// Level 0 is those clusters as given, in order; the levels above them are built exactly as a primitive's,
 /// with the same grouping, the same simplification and the same monotone error. Positions only:
 /// the super-roots carry no attribute.

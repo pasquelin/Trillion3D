@@ -1,6 +1,6 @@
 import { EngineError } from './cache.ts'
 
-/** Format of the `impostors` section a runtime reads (#817 part 1, baked by the compiler). */
+/** Format of the `impostors` section a runtime reads, baked by the compiler. */
 export const IMPOSTOR_VERSION = 1
 
 /** One stored level of one atlas map: a lossless PNG object, one per content address. */
@@ -32,7 +32,7 @@ export interface ImpostorMaps {
   /** Occlusion, roughness and metallic. */
   orm: ImpostorMap
 }
-/** The two baked reference distances, in metres at the manifest's `focalPixels` (#817). */
+/** The two baked reference distances, in metres at the manifest's `focalPixels`. */
 export interface ImpostorSwitchDepth {
   /** `z_tex`: the frame is at most one texel per pixel from here. */
   texel: number
@@ -141,7 +141,7 @@ function validMaps(maps: unknown): boolean {
 
 /**
  * A short reason the section cannot be used, or `null`. An absent section is not an error: a cache
- * that predates it draws every mesh in full, as before. A present one is refused as a whole when
+ * that predates it draws every mesh in full. A present one is refused as a whole when
  * its version is unknown or a `baked` entry misses the numbers its switch and its card need.
  */
 export function validateImpostorSection(section: unknown): string | null {

@@ -1,4 +1,4 @@
-// #831: a vertex stage decodes the header of a quantized page in part (`pageHeaderFor`, corners
+// A vertex stage decodes the header of a quantized page in part (`pageHeaderFor`, corners
 // and positions alone) unless its row draws a line or a cutout. The shipped decode of the part
 // and of the whole runs in `shaderRun` over pages of every kind — plain, a line's, a cutout's,
 // a deformed one's (skin and morph targets), positions shared by several vertices, one vertex —

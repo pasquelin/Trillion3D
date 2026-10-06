@@ -1,7 +1,7 @@
 // The comparison compositor is an engine program: two render targets holding display images,
 // put on the drawing buffer in the layout asked for, texel for texel. Before, a `ShaderMaterial`
 // whose fragment named a uniform `layout` — a reserved word of GLSL ES 3.00 — failed to compile,
-// and every comparison layout showed the clear colour (#85).
+// and every comparison layout showed the clear colour.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createComparisonCompositor, type ComparisonLayout } from './comparison.ts'

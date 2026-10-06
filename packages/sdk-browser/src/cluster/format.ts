@@ -8,7 +8,7 @@
 export const CLUSTER_PAGE_MAGIC = 0x33504757,
   CLUSTER_HEADER_WORDS = 25
 /** Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
- *  and the morph targets the GPU deformation stage reads (#357, `page-codec-wasm/src/deform.rs`). */
+ *  and the morph targets the GPU deformation stage reads (`page-codec-wasm/src/deform.rs`). */
 export const FLAG_NORMAL = 1,
   FLAG_UV = 2,
   FLAG_UV1 = 4,

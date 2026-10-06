@@ -1,4 +1,4 @@
-// The host reads the GPU cut's eviction queue page by page: it never walks the catalogue (#872).
+// The host reads the GPU cut's eviction queue page by page: it never walks the catalogue.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageRec } from '../../page/selection/selection.ts'

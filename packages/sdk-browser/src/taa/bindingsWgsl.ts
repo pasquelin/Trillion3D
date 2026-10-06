@@ -23,7 +23,7 @@ export const TAA_BINDINGS = {
   shadingHistory: 20,
 } as const
 
-/** The pass's bind group layout: one entry per binding above. A flagless resolve (OMB-11) neither
+/** The pass's bind group layout: one entry per binding above. A flagless resolve neither
  *  binds nor reads the flags; a `filtered` one binds the layers'. The reactive value and the share
  *  target — the as-is share history beside the flicker gradient, still weight and count — are
  *  bound in every resolve (`historyWgsl.ts`). */
@@ -94,7 +94,7 @@ export const TAA_VIEW_BYTES = 304
  * `render` = the same four of the grid the frame was drawn in, and `jitter` its offset in render
  * pixels (`upscaleWgsl.ts`), then whether the image moves and the image's rank among eight, which
  * dithers the history texel read (`historyWgsl.ts`); `eye` the eye in the world, and in `w` whether
- * a GPU deformation moved this frame (`deformWgsl.ts`, #357); `tsr.x` the exposure composition
+ * a GPU deformation moved this frame (`deformWgsl.ts`); `tsr.x` the exposure composition
  * applies, which the history's luma is measured in (`shadingHistoryWgsl.ts`); `parallax` the last
  * view-projection's image of the eye's move since then, `prevViewProj · (lastEye − eye, 0)`: what a
  * point's last projection gains when the camera only turned, its parallax; `moire` the flicker

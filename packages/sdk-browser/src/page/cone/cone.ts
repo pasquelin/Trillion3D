@@ -28,7 +28,7 @@ export function leafCone(page: { cone?: NormalCone; material?: PageSurface }): N
  * is non-conformal: cluster is retained.
  *  CPU mirror of `isConformal` (../../gpu/dag/shader/shader.ts): same normalization, same tolerances (`packages/sdk-core/src/math/primitives/cone.ts`).
  *  Scale comes from `linearPartScale` (`packages/sdk-core/src/math/matrix/singular.ts`), same sum singularity rule uses:
- *  same 9 terms, same order, so exact same bits as before.
+ *  same 9 terms, same order, so exact same bits.
  */
 function isConformal(e: ArrayLike<number>) {
   const t = linearPartScale(e)

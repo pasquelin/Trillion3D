@@ -1,5 +1,5 @@
 /**
- * The engine builds, numbers, aims and draws the core's lights (#944): each kind the contract or a
+ * The engine builds, numbers, aims and draws the core's lights: each kind the contract or a
  * scene file declares becomes a `Light`, numbered in the engine's one count, and the WebGL2
  * cluster path uploads each kind in its slot, or refuses by name a kind it does not draw.
  */

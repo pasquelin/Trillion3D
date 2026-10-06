@@ -1,6 +1,6 @@
-// A camera cut the device cannot hold is refused by name before any buffer (#973): the host says
-// why the CPU cut draws, instead of a GPU cut gone without a word. A dispatch is no longer one of
-// them: past one dimension, it runs in rows; nor a table past one binding, split in parts (#974).
+// A camera cut the device cannot hold is refused by name before any buffer: the host says
+// why the CPU cut draws, instead of a GPU cut gone without a word. A dispatch is not one of
+// them: past one dimension, it runs in rows; nor is a table past one binding, split in parts.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { dagDeviceRefusal } from './deviceRefusal.ts'

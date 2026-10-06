@@ -40,7 +40,7 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
 }
 /** The drawn resolve alone, whatever the list holds: \`sampledSliceLighting\` at the view's rank,
- *  the function a moving image ran on every list before #1249 (\`sampled-resolve.gpu.ts\`). */
+ *  the full-list function the sampled resolve is proved against (\`sampled-resolve.gpu.ts\`). */
 @compute @workgroup_size(64)
 fn drawn(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&samples)){return;}

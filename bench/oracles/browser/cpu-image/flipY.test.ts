@@ -1,4 +1,4 @@
-// #362: the CPU twin reads a `flipY` picture as both GPU paths upload it — its last row at v = 0 —
+// The CPU twin reads a `flipY` picture as both GPU paths upload it — its last row at v = 0 —
 // through the UV placement three's Texture composes (`setUvTransform`: scaled by `repeat`, turned
 // counter-clockwise by `rotation` about `center`, then slid by `offset`).
 import test from 'node:test'

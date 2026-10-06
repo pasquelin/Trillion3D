@@ -1,7 +1,8 @@
-// #527: a transparent page placed by rows hangs one display mesh per row (`attachedPages`), which
+// A transparent page placed by rows hangs one display mesh per row (`attachedPages`), which
 // the default page ceiling, read off the manifest's pages, does not count. A scene of more
-// see-through copies than that default — a snowfall of sprites, a stack of air shells — was
-// refused whole at `prepare` and drew nothing on WebGL2. The root cover is always drawn, as the
+// see-through copies than that default — a snowfall of sprites, a stack of air shells —
+// would be refused whole at `prepare` and draw nothing on WebGL2. The root cover is always drawn,
+// as the
 // pool raises its budget to it; only a ceiling the host set refuses it, by name.
 import test from 'node:test'
 import assert from 'node:assert/strict'

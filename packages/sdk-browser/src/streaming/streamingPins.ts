@@ -21,7 +21,7 @@ export function createStreamingPins(
   }
   /**
    * Addresses the frame keeps. The pinned set is a function of this one list and of the
-   * catalogue, which no longer moves: a list identical to the previous frame's therefore
+   * catalogue, which never moves: a list identical to the previous frame's therefore
    * describes exactly the pins already set, and resetting them one by one would change none.
    * The comparison is a pass of string identities, without hashing; reclaiming space is not
    * skipped for all that — each finished transfer replays it on its side.
@@ -36,7 +36,7 @@ export function createStreamingPins(
    *  elsewhere — from an address list, or from another engine. The next delta then resets
    *  full membership before following ranks again. */
   let rankOwner: readonly string[] | null = null
-  /** Pins published as counts: `added` and `removed` are no longer lists copied each
+  /** Pins published as counts: `added` and `removed` are not lists copied each
    *  frame, but what the applied delta just added and removed. */
   const emitRetain = (requested: number, added: number, removed: number) =>
     emit?.('page-retain', 'Page pins updated', () => ({

@@ -30,7 +30,7 @@ function pixelsOf(root: ClusterRoot<PageRec>, reach: number, cam: EngineCamera, 
 }
 
 /**
- * The screen-size threshold of the deformation stage (#357): the engine skips a deformed
+ * The screen-size threshold of the deformation stage: the engine skips a deformed
  * object too small to show it: `skippedBy(roots, cam, viewport, error)` gives the frame's
  * `skipped(i, reach)` (`frame.ts`), true when root `i`'s reach spans less than the image's pixel
  * error — it is then drawn at rest, as a coarser cluster would be. One closure, made once: a frame

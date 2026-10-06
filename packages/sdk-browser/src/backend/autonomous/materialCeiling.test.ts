@@ -1,4 +1,4 @@
-// A material placed by rows turned blended inside the session (#846): each row becomes a mesh of
+// A material placed by rows turned blended inside the session: each row becomes a mesh of
 // its own, and past the host page ceiling the move is refused by name before any write, by the
 // check the open and every instance run (`AUTONOMOUS_ROOT_BUDGET`).
 import test from 'node:test'

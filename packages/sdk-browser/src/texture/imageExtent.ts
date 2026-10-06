@@ -2,7 +2,7 @@
  * The size of a texture's picture in pixels, as the GPU copies it: a video's frame size
  * (`videoWidth`), not the box its element is laid out in (`width`, zero unless set), and a
  * video frame's display size; anything else by its `width` and `height`. At least one pixel each
- * way, so a video not yet playing still has a texture to hold its first frame (#362).
+ * way, so a video not yet playing still has a texture to hold its first frame.
  */
 export function pictureSize(image: unknown): [number, number] {
   const picture = image as {

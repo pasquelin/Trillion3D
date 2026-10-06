@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // =====================================================================================
-// The aerial scene of #410: the open world's pattern, small enough to cook and load in seconds.
+// The aerial scene: the open world's pattern, small enough to cook and load in seconds.
 // A rolling ground cut into square tiles, one mesh each, and a few props — trees, bushes, houses,
 // rocks — each written once and placed by thousands of nodes that reference it, turned and scaled,
 // so tens of millions of instanced triangles stand on a source of a few hundred thousand. Street

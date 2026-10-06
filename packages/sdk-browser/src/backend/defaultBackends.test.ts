@@ -1,6 +1,6 @@
-// #274: with no `backends` option the engine's own path renders, and the host-library witness is only ever
-// active because something said so. #297: a machine without WebGPU takes the engine's own
-// autonomous WebGL2 path, which draws; the temporary witness fallback of #298 is gone.
+// With no `backends` option the engine's own path renders, and the host-library witness is only
+// ever active because something said so. A machine without WebGPU takes the engine's own
+// autonomous WebGL2 path, which draws.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'

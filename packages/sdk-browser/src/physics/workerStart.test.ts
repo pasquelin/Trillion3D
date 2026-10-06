@@ -1,4 +1,4 @@
-// The threaded physics worker's start (#985): a worker a worker starts loads only while its parent's
+// The threaded physics worker's start: a worker a worker starts loads only while its parent's
 // event loop turns, and a threaded step blocks on its pool's jobs, so a step issued before every
 // pool thread has loaded could wait for good. Nothing steps, and `ready` is not sent, until each
 // thread has reported loaded; a thread that fails to load stops the start, named.

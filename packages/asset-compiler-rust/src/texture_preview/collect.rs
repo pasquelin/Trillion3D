@@ -95,7 +95,7 @@ const ROLES: [Role; 5] = [
 /// are one entry: the atlas does not know the binding, and neither does the mip
 /// chain — the entry reads both roles' channels and every cutoff. Its chain is
 /// `Coverage` only while every reader asks for it: one opaque or emissive reader
-/// and it is the plain `Color` chain, which draws that reader as before.
+/// and it is the plain `Color` chain, which draws that reader as written.
 pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<AtlasTexture>> {
     let Some(materials) = g.get("materials").and_then(Value::as_array) else {
         return Ok(Vec::new());

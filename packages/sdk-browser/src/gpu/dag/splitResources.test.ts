@@ -1,5 +1,5 @@
 // A camera cut whose flags pass one binding makes them in parts, binds each at once, and hands its
-// mask readers the part that holds the draw mask, at its offset there (#974).
+// mask readers the part that holds the draw mask, at its offset there.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDagResources } from './resources.ts'

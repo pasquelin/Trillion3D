@@ -1,5 +1,5 @@
 /**
- * THE OCTAHEDRAL CARD READ IN GLSL (#1336): the WebGL2 twin of `IMPOSTOR_CARD_WGSL`
+ * THE OCTAHEDRAL CARD READ IN GLSL: the WebGL2 twin of `IMPOSTOR_CARD_WGSL`
  * (`impostorWgsl.ts`) — the same functions, the same arithmetic in the same order, the same
  * branches (`select(a,b,c)` read as `c?b:a`) — so the WebGL2 card blends the same three frames
  * with the same weights, the same parallax and the same depth offset as the WebGPU one. It samples

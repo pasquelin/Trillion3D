@@ -3,7 +3,7 @@
  * each vertex's tangent plane. The visible geometry, depth and silhouettes remain the raster's.
  * This is a position correction, distinct from a BRDF shadow-terminator factor.
  *
- * The receiver only ever rises off its triangle, on the side its normals face (#1344): on a
+ * The receiver only ever rises off its triangle, on the side its normals face: on a
  * concave patch the projection falls behind the triangle, under the surface a caster drew, and
  * would shadow the pixel with its own depth — acne. There it keeps the triangle's point.
  * The normals given carry the

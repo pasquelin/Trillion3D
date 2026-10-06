@@ -1,6 +1,6 @@
 //! Opacity of a classic FBX. `ufbx` only puts it in `pbr.opacity` for shaders that
 //! declare an opacity; a `phong` material carries it in `fbx.transparency_*`. The
-//! fixture `tests/fixtures/formats/import-fbx/riviere.fbx` reproduces that shape, the Village's.
+//! fixture `tests/fixtures/formats/import-fbx/riviere.fbx` reproduces that shape.
 use super::*;
 
 /// Copies the FBX fixture into a throwaway folder with its two images.
@@ -90,7 +90,7 @@ fn an_opacity_map_shared_with_base_colour_binds_without_a_report() {
 #[test]
 fn transparent_color_black_means_opaque() {
     use crate::import::opacity::opacity_from_transparency as opacity;
-    // The form of `M_Water_Ocean` in Village: black colour, full factor.
+    // The form of a water material: black colour, full factor.
     assert_eq!(opacity([0.0, 0.0, 0.0], 1.0), 1.0);
     assert_eq!(opacity([1.0, 1.0, 1.0], 0.25), 0.75);
     assert_eq!(opacity([1.0, 1.0, 1.0], 1.0), 0.0);

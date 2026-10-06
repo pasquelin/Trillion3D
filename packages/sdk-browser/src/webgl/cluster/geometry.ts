@@ -19,7 +19,7 @@ type CachedGeometry = {
 }
 /** A geometry of the engine's own graph announces its release; a host one never does. */
 type Releasing = { released?: Set<() => void> }
-/** The attributes the program reads, by name: a skinned page's joints and weights last (#357). */
+/** The attributes the program reads, by name: a skinned page's joints and weights last. */
 const SKIN = ['skinIndex', 'skinWeight'] as const
 export const ATTRIBUTES = ['position', 'normal', 'uv', 'uv1', 'color', ...SKIN] as const
 /** An attribute the program can bind: one owning its buffer; an interleaved view reads as absent. */
@@ -77,7 +77,7 @@ export class WebglClusterGeometry {
     gl.bindVertexArray(cached.vao)
     // The vertex array holds its buffers and pointers: they are specified again only when an
     // attribute was replaced or rewritten since, read once a frame — the frame's passes draw the
-    // same geometry (#840). The constant of an absent attribute is context state, not the
+    // same geometry. The constant of an absent attribute is context state, not the
     // array's, and is set once per frame.
     if (cached.checked !== this.frame && !this.current(cached, geometry))
       this.specify(cached, geometry)
@@ -157,7 +157,7 @@ export class WebglClusterGeometry {
   }
   /**
    * One buffer per vertex list, whatever number of geometries read it — the pages of a dynamic
-   * geometry all read its lists (#573) —: uploaded once per version, by its written ranges alone
+   * geometry all read its lists —: uploaded once per version, by its written ranges alone
    * (`upload`), and freed with its last reader.
    */
   private lists = new Map<GpuBuffer, CachedAttribute & { users: number }>()

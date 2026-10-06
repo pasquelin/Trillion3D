@@ -1,7 +1,7 @@
-//! Equivalence harness of the sequential reader (STR-01/02/03, #238, E0): `decode` gives the same
-//! words and the same refusal as develop's decoder — every field read at random, the first corner
-//! out of range refusing —, kept here as the reference, on the audit's page shapes, ten thousand
-//! random pages and their corruptions, and the edge cases.
+//! Equivalence harness of the sequential reader (STR-01/02/03, E0): `decode` gives the same
+//! words and the same refusal as the reference decoder — every field read at random, the first
+//! corner out of range refusing —, kept here as the reference, on the page shapes of the format,
+//! ten thousand random pages and their corruptions, and the edge cases.
 
 use super::*;
 use crate::bits::MAX_BITS;
@@ -52,7 +52,7 @@ fn record<const N: usize>(rng: &mut Rng, widest: bool) -> Quant<N> {
 }
 
 /// A page of `n` vertices on `indices`: random records, every field a random value of its width;
-/// one page in three stores fewer positions than vertices, each vertex linked to one (#960).
+/// one page in three stores fewer positions than vertices, each vertex linked to one.
 fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> Vec<u8> {
     let positions = if rng.below(3) == 0 {
         1 + rng.below(n as u32) as usize

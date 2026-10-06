@@ -14,7 +14,7 @@ const alphaIsCoverage = (mat: PageSurface) =>
 const cutOf = (surface: PageSurface) =>
   surface.transparent ? 0 : cutoffByte(surface.alphaTest, surfaceOpacity(surface))
 
-/** The colour maps' readers, both GPU paths' (#42): mips weigh colours by alpha when EVERY reader
+/** The colour maps' readers, both GPU paths': mips weigh colours by alpha when EVERY reader
  *  takes alpha for coverage — never an emissive map (`collect.rs`) — and the texels are not
  *  premultiplied. A host switches opaque and masked with no signal: `follow` rereads them. */
 export class CoverageReaders {

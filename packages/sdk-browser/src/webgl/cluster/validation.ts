@@ -34,7 +34,7 @@ type Drawn = ClusterDrawMesh | WholeMesh
 
 /** Each surface's reasons of the frame, by the mask of its meshes' attributes
  *  (`gatedAttributes`): a frame drawing many pages of one surface reads the gate once for them
- *  (#840: sponza read it for 1 465 pages a frame). */
+ *  (a scene of 1 465 pages reads it once, not once a page). */
 type SurfaceReads = Map<Material, (string | undefined)[]>
 
 /** The gate's reason for one mesh (`clusterMaterialReason`), read once per surface and mask. */

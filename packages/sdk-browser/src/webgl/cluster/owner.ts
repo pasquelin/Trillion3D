@@ -19,7 +19,7 @@ export type TextureHosts = Pick<
   BackendContext,
   'texturePoolBytes' | 'maxTextureTransferBytesPerFrame' | 'maxTextureUploadMsPerFrame'
 > & {
-  /** The session's impostor cards (#1336), drawn beside the clusters. */
+  /** The session's impostor cards, drawn beside the clusters. */
   cards?: WebglCards
   /** The GPU bytes of their atlases, held in the texture pool beside the maps. */
   cardBytes?: () => number
@@ -46,7 +46,7 @@ export class WebglClusterOwner {
   /** The maps the census orders ahead of the draws, under a frame's upload budget. */
   private ahead = new WebglTextureQueue()
   /** Files every declared surface, hidden or not yet attached ones too — WebGPU's census at
-   *  prepare (#42) —; a later one at bind. Then orders their maps within the texture pool, which
+   * prepare —; a later one at bind. Then orders their maps within the texture pool, which
    *  the frames upload ahead of their draws under the session's budget (`textureQueue.ts`). */
   census(materials: Iterable<HostMaterials>, hosts: TextureHosts) {
     const declared = new Set(materials)
@@ -101,7 +101,7 @@ export class WebglClusterOwner {
    *  texture level offset, zero at the display's size. */
   pixelRatio = 1
   mipBias = 0
-  /** The session's deformation records (#357), sent with the frames to come. */
+  /** The session's deformation records, sent with the frames to come. */
   deformation: DeformationSource | undefined
   /** The impostor cards the census was given, drawn beside the clusters. */
   cards: WebglCards | undefined

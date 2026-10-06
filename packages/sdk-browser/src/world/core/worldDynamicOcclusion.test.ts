@@ -1,4 +1,4 @@
-// #573: a dynamic geometry is drawn by the paged clusters' own visibility and Hi-Z: occluded behind
+// A dynamic geometry is drawn by the paged clusters' own visibility and Hi-Z: occluded behind
 // an opaque wall, and — each page bounded by its corners grown by the reach — never culled in front.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -32,7 +32,7 @@ async function recordsOf(source: ExplorerSource) {
   )
   for (const rec of allPages)
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer())
-  // Each record's placement, by its first packed rank (#1235): one record may serve several.
+  // Each record's placement, by its first packed rank: one record may serve several.
   const placement = postPackedBases(roots),
     first = new Map<PageRec, number>()
   for (let r = 0; r < roots.length; r++)
@@ -54,7 +54,7 @@ function keptOf({ records, locations, locationOf }: Awaited<ReturnType<typeof re
     ids = rasterVisibilityIds(records, locations, camera, SIZE)
   const pyramid = buildHizPyramid(visibilityDepth(ids, records, locations, camera, SIZE), ...SIZE)
   const dynamic = records.filter((rec) => !rec.geometryPage)
-  // `locations` must be parallel to the list read: the dynamic subset gets its own (#1235).
+  // `locations` must be parallel to the list read: the dynamic subset gets its own.
   return { dynamic, kept: filterUnoccluded(dynamic, locationOf(dynamic), pyramid, camera, SIZE) }
 }
 

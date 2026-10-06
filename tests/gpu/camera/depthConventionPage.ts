@@ -1,6 +1,6 @@
 // The same physical camera (near 2.8, far 12) and a tilted transparent tile that crosses the near
 // plane, while only the clip convention the host declares changes — `coordinateSystem`, as a host
-// that flips its renderer would. The engine no longer reads it: it composes its own projection, in
+// that flips its renderer would. The engine does not read it: it composes its own projection, in
 // reversed depth and with an infinite far plane (`readCameraWorld`, `depthConvention.ts`). The
 // image must stay identical pixel for pixel, and the held image stay held: nothing is left to
 // recompute when the host changes its mind.

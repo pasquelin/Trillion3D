@@ -1,6 +1,6 @@
 // `encodeDraws.ts` uploads the rows whose bytes changed before it submits the cut, and the fallback
 // draw path clears the marks too: a witness it skipped would keep another occupant's words once the
-// visibility pass comes back on the same targets (#198).
+// visibility pass comes back on the same targets.
 //
 // The tree had no test for this module. `../../row/dirty.ts` holds the run walk and the
 // marks; what nothing covered is the promise `uploadDirtyRows` makes to the frame — a row that did

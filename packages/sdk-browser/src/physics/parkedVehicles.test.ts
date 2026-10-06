@@ -55,8 +55,8 @@ test('a parked vehicle something falls on wakes and writes again', async (t) => 
   assert.ok(Number.isFinite(after) && after < y + 0.5, 'still on its wheels')
 })
 
-test('a vehicle parked on a slope holds its brakes, stays where it stopped and goes quiet (#831)', async (t) => {
-  // A valley's floor is never flat: released, every kind used to creep down it for good, so its
+test('a vehicle parked on a slope holds its brakes, stays where it stopped and goes quiet', async (t) => {
+  // A valley's floor is never flat: released, a vehicle would creep down it for good, so its
   // body and wheels moved every step and every shadow page they cover was drawn again.
   const slope = (8 * Math.PI) / 180
   for (const kind of ['car', 'motorcycle', 'tracked'] as const) {
@@ -77,7 +77,7 @@ test('a vehicle parked on a slope holds its brakes, stays where it stopped and g
   }
 })
 
-test('a vehicle parked on a slope drives off when the throttle is pressed (#831)', async (t) => {
+test('a vehicle parked on a slope drives off when the throttle is pressed', async (t) => {
   // The parked brake holds only while the pedals rest: the throttle releases it in the step it
   // reaches the vehicle, so a parked car drives off instead of standing in gear at 0 km/h.
   const slope = (8 * Math.PI) / 180

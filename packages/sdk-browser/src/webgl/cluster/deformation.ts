@@ -32,7 +32,7 @@ export const deformRecordOf = (draw: ClusterDraw) => (draw as DeformedDraw).defo
 type Geometry = WholeMesh['geometry']
 
 /**
- * THE WEBGL2 SIDE OF THE DEFORMATION STAGE (#357): the session's records sent as one float
+ * THE WEBGL2 SIDE OF THE DEFORMATION STAGE: the session's records sent as one float
  * texture (`WebglLightTexture`, the lights' growable rows) whenever the block moved, each record's
  * head counts rewritten as float values — a texel keeps a value, not a word's bits — and, per
  * draw, `deformDraw`: its record, whether its page is skinned and its targets, whose

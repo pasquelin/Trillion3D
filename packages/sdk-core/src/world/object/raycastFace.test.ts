@@ -1,4 +1,4 @@
-// #1463: `boxNormal` walks the six faces of a box instead of listing them — six arrays of four
+// `boxNormal` walks the six faces of a box instead of listing them — six arrays of four
 // numbers, a closure and a vector, to pick the narrowest of six gaps. The face it names must be the
 // same one on every face, so this casts at each face of three boxes and compares against the
 // list-and-reduce form it replaces, evaluated at the point the ray enters the box.

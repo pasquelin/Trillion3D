@@ -4,9 +4,9 @@ import { drawShader } from './shader.ts'
 import { slotCount } from './draw.ts'
 import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 
-// The indirect-draw prefix walked every group of a slot on one thread (D3: one thread per slot).
-// It now walks the slots in order with the sixty-four threads of the workgroup, each totalling a
-// run of groups, the run totals scanned in workgroup memory (#923). This file pins the shipped
+// The indirect-draw prefix walks the slots in order with the sixty-four threads of the workgroup,
+// instead of every group of a slot on one thread; each thread totals a run of groups, the run
+// totals scanned in workgroup memory. This file pins the shipped
 // kernel to the shape the oracle `prefixScan` describes; `prefixEquivalence.test.ts` proves that
 // oracle equal to the serial walk.
 

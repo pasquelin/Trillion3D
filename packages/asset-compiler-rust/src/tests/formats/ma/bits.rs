@@ -1,10 +1,10 @@
-//! Output bits of the Maya driver, pinned to what the compiler wrote before #1150 (merge base
-//! `8912566d6`): a parent and a child posed at angles no axis rounds for free, carrying a skewed
+//! Output bits of the Maya driver, pinned to the bits the compiler wrote when they were taken: a
+//! parent and a child posed at angles no axis rounds for free, carrying a skewed
 //! smooth roof. A digest that moves means a Maya file compiles to other bits: an output change,
 //! never a clean-up.
 use super::driver::{compile_ma, normals};
 
-/// What the pre-#1150 compiler wrote for this scene.
+/// What the compiler wrote for this scene.
 const PINNED: &str = "20174f4eef20c3efeaba83140a934cef97df2bf992cb913b02174953bd18b707";
 
 /// A posed parent, a posed child under it, and the child's roof of two soft-edged quads.
@@ -26,8 +26,8 @@ const SCENE: &str = "createNode transform -n \"Base\";\n\
     \t\tf 4 0 1 2 3\n\
     \t\tf 4 4 5 6 -2;\n";
 
-// Audit of #940: the posed nodes' matrices (double bits) and the roof's normals (single bits)
-// keep what the pre-#1150 compiler wrote.
+// The posed nodes' matrices (double bits) and the roof's normals (single bits)
+// keep the pinned bits.
 #[test]
 fn a_posed_maya_scene_compiles_to_the_bits_of_the_pre_1150_compiler() {
     let run = compile_ma("ma-bits", SCENE);

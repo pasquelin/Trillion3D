@@ -37,7 +37,7 @@ function placementsByPrimitive(roots: readonly { readonly pages: readonly PageRe
 }
 
 /** Counts the pages of `roots` into `copies`: each primitive page once, by its placement count —
- *  O(primitive pages), never one step per packed instance (#1235). */
+ *  O(primitive pages), never one step per packed instance. */
 export function countRootCopies(
   copies: PoolCopies,
   roots: readonly { readonly pages: readonly PageRec[] }[],
@@ -55,7 +55,7 @@ export function countRootCopies(
  * rows behind them, which only the shadow pass reads: as many as the pool can hold resident at
  * once, and none in a scene that blends nothing. Neither side passes the rows the view holds,
  * `viewRows` (`VIEW_ROWS`, `CUT_ROWS` on the CPU cut, until a cut selected more): a thousand
- * placements of a page ask no more than the view draws (#1232).
+ * placements of a page ask no more than the view draws.
  */
 export function askedTableRows(
   opaque: number,
@@ -85,7 +85,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // buffer. Placements grown in place append their opaque pages after the transparent ones: a
   // page's kind is read from the page, never from its rank.
   const selectionRoots = [...opaqueRoots, ...transparentRoots]
-  // One record serves every placement of its primitive (#1235): the packed order is the INSTANCES
+  // One record serves every placement of its primitive: the packed order is the INSTANCES
   // — a (placement, page) pair —, and the per-placement tables say which root each packed rank
   // belongs to. Every reader finds a page's world, row and winding through `placement`, never on
   // the shared record.
@@ -122,7 +122,7 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,
-    /** The root rank of each packed rank, and the packed base of each root (#1235): one object for
+    /** The root rank of each packed rank, and the packed base of each root: one object for
      *  the session, read-only here, which a growth rewrites in place (`postPackedBases(roots, into)`)
      *  so the readers built once — the closure, the page parents, the held residency — follow it. */
     get placement() {

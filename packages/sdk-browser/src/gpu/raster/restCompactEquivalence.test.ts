@@ -4,9 +4,10 @@ import { BASE_SLOTS, HALF_SLOTS } from '../draw/contract.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
 import { REST_COMPACT_WORKGROUP as TILE } from './restCompactWgsl.ts'
 
-// The tested half used to be truncated after its last survivor (`restMark`, `restApply`): the
-// rejected instances before it were still drawn, each vertex discarded by the vertex stage. It is
-// now compacted (`restCount`, `restScan`, `restScatter`). Below, both transcribed line by line:
+// The tested half is compacted (`restCount`, `restScan`, `restScatter`) rather than truncated
+// after its last survivor (`restMark`, `restApply`), which would still draw the rejected
+// instances before it, each vertex discarded by the vertex stage. Below, both transcribed line by
+// line:
 // the second pass must draw the same instances, in the same order, minus every rejected one — on
 // random slot layouts and verdicts, slots of more tiles than lanes, slots longer than the
 // dispatch, and empty ones.
@@ -27,7 +28,7 @@ const restSlotAt = (n: number) =>
 const survives = (f: Frame, row: number) =>
   !(f.hizSlots[row] !== NONE && f.hizFlags[f.hizSlots[row]] === VERDICT_REJECTED)
 
-/** Develop: the count becomes the rank of the last survivor the dispatch reaches. */
+/** Truncation: the count becomes the rank of the last survivor the dispatch reaches. */
 function truncate(f: Frame) {
   for (let n = 0; n < f.restSlots; n++) {
     const slot = restSlotAt(n)
@@ -38,7 +39,7 @@ function truncate(f: Frame) {
   }
 }
 
-/** #923: count, scan and scatter, with `work` laid out as the shader lays it out. */
+/** Count, scan and scatter, with `work` laid out as the shader lays it out. */
 function compact(f: Frame) {
   const copyWords = f.instances.length
   const work = new Uint32Array(copyWords + f.restSlots * (1 + f.tiles)).fill(0xdeadbeef)

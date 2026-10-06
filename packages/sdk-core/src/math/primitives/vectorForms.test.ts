@@ -1,4 +1,4 @@
-// #787: the out-parameter add and sub that replaced the hand copies in lighting, round geometry,
+// The out-parameter add and sub that replaced the hand copies in lighting, round geometry,
 // joints and `Vector3.addVectors` / `subVectors`, written as they stood: same bits.
 import test from 'node:test'
 import assert from 'node:assert/strict'

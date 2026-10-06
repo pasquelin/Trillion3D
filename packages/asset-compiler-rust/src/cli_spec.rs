@@ -23,7 +23,7 @@ fn text<'a>(value: Option<&'a Value>, default: &'a str) -> &'a str {
 }
 /// Identity of a destination, whether it already exists or not. `canonicalize`
 /// alone fails on a missing folder and then returns the raw text: `x` and `p/../x`
-/// used to pass as two caches. Resolution is therefore two-step. First the path
+/// would pass as two caches. Resolution is therefore two-step. First the path
 /// becomes absolute and its `.` disappear, each `..` walking up from the
 /// canonicalised path when it exists — a `..` behind a symlink does not walk up
 /// where the text says. Then the longest existing prefix is canonicalised and the

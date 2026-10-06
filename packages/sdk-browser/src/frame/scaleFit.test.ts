@@ -1,4 +1,4 @@
-// #831: the render scale stacked six rules (a budget that followed a slower cadence, a probe for a
+// The render scale stacked six rules (a budget that followed a slower cadence, a probe for a
 // faster display, an unseen reserve, a silent-timer path, rest that only lowers, a still image at
 // the budget's scale) and still ran 85-93 fps at 120 Hz: a GPU time within its refresh is not a
 // frame within it. One controller now learns the GPU cost that meets the refresh from the

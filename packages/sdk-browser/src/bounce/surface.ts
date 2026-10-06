@@ -23,7 +23,7 @@ const SURFACE_TYPES: BounceSlot[] = [
 export type GpuBounceSurface = Awaited<ReturnType<typeof createGpuBounceSurface>>
 
 /**
- * Proxy surface cache and the pass that sweeps it (LR5).
+ * Proxy surface cache and the pass that sweeps it.
  *
  * One cell per triangle and per face, updated on a fixed cell budget per frame. The sweep
  * restarts as soon as a light changes — the same invalidation as a shadow map — and stops by

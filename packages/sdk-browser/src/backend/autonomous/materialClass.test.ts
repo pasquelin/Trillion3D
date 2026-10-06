@@ -1,4 +1,4 @@
-// A material moved to or from blended inside the session (#846): the WebGL2 display graph sorts
+// A material moved to or from blended inside the session: the WebGL2 display graph sorts
 // its meshes by surface at every draw, and the one family its open fixed — a record rows place is
 // drawn instanced unless blended, whose instances the host orders one by one — follows the move.
 import test from 'node:test'
@@ -69,7 +69,7 @@ const families = (triangle: ReturnType<typeof triangleBackend>) =>
     .sort()
 
 // A primitive moved between blended and opaque inside the session draws in the family of its new
-// class (#846), as a fresh session of the compile of that class draws it: a primitive the compiler
+// class, as a fresh session of the compile of that class draws it: a primitive the compiler
 // cut blended leaves the blended family once opaque, and the reverse.
 for (const [pass, from, to, other] of [
   ['clustered-blend', 'blend', 'opaque', 'exact-clusters'],

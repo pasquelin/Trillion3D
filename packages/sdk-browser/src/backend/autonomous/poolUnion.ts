@@ -14,7 +14,7 @@ export type Ranked = { readonly url: string; readonly level?: number }
  * While a capture is drawn, its requests are ranked first, each lifted above every level of the
  * union (`first`): the capture keeps what it kept alone under the one budget, and the other views'
  * requests take what room is left, as WebGPU's queue does (`../../webgpu/residency/
- * requestAdmission.ts`, #268). A persistent view and the main one rank the union.
+ * requestAdmission.ts`). A persistent view and the main one rank the union.
  */
 export function createUnionFit(
   /** Each page's share of the slots, by URL (`poolDraw.ts`). */

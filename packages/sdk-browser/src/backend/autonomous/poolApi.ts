@@ -30,7 +30,7 @@ export function createAutonomousPool(env: {
   byUrl: ReadonlyMap<string, readonly PageRec[]>
   /** The selection roots, whose group links say which pages each page depends on. */
   roots: readonly ClusterRoot<PageRec>[]
-  /** The per-instance draw state, which posts the packed ranks and their roots (#1235). */
+  /** The per-instance draw state, which posts the packed ranks and their roots. */
   draws: PageDraws
   cap: number
   gate: WebglFrameGate

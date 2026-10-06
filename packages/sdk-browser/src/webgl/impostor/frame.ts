@@ -9,7 +9,7 @@ import { createWebglImpostorFeed, type WebglAtlas } from './feed.ts'
 import { core } from '../../impostor/borrowed.ts'
 
 /**
- * THE IMPOSTOR TIER ON WEBGL2 (#1336): the same switch and the same card as WebGPU. Each image
+ * THE IMPOSTOR TIER ON WEBGL2: the same switch and the same card as WebGPU. Each image
  * plans the shared plan (`planImpostorCards`) before its cut, so the CPU cut leaves a switched
  * root to its card (`CARD_ROOT`) in the same breath, and each card waits for its mesh's atlas, read
  * through the engine's one held-level read and its level store (`createWebglImpostorFeed`), within

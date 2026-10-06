@@ -57,7 +57,7 @@ test('without the pass, the transmission slice draws as one more blend', () => {
   assert.equal(rt.run.blendDrawCalls, 1)
 })
 
-// #346: a mode a blend item declares compiles its three pipelines, beside the normal ones.
+// A mode a blend item declares compiles its three pipelines, beside the normal ones.
 test('the blend pipelines are built for normal and for every mode a blend item declares', async () => {
   const glow = mountDevice()
   const built = await createWebgpuBlendPipelines(glow.device, items(2, false, 'additive'))
@@ -67,7 +67,7 @@ test('the blend pipelines are built for normal and for every mode a blend item d
   assert.equal(glow.pipelines.length, 6)
 })
 
-// #346: a blending written on a surface after the pass was built is compiled by the first draw
+// A blending written on a surface after the pass was built is compiled by the first draw
 // that asks for it, once, and never drawn as another mode.
 test('a mode first drawn after the pass was built compiles its three pipelines then', async () => {
   const plain = mountDevice()
@@ -83,7 +83,7 @@ test('a mode first drawn after the pass was built compiles its three pipelines t
   assert.throws(() => built.blendPipelines.at(15), /names no blending mode/)
 })
 
-test("a reference session's water pass is mounted with the whole mirror walk (#1279)", async () => {
+test("a reference session's water pass is mounted with the whole mirror walk", async () => {
   const composite = async (unboundedReflections: boolean) => {
     const mount = mountDevice()
     await createWebgpuBlendPipelines(

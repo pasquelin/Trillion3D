@@ -1,4 +1,4 @@
-// #1235: a WebGL2 instance buffer grown in place adds roots, never records. One record serves every
+// A WebGL2 instance buffer grown in place adds roots, never records. One record serves every
 // placement of its primitive, so a grown row reads its primitive's record — already catalogued and
 // indexed by URL — and its new instance wears the geometry and surface the record's first wears.
 import test from 'node:test'

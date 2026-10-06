@@ -80,7 +80,7 @@ test('accumulation softens edges only, keeps its history under a pan, and leaves
   assert.ok(still > 0, 'no in-between edge while still: accumulation smoothed nothing')
   assert.ok(panned >= 0.7 * still, `${panned} in-between edges panned, ${still} still`)
 
-  // No ghost: where the tile was before the move and no longer is, the moved images with and
+  // No ghost: where the tile was before the move and is not after it, the moved images with and
   // without accumulation both show the background, to 2 a channel.
   const before = plain.still.held!,
     after = plain.moved.held!,

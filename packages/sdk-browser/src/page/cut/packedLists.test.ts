@@ -1,4 +1,4 @@
-// #1232: the cut's packed lists follow what it selects, never the instances its roots could name.
+// The cut's packed lists follow what it selects, never the instances its roots could name.
 // A world of thousands of placements, one in view, widens them to that one's pages.
 import test from 'node:test'
 import assert from 'node:assert/strict'

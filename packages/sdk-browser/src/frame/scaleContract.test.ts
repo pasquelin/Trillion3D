@@ -11,7 +11,7 @@ function at120(control: ReturnType<typeof createScaleControl>) {
   for (let frame = 0; frame < 4; frame++) control.tick((frame * 1000) / 120)
 }
 
-// #831: the targets followed the drawn size on a ladder of eighths, remade at each rung crossed.
+// The targets followed the drawn size on a ladder of eighths, remade at each rung crossed.
 test('the targets are made at the bounds maximum, whatever the controller draws', () => {
   const control = createScaleControl({ min: 0.5, max: 1 })
   assert.equal(control.allocated(), 1)
@@ -90,7 +90,7 @@ test('asking another scale restarts the controller, which then measures its own 
   assert.ok(control.wanted() < 1, 'and it learns again')
 })
 
-// #831: at a fixed scale the budget followed a GPU-bound cadence, and the refresh read it: a
+// At a fixed scale the budget followed a GPU-bound cadence, and the refresh read it: a
 // 120 Hz display at 109 ms frames read 94.76 ms. The display's refresh is what the display shows.
 test("frames held many refreshes at a fixed scale leave the display's refresh as it is", () => {
   const control = createScaleControl(1)
@@ -147,7 +147,7 @@ test('one late frame at 120 Hz leaves an idle scene at the full scale', () => {
   assert.ok(scales.every((s) => s === 1))
 })
 
-// #1343: a period held on its grid never rose: a window moved to 60 Hz kept 8.3 ms.
+// A period held on its grid never rose: a window moved to 60 Hz kept 8.3 ms.
 for (const timed of [true, false])
   test(`a window moved from 120 to 60 Hz goes back to the full scale, ${timed ? 'with' : 'without'} GPU times`, () => {
     const control = createScaleControl('auto'),
@@ -168,7 +168,7 @@ for (const timed of [true, false])
     }
   })
 
-// #1343: a device that never met its cadence took its slow frames for the display's refresh.
+// A device that never met its cadence took its slow frames for the display's refresh.
 test('without GPU times a device at 16 fps on a 120 Hz display is lowered to the floor', () => {
   const control = createScaleControl('auto'),
     { scales } = simulate(control, 200, { gpu: (s) => 60 * s * s, timed: false })

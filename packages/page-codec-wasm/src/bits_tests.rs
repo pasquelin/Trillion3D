@@ -2,7 +2,7 @@
 
 use super::*;
 
-/// Develop's `field`: two word reads, a shift and a mask per field.
+/// The reference `field`: two word reads, a shift and a mask per field.
 pub fn random_field(words: &[u32], at: usize, bits: u32) -> u32 {
     if bits == 0 {
         return 0;

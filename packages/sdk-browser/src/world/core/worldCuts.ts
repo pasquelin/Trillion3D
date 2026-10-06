@@ -25,7 +25,7 @@ export type Cut = {
   readonly runtime: RuntimePrimitive
   readonly users: Set<Mesh>
   held: boolean
-  /** A dynamic geometry's resource (#573): its vertices are rewritten in place (`worldDynamic.ts`). */
+  /** A dynamic geometry's resource: its vertices are rewritten in place (`worldDynamic.ts`). */
   readonly dynamic?: DynamicHeld
 }
 
@@ -38,7 +38,7 @@ export const firstMaterial = (m: Material | Material[]) => (Array.isArray(m) ? m
  * which moves its quad about its origin. A line's width and its dash lengths are not among them:
  * the rasters widen its quads on screen and cut its dashes; nor a sprite's rotation, which the
  * rasters apply. Whether it blends sets the grid its pages sit on (`cutDrawnTriangles`), and
- * whether the waves carry it (`mesh.waves`, #357) holds its faces as a rewritten geometry's are —
+ * whether the waves carry it (`mesh.waves`) holds its faces as a rewritten geometry's are —
  * they move after the cut: blended, they are cut in compact runs, and keep no cone. Two meshes
  * equal on these draw the same pages, whatever else they wear.
  */
@@ -86,7 +86,7 @@ type Reading = { version: number; read: Promise<Content | null> }
  * version and way of reading, keyed by their content, and cut into pages only when no resource of
  * that key exists (`cutRuntimePrimitive`): two geometry objects of the same content share one set
  * of pages; `counts.duplicates` says how often the table folded one onto another, `counts.cuts` how
- * many cuts it made. A dynamic geometry is read by `dynamic` instead, and never hashed (#573).
+ * many cuts it made. A dynamic geometry is read by `dynamic` instead, and never hashed.
  */
 export function createWorldCuts(notices?: WorldNotices) {
   const byKey = new Map<string, Promise<Cut | null>>()

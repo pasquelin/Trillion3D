@@ -1,7 +1,7 @@
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 
 /** The source geometry each host mesh of the autonomous document was paged from: that document
- *  draws a one-triangle stand-in, the pages hold the source primitive's triangles (#846). */
+ *  draws a one-triangle stand-in, the pages hold the source primitive's triangles. */
 const sources = new WeakMap<object, () => Geometry>()
 export const registerPagedSource = (mesh: object, of: () => Geometry) => sources.set(mesh, of)
 

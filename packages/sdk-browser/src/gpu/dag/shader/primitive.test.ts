@@ -1,4 +1,4 @@
-// What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`, #979): the same
+// What a camera cut's `dagPrepare` derives once per primitive (`primitiveWgsl.ts`): the same
 // expressions the visited nodes and pages computed, read back where they computed them. The GPU
 // run against the per-site form is `tests/gpu/dag/prepare.gpu.ts`; here, the layout that
 // holds them, the sites that read them, and the one verdict that changed form — a never-culled

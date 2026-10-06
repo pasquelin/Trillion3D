@@ -1,4 +1,4 @@
-// #963: the composition takes the chain's last bloom blend over. Its programs compile at the first
+// The composition takes the chain's last bloom blend over. Its programs compile at the first
 // frame that asks, off the frame, and a composition handed a blend binds it as group 1 at its
 // dynamic offset, with the pipelines that read it; without one, nothing changes.
 import test from 'node:test'
@@ -7,7 +7,7 @@ import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
-test('a composition handed a bloom blend reads it through the bloom pipelines (#963)', async () => {
+test('a composition handed a bloom blend reads it through the bloom pipelines', async () => {
   const { device, renderPipelines } = fakeDevice()
   const passes: { pipeline?: GPURenderPipeline; groups: unknown[][] }[] = []
   const encoder = {

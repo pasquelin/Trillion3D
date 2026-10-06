@@ -49,7 +49,7 @@ export function createMockCommandEncoderFactory(inputs: {
   return () => ({
     beginRenderPass: (desc?: {
       label?: string
-      // An empty slot is `null`, as WebGPU takes it (the blend pass's share, #365).
+      // An empty slot is `null`, as WebGPU takes it (the blend pass's share).
       colorAttachments?: Array<{
         loadOp?: string
         clearValue?: GPUColor

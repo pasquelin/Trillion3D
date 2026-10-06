@@ -11,7 +11,7 @@ import {
   triangle,
 } from './lightGrid.fixture.ts'
 
-// #835: the WebGL2 light grid is listed again only when a lamp's reach changes, and no draw of a
+// The WebGL2 light grid is listed again only when a lamp's reach changes, and no draw of a
 // frame — its reflection capture's included — does any light work of its own.
 
 /** 40 lamps in a row, a mirror between two triangles, drawn by one renderer. */

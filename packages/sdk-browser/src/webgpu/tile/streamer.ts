@@ -145,7 +145,7 @@ export function createWebgpuTileStreamer(options: {
       return { served, pending: counters.pending }
     },
     /** Follows the atlases' records, writes the headers that moved and copies a moved host picture
-     *  again (#362), signalled as a landed tile is (#360, #361). True when a filter rule switched
+     *  again, signalled as a landed tile is. True when a filter rule switched
      *  on or off: the rows that wear it change resolve class. */
     followSampling() {
       colorChanged.clear()

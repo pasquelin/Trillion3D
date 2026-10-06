@@ -18,7 +18,7 @@
 //   --baseline   read the rings to allow from `scripts/check-cycles-baseline.json`, a ratchet: the
 //                five groups the tree holds today are named there, and a sixth fails. The file is
 //                written by hand as groups are broken; `--write-baseline` prints the ones the tree
-//                holds, for that shrinking, and a name the tree no longer has is reported too.
+//                holds, for that shrinking, and a name the tree does not have is reported too.
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'

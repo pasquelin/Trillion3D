@@ -1,5 +1,5 @@
 // The water pass's code, imported with transmission's (`transmissionCode.ts`) by the blend
-// stage of the first scene that transmits (`../blend/pipelines.ts`), #1353. Its frame side is
+// stage of the first scene that transmits (`../blend/pipelines.ts`). Its frame side is
 // `pass.ts`.
 import type { BlendPipelines } from '../blend/stagePipelines.ts'
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts'

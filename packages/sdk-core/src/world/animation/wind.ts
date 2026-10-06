@@ -23,7 +23,7 @@ export interface WindOptions {
 
 /**
  * Wind drives foliage by its bones, not by moving vertices one by one, so a
- * tree's bounds follow the bones it bends by (#357). A looping clip turns each bone, from its rest
+ * tree's bounds follow the bones it bends by. A looping clip turns each bone, from its rest
  * pose, about the axis across the wind, by at most `angle`: leant with the wind and swaying back,
  * each bone further along the list — further from the trunk — bending more and later. Played by a
  * mixer like any clip: `mixer.clipAction(animation.windClip(bones)).play()`.

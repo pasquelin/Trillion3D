@@ -186,7 +186,7 @@ test('stage profile covers the moving suffix and capture keeps its last pose', a
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)')
   }
-  assert.deepEqual(explorer.waits, [b], 'the capture pose waits for its pages (#1016, WebGL2)')
+  assert.deepEqual(explorer.waits, [b], 'the capture pose waits for its pages (WebGL2)')
 })
 
 test('the CPU bounds cover the profiled images only: none of the warm-up, none of the capture', async () => {

@@ -1,5 +1,5 @@
 /**
- * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
+ * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE.
  *
  * Before each frame (`frame`), the pages of the cell index and the cells the camera needs
  * (`plan.ts`, `cellIndex.ts`, boxed where their parents stand now: `boxes.ts`) are asked of the
@@ -14,7 +14,7 @@
  * `castShadow` changed, rewrites its rows.
  * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
  * node when no owner can reopen the session), then reads the pages on its way and the cells it
- * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
+ * reaches. A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
  * place, else asks the owner to open the session again (`placement/growth.ts`).
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
@@ -40,8 +40,8 @@ type Inputs = {
   /** The prepared scene's root: where the tables hang a cell node. */ root: Object3D
   /** The host node of each core rank. */ parents: readonly Object3D[]
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>
-  /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0]
-  /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createFarCells>[0]
+  /** The manifest's pages the view holds. */ pages?: Parameters<typeof createCellPages>[0]
+  /** The world bundles its roots need. */ world?: Parameters<typeof createFarCells>[0]
 }
 
 export function createPartitionCells(inputs: Inputs) {
@@ -112,7 +112,7 @@ export function createPartitionCells(inputs: Inputs) {
         update(rows: PlacementRows, from: number, to: number): void
         grow?: PlacementGrowth
         outgrown?: () => void
-        /** The cut's lens while it packs the world DAG (#1332), structurally a `SuperRootLens`. */
+        /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
         lens?: {
           pixelScale: [number, number]
           pixelError: number

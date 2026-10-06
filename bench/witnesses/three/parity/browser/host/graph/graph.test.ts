@@ -94,7 +94,7 @@ test('a geometry bounds itself by the rule of the engine, morph targets included
   const geometry = new Geometry().setAttribute('position', new BufferAttribute(positions, 3))
   geometry.morphAttributes.position = [new BufferAttribute(morph, 3)]
   // A relative target is bounded vertex by vertex, tighter than a box on box
-  // (#1098, geometry.test.ts): the comparison here is on an absolute one.
+  // (geometry.test.ts): the comparison here is on an absolute one.
   geometry.morphTargetsRelative = false
   const reference = new THREE.BufferGeometry()
   reference.setAttribute('position', new THREE.BufferAttribute(positions, 3))

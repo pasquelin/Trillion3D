@@ -1,4 +1,4 @@
-// #1239: the runtime contract of the `impostors` section (#817) — absent stays readable, a `baked`
+// The runtime contract of the `impostors` section — absent stays readable, a `baked`
 // entry carries the three maps and the four numbers its card and switch read, and an unknown
 // version is refused by name.
 import test from 'node:test'

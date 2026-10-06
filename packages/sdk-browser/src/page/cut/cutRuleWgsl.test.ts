@@ -1,4 +1,4 @@
-// The WGSL run of the cut rule's tests is the kernel's own text (#486): `dagMask`'s call site, the
+// The WGSL run of the cut rule's tests is the kernel's own text: `dagMask`'s call site, the
 // cone word `dagWanted` keeps for it, the residency reads they make on the bit sets the host
 // uploads, and the rule. An edit to any of them that breaks the rule fails here, in the unit gate,
 // without a GPU.

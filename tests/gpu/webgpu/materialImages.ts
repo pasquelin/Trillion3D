@@ -58,8 +58,8 @@ export function texture(
   )
 }
 
-/** An 8×8 black-and-white checker, nearest under magnification: a mixed read — the one sampler
- *  every map had on WebGPU before #361 — puts a fifth to a third of the neighbour texel into each point
+/** An 8×8 black-and-white checker, nearest under magnification: a mixed read — the plain
+ *  bilinear sampler — puts a fifth to a third of the neighbour texel into each point
  *  read below, a nearest read returns the texel alone. */
 export const checkerMap = () =>
   canvasMap(

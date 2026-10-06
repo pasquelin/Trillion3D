@@ -9,7 +9,7 @@ import { updateNodeMatrixWorld } from '../../../../sdk-core/src/math/transform-t
 const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE
 
 /**
- * THE WORLD MATRICES OF A DISPLAY GRAPH, BROUGHT UP TO DATE WHERE IT CHANGED (#984, CPU-22): the
+ * THE WORLD MATRICES OF A DISPLAY GRAPH, BROUGHT UP TO DATE WHERE IT CHANGED (CPU-22): the
  * engine's own pass (`updateNodeMatrixWorld`) run on the subtree of each node the graph's link
  * heard — a pose written (`pose`, `posed`), a child added or taken (`structure`, on the parent) —
  * never on the whole graph again. The graph's first pass walks it whole.

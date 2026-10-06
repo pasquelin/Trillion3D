@@ -8,11 +8,11 @@ import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
 
 /** A sample is bounded: one ray per 2 × 2 block (`reflectionPhase`, the
  *  half-resolution trace), resolved by the bounded ray (`boundedReflectionRay`, `hizTraceWgsl.ts`):
- *  the depth pyramid's walk, a miss on the filtered probes (#33). A reference
+ *  the depth pyramid's walk, a miss on the filtered probes. A reference
  *  session's program takes the mirror's whole walk and fallback instead (`reflectionTrace`,
  *  `frame/referenceMode.ts`): two programs, never a branch. A texel that writes a weight writes, at
- *  that one return, the record of its pixel the history resolve's gather reads (`resolveWgsl.ts`,
- *  #831): the identifier, from the visibility buffer the lighting binds (`vis`, the resolve's
+ *  that one return, the record of its pixel the history resolve's gather reads (`resolveWgsl.ts`):
+ *  the identifier, from the visibility buffer the lighting binds (`vis`, the resolve's
  *  `ids`), and the depth's bits, exact; a texel without weight, whose record no gather reads,
  *  none. */
 const stochasticReflectionWgsl = (unbounded: boolean) => `${GGX_REFLECTION_SAMPLE_WGSL}
@@ -27,7 +27,7 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
  if(flag==0u||flag==1u||flag==3u||flag==4u||flag==5u){return vec4f(0.0);}
  let nr=textureLoad(normalRough,at,0);
  // Mirrors take the exact ray; from the cutoff on, where the display's fade is zero, it reads
- // the environment alone (#1341).
+ // the environment alone.
  if(nr.a<=${ROUGHNESS_FLOOR}||nr.a>=${SCREEN_REFLECTION_MAX_ROUGHNESS}){return vec4f(0.0);}
  let z=textureLoad(depth,at,0);
  let P=worldAt(pixel,z);
@@ -47,7 +47,7 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
 }`
 
 /** The trace borrows the same lighting/proxy bindings as the final resolve; `unbounded`, a
- *  reference session's program (#33). */
+ *  reference session's program. */
 export function stochasticReflectionShader(shader: string, unbounded = false) {
   const source = withScreenReflections(shader)
   return (

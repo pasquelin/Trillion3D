@@ -6,8 +6,8 @@ import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.
 import type { PageRec as EngineRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts'
 import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts'
 
-/** A record as the oracle read it, before #1226 and #1234: the world of its root and the
- *  per-instance draw state the engine kept on the record then. */
+/** A record as the oracle reads it: the world of its root and the per-instance draw state the
+ *  engine does not keep on the record. */
 type PageRec = EngineRec & {
   matrix: MatrixElements
   geometry?: Geometry
@@ -18,7 +18,7 @@ import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geo
 import type { HostMesh } from '../../../packages/sdk-browser/src/host/resources.ts'
 
 /**
- * `packages/sdk-browser/src/backend/autonomous/geometry.ts` before batch G: `attach` and `detach` held no set, and
+ * `packages/sdk-browser/src/backend/autonomous/geometry.ts`: `attach` and `detach` held no set, and
  * `sync` swept all of `allPages` — the whole DAG — to find the few pages the new
  * cut drops. The three functions are copied as-is: that is the oracle.
  */

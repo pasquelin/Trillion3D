@@ -1,9 +1,9 @@
-// One cut rule per cluster (#486): on a synthetic DAG whose pages leave at random, every backend
+// One cut rule per cluster: on a synthetic DAG whose pages leave at random, every backend
 // covers every leaf exactly once, by the cluster it wants or by that cluster's nearest resident
 // ancestor — never coarser, and never a whole primitive coarsened for one missing page. The kernel
 // model runs twice: with the TypeScript rule, and with the kernel's own `dagMask` call site, on
 // the comparisons `dagWanted` kept, run in Node on the residency bits its host uploads. The CPU cut and the WebGL2 image's cut run the same
-// rule on the same DAG (#483 rules 1, 2 and 8).
+// rule on the same DAG.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { coverFault, ruleDag, type RuleDag } from './cutRule.fixture.ts'
@@ -31,8 +31,8 @@ for (const [name, backend] of Object.entries(backends)) {
   const cut = backend(dag, THRESHOLD)
 
   test(`${name}: at full residency the cut draws exactly what it wants, at every threshold`, () => {
-    // No image loss: with every page resident the rule is the plain band test, the cut `develop`
-    // draws, and top-down pruning drops no more than it did.
+    // No image loss: with every page resident the rule is the plain band test, the cut the plain
+    // rule draws, and top-down pruning drops no more than that.
     for (const threshold of [0.05, THRESHOLD, 0.3, 1]) {
       const { drawn, wanted } = backend(dag, threshold)(full())
       const sorted = (ids: number[]) => [...ids].sort((a, b) => a - b)
@@ -48,7 +48,7 @@ for (const [name, backend] of Object.entries(backends)) {
   })
 
   test(`${name}: once every page is back, the cut is the full-residency one again`, () => {
-    // No image loss (#483 rule 2): the coarsening is temporary, whatever state the backend kept.
+    // No image loss: the coarsening is temporary, whatever state the backend kept.
     const before = digest(cut(full()).drawn)
     randomFrames(cut)
     assert.equal(digest(cut(full()).drawn), before)
@@ -77,7 +77,7 @@ for (const [name, backend] of Object.entries(backends)) {
   })
 
   test(`${name}: an ancestor top-down pruning drops is drawn when its finer group leaves`, () => {
-    // Crossing, holding, recovery (#3): a missing page whose replacement lies in a subtree the
+    // Crossing, holding, recovery: a missing page whose replacement lies in a subtree the
     // descent drops on its floor at full residency. Nothing carries from frame to frame: the open
     // count of that subtree alone brings the replacement back into the cut.
     const pruned = new Set(floorPrunedPages(dag, THRESHOLD)),

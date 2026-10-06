@@ -15,7 +15,7 @@ use std::borrow::Cow;
 /// per reduction-rule version, then one per fingerprint, one file per atlas, per
 /// level and per format. The version is in the path because a file already
 /// there is never rewritten: without it, a rule that changes would keep serving
-/// levels computed by the old one.
+/// levels computed by another one.
 pub const TEXTURE_DIR: &str = "textures";
 pub fn texture_version_dir() -> String {
     format!("{TEXTURE_DIR}/v{TEXTURE_PREVIEW_VERSION}")

@@ -174,7 +174,7 @@ test("the rank journal's touches move the CPU cut's readiness, page by page", ()
 })
 
 test('a capture ranks its own wanted cut first: its packed ranks, at their count', () => {
-  // The delta's buffer is swapped at each difference and longer than its live ranks (#1235).
+  // The delta's buffer is swapped at each difference and longer than its live ranks.
   const { publication, residencySets } = banc(true)
   publication.adoptCpuCut([0, 1, 2], [0])
   assert.deepEqual(Array.from(residencySets.drawnFirst!), [0, 1, 2])

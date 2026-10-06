@@ -17,7 +17,7 @@ export function vertexBytesOf(
   gpu: Pick<WebgpuPagesRuntime['gpu'], 'vertexBytes'>,
   vis: Pick<WebgpuPagesRuntime['vis'], 'concatPos' | 'concatUv' | 'vertexPool'>,
 ) {
-  const normals = vis.vertexPool?.normalBytes ?? 0 // the pool's normal atlas (#1410)
+  const normals = vis.vertexPool?.normalBytes ?? 0 // the pool's normal atlas
   return gpu.vertexBytes + (vis.concatPos?.size ?? 0) + (vis.concatUv?.size ?? 0) + normals
 }
 

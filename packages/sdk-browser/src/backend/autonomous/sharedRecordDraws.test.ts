@@ -1,4 +1,4 @@
-// #1235: one record serves every placement of its primitive, and each placement draws it with its own
+// One record serves every placement of its primitive, and each placement draws it with its own
 // instance state (`pageDraws.ts`). A transparent record placed by rows is drawn by one host mesh per
 // row, not instanced (`drawnInstancedAt`): the page's bytes, their release and an instance's move
 // must reach the instance they belong to, not only the record's first.

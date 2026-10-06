@@ -118,7 +118,7 @@ export function createBlendCasterRows(
       return
     }
     if (row >= 0) return write(page, row, restale)
-    // Empty only past the rows the view holds (#1232): the table grows by the casters left out.
+    // Empty only past the rows the view holds: the table grows by the casters left out.
     if (!freeCount) {
       waiting[page] = 1
       short++

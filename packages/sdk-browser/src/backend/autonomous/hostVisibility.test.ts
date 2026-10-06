@@ -4,7 +4,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { createPlacementRows } from '../../placement/rows.ts'
 import { triangleBackend } from './triangle.fixture.ts'
 
-// A node of a compiled model hidden then shown by the host (#407): the WebGL2 cut skips its root
+// A node of a compiled model hidden then shown by the host: the WebGL2 cut skips its root
 // while it or an ancestor is hidden, and draws it again once shown.
 test('the WebGL2 path hides a compiled node the host hid, and draws it again once shown', async () => {
   const { backend, camera, geometry, material, mesh, source } = triangleBackend()
@@ -70,7 +70,7 @@ test('a node hidden before the first frame is not drawn by it', async () => {
   }
 })
 
-// A video's frame on the WebGL2 path (#362): the next draw uploads it in place; a refresh of a
+// A video's frame on the WebGL2 path: the next draw uploads it in place; a refresh of a
 // picture alone lets the held image go and walks no scene, where a value written walks it.
 test('a picture-only refresh releases the held image and walks no scene', async () => {
   const { backend, camera, geometry, material, mesh, source } = triangleBackend()

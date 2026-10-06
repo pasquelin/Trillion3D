@@ -1,6 +1,6 @@
-// #840: reading a refused allocation never holds the main thread. `getError` waits for the GPU
+// Reading a refused allocation never holds the main thread. `getError` waits for the GPU
 // process to run every command sent before it: read after each upload, it held the frame that
-// streamed pages in for the whole upload (a 100–140 ms hitch on sponza `rue`).
+// streamed pages in for the whole upload (a 100–140 ms hitch).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {

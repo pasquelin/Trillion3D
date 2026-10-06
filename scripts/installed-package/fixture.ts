@@ -60,7 +60,7 @@ export interface InstalledFixture {
 }
 
 /**
- * The program Windows runs for `command` (#1354): a package's binary there is a `.cmd` shim beside
+ * The program Windows runs for `command`: a package's binary there is a `.cmd` shim beside
  * the shell script `node_modules/.bin` names, and Node starts a `.cmd` only through the shell.
  */
 export function windowsShim(command: string, platform = process.platform): string {

@@ -1,4 +1,4 @@
-// A moving proxy owner is traced where it is, on a real GPU (#27): the shipped traversal over the
+// A moving proxy owner is traced where it is, on a real GPU: the shipped traversal over the
 // engine's resident proxy (`movingProxyPage.ts`). A still proxy hits its canonical plane; once
 // moved, the ray over the new pose hits the moved owner — its identity, centre and albedo — and
 // the shadow query agrees. A settled leaf reads no owner word while a door merged with its frame

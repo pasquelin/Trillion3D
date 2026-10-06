@@ -1,5 +1,5 @@
 /**
- * WHETHER A CELL NEEDS ITS OBJECTS, OR ITS SUPER-ROOTS DRAW IT (#1332).
+ * WHETHER A CELL NEEDS ITS OBJECTS, OR ITS SUPER-ROOTS DRAW IT.
  *
  * The world DAG continues a cell's object roots into its super-roots (`worldSuperRoots.ts`): the
  * cut draws a super-root while its error projects within the pixel target, and reads the object

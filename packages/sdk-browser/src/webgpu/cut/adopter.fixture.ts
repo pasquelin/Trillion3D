@@ -42,8 +42,8 @@ export const fixtureTotals = (totals: Partial<GpuCut['result']> = {}) => ({
 
 /**
  * The adopter wired as the engine wires it (`publication.ts`): a difference for the
- * requested cut and another for the drawable cut. Four benches used to mount it by hand, and the
- * same wiring copied four times pins nothing more than this one.
+ * requested cut and another for the drawable cut. One shared wiring pins as much as the same wiring
+ * copied into every bench.
  */
 export function mountCutAdopter(options: {
   packedPages: PageList
@@ -56,7 +56,7 @@ export function mountCutAdopter(options: {
   const desired: PageRec[] = [],
     shown: PageRec[] = [],
     drawn: PageRec[] = []
-  // The packed ranks of the lists, rank by rank (#1235): one record may serve several placements.
+  // The packed ranks of the lists, rank by rank: one record may serve several placements.
   const desiredPacked: number[] = [],
     shownPacked: number[] = [],
     drawnPacked: number[] = []

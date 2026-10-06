@@ -4,10 +4,10 @@
 // requested. These tests hold the
 // effective world matrix — the one that leaves for the GPU through `root.world.elements` —
 // against the requested one, on sheared matrices, under a parent, and on conformal cases that
-// must not move. The world checked is the one THE ENGINE holds (`../../host/world/placements.ts`): since
-// lot 8 it is what records, roots and the GPU carry, and the host scene is no longer climbed by
-// the engine. Refusal of a non-finite pose is in `transformFiniteTransform.test.ts`,
-// apart to keep both files under 200 lines; the fixtures are shared by both.
+// must not move. The world checked is the one THE ENGINE holds (`../../host/world/placements.ts`):
+// it is what records, roots and the GPU carry, and the engine does not climb the host scene.
+// Refusal of a non-finite pose is in `transformFiniteTransform.test.ts`, apart to keep both files
+// under 200 lines; the fixtures are shared by both.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -92,7 +92,7 @@ test('the reprojected world box is the image of the local box by the sheared mat
   boxTransform(attendu, 0, Float64Array.from(local), 0, demandee)
   assert.deepEqual(Array.from(root.worldBox!), Array.from(attendu))
   assert.equal(root.worldBox![0], 2, 'shear extends the box, a TRS decompose does not')
-  // Where it was, then where it lands: each its own box (#1345).
+  // Where it was, then where it lands: each its own box.
   assert.deepEqual(
     motions.map(({ min, max }) => [...min, ...max]),
     [avant, Array.from(attendu)],

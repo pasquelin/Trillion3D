@@ -36,7 +36,7 @@ export function composedPose(transform: Float64Array, from: MatrixElements): Mat
 /**
  * Re-places an instance: each root `roots[i]`, the clone of `baseRoots[i]`, takes back the
  * transform applied to its model, and the host meshes of its pages follow it — a page carries
- * no pose of its own (#1226).
+ * no pose of its own.
  */
 export function deplaceInstance(
   instance: { roots: ClusterRoot<PageRec>[] },
@@ -48,7 +48,7 @@ export function deplaceInstance(
   for (let i = 0; i < roots.length; i++) {
     const { world, pages, packedBase = -1 } = roots[i]
     placeInto(world, transform, baseRoots[i].world)
-    // This root's own instances, by packed rank: its pages' records serve every row (#1235).
+    // This root's own instances, by packed rank: its pages' records serve every row.
     for (let p = 0; packedBase >= 0 && p < pages.length; p++) {
       const mesh = draws.at(packedBase + p)?.mesh
       if (mesh) setHostPose(mesh, world)

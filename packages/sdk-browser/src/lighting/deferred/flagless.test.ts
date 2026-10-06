@@ -1,4 +1,4 @@
-// OMB-11: a frame with no as-is pixel composes through flagless variants, compiled with the others,
+// A frame with no as-is pixel composes through flagless variants, compiled with the others,
 // that bind and read no share. Their `composeColor` is the shipped text run as JavaScript: at every
 // flag but the as-is one, and at an accumulated share of 0, it gives the flag-reading one's value.
 import test from 'node:test'

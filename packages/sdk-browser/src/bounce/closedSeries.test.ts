@@ -1,4 +1,4 @@
-// #1281: `hold.ts` lets a frame hold once the bounce series has closed (`working` false). That loses
+// `hold.ts` lets a frame hold once the bounce series has closed (`working` false). That loses
 // no image only if a closed series writes nothing more: every probe, the surface cache and the
 // grid uniform a redraw would read are then the ones the held frame read, so the redraw would
 // draw the same pixels. Driven here on the engine's own probes, over a recording device.
@@ -8,7 +8,7 @@ import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { floorProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { createGpuBounceProbes } from './probes.ts'
 
-test('#1281: a closed bounce series encodes and writes nothing: a redraw reads what the held frame read', async () => {
+test('a closed bounce series encodes and writes nothing: a redraw reads what the held frame read', async () => {
   const gpu = fakeDevice({
     limits: { maxStorageBufferBindingSize: 1 << 30, maxBufferSize: 1 << 30 },
   })
@@ -21,7 +21,7 @@ test('#1281: a closed bounce series encodes and writes nothing: a redraw reads w
     dispatchWorkgroups: () => void work.push('dispatch'),
     end() {},
   }
-  // The probes are atlases (#1410): a texture copy snapshots them, a render pass clears a level.
+  // The probes are atlases: a texture copy snapshots them, a render pass clears a level.
   const encoder = {
     copyBufferToBuffer: () => void work.push('copy'),
     copyTextureToTexture: () => void work.push('copy'),

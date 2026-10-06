@@ -40,7 +40,7 @@ test('the images the loader opens follow the backend the engine chose', () => {
     assert.deepEqual(withGpu.factories, [engineBackends.webgpu])
     assert.equal(resolveTextureSource(undefined, withGpu.factories), 'cache')
 
-    // No device: #297's degraded default is the engine's own WebGL2 page path, which samples
+    // No device: the degraded default is the engine's own WebGL2 page path, which samples
     // the host images — they are read, default option or not.
     const withoutGpu = chooseBackends({}, metadata, undefined)
     assert.deepEqual(withoutGpu.factories, [engineBackends.webgl2])

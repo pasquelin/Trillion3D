@@ -1,4 +1,4 @@
-// #724: every name a program reads from the harness — flag, campaign run, view, report key — is
+// Every name a program reads from the harness — flag, campaign run, view, report key — is
 // English, by the words `check:english` counts. Read off the source text, never imported: the
 // scan fails on a French name itself, whatever the module around it exports.
 import test from 'node:test'

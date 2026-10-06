@@ -1,5 +1,5 @@
 /**
- * The distributed compiler of this machine's platform (#1352), as the `Compiler` workflow builds
+ * The distributed compiler of this machine's platform, as the `Compiler` workflow builds
  * it on each of the five: the `dist` profile (`Cargo.toml`: fat LTO, abort, stripped), then
  * profile-guided — a first build instrumented, trained on the reference scenes
  * (`compiler-hashes.ts`), and the build again from what it measured —, fingerprinted on the same

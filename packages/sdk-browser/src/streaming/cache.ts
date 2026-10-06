@@ -45,8 +45,8 @@ export function createStreamingCache(context: StreamContext, reserved: () => num
     onEvict?.(url)
   }
   /** What is held beside the pages yields to those the frame keeps or reads, before any page
-   *  leaves, so none is evicted that fits once it has gone: it never costs the image a page (#483
-   *  rule 1). The decoded texture levels first, the least recently read first — read again when a
+   *  leaves, so none is evicted that fits once it has gone: it never costs the image a page.
+   *  The decoded texture levels first, the least recently read first — read again when a
    *  tile asks and they fit —, then the kept file, read again after a device loss. A notice says
    *  what each gave back. */
   const yielded = (phase: string, message: string, bytes: number) => {

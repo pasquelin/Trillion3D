@@ -1,4 +1,4 @@
-// Lot 3, frustum.ts: normalized frustum planes in REVERSED depth and raw clip planes, each
+// frustum.ts: normalized frustum planes in REVERSED depth and raw clip planes, each
 // compared against an independent plane extraction built from the host library's matrix and
 // vector primitives, down to the bit.
 //
@@ -104,10 +104,9 @@ function expectedClipPlanes(m: THREE.Matrix4) {
   return expected
 }
 
-// perf(socle) e5509b57: the four components of a plane are passed as arguments to `writePlane`
-// and no longer via a module buffer (`plane`, a `Float64Array(4)` shared across calls).
-// Without this buffer, two interleaved frustum computations — each in its own `out` — can no longer
-// collide; there is nothing left to allocate or reuse per call. Verify this with two
+// The four components of a plane are passed as arguments to `writePlane`, not via a module
+// buffer (`plane`, a `Float64Array(4)` shared across calls). With no such buffer, two interleaved
+// frustum computations — each in its own `out` — cannot collide; there is nothing left to allocate or reuse per call. Verify this with two
 // very different frustums whose writes are manually interleaved, each compared against
 // the independent extraction.
 test('frustumPlanesFromMatrix and clipPlanesFromMatrix: no shared buffer, two interleaved frustums remain independent', () => {

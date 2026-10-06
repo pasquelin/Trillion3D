@@ -1,4 +1,4 @@
-// The shapes of the aerial scene (`aerial.ts`, #410): a rolling ground in square tiles, and the
+// The shapes of the aerial scene (`aerial.ts`): a rolling ground in square tiles, and the
 // few props thousands of nodes share — trees, houses, rocks — each turned on the lathe from a
 // profile, so a triangle count is asked of it and reached. Every mesh is indexed, with smooth
 // normals; the ground's tiles read one height function, so two neighbours meet without a seam.

@@ -7,7 +7,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 const nameIndexes = new WeakMap<Object3D, { edits: number; names: Map<string, Object3D> }>()
 
 /** The named node of the prepared scene, or `undefined`, by the index, rebuilt by one walk when
- *  anything was renamed, added, removed or freed since (#915). */
+ *  anything was renamed, added, removed or freed since. */
 export function findNode(source: Object3D, nodeName: string) {
   const edits = objectEdits()
   let index = nameIndexes.get(source)

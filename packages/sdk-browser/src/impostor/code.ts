@@ -3,7 +3,7 @@ import type { BackendContext } from '../backend/types.ts'
 import type { Lent } from './borrowed.ts'
 
 /**
- * The impostor draw's code (`impostorCode.ts`), a family on demand (#1335, #1336), the one load
+ * The impostor draw's code (`impostorCode.ts`), a family on demand, the one load
  * path of both renderers: imported by a session whose cache has baked impostors, and awaited where
  * it prepares — the WebGPU pages' (`preparePages.ts`), the WebGL2 tier's (`../webgl/impostor/code.ts`)
  * —, as deformation's and transmission's are, so its first image already draws the cards; never by

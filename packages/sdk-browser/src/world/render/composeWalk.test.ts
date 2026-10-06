@@ -1,6 +1,6 @@
-// #349: the effect chain's refusal of a multiply or subtractive surface on WebGL2 is read from the
+// The effect chain's refusal of a multiply or subtractive surface on WebGL2 is read from the
 // draw's own walk of its graph. A frame with a chain visits every node exactly as often as a frame
-// without one: the composer walks nothing, and the draw walks once per image, as on develop.
+// without one: the composer walks nothing, and the draw walks once per image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'

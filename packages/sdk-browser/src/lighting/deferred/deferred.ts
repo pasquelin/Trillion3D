@@ -118,7 +118,7 @@ export async function createDeferredLighting(
         return variants.awaited(bounceOf(direct), !!direct.narrow, direct)
       },
       /** Draws the lighting, after the reflection source when the frame's program reflects, the
-       *  next image's source then written beside it; returns the passes drawn (#1157). */
+       *  next image's source then written beside it; returns the passes drawn. */
       light(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
@@ -142,7 +142,7 @@ export async function createDeferredLighting(
         pass.end()
         return reflected ? (reflection.history && !reflection.history.reuse ? 4 : 2) : 1
       },
-      /** True once the frame's program composes the chain's last bloom in (#963); the first call
+      /** True once the frame's program composes the chain's last bloom in; the first call
        *  compiles what it needs, and `fail` hears why it cannot. */
       composesBloom: (fail: (error: unknown) => void) => active.compositions.composesBloom(fail),
       /** Composes the lit image, or `composed`: the temporal output, or the effect chain's, with

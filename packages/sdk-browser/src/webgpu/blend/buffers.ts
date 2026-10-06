@@ -60,7 +60,7 @@ export function ensureBlendUvBuffer(
 }
 
 /** Normal and tangent of a transparent geometry, seven floats a vertex in the same order as
- *  before, in a float atlas of their bytes (`../core/floatAtlas.ts`, #1410): the pass reads every
+ *  before, in a float atlas of their bytes (`../core/floatAtlas.ts`): the pass reads every
  *  normal from an atlas, the float pool's or this one. */
 export function ensureBlendNormalAtlas(
   device: GPUDevice,

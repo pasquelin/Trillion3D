@@ -1,5 +1,5 @@
 /**
- * THE ROWS THE PLACED CELLS OF A PARTITION HOLD (#404): each node of a placed cell on a row of its
+ * THE ROWS THE PLACED CELLS OF A PARTITION HOLD: each node of a placed cell on a row of its
  * mesh (`rows.ts`), at the world matrix the engine composes for a child of its core parent. A cell
  * that leaves parks its rows; a parent moved, or a host mesh's `castShadow` changed, rewrites the
  * rows under it (`follow.ts`). What was written since the last `touched.flush` is what the engine

@@ -1,5 +1,5 @@
 /**
- * THE CARD QUAD (#1239, fact 2). The impostor card is a camera-facing quad, exactly the per-page
+ * THE CARD QUAD (fact 2). The impostor card is a camera-facing quad, exactly the per-page
  * mechanism sprites already use: the shared `spriteAt` basis (`visibility/shader/spriteWgsl.ts`),
  * never a second quad builder. Its half-extent is the root's world radius `R`, so the card covers
  * the object's projected disc, and it keeps its world size (attenuation on) rather than its screen

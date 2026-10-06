@@ -1,15 +1,14 @@
 // THE ENGINE DEPTH CONTRACT, checked end to end.
 //
-// Before this batch, the engine carried TWO conventions: the host camera decided `[−1, 1]` or
-// `[0, 1]` and every depth reader converted. It now carries only one: the projection is composed
-// by the engine (`perspectiveProjection`), in REVERSED depth and infinite far plane — near at
+// The engine carries ONE convention, not the host camera's `[−1, 1]` or `[0, 1]`: the projection
+// is composed by the engine (`perspectiveProjection`), in REVERSED depth and infinite far plane — near at
 // 1, infinity at 0 — and `depthConvention.ts` publishes what follows: pipeline comparison,
 // the clear value, the sense of "nearer".
 //
-// What this file proves: the host clip convention no longer enters any engine number; the
+// What this file proves: the host clip convention enters no engine number; the
 // Hi-Z bound of a box and the depth of a visibility-raster vertex do come out in that
 // convention; and a very distant point keeps a depth distinct from its neighbour, where
-// the forward projection crushed them.
+// a forward projection would crush them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'

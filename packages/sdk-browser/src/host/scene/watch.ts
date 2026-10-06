@@ -22,7 +22,7 @@ function sourceOf(entry: unknown) {
 }
 
 /** The source node of an entry with its chain, and the bones that deform it with theirs: a bone's
- *  pose moves the drawn skin as the node's own does (#357). */
+ *  pose moves the drawn skin as the node's own does. */
 function watchSource(entry: unknown, into: Set<Object3D>) {
   const node = sourceOf(entry)
   if (!node) return

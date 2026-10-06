@@ -1,4 +1,4 @@
-// #974: the CPU cut ranks through the GPU cut's admission, off the pages its cut closes over
+// The CPU cut ranks through the GPU cut's admission, off the pages its cut closes over
 // (`closure.forEachHeld`). No ranking is kept beside the cut: the GPU cut walks nothing held, and
 // the CPU cut walks what it holds only when that moved.
 import test from 'node:test'
@@ -59,7 +59,7 @@ test('the CPU cut keeps whole coarse levels and cuts in the one that straddles',
 })
 
 test('a shared address ranks at its coarsest holder, and at the next one once it leaves', () => {
-  // Index pages are content-addressed (#824): `shared` is held by a fine and a coarse placement.
+  // Index pages are content-addressed: `shared` is held by a fine and a coarse placement.
   const w = world([rec('shared', 0), rec('mid', 1), rec('shared', 2), rec('fine', 0)])
   const url = (key: number) => w.tracking.pageCatalog[key]
   w.delta.apply([0, 1, 2, 3])

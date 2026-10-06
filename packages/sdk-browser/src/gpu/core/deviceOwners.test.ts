@@ -4,7 +4,7 @@ import { claimGpuDevice } from './deviceOwners.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { deviceOwner as owner } from '../../../../../tests/kit/gpu/fakeWebgpuDevice.ts'
 
-// As Dawn writes it: the object at fault by its type and its label, in quotes.
+// As the implementation writes it: the object at fault by its type and its label, in quotes.
 const destroyed = (label: string) =>
   `[Buffer "${label}"] is destroyed.\n - While calling [Buffer "${label}"].MapAsync(MapMode::Read, 0, 64).`
 

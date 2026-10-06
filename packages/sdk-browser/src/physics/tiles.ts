@@ -55,7 +55,7 @@ export function createTileStreamer(
     models.set(model, opening)
     cookedPhysics(model, signal)
       .then((cooked) => {
-        // A model compiled before the cook collides nowhere, as before.
+        // A model compiled before the cook collides nowhere.
         if (!cooked || signal.aborted) return
         opening.placed.push(...placedOf(model, cooked))
         declared.open(model, cooked, signal)

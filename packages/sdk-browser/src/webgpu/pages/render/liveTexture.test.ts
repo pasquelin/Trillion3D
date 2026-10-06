@@ -1,4 +1,4 @@
-// #362: a map whose picture moves every frame — a canvas redrawn, a video — is copied into the
+// A map whose picture moves every frame — a canvas redrawn, a video — is copied into the
 // places its texture already holds in the pool, from one working texture of its own that it
 // keeps, its bytes deducted from the texture pool budget: no session reopened, no texture made
 // per frame. A new size is the one change the session cannot take in place.

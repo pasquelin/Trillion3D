@@ -1,5 +1,5 @@
-// #961 (found by #996): a resident tile an atlas resize moves takes the finer entries it served to
-// its new place; develop left them on the old one, which the new pool no longer holds.
+// A resident tile an atlas resize moves takes the finer entries it served to its new place, not
+// the old one, which the new pool no longer holds.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTilePool } from './pool.ts'

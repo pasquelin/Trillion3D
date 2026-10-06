@@ -14,7 +14,7 @@ const newEncoder = (rt: WebgpuPagesCore, device: GPUDevice) =>
 
 /** Whether this image's texture feedback is read back: not a capture's, nor an image without the
  *  target — a scene that wears no texture, the feedback A/B's arm without it. The reduction, its
- *  copy and the readback's mapping all ask it (#1016). */
+ *  copy and the readback's mapping all ask it. */
 const feedbackPublished = (rt: WebgpuPagesCore) => !rt.capture.capturing && !!rt.gpu.feedbackView
 
 /** The image's own command buffer when one is open, a fresh one otherwise. */
@@ -76,7 +76,7 @@ export function submitColorCopy(
   rt.lights.tiles?.submitted()
   vsmSubmitted(rt)
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
-  // the row change, whether it drew rows or had none to draw (#198).
+  // the row change, whether it drew rows or had none to draw.
   rt.layout.rows.rowsChanged = false
   run.imageRevision++
   if (owned) {

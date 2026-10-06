@@ -1,4 +1,4 @@
-// Batch M4a, camera.ts: framing by flat bounds and core `sphereFromBounds` instead of
+// camera.ts: framing by flat bounds and core `sphereFromBounds` instead of
 // a host box's centre and half-diagonal. Confronted bit for bit (Object.is) with the old
 // path, autonomous and non-autonomous, on hostile bounds.
 import test from 'node:test'
@@ -12,7 +12,7 @@ import { threeGraph } from '../../../../fromGraphNodes.ts'
 
 const canvas = { width: 800, height: 450 } as unknown as HTMLCanvasElement
 
-/** The old non-autonomous path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
+/** The host-graph path: `expandByObject` per mesh, `getCenter`/`getSize().length()/2`. */
 function referenceFraming(graph: G.Object3D) {
   const source = threeGraph(graph)
   const bounds = new THREE.Box3()
@@ -84,7 +84,7 @@ test('createExplorerCamera (autonomous) yields the same bounds, centre and radiu
     manifestUrl: '',
   })
   // Reference: the same page transformed by the mesh world matrix, as a host box transforms.
-  // The witness resolves the graph itself: since batch 8, the engine no longer composes the host's.
+  // The witness resolves the graph itself: the engine does not compose the host's.
   source.updateMatrixWorld(true)
   const expected = new G.Box3(new G.Vector3(-1, -1, -1), new G.Vector3(1, 1, 1)).applyMatrix4(
     mesh.matrixWorld,

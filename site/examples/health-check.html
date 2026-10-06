@@ -184,7 +184,7 @@
       ]);
       // What the session drawing the world documents it refuses of the scene's lights, with why,
       // is asked with the verdict: of a session that drew the tour, never of one still opening,
-      // whose first frame may run the hooks before the world holds it (#945).
+      // whose first frame may run the hooks before the world holds it.
       const judged = world.onFrame(() => {
         if (flown.gliding) return;
         judged();

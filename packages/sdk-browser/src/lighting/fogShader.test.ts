@@ -1,4 +1,4 @@
-// The fog law (#345): a CPU oracle — the linear ramp, and the transmittance of a medium whose
+// The fog law: a CPU oracle — the linear ramp, and the transmittance of a medium whose
 // density falls off with height, integrated numerically along the view ray — against the two
 // shipped shader texts, read out of `FOG_WGSL` and `FOG_GLSL` and evaluated here, so a shader
 // edit is what the test sees. With no fog the shaders hand the lit colour back untouched.

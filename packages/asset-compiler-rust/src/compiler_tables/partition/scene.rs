@@ -2,7 +2,7 @@
 //! and whether the scene reaches it.
 use super::*;
 
-/// The nodes an animation moves, and the joints and skeleton roots a skin names (#357): their
+/// The nodes an animation moves, and the joints and skeleton roots a skin names: their
 /// pose is not the one the table declares, and a skin names them by their rank in the core.
 pub(super) fn animated(g: &Value) -> BTreeSet<usize> {
     let animations = g["animations"].as_array().into_iter().flatten();

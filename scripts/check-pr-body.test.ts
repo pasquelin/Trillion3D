@@ -62,7 +62,7 @@ test('check-pr-body: the untouched template is refused, a filled one accepted', 
     problem(dropped.replace('not delivered', "not delivered, the boss's yes on #65")),
     '',
   )
-  // The old tool-named lines no longer stand for the review.
+  // Tool-named lines do not stand for the review.
   const tooled = verified.replace(
     '- Simplification pass:\n- Correctness review:',
     '- `/simplify`: nothing to change\n- `/code-review`: one fix',

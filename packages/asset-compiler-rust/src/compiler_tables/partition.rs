@@ -1,4 +1,4 @@
-//! The world partition of the node table (#404): a node that only places a mesh — a leaf of the
+//! The world partition of the node table: a node that only places a mesh — a leaf of the
 //! scene, carrying no light, no camera, no skin, no morph weights, that no animation moves, nor any
 //! of its ancestors — leaves the table the runtime reads before its first frame and is written in
 //! a spatial cell instead, which the runtime reads by distance to its camera. What stays is the core: every other

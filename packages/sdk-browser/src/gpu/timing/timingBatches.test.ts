@@ -6,7 +6,7 @@ import { QUERY_COUNT, TIMED_PASSES } from './queries.ts'
 import { VSM_TIMED_PASSES } from './vsmPasses.ts'
 
 // The virtual shadow maps' frame: its passes (`vsmPasses.ts`). The frame of the most chunks it is
-// timed over is timed whole, so its shadow milliseconds are published (#525); one past the
+// timed over is timed whole, so its shadow milliseconds are published; one past the
 // image's passes is truncated.
 const frameOf = async (vsmPasses: number) => {
   const f = fixture(),

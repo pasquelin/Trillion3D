@@ -118,9 +118,9 @@ const ONE_PIXEL: [u8; 21] = [
     0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 24, 0x20, 10, 20, 30,
 ];
 
-// Finding 7: the allocation ceiling equals the final image size in RGBA8 — width by height by
-// four bytes — checked before any decoding. A thirty-two-bit pixel used to pass under a
-// three-byte ceiling, then four were allocated to carry it.
+// The allocation ceiling equals the final image size in RGBA8 — width by height by
+// four bytes — checked before any decoding. A thirty-two-bit pixel must not pass under a
+// three-byte ceiling and then allocate four to carry it.
 #[test]
 fn the_ceiling_covers_the_final_rgba8_size_before_any_decoding() {
     assert_eq!(

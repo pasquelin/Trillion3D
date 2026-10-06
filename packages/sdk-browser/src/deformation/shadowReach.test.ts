@@ -25,7 +25,7 @@ test('deformation refreshes only its caster rows and grows CPU/GPU light and occ
     world,
     pages: [rec],
     reach: 0,
-    // The record is packed rank 0 of this one placement (#1235).
+    // The record is packed rank 0 of this one placement.
     packedBase: 0,
     localBox: new Float64Array([-1, -1, -1, 1, 1, 1]),
     worldBox: new Float64Array([-1, -1, -1, 1, 1, 1]),

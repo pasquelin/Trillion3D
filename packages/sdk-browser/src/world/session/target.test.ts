@@ -59,7 +59,7 @@ test('interactive options derive CSS size and DPR with explicit overrides; manua
   assert.equal(interactiveOptions(element, options), options)
   const automatic = interactiveOptions(element, { ...options, interactive: true, scope: 'full' })
   assert.deepEqual([automatic.width, automatic.height, automatic.pixelRatio], [640, 360, 2])
-  // #274: no backend is forced here; `chooseBackends` reads the machine at preparation.
+  // No backend is forced here; `chooseBackends` reads the machine at preparation.
   assert.equal(automatic.backends, undefined)
   assert.equal(automatic.scope, 'full')
   assert.equal(automatic.geometryPoolBytes, undefined)
@@ -94,7 +94,7 @@ test('hidden or invalid initial viewports fail with an actionable error', () => 
     )
 })
 
-test('#274: the direct-GPU decision reads the chosen backends, not the host list', () => {
+test('the direct-GPU decision reads the chosen backends, not the host list', () => {
   const { device } = fakeDevice()
   // A session that named nothing now gets the WebGPU raster by default, and it presents its own
   // surface: no WebGL2 surface is built under it.

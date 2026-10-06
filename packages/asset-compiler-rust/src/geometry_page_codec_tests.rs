@@ -155,7 +155,7 @@ fn golden_page_reread_within_its_declared_error() {
     }
 }
 
-/// A cluster of a regular grid (CMP-09): its corners, numbered by first use, cost well under the
+/// A cluster of a regular grid: its corners, numbered by first use, cost well under the
 /// fixed width of a local index, and decode to the same triangles.
 #[test]
 fn a_grid_cluster_codes_its_corners_below_their_fixed_width() {

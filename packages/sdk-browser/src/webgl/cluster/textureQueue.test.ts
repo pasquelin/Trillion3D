@@ -1,4 +1,4 @@
-// #840: a map uploaded at the first draw that shows it held that frame 100–140 ms on sponza `rue`
+// A map uploaded at the first draw that shows it holds that frame 100–140 ms
 // (the upload waited for a GPU process held by the compositor). The census orders the maps of every
 // declared surface, attached or not, within the texture pool's bytes; each frame uploads the next
 // ones before its draws, those that fit its upload budget — WebGPU's tile budget.
@@ -108,9 +108,9 @@ test('the preparation sends the declared maps, a budget per task, before any fra
   assert.deepEqual(image(), [], 'the first frame sends none')
 })
 
-// #1198 (re-scope of #840): a map whose picture was not yet there at the census was left to its
-// first draw, where the bind sent it while the GPU was held (sponza `rue`, 100–140 ms). It is now
-// held, and the first drain that finds its picture sends it ahead of the draw that would bind it.
+// A map whose picture is not yet there at the census is held, and the first drain that finds its
+// picture sends it ahead of the draw that would bind it, so the bind never sends it while the GPU
+// is held.
 test('a map whose picture arrives after the census is sent ahead, not at its first draw', async () => {
   const { image, prepare, pictures, surfaces } = draw({
     sides: [4, 8],
@@ -133,7 +133,7 @@ test('the queue stops at the texture pool: what it leaves uploads at its first d
   assert.deepEqual(image(), [])
 })
 
-// #1336: the impostor atlases are paid from the same pool, beside the maps (`../impostor/feed.ts`):
+// The impostor atlases are paid from the same pool, beside the maps (`../impostor/feed.ts`):
 // a map whose picture arrives once they hold the rest of the pool is left to its first draw, so
 // maps and atlases together never pass it. Fails before: the queue counted its maps alone.
 test('the atlases held beside the maps fill the same pool: a late map is left to its draw', async () => {

@@ -82,8 +82,8 @@ fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
     })
 }
 
-/// A row-major block level (`encode_level`) as its file holds it (version 6,
-/// #962): its tile records, one HTTP Range each, laid out as the engine reads
+/// A row-major block level (`encode_level`) as its file holds it (version 6):
+/// its tile records, one HTTP Range each, laid out as the engine reads
 /// them (`packages/sdk-browser/src/texture/tileRecords.ts`).
 pub fn tile_records(blocks: &[u8], width: u32, height: u32) -> Vec<u8> {
     let bytes = super::blocks::BLOCK_BYTES;

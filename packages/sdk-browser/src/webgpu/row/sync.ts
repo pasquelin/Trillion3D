@@ -102,7 +102,7 @@ export function createWebgpuRowSync(
   }
   /** Rows the time budget deferred to a later image. */
   const rowsOwed = () => slots.pending
-  /** Rows the last CPU cut selected, the table holding them or not (#1232). */
+  /** Rows the last CPU cut selected, the table holding them or not. */
   const rowsAsked = () => asked
   return { syncRows, syncRowsFromCut, rowsOwed, rowsAsked, blendCasters }
 }

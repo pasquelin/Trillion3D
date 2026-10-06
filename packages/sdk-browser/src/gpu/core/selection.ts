@@ -78,7 +78,7 @@ export type GpuSelection = {
   readonly maskBuffer: GPUBuffer
   readonly maskOffset: number // index in u32 words of the current-frame drawable page mask
   readonly pageCount: number
-  /** It packs the world DAG (#1333), whose residency it mirrors (`../dag/worldMirror.ts`, #1332). */
+  /** It packs the world DAG, whose residency it mirrors (`../dag/worldMirror.ts`). */
   readonly packsWorld?: boolean
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number

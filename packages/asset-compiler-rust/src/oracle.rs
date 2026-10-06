@@ -1,7 +1,7 @@
 //! Indirect lighting oracle: a reference path tracer, on the source triangles.
 //!
 //! It renders nothing for the screen. It answers one question, the one the error
-//! contract poses (E1): what indirect irradiance arrives on the first surface
+//! contract poses: what indirect irradiance arrives on the first surface
 //! each pixel sees, for a camera pose and a list of declared lights. The engine
 //! answers the same question through its measurement view; the harness compares
 //! the two.
@@ -60,7 +60,7 @@ pub struct OracleJob {
     pub height: usize,
     pub camera: OracleCamera,
     pub lights: Vec<OracleLight>,
-    /// Hemisphere rays per pixel. This is what decides the oracle's uncertainty (E7).
+    /// Hemisphere rays per pixel. This is what decides the oracle's uncertainty.
     pub samples: usize,
     /// Bounces counted: 1 yields only the first, 2 adds the second, and so on.
     pub bounces: usize,

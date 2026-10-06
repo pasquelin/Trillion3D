@@ -1,7 +1,7 @@
-// #1016 audit ko: sponza's `ground` and `street` views came out RGB 0 on WebGL2 with no bench light.
-// The scene declares none, the contract none either: WebGPU draws the `auto` view's default, the
-// unlit albedo (`SceneLightStore.unlit`), but WebGL2 left the source graph lighting, with nothing in
-// it, so every surface was black. With no light anywhere, WebGL2 now draws the same unlit view.
+// With no light anywhere, a view must not come out black on WebGL2. The scene declares none, the
+// contract none either: WebGPU draws the `auto` view's default, the unlit albedo
+// (`SceneLightStore.unlit`), and WebGL2 draws the same unlit view rather than leaving the source
+// graph lighting with nothing in it.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { harness, light } from './contractLights.fixture.ts'
@@ -14,7 +14,7 @@ test('with no light in the scene nor the contract, WebGL2 draws the unlit view, 
   assert.equal(bench.contract.lit, false, 'composed by identity, as an unlit view')
 
   // A light the source graph gains, copied again (`refreshSceneLighting`), takes the view back: it
-  // lights alone, as before #1016.
+  // lights alone.
   bench.source.add(light('directional', 2))
   bench.lighting.refresh()
   assert.deepEqual(drawn(), ['directional 2'])

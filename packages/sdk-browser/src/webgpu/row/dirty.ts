@@ -16,7 +16,7 @@ export function createDirtyRows(drawSlots: number) {
     /**
      * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
      * diagnostic word —: they are uploaded, and a `rowsMoved` reading still holds, so a model that
-     * moves every image does not walk every row again (#410).
+     * moves every image does not walk every row again.
      */
     markWords(from: number, to = from) {
       if (to === from) dirty.marks[from] = 1
@@ -54,7 +54,7 @@ export const rowsUnread = (): RowsReading => ({ table: undefined, count: -1, wri
  * True when rows `[0, count)` of `table` may hold other words than when `reading` was taken, which
  * it then takes again. Every row write marks the row (`mark`), so a table, a count and a mark count
  * all unchanged are the same rows: a walk over hundreds of thousands of instance rows is done again
- * only when one of them moved (#410), never once per image.
+ * only when one of them moved, never once per image.
  */
 export function rowsMoved(
   reading: RowsReading,

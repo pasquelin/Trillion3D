@@ -1,13 +1,13 @@
 /**
- * The world roots and their binary (docs/FORMAT.md, World super-roots; #23, #1237): the table of
+ * The world roots and their binary (docs/FORMAT.md, World super-roots): the table of
  * the world DAG the compiler continues above every object's roots — its records read and checked
- * in `worldRootsTable.ts` (#1232) —, and the pages of one of its bundles viewed on their bytes. A
+ * in `worldRootsTable.ts` —, and the pages of one of its bundles viewed on their bytes. A
  * table that breaks its own contract is refused whole, `INVALID_CACHE`: the runtime pins its first
  * `pinned` bundles for good.
  */
 import { EngineError } from '../contracts/cache.ts'
 
-/** The table beside the manifest, fixed-size records (#1232): what a load reads. */
+/** The table beside the manifest, fixed-size records: what a load reads. */
 export const WORLD_ROOTS_FILE = 'world-roots.table'
 /** The world clusters and groups beside it, records too: what the world stream reads on first use. */
 export const WORLD_ROOTS_DAG = 'world-roots.dag'
@@ -60,7 +60,7 @@ export type WorldRoots = {
     at(page: number): { bundle: number; offset: number; level: number; lodError: number }
   }
   /** The world cells: how many, the placed primitives one holds, read at their records, and the
-   *  cell holding object `object` — an object root's `origin` (#1332). */
+   *  cell holding object `object` — an object root's `origin`. */
   cells: {
     count: number
     objects(cell: number): WorldRootsObject[]
@@ -119,11 +119,11 @@ export function worldBundlePages(bytes: Uint8Array, count: number, bundle: numbe
   return pages
 }
 
-/** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots; #1238),
+/** One world cluster as the cook's `clusters` key publishes it (FORMAT.md, World super-roots),
  *  in rank order (`cluster` is its index, which the groups name): the fields the runtime cut
  *  projects, and where its page lives — a super-root its `bundle` and `offset` in the binary, an
  *  object root its `origin`, the rank among the table's objects of the placed object drawing it
- *  (`cells.cellOf` finds its cell, #1332). Kept out of the exported `WorldRoots`, whose
+ *  (`cells.cellOf` finds its cell). Kept out of the exported `WorldRoots`, whose
  *  shape the API reference translates. */
 export type WorldRootsCluster = {
   cluster: number

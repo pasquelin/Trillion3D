@@ -1,4 +1,4 @@
-// #1336: a card program the WebGL2 context refuses — a shader that does not compile, a program that
+// A card program the WebGL2 context refuses — a shader that does not compile, a program that
 // does not link — is told once and switches no root to a card: the root keeps its clusters and the
 // images draw on, no card drawn and nothing thrown, as without the impostor code. Fails without the
 // fallback: the plan switched the root and every draw threw on its card program.

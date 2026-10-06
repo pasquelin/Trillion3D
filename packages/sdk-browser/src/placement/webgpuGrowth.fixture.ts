@@ -59,7 +59,7 @@ function placedScene(links: readonly RowLink[]) {
  * The partition of `cells.fixture` — its near cell's two nodes on rows sized at open, its far one
  * five kilometres off under the same core node — drawn by a WebGPU session on a mocked device
  * whose storage binding holds `bindingRows` page-table rows, the CPU cut drawing: the GPU cut lays
- * its catalogue out at open (#483).
+ * its catalogue out at open.
  * The session is handed the partition's rows as a world hands them (`partitionFrame.ts`).
  */
 export async function placedSession(bindingRows: number, light?: SceneLight) {

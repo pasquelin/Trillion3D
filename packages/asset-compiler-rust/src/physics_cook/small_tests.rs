@@ -1,4 +1,4 @@
-//! Small triangles and refused colliders (#562): a tile Jolt would thin keeps its whole surface,
+//! Small triangles and refused colliders: a tile Jolt would thin keeps its whole surface,
 //! and a collider Jolt refuses is named in the report, never fatal.
 use super::stage::gathered;
 use super::tests::{cluster, golden_tile, RAMP, RAMP_TRIANGLES};
@@ -6,7 +6,7 @@ use super::*;
 use crate::shared_math::{cross, dot, sub};
 
 /// The same ramp 2^-12 as large, under half a millimetre: Jolt drops both its triangles, so it is
-/// cooked scaled up inside a `ScaledShape` (#562). The module's tests restore it under an instance
+/// cooked scaled up inside a `ScaledShape`. The module's tests restore it under an instance
 /// scale and cast against the drawn surface.
 const SMALL_GOLDEN: &str = "../../tests/fixtures/physics/small-ramp-tile.bin";
 

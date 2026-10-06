@@ -22,7 +22,7 @@ type TaaResolveKind = 'asIs' | 'flagless' | 'blended'
 /**
  * The pass's resolves, all compiled at preparation, so a frame that switches compiles nothing: the
  * one of a frame with an as-is pixel, the flagless one, which binds no surface flags and reads no
- * as-is share (OMB-11), and the blended one. The same three again reconstruct a
+ * as-is share, and the blended one. The same three again reconstruct a
  * frame drawn below the display (`upscaleWgsl.ts`): compiled at preparation with `upscale` — a
  * session asking a scale below 1 —, otherwise off the frame when `upscaled` is first asked, which
  * answers `undefined` till then. A `filtered` twin, resolving the display layers too

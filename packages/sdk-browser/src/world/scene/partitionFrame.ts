@@ -1,10 +1,10 @@
 /**
- * The session's side of a partitioned scene (#404): the rows are sized for its camera's view and
+ * The session's side of a partitioned scene: the rows are sized for its camera's view and
  * the pages of the cell index on its way and the cells it reaches are read and placed before the
- * engines read the rows (`primePartitions`, #575), and before every frame the pages and the cells
+ * engines read the rows (`primePartitions`), and before every frame the pages and the cells
  * follow the camera through the session's streamer, the decode pool and the active engine
  * (`createPartitionFrame`), the meshes whose primitive the view read since mounted in place
- * (`partitionMounts.ts`, #751).
+ * (`partitionMounts.ts`).
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../partition/plan.ts`).
  */
@@ -37,13 +37,13 @@ function viewOf(camera: HostCamera) {
   }
 }
 
-/** The cut's lens `backend` projects with while it packs the world DAG, else none (#1332). */
+/** The cut's lens `backend` projects with while it packs the world DAG, else none. */
 function lensOf(backend: RenderBackend, camera: HostCamera) {
   const cut = backend.worldCut?.()
   return cut && { ...cut, slope: lensSlope(camera) }
 }
 
-/** The file of the partition at `url` read by the decode pool, off the main thread (#575): `cells`,
+/** The file of the partition at `url` read by the decode pool, off the main thread: `cells`,
  *  a cell file into its rows; `cellPage`, a page of the cell index. A refusal keeps its code — a page
  *  of another version stays `UNSUPPORTED_SCENE_TABLES` — and names the file. */
 function refused(answer: Awaited<ReturnType<typeof patientTask>>, url: string): never {
@@ -103,7 +103,7 @@ type Inputs = {
 /**
  * The step a frame runs before it draws, or `null` when the scene is not partitioned. Its
  * `pending` settles once the pages and cells the last frame asked for within reach are read, those
- * it handed to the decode pool decoded, and the manifest pages and mounts they asked (#751), true
+ * it handed to the decode pool decoded, and the manifest pages and mounts they asked, true
  * while one of them waits for a frame to place or mount it, or a decode or a mount landed: a still
  * camera is drawn again until they all are.
  */
@@ -152,7 +152,7 @@ export function createPartitionFrame(inputs: Inputs) {
         growsInPlace: (from, capacity) => growsInPlaceOf(backend, from, capacity),
       },
       outgrown: renew,
-      // While the cut packs the world DAG, a cell its super-roots draw is held far (#1332).
+      // While the cut packs the world DAG, a cell its super-roots draw is held far.
       lens: lensOf(backend, camera),
     }
     const { eye, reach } = viewOf(camera)

@@ -1,5 +1,5 @@
 /**
- * What the WebGL2 core lends the impostor family (#1336, `../../impostor/lent.ts`): the shared
+ * What the WebGL2 core lends the impostor family (`../../impostor/lent.ts`): the shared
  * pieces, and the cluster program's fragments, program, uniform and sampler set-up, float textures
  * and byte count, and the texture units of the card records and the three atlas maps.
  */

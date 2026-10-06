@@ -1,4 +1,4 @@
-// The one-pixel model of the blend tests (#558): WebGPU's blend equation, factor by factor, and
+// The one-pixel model of the blend tests: WebGPU's blend equation, factor by factor, and
 // the reference display value, an ACES filmic fit then sRGB, kept independent of the
 // engine's shader on purpose.
 import assert from 'node:assert/strict'

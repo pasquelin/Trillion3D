@@ -1,4 +1,4 @@
-// The display layers' shipped WGSL (#558) run in JavaScript (`shaderRun`): the route every
+// The display layers' shipped WGSL run in JavaScript (`shaderRun`): the route every
 // transparent layer takes, the mask it reads and the display filter pass that composes them. The
 // tone curve is the reference display's (`blendModel.fixture.ts`): the curves are proved on their own.
 import assert from 'node:assert/strict'

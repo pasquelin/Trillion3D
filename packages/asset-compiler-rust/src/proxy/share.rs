@@ -1,6 +1,6 @@
-//! Lossless instance proxy sharing (#957): no placed triangle or albedo bit changes.
+//! Lossless instance proxy sharing: no placed triangle or albedo bit changes.
 //!
-//! World simplification runs first, exactly as before. Afterwards a placement whose simplified
+//! World simplification runs first. Afterwards a placement whose simplified
 //! triangles are another's carried by one affine map, bit for bit in the reader's own arithmetic,
 //! stores only that map and the flat position of each of its triangles; every other placement
 //! stays flat. The reader expands the shared runs back into the flat layout.

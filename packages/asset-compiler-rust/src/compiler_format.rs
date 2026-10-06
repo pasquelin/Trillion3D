@@ -4,7 +4,7 @@ use serde_json::Value;
 
 /// Cache format this compiler writes. Format 5 added `scene-tables.json`, the node and material
 /// tables the prepared scene is described by; format 7 writes `selectedNodes` as a count, not a
-/// list (#404); format 9 makes `clusters.json` the fixed-size root of a page tree (#762). A cache
+/// list; format 9 makes `clusters.json` the fixed-size root of a page tree. A cache
 /// written before any of them is refused by its number, never half-read.
 pub const FORMAT_VERSION: u32 = 9;
 /// Outer cache format required for clustered BLEND: 8 before the manifest was paged.

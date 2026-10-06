@@ -1,5 +1,5 @@
 /**
- * THE MANIFEST PAGES AND WORLD BUNDLES A PARTITION'S CELLS HOLD (#751, #1237). A cell placed holds
+ * THE MANIFEST PAGES AND WORLD BUNDLES A PARTITION'S CELLS HOLD. A cell placed holds
  * the mesh pages its region page names (`TableCell.meshPages`), counted once per cell: a page many
  * cells share stays read while one of them is placed. A cell that leaves releases them, and a page
  * no placed cell holds leaves the manifest with its primitives (`ManifestPages`). It holds the

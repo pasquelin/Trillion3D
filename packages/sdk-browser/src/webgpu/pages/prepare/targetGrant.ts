@@ -212,7 +212,7 @@ async function grantTargets(
 ) {
   const { vis, diag } = rt,
     hiz = !!vis.gpuHiz
-  await poolFundingPending(rt) // One funding moves the pools at a time (#1362).
+  await poolFundingPending(rt) // One funding moves the pools at a time.
   await onView(rt, view, () => fundFrameTargets(rt, asked, asked.requestedBytes))
   // Made, and released when refused, on the view that asked; tentatively
   // (`GpuDeviceLedger.tentative`): targets past the budget's limit are refused without refusing

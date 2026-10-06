@@ -1,7 +1,7 @@
 /**
  * The contact scene the threaded module is proved on (`contactThreads.test.ts`): it takes any
- * started module. Its merged records come in the engine's canonical pair-key order (`contacts.cpp`,
- * route (b), the boss's yes of 29 Sept.), not the module's callback order; a removed body's leaves
+ * started module. Its merged records come in the engine's canonical pair-key order
+ * (`contacts.cpp`), not the module's callback order; a removed body's leaves
  * come before that merge and a cloth's after it.
  */
 import {

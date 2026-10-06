@@ -1,8 +1,7 @@
-// #1232: the placements of one primitive share its records (#1235), and the cache holds records,
+// The placements of one primitive share its records, and the cache holds records,
 // never instances: so the closure holds a group once per primitive, at the packed ranks of the
 // placement that first asked for it, however many placements the cut selects it on. Its tables
-// follow the records the view closes over — on develop they grew with every placement selected,
-// 1 GB of the open world's renderer.
+// follow the records the view closes over, never every placement selected.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'

@@ -13,7 +13,7 @@ import { PREVIEW_LOSSLESS_FORMAT } from '../../../sdk-core/src/index.ts'
  * Cooked levels and block tile records, held long enough to cut tiles from them.
  *
  * A lossless tile is read in its whole level, decoded by the browser: a PNG is not cut by bytes. A
- * block tile is read alone, its record by one HTTP Range (STR-12, #962, `texture/tileRecords.ts`);
+ * block tile is read alone, its record by one HTTP Range (`texture/tileRecords.ts`);
  * a server that ignores Range sends the whole file, held under the level's key, every tile of the
  * level cut from it, whole files asked since. Until a first record says which, one ranged read goes
  * alone. Levels and records stay, the least recently read

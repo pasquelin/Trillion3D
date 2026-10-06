@@ -5,7 +5,7 @@ import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts'
 export const SAMPLED_RANKS = 1024
 
 /** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
- *  scene that holds a rectangle (`declaredLightWgsl`, #1369). */
+ *  scene that holds a rectangle (`declaredLightWgsl`). */
 const RECT_WEIGHT_WGSL = `
  if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`
 
@@ -19,7 +19,7 @@ const RECT_WEIGHT_WGSL = `
  * `LIGHT_SAMPLES` points are laid evenly along the cumulative weight of the list, from a per-pixel
  * offset that advances by the golden ratio every image, so one pixel walks its list evenly over
  * time and its neighbours start elsewhere — a fixed number of samples per pixel drawn from the
- * light grid's cell, their noise left to the temporal history (#1369). A light whose share of the
+ * light grid's cell, their noise left to the temporal history. A light whose share of the
  * pixel's weight reaches one sample's worth holds a point or more and is shaded **exactly**, once,
  * the points it holds spent: it would be drawn every image anyway, and drawing it a varying number
  * of times is what would make a sunlit wall flicker. Any other light is drawn once per point it
@@ -31,7 +31,7 @@ const RECT_WEIGHT_WGSL = `
  * only, so a replayed image is the same image, and two runs give the same sequence. The rank
  * is bounded by the caller (`SAMPLED_RANKS`): a large one would eat the fraction's precision.
  *
- * A list with no shadowed light is never drawn (`cellShadowed`, #1249): with no shadow to read,
+ * A list with no shadowed light is never drawn (`cellShadowed`): with no shadow to read,
  * the two weight walks would cost twice the full sum they estimate. The grid pass settles
  * that per-cell fact once, in its count's high bit; the resolve reads the flag, never the list.
  */
@@ -58,7 +58,7 @@ fn sampledList(kept:u32)->bool{return kept>LIGHT_SAMPLES&&kept<=TILE_LIGHTS;}
  *  shadowed light (\`cellShadowed\`), in the pool. */
 fn sampledSliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u,rank:u32,pixel:vec2f)->vec3f{
  let first=slice.x;let kept=slice.y;
- // Two walks of the weights, no private array of them (#924): their total and the last light that
+ // Two walks of the weights, no private array of them: their total and the last light that
  // holds one, then the draw, each recomputing the weight it reads, the same bits.
  var total=0.0;
  var last=0u;

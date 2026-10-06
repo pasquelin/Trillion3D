@@ -14,8 +14,8 @@ import { alphaMoves, type AlphaChange } from '../../placement/backendSceneUpdate
  *  its shadow pass, `sizeAttenuation` a sprite's root mark (`spriteMark`), and `wireframe`,
  *  `flatShading` and `size` the triangles its wearers draw (`worldCuts.ts`). Every other field
  *  but a texture is a VALUE — a colour, a factor, a physical extension, a cutoff —, which a
- *  page-table row or a host surface reads again at the next frame (#335, #572); a texture's
- *  pictures, sampling and placement move on their own (#362). */
+ * page-table row or a host surface reads again at the next frame; a texture's
+ * pictures, sampling and placement move on their own. */
 const LAYOUT = new Set([
   'kind',
   'transparent',
@@ -85,9 +85,9 @@ export type RepaintedEntry = { entry: MaterialEntry } & Repaint
  * The material table of a world. Materials of identical parameters are one entry, however many
  * objects the page made; an entry is a copy taken when it was made, so a material written after
  * it was placed moves its wearers to the entry of its new parameters and leaves the old one as it
- * was — copy on write. Two exceptions keep a live edit off the session's reopening: an opaque
- * entry that only one material object resolves to, written on its value fields alone (#335), and
- * any entry whose textures' pictures alone moved (#362), are REPAINTED — the entry keeps its
+ * is — copy on write. Two exceptions keep a live edit off the session's reopening: an opaque
+ * entry that only one material object resolves to, written on its value fields alone, and
+ * any entry whose textures' pictures alone moved, are REPAINTED — the entry keeps its
  * place under its new key and `takeRepainted` names it, for the session to rewrite what reads it. `counts.duplicates` says how often the table folded one
  * material onto an entry another material had made.
  */
@@ -122,7 +122,7 @@ export function createWorldMaterials() {
   }
   /** Keeps `material` on its entry under its new key, when only values changed, or only the
    *  pictures of its textures — which the entry's copy shares, so every wearer sees them, blended
-   *  or shared: a video's frame, a canvas redrawn (#362). */
+   * or shared: a video's frame, a canvas redrawn. */
   const repaint = (material: Material, entry: MaterialEntry, key: string) => {
     if (entries.has(key)) return false
     const pictures = materialKey(material, true, false) === materialKey(entry.material, true, false)

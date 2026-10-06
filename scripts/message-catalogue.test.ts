@@ -82,7 +82,7 @@ test('every code emitted by the Node adapter is in the catalogue', () => {
   assert.deepEqual(problems, [])
 })
 
-test("the browser runtime's family refusal carries its catalogue code (#1404)", () => {
+test("the browser runtime's family refusal carries its catalogue code", () => {
   const loader = readFileSync(join(ROOT, 'packages/sdk-browser/src/host/onDemand.ts'), 'utf8')
   const id = /FAMILY_LOAD_FAILED_ID = '([^']+)'/.exec(loader)?.[1]
   assert.equal(id, messageOf('FAMILY_LOAD_FAILED')?.id)

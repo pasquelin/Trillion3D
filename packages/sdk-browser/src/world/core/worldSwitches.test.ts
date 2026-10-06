@@ -22,7 +22,7 @@ function session(draws = true) {
   return { explorer, written }
 }
 
-// #363: `createWorld(…, { temporalAntialiasing: false })` opens its sessions with it off, and
+// `createWorld(…, { temporalAntialiasing: false })` opens its sessions with it off, and
 // the property flips the open session in place, never reopening it.
 test('temporal antialiasing is given to the session and switched in place', () => {
   const open = session(false)
@@ -56,7 +56,7 @@ test('temporal antialiasing reads false on WebGL2 and as the session draws it', 
   assert.equal(switches.temporalAntialiasing, false)
 })
 
-// #349: `world.effects` is one chain for the world's life, handed to every session it opens; a
+// `world.effects` is one chain for the world's life, handed to every session it opens; a
 // change of it asks for a frame, and reopens nothing.
 test('the effect chain is given to every session, and a change of it asks for a frame', () => {
   let renewed = 0,
@@ -80,10 +80,10 @@ test('the effect chain is given to every session, and a change of it asks for a 
   // A WebGL2 frame drawn without the chain is said on the world's own channel.
   sessionOptions({}, switches.held).effectsRefused!('multiply')
   assert.deepEqual(said, ['effects-refused-blending'])
-  // A surface WebGL2 draws without a physical feature is said on the same channel (#772).
+  // A surface WebGL2 draws without a physical feature is said on the same channel.
   sessionOptions({}, switches.held).materialDegraded!(new GraphSurface('physical'), ['clearcoat'])
   assert.deepEqual(said, ['effects-refused-blending', 'material-degraded'])
-  // #558: so is a WebGL2 session's light that asks for a shadow it draws not.
+  // So is a WebGL2 session's light that asks for a shadow it draws not.
   sessionOptions({}, switches.held).shadowsRefused!(['sun'])
   assert.deepEqual(said, ['effects-refused-blending', 'material-degraded', 'shadows-refused'])
 })

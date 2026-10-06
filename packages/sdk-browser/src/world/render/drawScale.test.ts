@@ -1,4 +1,4 @@
-// #834: WebGL2's render-scale controller reads the whole-frame timer (`frameTimer.ts`), mounted
+// WebGL2's render-scale controller reads the whole-frame timer (`frameTimer.ts`), mounted
 // once a page leaves the scale to the budget: a frame over budget, drawn at the controller's scale
 // while the view moves, lowers it; a held image measures no drawing and steps nothing.
 import test from 'node:test'

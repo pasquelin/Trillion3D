@@ -37,7 +37,7 @@ const atlasBytes = (maps: ImpostorMaps) =>
   ATLAS_MAPS.reduce((sum, name) => sum + (core.textureBytesOf(mapTexture(maps, name, '')) ?? 0), 0)
 
 /**
- * THE PER-MESH ATLAS FEED on WebGPU (#1335): the shared feed (`impostor/feed.ts`), each atlas
+ * THE PER-MESH ATLAS FEED on WebGPU: the shared feed (`impostor/feed.ts`), each atlas
  * copied once into three textures with their mips under the device's out-of-memory scope
  * (`deviceMade`), and bound in one group (`layout`, group 1 of the card pass). Its bytes are
  * texture memory held beside the texture pool, within the one texture budget

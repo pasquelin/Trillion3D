@@ -43,7 +43,7 @@ function runtime(option: RenderScale = { min: 0.5, max: 1 }, display = DISPLAY) 
 
 const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera
 
-// #831: a still image is drawn at the controller's scale, the budget's, as a moving one; the
+// A still image is drawn at the controller's scale, the budget's, as a moving one; the
 // targets stay made at the bounds' maximum.
 test('a moving and a quiet image draw at the controller, a convergence at its image', () => {
   const { rt, moving } = runtime()
@@ -66,7 +66,7 @@ test('a moving and a quiet image draw at the controller, a convergence at its im
   assert.deepEqual([rt.scale.drawn, rt.gpu.targetSize], [1, DISPLAY], 'no accumulation, no scale')
 })
 
-// #1016: a capture after a moving camera converged at the moving image's scale and jitter, so it
+// A capture after a moving camera converged at the moving image's scale and jitter, so it
 // made resident what that image reads; the held image, drawn at the display over eight other
 // phases, read slivers nothing had asked for. The convergence branch itself draws a capture's
 // barrier at the still scale, one phase after another (`stillPhase`); another barrier replays.
@@ -81,7 +81,7 @@ test("a capture's barrier converges at the still image's scale, phase after phas
   assert.ok(rt.scale.wanted() < moving, 'the controller dropped since')
   convergeStillPhase(rt, 0)
   beginTaaFrame(rt, cam, false)
-  assert.equal(rt.scale.drawn, rt.scale.wanted(), "the still image's: the controller's (#831)")
+  assert.equal(rt.scale.drawn, rt.scale.wanted(), "the still image's: the controller's")
   const replayed = [...frame.jitter]
   for (let phase = 1; phase < frame.phases; phase++) {
     convergeStillPhase(rt, phase)
@@ -94,7 +94,7 @@ test("a capture's barrier converges at the still image's scale, phase after phas
   rt.run.textureConverging = false
 })
 
-// #1016 review: a tile or a shadow page landing on a still frame mixed two residencies in one
+// A tile or a shadow page landing on a still frame mixed two residencies in one
 // average, at a time the readback decided. The average restarts on it, from phase zero.
 test('a landing on a still image restarts its average; nothing landed, or moving, keeps it', () => {
   const { rt } = runtime()
@@ -136,7 +136,7 @@ function rest(rt: WebgpuPagesRuntime, gpuMs: (image: number) => number = () => 1
   return { scales, restarts, drawn }
 }
 
-// #831: the hold came one image short of the cycles (`taaSettled`): at native size the eleventh
+// The hold came one image short of the cycles (`taaSettled`): at native size the eleventh
 // phase held five draws of sixty-five, every other six — a still average not uniform.
 test('a still average holds after whole cycles of its scale, every phase drawn as often', () => {
   for (const option of [1, 0.75, 0.5, undefined]) {
@@ -150,7 +150,7 @@ test('a still average holds after whole cycles of its scale, every phase drawn a
   }
 })
 
-// #831: the still image was drawn at the bounds' maximum, above the frame's budget, for as long
+// The still image was drawn at the bounds' maximum, above the frame's budget, for as long
 // as the average took. It is drawn at the controller's scale, which still images never raise —
 // a rise would restart the average.
 test('at rest no image is drawn above the budget scale; motion after it is unchanged', () => {
@@ -167,7 +167,7 @@ test('at rest no image is drawn above the budget scale; motion after it is uncha
   assert.equal(fixed.scale.drawn, 0.6, 'and moving')
 })
 
-// #1343: a still average is of one scale; the controller lowering it restarts the average.
+// A still average is of one scale; the controller lowering it restarts the average.
 test('a still image the controller lowers restarts its average cleanly at the new scale', () => {
   const { rt, moving } = runtime(),
     frame = rt.gpu.temporal!.frame

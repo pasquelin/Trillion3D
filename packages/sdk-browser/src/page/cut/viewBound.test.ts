@@ -1,4 +1,4 @@
-// Bounded by the view, not by the world (#483 rule 6, #486): the cut's host tables on every backend
+// Bounded by the view, not by the world: the cut's host tables on every backend
 // weigh the same for a world and for the same world sixteen times larger, seen from the same view
 // with the same pool. The view sees the first placement, which the pool holds whole; every other
 // placement lies behind the camera, with nothing resident.

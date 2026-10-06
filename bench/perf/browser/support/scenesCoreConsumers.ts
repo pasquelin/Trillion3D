@@ -13,7 +13,7 @@ const errors: (number | null | undefined)[] = [0, 0.5, 2, Infinity, null, undefi
 /** Each record with the world the oracles read on it, the one its root carries for the engine. */
 const list: (PageRec & { matrix: THREE.Matrix4 })[] = [],
   roots: { world: THREE.Matrix4 }[] = [],
-  /** Each record's original rank: the batch walk reads its placement through this (#1235). */
+  /** Each record's original rank: the batch walk reads its placement through this. */
   ranks = new Map<PageRec, number>()
 for (let i = 0; i < 900; i++) {
   const fini = i % 3 !== 0

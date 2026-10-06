@@ -28,7 +28,7 @@ fn dag_of(positions: &[f32], carried: &[Attribute], indices: &[u32]) -> build::D
     build_dag_tallied(positions, attributes, indices, strategy, &|| Ok(())).expect("dag")
 }
 
-// Behaviour: a sheet whose every position is a seam corner no longer stalls seam-locked: its
+// Behaviour: a sheet whose every position is a seam corner does not stall seam-locked: its
 // groups reduce on placed vertices, appended after the source's, which stay as they were.
 #[test]
 fn a_seam_locked_sheet_climbs_on_placed_vertices() {
@@ -50,7 +50,7 @@ fn a_seam_locked_sheet_climbs_on_placed_vertices() {
     quality::check(&dag, &grown.positions, Some(&grown.carried[0].values)).expect("cook check");
 }
 
-// Behaviour: a sheet under one texture chart reduces as before: no vertex placed, no group solved.
+// Behaviour: a sheet under one texture chart reduces plainly: no vertex placed, no group solved.
 #[test]
 fn an_unblocked_sheet_places_nothing() {
     let (positions, indices) = grid(32);

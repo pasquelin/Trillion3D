@@ -94,7 +94,7 @@ test('a tile from a vanished layer is moved into a free slot â€” queues first â€
   assert.equal(resident.get(tileId({ slot: 0, level: 0, tx: 5, ty: 0 })), 5, 'not moved')
 })
 
-// Behaviour (#726): a shrink tells each texture it evicts a tile of, for whoever reads it to
+// Behaviour: a shrink tells each texture it evicts a tile of, for whoever reads it to
 // follow; a tail it would displace, which only a pool drawn under its floor holds, refuses by name.
 test('a shrink tells the texture of each tile it evicts, and never clears a tail as a tile', () => {
   const { gpu } = textureDevice()

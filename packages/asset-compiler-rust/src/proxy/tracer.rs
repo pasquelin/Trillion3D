@@ -121,7 +121,7 @@ pub fn trace(world: &World, origin: [f64; 3], ray: [f64; 3], limit: f64, any: bo
 }
 
 /// `trace`, keeping only the hits `keep` accepts from their triangle and barycentric `(u, v)`:
-/// a masked leaf lets the ray through where its texel is cut (the impostor bake, #817).
+/// a masked leaf lets the ray through where its texel is cut (the impostor bake).
 pub fn trace_where(
     world: &World,
     (origin, ray): ([f64; 3], [f64; 3]),

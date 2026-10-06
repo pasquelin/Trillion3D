@@ -1,4 +1,4 @@
-// The effect chain on the WebGL2 composition (#349): an empty chain changes not one call of the
+// The effect chain on the WebGL2 composition: an empty chain changes not one call of the
 // frame; a chain with a bloom has the engine draw linear radiance into its target, runs the
 // passes and the display chain, keeps the result, and a held frame puts it back with no pass.
 import test from 'node:test'

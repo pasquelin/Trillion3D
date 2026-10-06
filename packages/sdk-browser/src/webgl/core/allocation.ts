@@ -1,8 +1,8 @@
 /**
- * Out of memory on WebGL2, absorbed (#483 rule 5, 8), without ever holding the main thread (#840).
+ * Out of memory on WebGL2, absorbed (8), without ever holding the main thread.
  * WebGL2 reports a refused allocation only through `getError`, and `getError` waits for the GPU
  * process to run every command sent before it: read after each upload, it held the frame that
- * streamed pages in for the whole upload (a 100–140 ms hitch on sponza `rue`). So an allocation is
+ * streamed pages in for the whole upload (a 100–140 ms hitch). So an allocation is
  * only recorded (`allocated`), with its pool and what to redo if it was refused. The host frame
  * fences what it allocated once its commands are sent (`fenceAllocations`), one batch per frame:
  * a batch keeps its fence until the GPU passes it, however far behind the GPU runs. The next frame

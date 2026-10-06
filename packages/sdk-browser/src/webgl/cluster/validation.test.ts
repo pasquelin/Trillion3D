@@ -1,5 +1,5 @@
-// #840: sponza's frame read the whole surface gate for each of its 1 465 pages; a surface's own
-// part is read once a frame, its attributes per page, and a mutation still at the next draw.
+// A frame of 1 465 pages reads a surface's own part of the gate once a frame, its attributes per
+// page, and a mutation still at the next draw.
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../host/graph/graph.fixture.ts'

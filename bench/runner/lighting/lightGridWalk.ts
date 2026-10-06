@@ -1,4 +1,4 @@
-// The light grid as its pass builds it (#1369), from its oracle (`gpuLightGridOracle.ts`): every
+// The light grid as its pass builds it, from its oracle (`gpuLightGridOracle.ts`): every
 // column of cells, each light tested against the column's planes, the run of slices it meets solved
 // for those it may meet, and each covered pixel handed its cell's list. The one walk the grid
 // counters share (`lighting/lightGridCount.ts`, `lighting/resolveWorkCount.ts`, `lighting/lightTileSampledCount.ts`). COUNTED,
@@ -88,8 +88,8 @@ export function walkGrid(
 export const reaches = (p: Vec3, { centre: c, radius }: Light) =>
   (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2 < radius ** 2
 
-/** Develop's tile pass at `width` × `height` over `lights` lights (#924, before #1369): each tile
- *  of 16 pixels read its 256 depths and tested every light against its two slices. */
+/** The per-tile pass at `width` × `height` over `lights` lights: each tile
+ *  of 16 pixels reads its 256 depths and tests every light against its two slices. */
 export const tilePassWork = (width: number, height: number, lights: number) => {
   const tiles = Math.ceil(width / 16) * Math.ceil(height / 16)
   return { texels: width * height, tileTests: tiles * lights }

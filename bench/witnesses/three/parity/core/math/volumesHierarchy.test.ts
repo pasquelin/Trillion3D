@@ -1,4 +1,4 @@
-// Batch M2, parent/child cases: a real host-library Object3D chain (depth ≥ 3, negative scale on
+// parent/child cases: a real host-library Object3D chain (depth ≥ 3, negative scale on
 // one axis, parent rotation on non-uniform scale) whose `matrixWorld` we take, to check that our
 // volumes match the host library's transformed boxes, bounding spheres and box-in-frustum tests
 // bit-exact. The host library is used here only to compare, never in a `math*.ts` file.

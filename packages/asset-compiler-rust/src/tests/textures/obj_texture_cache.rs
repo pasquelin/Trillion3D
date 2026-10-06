@@ -1,6 +1,6 @@
-//! A04 — Textures an OBJ library names are not opened by the reader: their mere
+//! Textures an OBJ library names are not opened by the reader: their mere
 //! existence nevertheless decides the intermediate glTF. Left out of import
-//! identity, an image added, removed or replaced left the previous scene in service.
+//! identity, an image added, removed or replaced would leave the previous scene in service.
 use super::*;
 
 /// A readable PNG, whose colour distinguishes two files of the same name.

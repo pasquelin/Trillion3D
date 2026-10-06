@@ -35,7 +35,7 @@ function corners(
   )
 }
 
-// #348: a line's width is a screen width. The real text of both shaders moves the two corners of
+// A line's width is a screen width. The real text of both shaders moves the two corners of
 // an endpoint apart by `width` pixels, perpendicular to the segment on screen, at every distance.
 for (const language of ['wgsl', 'glsl'] as const)
   test(`${language}: an endpoint's corners are the line's width apart on screen, near and far`, () => {
@@ -51,7 +51,8 @@ for (const language of ['wgsl', 'glsl'] as const)
       }
   })
 
-// #348, lead decision: `linewidth` counts CSS pixels, not the image's own pixels. The image draws `width × pixelRatio` of its own pixels.
+// `linewidth` counts CSS pixels, not the image's own pixels. The image draws `width × pixelRatio`
+// of its own pixels.
 for (const language of ['wgsl', 'glsl'] as const)
   test(`${language}: the drawn width is the CSS width times the pixel ratio`, () => {
     for (const pixelRatio of [1, 1.5, 2]) {
@@ -133,7 +134,7 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL))
   assert.ok(CLUSTER_VERTEX.includes(LINE_CLIP_GLSL))
   assert.match(CLUSTER_VERTEX, /gl_Position=projectionMatrix\*view;\nif\(lineWidth>0\.0\)/)
-  // The diagnostic fallback pipeline: its triangle corner is decoded as before, and a line page's
+  // The diagnostic fallback pipeline: its triangle corner is decoded the same, and a line page's
   // is widened by the same text, with the same ratio.
   assert.ok(FALLBACK_SHADER.includes(LINE_CLIP_WGSL))
   assert.match(

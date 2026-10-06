@@ -14,8 +14,8 @@ import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts'
 // the module by its URL, so the test hands it the bytes.
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../page/decode/pageCodec.wasm')))
 
-// #359: a line worn by a dashed material is read with its distance along the line; the same line
-// worn solid is read as before, into a resource of its own.
+// A line worn by a dashed material is read with its distance along the line; the same line
+// worn solid is read without it, into a resource of its own.
 test('a dashed line is read with its distance along the line, a solid one without', async () => {
   const cuts = createWorldCuts()
   const path = geometry.createBuffer({
@@ -29,7 +29,7 @@ test('a dashed line is read with its distance along the line, a solid one withou
   cuts.dispose()
 })
 
-// #875: a blended surface draws from its pages what it drew from its floats. Its pages take the
+// A blended surface draws from its pages what it drew from its floats. Its pages take the
 // finest grids a page holds (2^23 steps across the widest span); an opaque wearer of the same
 // geometry keeps the grids its image was proved on, in a resource of its own.
 test('a blended wearer is cut on the finest page grid, an opaque one keeps its grid', async () => {
@@ -54,7 +54,7 @@ test('a blended wearer is cut on the finest page grid, an opaque one keeps its g
   cuts.dispose()
 })
 
-// #357: a sheet the waves carry moves after its cut, as a rewritten one does (#573): blended, it is
+// A sheet the waves carry moves after its cut, as a rewritten one does: blended, it is
 // cut in compact runs, which a shadow raster draws into the pages they reach, not a whole row of the
 // grid into every page the row's sphere covers; the same sheet at rest keeps the format's clusters.
 test('a sheet the waves carry is cut held, in compact pages; at rest, in the format clusters', async () => {

@@ -20,8 +20,8 @@ export const LUMA_TO_CHANNEL = 3
 const CURVE_OFFSET = 0.17
 /** Flicker periods the count must hold before its error shows, in images. */
 const FLICKER_PERIOD = 2
-/** Camera parallax, in pixels of a 1920-wide image an image, past which a pixel no longer counts
- *  its flickers: ten pixels an image at 60 Hz, five at the 120 Hz the engine draws for. */
+/** Camera parallax, in pixels of a 1920-wide image an image, past which a pixel counts
+ *  no flickers: ten pixels an image at 60 Hz, five at the 120 Hz the engine draws for. */
 const PARALLAX_LIMIT = 5
 
 /**

@@ -45,7 +45,7 @@ function fakePack(extra: string[] = []) {
   return { run, packed, packers }
 }
 
-// Behaviour: the six packages go out at one version, or not at all (#1354).
+// Behaviour: the six packages go out at one version, or not at all.
 test('the pack refuses a package at another version', () => {
   const { root, out } = checkout()
   const path = join(root, 'packages/compiler/win32-x64/package.json')

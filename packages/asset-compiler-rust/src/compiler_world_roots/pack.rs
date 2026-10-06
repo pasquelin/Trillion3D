@@ -88,7 +88,7 @@ pub(super) fn pack_world(
     let (mut payload, mut records, mut pages, mut top) =
         (Vec::new(), Vec::new(), Vec::new(), Vec::new());
     // Where each super-root's page lies in the binary, by world rank: what the `clusters` key
-    // names for a runtime that builds its `DagRoot` pages (#1238).
+    // names for a runtime that builds its `DagRoot` pages.
     let mut located: Vec<Option<(usize, usize)>> = vec![None; dag.len()];
     for (index, members) in bundles.iter().enumerate().take(written) {
         let start = payload.len();
@@ -137,7 +137,7 @@ pub(super) fn pack_world(
 /// Per cell, each placed object's primitive: the bundles holding its own roots, and every world
 /// bundle those roots need, up to the top. An object whose list misses the top is refused. With
 /// them, each instance's rank among the table's objects, cell after cell (`None` for an instance
-/// whose primitive has no root cover): the `origin` an object root names (#1332).
+/// whose primitive has no root cover): the `origin` an object root names.
 fn object_dependencies(
     world: &WorldDag,
     instances: &[Instance],

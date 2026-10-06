@@ -13,11 +13,11 @@ const readMin = new Float64Array(3),
  * What has moved in the world since the last frame, as world boxes. Each is kept **apart**: a
  * box stales only the pages it covers in each light view, and a box joining two
  * movers at both ends of the scene would stale every page between them, while nothing there
- * changed (#525).
+ * changed.
  *
  * The list is a fixed budget (`capacity`): as many boxes as the pool holds pages, the most
  * distinct pages a frame can draw, and at least `SHADOW_CHANGE_BOXES`, what a frame of movers
- * declares cluster by cluster (`movedClusters.ts`, #1345). Past it — the one overflow — the last
+ * declares cluster by cluster (`movedClusters.ts`). Past it — the one overflow — the last
  * box absorbs every further one: their union stales a superset of their pages, never fewer. A
  * caller that can declare one change as a few boxes or as many reads what is left (`room`).
  *
@@ -32,10 +32,10 @@ const readMin = new Float64Array(3),
  * at the first frame the camera rests. Under a moving camera the cut churns every frame, and
  * staling the far pages for a sub-texel change of detail cost a whole scene draw per frame;
  * at rest the union restales exactly what changed, so a settled map is that of the current
- * cut, whatever the history (#159). A representation change of objects already moving is held
- * in a union of its own, released as a moving box: the static layer never held them (#993).
+ * cut, whatever the history. A representation change of objects already moving is held
+ * in a union of its own, released as a moving box: the static layer never held them.
  *
- * A **residency** change is the one representation change that enters at once (#831): a page drawn
+ * A **residency** change is the one representation change that enters at once: a page drawn
  * before a finer form of its caster arrived holds a caster that no longer matches the receiver the
  * camera now draws, a coarse surface standing above the fine one, read as dark patches cut straight
  * along page edges while a drive lasts. The cached pages stay read until redrawn, within the
@@ -113,7 +113,7 @@ export function createShadowChanges(capacity: number) {
     },
     /** A caster's residency changed: its box enters the list at once, stale for detail alone,
      *  merged into the last one when that is a change of detail of the same kind it overlaps — the
-     *  clusters a stream brings in together —, never joined to a far one (#831). */
+     *  clusters a stream brings in together —, never joined to a far one. */
     residencyChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
       const last = changes.count - 1,
         base = last * 3
@@ -129,7 +129,7 @@ export function createShadowChanges(capacity: number) {
      * only grows. Returns true when the camera rests: its numbers are weighed in float32, so a view
      * that moved by less than a float32 step of them — a chase camera easing toward a car at rest,
      * by 1e-11 m a frame — rests. Such a move is far below any page's texel (`pixelNear`): it asks
-     * nothing new, and the camera that crawls past a float32 step moves again (#831).
+     * nothing new, and the camera that crawls past a float32 step moves again.
      */
     observeView(view: ShadowViewpoint) {
       const still = keepNumbers(lastView, writeView(view, viewNow))

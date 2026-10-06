@@ -39,7 +39,7 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
   await Promise.all(cells.decodes())
   frame()
   assert.deepEqual([parsed, decoded.length, cells.stats().held], [0, 1, 1])
-  // A file the decode refused is thrown by the frame that reads it, as before.
+  // A file the decode refused is thrown by the frame that reads it.
   const refused = await sizedWhole(world())
   const other = io(refused.bytes)
   other.held.add(cellUrl('far.json'))

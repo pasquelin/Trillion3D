@@ -34,7 +34,7 @@ export type PassRow = readonly [stage: string, block: GpuPassBlock, part?: Shado
  * profile and the blocks share it. An unknown label joins `geometry`, the only stage that draws
  * without a name of its own, and `other`, so a new pass does not silently swell a compared block.
  * The labels come from `passLabels.ts`, which every pass reads its own from: an import of the
- * passes would put them and their shaders in the CDN core, on a WebGL2 page too (#1353).
+ * passes would put them and their shaders in the CDN core, on a WebGL2 page too.
  */
 export const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D DAG selection': ['selection', 'visibility'],

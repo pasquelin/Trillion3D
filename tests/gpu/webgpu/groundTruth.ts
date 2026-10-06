@@ -1,11 +1,11 @@
-// The ground truth of a grazing material fixture (#443): the view the renderers draw, cast on the
+// The ground truth of a grazing material fixture: the view the renderers draw, cast on the
 // CPU from each pixel's centre into the fixture's square and the square behind it. Along the
 // pixel's minified axis — the screen axis spanning more texels, on the tangent its exact
 // derivatives lay, as a sampler reads it — `SAMPLES` bilinear reads of the base level are averaged
 // in linear light, then the alpha cutoff applies once: a perfect anisotropic read, no mip level,
 // no footprint cap. A magnified footprint is one read: averaging it would be antialiasing.
 //
-// A gap to it counts pixels farther than one 8-bit level on a channel (#443), silhouettes aside:
+// A gap to it counts pixels farther than one 8-bit level on a channel, silhouettes aside:
 // renderers draw them with one sample, and which surface shows is geometry. Pure: imported by the
 // proof's page (`materialTruth.ts`) and run in Node by its unit test.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
@@ -177,7 +177,7 @@ export function truthGap(image: ArrayLike<number>, truth: Truth): TruthGap {
   return gap
 }
 
-/** The proof of #443: the engine no farther from the truth than the witness, give or take
+/** The proof: the engine no farther from the truth than the witness, give or take
  *  CONTRIBUTING's `tolerance` in pixels. Undefined when it holds, else what fails. */
 export function truthVerdict(engine: TruthGap, reference: TruthGap, tolerance: number) {
   if (engine.pixels > reference.pixels + tolerance)

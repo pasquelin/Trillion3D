@@ -1,4 +1,4 @@
-// #525: a written range of placement rows stales only what moved in it. The world hands each
+// A written range of placement rows stales only what moved in it. The world hands each
 // instance buffer's written span once (`world/core/worldPoses.ts`): a row of it left where it
 // stands — a still mesh between two written ones, a sleeping wheel posed again in place — is no
 // move, and two roots that moved are two boxes, never the room between them.
@@ -96,7 +96,7 @@ test('a row parked or taken back where it stands stales its box, and is no move'
 })
 
 test('a row that stops or starts casting flips its mark and stales its box, whatever its pose', () => {
-  // #456: `castShadow` written on a world mesh reaches its row (`worldPoses.ts`); its root leaves
+  // `castShadow` written on a world mesh reaches its row (`worldPoses.ts`); its root leaves
   // or enters every light cut, and the pages it covered are drawn again without it, or with it.
   const { rows, write } = placed(),
     boxes: [number[], boolean][] = [],
@@ -115,7 +115,7 @@ test('a row that stops or starts casting flips its mark and stales its box, what
 })
 
 test('a moving row that stops casting as it moves stales its moving casters alone', () => {
-  // #456: the static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
+  // The static layer leaves a moving placement out (`mobility.ts`), so it has nothing of it.
   const { rows, write } = placed(),
     boxes: [number[], boolean][] = []
   const collect = (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>

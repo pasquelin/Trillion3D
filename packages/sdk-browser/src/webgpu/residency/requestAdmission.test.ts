@@ -1,4 +1,4 @@
-// #836: on the GPU-cut path, admission reads the readback's requests (#478), never the CPU ranking.
+// On the GPU-cut path, admission reads the readback's requests, never the CPU ranking.
 // Past the pool it keeps the coarsest levels whole, as the CPU cut's budget does, from a room the
 // image's arrivals never move, so a still view settles on one queue.
 import test from 'node:test'
@@ -57,7 +57,7 @@ test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU
   assert.ok(cut.admit.hostBytes() > 0, 'its tables are counted in the host tables')
 })
 
-// #1237: a page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
+// A page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
 // pool it goes first, above every level, so the root the view refuses is replaced before any detail.
 test("past the pool, a page a root's group replaces goes first, whatever its level", () => {
   const cut = gpuCut()

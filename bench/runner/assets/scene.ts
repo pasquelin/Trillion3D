@@ -28,7 +28,7 @@ const SCENE_NOTES: Record<string, string> = {
   'normal-tangent-mirror-test':
     'Khronos glTF-Sample-Assets, public: a plane whose texture coordinates are mirrored halves — a fold the weld must not split, and that must cost the simplification nothing. Small on purpose: it proves a rule, it measures no frame.',
   [FLUIDS_SCENE]:
-    'Fluids spike (#418): one ocean, 100 floating bodies, 20 fires and 5 smoke volumes, built through the public API; the drawn ocean, the fires and the smoke are throwaway stand-ins.',
+    'Fluids spike: one ocean, 100 floating bodies, 20 fires and 5 smoke volumes, built through the public API; the drawn ocean, the fires and the smoke are throwaway stand-ins.',
 }
 
 export const sceneNote = (scene: string) => SCENE_NOTES[scene] ?? null

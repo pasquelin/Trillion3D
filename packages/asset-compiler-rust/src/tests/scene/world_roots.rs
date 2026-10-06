@@ -1,4 +1,4 @@
-//! The world super-roots in a compilation (#23): a partitioned world publishes them beside its
+//! The world super-roots in a compilation: a partitioned world publishes them beside its
 //! cells, one entry per cell, and its cook report carries the pinned top's bytes.
 //!
 //! Provenance: the synthetic grid world of `partition.rs`, the fixture triangle placed 48 × 48

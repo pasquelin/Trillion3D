@@ -67,7 +67,7 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
     /**
      * The frame queue: ranks to update, level by level, within the batch. Returns the number
      * of groups to dispatch. Each level examines its own probes at most once: the loop is
-     * bounded before the frame, like all the others (X2).
+     * bounded before the frame, like all the others.
      */
     plan(total: number) {
       const shares = cascades.shareOf(total)

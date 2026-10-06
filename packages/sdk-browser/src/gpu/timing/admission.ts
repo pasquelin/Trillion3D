@@ -42,7 +42,7 @@ export function createTimedEncoder(state: TimingState, frame: number): GPUComman
 /** Starts sampling image `frame` when the cadence and the readbacks allow it. */
 function openImage(state: TimingState, frame: number) {
   // The image right after one sampled at the cadence is sampled too, into the second
-  // readback: the device idle between two images is only read between neighbours (#1451).
+  // readback: the device idle between two images is only read between neighbours.
   const second = frame === state.lastFrame + 1
   if (!second && frame - state.lastFrame < state.every()) {
     state.skippedFrames.interval++

@@ -107,7 +107,7 @@ const resAdmission = await measure({
     { name: '5 000 ordered jobs', input: admissions.full, size: 5000 },
     { name: 'no jobs', input: admissions.empty as Admission, size: 0 },
   ],
-  // The oracle sorts its own copy of the queue in arrival order, as the code before batch A did.
+  // The oracle sorts its own copy of the queue in arrival order, as the code did.
   calculation: ({ inOrder: queue }: Admission) => engineAdmission(refill(queue), bytesOf),
   expected: ({ arrival }: Admission) => referenceAdmission(arrival.slice(), bytesOf),
   options: { tours: 100, budgetMs: 1500 },

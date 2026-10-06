@@ -1,7 +1,7 @@
 // S19.6: the partition's and the occlusion test's counters are kept only on the frame whose copy is
 // sampled, one atomic per workgroup and counter. The shipped row routines run lane by lane, each
 // workgroup's flush after all its lanes, as its barrier orders them, beside the same routines
-// counting by one `state` atomic per row, as before: on a sampled frame `state` holds the same
+// counting by one `state` atomic per row: on a sampled frame `state` holds the same
 // words; on every frame the verdicts, rows, rest bits, slot counts and tested boxes are the same.
 import test from 'node:test'
 import assert from 'node:assert/strict'

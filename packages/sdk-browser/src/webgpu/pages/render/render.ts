@@ -54,7 +54,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   void requestFrameTargets(rt, gpuDevice)
   const pixelError = run.gate.pixelError,
     cam = run.gate.cam
-  // The atlases' records brought up to their host textures once for the image (#360, #361): a
+  // The atlases' records brought up to their host textures once for the image: a
   // sampling or a placement moved rewrites the texture's header, a resource change that releases a
   // held image. A filter rule switched on or off moves the resolve class of the pages that wear
   // the texture (`FLAG_SAMPLED`): their rows and the transparent records are written again.
@@ -91,7 +91,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging))
   marks.tilesEnd = performance.now()
   const worldsMoved = uploadWorlds(rt, cam)
-  // The GPU deformation of this image, on the poses just uploaded (#357).
+  // The GPU deformation of this image, on the poses just uploaded.
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
   // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
   // only chooses the pass where a cluster is drawn, and this image's pyramid remains the sole

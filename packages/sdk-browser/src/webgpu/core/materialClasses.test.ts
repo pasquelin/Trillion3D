@@ -102,7 +102,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
   assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present, 0), [HAS_VERTEX_NORMAL])
 })
 
-// OMB-11: the image reads its as-is flags from the first opaque row that shows a surface as-is —
+// The image reads its as-is flags from the first opaque row that shows a surface as-is —
 // a normal or depth view —; a lit row, or a blended one, which writes no flag, leaves it unread.
 test('an opaque row showing a surface as-is tells the image its flags are read', () => {
   const { source, metadata, indices, associations } = scene()
@@ -131,7 +131,7 @@ test('an opaque row showing a surface as-is tells the image its flags are read',
   assert.equal(vis.asIsShown, true, 'a depth view is shown as-is')
 })
 
-// #410: an image over the same rows reuses its classes; a pose moves none.
+// An image over the same rows reuses its classes; a pose moves none.
 test('the classes an image draws are read off the rows again only once a row is written', () => {
   const stride = PAGE_INFO_STRIDE / 4,
     rows = createWebgpuRowState([], 3),

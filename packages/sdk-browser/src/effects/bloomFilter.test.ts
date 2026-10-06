@@ -1,4 +1,4 @@
-// The physically based bloom (#349): the engine's filters are the defined ones, the chain of
+// The physically based bloom: the engine's filters are the defined ones, the chain of
 // levels conserves energy with no threshold, and its targets are sized from the image alone.
 import test from 'node:test'
 import assert from 'node:assert/strict'

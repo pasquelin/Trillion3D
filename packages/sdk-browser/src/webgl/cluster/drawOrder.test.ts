@@ -95,7 +95,7 @@ function compare(seed: number, sizes: readonly number[], edges: boolean) {
   }
 }
 
-// #920 (audit CPU-10): the flat keys sort the draws exactly as the node comparators did.
+// The flat keys sort the draws exactly as the node comparators do.
 test('the flat keys give the same order as the node comparators on random frames', () => {
   for (let seed = 1; seed <= 40; seed++)
     compare(seed, [0, 1, 2, 7, 33, 150, 150, 40, 600, 600], false)
@@ -122,7 +122,7 @@ test('a -0 depth sorts as the node comparators sort it', () => {
   assert.deepEqual(lists, [negativeZero, zero], 'equal depths: the creation number decides')
 })
 
-// #1198: sponza sorted its 1 465 pages from scratch every frame, 0.44 ms of its CPU frame.
+// A 1 465-page scene sorted from scratch every frame costs 0.44 ms of its CPU frame.
 test('a list sorted again under a camera that moved a little is walked once, in the same order', () => {
   const next = random(3),
     surfaces = [{}, {}, {}, {}],

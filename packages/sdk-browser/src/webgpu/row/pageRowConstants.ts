@@ -5,7 +5,7 @@ import { refreshSurface, type PageSurface } from '../../page/surface.ts'
 type MaterialRow = { version: number; mat: PageSurface }
 
 /**
- * What writing a page row used to recompute every time even though it depends only on the compiled
+ * What writing a page row would recompute every time though it depends only on the compiled
  * catalogue: the material fields — a new object and four arrays per write — and the cluster hash — a code-point array per write.
  *
  * Twelve placements of the same scene share their materials and clusters: one memo per surface

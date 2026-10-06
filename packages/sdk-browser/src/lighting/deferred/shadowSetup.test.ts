@@ -1,7 +1,7 @@
-// #1369: the surface reads its cell of the light grid once — the record the lighting walks and the
+// The surface reads its cell of the light grid once — the record the lighting walks and the
 // shadow flag in its count's high bit — and sets up what a shadow read needs — its unjittered
 // footprint (eight neighbour depths, three reconstructions), its receiver offset
-// (recomputed from the visibility buffer, #1410) — only where the cell lists a shadowed light, the
+// (recomputed from the visibility buffer) — only where the cell lists a shadowed light, the
 // one place a shadow is read; the program with no shadow code never does. Nothing else reads them,
 // so the sums are the same. The opaque shadow is the mask's: all but the mask's pixel is set only for
 // the translucent casters' point read, the one reader of the rest.

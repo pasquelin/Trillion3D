@@ -104,7 +104,7 @@ function log(axis: number, start: Vec3, length: number): Mesh {
 
 /** The shingle roof over the walls, eaves at `eaves`, ridge along X: two slopes of staggered
  *  boards, each lapped by a third of its length, under a ridge cap, as the open world's
- *  `mountains` chalets lay it (#484) — thousands of closed parts, each below a coarse level's
+ *  `mountains` chalets lay it — thousands of closed parts, each below a coarse level's
  *  error, that together cover a wide surface. */
 function shingleRoof(eaves: number): Mesh {
   const run = DEPTH / 2 + OVERHANG,
@@ -134,7 +134,7 @@ function shingleRoof(eaves: number): Mesh {
 }
 
 /**
- * `chalet`: a chalet of thin closed shapes (#415), the open world's `mountains/hotel` in small —
+ * `chalet`: a chalet of thin closed shapes, the open world's `mountains/hotel` in small —
  * a whitewash box for the ground floor, walls of octagonal logs, balcony slabs and boards, a
  * shingle roof. Every part is a closed solid facing out, with the normals an exporter writes.
  * `see-the-triangles?model=chalet` opens its cook; the compiler's tests cook it (`thin_walls.rs`,

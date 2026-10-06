@@ -1,5 +1,5 @@
 /**
- * What the WebGPU core lends the impostor family (#1335, `../../impostor/lent.ts`): the shared
+ * What the WebGPU core lends the impostor family (`../../impostor/lent.ts`): the shared
  * pieces, and the surfaces, depth, visibility targets, view, attachments, texture bytes, device
  * check, validation scope and pipeline build of the card passes.
  */

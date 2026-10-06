@@ -10,7 +10,7 @@ import {
 } from './uniforms.ts'
 import { evaluateHizReduce } from './oracle.fixture.ts'
 
-// The pyramid build of develop (a copy of level 0, then the per-level reduction the oracle
+// The reference pyramid build (a copy of level 0, then the per-level reduction the oracle
 // states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.
 const SLOT_WORDS = HIZ_UNIFORM_BYTES / 4
 

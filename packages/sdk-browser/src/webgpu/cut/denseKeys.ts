@@ -6,7 +6,7 @@ import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
  * path carry a set from one image to the next instead of rebuilding it, and what makes "no page
  * changed" cost nothing at all.
  *
- * Both tables follow the members, never the key range (#483 rule 6): the rank of a member is held
+ * Both tables follow the members, never the key range: the rank of a member is held
  * in a sparse map (`../../page/cut/sparseInts.ts`), and the list doubles when it fills. `list` is
  * therefore read through the set each time, never kept.
  *

@@ -1,4 +1,4 @@
-// #1410: the lighting recomputes the shadow receiver offset from the visibility buffer with one
+// The lighting recomputes the shadow receiver offset from the visibility buffer with one
 // shared text; the resolve writes it once, packed in 8 bytes, for the
 // virtual shadow maps' projection alone (`receiverTargetWgsl.ts`).
 import test from 'node:test'

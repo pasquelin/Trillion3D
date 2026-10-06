@@ -146,11 +146,11 @@ export function flatHierarchy(pages: readonly FlatPage[]) {
  * kept at level `L-1`, hence only nodes of level `L`, and descent writes them there
  * compacted from zero. That bound, known from packing once and for all, lets each
  * level pass launch FLAT: children past the queue leave on the count guard, the
- * dispatch argument's head word no longer has to be copied to an indirection buffer,
+ * dispatch argument's head word is not copied to an indirection buffer,
  * and nothing cuts descent — it fits in the head pass.
  *
  * THE MEASUREMENT THAT JUSTIFIES IT, published by `tests/gpu/dag/cut-dispatches.gpu.ts`
- * and cited from here only: on apple metal-3, one more level costs about 26 µs when it
+ * and cited from here only: on a Metal 3 device, one more level costs about 26 µs when it
  * opens its own pass behind two off-pass copies, and about 1.5 µs when it is a flat
  * dispatch in the head pass. The bench republishes the slope each run; those two
  * values are the order of magnitude. The bench does not split the copy from the pass

@@ -11,7 +11,7 @@ import type { Quant } from './geometryPageHeader.ts'
 import { field } from '../../../../page-codec/src/bits.ts'
 
 /**
- * What a `WGP3` page carries for the GPU deformation stage (#357), the mirror of the shared
+ * What a `WGP3` page carries for the GPU deformation stage, the mirror of the shared
  * codec's `deform.rs`: word 23, the skin record — the page's smallest joint and the width of each
  * joint's distance to it — and the morph target count, then each target's nine words after the
  * header — the word its streams start at, then its position and normal records.

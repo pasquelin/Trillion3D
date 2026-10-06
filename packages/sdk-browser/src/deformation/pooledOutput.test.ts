@@ -66,7 +66,7 @@ test("a float page's block in the float pool holds what its slot's tail held, bi
     for (let i = 0; i < REST; i++) positions[i] = Math.cos(i * 0.7 + t) * 3.1
   }
   const row = { flags: FLAG_DYNAMIC, indexCount: 6, vertexBase: 0, deform: 0, selectionIndex: 7 }
-  // As before: a tail at word 40 of the page's slot, the page's own row deforming it.
+  // A tail at word 40 of the page's slot, the page's own row deforming it.
   const tail = { ...row, pageOffset: 0, deformCount: VERTICES, deformOutput: 40 + 2 + 1 }
   // Now: the block after the vertices, two table rows deforming it from vertex 0 and from vertex
   // 3 on (`wholePool.ts`, one pass of the group a row), the page's row reading it.

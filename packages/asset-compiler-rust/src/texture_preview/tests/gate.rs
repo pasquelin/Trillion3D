@@ -106,7 +106,7 @@ fn a_texture_under_the_bar_stays_lossless_and_is_named() {
 
 // Behaviour: a masked texture whose compressed alpha crosses the cutoff on one
 // texel stays lossless whatever its decibels — the report counts the flips. The
-// cut is the engine's, alpha times the colour factor's (#748): 0.25 under a
+// cut is the engine's, alpha times the colour factor's: 0.25 under a
 // factor of 0.5 cuts where 0.5 does, alone it cuts nothing the alphas reach.
 #[test]
 fn a_masked_texture_that_flips_a_texel_stays_lossless() {

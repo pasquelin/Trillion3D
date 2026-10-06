@@ -67,14 +67,14 @@ fn a_sixteen_bit_png_comes_out_as_a_report_reason_never_clipped() {
         Some("image-depth-unsupported")
     );
     // A file too short to carry its IHDR is not judged on its depth: it stays judged by the
-    // decoder, exactly as before this refusal.
+    // decoder.
     assert_eq!(
         registry::decode(b"\x89PNG\r\n\x1a\ntronque", MAX_ALLOC).err(),
         Some("image-decode-failed")
     );
 }
 
-// Reproduction of finding 8: an APNG carries several images, the contract yields only one. The
+// An APNG carries several images, the contract yields only one. The
 // first comes out as-is — it is the default image the APNG specification places in `IDAT` —,
 // and the file having declared an animation by its `acTL` chunk, the driver counts it.
 // Flattening without saying so let two images in and only one out, without a word in the
@@ -135,7 +135,7 @@ fn declares(bytes: &[u8]) -> (registry::Transfer, Vec<&'static str>) {
     (decoded.transfer, decoded.notes)
 }
 
-// Reproduction of finding A12: a PNG that declares `gAMA = 100000` says a gamma of 1, so
+// A PNG that declares `gAMA = 100000` says a gamma of 1, so
 // samples proportional to light — the PNG specification writes it. The driver nevertheless
 // yielded `Srgb` without a word, and the preview chain decoded a second time an already linear
 // image. The declared curve is now carried, under a fixed priority: `iCCP`, then the `sRGB`

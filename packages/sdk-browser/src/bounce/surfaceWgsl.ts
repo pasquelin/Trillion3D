@@ -17,7 +17,7 @@ export const surfaceCacheBytes = (triangleCount: number) =>
   atlasBytes(atlasExtent(surfaceCacheTexels(triangleCount)))
 
 /**
- * Proxy surface cache (LR5): one outgoing radiance per triangle and per face.
+ * Proxy surface cache: one outgoing radiance per triangle and per face.
  *
  * Without it, every probe ray that hit a surface replayed every light and all of their
  * shadow rays there: five proxy traversals per ray instead of one, and the same point

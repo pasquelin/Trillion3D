@@ -1,5 +1,5 @@
 /**
- * A PARTITION'S CELL FILE, READ OFF THE MAIN THREAD (#575). The decode pool's `cells` task
+ * A PARTITION'S CELL FILE, READ OFF THE MAIN THREAD. The decode pool's `cells` task
  * (`../page/decode/task.ts`) parses the file, refuses one of another version and composes the
  * local matrix of each node as the engine composes a host node's; the main thread only copies
  * those matrices onto rows (`cells.ts`). Without a worker, the same function runs on the main

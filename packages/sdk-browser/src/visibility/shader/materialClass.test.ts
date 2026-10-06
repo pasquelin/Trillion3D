@@ -47,7 +47,7 @@ test('the resolve shader tests class overrides, never the page flags, for what a
   )
 })
 
-// #347: the resolve multiplied nothing by the vertex colour, and WebGPU drew white where the
+// The resolve multiplied nothing by the vertex colour, and WebGPU drew white where the
 // forward path drew the gradient. A class with vertex colours multiplies the base colour by the
 // perspective-correct interpolation of the three corners, read on the page where it is quantized.
 test('a class with vertex colours multiplies its base colour by them, and no other class does', () => {

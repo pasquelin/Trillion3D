@@ -31,9 +31,9 @@ const UNLIT_IRRADIANCE = Math.PI
  *
  * The contract takes over when the host has used it — a declared light, or a requested view —,
  * or when the source graph declares no light either: `auto` with no light anywhere is the unlit
- * view, raw albedo, as on WebGPU (`SceneLightingView`), never a black frame (#1016). Until then
- * the source-graph lights stay the only ones lighting and the image is the one from before this
- * batch, pixel for pixel. As soon as it has, the source graph disappears: two stacked light sets
+ * view, raw albedo, as on WebGPU (`SceneLightingView`), never a black frame. Until then
+ * the source-graph lights stay the only ones lighting and the image is the source graph's alone,
+ * pixel for pixel. As soon as it has, the source graph disappears: two stacked light sets
  * would be nobody's lighting.
  */
 function createContractLights(scene: Scene, store: SceneLightStore | undefined) {

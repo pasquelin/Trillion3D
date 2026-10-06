@@ -1,9 +1,9 @@
-// The manifest held by the view on WebGL2 (#751). The synthetic worlds of `world-partition.test.ts`,
+// The manifest held by the view on WebGL2. The synthetic worlds of `world-partition.test.ts`,
 // compiled by this checkout's native compiler, are loaded as a WebGL2 world loads them
 // (`loadModel`, `lazy`): the manifest's root and head, then the pages its node table needs; each
 // cell placed holds the pages its meshes lie in, and the session mounts their meshes in place
-// (`world-partition-pages.fixture.ts`). #750: the tables and the manifest read through the paged
-// root give the scene the whole read gives. #404 on WebGL2: a zoom out to 0.5 and a parent scaled
+// (`world-partition-pages.fixture.ts`). The tables and the manifest read through the paged
+// root give the scene the whole read gives. On WebGL2, a zoom out to 0.5 and a parent scaled
 // down leave no object missing, with no session reopened. And the pages leave with their cells.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
@@ -37,7 +37,7 @@ const asRead = (model: Awaited<ReturnType<typeof loadModel>>) =>
   )
 
 test(
-  '#750: the tables and the manifest read through the paged root build the scene the whole read builds',
+  'the tables and the manifest read through the paged root build the scene the whole read builds',
   { skip },
   async (t) => {
     // The district draws a mesh of its own: the node table needs its page at open.
@@ -61,7 +61,7 @@ test(
 )
 
 test(
-  '#404 on WebGL2: a zoom out to 0.5 leaves no object missing, and no session is reopened',
+  'on WebGL2, a zoom out to 0.5 leaves no object missing, and no session is reopened',
   { skip },
   async (t) => {
     const model = await (await served(t, world(96)))(true)
@@ -79,7 +79,7 @@ test(
 )
 
 test(
-  '#404 on WebGL2: a parent scaled down leaves no object missing, and no session is reopened',
+  'on WebGL2, a parent scaled down leaves no object missing, and no session is reopened',
   { skip },
   async (t) => {
     const model = await (await served(t, world(384, 'district')))(true)

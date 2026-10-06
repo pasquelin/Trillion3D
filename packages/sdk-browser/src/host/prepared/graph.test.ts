@@ -59,7 +59,7 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
   for (const part of parts) assert.deepEqual(part.morphTargetInfluences, [0.5])
 })
 
-// #347: a compiled glTF primitive with `COLOR_0` wears the vertex-coloured variant of its
+// A compiled glTF primitive with `COLOR_0` wears the vertex-coloured variant of its
 // surface, which the engine record reads and a WebGPU row multiplies by (`pageRow.test.ts`).
 test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of its surface', async () => {
   const { tables, meshes } = oneNode('painted', null)
@@ -84,7 +84,7 @@ test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of i
   assert.deepEqual(records, [true, false])
 })
 
-// #846: the autonomous document's primitives hold one degenerate triangle, positions only; the
+// The autonomous document's primitives hold one degenerate triangle, positions only; the
 // pages they are drawn from carry the source primitive's normals, so their surface is not flat.
 test('a primitive of the autonomous document is flat only where its source primitive has no normal', async () => {
   const { tables, meshes } = oneNode('paged', null)
@@ -108,7 +108,7 @@ test('a primitive of the autonomous document is flat only where its source primi
   assert.deepEqual(flat, [false, true])
 })
 
-// #846: a class change cuts a primitive's pages again from the vertices they were cut from: for
+// A class change cuts a primitive's pages again from the vertices they were cut from: for
 // a stand-in of the autonomous document, its source primitive's, at the same ranks.
 test('a mesh of the autonomous document is paged from its source primitive, any other from its own', async () => {
   const { tables, meshes } = oneNode('paged', null)
@@ -127,7 +127,7 @@ test('a mesh of the autonomous document is paged from its source primitive, any 
   assert.deepEqual(await read(), [stand, stand])
 })
 
-// #519: a node declaring `KHR_node_visibility` `visible: false` is built hidden, so the pages it
+// A node declaring `KHR_node_visibility` `visible: false` is built hidden, so the pages it
 // draws are parked by the one hide/show path (`followHostVisibility`) until a page shows it.
 test('a node the table says hidden is built hidden, every primitive it draws with it', async () => {
   const geometryOf = () => {
@@ -146,7 +146,7 @@ test('a node the table says hidden is built hidden, every primitive it draws wit
   }
 })
 
-// #519: a mesh one hidden core node names is its node, hidden; the cells' copies of that same mesh
+// A mesh one hidden core node names is its node, hidden; the cells' copies of that same mesh
 // place shown nodes only, so they are built visible.
 test('a mesh a hidden core node names is placed visible by the cells', async () => {
   const { tables, meshes } = oneNode('hidden', null, false)

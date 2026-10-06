@@ -1,4 +1,4 @@
-// #362: a video texture is live by itself — each frame the video presents moves its picture —,
+// A video texture is live by itself — each frame the video presents moves its picture —,
 // and a paused video asks for nothing: a still scene does no work.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'

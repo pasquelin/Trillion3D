@@ -28,7 +28,7 @@ import { DEFORM_GLSL } from '../../deformation/deformGlsl.ts'
 // (`lineClip`, `../../visibility/shader/lineWgsl.ts`), along the direction its normal carries.
 // A sprite surface (`sprite.y` not zero) turns its quad to face the camera in view space
 // (`spriteAt`, `../../visibility/shader/spriteWgsl.ts`), about the origin of its placement.
-// A deformed page's vertex is first moved by its placement's record (`deform`, #357).
+// A deformed page's vertex is first moved by its placement's record (`deform`).
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
 in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;in mat4 instanceMatrix;
@@ -62,7 +62,8 @@ toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`
 // `surfaceModel` is the surface's `SURFACE_MODEL` rank (`../../scene/surfaceModel.ts`): a matcap
 // reads its image at its normal's coordinate, at the image's full detail as the WebGPU resolve
 // does; a normal or depth surface shows its view normal or the frame's depth ramp.
-// A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one (#840), and into the effect chain also a `none` one (`bindClusterMaterial`).
+// A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one, and into the effect
+// chain also a `none` one (`bindClusterMaterial`).
 // `mipBias`: the texture level offset of an image drawn below the display (`upscaleMipBias`), so a
 // material keeps its texel density at any render scale; zero at the display's size.
 export const CLUSTER_FRAGMENT = `#version 300 es

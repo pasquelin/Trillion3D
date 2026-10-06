@@ -1,8 +1,8 @@
-// Equivalence harness of CMP-10 (#960, E0), on the reference encoder and the JavaScript decoder:
-// a page that stores each position once decodes to the very bytes develop's page decoded to, and
-// the WebAssembly module decodes it alike. Develop's outcome of every case — the SHA-256 of the
-// decoded block, or the refusal — and its page bytes are frozen below, measured on develop
-// `a563999f0` with this same harness (`positions.fixture.ts`).
+// Equivalence harness, on the reference encoder and the JavaScript decoder:
+// a page that stores each position once decodes to the very bytes the reference page decoded to,
+// and the WebAssembly module decodes it alike. The reference outcome of every case — the SHA-256 of
+// the decoded block, or the refusal — and its page bytes are frozen below, measured with this same
+// harness (`positions.fixture.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

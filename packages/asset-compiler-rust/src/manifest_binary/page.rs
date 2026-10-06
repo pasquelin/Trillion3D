@@ -82,7 +82,7 @@ pub(super) fn encode_page(
         None => -1,
         Some(value) => as_i32(integer(Some(value), "page.level")?, "page.level")?,
     });
-    // Literal labels: previously formatted twice per key and per page.
+    // Literal labels, not formatted per key and per page.
     for (key, label, flag) in [
         ("group", "page.group", FLAG_GROUP),
         ("source", "page.source", FLAG_SOURCE),

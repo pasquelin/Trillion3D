@@ -25,7 +25,7 @@ const SHAFT = 0.04,
  * move, rings to turn, shafts ending in cubes and a centre cube to scale. Every part is a mesh of
  * the `geometry` family in an unlit material, so the world draws it depth-tested like any object
  * and a pick hits it (`raycast`). Each axis owns ONE material, shared by all its parts: writing
- * its colour — the highlight of a dragged axis — repaints one entry in place (#335).
+ * its colour — the highlight of a dragged axis — repaints one entry in place.
  */
 export function buildTransformHandles() {
   const root = markHelper(new Group())

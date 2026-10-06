@@ -1,4 +1,4 @@
-//! World super-roots on a synthetic world (#23). A tile is 1 km square and holds 4 × 4 objects,
+//! World super-roots on a synthetic world. A tile is 1 km square and holds 4 × 4 objects,
 //! each a bumped plate lying down and a smaller one standing, two primitives of two materials,
 //! their root covers taken from their real DAG. The world is one tile (1 km) or 8 × 8 tiles
 //! (8 km, 64 times the objects), one cell per tile.

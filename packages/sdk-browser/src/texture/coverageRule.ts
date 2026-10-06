@@ -1,13 +1,13 @@
 /**
  * The arithmetic of the coverage-preserving alpha rule (docs/FORMAT.md, "Coverage-preserving alpha
- * (#44)"; `texture_preview/coverage.rs`), in the two shading languages of the card's chains, twin
- * for twin: WGSL for WebGPU, GLSL ES 3.0 for WebGL2 (#769). The scale: `median`, a level's alpha
+ *"; `texture_preview/coverage.rs`), in the two shading languages of the card's chains, twin
+ * for twin: WGSL for WebGPU, GLSL ES 3.0 for WebGL2. The scale: `median`, a level's alpha
  * byte as the compiler rounds it, `scaled`, step 4, and `reducedAlpha`, what a reduced texel
- * stores — the median alone without a cutoff, byte for byte as before. The pick: `pick`, step 3
+ * stores — the median alone without a cutoff, byte for byte. The pick: `pick`, step 3
  * over the level's histogram, `binOf(t)`, which the including
  * shader declares; its products pass 32 bits, so `wide` holds one as (high, low) words, `apart`
  * their distance, and `below` orders (error, distance to C, t) as the compiler's `min` does. The
- * cut (#43): `filtered`, the byte of a texel's bilinear sample `s` of the square of corner alphas
+ * cut: `filtered`, the byte of a texel's bilinear sample `s` of the square of corner alphas
  * `a`, and `cutBin`, the highest `t` whose scale lifts that sample to `C` — the bin it is counted
  * in, coverage measured on the filtered cut, not on the texels —, searched between the square's
  * lowest and highest corners: a corner reaches `C` exactly when `t` is at most its byte.

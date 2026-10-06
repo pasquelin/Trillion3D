@@ -1,4 +1,4 @@
-// A compiled world loaded as a WebGL2 world loads it (#751): its manifest held by the view, its
+// A compiled world loaded as a WebGL2 world loads it: its manifest held by the view, its
 // cells followed by the session's per-frame step (`createPartitionFrame`) on a WebGL2 engine
 // stand-in that mounts and unmounts in place (`mountPlacements`, `unmountPlacements`), as the
 // autonomous WebGL2 engine does, and grows its rows in place (`growPlacements`).

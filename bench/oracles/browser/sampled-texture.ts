@@ -1,7 +1,7 @@
-// Batch F oracle, texture side: `packages/sdk-browser/src/visibility/types.ts:129-142` from before batch F, copied as-is.
+// Oracle, texture side: `packages/sdk-browser/src/visibility/types.ts:129-142`, copied as-is.
 import type { Texture } from '../../../packages/sdk-core/src/index.ts'
 
-/** `textureRgba` before batch F: a view and an object allocated on every sampled texel. */
+/** `textureRgba`: a view and an object allocated on every sampled texel. */
 export function referenceTextureRgba(texture: Texture) {
   const image = texture.image as
     { data?: ArrayBufferView; width?: number; height?: number } | undefined

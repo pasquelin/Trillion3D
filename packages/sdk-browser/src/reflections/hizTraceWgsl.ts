@@ -10,10 +10,10 @@ fn reflectionPhase(seed:u32)->vec2i{return vec2i(i32(((seed+1u)>>1u)&1u),i32(see
  *  then walked over the depth pyramid as the mirror's (`screenReflection`, `traceShader.ts`).
  *  Unlifted, a glossy ray leaving its plane at a grazing angle met that plane's own depth a pixel
  *  or two on — a pixel centre's depth inside the ray's span over it — and read the receiver back:
- *  the dark grain of a glossy car roof (#831). Lifted, the plane's depth over the next pixels stays
+ *  the dark grain of a glossy car roof. Lifted, the plane's depth over the next pixels stays
  *  behind the ray. A hit reads the reprojected source, whose alpha tells a pixel the last image did
  *  not see: a miss. A miss reads the program's filtered reflection at the first roughness the
- *  probes filter — never a proxy ray per pixel. A rough sample (#33) and the water's mirror (#1279)
+ *  probes filter — never a proxy ray per pixel. A rough sample and the water's mirror
  *  resolve their ray by it alike. */
 export const HIZ_TRACE_WGSL = `
 fn boundedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{

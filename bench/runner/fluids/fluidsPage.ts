@@ -41,7 +41,7 @@ function floatingMeshes(sdk: Sdk, bodies: FluidsScene['bodies']) {
   })
 }
 
-/** Throwaway stand-ins (#422, #423): a flat transmissive ocean, fires and smoke volumes. */
+/** Throwaway stand-ins: a flat transmissive ocean, fires and smoke volumes. */
 function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: FluidsScene) {
   const { geometry, material, object, light } = sdk
   const sea = object.mesh(
@@ -74,7 +74,7 @@ function standIns(sdk: Sdk, world: ReturnType<Sdk['createWorld']>, scene: Fluids
       layer.position.set(x, y, z)
       world.scene.add(layer)
     }
-  // Flicker modulates intensity alone, as the fire lights of #417 will.
+  // Flicker modulates intensity alone.
   return (frame: number) =>
     fires.forEach((lamp, i) => (lamp.intensity = 40 * (0.8 + 0.2 * Math.sin(frame * 0.7 + i))))
 }

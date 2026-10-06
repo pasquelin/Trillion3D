@@ -8,7 +8,7 @@ import { markReach } from './halfFloat.ts'
 import { updateWavePages } from './wavePages.ts'
 
 /**
- * Brings the session's GPU deformation to this image (#357), once its poses are uploaded: each
+ * Brings the session's GPU deformation to this image, once its poses are uploaded: each
  * deformed root's record rewritten — this frame's palette, weights and wave phases beside the last
  * frame's — and the block sent to the float pool when one moved; each root's reach set for the CPU
  * cut (`ClusterRoot.reach`) and in its mark for the GPU cut; each moving root declared to the

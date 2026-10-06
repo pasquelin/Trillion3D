@@ -6,7 +6,7 @@ import { createSparseInts } from './sparseInts.ts'
 import type { PageRecord } from './state.ts'
 
 type Root = ClusterRoot<PageRecord>
-/** A primitive: the `pages` its placements share (#1235), the key of its readiness. */
+/** A primitive: the `pages` its placements share, the key of its readiness. */
 type Primitive = Root['pages']
 type Held = {
   readiness: CutReadiness
@@ -43,22 +43,22 @@ function baseOf(
 
 /**
  * THE RESIDENCY A POOL'S CUTS HOLD: the cut rule's readiness of each primitive they visit
- * (`./readiness.ts`), kept from one cut to the next and moved by the pool's own residency feed
- * (#483 rule 7). A page is resident when `isResident` says so, or, without one, when it holds its
+ * (`./readiness.ts`), kept from one cut to the next and moved by the pool's own residency feed.
+ * A page is resident when `isResident` says so, or, without one, when it holds its
  * index array. `moved` names a record whose residency may have changed, and the next cut visiting
  * a placement of its primitive reads that page alone: a cut over primitives in which nothing moved
  * reads no page.
  *
- * Residency belongs to the record, which every placement of a primitive shares (#1235): so does
+ * Residency belongs to the record, which every placement of a primitive shares: so does
  * the readiness, one state per primitive however many of its placements the view holds, a
- * streaming state is its resource's and never an instance's (#1232). A primitive is read
+ * streaming state is its resource's and never an instance's. A primitive is read
  * whole when it enters — first seen, or its DAG or hierarchy changed. A move is routed by the
- * packed base both layouts post on each root (`postPackedBases`, #1235), against the placements
+ * packed base both layouts post on each root (`postPackedBases`), against the placements
  * `track` last named; a layout that changes calls `track` again, and the primitives that stay keep
  * their state. A primitive entered by a placement whose moves cannot be routed is read whole at
  * every visit, and counted.
  *
- * Bounded by the view (#483 rule 6): each image ends (`endImage`: its cut, or a GPU cut's image)
+ * Bounded by the view: each image ends (`endImage`: its cut, or a GPU cut's image)
  * by releasing the states no cut visited since the previous one, so the states held are those of
  * the primitives the image and its lights see. `bytes` is their running total, read without walking.
  */

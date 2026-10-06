@@ -1,4 +1,4 @@
-//! An FBX that bends (#357): a leaf skinned to one bone, a blend shape that curls it, and a stack
+//! An FBX that bends: a leaf skinned to one bone, a blend shape that curls it, and a stack
 //! that slides the bone two metres in one second. The conversion writes a skin, a morph target
 //! and a clip; the compilation pages the skinned leaf and tables its motion.
 use super::*;

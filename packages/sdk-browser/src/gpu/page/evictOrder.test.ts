@@ -1,4 +1,4 @@
-// The cache on the GPU-cut path gives its slots back in the order the cut published (#872).
+// The cache on the GPU-cut path gives its slots back in the order the cut published.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'

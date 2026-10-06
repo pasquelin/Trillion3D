@@ -3,8 +3,8 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 
-/** Words of a cell record of the light grid (#1369): its count — the high bit set when a light of
- *  its list holds a shadow slot, the per-cell fact the moving resolve reads once (#1249) —, then
+/** Words of a cell record of the light grid: its count — the high bit set when a light of
+ *  its list holds a shadow slot, the per-cell fact the moving resolve reads once —, then
  *  where its list starts in the view's pool. */
 export const TILE_STRIDE_WORDS = 2
 
@@ -17,7 +17,7 @@ export const TILE_STRIDE_WORDS = 2
  */
 export const directLightWgsl = (slots?: number) => `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
-/** The light grid (#1369): cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
+/** The light grid: cells of \`TILE_SIZE\` pixels across, \`GRID_SLICES\` deep, a doubling of
  *  the view depth every \`SLICES_PER_OCTAVE\` slices from the near plane, the last reaching to
  *  infinity. A cell's record (\`TILE_STRIDE\` words) holds its count and where its list of lights
  *  starts in the view's pool, or \`TILE_NO_SLICE\` when the pool had no room left: that cell walks
@@ -27,7 +27,7 @@ const SLICES_PER_OCTAVE:f32=${LIGHT_SETTINGS.gridSlicesPerOctave}.0;
 /** A list's length past which a moving image sums it in full, and the lights of a narrow scene. */
 const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
-/** The count word's high bit: a light of the list holds a shadow slot (#1249). */
+/** The count word's high bit: a light of the list holds a shadow slot. */
 const TILE_SHADOWED:u32=0x80000000u;
 const TILE_NO_SLICE:u32=0xffffffffu;
 /** The slice of a depth \`z\` (reverse-Z, 1 at the near plane): the doublings of its view depth
@@ -82,7 +82,7 @@ fn directIncidence(light:DirectLight,P:vec3f)->vec4f{
  }
  return vec4f(L,attenuation);
 }
-/** The unshadowed resolve's range reject (#1249, \`sliceLightingWgsl\`): a light is skipped past
+/** The unshadowed resolve's range reject (\`sliceLightingWgsl\`): a light is skipped past
  *  this many times its squared range, far above the f32 roundings of \`length\`, so
  *  \`directIncidence\` and \`rectView\` would have given it zero there. */
 const RANGE_REJECT:f32=1.0001;

@@ -1,4 +1,4 @@
-// A camera cut's `frames` past what one storage buffer binds (#979): the host side of the split —
+// A camera cut's `frames` past what one storage buffer binds: the host side of the split —
 // ranges, buffers, bind groups, stages, writes, copies and dispatches. That the split cuts as the
 // whole table is the GPU's to prove (`tests/gpu/dag/frame-ranges.gpu.ts`).
 import test from 'node:test'

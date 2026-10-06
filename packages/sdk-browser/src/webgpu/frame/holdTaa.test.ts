@@ -1,4 +1,4 @@
-// #26: a held frame leaves temporal accumulation where the last encoded frame left it, so the
+// A held frame leaves temporal accumulation where the last encoded frame left it, so the
 // convergence image a barrier replays is the image the hold shows, however many frames were held.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -33,7 +33,7 @@ function heldRuntime(stillFrames: number) {
   return { rt, frame, checkpoints: () => checkpoints }
 }
 
-test('#26: a held frame takes no checkpoint and counts no still frame', () => {
+test('a held frame takes no checkpoint and counts no still frame', () => {
   const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES)
   const { device } = fakeDevice()
   const sample = frame.sample
@@ -44,7 +44,7 @@ test('#26: a held frame takes no checkpoint and counts no still frame', () => {
   assert.equal(frame.sample, sample)
 })
 
-test('#26: the quiet frame that still accumulates enters, then the next one is held', () => {
+test('the quiet frame that still accumulates enters, then the next one is held', () => {
   const { rt, frame, checkpoints } = heldRuntime(TAA_STILL_FRAMES - 1)
   const { device } = fakeDevice()
   assert.equal(holdWebgpuFrame(rt, device), false, 'one image short of whole cycles: drawn')
@@ -54,7 +54,7 @@ test('#26: the quiet frame that still accumulates enters, then the next one is h
   assert.equal(checkpoints(), 1)
 })
 
-test('#26: a view that does not accumulate holds on the count a settled beauty image left', () => {
+test('a view that does not accumulate holds on the count a settled beauty image left', () => {
   const { rt, frame } = heldRuntime(TAA_STILL_FRAMES)
   const { device } = fakeDevice()
   rt.run.diagnostic = 'wireframe'

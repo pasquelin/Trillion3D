@@ -19,7 +19,7 @@ import {
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
  * by the browser, or a block tile's record as the file holds it, held in the level store, or a
  * working texture built from the host image, which only the lossless lane receives. A tile whose
- * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
+ * source is not yet in hand is not served; it comes back on the next feedback. A host texture's
  * tail takes the same path, one temporary working texture at a time.
  */
 export function createTileSources(options: {
@@ -44,7 +44,7 @@ export function createTileSources(options: {
   /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
   const scratchId = (atlas: WebgpuTileAtlas, slot: number) =>
     slot * 2 + (atlas.kind === 'color' ? 0 : 1)
-  /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
+  /** Working textures of the live host textures, kept from pass to pass, and their bytes. */
   const live = new Map<number, TileScratch>()
   let liveBytes = 0
   const build = (atlas: WebgpuTileAtlas, slot: number) =>
@@ -141,7 +141,7 @@ export function createTileSources(options: {
       })
     },
     /**
-     * A host texture's new picture (#362): the texture turns live — it keeps one working texture
+     * A host texture's new picture: the texture turns live — it keeps one working texture
      * of its own size, refilled in place from now on —, and its tail and resident tiles are
      * copied again from it, in one submit. A texture whose picture never moves never gets here;
      * one whose size moved is not copied — false —: only a new session lays its tiles out again.
@@ -159,7 +159,7 @@ export function createTileSources(options: {
       copyLiveTexture(device, atlas, slot, scratch.texture)
       return true
     },
-    /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
+    /** A host texture whose readers' coverage rule moved: its mips reduced again, copied. */
     reduce(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false
       withScratch(atlas, slot, (scratch) => {

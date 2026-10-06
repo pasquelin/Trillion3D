@@ -23,7 +23,7 @@ const NO_PARENTS: readonly PageRec[] = []
  * therefore never leaves before its children, and the nearest resident ancestor of a cluster is
  * never reclaimed under it.
  *
- * Its tables follow the held pages, never the catalogue (#483 rule 6), and each call walks what
+ * Its tables follow the held pages, never the catalogue, and each call walks what
  * moved and what came due, never the held set.
  */
 export function createLastUse(options: {

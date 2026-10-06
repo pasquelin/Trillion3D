@@ -48,7 +48,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
 }
 
 /**
- * The shadow step's cold work, said apart from every frame (#989): the shadow maps' pipelines for
+ * The shadow step's cold work, said apart from every frame: the shadow maps' pipelines for
  * the set its casting lights are first granted (`prepareVsmPipelines`), compiled now for a scene
  * with shadows. One that fails here is compiled again, and said, where it is first used.
  */

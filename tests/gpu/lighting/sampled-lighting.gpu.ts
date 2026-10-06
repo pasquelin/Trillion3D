@@ -1,4 +1,4 @@
-// Sampled lighting converges, and a still image is the exact one (#1249).
+// Sampled lighting converges, and a still image is the exact one.
 //
 // One lit square under eight contract lights of two colours, rendered by the real WebGPU engine.
 // Still, the accumulated image equals the plain one inside the square: every light is shaded in

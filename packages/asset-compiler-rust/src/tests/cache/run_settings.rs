@@ -1,4 +1,4 @@
-//! One scene, one output whatever the run (#1405): its threads and RAM budget change how fast and
+//! One scene, one output whatever the run: its threads and RAM budget change how fast and
 //! in how much memory a compile runs — the pool's width, the waves its primitives are cut into —
 //! never the bytes it writes; the run's result reports them, the manifest head does not.
 use super::deterministic::fingerprints;
@@ -40,7 +40,7 @@ fn one_and_four_threads_write_the_same_bytes() {
 }
 
 // Behaviour: under a small RAM budget the two primitives, whose kept page records leave no room for
-// both, compile one wave each instead of being refused (#50), under a large one together, and both
+// both, compile one wave each instead of being refused, under a large one together, and both
 // write the same files, byte for byte; each result reports its budget and waves.
 #[test]
 fn a_small_and_a_large_ram_budget_write_the_same_bytes() {

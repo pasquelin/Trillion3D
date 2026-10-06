@@ -1,8 +1,8 @@
-// #1314 To-do 3, #1335: a root the impostor plan switches carries the card bit of its mark
+// A root the impostor plan switches carries the card bit of its mark
 // (`CARD_ROOT`), so every camera cut drops its clusters in the same breath as the card
 // `planImpostors` yields for it, while its mark keeps no shadow bit: the object keeps its
-// mesh's shadow. A root without the bit — WebGL2, any pre-impostor cache — is cut as before. Fails
-// on develop: the card bit and its reading are new.
+// mesh's shadow. A root without the bit — WebGL2, a cache with no impostors — is cut by the plain
+// rule.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planImpostors, type ImpostorSection } from '../../../../sdk-core/src/index.ts'

@@ -15,7 +15,7 @@ import {
 } from '../../../../../bench/oracles/browser/mat4HoistOracle.ts'
 
 // The hardware fallback draws the WHOLE opaque cut: the compute raster having taken triangles
-// of all sizes, the threshold that used to drop the small ones no longer exists, and no triangle
+// of all sizes, no threshold drops the small ones, and no triangle
 // can fall between the two producers. The behaviour tested next stays that of the hoisted product:
 // the three vertices projected with the product named once are those a product redone for
 // each would have given, on hostile matrices.
@@ -29,7 +29,7 @@ test('the hardware raster reads the share in the same text as the compute raster
     VIS_SHADER,
     /fn hardwareIdle\(page:PageInfo,vertexIndex:u32\)->bool\{\n return vertexIndex>=page\.indexCount\|\|uni\.computeSpan>=1000000000;\n\}/,
   )
-  // Without a share, only the vertex's own corner; with one, its triangle decoded once (#959).
+  // Without a share, only the vertex's own corner; with one, its triangle decoded once.
   assert.match(
     VIS_SHADER,
     /fn hardwareCorner\(page:PageInfo,h:ClusterHeader,vertexIndex:u32\)->u32\{\n if\(uni\.computeSpan<=0\.0\)\{return pageCorner\(page,h,vertexIndex\);\}\n let corners=pageTriangle\(page,h,vertexIndex\/3u\);/,

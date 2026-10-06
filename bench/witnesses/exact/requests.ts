@@ -21,10 +21,10 @@ export type ExactPagesRequestContext = {
   pendingScratch: string[]
   requestStamps: RequestStamps
   desired: PageRec[]
-  /** The packed rank of each desired record, rank by rank (#1235). */
+  /** The packed rank of each desired record, rank by rank. */
   desiredPacked: number[]
   shown: PageRec[]
-  /** The packed rank of each shown record, rank by rank (#1235). */
+  /** The packed rank of each shown record, rank by rank. */
   shownPacked: number[]
   roots: ReadonlyArray<ClusterRoot<PageRec>>
   urlScratch: string[]

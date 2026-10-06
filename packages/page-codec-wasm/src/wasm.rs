@@ -58,7 +58,7 @@ pub unsafe extern "C" fn page_decode(offset: u32, len: usize, max_decoded_bytes:
 }
 
 /// The result block of a decoded page, sized from its accepted header and the page decoded
-/// straight into it (STR-02, #238): no intermediate vector, no copy of the decoded words.
+/// straight into it (STR-02): no intermediate vector, no copy of the decoded words.
 fn result_block(data: &[u8], max_decoded_bytes: usize) -> Result<Vec<u32>, PageError> {
     let header = Header::parse(data, max_decoded_bytes)?;
     let mut bloc = vec![0u32; RESULT_WORDS + header.decoded_bytes() / 4];

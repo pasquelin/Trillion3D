@@ -3,8 +3,8 @@
  * by the blend pass — posted the rank of the tile it wants becomes per-tile counters. No fragment
  * stage writes memory: the blend pass would lose its early-z reject (`../blend/earlyRejection.test.ts`),
  * and resolve paid six atomic counters per phase pixel — six dependent-read chains and six contended
- * atomics, which the whole pixel group the GPU runs together waited on: the materials pass cost twice
- * the old atlas at 2496×1404 on Emerald (5.6 ms versus 2.8; 2.65 without this feedback). It is this
+ * atomics, which the whole pixel group the GPU runs together waited on: the materials pass cost
+ * twice as much at 2496×1404 (5.6 ms versus 2.8; 2.65 without this feedback). It is this
  * compute pass, one thread per phase pixel, that counts: one pixel in sixteen outside a barrier, all
  * of them during a convergence: the pixel writes its request and the analysis comes after.
  */

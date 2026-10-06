@@ -1,4 +1,4 @@
-// #1235: one record serves every placement of its primitive. The compiler's tile follows the
+// One record serves every placement of its primitive. The compiler's tile follows the
 // largest world scale that places a primitive (`mesh_scales`): read over every placement of its
 // shared records, not the first one alone.
 import test from 'node:test'

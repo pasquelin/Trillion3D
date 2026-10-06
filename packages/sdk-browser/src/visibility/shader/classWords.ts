@@ -1,6 +1,6 @@
 /**
  * Material classes of the surface resolve, the published visibility-buffer design: the resolve
- * no longer branches per pixel on what a material has, it runs one draw per class. A class is the
+ * does not branch per pixel on what a material has, it runs one draw per class. A class is the
  * set of features the shader would otherwise test at run time — its key is a word of feature
  * bits, and every page of a class carries the same bits.
  *

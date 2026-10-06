@@ -1,4 +1,4 @@
-// Page of the fallback-blend proof (#584): the real WebGPU engine on a real device, twice on one
+// Page of the fallback-blend proof: the real WebGPU engine on a real device, twice on one
 // scene — once as the device is, once while that device refuses every render pipeline writing the
 // visibility target, as a device without it does. The engine then draws with its fallback pass
 // (`packages/sdk-browser/src/webgpu/frame/fallbackDraw.ts`); nothing else differs. Four paged

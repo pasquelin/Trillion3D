@@ -20,7 +20,7 @@ export const referenceBackend: BackendFactory = ({
 }) => {
   const scene = new THREE.Scene()
   const sceneLights = lighting(scene, clearColor, sceneLighting ?? source)
-  // The witness draws itself, with the host library, through the adapter it shares (#85).
+  // The witness draws itself, with the host library, through the adapter it shares.
   const hostDraw = createThreeSceneDraw(webglContext, scene)
   let order = 0,
     allocationBytes = 0,

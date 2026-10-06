@@ -1,4 +1,4 @@
-// The material fixtures declare glass for both engine renderers (#479): a surface that transmits
+// The material fixtures declare glass for both engine renderers: a surface that transmits
 // is read on WebGL2 against WebGPU, within the window any value two engines quantise is held to.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
@@ -12,7 +12,7 @@ test('the fixtures WebGL2 reads are world-built glass under the sun', () => {
   assert.ok(glass.length > 0, 'no fixture is read on WebGL2')
   for (const fixture of glass) {
     const surface = fixture.material()
-    assert.equal(fixture.lit, true, `${fixture.name}: glass unlit, unlike #337's repro`)
+    assert.equal(fixture.lit, true, `${fixture.name}: glass is lit`)
     assert.equal(surface.transmission, 1)
     assert.equal(surface.ior, 1.5)
     const { thickness } = surface

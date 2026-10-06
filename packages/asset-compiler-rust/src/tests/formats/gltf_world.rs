@@ -1,4 +1,4 @@
-//! #823 — nested and instanced glTF nodes, and a child light, cook at their world placement.
+//! Nested and instanced glTF nodes, and a child light, cook at their world placement.
 //!
 //! The committed `tests/fixtures/formats/gltf-world/` (its README says what it holds) nests a mesh
 //! and a point light under a moved, turned and scaled parent, and draws a second mesh twice through

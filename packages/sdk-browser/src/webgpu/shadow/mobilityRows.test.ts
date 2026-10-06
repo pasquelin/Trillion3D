@@ -26,7 +26,7 @@ test("a blended caster's row is moving as its placement is", () => {
   assert.deepEqual([...mobility.rowWords], [0, 1, 0, 1])
 })
 
-// #965: a cutout's row is filed with the casters drawn with the fragment test; a blended caster's
+// A cutout's row is filed with the casters drawn with the fragment test; a blended caster's
 // never is, cutout or not — the transmittance pass reads the other list alone.
 test("a cutout row's word carries the cutout bit, beside its moving bit", () => {
   const mobility = createShadowMobility()
@@ -59,7 +59,7 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
   assert.ok(mobility.rowWords.every((word) => (word & MOBILITY_CUTOUT) === 0))
 })
 
-// #216: a table grown in place resizes the row words, never the placements' state: a placement
+// A table grown in place resizes the row words, never the placements' state: a placement
 // that moved stays out of the static layer, and every row's word is written again.
 test('a moving placement stays moving across a grow of the rows', () => {
   const mobility = createShadowMobility()

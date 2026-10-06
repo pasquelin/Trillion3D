@@ -4,7 +4,7 @@
 // abandoned for the session, `cpuSelectMs` turning from null to a duration without the host being
 // told: the GPU cut must still choose, and no fallback be declared.
 //
-// No hole (#483 rule 1): on every frame the drawn cut covers each leaf of the strip exactly once —
+// No hole: on every frame the drawn cut covers each leaf of the strip exactly once —
 // none uncovered, none twice. The check reads the drawn cut, not a counter, so it fails on a hole:
 // dropping the `!childResident` term of the cut rule (`page/cut/rule.ts`, WGSL) leaves the leaves
 // the budget refuses uncovered.
@@ -40,8 +40,8 @@ test('the GPU cut keeps choosing over missing pages, and covers each leaf once',
   assert.ok(first.length > 0, 'the first frame draws a cut')
   assert.notEqual(hole(first.slice(1)), -1, 'a missing page must read as a hole')
   assert.notEqual(hole([...first, 'root']), -1, 'a page with its ancestor must read as overdraw')
-  // The engine raises the pool to its floor — the root cover and the pages the root groups replace
-  // (#1237) —: residency is still the bottleneck while it stays at that floor, below the strip's
+  // The engine raises the pool to its floor — the root cover and the pages the root groups
+  // replace: residency is still the bottleneck while it stays at that floor, below the strip's
   // pages.
   const events = reading.events ?? []
   const floor = events.find((e) => e.phase === 'minimum-capacity')?.context as

@@ -34,7 +34,7 @@ export type TimingState = {
     disposed: number
     parts: number
   }
-  /** Each image's span on the device timeline, for the idle before the next (#1451). */
+  /** Each image's span on the device timeline, for the idle before the next. */
   timeline: ReturnType<typeof createTimeline>
   /** What each timestamp slot held at the last image read, to tell a pass the driver skipped. */
   slots: ReturnType<typeof createSlotMemory>

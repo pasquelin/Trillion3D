@@ -146,9 +146,9 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
 }
 /**
  * A frame whose targets the device has not granted (`targetGrant.ts`) would be drawn without
- * them, an incomplete image (#483): it is held instead, showing the previous image or nothing yet,
+ * them, an incomplete image: it is held instead, showing the previous image or nothing yet,
  * and `pendingWebgpuFrame` asks the next frame once the device answered. So is a lit frame whose
- * lit program still compiles (#1362): never the unlit stand-in. A capture is never held: it waited
+ * lit program still compiles: never the unlit stand-in. A capture is never held: it waited
  * for those answers before it began (`deviceAnswering`).
  *
  * The held frame. No CPU step is executed and nothing is re-encoded: the previous frame's colour
@@ -157,7 +157,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * Replaying render bundles alone omits the frame's compute passes and copies.
  * Redisplaying the intact target yields it exactly, and that is the only command encoded — none
  * when the canvas still holds it whole (`holds`): a canvas keeps the image last presented into it.
- * A view placed at a rectangle presents as before: the canvas around it is the main view's.
+ * A view placed at a rectangle presents as any view does: the canvas around it is the main view's.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { run, gpu } = rt,
@@ -180,7 +180,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
       effectsMoved(rt) ||
       particlesMoved(rt)
     ) {
-      // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
+      // Only an image that is drawn enters the accumulation: a held one leaves it as is.
       restartTaaOnSettle(rt, (unsettled & BIT.reflections) !== 0)
       beginTaaFrame(rt, run.gate.cam, quiet)
       run.frameHeld = false

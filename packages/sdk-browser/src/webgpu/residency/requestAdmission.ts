@@ -15,9 +15,9 @@ const HELD = {}
 
 /**
  * Admission of both cuts, one ranking. The GPU cut's queue is read off the readback's requests,
- * closed over their groups (`../../page/cut/groupClosure.ts`) (#836); the CPU cut's off the pages
+ * closed over their groups (`../../page/cut/groupClosure.ts`); the CPU cut's off the pages
  * its cut closes over (`closure.forEachHeld`), so the GPU cut feeds no tracking of its own and the
- * CPU cut that takes the image back ranks what the GPU cut left (#974).
+ * CPU cut that takes the image back ranks what the GPU cut left.
  *
  * A cut the pool holds whole is the queue itself, followed by difference. One it does not hold
  * keeps its coarsest levels whole and the finest it straddles in part, as the documented budget
@@ -34,11 +34,11 @@ const HELD = {}
  *
  * While a capture is drawn, the CPU cut ranks its own pages first, each lifted above every level
  * of the union (`sets.drawnFirst`): the capture keeps what its cut alone kept under the one budget,
- * and the other views' pages take what room is left (#268).
+ * and the other views' pages take what room is left.
  *
  * Only a new readback (or a moved CPU cut), a new room or a queue changed elsewhere is ranked
  * again: one walk of the closed requests or the held pages, bounded by the view, never the
- * catalogue (#483 rule 6).
+ * catalogue.
  */
 export function createRequestAdmission(
   sets: WebgpuResidencySets,

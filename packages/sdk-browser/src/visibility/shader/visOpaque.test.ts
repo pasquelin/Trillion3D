@@ -1,4 +1,4 @@
-// #831: a draw that holds no cutout row (`FLAG_MASK`) draws with `vis_opaque_fs` or
+// A draw that holds no cutout row (`FLAG_MASK`) draws with `vis_opaque_fs` or
 // `vis_hiz_opaque_fs`, which neither read the page nor discard: on Apple's tile GPUs, a fragment
 // stage that discards makes the hidden-surface removal flush and shade every layer it covers. The
 // shipped stages run in `shaderRun` over the quantized pages of `pointHeader.fixture.ts`, far from

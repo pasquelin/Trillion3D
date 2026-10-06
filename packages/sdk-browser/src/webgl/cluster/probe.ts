@@ -13,7 +13,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
  * takes no light slot: every visible one adds into the same nine coefficients, scaled by its
  * intensity — its colour everywhere when it carries none, as a world adds it (`addLightIrradiance`)
  * — and the program evaluates them once per pixel. A specular lobe reads the same coefficients
- * along its reflected ray, the WebGPU environment reflection (`environmentShader.ts`, #1341).
+ * along its reflected ray, the WebGPU environment reflection (`environmentShader.ts`).
  */
 export const PROBE_IRRADIANCE_GLSL = `
 uniform vec3 probeSh[${ENVIRONMENT_COEFFICIENTS}];uniform mat3 viewRotation;

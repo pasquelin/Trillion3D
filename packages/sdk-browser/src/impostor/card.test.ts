@@ -1,6 +1,6 @@
-// #1239, #1335: the card quad is the shared sprite basis, not a second builder. The four corners lie in
+// The card quad is the shared sprite basis, not a second builder. The four corners lie in
 // the camera plane through the pivot, of half-extent R, and each corner is what `spriteAt` returns
-// for the same inputs. Fails on develop: `card.ts` is not there.
+// for the same inputs.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'

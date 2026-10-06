@@ -1,4 +1,4 @@
-// The water-cost scene (#232): controlled water coverage, its geometry identical with the tile
+// The water-cost scene: controlled water coverage, its geometry identical with the tile
 // parked offscreen. Measured by `bench/runner/waterCost.ts` (`waterCostPage.ts`), bounded by
 // `packages/sdk-browser/src/webgpu/water/bounds.test.ts`.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'

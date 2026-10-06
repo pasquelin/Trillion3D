@@ -1,7 +1,7 @@
 /**
  * How a partitioned scene writes its cells' nodes on their rows (`cells.ts`): each at the world
  * matrix the engine composes for a child of its core parent, shown, and casting as its host mesh
- * says (`castShadow`, #966) — a light cut leaves a shadowless row out. Before each frame, the rows
+ * says (`castShadow`) — a light cut leaves a shadowless row out. Before each frame, the rows
  * whose parent's world moved, or whose host mesh's `castShadow` changed, are written again.
  */
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'

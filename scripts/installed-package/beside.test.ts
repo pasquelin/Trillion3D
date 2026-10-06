@@ -10,8 +10,8 @@ const decoder = {
 const physics = { path: 'session-B.js', text: '"./joltPhysics.wasm"' }
 const physicsFiles = ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm']
 
-test('a chunk at the bundle root finds the decoder module beside it (#568)', () => {
-  // The chunks sit beside the entries since #397: the module lands at the root, no folder.
+test('a chunk at the bundle root finds the decoder module beside it', () => {
+  // The chunks sit beside the entries: the module lands at the root, no folder.
   assert.deepEqual(
     missingBeside(
       [decoder, physics],

@@ -1,5 +1,5 @@
-// Batch F oracles, frame side: `packages/sdk-browser/src/webgpu/pages/render/encodeVis.ts:93-98`
-// from before batch F, copied as-is; the instance displacement rewritten from its contract after #1226/#1235 moved poses to the roots.
+// Frame-side oracles: `packages/sdk-browser/src/webgpu/pages/render/encodeVis.ts:93-98` copied
+// as-is; the instance displacement written from its contract, poses living on the roots.
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import type { SurfaceBuffer } from '../../../packages/sdk-browser/src/scene/surfaceBuffer.ts'
 
@@ -9,7 +9,7 @@ interface InstanceRoot {
   pages: { mesh?: { matrix: Matrix4 } }[]
 }
 
-/** Colour attachments, rebuilt per frame before batch F. */
+/** Colour attachments, rebuilt per frame. */
 export function referenceAttachments(surfaces: SurfaceBuffer) {
   return surfaces.views().map((view) => ({
     view,
@@ -20,7 +20,7 @@ export function referenceAttachments(surfaces: SurfaceBuffer) {
 }
 
 /**
- * Instance displacement since #1226/#1235: each root's world becomes `transform · base world`, and
+ * Instance displacement: each root's world becomes `transform · base world`, and
  * the host mesh of each page it places wears that world — a page carries no pose of its own
  * (`instancePose.ts`). `transform` is the engine's sixteen doubles.
  */

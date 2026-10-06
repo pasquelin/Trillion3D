@@ -61,7 +61,7 @@ export function mount(
     ...root(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[]
-  // The per-placement tables and the packed rank of each page, as the layout posts them (#1235):
+  // The per-placement tables and the packed rank of each page, as the layout posts them:
   // the cut's readiness and the pool's dependencies resolve a page through them.
   const placement = postPackedBases(roots),
     rankOf = new Map<PageRec, number>()

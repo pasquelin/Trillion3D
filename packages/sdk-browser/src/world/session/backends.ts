@@ -27,7 +27,7 @@ type Inputs = {
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string
   frameBudget?: BackendContext['frameBudget']
-  /** Each model's world roots: the pinned top and the bundles its placed cells hold (#1237). */
+  /** Each model's world roots: the pinned top and the bundles its placed cells hold. */
   worldRoots: readonly { bytes(): number }[]
 }
 
@@ -41,7 +41,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   const sceneLights = createSceneLightStore()
   // Lights the source file carried, declared before the first engine: the `auto` view knows
   // from its first frame that it has a source, and no engine prepares on an empty store that
-  // would then have to be pushed. A cache without this product declares none, as before.
+  // would then have to be pushed. A cache without this product declares none.
   let importedLightIds: string[] = []
   if (explorerSwitch(options, 'importedLights')) {
     const imported = await loadImportedLights(base, signal)

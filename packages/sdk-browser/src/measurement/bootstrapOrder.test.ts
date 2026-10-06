@@ -30,7 +30,7 @@ test('the root cover is the first thing a cold explorer asks for, and the only t
     next && next.length > 0 && !next.includes('bundle-roots'),
     'the detail follows the cover',
   )
-  // The cut the camera asked for, closed over its groups as the engine asks (#486): the leaves
+  // The cut the camera asked for, closed over its groups as the engine asks: the leaves
   // are drawn only once their group and every group above it are resident.
   assert.deepEqual(
     [...(next ?? [])].sort(),
@@ -56,8 +56,8 @@ test('an eight-pixel budget asks for the mid level alone, and nothing once it la
   backend.acceptPage?.('bundle-roots', new Uint32Array([0, 1, 2]))
   backend.render(camera())
   // Eight pixels of budget put the cut on the mid clusters; half of it reaches the leaves. The
-  // certified bound of defect 3 announces more than the old under-estimate for the same
-  // spheres, so the same intent needs a wider budget than the four pixels this test used.
+  // certified bound announces more than an under-estimate for the same
+  // spheres, so the same intent needs a wider budget than four pixels.
   assert.deepEqual(backend.pendingUrls?.(), ['bundle-mid'], 'the cut stops at the mid level')
   backend.acceptPage?.('bundle-mid', new Uint32Array([0, 1, 2, 3, 4, 5]))
   backend.render(camera())

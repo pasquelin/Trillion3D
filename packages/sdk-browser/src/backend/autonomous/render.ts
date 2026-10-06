@@ -56,7 +56,7 @@ export function createAutonomousRender(options: {
   blendCopies: readonly BlendCopy[]
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements
-  /** The roots' deformation records (#357): written once the worlds are current, before the cut
+  /** The roots' deformation records: written once the worlds are current, before the cut
    *  grows each deformed root by its reach. */
   deformation: Pick<WebglDeformation, 'pending' | 'update'>
   /** The drawn view: the cut drawn, the cut wanted, what the image asks the pool for
@@ -77,7 +77,7 @@ export function createAutonomousRender(options: {
     ReturnType<typeof createGeometryBudget>,
     'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
   >
-  /** The impostor tier (#1336), absent without a baked section: planned before each cut. */
+  /** The impostor tier, absent without a baked section: planned before each cut. */
   impostors?: Pick<NonNullable<ReturnType<typeof webglImpostorTier>>, 'plan'>
 }) {
   const {
@@ -114,7 +114,7 @@ export function createAutonomousRender(options: {
     // Records the next image rewrites — a clip, a morph weight, a wave — break the hold.
     if (deformation.pending()) gate.resourcesChanged()
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
-    // the host camera into the engine camera — the cut now reads only the latter.
+    // the host camera into the engine camera — the cut reads only the latter.
     const held = gate.enterFrame(
       context,
       camera,

@@ -3,8 +3,8 @@ import type { WorldNotices } from '../diagnostic/worldNotices.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
 
 /** Why a world's session opens again. A lost device and an option the engine cannot take in place
- *  still need it; every other cause is a content change the session should take in place (#572,
- *  #838), and a reopen for it a defect (`defect: true`). */
+ *  still need it; every other cause is a content change the session should take in place, and a
+ *  Reopen for it a defect (`defect: true`). */
 export type ReopenCause =
   | 'device-lost'
   | 'option'
@@ -20,7 +20,7 @@ const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option'])
 type Reopening = { causes: Set<ReopenCause>; start: number; frames: number; tick(): void }
 
 /**
- * THE REOPENS OF A WORLD, KEPT AND JUSTIFIED (#837). Its canvas keeps the image of a session that
+ * THE REOPENS OF A WORLD, KEPT AND JUSTIFIED. Its canvas keeps the image of a session that
  * closes until the next one draws (`canvasHandover.ts`); each reopen is said once that next image
  * is drawn, under `session-reopen`: its causes, its duration, and the display frames it showed no
  * new image through. A session's close ends what waited on it (`ended`): a wait carries on with

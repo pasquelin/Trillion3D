@@ -1,5 +1,5 @@
 /**
- * Index-page arrival queue: what arrives from cache or network no longer enters the frame
+ * Index-page arrival queue: what arrives from cache or network never enters the frame
  * that discovered it. Each arrival is queued, PLANNED off the main thread, then a single
  * bounded drain at the head of the next frame makes it resident before selection. A frame
  * therefore never carries more than this integration budget, and a whole-batch burst no
@@ -7,12 +7,12 @@
  * resumes exactly where the previous one stopped, and the order in which the frame named
  * its missing pages is already its priority order — the most costly to miss first.
  *
- * The plan is what the main thread no longer computes: for each record in the packet, its
+ * The plan is what the main thread does not compute: for each record in the packet, its
  * first word and its word count, and the page ranks the arrival touches, sorted. It leaves
  * at enqueue time and returns before the drain; the target only has to set views and write.
  * No page bytes travel for that — only the catalogue integer sheet. When there is nothing
  * to plan, or no worker to plan it, the plan is already there at enqueue: the arrival is
- * then deliverable in the same turn, and no wait is added to what the batch replaced.
+ * then deliverable in the same turn, and no wait is added.
  *
  * The ceiling that counts is TIME. An arrival carries a streaming packet whose cluster
  * count is not known in advance: neither index bytes nor page count therefore bound the
@@ -49,7 +49,7 @@ type Arrival = {
 
 /**
  * Drains an arrival may spend at the head of the queue without its plan having returned. Beyond
- * that, the frame no longer waits: the plan is rebuilt inline, on the main thread, rather than
+ * that, the frame does not wait: the plan is rebuilt inline, on the main thread, rather than
  * let a slow transport punch a hole in the frame. Two frames, not one: a message round-trip
  * easily fits in the time that separates the arrival from the next drain.
  */

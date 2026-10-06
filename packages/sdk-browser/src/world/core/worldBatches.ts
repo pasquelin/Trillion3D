@@ -29,7 +29,7 @@ export type Seat = { batch: Batch; row: number }
  * left stays drawn until it holds the new one: a mesh that moves is never missing from a frame.
  * A batch the session holds grows in place (`growHeld`): its rows are replaced by a buffer twice
  * as large at least, the session is handed both (`placement/growth.ts`), and the waiting meshes
- * take the new rows. A batch the session does not hold is mounted into it (`mountable`, #572),
+ * take the new rows. A batch the session does not hold is mounted into it (`mountable`),
  * or waits for the next opening, which sizes every batch by the same rule; one no mesh wears or
  * leaves any more is taken out (`vacant`). `touched` hears every row taken or parked.
  */
@@ -140,7 +140,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     unseat,
     /**
      * Seats `mesh` on `cut` × `entry`. True for a new row whose matrix needs writing; false when
-     * waiting or already seated. Rereading dynamic geometry does not move its pose (#573).
+     * waiting or already seated. Rereading dynamic geometry does not move its pose.
      */
     seat(mesh: Mesh, cut: Cut, entry: MaterialEntry) {
       const batch = batchOf(cut, entry, mesh)

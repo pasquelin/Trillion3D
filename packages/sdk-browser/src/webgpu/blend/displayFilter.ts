@@ -6,7 +6,7 @@ import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 
 /**
- * The display layers (#558): the reference display multiplies and subtracts on a canvas of
+ * The display layers: the reference display multiplies and subtracts on a canvas of
  * display values, after the tone curve, which mixes the channels. In an image whose blends hold
  * such a surface, a mask pass marks the pixels it covers (`MASK_FORMAT`); there every transparent
  * layer — blends, particles, water — maps the tint `t` and the added value `a` instead of the lit

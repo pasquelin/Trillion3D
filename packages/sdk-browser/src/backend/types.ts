@@ -101,7 +101,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
    *  measure the display (`../webgpu/frame/interactiveFrame.ts`); an explicit render never is. */
   measureFrame?(): boolean
   /** What the view received so far — camera pages made resident, quiet images a still average not
-   *  yet whole took —: the view still arriving, which spends no settle limit (#836). */
+   * yet whole took —: the view still arriving, which spends no settle limit. */
   landings?(): number
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array
@@ -164,7 +164,7 @@ export interface BackendContext {
    *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
   temporalAntialiasing?: boolean
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale
-  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`, #33)
+  unboundedReflections?: boolean // a reference session's rough trace (`reflectionTrace`)
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain
   sceneLighting?: Object3D
@@ -188,7 +188,7 @@ export interface BackendContext {
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>
   readPage?: (url: string) => Promise<Uint32Array> // Validated reader of the GPU fallback.
   readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>
-  pageCatalogue?: PageCatalogue // what a mount reads (#572)
+  pageCatalogue?: PageCatalogue // what a mount reads
   pageRoundTripMs?: () => number // the reads' measured round trip (`../streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock

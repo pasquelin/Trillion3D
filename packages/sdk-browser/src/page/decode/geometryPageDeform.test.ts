@@ -1,4 +1,4 @@
-// A skinned, morphed page (#357): the reference encoder of `packages/page-codec` writes it, the
+// A skinned, morphed page: the reference encoder of `packages/page-codec` writes it, the
 // JavaScript and WebAssembly decoders read the same joints, weights and displacements, and a
 // target record that names another word than its streams' refuses the page.
 import test from 'node:test'

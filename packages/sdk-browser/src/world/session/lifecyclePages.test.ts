@@ -104,7 +104,7 @@ const held = [
   },
 ]
 for (const { name, resident, heard: counts } of held)
-  test(`awaitPages ${name} (#408)`, async () => {
+  test(`awaitPages ${name}`, async () => {
     const { lifecycle, streamer } = await lackingPages(['b.bin'], ['a.bin', 'c.bin'], resident)
     const heard: JobProgress[] = []
     await lifecycle.awaitPages({ onProgress: (event) => heard.push(event) })
@@ -117,7 +117,7 @@ for (const { name, resident, heard: counts } of held)
 
 // The WebGPU residency reads the pages of its first cut itself, inside its flush, through the
 // streamer: the host lacks none of them after it, yet they are the first pages the view waits on.
-test('awaitPages hears the pages a backend reads itself while it flushes, as they land (#408)', async () => {
+test('awaitPages hears the pages a backend reads itself while it flushes, as they land', async () => {
   const { lifecycle, streamer, backend } = await lackingPages([])
   const heard: number[][] = []
   let flushed = false
@@ -140,7 +140,7 @@ test('awaitPages hears the pages a backend reads itself while it flushes, as the
   streamer.dispose()
 })
 
-test('awaitPages counts a held page once when a backend reads it again after the cut (#408)', async () => {
+test('awaitPages counts a held page once when a backend reads it again after the cut', async () => {
   const { lifecycle, streamer, backend } = await lackingPages([], ['c.bin'])
   const heard: number[][] = []
   let flushes = 0

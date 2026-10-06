@@ -1,6 +1,6 @@
-// #1249: the resolve's one light loop, in the program with no shadow code, rejects a light on its
+// The resolve's one light loop, in the program with no shadow code, rejects a light on its
 // sphere alone, before its record is read in full, only where `declaredLight` would have given an
-// exact zero; the program with shadow code keeps develop's loop. The shipped `sliceLighting` runs
+// exact zero; the program with shadow code keeps the plain loop. The shipped `sliceLighting` runs
 // here as JavaScript on a line (a light's centre and the point are distances along it), the light's
 // own term a stand-in of `directIncidence`: zero at or past its range.
 import test from 'node:test'
@@ -37,7 +37,7 @@ function walk(lamps: Lamp[], P: number) {
   return { sum, shaded }
 }
 
-test('a light past its range is skipped, one in range or the sun always shaded (#1249)', () => {
+test('a light past its range is skipped, one in range or the sun always shaded', () => {
   const r = random(1249)
   for (let run = 0; run < 50; run++) {
     const lamps: Lamp[] = [...Array(64).keys()].map((rank) => ({
@@ -75,14 +75,14 @@ test('the reject margin keeps a lamp at its very range: the shading gives its ze
   assert.equal(walk([lamp(2.02)], 10).shaded.length, 0, 'past it: skipped')
 })
 
-test('the program with shadow code pays no range test: its loop reads a light once (#1249)', () => {
+test('the program with shadow code pays no range test: its loop reads a light once', () => {
   const loop = (code: string) =>
     code.slice(code.indexOf('fn sliceLighting(')).split(/\n(?:fn |\/\*\*)/)[0]
   for (const narrow of [false, true]) {
     const shadowed = loop(directLightingWgsl(narrow)),
       unshadowed = loop(directLightingWgsl(narrow, false))
     // The reject's per-light test costs a lit light 13 % (42.3 -> 47.9 ps) that a shadowed
-    // scene never repays: that loop reads the record only where it shades the light, as develop.
+    // scene never repays: that loop reads the record only where it shades the light.
     assert.doesNotMatch(shadowed, /RANGE_REJECT|isSunKind|continue/)
     assert.equal(shadowed.match(/directLights\.items\[/g)?.length, 1)
     assert.match(unshadowed, /RANGE_REJECT\)\{continue;\}/)

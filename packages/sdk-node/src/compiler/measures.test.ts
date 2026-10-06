@@ -42,7 +42,7 @@ async function quad(root: string): Promise<string> {
 }
 
 // V02: the manifest is written before the prune and therefore cannot carry the job duration; the
-// pointer is returned after. `prepare()` used to read the manifest alone and lost the two final
+// pointer is returned after. `prepare()` must not read the manifest alone and lose the two final
 // measurements. The full public path, against the real binary, must return both together.
 test('V02 prepare() returns the pointer’s final measurements with the manifest’s', async (t) => {
   const executable = compilerBinary()
@@ -63,7 +63,7 @@ test('V02 prepare() returns the pointer’s final measurements with the manifest
   }
 })
 
-// #47: the same source prepared twice into one cache finds its folder proven and kept; the
+// The same source prepared twice into one cache finds its folder proven and kept; the
 // result says so, and the hierarchy duration of a run that built none stays `null`.
 test('prepare() reports the folder reused by a second identical run', async (t) => {
   const executable = compilerBinary()
@@ -118,7 +118,7 @@ process.stdout.write(${JSON.stringify(JSON.stringify(pointeur))});
   return chemin
 }
 
-// #1370: a head written before the run's report left the manifest still carries one — another
+// A head written before the run's report left the manifest still carries one — another
 // run's times and reused pages. The result gives this run's, from its pointer, never the head's.
 test('prepare() returns the run’s report from the pointer, never from an older head', async () => {
   const root = await mkdtemp(join(tmpdir(), 'trillion3d-fusion-'))

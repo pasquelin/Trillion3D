@@ -180,14 +180,14 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
 }`
 
 /** The water composite's (`../webgpu/water/compositeWgsl.ts`): its mirror ray bounded
- *  (`boundedReflectionRay`), the fluids' own quality tier (AGENTS.md rule 1, #1279), on the depth
+ *  (`boundedReflectionRay`), the fluids' own quality tier (AGENTS.md rule 1), on the depth
  *  bounds `reflectionPlan` makes for it. */
 export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl({
   mirror: 'boundedReflectionRay',
 })
 
 /** The rough history holds a ratio mean; a pixel that has only drawn below-horizon samples holds
- *  no weight, and leaves its whole lobe to the environment reflection, never black (#1341). */
+ *  no weight, and leaves its whole lobe to the environment reflection, never black. */
 const HELD_REFLECTION_WGSL = `
 @group(1) @binding(3) var roughHistory:texture_2d<f32>;
 fn heldReflection(P:vec3f)->vec4f{

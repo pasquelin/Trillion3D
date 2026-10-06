@@ -1,4 +1,4 @@
-// A material the page created, assigned to a drawable (#847): its records point to it and every
+// A material the page created, assigned to a drawable: its records point to it and every
 // row is written again off it, in the variant the drawable's geometry asks for; what the open laid
 // out for its forward pass is refused by name before any write.
 import test from 'node:test'

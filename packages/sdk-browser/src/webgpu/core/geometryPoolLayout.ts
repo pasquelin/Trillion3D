@@ -4,7 +4,7 @@ import { floatAtlasFits } from './floatAtlas.ts'
 
 /** How each list a pool block carries is laid out: its store, its floats per vertex, and the
  *  host lists it is written from, each with its width and the value of a missing component — a
- *  normal and a tangent share seven floats a vertex in the normal atlas (`floatAtlas.ts`, #1410),
+ *  normal and a tangent share seven floats a vertex in the normal atlas (`floatAtlas.ts`),
  *  a colour rides at the tail of the UVs. */
 // prettier-ignore
 export const LAYOUT = {

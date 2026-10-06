@@ -6,7 +6,7 @@ use crate::texture_preview::AtlasKind;
 
 // Behaviour: the colour map's mip chain is a coverage chain at the cut, and every level it
 // stores — down to frames of four texels a side (`FRAME_FLOOR`) — holds level 0's filtered
-// coverage within the #44 bar (2.5 %, or one texel's four samples); the other maps keep the
+// coverage within 2.5 % (or one texel's four samples); the other maps keep the
 // plain data chain.
 #[test]
 fn the_atlas_mip_chain_holds_level_zero_coverage() {

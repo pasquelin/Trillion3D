@@ -1,7 +1,7 @@
 // Lot F, F10: `surfaceColorAttachments` (attachments.ts) keeps the four attachment
 // descriptors while `surfaces.views()` returns the same array, instead of allocating five objects
 // every image. `views()` is still called every image; only reconstruction is conditional.
-// The oracle is the unconditional reconstruction from before lot F, copied as-is into
+// The oracle is the unconditional reconstruction, copied as-is into
 // `bench/oracles/browser/view-frame.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'

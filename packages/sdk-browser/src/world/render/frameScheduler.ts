@@ -5,17 +5,17 @@ const SETTLE_LIMIT = 120
 /**
  * One coalesced frame, with asynchronous work waited outside the rendering callback.
  *
- * The next frame is asked right after `render` (#983), so the browser keeps its frame cadence while
+ * The next frame is asked right after `render`, so the browser keeps its frame cadence while
  * the frame's feedback (`pending`) is awaited; `pending` then only decides whether the loop goes on
  * or stops, and a stop cancels the frame asked early. A frame the loop asked for itself that comes
  * before that feedback is held: it draws nothing, spends none of the settle limit and moves no
  * revision, and the loop asks again once the feedback lands — so frame n's readbacks are always
- * consumed before frame n+1 makes its residency decisions, the loading sequence of before. A frame
- * an invalidate asked for draws at once, as before.
+ * consumed before frame n+1 makes its residency decisions. A frame an invalidate asked for draws
+ * at once.
  *
  * `progress` is a count that rises while what the image draws still arrives — the pages loaded: a
  * frame after which it moved spends none of the settle limit, so a view that streams for longer
- * than the limit is drawn to its last page instead of pausing on a coarse cut (#836).
+ * than the limit is drawn to its last page instead of pausing on a coarse cut.
  */
 export function createExplorerFrameScheduler(inputs: {
   request: (callback: FrameRequestCallback) => number

@@ -1,4 +1,4 @@
-//! The audit's meshes and Sponza, measured through the page path (`super::measure`).
+//! The procedural meshes and a hall scene, measured through the page path (`super::measure`).
 use super::building::building;
 use super::meshes::{sphere, terrain, Mesh};
 use super::vegetation::vegetation;
@@ -21,8 +21,8 @@ fn measured(mesh: &Mesh, tile_log2: i32) -> Vec<Page> {
     })
 }
 
-// Behaviour: every page of the audit's four meshes, drawn by the cut at 0.5, 1 and 2 pixels with
-// the camera 2 m or 10 m away, stays within a tenth of a pixel of the threshold (CMP-08).
+// Behaviour: every page of the four meshes, drawn by the cut at 0.5, 1 and 2 pixels with
+// the camera 2 m or 10 m away, stays within a tenth of a pixel of the threshold.
 // One test per mesh, so that the harness measures them in parallel.
 #[test]
 fn the_audits_terrain_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
@@ -55,14 +55,14 @@ fn a_kilometre_terrain_on_one_grid_is_measured_pixels_away() {
     assert!(exact > 2.0 + super::MARGIN, "{exact}");
 }
 
-/// Sponza as the bench fetches it (`bench/runner/assets/assets.ts --only sponza`), outside the
-/// repository.
+/// The hall scene as the bench fetches it (`bench/runner/assets/assets.ts --only sponza`), outside
+/// the repository.
 fn sponza() -> std::path::PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.mesure/assets/sponza/Sponza.gltf")
 }
 
-// Behaviour: every page of Sponza, each primitive under the scale its node places it at, is drawn
-// within a tenth of a pixel of the threshold.
+// Behaviour: every page of the hall scene, each primitive under the scale its node places it at, is
+// drawn within a tenth of a pixel of the threshold.
 #[test]
 #[ignore = "needs Sponza under .mesure/assets: node bench/runner/assets/assets.ts --only sponza"]
 fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {

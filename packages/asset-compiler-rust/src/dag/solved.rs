@@ -12,7 +12,7 @@
 //! is (`measured::step_error`: the removed parts, the Hausdorff distance, the texture deviation). The
 //! retries are the endpoint reduction's (`retries.rs`), but a face no longer than the group's
 //! error, under a pixel wherever its level is drawn, is not locked for being lit from behind: on a
-//! group the solve alone frees, that stalled it again (Sponza: four groups of five).
+//! group the solve alone frees, that stalled it again (four groups of five on a hall scene).
 use super::border::required_locks;
 use super::charts::{densities, folded_span, longest_edge, open_border_welded, weighted};
 use super::grown::Placed;

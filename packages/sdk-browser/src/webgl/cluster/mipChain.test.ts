@@ -1,4 +1,4 @@
-// #732: on WebGL2 a mip filter over a texture without its chain reads an incomplete texture —
+// On WebGL2 a mip filter over a texture without its chain reads an incomplete texture —
 // black. The chain follows the filter alone, as on WebGPU: whatever the host's `generateMipmaps`
 // says, and when a sampling moves to a mip filter with no new picture.
 import test from 'node:test'

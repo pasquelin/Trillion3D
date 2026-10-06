@@ -12,7 +12,7 @@ import {
 
 const box = (g: Geometry) => [...g.boundingBox!.min.toArray(), ...g.boundingBox!.max.toArray()]
 
-// #457: a normal, uv or colour list a world geometry owns has always been drawn and turned as its
+// A normal, uv or colour list a world geometry owns has always been drawn and turned as its
 // stored numbers, a normalised integer unscaled; a host geometry's (a quantized glTF's) at its value.
 const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3)
 const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
@@ -55,7 +55,7 @@ test('a copied geometry keeps every value it held: lists, morphs, groups, range,
   assert.equal(owned('host').clone()._owner, 'host', 'a copy keeps its owner')
 })
 
-// #945: a position is read at the value it stands for by every owner and on every path — drawn,
+// A position is read at the value it stands for by every owner and on every path — drawn,
 // bounded, edged, moved, given normals: a normalised integer scaled back, a two-wide one at z = 0.
 test('a normalised position is bounded and drawn at its value, an interleaved one through its stride', () => {
   const stored = new Int16Array([0, 0, 0, 32767, 0, 0, 0, 16384, 0]),

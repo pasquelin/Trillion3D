@@ -30,7 +30,7 @@ export function projectCornersInto(
   const v = viewElements,
     e = viewProjElements
   // An affine view — fourth row (0,0,0,1) — yields a denominator of exactly 1 for a finite
-  // corner: the dot product is then no longer computed, and `viewZ * 1` was already `viewZ`.
+  // corner: the dot product is then not computed, and `viewZ * 1` is `viewZ`.
   const affine = v[3] === 0 && v[7] === 0 && v[11] === 0 && v[15] === 1
   // A perspective projection has fourth row (0,0,-1,0), of which `multiplyMatrices` makes
   // exactly the opposite of the view's third row: `cw` is then `-viewZ` to the bit — negation
@@ -45,7 +45,7 @@ export function projectCornersInto(
     const viewZ = v[2] * x + v[6] * y + v[10] * z + v[14]
     const vd = affine ? 1 : v[3] * x + v[7] * y + v[11] * z + v[15]
     if (-(vd === 1 ? viewZ : viewZ * (1 / vd)) <= near) {
-      // The result of a box that clips the near plane no longer reads any corner: nothing to project.
+      // The result of a box that clips the near plane reads no corner: nothing to project.
       clipsNear = true
       break
     }
@@ -117,7 +117,7 @@ export function projectBoxInto(
   )
 }
 /** The box `page`'s row is bounded by this frame: a dynamic page's where its vertices are
- *  (`moved`, #573), else its own, which grows by `rowGrowth`. */
+ *  (`moved`), else its own, which grows by `rowGrowth`. */
 export const rowBox = (page: HizPage) => page.moved ?? page
 /** How far `rowBox` grows on every side: nothing for a dynamic page's moved box, else its root's
  *  `reach`, the farthest a deformation moved a vertex from where its page is bounded. */
@@ -127,8 +127,8 @@ export const rowGrowth = (page: HizPage, reach = 0) => (page.moved ? 0 : reach)
  * World-space corners of `page`'s box, written in `out` from `at`: eight corners of three doubles,
  * derived from its local bounds and the `world` of its root on every read, as the GPU partition receives
  * them per row. Nothing is kept per page — a host table of every packed page cost 24 doubles each
- * (#18) —, and the arithmetic is `projectBoxInto`'s, so the doubles are the same bit for bit. A
- * dynamic page's box is where its vertices are this frame (`moved`, #573); another grows by its
+ * —, and the arithmetic is `projectBoxInto`'s, so the doubles are the same bit for bit. A
+ * dynamic page's box is where its vertices are this frame (`moved`); another grows by its
  * root's `reach` on every side, the farthest a deformation moved a vertex from where its page is
  * bounded, as every cut and sphere grows it: an occlusion test of the rest box would reject a page
  * whose moved triangles show past its occluder.

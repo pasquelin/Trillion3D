@@ -1,4 +1,4 @@
-// #198: a visibility image encoded while the partition is absent still clears the table's dirty
+// A visibility image encoded while the partition is absent still clears the table's dirty
 // marks. The partition that appears afterwards, on the same table age, must hold the corners of
 // the rows that changed in between.
 import test from 'node:test'
@@ -10,7 +10,7 @@ import { flushWebgpuPages } from './flush.ts'
 import { cameraAt, twoPlacesRuntime } from '../twoPlaces.fixture.ts'
 import { rootOf } from '../../../page/selection/placements.ts'
 
-test('#198: rows changed while the partition is absent reach the partition that appears', async () => {
+test('rows changed while the partition is absent reach the partition that appears', async () => {
   const { rt, dispose } = await twoPlacesRuntime()
   try {
     const { rows } = rt.layout

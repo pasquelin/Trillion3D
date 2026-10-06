@@ -1,4 +1,4 @@
-// Two tests the DAG kernel no longer makes, each on a verdict it already knows. The normal cone
+// Two tests the DAG kernel does not make, each on a verdict it already knows. The normal cone
 // first asks whether its axis points away from the camera (`coneWgsl.ts`): the only case the rest
 // can reject, so the verdict is the same — except a cluster seen edge-on, which the GPU `sin` error
 // rejected and the CPU mirror keeps. The frustum skips an infinite far plane (`outsideFrustum`),

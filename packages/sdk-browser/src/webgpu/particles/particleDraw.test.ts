@@ -1,4 +1,4 @@
-// The CPU half of the WebGPU particle draw (#755); the GPU's part is the recette's.
+// The CPU half of the WebGPU particle draw; the GPU's part is measured elsewhere.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setImmediate as tick } from 'node:timers/promises'
@@ -72,7 +72,7 @@ test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none wi
   assert.deepEqual(log, [], 'no particle alive: no pass, no pixel')
   assert.equal(draw.draw(pools, ...frame(encoder)), 2)
   assert.deepEqual(log, [P, `${P} additive 6 2`, `${P} premultiplied 6 3`], 'far to near')
-  // The lit image, then the reactive value their coverage is written in (#833).
+  // The lit image, then the reactive value their coverage is written in.
   assert.deepEqual(attached, [[view, reactive]])
   const blends = gpu.renderPipelines.map(({ fragment }) => {
     const { color, alpha } = (fragment!.targets as GPUColorTargetState[])[0].blend!
@@ -148,7 +148,7 @@ test('WebGPU: the pools step once a frame, on the main view; another view draws 
   assert.equal(steps, 1)
 })
 
-test("WebGPU: the step is made at the frame's entry on the particles' code the frame waited for (#1353)", async () => {
+test("WebGPU: the step is made at the frame's entry on the particles' code the frame waited for", async () => {
   const [smoke] = scene(),
     main = {},
     gpu: { particles?: object } = {},

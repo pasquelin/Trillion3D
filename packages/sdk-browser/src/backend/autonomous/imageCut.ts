@@ -56,7 +56,7 @@ export function createImageCut(options: {
     selectOptions.viewport = view.viewport
     selectOptions.wanted = desired
     const selected = selectVisiblePages(roots, cam, selectOptions, view.shown)
-    // The packed ranks the cut published, rank by rank, kept beside the records (#1235): one record
+    // The packed ranks the cut published, rank by rank, kept beside the records: one record
     // serves many placements, so a consumer of these lists reads its instance's rank here.
     shownPacked.length = selected.shown.length
     for (let i = 0; i < selected.shown.length; i++) shownPacked[i] = selected.shownPacked[i]
@@ -70,7 +70,7 @@ export function createImageCut(options: {
   return Object.assign(cut, {
     /** Bytes of the cut's host tables: the requests' closure and the rule's readiness of each
      *  placement, all sized by what the view asks for and the pool holds, and read without
-     *  walking the placements (#483 rule 7). */
+     * walking the placements. */
     hostBytes: () => (requests.follow(), requests.hostBytes + held.bytes),
     /** Cuts the last requests to the pool drawn since; true when they lost pages, which what the
      *  image keeps must then forget before the pool trims. */

@@ -13,7 +13,7 @@ export function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
 }
 
 /** Components of a decoded attribute, by name; anything else is a UV pair. A skin's joints and
- *  weights are four; the morph displacements six a target, the targets side by side (#357). */
+ * weights are four; the morph displacements six a target, the targets side by side. */
 const ITEM_SIZE: Record<string, number> = {
   position: 3,
   normal: 3,
@@ -27,7 +27,7 @@ export const itemSize = (name: string) => ITEM_SIZE[name] ?? 2
 /** Each page cut again for its class, decoded once for as long as a record holds its bytes. */
 const recutPages = new WeakMap<Uint8Array, DecodedGeometryPage>()
 
-/** The page `rec` draws: the one cut again for its class in session (`PageRec.recut`, #846),
+/** The page `rec` draws: the one cut again for its class in session (`PageRec.recut`),
  *  decoded once however many records share it or turn resident again, or else `read`. */
 export function pageOf(rec: PageRec, read: DecodedGeometryPage | undefined) {
   if (!rec.recut) return read!

@@ -70,8 +70,8 @@ const resParseDag = await measure({
     { name: 'empty cut', input: 0, size: 0 },
   ],
   calculation: (masque) => parseDagOutput(sortieGpu.buffer, 0, sortieGpu.byteLength, masque),
-  // The oracle from before batch A took a per-page flag mask; the engine now receives a
-  // already-compacted list and a word offset. The two no longer describe the same output:
+  // The oracle takes a per-page flag mask; the engine receives an
+  // already-compacted list and a word offset. The two do not describe the same output:
   // correctness of `parseDagOutput` is held by `packages/sdk-browser/src/gpu/dag/uniforms.test.ts`, not by this bench.
   expected: undefined,
   motif:

@@ -159,7 +159,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * The running job's next camera page made resident, or its end: what the next image can draw
      * already, a failure included. A loop waiting on it draws while a long job loads, the
      * view refining page by page, where waiting on `pending` shows the coarse cut until the job's
-     * last page (#836).
+     * last page.
      */
     progress: () => {
       if (!running) return pending

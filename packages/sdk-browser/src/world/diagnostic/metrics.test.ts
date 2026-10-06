@@ -60,7 +60,7 @@ test('drawnTriangles falls back to null when the engine no longer publishes it (
   assert.equal(metricsScratch.drawnTriangles, null, 'never the previous-frame value kept')
 })
 
-// #349: the effect chain the host composes holds targets of its own; they count with the frame's.
+// The effect chain the host composes holds targets of its own; they count with the frame's.
 test('the host chain adds its target bytes to the frame targets, published or not', () => {
   const { metricsScratch, fillMetrics } = harness(96)
   fillMetrics({ metrics: () => ({}) } as unknown as RenderBackend)

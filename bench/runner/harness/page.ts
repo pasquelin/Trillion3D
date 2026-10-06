@@ -10,7 +10,7 @@ export interface BoundsOptions {
   sdkUrl: string
   manifestUrl: string
   /** Keep the world, its physics on, for the street probe that follows in this page
-   *  (`probeColumns`, `street/streetPage.ts`): the model is loaded once for both (#1016). */
+   *  (`probeColumns`, `street/streetPage.ts`): the model is loaded once for both. */
   street?: boolean
 }
 

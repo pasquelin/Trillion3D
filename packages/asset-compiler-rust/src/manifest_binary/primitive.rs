@@ -71,7 +71,7 @@ pub(super) fn encode_primitive(
                     "group.sphere",
                     &mut columns[GROUP_SPHERE],
                 )?;
-                // Labels for both keys are literals: no longer formatted
+                // Labels for both keys are literals: not formatted
                 // per group, nor — for "member" — per group member.
                 for (key, labels, count_column, flat_column) in [
                     (

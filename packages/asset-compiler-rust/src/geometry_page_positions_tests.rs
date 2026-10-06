@@ -1,8 +1,8 @@
-//! Equivalence harness of CMP-10 (#960, E0): a page that stores each position once decodes to
-//! the very words develop's page decoded to. Develop's outcome of every case — the SHA-256 of the
-//! decoded words, or the refusal — and its page bytes are frozen below, measured on develop
-//! `a563999f0` with this same harness; the cases are flat-shaded and smooth random meshes, the
-//! signed zeros, NaN and infinities, the empty page and the largest one.
+//! Equivalence harness: a page that stores each position once decodes to the very words a page
+//! that stores every vertex's position decoded to. The outcome of every case — the SHA-256 of the
+//! decoded words, or the refusal — and its page bytes are frozen below, measured on the layout
+//! that stores every position, with this same harness; the cases are flat-shaded and smooth
+//! random meshes, the signed zeros, NaN and infinities, the empty page and the largest one.
 
 use crate::geometry_page::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
@@ -158,11 +158,13 @@ fn cases() -> Vec<(String, Mesh, i32)> {
     out
 }
 
-/// Develop's outcome of every case, in order: name, digest or refusal, page bytes.
+/// The outcome of every case with every position stored, in order: name, digest or refusal, page
+/// bytes.
 const DEVELOP: &str = include_str!("geometry_page_positions_develop.tsv");
 
-// Behaviour: every case decodes to the words develop decoded it to, or is refused alike, in no
-// more page bytes; the flat-shaded pages, their positions stored once, in fewer.
+// Behaviour: every case decodes to the words a page storing every position decodes it to, or is
+// refused alike, in no more page bytes; the flat-shaded pages, their positions stored once, in
+// fewer.
 #[test]
 fn every_page_decodes_as_on_develop_with_one_additional_header_word() {
     let develop: Vec<Vec<&str>> = DEVELOP.lines().map(|l| l.split('\t').collect()).collect();

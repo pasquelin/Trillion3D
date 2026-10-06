@@ -1,4 +1,4 @@
-// #1279: the water composite's mirror ray walks the depth bounds (`BOUNDED_SCREEN_REFLECTION_WGSL`),
+// The water composite's mirror ray walks the depth bounds (`BOUNDED_SCREEN_REFLECTION_WGSL`),
 // a reference session's unlifted, as every mirror ray (`screenReflection`): the reflection targets
 // make them for a transmissive scene, and an image builds them where a mirror ray walks it
 // (`mirrorWalksImage`): the water or a mirror receiver in view.

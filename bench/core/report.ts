@@ -34,7 +34,7 @@ function verifyFiles(measurements: Measurement[]) {
 
 /**
  * Domain rows, each augmented by its deviation from the baseline. Key is the measurement/case
- * pair: two benchmarks touching the same source file no longer overwrite each other. Nothing is mutated —
+ * pair: two benchmarks touching the same source file do not overwrite each other. Nothing is mutated —
  * what goes to disk is not what the benchmark still holds.
  */
 function confronteBaseline(domaine: string, measurements: Measurement[]) {

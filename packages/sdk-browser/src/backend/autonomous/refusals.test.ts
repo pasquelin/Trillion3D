@@ -1,4 +1,4 @@
-// #840: the autonomous WebGL2 frame answers each pool its context refused. Geometry draws a level
+// The autonomous WebGL2 frame answers each pool its context refused. Geometry draws a level
 // coarser; a map or a frame target, with nothing coarser to show, is published and drawn again.
 import test from 'node:test'
 import assert from 'node:assert/strict'

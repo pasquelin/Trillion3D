@@ -59,7 +59,7 @@ const frameScratch = (vsm: EngineVsm) => {
 }
 /** The projection the raster drew this image with, the TAA jitter in it (\`taaRenderMatrix\`):
  *  the depth the projection reconstructs each pixel from was drawn jittered, so the projection
- *  reconstructs it with the jittered view (#1363). */
+ *  reconstructs it with the jittered view. */
 function rasterProjection(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   invertMatrix4(viewInverse, cam.view)
   renderMatrix.set(taaRenderMatrix(rt, cam))

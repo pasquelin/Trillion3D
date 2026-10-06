@@ -141,7 +141,7 @@ export function createWebgpuCutPublication(
      *  mirror is synced (`../residency/mirror.ts`). */
     heldResidency: held,
     /** Bytes of the cut's host tables, each sized by what the view asks for and the pool holds,
-     *  never by the catalogue (#483 rule 6), each read in constant time (#483 rule 7). */
+     *  never by the catalogue, each read in constant time. */
     hostTableBytes: () =>
       closure.hostBytes +
       (run.gpuSelection?.hostBytes ?? 0) +
@@ -169,13 +169,12 @@ export function createWebgpuCutPublication(
       if (views.active === views.main) ahead.offerIds(NO_IDS)
       const cut = activeCut()
       adopt(cut, wanted, shown, wantedCount, shownCount)
-      // The packed ranks of the wanted cut, rank by rank beside `run.desired` (#1235): the delta's
+      // The packed ranks of the wanted cut, rank by rank beside `run.desired`: the delta's
       // own buffer is swapped at each difference and longer than its live ranks, never handed out.
       copyPacked(run.desiredPacked, cut.asked.ids, cut.asked.count)
       // A capture is drawn alone, the others wait for it: its cut is ranked first under the one
-      // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
-      // (#268). A persistent view and the main one rank the union, the same queue whichever is
-      // drawn, so views drawn every frame never trade slots.
+      // budget, so it keeps its detail pages. A persistent view and the main one rank the union,
+      // the same queue whichever is drawn, so views drawn every frame never trade slots.
       residencySets.drawnFirst = captureDrawn(views, capture) ? run.desiredPacked : null
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */

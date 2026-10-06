@@ -1,4 +1,4 @@
-// #1410: the float pool's normals and tangents ride in a float atlas (`floatAtlas.ts`), no storage
+// The float pool's normals and tangents ride in a float atlas (`floatAtlas.ts`), no storage
 // buffer, so the lighting with bounce and the shadow demand, which recompute the receiver offset
 // from them, hold the eight storage buffers WebGPU guarantees. Defects these tests catch: a normal
 // written where the passes do not read it (the offset then leaves another normal than the
@@ -109,7 +109,7 @@ test('the normal atlas weighs the bytes the normal buffer did: the budgets it fu
 
 test('under the same maxStorageBufferBindingSize, the pool holds at least the vertices develop held', () => {
   const MiB = 2 ** 20
-  /** Develop's pool (#1410's base): positions and deformation block, UVs, normals, three buffers
+  /** The storage-buffer pool: positions and deformation block, UVs, normals, three buffers
    *  each under the storage binding cap. */
   const developHolds = (n: number, tail: number, coloured: boolean, cap: number) =>
     [n * 3 + tail, uvBufferFloats(n, coloured), n * 7].every((floats) => floats * 4 <= cap)

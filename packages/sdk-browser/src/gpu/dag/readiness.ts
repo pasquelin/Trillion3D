@@ -12,7 +12,7 @@ import { NODE_OPEN } from './nodeLayout.ts'
  *
  * Each node's `open` count is written into the packed nodes, at the word the kernel reads
  * (`NODE_OPEN`): the host copy of the node buffer stays the one the oracle reads. The state itself
- * is held for the resident pages only (`../../page/cut/readiness.ts`, #483 rule 6).
+ * is held for the resident pages only (`../../page/cut/readiness.ts`).
  */
 export function createDagReadiness(packed: PackedDag) {
   const nodeInts = new Uint32Array(
@@ -28,7 +28,7 @@ export function createDagReadiness(packed: PackedDag) {
   // A placement holds its own state only while one of its pages is resident: otherwise it reads
   // its primitive's state with nothing resident, one shared by every placement of the primitive
   // (an instance reads its primitive's pages, it holds none). The heap thus follows what
-  // is resident, never the placement count (#1235, #483 rule 6).
+  // is resident, never the placement count.
   const blank = new Map<CullingLinks, Map<DagCutLinks['structure'], CutReadiness>>()
   const blankOf = ({ structure, links }: DagCutLinks) => {
     let byStructure = blank.get(links)
@@ -108,7 +108,7 @@ export function createDagReadiness(packed: PackedDag) {
       return heldCount
     },
     /** Bytes of the host tables: each placement's state, sized by its resident pages. Read in
-     *  constant time, whatever the number of placements (#483 rule 7). */
+     * constant time, whatever the number of placements. */
     get hostBytes() {
       return hostBytes
     },

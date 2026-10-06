@@ -1,4 +1,4 @@
-// #573: the WebGL2 path draws a dynamic geometry's index pages over its host lists, every page
+// The WebGL2 path draws a dynamic geometry's index pages over its host lists, every page
 // sharing them, and uploads a rewrite once, by its written range alone (`bufferSubData`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -68,7 +68,7 @@ test('the pages of a dynamic geometry share its lists, and a rewrite uploads its
   position.setZ(2, 0.5)
   markRewritten(source, [{ name: 'position', from: 1, count: 2 }])
   uploads.length = 0
-  cache.beginFrame() // a geometry is checked against its versions once a frame (#840)
+  cache.beginFrame() // a geometry is checked against its versions once a frame
   for (const page of pages) cache.bind(page)
   assert.deepEqual(uploads, [['sub', 12, 24]], 'vertices 1 and 2, once')
 })

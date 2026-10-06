@@ -113,7 +113,7 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
     )
   // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
   // bounce program, so a session without bounce keeps exactly the previous layout. The two last
-  // are atlases (`atlas.ts`, #1410): no storage buffer of the eight.
+  // are atlases (`atlas.ts`): no storage buffer of the eight.
   if (bounce)
     entries.push(
       { binding: 11, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },

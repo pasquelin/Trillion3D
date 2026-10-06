@@ -1,4 +1,4 @@
-// The effect chain's targets in the GPU total (#349, #483 rule 5): reserved on the declared canvas
+// The effect chain's targets in the GPU total: reserved on the declared canvas
 // by the rule the renderers count them with, before the pools, whose defaults stay what they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'

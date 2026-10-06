@@ -1,4 +1,4 @@
-// Step A: draw-row words are no longer rebuilt per image. They follow the row table — a page that
+// Draw-row words are not rebuilt per image. They follow the row table — a page that
 // arrives, leaves or changes rank — and send the GPU only the rows it has not yet received, run by
 // run.
 import test from 'node:test'
@@ -37,7 +37,7 @@ function runtime(n: number, drawLayerSlots: number) {
       },
     },
     selectionRoots: [{ world: new G.Matrix4() }],
-    // Every row draws a page of the one placement: its packed ranks all name root 0 (#1235).
+    // Every row draws a page of the one placement: its packed ranks all name root 0.
     placement: {
       baseOfRoot: Int32Array.of(0),
       rootOfPacked: Int32Array.from({ length: 1024 }, () => 0),

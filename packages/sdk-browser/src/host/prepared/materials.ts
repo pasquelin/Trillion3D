@@ -55,7 +55,7 @@ export const drawnByCloth = (geometry: object) => void twoSidedGeometries.add(ge
 
 /** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
  *  no normal, both faces where a cloth draws it — at open (`graph.ts`) and for a created material
- *  assigned later (#847). */
+ *  assigned later. */
 export const surfaceVariantOf = (geometry: { attributes: Record<string, unknown> }) => ({
   vertexColors: geometry.attributes.color !== undefined,
   flatShading: geometry.attributes.normal === undefined,

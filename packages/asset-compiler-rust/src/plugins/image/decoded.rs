@@ -18,7 +18,7 @@
 /// un-premultiplied by its driver, never returned as-is.
 pub enum DecodedImage {
     /// RGBA 8 bits per channel, straight alpha, at least one pixel. `ImageDecoded::transfer` says
-    /// which transfer function these bytes are written in: the contract no longer assumes sRGB.
+    /// which transfer function these bytes are written in: the contract does not assume sRGB.
     Rgba8(image::RgbaImage),
     /// RGBA 32-bit floats per channel, **linear** and straight alpha, at least one pixel: what
     /// high-dynamic-range formats return. `data` holds `width * height * 4` values, one pixel after

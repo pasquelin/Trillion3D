@@ -26,7 +26,7 @@ export function createStreamingQueue(
     abortError,
   } = context
   /** Pages `forget` asked to drop while a job held them: they leave when it settles, unless
-   *  `keep` takes them back first (#572). */
+   *  `keep` takes them back first. */
   const forgotten = new Set<string>()
   /** A page leaves the catalogue with its bytes and its failure. */
   const drop = (url: string) => {
@@ -51,7 +51,7 @@ export function createStreamingQueue(
       compacteFile(queue)
       state.dropped = 0
     }
-    // The queue is kept in order by its insertions: it is no longer sorted at all. Neither
+    // The queue is kept in order by its insertions: it is never sorted. Neither
     // compaction nor removing an admitted job disturbs that order.
     while (state.active < limit && queue.length) {
       const at = findAdmissible(queue, state.active, state.activeBytes, octetsDe, maxTransferBytes)

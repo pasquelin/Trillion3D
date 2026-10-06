@@ -1,5 +1,5 @@
 // The feedback word a pass reads (`phaseWord`): the pick turn rides above the phase and the
-// "every pixel" bit, on every image (#1016).
+// "every pixel" bit, on every image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FEEDBACK_EVERY, PICK_SHIFT, createWebgpuTileFeedback } from './feedback.ts'
@@ -7,7 +7,7 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
 
-// #1016 review: ordinary images never turned the pick, so a live view never asked the sliver's
+// Ordinary images must turn the pick, so a live view asks the sliver's
 // tile. Each pixel speaks once per phase round: the pick turns once per round, and each pixel
 // steps through every pick as it speaks. A convergence image names every pick itself.
 test('ordinary images turn the pick once per whole phase round', () => {

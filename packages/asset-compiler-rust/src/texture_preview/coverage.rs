@@ -1,19 +1,19 @@
 //! Coverage-preserving alpha: the rule every builder of a coverage chain applies
 //! after the median of four — this compiler, and the card's WebGPU and WebGL2
-//! chains, which mirror it step for step (`texture/coverageRule.ts`, #748, #769).
+//! chains, which mirror it step for step (`texture/coverageRule.ts`).
 //!
 //! A masked material keeps a texel when its alpha times the material's
 //! `baseColorFactor` alpha reaches the cutoff (glTF 2.0), and the median of four
 //! does not keep the share of texels that do: on foliage the coarse levels thin
-//! out (sponza's masked maps lose up to 57 % of their coverage at level 8, #44).
+//! out (a masked map can lose up to 57 % of its coverage at level 8).
 //! A texture's cutoff byte `C` is the lowest of its readers' effective cutoffs
 //! (`material_cut`), 0 when one of them blends: a blended surface draws the
 //! alpha itself, whose mean the scale would move. So, at every level `k ≥ 1` of
 //! a coverage chain whose cutoff byte `C` is not 0:
 //!
 //! 1. the level is reduced as any other — colours, then the median alpha;
-//! 2. coverage is counted on the bilinearly filtered cut, as the sampler draws it
-//!    (Castaño's practice, #43), not on the texels: four samples a texel, at the
+//! 2. coverage is counted on the bilinearly filtered cut, as the sampler draws it,
+//!    not on the texels: four samples a texel, at the
 //!    quarter points of the square between its centre and those of its right,
 //!    lower and diagonal neighbours (an edge texel its own neighbour), each the
 //!    byte `(9a + 3b + 3c + d) / 16` of its corners rounded half up (`filtered`),
@@ -39,7 +39,7 @@ use super::reduce::AtlasKind;
 
 /// The smallest byte `b` a material keeps at `cutoff` under a `baseColorFactor`
 /// alpha `factor`: `b / 255 × factor >= cutoff` in `f32`, the product glTF 2.0
-/// cuts and both backends compute (`maskKeep`, #748; `baseFactor`, #769) —
+/// cuts and both backends compute (`maskKeep`, `baseFactor`) —
 /// dividing the cutoff by the factor instead would land a byte off on exact ties.
 /// The quality gate cuts at the same product (`keeps`, `blocks/quality.rs`). 255
 /// when no byte reaches it — a factor of 0 or below, or a cutoff above the factor,

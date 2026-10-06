@@ -6,7 +6,7 @@ const END = '# Local files end'
 
 /**
  * The paths `.gitignore` declares local: personal instructions, assistant roles and graph
- * artefacts, kept out of the index by #157 and therefore absent from a fresh worktree. The block
+ * artefacts, kept out of the index and therefore absent from a fresh worktree. The block
  * marks its own bounds because shared checks read it; this is the only list, never a second copy.
  * Patterns are taken as plain paths, so a wildcard — which no entry uses today — is left out
  * rather than guessed at.

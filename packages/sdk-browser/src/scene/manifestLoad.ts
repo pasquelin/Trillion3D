@@ -96,7 +96,7 @@ export interface LoadedManifest {
    *  the files it reads. Empty for a cache that declares none. */
   declared: ReadonlyMap<string, number>
   timing: ManifestTiming
-  /** Of a manifest opened by its head (`lazy`), its mesh pages, which the view holds (#751). */
+  /** Of a manifest opened by its head (`lazy`), its mesh pages, which the view holds. */
   pages?: ManifestPages
   /** The load is over: the pages read from now on carry neither its signal nor its meter. */
   settle(): void
@@ -121,7 +121,7 @@ function declaredFiles(value: Record<string, unknown>, metadataUrl: string) {
  * its pages and their column files are read side by side, each verified against its slot, and the
  * columns mapped, never parsed (`readPagedManifest`). `meter` counts each file read here as it
  * arrives; the load that holds it plans the files it reads next. `lazy` reads the head alone: the
- * mesh pages are read as `pages` holds them, checked and their addresses made absolute (#751).
+ * mesh pages are read as `pages` holds them, checked and their addresses made absolute.
  */
 export async function loadClusterManifest(
   manifestUrl: string,

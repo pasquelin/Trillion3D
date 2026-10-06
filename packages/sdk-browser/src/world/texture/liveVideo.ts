@@ -6,7 +6,7 @@ type VideoClock = Pick<HTMLVideoElement, 'paused' | 'ended' | 'addEventListener'
 }
 
 /**
- * Makes a video texture LIVE (#362): each new frame the video presents moves the texture's
+ * Makes a video texture LIVE: each new frame the video presents moves the texture's
  * picture (`needsUpdate`), which the materials that wear it hear — their entry repainted in place,
  * the frame copied into the texture the session already holds, no session reopened. The frame
  * clock is the video's own (`requestVideoFrameCallback`); without it, one copy per display frame

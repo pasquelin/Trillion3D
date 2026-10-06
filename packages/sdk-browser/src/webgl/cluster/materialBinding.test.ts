@@ -1,7 +1,7 @@
 // The WebGL2 cluster binder's map uniforms, without a GL context: its four collaborators are
 // injected, so what it sends them is readable directly. What is proved here is the UV transform it
 // uploads — the engine record's own nine elements, under the unit's uniform name, for a bound map
-// and for that map alone — since the binder no longer recomposes a host matrix per bind.
+// and for that map alone — since the binder does not recompose a host matrix per bind.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -88,7 +88,7 @@ const flagOf = (material: G.GraphSurface, name: string, linear = false) => {
   return flags.get(name)
 }
 
-test('Each family binds the surface model it is shaded by, lit or not (#772)', () => {
+test('Each family binds the surface model it is shaded by, lit or not', () => {
   const families = [
     ['lambert', 'diffuse', 1],
     ['toon', 'toon', 1],
@@ -114,14 +114,14 @@ function unitRecorder() {
   return { binding, units }
 }
 
-test('A matcap binds its image on the base map unit (#772)', () => {
+test('A matcap binds its image on the base map unit', () => {
   const image = texture(),
     { binding, units } = unitRecorder()
   bindClusterMaterial(binding, new G.GraphSurface('matcap', { matcap: image }), true)
   assert.equal(units[0], importHostTexture(image))
 })
 
-test('An occlusion map darkens a matcap on neither path, a plain colour on WebGL2 (#772)', () => {
+test('An occlusion map darkens a matcap on neither path, a plain colour on WebGL2', () => {
   const aoMap = texture(),
     { binding, units } = unitRecorder()
   const matcap = new G.GraphSurface('matcap', { aoMap })
@@ -143,7 +143,7 @@ test("A diagnostic view's surfaces, and they alone, stay out of the fog", () => 
   assert.equal(flagOf(G.standardSurface(), 'fogFree'), 0)
 })
 
-test('A normal or depth material, and they alone, are never tone mapped (#365)', () => {
+test('A normal or depth material, and they alone, are never tone mapped', () => {
   // The fragment's display curve hangs on this one uniform: what the binder sends is the rule.
   assert.equal(CLUSTER_FRAGMENT.split('rgb=toneMap(rgb)').length, 2)
   assert.match(CLUSTER_FRAGMENT, /if\(toneMapped\)rgb=toneMap\(rgb\);/)
@@ -154,7 +154,7 @@ test('A normal or depth material, and they alone, are never tone mapped (#365)',
   assert.equal(flagOf(G.standardSurface(), 'toneMapped'), 1, 'standard')
 })
 
-test('Into the effect chain, a surface covers its pixel as the display path shows it (#349)', () => {
+test('Into the effect chain, a surface covers its pixel as the display path shows it', () => {
   const transparent = (blending: number) =>
     Object.assign(G.standardSurface({ opacity: 0.5 }), { transparent: true, blending })
   assert.equal(flagOf(G.standardSurface(), 'covering', true), 1, 'opaque')
@@ -178,8 +178,8 @@ test('Into the effect chain, a surface covers its pixel as the display path show
   assert.throws(() => flagOf(transparent(99), 'covering', true), /a surface declares a blending/)
 })
 
-// #769: glTF 2.0 cuts the colour factor's alpha times the map's, and WebGPU does since #748; WebGL2
-// multiplied the opacity only into a blended surface, so a masked one was cut at the map alone.
+// GlTF 2.0 cuts the colour factor's alpha times the map's, as WebGPU does; WebGL2 multiplies the
+// opacity into a masked surface too, not only into a blended one.
 test('A masked surface is cut at its opacity times its map alpha, as WebGPU cuts it', () => {
   const baseAlpha = (material: G.GraphSurface) => {
     const { binding } = recorder()
@@ -191,7 +191,7 @@ test('A masked surface is cut at its opacity times its map alpha, as WebGPU cuts
     return alpha
   }
   assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 })), 0.4)
-  // Cut at that alpha, it still writes 1 as an opaque surface (#840: canvas alphas 128 and 191).
+  // Cut at that alpha, it still writes 1 as an opaque surface (canvas alphas 128 and 191).
   assert.equal(flagOf(G.standardSurface({ opacity: 0.4, alphaTest: 0.5 }), 'covering'), 1)
   assert.equal(baseAlpha(G.standardSurface({ opacity: 0.4 })), 1, 'opaque: its alpha is not read')
 })

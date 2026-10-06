@@ -1,4 +1,4 @@
-// #840: an arena grown by a copy on the GPU left pages empty on ANGLE's Metal backend once a later
+// An arena grown by a copy on the GPU left pages empty on a Metal-backed WebGL2 layer once a later
 // write reached a buffer still in use. It grows by sending every page again from its own arrays;
 // through placements, releases and growths, every page reads its own vertices and indices.
 import test from 'node:test'

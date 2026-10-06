@@ -2,9 +2,9 @@ import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
 import { PORTABLE_TEXTURE_SIDE } from '../frame/referenceTilePlacement.ts'
 
 /**
- * THE BOUNCE ATLASES (#1410): the probe cascades and the surface cache are float textures read
+ * THE BOUNCE ATLASES: the probe cascades and the surface cache are float textures read
  * with `textureLoad` and written by their compute passes as storage textures — like a surface
- * cache atlas —, no longer storage buffers: the deferred lighting holds its storage buffers
+ * cache atlas —, not storage buffers: the deferred lighting holds its storage buffers
  * within the eight WebGPU guarantees. `rgba32float` keeps every value bit for bit. A surface cache
  * texel `i` sits at `(i % width, i / width)`, row by row; a probe at its column, row and layer
  * (`probeAtlasExtent`); no entry is ever dropped: a size the device cannot hold is refused before

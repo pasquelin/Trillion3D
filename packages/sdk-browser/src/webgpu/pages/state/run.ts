@@ -67,7 +67,7 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** Time of the CPU cut alone; null on an image the GPU cut decided. */
   cpuSelectMs: number | null
   shown: PageRec[]
-  /** The packed rank of each shown page, rank by rank (#1235): one record serves many placements. */
+  /** The packed rank of each shown page, rank by rank: one record serves many placements. */
   shownPacked: number[]
   desired: PageRec[]
   /** The packed rank of each desired page, rank by rank. */

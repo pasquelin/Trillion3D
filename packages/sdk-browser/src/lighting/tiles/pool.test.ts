@@ -1,4 +1,4 @@
-// #849, #1369: the view's light-index pool of the grid's lists, as the frame metrics carry it. A
+// The view's light-index pool of the grid's lists, as the frame metrics carry it. A
 // sampled frame whose pool overflowed is named and grows the pool to 1.25 × what it reserved,
 // within a bound per column of cells.
 import test from 'node:test'

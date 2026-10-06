@@ -16,7 +16,7 @@ import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
  * division already concentrates depth near the near plane: both effects cancel out when
  * near plane is 1 and far is 0, so that at a thousand kilometers two adjacent surfaces
  * still retain distinct depth values where direct convention squashed them to the same
- * value. Far plane no longer enters the formula — no `far - near` in denominator,
+ * value. Far plane does not enter the formula — no `far - near` in denominator,
  * hence nothing to tune and nothing that saturates: `ndc = near / distance`.
  *
  * The perspective looks straight down its axis: no shift of the picture off that axis enters

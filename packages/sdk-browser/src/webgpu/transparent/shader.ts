@@ -7,7 +7,7 @@ import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
  * the selection mask the cluster cut wrote this very frame. A count per group, a serial prefix over
  * the groups of each item, then a scatter that places each surviving cluster at its rank inside its
  * group: the output is the input order with the unselected entries removed, which is exactly the
- * list the CPU used to sort by `sourceOrder` every frame.
+ * list the CPU would sort by `sourceOrder` every frame.
  *
  * Item ranges are aligned on the group, so no group spans two items and each item's instances are
  * written inside its own range — the base a draw reads is known before the image starts.

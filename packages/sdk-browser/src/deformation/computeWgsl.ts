@@ -1,7 +1,7 @@
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pageWgsl.ts'
 
-/** The binding of the float pool's normal atlas (`../webgpu/core/floatAtlas.ts`, #1410). */
+/** The binding of the float pool's normal atlas (`../webgpu/core/floatAtlas.ts`). */
 export const DEFORMATION_NORMALS = 2
 import {
   DEFORM_ADDRESS,

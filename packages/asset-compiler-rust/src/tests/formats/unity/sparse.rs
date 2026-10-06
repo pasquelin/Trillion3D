@@ -1,8 +1,8 @@
-//! A07: what a model poured into a Unity scene keeps of its table references. The
-//! merge shifted an accessor's direct `bufferView`, and that alone: the two views of
-//! a sparse accessor and a primitive's morph targets kept naming the model's ranks.
-//! A model alone therefore compiled, and the same model placed after a built-in cube
-//! — whose views take the first ranks — was refused or read another mesh's bytes.
+//! What a model poured into a Unity scene keeps of its table references. The
+//! merge shifts every view reference, not only an accessor's direct `bufferView`: the two views
+//! of a sparse accessor and a primitive's morph targets would keep naming the model's ranks.
+//! A model alone would then compile, and the same model placed after a built-in cube
+//! — whose views take the first ranks — would be refused or read another mesh's bytes.
 use super::project::{cube, game_object, white_mat, UnityProject};
 use super::*;
 
@@ -141,7 +141,7 @@ fn merged_primitive(gltf: &Value) -> Value {
         .clone()
 }
 
-// Finding A07: the model's positions are the same whether it is alone or poured behind another.
+// The model's positions are the same whether it is alone or poured behind another.
 #[test]
 fn sparse_accessor_views_follow_the_model_into_the_scene() {
     let (gltf, bin) = model();

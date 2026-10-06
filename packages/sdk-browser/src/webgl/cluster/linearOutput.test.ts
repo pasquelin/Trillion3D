@@ -1,5 +1,5 @@
-// The linear output the effect chain asks of a WebGL2 draw (#349). Without a chain the cluster
-// program is the one drawn before the chain existed, an opaque surface's alpha 1 (#840); a draw into
+// The linear output the effect chain asks of a WebGL2 draw. Without a chain the cluster
+// program is the one drawn before the chain existed, an opaque surface's alpha 1; a draw into
 // the chain goes through a variant compiled at its first frame: no curve and no sRGB transfer —
 // the chain applies both after its passes —, an opaque surface's alpha is its coverage, and the
 // surfaces whose material skips the curve are marked so the chain's output skips it too.
