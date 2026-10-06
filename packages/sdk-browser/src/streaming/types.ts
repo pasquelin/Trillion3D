@@ -98,7 +98,7 @@ export type Job = {
   /** Its place in the queue's heap, −1 out of it (`queueOrder.ts`). */
   slot: number
   controller: AbortController
-  /** `dropped`: no consumer left, the queue drops it on the next `pump` pass. */
+  /** `dropped`: its last consumer left while it was queued, and it was taken out at once. */
   state: 'queued' | 'active' | 'dropped'
   consumers: Set<symbol>
   promise: Promise<Uint8Array>

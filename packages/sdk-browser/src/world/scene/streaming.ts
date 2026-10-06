@@ -3,6 +3,7 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { ARRIVAL_QUEUE_BATCH } from '../../backend/common.ts'
 import { decodePageOffThread } from '../../page/decode/host.ts'
 import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
+import { ATTEMPTS } from '../../streaming/fetchAttempt.ts'
 import type { RenderBackend } from '../../backend/types.ts'
 import type { ExplorerHostState } from '../render/hostState.ts'
 import type { ExplorerSession } from '../session/session.ts'
@@ -113,7 +114,7 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
               version: 1,
               error: detail,
               failedPages: streamer.stats().failed,
-              maxAttemptsPerPage: 3,
+              maxAttemptsPerPage: ATTEMPTS,
               coverageReady: state.active.metrics().coverageReady ?? null,
               recovered,
               scope,

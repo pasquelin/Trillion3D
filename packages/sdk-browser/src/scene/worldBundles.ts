@@ -139,9 +139,8 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       const bundles = cellDependencies(table, cell)
       await readAtOpen(bundles, bundles.map(take), read)
     },
-    /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a
-     *  cell holds it — the run on its way joined, kept while it waits whatever the cells do —, and
-     *  let go once read (the GPU page pool keeps what it uploads). */
+    /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a cell
+     *  holds it, and let go once read (the GPU page pool keeps what it uploads). */
     async pages(bundle: number) {
       if (bundle < table.pinned) return top[bundle]
       const own = take(bundle)
