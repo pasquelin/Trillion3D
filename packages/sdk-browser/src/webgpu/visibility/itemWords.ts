@@ -89,8 +89,6 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   hold.pending.mark(from, to);
 }
 
-type DrawItemWordsHold = ReturnType<typeof createDrawItemWordsHold>;
-
 /** Sends the pending rows' words to the compaction, run by run, then holds nothing pending. */
 export function sendDrawItemWords(rt: WebgpuPagesRuntime) {
   const { pending } = rt.layout.itemWordsHold;
