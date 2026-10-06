@@ -29,8 +29,8 @@ or batch, follows these conventions:
   costs 6 % of the product.
 
 **Allocate once, reuse every frame.** Culling ten thousand boxes and bringing the survivors' centres
-into view space is two calls — this is `packages/sdk-core/src/math/batch/host.test.ts`, run by
-`pnpm test`:
+into view space is two calls (the kernels are proven by
+`packages/sdk-core/src/math/batch/batch.test.ts`, run by `pnpm test`):
 
 ```javascript
 import {
@@ -138,4 +138,4 @@ exceptions are declared on their line.
 | `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
 | `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
 | `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
-| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `packages/sdk-core/src/math/batch/hierarchy.test.ts`: the transform tree's frame pass on hostile hierarchies, same bits |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `packages/sdk-core/src/math/transform-tree/hierarchy.test.ts`: the transform tree's parent and child rules on hostile hierarchies |

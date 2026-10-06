@@ -66,7 +66,7 @@ every other dictionary and each `api.<language>.json` is its own chunk, read (`l
 `loadReferenceTranslation`) before a page first shows in that language. `site/app/i18n.ts` is the
 one i18next instance: language from the route (`#/<language>/…`), then the reader's last choice
 (`localStorage`), the browser, English; the header lists every language. `check:i18n` in `validate`
-and `scripts/docs-i18n.test.ts` fail when a language's keys differ from English's, naming each
+and `scripts/docs/i18n.test.ts` fail when a language's keys differ from English's, naming each
 missing and extra key.
 
 ### Examples
@@ -272,7 +272,7 @@ guide HTML; signatures, exports, module paths and code examples stay the source 
 navigation or component text goes in every dictionary, read with `useWords(locale)`
 (`site/app/i18n.ts`); keys are typed from the English file. After content changes run
 `pnpm run check:i18n` and
-`node --test scripts/docs-i18n.test.ts tests/integration/documentation-portal.test.ts`: key parity
+`node --test scripts/docs/i18n.test.ts tests/integration/documentation-portal.test.ts`: key parity
 across languages, and no translation altering technical fields.
 
 ## Original scene and asset provenance
