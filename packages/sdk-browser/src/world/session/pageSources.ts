@@ -1,6 +1,6 @@
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../backend/common.ts'
 import { configurePageDecoders } from '../../page/decode/host.ts'
-import type { StreamPage } from '../../streaming/types.ts'
+import type { ExplorerScene } from './prepare.ts'
 import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
 import { loadClusterPages } from '../../cluster/pages.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
@@ -19,8 +19,9 @@ export async function createExplorerPageSources(
   backends: RenderBackend[],
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
   progress: Progress,
-  /** Files read through the same queue beside the pages: a partition's cells. */
-  extra: readonly StreamPage[] = [],
+  /** What the scene reads through the same queue beside the pages: its partitions' cells, and
+   *  the world bundles they hold. */
+  scene: Pick<ExplorerScene, 'partitions' | 'worldRoots'> = { partitions: [], worldRoots: [] },
 ) {
   const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata)
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse')
@@ -43,6 +44,7 @@ export async function createExplorerPageSources(
       : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)))
   // The decode pool never exceeds the already-in-force transfer admission.
   configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
+  const extra = scene.partitions.flatMap((cells) => cells.pages)
   const streamer = createPageStreamerWith(
     [...pages, ...geometryPages, ...bundles, ...extra],
     base,
@@ -61,6 +63,7 @@ export async function createExplorerPageSources(
           : undefined,
     },
   )
+  for (const roots of scene.worldRoots) roots.readThrough(streamer.ranged)
   let loaded = 0,
     pageBytesRead = 0
   const indices = new Map<string, Uint32Array>()

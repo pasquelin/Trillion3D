@@ -10,7 +10,7 @@ import { prepareMathBatch } from '../../math/batchState.ts'
 import type { MeasuredWorldOptions } from '../../backend/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
-import { openWorldRoots } from '../../scene/worldRoots.ts'
+import { openWorldRoots, type WorldRootsHold } from '../../scene/worldRoots.ts'
 import { loadPreparedSceneTables } from '../../scene/tables.ts'
 import { buildPreparedScene } from '../../host/prepared/build.ts'
 import { createPartitionCells } from '../../partition/cells.ts'
@@ -159,9 +159,9 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous)
-  // The world roots each model holds, which the session counts in its CPU budget: only
-  // that count leaves the scene, its page source and DAG stay the engine's (`ExplorerScene`).
-  const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
+  // The world roots each model holds, which the session counts in its CPU budget and reads
+  // through its queue: only those leave the scene, its page source and DAG stay the engine's.
+  const counted: Pick<WorldRootsHold, 'pinned' | 'bytes' | 'readThrough'>[] = worldRoots
     ? [worldRoots]
     : []
   return {

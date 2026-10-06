@@ -1,49 +1,15 @@
 // The runtime reads the world roots and pins their top alone; a placed cell holds the
 // bundles past it that its objects' roots depend on, and lets them go when it leaves.
-import test, { type TestContext } from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts'
 import {
   worldRootsDag,
   worldRootsFixture,
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
-import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
-
-const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
-
-/** The fixture's world served over HTTP ranges, `bin` its binary as the server holds it, `dag` the
- *  world DAG its cook writes beside it; returns the manifest that declares its files, the ranges
- *  asked and the files read whole. */
-function served(
-  t: TestContext,
-  bin?: Uint8Array,
-  ignoresRange = false,
-  dag?: Parameters<typeof encodeWorldRootsDag>[0],
-) {
-  const world = worldRootsFixture(sha)
-  const records = { table: world.bytes, dag: dag && encodeWorldRootsDag(dag) }
-  const held = bin ?? world.bin,
-    ranges: string[] = [],
-    whole: string[] = []
-  t.mock.method(globalThis, 'fetch', async (input: string, init?: RequestInit) => {
-    const file = /\.(table|dag)$/.exec(input)?.[1] as 'table' | 'dag' | undefined
-    if (file) return (whole.push(file), new Response(records[file]!.slice()))
-    const range = (init?.headers as Record<string, string>).Range
-    ranges.push(range)
-    if (ignoresRange) return new Response(held.slice())
-    const [from, to] = range.slice('bytes='.length).split('-').map(Number)
-    return new Response(held.slice(from, to + 1), { status: 206 })
-  })
-  const announce = (bytes: Uint8Array) => ({ bytes: bytes.byteLength, sha256: sha(bytes) })
-  const files = {
-    'world-roots.table': announce(records.table),
-    ...(records.dag && { 'world-roots.dag': announce(records.dag) }),
-  }
-  return { ...world, ranges, whole, manifest: { files } as unknown as ClusterManifest }
-}
+import { served } from './worldRoots.fixture.ts'
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
   const { table, manifest, ranges } = served(t)
@@ -66,7 +32,7 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
 test('a bundle whose bytes are not those its table names is refused, and nothing held', async (t) => {
   const { bin } = worldRootsFixture()
   bin[bin.byteLength - 12] ^= 1 // the last bundle, a cell's
-  const { manifest } = served(t, bin)
+  const { manifest } = served(t, { bin })
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
   await assert.rejects(
     roots.hold(0),
@@ -76,7 +42,7 @@ test('a bundle whose bytes are not those its table names is refused, and nothing
 })
 
 test('a server that ignores the Range is read once, whole, and every byte counted', async (t) => {
-  const { manifest, ranges, bin } = served(t, undefined, true)
+  const { manifest, ranges, bin } = served(t, { ignoresRange: true })
   const metered: string[] = []
   const meter = {
     plan() {},
@@ -102,7 +68,7 @@ test('a server that ignores the Range is read once, whole, and every byte counte
 
 test('the world DAG names its pages through the one source, from what is held', async (t) => {
   const { clusters, groups } = worldRootsDag()
-  const { manifest, ranges, whole } = served(t, undefined, false, { clusters, groups })
+  const { manifest, ranges, whole } = served(t, { dag: { clusters, groups } })
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
   assert.deepEqual(whole, ['table'], 'a load reads the table, never the DAG')
   const stream = await roots.stream()
@@ -145,7 +111,7 @@ test("the stream bounds each cell's super-roots, an object root in its object's 
   const ranked = clusters.map((c) =>
     c.origin === null ? c : { ...c, origin: [0, 1, 3][cellOf(c.origin)] },
   )
-  const { manifest } = served(t, undefined, false, { clusters: ranked, groups })
+  const { manifest } = served(t, { dag: { clusters: ranked, groups } })
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
   const { superRoots } = await roots.stream()
   assert.deepEqual(superRoots, cellSuperRoots(clusters, cellOf, 3))

@@ -123,7 +123,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     diagnosticChannel,
     progress,
-    loadedScene.partitions.flatMap((cells) => cells.pages),
+    loadedScene,
   )
   const directGpu = directWebgpu(options, choice.factories, gpuDevice)
   await configureExplorer(session, {

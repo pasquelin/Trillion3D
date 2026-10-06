@@ -39,7 +39,7 @@ const letGo = (response: Response) => void response.body?.cancel().catch(() => {
 const ABSENT = new Set([403, 404])
 
 /** The attempts of a caller that retries on its own terms — the page streamer, the GPU page
- *  cache, the physics tiles: one request. */
+ *  cache, the physics tiles, the world bundles a cell holds: one request. */
 export const ONE_REQUEST = 1
 /** The requests `checked` makes by default: the first, and one more when it may pass. The
  *  families' on-demand loader tries each import as many times (`../host/onDemand.ts`). */
