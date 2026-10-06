@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EngineError } from '../../../sdk-core/src/index.ts';
-import { helper } from '../world/helper/index.ts';
+import { helper } from '../world/api/helperFamily.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';

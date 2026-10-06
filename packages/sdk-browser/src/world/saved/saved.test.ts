@@ -9,7 +9,7 @@ import type { Material } from '../../../../sdk-core/src/world/material/material.
 import { light } from '../../../../sdk-core/src/world/light/index.ts';
 import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { helper } from '../helper/index.ts';
+import { helper } from '../api/helperFamily.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts';
 
 /** A scene whose `load` stands a plain node in for the compiled model at `url`, carrying one

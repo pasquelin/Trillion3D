@@ -11,12 +11,12 @@ export * from '../../sdk-core/src/world/camera/index.ts';
 export * from '../../sdk-core/src/world/animation/index.ts';
 export * from '../../sdk-core/src/world/constants/index.ts';
 export * from './world/texture/index.ts';
-export * from './world/loader/index.ts';
-export * from './world/helper/index.ts';
+export * from './world/api/loaderFamily.ts';
+export * from './world/api/helperFamily.ts';
 export * from './guides/index.ts';
 export * from './world/controls/index.ts';
 export * from './world/page/index.ts';
-export * from './world/budget/index.ts';
+export * from './world/api/budgetFamily.ts';
 export {
   ObjectPhysics,
   GRAVITY_PRESETS,
@@ -55,12 +55,12 @@ export type { WorldPhysics } from './physics/worldPhysics.ts';
 export type { WorldPhysicsOptions, GravityInput } from './physics/worldPhysicsOptions.ts';
 export type { WaterSpec, WaveSpec, WaterSurface, Waves } from '../../sdk-core/src/fluids/index.ts';
 export type { PhysicsStats } from './physics/protocol.ts';
-export * from './world/metric/index.ts';
+export * from './world/api/metricFamily.ts';
 export * from './world/diagnostic/index.ts';
 export * from './world/capability/index.ts';
 export * from './world/capture/index.ts';
-export * from './world/pose/index.ts';
-export * from './world/batch/index.ts';
+export * from './world/api/poseFamily.ts';
+export * from './world/api/batchFamily.ts';
 export type {
   CreatedMaterial,
   SceneMaterial,
