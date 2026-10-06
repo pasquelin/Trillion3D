@@ -14,9 +14,8 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
-    "baseUrl": ".",
     "paths": {
-      "/runner/*": ["bench/runner/*"]
+      "/runner/*": ["./bench/runner/*"]
     }
   },
   "include": [
