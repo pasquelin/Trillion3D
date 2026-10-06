@@ -10,7 +10,7 @@ import { glslReservedNames } from '../../gpu/core/wgslNames.fixture.ts';
 import { CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT, CLUSTER_VERTEX } from '../cluster/shaders.ts';
 import { cardFragment, cardVertex } from '../impostor/cardGlsl.ts';
 import { resampleFragment } from './resampleGlsl.ts';
-import { particleVertexGlsl } from '../../particles/webglParticleGlsl.ts';
+import { particleVertexGlsl } from '../particles/webglParticleGlsl.ts';
 
 const source = new URL('../../', import.meta.url);
 const files = readdirSync(source, { recursive: true, encoding: 'utf8' }).filter(

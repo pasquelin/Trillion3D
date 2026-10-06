@@ -2,9 +2,9 @@
 // of another format than the drawing buffer's is refused, as drivers do. The GPU is the recette's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
-import { createHostDrawCamera } from '../camera/world.ts';
-import { webgl } from './stepModels.fixture.ts';
+import { ParticlePool, type ParticlePoolSpec } from '../../../../sdk-core/src/fluids/particles.ts';
+import { createHostDrawCamera } from '../../camera/world.ts';
+import { webgl } from '../../particles/stepModels.fixture.ts';
 
 const output = { framebuffer: null, width: 8, height: 4, toneMapped: true };
 

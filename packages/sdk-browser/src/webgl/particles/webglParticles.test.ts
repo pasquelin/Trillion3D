@@ -2,8 +2,8 @@
 // GPU for a pool, and its refusal without 32-bit float targets. The GPU's part is the recette's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
-import { webgl, webglModel } from './stepModels.fixture.ts';
+import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { webgl, webglModel } from '../../particles/stepModels.fixture.ts';
 
 const DT = 1 / 64;
 

@@ -1,16 +1,16 @@
-import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
-import { boundToContext } from '../webgl/core/contextBound.ts';
-import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../webgl/core/fullscreenPass.ts';
-import { createWebglProgram } from '../webgl/core/program.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { boundToContext } from '../core/contextBound.ts';
+import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../core/fullscreenPass.ts';
+import { createWebglProgram } from '../core/program.ts';
 import {
   bindWebglTexture,
   createWebglRenderTarget,
   floatTargets,
   type WebglRenderTarget,
-} from '../webgl/core/renderTarget.ts';
-import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
+} from '../core/renderTarget.ts';
+import { createPoolStates, refuseAll, usedSlots } from '../../particles/poolStates.ts';
 import { createWebglParticleDraw } from './webglParticleDraw.ts';
-import { PARTICLE_ROW } from './particleRow.ts';
+import { PARTICLE_ROW } from '../../particles/particleRow.ts';
 const TEXELS = 2 * PARTICLE_ROW,
   FLOAT = { depth: false, float: true };
 

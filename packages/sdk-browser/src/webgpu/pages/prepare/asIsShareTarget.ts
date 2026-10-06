@@ -1,7 +1,7 @@
 import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { readsAsIs } from './lightResources.ts';
-import { drawsParticles } from '../../../particles/webgpuParticleFrame.ts';
+import { drawsParticles } from '../../particles/webgpuParticleFrame.ts';
 
 /** Whether the transparents write the share: a blended image that can show a debug view (#365),
  *  or whose temporal pass reads their coverage as the reactive value (#833). */

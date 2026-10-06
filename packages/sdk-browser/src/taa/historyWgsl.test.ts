@@ -15,7 +15,7 @@ import { blendTargets } from '../webgpu/blend/blendTargets.ts';
 import { particleTargets } from '../particles/particleTargets.ts';
 import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts';
-import { PARTICLE_DRAW_WGSL } from '../particles/particlesWgsl.ts';
+import { PARTICLE_DRAW_WGSL } from '../webgpu/particles/particlesWgsl.ts';
 
 type Share = { currentShare: (a: number, reach: number, rho: number, fresh: boolean) => number };
 const { currentShare } = shaderRun<Share>(CURRENT_SHARE_WGSL, ['currentShare'], {});

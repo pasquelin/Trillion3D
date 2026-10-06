@@ -1,5 +1,5 @@
-import { DISC_CORNERS } from './drawWords.ts';
-import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../webgpu/blend/displayFilter.ts';
+import { DISC_CORNERS } from '../../particles/drawWords.ts';
+import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts';
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
@@ -66,7 +66,7 @@ fn particle(in: Out) -> vec4f {
 struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
 @fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }`;
 
-/** The draw of an image with display layers (\`../webgpu/blend/displayFilter.ts\`): where the mask
+/** The draw of an image with display layers (\`../blend/displayFilter.ts\`): where the mask
  *  is set, the disc maps the tint and the added value by its display colour, not the lit image. */
 export const PARTICLE_ROUTED_WGSL = /* wgsl */ `${PARTICLE_DRAW_WGSL}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(1)}
 struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f, @location(3) reactive: vec4f }

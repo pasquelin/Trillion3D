@@ -5,7 +5,7 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
 import { guidesMoved } from '../pages/render/encodeGuides.ts';
-import { particlesMoved } from '../../particles/webgpuParticleFrame.ts';
+import { particlesMoved } from '../particles/webgpuParticleFrame.ts';
 import { frameTargetsAwaited } from '../pages/prepare/targetGrant.ts';
 import { asidePending, swapAsideTargets } from '../pages/prepare/targetsAside.ts';
 import { deviceAnswering } from './deviceAnswer.ts';

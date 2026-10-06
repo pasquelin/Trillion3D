@@ -7,7 +7,7 @@ import { fakeDevice, written } from '../../../../tests/kit/gpu/fakeDevice.ts';
 import { holdWebgpuFrame, keepWebgpuFrame } from '../webgpu/frame/hold.ts';
 import { settledRt } from '../webgpu/frame/hold.fixture.ts';
 import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
-import { createWebgpuParticles } from './webgpuParticles.ts';
+import { createWebgpuParticles } from '../webgpu/particles/webgpuParticles.ts';
 import { webgl, webglModel, webgpuModel } from './stepModels.fixture.ts';
 import { PARTICLES_PASS } from '../stage/passLabels.ts';
 

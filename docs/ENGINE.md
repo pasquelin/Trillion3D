@@ -685,11 +685,11 @@ pose buffer and an event buffer. No emscripten glue is kept; the engine's loader
 
 ### Particles
 
-The particle step is `Trillion3D particles` (`particles/webgpuParticles.ts`); each pool is then one
-instanced disc draw over the lit image after the transparents (`particles/webgpuParticleDraw.ts`),
+The particle step is `Trillion3D particles` (`webgpu/particles/webgpuParticles.ts`); each pool is then one
+instanced disc draw over the lit image after the transparents (`webgpu/particles/webgpuParticleDraw.ts`),
 unsorted: `additive` in any order, `premultiplied` far to near by origin, soft within `softness` of
 the opaque depth. WebGL2 steps the same pools in a 32-bit float ping-pong pass
-(`particles/webglParticles.ts`) and draws them alike (`particles/webglParticleDraw.ts`), soft on a
+(`webgl/particles/webglParticles.ts`) and draws them alike (`webgl/particles/webglParticleDraw.ts`), soft on a
 copy of the frame's depth in `DEPTH24_STENCIL8`, else `DEPTH_COMPONENT24`, as the blit allows. A
 context without `EXT_color_buffer_float`, or a depth neither format copies, refuses the pools by
 name (`PARTICLES_UNSUPPORTED`), never drawing them hard-edged: the world notice `particles-refused`,

@@ -1,16 +1,16 @@
-import { PARTICLE_BLENDS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
-import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
+import { PARTICLE_BLENDS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import {
   buildRenderPipeline,
   preparedPipeline,
   preparedPipelines,
-} from '../lighting/deferred/fullscreen.ts';
-import { DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
-import { usedSlots } from './poolStates.ts';
-import { displayMaskLayout, type DisplayFilter } from '../webgpu/blend/displayFilter.ts';
+} from '../../lighting/deferred/fullscreen.ts';
+import { DRAW_FLOATS, drawOrder, writeDrawWords } from '../../particles/drawWords.ts';
+import { usedSlots } from '../../particles/poolStates.ts';
+import { displayMaskLayout, type DisplayFilter } from '../blend/displayFilter.ts';
 import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from './particlesWgsl.ts';
-import { particleTargets } from './particleTargets.ts';
-import { PARTICLE_DRAW_PASS } from '../stage/passLabels.ts';
+import { particleTargets } from '../../particles/particleTargets.ts';
+import { PARTICLE_DRAW_PASS } from '../../stage/passLabels.ts';
 
 /** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
 export type DrawState = {

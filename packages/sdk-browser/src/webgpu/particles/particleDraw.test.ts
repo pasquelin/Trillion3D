@@ -2,16 +2,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setImmediate as tick } from 'node:timers/promises';
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts';
-import { ParticlePool, type ParticlePoolSpec } from '../../../sdk-core/src/fluids/particles.ts';
-import { DRAW_FLOATS, writeDrawWords } from './drawWords.ts';
+import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { ParticlePool, type ParticlePoolSpec } from '../../../../sdk-core/src/fluids/particles.ts';
+import { DRAW_FLOATS, writeDrawWords } from '../../particles/drawWords.ts';
 import { createWebgpuParticleDraw } from './webgpuParticleDraw.ts';
 import { createWebgpuParticles } from './webgpuParticles.ts';
 import { askParticles, encodeParticles } from './webgpuParticleFrame.ts';
-import { pipelinesCompiling } from '../lighting/deferred/fullscreen.ts';
-import { gatedDevice } from '../lighting/deferred/gatedDevice.fixture.ts';
-import { families } from '../host/families.ts';
-import { PARTICLE_DRAW_PASS as P } from '../stage/passLabels.ts';
+import { pipelinesCompiling } from '../../lighting/deferred/fullscreen.ts';
+import { gatedDevice } from '../../lighting/deferred/gatedDevice.fixture.ts';
+import { families } from '../../host/families.ts';
+import { PARTICLE_DRAW_PASS as P } from '../../stage/passLabels.ts';
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 

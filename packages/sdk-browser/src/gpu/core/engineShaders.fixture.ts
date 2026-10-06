@@ -45,7 +45,7 @@ import {
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
   PARTICLE_ROUTED_WGSL,
-} from '../../particles/particlesWgsl.ts';
+} from '../../webgpu/particles/particlesWgsl.ts';
 import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts';
 import { blendShader } from '../../webgpu/blend/shader.ts';
 import {

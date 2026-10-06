@@ -1,7 +1,7 @@
 // Page side of the WebGL2 particle step proof: the engine's own step on a real context, its state
 // read back from the target each step drew into — this page is the only reader of the state.
 import { ParticlePool } from '../../../packages/sdk-core/src/fluids/particles.ts';
-import { createWebglParticles } from '../../../packages/sdk-browser/src/particles/webglParticles.ts';
+import { createWebglParticles } from '../../../packages/sdk-browser/src/webgl/particles/webglParticles.ts';
 
 const FAR = 10_000,
   DT = 1 / 64;

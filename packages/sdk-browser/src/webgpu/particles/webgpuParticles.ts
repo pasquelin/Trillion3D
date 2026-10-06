@@ -1,14 +1,14 @@
-import { PARTICLE_FLOATS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
-import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts';
-import { bounceGroup, bounceLayout } from '../bounce/bindings.ts';
-import { createPoolStates, usedSlots } from './poolStates.ts';
+import { PARTICLE_FLOATS, type ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
+import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts';
+import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
+import { createPoolStates, usedSlots } from '../../particles/poolStates.ts';
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts';
-import { DRAW_FLOATS } from './drawWords.ts';
+import { DRAW_FLOATS } from '../../particles/drawWords.ts';
 import { PARTICLES_WGSL, PARTICLE_WORKGROUP } from './particlesWgsl.ts';
-import { createStepWords } from './stepWords.ts';
-import { PARTICLES_PASS } from '../stage/passLabels.ts';
-import { LazyComputePass } from '../gpu/core/lazyComputePass.ts';
+import { createStepWords } from '../../particles/stepWords.ts';
+import { PARTICLES_PASS } from '../../stage/passLabels.ts';
+import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts';
 
 type PoolState = DrawState & { step: GPUBuffer; staged: GPUBuffer; group: GPUBindGroup };
 

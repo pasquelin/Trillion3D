@@ -1,6 +1,6 @@
 // The WebGL2 particle draw's shaders (`webglParticleDraw.ts`), the WGSL draw's twin.
-import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
-import { DISC_CORNERS } from './drawWords.ts';
+import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
+import { DISC_CORNERS } from '../../particles/drawWords.ts';
 
 /** The WGSL draw (`webgpuParticleDraw.ts`) texel by texel, `texels` a row. `m` holds the draw
  *  words' two matrices and `look` the rest: eye and size, colour, softness. */

@@ -1,17 +1,17 @@
-import { allocated, refusedNow } from '../webgl/core/allocation.ts';
-import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
-import { multiplyMatrix4Typed } from '../../../sdk-core/src/math/matrix/matrix4Typed.ts';
+import { allocated, refusedNow } from '../core/allocation.ts';
+import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
-} from '../../../sdk-core/src/scene/core/environment.ts';
-import type { HostDrawCamera } from '../camera/world.ts';
-import { boundToContext } from '../webgl/core/contextBound.ts';
-import { createWebglProgram } from '../webgl/core/program.ts';
-import { bindWebglTexture, type HostDrawOutput } from '../webgl/core/renderTarget.ts';
-import { glBlendEnums } from '../webgl/cluster/state.ts';
-import { BLENDS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
-import { usedSlots } from './poolStates.ts';
+} from '../../../../sdk-core/src/scene/core/environment.ts';
+import type { HostDrawCamera } from '../../camera/world.ts';
+import { boundToContext } from '../core/contextBound.ts';
+import { createWebglProgram } from '../core/program.ts';
+import { bindWebglTexture, type HostDrawOutput } from '../core/renderTarget.ts';
+import { glBlendEnums } from '../cluster/state.ts';
+import { BLENDS, DRAW_FLOATS, drawOrder, writeDrawWords } from '../../particles/drawWords.ts';
+import { usedSlots } from '../../particles/poolStates.ts';
 import { PARTICLE_FRAGMENT_GLSL, particleVertexGlsl } from './webglParticleGlsl.ts';
 
 /** The copy's depth formats: packed with stencil first, as browsers often keep a drawing buffer's
@@ -95,7 +95,7 @@ export function createWebglParticleDraw(
       bindWebglTexture(gl, 1, copy.texture);
       gl.texImage2D(texture, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
       gl.framebufferTexture2D(draw, gl[point], texture, copy.texture, 0);
-      // Refused: remade at the next copy (`../webgl/core/allocation.ts`).
+      // Refused: remade at the next copy (`../core/allocation.ts`).
       allocated(gl, 'target', () => ([copy.width, copy.height] = [0, 0]));
       // A probe reads the blit's error next: its own refusal is answered first, never taken for it.
       if (probing) refusedNow(gl);
