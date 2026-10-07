@@ -62,7 +62,8 @@ export function generateMaterialMips(
   const shared = sharedGpuDevice(device)
   const stride = uniformStride(device.limits)
   const cut = places.filter(({ cutoff }) => cutoff).sort((a, b) => b.levels - a.levels)
-  const packed = packBlocks(places, blocks, stride, cut)
+  const levels = cut.map((place) => place.levels)
+  const packed = packBlocks(places, blocks, stride, cut, levels)
   const { UNIFORM, STORAGE } = GPUBufferUsage
   const uniforms = held(
     shared,
@@ -82,7 +83,6 @@ export function generateMaterialMips(
   const groups = places.map((place) =>
     chainGroups(device, shared, place, { uniforms, stride, bins }),
   )
-  const levels = cut.map((place) => place.levels)
   const picks: Picks | undefined = cut.length
     ? { group: pickGroup(device, uniforms, bins), stride, base: blocks, levels }
     : undefined
@@ -103,7 +103,13 @@ export function generateMaterialMips(
  * the table: each cutting chain's first block and levels, in `cut`'s order. Written word by word:
  * nothing allocated a level.
  */
-function packBlocks(places: readonly Place[], blocks: number, stride: number, cut: Place[]) {
+function packBlocks(
+  places: readonly Place[],
+  blocks: number,
+  stride: number,
+  cut: Place[],
+  cutLevels: readonly number[],
+) {
   const words = stride / 4,
     top = cut.length ? cut[0].levels : 0,
     table = (blocks + top) * words
@@ -120,14 +126,12 @@ function packBlocks(places: readonly Place[], blocks: number, stride: number, cu
       packed[at + 5] = chain.height
       packed[at + 6] = level
     }
-  for (let level = 1, reach = cut.length; level < top; level++) {
+  for (let level = 1; level < top; level++) {
     const at = (blocks + level) * words
-    // The cutting chains reaching the level: the first ones, the most levels first.
-    while (cut[reach - 1].levels <= level) reach--
     packed[at] = level
     packed[at + 1] = table
     packed[at + 2] = words
-    packed[at + 3] = reach
+    packed[at + 3] = reaching(cutLevels, level)
   }
   cut.forEach(({ first, levels }, n) => {
     packed[table + 2 * n] = first

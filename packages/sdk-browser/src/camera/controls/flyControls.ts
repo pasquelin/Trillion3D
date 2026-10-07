@@ -7,7 +7,7 @@ import {
   normalizeQuaternion,
   localTurnQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clamp, clampCompare } from '../../../../math/src/scalar/reals.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
@@ -124,7 +124,7 @@ export function createFlyCameraControls(
       const travel = api.inputResponse > 0 ? dt / api.inputResponse : Infinity
       const deflect = (axis: number, keyed: KeyAxis, input: number) => {
         const wanted = clamp(axisOf(keys, ...keyed) + input, -1, 1)
-        return (stick[axis] += clamp(wanted - stick[axis], -travel, travel))
+        return (stick[axis] += clampCompare(wanted - stick[axis], -travel, travel))
       }
       const pitch =
           lookPitch + deflect(0, PITCH, api.pitchInput) * (api.pitchSpeed ?? api.rollSpeed) * dt,

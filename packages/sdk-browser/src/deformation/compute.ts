@@ -20,15 +20,17 @@ function deformationImage(device: GPUDevice) {
     size: stride + 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const words = new Uint32Array(stride / 4 + 4)
+  // A record's two words that change, written at each slot; the queue copies them at the call.
+  const words = new Uint32Array(2)
   return {
     buffer,
     entry: (slot: number) => ({ buffer, offset: slot * stride, size: 16 }),
     write(frame: number, rows: number, wholeRows: number) {
-      words[0] = words[stride / 4] = frame
+      words[0] = frame
       words[1] = rows
-      words[stride / 4 + 1] = wholeRows
       device.queue.writeBuffer(buffer, 0, words)
+      words[1] = wholeRows
+      device.queue.writeBuffer(buffer, stride, words)
     },
   }
 }

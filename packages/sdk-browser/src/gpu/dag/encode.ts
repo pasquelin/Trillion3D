@@ -155,7 +155,7 @@ function perRange(
   for (let r = 0; r < ranges.length; r++) {
     if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup)
     const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor)
-    dispatchRows(pass, workgroupCount(count, WORKGROUP), width)
+    dispatchRows(pass, workgroupCount(count, WORKGROUP), 1, width)
   }
 }
 

@@ -1,5 +1,5 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { clampLowWins, lerp } from '../../../../math/src/scalar/reals.ts'
+import { clampCompare, lerp } from '../../../../math/src/scalar/reals.ts'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
@@ -125,7 +125,7 @@ export const math = {
    * @param min - The lowest allowed.
    * @param max - The highest allowed.
    */
-  clamp: (value: number, min: number, max: number) => clampLowWins(value, min, max),
+  clamp: (value: number, min: number, max: number) => clampCompare(value, min, max),
   /**
    * The number `t` of the way from `a` to `b`.
    * @param a - The start.

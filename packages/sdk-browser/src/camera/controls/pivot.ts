@@ -3,7 +3,7 @@ import { controlPose, readVector, writeVector, type ControlPose } from './pose.t
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
 import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
 import { RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
 import { hypot3 } from '../../../../math/src/float/hypot.ts'
@@ -60,7 +60,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
       radius = 1
     }
     const far = Math.max(api.maxDistance, api.minDistance, RADIUS_EPSILON)
-    const kept = clamp(radius, Math.max(api.minDistance, RADIUS_EPSILON), far)
+    const kept = clampCompare(radius, Math.max(api.minDistance, RADIUS_EPSILON), far)
     for (let i = 0; i < 3; i++) position[i] = center[i] + (offset[i] * kept) / radius
     pose.write(position, orientation)
     writeVector(api.target, center)

@@ -56,7 +56,7 @@ import {
   vsmMarkingClears,
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchGrid, dispatchRows } from '../gpu/dispatch/grid.ts'
+import { dispatchGrid, dispatchRows, rowWidth } from '../gpu/dispatch/grid.ts'
 import type { VsmLayout } from './layout.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 
@@ -183,10 +183,7 @@ export function vsmWritePerPageBinArgs(
   out[at] = bin.offset
   out[at + 1] = bin.count
   // Thread-per-id: the row pitch of its launch's rows (`threadPerIdGroups`).
-  out[at + 2] =
-    dim === 0
-      ? dispatchGrid(threadPerIdGroups(bin))[0] * VSM_PER_PAGE_GROUP_XY
-      : dim * VSM_PER_PAGE_GROUP_XY
+  out[at + 2] = (dim === 0 ? rowWidth(threadPerIdGroups(bin)) : dim) * VSM_PER_PAGE_GROUP_XY
   out[at + 3] = dim === 0 ? 1 : 0
 }
 
