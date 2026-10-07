@@ -168,17 +168,13 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const inputs = Object.keys(proposed.metafile.inputs)
   assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The engine entry shrank with the retired exports (4 396 to 3 819); the two others grew with the
-  // machine-independent quaternion normalisation and arc trigonometry (determinism). The engine
-  // entry then took 2 bytes when `HALF_PI` moved into the constants module (3 819 to 3 821), and the
-  // browser entry 119 when its modules called the one `ceilDiv`, `clamp`, `saturate` and `wrap`
-  // instead of inlining each (3 821 to 3 940). The aim's scratch buffers (`lookAt.ts`), marked pure,
-  // leave every bundle that never aims a node (3 821 to 3 783, 2 145 to 2 082, 3 940 to 3 903).
-  // The length rule's range — `hypot` outside the normal band, a tiny vector scaled before its
-  // normalise — and `nextPow2`'s exact form (3 783 to 3 812, 2 082 to 2 111, 3 903 to 3 939).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_812)
-  assert.equal(proposed.outputFiles[0].contents.length, 2_111)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_939)
+  // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry: the engine
+  // core; the package, with the machine-independent quaternion normalisation and arc trigonometry;
+  // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
+  // node drops them; the length rule's range (hypot outside the normal band) is kept.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_706)
+  assert.equal(proposed.outputFiles[0].contents.length, 2_007)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_817)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )
