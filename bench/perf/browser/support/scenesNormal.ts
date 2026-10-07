@@ -13,7 +13,7 @@
 // Attributes are in single precision, like imported geometry: both sides therefore
 // read the same rounded values, and any delta can only come from the algebra.
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from '../../../oracles/browser/cpu-image/projection.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 

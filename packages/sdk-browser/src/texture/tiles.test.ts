@@ -16,7 +16,7 @@ import {
   TILES_PER_LAYER,
 } from './tiles.ts'
 import { texturePoolFor } from '../webgpu/residency/memoryBudgets.ts'
-import { PORTABLE_TEXTURE_LAYERS } from '../gpu/core/textureLimits.ts'
+import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { noTails } from './noTails.fixture.ts'
 import { entryPlace, placeIndex, TILES_PER_ROW } from './tiles.fixture.ts'
 
@@ -186,6 +186,6 @@ test('a lane pool takes the array layers the device grants, within what a place 
   assert.equal(drawn(8192).layers.color.rgba, POOL_MAX_LAYERS)
   assert.equal(
     texturePoolFor(2 ** 50, undefined, demand, blocks, noTails).layers.color.rgba,
-    PORTABLE_TEXTURE_LAYERS,
+    textureLimits().layers,
   )
 })

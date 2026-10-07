@@ -17,7 +17,6 @@ import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { GraphSurface, type GraphSurfaceFamily } from './surface.ts'
 import { GraphTexture } from './texture.ts'
-import { numbered } from './serial.ts'
 import type { HostAttributes } from '../resources.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
@@ -65,7 +64,7 @@ const hostGeometry = () => Object.assign(new Geometry(), { _owner: 'host' as con
 export const mesh = (
   geometry: Geometry = hostGeometry(),
   material: GraphSurface | GraphSurface[] = new GraphSurface('basic'),
-) => numbered(new Mesh(geometry, material))
+) => new Mesh(geometry, material)
 
 /** A drawn triangle — three indices, positions and normals — in `surface`, never culled: what a
  *  draw test submits once per pass. */
@@ -73,7 +72,7 @@ export function triangleMesh(surface: GraphSurface) {
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1))
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3))
-  const made = numbered(new Mesh(geometry, surface))
+  const made = new Mesh(geometry, surface)
   made.frustumCulled = false
   return made
 }
@@ -109,7 +108,7 @@ export const floatAttribute = (values: ArrayLike<number>, itemSize: number, norm
 
 /** A perspective eye by its optics. */
 export const perspectiveCamera = (fov = 50, aspect = 1, near = 0.1, far = 2000) =>
-  numbered(new Camera('perspective', { fov, aspect, near, far }))
+  new Camera('perspective', { fov, aspect, near, far })
 
 /** An orthographic eye by the box it sees. */
 export const orthographicCamera = (
@@ -119,7 +118,7 @@ export const orthographicCamera = (
   bottom = -1,
   near = 0.1,
   far = 2000,
-) => numbered(new Camera('orthographic', { near, far, left, right, top, bottom }))
+) => new Camera('orthographic', { near, far, left, right, top, bottom })
 
 /** A texture of raw texels: read as they are, nearest, no mips, rows not flipped. */
 export function dataTexture(
@@ -192,4 +191,3 @@ export function byName(root: Object3D, name: string) {
   return found
 }
 export * from './kinds.ts'
-export { numbered, serialOf } from './serial.ts'

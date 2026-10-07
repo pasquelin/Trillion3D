@@ -1,7 +1,6 @@
 /**
  * The engine's scene and camera are the core's `Scene` and `Camera`: a draw reads a core camera's
- * projection, the engine's own reversed depth, and the engine numbers both in its one count, with
- * no field a page's own does not carry.
+ * projection, the engine's own reversed depth, with no field a page's own does not carry.
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -11,15 +10,8 @@ import {
   orthographicProjection,
   perspectiveProjection,
 } from '../../../../../../../packages/sdk-core/src/math/primitives/camera.ts'
-import { Mesh } from '../../../../../../../packages/sdk-core/src/world/object/mesh.ts'
 import { Object3D } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
-import { Geometry } from '../../../../../../../packages/sdk-core/src/world/geometry/geometry.ts'
 import { Scene } from '../../../../../../../packages/sdk-browser/src/world/core/scene.ts'
-import {
-  numbered,
-  serialOf,
-} from '../../../../../../../packages/sdk-browser/src/host/graph/serial.ts'
-import { GraphSurface } from '../../../../../../../packages/sdk-browser/src/host/graph/surface.ts'
 
 /** The projection `camera` holds, in the numbers a draw uploads. */
 const drawnProjection = (camera: Camera) =>
@@ -44,16 +36,6 @@ test('a core camera is drawn from: a draw reads the engine projection, kept curr
   witness.lookAt(3, 0, -5)
   witness.updateMatrixWorld()
   assert.deepEqual([...eye.matrixWorldInverse.elements], witness.matrixWorldInverse.elements)
-})
-
-test('the engine numbers a core scene and camera in its one count; a page-built one takes none', () => {
-  const scene = numbered(new Scene()),
-    camera = numbered(new Camera('perspective')),
-    mesh = numbered(new Mesh(new Geometry(), new GraphSurface('basic')))
-  assert.equal(serialOf(camera), serialOf(scene)! + 1)
-  assert.equal(serialOf(mesh), serialOf(camera)! + 1)
-  assert.equal(serialOf(new Scene()), undefined)
-  assert.equal(serialOf(new Camera('perspective')), undefined)
 })
 
 test('a core scene and camera hold no field the engine needs beyond a page one', async () => {

@@ -1,13 +1,14 @@
-import type { HizPyramid } from './types.ts'
+import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 
 /**
  * `hizOccluded(nearest, hizFootprintFarFlat(pyramid, x0, y0, x1 + 1, y1 + 1, level), bias)` for the
  * inclusive level-0 rectangle `[x0, x1]×[y0, y1]` inside the image, with the GPU twin's early exits
- * (`gpu/hiz/rectWgsl.ts`): `min(t) − bias` is `min(t − bias)` (subtraction rounds monotonically), so
- * the box is hidden when every texel hides it, decided at the first one that does not — NaN and
- * `−∞` never hide — and a footprint all `+∞` (a far of `+∞`, not finite) hides nothing. The level
- * where the rectangle spans at most 2×2 texels is tried first: each of its texels is the farthest of
- * a block holding the finer ones, so when they all hide, every finer one does.
+ * (`packages/sdk-browser/src/gpu/hiz/rectWgsl.ts`): `min(t) − bias` is `min(t − bias)`
+ * (subtraction rounds monotonically), so the box is hidden when every texel hides it, decided at
+ * the first one that does not — NaN and `−∞` never hide — and a footprint all `+∞` (a far of `+∞`,
+ * not finite) hides nothing. The level where the rectangle spans at most 2×2 texels is tried
+ * first: each of its texels is the farthest of a block holding the finer ones, so when they all
+ * hide, every finer one does.
  */
 export function hizHides(
   pyramid: HizPyramid,

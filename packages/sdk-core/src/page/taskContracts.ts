@@ -25,7 +25,7 @@ export const PAGE_TASK_PROTOCOL = 9
  *  blended material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
  *  a partition's cell file, read into each node's parent, mesh and local matrix. `cellPage`: a page
  *  of its cell index, read into the pages it lists or its cells. */
-export type PageTaskOp = 'cut' | 'cells' | 'cellPage'
+type PageTaskOp = 'cut' | 'cells' | 'cellPage'
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
 export interface PageCutPage {
@@ -85,9 +85,9 @@ export interface PageTaskRequest {
  * refusal, when it has one, rides in `refusal`); `PAGE_TASK_WORKER` answers an executor that
  * vanished — the only one that sends the task to the main thread.
  */
-export type PageTaskFailureCode = 'PAGE_TASK_FAILED' | 'PAGE_TASK_WORKER'
+type PageTaskFailureCode = 'PAGE_TASK_FAILED' | 'PAGE_TASK_WORKER'
 
-/** A worker's answer when a page request failed. */ export interface PageTaskFailed {
+/** A worker's answer when a page request failed. */ interface PageTaskFailed {
   /** Message format version. */ protocol: number
   /** The request answered. */ id: number
   /** Always `false`. */ ok: false

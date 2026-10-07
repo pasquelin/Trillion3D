@@ -10,7 +10,8 @@ import {
   stagedOutputBytes,
 } from './layout.ts'
 import { makeDagBuffer, readoutRow } from './bufferTable.ts'
-import { rankGroups, type createDagResources } from './resources.ts'
+import type { createDagResources } from './resources.ts'
+import type { CameraFrames } from './frameRanges.ts'
 import { newRegions, regionsWanted } from './swap.ts'
 import { storageBufferCap } from '../../residency/pools.ts'
 import { recutMain, type DagRuntimeState } from './runtimeState.ts'
@@ -148,7 +149,7 @@ function moveKeptSnapshot(
  *  readbacks in `state.pending`; no frame cuts until it is in place or refused, and the next one
  *  cuts and reads again — on the grown list, or, refused, to hand the truncated readout to the host
  *  and draw the views aside without a region. */
-export function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
+function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
   const { swap } = resources,
     cap = Math.max(state.grow, resources.listCap),
     regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))
@@ -180,4 +181,17 @@ export function tablesHeld(resources: DagResources, state: DagRuntimeState) {
   if (!growthAsked(resources, state)) return false
   if (!state.mapped.includes(true)) queueDagListGrowth(resources, state)
   return true
+}
+
+/** The cut's group of each kept list, its ranks where the cut binds `work`: what its difference
+ *  kernels bind (`shader/differenceWgsl.ts`), made again with the ranges when `out` is. */
+export function rankGroups(resources: {
+  layout: GPUBindGroupLayout
+  frames: Pick<CameraFrames, 'bindGroup'>
+  group: Parameters<CameraFrames['bindGroup']>[1]
+  ranks: GPUBuffer[]
+}) {
+  const { layout, frames, group } = resources
+  // The first range's group alone: the difference reads no primitive's words.
+  return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }, 0))
 }

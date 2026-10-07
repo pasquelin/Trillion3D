@@ -11,26 +11,8 @@
 //! multipliers around the one whose ladder spans the block's range, the bases
 //! around the one that centres it; each texel takes its nearest modifier.
 use super::fit::Texels;
+use crate::eac_modifiers::EAC_MODIFIERS;
 
-/// The modifier tables of the ETC2 alpha and EAC blocks, in table order.
-const TABLES: [[i32; 8]; 16] = [
-    [-3, -6, -9, -15, 2, 5, 8, 14],
-    [-3, -7, -10, -13, 2, 6, 9, 12],
-    [-2, -5, -8, -13, 1, 4, 7, 12],
-    [-2, -4, -6, -13, 1, 3, 5, 12],
-    [-3, -6, -8, -12, 2, 5, 7, 11],
-    [-3, -7, -9, -11, 2, 6, 8, 10],
-    [-4, -7, -8, -11, 3, 6, 7, 10],
-    [-3, -5, -8, -11, 2, 4, 7, 10],
-    [-2, -6, -8, -10, 1, 5, 7, 9],
-    [-2, -5, -8, -10, 1, 4, 7, 9],
-    [-2, -4, -8, -10, 1, 3, 7, 9],
-    [-2, -5, -7, -10, 1, 4, 6, 9],
-    [-3, -4, -7, -10, 2, 3, 6, 9],
-    [-1, -2, -3, -10, 0, 1, 2, 9],
-    [-4, -6, -8, -9, 3, 5, 7, 8],
-    [-3, -5, -7, -9, 2, 4, 6, 8],
-];
 /// The table holding a zero modifier, at this index: a flat block is exact there.
 const FLAT_TABLE: usize = 13;
 const FLAT_INDEX: u8 = 4;
@@ -44,7 +26,7 @@ fn assigned(values: &[i32; 16], b: i32, m: i32, t: usize) -> Fit {
     let mut error = 0;
     for (index, &v) in values.iter().enumerate() {
         let (mut best, mut gap) = (0u8, i32::MAX);
-        for (i, modifier) in TABLES[t].iter().enumerate() {
+        for (i, modifier) in EAC_MODIFIERS[t].iter().enumerate() {
             let d = v - (b + m * modifier).clamp(0, 255);
             if d * d < gap {
                 (best, gap) = (i as u8, d * d);
@@ -67,7 +49,7 @@ pub fn encode(texels: &Texels, channel: usize) -> [u8; 8] {
     let mut best: Fit = (0, lo, 1, FLAT_TABLE, [FLAT_INDEX; 16]);
     if lo != hi {
         best.0 = i32::MAX;
-        'search: for (t, table) in TABLES.iter().enumerate() {
+        'search: for (t, table) in EAC_MODIFIERS.iter().enumerate() {
             let (low, high) = (table[3], table[7]);
             let span = (hi - lo) as f32 / (high - low) as f32;
             let m0 = span.round() as i32;

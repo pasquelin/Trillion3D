@@ -10,7 +10,6 @@ export {
 } from './requests.ts'
 export type { PageRec, ClusterRoot } from './types.ts'
 export { rootOf } from './placements.ts'
-export type { SelectionResult } from '../cut/result.ts'
 
 /**
  * Camera-independent minimal complete cover: the clusters no other cluster replaces.

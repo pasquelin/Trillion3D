@@ -72,7 +72,6 @@ function scene() {
     },
     run: {
       noOccluderHistory: false,
-      temporalHizState: {},
       gpuSelection: {
         isReady: (page: number) => ready[page] === 1,
         isChildReady: (page: number) => childReady[page] === 1,

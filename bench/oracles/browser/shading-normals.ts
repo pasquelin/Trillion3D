@@ -7,7 +7,7 @@
 import * as THREE from 'three'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { matrixWindingCw, normalMatrix3 } from '../../../packages/sdk-core/src/index.ts'
-import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from './cpu-image/projection.ts'
 import { attr2, sampleLinear } from './cpu-image/math.ts'
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts'
 

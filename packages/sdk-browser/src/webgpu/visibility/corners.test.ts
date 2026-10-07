@@ -76,7 +76,7 @@ function scatteredScene() {
         rootOfPacked: Int32Array.from({ length: ROWS }, () => 0),
       },
     },
-    run: { noOccluderHistory: false, temporalHizState: {} },
+    run: { noOccluderHistory: false },
     blendState: { occlusionEpoch: 1 },
     lights: {
       spheres: {

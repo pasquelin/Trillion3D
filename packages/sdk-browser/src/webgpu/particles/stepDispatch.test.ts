@@ -8,7 +8,7 @@ import { setImmediate as tick } from 'node:timers/promises'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
 import { createWebgpuParticles } from './webgpuParticles.ts'
-import { PARTICLE_WORKGROUP } from './particlesWgsl.ts'
+import { particleGroups } from './particlesWgsl.ts'
 
 /** An encoder whose compute passes log each pipeline set and each dispatch. */
 function recorder() {
@@ -37,7 +37,7 @@ test('pools step their windows, then their records, then bound; each knows its w
   await tick()
   const { encoder, log } = recorder()
   assert.equal(particles.run(pools, encoder), 6)
-  const groups = [1, Math.ceil(200 / PARTICLE_WORKGROUP)]
+  const groups = [1, particleGroups(200)]
   assert.deepEqual(log, [
     ...['main', 'window', 'window'],
     ...['emit', ...groups.map(String)],

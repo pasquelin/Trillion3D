@@ -176,10 +176,10 @@ export function defaultEngineCamera() {
 }
 
 /**
- * Copies an engine camera into another, which then keeps the view bit for bit. A view held
- * from frame to frame (Hi-Z history) or rendered aside (second capture view) thus describes
- * the view actually drawn, even when the source is the child of a rig. Nothing is recomputed:
- * derived matrices are already set on the source.
+ * Copies an engine camera into another, which then keeps the view bit for bit. A view a caller
+ * holds from frame to frame or renders aside thus describes the view actually drawn, even when
+ * the source is the child of a rig. Nothing is recomputed: derived matrices are already set on
+ * the source.
  */
 export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineCamera {
   into.world.set(from.world)

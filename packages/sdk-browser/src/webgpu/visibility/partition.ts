@@ -80,7 +80,7 @@ export function encodeWebgpuPartition(
   frame.hasRest = twoPass
   // A moved view, a moved world or a dropped history free the rows the test kept: what stood
   // still no longer does, and each of them may leave the occluders again.
-  frame.viewMoved = run.hizViewMoved || run.noOccluderHistory
+  frame.viewMoved = run.occluderViewMoved || run.noOccluderHistory
   // The sampled frame: its kernels count, and its counters are copied (`encodeCounts`).
   frame.counting = partition.countsDue(run.frame)
   partition.beginFrame(encoder, frame)

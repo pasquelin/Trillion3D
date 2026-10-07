@@ -7,7 +7,8 @@ import { orderBlendPasses } from './order.ts'
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts'
 import { blendSceneOf, paintOutcome, referenceOrder } from './plan.fixture.ts'
 import { cpuModel } from './expandCpu.fixture.ts'
-import { precedes, sortSeedsFarToNear } from './sortPlan.ts'
+import { precedes } from './paintOrder.ts'
+import { sortSeedsFarToNear } from './sortPlan.ts'
 import type { BlendGpuItem } from './state.ts'
 
 type BlendState = ReturnType<typeof blendSceneOf>

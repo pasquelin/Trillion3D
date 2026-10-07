@@ -1,5 +1,3 @@
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
-
 /**
  * THE SCREEN-SPACE LINE: how a corner of a line quad (`drawnTriangles`, sdk-core `drawn.ts`)
  * leaves its segment.
@@ -18,8 +16,8 @@ import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
  * behind slides both ends onto one point and draws nothing. Seen end-on, a segment has no screen
  * direction and its quad keeps no width: nothing is drawn, as a line seen end-on shows nothing.
  *
- * Every path draws reversed depth: the near plane is `z = w`. The CPU software raster runs
- * `lineClip` below, the WGSL text's twin.
+ * Every path draws reversed depth: the near plane is `z = w`. The bench's CPU image oracle runs
+ * its TypeScript twin, statement for statement (`bench/oracles/browser/cpu-image/line.ts`).
  */
 export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
  let f=clip.w-clip.z;let g=along.w-along.z;
@@ -30,31 +28,6 @@ export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,view
  return vec4f(c.xy+vec2f(-t.y,t.x)*(width*pixelRatio/n)/viewport*c.w,c.z,c.w);
 }`
 
-/** `LINE_CLIP_WGSL` on the CPU, statement for statement, in the engine's reversed depth: the
- *  software raster (`../projection.ts`) widens a line quad's corner with it. Writes into `out`,
- *  which may be `clip` itself; `viewport` is `[width, height]`. */
-export function lineClip(
-  out: Float64Array,
-  clip: ArrayLike<number>,
-  along: ArrayLike<number>,
-  width: number,
-  viewport: ArrayLike<number>,
-  pixelRatio: number,
-) {
-  const f = clip[3] - clip[2],
-    g = along[3] - along[2]
-  const k = f < 0 && g !== 0 ? f / g : 0
-  for (let i = 0; i < 4; i++) out[i] = clip[i] - along[i] * k
-  const tx = (along[0] * out[3] - out[0] * along[3]) * viewport[0],
-    ty = (along[1] * out[3] - out[1] * along[3]) * viewport[1]
-  const n = hypot2(tx, ty)
-  if (n === 0) return out
-  const s = (width * pixelRatio) / n
-  out[0] += ((-ty * s) / viewport[0]) * out[3]
-  out[1] += ((tx * s) / viewport[1]) * out[3]
-  return out
-}
-
 /**
  * THE DASH: whether a pixel of a dashed line is drawn. `at` is the distance along the line of
  * the pixel, in world units — the first texture coordinate a dashed line's quads carry, the
@@ -62,15 +35,9 @@ export function lineClip(
  * `(dashSize, gapSize)`. The line repeats a dash then a gap from its first vertex: a pixel whose distance modulo `dashSize + gapSize` passes
  * `dashSize` is in a gap, and every raster discards it. A dash of zero keeps every pixel: that is
  * a line that is not dashed. The rasters read it through the cutout (`maskKeep`, `pageWgsl.ts`),
- * the transparent pass in its fragment stage, the CPU raster by `lineDash`.
+ * the transparent pass in its fragment stage; the CPU image oracle by its twin (`lineDash`).
  */
 export const LINE_DASH_WGSL = `fn lineDash(at:f32,dash:vec2f)->bool{
  let period=dash.x+dash.y;
  return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
 }`
-
-/** `LINE_DASH_WGSL` on the CPU, statement for statement: the software raster's dash. */
-export function lineDash(at: number, dashSize: number, gapSize: number) {
-  const period = dashSize + gapSize
-  return dashSize <= 0 || at - period * Math.floor(at / period) <= dashSize
-}

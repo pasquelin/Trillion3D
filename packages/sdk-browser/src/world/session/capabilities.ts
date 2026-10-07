@@ -3,6 +3,7 @@ import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
 import { hostTextureWritten } from '../../host/textureImport.ts'
 import { families } from '../../host/families.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
+import { SCENE_FILE } from '../../scene/tables.ts'
 import {
   DEFAULT_HEIGHT,
   DEFAULT_PAGE_WORKERS,
@@ -56,7 +57,7 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       formatVersion: metadata.formatVersion ?? metadata.schema,
       schema: metadata.schema,
       compilerVersion: metadata.compilerVersion ?? null,
-      sourceGltfUrl: new URL('source.gltf', base).href,
+      sourceGltfUrl: new URL(SCENE_FILE, base).href,
     },
   })
   // The most detail: every texture read with the device's whole anisotropy (`MAX_ANISOTROPY`).

@@ -1,4 +1,4 @@
-import type { Projected } from './projection.ts'
+import type { Projected } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
 
 /** CPU mirror of the shaders' UV derivatives (`UV_GRADIENTS_WGSL`, `shader/shadeDeclWgsl.ts`): same
  *  quotients, same order, two languages — the text is not shared between TypeScript and WGSL. */

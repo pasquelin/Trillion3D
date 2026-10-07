@@ -16,7 +16,7 @@ import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/c
 import { packDagSelection } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts'
 import { engineCamera } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
-import { signedArea } from '../../../packages/sdk-browser/src/visibility/projection.ts'
+import { signedArea } from '../../../bench/oracles/browser/cpu-image/projection.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import { packedWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.fixture.ts'
 import { triangleCone } from '../../kit/reference/cone.ts'

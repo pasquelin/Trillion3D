@@ -18,7 +18,7 @@ import { flushWebgpuPages } from '../webgpu/pages/render/flush.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { readoutRow } from '../gpu/dag/bufferTable.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { growWebgpuPlacements, grownCutMade, webgpuGrowsInPlace } from './webgpuGrowth.ts'
+import { growthOf, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
@@ -96,10 +96,8 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   const { port, held, outgrown: reopened } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
   port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to)
-  port.grow = {
-    growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
-    growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
-  }
+  const { growsInPlace, growPlacements } = webgpuPlacementApi(rt)
+  port.grow = { growsInPlace, growPlacements }
   const view = cameraAt(0, 30)
   const draw = async () => {
     renderWebgpuPages(rt, view)
@@ -139,6 +137,6 @@ export async function scaleDown(session: Awaited<ReturnType<typeof placedSession
   core.scale.set(1e-3, 1e-3, 1e-3)
   await settled(cells, [0, 0, 0], 100, io, noBudget)
   await draw()
-  await grownCutMade(rt)
+  await growthOf(rt)?.making
   await draw()
 }

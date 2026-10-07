@@ -4,7 +4,7 @@
 import * as THREE from 'three'
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
 import { linearToSrgb8 } from '../../../../packages/sdk-core/src/math/primitives/color.ts'
-import { projectVisibilityVertex } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+import { projectVisibilityVertex } from '../../../oracles/browser/cpu-image/projection.ts'
 import {
   setWindingEpoch,
   windingCw,
@@ -97,7 +97,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'projected vertex of the visibility buffer',
-      'packages/sdk-browser/src/visibility/projection.ts',
+      'bench/oracles/browser/cpu-image/projection.ts',
       'poses × view-projections × vertices',
       affines.slice(0, 60),
       (l) =>

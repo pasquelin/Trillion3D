@@ -60,7 +60,7 @@ test('an image that has not filled its row deposits nothing, a filled image depo
   const { rt, timing } = banc()
   hostCpuStep(rt, 'pendingMs', 1.25)
   endCpuFrame(rt)
-  assert.equal(timing.cpuProfile.summary(), null, 'a CPU cut files no row')
+  assert.equal(timing.cpuProfile.summary(), null, 'an image that has not filled its row files none')
 
   timing.cpuProfile.row[CPU_STEP.worldMs] = 0.5
   timing.cpuProfile.row[CPU_STEP.totalMs] = 4

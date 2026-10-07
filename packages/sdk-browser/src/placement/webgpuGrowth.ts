@@ -56,8 +56,6 @@ type Growth = {
 const growths = new WeakMap<WebgpuPagesRuntime, Growth>()
 /** The growth of `rt` in flight, if one is. */
 export const growthOf = (rt: WebgpuPagesRuntime) => growths.get(rt)
-/** The cut the last growth is making, settled once it is made or dropped. */
-export const grownCutMade = (rt: WebgpuPagesRuntime) => growths.get(rt)?.making
 
 /** Whether rows drawn by `template` grow in place: neither the blend pass's — transparent pages,
  *  whose tables are laid out at open — nor a deformation's. */
@@ -65,7 +63,7 @@ const rowsGrowInPlace = (template: Root | undefined) =>
   !template?.pages.some((page) => page.transparent || page.deformationOutput)
 
 /** Whether the session grows each of `from` in place, asked before any is (`growth.ts`). */
-export function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows[]) {
+function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows[]) {
   const { layout, run, gpu, setup, blendState } = rt
   if (!gpu.device || run.lost || !run.gpuSelection) return false
   for (const buffer of from) {
@@ -79,11 +77,7 @@ export function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly Placem
 /** Steps 1 and 2 of the contract on a growth `webgpuGrowsInPlace` took: every root of `from` reads
  *  `to`, and one parked root per new row waits for the cut made over all of them, asked of the next
  *  frame entry (`startGrownCut`): a burst of growths packs the DAG once. */
-export function growWebgpuPlacements(
-  rt: WebgpuPagesRuntime,
-  from: PlacementRows,
-  to: PlacementRows,
-) {
+function growWebgpuPlacements(rt: WebgpuPagesRuntime, from: PlacementRows, to: PlacementRows) {
   const growth = growths.get(rt) ?? { roots: [], appended: 0, made: 0, asked: false }
   growths.set(rt, growth)
   const { selectionRoots } = rt.layout

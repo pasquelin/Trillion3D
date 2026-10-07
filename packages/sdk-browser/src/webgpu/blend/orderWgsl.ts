@@ -14,7 +14,7 @@ import { DOUBLE_WGSL } from './doubleWgsl.ts'
  * the sorted entries where the expansion kernel reads them and where each seed landed;
  * `placeBlendSlots` then gives each draw slot its run (`runs.ts`).
  *
- * The order is the one `precedes` defines (`sortPlan.ts`): decreasing key, then increasing seed —
+ * The order is the one `precedes` defines (`paintOrder.ts`): decreasing key, then increasing seed —
  * the seeds are in source order, back before face, so that is the CPU's rank rule. A key is
  * compared as its unsigned 64-bit pattern: keys are never negative, and a NaN, all ones, lies above
  * +∞. The padding past the pass's entries sorts after every entry: key zero, the largest seed.

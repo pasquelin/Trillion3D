@@ -52,10 +52,10 @@ function wantsReflectionCone(rt: WebgpuPagesRuntime) {
  *  (`prepareBlend`) and before the bounds are built: a water surface the frustum kept, which the
  *  composite needs to be encoded at all (`drawsWater`, `../webgpu/water/pass.ts`, whose lighting
  *  the blends publish after the bounds, so a kept surface it then skips builds them for nothing);
- *  a mirror-range receiver among the view's rows (those the CPU cut draws, or those resident where
- *  the GPU selects); an impostor card drawn, whose baked roughness no surface here tells
- *  (`../webgpu/impostor/cardWgsl.ts`); a blended one the frustum kept. An image none of these, nor
- *  the rough trace or the cone, reads builds no bounds (`encode.ts`). */
+ *  a mirror-range receiver among the view's rows (those resident for the GPU cut); an impostor
+ *  card drawn, whose baked roughness no surface here tells (`../webgpu/impostor/cardWgsl.ts`); a
+ *  blended one the frustum kept. An image none of these, nor the rough trace or the cone, reads
+ *  builds no bounds (`encode.ts`). */
 function wantsMirrorWalk(rt: WebgpuPagesRuntime, inView = false) {
   const { blendState } = rt
   if ((inView ? blendState.transmissiveInView : blendState.transmissive) > 0) return true

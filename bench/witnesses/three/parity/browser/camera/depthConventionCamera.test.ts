@@ -22,8 +22,8 @@ import {
   DEPTH_NEAR,
   depthNearer,
 } from '../../../../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import { projectVisibilityVertex } from '../../../../../../packages/sdk-browser/src/visibility/projection.ts'
-import { IDENTITY_ELEMENTS } from '../../../../../../packages/sdk-browser/src/math/matrixElements.ts'
+import { projectVisibilityVertex } from '../../../../../oracles/browser/cpu-image/projection.ts'
+import { IDENTITY_WORLD } from '../../../../../../packages/sdk-browser/src/math/matrixElements.ts'
 import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/index.ts'
 
 const WIDTH = 800,
@@ -64,14 +64,7 @@ test('engine depth is reversed: the near plane is 1, the far is 0', () => {
 test('the depth of a projected vertex is the near plane over its eye distance', () => {
   // The origin, on the camera's optical axis: its eye distance is the camera's distance to it.
   const position = { getX: () => 0, getY: () => 0, getZ: () => 0 }
-  const p = projectVisibilityVertex(
-    { elements: IDENTITY_ELEMENTS },
-    position,
-    0,
-    view,
-    WIDTH,
-    HEIGHT,
-  )
+  const p = projectVisibilityVertex(IDENTITY_WORLD, position, 0, view, WIDTH, HEIGHT)
   assert.ok(p, 'the vertex must project')
   assert.ok(p!.z > 0 && p!.z < 1, `depth ${p!.z} outside the engine range`)
   const distance = Math.hypot(2, 1, 8)
@@ -81,14 +74,7 @@ test('the depth of a projected vertex is the near plane over its eye distance', 
 test('at 10⁶ units, two neighbouring vertices keep distinct depths in single precision', () => {
   const depthAt = (distance: number) => {
     const position = { getX: () => 0, getY: () => 0, getZ: () => 8 - distance }
-    const p = projectVisibilityVertex(
-      { elements: IDENTITY_ELEMENTS },
-      position,
-      0,
-      view,
-      WIDTH,
-      HEIGHT,
-    )
+    const p = projectVisibilityVertex(IDENTITY_WORLD, position, 0, view, WIDTH, HEIGHT)
     assert.ok(p, 'the distant vertex must project')
     return Math.fround(p!.z)
   }

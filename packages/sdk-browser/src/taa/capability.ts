@@ -4,6 +4,6 @@
 export const TAA_CAPABILITY = 'temporal antialiasing'
 const MOTION_CAPABILITY = 'motion vectors'
 /** A frame drawn below the display and reconstructed to it (`renderScale`): the pass's own. */
-export const UPSCALE_CAPABILITY = 'temporal upscaling'
+const UPSCALE_CAPABILITY = 'temporal upscaling'
 /** The three, granted and withdrawn together. */
 export const TAA_CAPABILITIES = [TAA_CAPABILITY, MOTION_CAPABILITY, UPSCALE_CAPABILITY]

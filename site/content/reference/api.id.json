@@ -1110,8 +1110,8 @@
       "selectedTriangles": "Segitiga yang dipilih potongan itu.",
       "residentPages": "Halaman yang tersimpan di memori.",
       "submittedTriangles": "Segitiga yang dikirim: pada jalur WebGPU-per-halaman, setiap baris yang bisa digambar — penolakan oklusi setelah pengiriman —, disimpan tabel itu, karenanya pasti dan milik bingkai ini.",
-      "totalSubmittedTriangles": "Semua segitiga yang dikirim, termasuk tahap transparan. Null saat sebuah backend tidak bisa menghitungnya.",
-      "pagesDetached": "Cluster yang meninggalkan potongan yang digambar sesi ini. Kamera bergerak melepas cluster setiap bingkai; ini bukan sinyal tekanan cache. Null pada backend yang tidak melacak sebuah potongan.",
+      "totalSubmittedTriangles": "Semua segitiga yang dikirim, termasuk tahap transparan. Null selama gambar masih tertunda.",
+      "pagesDetached": "Cluster yang meninggalkan potongan yang digambar sesi ini. Kamera bergerak melepas cluster setiap bingkai; ini bukan sinyal tekanan cache. Null selama engine belum menghitungnya.",
       "cacheEvictions": "Halaman yang benar-benar dikeluarkan dari cache yang memberi makan geometri yang digambar: cache halaman GPU milik backend sendiri saat ia memilikinya, streamer halaman host selain itu. Ini sinyal tekanan cache.",
       "geometryAllocationBytes": "Byte memori geometri.",
       "vramBytes": "Byte memori GPU.",
@@ -1121,7 +1121,7 @@
       "pagesLoading": "Halaman dalam perjalanan.",
       "cacheHits": "Pembacaan halaman yang dilayani dari cache.",
       "cacheMisses": "Pembacaan halaman yang meleset dari cache.",
-      "frustumRejected": "Yang dibuang potongan itu tanpa disimpan. Pada potongan DAG GPU, yang menjelajahi hierarki culling tingkat demi tingkat, ini adalah node yang dibuang oleh penurunan itu — di luar frustum, atau yang batas galat penggantinya sudah jatuh di bawah ambang batas — ditambah halaman kandidat yang lalu dibuang sebuah uji per-halaman. Sebuah node yang dibuang dihitung satu, berapa pun jumlah halaman subtree-nya: halaman itu tidak pernah dikunjungi, karenanya tidak pernah dihitung. Potongan CPU, di sisi lain, menghitung node ujinya sendiri dan penolakannya sendiri.",
+      "frustumRejected": "Yang dibuang potongan itu tanpa disimpan. Pada potongan DAG GPU, yang menjelajahi hierarki culling tingkat demi tingkat, ini adalah node yang dibuang oleh penurunan itu — di luar frustum, atau yang batas galat penggantinya sudah jatuh di bawah ambang batas — ditambah halaman kandidat yang lalu dibuang sebuah uji per-halaman. Sebuah node yang dibuang dihitung satu, berapa pun jumlah halaman subtree-nya: halaman itu tidak pernah dikunjungi, karenanya tidak pernah dihitung.",
       "lodLevel": "Tingkat detail potongan itu.",
       "transparentMeshes": "Penghitung transparan WebGPU. `transparentDrawCalls` menghitung setiap gambar, termasuk kedua separuh sebuah material dua-tahap; `transparentSubmittedTriangles` menghitung segitiga potongan transparan sekali masing-masing, berapa pun jumlah tahap yang merasterkannya — perkalian per-tahap itu milik GPU sendiri, karena jumlah instance ditulis kompaksi dan tidak pernah dibaca balik. Null saat tidak tersedia.",
       "transparentFrustumRejected": "Cluster tembus pandang di luar tampilan.",
@@ -2735,7 +2735,7 @@
     "summary": "Sesuatu yang dikabarkan mesin tentang dirinya saat berjalan: kegagalan yang berhasil dilewati tampilan, digambar dengan apa yang sudah dipegangnya (`degraded`), atau yang tidak berhasil dilewati (`fatal`)."
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Float lingkungan dalam buffer GPU."
+    "summary": "Float lingkungan dalam buffer GPU: koefisien, 9 × 4, lalu blok kabut, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Float sebuah lampu dalam buffer GPU: lima `vec4f`."
@@ -3273,7 +3273,7 @@
       "rgba": "Piksel-pikselnya, masing-masing empat byte.",
       "width": "Lebar dalam piksel.",
       "height": "Tinggi dalam piksel.",
-      "backend": "Perender yang menggambarnya."
+      "backend": "Engine yang menggambarnya: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "StageProfile": {
@@ -3926,8 +3926,8 @@
       "selectedTriangles": "Segitiga yang dipilih potongan itu.",
       "residentPages": "Halaman yang tersimpan di memori.",
       "submittedTriangles": "Segitiga yang dikirim: pada jalur WebGPU-per-halaman, setiap baris yang bisa digambar — penolakan oklusi setelah pengiriman —, disimpan tabel itu, karenanya pasti dan milik bingkai ini.",
-      "totalSubmittedTriangles": "Semua segitiga yang dikirim, termasuk tahap transparan. Null saat sebuah backend tidak bisa menghitungnya.",
-      "pagesDetached": "Cluster yang meninggalkan potongan yang digambar sesi ini. Kamera bergerak melepas cluster setiap bingkai; ini bukan sinyal tekanan cache. Null pada backend yang tidak melacak sebuah potongan.",
+      "totalSubmittedTriangles": "Semua segitiga yang dikirim, termasuk tahap transparan. Null selama gambar masih tertunda.",
+      "pagesDetached": "Cluster yang meninggalkan potongan yang digambar sesi ini. Kamera bergerak melepas cluster setiap bingkai; ini bukan sinyal tekanan cache. Null selama engine belum menghitungnya.",
       "cacheEvictions": "Halaman yang benar-benar dikeluarkan dari cache yang memberi makan geometri yang digambar: cache halaman GPU milik backend sendiri saat ia memilikinya, streamer halaman host selain itu. Ini sinyal tekanan cache.",
       "geometryAllocationBytes": "Byte memori geometri.",
       "vramBytes": "Byte memori GPU.",
@@ -3937,7 +3937,7 @@
       "pagesLoading": "Halaman dalam perjalanan.",
       "cacheHits": "Pembacaan halaman yang dilayani dari cache.",
       "cacheMisses": "Pembacaan halaman yang meleset dari cache.",
-      "frustumRejected": "Yang dibuang potongan itu tanpa disimpan. Pada potongan DAG GPU, yang menjelajahi hierarki culling tingkat demi tingkat, ini adalah node yang dibuang oleh penurunan itu — di luar frustum, atau yang batas galat penggantinya sudah jatuh di bawah ambang batas — ditambah halaman kandidat yang lalu dibuang sebuah uji per-halaman. Sebuah node yang dibuang dihitung satu, berapa pun jumlah halaman subtree-nya: halaman itu tidak pernah dikunjungi, karenanya tidak pernah dihitung. Potongan CPU, di sisi lain, menghitung node ujinya sendiri dan penolakannya sendiri.",
+      "frustumRejected": "Yang dibuang potongan itu tanpa disimpan. Pada potongan DAG GPU, yang menjelajahi hierarki culling tingkat demi tingkat, ini adalah node yang dibuang oleh penurunan itu — di luar frustum, atau yang batas galat penggantinya sudah jatuh di bawah ambang batas — ditambah halaman kandidat yang lalu dibuang sebuah uji per-halaman. Sebuah node yang dibuang dihitung satu, berapa pun jumlah halaman subtree-nya: halaman itu tidak pernah dikunjungi, karenanya tidak pernah dihitung.",
       "lodLevel": "Tingkat detail potongan itu.",
       "transparentMeshes": "Penghitung transparan WebGPU. `transparentDrawCalls` menghitung setiap gambar, termasuk kedua separuh sebuah material dua-tahap; `transparentSubmittedTriangles` menghitung segitiga potongan transparan sekali masing-masing, berapa pun jumlah tahap yang merasterkannya — perkalian per-tahap itu milik GPU sendiri, karena jumlah instance ditulis kompaksi dan tidak pernah dibaca balik. Null saat tidak tersedia.",
       "transparentFrustumRejected": "Cluster tembus pandang di luar tampilan.",
@@ -4496,7 +4496,8 @@
     "description": "Yang diserahkan API publik adalah salah satu dari ini: sebuah host yang menulis ke salinan yang diterimanya tidak mengubah apa pun di mesin, dan sebuah host yang mengubah lampu yang sudah dikirimkannya juga tidak mengubah apa pun — penyimpan itu memvalidasi salinannya sendiri saat masuk. Salinan dibuat di tempat host membaca, tidak pernah pada jalur bingkai: mesin membaca rekaman yang dipegang dan buffer yang terkemas, dan tidak menyalin apa pun."
   },
   "clusterErrorAtDepth": {
-    "summary": "Galat terproyeksi yang sama saat jarak pusat ke sumbu pandang dan kedalamannya (−z pandang) sudah diketahui: sebuah node yang mengatur lantai dan langit-langit pada bola yang sama berbagi kedalamannya."
+    "summary": "Galat terproyeksi yang sama saat jarak pusat ke sumbu pandang dan kedalamannya (−z pandang) sudah diketahui: sebuah node yang mengatur lantai dan langit-langit pada bola yang sama berbagi kedalamannya.",
+    "description": "Galat nol menghasilkan 0 dan galat tak hingga menghasilkan tak hingga sebelum pemeriksaan apa pun; setiap parameter lain lalu diperiksa sekaligus — galat, regangan, dan radius berhingga dan tidak negatif, panjang fokus dan bidang dekat berhingga dan positif, jarak sumbu berhingga dan tidak negatif, kedalaman berhingga, bobot clip-w dalam [0, 1] — sebelum proyeksi. Cermin Rust, satu penjaga, vonis sama: `projected_error_at` dari `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` sebuah cluster yang pusat pandangnya diberikan, parameter tervalidasi.",
@@ -4718,8 +4719,7 @@
     "description": "Setiap jalur membaca fungsi tunggal ini dan memberinya tanda untuk uji kedalamannya sendiri."
   },
   "detectCapabilities": {
-    "summary": "Memeriksa apa yang diberikan WebGPU mesin ini, dan menyebut sebabnya saat tidak memberi apa pun.",
-    "description": "`gpu` berarti `navigator.gpu`."
+    "summary": "Memeriksa apa yang diberikan WebGPU mesin ini, dan menyebut sebabnya saat tidak memberi apa pun."
   },
   "GpuCapabilities": {
     "summary": "Apa yang diberikan WebGPU mesin ini, dibaca sebelum sesi apa pun dibuka.",

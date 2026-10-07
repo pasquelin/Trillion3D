@@ -39,7 +39,6 @@ function banc() {
   const world = worlds.of(mesh)
   const run = createWebgpuRunState()
   run.noOccluderHistory = false
-  run.temporalHizState = { pyramid: {}, camera: {} } as typeof run.temporalHizState
   const rt = {
     setup: { source, worlds },
     layout: { selectionRoots: [], rows: { tableEpoch: 0 } },

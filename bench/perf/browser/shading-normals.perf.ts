@@ -6,7 +6,7 @@ import { shadingNormal } from '../../oracles/browser/cpu-image/shadingNormal.ts'
 import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
 import { referenceShadingNormal } from '../../oracles/browser/shading-normals.ts'
 import { reperes } from './support/scenesNormal.ts'
-import { triangleAt } from '../../../packages/sdk-browser/src/visibility/math.ts'
+import type { triangleAt } from '../../oracles/browser/cpu-image/projection.ts'
 import type { VisMaterial, VisPage } from '../../../packages/sdk-browser/src/visibility/types.ts'
 
 const alea = xorshiftRandom(0x4e07)

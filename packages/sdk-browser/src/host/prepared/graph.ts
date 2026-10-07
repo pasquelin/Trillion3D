@@ -14,7 +14,6 @@
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
 import { readPreparedSourceRank, registerPreparedNodeRank } from './sourceRanks.ts'
-import { numbered } from '../graph/serial.ts'
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts'
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
 import { camera, light, pose, uniqueNames, weigh } from './nodes.ts'
@@ -78,7 +77,7 @@ function referencer(tables: PreparedSceneTables, unique: Unique, ranks: Map<Obje
   const uses = new Map<string, number>()
   return (kind: keyof typeof counts, rank: number, made: Object3D) => {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made
-    const copy = numbered(made.clone())
+    const copy = made.clone()
     const walk = (from: Object3D, to: Object3D) => {
       if (from !== made && from.name) to.name = unique(from.name)
       const held = ranks.get(from)
@@ -163,7 +162,7 @@ async function buildMeshes(
     order.map((rank, at) =>
       Promise.all(drawn[at].map(({ material }) => material)).then((surfaces) =>
         drawn[at].map(({ geometry }, p) => {
-          const mesh = numbered(new Mesh(geometry, surfaces[p]))
+          const mesh = new Mesh(geometry, surfaces[p])
           if (Object.keys(geometry.morphAttributes).length) weigh(mesh, meshes[rank].weights)
           mesh.name = unique(meshes[rank].name || `mesh_${rank}`)
           return mesh

@@ -1,16 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  createPhysicalTable,
-  PHYSICAL_RECORD_WORDS,
-  PHYSICAL_ROW_RECORDS,
-} from './physicalTable.ts'
+import { createPhysicalTable, PHYSICAL_ROW_RECORDS } from './physicalTable.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
+
+/** A record's words, as the upload lays them out: a row's words over the records it holds. */
+const recordWords = (sent: { layout: GPUTexelCopyBufferLayout }) =>
+  sent.layout.bytesPerRow! / 4 / PHYSICAL_ROW_RECORDS
 
 /** The collector, called on demand: what the open world's churn waits for. */
 function gcOf() {
@@ -58,8 +58,11 @@ test('a record holds the clamped factors, the coat normal scales, the slots and 
   assert.equal(texelWrites.length, 1)
   // One record: three texels of the first row.
   assert.deepEqual(texelWrites[0].size, [3, 1])
-  const words = new Uint32Array(texelWrites[0].data.buffer, 0, PHYSICAL_RECORD_WORDS)
-  const floats = new Float32Array(words.buffer, 0, PHYSICAL_RECORD_WORDS)
+  const recordLength = recordWords(texelWrites[0])
+  // The one record's write is its own texels: four words each.
+  assert.equal(recordLength, (texelWrites[0].size as number[])[0] * 4)
+  const words = new Uint32Array(texelWrites[0].data.buffer, 0, recordLength)
+  const floats = new Float32Array(words.buffer, 0, recordLength)
   assert.deepEqual(
     [...floats.slice(0, 6)],
     [1, 0.25, 0, Math.fround(Number(ROUGHNESS_FLOOR)), 2, -1],
@@ -167,7 +170,7 @@ test('an upload sends the span of the records written since, not the whole table
     ],
   )
   const floats = new Float32Array(sent.data.buffer, sent.layout.offset)
-  assert.deepEqual([floats[2], floats[PHYSICAL_RECORD_WORDS]], [0.5, 0.5])
+  assert.deepEqual([floats[2], floats[recordWords(sent)]], [0.5, 0.5])
 })
 
 test('the rank of a surface the collector took goes to the next lobed surface', async (t) => {

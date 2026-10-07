@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, type PageRec, type SelectionResult } from './selection.ts'
-import { createSelectionResult, selectVisiblePages } from '../cut/cut.fixture.ts'
+import { collectClusterPages, type PageRec } from './selection.ts'
+import {
+  createSelectionResult,
+  selectVisiblePages,
+  type SelectionResult,
+} from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { createHeldResidency } from '../cut/held.fixture.ts'

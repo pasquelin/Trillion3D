@@ -1,7 +1,4 @@
-import {
-  clusterErrorAtDepth,
-  clusterErrorInFrame,
-} from '../../../../sdk-core/src/lod/screenErrorBound.ts'
+import { clusterErrorAtDepth } from '../../../../sdk-core/src/lod/screenErrorBound.ts'
 
 /**
  * Distance to the view axis, `|(view(p).x, view(p).y)|`, of a point given component by component:
@@ -29,11 +26,7 @@ export function viewDepth(sphere: ArrayLike<number>, offset: number, e: ArrayLik
   return viewDepthOf(sphere[offset], sphere[offset + 1], sphere[offset + 2], e)
 }
 
-/**
- * `projectedClusterError` whose axis distance and centre depth are already known. `sound`: the
- * caller has already found the four frame scalars sound (`SelectionState.flatSound`), and only the
- * cluster's own values are checked here.
- */
+/** `projectedClusterError` whose axis distance and centre depth are already known. */
 export function projectedErrorAt(
   error: number | null | undefined,
   lateral: number,
@@ -43,11 +36,8 @@ export function projectedErrorAt(
   focal: number,
   near: number,
   perspective = 1,
-  sound = false,
 ) {
   if (error === 0) return 0
   if (error == null || error === Infinity) return Infinity
-  if (sound)
-    return clusterErrorInFrame(error, stretch, lateral, depth, radius, focal, near, perspective)
   return clusterErrorAtDepth(error, stretch, lateral, depth, radius, focal, near, perspective)
 }

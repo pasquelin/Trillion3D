@@ -66,7 +66,7 @@ function banc() {
   const rt = {
     setup: { source, worlds },
     layout: { selectionRoots: [], rows },
-    run: { gate, temporalHizState: {}, noOccluderHistory: false },
+    run: { gate, noOccluderHistory: false },
     lights: { changes: { worldChanged: () => {} } },
   } as unknown as WebgpuPagesRuntime
   const camera = G.perspectiveCamera()

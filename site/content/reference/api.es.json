@@ -814,7 +814,8 @@
     "summary": "Formato de caché externo requerido para el BLEND en clústeres (8 antes de que el manifiesto se paginara, 10 antes del formato 11); los manifiestos de origen conservan su propio formato."
   },
   "clusterErrorAtDepth": {
-    "summary": "El mismo error proyectado cuando ya se conocen la distancia del centro al eje de vista y su profundidad (−z de la vista): un nodo que fija suelo y techo en la misma esfera comparte su profundidad."
+    "summary": "El mismo error proyectado cuando ya se conocen la distancia del centro al eje de vista y su profundidad (−z de la vista): un nodo que fija suelo y techo en la misma esfera comparte su profundidad.",
+    "description": "Un error nulo da 0 y uno infinito da infinito antes de cualquier comprobación; después se comprueba de una vez cada otro parámetro — error, estiramiento y radio finitos y no negativos, distancia focal y plano cercano finitos y positivos, distancia al eje finita y no negativa, profundidad finita, peso de clip-w en [0, 1] — antes de la proyección. Espejo en Rust, una sola guarda, mismos veredictos: `projected_error_at` de `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` de un clúster cuyo centro de vista se da, parámetros verificados.",
@@ -1391,8 +1392,7 @@
     "description": "Cada camino lee esta única función y le da signo para su propia prueba de profundidad."
   },
   "detectCapabilities": {
-    "summary": "Comprueba lo que concede el WebGPU de esta máquina, y dice por qué cuando no concede nada.",
-    "description": "`gpu` es `navigator.gpu`."
+    "summary": "Comprueba lo que concede el WebGPU de esta máquina, y dice por qué cuando no concede nada."
   },
   "GpuCapabilities": {
     "summary": "Lo que concede el WebGPU de esta máquina, leído antes de abrir ninguna sesión.",
@@ -1779,8 +1779,8 @@
       "selectedTriangles": "Triángulos elegidos por el corte.",
       "residentPages": "Páginas mantenidas en memoria.",
       "submittedTriangles": "Triángulos enviados: en el camino WebGPU por páginas, cada fila dibujable — los rechazos de oclusión llegan después del envío —, mantenida por la tabla, así que exacta y de este fotograma.",
-      "totalSubmittedTriangles": "Todos los triángulos enviados, pases transparentes incluidos. Nulo cuando un motor no sabe contarlos.",
-      "pagesDetached": "Clústeres que abandonaron el corte dibujado durante esta sesión. Una cámara en movimiento separa clústeres en cada fotograma; no es una señal de presión sobre la caché. Nulo para un motor que no sigue un corte.",
+      "totalSubmittedTriangles": "Todos los triángulos enviados, pases transparentes incluidos. Nulo mientras la imagen está pendiente.",
+      "pagesDetached": "Clústeres que abandonaron el corte dibujado durante esta sesión. Una cámara en movimiento separa clústeres en cada fotograma; no es una señal de presión sobre la caché. Nulo mientras el motor no lo cuenta.",
       "cacheEvictions": "Páginas realmente desalojadas de la caché que alimenta la geometría dibujada: la caché de páginas de GPU del motor cuando la tiene, el flujo de páginas del host si no. Es la señal de presión sobre la caché.",
       "geometryAllocationBytes": "Bytes de la memoria de geometría.",
       "vramBytes": "Bytes de memoria de GPU.",
@@ -1790,7 +1790,7 @@
       "pagesLoading": "Páginas en camino.",
       "cacheHits": "Lecturas de páginas servidas por la caché.",
       "cacheMisses": "Lecturas de páginas ausentes de la caché.",
-      "frustumRejected": "Lo que el corte descartó sin conservarlo. En el corte del DAG por GPU, que recorre la jerarquía de selección nivel por nivel, son los nodos descartados por el descenso — fuera del frustum, o cuyo límite de error de reemplazo ya cae bajo el umbral — más las páginas candidatas que una prueba por página descarta después. Un nodo descartado cuenta como uno, sea cual sea el número de páginas de su subárbol: esas páginas nunca se visitan, así que nunca se cuentan. El corte de CPU, en cambio, cuenta sus propios nodos probados y sus propios rechazos.",
+      "frustumRejected": "Lo que el corte descartó sin conservarlo. En el corte del DAG por GPU, que recorre la jerarquía de selección nivel por nivel, son los nodos descartados por el descenso — fuera del frustum, o cuyo límite de error de reemplazo ya cae bajo el umbral — más las páginas candidatas que una prueba por página descarta después. Un nodo descartado cuenta como uno, sea cual sea el número de páginas de su subárbol: esas páginas nunca se visitan, así que nunca se cuentan.",
       "lodLevel": "Nivel de detalle del corte.",
       "transparentMeshes": "Contadores transparentes de WebGPU. `transparentDrawCalls` cuenta cada dibujo, ambas mitades de un material en dos pases incluidas; `transparentSubmittedTriangles` cuenta los triángulos del corte transparente una vez cada uno, sea cual sea el número de pases que los rasterizan — la multiplicación por pase es la de la GPU, ya que los números de instancias los escribe la compactación y nunca se vuelven a leer. Nulo cuando no están disponibles.",
       "transparentFrustumRejected": "Clústeres transparentes fuera de la vista.",
@@ -5075,7 +5075,7 @@
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Flotantes del entorno en el búfer de GPU."
+    "summary": "Flotantes del entorno en el búfer de GPU: los coeficientes, 9 × 4, y luego el bloque de la niebla, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Flotantes de una luz en el búfer GPU: cinco `vec4f`."
@@ -5573,7 +5573,7 @@
       "rgba": "Los píxeles, cuatro bytes cada uno.",
       "width": "Ancho en píxeles.",
       "height": "Alto en píxeles.",
-      "backend": "El motor de renderizado que lo dibujó."
+      "backend": "El motor que lo dibujó: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "STAGE_LABELS": {
@@ -6532,8 +6532,8 @@
       "selectedTriangles": "Triángulos elegidos por el corte.",
       "residentPages": "Páginas mantenidas en memoria.",
       "submittedTriangles": "Triángulos enviados: en el camino WebGPU por páginas, cada fila dibujable — los rechazos de oclusión llegan después del envío —, mantenida por la tabla, así que exacta y de este fotograma.",
-      "totalSubmittedTriangles": "Todos los triángulos enviados, pases transparentes incluidos. Nulo cuando un motor no sabe contarlos.",
-      "pagesDetached": "Clústeres que abandonaron el corte dibujado durante esta sesión. Una cámara en movimiento separa clústeres en cada fotograma; no es una señal de presión sobre la caché. Nulo para un motor que no sigue un corte.",
+      "totalSubmittedTriangles": "Todos los triángulos enviados, pases transparentes incluidos. Nulo mientras la imagen está pendiente.",
+      "pagesDetached": "Clústeres que abandonaron el corte dibujado durante esta sesión. Una cámara en movimiento separa clústeres en cada fotograma; no es una señal de presión sobre la caché. Nulo mientras el motor no lo cuenta.",
       "cacheEvictions": "Páginas realmente desalojadas de la caché que alimenta la geometría dibujada: la caché de páginas de GPU del motor cuando la tiene, el flujo de páginas del host si no. Es la señal de presión sobre la caché.",
       "geometryAllocationBytes": "Bytes de la memoria de geometría.",
       "vramBytes": "Bytes de memoria de GPU.",
@@ -6543,7 +6543,7 @@
       "pagesLoading": "Páginas en camino.",
       "cacheHits": "Lecturas de páginas servidas por la caché.",
       "cacheMisses": "Lecturas de páginas ausentes de la caché.",
-      "frustumRejected": "Lo que el corte descartó sin conservarlo. En el corte del DAG por GPU, que recorre la jerarquía de selección nivel por nivel, son los nodos descartados por el descenso — fuera del frustum, o cuyo límite de error de reemplazo ya cae bajo el umbral — más las páginas candidatas que una prueba por página descarta después. Un nodo descartado cuenta como uno, sea cual sea el número de páginas de su subárbol: esas páginas nunca se visitan, así que nunca se cuentan. El corte de CPU, en cambio, cuenta sus propios nodos probados y sus propios rechazos.",
+      "frustumRejected": "Lo que el corte descartó sin conservarlo. En el corte del DAG por GPU, que recorre la jerarquía de selección nivel por nivel, son los nodos descartados por el descenso — fuera del frustum, o cuyo límite de error de reemplazo ya cae bajo el umbral — más las páginas candidatas que una prueba por página descarta después. Un nodo descartado cuenta como uno, sea cual sea el número de páginas de su subárbol: esas páginas nunca se visitan, así que nunca se cuentan.",
       "lodLevel": "Nivel de detalle del corte.",
       "transparentMeshes": "Contadores transparentes de WebGPU. `transparentDrawCalls` cuenta cada dibujo, ambas mitades de un material en dos pases incluidas; `transparentSubmittedTriangles` cuenta los triángulos del corte transparente una vez cada uno, sea cual sea el número de pases que los rasterizan — la multiplicación por pase es la de la GPU, ya que los números de instancias los escribe la compactación y nunca se vuelven a leer. Nulo cuando no están disponibles.",
       "transparentFrustumRejected": "Clústeres transparentes fuera de la vista.",

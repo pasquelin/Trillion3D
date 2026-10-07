@@ -57,7 +57,7 @@ export interface SceneEnvironment {
 /** Coefficients of the irradiance, and the floats they take in a GPU buffer: one `vec4` each.
  *  Written as literals, like the factors below, so a bundle that reads none of them keeps none. */
 export const ENVIRONMENT_COEFFICIENTS = 9
-/** Floats of the environment in the GPU buffer: the coefficients, then the fog's block. */
+/** Floats of the environment in the GPU buffer: the coefficients, 9 × 4, then the fog's block, 8. */
 export const SCENE_ENVIRONMENT_FLOATS = 44
 
 /**

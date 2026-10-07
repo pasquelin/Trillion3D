@@ -1,5 +1,4 @@
 import { clipWeight } from '../../../../sdk-core/src/math/primitives/camera.ts'
-import type { ClusterCut } from './math.ts'
 
 /**
  * Floor of a subtree's projected error: the smallest error it carries, seen at the farthest
@@ -36,32 +35,4 @@ export function errorFloorAt(
   // yields `ε·stretch·f/depth`, which `ε_min·stretch·f/(farthest depth of the
   // bounding sphere)` underestimates just as much as the certified bound.
   return (error * stretch * focal) / far
-}
-
-/**
- * `clusterPixels` when the threshold is zero, without projecting anything: `[own, parent]` stand
- * for themselves, zero exactly where the projection is zero.
- *
- * Projected error is never negative, so "> 0" equals "≠ 0"; and `projectedClusterError` only
- * returns 0 for a zero error — the near plane yields infinity, a missing sphere too, and
- * `screenErrorBound` is a product of strictly positive factors as soon as the error, the stretch
- * and the focal length are. Against a zero threshold the cut rule (`../cut/rule.ts`) therefore
- * decides on these values exactly as on the projected ones, whatever the camera and the sphere.
- * The caller takes this path only when the frame's stretch, focal length and near plane are
- * finite and strictly positive.
- *
- * The identity holds on the domain prepare guarantees (`pageCarriesClusterError`,
- * `clusterErrorFields`): a finite positive own error always comes with its sphere, and a parent
- * error is zero, finite positive with its sphere, or absent. A malformed error is rejected
- * on both sides. `projection.test.ts` walks this domain and its edges.
- */
-export function pixelsAtZero(rec: ClusterCut, out: Float64Array) {
-  const own = rec.lodError ?? 0,
-    parent = rec.parentError
-  // An error that is neither zero nor positive is not cut data: the general path throws, and so does this one.
-  if (!(own >= 0) || (parent != null && !(parent >= 0)))
-    throw new Error('Invalid cluster parameters')
-  out[0] = own
-  out[1] = parent ?? Infinity
-  return out
 }

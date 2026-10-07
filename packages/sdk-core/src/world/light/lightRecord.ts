@@ -101,7 +101,7 @@ export function addLightIrradiance(light: Light, sh: IrradianceSum) {
 }
 
 /** The core light kind of a store lamp's kind: the store's `rect` is a `rectArea`. */
-export const lightKindOf = (kind: SceneLight['kind']) => (kind === 'rect' ? 'rectArea' : kind)
+const lightKindOf = (kind: SceneLight['kind']) => (kind === 'rect' ? 'rectArea' : kind)
 
 /**
  * The node of a lamp the engine's store describes — a light the source file carried — which a

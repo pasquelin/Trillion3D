@@ -27,20 +27,3 @@ export function referenceBoxClip(
   }
   return inside
 }
-
-/** `packages/sdk-browser/src/page/selection/requests.ts:77-96` before batch A: a `Set` allocated per call without stamps. */
-export function referenceCollectPendingUrls<
-  T extends { array?: Uint32Array; url: string; streamUrl?: string },
->(shown: readonly T[], into: string[]) {
-  into.length = 0
-  const seen = new Set()
-  for (let i = 0; i < shown.length; i++) {
-    const rec = shown[i]
-    if (rec.array) continue
-    const key = rec.streamUrl ?? rec.url
-    if (seen.has(key)) continue
-    seen.add(key)
-    into.push(key)
-  }
-  return into
-}

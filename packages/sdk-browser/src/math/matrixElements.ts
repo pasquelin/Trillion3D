@@ -87,7 +87,5 @@ export type HostNodeMatrix = {
   readonly elements: { [index: number]: number; readonly length: number }
 }
 
-export { IDENTITY_MATRIX4 as IDENTITY_ELEMENTS }
-
 /** The identity pose, shared: a root placed at the origin reads it. */
 export const IDENTITY_WORLD: MatrixElements = { elements: IDENTITY_MATRIX4 }

@@ -14,7 +14,7 @@ export const REFLECTION_SOURCE_BYTES_PER_PIXEL = 16
  *  writes it (the page table otherwise, bound and never read); `eye`, the render origin that motion
  *  is written at; `metadata`, the depth and identifier textures kept for the next image; `epoch`,
  *  the placement epoch: moved without live motion, a point is checked by its triangle. */
-export type ReflectionSourceInputs = Pick<
+type ReflectionSourceInputs = Pick<
   ReflectionHistoryFrame,
   'ids' | 'pages' | 'motion' | 'eye' | 'epoch'
 > & { metadata: Pick<ReflectionHistoryFrame['metadata'], 'depth' | 'ids'> }

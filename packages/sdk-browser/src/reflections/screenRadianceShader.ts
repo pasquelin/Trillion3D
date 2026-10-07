@@ -3,7 +3,7 @@ import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
 
 /** How a program traces a lobe rougher than a mirror: a cone (`filtered`) beside the mirror ray
  *  (`mirror`), or its own march of the mirror ray itself (`march`), which takes neither. */
-export type ScreenLobe =
+type ScreenLobe =
   | {
       /** The cone's colour and the share of the lobe it left to the fallback. */
       filtered?: string

@@ -1,6 +1,6 @@
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
-import { rankByDepth } from './depthRank.ts'
-import { boundsFor, projectBoxesFlat } from './projection.ts'
+import { rankByDepth } from './depthRank.fixture.ts'
+import { boundsFor, projectBoxesFlat } from './projection.fixture.ts'
 import type { HizPage } from './types.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { PageLocations } from '../page/selection/placements.ts'

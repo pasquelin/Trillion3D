@@ -6,7 +6,6 @@ import {
   noteOwnMove,
   ownsMove,
 } from '../webgpu/pages/render/movedClusters.ts'
-import { staleTemporalBox } from '../hiz/staleRegions.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { followPlacementRows, MOVE_NONE, MOVE_PROMOTED } from './update.ts'
 import { placedBy, type PlacementRows } from './rows.ts'
@@ -40,8 +39,7 @@ export function updateWebgpuPlacements(
     { mobility } = lights
   // Each moved root stales its own pages, its moving casters only once it was moving already
   // (`../webgpu/shadow/mobility.ts`): the plan keeps the boxes apart (`changes.ts`). A root that
-  // only moved declares its clusters at its last pose and its new one (`movedClusters.ts`); the
-  // Hi-Z takes its box where it was and is.
+  // only moved declares its clusters at its last pose and its new one (`movedClusters.ts`).
   const moved = followPlacementRows(
     layout.selectionRoots,
     rows,
@@ -66,7 +64,6 @@ export function updateWebgpuPlacements(
       // static slice: the invalidation uses the cache state from before the update.
       // Moving before this update: moving now, and not by this first move.
       else lights.changes.worldChanged(min, max, move !== MOVE_PROMOTED && mobility.moves(rank))
-      staleTemporalBox(run.temporalHizState, min, max)
     },
   )
   forgetOwnMoves()

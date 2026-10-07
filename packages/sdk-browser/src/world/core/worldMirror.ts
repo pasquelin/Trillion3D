@@ -1,6 +1,5 @@
 /** Resource meshes share geometry and material; placement rows retain animation owners.
  * Loaded models keep their graph. Resource instances use placement rows, including blends. */
-import { numbered } from '../../host/graph/serial.ts'
 import { isDrawnNode } from '../../host/graph/kinds.ts'
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
@@ -143,7 +142,7 @@ function meshOf(built: MirrorBuilt, cut: Cut, material: Material, twoSided = fal
   const rank =
     reading === 'lines' ? 2 : reading === 'sprite' ? 3 : (reading === 'sheet' ? 4 : 0) + +tinted
   const surface = (worn[rank] ??= hostSurface(material, tinted, built.textures, reading))
-  return numbered(new Mesh(geometry, surface))
+  return new Mesh(geometry, surface)
 }
 
 /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —

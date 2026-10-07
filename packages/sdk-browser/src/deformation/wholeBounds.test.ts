@@ -23,7 +23,7 @@ function wholeCopy() {
           regions.push([...Array.from(min), ...Array.from(max)]),
       },
     },
-    run: { temporalHizState: {} },
+    run: {},
   } as unknown as WebgpuPagesRuntime
   const state = { changed: true }
   const deformation = {

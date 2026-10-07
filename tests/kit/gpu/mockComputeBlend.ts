@@ -14,7 +14,7 @@ import {
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
 import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
 import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
-import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/sortPlan.ts'
+import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
 import type { ComputeBind } from './mockCompute.ts'
 import { words } from './mockBuffers.ts'
 

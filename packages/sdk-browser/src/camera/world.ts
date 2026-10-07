@@ -9,12 +9,7 @@ import {
 import type { ControlVector } from './controls/types.ts'
 import type { HostRotation } from '../host/scene/graphNodes.ts'
 
-export {
-  createEngineCamera,
-  defaultEngineCamera,
-  holdCameraWorld,
-  type EngineCamera,
-} from './engineCamera.ts'
+export { createEngineCamera, defaultEngineCamera, type EngineCamera } from './engineCamera.ts'
 
 /**
  * THE CAMERA-POSE CONTRACT. Unique home of a camera's world pose in `sdk-browser`;

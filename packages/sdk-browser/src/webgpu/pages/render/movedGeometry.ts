@@ -7,7 +7,6 @@ import {
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts'
 import { boxGrow } from '../../../../../sdk-core/src/math/primitives/box.ts'
-import { staleTemporalBox } from '../../../hiz/staleRegions.ts'
 import { markReach } from '../../../deformation/halfFloat.ts'
 import { markRootRows } from './movedRoot.ts'
 import type { ClusterRoot, MovedBox, PageRec } from '../../../page/selection/types.ts'
@@ -15,7 +14,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
  * Geometry that moves in place — rewritten vertices, a GPU deformation —, declared as a node's
- * move (`movedBatch.ts`): one world box to the shadow scheduler and the Hi-Z, its pages whole on
+ * move (`movedBatch.ts`): one world box to the shadow scheduler, its pages whole on
  * the first move of what it holds.
  */
 
@@ -27,11 +26,10 @@ const moved = new Float64Array(BOX_VALUES),
 const promote = (rt: WebgpuPagesRuntime, rank: number) =>
   rt.lights.mobility.move(rank, rt.layout.selectionRoots[rank].world.elements, true) ===
   MOVE_PROMOTED
-/** `moved` declared to the shadow scheduler and the Hi-Z: a first move stales its pages whole. */
+/** `moved` declared to the shadow scheduler: a first move stales its pages whole. */
 function declare(rt: WebgpuPagesRuntime, promoted: boolean) {
   if (boxIsEmpty(moved, 0)) return
   rt.lights.changes.worldChanged(movedMin, movedMax, !promoted)
-  staleTemporalBox(rt.run.temporalHizState, movedMin, movedMax)
 }
 
 /** Whether `own` is the box `boxes` holds from `b`. */

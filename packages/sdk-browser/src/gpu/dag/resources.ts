@@ -1,12 +1,12 @@
 import type { PackedDag } from './types.ts'
 import { primitiveFrameWords } from './worlds.ts'
-import { createCameraFrames, type CameraFrames } from './frameRanges.ts'
+import { createCameraFrames } from './frameRanges.ts'
 import { createDagPipeline } from './pipeline.ts'
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts'
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { makeDagBuffer } from './bufferTable.ts'
 import { dagGroup, dagTables, uploadDagTables, type Own } from './resourceTables.ts'
-import { createDagList, initialListCap } from './listCap.ts'
+import { createDagList, initialListCap, rankGroups } from './listCap.ts'
 import { createDagArm } from './arm.ts'
 import { DAG_ARGS_INITIAL } from './shader/armWgsl.ts'
 import { validated } from '../core/errorScope.ts'
@@ -119,18 +119,4 @@ function dagBuffers(device: GPUDevice, packed: PackedDag, own: Own, listCap: num
     flagParts: tables.flags,
     ranks,
   }
-}
-
-/** The cut's group of each kept list, its ranks where the cut binds `work`: what its difference
- *  kernels bind (`shader/differenceWgsl.ts`), made again with the ranges when `out` is
- *  (`listCap.ts`). */
-export function rankGroups(resources: {
-  layout: GPUBindGroupLayout
-  frames: Pick<CameraFrames, 'bindGroup'>
-  group: Parameters<CameraFrames['bindGroup']>[1]
-  ranks: GPUBuffer[]
-}) {
-  const { layout, frames, group } = resources
-  // The first range's group alone: the difference reads no primitive's words.
-  return resources.ranks.map((work) => frames.bindGroup(layout, { ...group, work }, 0))
 }

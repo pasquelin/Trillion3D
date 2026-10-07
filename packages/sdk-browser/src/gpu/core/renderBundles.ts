@@ -13,7 +13,7 @@ export type RecordBundle<K extends readonly unknown[] = unknown[]> = (
 ) => unknown
 
 /** A frame's key past its layout (`keyed`): its words `K`, pushed in order. */
-export type BundleKey<K extends readonly unknown[] = unknown[]> = { push(...words: K): number }
+type BundleKey<K extends readonly unknown[] = unknown[]> = { push(...words: K): number }
 
 /** A held bundle: the key it was recorded for, the one-bundle list a pass executes, and what its
  *  recording noted. */

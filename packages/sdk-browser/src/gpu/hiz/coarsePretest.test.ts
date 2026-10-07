@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
-import { HIZ_TEST_VALUES, hizTestRect } from '../../hiz/occlusion.ts'
+import { HIZ_TEST_VALUES, hizTestRect } from '../../../../../bench/oracles/browser/hizOcclusion.ts'
 import { lcg } from './buildTranscripts.fixture.ts'
 import { packHizPyramid } from './oracle.fixture.ts'
 import type { PackedHiz } from './oracle.fixture.ts'
