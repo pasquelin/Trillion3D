@@ -2,10 +2,10 @@
 use super::{
     OracleCamera, OracleJob, OracleLight, KIND_POINT, KIND_SPOT, KIND_SUN, ORACLE_VERSION,
 };
-use crate::shared_math::{divide, length};
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::PathBuf;
+use trillion3d_math::vec3::{divide, length};
 
 fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_ORACLE_JOB", message)

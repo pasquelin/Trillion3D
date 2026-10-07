@@ -8,9 +8,10 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { WASM_CRATE } from './native-crates.ts'
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..')
-const MANIFESTE = join(RACINE, 'packages', 'page-codec-wasm', 'Cargo.toml')
+const MANIFESTE = join(RACINE, WASM_CRATE.path, 'Cargo.toml')
 const CIBLE = 'wasm32-unknown-unknown'
 const KERNELS = join('sdk-browser', 'src', 'wasm')
 const SORTIES = [join(RACINE, 'packages', KERNELS), join(RACINE, 'dist', KERNELS)]

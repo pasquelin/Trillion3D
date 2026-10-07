@@ -123,7 +123,7 @@ fn rem_pio2(x: f64) -> Option<(i32, f64, f64)> {
 
 /// sin x, the bits of `libm::sin` for |x| < 2^20 · π/2 and for NaN or an infinity (NaN); NaN past
 /// that range, which no caller reaches.
-pub(crate) fn sin(x: f64) -> f64 {
+pub fn sin(x: f64) -> f64 {
     let ix = (x.to_bits() >> 32) as u32 & 0x7fffffff;
     if ix <= 0x3fe921fb {
         if ix < 0x3e500000 {

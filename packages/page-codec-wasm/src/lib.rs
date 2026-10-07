@@ -11,26 +11,21 @@
 //! below. The `cdylib` is the SDK's one WebAssembly module, `kernels.wasm` (`pnpm run build:wasm`,
 //! one shipped resource, one instantiation and one linear memory on the browser side), and it
 //! exports math kernels only — never the page decoder: the math-foundation batch kernels
-//! (`math.rs`, ABI and shared buffer in `wasm_math.rs`), the normal cone and position grid of the
-//! pages the world cuts at run time (`normal_cone.rs`, `bits/grid.rs`, ABI in `wasm_cone.rs`) and
-//! the animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
+//! (`math.rs` and `trillion3d_math::matrix`, ABI and shared buffer in `wasm_math.rs`), the normal
+//! cone and position grid of the pages the world cuts at run time (`normal_cone.rs`,
+//! `bits/grid.rs`, ABI in `wasm_cone.rs`) and the animation sampler (`anim.rs`, `wasm_anim.rs`). The JavaScript decoder is the public
 //! `page.decode`, a chunk of its own the browser downloads on that call alone.
-mod acos;
 pub mod anim;
 mod attributes;
 pub mod bits;
 pub mod cut_error;
 pub mod deform;
 pub mod math;
-pub mod math_hierarchy;
-pub mod math_matrix;
 pub mod min_ball;
 pub mod normal_cone;
 mod positions;
 pub mod triangles;
-mod trig;
 mod unpack;
-pub mod vec3;
 #[cfg(target_arch = "wasm32")]
 mod wasm_anim;
 #[cfg(target_arch = "wasm32")]
@@ -194,3 +189,6 @@ impl Header {
 #[cfg(test)]
 #[path = "header_tests.rs"]
 mod header_tests;
+
+#[cfg(test)]
+mod golden_tests;

@@ -7,9 +7,8 @@
 //! memory and invalidate every view: that is the only moment it happens, and the JavaScript loader
 //! rebuilds its views there and nowhere else.
 
-use crate::math::{box_transform_batch, BOX_VALUES, MATRIX_VALUES};
-use crate::math_hierarchy::{hierarchy_update_batch, POSITION_VALUES, QUATERNION_VALUES};
-use crate::math_matrix::multiply_matrix4_batch;
+use crate::math::{box_transform_batch, BOX_VALUES};
+use trillion3d_math::matrix::{multiply_matrix4_batch, MATRIX_VALUES};
 
 /// Version of this ABI's contract. The loader refuses a module that does not return the one it expects.
 const CONTRACT: u32 = 1;
@@ -91,31 +90,6 @@ pub unsafe extern "C" fn math_multiply_matrix4_batch(out: u32, a: u32, b: u32, n
         core::slice::from_raw_parts_mut(out as *mut f64, values),
         core::slice::from_raw_parts(a as *const f64, values),
         core::slice::from_raw_parts(b as *const f64, values),
-        n,
-    );
-}
-
-/// The whole hierarchy: `n` nodes ordered parents before children. Offsets are bytes, eight-byte
-/// aligned, except `parents`, which holds `n` 32-bit words aligned on four.
-///
-/// # Safety
-/// The five ranges must fit in live `arena_alloc` reservations, be disjoint, and hold
-/// `16 · n`, `3 · n`, `4 · n` and `3 · n` floats respectively, then `n` integers.
-#[no_mangle]
-pub unsafe extern "C" fn math_hierarchy_update_batch(
-    world: u32,
-    positions: u32,
-    rotations: u32,
-    scales: u32,
-    parents: u32,
-    n: usize,
-) {
-    hierarchy_update_batch(
-        core::slice::from_raw_parts_mut(world as *mut f64, n * MATRIX_VALUES),
-        core::slice::from_raw_parts(positions as *const f64, n * POSITION_VALUES),
-        core::slice::from_raw_parts(rotations as *const f64, n * QUATERNION_VALUES),
-        core::slice::from_raw_parts(scales as *const f64, n * POSITION_VALUES),
-        core::slice::from_raw_parts(parents as *const u32, n),
         n,
     );
 }

@@ -6,7 +6,7 @@
 use super::SOFT_VERTEX_WORDS as W;
 use crate::dag::clusters::weld_positions;
 use crate::qem::compact_region;
-use crate::shared_math::{cross, length, sub};
+use trillion3d_math::vec3::{cross, length, sub};
 
 /// kg/m² of a cloth's or a volume's skin, and kg/m of a rope, left undeclared (`SOFT_AREAL_DENSITY`,
 /// `SOFT_LINEAR_DENSITY`).

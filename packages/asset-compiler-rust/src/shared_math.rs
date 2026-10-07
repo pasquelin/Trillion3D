@@ -6,32 +6,8 @@
 
 pub(crate) mod wide;
 
-/// Extends bounding box by another box, axis by axis in axis order.
-///
-/// `f64::min` and `f64::max` keep semantics: NaN in read box leaves bound
-/// as is, NaN in bound replaced by coordinate. Min corner compared
-/// only to min corner and max to max corner: no extra comparison deciding
-/// differently between `+0.0` and `−0.0`.
-pub(crate) fn merge_aabb<const N: usize>(
-    low: &mut [f64; N],
-    high: &mut [f64; N],
-    other_low: [f64; N],
-    other_high: [f64; N],
-) {
-    for axis in 0..N {
-        low[axis] = low[axis].min(other_low[axis]);
-        high[axis] = high[axis].max(other_high[axis]);
-    }
-}
-
-/// Extends bounding box by point: box reduced to point.
-pub(crate) fn extend_aabb<const N: usize>(
-    low: &mut [f64; N],
-    high: &mut [f64; N],
-    point: [f64; N],
-) {
-    merge_aabb(low, high, point, point);
-}
+use trillion3d_math::aabb::aabb_of;
+use trillion3d_math::vec3::{cross, divide, dot, length, scale};
 
 /// Axis along which box widest. On tie, first axis wins:
 /// strict `>` comparison, NaN extent never alters choice.
@@ -51,11 +27,7 @@ pub(crate) fn longest_axis(low: &[f64; 3], high: &[f64; 3]) -> usize {
 /// Comparator sorts by coordinate (`total_cmp`, so NaN has a place), then by
 /// identifier: two coincident centroids keep same order from build to build.
 pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
-    let mut low = [f64::INFINITY; 3];
-    let mut high = [f64::NEG_INFINITY; 3];
-    for &id in slice.iter() {
-        extend_aabb(&mut low, &mut high, centres[id]);
-    }
+    let (low, high) = aabb_of(slice.iter().map(|&id| centres[id]));
     let axis = longest_axis(&low, &high);
     slice.sort_unstable_by(|&x, &y| {
         centres[x][axis]
@@ -64,27 +36,11 @@ pub(crate) fn bisect_centres(slice: &mut [usize], centres: &[[f64; 3]]) {
     });
 }
 
-/// Same box in single precision: site accumulating `f32` does not go through `f64`.
-pub(crate) fn extend_aabb_f32<const N: usize>(
-    low: &mut [f32; N],
-    high: &mut [f32; N],
-    point: [f32; N],
-) {
-    for axis in 0..N {
-        low[axis] = low[axis].min(point[axis]);
-        high[axis] = high[axis].max(point[axis]);
-    }
-}
-
 /// Padding bytes to reach next multiple of four: zero when already
 /// aligned. Alignment binary format requires of views.
 pub(crate) fn pad_to_4(length: usize) -> usize {
     (4 - length % 4) % 4
 }
-
-/// Small vector algebra on `[f64; 3]`, written once in the page codec beside the normal cone that
-/// reads it (`trillion3d_page_codec::vec3`): the compiler carries one implementation of each.
-pub use trillion3d_page_codec::vec3::{add, cross, divide, dot, length, point, scale, sub};
 
 /// Unit vector, or fallback when length stays under 1e-12: shorter,
 /// vector carries no direction and division makes no sense. Fallback belongs to
@@ -145,11 +101,6 @@ pub(crate) fn word_map<K, V>(capacity: usize) -> WordMap<K, V> {
 /// A set hashed by [`WordHasher`].
 pub(crate) type WordSet<T> =
     std::collections::HashSet<T, std::hash::BuildHasherDefault<WordHasher>>;
-
-/// The step between two draws: the golden ratio's fractional part, as a 64-bit odd integer, so
-/// successive multiples of a counter spread evenly over the 64-bit range. A declared choice, not a
-/// tuned one: any odd multiplier with well-spread bits would serve.
-pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 
 /// `x` mixed by a 64-bit avalanche finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64
 /// would round up to 1 near `u64::MAX`). Its shifts and multipliers are declared, not tuned.

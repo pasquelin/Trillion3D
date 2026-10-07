@@ -6,15 +6,15 @@
 //!
 //! Two cones are built and the narrower kept. The mean cone is `triangleCone`
 //! (`tests/kit/reference/cone.ts`), operation for operation in float64:
-//! its axis keeps its bits, `Math.hypot` to the bit (`math::hypot`). Its angle cannot: the
+//! its axis keeps its bits, `Math.hypot` to the bit (`trillion3d_math::js::hypot`). Its angle cannot: the
 //! JavaScript `Math.acos` bits follow the machine (on arm64, one input in two hundred differs from
-//! fdlibm), so it is fdlibm's (`acos.rs`, the same bits everywhere) raised by
+//! fdlibm), so it is fdlibm's (`trillion3d_math::acos`, the same bits everywhere) raised by
 //! [`ANGLE_MARGIN_ULPS`]. The narrowest cone points at the centre of the smallest ball holding the unit normals, its angle
 //! measured and raised the same way. Either bounds every face on any runtime, and a wider cone only
 //! culls less (`tests/integration/cooked-cones.test.ts`).
-use crate::math::hypot;
 use crate::min_ball::min_ball;
-use crate::vec3::{cross, divide, dot, point, sub};
+use trillion3d_math::js::hypot;
+use trillion3d_math::vec3::{cross, divide, dot, point, sub};
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp
 /// of the true angle, an ulp of which is at most two ulps of fdlibm's result where it crosses a
@@ -97,7 +97,7 @@ fn widest_angle(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> f64 {
     if smallest == f64::INFINITY {
         0.0
     } else {
-        crate::acos::acos(smallest)
+        trillion3d_math::acos::acos(smallest)
     }
 }
 

@@ -6,8 +6,9 @@
 //! stays flat. The reader expands the shared runs back into the flat layout.
 use super::PROXY_TRIANGLE_FLOATS;
 use crate::compiler_world::{cofactor_direction, Mat4};
-use crate::shared_math::{cross, dot, linear_columns};
+use crate::shared_math::linear_columns;
 use std::collections::BTreeMap;
+use trillion3d_math::vec3::{cross, dot};
 
 /// Numbers per stored map: three rows of a 3×4 affine matrix, row-major.
 pub const PROXY_TRANSFORM_FLOATS: usize = 12;

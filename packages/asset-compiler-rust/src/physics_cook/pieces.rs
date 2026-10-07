@@ -7,11 +7,14 @@ use super::hull::cooked_shape;
 use super::mass::solid_mass;
 use super::refused;
 use super::voronoi::{cells, face_planes, welded};
-use crate::shared_math::{dot, extend_aabb, length, point, splitmix_unit, sub, GOLDEN};
+use crate::shared_math::splitmix_unit;
 use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::collections::BTreeSet;
+use trillion3d_math::aabb::extend_aabb;
+use trillion3d_math::vec3::{dot, length, point, sub};
+use trillion3d_math::GOLDEN;
 
 /// Most pieces a breakable body is cut into.
 pub(super) const PIECES: usize = 12;

@@ -2,8 +2,10 @@ use super::geometry::albedo_of;
 use super::trace::{direct, scene_reach};
 use super::OracleJob;
 use crate::proxy::tracer::{normalise, surface_at, trace, World};
-use crate::shared_math::{cross, splitmix_unit, sub, GOLDEN};
+use crate::shared_math::splitmix_unit;
 use std::f64::consts::PI;
+use trillion3d_math::vec3::{cross, sub};
+use trillion3d_math::GOLDEN;
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,
 /// and the second bounce needs fewer paths for the same error.

@@ -4,7 +4,7 @@ use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
 use crate::tests::random::Xorshift;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
-use trillion3d_page_codec::vec3::{add, length};
+use trillion3d_math::vec3::{add, length};
 
 pub(super) type V = [f64; 3];
 

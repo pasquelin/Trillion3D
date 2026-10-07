@@ -2,7 +2,7 @@
 //! A missing, non-finite, or out-of-bounds field takes the default published in : the light
 //! remains on, it does not disappear because an exporter wrote an impossible number.
 use super::*;
-use crate::shared_math::{divide, length};
+use trillion3d_math::vec3::{divide, length};
 
 pub(super) fn number(value: Option<&Value>, fallback: f64) -> f64 {
     value.and_then(Value::as_f64).unwrap_or(fallback)

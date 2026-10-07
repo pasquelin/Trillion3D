@@ -1,15 +1,18 @@
 //! The animation sampler: every track of one action sampled at one clip time from packed arrays
 //! (`packages/sdk-browser/src/animation/batchAnimation.ts` packs them), the twin term by term of
 //! `sample` (`packages/sdk-core/src/world/animation/sample.ts`): the same key search, weights,
-//! cubic spline, slerp along the arc kept per key segment (the arc cosine and sine of `acos.rs`
-//! and `trig.rs`, as `slerpArc`/`slerpOnArc`), and the same quaternion normalisation
-//! (`normalizeQuaternion`), with JavaScript's `Math.min`, `Math.max` and `Math.hypot` (`math.rs`).
+//! cubic spline, slerp along the arc kept per key segment (the arc cosine and sine of
+//! `trillion3d_math::acos` and `trillion3d_math::trig`, as `slerpArc`/`slerpOnArc`), and the same
+//! quaternion normalisation (`normalizeQuaternion`), with JavaScript's `Math.min`, `Math.max` and
+//! `Math.hypot` (`trillion3d_math::js`).
 //!
 //! A track is described by `TRACK_WORDS` words: where its times start in `data`, its key count
 //! (one at least), where its values start, its width, its kind (`QUATERNION` bit, interpolation in
 //! the bits above) and where its sample starts in `out`. A quaternion track is four wide.
 
-use crate::math::{compensated_squares, hypot, js_max, js_min};
+use trillion3d_math::acos::acos;
+use trillion3d_math::js::{compensated_squares, hypot, js_max, js_min};
+use trillion3d_math::trig;
 
 /// Words describing one track.
 pub const TRACK_WORDS: usize = 6;
@@ -30,7 +33,7 @@ const SQUARED_MAX: f64 = f64::from_bits(0x7830_0000_0000_0000);
 
 /// `normalizeQuaternion` on `q`: the compensated sum of the squares unscaled between
 /// `SQUARED_MIN` and `SQUARED_MAX`, the scaled length of `Math.hypot` outside.
-fn normalize(q: &mut [f64]) {
+pub(crate) fn normalize(q: &mut [f64]) {
     let (x, y, z, w) = (q[0], q[1], q[2], q[3]);
     let squared = compensated_squares([x, y, z, w]);
     let length = if (SQUARED_MIN..=SQUARED_MAX).contains(&squared) {
@@ -114,10 +117,10 @@ pub fn sample_tracks(
                     v(a) * v(b) + v(a + 1) * v(b + 1) + v(a + 2) * v(b + 2) + v(a + 3) * v(b + 3);
                 let sign = if cos < 0.0 { -1.0 } else { 1.0 };
                 cos *= sign;
-                let angle = crate::acos::acos(js_min(1.0, cos));
+                let angle = acos(js_min(1.0, cos));
                 arc[1] = sign;
                 arc[2] = angle;
-                arc[3] = crate::trig::sin(angle);
+                arc[3] = trig::sin(angle);
             }
             arc[0] = i as f64;
             // `slerpOnArc`.
@@ -126,12 +129,12 @@ pub fn sample_tracks(
             let wa = if line {
                 1.0 - w
             } else {
-                crate::trig::sin((1.0 - w) * angle) / sin
+                trig::sin((1.0 - w) * angle) / sin
             };
             let wb = if line {
                 w * sign
             } else {
-                (crate::trig::sin(w * angle) / sin) * sign
+                (trig::sin(w * angle) / sin) * sign
             };
             for (c, slot) in o.iter_mut().enumerate() {
                 *slot = v(a + c) * wa + v(b + c) * wb;

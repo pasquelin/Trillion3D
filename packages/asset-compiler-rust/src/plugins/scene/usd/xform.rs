@@ -31,7 +31,7 @@ pub(super) fn local(world: &mut World<'_>, prim: &usd::Prim) -> [f64; 16] {
             None => (false, entry),
         };
         match operation(world, prim, name, inverted) {
-            Some(op) => out = matrix::mul(&out, &op),
+            Some(op) => out = matrix::multiply_matrix4_from_zero(&out, &op),
             None => world.refuse(world::XFORM_UNSUPPORTED),
         }
     }
@@ -107,7 +107,7 @@ fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     }
     let mut out = matrix::IDENTITY;
     for (axis, angle) in steps {
-        out = matrix::mul(&out, &matrix::turn(axis, angle.to_radians()));
+        out = matrix::multiply_matrix4_from_zero(&out, &matrix::turn(axis, angle.to_radians()));
     }
     Some(out)
 }

@@ -3,7 +3,7 @@
  * acos}.rs`, MIT, from musl and FreeBSD msun) writes them: the same bits on every machine, where
  * `Math.sin` and `Math.acos` are the engine's and the machine's (`Math.acos` differs from fdlibm on
  * one arm64 input in two hundred, `packages/page-codec-wasm/src/normal_cone.rs`). Their Rust twins
- * are `packages/page-codec-wasm/src/trig.rs` and `acos.rs`: a kernel that runs either side gives
+ * are `packages/math/rust/src/trig.rs` and `acos.rs`: a kernel that runs either side gives
  * the same numbers. The square root is the instruction's (`Math.sqrt`, correctly rounded, as
  * `libm`'s own). High words are read as thresholds on the magnitude: `|x| < fromHigh(h + 1)` is
  * `highWord(|x|) <= h`.

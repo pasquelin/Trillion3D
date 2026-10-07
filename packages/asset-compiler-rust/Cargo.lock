@@ -929,7 +929,6 @@ dependencies = [
  "flate2",
  "image",
  "libc",
- "libm",
  "memmap2",
  "meshopt",
  "mimalloc",
@@ -940,6 +939,7 @@ dependencies = [
  "sha2",
  "tar",
  "texture2ddecoder",
+ "trillion3d-math",
  "trillion3d-page-codec",
  "ufbx",
  "yaml-rust2",
@@ -947,8 +947,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "trillion3d-math"
+version = "0.1.0"
+
+[[package]]
 name = "trillion3d-page-codec"
 version = "0.1.0"
+dependencies = [
+ "trillion3d-math",
+]
 
 [[package]]
 name = "twox-hash"

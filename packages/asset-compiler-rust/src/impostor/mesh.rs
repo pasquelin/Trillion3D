@@ -6,7 +6,8 @@ use super::surface::Surface;
 use crate::dag::bounds::bounding_sphere;
 use crate::proxy::bvh;
 use crate::proxy::tracer::{normal_of, trace_where, World};
-use crate::shared_math::{dot, normalized_or, scale};
+use crate::shared_math::normalized_or;
+use trillion3d_math::vec3::{dot, scale};
 
 /// Texture coordinate sets a triangle carries: a texture naming a higher set reads the last.
 pub(crate) const SETS: usize = 2;

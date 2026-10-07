@@ -1,7 +1,7 @@
 //! The live triangles of one texture set, binned by texture island and texture cell, and the
 //! source point a coarse sample's coordinate falls on (`texture.rs`).
 use crate::shared_math::WordMap;
-use crate::shared_math::{length, point, sub};
+use trillion3d_math::vec3::{length, point, sub};
 
 /// Barycentric weights of the samples: corners, edge midpoints, centroid.
 const SAMPLES: [[f64; 3]; 7] = [

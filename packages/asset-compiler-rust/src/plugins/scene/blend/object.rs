@@ -12,7 +12,8 @@
 //! compiler's shared helpers at that precision: the output bits stay those Blender files have
 //! always compiled to.
 use super::*;
-use crate::compiler_world::{identity, product, quaternion_wxyz, turn};
+use crate::compiler_world::{identity, quaternion_wxyz, turn};
+use trillion3d_math::matrix::multiply_matrix4;
 
 /// The object type that holds a mesh.
 pub(super) const OB_MESH: i64 = 1;
@@ -51,7 +52,10 @@ fn composed(object: &At<'_>, depth: usize) -> Matrix {
         return local;
     };
     let inverse = square(object, "parentinv");
-    product(&product(&composed(&parent, depth + 1), &inverse), &local)
+    multiply_matrix4(
+        &multiply_matrix4(&composed(&parent, depth + 1), &inverse),
+        &local,
+    )
 }
 
 /// The local matrix: scale, rotation, translation, in that order.
@@ -62,7 +66,7 @@ fn local(object: &At<'_>) -> Matrix {
     } else {
         triple(object, "dsize", 1.0)
     };
-    let mut matrix = product(&rotation(object), &scaling(&scale, &delta));
+    let mut matrix = multiply_matrix4(&rotation(object), &scaling(&scale, &delta));
     let position = triple(object, "loc", 0.0);
     let shift = triple(object, "dloc", 0.0);
     for axis in 0..3 {
@@ -90,7 +94,7 @@ fn rotation(object: &At<'_>) -> Matrix {
         ),
         _ => euler(&triple(object, "drot", 0.0), mode),
     };
-    product(&differed, &own)
+    multiply_matrix4(&differed, &own)
 }
 
 /// Euler angles of a given order: each axis turns in turn, the first named first.
@@ -98,7 +102,7 @@ fn euler(angles: &[f32; 3], mode: i64) -> Matrix {
     let order = ORDERS[usize::try_from(mode - 1).unwrap_or(0).min(5)];
     let mut matrix = identity();
     for axis in order.iter().rev() {
-        matrix = product(&matrix, &turn(*axis, angles[*axis]));
+        matrix = multiply_matrix4(&matrix, &turn(*axis, angles[*axis]));
     }
     matrix
 }

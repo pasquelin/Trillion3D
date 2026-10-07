@@ -3,9 +3,10 @@
 //! is a box clipped by its bisectors then the solid's planes; an edge's crossing is computed from
 //! its two ends in one order, so neighbouring faces meet to the bit, and each cut is capped along
 //! the edges no touched face walks back: every cell comes out a closed mesh.
-use crate::shared_math::{cross, dot, point, scale, sub, unit};
+use crate::shared_math::unit;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use trillion3d_math::vec3::{cross, dot, point, scale, sub};
 
 type Point = [f64; 3];
 /// A convex polytope: its faces, each a polygon wound as the solid's faces are.

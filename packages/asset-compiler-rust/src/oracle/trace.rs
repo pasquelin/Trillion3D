@@ -1,7 +1,7 @@
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
 use crate::proxy::tracer::{trace, World};
-use crate::shared_math::{dot, scale, sub};
 use rayon::prelude::*;
+use trillion3d_math::vec3::{dot, scale, sub};
 
 /// Irradiance of declared lights at a point: same physical attenuation and cones
 /// as the shader, with ray-traced shadows on source triangles instead of shadow maps.

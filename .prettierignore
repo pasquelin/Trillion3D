@@ -12,3 +12,6 @@ site/assets/gallery/signature-architecture/source/
 
 # The reference images and their records, written by bench/runner/reference.ts.
 bench/references/
+
+# The golden reference values: one case per line, read line by line (packages/math/rust/src/golden.rs).
+packages/math/golden/

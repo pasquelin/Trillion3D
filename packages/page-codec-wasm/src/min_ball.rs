@@ -3,7 +3,7 @@
 //! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
 //! takes the ball of the unit face normals; it is the one smallest-ball solver, beside the
 //! box-centred sphere of `asset-compiler-rust/src/dag/bounds.rs`.
-use crate::vec3::{add, cross, dot, length, scale, sub};
+use trillion3d_math::vec3::{add, cross, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
 pub type Ball = ([f64; 3], f64);
