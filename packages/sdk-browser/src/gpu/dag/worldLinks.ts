@@ -36,6 +36,9 @@
  *    `R_w` the super-roots of its kept leaves — at one pixel of error each, bounded by the screen,
  *    not by the world; a far cell places no object (`partition/farCells.ts`), so `V_covered` is
  *    bounded by the placed cells.
+ * Beneath both, the floor of a frame whose eye moved: every placement's translation brought to the
+ * eye, `N·36 B` on the GPU and none on the CPU (`worldRebase.ts`), `N` the placements — the one
+ * term that follows the placements rather than the view.
  */
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import type { DagCutLinks, DagRoot } from './types.ts'

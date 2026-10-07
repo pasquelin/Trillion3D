@@ -2,13 +2,13 @@
  * THE CUT'S WORLDS BROUGHT TO THE EYE ON THE GPU.
  *
  * The cut reads every placement's world in the render frame, the eye at its origin
- * (`../../camera/renderOrigin.ts`): a camera that moved used to rebase every root's translation on
- * the CPU, compare every world and send them all, each image — a frame's CPU growing with the
- * world. The host now sends a world only when a pose moves, with its exact translation as three
- * doubles behind the matrices (`worldOrigins.ts`); before each cut whose eye moved, or after any
- * world was sent, one pass rewrites each translation from those doubles and the eye's: the double
- * subtraction, then single precision (`DOUBLE_WGSL`, `toF32`), the very bits the CPU's rebase
- * (`worldToRenderOrigin`) wrote. A pose composed on the GPU (`../../placement/gpuCompose.ts`) writes
+ * (`../../camera/renderOrigin.ts`). The host sends a world only when a pose moves, with its exact
+ * translation as three doubles behind the matrices (`worldOrigins.ts`), so a moving eye costs the
+ * CPU nothing per placement; before each cut whose eye moved, or after any world was sent, one
+ * pass rewrites each translation from those doubles and the eye's: the double subtraction, then
+ * single precision (`DOUBLE_WGSL`, `toF32`), the very bits `worldToRenderOrigin` writes. Its cost,
+ * per frame the eye moved, is every placement's: six words read and three written, 36 B on the
+ * GPU — the floor of a moving frame (`worldLinks.ts`). A pose composed on the GPU (`../../placement/gpuCompose.ts`) writes
  * its doubles as it writes its world, so this pass brings it to the eye with the others.
  */
 import type { GpuSelection, SelectionUniforms } from '../core/selection.ts'

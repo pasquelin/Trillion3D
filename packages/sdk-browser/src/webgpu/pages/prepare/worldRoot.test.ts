@@ -1,6 +1,6 @@
 // The world DAG in the WebGPU cut: a partitioned world's DAG joins the catalogue as one more
 // root, its pages read through the world's own source, each placed row linked to the object it
-// draws; the CPU cut, which knows no link, never draws it. On the cook's world fixture, served.
+// draws. On the cook's world fixture, served.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/index.ts'

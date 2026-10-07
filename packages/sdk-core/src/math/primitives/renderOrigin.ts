@@ -38,7 +38,7 @@ export function worldToRenderOrigin<T extends NumberSink>(
   copyMatrix4(out, world, at)
   // The three numbers that depend on the origin. A buffer whose other thirteen already hold
   // `world` — only the eye moved since — rewrites these alone, by the same subtraction
-  // (`rootTranslationsToRenderOrigin`, `packages/sdk-browser/src/gpu/dag/pack.ts`).
+  // (`packages/sdk-browser/src/gpu/dag/worldRebase.ts`).
   out[at + 12] = world[12] - origin[0]
   out[at + 13] = world[13] - origin[1]
   out[at + 14] = world[14] - origin[2]
