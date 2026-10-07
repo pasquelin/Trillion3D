@@ -162,6 +162,9 @@ export function createGroupClosure(
   placement: PlacementIndex,
   /** The packed catalogue ids resolve in. */
   packedPages: PageList = [],
+  /** The counted closure names each placement's own packed ranks, as the row cache holds them
+   *  (`../../webgpu/row/rowDemand.ts`), rather than its primitive's holder's. */
+  instances = false,
 ) {
   const w = createWalk(roots, placement, packedPages)
   return {
@@ -194,8 +197,10 @@ export function createGroupClosure(
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {
       // Entries first: a group one page leaves and another joins is never let go in between.
+      w.perInstance = instances
       enterAll(w, cut.entered, cut.enteredCount, 1)
       enterAll(w, cut.exited, cut.exitedCount, -1)
+      w.perInstance = false
       settleDelta(w)
     },
   }

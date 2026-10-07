@@ -112,7 +112,9 @@ export function placeRow(s: RowSlots, page: number) {
   if (row < 0 && asked) row = evictRow(s)
   if (row < 0) return false
   s.writers.assign(row, page, rows.residentOffsetWords[page])
-  if (asked) s.use.stamp(row)
+  // A row a readback's closure holds is in use while it holds it (`rowUse.ts`).
+  if (s.demand.holds(page)) s.use.hold(row)
+  else if (asked) s.use.stamp(row)
   else if (own < 0) s.use.idle(row)
   setResident(s, page, true)
   return true

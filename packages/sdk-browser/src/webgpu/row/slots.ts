@@ -7,7 +7,7 @@ import type { createPageRowWriter } from './pageRowWriter.ts'
 import type { createWebgpuRowState } from './state.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { createRowUse } from './rowUse.ts'
-import { createRowDemand, type CloseInstances } from './rowDemand.ts'
+import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import {
   closeFreeRows,
   followArrivals,
@@ -38,8 +38,9 @@ export function createWebgpuRowSlots(
   packedPages: PageList,
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec, page: number) => void,
-  /** What a request closes over, per placement: its readiness needs its groups' rows. */
-  closeInstances: CloseInstances,
+  /** A counted closure over the instances, per placement: a request's readiness needs its
+   *  groups' rows (`rowDemand.ts`). */
+  closure: () => InstanceClosure,
 ) {
   const { recordOf } = createPageCatalogue(packedPages)
   const use = createRowUse(0)
@@ -57,7 +58,7 @@ export function createWebgpuRowSlots(
     use,
     free: { rows: new Int32Array(0), count: 0 },
     claims: createWebgpuRowClaims(pages),
-    demand: createRowDemand(rows, use, drawsRow, pages, closeInstances),
+    demand: createRowDemand(rows, use, drawsRow, pages, closure),
     writers: createWebgpuRowWriters(rows, packedPages, writePageRow),
     count: 0,
     candidates: 0,
@@ -103,7 +104,9 @@ function applyRows(
   }
   if (seen.revision !== rows.rowsRevision) rebuildRows(s)
   else if (seen.epoch !== rows.tableEpoch) rewriteRows(s)
-  // Requests first, in the GPU's order: a rank they take back is not given to an arrival.
+  // Requests first, in the GPU's order: a rank they take back is not given to an arrival. A wanted
+  // page whose bytes or slot moved since asks again.
+  demand.touched(rows.touched.pages, rows.touched.count)
   s.denied = demand.serve(s.release, s.place, budget)
   followArrivals(s, budget)
   closeFreeRows(s)

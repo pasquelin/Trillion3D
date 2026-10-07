@@ -20,7 +20,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     { tracking, bootstrapUrls, bootstrapKey, sourceBytes } = rt.setup
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, placement, packedPages)
-  const rowSync = createRowSyncFor(rt, closure)
+  const rowSync = createRowSyncFor(rt)
   const pageSource = createPageSource(rt)
   // A cluster drawn from its quantized page needs no index page: its slot is filled from the page
   // reader above. Only a cluster that still draws from an index buffer waits for one.
