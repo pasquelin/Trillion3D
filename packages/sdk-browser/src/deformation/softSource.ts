@@ -1,5 +1,5 @@
 import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 import type { CookedSoftBody } from '../../../sdk-core/src/physics/cooked.ts'
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { Model } from '../physics/tilePlace.ts'

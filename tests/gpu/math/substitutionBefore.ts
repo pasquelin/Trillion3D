@@ -20,8 +20,8 @@
 // that MAKES the reproduction (the threshold, the formula, what the fix changed) and the shipped
 // block not to: a reproduction that no longer reproduces reassures wrongly.
 import assert from 'node:assert/strict'
-import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeWgsl.ts'
-import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/inverseTransposeBefore.fixture.ts'
 
 /** Occurrences of `block` in `text`, without overlap. */
 function occurrences(text: string, block: string): number {
@@ -92,6 +92,6 @@ export const inverseTransposeBeforeIn = (text: string, name: string) =>
     shipped: INVERSE_TRANSPOSE_WGSL,
     previous: INVERSE_TRANSPOSE_BEFORE_WGSL,
     name,
-    origin: 'packages/sdk-browser/src/math/inverseTransposeBefore.fixture.ts',
+    origin: 'packages/sdk-browser/src/gpu/shader/inverseTransposeBefore.fixture.ts',
     marker: 'abs(det)<1e-20',
   })

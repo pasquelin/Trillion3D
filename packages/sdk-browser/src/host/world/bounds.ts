@@ -1,7 +1,10 @@
 import type { HostBoundedNode } from '../scene/graphNodes.ts'
 import { BOX_VALUES, boxEmpty } from '../../../../sdk-core/src/index.ts'
-import { boxUnionCollector } from '../../math/batchBoxes.ts'
-import { createBoxTransformLot, type BoxTransformLot } from '../../math/batchRuntime.ts'
+import { boxUnionCollector } from '../../page/selection/batchBoxes.ts'
+import {
+  createBoxTransformLot,
+  type BoxTransformLot,
+} from '../../page/decode/batch/batchRuntime.ts'
 import { hostWorldPlacements } from './placements.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -12,7 +15,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
  * matrix, and the union of the eight corners is taken. The world matrix is the transform tree's,
  * brought up to date by its frame pass (`pass.ts`). An object that holds its own box — instanced
  * meshes — prefers it to that of its geometry. The transform and the union are those of
- * `packages/sdk-core/src/math/primitives/box.ts`: the same bits, empty boxes, NaN and infinities
+ * `packages/math/src/geometry/box.ts`: the same bits, empty boxes, NaN and infinities
  * included.
  */
 

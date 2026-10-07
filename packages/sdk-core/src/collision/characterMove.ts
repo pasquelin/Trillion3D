@@ -1,6 +1,6 @@
 import type { Capsule, CapsuleContact, CapsulePush } from './capsule.ts'
 import type { CharacterCollision } from './characterCollision.ts'
-import { hypot2, hypot3 } from '../math/primitives/hypot.ts'
+import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
 
 /**
  * HOW A BODY MOVES THROUGH TRIANGLES: in parts no longer than half its radius, each followed by

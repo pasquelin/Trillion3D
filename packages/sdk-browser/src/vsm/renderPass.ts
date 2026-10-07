@@ -28,7 +28,7 @@
  *   per chunk: vsmRenderCull (indirect) → vsmRenderArgsExpand → vsmRenderExpand (indirect)
  *              → vsmRenderArgsDraw → raster pass, one drawIndirect into a 128×128 dummy target.
  */
-import { writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
 import {

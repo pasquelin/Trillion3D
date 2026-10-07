@@ -1,9 +1,9 @@
-import * as structure from '../../math/transform-tree/structure.ts'
+import * as structure from '../../world/transform-tree/structure.ts'
 import {
   setNodeAutoUpdate as setAutoUpdate,
   setNodeLocalMatrix as setLocalMatrix,
   type TransformTree,
-} from '../../math/transform-tree/transformTree.ts'
+} from '../../world/transform-tree/transformTree.ts'
 
 /** How many times any scene node was renamed or changed parent since the page loaded: an answer
  *  found by walking names — the engine's name index of a prepared scene — holds while it stands. */

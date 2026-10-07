@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { unitOf } from './check-cohesion-measure.ts'
+import { unitOf } from './repository-files.ts'
 import { keepsLineBound, lineCount, lineLimitViolations, nulSeparated } from './check-file-lines.ts'
 
 test('the null separator is an option, never a path behind the `--`', () => {

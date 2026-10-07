@@ -5,7 +5,7 @@ import {
   perspectiveProjection,
   transformHomogeneousPoint,
 } from '../../../../sdk-core/src/index.ts'
-import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+import { localTurnQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import type { TileView } from '../../../../../bench/oracles/browser/gpuLightGridOracle.ts'
 import { tileViewInverse } from './tileFrame.ts'
 

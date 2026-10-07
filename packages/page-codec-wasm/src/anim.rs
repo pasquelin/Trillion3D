@@ -1,5 +1,5 @@
 //! The animation sampler: every track of one action sampled at one clip time from packed arrays
-//! (`packages/sdk-browser/src/math/batchAnimation.ts` packs them), the twin term by term of
+//! (`packages/sdk-browser/src/animation/batchAnimation.ts` packs them), the twin term by term of
 //! `sample` (`packages/sdk-core/src/world/animation/sample.ts`): the same key search, weights,
 //! cubic spline, slerp along the arc kept per key segment (the arc cosine and sine of `acos.rs`
 //! and `trig.rs`, as `slerpArc`/`slerpOnArc`), and the same quaternion normalisation
@@ -24,7 +24,7 @@ pub const CUBIC: u32 = 2 << 1;
 const INTERPOLATION: u32 = 3 << 1;
 
 /// The squared length `normalize` takes unscaled between these two, `2^-900` and `2^900`
-/// (`SQUARED_MIN`, `SQUARED_MAX` of `packages/sdk-core/src/math/matrix/quaternion.ts`).
+/// (`SQUARED_MIN`, `SQUARED_MAX` of `packages/math/src/quaternion/quaternion.ts`).
 const SQUARED_MIN: f64 = f64::from_bits(0x07B0_0000_0000_0000);
 const SQUARED_MAX: f64 = f64::from_bits(0x7830_0000_0000_0000);
 

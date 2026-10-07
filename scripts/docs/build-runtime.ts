@@ -27,7 +27,7 @@ export async function buildRuntime(root: string, outdir: string) {
       // The physics worker, spawned only by a world that turns physics on.
       physicsWorker: 'packages/sdk-browser/src/physics/physicsWorker.ts',
       // The animation worker, started only by a world whose clips play at a fixed step.
-      animationWorker: 'packages/sdk-browser/src/math/animationWorker.ts',
+      animationWorker: 'packages/sdk-browser/src/animation/animationWorker.ts',
       ...RUNTIME_ENTRIES,
     },
     outdir,
@@ -55,7 +55,7 @@ export async function buildRuntime(root: string, outdir: string) {
   if (folded.length)
     throw new Error(`the runtime folds in a rendering library:\n${folded.join('\n')}`)
   for (const wasm of [
-    'math/wasm/kernels.wasm',
+    'wasm/kernels.wasm',
     'physics/joltPhysics.wasm',
     'physics/joltPhysicsThreads.wasm',
   ])

@@ -1,4 +1,4 @@
-import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts'
+import { FULLSCREEN_XY_WGSL } from '../../gpu/shader/fullscreenTriangle.ts'
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM_WGSL } from './surfaceWgsl.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'

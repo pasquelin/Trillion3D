@@ -1,5 +1,5 @@
-import { composeMatrix4At } from '../../math/matrix/matrix4Compose.ts'
-import { Observed } from './observed.ts'
+import { composeMatrix4At } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { Observed } from '../observed.ts'
 import { clampNumber } from './spherical.ts'
 import type { XYZWLike as Q } from './likes.ts'
 

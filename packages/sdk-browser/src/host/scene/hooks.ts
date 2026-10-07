@@ -2,7 +2,7 @@ import {
   listen,
   type Observed,
   type ObservedComponents,
-} from '../../../../sdk-core/src/world/math/observed.ts'
+} from '../../../../sdk-core/src/world/observed.ts'
 import { bump, type Hook, type WriteRevision } from './hookCore.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 

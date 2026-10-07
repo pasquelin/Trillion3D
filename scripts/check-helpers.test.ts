@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { duplicateHelpers, isTestModule } from './check-helpers.ts'
+import { duplicateHelpers } from './check-helpers.ts'
+import { isTestModule } from './repository-files.ts'
 
 const SHARED = `pub fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
@@ -114,4 +115,19 @@ test('associated functions, cfg(test) items and cfg(test) modules are not helper
     ]),
   )
   assert.deepEqual(groups, [])
+})
+
+test('a maths helper copied into another package is red, owned by the maths', () => {
+  const copy = 'export const half = (v: number): number => v * 0.5;\n'
+  const groups = duplicateHelpers(
+    new Map([
+      ['packages/sdk-core/src/world/half.ts', copy],
+      ['packages/math/src/float/half.ts', copy],
+    ]),
+  )
+  assert.equal(groups.length, 1)
+  assert.deepEqual(
+    groups[0].map((h) => h.file),
+    ['packages/math/src/float/half.ts', 'packages/sdk-core/src/world/half.ts'],
+  )
 })

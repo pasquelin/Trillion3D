@@ -50,7 +50,7 @@ const clipper = (plat: Float64Array) => {
 // ── Measure frustumClipBox ────────────────────────────────────────────
 const clipResult = await measure({
   name: 'frustumClipBox',
-  fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+  fichier: 'packages/math/src/geometry/frustum/box.ts',
   cas: [
     { name: '20k boxes including degenerates', input: grande, size: 20000 },
     { name: 'no boxes', input: empty, size: 0 },

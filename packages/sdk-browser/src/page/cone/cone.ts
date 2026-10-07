@@ -1,5 +1,7 @@
 import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
 
+// The rejection tolerances and the linear-part scale are those of `packages/math/src/geometry/cone.ts` and `matrix/singular.ts`, shared with the shader.
+
 export type NormalCone = { axis: [number, number, number]; angle: number }
 /** Never rejects. */
 export const OPEN_CONE: NormalCone = { axis: [0, 0, 1], angle: Math.PI }

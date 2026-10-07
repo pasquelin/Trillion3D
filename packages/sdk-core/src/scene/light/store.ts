@@ -1,5 +1,5 @@
 import { EngineError } from '../../contracts/cache.ts'
-import { grown } from '../../math/transform-tree/storage.ts'
+import { grown } from '../../world/transform-tree/storage.ts'
 import {
   LIGHT_SETTINGS,
   SCENE_LIGHT_HEADER_FLOATS,

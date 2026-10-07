@@ -6,7 +6,7 @@ import {
   type SceneEnvironment,
 } from '../core/environment.ts'
 import { finite, validateSceneFog } from '../core/fog.ts'
-import { hypot3 } from '../../math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
 function vector(value: unknown, field: string, id: string): [number, number, number] {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(finite))

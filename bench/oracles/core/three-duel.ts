@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
-import { copyMatrix4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts'
+import { copyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { xorshiftRandom, measure } from '../../core/index.ts'
 import { counter, note } from '../../core/ulp.ts'
 
@@ -15,7 +15,7 @@ export const rnd = (a = -10, b = 10) => a + alea() * (b - a)
 
 /**
  * The reference rounds the sRGB constants (`c · 0.0773993808`, `c · 0.9478672986 + 0.0521327014`)
- * where the engine writes the curve (`packages/sdk-core/src/math/primitives/color.ts`); the largest gap this leaves, declared once
+ * where the engine writes the curve (`packages/math/src/color/color.ts`); the largest gap this leaves, declared once
  * for every bench that measures it.
  */
 export const SRGB_REFERENCE_GAP = 1e-10

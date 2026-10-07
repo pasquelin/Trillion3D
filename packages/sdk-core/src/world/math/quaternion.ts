@@ -4,11 +4,11 @@ import {
   normalizeQuaternion,
   localTurnQuaternion,
   slerpQuaternion,
-} from '../../math/matrix/quaternion.ts'
-import { writeRotationQuaternion } from '../../math/matrix/matrix4Trs.ts'
-import { ObservedComponents } from './observed.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
+import { ObservedComponents } from '../observed.ts'
 import type { EulerLike, XYZLike as V, XYZWLike as Q } from './likes.ts'
-import { hypot3, hypot4 } from '../../math/primitives/hypot.ts'
+import { hypot3, hypot4 } from '../../../../math/src/float/hypot.ts'
 
 const other = new Float64Array(4),
   axis = new Float64Array(3),
@@ -22,7 +22,7 @@ const load = (into: Float64Array, q: Q) => {
   return into
 }
 
-/** A rotation as a unit quaternion over `math/matrix/quaternion.ts`. Written components notify the owner. */
+/** A rotation as a unit quaternion over `packages/math/src/quaternion/quaternion.ts`. Written components notify the owner. */
 export class Quaternion extends ObservedComponents {
   /** Always `true`: tells a quaternion apart from anything else. */
   readonly isQuaternion = true as const

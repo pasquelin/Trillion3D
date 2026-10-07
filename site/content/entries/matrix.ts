@@ -34,13 +34,13 @@ multiplyMatrix4(out, projection, view); // out may alias projection or view`,
   {
     id: 'determinantMatrix4',
     replaces: 'Matrix4.determinant',
-    proof: 'packages/sdk-core/src/math/matrix/matrix4.test.ts',
+    proof: 'packages/math/src/matrix/matrix4.test.ts',
   },
   {
     id: 'normalMatrix3',
     replaces: 'Matrix3.getNormalMatrix',
     proof:
-      'the same rule as the WGSL kernel in packages/sdk-browser/src/math/inverseTransposeWgsl.ts',
+      'the same rule as the WGSL kernel in packages/sdk-browser/src/gpu/shader/inverseTransposeWgsl.ts',
   },
   {
     id: 'linearPartScale',

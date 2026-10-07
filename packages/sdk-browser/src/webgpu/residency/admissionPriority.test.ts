@@ -29,7 +29,7 @@ test('a lower tier admitted by the WebGPU pool stays out of the loading total', 
         ['camera', 'camera'],
         ['ahead', 'ahead'],
       ]),
-      read,
+      (url, signal, priority) => read(url, signal ?? new AbortController().signal, priority),
     ),
   })
   const progress = watch(() => {})

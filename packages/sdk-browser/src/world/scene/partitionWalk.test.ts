@@ -53,7 +53,7 @@ function grid(side: number) {
   const port = {
     readBytes: async (url: string) => bodies.get(url)!,
     getBytes: (url: string) => bodies.get(url),
-    loading: () => false,
+    failed: () => false,
     request: async () => {},
     admit() {},
     forget() {},

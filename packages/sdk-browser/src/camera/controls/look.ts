@@ -3,8 +3,8 @@ import { trackPointers } from './input.ts'
 import type { ControlPose } from './pose.ts'
 import { orbitOrientation } from './math.ts'
 import { clampNumber, POLAR_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 /**
  * THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw

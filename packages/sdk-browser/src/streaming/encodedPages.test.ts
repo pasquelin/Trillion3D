@@ -33,7 +33,8 @@ test('a page sent brotli, gzip or as is reads the same bytes, sized and fingerpr
     base,
   )
   try {
-    for (const url of urls) assert.deepEqual(await streamer.readBytes(url), page, url)
+    for (const url of urls)
+      assert.deepEqual(await streamer.readBytes(url, streamer.signal), page, url)
     assert.ok(sent.br < page.byteLength && sent.gzip < page.byteLength, 'the pages were encoded')
     assert.equal(streamer.stats().bytesRead, 3 * page.byteLength, 'counted decoded')
     assert.equal(streamer.stats().failed, 0)

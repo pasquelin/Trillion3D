@@ -19,8 +19,8 @@ import type { WorldRootsCluster } from '../../../sdk-core/src/manifest/worldRoot
 import type { SelectionUniforms } from '../gpu/core/selection.ts'
 import { projectedErrorAt } from '../page/selection/projection.ts'
 import { growSphere } from '../page/cut/bounds.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
-import { perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { perspectiveSlope } from '../../../math/src/projection/camera.ts'
 import type { PartitionOptics } from './plan.ts'
 
 /** Five numbers per cell: the error its object roots are replaced at, then the sphere bounding the

@@ -1,6 +1,6 @@
 /** The clusters of the runtime cutter (`runtimeCut.ts`) and the texture spans that set its grid. */
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
  *  the compiler cuts (`docs/FORMAT.md`). */

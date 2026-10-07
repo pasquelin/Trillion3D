@@ -1,5 +1,5 @@
-import { boxTransform } from '../../math/primitives/box.ts'
-import { sphereFromBounds } from '../../math/primitives/sphere.ts'
+import { boxTransform } from '../../../../math/src/geometry/box.ts'
+import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { Vector3 } from './vector3.ts'
 import type { Matrix4 } from './matrix4.ts'
 import type { XYZLike as XYZ } from './likes.ts'

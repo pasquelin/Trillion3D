@@ -41,7 +41,7 @@ import { MOVE_PROMOTED, rootRankOfRow } from './update.ts'
 import { BOX_VALUES } from '../../../sdk-core/src/index.ts'
 import { WORLD_ORIGIN_BYTES } from '../gpu/dag/worldOrigins.ts'
 import { linkedRowSpheres } from '../webgpu/shadow/spheres.ts'
-import { sameElements } from '../math/matrixElements.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
 import { declareSlotMove, holdSlotBox, linkBox, remakeSlotBox } from './composeBoxes.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 

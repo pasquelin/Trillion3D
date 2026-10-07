@@ -3,7 +3,7 @@ import type { CapsuleContact } from './capsule.ts'
 import type { CharacterEvents, CharacterInput, CharacterSettings } from './characterSettings.ts'
 import type { CharacterCollision } from './characterCollision.ts'
 import { createDrive, driveTick, type DriveStep } from './characterDrive.ts'
-import { hypot2 } from '../math/primitives/hypot.ts'
+import { hypot2 } from '../../../math/src/float/hypot.ts'
 import { MAX_CHARACTER_DELTA } from './characterDelta.ts'
 
 /**

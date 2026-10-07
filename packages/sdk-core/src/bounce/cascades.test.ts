@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createBounceCascades, type BounceCascadeLevel } from './cascades.ts'
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { near } from '../math/near.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 
 const { cascadeLevels, cascadeSize, cascadeSpacingMetres, cascadeLayersAcross, cascadeShares } =
   BOUNCE_SETTINGS

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { Object3D } from './object3d.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { Vector3 } from '../math/vector3.ts'
-import { updateTransformTree } from '../../math/transform-tree/pass.ts'
+import { updateTransformTree } from '../transform-tree/pass.ts'
 
 const translation = (x: number, y: number, z: number) => new Matrix4().makeTranslation(x, y, z)
 

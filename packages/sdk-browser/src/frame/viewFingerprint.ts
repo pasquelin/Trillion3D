@@ -1,4 +1,5 @@
-import { copyElements, sameElements } from '../math/matrixElements.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { EngineCamera } from '../camera/world.ts'
 
 /**
@@ -31,8 +32,8 @@ export function createViewFingerprint() {
     },
     /** Holds this view, without allocating anything. */
     keep(cam: EngineCamera, viewportWidth: number, viewportHeight: number) {
-      copyElements(view, cam.view)
-      copyElements(projection, cam.projection)
+      copyMatrix4(view, cam.view)
+      copyMatrix4(projection, cam.projection)
       near = cam.near
       width = viewportWidth
       height = viewportHeight

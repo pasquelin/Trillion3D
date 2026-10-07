@@ -15,7 +15,7 @@ const config: KnipConfig = {
         'packages/sdk-browser/src/page/work/pageWorker.ts',
         'packages/sdk-browser/src/page/integration/pageIntegrationWorker.ts',
         'packages/sdk-browser/src/physics/physicsWorker.ts',
-        'packages/sdk-browser/src/math/animationWorker.ts',
+        'packages/sdk-browser/src/animation/animationWorker.ts',
         // The public API's source (`scripts/sdk-api-model.ts`, `ENTRIES`): the facade below is
         // generated from these three entries, so every name they export is public.
         'packages/sdk-core/src/index.ts',

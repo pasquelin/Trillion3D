@@ -1,6 +1,6 @@
 /**
  * The sRGB encode, linear to display: `12.92·C` at and under 0.0031308,
- * `1.055·C^(1/2.4) − 0.055` above — the CPU's `linearToSrgb` (sdk-core `math/primitives/color.ts`)
+ * `1.055·C^(1/2.4) − 0.055` above — the CPU's `linearToSrgb` (`packages/math/src/color/color.ts`)
  * — written once, so two programs never encode one colour apart.
  *
  * The exponent is the f32 nearest 1/2.4, written with the nine digits that name it: a rounded

@@ -1,4 +1,4 @@
-import { transformAffinePoint } from '../math/primitives/vector.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import type { Object3D } from '../world/object/object3d.ts'
 import type { Mesh } from '../world/object/mesh.ts'
 import { buildTriangleTree } from './triangleTree.ts'

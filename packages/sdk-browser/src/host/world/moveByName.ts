@@ -7,7 +7,8 @@ import {
 } from '../../../../sdk-core/src/index.ts'
 import { resolveCameraWorld } from '../../camera/world.ts'
 import { assertFiniteTransform } from './matrices.ts'
-import { copyElements, sameElements } from '../../math/matrixElements.ts'
+import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { findNode } from './nameIndex.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
@@ -70,7 +71,7 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   // The world the node already stands at, to the precision the request carries: moving it there
   // moves nothing — a node's first write included, which the local comparison below cannot judge.
   if (standsAt(current, matrix)) return false
-  copyElements(local, matrix)
+  copyMatrix4(local, matrix)
   if (parent && above) {
     // A parent flattened onto a plane or a line has no inverse: the base would yield sixteen
     // zeros and the node would silently leave for the origin. The determinant is the only test
@@ -104,7 +105,7 @@ export function poseNode(node: Object3D, matrix: Float32Array) {
   node.position.set(trs[0], trs[1], trs[2])
   node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3])
   node.scale.set(trsScale[0], trsScale[1], trsScale[2])
-  copyElements(node.matrix.elements, local)
+  copyMatrix4(node.matrix.elements, local)
   node.matrixAutoUpdate = false
   return true
 }

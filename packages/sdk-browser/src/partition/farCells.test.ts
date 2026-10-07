@@ -109,3 +109,26 @@ test("the plan holds no far cell whose roots the cut's cache has no room for", a
   assert.deepEqual(plan.far, [0, 1, 2, 3], 'found far')
   assert.deepEqual(world.held, [0, 1, 3], 'held far but the one past the room')
 })
+
+test('a far hold that fails is told to the frame as it settles, and never asked again', async () => {
+  const { index, placed } = partition()
+  let held = 0
+  const holder = {
+    hold: async () => {
+      held++
+      throw new Error('PAGE_STREAM_FAILED: refused for good')
+    },
+    release() {},
+    stream: async () => ({ superRoots: bounds }) as never,
+  }
+  const far = createFarCells(holder, placed)
+  far.plan(index, local, eye, lens, leave)
+  await Promise.resolve()
+  far.plan(index, local, eye, lens, leave)
+  const settling = far.reads()
+  assert.equal(settling.length, 1, 'the frame waits on the next far hold to settle')
+  await Promise.all(settling)
+  const asked = held
+  far.plan(index, local, eye, lens, leave)
+  assert.equal(held, asked, 'held far still: no plan asks it again')
+})

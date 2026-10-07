@@ -13,6 +13,7 @@
 // the caller's (`openWorldRoots`: the pinned top and the bundles the placed cells hold) and the GPU
 // page pool's, never a second cache here. The world matrix stays the identity: the positions are
 // already in world space, never placed by a per-cluster pose.
+import { waitShared, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import {
   firstPage,
   type WorldRoots,
@@ -100,7 +101,7 @@ function rankAt(table: WorldRoots, bundle: number, offset: number) {
 }
 
 /** The pages of one bundle of the table, verified, in binary order. */
-type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>
+type BundlePages = (bundle: number, signal: AbortSignal) => Promise<WorldRootsPage[]>
 
 /**
  * The page server of `table`, its bundles read through `bundlePages`: a page is resolved at its
@@ -115,12 +116,18 @@ export function worldPageServer(
   bundlePages: BundlePages,
   landed?: (addresses: readonly string[]) => void,
 ) {
-  /** A bundle read once, the callers still on it, and whether its pages were told. */
-  type Streamed = { pages: Promise<WorldRootsPage[]>; users: number; told: boolean }
+  /** A bundle read once, the callers still on it, and whether its pages were told; its read is
+   *  dropped once its last asker let it go before it landed (`stop`). */
+  type Streamed = SharedRead<WorldRootsPage[]> & {
+    stop: AbortController
+    users: number
+    told: boolean
+  }
   const streamed = new Map<number, Streamed>()
-  // A bundle's read is shared by every caller in flight, so it carries no caller's signal: one
-  // caller aborting must not fail another's page (`serve` checks its own signal after the read).
-  // It is let go once no caller is on it: what stays resident is the holder's and the GPU pool's.
+  // A bundle's read is shared by every caller in flight, each waiting on it with its own signal:
+  // one caller aborting never fails another's page, and the read is dropped once its last caller
+  // let it go (`waitShared`). It is let go once no caller is on it: what stays resident is the
+  // holder's and the GPU pool's.
   /** The other pages of `bundle` than the one at `rank`, told `landed`. */
   const tellOthers = (address: string, bundle: number, rank: number) => {
     const at = address.slice(0, address.lastIndexOf('#')),
@@ -134,15 +141,22 @@ export function worldPageServer(
   const serve = async (address: string, signal?: AbortSignal) => {
     const { bundle, offset } = worldRootsPageLocation(address)
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
+    // A caller gone already joins nothing.
+    signal?.throwIfAborted()
     let own = streamed.get(bundle)
-    if (!own) {
-      const fresh: Streamed = { pages: bundlePages(bundle), users: 0, told: false }
-      fresh.pages.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
+    if (!own || own.stop.signal.aborted) {
+      const stop = new AbortController()
+      const fresh: Streamed = {
+        ...{ promise: bundlePages(bundle, stop.signal), askers: 0, stop },
+        ...{ users: 0, told: false },
+      }
+      fresh.promise.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
       streamed.set(bundle, (own = fresh))
     }
     own.users++
     try {
-      const pages = await own.pages,
+      const shared = own,
+        pages = await waitShared(own, signal, () => shared.stop.abort()),
         index = rankAt(table, bundle, offset)
       if (!own.told) {
         own.told = true

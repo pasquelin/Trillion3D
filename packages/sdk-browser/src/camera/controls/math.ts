@@ -1,5 +1,5 @@
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
-import { perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
+import { perspectiveSlope } from '../../../../math/src/projection/camera.ts'
 /**
  * The arithmetic every camera controller shares, on flat numbers alone: no DOM, no host
  * vector, no allocation beyond the buffers the caller owns. `math.test.ts`

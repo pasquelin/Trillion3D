@@ -95,7 +95,7 @@ export type { HostRotation, HostVector } from './host/scene/graphNodes.ts'
  *  back; its nodes are the core's. */
 export type { GraphSurface } from './host/graph/surface.ts'
 export type { GraphTexture } from './host/graph/texture.ts'
-export type { HostNodeMatrix, MatrixElements } from './math/matrixElements.ts'
+export type { HostNodeMatrix, MatrixElements } from './host/matrixElements.ts'
 export { gpuPassBlockOf, gpuPassBlockTotals, gpuPassStageOf } from './diagnostic/gpuPasses.ts'
 export type { GpuPassBlock, GpuPassBlockTotals } from './gpu/core/passBlocks.ts'
 export { createDiagnosticChannel } from './diagnostic/channel.ts'
@@ -127,7 +127,7 @@ export type {
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts'
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts'
 export type { BatchRead } from './streaming/types.ts'
-export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts'
+export type { BoxTransformLot, MultiplyLot } from './page/decode/batch/batchRuntime.ts'
 export { framingFromBounds } from './camera/framing.ts'
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts'
 export {

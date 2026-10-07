@@ -141,9 +141,9 @@
     }
   },
   "BatchRead": {
-    "summary": "`request` bir grubu nasıl okur: iptali, önceliği ve her sayfa geldiğinde ne çalışır.",
+    "summary": "`request` bir grubu nasıl okur: sahibinin sinyali, önceliği ve her sayfa geldiğinde ne çalışır.",
     "members": {
-      "signal": "Grubun okumalarını iptal eder.",
+      "signal": "Grubun okumalarını serbest bırakır: artık kimsenin beklemediği bir okuma, beklerken bırakılır.",
       "priority": "Kuyruk önceliği, varsayılan 1.",
       "onPage": "Tüm grup bittikten sonra değil, her sayfanın okuması geldiğinde çalışır."
     }
@@ -359,7 +359,7 @@
     "summary": "Yerel varlık derlemesi (prepare / CLI) için seçenekleri belgeleyen JSON Şeması."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "İşlemci aynası (`packages/sdk-browser/src/page/cone/cone.ts`) ve shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`) tarafından paylaşılan koni eleme toleransları: bir dönüşüm, sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde göreli olarak ortogonal olduğunda konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez.",
+    "summary": "İşlemci aynası ve shader tarafından paylaşılan koni eleme toleransları: bir dönüşüm, sütunları `CONE_LENGTH_RATIO` içinde aynı uzunlukta ve `CONE_ORTHO_EPS` içinde göreli olarak ortogonal olduğunda konformdur; `HALF_PI`'ye eşit ya da büyük açılı bir koni asla elemez.",
     "description": "`_WGSL` varyantları, `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`) gibi shader'a eklenen metindir."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1226,7 +1226,7 @@
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectNodesTested": "Bu karenin kesitinin bir test yaptığı hiyerarşi düğümleri — frustum ya da ayrıntı seviyesi kararı. Zaten karar verilmiş ve tamamen görünür bir düğüm hiçbirini almaz: test edilmez, dolaşılır. Bu, hiyerarşik bir kesitin gerçek işinin ölçüsüdür; düz bir kesit bunlardan sıfırını test eder ve her cluster'ı dolaşır. Kesitini CPU'da seçmeyen, ya da onu saymayan bir motorda null.",
-      "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
+      "mathBatch": "Compute yolu regülatörünün durumu (`../runtime/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
       "pagePlanMs": "Varışları planlamaya harcanan süre.",
       "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur.",
@@ -1240,7 +1240,7 @@
     }
   },
   "Frustum": {
-    "summary": "Çekirdek (`math/frustum/frustum.ts`) tarafından bir view-projection'dan okunan altı düzlem.",
+    "summary": "Çekirdek (`packages/math/src/geometry/frustum/frustum.ts`) tarafından bir view-projection'dan okunan altı düzlem.",
     "members": {
       "isFrustum": "Her zaman `true`: bir frustum'u başka her şeyden ayırır.",
       "planes": "Altı normalize edilmiş düzlem, her biri dört sayı: çekirdeğin düzeni.",
@@ -1523,11 +1523,11 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "Tek bir geçişte güncellenen TAM HİYERARŞİ: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur ve sonra bunu ebeveyninin dünya matrisiyle çarpar.",
-    "description": "Bu, `../transform-tree/update.ts`'teki dolaşımdır, aynı sırada tam olarak aynı iki formülle, düz tamponlarda: WebAssembly çekirdeği onu terim terim yeniden üretir. `parents[i]` zaten güncellenmiş bir düğümün indeksi OLMAK ZORUNDADIR, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki tarafta da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onların ayrışmasına neden olamaz."
+    "description": "İki formül düz tamponlarda çalışır ve WebAssembly çekirdeği onları terim terim yeniden üretir. `parents[i]` zaten güncellenmiş bir düğümün indeksi OLMAK ZORUNDADIR, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki tarafta da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onların ayrışmasına neden olamaz."
   },
   "HIZ_NOTHING": {
     "summary": "Hiçbir teksel okunmadığında döndürülen değer: hiçbir şeyi gizleyemez.",
-    "description": "Motor derinliği TERS ÇEVRİLMİŞTİR — yakın 1, uzak 0'dır (`../math/primitives/camera.ts`). Sınırlayıcı bir kutu, yalnızca en yakın derinlik sınırı, gizleyenin derinliğinden DAHA UZAKSA (daha küçük değer) gizlenir."
+    "description": "Motor derinliği TERS ÇEVRİLMİŞTİR — yakın 1, uzak 0'dır (`../../../math/src/projection/camera.ts`). Sınırlayıcı bir kutu, yalnızca en yakın derinlik sınırı, gizleyenin derinliğinden DAHA UZAKSA (daha küçük değer) gizlenir."
   },
   "HeadSettings": {
     "summary": "BİR YÜRÜYÜCÜNÜN BAŞI, işaretçi kilitli: işaretçi onu çevirir, ufuk düz kalır — dünya yukarısı etrafında sapma, `[minPitch, maxPitch]`'e sıkıştırılmış yunuslama, asla hiçbir yatma.",
@@ -1613,7 +1613,7 @@
   },
   "HostNodeMatrix": {
     "summary": "Aynı on altı float, terim terim YAZILABİLİR: bir sınırın bir host düğümüne ya da geri yüklediği bir host kamerasına geri koyduğu poz.",
-    "description": "`MatrixElements`'in değişebilir yüzüdür ve onun yanında yaşar; hiçbir şey host'tan onları oluşturmasını istemez — `copyElements` onları oldukları gibi yazar.",
+    "description": "`MatrixElements`'in değişebilir yüzüdür ve onun yanında yaşar; hiçbir şey host'tan onları oluşturmasını istemez — `copyMatrix4` onları oldukları gibi yazar.",
     "members": {
       "elements": "On altı sayı, indekse göre."
     }
@@ -2773,7 +2773,8 @@
       "onEvict": "Önbellekten çıkan her sayfayı duyar.",
       "maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
       "onDiagnostic": "Her okumanın her adımını duyar.",
-      "maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
+      "maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB.",
+      "onStalled": "Kalıcı olarak başarısız olan ya da önce en uzun bekleyen bir okumayı bir kez duyar: yeniden yalnızca o geldikten sonra."
     }
   },
   "PanZoomCameraControls": {
@@ -3085,7 +3086,7 @@
     }
   },
   "Quaternion": {
-    "summary": "`math/matrix/quaternion.ts` üzerinde birim bir kuaterniyon olarak bir dönüş.",
+    "summary": "`packages/math/src/quaternion/quaternion.ts` üzerinde birim bir kuaterniyon olarak bir dönüş.",
     "description": "Yazılan bileşenler sahibi bilgilendirir.",
     "members": {
       "isQuaternion": "Her zaman `true`: bir kuaterniyonu başka her şeyden ayırır.",
@@ -3846,9 +3847,11 @@
   "StreamPage": {
     "summary": "Bir akıtıcının getirdiği bir sayfa: nerede, ne kadar büyük, ve parmak izi.",
     "members": {
-      "url": "Nereden okunduğu.",
+      "url": "Nereden okunduğu; başka bir dosyanın `range`'i ise katalogdaki adı.",
       "bytes": "Boyutu.",
-      "sha256": "Baytlarının parmak izi."
+      "sha256": "Baytlarının parmak izi.",
+      "range": "`file` dosyasının `offset` konumundan başlayan `bytes` olan bir sayfa, HTTP Range ile okunur: kuyruk, aynı dosyada uç uca kuyruğa girmiş aralıkları tek istekle okur (`queueRanges.ts`).",
+      "kept": "Onu isteyen herkesin çözdüğünü kendisinin tuttuğu bir sayfa için false: okumasına katılanlar için okunur, sayfa önbelleğinde hiç tutulmaz, baytları bir kez tutulur."
     }
   },
   "SurfaceBuffer": {
@@ -4418,7 +4421,7 @@
   },
   "Vector3": {
     "summary": "Üç boyutta bir nokta ya da bir yön, zincirlenebilir.",
-    "description": "Sayılar, `math/primitives/vector.ts`'in çekirdek fonksiyonlarının okuyup yazdığı `elements`'te yaşar; her yazma sahibine haber verir.",
+    "description": "Sayılar, `packages/math/src/vector/vector.ts`'in çekirdek fonksiyonlarının okuyup yazdığı `elements`'te yaşar; her yazma sahibine haber verir.",
     "members": {
       "isVector3": "Her zaman `true`: bir 3D vektörü ayırır.",
       "set": "Üç sayıyı yazar; hiçbirini değiştirmeyen bir yazma kimseye haber vermez.",
@@ -4948,7 +4951,7 @@
       "uncoveredTriangles": "Yayımlanan kesitin adlandırdığı ama karenin çizemediği cluster'ların üçgenleri — yerleşik sayfa yok ve kapsayan ata yok. Görseldeki gerçek bir boşluk: sıfır tek sağlıklı değerdir. Bir backend söyleyemediğinde null (seçtiği kesiti çizer, bu yüzden asla bir tanesi olmaz).",
       "drawnTriangles": "MEVCUT KARE'nin çizime verdiği üçgenler: hiyerarşinin opak ve şeffaf birleşik cluster kesiti. Hiyerarşi dışındaki şeffaf meshler bunun içinde değildir (`transparentSubmittedTriangles`), ve gizlenme reddi çıkarılmaz (`hizRejectedTriangles`). Kesit kabulünde sayılır: hiçbir asenkron GPU geri okuması beklenmez, bu yüzden `submittedTriangles`'ın aksine, zaman yokluğundan dolayı asla `null` değildir.",
       "cpuSelectNodesTested": "Bu karenin kesitinin bir test yaptığı hiyerarşi düğümleri — frustum ya da ayrıntı seviyesi kararı. Zaten karar verilmiş ve tamamen görünür bir düğüm hiçbirini almaz: test edilmez, dolaşılır. Bu, hiyerarşik bir kesitin gerçek işinin ölçüsüdür; düz bir kesit bunlardan sıfırını test eder ve her cluster'ı dolaşır. Kesitini CPU'da seçmeyen, ya da onu saymayan bir motorda null.",
-      "mathBatch": "Compute yolu regülatörünün durumu (`../math/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
+      "mathBatch": "Compute yolu regülatörünün durumu (`../runtime/path/governor.ts`): her yığın işleminin mevcut yolu, her iki yolun medyanları, geçişler. Bir yığın açmamış bir host'ta `null` — ölçülmemiş, \"JavaScript yolu\" değil.",
       "pagesPlannedOffThread": "Ana iş parçacığı dışında sayfa entegrasyonu. `pagesPlannedOffThread`, planı — her cluster'ın pakette yeri ve taşıdığı sayfa sıraları — bir worker tarafından hesaplanan varışları sayar, asla yedeğin ana iş parçacığında planladıklarını değil. `pagePlanMs`, hangi iş parçacığı olursa olsun, yürütücünün kendisi tarafından ölçülen bu planların kümülatif süresidir: asla kare başına bir `cpu*` ya da `gpu*`'ya eklenmez. Hiçbir varış planlanmadığı sürece ikisi de `null`'dır — ölçülmemiş, sıfır değil.",
       "pagePlanMs": "Varışları planlamaya harcanan süre.",
       "lightsActive": "Karenin aydınlattığı `SceneLight` sözleşme ışıkları. Onları yok sayan bir motorda null.",
@@ -5331,7 +5334,7 @@
     "summary": "`out = [u | v | n | origin]`: bir bazın üç sütunu, sonra başlangıç noktası — `makeBasis`'i takip eden `setPosition`."
   },
   "batch": {
-    "summary": "`batch` ailesi: bir döngü yerine bir kerede bin matris, çekirdeğin toplu çekirdekleri üzerinde (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "`batch` ailesi: bir döngü yerine bir kerede bin matris, çekirdeğin toplu çekirdekleri üzerinde (`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.transformPoints": {
     "summary": "Her biri üç sayı olarak saklanan `count` nokta için `out[i] = m · points[i]`.",
@@ -5734,7 +5737,8 @@
       "options.onEvict": "Önbellekten çıkan her sayfayı duyar.",
       "options.maxTransferBytes": "Aktarım kuyruğunun tutabileceği bayt; varsayılan 8 MiB.",
       "options.onDiagnostic": "Her okumanın her adımını duyar.",
-      "options.maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB."
+      "options.maxCachedBytes": "Önbellek sayfalarının tutabileceği CPU belleği baytı; bildirim tabloları ve aktarım kuyruğu bunun üstüne ayrılır; varsayılan 256 MiB.",
+      "options.onStalled": "Kalıcı olarak başarısız olan ya da önce en uzun bekleyen bir okumayı bir kez duyar: yeniden yalnızca o geldikten sonra."
     }
   },
   "createPathGovernor": {

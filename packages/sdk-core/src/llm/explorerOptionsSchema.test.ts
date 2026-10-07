@@ -4,7 +4,7 @@ import { Ajv } from 'ajv'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariants.ts'
-import type { MathPathMode } from '../math/path/contracts.ts'
+import type { MathPathMode } from '../runtime/path/contracts.ts'
 import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts'
 import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts'
 import {

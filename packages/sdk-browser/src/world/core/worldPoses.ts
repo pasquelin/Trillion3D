@@ -1,12 +1,12 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/math/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
 import type { Batch, Seat } from './worldBatches.ts'
-import { copyElements } from '../../math/matrixElements.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { rootedUnder } from '../../host/world/rooted.ts'
 import { writeModelNode } from './modelNodes.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
 /** Rows a session composes on the GPU under their parent (`placement/gpuCompose.ts`). */
 export type PoseComposer = {
@@ -202,7 +202,7 @@ function writeSeat(state: PoseState, mesh: Mesh, seat: Seat, shown: boolean) {
 }
 
 function writeTwin(node: Object3D, twin: PosedTwin, shown: boolean) {
-  copyElements(twin.matrix.elements, node.matrixWorld.elements)
+  copyMatrix4(twin.matrix.elements, node.matrixWorld.elements)
   twin.matrixAutoUpdate = false
   twin.visible = shown
 }

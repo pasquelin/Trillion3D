@@ -1,8 +1,8 @@
 import {
   NODE_TRS_DIRTY,
   markTransformNode,
-} from '../../../sdk-core/src/math/transform-tree/transformTree.ts'
-import { composeMatrix4At } from '../../../sdk-core/src/math/matrix/matrix4Compose.ts'
+} from '../../../sdk-core/src/world/transform-tree/transformTree.ts'
+import { composeMatrix4At } from '../../../math/src/matrix/matrix4Compose.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { SceneLink } from '../../../sdk-core/src/world/object/sceneLink.ts'
 import type { Bodied } from './bodies.ts'

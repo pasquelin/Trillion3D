@@ -4,7 +4,7 @@ import {
   multiplyQuaternion,
   normalizeQuaternion,
   rotateByQuaternion,
-} from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'
 
 /**

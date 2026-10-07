@@ -11,23 +11,6 @@
 // a fragmentation. A gate on it would condemn the house style.
 import ts from 'typescript'
 
-/** Each package is its own namespace. */
-const UNITS = [
-  'packages/sdk-core/src',
-  'packages/sdk-browser/src',
-  'packages/sdk-node/src',
-  'packages/page-codec/src',
-] as const
-
-const TEST = /\.(?:test|fixture|perf|gpu)\.m?ts$/
-
-/** Whether `file` is a test, a fixture or a GPU proof. */
-export const isTestModule = (file: string) => TEST.test(file)
-
-/** The unit a maintained file belongs to, or null when it belongs to none: the gate reads the
- *  packages and leaves the scripts, the site and the bench to the gates that own them. */
-export const unitOf = (file: string) => UNITS.find((unit) => file.startsWith(unit + '/')) ?? null
-
 export interface Fn {
   name: string
   line: number

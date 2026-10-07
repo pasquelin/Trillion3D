@@ -5,7 +5,7 @@ import {
   drawnView,
   orthographicProjection,
   perspectiveProjection,
-} from '../../math/primitives/camera.ts'
+} from '../../../../math/src/projection/camera.ts'
 
 /** Optics across the valid range (`referenceProjection.ts`): positive finite aspect, zoom, fov in
  *  (0, 180) and 0 < near < far, the box centred or off its axis, flipped, fitted or not. */

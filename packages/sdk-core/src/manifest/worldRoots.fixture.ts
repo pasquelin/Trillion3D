@@ -12,6 +12,26 @@ export function worldPage(x: number) {
   return { bytes: data as Uint8Array, facts: { bytes: data.byteLength, ...facts } }
 }
 
+/** `pages` laid end to end in one binary, a bundle each, every one but the first needing the
+ *  first, the top: the binary and its bundles, each digest named by `sha256`. */
+export function packBundles(pages: readonly Uint8Array[], sha256: (bytes: Uint8Array) => string) {
+  const bin = new Uint8Array(pages.reduce((sum, page) => sum + page.byteLength, 0))
+  let offset = 0
+  const bundles = pages.map((page, at) => {
+    bin.set(page, offset)
+    offset += page.byteLength
+    const bytes = page.byteLength
+    return {
+      offset: offset - bytes,
+      bytes,
+      sha256: sha256(page),
+      count: 1,
+      dependencies: at ? [0] : [],
+    }
+  })
+  return { bin, bundles }
+}
+
 /**
  * A world of three cells over four bundles of one page each: the top, bundle 0, pinned; bundles 1
  * and 2 the super-roots of cells 0 and 1; bundle 3, which cells 0 and 1 both need. Cell 2's
@@ -20,20 +40,7 @@ export function worldPage(x: number) {
  */
 export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => '0') {
   const pages = [0, 1, 2, 3].map((x) => worldPage(x).bytes)
-  const bin = new Uint8Array(pages.reduce((sum, page) => sum + page.byteLength, 0))
-  let offset = 0
-  const bundles = pages.map((page, at) => {
-    bin.set(page, offset)
-    const bundle = {
-      offset,
-      bytes: page.byteLength,
-      sha256: sha256(page),
-      count: 1,
-      dependencies: at ? [0] : [],
-    }
-    offset += page.byteLength
-    return bundle
-  })
+  const { bin, bundles } = packBundles(pages, sha256)
   const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies })
   const spec: WorldRootsSpec = {
     version: 4,

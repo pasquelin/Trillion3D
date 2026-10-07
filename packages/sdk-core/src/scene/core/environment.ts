@@ -13,7 +13,7 @@
  * curve brings it into the display range (P4). Neither is a light: a scene with neither lamp nor
  * environment irradiance stays black whatever its exposure.
  */
-import type { NumberSink } from '../../math/matrix/matrix4.ts'
+import type { NumberSink } from '../../../../math/src/matrix/matrix4.ts'
 import { packFog, type SceneFog } from './fog.ts'
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */

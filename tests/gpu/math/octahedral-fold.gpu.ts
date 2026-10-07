@@ -10,11 +10,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { computeOnDawn } from '../kit/computeRun.ts'
-import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/hashUnitWgsl.ts'
 import {
   octDecodeWgsl,
   octEncodeWgsl,
-} from '../../../packages/sdk-browser/src/math/octahedralWgsl.ts'
+} from '../../../packages/sdk-browser/src/gpu/shader/octahedralWgsl.ts'
 import { LOBE_PACK_WGSL } from '../../../packages/sdk-browser/src/scene/physicalLobes.ts'
 import { IMPOSTOR_CARD_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/impostorWgsl.ts'
 import { functionsOf } from '../../../packages/sdk-browser/src/texture/shaderRule.fixture.ts'

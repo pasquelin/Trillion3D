@@ -1,5 +1,5 @@
 import { Vector3 } from '../world/math/vector3.ts'
-import { listen } from '../world/math/observed.ts'
+import { listen } from '../world/observed.ts'
 import type { Object3D } from '../world/object/object3d.ts'
 import { DAMPING } from './layout.ts'
 import type { PhysicsBodyOptions, PhysicsOption, PhysicsShape, PhysicsType } from './options.ts'

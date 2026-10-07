@@ -15,7 +15,7 @@ export function rootWorldsToRenderOrigin(
 
 /**
  * Brings packed world matrices into the RENDER FRAME whose origin is `origin` —
- * the frame's eye (`../../../../sdk-core/src/math/primitives/renderOrigin.ts`). `packDagSelection` returns them
+ * the frame's eye (`../../../../math/src/projection/renderOrigin.ts`). `packDagSelection` returns them
  * in absolute world: the engine's GPU rebase brings them to the eye before the cut reads them
  * (`worldRebase.ts`), and this is how a kernel caller without the engine — oracle, bench, test
  * mount — enters the frame of the uniforms it builds. Root matrices, in double,

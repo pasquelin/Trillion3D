@@ -1,5 +1,5 @@
-import { hslToLinearRgb, linearToSrgb8, srgbToLinear } from '../../math/primitives/color.ts'
-import { Observed } from './observed.ts'
+import { hslToLinearRgb, linearToSrgb8, srgbToLinear } from '../../../../math/src/color/color.ts'
+import { Observed } from '../observed.ts'
 import { namedColor } from './colorNames.ts'
 import { clearValueOf, rgbHex } from './packedColour.ts'
 

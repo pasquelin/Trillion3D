@@ -3,7 +3,7 @@
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../sdk-core/src/world/geometry/index.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { updateTransformTree } from '../../../sdk-core/src/math/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../sdk-core/src/world/transform-tree/pass.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'

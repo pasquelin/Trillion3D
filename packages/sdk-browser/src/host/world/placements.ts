@@ -1,6 +1,6 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/math/transform-tree/pass.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
+import type { MatrixElements } from '../matrixElements.ts'
 
 /**
  * World matrices of the drawn nodes of a scene, read where they live: the transform tree every

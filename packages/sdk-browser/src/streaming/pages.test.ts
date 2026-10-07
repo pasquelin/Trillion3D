@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 import { servedPages } from './servedPages.fixture.ts'
@@ -23,21 +24,21 @@ async function twoOfThreeStreamer(onEvict?: (url: string) => void) {
 test('streamer fetches only requested pages and counts hits', async () => {
   const { pages, fetched } = await servedPages(['a.bin', 'b.bin'])
   const streamer = createPageStreamer(pages, 'http://cache/')
-  await streamer.request(['a.bin'])
+  await streamer.request(['a.bin'], { signal: streamer.signal })
   assert.deepEqual(fetched, ['http://cache/a.bin'])
   assert.equal(streamer.get('a.bin')?.[0], 1)
   assert.equal(streamer.get('b.bin'), undefined)
-  await streamer.request(['a.bin'])
+  await streamer.request(['a.bin'], { signal: streamer.signal })
   assert.equal(streamer.stats().hits, 1)
   assert.equal(streamer.stats().loaded, 1)
   streamer.dispose()
 })
 test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
   const streamer = await twoOfThreeStreamer()
-  await streamer.request(['a.bin', 'b.bin'])
+  await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
   assert.equal(streamer.stats().resident, 2)
   streamer.retain(['a.bin'])
-  await streamer.request(['c.bin'])
+  await streamer.request(['c.bin'], { signal: streamer.signal })
   assert.equal(streamer.has('a.bin'), true)
   assert.equal(streamer.has('c.bin'), true)
   assert.equal(streamer.has('b.bin'), false)
@@ -47,36 +48,11 @@ test('streamer LRU evicts unpinned pages and retains pinned ones', async () => {
 test('streamer notifies consumers when a page is evicted', async () => {
   const dropped: string[] = []
   const streamer = await twoOfThreeStreamer((url) => dropped.push(url))
-  await streamer.request(['a.bin', 'b.bin'])
+  await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
   streamer.retain(['a.bin'])
-  await streamer.request(['c.bin'])
+  await streamer.request(['c.bin'], { signal: streamer.signal })
   assert.ok(dropped.includes('b.bin'))
   streamer.dispose()
-})
-
-test('page failures stop after three attempts and remain observable without a per-frame retry loop', async () => {
-  let attempts = 0
-  const previous = globalThis.fetch
-  globalThis.fetch = async () => {
-    attempts++
-    return new Response('', { status: 503 })
-  }
-  const streamer = createPageStreamer(
-    [{ url: 'bad.bin', bytes: 12, sha256: 'invalid' }],
-    'http://cache/',
-  )
-  try {
-    await assert.rejects(streamer.request(['bad.bin']), /PAGE_STREAM_FAILED.*bad.bin/)
-    assert.equal(attempts, 3)
-    for (let i = 0; i < 10; i++)
-      await assert.rejects(streamer.request(['bad.bin']), /PAGE_STREAM_FAILED/)
-    assert.equal(attempts, 3)
-    assert.equal(streamer.failed('bad.bin'), true)
-    assert.equal(streamer.stats().failed, 1)
-  } finally {
-    streamer.dispose()
-    globalThis.fetch = previous
-  }
 })
 
 test('the bootstrap reader verifies pages and shares in-flight requests', async () => {
@@ -90,7 +66,10 @@ test('the bootstrap reader verifies pages and shares in-flight requests', async 
   }
   const streamer = createPageStreamer([{ url: 'a.bin', bytes: 12, sha256: sha }], 'http://cache/')
   try {
-    const [a, b] = await Promise.all([streamer.read('a.bin'), streamer.read('a.bin')])
+    const [a, b] = await Promise.all([
+      streamer.read('a.bin', streamer.signal),
+      streamer.read('a.bin', streamer.signal),
+    ])
     assert.deepEqual([...a], [0, 1, 2])
     assert.equal(a, b)
     assert.equal(attempts, 1)
@@ -119,7 +98,8 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
     { signal: controller.signal },
   )
   try {
-    const job = streamer.read('a.bin')
+    const job = streamer.read('a.bin', streamer.signal)
+    await eventually(() => attempts === 1) // its transfer under way
     controller.abort()
     release()
     await assert.rejects(job, { name: 'AbortError' })
@@ -148,19 +128,19 @@ test('an identical pin list resets nothing, a list that changes resets everythin
     maxPages: 2,
     onEvict: (url) => evicted.push(url),
   })
-  await streamer.request(['a.bin', 'b.bin'])
+  await streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal })
   streamer.retain(['a.bin'])
   // The same list, returned in the array the host reuses: pins do not move.
   const scratch = ['a.bin']
   streamer.retain(scratch)
-  await streamer.request(['c.bin'])
+  await streamer.request(['c.bin'], { signal: streamer.signal })
   assert.deepEqual(evicted, ['b.bin'], 'the pinned page survived, the other did not')
   assert.equal(streamer.has('a.bin'), true)
   assert.equal(streamer.has('c.bin'), true)
   // The list changes: pins follow, and the page no longer in the list becomes reclaimable.
   scratch[0] = 'c.bin'
   streamer.retain(scratch)
-  await streamer.request(['b.bin'])
+  await streamer.request(['b.bin'], { signal: streamer.signal })
   assert.deepEqual(evicted, ['b.bin', 'a.bin'])
   streamer.dispose()
 })
@@ -174,7 +154,7 @@ test('a streamer of its own holds `maxCachedBytes` of pages beside its reservati
     onEvict: (url) => evicted.push(url),
     maxCachedBytes: 24,
   })
-  await streamer.request(['a.bin', 'b.bin', 'c.bin'])
+  await streamer.request(['a.bin', 'b.bin', 'c.bin'], { signal: streamer.signal })
   assert.deepEqual(evicted, ['a.bin'])
   assert.equal(streamer.stats().maxCachedBytes, 24)
   assert.equal(streamer.stats().residentBytes, 24)

@@ -1,166 +1,79 @@
-import { corruptObject } from '../cluster/pages.ts'
-import { checked, ONE_REQUEST, retriableError } from '../cluster/checked.ts'
-import { verifyPageBytes } from '../page/work/host.ts'
-import type { StreamContext, StreamPage } from './types.ts'
+/**
+ * ONE REQUEST OF A TRANSFER: a page's file, or the ranges end to end of one file the queue merged
+ * (`queueRanges.ts`), read by one HTTP Range through the one reader of that file the page cache
+ * holds for every load and session (`PageCache.reader`: a server that ignores the Range answers the
+ * whole file, kept and read no more, its bytes counted once, beside the pages). Each page is checked
+ * against what it announced (`fetchAttempt.ts`), counted, and kept in the cache unless its askers
+ * keep it (`StreamPage.kept`). One request, never retried here: what fails waits its turn
+ * (`failures.ts`), and that wait is the retry.
+ */
+import { checked, ONE_REQUEST } from '../cluster/checked.ts'
+import type { Job, StreamContext, StreamPage } from './types.ts'
 import { createRoundTrip } from './roundTrip.ts'
+import { checkedPages } from './fetchAttempt.ts'
 
-/** How many times a page read is tried before it fails. */
-export const PAGE_FETCH_ATTEMPTS = 3
+/** What a transfer brings each of its jobs: its page's bytes, or what its read failed by. */
+export type Landed =
+  { bytes: Uint8Array; cause?: undefined } | { bytes?: undefined; cause: unknown }
 
-/** One read attempt of page `url`: its number, the signal that cancels it, and when it started —
- *  diagnostics only. */
-type Attempt = {
-  url: string
-  page: StreamPage
-  attempt: number
-  signal: AbortSignal
-  start: number
-}
-
-/** Says `phase` of attempt `at` to a listener: its version, page and number, then `detail`. */
-const note = (
-  emit: StreamContext['emit'],
-  { url, attempt }: Attempt,
-  phase: string,
-  message: string,
-  detail: () => Record<string, unknown> = () => ({}),
-) => emit?.(phase, message, () => ({ version: 1, url, attempt, ...detail() }))
-
-/** What an attempt lasted, for a listener alone. */
-const lasted = ({ onDiagnostic }: StreamContext, { start }: Attempt) =>
-  onDiagnostic ? performance.now() - start : null
-
-/** Checks an attempt's `buffer`, `byteLength` long, against its page — the size, then the
- *  digest —; a mismatch is thrown, named by what failed: the retries and the final
- *  `PAGE_STREAM_FAILED` repeat it. */
-async function verifyRead(
-  emit: StreamContext['emit'],
-  at: Attempt,
-  buffer: ArrayBuffer,
-  byteLength: number,
+/** One request of `pages` under `base`: a page's file, or the ranges end to end of one file,
+ *  read through `store`'s one reader of that file. */
+async function request(
+  { base, store }: StreamContext,
+  pages: readonly StreamPage[],
+  signal: AbortSignal,
 ) {
-  const { url, page } = at
-  const sizeMatches = byteLength === page.bytes
-  let actualHash: string | undefined
-  if (sizeMatches) actualHash = await verifyPageBytes(buffer)
-  const hashMatches = sizeMatches && actualHash === page.sha256
-  const verdict = hashMatches ? 'Page hash and size verified' : 'Page verification failed'
-  note(emit, at, 'page-hash-check', verdict, () => ({
-    expectedBytes: page.bytes,
-    actualBytes: byteLength,
-    expectedHash: page.sha256,
-    actualHash: actualHash ?? null,
-    sizeMatches,
-    hashMatches,
-  }))
-  if (!hashMatches) {
-    note(emit, at, 'page-corruption', 'Corrupt page or unexpected size')
-    throw corruptObject(url, page, byteLength, actualHash)
-  }
+  const [first] = pages,
+    last = pages[pages.length - 1]
+  if (!first.range)
+    return (await checked(new URL(first.url, base).href, signal, ONE_REQUEST)).arrayBuffer()
+  const read = store.reader(new URL(first.range.file, base).href)
+  const { offset } = first.range,
+    bytes = last.range!.offset + last.bytes - offset
+  return read(offset, bytes, { attempts: ONE_REQUEST, signal })
 }
 
-/** One attempt: one request — the loop of `loadOne` is the retry, and it says so page by page —,
- *  its bytes verified, then kept (`touch`) and counted. */
-async function readAttempt(
-  context: StreamContext,
-  touch: (url: string, bytes: Uint8Array, sha256: string) => void,
-  roundTrip: ReturnType<typeof createRoundTrip>,
-  at: Attempt,
-) {
-  const { base, emit, state, cache } = context,
-    { url, page, signal } = at
-  note(emit, at, 'page-read-start', 'Page read started', () => ({ expectedBytes: page.bytes }))
-  // Its round trip runs until the page's bytes have landed: what a page asked for ahead has to
-  // cover.
-  const sent = performance.now()
-  const buffer = await (await checked(new URL(url, base).href, signal, ONE_REQUEST)).arrayBuffer()
-  roundTrip.note(performance.now() - sent)
-  // Size is taken before the digest: the cheaper refusal first.
-  const byteLength = buffer.byteLength
-  note(emit, at, 'page-read-end', 'Page read finished', () => ({
-    actualBytes: byteLength,
-    expectedBytes: page.bytes,
-    durationMs: lasted(context, at),
-  }))
-  signal.throwIfAborted()
-  await verifyRead(emit, at, buffer, byteLength)
-  signal.throwIfAborted()
-  const array = new Uint8Array(buffer)
-  touch(url, array, page.sha256)
-  state.bytesRead += byteLength
-  state.loaded++
-  note(emit, at, 'page-attempt-end', 'Page read attempt succeeded', () => ({
-    actualBytes: byteLength,
-    durationMs: lasted(context, at),
-    resident: cache.size,
-  }))
-  return array
-}
-
-/** Says an attempt failed with `error`. */
-function attemptFailed(context: StreamContext, at: Attempt, error: unknown) {
-  note(context.emit, at, 'page-attempt-end', 'Page read attempt failed', () => ({
-    error: String(error),
-    durationMs: lasted(context, at),
-  }))
-}
-
-/** Says another attempt follows one that failed with `error`. */
-const retrying = ({ emit }: StreamContext, at: Attempt, error: unknown) =>
-  note(emit, at, 'page-retry', 'Retry after a read failure', () => ({
-    nextAttempt: at.attempt + 1,
-    error: String(error),
-  }))
-
-/** The persistent failure of page `url` after `tried` attempts, kept in `failures` and said. */
-function pageFailed({ failures, emit }: StreamContext, url: string, tried: number, cause: unknown) {
-  const times = tried === 1 ? 'one attempt' : `${tried} attempts`
-  const error = new Error(`PAGE_STREAM_FAILED: ${url} after ${times}: ${String(cause)}`, {
-    cause,
-  })
-  failures.set(url, error)
-  emit?.('page-error', 'Persistent page-load failure', () => ({
-    version: 1,
-    url,
-    attempts: tried,
-    error: String(cause),
-    sticky: true,
-  }))
-  return error
-}
-
+/** The reads of `context`'s transfers (`read`), a page's bytes kept through `touch`. */
 export function createStreamingFetcher(
   context: StreamContext,
   touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
-  const { catalog, abort, onDiagnostic, emit } = context
+  const { catalog, emit, state } = context
   /** The reads' round trip, what the view ahead adds to its horizon (`roundTrip.ts`). */
   const roundTrip = createRoundTrip()
-  const loadOne = async (url: string, jobSignal: AbortSignal) => {
-    const page = catalog.get(url)
-    if (!page) throw new Error('Unknown page ' + url)
-    const signal = AbortSignal.any([abort.signal, jobSignal])
-    let cause: unknown,
-      tried = 0
-    for (let attempt = 1; attempt <= PAGE_FETCH_ATTEMPTS; attempt++) {
-      signal.throwIfAborted()
-      const at = { url, page, attempt, signal, start: onDiagnostic ? performance.now() : 0 }
-      note(emit, at, 'page-attempt-start', 'Page read attempt', () => ({
-        maxAttempts: PAGE_FETCH_ATTEMPTS,
-        expectedBytes: page.bytes,
+  /** The pages of `jobs` read by one request on `signal`: what each job lands with. */
+  const read = async (jobs: readonly Job[], signal: AbortSignal): Promise<Landed[]> => {
+    const pages = jobs.map((job) => catalog.get(job.url)!)
+    for (const { url, bytes } of pages)
+      emit?.('page-read-start', 'Page read started', () => ({
+        version: 1,
+        url,
+        expectedBytes: bytes,
       }))
-      try {
-        return await readAttempt(context, touch, roundTrip, at)
-      } catch (error) {
-        attemptFailed(context, at, error)
-        signal.throwIfAborted()
-        ;[cause, tried] = [error, attempt]
-        // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
-        if (!retriableError(error)) break
-        if (attempt < PAGE_FETCH_ATTEMPTS) retrying(context, at, error)
-      }
+    // Its round trip runs until the pages' bytes have landed: what a page asked ahead has to cover.
+    const sent = performance.now()
+    let buffer: ArrayBuffer
+    try {
+      buffer = await request(context, pages, signal)
+    } catch (cause) {
+      return jobs.map(() => ({ cause }))
     }
-    throw pageFailed(context, url, tried, cause)
+    const durationMs = performance.now() - sent
+    roundTrip.note(durationMs)
+    emit?.('page-read-end', 'Page read finished', () => ({
+      ...{ version: 1, url: jobs[0].url, pages: jobs.length, actualBytes: buffer.byteLength },
+      durationMs,
+    }))
+    if (signal.aborted) return jobs.map(() => ({ cause: signal.reason }))
+    const landed = await checkedPages(context, pages, buffer)
+    return landed.map((own, at) => {
+      if (!own.bytes) return { cause: own.refused }
+      const page = pages[at]
+      if (page.kept !== false) touch(page.url, own.bytes, page.sha256)
+      state.bytesRead += own.bytes.byteLength
+      state.loaded++
+      return { bytes: own.bytes }
+    })
   }
-  return { loadOne, roundTrip }
+  return { read, roundTrip }
 }

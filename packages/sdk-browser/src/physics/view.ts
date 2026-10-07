@@ -1,7 +1,7 @@
 import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import { hypot2, hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
 
 /**
  * The page's view as the simulation needs it (`VIEW`, `layout.ts`): distance decides what is

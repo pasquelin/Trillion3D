@@ -24,7 +24,7 @@ test('a watch hears the reads the view waits on: each page once, a dropped one t
   const heard: { landed: number; asked: number }[] = []
   const { stop, hold, reads } = watch(() => heard.push(reads()))
   const caught = (url: string, priority?: number) =>
-    void read(url, undefined, priority).catch(() => {})
+    void read(url, new AbortController().signal, priority).catch(() => {})
   ;['a', 'b', 'c', 'a'].forEach((url) => caught(url))
   caught('ahead', PRIORITY_PREFETCH)
   await Promise.resolve()

@@ -4,7 +4,7 @@
  * commits them. Each turn is normalised by the engine's one quaternion normalisation
  * (`normalizeQuaternionAt`); the arithmetic is the drawn image's, so none of it may be reordered.
  */
-import { normalizeQuaternionAt, slerpOnArc } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { normalizeQuaternionAt, slerpOnArc } from '../../../math/src/quaternion/quaternion.ts'
 
 /** The `count` slots listed in `list` on their newest states (`target`) exactly. */
 export function landAll(

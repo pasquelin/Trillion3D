@@ -1,15 +1,11 @@
-import { unit } from '../../../sdk-core/src/math/primitives/vectorTuple.ts'
+import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import type { Joint, SixDofAxis } from '../../../sdk-core/src/physics/index.ts'
-import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts'
-import {
-  addScaledVector3,
-  dotVector3,
-  subVector3,
-} from '../../../sdk-core/src/math/primitives/vector.ts'
+import { rotateByQuaternion } from '../../../math/src/quaternion/quaternion.ts'
+import { addScaledVector3, dotVector3, subVector3 } from '../../../math/src/vector/vector.ts'
 import { readVec3, type Vec3Input } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { worldPoseOf } from './bodyFrame.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 
 type Vec = [number, number, number]
 const turned = new Float64Array(3)

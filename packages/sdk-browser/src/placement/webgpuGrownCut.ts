@@ -8,7 +8,7 @@
 import { countRootCopies } from '../webgpu/pages/prepare/layout.ts'
 import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts'
 import { postPackedBases } from '../page/selection/placements.ts'
-import { reserveRootBoxes } from '../math/batchBoxes.ts'
+import { reserveRootBoxes } from '../page/selection/batchBoxes.ts'
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts'
 import { markReach } from '../deformation/halfFloat.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'

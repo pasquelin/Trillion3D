@@ -13,7 +13,7 @@ import {
   normalizeQuaternion,
   rotateByQuaternion,
   localTurnQuaternion,
-} from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
 
 const close = (actual: ArrayLike<number>, expected: number[], epsilon = 1e-12) => {
   for (let i = 0; i < expected.length; i++)

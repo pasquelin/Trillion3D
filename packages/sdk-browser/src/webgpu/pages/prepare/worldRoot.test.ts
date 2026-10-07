@@ -5,8 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/index.ts'
 import { worldRootsDag } from '../../../../../sdk-core/src/manifest/worldRoots.fixture.ts'
-import { served } from '../../../scene/worldRoots.fixture.ts'
-import { openWorldRoots, worldOrGeometryReader } from '../../../scene/worldRoots.ts'
+import { opened, served } from '../../../scene/worldRoots.fixture.ts'
+import { worldOrGeometryReader } from '../../../scene/worldRoots.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
@@ -23,7 +23,7 @@ async function scene(t: Parameters<typeof served>[0], alone = false) {
   const cooked = worldRootsDag(),
     { clusters, groups } = cooked
   if (alone) standAlone(cooked, cooked.leaves, 1)
-  const { manifest, bin, table } = served(t, undefined, false, { clusters, groups })
+  const { manifest, bin, table } = served(t, { dag: { clusters, groups } })
   const metadata = {
     ...manifest,
     primitives: [{ mesh: 0, primitive: 0, pass: 'clustered' }] as Primitive[],
@@ -32,7 +32,8 @@ async function scene(t: Parameters<typeof served>[0], alone = false) {
     source = G.mesh()
   source.add(opaque)
   const reads: string[] = []
-  const hold = (await openWorldRoots(metadata, 'http://world/'))!
+  // Opened as a session's load opens it: its bundles read through the session's queue.
+  const { roots: hold } = await opened(t, metadata)
   const host = async (url: string) => (reads.push(url), new Uint8Array(4))
   const context = {
     metadata,

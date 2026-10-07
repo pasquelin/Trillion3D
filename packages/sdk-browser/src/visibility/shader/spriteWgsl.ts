@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../types.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
 
 /**

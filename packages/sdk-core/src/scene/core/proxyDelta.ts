@@ -1,6 +1,6 @@
-import { copyMatrix4, determinantMatrix4 } from '../../math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4Typed } from '../../math/matrix/matrix4Typed.ts'
+import { copyMatrix4, determinantMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4Typed } from '../../../../math/src/matrix/matrix4Typed.ts'
 
 const bindBasis = new Float64Array(16),
   worldBasis = new Float64Array(16),

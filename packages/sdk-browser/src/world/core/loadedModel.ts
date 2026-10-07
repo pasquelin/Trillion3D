@@ -11,6 +11,7 @@ import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-c
 import { loadClusterManifest } from '../../scene/manifestLoad.ts'
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
+import type { PageCache } from '../../streaming/pageCache.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
 import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts'
@@ -135,6 +136,8 @@ export async function loadModel(
     signal?: AbortSignal
     textureSource: 'host' | 'cache'
     onProgress?: (event: JobProgress) => void
+    /** The world's page cache: its one reader of each binary serves the model's world roots. */
+    pageCache?: PageCache
   },
 ): Promise<LoadedModel> {
   const { signal, textureSource, onProgress } = options
@@ -155,6 +158,7 @@ export async function loadModel(
         manifestUrl,
         textureSource,
         meter,
+        pageCache: options.pageCache,
         onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },

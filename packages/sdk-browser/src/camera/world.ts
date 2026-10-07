@@ -1,5 +1,6 @@
 import { decomposeMatrix4 } from '../../../sdk-core/src/index.ts'
-import { copyElements, type HostNodeMatrix, type MatrixElements } from '../math/matrixElements.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { type HostNodeMatrix, type MatrixElements } from '../host/matrixElements.ts'
 import {
   writeEngineCamera,
   type CameraOptics,
@@ -131,7 +132,7 @@ export function readCameraWorld(
   aspect = camera.aspect,
 ): EngineCamera {
   resolveCameraWorld(camera)
-  copyElements(into.world, camera.matrixWorld.elements)
+  copyMatrix4(into.world, camera.matrixWorld.elements)
   optics.fov = camera.fov
   optics.aspect = aspect
   optics.near = camera.near

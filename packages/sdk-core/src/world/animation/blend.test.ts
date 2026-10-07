@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Blend, Blends } from './blend.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 const close = (actual: number[], expected: number[]) => within(actual, expected, 'blend', 1e-12)
 

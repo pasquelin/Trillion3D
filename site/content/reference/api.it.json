@@ -206,7 +206,7 @@
     "summary": "`out = [u | v | n | origin]`: le tre colonne di una base, poi la sua origine — `makeBasis` seguito da `setPosition`."
   },
   "batch": {
-    "summary": "La famiglia `batch`: mille matrici in una volta invece di un ciclo, sopra i kernel a lotti del core (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "La famiglia `batch`: mille matrici in una volta invece di un ciclo, sopra i kernel a lotti del core (`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` per `count` punti, disposti tre numeri per punto.",
@@ -262,9 +262,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Come `request` legge un lotto: il suo annullamento, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
+    "summary": "Come `request` legge un lotto: il segnale del suo proprietario, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
     "members": {
-      "signal": "Annulla le letture del lotto.",
+      "signal": "Lascia andare le letture del lotto: una lettura che nessuno aspetta più viene scartata mentre attende.",
       "priority": "Priorità in coda, 1 per impostazione predefinita.",
       "onPage": "Viene eseguito all’arrivo della lettura di ogni pagina, non dopo l’intero lotto."
     }
@@ -1048,7 +1048,7 @@
     "description": "Due forme, e solo due: tutto piatto, o tutto come `n` sotto-viste — `../batch/batch.ts` spiega perché una matrice viaggia come sotto-vista. La forma si decide PRIMA del ciclo, mai al suo interno: un ternario per elemento costa il 6% su duecentomila composizioni, misurato dal benchmark delle matrici batch. Ripete `composeMatrix4`, su `n` matrici."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Tolleranze del rifiuto per cono, condivise dal riflesso lato processore (`packages/sdk-browser/src/page/cone/cone.ts`) e dallo shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`): una trasformazione è conforme quando le sue colonne hanno la stessa lunghezza entro `CONE_LENGTH_RATIO` e sono ortogonali entro `CONE_ORTHO_EPS`, in relativo; un cono di angolo ≥ `HALF_PI` non rifiuta mai.",
+    "summary": "Tolleranze del rifiuto per cono, condivise dal riflesso lato processore e dallo shader: una trasformazione è conforme quando le sue colonne hanno la stessa lunghezza entro `CONE_LENGTH_RATIO` e sono ortogonali entro `CONE_ORTHO_EPS`, in relativo; un cono di angolo ≥ `HALF_PI` non rifiuta mai.",
     "description": "Le varianti `_WGSL` sono il testo inserito nello shader, come `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1197,7 +1197,8 @@
       "options.onEvict": "Riceve ogni pagina che lascia la cache.",
       "options.maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "options.onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita."
+      "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
+      "options.onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo: di nuovo solo dopo che è arrivata."
     }
   },
   "createPathGovernor": {
@@ -1807,7 +1808,7 @@
       "uncoveredTriangles": "Triangoli dei cluster nominati dal taglio pubblicato ma che l'immagine non può disegnare — nessuna pagina residente e nessun antenato che copra. Un vero buco nell'immagine: zero è l'unico valore sano. Nullo quando un motore non può dirlo (disegna il taglio che ha scelto, quindi non ne ha mai).",
       "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`.",
       "cpuSelectNodesTested": "Nodi della gerarchia su cui il taglio di questo fotogramma ha fatto un test — decisione di frustum o di livello di dettaglio. Un nodo già deciso e interamente visibile non ne riceve nessuno: viene percorso, non testato. È la misura del vero lavoro di un taglio gerarchico; un taglio piatto ne testa zero e percorre ogni cluster. Nullo per un motore che non sceglie il proprio taglio sulla CPU, o che non lo conta.",
-      "mathBatch": "Stato del regolatore delle vie di calcolo (`../math/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
+      "mathBatch": "Stato del regolatore delle vie di calcolo (`../runtime/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
       "pagesPlannedOffThread": "Integrazione delle pagine fuori dal thread principale. `pagesPlannedOffThread` conta gli arrivi il cui piano — il posto di ogni cluster nel pacchetto e i ranghi di pagine che sposta — è stato calcolato da un worker, mai quelli che il ripiego ha pianificato sul thread principale. `pagePlanMs` è il tempo cumulato di questi piani, misurato dall'esecutore stesso, qualunque sia il thread: non viene mai sommato a un `cpu*` o `gpu*` per fotogramma. Entrambi valgono `null` finché nessun arrivo è stato pianificato — non misurato, non zero.",
       "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
       "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna.",
@@ -1828,7 +1829,7 @@
     "description": "`near` segue la dimensione dell'oggetto; non c'è una soglia assoluta di un centimetro."
   },
   "Frustum": {
-    "summary": "Sei piani, letti in una vista-proiezione dal core (`math/frustum/frustum.ts`).",
+    "summary": "Sei piani, letti in una vista-proiezione dal core (`packages/math/src/geometry/frustum/frustum.ts`).",
     "members": {
       "isFrustum": "Sempre `true`: distingue un frustum da tutto il resto.",
       "planes": "Sei piani normalizzati, quattro numeri ciascuno: la disposizione del core.",
@@ -2333,14 +2334,14 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "GERARCHIA COMPLETA aggiornata in un passaggio: `n` nodi disposti genitori prima dei figli, ciascuno componendo la propria matrice locale e poi moltiplicandola per la matrice del mondo del proprio genitore.",
-    "description": "È il percorso di `../transform-tree/update.ts`, con esattamente le stesse due formule nello stesso ordine, su buffer piatti: il kernel WebAssembly lo riproduce termine per termine. `parents[i]` DEVE essere l'indice di un nodo già aggiornato, quindi strettamente minore di `i`; qualsiasi altro valore — la sentinella `HIERARCHY_ROOT` inclusa — rende il nodo una radice la cui matrice del mondo è la sua matrice locale. La regola è identica su entrambi i lati: nessun ingresso, per quanto ostile, può farli divergere."
+    "description": "Le due formule girano su buffer piatti, e il kernel WebAssembly le riproduce termine per termine. `parents[i]` DEVE essere l'indice di un nodo già aggiornato, quindi strettamente minore di `i`; qualsiasi altro valore — la sentinella `HIERARCHY_ROOT` inclusa — rende il nodo una radice la cui matrice del mondo è la sua matrice locale. La regola è identica su entrambi i lati: nessun ingresso, per quanto ostile, può farli divergere."
   },
   "hierarchyUpdateBatch": {
     "summary": "Calcola le matrici nel mondo di un'intera gerarchia in un solo passaggio, genitori prima."
   },
   "HIZ_NOTHING": {
     "summary": "Valore restituito quando non viene letto alcun texel: non può nascondere nulla.",
-    "description": "La profondità del motore è INVERTITA — il vicino vale 1, il lontano 0 (`../math/primitives/camera.ts`). Una scatola avvolgente è nascosta solo se il suo limite di profondità più vicino è PIÙ LONTANO (valore più piccolo) della profondità dell'ostacolo."
+    "description": "La profondità del motore è INVERTITA — il vicino vale 1, il lontano 0 (`../../../math/src/projection/camera.ts`). Una scatola avvolgente è nascosta solo se il suo limite di profondità più vicino è PIÙ LONTANO (valore più piccolo) della profondità dell'ostacolo."
   },
   "hizBuildFlat": {
     "summary": "Piramide completa a partire dalla profondità del buffer di visibilità.",
@@ -2431,7 +2432,7 @@
   },
   "HostNodeMatrix": {
     "summary": "Gli stessi sedici float, MODIFICABILI termine per termine: la posa che un confine rimette su un nodo dell'host o su una camera dell'host che ripristina.",
-    "description": "È la faccia modificabile di `MatrixElements` e vive accanto; nulla chiede all'host di comporli — `copyElements` li scrive così come sono.",
+    "description": "È la faccia modificabile di `MatrixElements` e vive accanto; nulla chiede all'host di comporli — `copyMatrix4` li scrive così come sono.",
     "members": {
       "elements": "I sedici numeri, per indice."
     }
@@ -4550,7 +4551,8 @@
       "onEvict": "Riceve ogni pagina che lascia la cache.",
       "maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita."
+      "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
+      "onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo: di nuovo solo dopo che è arrivata."
     }
   },
   "PanZoomCameraControls": {
@@ -4930,7 +4932,7 @@
     "summary": "Numeri per triangolo del proxy: tre vertici nel mondo, nessuna normale — si deduce dal triangolo."
   },
   "Quaternion": {
-    "summary": "Una rotazione in quaternione unitario, sopra `math/matrix/quaternion.ts`.",
+    "summary": "Una rotazione in quaternione unitario, sopra `packages/math/src/quaternion/quaternion.ts`.",
     "description": "Le componenti scritte avvisano il loro proprietario.",
     "members": {
       "isQuaternion": "Sempre `true`: distingue un quaternione da tutto il resto.",
@@ -5644,9 +5646,11 @@
   "StreamPage": {
     "summary": "Una pagina recuperata da un flusso: dove, quale dimensione, e la sua impronta.",
     "members": {
-      "url": "Dove viene letta.",
+      "url": "Dove viene letta, o il suo nome nel catalogo quando è un `range` di un altro file.",
       "bytes": "La sua dimensione.",
-      "sha256": "Impronta dei suoi byte."
+      "sha256": "Impronta dei suoi byte.",
+      "range": "Una pagina che è i `bytes` del file `file` a partire da `offset`, letta con un HTTP Range: la coda legge con una sola richiesta gli intervalli accodati uno dopo l’altro in uno stesso file (`queueRanges.ts`).",
+      "kept": "False per una pagina di cui ciascuno di chi la chiede tiene ciò che decodifica: letta per chi si unisce alla sua lettura, mai tenuta nella cache delle pagine, i suoi byte conservati una sola volta."
     }
   },
   "summarize": {
@@ -6245,7 +6249,7 @@
   },
   "Vector3": {
     "summary": "Un punto o una direzione in tre dimensioni, concatenato.",
-    "description": "I numeri vivono in `elements`, letti e scritti dalle funzioni del core di `math/primitives/vector.ts`; ogni scrittura avvisa il proprietario.",
+    "description": "I numeri vivono in `elements`, letti e scritti dalle funzioni del core di `packages/math/src/vector/vector.ts`; ogni scrittura avvisa il proprietario.",
     "members": {
       "isVector3": "Sempre `true`: distingue un vettore 3D.",
       "set": "Scrive i tre numeri; una scrittura che non ne cambia nessuno non avvisa nessuno.",
@@ -6561,7 +6565,7 @@
       "uncoveredTriangles": "Triangoli dei cluster nominati dal taglio pubblicato ma che l'immagine non può disegnare — nessuna pagina residente e nessun antenato che copra. Un vero buco nell'immagine: zero è l'unico valore sano. Nullo quando un motore non può dirlo (disegna il taglio che ha scelto, quindi non ne ha mai).",
       "drawnTriangles": "Triangoli che l'IMMAGINE ATTUALE dà al disegno: il suo taglio di cluster, opachi e trasparenti della gerarchia insieme. Le mesh trasparenti fuori dalla gerarchia non ci sono (`transparentSubmittedTriangles`), e il rifiuto per occlusione non viene sottratto (`hizRejectedTriangles`). Contato all'adozione del taglio: nessuna rilettura asincrona della GPU è attesa, quindi non vale mai `null` per mancanza di tempo, a differenza di `submittedTriangles`.",
       "cpuSelectNodesTested": "Nodi della gerarchia su cui il taglio di questo fotogramma ha fatto un test — decisione di frustum o di livello di dettaglio. Un nodo già deciso e interamente visibile non ne riceve nessuno: viene percorso, non testato. È la misura del vero lavoro di un taglio gerarchico; un taglio piatto ne testa zero e percorre ogni cluster. Nullo per un motore che non sceglie il proprio taglio sulla CPU, o che non lo conta.",
-      "mathBatch": "Stato del regolatore delle vie di calcolo (`../math/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
+      "mathBatch": "Stato del regolatore delle vie di calcolo (`../runtime/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
       "pagesPlannedOffThread": "Integrazione delle pagine fuori dal thread principale. `pagesPlannedOffThread` conta gli arrivi il cui piano — il posto di ogni cluster nel pacchetto e i ranghi di pagine che sposta — è stato calcolato da un worker, mai quelli che il ripiego ha pianificato sul thread principale. `pagePlanMs` è il tempo cumulato di questi piani, misurato dall'esecutore stesso, qualunque sia il thread: non viene mai sommato a un `cpu*` o `gpu*` per fotogramma. Entrambi valgono `null` finché nessun arrivo è stato pianificato — non misurato, non zero.",
       "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
       "lightsActive": "Luci del contratto `SceneLight` che l'immagine ha illuminato. Nullo per un motore che le ignora.",

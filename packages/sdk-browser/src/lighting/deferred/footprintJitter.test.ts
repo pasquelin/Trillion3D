@@ -7,7 +7,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { invertMatrix4, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
-import { perspectiveProjection } from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { perspectiveProjection } from '../../../../math/src/projection/camera.ts'
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { TAA_SAMPLES, jitterViewProjection, taaJitter } from '../../taa/jitter.ts'
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'

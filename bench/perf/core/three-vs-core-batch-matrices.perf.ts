@@ -5,13 +5,13 @@ import {
   composeMatrix4Batch,
   invertMatrix4Batch,
   normalMatrix3Batch,
-} from '../../../packages/sdk-core/src/math/index.ts'
+} from '../../../packages/math/src/index.ts'
 import { rapport } from '../../core/index.ts'
 import type { Measurement } from '../../core/index.ts'
 import { duel, points, quaternion } from '../../oracles/core/three-duel.ts'
 import { N, prepareBatchData } from '../../oracles/core/batch-duel.ts'
 
-const BATCH = 'packages/sdk-core/src/math/batch/batch.ts'
+const BATCH = 'packages/math/src/batch/batch.ts'
 const { mats, outMats, outMatViews, outThreeMats, oracleMats } = prepareBatchData()
 const lines: Measurement[] = []
 
@@ -76,7 +76,7 @@ lines.push(
     name: 'NormalMatrix3 batch',
     fichier: BATCH,
     // Not the same computation: `normalMatrix3` carries the singularity decision the WGSL kernel
-    // mirrors (`packages/sdk-core/src/math/matrix/singular.ts`, `inverseTransposeWgsl.ts`), which `getNormalMatrix` does not have.
+    // mirrors (`packages/math/src/matrix/singular.ts`, `inverseTransposeWgsl.ts`), which `getNormalMatrix` does not have.
     // Measured 1.52× to 1.67× over five runs (paired median, Oct. 2026): the ceiling keeps one
     // tenth of headroom, so a 10 % slowdown fails where 2.2× let 45 % through.
     slower: {

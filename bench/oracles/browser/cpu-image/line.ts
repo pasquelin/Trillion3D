@@ -1,6 +1,6 @@
 // The CPU image oracle's line: the twins, statement for statement, of the WGSL a GPU raster
 // widens and dashes a line with (`packages/sdk-browser/src/visibility/shader/lineWgsl.ts`).
-import { hypot2 } from '../../../../packages/sdk-core/src/math/primitives/hypot.ts'
+import { hypot2 } from '../../../../packages/math/src/float/hypot.ts'
 
 /** `LINE_CLIP_WGSL` on the CPU, statement for statement, in the engine's reversed depth: the
  *  oracle's projection (`./projection.ts`) widens a line quad's corner with it. Writes into `out`,

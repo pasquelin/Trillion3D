@@ -3,7 +3,7 @@ import type { ClusterRoot, DeformationOutput } from '../page/selection/types.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import { pageAddress } from '../webgpu/row/pageSlots.ts'
 import type { HostAttributes } from '../host/resources.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import {
   DEFORM_IN_POOL,
   DEFORM_NO_HEADER,

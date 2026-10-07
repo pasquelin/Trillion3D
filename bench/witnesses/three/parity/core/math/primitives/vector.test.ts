@@ -13,7 +13,7 @@ import {
   transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../../../../../../packages/sdk-core/src/math/primitives/vector.ts'
+} from '../../../../../../../packages/math/src/vector/vector.ts'
 
 const close = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol
 

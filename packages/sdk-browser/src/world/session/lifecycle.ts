@@ -123,7 +123,7 @@ function pageAwaiter(inputs: Inputs) {
       const load = async (missing: string[]) => {
         holdPages(engine, streamer, missing, read.hold)
         // `load` hears the cut even when it lacks nothing; an empty batch is not asked.
-        if (missing.length) await streamer.request(missing)
+        if (missing.length) await streamer.request(missing, { signal: streamer.signal })
         for (const url of missing) {
           const array = streamer.get(url)
           if (array) engine.acceptPage(url, array)

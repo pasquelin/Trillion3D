@@ -1,6 +1,6 @@
 import type { HostMesh } from '../host/resources.ts'
 import type { BlendCopy } from './blendCopyContract.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { PlacementOf } from '../placement/rows.ts'
 

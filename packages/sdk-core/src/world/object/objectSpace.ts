@@ -1,6 +1,6 @@
 import { createSceneRoot } from '../../scene/core/root.ts'
-import { releaseTransformNode } from '../../math/transform-tree/structure.ts'
-import type { TransformTree } from '../../math/transform-tree/transformTree.ts'
+import { releaseTransformNode } from '../transform-tree/structure.ts'
+import type { TransformTree } from '../transform-tree/transformTree.ts'
 
 /**
  * The transform hierarchy every scene object is a node of; a new node is a detached root of it.

@@ -18,7 +18,7 @@ test('bytes reserved for the engine tables come out of the cache budget', async 
     maxTransferBytes: 64,
     maxCachedBytes: 36,
   })
-  await streamer.request(urls)
+  await streamer.request(urls, { signal: streamer.signal })
   streamer.retain(['a.bin'])
   assert.equal(streamer.stats().resident, 3)
   streamer.reserve(() => 20)

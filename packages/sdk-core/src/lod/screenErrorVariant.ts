@@ -30,7 +30,7 @@
  * Each side of the bench runs in its own page: module state is enough to separate them.
  */
 
-import { clipWeight } from '../math/primitives/camera.ts'
+import { clipWeight } from '../../../math/src/projection/camera.ts'
 import { SCREEN_ERROR_VARIANTS } from './screenErrorVariants.ts'
 /** How a cluster's screen error is measured: the proven bound, or the plain formula. */
 export type ScreenErrorVariant = (typeof SCREEN_ERROR_VARIANTS)[number]

@@ -1,5 +1,5 @@
 import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
-import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 
 /**

@@ -18,10 +18,10 @@ const WORKERS = [
   'sdk-browser/src/page/work/pageWorker.js',
   'sdk-browser/src/page/integration/pageIntegrationWorker.js',
   'sdk-browser/src/physics/physicsWorker.js',
-  'sdk-browser/src/math/animationWorker.js',
+  'sdk-browser/src/animation/animationWorker.js',
 ]
 const MODULES = [
-  'sdk-browser/src/math/wasm/kernels.wasm',
+  'sdk-browser/src/wasm/kernels.wasm',
   'sdk-browser/src/physics/joltPhysics.wasm',
   'sdk-browser/src/physics/joltPhysicsThreads.wasm',
 ]

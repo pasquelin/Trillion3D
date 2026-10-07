@@ -1,5 +1,5 @@
 import { RUN_CADENCE, type CharacterSettings } from './characterSettings.ts'
-import { hypot2 } from '../math/primitives/hypot.ts'
+import { hypot2 } from '../../../math/src/float/hypot.ts'
 
 /**
  * WHERE THE EYE RIDES ON A CHARACTER'S BODY: a height to add to `eyeHeight`, drawn after the

@@ -5,7 +5,7 @@ import { plane, sphere } from '../world/geometry/basic.ts'
 import { fromArrays } from '../world/geometry/builder.ts'
 import { InterleavedBuffer, InterleavedBufferAttribute } from '../world/buffer/attribute.ts'
 import { refuses } from '../contracts/cache.fixture.ts'
-import { near } from '../math/near.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 import { one, positions } from './shape.fixture.ts'
 import { GRAVITY_PRESETS, PHYSICS_STEP } from './options.ts'
 import {

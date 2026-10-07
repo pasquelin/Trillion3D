@@ -10,7 +10,7 @@ import {
   vsmSeenPlanes,
   type VsmFrameLight,
 } from '../../../../vsm/frameSetup.ts'
-import { FRUSTUM_PLANE_VALUES } from '../../../../../../sdk-core/src/math/frustum/frustum.ts'
+import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../../../../vsm/projectionPass.ts'
 import { vsmInvalidationPhaseFromShadowBoxes } from '../../../../vsm/invalidationPass.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'

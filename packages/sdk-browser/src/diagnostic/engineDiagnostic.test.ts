@@ -40,9 +40,9 @@ test('a streamer with no listener reads, hits and evicts; one with a listener he
   for (const onDiagnostic of [undefined, (d: EngineDiagnostic) => void phases.push(d.phase)]) {
     const streamer = createPageStreamer(pages, 'http://diag/', { maxPages: 1, onDiagnostic })
     // One read after the other: `b` lands last, so it is the one kept and read again as a hit.
-    await streamer.request(['a.bin'])
-    await streamer.request(['b.bin'])
-    await streamer.request(['b.bin'])
+    await streamer.request(['a.bin'], { signal: streamer.signal })
+    await streamer.request(['b.bin'], { signal: streamer.signal })
+    await streamer.request(['b.bin'], { signal: streamer.signal })
     assert.equal(streamer.stats().evictions, 1)
     streamer.dispose()
   }

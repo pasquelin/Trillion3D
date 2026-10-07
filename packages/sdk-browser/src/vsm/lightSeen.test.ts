@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { perspectiveProjection } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import { VSM_MAP_UNSEEN } from './constants.ts'

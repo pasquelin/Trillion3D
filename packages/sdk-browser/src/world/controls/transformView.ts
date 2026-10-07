@@ -1,9 +1,6 @@
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
-import {
-  orthographicView,
-  perspectiveSlope,
-} from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { orthographicView, perspectiveSlope } from '../../../../math/src/projection/camera.ts'
 
 const eye = new Vector3(),
   ahead = new Vector3(),

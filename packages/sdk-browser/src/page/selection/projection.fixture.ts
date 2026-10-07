@@ -1,4 +1,4 @@
-import { clipWeight } from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { clipWeight } from '../../../../math/src/projection/camera.ts'
 
 /**
  * Floor of a subtree's projected error: the smallest error it carries, seen at the farthest

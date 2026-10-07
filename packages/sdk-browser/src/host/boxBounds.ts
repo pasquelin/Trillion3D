@@ -2,8 +2,8 @@
  * The local box a host geometry carries, read by its two corners into a flat array.
  *
  * Reading a box is not a computation and needs no rendering library: a host box is two points,
- * and the engine copies their six numbers. Volumes themselves are computed in `packages/sdk-core/src/math/primitives/box.ts` and
- * `packages/sdk-core/src/math/primitives/sphere.ts`.
+ * and the engine copies their six numbers. Volumes themselves are computed in `packages/math/src/geometry/box.ts` and
+ * `packages/math/src/geometry/sphere.ts`.
  */
 import type { HostBox } from './resources.ts'
 

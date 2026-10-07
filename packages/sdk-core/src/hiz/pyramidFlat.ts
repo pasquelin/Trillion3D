@@ -1,7 +1,7 @@
 /**
  * Value returned when no texels are read: cannot occlude anything.
  *
- * Engine depth is REVERSED — near is 1, far is 0 (`../math/primitives/camera.ts`). A bounding box is occluded
+ * Engine depth is REVERSED — near is 1, far is 0 (`../../../math/src/projection/camera.ts`). A bounding box is occluded
  * only if its nearest depth bound is FARTHER (smaller value) than the occluder depth.
  */
 export const HIZ_NOTHING = Number.NEGATIVE_INFINITY

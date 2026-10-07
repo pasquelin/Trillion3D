@@ -4,7 +4,7 @@
 // point lights: what each frame left in the buffers it wrote, and what it asked of the device.
 import { createHash } from 'node:crypto'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { perspectiveProjection } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { perspectiveProjection } from '../../../math/src/projection/camera.ts'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { createVsmResources } from './resources.ts'
 import {

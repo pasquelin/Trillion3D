@@ -1,6 +1,6 @@
 import { paletteReach } from '../../../sdk-core/src/world/animation/skeleton.ts'
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts'
-import { keepNumbers } from '../../../sdk-core/src/math/primitives/vector.ts'
+import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import type { Deformed } from './frame.ts'
 
 /** True when the `size` floats at `a` and at `b` of `block` differ. */
@@ -30,7 +30,7 @@ type Held = {
  * block holds, and its reach the one measured then. The inputs are the skeleton, the placement's
  * world at the same bits, and each bone's world. A bone, a node of the transform tree, is
  * unchanged while it is the same node at the same `_worldVersion`: the count the tree bumps at
- * every recalculation of a world matrix (`math/transform-tree/update.ts`), the signal its own
+ * every recalculation of a world matrix (`world/transform-tree/update.ts`), the signal its own
  * children are recomputed by. A skeleton's bind (`boneInverses`) is made with it: a new bind is a
  * new skeleton. Each placement holds as many joints as its record.
  */

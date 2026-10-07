@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { Vector3, readVec3 } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
 import { Quaternion } from './quaternion.ts'
-import { listen } from './observed.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { listen } from '../observed.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 const near = (actual: number[], expected: number[]) => within(actual, expected, 'vector', 1e-10)
 

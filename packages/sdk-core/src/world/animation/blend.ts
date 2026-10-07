@@ -1,5 +1,8 @@
-import { multiplyQuaternion, normalizeQuaternion } from '../../math/matrix/quaternion.ts'
-import { POSITION_VALUES, QUATERNION_VALUES } from '../../math/batch/strides.ts'
+import {
+  multiplyQuaternion,
+  normalizeQuaternion,
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { POSITION_VALUES, QUATERNION_VALUES } from '../../../../math/src/batch/strides.ts'
 
 /** The width of each pose value of a node, by its field: a scale has a position's. */
 const POSE_WIDTHS = {

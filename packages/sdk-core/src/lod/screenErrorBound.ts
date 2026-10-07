@@ -1,4 +1,4 @@
-import { clipWeight } from '../math/primitives/camera.ts'
+import { clipWeight } from '../../../math/src/projection/camera.ts'
 import { referenceScreenError, screenErrorVariant } from './screenErrorVariant.ts'
 
 /**
