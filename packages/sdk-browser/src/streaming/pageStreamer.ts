@@ -1,8 +1,8 @@
 import { createStreamingFetcher } from './fetch.ts'
 import { createStreamingQueue } from './queue.ts'
 import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts'
-import { createJobHeap } from './queueOrder.ts'
-import { refusalOf, type ReadFailure } from './failures.ts'
+import { createTransferQueue } from './queueRanges.ts'
+import { createReadFailures } from './failures.ts'
 import { createStreamingCache } from './cache.ts'
 import { createIndexViews } from './indexView.ts'
 import { createPageCache, type PageCache } from './pageCache.ts'
@@ -30,10 +30,13 @@ export function createPageStreamerWith(
   const store = kept ?? createPageCache(maxCachedBytes),
     cache = store.pages,
     jobs = new Map<string, Job>(),
-    queue = createJobHeap<Job>()
+    queue = createTransferQueue()
   const pinned = new Set<string>(),
-    failures = new Map<string, ReadFailure>(),
     abort = new AbortController()
+  // A job whose failure's wait ended is queued again by the queue below, made once this is.
+  const failures = createReadFailures({ jobs, catalog, onStalled: options.onStalled }, (job) =>
+    reads.requeue(job),
+  )
   if (signal) {
     if (signal.aborted) abort.abort(signal.reason)
     else signal.addEventListener('abort', () => abort.abort(signal.reason), { once: true })
@@ -43,7 +46,6 @@ export function createPageStreamerWith(
     throw new Error('INVALID_PAGE_TRANSFER_BUDGET')
   const state = {
     tableBytes: manifestTableBytes(pages),
-    refused: 0,
     order: 0,
     active: 0,
     activeBytes: 0,
@@ -62,9 +64,8 @@ export function createPageStreamerWith(
   const context: StreamContext = {
     ...{ base, catalog, store, cache, jobs, queue, pinned, failures, abort, limit, maxPages },
     ...{ maxTransferBytes, onEvict, onDiagnostic, state, emit, abortError },
-    onStalled: options.onStalled,
   }
-  const { loadOne, roundTrip, keptBytes, readFrom } = createStreamingFetcher(context, store.touch)
+  const { read: transfer, roundTrip, keptBytes } = createStreamingFetcher(context, store.touch)
   const reserved = () => state.tableBytes + maxTransferBytes + state.reservedBytes() + keptBytes()
   const streaming = createStreamingCache(context, reserved)
   const { touch, evict, sync, retain, retainRanks, reserve } = streaming
@@ -83,8 +84,9 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }))
-  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict, sync)
-  const { read, watch } = createReadWatch(subscribe)
+  const reads = createStreamingQueue(context, transfer, touch, evict, sync)
+  const { forget, keep } = reads
+  const { read, watch } = createReadWatch(reads.subscribe)
   const asIndices = createIndexViews()
   const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
     state.requested++
@@ -113,9 +115,9 @@ export function createPageStreamerWith(
     },
     has: (url: string) => cache.has(url),
     loading: (url: string) => jobs.has(url),
-    /** Whether a read of `url` is refused now: its failure's wait is not over, or it never passes. */
-    failed: (url: string) => refusalOf(context, url) !== undefined,
-    readFrom,
+    /** Whether a read of `url` is refused for good: another request would meet its failure again.
+     *  One that may pass is never refused: it waits its turn, its askers waiting on it. */
+    failed: (url: string) => failures.refusal(url) !== undefined,
     /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
     roundTripMs: roundTrip.ms,
     read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
@@ -162,8 +164,8 @@ export function createPageStreamerWith(
           state.tableBytes + state.activeBytes + store.bytes + store.besideBytes + keptBytes(),
         cpuBudgetBytes: store.cpuBytes,
         evictions: state.evictions,
-        /** Reads refused now (`failures.ts`): one whose wait is over is asked again. */
-        failed: state.refused,
+        /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
+        failed: failures.count(),
         admissionBlocked: state.admissionBlocked,
       }
     },
@@ -174,10 +176,10 @@ export function createPageStreamerWith(
         version: 1,
         resident: cache.size,
         loading: state.active,
-        failed: failures.size,
+        failed: failures.count(),
       }))
       abort.abort(abortError())
-      for (const job of jobs.values()) job.controller.abort(abortError())
+      for (const job of jobs.values()) job.stop.abort(abortError())
       jobs.clear()
       queue.clear()
       release()

@@ -70,9 +70,9 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     camera,
     active: () => state.active,
     opened: context,
-    ...{ renew: options.onPartitionOutgrown, budget: frameBudget, wake: pageSources.wake },
+    renew: options.onPartitionOutgrown,
+    budget: frameBudget,
   })
-  if (followCells) host.hostedControls.push(followCells) // its wake timer leaves with the session
   const render = createExplorerRender(session, {
     check,
     followCells,

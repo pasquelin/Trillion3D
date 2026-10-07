@@ -3,8 +3,6 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import { ARRIVAL_QUEUE_BATCH } from '../../backend/common.ts'
 import { decodePageOffThread } from '../../page/decode/host.ts'
 import { PRIORITY_VISIBLE } from '../../streaming/priority.ts'
-import { ATTEMPTS } from '../../streaming/fetchAttempt.ts'
-import { finalFailure } from '../../streaming/failures.ts'
 import type { RenderBackend } from '../../backend/types.ts'
 import type { ExplorerHostState } from '../render/hostState.ts'
 import type { ExplorerSession } from '../session/session.ts'
@@ -88,26 +86,25 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
         if (streamingError === detail) return
         streamingError = detail
         const recovered = state.active.metrics().coverageReady === true
-        if (recovered || finalFailure(error))
-          emit(
-            recovered
-              ? {
-                  eventVersion: 1,
-                  type: 'fallback',
-                  audience: 'diagnostic',
-                  recovered: true,
-                  code: 'PAGE_STREAM_FAILED',
-                  detail,
-                }
-              : {
-                  eventVersion: 1,
-                  type: 'fatal',
-                  audience: 'blocking',
-                  recovered: false,
-                  code: 'PAGE_STREAM_FAILED',
-                  detail,
-                },
-          )
+        emit(
+          recovered
+            ? {
+                eventVersion: 1,
+                type: 'fallback',
+                audience: 'diagnostic',
+                recovered: true,
+                code: 'PAGE_STREAM_FAILED',
+                detail,
+              }
+            : {
+                eventVersion: 1,
+                type: 'fatal',
+                audience: 'blocking',
+                recovered: false,
+                code: 'PAGE_STREAM_FAILED',
+                detail,
+              },
+        )
         diagnose(
           'coverage-streaming-failed',
           'Page load failed; GPU fallback cover kept if available',
@@ -116,7 +113,6 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
             version: 1,
             error: detail,
             failedPages: streamer.stats().failed,
-            maxAttemptsPerPage: ATTEMPTS,
             coverageReady: state.active.metrics().coverageReady ?? null,
             recovered,
             scope,

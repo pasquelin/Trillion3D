@@ -7,13 +7,15 @@ import type { StreamPage } from '../streaming/types.ts'
 import type { CellRows } from './cellDecode.ts'
 import type { PageBody } from './cellIndex.ts'
 
-/** A frame's: the streamer's verified bytes and their decode off the main thread, reads, requests
- *  (`ahead`: before needed), catalogue, rows, else the owner told. */
+/** A frame's: the streamer's verified bytes and their decode off the main thread, reads and those
+ *  refused for good, requests (`ahead`: before needed), catalogue, rows, else the owner told. */
 export type CellFrameIo = {
   bytes(url: string): Uint8Array | undefined
   decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
   decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
   loading(url: string): boolean
+  /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
+  failed(url: string): boolean
   request(urls: readonly string[], ahead: boolean): void
   admit(pages: readonly StreamPage[]): void
   forget(urls: readonly string[]): void

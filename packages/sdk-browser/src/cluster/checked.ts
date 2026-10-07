@@ -34,7 +34,7 @@ export const refusedStatus = (error: unknown) => {
 /** Whether the read that failed with `error` is worth asking again (`retriable`): a 4xx is not. */
 export const retriableError = (error: unknown) => retriable(refusedStatus(error))
 /** A refused answer's body let go at once, not left to hold its connection until collected. */
-const letGo = (response: Response) => void response.body?.cancel().catch(() => {})
+export const letGo = (response: Response) => void response.body?.cancel().catch(() => {})
 /** What an optional file's absence answers: a 404, or the 403 of a store that hides what it lacks. */
 const ABSENT = new Set([403, 404])
 

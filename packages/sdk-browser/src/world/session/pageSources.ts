@@ -11,8 +11,8 @@ import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
 type Progress = (phase: string, completed: number, total: number, message: string) => void
 
-/** A read of the session's streamer that keeps failing past its longest wait, said on
- *  `channel`. */
+/** A read of the session's streamer that fails for good or keeps failing past its longest wait,
+ *  said on `channel`. */
 const stalledOn =
   (channel: ReturnType<typeof createDiagnosticChannel>) =>
   ({ url, cause }: { url: string; cause: unknown }) =>
@@ -68,7 +68,6 @@ export async function createExplorerPageSources(
     loaded = all.loaded
     pageBytesRead = all.pageBytesRead
   } else progress('pages', 0, pages.length, 'Hierarchy ready · pages on demand')
-  let woken = () => {}
   // The queue comes last: no wait after it leaves it unowned till the preparation takes it.
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {
     cache: options.pageCache,
@@ -97,9 +96,6 @@ export async function createExplorerPageSources(
     loaded,
     pageBytesRead,
     indices,
-    /** Asks the session's loop for a frame once it runs (`wakeWith`): a failed hold's wait is over. */
-    wake: () => woken(),
-    wakeWith: (loop: () => void) => void (woken = loop),
   }
 }
 

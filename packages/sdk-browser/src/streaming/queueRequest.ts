@@ -28,21 +28,23 @@ export function answerFromCache(
   return undefined
 }
 
-/** The job reading `url`: a new one, queued, or the one already reading it, raised to the
- *  urgency of this request. */
+/** The job reading `url`: a new one — queued, or waiting its turn while the wait of its last
+ *  failure runs (`failures.ts`) —, or the one already reading it, raised to the urgency of this
+ *  request. */
 export function jobFor(
   context: StreamContext,
   sync: (url: string) => void,
   url: string,
   priority: number,
 ): Job {
-  const { state, queue, jobs, emit, catalog } = context
+  const { state, queue, jobs, emit, catalog, failures } = context
   let job = jobs.get(url)
   if (!job) {
-    job = createJob(url, priority, state.order++, catalog.get(url)!.bytes)
+    job = createJob(catalog.get(url)!, priority, state.order++)
     jobs.set(url, job)
     sync(url)
-    queue.push(job)
+    if (failures.waiting(url)) job.state = 'waiting'
+    else queue.push(job)
     return job
   }
   // A request that gains urgency climbs to its new place: a job already gone is no longer queued.
@@ -58,10 +60,10 @@ export function jobFor(
   return job
 }
 
-/** `job`'s last consumer left: still queued, it is taken out of the queue. A page under way is
- *  paid for and lands, every page alike: a view that asks it again meanwhile — a camera turning
- *  back, a cell held again — joins its read rather than starting it anew, and the cache keeps it
- *  for a later ask unless its askers keep it (`StreamPage.kept`). */
+/** `job`'s last asker left: queued, or waiting its turn after a failure, it is dropped. A page
+ *  under way is paid for and lands, every page alike: a view that asks it again meanwhile — a
+ *  camera turning back, a cell held again — joins its read rather than starting it anew, and the
+ *  cache keeps it for a later ask unless its askers keep it (`StreamPage.kept`). */
 export function dropQueued(
   context: StreamContext,
   url: string,
@@ -69,10 +71,9 @@ export function dropQueued(
   end: (url: string, job: Job) => void,
 ) {
   const { jobs, queue, emit, abortError } = context
-  if (jobs.get(url) !== job || job.state !== 'queued') return
+  if (jobs.get(url) !== job || job.state === 'active') return
   end(url, job)
-  job.controller.abort(abortError())
+  job.stop.abort(abortError())
   emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }))
   queue.remove(job)
-  job.state = 'dropped'
 }

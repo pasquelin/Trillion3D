@@ -1,3 +1,5 @@
+import type { CellFrameIo } from './cellIo.ts'
+
 /**
  * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM: a cell file, or a page of
  * the cell index. Its verified bytes are handed to the decode pool as soon as a frame needs them
@@ -52,29 +54,28 @@ export function createDecodes<Key, Decoded extends object>() {
 /** Where `takeDecoded` reads and spends: the frame's io, its budget, and whether its list is read
  *  ahead of need. */
 type Taking = {
-  io: { bytes(url: string): Uint8Array | undefined; loading(url: string): boolean } & {
-    request(urls: readonly string[], ahead: boolean): void
-  }
+  io: Pick<CellFrameIo, 'bytes' | 'loading' | 'failed' | 'request'>
   budget: { admits(): boolean; spend(): void }
   ahead: boolean
 }
 
-/** Takes each file of `list` whose decode landed while the budget admits it (`taken`, told `at`:
- *  false while it waits), hands the read ones to `decode`, and asks the unread ones of the streamer.
- *  True when one needed now is left for a later frame. */
-export function takeDecoded<Key, Decoded extends object, At extends Taking>(
+/** Takes each file of `list` whose decode landed while the budget admits it (`taken`: false while
+ *  it waits), hands the read ones to `decode`, and asks the unread ones of the streamer — never one
+ *  refused for good, which waits for nothing: no frame is drawn again for it. True when one needed
+ *  now is left for a later frame. */
+export function takeDecoded<Key, Decoded extends object>(
   list: readonly Key[],
-  at: At,
+  { io, budget, ahead }: Taking,
   files: ReturnType<typeof createDecodes<Key, Decoded>>,
   url: (key: Key) => string,
   decode: (bytes: Uint8Array, url: string) => Promise<Decoded>,
-  taken: (key: Key, decoded: Decoded, at: At) => boolean,
+  taken: (key: Key, decoded: Decoded) => boolean,
 ) {
-  const { io, budget, ahead } = at,
-    ask: string[] = []
+  const ask: string[] = []
   let later = false
   for (const key of list) {
     const address = url(key)
+    if (io.failed(address)) continue
     const decoded = files.decoded(
       key,
       () => io.bytes(address),
@@ -85,7 +86,7 @@ export function takeDecoded<Key, Decoded extends object, At extends Taking>(
       later ||= !ahead
       continue
     }
-    if (!taken(key, decoded, at)) continue
+    if (!taken(key, decoded)) continue
     files.drop(key)
     budget.spend()
   }

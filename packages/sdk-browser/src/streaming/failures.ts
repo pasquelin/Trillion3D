@@ -1,69 +1,130 @@
 /**
- * WHEN A READ THAT FAILED IS ASKED AGAIN. One that may pass (`retriableError`: the network, a
- * timeout, a rate limit, a server error, an answer that is not what its page announced) waits
- * 0.5 s · 2^(k−1) after its k-th failure in a row, at most 8 s; one another request would meet
- * again — a 404, a 403 — is never asked again. The error the read fails with carries the end of
- * its wait (`Refusal.due`, the one clock: a cell's hold that failed reads it, `retryAt`), and
- * whether it is final: refused for good, or past the longest wait (`stalled`). A streamer refuses
- * a page at once while its wait runs, no request sent, counting it (`state.refused`) till it ends,
- * and says it once when final (`onStalled`): a source refusing every read of F pages is asked at
- * most F times in the first half second, then ever more seldom, down to F every 8 s — never once
- * a frame. A failure outlives its page while its wait runs — asked again meanwhile, it is still
- * refused — and leaves once it ended; one for good leaves with it, nothing asking it any more.
+ * WHEN A READ THAT FAILED IS ASKED AGAIN — the one failure policy, the read layer's. A read that
+ * may pass (`retriableError`: the network, a timeout, a rate limit, a server error, an answer that
+ * is not what its page announced) waits 0.5 s · 2^(k−1) after its k-th failure in a row, at most
+ * 8 s, then its job is queued again (`requeue`): its askers keep waiting on it, never told it
+ * failed, and one that lets it go drops it as it would a queued one. One another request would
+ * meet again — a 404, a 403 — fails its job for good and is refused at once, no request sent, while
+ * its page is catalogued. A failure is said once (`onStalled`) when for good or as it first waits
+ * the longest. A source refusing every read of F pages is asked at most F times in the first half
+ * second, then ever more seldom, down to F every 8 s — never once a frame.
+ *
+ * The waits are one heap on their end (`heap.ts`) and one timer, set for the first: no timer and
+ * no listener per failure. A failure outlives its page while its wait runs — a page admitted again
+ * meanwhile still waits it out — and leaves once its wait ended, or at once when for good.
  */
-import { pause, retriableError } from '../cluster/checked.ts'
-import type { StreamContext } from './types.ts'
+import { retriableError } from '../cluster/checked.ts'
+import { createHeap } from './heap.ts'
+import type { Job, PageStreamerOptions, StreamPage } from './types.ts'
 
 const FIRST_WAIT_MS = 500,
   LAST_WAIT_MS = 8000
 
-/** The error a read fails with, and is refused with while its wait runs: when it may be asked
- *  again, `Infinity` for good, and whether it is final. */
-export type Refusal = Error & { due: number; stalled: boolean }
-/** A page's last failure, its failures in a row, and whether it was said. */
-export type ReadFailure = { error: Refusal; tries: number; said: boolean }
+/** A page's failures in a row: the last one's error, how many, when its wait ends — `Infinity`
+ *  for good —, and its place in the waits' heap, −1 out of it. */
+type ReadFailure = { url: string; error: Error; tries: number; due: number; slot: number }
 
-/** When what failed with `error` may be asked again: its read's wait, or never for a failure that
- *  is no read's (a file that does not decode: another read would meet it again). */
-export const retryAt = (error: unknown) => (error as Partial<Refusal> | undefined)?.due ?? Infinity
-/** Whether what failed with `error` is final — refused for good, past the longest wait, or no
- *  read's failure —, else one more wait asks it again. */
-export const finalFailure = (error: unknown) => (error as Partial<Refusal>)?.stalled !== false
-
-/** The failure a request of `url` is refused with now: its wait is not over, or it never passes. */
-export function refusalOf(context: StreamContext, url: string) {
-  const failure = context.failures.get(url)
-  return failure && failure.error.due > performance.now() ? failure.error : undefined
+/** What the failures read of their streamer: its jobs and catalogue, and who hears a stall. */
+type Reads = {
+  jobs: ReadonlyMap<string, Job>
+  catalog: ReadonlyMap<string, StreamPage>
+  onStalled?: PageStreamerOptions['onStalled']
 }
 
-/** `url` left the catalogue: its failure leaves once its wait is over, at once when for good. */
-export function failureLeaves(context: StreamContext, url: string) {
-  const due = context.failures.get(url)?.error.due ?? 0
-  if (due > performance.now() && due < Infinity) return
-  if (due === Infinity) context.state.refused--
-  context.failures.delete(url)
+/** The wait after the `tries`-th failure in a row of a read that may pass. */
+const waitAfter = (tries: number) =>
+  tries ? Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** (tries - 1)) : 0
+
+/** The failures of `reads`' pages, a job whose wait ended queued again by `requeue`. */
+export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
+  const failures = new Map<string, ReadFailure>()
+  const waits = createHeap<ReadFailure>(
+    (a, b) => a.due < b.due,
+    (failure, at) => (failure.slot = at),
+  )
+  let timer: ReturnType<typeof setTimeout> | undefined,
+    armed = Infinity,
+    final = 0
+  /** The one timer, set for the first wait to end. */
+  const arm = () => {
+    const due = waits.items[0]?.due ?? Infinity
+    if (due === armed) return
+    clearTimeout(timer)
+    armed = due
+    if (due < Infinity) timer = setTimeout(wake, Math.max(0, due - performance.now()))
+  }
+  /** The waits over now end: a job waiting is queued again, a failure whose page left leaves. */
+  const wake = () => {
+    armed = Infinity
+    const now = performance.now()
+    while (waits.size && waits.items[0].due <= now) {
+      const failure = waits.take()!,
+        { url } = failure
+      failure.slot = -1
+      const job = reads.jobs.get(url)
+      if (job?.state === 'waiting') requeue(job)
+      else if (!reads.catalog.has(url)) failures.delete(url)
+    }
+    arm()
+  }
+  /** `failure` leaves: out of the waits, or out of the count of those for good. */
+  const remove = (failure: ReadFailure) => {
+    if (failure.slot >= 0) waits.take(failure.slot)
+    if (failure.due === Infinity) final--
+    failures.delete(failure.url)
+  }
+  return {
+    /** `url`'s read failed by `cause`: the error its job fails with, and whether it waits — queued
+     *  again once its wait ends — rather than failing for good. */
+    record(url: string, cause: unknown) {
+      const failure = failures.get(url) ?? { url, error: new Error(), tries: 0, due: 0, slot: -1 }
+      const tries = ++failure.tries,
+        times = tries === 1 ? 'one attempt' : `${tries} attempts`
+      const retried = retriableError(cause),
+        wait = retried ? waitAfter(tries) : Infinity
+      failure.error = new Error(`PAGE_STREAM_FAILED: ${url} after ${times}: ${String(cause)}`, {
+        cause,
+      })
+      failure.due = performance.now() + wait
+      failures.set(url, failure)
+      if (!retried) {
+        final++
+        if (failure.slot >= 0) waits.take(failure.slot)
+        failure.slot = -1
+      } else if (failure.slot >= 0) waits.settle(failure.slot)
+      else waits.push(failure)
+      arm()
+      if (wait >= LAST_WAIT_MS && waitAfter(tries - 1) < LAST_WAIT_MS)
+        reads.onStalled?.({ url, cause })
+      return { error: failure.error, waits: retried }
+    },
+    /** `url` was read: its failures in a row are over. */
+    passed(url: string) {
+      const failure = failures.get(url)
+      if (failure) remove(failure)
+    },
+    /** The error a read of `url` is refused with for good, if it is. */
+    refusal(url: string) {
+      const failure = failures.get(url)
+      return failure?.due === Infinity ? failure.error : undefined
+    },
+    /** Whether `url` waits its turn now: a job made for it waits too. */
+    waiting: (url: string) => (failures.get(url)?.slot ?? -1) >= 0,
+    /** `url` left the catalogue: its failure leaves, unless its wait runs (`wake`). */
+    leaves(url: string) {
+      const failure = failures.get(url)
+      if (failure && failure.slot < 0) remove(failure)
+    },
+    /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
+    count: () => waits.size + final,
+    clear() {
+      clearTimeout(timer)
+      armed = Infinity
+      failures.clear()
+      waits.clear()
+      final = 0
+    },
+  }
 }
 
-/** `url`'s failure `refused` waited its time: refused no more, and gone if its page is. */
-function waitedOut(context: StreamContext, url: string, refused: Refusal) {
-  context.state.refused--
-  if (context.failures.get(url)?.error === refused && !context.catalog.has(url))
-    context.failures.delete(url)
-}
-
-/** `url` failed with `error`, its last attempt by `cause`: it waits, or is refused for good. */
-export function recordFailure(context: StreamContext, url: string, error: Error, cause: unknown) {
-  const { tries = 0, said = false } = context.failures.get(url) ?? {}
-  const wait = retriableError(cause) ? Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** tries) : Infinity
-  const stalled = wait >= LAST_WAIT_MS
-  const refused = Object.assign(error, { due: performance.now() + wait, stalled })
-  context.failures.set(url, { error: refused, tries: tries + 1, said: said || stalled })
-  context.state.refused++
-  // A streamer closed meanwhile counts nothing more.
-  if (wait < Infinity)
-    void pause(wait, context.abort.signal).then(
-      () => waitedOut(context, url, refused),
-      () => {},
-    )
-  if (stalled && !said) context.onStalled?.({ url, cause })
-}
+export type ReadFailures = ReturnType<typeof createReadFailures>

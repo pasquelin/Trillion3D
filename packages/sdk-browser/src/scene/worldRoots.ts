@@ -37,7 +37,6 @@ import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldBundles } from './worldBundles.ts'
 import { readSpan } from './worldRuns.ts'
-import type { PageQueue } from '../streaming/types.ts'
 
 /** The world pages' detached source, their DAG and each cell's super-root bound, which a
  *  partition's plan reads (`partition/superRoots.ts`): nothing draws from them yet,
@@ -120,7 +119,8 @@ export async function openWorldRoots(
   const bytes = await fetchVerified(urls.table, announced, signal, meter)
   const table = readWorldRoots(new Uint8Array(bytes))
   const url = new URL(table.payload.url, base).href
-  // The load's meter counts the top, read while it loads, and a scene's one cell, held for its life.
+  // The load's meter counts the top, read while it loads, and a scene's one cell, held for its life:
+  // reads of the load, by its own reader of the binary, let go with it.
   const read = rangedReader(url, signal)
   const top = await readSpan(read, url, table, [0, table.pinned], meter)
   const bundles = createWorldBundles(table, url, top)
@@ -138,18 +138,13 @@ export async function openWorldRoots(
     hold: bundles.hold,
     release: bundles.release,
     held: bundles.held,
-    /** The session's queue the bundles are read through, by the reader of the binary the open
-     *  read the top with: one reader a file. */
-    bind(queue: PageQueue) {
-      queue.readFrom(url, read)
-      bundles.bind(queue)
-    },
-    /** Every byte held here: the pinned top's, the placed cells' bundles', and the whole binary a
-     *  server that ignores the Range answered (`rangedReader`). */
+    /** The session's queue the bundles are read through: its read layer holds the one reader of
+     *  the binary the session reads by (`../streaming/fetch.ts`), counted by its cache. */
+    bind: bundles.bind,
+    /** Every byte held here: the pinned top's and the placed cells' bundles'. */
     bytes: () =>
       table.pinnedTopBytes +
       bundles.bytes() +
-      read.held() +
       // The source's own bundles past the top and the held ones: kept for a page's other view.
       stream.keptBytes(bundles),
   }

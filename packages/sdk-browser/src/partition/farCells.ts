@@ -89,9 +89,6 @@ export function createFarCells(world: World | undefined, placed: Placed) {
       return plan
     },
     release,
-    /** When the first far cell whose hold failed is asked again, and those due held again. */
-    due: holds.due,
-    retry: holds.retry,
     /** What a frame waits on: the next far hold to land or fail, while one reads. */
     reads: holds.reads,
   }

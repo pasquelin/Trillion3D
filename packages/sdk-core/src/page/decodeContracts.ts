@@ -65,6 +65,9 @@ export interface PageDecodeRequest {
   maxDecodedBytes: number
   /** `cells`, `cellPage`: the file the source was read from, which a refusal names. */
   name?: string
+  /** `verify`: the spans of the source to digest each, `[start, end)` pairs end to end in one
+   *  array — the pages of one ranged read —; absent, the source is digested whole. */
+  spans?: number[]
 }
 
 /** Cancellation of a request still in the queue. Work already started runs to completion then answers
@@ -94,8 +97,11 @@ export interface PageDecodeGeometryPayload {
   /** Message format version. */ protocol: number
   /** The request answered. */ id: number
   /** Always `true`. */ ok: true
-  /** `verify`: the lowercase hexadecimal digest. `decode`: `null`. */
+  /** `verify`: the lowercase hexadecimal digest of the whole source, `null` when it was asked
+   *  `spans`. `decode`: `null`. */
   sha256: string | null
+  /** `verify` asked `spans`: each span's digest, in their order. Absent otherwise. */
+  digests?: string[]
   /** `verify`: the source buffer returned. `decode`: `null`, the source is consumed. */
   source: ArrayBuffer | null
   /** `decode`: the unpacked page. */ decoded: PageDecodeGeometryPayload | null

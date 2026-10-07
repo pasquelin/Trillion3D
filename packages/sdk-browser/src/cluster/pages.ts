@@ -1,33 +1,10 @@
-import { EngineError } from '../../../sdk-core/src/index.ts'
-import { verifyPageBytes } from '../page/decode/host.ts'
+import { verified } from './verified.ts'
 import { unmetered, type ByteMeter } from './byteMeter.ts'
 import { checked } from './checked.ts'
-/** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
-export const corruptObject = (
-  url: string,
-  announced: { bytes: number; sha256: string },
-  bytes: number,
-  sha256: string | undefined,
-) =>
-  new EngineError(
-    'INVALID_CACHE',
-    sha256 !== undefined
-      ? `Corrupt cache object: SHA-256 ${sha256}, ${announced.sha256} announced`
-      : `Corrupt cache object: ${bytes} bytes received, ${announced.bytes} announced`,
-    {
-      url,
-      bytes,
-      expected: announced.bytes,
-      sha256: sha256 ?? null,
-      expectedSha256: announced.sha256,
-    },
-  )
-
 /**
  * Reads the cache object at `url` (`checked`) and hands its bytes back only when they are the ones
- * its manifest `announced`, size then fingerprint; `corruptObject` otherwise. The size is taken
- * before the fingerprint, which transfers the buffer to a decode worker and back. `meter` counts
- * its bytes as they arrive.
+ * its manifest `announced` (`verified`): size then fingerprint, `corruptObject` otherwise. `meter`
+ * counts its bytes as they arrive.
  */
 export async function fetchVerified(
   url: string,
@@ -36,13 +13,10 @@ export async function fetchVerified(
   meter: ByteMeter = unmetered,
 ) {
   const buffer = await meter.read(await checked(url, signal), url).arrayBuffer()
-  const bytes = buffer.byteLength
   signal?.throwIfAborted()
-  if (bytes !== announced.bytes) throw corruptObject(url, announced, bytes, undefined)
-  const verified = await verifyPageBytes(buffer)
-  if (verified.sha256 !== announced.sha256)
-    throw corruptObject(url, announced, bytes, verified.sha256)
-  return verified.source
+  const own = await verified(announced, url, buffer)
+  if (!own.buffer) throw own.refused
+  return own.buffer
 }
 export async function loadClusterPages(
   pages: Array<{ url: string; bytes: number; sha256: string }>,

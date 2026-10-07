@@ -19,10 +19,15 @@ export function waited<T>(promise: Promise<T>, signal?: AbortSignal, leave?: () 
  *  stopped is never joined again: whoever asks next starts another. */
 export type SharedRead<T> = { promise: Promise<T>; askers: number; stop: AbortController }
 
-/** `read` waited on by one more asker until `signal` lets it go: the last to go stops it. */
-export function waitShared<T>(read: SharedRead<T>, signal?: AbortSignal) {
+/** `read` waited on by one more asker until `signal` lets it go: the last to go runs `last`, which
+ *  stops the read by default — a queue that lets a read under way land drops one still queued. */
+export function waitShared<T>(
+  read: SharedRead<T>,
+  signal?: AbortSignal,
+  last = () => read.stop.abort(signal?.reason),
+) {
   read.askers++
   return waited(read.promise, signal, () => {
-    if (--read.askers === 0) read.stop.abort(signal!.reason)
+    if (--read.askers === 0) last()
   })
 }

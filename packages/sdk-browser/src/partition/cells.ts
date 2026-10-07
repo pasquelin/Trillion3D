@@ -85,16 +85,6 @@ export function createPartitionCells(inputs: Inputs) {
   const place = (cell: number, decoded: CellRows, { local, ahead }: Seen) =>
     rows.place(cell, decoded, cellUrl(cell)) &&
     (manifest.hold(cell, holdPriority(index, local, cell, ahead)), true)
-  const placed = (cell: number, decoded: CellRows, seen: Seen) =>
-    place(cell, decoded, seen) || (waiting++, false)
-  /** When the first failed hold, placed or far, is asked again. */
-  const due = () => Math.min(manifest.due(), far.due())
-  /** The failed holds whose wait is over at `now` are asked again, at their priority now. */
-  const retry = (local: Seen['local'], now: number) => {
-    const priority = (cell: number) => holdPriority(index, local, cell)
-    manifest.retry(priority, now)
-    far.retry(priority, now)
-  }
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), manifest.release(cell))
   const partitionCells = {
@@ -128,8 +118,6 @@ export function createPartitionCells(inputs: Inputs) {
       }
       const plan = far.plan(index, local, eye, io.lens, leave)
       plan.leave.forEach(leave)
-      const now = performance.now()
-      if (now >= due()) retry(local, now)
       io.forget(index.forgotten())
       waiting = 0
       let later = false
@@ -137,11 +125,13 @@ export function createPartitionCells(inputs: Inputs) {
       const pageUrl = (page: IndexPage) => page.slot.url
       for (const ahead of [false, true]) {
         const pages = ahead ? plan.pages.ahead : plan.pages.visible
-        const at = { io, budget, ahead, local }
+        const at = { io, budget, ahead }
         later = takeDecoded(pages, at, pageDecodes, pageUrl, io.decodePage, open) || later
         // A page opened now brings its cells to the next frame's plan.
         later ||= !ahead && pages.some((page) => page.body)
         const list = ahead ? plan.ahead : plan.visible
+        const placed = (cell: number, decoded: CellRows) =>
+          place(cell, decoded, { local, ahead }) || (waiting++, false)
         later = takeDecoded(list, at, decodes, cellUrl, io.decode, placed) || later
       }
       pageDecodes.keep(plan.pages.visible, plan.pages.ahead)
@@ -174,9 +164,6 @@ export function createPartitionCells(inputs: Inputs) {
       touched.clear()
       return bytes
     },
-    /** When the first failed hold is asked again, `Infinity` while none waits: a still camera
-     *  is drawn again then. */
-    due,
     /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
     reads: () => [...manifest.reads(), ...far.reads()],
     /** The decodes asked since the last call: a still camera is drawn again once one lands. */

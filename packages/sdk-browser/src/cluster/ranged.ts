@@ -1,5 +1,5 @@
 import { unmetered, type ByteMeter } from './byteMeter.ts'
-import { checked } from './checked.ts'
+import { checked, letGo } from './checked.ts'
 import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 
 /** How one range is read: the meter counting what arrives, the requests `checked` makes at most,
@@ -45,7 +45,7 @@ export function rangedReader(url: string, signal?: AbortSignal) {
       const response = (asked.meter ?? unmetered).read(await answer, url)
       if (response.status === 206) return ((ranged = true), await response.arrayBuffer())
       if (!whole) keep(response, stop)
-      else void response.body?.cancel().catch(() => {}) // a server that stopped answering ranges
+      else letGo(response) // a server that stopped answering ranges
     } finally {
       if (asking === answer) asking = undefined
       own?.removeEventListener('abort', leave)

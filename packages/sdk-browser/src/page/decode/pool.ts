@@ -91,6 +91,7 @@ export function createPageDecodePool(size: number) {
     source: ArrayBuffer,
     maxDecodedBytes: number,
     name?: string,
+    spans?: number[],
   ) => {
     const request: PageDecodeRequest = {
       protocol: PAGE_DECODE_PROTOCOL,
@@ -99,6 +100,7 @@ export function createPageDecodePool(size: number) {
       source,
       maxDecodedBytes,
       ...(name === undefined ? {} : { name }),
+      ...(spans === undefined ? {} : { spans }),
     }
     if (!alive || retired)
       return { id: request.id, answer: Promise.resolve(workerError(request.id)) }

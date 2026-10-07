@@ -49,6 +49,14 @@ function unavailable(id: number, cause: unknown) {
   }
 }
 
+/** The digest of each `[start, end)` span of `source`, read where it lies. */
+function spanDigests(source: ArrayBuffer, spans: readonly number[]) {
+  const digests: Promise<string>[] = []
+  for (let at = 0; at < spans.length; at += 2)
+    digests.push(sha256Hex(new Uint8Array(source, spans[at], spans[at + 1] - spans[at])))
+  return Promise.all(digests)
+}
+
 /** A task's success: `fields` over an answer that carries nothing else, `transfer` beside it. */
 function done(
   request: PageDecodeRequest,
@@ -99,8 +107,11 @@ export async function runPageDecodeTask(
       return done(request, started, { cellPage }, [])
     }
     if (request.op === 'verify') {
-      const sha256 = await sha256Hex(request.source)
-      return done(request, started, { sha256, source: request.source }, [request.source])
+      const { source, spans } = request
+      if (!spans)
+        return done(request, started, { sha256: await sha256Hex(source), source }, [source])
+      const digests = await spanDigests(source, spans)
+      return done(request, started, { digests, source }, [source])
     }
     let choisi: Decodeur
     try {

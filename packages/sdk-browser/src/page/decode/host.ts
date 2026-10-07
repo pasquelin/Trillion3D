@@ -71,15 +71,28 @@ function ownBuffer(bytes: Uint8Array) {
   ) as ArrayBuffer
 }
 /** Fallback: the contract task, the same function, run on the main thread. */
-async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
+async function onThread(op: PageDecodeOp, source: ArrayBuffer, spans?: number[]) {
   const { answer } = await runPageDecodeTask({
     protocol: PAGE_DECODE_PROTOCOL,
     id: 0,
     op,
     source,
     maxDecodedBytes: MAX_DECODED_BYTES,
+    ...(spans && { spans }),
   })
   return count(answer, false)
+}
+
+/** The `verify` task of `source`, whole or by `spans`, off the main thread when a worker lives. */
+async function verifyTask(source: ArrayBuffer, spans?: number[]) {
+  const open = openPool()
+  if (!open) return onThread('verify', source, spans)
+  const answer = await open.submit('verify', source, 0, undefined, spans).answer
+  // A worker that vanished before it took the bytes leaves them whole — a transferred buffer
+  // reads empty —: the main thread verifies them, as it decodes for a vanished worker.
+  if (!answer.ok && answer.code === 'PAGE_DECODE_WORKER' && source.byteLength > 0)
+    return onThread('verify', source, spans)
+  return count(answer, true)
 }
 
 /**
@@ -89,18 +102,18 @@ async function onThread(op: PageDecodeOp, source: ArrayBuffer) {
  * reference is detached.
  */
 export async function verifyPageBytes(source: ArrayBuffer) {
-  const open = openPool()
-  let answer: PageDecodeAnswer
-  if (open) {
-    answer = await open.submit('verify', source, 0).answer
-    // A worker that vanished before it took the bytes leaves them whole — a transferred buffer
-    // reads empty —: the main thread verifies them, as it decodes for a vanished worker.
-    if (!answer.ok && answer.code === 'PAGE_DECODE_WORKER' && source.byteLength > 0)
-      answer = await onThread('verify', source)
-    else count(answer, true)
-  } else answer = await onThread('verify', source)
+  const answer = await verifyTask(source)
   if (!answer.ok || !answer.source || answer.sha256 === null) refuse(answer)
   return { sha256: answer.sha256, source: answer.source }
+}
+
+/** The SHA-256 digest of each `[start, end)` span of `spans` in a freshly read buffer — the pages
+ *  end to end of one ranged read —, in one task: as with `verifyPageBytes`, the caller yields its
+ *  buffer, and reads the returned one. */
+export async function verifyPageSpans(source: ArrayBuffer, spans: number[]) {
+  const answer = await verifyTask(source, spans)
+  if (!answer.ok || !answer.source || !answer.digests) refuse(answer)
+  return { digests: answer.digests, source: answer.source }
 }
 
 /**

@@ -1,21 +1,34 @@
-import type { StreamContext } from './types.ts'
-import { refusalOf } from './failures.ts'
-import { joinJob } from './queueJob.ts'
+import type { Job, StreamContext } from './types.ts'
+import type { Landed } from './fetch.ts'
+import { waitShared } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import { createPump } from './queueTransfer.ts'
 import { createQueueEnds } from './queueEnds.ts'
 import { answerFromCache, dropQueued, jobFor } from './queueRequest.ts'
 
+/** The session's one read queue over `context`: each page asked joins its one job (`jobFor`),
+ *  waited on by each asker till its own signal lets it go — the last to leave drops it while it
+ *  waits (`dropQueued`) —, read by the transfers `read` makes. One pump a task: the reads asked
+ *  within it are all queued, in their order, before a transfer takes them. */
 export function createStreamingQueue(
   context: StreamContext,
-  loadOne: (url: string, signal: AbortSignal) => Promise<Uint8Array>,
+  read: (jobs: readonly Job[], signal: AbortSignal) => Promise<Landed[]>,
   touch: (url: string, bytes: Uint8Array) => void,
   evict: () => void,
   /** Marks a page's hold in the cache's eviction order when its transfer starts or ends. */
   sync: (url: string) => void,
 ) {
-  const { state, abort, catalog, emit, abortError } = context
+  const { state, abort, catalog, emit, abortError, failures, queue } = context
   const { end, forget, keep } = createQueueEnds(context, sync)
-  const pump = createPump(context, loadOne, end, evict)
+  const pump = createPump(context, { read, end, evict })
+  let owed = false
+  const later = () => {
+    if (owed) return
+    owed = true
+    queueMicrotask(() => {
+      owed = false
+      pump()
+    })
+  }
   const subscribe = (
     url: string,
     requestSignal?: AbortSignal,
@@ -26,17 +39,22 @@ export function createStreamingQueue(
       return Promise.reject(abort.signal.reason ?? abortError())
     if (requestSignal?.aborted) return Promise.reject(requestSignal.reason ?? abortError())
     if (!catalog.has(url)) return Promise.reject(new Error('Unknown page ' + url))
-    // A read that failed is refused while it waits its turn, or for good (`failures.ts`).
-    const failure = refusalOf(context, url)
-    if (failure) return Promise.reject(failure)
+    // A read that failed for good is refused at once (`failures.ts`).
+    const refused = failures.refusal(url)
+    if (refused) return Promise.reject(refused)
     const cached = answerFromCache(context, touch, url)
     if (cached) return Promise.resolve(cached)
     const job = jobFor(context, sync, url, priority)
     const combined = requestSignal ? AbortSignal.any([abort.signal, requestSignal]) : abort.signal
-    // Its last consumer gone while it waits, the job leaves the queue (`dropQueued`).
-    const result = joinJob(job, url, combined, abortError, () => dropQueued(context, url, job, end))
-    pump()
+    const result = waitShared(job, combined, () => dropQueued(context, url, job, end))
+    later()
     return result
   }
-  return { pump, subscribe, forget, keep }
+  /** `job` waited out its last failure: queued again, its askers still waiting on it. */
+  const requeue = (job: Job) => {
+    job.state = 'queued'
+    queue.push(job)
+    later()
+  }
+  return { subscribe, forget, keep, requeue }
 }

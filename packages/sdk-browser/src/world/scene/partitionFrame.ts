@@ -97,29 +97,6 @@ type Inputs = {
    *  (`partitionMounts.ts`): the owner opens the session again. Absent, a cell past those rows
    *  waits. */
   renew?: () => void
-  /** Asks the session's loop for a frame: a failed hold's wait is over. */
-  wake?: () => void
-}
-
-/** One timer, set for the earliest failed hold's wait, `due`: it asks `wake` for a frame then,
- *  and is set again by the next frame however the clock read the wait then; cleared, and `wake`
- *  let go, once the session closes (`dispose`). */
-function wakeAt(wake?: () => void) {
-  let timer: ReturnType<typeof setTimeout> | undefined,
-    armed = Infinity
-  const fire = () => ((armed = Infinity), wake?.())
-  return {
-    arm(due: number) {
-      if (due === armed || !wake) return
-      clearTimeout(timer)
-      armed = due
-      if (due < Infinity) timer = setTimeout(fire, due - performance.now())
-    },
-    dispose() {
-      clearTimeout(timer)
-      wake = timer = undefined
-    },
-  }
 }
 
 /**
@@ -127,13 +104,13 @@ function wakeAt(wake?: () => void) {
  * `pending` settles once the pages and cells the last frame asked for within reach are read, those
  * it handed to the decode pool decoded, the mounts they asked, and the next of the cells' holds
  * on its way landed, true while one of them waits for a frame to place or mount it, or a decode,
- * a hold or a mount landed: a still camera is drawn again until they all are. It never waits for a
- * failed hold's wait: one timer asks the loop for the frame that holds it again (`wake`).
+ * a hold or a mount landed: a still camera is drawn again until they all are. A read that failed
+ * and may pass stays on its way till it lands (`../../streaming/failures.ts`): nothing else wakes
+ * the loop for it.
  */
 export function createPartitionFrame(inputs: Inputs) {
-  const { partitions, streamer, camera, active, renew, budget, wake } = inputs
+  const { partitions, streamer, camera, active, renew, budget } = inputs
   if (!partitions.length) return null
-  const waker = wakeAt(wake)
   const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew })
   let reads: Promise<void>[] = [],
     later = false
@@ -165,6 +142,7 @@ export function createPartitionFrame(inputs: Inputs) {
       decode: decodeCell,
       decodePage,
       loading: (url: string) => streamer.loading(url),
+      failed: (url: string) => streamer.failed(url),
       request,
       admit: streamer.admit,
       forget: streamer.forget,
@@ -181,7 +159,6 @@ export function createPartitionFrame(inputs: Inputs) {
     const { eye, reach } = viewOf(camera)
     later = false
     for (const cells of partitions) later = cells.frame(eye, reach, io, budget) || later
-    waker.arm(partitions.reduce((due, cells) => Math.min(due, cells.due()), Infinity))
   }
-  return Object.assign(step, { pending, dispose: waker.dispose })
+  return Object.assign(step, { pending })
 }
