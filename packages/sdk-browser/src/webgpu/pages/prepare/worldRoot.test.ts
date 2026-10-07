@@ -3,57 +3,13 @@
 // draws. On the cook's world fixture, served.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { ClusterManifest, Primitive } from '../../../../../sdk-core/src/index.ts'
-import { worldRootsDag } from '../../../../../sdk-core/src/manifest/worldRoots.fixture.ts'
-import { opened, served } from '../../../scene/worldRoots.fixture.ts'
-import { worldOrGeometryReader } from '../../../scene/worldRoots.ts'
-import * as G from '../../../host/graph/graph.fixture.ts'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
-import { coverHeldRoots, linkWorldObject, takeLandedPages, withWorldRoot } from './worldRoot.ts'
-import { standAlone } from '../../../scene/worldSuperRoots.fixture.ts'
+import { linkWorldObject, takeLandedPages, withWorldRoot } from './worldRoot.ts'
+import { placed, scene } from './worldRoot.fixture.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
-import type { EngineContext } from '../../../engine/types.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import type { WebgpuPagesSetup } from './setup.ts'
-
-/** The served world, opened, and a scene whose one mesh wears its primitive; with `alone`, one
- *  lone object past its cells, its copies in bundle 1, which cell 0 holds. */
-async function scene(t: Parameters<typeof served>[0], alone = false) {
-  const cooked = worldRootsDag(),
-    { clusters, groups } = cooked
-  if (alone) standAlone(cooked, cooked.leaves, 1)
-  const { manifest, bin, table } = served(t, { dag: { clusters, groups } })
-  const metadata = {
-    ...manifest,
-    primitives: [{ mesh: 0, primitive: 0, pass: 'clustered' }] as Primitive[],
-  } as ClusterManifest
-  const opaque = G.triangleMesh(G.standardSurface()),
-    source = G.mesh()
-  source.add(opaque)
-  const reads: string[] = []
-  // Opened as a session's load opens it: its bundles read through the session's queue.
-  const { roots: hold } = await opened(t, metadata)
-  const host = async (url: string) => (reads.push(url), new Uint8Array(4))
-  const context = {
-    metadata,
-    source,
-    associations: new Map([[opaque, { meshes: 0, primitives: 0 }]]),
-    worldRoots: hold,
-    readGeometryPage: worldOrGeometryReader(hold, host, new AbortController().signal),
-  } as unknown as EngineContext
-  return { context, hold, bin, table, opaque, reads }
-}
-
-/** A placement's root: one opaque page of `mesh`, at row 0 of `rows`. */
-function placed(mesh: unknown, rows = createPlacementRows(2)) {
-  const page = { url: 'object', sourceMesh: mesh, transparent: false, renderOrder: 3 }
-  return {
-    world: { elements: new Float64Array(16) },
-    pages: [page],
-    placement: { rows, index: 0 },
-  }
-}
 
 test('the world joins the catalogue as the last root, its requests ranked again', async (t) => {
   const { context, hold, opaque } = await scene(t)
@@ -120,61 +76,6 @@ test('the layout keeps the world DAG among the opaque roots, wherever it sits', 
   } as unknown as WebgpuPagesSetup)
   // The world DAG first, as the scene listed it, the blended placement after every opaque one.
   assert.deepEqual(layout.selectionRoots, [roots[2], roots[0], roots[1]])
-})
-
-test("a held cell's roots gain a holder while it holds them, until the backend ends", async (t) => {
-  const { context, hold, opaque } = await scene(t, true)
-  const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
-  const { roots: selectionRoots } = withWorldRoot({ roots, allPages: [], requestCount: 0 }, context)
-  const told: [string[], boolean][] = []
-  const holdCover = (pages: readonly PageRec[], held: boolean) =>
-    void told.push([pages.map((page) => page.url), held])
-  let woken = 0
-  const ends = new AbortController()
-  const rt = {
-    ...{ context, layout: { selectionRoots }, signal: ends.signal },
-    run: { gate: { resourcesChanged: () => woken++ } },
-    setup: { floorPages: 8, bootstrap: { length: 6 } },
-  }
-  // The cache's room past the cover: 58 slots, two of them the floor's other pages.
-  coverHeldRoots(rt as unknown as Parameters<typeof coverHeldRoots>[0], { holdCover }, () => 58)
-  // Cell 0 holds bundles 1 and 3: bundle 1 carries the lone object's two copies.
-  await hold.hold(0)
-  const copies = hold.drawn!.dag!.held.get(1)!.map((rank) => selectionRoots[1].pages[rank].url)
-  assert.equal(copies.length, 2)
-  assert.deepEqual(told, [[copies, true]])
-  assert.equal(woken, 1, 'the next image asks for them')
-  assert.equal(hold.cover.room!(), 56)
-  assert.ok(hold.cover.admits(0))
-  hold.release(0)
-  assert.deepEqual(told.at(-1), [copies, false], 'its cell let go, they leave the cover')
-  await hold.hold(0)
-  ends.abort()
-  assert.deepEqual(told.at(-1), [copies, false], 'the backend gone, the cover lets go')
-  assert.equal(hold.cover.room, undefined)
-  hold.release(0)
-  await hold.hold(0)
-  assert.equal(told.length, 4, 'nothing followed past the end')
-})
-
-test('a session that ends leaves the room of one that started since: the room is its own', async (t) => {
-  const { context, opaque, hold } = await scene(t, true)
-  const roots = [placed(opaque)] as unknown as ClusterRoot<PageRec>[]
-  const { roots: selectionRoots } = withWorldRoot({ roots, allPages: [], requestCount: 0 }, context)
-  const session = (ends: AbortController) =>
-    ({
-      ...{ context, layout: { selectionRoots }, signal: ends.signal },
-      run: { gate: { resourcesChanged: () => {} } },
-      setup: { floorPages: 8, bootstrap: { length: 6 } },
-    }) as unknown as Parameters<typeof coverHeldRoots>[0]
-  const first = new AbortController(),
-    second = new AbortController()
-  coverHeldRoots(session(first), { holdCover: () => {} }, () => 58)
-  coverHeldRoots(session(second), { holdCover: () => {} }, () => 30)
-  first.abort()
-  assert.equal(hold.cover.room?.(), 28, "the second session's room stands")
-  second.abort()
-  assert.equal(hold.cover.room, undefined)
 })
 
 test('the pages a bundle read lands go to the free slots of the pool, unpinned, never past them', async (t) => {
