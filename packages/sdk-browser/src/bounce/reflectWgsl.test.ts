@@ -17,7 +17,6 @@ import {
   DIRECT_LIGHTING_SHADER,
   WATER_COMPOSITE_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { ROUGHNESS_FLOOR as FLOOR_DECLARATION } from '../lighting/shaderConstantsWgsl.ts'
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
