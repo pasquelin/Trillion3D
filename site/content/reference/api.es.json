@@ -4643,8 +4643,9 @@
       "live": "1 donde la fila coloca el recurso, 0 donde está apartada.",
       "shadowless": "1 donde la fila no proyecta sombra (el `castShadow` de su malla es `false`), 0 donde la proyecta.",
       "capacity": "Filas que caben antes de que crezca.",
-      "sources": "Propietarios originales, conservados al reutilizar las filas.",
-      "sourceModels": "Mallas que comparten recursos, incluidas las filas en espera."
+      "sources": "Propietarios originales de las filas en espejo; sus fuentes de animación siguen vivas cuando se reutilizan las filas.",
+      "sourceModels": "Mallas que comparten este recurso, incluidas las que esperan una fila de colocación.",
+      "cells": "Dónde se encuentra cada fila que colocó una partición (`../partition/rowCells.ts`): una columna propia, ausente hasta que una celda coloca una."
     }
   },
   "Plane": {
@@ -7579,7 +7580,7 @@
       "pinnedTopBytes": "Los bytes de la cima fijada.",
       "payload": "El binario donde los paquetes van uno tras otro: su dirección, su huella y su longitud.",
       "bundles": "Los paquetes, en el orden del binario.",
-      "pages": "Las páginas: cuántas, y de una su paquete, su desplazamiento en él, su nivel y su error, leídos en su registro.",
+      "pages": "Las páginas: cuántas, y de una su paquete, su desplazamiento en él, su longitud, su nivel y su error, leídos en su registro.",
       "cells": "Las celdas del mundo: cuántas, las primitivas colocadas que contiene una, leídas en sus registros, y la celda que contiene el objeto `object`, el `origin` de una raíz de objeto (#1332)."
     }
   },
@@ -7603,10 +7604,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Una página superraíz leída sobre los bytes de su paquete: sus propios vértices en el espacio del mundo y sus triángulos como índices locales.",
+    "summary": "Una página superraíz leída sobre los bytes de su paquete: una página de geometría, sus vértices en el espacio del mundo con los atributos que llevan sus objetos, decodificada y dibujada como cualquier página.",
     "members": {
-      "positions": "Sus vértices, tres números cada uno, en el espacio del mundo.",
-      "indices": "Sus triángulos, tres índices locales cada uno."
+      "bytes": "Los bytes de su página de geometría (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7765,8 +7765,9 @@
   "ImpostorPlan": {
     "summary": "El veredicto de la conmutación: las tarjetas a dibujar y las raíces cuyos clústeres suprime.",
     "members": {
-      "cards": "Una tarjeta por raíz conmutada, en orden de raíz.",
-      "switched": "Rangos de raíz que suprime la conmutación: 1 en una raíz conmutada, 0 en el resto."
+      "cards": "Una tarjeta por raíz conmutada que leyó, en el orden en que las leyó.",
+      "switched": "Rangos de raíz que suprime la conmutación: 1 en una raíz conmutada, 0 en el resto. Un plan de algunos rangos conserva el veredicto de los demás tal como lo dejó el último plan que los leyó.",
+      "visited": "Los rangos que el plan leyó cuando se le dan algunos (`planImpostors`, `ranks`); si falta, todos los rangos."
     }
   },
   "ImpostorRoot": {

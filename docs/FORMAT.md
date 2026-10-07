@@ -105,6 +105,11 @@ Nodes that only place a mesh move into spatial cells (`scene-cell-<n>.json`) und
 The DAG continued above placed objects up to a pinned world top: `world-roots.table` and
 `world-roots.dag` (fixed-size records) and `world-roots.bin` (the bundles).
 
+- Bundle order: the pinned top's bundles first, then each cell's held roots right after them, one
+  run per cell, capped by bytes. A root only one cell needs is held by that cell; only the roots
+  several cells share are pinned, so the pinned top stays within 4 MB (`WORLD_TOP_BUDGET_BYTES`).
+  The schema is unchanged.
+
 - Versions: `WORLD_ROOTS_VERSION`, budget `WORLD_TOP_BUDGET_BYTES` (`rust/compiler_world_roots.rs`);
   `VERSION` (`core/manifest/worldRootsTable.ts`).
 - Writes `rust/compiler_world_roots/pack.rs:pack_world`, `rust/compiler_world_roots/records.rs:encode_table`.

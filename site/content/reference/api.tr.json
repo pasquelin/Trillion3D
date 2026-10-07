@@ -1746,8 +1746,9 @@
   "ImpostorPlan": {
     "summary": "Geçişin kararı: çizilecek kartlar ve cluster'larını bastırdığı kökler.",
     "members": {
-      "cards": "Geçiş yapılmış her kök için bir kart, kök sırasına göre.",
-      "switched": "Geçişin bastırdığı kök sıraları: geçiş yapılmış kökte 1, diğerlerinde 0."
+      "cards": "Okuduğu her geçiş yapılmış kök için bir kart, onları okuduğu sırayla.",
+      "switched": "Geçişin bastırdığı kök sıraları: geçiş yapılmış kökte 1, diğerlerinde 0. Bazı sıraların planı, diğerlerinin kararını onları okuyan son planın bıraktığı gibi korur.",
+      "visited": "Plana bazı sıralar verildiğinde okuduğu sıralar (`planImpostors`, `ranks`); yoksa her sıra."
     }
   },
   "ImpostorRoot": {
@@ -2941,8 +2942,9 @@
       "live": "Satırın kaynağı yerleştirdiği yerde 1, park edildiği yerde 0.",
       "shadowless": "Satırın gölge düşürmediği yerde 1 (mesh'inin `castShadow` değeri `false`), düşürdüğü yerde 0.",
       "capacity": "Büyümeden önce sığan satırlar.",
-      "sources": "Satırlar yeniden kullanılırken korunan özgün sahipler.",
-      "sourceModels": "Bekleyen satırlar dahil, kaynakları paylaşan ağlar."
+      "sources": "Aynalanmış satırların özgün sahipleri; satırlar yeniden kullanılırken animasyon kaynakları canlı kalır.",
+      "sourceModels": "Bu kaynağı paylaşan ağlar, bir yerleştirme satırını bekleyenler dahil.",
+      "cells": "Bir bölümün yerleştirdiği her satırın nerede durduğu (`../partition/rowCells.ts`): kendi sütunu; bir hücre bir satır yerleştirene kadar yoktur."
     }
   },
   "Plane": {
@@ -5088,7 +5090,7 @@
       "pinnedTopBytes": "Sabitlenmiş tepenin baytları.",
       "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
       "bundles": "Paketler, ikili dosyadaki sırayla.",
-      "pages": "Sayfalar: kaç tane olduğu ve birinin paketi, içindeki konumu, düzeyi ve hatası, kaydından okunur.",
+      "pages": "Sayfalar: kaç tane olduğu ve birinin paketi, içindeki konumu, uzunluğu, düzeyi ve hatası, kaydından okunur.",
       "cells": "Dünya hücreleri: kaç tane oldukları, bir hücrenin tuttuğu yerleştirilmiş ilkeller (kayıtlarından okunur) ve `object` nesnesini tutan hücre — bir nesne kökünün `origin` değeri (#1332)."
     }
   },
@@ -5112,10 +5114,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: dünya uzayındaki kendi köşeleri ve yerel indisler olarak üçgenleri.",
+    "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: bir geometri sayfası; köşeleri dünya uzayında ve nesnelerinin taşıdığı özniteliklerle birlikte, her sayfa gibi çözülür ve çizilir.",
     "members": {
-      "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
-      "indices": "Üçgenleri, her biri üç yerel indis."
+      "bytes": "Geometri sayfasının baytları (docs/FORMAT.md, Geometry pages)."
     }
   },
   "WorldTarget": {

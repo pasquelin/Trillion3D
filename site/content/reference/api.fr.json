@@ -4651,8 +4651,9 @@
       "live": "1 là où la rangée place la ressource, 0 là où elle est rangée de côté.",
       "shadowless": "1 là où la rangée ne projette aucune ombre (le `castShadow` de son maillage vaut `false`), 0 là où elle en projette.",
       "capacity": "Rangées qui tiennent avant qu’il grandisse.",
-      "sources": "Propriétaires source originaux, maintenus vivants lorsque les lignes sont réutilisées.",
-      "sourceModels": "Maillages dont les ressources sont partagées, y compris pour les lignes en attente."
+      "sources": "Propriétaires originaux des rangées en miroir ; leurs sources d’animation restent vivantes quand les rangées sont réutilisées.",
+      "sourceModels": "Maillages qui partagent cette ressource, y compris ceux qui attendent une rangée de placement.",
+      "cells": "Où se trouve chaque rangée qu’une partition a placée (`../partition/rowCells.ts`) : une colonne à part, absente tant qu’une cellule n’en place pas."
     }
   },
   "Plane": {
@@ -7579,7 +7580,7 @@
       "pinnedTopBytes": "Les octets du sommet épinglé.",
       "payload": "Le binaire où les paquets se suivent : son adresse, son empreinte et sa longueur.",
       "bundles": "Les paquets, dans l’ordre du binaire.",
-      "pages": "Les pages : combien, et d’une son paquet, son décalage dedans, son niveau et son erreur, lus à son enregistrement.",
+      "pages": "Les pages : combien, et d’une son paquet, son décalage dedans, sa longueur, son niveau et son erreur, lus à son enregistrement.",
       "cells": "Les cellules du monde : combien, les primitives placées qu’une contient, lues à leurs enregistrements, et la cellule qui contient l’objet `object` — l’`origin` d’une racine d’objet (#1332)."
     }
   },
@@ -7603,10 +7604,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Une page super-racine lue sur les octets de son paquet : ses propres sommets dans l’espace du monde, et ses triangles en indices locaux.",
+    "summary": "Une page super-racine lue sur les octets de son paquet : une page de géométrie, ses sommets dans l’espace du monde avec les attributs que portent ses objets, décodée et dessinée comme toute page.",
     "members": {
-      "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
-      "indices": "Ses triangles, trois indices locaux chacun."
+      "bytes": "Les octets de sa page de géométrie (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7765,8 +7765,9 @@
   "ImpostorPlan": {
     "summary": "Le verdict de la bascule : les cartes à dessiner, et les racines dont elle supprime les clusters.",
     "members": {
-      "cards": "Une carte par racine basculée, dans l’ordre des racines.",
-      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs."
+      "cards": "Une carte par racine basculée qu’elle a lue, dans l’ordre où elle les a lues.",
+      "switched": "Les rangs de racine que la bascule supprime : 1 à une racine basculée, 0 ailleurs. Un plan de quelques rangs garde le verdict des autres tel que le dernier plan qui les a lus l’a laissé.",
+      "visited": "Les rangs que le plan a lus quand on lui en donne (`planImpostors`, `ranks`) ; absent, tous les rangs."
     }
   },
   "ImpostorRoot": {

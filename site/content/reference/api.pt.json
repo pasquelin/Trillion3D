@@ -2503,8 +2503,9 @@
       "live": "1 onde a linha posiciona o recurso, 0 onde está estacionada.",
       "shadowless": "1 onde a linha não projeta sombra (o `castShadow` da sua malha é `false`), 0 onde projeta.",
       "capacity": "Linhas que cabem antes de crescer.",
-      "sources": "Proprietários originais, preservados quando as linhas são reutilizadas.",
-      "sourceModels": "Malhas com recursos compartilhados, incluindo as linhas em espera."
+      "sources": "Proprietários originais das linhas espelhadas; as suas fontes de animação continuam vivas quando as linhas são reutilizadas.",
+      "sourceModels": "Malhas que partilham este recurso, incluindo as que esperam uma linha de posicionamento.",
+      "cells": "Onde está cada linha que uma partição posicionou (`../partition/rowCells.ts`): uma coluna própria, ausente até que uma célula posicione uma."
     }
   },
   "Plane": {
@@ -7579,7 +7580,7 @@
       "pinnedTopBytes": "Os bytes do topo fixado.",
       "payload": "O binário onde os pacotes seguem uns após os outros: o seu endereço, impressão e comprimento.",
       "bundles": "Os pacotes, na ordem do binário.",
-      "pages": "As páginas: quantas, e de uma o seu pacote, o seu deslocamento nele, o seu nível e o seu erro, lidos no seu registo.",
+      "pages": "As páginas: quantas, e de uma o seu pacote, o seu deslocamento nele, o seu comprimento, o seu nível e o seu erro, lidos no seu registo.",
       "cells": "As células do mundo: quantas, as primitivas colocadas que uma contém, lidas nos seus registros, e a célula que contém o objeto `object`, o `origin` de uma raiz de objeto (#1332)."
     }
   },
@@ -7603,10 +7604,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Uma página super-raiz lida sobre os bytes do seu pacote: os seus próprios vértices no espaço do mundo e os seus triângulos como índices locais.",
+    "summary": "Uma página super-raiz lida sobre os bytes do seu pacote: uma página de geometria, os seus vértices no espaço do mundo com os atributos que os seus objetos carregam, decodificada e desenhada como qualquer página.",
     "members": {
-      "positions": "Os seus vértices, três números cada, no espaço do mundo.",
-      "indices": "Os seus triângulos, três índices locais cada."
+      "bytes": "Os bytes da sua página de geometria (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7765,8 +7765,9 @@
   "ImpostorPlan": {
     "summary": "O veredicto da comutação: os cartões a desenhar e as raízes cujos clusters ele suprime.",
     "members": {
-      "cards": "Um cartão por raiz comutada, na ordem da raiz.",
-      "switched": "Postos de raiz que a comutação suprime: 1 em uma raiz comutada, 0 no restante."
+      "cards": "Um cartão por raiz comutada que leu, na ordem em que as leu.",
+      "switched": "Postos de raiz que a comutação suprime: 1 em uma raiz comutada, 0 no restante. Um plano de alguns postos mantém o veredicto dos outros como o último plano que os leu o deixou.",
+      "visited": "Os postos que o plano leu quando lhe são dados alguns (`planImpostors`, `ranks`); ausente, todos os postos."
     }
   },
   "ImpostorRoot": {

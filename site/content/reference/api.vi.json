@@ -2521,8 +2521,9 @@
       "live": "1 ở nơi hàng đặt tài nguyên đó, 0 ở nơi nó bị đỗ tạm.",
       "shadowless": "1 ở nơi hàng không đổ bóng (`castShadow` của mesh của nó là `false`), 0 ở nơi nó đổ bóng.",
       "capacity": "Số hàng vừa được trước khi nó phải lớn lên.",
-      "sources": "Chủ sở hữu ban đầu được giữ sống khi tái sử dụng hàng.",
-      "sourceModels": "Các mesh dùng chung tài nguyên, kể cả hàng đang chờ."
+      "sources": "Chủ sở hữu ban đầu của các hàng được nhân bản; nguồn hoạt ảnh của chúng vẫn sống khi hàng được tái sử dụng.",
+      "sourceModels": "Các mesh dùng chung tài nguyên này, kể cả những mesh đang chờ một hàng đặt vị trí.",
+      "cells": "Vị trí của mỗi hàng mà một phân vùng đã đặt (`../partition/rowCells.ts`): một cột riêng, vắng mặt cho đến khi một ô đặt một hàng."
     }
   },
   "Plane": {
@@ -7580,7 +7581,7 @@
       "pinnedTopBytes": "Số byte của đỉnh được ghim.",
       "payload": "Tệp nhị phân nơi các gói nối tiếp nhau: địa chỉ, dấu băm và độ dài của nó.",
       "bundles": "Các gói, theo thứ tự của tệp nhị phân.",
-      "pages": "Các trang: bao nhiêu, và của một trang thì gói, độ lệch trong gói, cấp và sai số, đọc từ bản ghi của nó.",
+      "pages": "Các trang: bao nhiêu, và của một trang thì gói, độ lệch trong gói, độ dài, cấp và sai số, đọc từ bản ghi của nó.",
       "cells": "Các ô của thế giới: bao nhiêu ô, các primitive đã đặt mà một ô chứa, đọc tại bản ghi của chúng, và ô chứa đối tượng `object` — `origin` của một gốc đối tượng (#1332)."
     }
   },
@@ -7604,10 +7605,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Một trang siêu gốc đọc trên byte của gói nó: các đỉnh riêng trong không gian thế giới, và các tam giác dưới dạng chỉ số cục bộ.",
+    "summary": "Một trang siêu gốc đọc trên byte của gói nó: một trang hình học, các đỉnh của nó trong không gian thế giới cùng các thuộc tính mà đối tượng của nó mang, được giải mã và vẽ như mọi trang.",
     "members": {
-      "positions": "Các đỉnh của nó, mỗi đỉnh ba số, trong không gian thế giới.",
-      "indices": "Các tam giác của nó, mỗi tam giác ba chỉ số cục bộ."
+      "bytes": "Các byte của trang hình học của nó (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7766,8 +7766,9 @@
   "ImpostorPlan": {
     "summary": "Phán quyết của việc chuyển đổi: các thẻ cần vẽ, và những gốc mà nó loại bỏ cụm.",
     "members": {
-      "cards": "Một thẻ cho mỗi gốc đã chuyển đổi, theo thứ tự gốc.",
-      "switched": "Thứ hạng gốc mà việc chuyển đổi loại bỏ: 1 tại gốc đã chuyển, 0 ở nơi khác."
+      "cards": "Một thẻ cho mỗi gốc đã chuyển đổi mà nó đã đọc, theo thứ tự nó đọc.",
+      "switched": "Thứ hạng gốc mà việc chuyển đổi loại bỏ: 1 tại gốc đã chuyển, 0 ở nơi khác. Một kế hoạch của một số thứ hạng giữ phán quyết của các thứ hạng còn lại như kế hoạch cuối cùng đã đọc chúng để lại.",
+      "visited": "Các thứ hạng mà kế hoạch đã đọc khi được cho một số (`planImpostors`, `ranks`); vắng mặt thì mọi thứ hạng."
     }
   },
   "ImpostorRoot": {

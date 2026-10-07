@@ -4643,8 +4643,9 @@
       "live": "1 dove la riga posiziona la risorsa, 0 dove è messa da parte.",
       "shadowless": "1 dove la riga non proietta ombra (il `castShadow` della sua mesh è `false`), 0 dove la proietta.",
       "capacity": "Righe che ci stanno prima che cresca.",
-      "sources": "Proprietari originali, mantenuti durante il riuso delle righe.",
-      "sourceModels": "Mesh con risorse condivise, comprese le righe in attesa."
+      "sources": "Proprietari originali delle righe a specchio; le loro sorgenti di animazione restano vive quando le righe vengono riutilizzate.",
+      "sourceModels": "Mesh che condividono questa risorsa, comprese quelle in attesa di una riga di posizionamento.",
+      "cells": "Dove si trova ogni riga posizionata da una partizione (`../partition/rowCells.ts`): una colonna a sé, assente finché una cella non ne posiziona una."
     }
   },
   "Plane": {
@@ -7579,7 +7580,7 @@
       "pinnedTopBytes": "I byte della cima fissata.",
       "payload": "Il binario dove i pacchetti stanno uno dopo l’altro: indirizzo, impronta e lunghezza.",
       "bundles": "I pacchetti, nell’ordine del binario.",
-      "pages": "Le pagine: quante, e di una il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore, letti nel suo record.",
+      "pages": "Le pagine: quante, e di una il suo pacchetto, il suo scostamento in esso, la sua lunghezza, il suo livello e il suo errore, letti nel suo record.",
       "cells": "Le celle del mondo: quante, le primitive piazzate che una contiene, lette nei loro record, e la cella che contiene l’oggetto `object`, l’`origin` di una radice d’oggetto (#1332)."
     }
   },
@@ -7603,10 +7604,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Una pagina super-radice letta sui byte del suo pacchetto: i suoi vertici nello spazio del mondo e i suoi triangoli come indici locali.",
+    "summary": "Una pagina super-radice letta sui byte del suo pacchetto: una pagina di geometria, i suoi vertici nello spazio del mondo con gli attributi che portano i suoi oggetti, decodificata e disegnata come qualsiasi pagina.",
     "members": {
-      "positions": "I suoi vertici, tre numeri ciascuno, nello spazio del mondo.",
-      "indices": "I suoi triangoli, tre indici locali ciascuno."
+      "bytes": "I byte della sua pagina di geometria (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7765,8 +7765,9 @@
   "ImpostorPlan": {
     "summary": "Il verdetto della commutazione: le schede da disegnare e le radici di cui sopprime i cluster.",
     "members": {
-      "cards": "Una scheda per radice commutata, in ordine di radice.",
-      "switched": "I ranghi di radice che la commutazione sopprime: 1 su una radice commutata, 0 altrove."
+      "cards": "Una scheda per radice commutata che ha letto, nell'ordine in cui le ha lette.",
+      "switched": "I ranghi di radice che la commutazione sopprime: 1 su una radice commutata, 0 altrove. Un piano di alcuni ranghi mantiene il verdetto degli altri come l'ultimo piano che li ha letti l'ha lasciato.",
+      "visited": "I ranghi che il piano ha letto quando gliene vengono dati alcuni (`planImpostors`, `ranks`); se assente, ogni rango."
     }
   },
   "ImpostorRoot": {

@@ -4643,8 +4643,9 @@
       "live": "1, wo die Zeile die Ressource platziert, 0, wo sie zur Seite gelegt ist.",
       "shadowless": "1, wo die Zeile keinen Schatten wirft (das `castShadow` ihres Meshes ist `false`), 0, wo sie einen wirft.",
       "capacity": "Zeilen, die Platz haben, bevor er wächst.",
-      "sources": "Ursprüngliche Besitzer bleiben bei Wiederverwendung der Zeilen erhalten.",
-      "sourceModels": "Meshes mit gemeinsam genutzten Ressourcen, einschließlich wartender Zeilen."
+      "sources": "Ursprüngliche Besitzer der gespiegelten Zeilen; ihre Animationsquellen bleiben lebendig, wenn Zeilen wiederverwendet werden.",
+      "sourceModels": "Meshes, die diese Ressource teilen, einschließlich derer, die auf eine Platzierungszeile warten.",
+      "cells": "Wo jede Zeile liegt, die eine Partition platziert hat (`../partition/rowCells.ts`): eine eigene Spalte, abwesend, bis eine Zelle eine platziert."
     }
   },
   "Plane": {
@@ -7579,7 +7580,7 @@
       "pinnedTopBytes": "Die Bytes der angehefteten Spitze.",
       "payload": "Die Binärdatei, in der die Bündel hintereinander liegen: ihre Adresse, ihr Hash und ihre Länge.",
       "bundles": "Die Bündel, in der Reihenfolge der Binärdatei.",
-      "pages": "Die Seiten: wie viele, und für eine ihr Bündel, ihr Versatz darin, ihre Stufe und ihr Fehler, aus ihrem Datensatz gelesen.",
+      "pages": "Die Seiten: wie viele, und für eine ihr Bündel, ihr Versatz darin, ihre Länge, ihre Stufe und ihr Fehler, aus ihrem Datensatz gelesen.",
       "cells": "Die Weltzellen: wie viele, die platzierten Primitive, die eine enthält, an ihren Datensätzen gelesen, und die Zelle, die das Objekt `object` enthält — der `origin` einer Objektwurzel (#1332)."
     }
   },
@@ -7603,10 +7604,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Eine Super-Wurzelseite, auf den Bytes ihres Bündels gelesen: ihre eigenen Eckpunkte im Weltraum und ihre Dreiecke als lokale Indizes.",
+    "summary": "Eine Super-Wurzelseite, auf den Bytes ihres Bündels gelesen: eine Geometrieseite, ihre Eckpunkte im Weltraum mit den Attributen, die ihre Objekte tragen, dekodiert und gezeichnet wie jede Seite.",
     "members": {
-      "positions": "Ihre Eckpunkte, je drei Zahlen, im Weltraum.",
-      "indices": "Ihre Dreiecke, je drei lokale Indizes."
+      "bytes": "Die Bytes ihrer Geometrieseite (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7765,8 +7765,9 @@
   "ImpostorPlan": {
     "summary": "Das Urteil der Umschaltung: die zu zeichnenden Karten und die Wurzeln, deren Cluster sie unterdrückt.",
     "members": {
-      "cards": "Eine Karte pro umgeschalteter Wurzel, in Wurzelreihenfolge.",
-      "switched": "Wurzelränge, die die Umschaltung unterdrückt: 1 bei einer umgeschalteten Wurzel, 0 sonst."
+      "cards": "Eine Karte pro umgeschalteter Wurzel, die sie gelesen hat, in der Reihenfolge, in der sie sie gelesen hat.",
+      "switched": "Wurzelränge, die die Umschaltung unterdrückt: 1 bei einer umgeschalteten Wurzel, 0 sonst. Ein Plan einiger Ränge behält das Urteil der übrigen so, wie es der letzte Plan, der sie gelesen hat, hinterlassen hat.",
+      "visited": "Die Ränge, die der Plan gelesen hat, wenn ihm welche gegeben werden (`planImpostors`, `ranks`); fehlt es, jeder Rang."
     }
   },
   "ImpostorRoot": {

@@ -2521,8 +2521,9 @@
       "live": "1 di mana baris menempatkan sumber daya itu, 0 di mana ia diparkir.",
       "shadowless": "1 di mana baris tidak melempar bayangan (`castShadow` mesh-nya `false`), 0 di mana ia melemparnya.",
       "capacity": "Baris yang muat sebelum ia tumbuh.",
-      "sources": "Pemilik asli tetap hidup saat baris digunakan kembali.",
-      "sourceModels": "Mesh dengan sumber daya bersama, termasuk baris yang menunggu."
+      "sources": "Pemilik asli baris yang dicerminkan; sumber animasinya tetap hidup saat baris digunakan kembali.",
+      "sourceModels": "Mesh yang berbagi sumber daya ini, termasuk yang menunggu baris penempatan.",
+      "cells": "Letak setiap baris yang ditempatkan sebuah partisi (`../partition/rowCells.ts`): kolom tersendiri, tidak ada sampai sebuah sel menempatkan satu."
     }
   },
   "Plane": {
@@ -7580,7 +7581,7 @@
       "pinnedTopBytes": "Byte puncak yang disematkan.",
       "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
       "bundles": "Bundel, menurut urutan biner.",
-      "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, levelnya, dan galatnya, dibaca dari rekamannya.",
+      "pages": "Halaman: berapa banyak, dan untuk satu halaman bundelnya, offset di dalamnya, panjangnya, levelnya, dan galatnya, dibaca dari rekamannya.",
       "cells": "Sel dunia: berapa banyak, primitif terpasang yang dimuat satu sel, dibaca pada rekamannya, dan sel yang memuat objek `object` — `origin` sebuah akar objek (#1332)."
     }
   },
@@ -7604,10 +7605,9 @@
     }
   },
   "WorldRootsPage": {
-    "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: verteksnya sendiri di ruang dunia, dan segitiganya sebagai indeks lokal.",
+    "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: sebuah halaman geometri, verteksnya di ruang dunia beserta atribut yang dibawa objeknya, didekode dan digambar seperti halaman mana pun.",
     "members": {
-      "positions": "Verteksnya, masing-masing tiga angka, di ruang dunia.",
-      "indices": "Segitiganya, masing-masing tiga indeks lokal."
+      "bytes": "Byte halaman geometrinya (docs/FORMAT.md, Geometry pages)."
     }
   },
   "world.dropMaterial": {
@@ -7766,8 +7766,9 @@
   "ImpostorPlan": {
     "summary": "Putusan sakelar: kartu yang digambar, dan root yang cluster-nya ditindas.",
     "members": {
-      "cards": "Satu kartu per root yang disakelar, dalam urutan root.",
-      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain."
+      "cards": "Satu kartu per root yang disakelar yang dibacanya, dalam urutan ia membacanya.",
+      "switched": "Peringkat root yang ditindas sakelar: 1 di root yang disakelar, 0 di tempat lain. Rencana atas sebagian peringkat mempertahankan putusan peringkat lainnya seperti yang ditinggalkan rencana terakhir yang membacanya.",
+      "visited": "Peringkat yang dibaca rencana ketika diberi sebagian (`planImpostors`, `ranks`); jika tidak ada, setiap peringkat."
     }
   },
   "ImpostorRoot": {
