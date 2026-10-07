@@ -11,7 +11,7 @@ import { blockRecord, readGeometryPageHeader, type Quant } from './geometryPageH
 import { decodeMorphs, decodeSkin } from './geometryPageDeform.ts'
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts'
 import { field } from '../../../../page-codec/src/bits.ts'
-import { octDecode } from '../../../../page-codec/src/pageGrids.ts'
+import { dequant, octDecode } from '../../../../page-codec/src/pageGrids.ts'
 
 /**
  * JavaScript decoder of a `WGP3` quantized cluster page (`docs/FORMAT.md`), the mirror of the
@@ -42,8 +42,6 @@ export type DecodedGeometryPage = {
   quantizationError: number
 }
 
-const fround = Math.fround
-
 /** One dequantized vector attribute into `out`: component `c` of vertex `i` at bit `i * bits[c]`
  *  of stream `c`. */
 function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: Quant) {
@@ -55,7 +53,7 @@ function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: 
       base = starts[c] * 32,
       min = quant.min[c]
     for (let i = 0; i < count; i++)
-      out[i * n + c] = fround(min + fround(field(words, base + i * bits, bits) * step))
+      out[i * n + c] = dequant(min, field(words, base + i * bits, bits), step)
   }
 }
 
@@ -122,7 +120,7 @@ export function decodeGeometryPage(
       const p = field(words, links * 32 + i * linkBits, linkBits)
       for (let c = 0; c < 3; c++) {
         const q = field(words, positions[c] * 32 + p * position.bits[c], position.bits[c])
-        attributes.position[i * 3 + c] = fround(position.min[c] + fround(q * step))
+        attributes.position[i * 3 + c] = dequant(position.min[c], q, step)
       }
     }
   } else vector(attributes.position, words, positions, position)

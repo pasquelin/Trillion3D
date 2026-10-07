@@ -6,7 +6,15 @@
  * compiler's, coarser only where a caller passes a primitive's own), octahedral normal bytes,
  * colour bytes — and packs the same streams, without sharing a line.
  */
-import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts'
+import {
+  bitsFor,
+  ceil32,
+  dequant,
+  octEncode,
+  Packer,
+  quantize,
+  type QuantizedGrid,
+} from './pageGrids.ts'
 import { firstUse, storedPositions } from './pagePositions.ts'
 import {
   deformCells,
@@ -63,20 +71,20 @@ function gatherAttribute(original: readonly number[], attr: PageAttribute, width
   return out
 }
 
-/** The largest distance a vertex's quantized position lies from its source one. */
-function positionError(
+/** The largest distance a vertex's quantized position lies from its source one, rounded up to the
+ *  32-bit float the header carries (`quantization_error`, `bits/quant.rs`). */
+export function positionError(
   positions: QuantizedGrid,
   position: PageAttribute,
   original: readonly number[],
 ) {
+  const step = 2 ** positions.exponent
   let error = 0
   original.forEach((_, i) => {
     let d = 0
     for (let c = 0; c < 3; c++)
       d +=
-        (Math.fround(
-          positions.min[c] + Math.fround(positions.cells[i * 3 + c] * 2 ** positions.exponent),
-        ) -
+        (dequant(positions.min[c], positions.cells[i * 3 + c], step) -
           position.array[original[i] * 3 + c]) **
         2
     error = Math.max(error, Math.sqrt(d))
