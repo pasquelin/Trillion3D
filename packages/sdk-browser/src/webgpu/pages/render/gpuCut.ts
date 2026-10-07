@@ -93,7 +93,7 @@ function adoptAndAdmit(rt: WebgpuPagesRuntime, cam: EngineCamera, pixelError: nu
 
 /** The frame's encoder opened and the cut dispatched into it; false when the image stops there. */
 function cutFrame(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  let cut = true
+  let cut: boolean
   try {
     const encoder = openFrameEncoder(rt, gpuDevice)
     rt.vis.deformationCode?.encodeDeformation(rt, encoder)

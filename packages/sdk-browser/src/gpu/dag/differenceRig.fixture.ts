@@ -70,8 +70,8 @@ export async function differenceRig(cap: number, placements = 40) {
       for (const op of (commands as unknown as { ops: Op[] }).ops) op()
   }
   /** The lists the next cut writes, and the kernels encoded since `encoded` was last read. */
-  let next: RigCut = { asked: [], drawn: [] },
-    encoded: string[] = []
+  let next: RigCut = { asked: [], drawn: [] }
+  const encoded: string[] = []
   device.createCommandEncoder = () => {
     const ops: Op[] = []
     let entry = ''
