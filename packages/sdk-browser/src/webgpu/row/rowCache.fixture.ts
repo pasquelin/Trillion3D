@@ -40,15 +40,7 @@ export function closeAlone(): InstanceClosure {
       ...{ enteredCount: entered.length, exitedCount: exited.length },
     })
   }
-  // Each page enters on its own: the request that brought it is itself.
-  return {
-    apply,
-    delta,
-    get enteredBy() {
-      return delta.entered
-    },
-    hostBytes: 0,
-  } as unknown as InstanceClosure
+  return { apply, delta, hostBytes: 0 } as unknown as InstanceClosure
 }
 
 export function rowCache(instances: number, slots: number) {

@@ -93,7 +93,7 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
   assert.ok(lists.bytes >= 2000 + 4 * 4 * 1000, `${lists.bytes} bytes`)
 })
 
-test('a group-mate a request closed over is served right behind that request', () => {
+test('a group-mate a request closed over is served right behind that request, in its rank', () => {
   // Each request `k` closes over itself and its group-mate `k + 10`, which it brings.
   const closure = (): InstanceClosure => {
     const alone = closeAlone(),
@@ -111,7 +111,12 @@ test('a group-mate a request closed over is served right behind that request', (
   }
   const table = { rowOfPage: new Int32Array(20).fill(-1), residentFlags: new Uint32Array(20) }
   const demand = createRowDemand(table, createRowUse(1), () => true, 20, closure)
+  // The table at its cap refuses 3; the next readback ranks 1 before it.
   demand.follow({ pageIds: [3] })
+  demand.serve(
+    () => true,
+    () => false,
+  )
   demand.follow({ pageIds: [1, 3] })
   const served: number[] = []
   demand.serve(

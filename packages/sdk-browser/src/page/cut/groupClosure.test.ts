@@ -99,12 +99,6 @@ test('the second placement closes over its own pages, at its packed ids', () => 
   closure.apply(cutDelta([n + leaf]))
   const held = [...closure.delta.entered.subarray(0, closure.delta.enteredCount)]
   assert.deepEqual(new Set(held.map((id) => id - n)), expected(leaf))
-  const by = [...closure.enteredBy.subarray(0, held.length)]
-  assert.deepEqual(
-    by,
-    held.map(() => n + leaf),
-    'each page names the request that brought it',
-  )
   const visited: PageRec[] = []
   closure.closeOver([n + leaf], (_, rec) => visited.push(rec))
   assert.deepEqual(
@@ -116,11 +110,7 @@ test('the second placement closes over its own pages, at its packed ids', () => 
 
 test('the closure holds what the cut closes over, and nothing once the cut has left', () => {
   const closure = createGroupClosure(roots, placement, packed)
-  assert.equal(
-    closure.hostBytes,
-    96,
-    'three empty lists: the difference, and who brought each entry',
-  )
+  assert.equal(closure.hostBytes, 64, 'two empty difference lists')
   const leaves = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0)
   closure.apply(cutDelta(leaves))
   const held = closure.hostBytes
