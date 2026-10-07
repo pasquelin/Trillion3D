@@ -103,6 +103,9 @@ export type GpuSelection = {
   /** Placement `world`'s pose was just written by a call that names it (a node moved): its tree
    *  group alone is fitted again (`../dag/treeFollow.ts`); absent without a tree. */
   placementMoved?(world: number): void
+  /** Placement `world` is posed on the GPU by its parent from now on, or no longer
+   *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; absent without a tree. */
+  composedPlacement?(world: number, composed: boolean): void
   /** The cut's worlds were rewritten on the GPU (`../../placement/gpuCompose.ts`), where no
    *  `updateWorlds` compares them: advances `worldRevision`, and the next dispatch cuts again under
    *  them — the levels, the frustum and the raster split follow the composed poses. */

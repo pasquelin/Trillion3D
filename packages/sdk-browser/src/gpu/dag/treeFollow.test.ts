@@ -55,3 +55,19 @@ test('a pose a call names refits its group and the nodes above it, never the who
   selection.dispatch({} as never)
   assert.equal(writes.length, 2 + 1, 'every tree node, in one run')
 })
+
+test('a root its parent composes on the GPU opens its group alone, until it is unlinked', () => {
+  const { packed, selection } = followed()
+  const tree = packed.placementTree!,
+    groups = tree.levels.at(-1)!,
+    groupOf = (w: number) => Math.floor(tree.slot[w] / 64)
+  selection.composedPlacement!(70, true)
+  selection.worldsMovedOnGpu()
+  selection.dispatch({} as never)
+  const open = (g: number) => tree.nodeOpen[groups.base + g - tree.cellBase]
+  for (let g = 0; g < groups.count; g++)
+    assert.equal(open(g), g === groupOf(70) ? 1 : 0, `group ${g}`)
+  selection.composedPlacement!(70, false)
+  selection.dispatch({} as never)
+  assert.equal(open(groupOf(70)), 0, 'unlinked, its group fits its box again')
+})

@@ -2,6 +2,7 @@ import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/select
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
 import { linkWorldObjects } from './worldRoot.ts'
+import { SELECTION_NONE as NONE } from '../../../gpu/core/selection.ts'
 import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 
 /**
@@ -52,6 +53,12 @@ export async function createSessionCut(
   })
   // Each row placed already draws its world object: the world DAG stands in for it where its
   // group suffices (`worldRoot.ts`).
-  if (cut) linkWorldObjects(rt.context, cut, roots)
+  if (cut) {
+    linkWorldObjects(rt.context, cut, roots)
+    // The roots a parent composes on the GPU open their tree groups in the new cut too.
+    rt.compose?.parentOf.forEach(
+      (slot, rank) => slot !== NONE && cut.composedPlacement?.(rank, true),
+    )
+  }
   return { cut, refused }
 }

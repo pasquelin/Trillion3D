@@ -5,8 +5,9 @@
  * (`placementMoved`), refits its group and the nodes above; a host walk, which names no placement,
  * refits every box once, as the worlds it moves are sent whole. Each refit writes back
  * the tree nodes it changed, never the placements' own nodes, before the tree is read again: by the
- * CPU, for the placements a view may hold (`visiblePlacements`), or by the cut. A pose the GPU composes (`../../placement/gpuCompose.ts`) is not one the
- * host holds: the first opens every group for the session, so no box the CPU fitted rejects it.
+ * CPU, for the placements a view may hold (`visiblePlacements`), or by the cut. A pose the GPU
+ * composes (`../../placement/gpuCompose.ts`) is not one the host holds: the group of a root composed
+ * so is open while it is, and no other (`composedPlacement`).
  */
 import type { GpuSelection } from '../core/selection.ts'
 import {
@@ -67,7 +68,7 @@ export function followPlacementTree(
     whole = false
     dirty.clear()
   }
-  const { dispatch, parkWorld, markWorld, updateWorlds, worldsMovedOnGpu } = selection
+  const { dispatch, parkWorld, markWorld, updateWorlds } = selection
   selection.dispatch = (uniforms, shared) => {
     refit()
     return dispatch(uniforms, shared)
@@ -92,11 +93,12 @@ export function followPlacementTree(
     refit()
     visitPlacements(packed, tree, planes, visit)
   }
-  selection.worldsMovedOnGpu = () => {
-    worldsMovedOnGpu()
-    if (!tree.open.includes(0)) return
-    tree.open.fill(1)
-    whole = true
+  // A root a parent composes on the GPU holds a pose the CPU does not: its group opens, and only
+  // its own, from its link to its unlink (`../../placement/gpuCompose.ts`).
+  selection.composedPlacement = (w, composed) => {
+    if (w >= tree.open.length || tree.open[w] === (composed ? 1 : 0)) return
+    tree.open[w] = composed ? 1 : 0
+    dirty.add(w)
   }
   return selection
 }
