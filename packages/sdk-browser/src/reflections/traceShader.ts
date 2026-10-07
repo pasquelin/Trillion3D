@@ -1,5 +1,6 @@
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
+import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /** The host's read of the depth a reflection walks (`reflectionDepthAt`, `fn(p:vec2i)->f32`) and
  *  of its size in pixels (`reflectionSize`, `fn()->vec2f`), each a declaration under that name:
@@ -19,8 +20,8 @@ export const REFLECTION_SEGMENT = `
  let e:vec4f=c+d*reach;
  if(e.w<=0.0){return vec4f(0.0);}
  let size:vec2f=reflectionSize();
- let a:vec3f=c.xyz/c.w;let b:vec3f=e.xyz/e.w;
- let start:vec2f=(a.xy*0.5+vec2f(0.5))*size;
+ let a:vec3f=perspectiveDivide(c);let b:vec3f=perspectiveDivide(e);
+ let start:vec2f=ndcToUvUnflipped(a.xy)*size;
  let delta:vec2f=(b.xy-a.xy)*0.5*size;
 `
 
@@ -149,7 +150,7 @@ const into = `let into:vec2f=${CELL};`
 export const screenTraceWgsl = (read: ReflectionDepthRead) =>
   wgslBlock(
     'SCREEN_TRACE_WGSL',
-    [reflectionPlaneWgsl(read), read.depthAt, FAR_VALUE],
+    [reflectionPlaneWgsl(read), read.depthAt, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped],
     `fn reflectionExit(c:vec4f,d:vec4f)->f32{
  // The four side planes and the two depth planes: how far inside each the ray starts, and how fast
  // it leaves it.

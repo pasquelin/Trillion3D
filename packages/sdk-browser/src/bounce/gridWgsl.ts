@@ -5,6 +5,7 @@ import {
   filteredRadianceShader,
 } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /**
  * Probe cascades, as both the update pass and deferred resolve read them. One declaration:
@@ -182,6 +183,7 @@ export const BOUNCE_GRID_WGSL = wgslBlock(
   'BOUNCE_GRID_WGSL',
   [
     BOUNCE_GRID_HEAD_WGSL,
+    perspectiveDivide,
     levelWalkWgsl(
       'sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec4f',
       'vec4f(0.0)',
@@ -199,7 +201,7 @@ fn sampleProbeField(P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec3f{
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
   let gathered=sampleLevelField(level,P,N,R,bands,specular);
-  if(gathered.w>1e-5){return gathered.xyz/gathered.w;}
+  if(gathered.w>1e-5){return perspectiveDivide(gathered);}
  }
  return vec3f(0.0);
 }

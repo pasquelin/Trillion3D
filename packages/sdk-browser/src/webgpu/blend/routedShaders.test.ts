@@ -52,7 +52,7 @@ test('a particle routes its straight colour, where the mask is set', () => {
   type Particle = { fsRouted: (at: object) => Layers & { reactive: number[] } }
   const { fsRouted } = shaderRun<Particle>(
     PARTICLE_DRAW_WGSL,
-    ['fsRouted', 'particle', ...ROUTE_FUNCTIONS],
+    ['fsRouted', 'particle', 'perspectiveDivide', ...ROUTE_FUNCTIONS],
     scope,
   )
   // The uniform is read at each call: one run serves both views.

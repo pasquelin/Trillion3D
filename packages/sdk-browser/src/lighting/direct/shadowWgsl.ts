@@ -27,6 +27,7 @@ import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.
 import { PCF_TAPS } from './pcfTaps.ts'
 import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
+import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 import { interleavedGradient } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import {
@@ -106,6 +107,7 @@ const vsmConsumerWgsl = (
       VSM_PROJECTION_DATA_READ_WGSL,
       vsmProjectionSampleWgsl(pool ? vsmPoolRead(b.pool) : RESOLVE_POOL),
       vsmTransmissionReadWgsl(transmission),
+      perspectiveDivide,
     ],
     `
 @group(0) @binding(${b.uniforms}) var<uniform> vsm:VsmUniforms;
@@ -155,7 +157,7 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
  if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
  var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(uvz.xyz/uvz.w,uvz.w);
+ uvz=vec4f(perspectiveDivide(uvz),uvz.w);
  let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
  if(!sm.valid){return 1.0;}
  let slope=vsmConsumerSlope(h,sm,fromMap,N);
@@ -181,7 +183,7 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
 const filteredReadWgsl = (kinds: ShadowKinds) =>
   wgslBlock(
     `filteredReadWgsl(${shadowKindsLabel(kinds)})`,
-    [],
+    [perspectiveDivide],
     `
 const VSM_FILTER_TAPS:array<vec2f,${PCF_TAPS.length}>=array<vec2f,${PCF_TAPS.length}>(${PCF_TAPS.map(([x, y]) => `vec2f(${x},${y})`).join(',')});
 /** A page of the filtered read's level, translated once for the block texels in it: none (\`kind\`
@@ -338,7 +340,7 @@ fn vsmShadowFiltered(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
  if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
  var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(uvz.xyz/uvz.w,uvz.w);
+ uvz=vec4f(perspectiveDivide(uvz),uvz.w);
  let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
  if(!sm.valid){return 1.0;}
  let lit=vsmFilterTaps(h,sm,uvz.z,vsmConsumerSlope(h,sm,fromMap,N),false);
@@ -532,7 +534,7 @@ export type DirectShadowOptions = {
 const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) =>
   wgslBlock(
     `vsmMaskWgsl(${binding}, ${shadowKindsLabel(kinds)})`,
-    [VSM_MASK_TABLE_READ_WGSL],
+    [VSM_MASK_TABLE_READ_WGSL, perspectiveDivide],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;
 @group(0) @binding(${VSM_MASK_TILES_BINDING}) var vsmShadowMaskTiles:texture_2d<u32>;
@@ -589,7 +591,7 @@ fn vsmTransmissionRead(id:u32,directional:bool,P:vec3f,Nin:vec3f){
  let fromMap=fromEye+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,shiftHigh,shiftLow);
  if(pd.lightKind!=LIGHT_KIND_SPOT){h=vsmHandleOffset(h,i32(vsmCubeFace(fromMap)));pd=vsmProjectionOf(h);}
  var uvz=pd.shiftedToMapUv*vec4f(fromMap,1.0);
- uvz=vec4f(uvz.xyz/uvz.w,uvz.w);
+ uvz=vec4f(perspectiveDivide(uvz),uvz.w);
  let sm=vsmReadMap(h,uvz.xy,pd.finestMip);
  if(!vsmTransmissionPaned(sm)){return;}
  shadowTransmission=vsmTransmissionThrough(sm,fromMap,fromEye,shadowCamera,false);`,

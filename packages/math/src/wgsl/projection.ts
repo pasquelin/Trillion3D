@@ -32,11 +32,18 @@ export const clipToPixel = wgslFn(
   'fn clipToPixel(p:vec4f,size:vec2f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*size.x,(1.0-(p.y/p.w*0.5+0.5))*size.y);}',
 )
 
+/** The three first lanes of the homogeneous `h`, each divided by its `w`. */
+export const perspectiveDivide = wgslFn(
+  'perspectiveDivide',
+  [],
+  'fn perspectiveDivide(h:vec4f)->vec3f{return h.xyz/h.w;}',
+)
+
 export const clipToFramebuffer = wgslFn(
   'clipToFramebuffer',
-  [],
+  [perspectiveDivide],
   `fn clipToFramebuffer(clip:vec4f,size:vec2f)->vec3f{
- let ndc=clip.xyz/clip.w;
+ let ndc=perspectiveDivide(clip);
  return vec3f((ndc.x*0.5+0.5)*size.x,(-ndc.y*0.5+0.5)*size.y,ndc.z);
 }`,
 )
@@ -61,10 +68,17 @@ export const clipToUv = wgslFn(
 )
 
 /** `y` kept: a projection that already flips it. */
+/** Normalised device coordinates to texture coordinates, y kept up. */
+export const ndcToUvUnflipped = wgslFn(
+  'ndcToUvUnflipped',
+  [],
+  'fn ndcToUvUnflipped(ndc:vec2f)->vec2f{return ndc*0.5+vec2f(0.5);}',
+)
+
 export const clipToUvUnflipped = wgslFn(
   'clipToUvUnflipped',
-  [],
-  'fn clipToUvUnflipped(clip:vec4f)->vec2f{return clip.xy/clip.w*0.5+vec2f(0.5);}',
+  [perspectiveDivide, ndcToUvUnflipped],
+  'fn clipToUvUnflipped(clip:vec4f)->vec2f{return ndcToUvUnflipped(perspectiveDivide(clip).xy);}',
 )
 
 export const ndcToUv = wgslFn(
@@ -82,9 +96,9 @@ export const transformHomogeneousPoint = wgslFn(
 
 export const unprojectPoint = wgslFn(
   'unprojectPoint',
-  [transformHomogeneousPoint],
+  [transformHomogeneousPoint, perspectiveDivide],
   `fn unprojectPoint(inverseViewProjection:mat4x4f,ndc:vec3f)->vec3f{
  let point=transformHomogeneousPoint(inverseViewProjection,ndc);
- return point.xyz/point.w;
+ return perspectiveDivide(point);
 }`,
 )

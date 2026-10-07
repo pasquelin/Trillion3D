@@ -4,6 +4,7 @@ import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { tangentBillboard } from '../../../../math/src/wgsl/basis.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
@@ -187,7 +188,7 @@ fn particle(in: Out) -> vec4f {
   let size = draw.drawn;
   let ndc = vec2f(in.at.x / size.x * 2 - 1, 1 - in.at.y / size.y * 2);
   let scene = draw.unclip * vec4f(ndc, textureLoad(depth, vec2i(in.at.xy), 0), 1);
-  let behind = distance(scene.xyz / scene.w, draw.eye) - distance(in.local, draw.eye);
+  let behind = distance(perspectiveDivide(scene), draw.eye) - distance(in.local, draw.eye);
   let soft = select(1.0, saturate(behind / draw.softness), abs(scene.w) > 1e-20);
   let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
   return vec4f(draw.color.rgb, 1) * k;
@@ -200,5 +201,5 @@ struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2
   let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
   return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
 }`,
-  [STATE_WGSL, DISPLAY_ROUTE_WGSL, displayMaskWgsl(1), tangentBillboard],
+  [STATE_WGSL, DISPLAY_ROUTE_WGSL, displayMaskWgsl(1), tangentBillboard, perspectiveDivide],
 )

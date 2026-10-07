@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
 /**
@@ -15,7 +16,7 @@ import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
  */
 export const VSM_BOX_CULL_WGSL = wgslBlock(
   'VSM_BOX_CULL_WGSL',
-  [FLOAT32_MAX, VSM_CONSTANTS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL],
+  [FLOAT32_MAX, VSM_CONSTANTS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL, perspectiveDivide],
   `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
 /** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
@@ -57,7 +58,7 @@ fn vsmBoxInPerspectiveView(corner000:vec4f,dx:vec4f,dy:vec4f,dz:vec4f,viewToClip
   let p=boxCorners[k];
   wLow=min(wLow,p.w);wHigh=max(wHigh,p.w);
   sideLow=min(sideLow,vec4f(p.xy,-p.xy)-p.w);
-  let ps=p.xy/p.w;
+  let ps=perspectiveDivide(p).xy;
   cull.clipLow=vec3f(min(cull.clipLow.xy,ps),cull.clipLow.z);
   cull.clipHigh=vec3f(max(cull.clipHigh.xy,ps),cull.clipHigh.z);
  }

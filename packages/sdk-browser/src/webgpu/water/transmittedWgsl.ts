@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
+import { ndcToPixel, perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 /**
  * What the water composite reads through its surface (`compositeWgsl.ts`): the frozen backdrop at
  * the exit of the refracted ray, attenuated over the path the ray travels in the volume. The host
@@ -7,13 +7,13 @@ import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
  */
 export const WATER_TRANSMITTED_WGSL = wgslBlock(
   'WATER_TRANSMITTED_WGSL',
-  [ndcToPixel],
+  [ndcToPixel, perspectiveDivide],
   `// Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
 // leaves the frustum.
 fn exitPixel(P:vec3f,dir:vec3f,dist:f32,straight:vec2i,size:vec2f)->vec2i{
  let clipPos=uni.viewProj*vec4f(P+dir*dist,1.0);
  if(clipPos.w<=0.0){return straight;}
- let ndc=clipPos.xy/clipPos.w;
+ let ndc=perspectiveDivide(clipPos).xy;
  return vec2i(clamp(ndcToPixel(ndc,size),vec2f(0.0),size-vec2f(1.0)));
 }
 // Distance from P to the backdrop at a pixel, or the declared thickness when nothing was drawn.

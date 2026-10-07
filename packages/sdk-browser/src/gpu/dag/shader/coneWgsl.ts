@@ -1,5 +1,9 @@
 import { CONE_LENGTH_RATIO, CONE_ORTHO_EPS, HALF_PI } from '../../../../../sdk-core/src/index.ts'
-import { invTranspose3Apply } from '../../../../../math/src/wgsl/inverseTranspose.ts'
+import {
+  absoluteSum3,
+  invTranspose3Apply,
+  isFiniteScale,
+} from '../../../../../math/src/wgsl/inverseTranspose.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
@@ -9,12 +13,12 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_CONE_WGSL = wgslBlock(
   'DAG_CONE_WGSL',
-  [invTranspose3Apply],
+  [invTranspose3Apply, absoluteSum3, isFiniteScale],
   `/** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
  *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
 fn isConformal(m:mat3x3f)->bool{
- let s=abs(m[0])+abs(m[1])+abs(m[2]);let t=s.x+s.y+s.z;
- if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return false;}
+ let t=absoluteSum3(m);
+ if(!isFiniteScale(t)){return false;}
  let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let lx2=dot(a,a);let ly2=dot(b,b);let lz2=dot(c,c);
  let maxl=max(lx2,max(ly2,lz2));let minl=min(lx2,min(ly2,lz2));

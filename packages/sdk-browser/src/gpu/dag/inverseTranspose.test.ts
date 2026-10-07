@@ -12,6 +12,7 @@ import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { SINGULAR_DETERMINANT } from '../../../../math/src/matrix/singular.ts'
 import { SINGULAR_DETERMINANT as SINGULAR_DETERMINANT_DECL } from '../../../../math/src/wgsl/constants.ts'
+import { isFiniteScale } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import {
   INVERSE_TRANSPOSE_BEFORE,
   INVERSE_TRANSPOSE_SHIPPED,
@@ -108,9 +109,10 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
     Math.fround(SINGULAR_DETERMINANT),
     'the declared threshold is no longer the CPU’s 1e-20',
   )
+  assert.match(corps, /let finite=isFiniteScale\(t\);/, 'null, infinite or NaN sum not rejected')
   assert.match(
-    corps,
-    /let finite=\(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
+    isFiniteScale.text,
+    /return \(t>0\.0\)&&\(bitcast<u32>\(t\)&0x7f800000u\)!=0x7f800000u;/,
     'null, infinite or NaN sum not rejected',
   )
   assert.match(

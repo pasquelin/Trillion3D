@@ -19,6 +19,7 @@ const CASES = 12000
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic'],
+  'perspectiveDivide',
 ]
 type Fn = (...args: unknown[]) => unknown
 /** The page rect and the detail geometry of a text, each call logged with what it is handed: the

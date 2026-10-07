@@ -33,6 +33,7 @@ import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './proje
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX, PI } from '../../../math/src/wgsl/constants.ts'
 import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 import {
   Frame3,
   frameAround,
@@ -110,7 +111,7 @@ fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapol
 /** The traces' common helpers and the ray jitter step. */
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [PI, FLOAT32_MAX, frameAround, VSM_STRUCTS_WGSL, VSM_PROJECTION_DATA_WGSL],
+  [PI, FLOAT32_MAX, frameAround, VSM_STRUCTS_WGSL, VSM_PROJECTION_DATA_WGSL, perspectiveDivide],
   `
 struct VsmMarchStep{valid:bool,storedDepth:f32,marchRayDepth:f32,slopeCap:f32,restartSlope:bool,}
 fn vsmEmptyStep()->VsmMarchStep{return VsmMarchStep(false,0.0,0.0,0.0,false);}
@@ -207,7 +208,7 @@ fn vsmSunRaySpread(l:vec3f,s:f32,n:vec3f,viewPosition:vec3f,ditherUv:f32,uvPerWo
  let nl=dot(n,l);
  if(!(nl>0.0)){return vec2f(FLOAT32_MAX);}
  let clip=vsmView.viewToClip*vec4f(viewPosition,1.0);
- let ndc=clip.xy/clip.w;
+ let ndc=perspectiveDivide(clip).xy;
  let toPixels=0.5*vsmView.viewPixels.xy/clip.w;
  let across=frameAround(l);
  let a=vsmAcrossLightOnScreen(across.x,l,n,nl,ndc,toPixels);
@@ -325,6 +326,7 @@ export const VSM_TRACE_LOCAL_WGSL = wgslBlock(
   'VSM_TRACE_LOCAL_WGSL',
   [
     VSM_TRACE_COMMON_WGSL,
+    perspectiveDivide,
     sinFromCosUnclamped,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
@@ -346,7 +348,7 @@ fn vsmLocalDepthGradientUv(h:VsmHandle,pointInMap:vec3f,worldNormal:vec3f)->vec2
 fn vsmLocalTexelPlaneBias(h:VsmHandle,pointInMap:vec3f,uvDepthSlope:vec2f)->f32{
  let pd=vsmProjectionOf(h);
  var mapUvz=pd.shiftedToMapUv*vec4f(pointInMap,1.0);
- mapUvz=vec4f(mapUvz.xyz/mapUvz.w,mapUvz.w);
+ mapUvz=vec4f(perspectiveDivide(mapUvz),mapUvz.w);
  let page=vsmLocalPageAt(pd.handle,mapUvz.xy,pd.finestMip);
  let mipTexels=f32(vsmTexelsAtLevel(page.coarserLevels));
  let texelMid=vec2f(page.mapTexelXY)+0.5;
@@ -366,8 +368,8 @@ fn vsmFaceRayBegin(h:VsmHandle,startInMap:vec3f,endInMap:vec3f,slopeCap:f32,dept
  let pd=vsmProjectionOf(h);
  let s4=pd.shiftedToMapUv*vec4f(startInMap,1.0);
  let e4=pd.shiftedToMapUv*vec4f(endInMap,1.0);
- var faceUvzStart=s4.xyz/s4.w;
- let faceUvzEnd=e4.xyz/e4.w;
+ var faceUvzStart=perspectiveDivide(s4);
+ let faceUvzEnd=perspectiveDivide(e4);
  let faceUvzStep=faceUvzEnd-faceUvzStart;
  if(clampUv){faceUvzStart=vec3f(saturate(faceUvzStart.xy),faceUvzStart.z);}
  faceUvzStart.z+=depthBias;

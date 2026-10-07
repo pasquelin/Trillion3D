@@ -45,7 +45,7 @@ import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { ceilDiv as ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
-import { unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
+import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL, vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
@@ -252,8 +252,8 @@ fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)
  let startClip=vsmView.shiftedToClip*vec4f(rayOrigin,1.0);
  let stepClip=vsmView.shiftedToClip*vec4f(rayDirection*rayLength,0.0);
  let endClip=startClip+stepClip;
- let startNdc=startClip.xyz/startClip.w;
- let endNdc=endClip.xyz/endClip.w;
+ let startNdc=perspectiveDivide(startClip);
+ let endNdc=perspectiveDivide(endClip);
  let stepNdc=endNdc-startNdc;
  let sb=vsmView.clipToBufferUv;
  let screenUvzStart=vec3f(startNdc.xy*sb.xy+sb.wz,startNdc.z);
@@ -626,6 +626,7 @@ export function vsmProjectionWgsl(
       vsmTraceWgsl(true),
       uvToNdc,
       unprojectPoint,
+      perspectiveDivide,
       ceilDivWgsl,
       ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
     ],

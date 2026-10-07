@@ -16,6 +16,7 @@ import {
   clipToUvUnflipped,
   ndcToPixel,
   ndcToPixelFlip,
+  perspectiveDivide,
   transformHomogeneousPoint,
 } from '../../../../math/src/wgsl/projection.ts'
 
@@ -31,6 +32,7 @@ const run = shaderRun<Record<string, F>>(
     ndcToPixel,
     ndcToPixelFlip,
     clipToUvUnflipped,
+    perspectiveDivide,
     transformHomogeneousPoint,
   ),
   [
@@ -42,6 +44,8 @@ const run = shaderRun<Record<string, F>>(
     'ndcToPixel',
     'ndcToPixelFlip',
     'clipToUvUnflipped',
+    'ndcToUvUnflipped',
+    'perspectiveDivide',
     'transformHomogeneousPoint',
   ],
   { Frame3: (x: V, y: V, z: V) => ({ x, y, z }), mat3x3f: (...columns: V[]) => columns },
@@ -129,4 +133,10 @@ test('the flipped pixel is the pixel ndcToPixel gives, the unflipped uv keeps y'
   assert.deepEqual(run.clipToUvUnflipped([1, -2, 0, 2]), [0.75, 0])
   const m = new Mat([2, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 1, 5, 6, 7, 0])
   assert.deepEqual(run.transformHomogeneousPoint(m, [1, 1, 1]), [7, 9, 11, 1])
+})
+
+test('the perspective divide is each of the three first lanes over the fourth', () => {
+  assert.deepEqual(run.perspectiveDivide([2, -4, 6, 2]), [1, -2, 3])
+  assert.deepEqual(run.perspectiveDivide([1, 3, -5, -0.5]), [-2, -6, 10])
+  assert.deepEqual(run.perspectiveDivide([0.5, 0.25, 8, 4]), [0.125, 0.0625, 2])
 })

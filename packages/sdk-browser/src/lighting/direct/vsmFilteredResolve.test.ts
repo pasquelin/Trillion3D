@@ -26,6 +26,7 @@ const RESOLVE_READ = [
   'vsmConsumerSlopeBias',
   'vsmConsumerSlopeBiasAt',
   'testTransmission',
+  'perspectiveDivide',
 ]
 type Resolve = { shadowFactor: (...a: unknown[]) => number; testTransmission: () => V }
 

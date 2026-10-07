@@ -3,6 +3,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { tangentAround } from '../../../math/src/wgsl/basis.ts'
 import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
 import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
+import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /** Screen-space cone tracing.
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite
@@ -18,7 +19,7 @@ import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
  * `reflectionConeSection`: the section at fraction `t`, its footprint in pixels and depth spread. */
 export const REFLECTION_CONE_TRACE_WGSL = wgslBlock(
   'REFLECTION_CONE_TRACE_WGSL',
-  [tangentAround, sinFromCos, FAR_VALUE],
+  [tangentAround, sinFromCos, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped],
   `
 fn reflectionGgxMass(u:f32,k:f32)->f32{
  let d:f32=k-1.0;
@@ -50,7 +51,7 @@ fn reflectionConeSection(c:vec4f,d:vec4f,e:vec4f,reach:f32,t:f32,basis:vec4f,slo
  let centre:vec4f=c+d*distance;
  let spread:vec4f=basis*distance*slope;
  let nearW:f32=max(centre.w-spread.w,1e-6);
- let footprint:vec2f=(spread.xy+abs(centre.xy/centre.w)*spread.w)/nearW*size*0.5;
+ let footprint:vec2f=(spread.xy+abs(perspectiveDivide(centre).xy)*spread.w)/nearW*size*0.5;
  return vec4f(footprint,(spread.z+abs(centre.z/centre.w)*spread.w)/nearW,0.0);
 }
 fn reflectionConeLimits(z0:f32,z1:f32,spread:f32)->vec2f{
