@@ -1,8 +1,8 @@
 //! World super-roots on a synthetic world. A tile is 1 km square and holds 4 × 4 objects,
 //! each a bumped plate lying down and a smaller one standing, two primitives of two materials,
-//! their root covers taken from their real DAG. The world is one tile (1 km) or 8 × 8 tiles
-//! (8 km, 64 times the objects), one cell per tile.
-use super::merge::world_dag;
+//! their root covers taken from their real DAG. The world is one tile (1 km), 2 × 2 tiles or 8 × 8
+//! tiles (8 km, 64 times the objects), one cell per tile.
+use super::world::world_dag;
 use super::*;
 use crate::compiler_world::translation;
 use crate::dag::{build_dag_tallied, DagAttributes, DAG_CLUSTER_TRIANGLES, DAG_GROUP_MAX};
@@ -11,7 +11,7 @@ const TILE: f64 = 1000.0;
 const SIDE: usize = 4;
 
 /// A plate of `n` × `n` quads, `size` metres across, bumped, standing when `upright`.
-fn plate(n: usize, size: f32, upright: bool) -> (Vec<f32>, Vec<u32>) {
+pub(super) fn plate(n: usize, size: f32, upright: bool) -> (Vec<f32>, Vec<u32>) {
     let w = n + 1;
     let mut positions = Vec::with_capacity(w * w * 3);
     for y in 0..w {
@@ -33,7 +33,7 @@ fn cover((positions, indices): (Vec<f32>, Vec<u32>)) -> RootCover {
         build_dag_tallied(&positions, attributes, &indices, strategy, &|| Ok(())).expect("dag");
     let pages = vec![json!({"stream": 0}); dag.len()];
     let page_of: Vec<usize> = (0..dag.len()).collect();
-    RootCover::of(strategy, &dag, &positions, &pages, &page_of)
+    RootCover::of(strategy, &dag, (&positions, &[]), &pages, &page_of)
 }
 
 pub(super) fn covers() -> [RootCover; 2] {
@@ -70,34 +70,38 @@ pub(super) fn cooked(instances: &[Instance], cells: usize, budget: usize) -> Res
     cook(instances, cells, budget, &|| Ok(()))
 }
 
-fn pinned_top(cooked: &Cooked) -> usize {
-    cooked.report["pinnedTopBytes"]
-        .as_u64()
-        .expect("pinned top") as usize
+/// The largest page `cooked` wrote, and the bytes of its pinned top.
+pub(super) fn sizes(cooked: &Cooked) -> (usize, usize) {
+    let pages = cooked.table["pages"].as_array().expect("pages").iter();
+    let largest = pages.filter_map(|page| page["bytes"].as_u64()).max();
+    let top = cooked.report["pinnedTopBytes"].as_u64();
+    (largest.unwrap_or(0) as usize, top.unwrap_or(0) as usize)
 }
 
 #[test]
 fn the_published_pinned_top_is_bounded_whatever_the_size_of_the_world() {
     let covers = covers();
-    let (small, large) = (world(&covers, 1), world(&covers, 8));
-    let one = cooked(&small, 1, WORLD_TOP_BUDGET_BYTES).expect("1 km");
+    // A world of one cell pins nothing: that cell holds every root of it.
+    let lone = cooked(&world(&covers, 1), 1, WORLD_TOP_BUDGET_BYTES).expect("1 km");
+    assert_eq!(sizes(&lone).1, 0, "1 km");
+    let (small, large) = (world(&covers, 2), world(&covers, 8));
+    let one = cooked(&small, 4, WORLD_TOP_BUDGET_BYTES).expect("2 km");
     let many = cooked(&large, 64, WORLD_TOP_BUDGET_BYTES).expect("8 km");
-    // The bound owes nothing to the world: per material, one group's pages at most, each at most
-    // 255 vertices and a full cluster of 16-bit corners.
-    let page = 8 + 255 * 12 + DAG_CLUSTER_TRIANGLES * 6;
+    // The bound owes nothing to the world: per material, one group's pages at most, each no
+    // larger than the largest page either cook wrote.
+    let ((first, one), (second, many)) = (sizes(&one), sizes(&many));
+    let page = first.max(second);
     let bound = covers.len() * DAG_GROUP_MAX * page;
-    let (one, many) = (pinned_top(&one), pinned_top(&many));
-    assert!(one > 0 && one <= bound, "1 km: {one} of {bound}");
+    assert!(one > 0 && one <= bound, "2 km: {one} of {bound}");
     assert!(many > 0 && many <= bound, "8 km: {many} of {bound}");
-    // The object roots the runtime pins today grew 64 times; the top did not follow them.
+    // The object roots the runtime pins today grew 16 times; the top did not follow them.
     let roots: usize = large
         .iter()
         .map(|i| i.cover.positions.len() * 4 + i.cover.clusters.len() * DAG_CLUSTER_TRIANGLES)
         .sum();
     assert!(many * 8 <= roots, "8 km top {many} of {roots} root bytes");
-    // Equal to the spread: each material ends on one page at either size.
-    let spread = covers.len() * page;
-    assert!(many.abs_diff(one) <= spread, "1 km {one}, 8 km {many}");
+    let spread = covers.len() * page; // each material ends on one page at either size
+    assert!(many.abs_diff(one) <= spread, "2 km {one}, 8 km {many}");
 }
 
 #[test]
@@ -173,27 +177,4 @@ fn every_object_root_reaches_the_world_top_through_its_dependencies() {
         }
         assert!(world.clusters[at].is_root() && world.clusters[at].level > 0);
     }
-}
-
-#[test]
-fn a_world_whose_pinned_top_exceeds_the_budget_is_refused_naming_its_cell() {
-    let covers = covers();
-    let mut instances = world(&covers, 2);
-    // Cell 3 alone wears a third material: its roots never meet another cell's, so their top is
-    // its own and it pins the most.
-    let lone = Instance {
-        cell: 3,
-        node: 99,
-        primitive: 2,
-        material: Some(7),
-        matrix: translation([1500.0, 0.0, 1500.0]),
-        cover: &covers[0],
-    };
-    instances.push(lone);
-    let fits = cooked(&instances, 4, WORLD_TOP_BUDGET_BYTES).expect("within the budget");
-    let error = cooked(&instances, 4, pinned_top(&fits) - 1)
-        .err()
-        .expect("refused");
-    assert_eq!(error.code, "WORLD_TOP_OVER_BUDGET");
-    assert!(error.message.contains("cell 3 pins"), "{}", error.message);
 }

@@ -80,7 +80,27 @@ export type DagViewFrames = {
   perspective: number
   viewPoint: Float64Array
   pixelError: number
+  /** Per placement, the threshold its cut is held to: the frame's, the world DAG's scaled by its
+   *  fade this cut (`../worldFade.ts`, `thresholdOf` in `../shader/placementTreeWgsl.ts`). */
+  thresholds: number[]
+  /** The frustum's render-frame planes and the eye they are taken from: what the placement tree's
+   *  world boxes are tested against (`../shader/placementTreeWgsl.ts`). */
+  viewPlanes: Float64Array
+  cameraWorld: readonly number[]
 }
+/** Each placement's threshold under `pixelError`: the world DAG's, packed last, scaled in single
+ *  precision by its fade as the kernel scales it. */
+function worldThresholds(packed: Partial<PackedDag> & { worldCount: number }, pixelError: number) {
+  const thresholds = new Array<number>(packed.worldCount).fill(pixelError),
+    world = packed.world
+  if (world)
+    thresholds[world.root] = Math.fround(Math.fround(pixelError) * Math.fround(world.scale))
+  return thresholds
+}
+
+/** The threshold placement `w`'s cut is held to in `f`. */
+export const thresholdOf = (f: DagViewFrames, w: number) => f.thresholds[w] ?? f.pixelError
+
 export function dagViewFrames(
   packed: Pick<PackedDag, 'worlds' | 'worldStretch' | 'worldCount'> & Partial<PackedDag>,
   uniforms: DagViewUniforms,
@@ -116,5 +136,8 @@ export function dagViewFrames(
       perspective,
     ),
     pixelError: uniforms.pixelError,
+    thresholds: worldThresholds(packed, uniforms.pixelError),
+    viewPlanes: Float64Array.from(uniforms.planes),
+    cameraWorld: uniforms.cameraWorld ?? [0, 0, 0],
   }
 }

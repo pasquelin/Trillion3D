@@ -79,7 +79,7 @@ test('the engine packing holds a manifest root and the world DAG in one cut', ()
 test('the world DAG is read in the cook’s rank order, never re-sorted', () => {
   const { clusters, groups } = worldRootsDag()
   const root = worldRootDag(
-    { clusters, groups, payload: { url: 'world-roots.bin' } },
+    { clusters, groups, payload: { url: 'world-roots.bin' }, pinned: 1 },
     worldRootPages,
   )!
   // Rank r is cluster r: a super-root names its page at its bundle, an object root none.
@@ -94,11 +94,11 @@ test('the world DAG is read in the cook’s rank order, never re-sorted', () => 
   const swapped = [...clusters]
   ;[swapped[3], swapped[12]] = [swapped[12], swapped[3]]
   assert.throws(
-    () => worldRootDag({ clusters: swapped, groups }, worldRootPages),
+    () => worldRootDag({ clusters: swapped, groups, pinned: 1 }, worldRootPages),
     /WORLD_CLUSTER_RANK: 12 at 3/,
   )
   assert.equal(
-    worldRootDag({}, worldRootPages),
+    worldRootDag({ pinned: 0 }, worldRootPages),
     undefined,
     'a table cooked without its DAG has none',
   )

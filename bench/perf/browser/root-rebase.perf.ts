@@ -1,10 +1,11 @@
 // The per-element loops of the world step (`packages/sdk-browser/src/webgpu/pages/render/render.ts`), on the root count of the
-// reference scene: what a moving camera pays every image in JavaScript, timed on a nanosecond
-// clock where the engine's own `worldMs` bound reads on a 0.1 ms one. This is the measurement
-// a WebAssembly kernel is gated on: a loop under 0.1 ms per image keeps its JavaScript form.
+// reference scene: what a scene change pays in JavaScript — a moving camera pays none, the cut's
+// worlds being brought to the eye on the GPU —, timed on a nanosecond clock where the engine's
+// own `worldMs` bound reads on a 0.1 ms one. This is the measurement a WebAssembly kernel is gated
+// on: a loop under 0.1 ms per image keeps its JavaScript form.
 import * as THREE from 'three'
 import { measure, rapport } from '../../core/index.ts'
-import { rootWorldsToRenderOrigin } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
+import { rootWorlds } from '../../../packages/sdk-browser/src/gpu/dag/pack.ts'
 import {
   refreshWorldStretch,
   worldsChanged,
@@ -20,17 +21,10 @@ const roots: DagRoot[] = Array.from({ length: ROOTS }, (_, i) => ({
   pages: [],
 }))
 const worlds = new Float32Array(ROOTS * 16)
-const origin = [12345.5, 6.25, -700.125]
-const translations = new Float64Array(ROOTS * 3)
-rootWorldsToRenderOrigin(worlds, roots, origin, translations)
-// The previous image's frame: the same roots one camera step earlier — every translation differs.
-const previous = new Float32Array(ROOTS * 16)
-rootWorldsToRenderOrigin(
-  previous,
-  roots,
-  [origin[0] + 0.5, origin[1], origin[2] - 0.25],
-  translations,
-)
+rootWorlds(worlds, roots)
+// The previous scene's worlds: the first root one step away — the scan finds it at once.
+const previous = worlds.slice()
+previous[12] += 0.5
 const packed = { worldCount: ROOTS, worldStretch: new Float32Array(ROOTS) }
 const frameData = new Float32Array(ROOTS * 7 * 4)
 
@@ -42,8 +36,8 @@ const results = await measure({
   ],
   cas: [
     {
-      name: 'root rebase, 2 479 roots',
-      input: () => rootWorldsToRenderOrigin(worlds, roots, origin, translations),
+      name: 'root worlds, 2 479 roots',
+      input: () => rootWorlds(worlds, roots),
       size: ROOTS,
     },
     {
@@ -53,7 +47,7 @@ const results = await measure({
     },
     { name: 'change scan, nothing moved', input: () => worldsChanged(worlds, worlds), size: ROOTS },
     {
-      name: 'stretch scan, translations only moved',
+      name: 'stretch scan, a translation moved',
       input: () => refreshWorldStretch(previous, worlds, packed, frameData),
       size: ROOTS,
     },

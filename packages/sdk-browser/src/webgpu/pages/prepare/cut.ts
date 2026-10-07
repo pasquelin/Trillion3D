@@ -1,6 +1,7 @@
 import { createGpuDagSelection, packDagSelection } from '../../../gpu/dag/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
-import type { DagRoot } from '../../../gpu/dag/types.ts'
+import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts'
+import { linkWorldObjects } from './worldRoot.ts'
 import type { DagCapacity } from '../../../gpu/dag/pack.ts'
 
 /**
@@ -28,11 +29,11 @@ export async function prepareGpuCut(
 /** The session's GPU cut over `roots` — at open, exactly theirs, or beside the running one for a
  *  growth in place (`../../../placement/webgpuGrowth.ts`), at the grown `capacity` later growths
  *  append into, the pages the pool holds listed at once (`poolHeld`) —, or why the device refused
- *  it, said by name. */
+ *  it, said by name. Each placement packed is linked to the world object it draws. */
 export async function createSessionCut(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  roots: readonly DagRoot[],
+  roots: readonly ClusterRoot<PageRec>[],
   poolHeld?: (page: number) => boolean,
   capacity?: DagCapacity,
 ) {
@@ -49,5 +50,8 @@ export async function createSessionCut(
     },
     poolHeld,
   })
+  // Each row placed already draws its world object: the world DAG stands in for it where its
+  // group suffices (`worldRoot.ts`).
+  if (cut) linkWorldObjects(rt.context, cut, roots)
   return { cut, refused }
 }

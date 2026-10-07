@@ -33,8 +33,8 @@ fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{return outsideFrustum(aheadPl
 fn keepsAhead(node:CullNode,w:u32)->bool{
  vi=AHEAD_VIEW;
  if(outsideAhead(w,node.minimum,node.maximum)){return false;}
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
- return !tooCoarse(node,e,stretch,focal)&&!floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal);
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=thresholdOf(w);
+ return !tooCoarse(node,e,stretch,focal,t)&&!floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal,t);
 }
 /** A node the camera rejected, tried against the view ahead. */
 fn descendAhead(src:u32,node:CullNode,w:u32){
@@ -50,7 +50,7 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  if(outsideAhead(w,bmin,bmax)){return;}
  let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  let pixels=clusterPixels(cluster,e,stretch,focal);
- if(!selects(pixels,views[vi].pixelError)){return;}
+ if(!selects(pixels,thresholdOf(w))){return;}
  emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
 }
 `

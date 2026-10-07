@@ -111,17 +111,20 @@ export function composeCardWorlds(
     out.set(multiplyMatrix4(composed, toDraw, worlds[i]), i * CARD_FLOATS + COMPOSED_AT)
 }
 
-/** Sets each root's card bit to the plan's verdict (`markCard`); `moved` hears the roots whose bit
- *  moved. One decision for every cut. */
+/** Sets each root's card bit to the plan's verdict (`markCard`) — the ranks it read (`visited`),
+ *  else every rank —; `moved` hears the roots whose bit moved. One decision for every cut. */
 function markImpostorRoots(
   roots: readonly ClusterRoot<unknown>[],
   switched: Uint8Array | undefined,
   moved?: CardMoved,
+  visited?: readonly number[],
 ) {
-  for (let rank = 0; rank < roots.length; rank++) {
+  const mark = (rank: number) => {
     const root = roots[rank]
     if (core.markCard(root, switched?.[rank] === 1)) moved?.(rank, root)
   }
+  if (visited) for (const rank of visited) mark(rank)
+  else for (let rank = 0; rank < roots.length; rank++) mark(rank)
 }
 
 /** A tier turned off (its path's drop): no card, and every root its clusters again. */
@@ -153,10 +156,20 @@ export function planImpostorCards<G>(
   viewport: readonly number[] | undefined,
   atlasOf: (mesh: number, maps: ImpostorMaps) => G | undefined,
   moved?: CardMoved,
+  /** The roots in view, when the cut knows them (`GpuSelection.visiblePlacements`): the plan reads
+   *  them alone, the others keep their verdict — the image draws no card of theirs. */
+  ranks?: Parameters<typeof planImpostors>[5],
 ) {
   core.pixelScaleOf(cam.projection, viewport, pixelScale)
   const focal = Math.max(pixelScale[0], pixelScale[1])
-  const plan = (state.plan = planImpostors(roots, state.section, cam.view, focal, state.plan))
+  const plan = (state.plan = planImpostors(
+    roots,
+    state.section,
+    cam.view,
+    focal,
+    state.plan,
+    ranks,
+  ))
   plan.cards.sort(byMesh)
   state.count = state.runCount = 0
   const floats = plan.cards.length * CARD_FLOATS
@@ -186,24 +199,44 @@ export function planImpostorCards<G>(
       continue
     }
     last = card.world
-    impostorCardCorners(corners, cam.viewProjection, pivot, R)
-    // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.
-    const distance = hypot3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2])
-    shape[0] = entry.objectRadius ?? entry.radius
-    shape[1] = entry.frames
-    shape[2] = entry.hemi ? 1 : 0
-    shape[3] = Math.max(0, Math.log2(distance / impostorTexelDepth(R, entry.frameSide, focal)))
-    const world = (state.worlds[state.count] ??= new Float64Array(16))
-    writeCard(state.records, state.count * CARD_FLOATS, card, centre, world)
-    const run = state.runCount ? state.runs[state.runCount - 1] : undefined
-    if (run?.group === group) run.count++
-    else {
-      const next = (state.runs[state.runCount++] ??= { group, first: 0, count: 0 })
-      next.group = group
-      next.first = state.count
-      next.count = 1
-    }
-    state.count++
+    pushCard(state, { card, entry, centre, group }, cam, focal)
   }
-  markImpostorRoots(roots, plan.switched, moved)
+  markImpostorRoots(roots, plan.switched, moved, plan.visited)
+}
+
+/** A baked mesh's entry, as the session's cards hold it. */
+type Baked = NonNullable<ReturnType<ReturnType<typeof impostorBakedByMesh>['get']>>
+
+/** A card in view with its atlas: its corners turned to the camera, its mip, its record written at
+ *  the image's next rank, in its mesh's run. The pivot is `pivot`, as the plan just placed it. */
+function pushCard<G>(
+  state: ImpostorCards<G>,
+  {
+    card,
+    entry,
+    centre,
+    group,
+  }: { card: ImpostorCard; entry: Baked; centre: readonly number[]; group: G },
+  cam: EngineCamera,
+  focal: number,
+) {
+  const R = card.radius
+  impostorCardCorners(corners, cam.viewProjection, pivot, R)
+  // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.
+  const distance = hypot3(pivot[0] - cam.eye[0], pivot[1] - cam.eye[1], pivot[2] - cam.eye[2])
+  shape[0] = entry.objectRadius ?? entry.radius
+  shape[1] = entry.frames
+  shape[2] = entry.hemi ? 1 : 0
+  shape[3] = Math.max(0, Math.log2(distance / impostorTexelDepth(R, entry.frameSide, focal)))
+  const world = (state.worlds[state.count] ??= new Float64Array(16))
+  writeCard(state.records, state.count * CARD_FLOATS, card, centre, world)
+  const run = state.runCount ? state.runs[state.runCount - 1] : undefined
+  if (run?.group === group) run.count++
+  else {
+    const next = (state.runs[state.runCount++] ??= { group, first: 0, count: 0 })
+    next.group = group
+    next.first = state.count
+    next.count = 1
+  }
+  state.count++
 }

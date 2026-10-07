@@ -14,6 +14,7 @@ import {
 } from '../placement/rows.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
+import { carryRowCells } from './rowCells.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
@@ -60,6 +61,7 @@ export function sizeRows(
     }
     mesh.links.forEach((link, at) => {
       link.placements = growPlacementRows(from[at], rows)
+      carryRowCells(from[at], link.placements)
       grow?.growPlacements(from[at], link.placements)
     })
     for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row)

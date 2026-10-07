@@ -27,7 +27,7 @@ export async function createDagStages(
     module,
     [
       ...levels,
-      ...(split ? ['dagRootLevel'] : []),
+      'dagRootLevel',
       'dagPrepare',
       'dagClearDrawn',
       'dagWanted',
@@ -46,8 +46,9 @@ export async function createDagStages(
   return {
     preparePipeline: stage.dagPrepare,
     clearDrawnPipeline: stage.dagClearDrawn,
-    // One range: pass 0 reads the whole queue 0, `dagLevel0` itself.
-    rootLevelPipeline: split ? stage.dagRootLevel : levelPipelines[0],
+    // Pass 0 reads each range's slots, a grouped placement's left to its kept group
+    // (`shader/placementTreeWgsl.ts`): never `dagLevel0`, which reads queue 0 whole.
+    rootLevelPipeline: stage.dagRootLevel,
     levelPipelines,
     wantedPipeline: stage.dagWanted,
     maskPipeline: stage.dagMask,

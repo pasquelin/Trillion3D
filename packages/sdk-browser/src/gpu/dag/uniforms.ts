@@ -100,6 +100,18 @@ export function writeDagUniforms(
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
+  // The placement tree (`placementTree.ts`): the placements its groups prepare, its cells' nodes,
+  // where its order lies in the cold table.
+  const tree = packed.placementTree
+  ints[W('grouped')] = tree?.grouped ?? 0
+  ints[W('cells')] = tree?.cells ?? 0
+  ints[W('cellBase')] = tree?.cellBase ?? 0
+  ints[W('members')] = tree?.members ?? 0
+  // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
+  const world = packed.world
+  ints[W('worldLinks')] = world?.linkBase ?? 0
+  // The world DAG's threshold this cut, its transitions dithered in time (`worldFade.ts`).
+  target[W('worldScale')] = world?.scale ?? 1
   writeAheadBlock(target, ints, uniforms)
 }
 

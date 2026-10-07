@@ -1,126 +1,61 @@
 /**
  * THE WORLD DAG'S RESIDENCY, A MIRROR OF THE SCENE'S.
  *
- * The world DAG rides in the one packing as one more root, packed last (`worldSuperRoots.ts`), so
- * the packing holds more pages than the rows' residency flags name: handed as they are, the cut's
- * residency refuses them (`GPU_SELECTION_RESIDENCY_COUNT_CHANGED`). This mirror is the one array
- * the cut reads: the scene's pages as the rows hold them, then the world's — a super-root as its
- * own bundle is held (`superRoot`), an object root as its placement's manifest root cover.
+ * The world DAG rides in the one packing as one more root, packed last (`worldSuperRoots.ts`). Its
+ * super-roots are pages like any other: the rows hold them, their flags are the rows'. Its object
+ * clusters are not: a placed object draws itself, through its own placement. This mirror is the
+ * one array the cut reads: the rows' flags, each object cluster's set from its placement.
  *
- * An object root has no page of its own in the world DAG: its placed object draws it. It is
- * resident only while that object is placed (`place`, its `origin`) and every root of the cover
- * its placement packs is resident, as a cell's coarse stand-in stays shown until its objects are loaded
- * and drawable. So the cut keeps a cell's super-root while its objects are not drawable — no hole
- * when a cell comes near —, and reads the object roots, never the super-root, once they are —
- * the cut's own `parent stands in for its children` term, no second path (rule 7). A placement
- * that leaves turns its object roots out the same step: the super-root stands in again.
+ * An object cluster is resident only while its object is placed — a placement links it
+ * (`worldLinks.ts`) — and every root of the cover that placement packs is resident, as a cell's
+ * coarse stand-in stays shown until its objects are loaded and drawable. So the cut keeps a group's
+ * super-roots while one of its objects is not drawable — no hole when a cell comes near —, and the
+ * placements draw once every object of the group is, where the group projects past the threshold
+ * — the cut's own `parent stands in for its children` term, no second path (rule 7). A placement
+ * that leaves turns its object out the same step: the super-roots stand in again.
  *
- * Handed over by difference (`ResidencyChanges`): a frame copies the scene pages the rows name, and
+ * Handed over by difference (`ResidencyChanges`): a frame copies the pages the rows name, and
  * mirrors only the objects whose cover or placement moved; nothing scans the world.
  */
 import type { ResidencyChanges } from '../core/selection.ts'
 import type { PackedDag } from './types.ts'
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts'
+import { SELECTION_NONE as NONE } from '../core/selection.ts'
+import { objectClusters } from './worldLinks.ts'
 
-/** The mirror of `packed`, whose `world` root (`packed.cutLinks`), packed last, is the world DAG
- *  with `origins` per rank (`worldRootDag`): the placed object of an object root, -1 otherwise. */
-export function createWorldResidencyMirror(packed: PackedDag & Required<Pick<PackedDag, 'world'>>) {
+type WorldPacked = PackedDag & Required<Pick<PackedDag, 'world'>>
+type Mirror = ReturnType<typeof mirrorState>
+
+/** What the mirror of `packed` holds: the flags, and each object's placement and back. */
+function mirrorState(packed: WorldPacked) {
   const { root, origins } = packed.world
   const { pageBase, pageCount } = packed.cutLinks[root]
   if (pageBase + pageCount !== packed.pageCount) throw new Error('GPU_WORLD_DAG_NOT_LAST')
   if (origins.length !== pageCount) throw new Error('GPU_WORLD_ORIGINS_COUNT_CHANGED')
-  const { objects, first, ranks } = objectRanks(origins, pageCount)
-  const changed = createDenseKeySet()
-  const m: MirrorState = {
-    ...{ packed, origins, pageBase, objects, first, ranks, changed },
+  const clusterOf = objectClusters(origins)
+  return {
+    packed,
+    pageBase,
+    clusterOf,
     flags: new Uint32Array(packed.pageCount),
     pageWorlds: new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset, pageBase),
-    placementOf: new Int32Array(objects).fill(-1),
-    objectsOf: new Map(),
-    dirty: new Set(),
-    moved: {
-      get pages() {
-        return changed.list
-      },
-      get count() {
-        return changed.count
-      },
-    } satisfies ResidencyChanges,
+    /** The placement drawing each object, -1 when none, and the object each placement draws. */
+    placementOf: new Int32Array(clusterOf.length).fill(-1),
+    objectOf: new Int32Array(packed.worldCount).fill(-1),
+    /** Objects whose placement or cover moved since `update`; the pages whose flag moved, each
+     *  once, as the row journal lists them (`webgpu/row/journal.ts`). */
+    dirty: new Set<number>(),
+    changed: createDenseKeySet(),
+    /** Whether each placement's cover is resident, read once per `update`. */
+    covers: new Map<number, boolean>(),
+    /** Whether `changed` was handed over: the next write starts a new list. */
     handed: false,
-    covers: new Map(),
   }
-  const { flags, placementOf } = m
-  return {
-    /** The residency the cut reads, every packed page: the scene's, then the world DAG's. */
-    flags,
-    /** Bytes of its host tables, which the cut's `hostBytes` counts. */
-    get hostBytes() {
-      return (
-        flags.byteLength +
-        first.byteLength +
-        ranks.byteLength +
-        placementOf.byteLength +
-        changed.byteLength
-      )
-    },
-    /** Object `object` (an `origin`) is drawn by scene placement `w` (`packed.cutLinks`). */
-    place: (object: number, w: number) => place(m, object, w),
-    /** Object `object` left its placement: its object roots turn out at the next `update`. */
-    unplace: (object: number) => unplace(m, object),
-    /** Super-root `rank` of the world DAG is resident, or no longer: its bundle is held or left. */
-    superRoot(rank: number, resident: boolean) {
-      if (origins[rank] < 0) write(m, pageBase + rank, resident ? 1 : 0)
-    },
-    /**
-     * The scene's residency `scene` — the rows' flags, one per scene page — at the pages `changes`
-     * names (every page without), mirrored onto the world DAG: the whole array, and the pages it
-     * moved, sorted, which the cut's upload reads (`GpuSelection.updateResidency`).
-     */
-    update: (scene: Uint32Array, changes?: ResidencyChanges) => update(m, scene, changes),
-  }
-}
-
-type MirrorState = {
-  packed: PackedDag
-  origins: Int32Array
-  pageBase: number
-  objects: number
-  /** Each object's world ranks, by origin: offsets into `ranks`. */
-  first: Uint32Array
-  ranks: Uint32Array
-  flags: Uint32Array
-  pageWorlds: Uint32Array
-  /** The placement drawing each object, -1 when none; each placement's objects. */
-  placementOf: Int32Array
-  objectsOf: Map<number, Set<number>>
-  /** Objects whose placement or cover moved since `update`; the pages whose flag moved, each once,
-   *  as the row journal lists them (`webgpu/row/journal.ts`). */
-  dirty: Set<number>
-  changed: ReturnType<typeof createDenseKeySet>
-  moved: ResidencyChanges
-  /** Whether `moved` was handed over: the next write starts a new list. */
-  handed: boolean
-  /** Whether every root of a placement's cover is resident, read once an update. */
-  covers: Map<number, boolean>
-}
-
-/** Each object's world ranks, by origin: offsets, then the ranks (built once, two passes). */
-function objectRanks(origins: Int32Array, pageCount: number) {
-  let objects = 0
-  for (let rank = 0; rank < pageCount; rank++) objects = Math.max(objects, origins[rank] + 1)
-  const first = new Uint32Array(objects + 1),
-    ranks = new Uint32Array(pageCount)
-  for (let rank = 0; rank < pageCount; rank++) if (origins[rank] >= 0) first[origins[rank] + 1]++
-  for (let o = 0; o < objects; o++) first[o + 1] += first[o]
-  const filled = first.slice(0, objects)
-  for (let rank = 0; rank < pageCount; rank++)
-    if (origins[rank] >= 0) ranks[filled[origins[rank]]++] = rank
-  return { objects, first, ranks }
 }
 
 /** Writes `page`'s flag; whether it moved. */
-function write(m: MirrorState, page: number, value: number) {
+function write(m: Mirror, page: number, value: number) {
   if (m.flags[page] === value) return false
   if (m.handed) m.changed.clear()
   m.handed = false
@@ -131,67 +66,111 @@ function write(m: MirrorState, page: number, value: number) {
 
 /** Whether every root of placement `w`'s cover is resident: a primitive without its group
  *  structure is all roots. */
-function coverResident(m: MirrorState, w: number) {
+function coverResident(m: Mirror, w: number) {
   const known = m.covers.get(w)
   if (known !== undefined) return known
-  const resident = readCover(m, w)
+  const { structure, pageBase: base, pageCount: count } = m.packed.cutLinks[w]
+  let resident = true
+  if (structure) resident = structure.roots.every((root) => m.flags[base + root] !== 0)
+  else for (let page = base; page < base + count && resident; page++) resident = !!m.flags[page]
   m.covers.set(w, resident)
   return resident
 }
 
-function readCover({ packed, flags }: MirrorState, w: number) {
-  const { structure, pageBase: base, pageCount: count } = packed.cutLinks[w]
-  if (structure) return structure.roots.every((root) => flags[base + root] !== 0)
-  for (let page = base; page < base + count; page++) if (!flags[page]) return false
-  return true
-}
-
-function mirror(m: MirrorState, object: number) {
-  const w = m.placementOf[object],
-    value = w >= 0 && coverResident(m, w) ? 1 : 0
-  for (let at = m.first[object]; at < m.first[object + 1]; at++)
-    write(m, m.pageBase + m.ranks[at], value)
-}
-
-function scenePage(m: MirrorState, scene: ArrayLike<number>, page: number) {
+/** The rows' flag of `page`: a scene page's, its placement's object told; a super-root's. An
+ *  object cluster's is the mirror's own. */
+function rowPage(m: Mirror, scene: ArrayLike<number>, page: number) {
+  if (page >= m.pageBase) {
+    if (m.packed.world.origins[page - m.pageBase] < 0) write(m, page, scene[page] ? 1 : 0)
+    return
+  }
   if (!write(m, page, scene[page] ? 1 : 0)) return
-  const own = m.objectsOf.get(m.pageWorlds[page])
-  if (own) for (const object of own) m.dirty.add(object)
+  const object = m.objectOf[m.pageWorlds[page]]
+  if (object >= 0) m.dirty.add(object)
 }
 
-function place(m: MirrorState, object: number, w: number) {
-  if (object >= m.objects || m.placementOf[object] === w) return
-  unplace(m, object)
+/** Placement `w` draws `object` now, or nothing (`-1`): what it drew before, and where `object`
+ *  was drawn before, let go. */
+function link(m: Mirror, w: number, object: number) {
+  const before = m.objectOf[w]
+  if (before === object || object >= m.clusterOf.length) return
+  if (before >= 0) {
+    m.placementOf[before] = -1
+    m.dirty.add(before)
+  }
+  m.objectOf[w] = object
+  if (object < 0) return
+  const was = m.placementOf[object]
+  if (was >= 0) m.objectOf[was] = -1
   m.placementOf[object] = w
-  const own = m.objectsOf.get(w)
-  if (own) own.add(object)
-  else m.objectsOf.set(w, new Set([object]))
   m.dirty.add(object)
 }
 
-function unplace(m: MirrorState, object: number) {
-  const w = object < m.objects ? m.placementOf[object] : -1
-  if (w < 0) return
-  m.placementOf[object] = -1
-  const own = m.objectsOf.get(w)!
-  own.delete(object)
-  if (!own.size) m.objectsOf.delete(w)
-  m.dirty.add(object)
-}
+/** The object a placement's link names, or none. */
+const linkedObject = (m: Mirror, c: number) =>
+  c === NONE ? -1 : m.packed.world.origins[c - m.pageBase]
 
-function update(m: MirrorState, scene: Uint32Array, changes: ResidencyChanges | undefined) {
-  const { pageBase, changed } = m
-  if (scene.length !== pageBase) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED')
+/** `scene`, the rows' residency at the pages `changes` names, mirrored (`createWorldResidencyMirror`). */
+function update(m: Mirror, scene: Uint32Array, changes?: ResidencyChanges) {
+  if (scene.length !== m.packed.pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED')
   if (m.handed) {
-    changed.clear()
+    m.changed.clear()
     m.handed = false
   }
-  if (changes) for (let i = 0; i < changes.count; i++) scenePage(m, scene, changes.pages[i])
-  else for (let page = 0; page < pageBase; page++) scenePage(m, scene, page)
-  for (const object of m.dirty) mirror(m, object)
+  const { links, moved } = m.packed.world
+  for (const w of moved) link(m, w, linkedObject(m, links[w]))
+  moved.clear()
+  if (changes) for (let i = 0; i < changes.count; i++) rowPage(m, scene, changes.pages[i])
+  else for (let page = 0; page < m.packed.pageCount; page++) rowPage(m, scene, page)
+  for (const object of m.dirty) {
+    const w = m.placementOf[object]
+    write(m, m.pageBase + m.clusterOf[object], w >= 0 && coverResident(m, w) ? 1 : 0)
+  }
   m.dirty.clear()
   m.covers.clear()
-  sortPages(changed.list, changed.count)
+  sortPages(m.changed.list, m.changed.count)
   m.handed = true
-  return { flags: m.flags, changes: m.moved }
+}
+
+/** The mirror of `packed`, whose `world` root (`packed.cutLinks`), packed last, is the world DAG
+ *  with `origins` per rank (`worldRootDag`): the placed object of an object cluster, -1 otherwise;
+ *  each placement linked to an object (`packed.world.links`) draws it, a link that moves
+ *  (`packed.world.moved`) read at the next `update`. */
+export function createWorldResidencyMirror(packed: WorldPacked) {
+  const m = mirrorState(packed)
+  packed.world.links.forEach((c, w) => link(m, w, linkedObject(m, c)))
+  const moved = {
+    get pages() {
+      return m.changed.list
+    },
+    get count() {
+      return m.changed.count
+    },
+  } satisfies ResidencyChanges
+  return {
+    /** The residency the cut reads, every packed page: the rows', each object cluster's its own. */
+    flags: m.flags,
+    /** Bytes of its host tables, which the cut's `hostBytes` counts. */
+    get hostBytes() {
+      const { flags, clusterOf, placementOf, objectOf, changed } = m
+      return (
+        flags.byteLength +
+        clusterOf.byteLength +
+        placementOf.byteLength +
+        objectOf.byteLength +
+        changed.byteLength
+      )
+    },
+    /** Placement `w` draws `object` (an `origin`), or nothing (`-1`). */
+    link: (w: number, object: number) => link(m, w, object),
+    /**
+     * The rows' residency `scene` — one flag per packed page — at the pages `changes` names (every
+     * page without), each object cluster mirrored from its placement: the whole array, and the
+     * pages it moved, sorted, which the cut's upload reads (`GpuSelection.updateResidency`).
+     */
+    update(scene: Uint32Array, changes?: ResidencyChanges) {
+      update(m, scene, changes)
+      return { flags: m.flags, changes: moved }
+    },
+  }
 }

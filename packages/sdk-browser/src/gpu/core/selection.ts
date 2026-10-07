@@ -108,10 +108,16 @@ export type GpuSelection = {
    *  when they do not fit, or while it is `growing`: the caller makes a cut over every root, at a
    *  grown capacity, unless it waits for the growth to end. */
   appendRoots(roots: readonly DagRoot[]): boolean
+  /** Hands `visit` the placements the frustum of absolute `planes` may hold, through the cut's
+   *  placement tree (`../dag/placementTree.ts`); absent without a tree. */
+  visiblePlacements?(planes: Float64Array, visit: (placement: number) => void): void
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void
   /** Writes placement `world`'s root mark word (`ClusterRoot.mark`, its reach above, `markReach`). */
   markWorld(world: number, mark: number): void
+  /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
+   *  for it where its object's group suffices (`../dag/worldFollow.ts`); absent without a world. */
+  placeObject?(world: number, object: number): void
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */

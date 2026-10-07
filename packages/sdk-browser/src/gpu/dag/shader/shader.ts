@@ -11,6 +11,8 @@ import { DAG_REQUEST_WGSL } from '../requestWgsl.ts'
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
+import { DAG_TREE_PREPARE_WGSL } from './placementTreeWgsl.ts'
+import { DAG_WORLD_GATE_WGSL } from './worldGateWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
@@ -26,7 +28,7 @@ import { FRAME_VEC4 } from '../types.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
-struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
+struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,kind:u32,pad:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
 // \`perspective\` is the projection's clip-w weight, 1 perspective and 0 orthographic (\`viewPoint\`).
@@ -96,17 +98,17 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
  if(i>=rangeCount()*views[0u].viewCount){return;}
- let t=rangeSlot(i);vi=t/world;let w=t-vi*world;let slot=slotOf(w);
+ let t=rangeSlot(i);vi=t/world;let w=t-vi*world;
+ // A grouped placement is its kept group's to prepare (\`placementTreeWgsl.ts\`): its slot only
+ // carries the tree's cell of its rank, and is read for nothing else.
+ if(groupedSlot(t)){if(t<views[0u].cells){setFlag(queueBase(0u)+t,cellEntry(t));}return;}
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // camera cut opens none on a primitive its impostor card draws (\`markOf\`, \`drawsCard\`).
  let mark=markOf(w);
  let skips=(mark&${CARD_ROOT}u)!=0u;
  let root=select(rootOf(w),0xffffffffu,skips);
  setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
- let pose=worldPose(w);let m=transpose(pose);let base=slot*FRAME;deformReach=reachOf(w);
- // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
- let open=unculledOf(w);
- putPlanes(base,m,vi,open);preparePrimitive(w,pose,m,open);
+ preparePlacement(w);
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -146,6 +148,8 @@ ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_READING_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_SWAP_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
+${DAG_TREE_PREPARE_WGSL}
+${DAG_WORLD_GATE_WGSL}
 ${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_GRID_WGSL}

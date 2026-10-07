@@ -17,8 +17,10 @@ import { createCellHolds } from './cellHolds.ts'
 import { planCells, type SuperRootPlan } from './plan.ts'
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts'
 
-/** The world bundles a cell holds, and the stream its super-roots' bound is read from. */
-type World = Pick<WorldRootsHold, 'hold' | 'release'> & Partial<Pick<WorldRootsHold, 'stream'>>
+/** The world bundles a cell holds, the stream its super-roots' bound is read from, and whether
+ *  the cut's cache has room for the roots a far cell adds. */
+type World = Pick<WorldRootsHold, 'hold' | 'release'> &
+  Partial<Pick<WorldRootsHold, 'stream' | 'cover'>>
 
 /** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`. */
 export function createFarCells(world: World | undefined, placed: ReadonlyMap<number, unknown>) {
@@ -76,7 +78,9 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
       // no super-root: neither stays held far.
       for (const cell of far) if (!reading || placed.has(cell)) release(cell)
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading)
+      // A cell whose roots the cache has no room for is not held far: the plan holds no more.
       for (const cell of plan.far) {
+        if (world?.cover && !world.cover.admits(cell)) continue
         far.add(cell)
         holds.hold(cell)
       }

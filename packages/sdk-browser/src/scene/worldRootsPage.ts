@@ -1,18 +1,16 @@
 /**
  * THE WORLD SUPER-ROOT PAGES AS THE ENGINE DRAWS THEM (#1238).
  *
- * A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots; #23, #1237) is not a `WGP3`
- * geometry page: it holds its vertices as three world-space `f32` and its triangles as `u16`
- * LOCAL indices. The WebGPU pool and its shader index an `array<u32>`, so this module is the ONE
- * detached page source that turns a page, read at its world address (`worldRootsPageAddress`,
- * `worldPageServe.ts`), into the shape the engine already uploads, binds and draws, no second
- * draw stack and no second BVH (rule 7): `read` gives the widened indices as the bytes a GPU page
- * slot holds (`PageSource.read`), `attributes` the world-space positions as the `HostAttributes`
- * the WebGPU float pool packs.
+ * A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots) is a `WGP3` geometry page:
+ * its vertices in world space, with the normals, texture coordinates and colour of the objects it
+ * stands for. This module is the ONE detached page source over the world page server
+ * (`worldPageServe.ts`), read at a page's world address (`worldRootsPageAddress`), in the shape the
+ * engine already uploads, binds and draws, no second draw stack and no second BVH (rule 7): `read`
+ * gives the page's own bytes, which a WebGPU page slot holds and its shaders decode in place, as
+ * any geometry page's (`PageSource.read`).
  *
  * A page is addressed by its place in the bulk data (its bundle and its byte offset), and a bundle
- * is streamed once: its read serves every caller and both views of each page (`read` and
- * `attributes`), whatever their order; what stays resident is the caller's (`openWorldRoots`: the
+ * read in flight serves every caller; what stays resident is the caller's (`openWorldRoots`: the
  * pinned top and the bundles the placed cells hold, like a loaded cell's data) and the GPU page
  * pool's, never a second cache here.
  *
@@ -20,24 +18,18 @@
  * bound and drawn as it was cooked, never placed by a per-cluster pose.
  */
 import type { PageSource } from '../../../sdk-core/src/contracts/cache.ts'
-import type { HostAttributes } from '../host/resources.ts'
-import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
 import type { WorldPageServer } from './worldPageServe.ts'
 
 /**
  * The detached page source over `server` (`worldPageServe.ts`, the world stream's family, which
- * resolves, reads and widens each page): each page served in the shape the engine already
- * uploads, binds and draws.
+ * resolves and reads each page): each page served in the shape the engine already uploads, binds
+ * and draws.
  */
 export function worldRootsPageSource(server: WorldPageServer) {
   const source = {
     keptBytes: server.keptBytes,
     page: server.page,
     read: server.read,
-    /** Its world-space positions as the WebGPU float pool packs a block. */
-    attributes: async (address: string, signal?: AbortSignal): Promise<HostAttributes> => ({
-      position: new BufferAttribute(await server.positions(address, signal), 3),
-    }),
   }
   return source satisfies PageSource
 }

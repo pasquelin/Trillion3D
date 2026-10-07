@@ -10,10 +10,11 @@ import type { ClusterRoot, PageRec } from '../page/selection/types.ts'
  * page the view asks for, whatever their level: a root the view refuses is then replaced by its
  * children, and a root the view accepts is drawn as itself, its children never asked for. The
  * slots this rule costs are the pool's floor with the root cover (`geometryPoolFor`, `root-cover`)
- * and published with it; they follow the roots the view holds, never the world.
+ * and published with it; they follow the roots the view holds, never the world: a root a cell
+ * holds (`PageRec.holder`) brings its own with its cell, never the floor.
  *
- * Marks each page of the group a root of `roots` replaces (`rootChild`) and returns them, one
- * record per placement: the caller counts them by its own key.
+ * Marks each page of the group a root of `roots` the session holds replaces (`rootChild`) and
+ * returns them, one record per placement: the caller counts them by its own key.
  */
 export function rootChildren(roots: readonly ClusterRoot<PageRec>[]): PageRec[] {
   const found: PageRec[] = []
@@ -22,7 +23,7 @@ export function rootChildren(roots: readonly ClusterRoot<PageRec>[]): PageRec[] 
     const { roots: tops, sources, childOffsets, children } = structure
     for (const top of tops) {
       const group = sources[top]
-      if (group < 0) continue
+      if (group < 0 || pages[top].holder !== undefined) continue
       for (let i = childOffsets[group]; i < childOffsets[group + 1]; i++) {
         const page = pages[children[i]]
         if (page.rootChild) continue

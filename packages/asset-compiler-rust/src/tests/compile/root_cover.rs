@@ -7,6 +7,7 @@
 use super::silhouette::{page_cuts, page_indices};
 use super::site_scene::cook_site_scene;
 use super::*;
+use crate::compiler_primitive_warn::root_cover_triangles;
 use crate::dag::bounds::bounding_sphere;
 use crate::dag::clusters::weld_positions;
 use crate::dag::vanished::{extent, parts};
@@ -40,12 +41,8 @@ fn root_defects(
             ));
         }
     }
-    let levels = primitive["dag"]["levels"].as_array().expect("levels");
-    let reported: u64 = levels
-        .iter()
-        .filter_map(|l| l["rootTriangles"].as_u64())
-        .sum();
-    if reported != root_triangles as u64 {
+    let reported = root_cover_triangles(&primitive["dag"]);
+    if reported != root_triangles {
         defects.push(format!(
             "primitive {index}: the report counts {reported} root triangles, the roots draw {root_triangles}"
         ));

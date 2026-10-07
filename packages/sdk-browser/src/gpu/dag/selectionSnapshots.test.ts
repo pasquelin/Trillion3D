@@ -12,6 +12,7 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from './selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
+import { moveRoot } from './pack.fixture.ts'
 
 test('an in-flight snapshot that a world change crosses is never drained as the current cut', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag()
@@ -21,9 +22,7 @@ test('an in-flight snapshot that a world change crosses is never drained as the 
   // The primitive moves a thousand units WHILE the snapshot is in flight: what it reports
   // describes the previous pose. It lands marked so: it still names what to stream, but the drain
   // never hands it back as the cut of the poses in place.
-  const moved = dag.worlds.slice()
-  moved[12] = 1000
-  assert.equal(selection.updateWorlds(moved), true)
+  assert.equal(selection.updateWorlds(moveRoot(dag, 0, 1000)), true)
   release()
   for (let turn = 0; turn < 16 && !selection.peek(); turn++)
     await new Promise((done) => setImmediate(done))

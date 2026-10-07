@@ -13,6 +13,7 @@ import {
   NODE_FLOOR_SPHERE,
   NODE_FLOOR,
   NODE_OPEN,
+  NODE_KIND,
   NODE_PAD,
 } from './nodeLayout.ts'
 
@@ -94,8 +95,8 @@ export function packCullingNodes(
     const floor = bounds[at + OWN_FLOOR]
     nodes[dst + NODE_FLOOR] = Number.isFinite(floor) ? floor : INF32
     nodeInts[dst + NODE_OPEN] = 0
+    nodeInts[dst + NODE_KIND] = 0
     nodeInts[dst + NODE_PAD] = 0
-    nodeInts[dst + NODE_PAD + 1] = 0
     if (!culling.nodes[src + 12]) {
       const first = culling.nodes[src + 13],
         pages = culling.nodes[src + 14]

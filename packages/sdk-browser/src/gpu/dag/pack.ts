@@ -1,4 +1,4 @@
-import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts'
+import { maxStretch } from '../../../../sdk-core/src/index.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import {
   DAG_NODE_FLOATS,
@@ -13,6 +13,14 @@ import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
 import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts'
 import { KEY_PAGE_MAX, canonicalPage, writeKeyColumn } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
+import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
+import {
+  groupsPlacements,
+  packPlacementTree,
+  placementTreeShape,
+  TREE_LEVELS,
+  treeNodeCount,
+} from './placementTree.ts'
 
 type Culling = NonNullable<DagRoot['culling']>
 
@@ -100,19 +108,25 @@ function placeRoot(
 }
 
 /** The live counts of `roots`, their levels summed level by level — pass `L`'s queue only holds
- *  nodes of level `L`, so this total upper-bounds it, and the pass launches flat. */
-function countRoots(roots: readonly DagRoot[], shared: PackShared) {
+ *  nodes of level `L`, so this total upper-bounds it, and the pass launches flat. Placement `w`'s
+ *  levels lie `shift(w)` below the placement tree's (`placementTree.ts`). */
+function countRoots(
+  roots: readonly DagRoot[],
+  shared: PackShared,
+  shift: (w: number) => number = () => 0,
+) {
   let pages = 0,
     nodes = 0
   const levels: number[] = []
-  for (const root of roots) {
+  roots.forEach((root, w) => {
     const culling = cullingOf(root, shared),
-      sizes = levelSizesOf(culling, shared)
+      sizes = levelSizesOf(culling, shared),
+      below = shift(w)
     pages += root.pages.length
     nodes += culling.nodes.length / culling.stride
     for (let level = 0; level < sizes.length; level++)
-      levels[level] = (levels[level] ?? 0) + sizes[level]
-  }
+      levels[level + below] = (levels[level + below] ?? 0) + sizes[level]
+  })
   return { pages, nodes, levels }
 }
 
@@ -148,23 +162,42 @@ function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
 }
 
 /**
+ * What a packing of `roots` holds before any is written: its live counts, the placement tree over
+ * every placement before the world DAG (packed last, which starts its own descent), and its levels:
+ * a grouped placement's lie below the tree's two, cells first.
+ */
+function packPlan(roots: readonly DagRoot[], shared: PackShared) {
+  const world = roots.findIndex((root) => root.origins),
+    grouped = world >= 0 ? world : roots.length,
+    shifted = groupsPlacements(grouped) ? TREE_LEVELS : 0
+  const counted = countRoots(roots, shared, (w) => (w < grouped ? shifted : 0))
+  const tree = placementTreeShape(roots, grouped, counted.nodes)
+  if (tree) {
+    counted.levels[0] = (counted.levels[0] ?? 0) + tree.cells
+    counted.levels[1] = (counted.levels[1] ?? 0) + tree.groups
+  }
+  return { ...counted, nodes: counted.nodes + treeNodeCount(tree), tree, world }
+}
+
+/**
  * Pack the cluster bands, their cone/box records and the per-primitive culling nodes, at
  * `capacity` — exactly the roots' when none is given.
  *
  * Records are stored once per unique cluster (`packRecords.ts`): the placements of one
  * primitive share them, and the working table names each page's placement, whose record
- * shift leads the page to its record (`layout.ts`). Nodes stay per placement. A packing with room
- * past its roots (a growth's, `grownCapacity`) takes later placements of its primitives in place
- * (`appendDagRoots`); one that packs the world DAG (#1333) keeps none.
+ * shift leads the page to its record (`layout.ts`). Nodes stay per placement, and the placement
+ * tree's cells and groups follow them (`placementTree.ts`). A packing with room past its roots (a
+ * growth's, `grownCapacity`) takes later placements of its primitives in place (`appendDagRoots`);
+ * one that packs the world DAG or a placement tree, whose nodes follow the placements', keeps none.
  */
 export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapacity): PackedDag {
   const shared = emptyShared()
-  const counted = countRoots(roots, shared),
-    world = roots.findIndex((root) => root.origins),
-    room = world < 0 ? capacity : undefined
+  const plan = packPlan(roots, shared),
+    { world, tree } = plan,
+    room = world < 0 && !tree ? capacity : undefined
   const size: DagCapacity = {
-    pages: Math.max(counted.pages, room?.pages ?? 0),
-    nodes: Math.max(counted.nodes, room?.nodes ?? 0),
+    pages: Math.max(plan.pages, room?.pages ?? 0),
+    nodes: Math.max(plan.nodes, room?.nodes ?? 0),
     worlds: Math.max(roots.length, room?.worlds ?? 0),
   }
   // A key word names its canonical page on twenty-seven bits (`evict.ts`). Beyond that, the
@@ -178,17 +211,9 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
       records.place(root.pages, culling.nodes, owner, nodeBase),
     ),
   )
-  // The hot record only holds what all five passes of a frame reread; the owner node and the cone
-  // go to the cold, which the open pass alone reads. Residency bits follow the working table: one
-  // word for thirty-two pages, written by delta.
-  const recordSlots = Math.max(1, records.count),
-    coldAt = coldBase(size.pages)
-  const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
-    pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS)
-  new Uint32Array(pageCones.buffer).set(p.pageWorlds)
-  writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(size.pages))
-  records.finish(clusters, pageCones, coldAt)
   const worldSources = [...roots]
+  if (tree) packPlacementTree({ ...p, worldSources }, tree)
+  const { clusters, pageCones, cold, linkBase } = recordTables(roots, p, records, size.pages, plan)
   return {
     kind: 'dag',
     clusters,
@@ -200,7 +225,7 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     rootNodes: p.rootNodes,
     rootBases: p.rootBases,
     mark: p.mark,
-    levelSizes: Uint32Array.from(counted.levels),
+    levelSizes: Uint32Array.from(plan.levels, (count) => count ?? 0),
     nodeCount: size.nodes,
     worldCount: size.worlds,
     pageCount: size.pages,
@@ -211,8 +236,39 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     cutLinks: p.cutLinks,
     live: p.live,
     ...(room && { shared }),
-    ...(world >= 0 && { world: { root: world, origins: roots[world].origins! } }),
+    ...(tree && { placementTree: tree }),
+    ...(world >= 0 && {
+      world: packWorldLinks(roots, [world, p.recordShift[world]], p.cutLinks, cold, linkBase),
+    }),
   }
+}
+
+/**
+ * The hot records and the cold table of a packing of `pages` pages. The hot record only holds what
+ * all five passes of a frame reread; the owner node and the cone go to the cold, which the open
+ * pass alone reads. Residency bits follow the working table: one word for thirty-two pages,
+ * written by delta. The tree's order rides behind the cold records: what its groups name their
+ * members by; the placements' links to the world DAG follow it (`worldLinks.ts`).
+ */
+function recordTables(
+  roots: readonly DagRoot[],
+  p: Packing,
+  records: ReturnType<typeof createRecordTable>,
+  pages: number,
+  { tree, world }: ReturnType<typeof packPlan>,
+) {
+  const recordSlots = Math.max(1, records.count),
+    coldAt = coldBase(pages)
+  const members = coldAt + recordSlots * COLD_WORDS,
+    linkBase = members + (tree?.grouped ?? 0)
+  const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
+    pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(roots.length) : 0)),
+    cold = new Uint32Array(pageCones.buffer)
+  cold.set(p.pageWorlds)
+  if (tree) cold.set(tree.order, (tree.members = members))
+  writeKeyColumn(roots, cold, keyBase(pages))
+  records.finish(clusters, pageCones, coldAt)
+  return { clusters, pageCones, cold, linkBase }
 }
 
 /** The live ranges `appendDagRoots` filled: pages, nodes and placements `[from, to)`. */
@@ -286,66 +342,25 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
   )
 }
 
-/** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`, and its translation
- *  kept in `translations` as it was read, three doubles per root: what
- *  `rootTranslationsToRenderOrigin` subtracts the next eye from. */
-export function rootWorldsToRenderOrigin(
-  worlds: Float32Array,
-  roots: readonly DagRoot[],
-  origin: ArrayLike<number>,
-  translations: Float64Array,
-) {
-  for (let w = 0; w < roots.length; w++) {
-    const world = roots[w].world.elements
-    worldToRenderOrigin(worlds, world, origin, w * 16)
-    translations[w * 3] = world[12]
-    translations[w * 3 + 1] = world[13]
-    translations[w * 3 + 2] = world[14]
-  }
+/** Each root's world as the cut's worlds hold it before the eye is taken off it on the GPU
+ *  (`worldRebase.ts`): its sixteen numbers in single precision, the translation kept exactly beside
+ *  them (`worldOrigins.ts`). */
+export function rootWorlds(worlds: Float32Array, roots: readonly DagRoot[]) {
+  for (let w = 0; w < roots.length; w++) worlds.set(roots[w].world.elements, w * 16)
 }
 
 /**
- * Whether a root's world is no longer the one `worlds` holds rebased to `origin`: the same
- * subtraction and the same single-precision rounding as `rootWorldsToRenderOrigin`, so a pose the
- * host left alone compares bit for bit, whatever eye the next rebase takes. Nothing is written.
+ * Whether a root's world is no longer the one `worlds` holds (`rootWorlds`): the same
+ * single-precision rounding, so a pose the host left alone compares bit for bit, whatever the eye.
+ * Nothing is written.
  */
-export function rootWorldsMoved(
-  worlds: Float32Array,
-  roots: readonly DagRoot[],
-  origin: ArrayLike<number>,
-) {
+export function rootWorldsMoved(worlds: Float32Array, roots: readonly DagRoot[]) {
   for (let w = 0; w < roots.length; w++) {
     const world = roots[w].world.elements,
       at = w * 16
-    for (let i = 0; i < 16; i++) {
-      const value = i >= 12 && i < 15 ? world[i] - origin[i - 12] : world[i]
-      if (worlds[at + i] !== Math.fround(value)) return true
-    }
+    for (let i = 0; i < 16; i++) if (worlds[at + i] !== Math.fround(world[i])) return true
   }
   return false
-}
-
-/**
- * The same loop when only the origin moved since the last `rootWorldsToRenderOrigin` into
- * `worlds`, the roots unchanged: the three translation numbers of each root, the only ones that
- * depend on the origin, rewritten by the same double subtraction on the doubles that rebase kept
- * in `translations` — the buffer ends bit for bit as a full rebase would leave it. They are read
- * from one flat array, not from each root's matrix: a hundred thousand roots are as many objects
- * apart in memory, for three numbers each.
- */
-export function rootTranslationsToRenderOrigin(
-  worlds: Float32Array,
-  translations: Float64Array,
-  origin: ArrayLike<number>,
-) {
-  const x = origin[0],
-    y = origin[1],
-    z = origin[2]
-  for (let t = 0, at = 12; t < translations.length; t += 3, at += 16) {
-    worlds[at] = translations[t] - x
-    worlds[at + 1] = translations[t + 1] - y
-    worlds[at + 2] = translations[t + 2] - z
-  }
 }
 
 /**

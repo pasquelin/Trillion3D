@@ -8,6 +8,7 @@ import { createPageSource } from './readPage.ts'
 import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 import { createBootstrapFor, createResidencyFor, createRowSyncFor } from './serviceParts.ts'
+import { coverHeldRoots } from './prepare/worldRoot.ts'
 
 export type WebgpuPagesServices = ReturnType<typeof createWebgpuPagesServices>
 
@@ -27,7 +28,12 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** True while the pool holds the slot this cluster draws from, at its own address. */
   const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec))
   /** The residency sets: an image that moves no page touches them not. */
-  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages })
+  const residencySets = createWebgpuResidencySets({
+    tracking,
+    bootstrapKey,
+    packedPages,
+    bootstrapUrls,
+  })
   const bootstrapState = createBootstrapFor(rt, hasBytes)
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size)
   // The lower tier: the pages ahead of the camera.
@@ -39,6 +45,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     bootstrapKey,
     requests: residencySets.requests,
   })
+  // The roots the world's held cells add to the cover, followed for the backend's life.
+  coverHeldRoots(rt, residencySets, room)
   const parts = { residencySets, closure, hasBytes, lowerTiers, room }
   const { ensureResident, residency } = createResidencyFor(rt, parts)
   const tiers = { all: lowerTiers, ahead: aheadTier }

@@ -6,6 +6,7 @@ import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts'
 import { mockDagDevice } from '../../gpu/dag/selection.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { kernelUniforms, packed } from '../../gpu/dag/selectionHelpers.fixture.ts'
+import { moveRoot } from '../../gpu/dag/pack.fixture.ts'
 
 // A loaded model moved on every frame. A move that dropped the cut in hand and
 // every readback in flight would adopt no cut, leave `selectedTriangles` at 0 and the terrain
@@ -86,9 +87,7 @@ test('a drain after a move cuts again under the poses in place', async () => {
   const { dag, uniforms, selection, dispose } = await bench()
   selection.dispatch(uniforms)
   assert.equal((await selection.flush())?.pageIds.length, 4)
-  const moved = dag.worlds.slice()
-  moved[12] = 1000
-  selection.updateWorlds(moved)
+  selection.updateWorlds(moveRoot(dag, 0, 1000))
   // Nothing dispatched since the move: the drain sends the last uniforms again, it never hands
   // back the cut of a pose that no longer exists.
   assert.equal((await selection.flush())?.pageIds.length, 0, 'the model left the view')

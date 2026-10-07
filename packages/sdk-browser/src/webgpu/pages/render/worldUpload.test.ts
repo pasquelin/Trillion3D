@@ -12,7 +12,14 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) 
     setup: { worlds: {} },
     // No deformation: a host walk has no staleness to forget (`deformation/frame.ts`).
     vis: {},
-    layout: { selectionRoots: [], worldUpdates: new Float32Array(16), rows: { tableEpoch: 1 } },
+    // One root, posed where the worlds held say nothing yet: the host's write moved it.
+    layout: {
+      selectionRoots: [
+        { world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 9, 0, 0, 1] }, pages: [] },
+      ],
+      worldUpdates: new Float32Array(16),
+      rows: { tableEpoch: 1 },
+    },
     timing: { worldCounts: { rootsRebased: 0 } },
     blendState: { blendGpu: [] },
     lights: { mobility: { moves: () => false } },
@@ -45,9 +52,9 @@ test('a host pose rewrites every row on the CPU cut as on the GPU cut, and only 
   assert.equal(engine.layout.rows.tableEpoch, 1, 'a move the engine made rewrote its own rows')
 })
 
-// A light dimmed during a camera flight is a host write, and the worlds brought back to the
-// moving eye all differ from the last ones sent: the cut finds them changed though no pose moved.
-// Every row rewritten each image of the flight cost the page table and its row buffers whole.
+// A light dimmed during a camera flight is a host write that moved no pose: every row rewritten
+// each image of the flight cost the page table and its row buffers whole. The worlds are compared
+// as sent, whatever the eye: a write that moved no pose keeps the table, at rest as in flight.
 for (const cut of ['GPU', 'CPU'] as const)
   test(`a host write while the eye moves keeps the table unless a pose moved — ${cut} cut`, () => {
     const world = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1])
@@ -67,5 +74,9 @@ for (const cut of ['GPU', 'CPU'] as const)
     assert.equal(rows.tableEpoch, 3, 'a pose written as the eye moves: every row again')
     revisions.scene++
     uploadWorlds(rt, eye(2))
-    assert.equal(rows.tableEpoch, 4, 'the eye at rest: the write is weighed as before')
+    assert.equal(rows.tableEpoch, 3, 'the eye at rest, no pose moved: the rows stand')
+    revisions.scene++
+    world[12] = 4
+    uploadWorlds(rt, eye(2))
+    assert.equal(rows.tableEpoch, 4, 'the eye at rest, a pose moved: every row again')
   })

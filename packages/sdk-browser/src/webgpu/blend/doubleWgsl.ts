@@ -195,3 +195,27 @@ fn dDiv(a:vec2u,b:vec2u)->vec2u{
  return dRound(sign,scale,q);
 }
 `
+
+/**
+ * The single-precision bits of double `a`, rounded to nearest, ties to even, as storing it in a
+ * `Float32Array` rounds it: subnormal results, overflow to infinity, a NaN as the quiet one. The
+ * 53-bit significand is shifted to the result's 24 bits (fewer below the normal range), two bits
+ * kept below it — the half and a sticky one folding everything lower (`wideShiftRight`).
+ */
+export const TO_F32_WGSL = `
+fn toF32(a:vec2u)->u32{
+ let sign=(a.x>>31u)<<31u;
+ let e=i32(dExponent(a));
+ if(e==0x7ff){return select(sign|0x7f800000u,0x7fc00000u,dIsNan(a));}
+ if(e==0){return sign;}
+ let biased=e-1023+127;
+ let shift=select(29,30-biased,biased<1);
+ let r=wideShiftRight(dSignificand(a),u32(min(shift-2,64)));
+ var m=(r.y>>2u)|(r.x<<30u);
+ if((r.y&2u)!=0u&&((r.y&1u)!=0u||(m&1u)!=0u)){m=m+1u;}
+ if(biased<1){return sign|m;}
+ var field=u32(biased);
+ if(m==0x1000000u){m=0x800000u;field=field+1u;}
+ if(field>=255u){return sign|0x7f800000u;}
+ return sign|(field<<23u)|(m&0x7fffffu);
+}`

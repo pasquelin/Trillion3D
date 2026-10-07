@@ -28,11 +28,25 @@ import { IDENTITY_WORLD } from '../math/matrixElements.ts'
 import type { worldRootPages } from './worldPageServe.ts'
 
 /** The `clusters` and `groups` of a world-roots table, added by the cook without a version bump.
- *  A group's `children` and `outputs` name clusters by rank (`dag/levels.rs`, `merge.rs`). */
+ *  A group's `children` and `outputs` name clusters by rank (`dag/levels.rs`, `merge.rs`).
+ *  `pinned` counts the bundles of the pinned top (`WorldRoots.pinned`). */
 export type WorldRootsDagTable = {
   clusters?: readonly WorldRootsCluster[]
   groups?: ClusterGroup[]
   payload?: { url: string }
+  pinned: number
+}
+
+/** The world clusters as `worldRootPages` names them: what the cut projects, the primitive each
+ *  wears, its page and that page's facts. */
+type WorldPages = ReturnType<typeof worldRootPages>['pages']
+
+/** The world DAG as the one cut reads it: a `DagRoot` over its pages, the placed object of each
+ *  object root, and the roots each bundle past the pinned top holds for its cell. */
+export type WorldDagRoot = Omit<DagRoot, 'pages'> & {
+  pages: WorldPages
+  origins: Int32Array
+  held: ReadonlyMap<number, readonly number[]>
 }
 
 /**
@@ -40,18 +54,21 @@ export type WorldRootsDagTable = {
  * cook rank, a `ClusterStructureIndex` from its groups, and a flat culling hierarchy over them. A
  * super-root's page is named by `payload.url` and its `bundle`/`offset`; an object root's is left
  * to its own stream (the cut reads its residency through the structure, its page through the
- * placement). The world top — the clusters nothing replaces — are the structure's roots, as a
- * primitive's root cover is, so the pinned top is the cut's fallback and the cell super-roots are
- * its middle levels. `origins` names, per rank, the placed object an object root mirrors.
+ * placement). The clusters nothing replaces are the structure's roots; those of the pinned bundles,
+ * the world top, are the cut's fallback as a primitive's root cover is, and the cell super-roots
+ * its middle levels; a root one cell alone needs is `held` by its cell's bundle, its `holder`,
+ * resident while that cell is held (`../../../asset-compiler-rust/src/compiler_world_roots/top.rs`). `origins` names, per rank, the placed object an object
+ * root mirrors.
  */
 export function worldRootDag(
   table: WorldRootsDagTable,
   pagesOf: typeof worldRootPages,
-): (DagRoot & { origins: Int32Array }) | undefined {
+): WorldDagRoot | undefined {
   const { clusters, groups } = table
   if (!clusters?.length || !groups?.length) return undefined
-  const { roots, pages, origins } = pagesOf(clusters, table.payload?.url || WORLD_ROOTS_BIN)
-  const structure = structureIndex({ version: 1, roots, groups }, pages.length)
+  const url = table.payload?.url || WORLD_ROOTS_BIN
+  const { roots, held, pages, origins, slack } = pagesOf(clusters, url, table.pinned)
+  const structure = structureIndex({ version: 1, roots, groups }, pages.length, slack)
   return {
     world: IDENTITY_WORLD,
     pages,
@@ -60,5 +77,6 @@ export function worldRootDag(
     culling: flatHierarchy(pages),
     // Each object root's placed object, which its residency mirrors (`gpu/dag/worldMirror.ts`).
     origins,
+    held,
   }
 }

@@ -62,10 +62,13 @@ export interface ImpostorCard {
 
 /** The cut's verdict: the cards to draw, and the roots whose clusters it suppresses. */
 export interface ImpostorPlan {
-  /** One card per switched root, in root order. */
+  /** One card per switched root it read, in the order it read them. */
   cards: ImpostorCard[]
-  /** Root ranks the cut suppresses: 1 at a switched root, 0 elsewhere. */
+  /** Root ranks the cut suppresses: 1 at a switched root, 0 elsewhere. A plan of some ranks keeps
+   *  the verdict of the others as the last plan that read them left it. */
   switched: Uint8Array
+  /** The ranks the plan read when given some (`planImpostors`, `ranks`); absent, every rank. */
+  visited?: number[]
 }
 
 /** The section's baked meshes, keyed by their compiled mesh number; refused entries are left out. */
@@ -234,35 +237,68 @@ export function planImpostors(
   view: ArrayLike<number>,
   focalPixels: number,
   into?: ImpostorPlan,
+  /** Hands each rank to read to `visit`, when only some can change what the image draws (the
+   *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); the others keep their
+   *  verdict. Absent, every root, every image. */
+  ranks?: (visit: (rank: number) => void) => void,
 ): ImpostorPlan {
   const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) }
   if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length)
-  else plan.switched.fill(0)
-  const { cards, switched } = plan
-  let count = 0
-  const byMesh = bakedLookup(section),
-    table = switchTable(plan, roots, section, focalPixels)
-  for (let rank = 0; rank < roots.length; rank++) {
-    const root = roots[rank],
-      entry = rootSwitch(table, rank, root, byMesh)
-    if (!entry) continue
-    const world = root.world.elements
-    transformAffinePoint(point, view, world[12], world[13], world[14])
-    if (!switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) continue
-    switched[rank] = 1
-    const card = (cards[count++] ??= {} as ImpostorCard)
-    card.root = rank
-    card.mesh = entry.mesh
-    card.world = world
-    card.centre ??= [0, 0, 0]
-    card.centre[0] = world[12]
-    card.centre[1] = world[13]
-    card.centre[2] = world[14]
-    card.radius = table.radius[rank]
-    card.frames = entry.frames
-    card.hemi = entry.hemi === true
-    card.maps = entry.maps
+  else if (!ranks) plan.switched.fill(0)
+  const reading = {
+    plan,
+    roots,
+    view,
+    byMesh: bakedLookup(section),
+    table: switchTable(plan, roots, section, focalPixels),
+    count: 0,
   }
-  cards.length = count
+  if (ranks) {
+    const visited = (plan.visited ??= [])
+    visited.length = 0
+    ranks((rank) => {
+      visited.push(rank)
+      planRoot(reading, rank)
+    })
+  } else {
+    if (plan.visited) delete plan.visited
+    for (let rank = 0; rank < roots.length; rank++) planRoot(reading, rank)
+  }
+  plan.cards.length = reading.count
   return plan
+}
+
+/** One root's verdict, and its card when it switches. */
+function planRoot(
+  reading: {
+    plan: ImpostorPlan
+    roots: readonly ImpostorRoot[]
+    view: ArrayLike<number>
+    byMesh: BakedLookup
+    table: SwitchTable
+    count: number
+  },
+  rank: number,
+) {
+  const { plan, table } = reading,
+    root = reading.roots[rank],
+    entry = rootSwitch(table, rank, root, reading.byMesh)
+  plan.switched[rank] = 0
+  if (!entry) return
+  const world = root.world.elements
+  transformAffinePoint(point, reading.view, world[12], world[13], world[14])
+  if (!switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) return
+  plan.switched[rank] = 1
+  const card = (plan.cards[reading.count++] ??= {} as ImpostorCard)
+  card.root = rank
+  card.mesh = entry.mesh
+  card.world = world
+  card.centre ??= [0, 0, 0]
+  card.centre[0] = world[12]
+  card.centre[1] = world[13]
+  card.centre[2] = world[14]
+  card.radius = table.radius[rank]
+  card.frames = entry.frames
+  card.hemi = entry.hemi === true
+  card.maps = entry.maps
 }

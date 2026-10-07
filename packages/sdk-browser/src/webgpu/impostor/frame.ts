@@ -54,14 +54,23 @@ function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
 /**
  * THE IMAGE'S IMPOSTOR PLAN on WebGPU: the shared plan (`planImpostorCards`) at the
  * engine's focal length for the image's viewport, each card kept once its mesh's atlas group is
- * made (`feed.ts`). The roots whose card bit moved are handed to the GPU cut too: every camera cut,
- * CPU and GPU, leaves a marked root to its card, every light cut keeps its clusters.
+ * made (`feed.ts`), unless the cut packs the world DAG, whose super-roots stand in instead. The
+ * roots whose card bit moved are handed to the GPU cut too: every camera cut, CPU and GPU, leaves a
+ * marked root to its card, every light cut keeps its clusters.
  */
 export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const roots = rt.layout.selectionRoots,
     state = impostorsOf(rt)
-  // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing.
-  if (!state) return dropImpostorCards(rt.gpu.impostors, roots, rt.gpu.impostors?.moved)
+  // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing; nor does
+  // one beside a packed world DAG, whose super-roots stand in for every placed object far away
+  // (`../../gpu/dag/worldLinks.ts`): a card would draw one twice.
+  if (!state || rt.run.gpuSelection?.packsWorld)
+    return dropImpostorCards(rt.gpu.impostors, roots, rt.gpu.impostors?.moved)
   const viewport = rt.setup.viewport ?? rt.gpu.targetSize
-  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved)
+  // The roots the camera's frustum may hold, through the cut's placement tree: the plan reads them
+  // alone, never every root every image.
+  const selection = rt.run.gpuSelection,
+    visible = selection?.visiblePlacements
+  const ranks = visible && ((visit: (rank: number) => void) => visible(cam.planes, visit))
+  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, ranks)
 }

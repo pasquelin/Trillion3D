@@ -28,6 +28,9 @@ type EnsureOptions = {
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void
   /** Advanced whenever a page's bytes arrive or leave (`../row/journal.ts`, `touchRevision`). */
   bytesRevision: () => number
+  /** The pages a holder brought into the root cover that the pool lacks (`coverHolders.ts`):
+   *  loaded before the queue's. */
+  coverMissing?: (holds: (page: PageRec) => boolean) => readonly PageRec[]
 }
 
 type EnsureState = EnsureOptions & LowerPassOptions & { lower: ReturnType<typeof createLowerPass> }
@@ -123,7 +126,8 @@ async function ensurePass(
   return run.missing === 0 && s.getCache() === run.cache && s.lower.held(run.cache)
 }
 
-/** The camera's burst: every wanted page not in the pool admitted, pinned, in order. */
+/** The camera's burst: every page a holder brought into the root cover, then every wanted page,
+ *  not in the pool admitted, pinned, in order: nothing coarser stands in for the cover's. */
 async function admitWanted(
   s: EnsureState,
   run: EnsureRun,
@@ -131,14 +135,17 @@ async function admitWanted(
   landed: () => void,
   reads: AbortSignal,
 ) {
-  const { tracking, budget } = s
-  const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
+  const { tracking, budget, bootstrapKey } = s
+  const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec)),
+    asked = (key: number) => tracking.wanted.has(key) || bootstrapKey[key] > 0
+  const pool = run.cache,
+    covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec))) ?? []
   s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
-  for (let i = 0; i < wanted.length; i++) {
-    const rec = wanted[i],
+  for (let i = 0; i < covering.length + wanted.length; i++) {
+    const rec = i < covering.length ? covering[i] : wanted[i - covering.length],
       key = tracking.keyOf(rec),
       address = pageAddress(rec)
-    if (!tracking.wanted.has(key)) continue
+    if (!asked(key)) continue
     s.signal?.throwIfAborted()
     if (s.isLost()) throw new Error('WEBGPU_LOST')
     if (run.cache.get(address)) continue
@@ -149,7 +156,7 @@ async function admitWanted(
     if (!budget.admits()) {
       await s.nextShare()
       run.cache = currentCache(s)
-      if (!tracking.wanted.has(key) || run.cache.get(address)) {
+      if (!asked(key) || run.cache.get(address)) {
         run.missing--
         continue
       }

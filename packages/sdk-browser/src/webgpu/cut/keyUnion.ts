@@ -5,10 +5,11 @@ import { createSparseInts } from '../../page/cut/sparseInts.ts'
 /**
  * The union of several sources of page keys, held from one image to the next. A source holds a key at
  * most once, the union counts it once however many sources hold it, and a source therefore changes it
- * by difference alone. Keys marked `covered` — the pinned root cover, which every image asks for —
- * count towards `size` but stay out of `members`, so `members` lists exactly what the residency queue
- * still has to fetch. `onListed`/`onUnlisted` report the moment a key joins or leaves the union, which
- * is what the pin bookkeeping needs and all it needs.
+ * by difference alone. Keys marked `covered` — the root cover, which every image asks for — count
+ * towards `size` but stay out of `members`, so `members` lists exactly what the residency queue
+ * still has to fetch; a key that joins or leaves the cover (`cover`) leaves or rejoins `members`
+ * while a source holds it. `onListed`/`onUnlisted` report the moment a key joins or leaves
+ * `members`, which is what the pin bookkeeping needs and all it needs.
  */
 export function createKeyUnion(options: {
   members: DenseKeySet
@@ -42,6 +43,19 @@ export function createKeyUnion(options: {
       if (refs.add(key, -1) > 0 || covered?.[key]) return
       members.remove(key)
       onUnlisted?.(key)
+    },
+    /** `key`, `page`'s, joined the cover (`on`) or left it, as `covered` says now: the union stops
+     *  or starts listing it if a source holds it. */
+    cover(key: number, on: boolean, page?: PageRec) {
+      coveredCount += on ? 1 : -1
+      if (refs.get(key) <= 0) return
+      if (on) {
+        members.remove(key)
+        onUnlisted?.(key)
+      } else {
+        members.add(key, page)
+        onListed?.(key, page)
+      }
     },
   }
 }

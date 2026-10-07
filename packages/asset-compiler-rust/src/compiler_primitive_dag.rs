@@ -126,7 +126,7 @@ pub(super) fn build_dag_primitive(
             )
         })
         .collect();
-    let root_cover = RootCover::of(strategy, &dag, pos, &pages, &page_of);
+    let root_cover = RootCover::of(strategy, &dag, (pos, carried), &pages, &page_of);
     let mut roots: Vec<usize> = dag
         .iter()
         .enumerate()

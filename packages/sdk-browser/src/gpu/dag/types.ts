@@ -5,6 +5,8 @@ import type { PageSurface } from '../../page/surface.ts'
 import type { SelectionUniforms } from '../core/selection.ts'
 import type { ClusterStructureIndex } from '../../page/selection/types.ts'
 import type { CullingLinks } from '../../page/cut/links.ts'
+import type { PlacementTree } from './placementTree.ts'
+import type { PackedWorld } from './worldLinks.ts'
 
 /** The view one run of the kernel serves: the camera's uniforms. */
 export type DagViewUniforms = SelectionUniforms
@@ -55,6 +57,9 @@ export type DagRoot = {
   /** The world DAG's alone (`scene/worldSuperRoots.ts`): per rank, the table object an object
    * root mirrors, -1 for a super-root. */
   origins?: Int32Array
+  /** The world object a placement places, an `origin` of the world DAG: the world stands in for it
+   *  where its world group suffices (`worldLinks.ts`). */
+  object?: number
 }
 /** What a placement's cut residency is derived from, and where its pages and nodes sit in the
  *  packing (`readiness.ts`). */
@@ -118,7 +123,10 @@ export type PackedDag = {
   pageUrlOf(page: number): string | undefined
   /** Per placement, its group and culling links (`readiness.ts`). */
   cutLinks: DagCutLinks[]
-  /** The world DAG, when packed: its placement and its `origins`, which the cut's
-   * residency mirrors (`worldMirror.ts`). */
-  world?: { root: number; origins: Int32Array }
+  /** The world DAG, when packed: its placement and its `origins`, which the cut's residency
+   *  mirrors (`worldMirror.ts`), and each placement's link to the world cluster that stands in for
+   *  it (`worldLinks.ts`). */
+  world?: PackedWorld
+  /** The cells and groups above the placements (`placementTree.ts`), when they take one. */
+  placementTree?: PlacementTree
 }

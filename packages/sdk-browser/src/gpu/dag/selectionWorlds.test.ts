@@ -10,6 +10,7 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { kernelUniforms, packed } from './selectionHelpers.fixture.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
+import { moveRoot } from './pack.fixture.ts'
 
 /** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
 async function cutOnce() {
@@ -26,9 +27,7 @@ async function cutOnce() {
 
 test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
   const { fixture, dag, uniforms, selection } = await cutOnce()
-  const moved = dag.worlds.slice()
-  moved[12] = 1000
-  assert.equal(selection.updateWorlds(moved), true)
+  assert.equal(selection.updateWorlds(moveRoot(dag, 0, 1000)), true)
   // Still what to stream, cut under the pose before: no image is held on it (`adoption.ts`).
   assert.equal(selection.peek()?.result.pageIds.length, 4)
   assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision)

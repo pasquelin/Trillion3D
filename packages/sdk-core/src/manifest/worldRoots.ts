@@ -54,10 +54,17 @@ export type WorldRoots = {
   payload: { url: string; sha256: string; bytes: number }
   /** The bundles, in the binary's order. */
   bundles: WorldRootsBundle[]
-  /** The pages: how many, and one's bundle, offset in it, level and error, read at its record. */
+  /** The pages: how many, and one's bundle, offset in it, length, level and error, read at its
+   *  record. */
   pages: {
     count: number
-    at(page: number): { bundle: number; offset: number; level: number; lodError: number }
+    at(page: number): {
+      bundle: number
+      offset: number
+      bytes: number
+      level: number
+      lodError: number
+    }
   }
   /** The world cells: how many, the placed primitives one holds, read at their records, and the
    *  cell holding object `object` — an object root's `origin`. */
@@ -67,13 +74,11 @@ export type WorldRoots = {
     cellOf(object: number): number
   }
 }
-/** One super-root page viewed on its bundle's bytes: its own vertices in world space, and its
- *  triangles as local indices. */
+/** One super-root page viewed on its bundle's bytes: a geometry page, its vertices in world space
+ *  with the attributes its objects carry, decoded and drawn as any page. */
 export type WorldRootsPage = {
-  /** Its vertices, three numbers each, in world space. */
-  positions: Float32Array
-  /** Its triangles, three local indices each. */
-  indices: Uint16Array
+  /** Its geometry page's bytes (docs/FORMAT.md, Geometry pages). */
+  bytes: Uint8Array
 }
 
 export const refuseWorldRoots = (message: string): never => {
@@ -90,30 +95,35 @@ export function cellDependencies(table: WorldRoots, cell: number): number[] {
   return [...needed].sort((a, b) => a - b)
 }
 
+/** Each bundle's first page in the table, its pages lying in bundle order (`records.rs`). */
+const firstPages = new WeakMap<WorldRoots, Uint32Array>()
+function firstPage(table: WorldRoots, bundle: number) {
+  let first = firstPages.get(table)
+  if (!first) {
+    first = new Uint32Array(table.bundles.length + 1)
+    table.bundles.forEach(({ count }, b) => (first![b + 1] = first![b] + count))
+    firstPages.set(table, first)
+  }
+  return first[bundle]
+}
+
 /**
- * The pages of bundle `bundle`, viewed on `bytes`, its range of the binary: each a vertex count, a
- * triangle count, its vertices as three floats in world space and its triangles as 16-bit local
- * indices padded to four bytes. A bundle whose pages do not fill it exactly, or name a vertex they do not carry,
- * is refused.
+ * The pages of bundle `bundle` of `table`, viewed on `bytes`, its range of the binary: each the
+ * range its page record names, in binary order. A bundle whose pages do not tile it exactly, or
+ * whose records name another bundle, is refused.
  */
-export function worldBundlePages(bytes: Uint8Array, count: number, bundle: number) {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
-    pages: WorldRootsPage[] = []
+export function worldBundlePages(table: WorldRoots, bundle: number, bytes: Uint8Array) {
+  const pages: WorldRootsPage[] = [],
+    { count } = table.bundles[bundle],
+    first = firstPage(table, bundle)
   let at = 0
-  for (let page = 0; page < count; page++) {
-    if (at + 8 > bytes.byteLength) refuse(`bundle ${bundle} ends inside page ${page}`)
-    const vertices = view.getUint32(at, true),
-      corners = view.getUint32(at + 4, true) * 3
-    const start = bytes.byteOffset + at + 8,
-      end = at + 8 + vertices * 12 + Math.ceil((corners * 2) / 4) * 4
-    if (end > bytes.byteLength) refuse(`bundle ${bundle} ends inside page ${page}`)
-    const positions = new Float32Array(bytes.buffer.slice(start, start + vertices * 12))
-    const indices = new Uint16Array(
-      bytes.buffer.slice(start + vertices * 12, start + vertices * 12 + corners * 2),
-    )
-    if (indices.some((index) => index >= vertices)) refuse(`bundle ${bundle} page ${page}`)
-    pages.push({ positions, indices })
-    at = end
+  for (let page = first; page < first + count; page++) {
+    const record = table.pages.at(page)
+    if (record.bundle !== bundle || record.offset !== at || record.bytes < 1)
+      refuse(`bundle ${bundle} page ${page - first}`)
+    if (at + record.bytes > bytes.byteLength) refuse(`bundle ${bundle} ends inside its pages`)
+    pages.push({ bytes: bytes.subarray(at, at + record.bytes) })
+    at += record.bytes
   }
   if (at !== bytes.byteLength) refuse(`bundle ${bundle} holds more than its ${count} pages`)
   return pages
@@ -135,8 +145,24 @@ export type WorldRootsCluster = {
   min: number[]
   max: number[]
   triangles: number
-  material: number | null
+  /** The primitive whose material and attributes it wears: its object's, or for a super-root one
+   *  of the objects it stands for, all wearing the same. */
+  primitive: number | null
   bundle: number | null
   offset: number | null
   origin: number | null
+  /** What a super-root's geometry page says of itself, as a primitive page's `geometry` does; null
+   *  for an object root, whose pages are its object's. */
+  page: WorldRootsPageFacts | null
+}
+
+/** A super-root page's length, vertex and index counts, attribute flags, decoded bytes and largest
+ *  position displacement (`pages.rs`). */
+export type WorldRootsPageFacts = {
+  bytes: number
+  vertexCount: number
+  indexCount: number
+  flags: number
+  uncompressedBytes: number
+  quantizationError: number
 }

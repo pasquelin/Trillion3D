@@ -5,6 +5,7 @@ use super::eligibility::{deforms, judge, masked, precheck, reference_focal};
 use super::eligibility::{texel_depth, triangle_depth};
 use super::eligibility::{Candidate, ATLAS_LIMIT, FRAMES, PROBE_SIDE};
 use super::mesh::Traceable;
+use crate::compiler_primitive_warn::root_cover_triangles;
 use crate::compiler_validate::values;
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::proxy::{bvh, primitives_by_mesh, stage_proxy, world_scale, ProxyInputs, SceneProxy};
@@ -155,13 +156,9 @@ fn stage_impostors(
     let mut meshes = Vec::with_capacity(placed.len());
     for (mesh, placements) in placed {
         let compiled = inputs.mesh_map[&mesh];
-        let root_triangles = by_mesh.get(&(compiled as u64)).into_iter().flatten();
-        let root_triangles = root_triangles
-            .map(|&p| {
-                inputs.primitives[p]["dag"]["rootTriangles"]
-                    .as_u64()
-                    .unwrap_or(0) as usize
-            })
+        let primitives = by_mesh.get(&(compiled as u64)).into_iter().flatten();
+        let root_triangles = primitives
+            .map(|&p| root_cover_triangles(&inputs.primitives[p]["dag"]))
             .sum();
         let candidate = Candidate {
             root_triangles,

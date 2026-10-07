@@ -1,56 +1,24 @@
 // The runtime reads the world roots and pins their top alone; a placed cell holds the
 // bundles past it that its objects' roots depend on, and lets them go when it leaves.
-import test, { type TestContext } from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts'
 import {
   worldRootsDag,
   worldRootsFixture,
 } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
-import { encodeWorldRootsDag } from '../../../sdk-core/src/manifest/worldRootsRecords.fixture.ts'
 import { openWorldRoots } from './worldRoots.ts'
+import { served } from './worldRoots.fixture.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
-
-const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
-
-/** The fixture's world served over HTTP ranges, `bin` its binary as the server holds it, `dag` the
- *  world DAG its cook writes beside it; returns the manifest that declares its files, the ranges
- *  asked and the files read whole. */
-function served(
-  t: TestContext,
-  bin?: Uint8Array,
-  ignoresRange = false,
-  dag?: Parameters<typeof encodeWorldRootsDag>[0],
-) {
-  const world = worldRootsFixture(sha)
-  const records = { table: world.bytes, dag: dag && encodeWorldRootsDag(dag) }
-  const held = bin ?? world.bin,
-    ranges: string[] = [],
-    whole: string[] = []
-  t.mock.method(globalThis, 'fetch', async (input: string, init?: RequestInit) => {
-    const file = /\.(table|dag)$/.exec(input)?.[1] as 'table' | 'dag' | undefined
-    if (file) return (whole.push(file), new Response(records[file]!.slice()))
-    const range = (init?.headers as Record<string, string>).Range
-    ranges.push(range)
-    if (ignoresRange) return new Response(held.slice())
-    const [from, to] = range.slice('bytes='.length).split('-').map(Number)
-    return new Response(held.slice(from, to + 1), { status: 206 })
-  })
-  const announce = (bytes: Uint8Array) => ({ bytes: bytes.byteLength, sha256: sha(bytes) })
-  const files = {
-    'world-roots.table': announce(records.table),
-    ...(records.dag && { 'world-roots.dag': announce(records.dag) }),
-  }
-  return { ...world, ranges, whole, manifest: { files } as unknown as ClusterManifest }
-}
+import { decodeGeometryPage } from '../page/codec/geometryPage.ts'
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
   const { table, manifest, ranges } = served(t)
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
   const top = table.pinnedTopBytes
   assert.deepEqual([roots.pinned.bundles, roots.pinned.bytes, roots.bytes()], [1, top, top])
-  assert.deepEqual([...roots.pinned.pages[0].positions], [0, 0, 0, 1, 0, 0, 0, 1, 0])
+  const pinned = decodeGeometryPage(roots.pinned.pages[0].bytes).attributes.position
+  assert.deepEqual([...pinned], [0, 0, 0, 1, 0, 0, 0, 1, 0])
   assert.deepEqual(ranges, [`bytes=0-${top - 1}`], 'the top alone, in one range')
   assert.deepEqual(roots.held(), [], 'no object root and no cell bundle is pinned')
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
@@ -104,9 +72,10 @@ test('the world DAG names its pages through the one source, from what is held', 
   const { clusters, groups } = worldRootsDag()
   const { manifest, ranges, whole } = served(t, undefined, false, { clusters, groups })
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
-  assert.deepEqual(whole, ['table'], 'a load reads the table, never the DAG')
+  // A partitioned world — three cells — reads its DAG at load: the cut packs it.
+  assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once, at load')
   const stream = await roots.stream()
-  assert.deepEqual(whole, ['table', 'dag'], 'the DAG is read once its stream opens')
+  assert.equal(stream, roots.drawn, 'the stream the cut draws from')
   assert.equal(stream, await roots.stream(), 'opened once')
   assert.deepEqual(whole, ['table', 'dag'], 'an opened stream reads its DAG no more')
   assert.equal(stream.dag!.pages.length, clusters.length, 'the cook\u2019s clusters, in rank')
@@ -115,19 +84,19 @@ test('the world DAG names its pages through the one source, from what is held', 
   const addressed = stream.dag!.pages.filter((page) => page.url)
   const pages = await Promise.all(addressed.map((page) => stream.source.page(page.url)))
   assert.deepEqual(
-    pages.map((page) => page.positions[0]),
+    pages.map((page) => decodeGeometryPage(page.bytes).attributes.position[0]),
     [1, 2, 3, 0],
     'each super-root reads the page at its bundle, the world top last',
   )
   assert.equal(ranges.length, asked + 1, 'only bundle 2, neither pinned nor held, is read')
   assert.deepEqual(roots.held(), [1, 3], 'a page read is not a cell hold')
-  // A page owing its other WebGPU view keeps its bundle, and the CPU budget counts it.
+  // A bundle read in flight is counted in the CPU budget, and let go once served.
   const before = roots.bytes(),
     far = addressed[1].url // bundle 2's super-root
-  await stream.source.read(far)
-  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the kept bundle is counted')
-  await stream.source.attributes(far)
-  assert.equal(roots.bytes(), before, 'both views served, it is let go')
+  const reading = stream.source.read(far)
+  assert.equal(roots.bytes(), before + roots.table.bundles[2].bytes, 'the read bundle is counted')
+  await reading
+  assert.equal(roots.bytes(), before, 'served, it is let go')
 })
 
 test('a cache without its DAG file opens a stream with no DAG', async (t) => {

@@ -164,3 +164,15 @@ test('two meshes placed by one shared world each draw their own card', async () 
   assert.deepEqual([count, runCount], [2, 2], 'a card and an atlas bind per mesh, none dropped')
   fixture.geometry.dispose()
 })
+
+test('beside a packed world DAG no root draws its card: the super-roots stand in', async () => {
+  const { rt, roots, marked } = await bench()
+  await imagesUntilResident(rt, 200)
+  planWebgpuImpostors(rt, engineOf(200))
+  assert.equal(roots[0].mark, CARD_ROOT, 'carded while no world DAG is packed')
+  ;(rt.run.gpuSelection as { packsWorld?: boolean }).packsWorld = true
+  planWebgpuImpostors(rt, engineOf(200))
+  assert.equal(roots[0].mark ?? 0, 0, 'its clusters back, the world gating them')
+  assert.deepEqual(marked.at(-1), [0, 0], 'and the GPU cut told')
+  assert.equal(rt.gpu.impostors!.count, 0, 'no card drawn')
+})

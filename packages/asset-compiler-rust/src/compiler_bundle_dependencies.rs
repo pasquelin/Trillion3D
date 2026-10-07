@@ -2,8 +2,11 @@
 //!
 //! A cluster is only drawn instead of its parents, the outputs of the group that replaces it. A
 //! bundle therefore depends on the bundles holding those parents, and the list it carries is closed
-//! transitively up to the pinned root cover: the runtime installs a bundle after every bundle on the
-//! list, so the nearest resident ancestor of a cluster is at most one level above it.
+//! transitively up to the pinned root cover, or up to a root packed past it — in the world DAG, a
+//! root one cell alone needs (`compiler_world_roots/top.rs`), which nothing replaces and its cell
+//! holds: the runtime installs a bundle after
+//! every bundle on the list, so the nearest resident ancestor of a cluster is at most one level
+//! above it.
 use super::*;
 use crate::dag::{DagCluster, DagGroup};
 
@@ -102,7 +105,9 @@ pub(super) fn close_dependencies(direct: &[Vec<usize>]) -> Result<Vec<Vec<usize>
 
 /// Refuses dependency lists the runtime could not install in order, naming the page or bundle: a
 /// page whose parents' bundle is not listed, a pinned bundle that depends on anything, a bundle
-/// whose closure misses the root cover, or a list that is not closed.
+/// whose closure misses the root cover, or a list that is not closed. A bundle past the pinned ones
+/// that depends on nothing must hold roots alone: every list then ends at the pinned cover or at
+/// roots packed past it, the tops of their own chains.
 pub(super) fn verify_dependencies(
     dag: &[DagCluster],
     groups: &[DagGroup],
@@ -111,6 +116,12 @@ pub(super) fn verify_dependencies(
     closed: &[Vec<usize>],
     pinned: usize,
 ) -> Result<()> {
+    let mut roots_alone = vec![true; closed.len()];
+    for (slot, cluster) in dag.iter().enumerate() {
+        if !cluster.is_root() {
+            roots_alone[bundle_of[slot]] = false;
+        }
+    }
     for (page, &slot) in order.iter().enumerate() {
         let own = bundle_of[slot];
         for &parent in parents_of(&dag[slot], groups) {
@@ -128,7 +139,7 @@ pub(super) fn verify_dependencies(
                 "Pinned streaming bundle {bundle} depends on other bundles"
             )));
         }
-        if bundle >= pinned && !list.iter().any(|&dependency| dependency < pinned) {
+        if bundle >= pinned && list.is_empty() && !roots_alone[bundle] {
             return Err(refuse(format!(
                 "Streaming bundle {bundle} does not reach the root cover"
             )));

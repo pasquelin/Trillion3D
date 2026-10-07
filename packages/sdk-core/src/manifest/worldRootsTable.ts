@@ -12,13 +12,14 @@ import {
   refuseWorldRoots as refuse,
   type WorldRoots,
   type WorldRootsCluster,
+  type WorldRootsPageFacts,
 } from './worldRoots.ts'
 
 /** The products' version this reader knows: another is refused. */
-const VERSION = 3
+const VERSION = 4
 /** Bytes of each header and record (`records.rs`). */
 const [TABLE_HEADER, BUNDLE, PAGE, CELL, OBJECT] = [80, 56, 24, 8, 24]
-const [DAG_HEADER, CLUSTER, GROUP] = [24, 152, 64]
+const [DAG_HEADER, CLUSTER, GROUP] = [24, 176, 64]
 /** An index word naming nothing. */
 const NONE = 0xffffffff
 
@@ -56,30 +57,17 @@ const hex = (bytes: Uint8Array) =>
   Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 const below = (values: Uint32Array, end: number) => values.every((value) => value < end)
 
-/**
- * `bytes` as a world-roots table, or `INVALID_CACHE`: its magic and version, its records filling
- * it, its bundles laid end to end from the binary's start, the pinned top's bytes the sum of its
- * first `pinned` bundles, and every dependency naming a bundle of the table.
- */
-export function readWorldRoots(bytes: Uint8Array): WorldRoots {
-  const { view, word, list } = opened(bytes, 'WRTB', TABLE_HEADER, (w) => {
-    const counts = [w(20), w(24), w(28), w(32)]
-    const records = counts[0] * BUNDLE + counts[1] * PAGE + counts[2] * CELL + counts[3] * OBJECT
-    if (TABLE_HEADER + records + w(36) * 4 !== bytes.byteLength) refuse('table length')
-    return TABLE_HEADER + records
-  })
-  const [pinned, pinnedTopBytes, bundleCount, pageCount, cellCount, objectCount] = [
-    12, 16, 20, 24, 28, 32,
-  ].map(word)
-  const pagesAt = TABLE_HEADER + bundleCount * BUNDLE,
-    cellsAt = pagesAt + pageCount * PAGE,
-    objectsAt = cellsAt + cellCount * CELL
+type Opened = ReturnType<typeof opened>
+
+/** The table's bundles, each laid where the last ended from the binary's start and naming only
+ *  bundles of the table, and the end of the last. */
+function tableBundles(bytes: Uint8Array, { word, list }: Opened, count: number) {
   let end = 0
-  const bundles = Array.from({ length: bundleCount }, (_, rank) => {
+  const bundles = Array.from({ length: count }, (_, rank) => {
     const at = TABLE_HEADER + rank * BUNDLE,
       dependencies = list(at + 16)
     if (word(at) + word(at + 4) * 2 ** 32 !== end) refuse(`bundle ${rank} is not the next range`)
-    if (!below(dependencies, bundleCount)) refuse(`bundle ${rank} dependencies`)
+    if (!below(dependencies, count)) refuse(`bundle ${rank} dependencies`)
     const offset = end
     end += word(at + 8)
     const sha256 = hex(bytes.subarray(at + 24, at + BUNDLE))
@@ -91,11 +79,28 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
       dependencies: [...dependencies],
     }
   })
-  if (pinned < 1 || pinned > bundleCount) refuse(`pinned ${pinned}`)
-  const payloadBytes = word(40) + word(44) * 2 ** 32
-  if (payloadBytes !== end) refuse('payload')
-  const top = bundles.slice(0, pinned).reduce((sum, bundle) => sum + bundle.bytes, 0)
-  if (pinnedTopBytes !== top) refuse('pinnedTopBytes')
+  return { bundles, end }
+}
+
+/** The table's pages at `at`, `count` of them, read at their records. */
+function tablePages({ view, word }: Opened, at: number, count: number): WorldRoots['pages'] {
+  return {
+    count,
+    at(page) {
+      const record = at + page * PAGE
+      const [bundle, offset, level, bytes] = [0, 4, 8, 12].map((k) => word(record + k))
+      return { bundle, offset, bytes, level, lodError: view.getFloat64(record + 16, true) }
+    },
+  }
+}
+
+/** The table's cells at `cellsAt` and their objects at `objectsAt`, checked: each cell's objects
+ *  follow the last's, and every object needs only bundles of the table. */
+function tableCells(
+  { word, list }: Opened,
+  [cellsAt, objectsAt]: number[],
+  [cellCount, objectCount, bundleCount]: number[],
+): WorldRoots['cells'] {
   let next = 0
   for (let cell = 0; cell < cellCount; cell++) {
     if (word(cellsAt + cell * CELL) !== next) refuse(`cell ${cell} objects`)
@@ -110,39 +115,73 @@ export function readWorldRoots(bytes: Uint8Array): WorldRoots {
     return { node: word(at), primitive: word(at + 4), roots, dependencies }
   }
   return {
+    count: cellCount,
+    objects(cell) {
+      const first = word(cellsAt + cell * CELL)
+      return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) => objectAt(first + i))
+    },
+    cellOf(object) {
+      // The last cell starting at or before `object`: an empty cell starts where the next does.
+      let [low, high] = [0, cellCount - 1]
+      while (low < high) {
+        const mid = (low + high + 1) >> 1
+        if (word(cellsAt + mid * CELL) <= object) low = mid
+        else high = mid - 1
+      }
+      return low
+    },
+  }
+}
+
+/**
+ * `bytes` as a world-roots table, or `INVALID_CACHE`: its magic and version, its records filling
+ * it, its bundles laid end to end from the binary's start, the pinned top's bytes the sum of its
+ * first `pinned` bundles, and every dependency naming a bundle of the table.
+ */
+export function readWorldRoots(bytes: Uint8Array): WorldRoots {
+  const file = opened(bytes, 'WRTB', TABLE_HEADER, (w) => {
+    const counts = [w(20), w(24), w(28), w(32)]
+    const records = counts[0] * BUNDLE + counts[1] * PAGE + counts[2] * CELL + counts[3] * OBJECT
+    if (TABLE_HEADER + records + w(36) * 4 !== bytes.byteLength) refuse('table length')
+    return TABLE_HEADER + records
+  })
+  const { word } = file
+  const [pinned, pinnedTopBytes, bundleCount, pageCount, cellCount, objectCount] = [
+    12, 16, 20, 24, 28, 32,
+  ].map(word)
+  const pagesAt = TABLE_HEADER + bundleCount * BUNDLE,
+    cellsAt = pagesAt + pageCount * PAGE,
+    objectsAt = cellsAt + cellCount * CELL
+  const { bundles, end } = tableBundles(bytes, file, bundleCount)
+  // No pinned bundle is a world whose objects all stand alone: each held with its cell.
+  if (pinned > bundleCount) refuse(`pinned ${pinned}`)
+  const payloadBytes = word(40) + word(44) * 2 ** 32
+  if (payloadBytes !== end) refuse('payload')
+  const top = bundles.slice(0, pinned).reduce((sum, bundle) => sum + bundle.bytes, 0)
+  if (pinnedTopBytes !== top) refuse('pinnedTopBytes')
+  return {
     version: VERSION,
     budgetBytes: word(8),
     pinned,
     pinnedTopBytes,
     payload: { url: WORLD_ROOTS_BIN, sha256: hex(bytes.subarray(48, 80)), bytes: payloadBytes },
     bundles,
-    pages: {
-      count: pageCount,
-      at(page) {
-        const at = pagesAt + page * PAGE
-        const [bundle, offset, level] = [word(at), word(at + 4), word(at + 8)]
-        return { bundle, offset, level, lodError: view.getFloat64(at + 16, true) }
-      },
-    },
-    cells: {
-      count: cellCount,
-      objects(cell) {
-        const first = word(cellsAt + cell * CELL)
-        return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) =>
-          objectAt(first + i),
-        )
-      },
-      cellOf(object) {
-        // The last cell starting at or before `object`: an empty cell starts where the next does.
-        let [low, high] = [0, cellCount - 1]
-        while (low < high) {
-          const mid = (low + high + 1) >> 1
-          if (word(cellsAt + mid * CELL) <= object) low = mid
-          else high = mid - 1
-        }
-        return low
-      },
-    },
+    pages: tablePages(file, pagesAt, pageCount),
+    cells: tableCells(file, [cellsAt, objectsAt], [cellCount, objectCount, bundleCount]),
+  }
+}
+
+/** The page facts a cluster record holds at `at`, or null for an object root (a zero length). */
+function pageFacts(view: DataView, at: number): WorldRootsPageFacts | null {
+  const word = (k: number) => view.getUint32(at + k * 4, true)
+  if (!word(0)) return null
+  return {
+    bytes: word(0),
+    vertexCount: word(1),
+    indexCount: word(2),
+    flags: word(3),
+    uncompressedBytes: word(4),
+    quantizationError: view.getFloat32(at + 20, true),
   }
 }
 
@@ -175,10 +214,11 @@ export function readWorldRootsDag(bytes: Uint8Array) {
       min: floats(at + 104, 3),
       max: floats(at + 128, 3),
       triangles: word(at + 4),
-      material: named(at + 8),
+      primitive: named(at + 8),
       bundle: named(at + 12),
       offset: named(at + 16),
       origin: named(at + 20),
+      page: pageFacts(view, at + 152),
     }
   })
   const groupsAt = DAG_HEADER + clusterCount * CLUSTER

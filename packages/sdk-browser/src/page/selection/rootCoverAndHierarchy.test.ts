@@ -6,6 +6,8 @@ import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { dagFixture, wideCamera, urls } from './dag.fixture.ts'
 import { dagCulling } from './helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
+import { rootChildren } from '../../residency/minimumCapacity.ts'
+import type { ClusterRoot, PageRec } from './types.ts'
 
 test('the root cover is what stays pinned for a flat cut', () => {
   const fixture = dagFixture()
@@ -111,3 +113,29 @@ for (const transparent of [true, false])
     )
     fixture.geometry.dispose()
   })
+
+test("every root is covered, a held one with its holder; the floor reads the session's", () => {
+  const pages = [
+    { url: 'top', parentError: null },
+    { url: 'held', parentError: null, holder: 1 },
+    { url: 'child', parentError: 1 },
+    { url: 'heldChild', parentError: 1 },
+  ] as unknown as PageRec[]
+  const covered = rootCoverage([{ pages }])
+  assert.deepEqual(
+    covered.map((page) => [page.url, page.holder]),
+    [
+      ['top', undefined],
+      ['held', 1],
+    ],
+  )
+  // Each root replaces its own child: the floor holds the session root's alone.
+  const structure = { roots: [0, 1], sources: [0, 1, -1, -1], childOffsets: [0, 1, 2] }
+  const root = { pages, structure: { ...structure, children: [2, 3] } }
+  assert.deepEqual(
+    rootChildren([root as unknown as ClusterRoot<PageRec>]).map((page) => page.url),
+    ['child'],
+  )
+  const none = pages.map((page) => ({ ...page, parentError: 1 }))
+  assert.throws(() => rootCoverage([{ pages: none }]), /INVALID_ROOT_COVERAGE/)
+})

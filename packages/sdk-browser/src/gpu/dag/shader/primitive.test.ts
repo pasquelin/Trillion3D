@@ -63,7 +63,9 @@ test('camera sites read their prepared values', () => {
     /fn outsideAhead\([^)]*\)->bool\{return outsideFrustum\(aheadPlanes\(w\),/,
   )
   assert.ok(
-    DAG_SELECTION_SHADER.includes('putPlanes(base,m,vi,open);preparePrimitive(w,pose,m,open);'),
+    DAG_SELECTION_SHADER.includes(
+      'putPlanes(slotOf(w)*FRAME,m,vi,open);preparePrimitive(w,pose,m,open);',
+    ),
   )
 })
 

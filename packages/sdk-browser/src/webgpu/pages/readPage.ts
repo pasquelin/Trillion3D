@@ -1,5 +1,6 @@
 import { readGeometryPageHeader } from '../../page/codec/geometryPageHeader.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
+import { readWorldOrGeometry } from './prepare/worldRoot.ts'
 
 /**
  * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the host's
@@ -10,12 +11,13 @@ import type { WebgpuPagesCore } from './runtime.ts'
 export function createPageSource(rt: WebgpuPagesCore) {
   const { context, setup } = rt,
     { sourceBytes, geometryUrls } = setup
+  // A world super-root's page is read through the world's own source (`prepare/worldRoot.ts`).
+  const readGeometry = readWorldOrGeometry(context)
   const read = async (key: string, _signal?: AbortSignal, priority?: number) => {
     const geometryUrl = geometryUrls.get(key)
     if (geometryUrl === undefined)
       return sourceBytes.get(key) ?? Promise.reject(new Error('Missing page'))
-    if (!context.readGeometryPage) throw new Error('Missing geometry page reader')
-    const bytes = await context.readGeometryPage(geometryUrl, undefined, priority)
+    const bytes = await readGeometry(geometryUrl, undefined, priority)
     // The pool uploads these words as they are and the shaders decode them in place, so nothing
     // downstream would ever notice a forged or truncated page. The format's own gate is read
     // here, once per admission: magic, version, grids, and counts that measure exactly this many

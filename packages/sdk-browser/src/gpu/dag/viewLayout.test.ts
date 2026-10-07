@@ -5,8 +5,8 @@ import { DAG_VIEW_WORDS } from './shader/viewsWgsl.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { writeDagUniforms } from './uniforms.ts'
 
-test('the block holds the ninety-two words the uniform array strides by', () => {
-  assert.equal(VIEW_BLOCK_WORDS, 92)
+test('the block holds the hundred words the uniform array strides by', () => {
+  assert.equal(VIEW_BLOCK_WORDS, 100)
   // The array is allocated from the same number the kernels index by: one source, no drift.
   assert.equal(DAG_VIEW_WORDS, VIEW_BLOCK_WORDS)
 })
@@ -34,11 +34,18 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['ahead', 57],
     // The admission word takes the gap before the next vec4: no word behind it moves.
     ['admitByLevel', 58],
-    // The swap's two regions, one word, in the last gap (`shader/swapWgsl.ts`).
+    // The swap's two regions, one word (`shader/swapWgsl.ts`).
     ['swapRegions', 59],
-    ['lightOriginHigh', 60],
-    ['lightOriginLow', 64],
-    ['lightPlanes', 68],
+    // The placement tree's four words, then the world DAG's link base and threshold scale.
+    ['grouped', 60],
+    ['cells', 61],
+    ['cellBase', 62],
+    ['members', 63],
+    ['worldLinks', 64],
+    ['worldScale', 65],
+    ['lightOriginHigh', 68],
+    ['lightOriginLow', 72],
+    ['lightPlanes', 76],
   ]
   for (const [field, word] of asWritten) assert.equal(viewWord(field), word, field)
 })
@@ -61,6 +68,7 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,cameraWorld:vec3f,' +
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
       'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
+      'grouped:u32,cells:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.

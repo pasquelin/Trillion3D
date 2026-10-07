@@ -1,9 +1,9 @@
 //! The `clusters` and `groups` of the world roots, written as `world-roots.dag`: every
 //! world cluster, object roots included, and the group list, published for the runtime's cut.
-use super::merge::world_dag;
-use super::records;
 use super::tests::{cooked, covers, world};
+use super::world::world_dag;
 use super::*;
+use super::{dag_records, records};
 
 #[test]
 fn the_table_publishes_every_cluster_and_its_groups_for_the_runtime_cut() {
@@ -22,6 +22,8 @@ fn the_table_publishes_every_cluster_and_its_groups_for_the_runtime_cut() {
             Some(world.clusters[slot].level as u64)
         );
         assert!(cluster["sphere"].is_array());
+        // Its primitive wears its material: each test primitive wears its own (`tests::world`).
+        assert_eq!(cluster["primitive"].as_u64(), world.materials[slot]);
         let origin = world.origins[slot];
         if origin.is_some() {
             // Every instance places a covered primitive: its rank among the objects is its own.
@@ -144,20 +146,20 @@ fn the_table_and_its_dag_are_fixed_size_records_and_their_pools() {
             .flat_map(|g| [&g["children"], &g["outputs"]])
             .collect(),
     );
-    let dag = records::encode_dag(&table).expect("dag");
+    let dag = dag_records::encode_dag(&table).expect("dag");
     assert_eq!(&dag[..4], records::DAG_MAGIC);
     let counts = [count("clusters"), groups.len(), pool];
     assert_eq!(
         counts.map(|c| c as u32),
         [8, 12, 16].map(|at| words(&dag, at))
     );
-    assert_eq!(dag.len(), 24 + counts[0] * 152 + counts[1] * 64 + pool * 4);
+    assert_eq!(dag.len(), 24 + counts[0] * 176 + counts[1] * 64 + pool * 4);
     // A root's parent error is NaN; a super-root names its bundle, an object root none.
     let root = table["clusters"]
         .as_array()
         .expect("clusters")
         .iter()
         .position(|c| c["parentError"].is_null());
-    let at = 24 + root.expect("a root") * 152;
+    let at = 24 + root.expect("a root") * 176;
     assert!(f64::from_le_bytes(dag[at + 32..at + 40].try_into().unwrap()).is_nan());
 }

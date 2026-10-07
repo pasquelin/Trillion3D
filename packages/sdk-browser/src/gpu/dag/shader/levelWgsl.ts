@@ -1,3 +1,5 @@
+import { treeDescentWgsl } from './placementTreeWgsl.ts'
+
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
  *
@@ -104,9 +106,20 @@ fn levelStep(src:u32,s:u32){
  let entry=flagAt(queueBase(src)+s);
  if(entry==0xffffffffu){return;}
  vi=entryView(entry);
- let node=nodeAt(entryIndex(entry));
+ let index=entryIndex(entry);
+ // Past the nodes, a member a kept group of the tree deposited (\`placementTreeWgsl.ts\`).
+ if(index>=views[0u].nodeCount){placementStep(src,index-views[0u].nodeCount);return;}
+ nodeStep(src,index);
+}
+/** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the placement tree, or of a
+ *  placement's own hierarchy — its root first asked whether the world DAG draws it instead. */
+fn nodeStep(src:u32,index:u32){
+ let node=nodeAt(index);
+ if(node.kind!=0u){treeStep(src,node);return;}
  let w=node.worldIndex;
  if(!inRange(w)){return;}
+ // An ungrouped placement's root asks what a grouped one's group asked (\`placementStep\`).
+ if(w>=views[0u].grouped&&index==rootOf(w)&&worldCovers(w)){return;}
  deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
@@ -116,14 +129,14 @@ fn levelStep(src:u32,s:u32){
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
- let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
- if(tooCoarse(node,e,stretch,focal)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
- if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){descendAhead(src,node,w);return;}
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();let t=thresholdOf(w);
+ if(tooCoarse(node,e,stretch,focal,t)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
+ if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal,t)){descendAhead(src,node,w);return;}
  descend(src,node);
 }
-/** Too coarse under the view \`vi\`: no cluster of the subtree is fine enough. */
-fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32)->bool{
- return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=views[vi].pixelError;
+/** Too coarse under the view \`vi\` and its threshold \`t\`: no cluster of the subtree is fine enough. */
+fn tooCoarse(node:CullNode,e:mat4x4f,stretch:f32,focal:f32,t:f32)->bool{
+ return deformReach==0.0&&node.maxParentError>=0.0&&projected(node.maxParentError,node.sphere,e,stretch,focal)<=t;
 }
 /** A kept node opens its children, or deposits its pages, under the current view \`vi\`. */
 fn descend(src:u32,node:CullNode){
@@ -131,13 +144,19 @@ fn descend(src:u32,node:CullNode){
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
 /** Pass 0: queue 0 holds one root per slot, so a range's dispatch reads its own slots
- *  (\`rangeSlot\`). Queue 0 reused deeper (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
+ *  (\`rangeSlot\`), a grouped placement's slot the tree's cell of that rank. Queue 0 reused deeper
+ *  (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
 @compute @workgroup_size(64)
-fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,rangeSlot(flatIndex(id.x,id.y,n.x)));}
+fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let t=rangeSlot(flatIndex(id.x,id.y,n.x));
+ // A grouped placement's slot holds a cell of the tree, or nothing written this frame.
+ if(groupedSlot(t)&&(t%views[0u].worldCount>=views[0u].cells||t>=views[0u].worldCount)){return;}
+ levelStep(0u,t);
+}
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id.x,id.y,n.x));}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id.x,id.y,n.x));}
 @compute @workgroup_size(64)
 fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id.x,id.y,n.x));}
-`
+${treeDescentWgsl(LEVEL_QUEUES)}`

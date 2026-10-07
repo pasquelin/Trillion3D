@@ -11,7 +11,7 @@ import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
-import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
+import { DOUBLE_WGSL, TO_F32_WGSL } from '../webgpu/blend/doubleWgsl.ts'
 import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 
@@ -19,30 +19,6 @@ import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 export const NONE = 0xffffffff
 /** Doubles of one matrix, each two words. */
 export const MATRIX_DOUBLES = 16
-
-/**
- * The single-precision bits of double `a`, rounded to nearest, ties to even, as storing it in a
- * `Float32Array` rounds it: subnormal results, overflow to infinity, a NaN as the quiet one. The
- * 53-bit significand is shifted to the result's 24 bits (fewer below the normal range), two bits
- * kept below it — the half and a sticky one folding everything lower (`wideShiftRight`).
- */
-const TO_F32_WGSL = `
-fn toF32(a:vec2u)->u32{
- let sign=(a.x>>31u)<<31u;
- let e=i32(dExponent(a));
- if(e==0x7ff){return select(sign|0x7f800000u,0x7fc00000u,dIsNan(a));}
- if(e==0){return sign;}
- let biased=e-1023+127;
- let shift=select(29,30-biased,biased<1);
- let r=wideShiftRight(dSignificand(a),u32(min(shift-2,64)));
- var m=(r.y>>2u)|(r.x<<30u);
- if((r.y&2u)!=0u&&((r.y&1u)!=0u||(m&1u)!=0u)){m=m+1u;}
- if(biased<1){return sign|m;}
- var field=u32(biased);
- if(m==0x1000000u){m=0x800000u;field=field+1u;}
- if(field>=255u){return sign|0x7f800000u;}
- return sign|(field<<23u)|(m&0x7fffffu);
-}`
 
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
@@ -67,7 +43,8 @@ fn sameWord(a:u32,b:u32)->bool{
 }`
 
 /**
- * One thread per root of a range of the cut's worlds: `parent · local` brought to the eye, and,
+ * One thread per root of a range of the cut's worlds: `parent · local` brought to the eye — its
+ * exact translation kept behind the range's matrices, as the host's are (`worldOrigins.ts`) —, and,
  * once the temporal pass has decided (`motionMode`), the root's motion as `../taa/motion.ts` writes
  * it from the root's single-precision world — the row's words — and the one it held at the last
  * accumulated image (`previous`): a restart takes the world as reference with no motion; a
@@ -96,7 +73,13 @@ ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
  for(var k=0u;k<16u;k++){
   var value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   world[k]=toF32(value);
-  if(k>=12u&&k<15u){value=dSub(value,eye[k-12u]);}
+  // The exact translation behind the range's matrices, which the cut's worlds are brought to the
+  // eye from (\`../gpu/dag/worldRebase.ts\`), then the word at the eye.
+  if(k>=12u&&k<15u){
+   let at=params.count*16u+id.x*8u+2u*(k-12u);
+   worlds[at]=value.x;worlds[at+1u]=value.y;
+   value=dSub(value,eye[k-12u]);
+  }
   worlds[id.x*16u+k]=toF32(value);
  }
  let mode=motionMode.mode;

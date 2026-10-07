@@ -1,0 +1,8 @@
+{
+  "name": "sway",
+  "warm": 90,
+  "segments": [
+    { "name": "settle", "frames": 60, "measure": false },
+    { "name": "sway", "frames": 120 }
+  ]
+}

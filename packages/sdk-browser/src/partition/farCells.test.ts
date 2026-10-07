@@ -19,8 +19,8 @@ const xs = [10, 30, 45, 70]
 const bounds = Float64Array.from(xs.flatMap((x) => [0.03, x + 0.5, 0.5, 0.5, 0.5]))
 
 /** Four cells of one box each, found through their index; a world that records its holds and
- *  serves the bound once its stream opens. */
-function partition() {
+ *  serves the bound once its stream opens, and holds far only the cells `admits` lets it. */
+function partition(admits?: (cell: number) => boolean) {
   const boxes = createCellBoxes([], new Object3D(), [])
   boxes.refresh()
   const records = xs.map((x, at) => ({
@@ -35,6 +35,7 @@ function partition() {
     hold: async (cell: number) => void world.held.push(cell),
     release: (cell: number) => void world.released.push(cell),
     stream: async () => (world.streams++, { superRoots: bounds }) as never,
+    cover: admits && { room: () => 0, admits },
   }
   const placed = new Map<number, unknown>()
   return { index, world, placed, far: createFarCells(holder, placed) }
@@ -98,4 +99,13 @@ test('a placed cell the cut no longer needs is demoted, its world bundles held b
   // Its far hold is taken before its placed hold goes: the bundles both need are never released,
   // then read again.
   assert.equal(holdsBeforeLeave, 1)
+})
+
+test("the plan holds no far cell whose roots the cut's cache has no room for", async () => {
+  const { index, world, far } = partition((cell) => cell !== 2)
+  far.plan(index, local, eye, lens, leave)
+  await Promise.resolve()
+  const plan = far.plan(index, local, eye, lens, leave)
+  assert.deepEqual(plan.far, [0, 1, 2, 3], 'found far')
+  assert.deepEqual(world.held, [0, 1, 3], 'held far but the one past the room')
 })

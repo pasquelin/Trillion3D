@@ -13,18 +13,18 @@ use super::*;
 pub(crate) const TABLE_MAGIC: &[u8; 4] = b"WRTB";
 pub(crate) const DAG_MAGIC: &[u8; 4] = b"WRTD";
 
-fn invalid(what: &str) -> CompilerError {
+pub(super) fn invalid(what: &str) -> CompilerError {
     CompilerError::new("INVALID_WORLD_ROOTS", format!("world roots: {what}"))
 }
 /// `value` as one `u32` word, or `-1` for `null` when `nullable`.
-fn word(value: &Value, nullable: bool) -> Result<u32> {
+pub(super) fn word(value: &Value, nullable: bool) -> Result<u32> {
     match value.as_u64() {
         Some(n) if n < u32::MAX as u64 => Ok(n as u32),
         None if nullable && value.is_null() => Ok(u32::MAX),
         _ => Err(invalid(&format!("{value} is not a 32-bit index"))),
     }
 }
-fn list<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>> {
+pub(super) fn list<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>> {
     value[key]
         .as_array()
         .ok_or_else(|| invalid(&format!("{key} is not a list")))
@@ -32,25 +32,25 @@ fn list<'a>(value: &'a Value, key: &str) -> Result<&'a Vec<Value>> {
 
 /// A record file being written: its words, then its pool.
 #[derive(Default)]
-struct Records {
-    out: Vec<u8>,
-    pool: Vec<u32>,
+pub(super) struct Records {
+    pub(super) out: Vec<u8>,
+    pub(super) pool: Vec<u32>,
 }
 impl Records {
-    fn word(&mut self, value: u32) {
+    pub(super) fn word(&mut self, value: u32) {
         self.out.extend(value.to_le_bytes());
     }
     fn float(&mut self, value: f64) {
         self.out.extend(value.to_le_bytes());
     }
     /// `values`, `null` written as NaN, `count` of them.
-    fn floats(&mut self, value: &Value, count: usize) {
+    pub(super) fn floats(&mut self, value: &Value, count: usize) {
         for at in 0..count {
             self.float(value.get(at).unwrap_or(value).as_f64().unwrap_or(f64::NAN));
         }
     }
     /// `values` in the pool: its first word and its length.
-    fn pooled(&mut self, values: &Value) -> Result<()> {
+    pub(super) fn pooled(&mut self, values: &Value) -> Result<()> {
         let values = values
             .as_array()
             .ok_or_else(|| invalid("a list is not a list"))?;
@@ -62,7 +62,7 @@ impl Records {
         self.word(values.len() as u32);
         Ok(())
     }
-    fn end(mut self) -> Vec<u8> {
+    pub(super) fn end(mut self) -> Vec<u8> {
         for value in std::mem::take(&mut self.pool) {
             self.word(value);
         }
@@ -83,8 +83,8 @@ fn digest(hex: &Value) -> Result<Vec<u8>> {
 
 /// `world-roots.table` of `table`, the cook's table with its `payload` named: an 80-byte header
 /// (magic, version, budget, pinned bundles, pinned bytes, the five counts, the binary's length as
-/// two words, then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages, 8-byte cells, 24-byte
-/// objects and the pool.
+/// two words, then the binary's 32-byte digest), then 56-byte bundles, 24-byte pages (bundle,
+/// offset, level and length, then the error as `f64`), 8-byte cells, 24-byte objects and the pool.
 pub(crate) fn encode_table(table: &Value) -> Result<Vec<u8>> {
     let (bundles, pages, cells) = (
         list(table, "bundles")?,
@@ -126,10 +126,9 @@ pub(crate) fn encode_table(table: &Value) -> Result<Vec<u8>> {
         r.out.extend(digest(&bundle["sha256"])?);
     }
     for page in pages {
-        for key in ["bundle", "offset", "level"] {
+        for key in ["bundle", "offset", "level", "bytes"] {
             r.word(word(&page[key], false)?);
         }
-        r.word(0);
         r.floats(&page["lodError"], 1);
     }
     let mut first = 0u32;
@@ -147,50 +146,5 @@ pub(crate) fn encode_table(table: &Value) -> Result<Vec<u8>> {
     }
     let words = (r.pool.len() as u32).to_le_bytes();
     r.out[pool_words..pool_words + 4].copy_from_slice(&words);
-    Ok(r.end())
-}
-
-/// `world-roots.dag` of `table`'s `clusters` and `groups`: a 24-byte header (magic, version, the
-/// two counts, the pool's length, zero), then 152-byte clusters — level, triangles, then material,
-/// bundle, offset and origin (`u32::MAX` for none), then as `f64` the error, the parent's (NaN for
-/// a root), the sphere, the parent's (NaN for a root), the minimum and the maximum —, 64-byte
-/// groups — level, its children and outputs in the pool, zero, then as `f64` its error and sphere
-/// — and the pool.
-pub(crate) fn encode_dag(table: &Value) -> Result<Vec<u8>> {
-    let (clusters, groups) = (list(table, "clusters")?, list(table, "groups")?);
-    let mut r = Records::default();
-    r.out.extend(DAG_MAGIC);
-    for value in [
-        WORLD_ROOTS_VERSION,
-        clusters.len() as u32,
-        groups.len() as u32,
-        0,
-        0,
-    ] {
-        r.word(value);
-    }
-    for cluster in clusters {
-        r.word(word(&cluster["level"], false)?);
-        r.word(word(&cluster["triangles"], false)?);
-        for key in ["material", "bundle", "offset", "origin"] {
-            r.word(word(&cluster[key], true)?);
-        }
-        r.floats(&cluster["lodError"], 1);
-        r.floats(&cluster["parentError"], 1);
-        r.floats(&cluster["sphere"], 4);
-        r.floats(&cluster["parentSphere"], 4);
-        r.floats(&cluster["min"], 3);
-        r.floats(&cluster["max"], 3);
-    }
-    for group in groups {
-        r.word(word(&group["level"], false)?);
-        r.pooled(&group["children"])?;
-        r.pooled(&group["outputs"])?;
-        r.word(0);
-        r.floats(&group["error"], 1);
-        r.floats(&group["sphere"], 4);
-    }
-    let words = (r.pool.len() as u32).to_le_bytes();
-    r.out[16..20].copy_from_slice(&words);
     Ok(r.end())
 }

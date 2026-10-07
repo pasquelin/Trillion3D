@@ -1,17 +1,25 @@
-import { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts'
 import type { PackedDag } from './types.ts'
 
-/** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices. */
+/** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
+ *  translation as three doubles, high word then low word, as the GPU holds a double (`DOUBLE_WGSL`),
+ *  and two words of padding. The cut's worlds are brought to the eye from them (`worldRebase.ts`). */
 export const WORLD_ORIGIN_BYTES = 32
 
-/** Writes one exact placement translation as two floats per coordinate. */
+const bits = new Float64Array(1),
+  bitWords = new Uint32Array(bits.buffer)
+
+/** Writes one placement's exact translation, three doubles, into `out` (words) from `at`. */
 function writeOrigin(
-  out: Float32Array,
+  out: Uint32Array,
   at: number,
   source: NonNullable<PackedDag['worldSources']>[number],
 ) {
   const e = source.world.elements
-  for (let axis = 0; axis < 3; axis++) writeSplitDouble(out, at + axis, at + 4 + axis, e[12 + axis])
+  for (let axis = 0; axis < 3; axis++) {
+    bits[0] = e[12 + axis]
+    out[at + 2 * axis] = bitWords[1]
+    out[at + 2 * axis + 1] = bitWords[0]
+  }
 }
 
 export function createWorldOrigins(
@@ -22,8 +30,8 @@ export function createWorldOrigins(
 ) {
   // Every placement the ranges hold: the live ones, and those a growth appends to `sources`.
   const slots = ranges.reduce((sum, { count }) => sum + count, 0),
-    words = new Float32Array(Math.max(slots, sources?.length ?? 0) * 8),
-    next = new Float32Array(8)
+    words = new Uint32Array(Math.max(slots, sources?.length ?? 0) * 8),
+    next = new Uint32Array(8)
   return {
     hostBytes: words.byteLength + next.byteLength,
     /** Called only for physical pose changes, never for a camera rebase. */
@@ -34,7 +42,7 @@ export function createWorldOrigins(
       for (let row = 0; row < sources.length; row++) {
         const at = row * 8
         writeOrigin(next, 0, sources[row])
-        if (next.every((value, k) => Object.is(value, words[at + k]))) continue
+        if (next.every((value, k) => value === words[at + k])) continue
         words.set(next, at)
         from = Math.min(from, row)
         to = row

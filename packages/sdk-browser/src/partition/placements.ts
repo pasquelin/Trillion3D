@@ -1,6 +1,7 @@
 /**
  * THE ROWS THE PLACED CELLS OF A PARTITION HOLD: each node of a placed cell on a row of its
- * mesh (`rows.ts`), at the world matrix the engine composes for a child of its core parent. A cell
+ * mesh (`rows.ts`), at the world matrix the engine composes for a child of its core parent, the row
+ * knowing its cell and node while it holds them (`rowCells.ts`). A cell
  * that leaves parks its rows; a parent moved, or a host mesh's `castShadow` changed, rewrites the
  * rows under it (`follow.ts`). What was written since the last `touched.flush` is what the engine
  * is told.
@@ -10,6 +11,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createPlacementWrites, type Placement } from './follow.ts'
 import { createTouchedRows, releaseRow, rowsFree, takeRow, type PlacedMesh } from './rows.ts'
+import { setRowCell } from './rowCells.ts'
 
 /** The rows of the cells placed under `root` and the core `parents`, on the rows of `meshes`. */
 export function createCellPlacements(
@@ -28,11 +30,15 @@ export function createCellPlacements(
     place(cell: number, { nodes, ranks, locals }: CellRows, url: string) {
       if (!rowsFree(meshes, ranks, url)) return false
       const placements: Placement[] = []
+      // Each node's mesh, which the world's objects of the cell are read against (`rowCells.ts`).
+      const nodeMeshes = Int32Array.from({ length: nodes }, (_, node) => ranks[2 * node + 1])
       for (let node = 0; node < nodes; node++) {
         const parent = ranks[2 * node] < 0 ? root : parents[ranks[2 * node]]
         const mesh = meshes.get(ranks[2 * node + 1])!
         const local = locals.subarray(MATRIX_VALUES * node, MATRIX_VALUES * (node + 1))
         placements.push({ mesh, row: takeRow(mesh), parent, local })
+        for (const link of mesh.links)
+          setRowCell(link.placements!, placements[node].row, { cell, node, meshes: nodeMeshes })
         write(placements[node])
       }
       held.set(cell, placements)
@@ -42,7 +48,10 @@ export function createCellPlacements(
     leave(cell: number) {
       for (const { mesh, row } of held.get(cell)!) {
         releaseRow(mesh, row)
-        for (const link of mesh.links) touched.touch(link, row)
+        for (const link of mesh.links) {
+          setRowCell(link.placements!, row, undefined)
+          touched.touch(link, row)
+        }
       }
       held.delete(cell)
     },

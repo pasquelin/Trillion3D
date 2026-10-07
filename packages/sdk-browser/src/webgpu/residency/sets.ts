@@ -4,6 +4,7 @@ import { createDenseKeySet } from '../cut/denseKeys.ts'
 import { createKeyUnion } from '../cut/keyUnion.ts'
 import { createHeldKeys } from '../cut/heldKeys.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
+import { createCoverHolders } from './coverHolders.ts'
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>
@@ -14,7 +15,10 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  * The sets an image decides residency with, carried from one image to the next instead of rebuilt.
  *
  * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
- * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA of
+ * what the image draws, which the cache must not reclaim under it. The root cover counts its
+ * holders per key (`bootstrapKey`): the session holds its roots from open, and each cell held adds
+ * a holder to the roots it alone needs (`holdCover`); a key is covered while it has one — kept,
+ * pinned in the held tier and never weighed by the budget. The cut arrives as a DELTA of
  * each view's GPU readback, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
  * walks: the desired set itself, unless the page budget forces the coarser subset the admission
@@ -22,10 +26,13 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking
+  /** Holders per key of the root cover, the session's set at open; `holdCover` moves the rest. */
   bootstrapKey: Uint8Array
   packedPages: PageList
+  /** The cover's pool addresses, following its holders. */
+  bootstrapUrls?: Set<string>
 }) {
-  const { tracking, bootstrapKey, packedPages } = options
+  const { tracking, bootstrapKey, packedPages, bootstrapUrls } = options
   const { keyCount, keyOf, wanted, wantedPages } = tracking
   /** A packed rank back to its record: the one catalogue accessor (`../pages/prepare/catalogue.ts`). */
   const { recordOf } = createPageCatalogue(packedPages)
@@ -63,6 +70,8 @@ export function createWebgpuResidencySets(options: {
     },
   })
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key)
+  const urls = bootstrapUrls,
+    cover = createCoverHolders({ holders: bootstrapKey, urls, keyOf, requested, keep })
   /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0
@@ -120,7 +129,7 @@ export function createWebgpuResidencySets(options: {
     followDesired,
     admit,
     /** True for a key of the pinned root cover, which no budget weighs. */
-    covers: (key: number) => bootstrapKey[key] === 1,
+    covers: (key: number) => bootstrapKey[key] > 0,
     /** Keys this image asks the cache for, the pinned cover included. */
     get requestedCount() {
       return requested.size
@@ -140,6 +149,7 @@ export function createWebgpuResidencySets(options: {
         askedKeys.byteLength +
         drawnKeys.byteLength +
         wanted.byteLength +
+        cover.byteLength +
         tracking.pinned.byteLength
       )
     },
@@ -153,13 +163,18 @@ export function createWebgpuResidencySets(options: {
      *  budget. A page past the budget is drawn by its nearest resident ancestor and never awaited. */
     accepts: (page: PageRec) => {
       const key = keyOf(page)
-      return bootstrapKey[key] === 1 || wanted.has(key)
+      return bootstrapKey[key] > 0 || wanted.has(key)
     },
     /** Applies one difference of what the cut asks for — its pages and the groups they close over
      *  (`../../page/cut/groupClosure.ts`): only the pages that entered and left are touched. */
     applyCut(delta: IdDelta) {
       askedKeys.apply(delta)
     },
+    /** `pages` gain a holder, `held`, or lose one (`coverHolders.ts`). */
+    holdCover(pages: readonly PageRec[], held: boolean) {
+      if (cover.hold(pages, held)) acceptedRevision++
+    },
+    coverMissing: cover.missing,
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
     applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta)

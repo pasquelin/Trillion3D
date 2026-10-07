@@ -2,16 +2,14 @@ import type { WorldRootsCluster } from './worldRoots.ts'
 import type { ClusterGroup } from '../contracts/geometry.ts'
 import { encodeWorldRoots, type WorldRootsSpec } from './worldRootsRecords.fixture.ts'
 import { readWorldRoots } from './worldRootsTable.ts'
+import { encodeGeometryPage } from '../../../page-codec/src/geometryPage.ts'
 
-/** One super-root page as the cook writes it: a triangle of three vertices, `x` its offset. */
+/** One super-root page as the cook writes it, a geometry page: a triangle of three vertices, `x`
+ *  its offset, with its facts (`WorldRootsPageFacts`). */
 export function worldPage(x: number) {
-  const bytes = new Uint8Array(8 + 3 * 12 + 8),
-    view = new DataView(bytes.buffer)
-  view.setUint32(0, 3, true)
-  view.setUint32(4, 1, true)
-  ;[x, 0, 0, x + 1, 0, 0, x, 1, 0].forEach((value, at) => view.setFloat32(8 + at * 4, value, true))
-  ;[0, 1, 2].forEach((index, at) => view.setUint16(44 + at * 2, index, true))
-  return bytes
+  const array = Float32Array.of(x, 0, 0, x + 1, 0, 0, x, 1, 0)
+  const { data, ...facts } = encodeGeometryPage([0, 1, 2], { POSITION: { itemSize: 3, array } })
+  return { bytes: data as Uint8Array, facts: { bytes: data.byteLength, ...facts } }
 }
 
 /**
@@ -21,7 +19,7 @@ export function worldPage(x: number) {
  * `spec` states it plainly, `bytes` are its records (`world-roots.table`) and `table` reads them.
  */
 export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => '0') {
-  const pages = [0, 1, 2, 3].map(worldPage)
+  const pages = [0, 1, 2, 3].map((x) => worldPage(x).bytes)
   const bin = new Uint8Array(pages.reduce((sum, page) => sum + page.byteLength, 0))
   let offset = 0
   const bundles = pages.map((page, at) => {
@@ -38,13 +36,19 @@ export function worldRootsFixture(sha256: (bytes: Uint8Array) => string = () => 
   })
   const object = (dependencies: number[]) => ({ node: 0, primitive: 0, roots: [0], dependencies })
   const spec: WorldRootsSpec = {
-    version: 3,
+    version: 4,
     budgetBytes: 4 << 20,
     pinned: 1,
     pinnedTopBytes: bundles[0].bytes,
     payload: { url: 'world-roots.bin', sha256: sha256(bin), bytes: bin.byteLength },
     bundles,
-    pages: bundles.map((_, bundle) => ({ bundle, offset: 0, level: 3 - bundle, lodError: 1 })),
+    pages: bundles.map(({ bytes }, bundle) => ({
+      bundle,
+      offset: 0,
+      bytes,
+      level: 3 - bundle,
+      lodError: 1,
+    })),
     cells: [
       { objects: [object([0, 1, 3])] },
       { objects: [object([0, 2, 3]), object([0])] },
@@ -87,10 +91,11 @@ export function worldRootsDag() {
         min: [u, -0.25, -0.25],
         max: [u + 1, 0.25, 0.25],
         triangles: 2,
-        material: null,
+        primitive: 0,
         bundle: null,
         offset: null,
         origin: u,
+        page: null,
         units: [u, u + 1],
       })
     }
@@ -106,10 +111,11 @@ export function worldRootsDag() {
       min: [cell * per, -0.25, -0.25],
       max: [(cell + 1) * per, 0.25, 0.25],
       triangles: 2 * per,
-      material: null,
+      primitive: 0,
       bundle: cell + 1,
       offset: 0,
       origin: null,
+      page: worldPage(cell + 1).facts,
       units: [cell * per, (cell + 1) * per],
     })
     groups.push({
@@ -131,10 +137,11 @@ export function worldRootsDag() {
     min: [0, -0.25, -0.25],
     max: [leaves, 0.25, 0.25],
     triangles: 2 * leaves,
-    material: null,
+    primitive: 0,
     bundle: 0,
     offset: 0,
     origin: null,
+    page: worldPage(0).facts,
     units: [0, leaves],
   })
   groups.push({

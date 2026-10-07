@@ -30,7 +30,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
  // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
  // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
- let pixels=clusterPixels(cluster,e,stretch,focal);let t=views[vi].pixelError;
+ let pixels=clusterPixels(cluster,e,stretch,focal);let t=thresholdOf(w);
  setFlag(coneCache(i),select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t));
  if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);

@@ -11,13 +11,17 @@ import {
 } from '../../../page/selection/selection.ts'
 import { rootChildren } from '../../../residency/minimumCapacity.ts'
 import type { WebgpuDiagnostics } from './setup.ts'
+import { withWorldRoot } from './worldRoot.ts'
 
 /** The catalogue's pages, its blended copies, its request index and its root cover. */
 export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   const { source, metadata, indices, associations } = context
-  const collected = collectClusterPages(source, metadata, indices, associations, {
-    allowMissing: true,
-  })
+  // The world DAG beside the scene's pages as the cut's last root, when the scene streams one
+  // (`../../../scene/worldRecords.ts`).
+  const collected = withWorldRoot(
+    collectClusterPages(source, metadata, indices, associations, { allowMissing: true }),
+    context,
+  )
   const { roots, allPages, blendCopies, requestCount } = collected
   const sharedBlendMeshes = blendCopies.length
   const pagedBlendCopies = pagedBlendCopiesOf(roots, blendCopies)
@@ -66,13 +70,14 @@ function pagedBlendCopiesOf(roots: SetupPages['roots'], blendCopies: BlendCopy[]
   return pagedBlendCopies
 }
 
-/** The root cover, by address and by key, and the pool's floor: the root cover and the pages its
- *  groups replace (`minimumCapacity.ts`). */
+/** The root cover, by address and by key — the roots the session holds, a root a cell holds
+ *  (`PageRec.holder`) joining it with its cell —, and the pool's floor: the root cover and the
+ *  pages its groups replace (`minimumCapacity.ts`). */
 function rootCoverOf(
   roots: SetupPages['roots'],
   tracking: ReturnType<typeof createWebgpuPageTracking>,
 ) {
-  const bootstrap = rootCoverage(roots, pageAddress),
+  const bootstrap = rootCoverage(roots, pageAddress).filter((page) => page.holder === undefined),
     bootstrapUrls = new Set(bootstrap.map(pageAddress))
   const floorPages = new Set([...bootstrapUrls, ...rootChildren(roots).map(pageAddress)]).size
   const bootstrapKeys = new Int32Array(bootstrap.length),
@@ -88,10 +93,10 @@ type SetupPages = ReturnType<typeof collectClusterPages>
 
 /** The setup's fields of the catalogue's tracking and root cover. */
 export function bootstrapFields(pages: ReturnType<typeof setupPages>) {
-  const { tracking, bootstrap, bootstrapUrls, bootstrapKeys, bootstrapKey } = pages
+  const { tracking, bootstrap, bootstrapUrls, bootstrapKeys, bootstrapKey, floorPages } = pages
   // `byUrl` is indexed by REQUEST key: the streaming bundle when the cache publishes one, the cluster
   // object otherwise. One request therefore hands bytes to every cluster that shares it. The GPU page
   // cache stays keyed by pool address (`pageAddress`), the granularity it uploads and pins.
   const byUrl = indexPagesByUrl(pages.allPages)
-  return { tracking, bootstrap, bootstrapUrls, bootstrapKeys, bootstrapKey, byUrl }
+  return { tracking, bootstrap, bootstrapUrls, bootstrapKeys, bootstrapKey, floorPages, byUrl }
 }

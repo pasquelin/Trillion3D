@@ -5,6 +5,8 @@ import assert from 'node:assert/strict'
 import { EngineError } from '../contracts/cache.ts'
 import { cellDependencies, worldBundlePages } from './worldRoots.ts'
 import { worldPage, worldRootsFixture } from './worldRoots.fixture.ts'
+import { encodeWorldRoots } from './worldRootsRecords.fixture.ts'
+import { readWorldRoots } from './worldRootsTable.ts'
 
 const refused = (error: unknown) => error instanceof EngineError && error.code === 'INVALID_CACHE'
 
@@ -16,15 +18,18 @@ test('a cell holds the bundles past the pinned top its objects need, each once',
   assert.deepEqual(cellDependencies(table, 3), [], 'a cell the table does not hold')
 })
 
-test("a bundle's pages are its vertices and local triangles, and nothing else", () => {
-  const [page] = worldBundlePages(worldPage(5), 1, 0)
-  assert.deepEqual([...page.positions], [5, 0, 0, 6, 0, 0, 5, 1, 0])
-  assert.deepEqual([...page.indices], [0, 1, 2])
-  const both = new Uint8Array([...worldPage(0), ...worldPage(1)])
-  assert.equal(worldBundlePages(both, 2, 0).length, 2)
-  assert.throws(() => worldBundlePages(both, 1, 0), refused, 'bytes past its pages')
-  assert.throws(() => worldBundlePages(worldPage(0), 2, 0), refused, 'a page past its bytes')
-  const wrong = worldPage(0)
-  new DataView(wrong.buffer).setUint16(44, 3, true)
-  assert.throws(() => worldBundlePages(wrong, 1, 0), refused, 'a vertex it does not carry')
+test("a bundle's pages are the geometry pages its records name, tiling it exactly", () => {
+  const { table, bin } = worldRootsFixture()
+  const { offset, bytes } = table.bundles[2]
+  const [page] = worldBundlePages(table, 2, bin.subarray(offset, offset + bytes))
+  assert.deepEqual([...page.bytes], [...worldPage(2).bytes])
+  const own = bin.subarray(offset, offset + bytes)
+  assert.throws(() => worldBundlePages(table, 2, own.subarray(1)), refused, 'a page past its bytes')
+  const longer = Uint8Array.from([...own, 0, 0, 0, 0])
+  assert.throws(() => worldBundlePages(table, 2, longer), refused, 'bytes past its pages')
+  // A record naming another bundle, or a page that does not start where the last ended.
+  const { spec } = worldRootsFixture()
+  spec.pages[2] = { ...spec.pages[2], offset: 4 }
+  const moved = readWorldRoots(encodeWorldRoots(spec))
+  assert.throws(() => worldBundlePages(moved, 2, own), refused, 'a page out of its place')
 })

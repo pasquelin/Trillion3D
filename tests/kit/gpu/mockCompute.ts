@@ -8,6 +8,7 @@ import { floats, words } from './mockBuffers.ts'
 import { childBase } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { mockEvictions, sortStagedRequests } from './mockEvict.ts'
 import { boundListCap, packedFromBindings, readDagUniforms } from './mockDag.ts'
+import { replayWorldRebase } from './mockRebase.ts'
 import { evaluateDagSelectionKernel } from '../../../packages/sdk-browser/src/gpu/dag/oracle/oracle.fixture.ts'
 import {
   residentFlags,
@@ -47,6 +48,8 @@ export function simulateComputeDispatch(
   offsets?: readonly number[],
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint)
+  if (computePipeline?.entryPoint === 'rebaseWorlds' && computeBind)
+    return replayWorldRebase(computeBind)
   const transparent = TRANSPARENT_STAGES[computePipeline?.entryPoint ?? '']
   if (transparent && computeBind) return transparent(computeBind, offsets)
   if (computePipeline?.entryPoint === 'scatterGroups' && computeBind) {

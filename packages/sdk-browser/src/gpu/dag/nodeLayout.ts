@@ -15,5 +15,8 @@ export const NODE_MIN = 0,
   NODE_FLOOR = 20,
   /** Clusters of the subtree whose finer group is not resident (`../../page/cut/readiness.ts`). */
   NODE_OPEN = 21
-/** The two pad words that bring the node to ninety-six bytes, vec4-aligned. */
-export const NODE_PAD = 22
+/** What the node is: zero a placement's own node, else a node of the placement tree above them
+ *  (`placementTree.ts`, `TREE_CELL`, `TREE_GROUP`). */
+export const NODE_KIND = 22
+/** The pad word that brings the node to ninety-six bytes, vec4-aligned. */
+export const NODE_PAD = 23

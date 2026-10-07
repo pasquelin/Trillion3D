@@ -47,6 +47,8 @@ const config: KnipConfig = {
         // The GPU bench in Node (`pnpm run bench:gpu`, `bench:gpu:suite`), its recorder, and the
         // first module of its worker threads, started by URL (`bench/dawn/worker.ts`).
         'bench/dawn/{run,suite,recorder,workerBoot}.ts',
+        // The cost model's command lines: the GPU's peaks, the scale laws' sweeps, the model itself.
+        'bench/dawn/{peaks/run,laws/sweep,laws/cook,laws/table,model/run}.ts',
         'bench/runner/feedback/feedbackTargetAb.ts',
         'bench/runner/trajectory/trajectory.ts',
         'bench/runner/references/reference.ts',
