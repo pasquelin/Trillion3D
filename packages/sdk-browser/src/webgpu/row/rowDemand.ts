@@ -42,15 +42,19 @@ const STOP = () => true
  * bytes land or leave while wanted is read again as the row journal names it (`touched`), and one
  * whose row a rebuild dropped as the rebuild names it (`../row/slotOps.ts`, `rebuildRows`).
  *
- * The serve unlists every entry it passes: let go, served, or waiting for its bytes, a page is
- * listed again as it comes back, lands or loses its row. Only while a request the table refused
- * heads the list — the table at its cap — is what is pending ranked again in the order of the
- * readback just followed, so a nearer new request never waits behind an older one.
+ * One live entry per page: the serve unlists every entry it passes — let go, served, or waiting
+ * for its bytes, a page is listed again as it comes back, lands or loses its row, a group-mate with
+ * the request it came in with (`waitingBy`) — and the passed entries are dropped, with those let
+ * go or served since, once they are half the list, at a refusal and before a re-rank. Only when
+ * the last serve left entries — the frame's budget spent, or a refused request at the head, the
+ * table at its cap — is what is pending ranked again in the order of the readback just followed,
+ * so a nearer new request never waits behind an older one. A refusal counts the live requests
+ * without a row: what the table grows by.
  *
  * Cost per readback adopted, for lists of D drawn, A asked and H ahead ids, and differences of ΔD,
  * ΔA and ΔH: O(D + A + H) marks read, no record; O((ΔD + ΔA + ΔH)·g) closure, g the pages a group
- * holds; O(touched) per sync for landings; O(wanted) served; O(A + H + P log P) more for the P
- * pending while a refusal heads them. A still camera adopts no readback and lands nothing: zero.
+ * holds; O(touched) per sync for landings; O(wanted) served, amortized; O(A + H + P log P) more for
+ * the P live entries a serve left. A still camera adopts no readback and lands nothing: zero.
  */
 export function createRowDemand(
   /** The row table, its arrays read at each readback: they are replaced as pages are added. */
@@ -75,8 +79,9 @@ export function createRowDemand(
     listed: new Uint8Array(Math.max(1, pageCount)),
     list: new Int32Array(8),
     by: new Int32Array(8),
-    blocked: false,
+    waitingBy: createSparseInts(),
     ranks: createSparseInts(),
+    scratch: { keys: new Float64Array(0), pages: new Int32Array(0), by: new Int32Array(0) },
     ...{ count: 0, next: 0, fresh: false, owed: false },
     rows: new Int32Array(0),
     flags: new Uint32Array(0),
@@ -88,17 +93,22 @@ export function createRowDemand(
     touched(pages: ArrayLike<number>, count: number) {
       d.rows = d.table.rowOfPage
       d.flags = d.table.residentFlags
-      for (let i = 0; i < count; i++) if (d.asking.delta.has(pages[i])) want(d, pages[i])
+      for (let i = 0; i < count; i++) {
+        const page = pages[i]
+        if (!d.asking.delta.has(page)) continue
+        // A group-mate the serve passed waiting for its bytes keeps its request's rank.
+        const by = d.waitingBy.get(page)
+        want(d, page, by ? by - 1 : page)
+      }
     },
     /** Whether the requests' closure holds `page` and the cut does not read it resident. */
     wanted: (page: number) =>
       d.marks[page] === 1 && !(d.table.rowOfPage[page] >= 0 && d.table.residentFlags[page]),
     /** Whether a readback's closure holds `page`: its row is in use. */
     holds: (page: number) => d.held.delta.has(page),
-    /** The demand is served again from its head: the table grew or was rebuilt. */
+    /** The live demand is served again: the table grew or was rebuilt. */
     restart() {
-      d.next = 0
-      d.fresh = d.count > 0
+      d.fresh = d.count > d.next
     },
     /** Something is left to serve this image. */
     get pending() {
@@ -128,7 +138,11 @@ export function createRowDemand(
         d.listed.byteLength +
         d.list.byteLength +
         d.by.byteLength +
+        d.waitingBy.byteLength +
         d.ranks.byteLength +
+        d.scratch.keys.byteLength +
+        d.scratch.pages.byteLength +
+        d.scratch.by.byteLength +
         drawn.bytes +
         asked.bytes +
         ahead.bytes +
@@ -155,10 +169,12 @@ type DemandState = {
   list: Int32Array
   /** Per entry of `list`, the request it came in with: itself, or the one its group-mate asked. */
   by: Int32Array
-  /** The last serve stopped at a request the table refused, at its cap. */
-  blocked: boolean
+  /** A wanted page the serve passed waiting for its bytes, and its request, one past it. */
+  waitingBy: ReturnType<typeof createSparseInts>
   /** Each request's rank, one past it, while the pending list is ranked again. */
   ranks: ReturnType<typeof createSparseInts>
+  /** The re-rank's keys and copies, kept from one to the next. */
+  scratch: { keys: Float64Array; pages: Int32Array; by: Int32Array }
   count: number
   next: number
   /** A readback was followed, or the table moved, since the demand was last served. */
@@ -186,6 +202,7 @@ function want(d: DemandState, page: number, by = page) {
     d.by = grown(d.by, d.list.length, d.count)
   }
   d.listed[page] = 1
+  if (d.waitingBy.size) d.waitingBy.set(page, 0)
   d.by[d.count] = by
   d.list[d.count++] = page
   d.fresh = true
@@ -222,27 +239,59 @@ function followAsks(d: DemandState, delta: IdDelta) {
     if (isRequest(d, page)) by = page
     want(d, page, by < 0 ? page : by)
   }
-  for (let i = 0; i < exitedCount; i++) if (exited[i] < d.marks.length) d.marks[exited[i]] = 0
+  for (let i = 0; i < exitedCount; i++) {
+    const page = exited[i]
+    if (page < d.marks.length) d.marks[page] = 0
+    if (d.waitingBy.size) d.waitingBy.set(page, 0)
+  }
 }
 
-/** The pending entries ranked again by the readback's order of the request each came in with,
- *  the camera's then the view ahead's; one whose request left after them, each run in its order. */
+/** The entries from `next` that are live — wanted, the cut not reading them resident — moved to the
+ *  head, the others unlisted; returns how many of them hold no row: the requests a refusal leaves. */
+function compact(d: DemandState) {
+  const { rowOfPage, residentFlags } = d.table
+  let kept = 0,
+    rowless = 0
+  for (let i = d.next; i < d.count; i++) {
+    const page = d.list[i],
+      row = rowOfPage[page]
+    if (d.marks[page] !== 1 || (row >= 0 && residentFlags[page])) {
+      d.listed[page] = 0
+      continue
+    }
+    if (row < 0) rowless++
+    d.by[kept] = d.by[i]
+    d.list[kept++] = page
+  }
+  d.count = kept
+  d.next = 0
+  return rowless
+}
+
+/** The pending entries, compacted, ranked again by the readback's order of the request each came
+ *  in with, the camera's then the view ahead's; one whose request left after them; each run in its
+ *  order. One key per entry — its rank times the count, plus its place — sorted as numbers. */
 function rerank(d: DemandState) {
-  const { asked, ahead } = d.lists
+  const { asked, ahead } = d.lists,
+    sc = d.scratch,
+    n = d.count
   d.ranks.clear()
   let rank = 0
   for (const l of [asked, ahead])
     for (let i = 0; i < l.count; i++) if (!d.ranks.get(l.ids[i])) d.ranks.set(l.ids[i], ++rank)
-  const from = d.next,
-    keys = new Float64Array(d.count - from),
-    order = Array.from(keys, (_, k) => k)
-  for (let k = 0; k < keys.length; k++) keys[k] = d.ranks.get(d.by[from + k]) || rank + 1
-  order.sort((a, b) => keys[a] - keys[b] || a - b)
-  const pages = d.list.slice(from, d.count),
-    by = d.by.slice(from, d.count)
-  for (let k = 0; k < order.length; k++) {
-    d.list[from + k] = pages[order[k]]
-    d.by[from + k] = by[order[k]]
+  if (sc.keys.length < n) {
+    sc.keys = new Float64Array(Math.max(n, sc.keys.length * 2))
+    sc.pages = new Int32Array(sc.keys.length)
+    sc.by = new Int32Array(sc.keys.length)
+  }
+  for (let k = 0; k < n; k++) sc.keys[k] = (d.ranks.get(d.by[k]) || rank + 1) * n + k
+  const keys = sc.keys.subarray(0, n).sort()
+  sc.pages.set(d.list.subarray(0, n))
+  sc.by.set(d.by.subarray(0, n))
+  for (let k = 0; k < n; k++) {
+    const from = keys[k] % n
+    d.list[k] = sc.pages[from]
+    d.by[k] = sc.by[from]
   }
   d.ranks.clear()
 }
@@ -250,6 +299,8 @@ function rerank(d: DemandState) {
 const NONE: readonly number[] = []
 
 function follow(d: DemandState, cut: CutLists) {
+  // Entries the last serve left: what this readback asks is ranked with them.
+  const behind = d.count > d.next
   d.rows = d.table.rowOfPage
   d.flags = d.table.residentFlags
   d.use.tick()
@@ -262,11 +313,12 @@ function follow(d: DemandState, cut: CutLists) {
   followUse(d, ahead.delta)
   followAsks(d, asked.delta)
   followAsks(d, ahead.delta)
-  // A refusal heads the list: what is pending is ranked again, and served again, this readback
-  // perhaps letting rows go.
-  if (d.blocked && d.next < d.count) {
+  // The budget or a refusal stopped the last serve: what is pending is ranked again, and served
+  // again, this readback perhaps letting rows go.
+  if (behind) {
+    compact(d)
     rerank(d)
-    d.fresh = true
+    d.fresh = d.count > 0
   }
 }
 
@@ -278,10 +330,19 @@ function serve(
 ) {
   d.fresh = d.owed = false
   // An entry the serve passes leaves the list: one the requests let go, served, or waiting for its
-  // bytes is listed again as it comes back, lands or loses its row.
+  // bytes — its request kept — is listed again as it comes back, lands or loses its row. The serve
+  // asks each entry once, in order: `at` follows it.
+  let at = d.next
   const claims = (page: number) => {
-    if (d.marks[page] === 1 && release(page)) return true
+    const by = d.by[at++]
+    if (d.marks[page] !== 1) {
+      d.listed[page] = 0
+      return false
+    }
+    if (release(page)) return true
     d.listed[page] = 0
+    if (!(d.table.rowOfPage[page] >= 0 && d.table.residentFlags[page]))
+      d.waitingBy.set(page, by + 1)
     return false
   }
   const placed = (page: number) => {
@@ -289,18 +350,15 @@ function serve(
     d.listed[page] = 0
     return true
   }
-  const at = serveInOrder(d.list, d.next, d.count, claims, placed, budget, STOP)
-  d.blocked = at < 0
-  if (at < 0) {
-    d.next = ~at
-    return d.count - d.next
+  const stop = serveInOrder(d.list, d.next, d.count, claims, placed, budget, STOP)
+  if (stop < 0) {
+    d.next = ~stop
+    return compact(d)
   }
-  d.next = at
+  d.next = stop
   d.owed = d.next < d.count
   // Every request served or left for its bytes: the list starts again empty, the wanted kept.
-  if (!d.owed) {
-    for (let i = 0; i < d.count; i++) d.listed[d.list[i]] = 0
-    d.count = d.next = 0
-  }
+  if (!d.owed) d.count = d.next = 0
+  else if (d.next * 2 >= d.count) compact(d)
   return 0
 }

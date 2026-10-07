@@ -3,7 +3,7 @@
 // for again, the list keeps the GPU's order, and the host budget counts every table it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { MIRROR, closeAlone, range, rowCache, rowIdleSpan } from './rowCache.fixture.ts'
+import { MIRROR, closeAlone, closePairs, range, rowCache, rowIdleSpan } from './rowCache.fixture.ts'
 import { createRowDemand, type InstanceClosure } from './rowDemand.ts'
 import { createRowUse } from './rowUse.ts'
 import { createListDifference } from './listDifference.ts'
@@ -94,23 +94,8 @@ test('the demand’s bytes count its closures and every list it keeps', () => {
 })
 
 test('a group-mate a request closed over is served right behind that request, in its rank', () => {
-  // Each request `k` closes over itself and its group-mate `k + 10`, which it brings.
-  const closure = (): InstanceClosure => {
-    const alone = closeAlone(),
-      apply = alone.apply.bind(alone),
-      by = { ids: new Int32Array(0) }
-    const paired = (ids: Int32Array, count: number) =>
-      Int32Array.from([...ids.subarray(0, count)].flatMap((id) => [id, id + 10]))
-    alone.apply = (cut) => {
-      const entered = paired(cut.entered, cut.enteredCount),
-        exited = paired(cut.exited, cut.exitedCount)
-      by.ids = entered.map((id) => (id >= 10 ? id - 10 : id))
-      apply({ ...cut, entered, exited, enteredCount: entered.length, exitedCount: exited.length })
-    }
-    return Object.defineProperty(alone, 'enteredBy', { get: () => by.ids })
-  }
   const table = { rowOfPage: new Int32Array(20).fill(-1), residentFlags: new Uint32Array(20) }
-  const demand = createRowDemand(table, createRowUse(1), () => true, 20, closure)
+  const demand = createRowDemand(table, createRowUse(1), () => true, 20, closePairs)
   // The table at its cap refuses 3; the next readback ranks 1 before it.
   demand.follow({ pageIds: [3] })
   demand.serve(

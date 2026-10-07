@@ -43,6 +43,20 @@ export function closeAlone(): InstanceClosure {
   return { apply, delta, hostBytes: 0 } as unknown as InstanceClosure
 }
 
+/** Each request `k` closes over itself and its group-mate `k + 10`, which it brings in after it. */
+export function closePairs(): InstanceClosure {
+  const alone = closeAlone(),
+    apply = alone.apply.bind(alone)
+  const paired = (ids: Int32Array, count: number) =>
+    Int32Array.from([...ids.subarray(0, count)].flatMap((id) => [id, id + 10]))
+  alone.apply = (cut) => {
+    const entered = paired(cut.entered, cut.enteredCount),
+      exited = paired(cut.exited, cut.exitedCount)
+    apply({ ...cut, entered, exited, enteredCount: entered.length, exitedCount: exited.length })
+  }
+  return alone
+}
+
 export function rowCache(instances: number, slots: number) {
   const pages = Array.from(
     { length: instances },
