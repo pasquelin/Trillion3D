@@ -53,6 +53,7 @@ export function followWorldLinks(
     const c = world.linkOf(object)
     if (w === world.root || links[w] === c) return
     links[w] = c
+    selection.linkMoved?.(w)
     world.moved.add(w)
     dirty[w >>> 5] |= 1 << (w & 31)
     low = Math.min(low, w)

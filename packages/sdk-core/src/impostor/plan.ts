@@ -15,22 +15,8 @@
  * `switched`, so the cut skips its clusters in the same breath. A card without the skip would draw
  * the object twice; the skip without the card would be a hole (CONTRIBUTING, Streaming rule 1).
  */
-import { hypot3 } from '../../../math/src/float/hypot.ts'
-import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
-import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
-import {
-  impostorMeshBaked,
-  type ImpostorMap,
-  type ImpostorMaps,
-  type ImpostorMesh,
-  type ImpostorSection,
-} from '../contracts/impostor.ts'
-import {
-  impostorRadius,
-  impostorSwitchOf,
-  impostorTexelDepth,
-  impostorTriangleDepth,
-} from './switch.ts'
+import type { ImpostorMap, ImpostorSection } from '../contracts/impostor.ts'
+import { bakedLookup, point, readRoot, switchesAt, switchTable } from './switchTable.ts'
 
 /** What the plan needs of one root: its compiled mesh number and the world matrix that places it. */
 export interface ImpostorRoot {
@@ -71,159 +57,7 @@ export interface ImpostorPlan {
   visited?: number[]
 }
 
-/** The section's baked meshes, keyed by their compiled mesh number; refused entries are left out. */
-export function impostorBakedByMesh(
-  section: ImpostorSection | undefined,
-): Map<number, ImpostorMesh & { maps: ImpostorMaps; frames: number; frameSide: number }> {
-  const byMesh: BakedByMesh = new Map()
-  if (section)
-    for (const mesh of section.meshes) if (impostorMeshBaked(mesh)) byMesh.set(mesh.mesh, mesh)
-  return byMesh
-}
-
-/** Baked meshes by mesh number: each entry holds the maps, frames and frame side the card reads. */
-type BakedByMesh = ReturnType<typeof impostorBakedByMesh>
-/** The same, read by a root's mesh number, which a root no impostor may replace lacks. */
-type BakedLookup = ReadonlyMap<number | undefined, NonNullable<ReturnType<BakedByMesh['get']>>>
-const EMPTY_MESHES: BakedLookup = new Map()
-/** The section's baked meshes, built once per section: the plan runs every frame, the map does not. */
-const bakedBySection = new WeakMap<ImpostorSection, BakedLookup>()
-function bakedLookup(section: ImpostorSection | undefined): BakedLookup {
-  if (!section) return EMPTY_MESHES
-  let byMesh = bakedBySection.get(section)
-  if (!byMesh) bakedBySection.set(section, (byMesh = impostorBakedByMesh(section)))
-  return byMesh
-}
-
-/** The pivot's view-space point, reused: the plan runs every image. */
-const point = /* @__PURE__ */ new Float64Array(3)
-
-/**
- * Whether the switch holds for a pivot at view-space point `v`. The two depths of `switch.ts` hold
- * on the view axis; at view depth `z` and distance `d` the projection `f·(x, y)/z` stretches a
- * displacement at the pivot by at most `f·d/z²` (its Jacobian's largest singular value, along the
- * image radius) and an area by `f²·d/z³`, against `f/z` and `f²/z²` on the axis. So the atlas is
- * sharp from `2R·f·d/z² ≤ r_f` ⇔ `z·(z/d) ≥ z_tex`, and the root outnumbers its pixels from
- * `T ≥ c·π·R²·f²·d/z³` ⇔ `z·√(z/d) ≥ z_tri`; on the axis both read `z ≥ z_s`, bit for bit. A pivot
- * behind the eye is read as its mirror in front: `z = |v_z|`.
- */
-function switchesAt(texelDepth: number, triangleDepth: number, v: Float64Array) {
-  const depth = Math.abs(v[2]),
-    cosine = depth / hypot3(v[0], v[1], v[2])
-  return depth * cosine >= texelDepth && depth * Math.sqrt(cosine) >= triangleDepth
-}
-
-type BakedEntry = NonNullable<ReturnType<BakedLookup['get']>>
-
-/**
- * WHAT THE SWITCH READS OF A ROOT THAT THE VIEW DOES NOT MOVE: its baked entry, its radius `R` —
- * the object radius times the largest stretch of its world's linear part — and the two depths
- * `z_tex`, `z_tri` at the focal length. A frame recomputes them only for a root whose world turned
- * or scaled, or all of them for a new focal length; every other root costs its pivot's view depth
- * alone. The numbers are the very ones the switch computed each frame before — the same functions
- * on the same inputs —, so every verdict is the same, bit for bit.
- */
-type SwitchTable = {
-  roots: readonly ImpostorRoot[]
-  section: ImpostorSection | undefined
-  focal: number
-  /** The root each rank held when its numbers were taken, and its entry; none where no impostor
-   *  may replace it. */
-  held: (ImpostorRoot | undefined)[]
-  entries: (BakedEntry | undefined)[]
-  /** The nine linear numbers of the world each radius was taken from. */
-  linear: Float64Array
-  radius: Float64Array
-  texelDepth: Float64Array
-  triangleDepth: Float64Array
-  /** The focal length each root's depths were taken at: a new one retakes a root's as it is read. */
-  depthFocal: Float64Array
-  /** Whether a plan read every root since the table was made: until one did, a root out of view
-   *  would hold no verdict, and take its card only as it enters — each taken bit voiding the cut. */
-  everyRead: boolean
-}
-const tables = new WeakMap<ImpostorPlan, SwitchTable>()
-const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
-
-/** The plan's table, made again for another root list or section; a new focal length retakes the
- *  depths it scales root by root, as each is read (`rootSwitch`). */
-function switchTable(
-  plan: ImpostorPlan,
-  roots: readonly ImpostorRoot[],
-  section: ImpostorSection | undefined,
-  focal: number,
-) {
-  let table = tables.get(plan)
-  if (
-    !table ||
-    table.roots !== roots ||
-    table.section !== section ||
-    table.held.length !== roots.length
-  ) {
-    const n = roots.length
-    table = {
-      roots,
-      section,
-      focal,
-      held: new Array<ImpostorRoot | undefined>(n),
-      entries: new Array<BakedEntry | undefined>(n),
-      // NaN equals nothing: every root takes its numbers on the first frame.
-      linear: new Float64Array(n * LINEAR.length).fill(NaN),
-      radius: new Float64Array(n),
-      texelDepth: new Float64Array(n),
-      triangleDepth: new Float64Array(n),
-      depthFocal: new Float64Array(n).fill(NaN),
-      everyRead: false,
-    }
-    tables.set(plan, table)
-  }
-  table.focal = focal
-  return table
-}
-
-/** The two switch depths of a root of radius `table.radius[rank]` at the table's focal length. */
-function depthsOf(table: SwitchTable, rank: number, entry: BakedEntry) {
-  const radius = table.radius[rank]
-  table.depthFocal[rank] = table.focal
-  table.texelDepth[rank] = impostorTexelDepth(radius, entry.frameSide, table.focal)
-  table.triangleDepth[rank] = impostorTriangleDepth(
-    radius,
-    entry.rootTriangles,
-    entry.coverage as number,
-    table.focal,
-  )
-}
-
-/** Whether the nine linear numbers held from `at` are the world's. */
-function sameLinear(held: Float64Array, at: number, world: ArrayLike<number>) {
-  for (let k = 0; k < LINEAR.length; k++) if (held[at + k] !== world[LINEAR[k]]) return false
-  return true
-}
-
-/**
- * The entry of the root at `rank` with its radius and depths, taken again only when the root or
- * the linear part of its world changed; `undefined` for a root no impostor may replace.
- */
-function rootSwitch(table: SwitchTable, rank: number, root: ImpostorRoot, byMesh: BakedLookup) {
-  if (table.held[rank] !== root) {
-    table.held[rank] = root
-    const entry = byMesh.get(root.mesh)
-    // A refused switch input does not depend on the placement: the entry alone decides.
-    table.entries[rank] = entry && impostorSwitchOf(entry) ? entry : undefined
-    table.linear[rank * LINEAR.length] = NaN
-  }
-  const entry = table.entries[rank]
-  if (!entry) return undefined
-  const world = root.world.elements,
-    at = rank * LINEAR.length
-  if (!sameLinear(table.linear, at, world)) {
-    // Taken before the copy: a world `maxStretch` refuses throws again on the next frame, as it did.
-    table.radius[rank] = impostorRadius(entry.objectRadius as number, maxStretch(world))
-    for (let k = 0; k < LINEAR.length; k++) table.linear[at + k] = world[LINEAR[k]]
-    depthsOf(table, rank, entry)
-  } else if (table.depthFocal[rank] !== table.focal) depthsOf(table, rank, entry)
-  return entry
-}
+export { impostorBakedByMesh } from './switchTable.ts'
 
 /**
  * Plans the impostor tier for one view: every root whose mesh has a baked entry and whose switch
@@ -282,8 +116,8 @@ function planRoot(
     plan: ImpostorPlan
     roots: readonly ImpostorRoot[]
     view: ArrayLike<number>
-    byMesh: BakedLookup
-    table: SwitchTable
+    byMesh: ReturnType<typeof bakedLookup>
+    table: ReturnType<typeof switchTable>
     count: number
   },
   rank: number,
@@ -291,15 +125,14 @@ function planRoot(
 ) {
   const { plan, table } = reading,
     root = reading.roots[rank],
-    entry = carded ? rootSwitch(table, rank, root, reading.byMesh) : undefined
-  const world = root.world.elements
-  if (entry) transformAffinePoint(point, reading.view, world[12], world[13], world[14])
+    entry = readRoot(table, rank, root, reading.byMesh, reading.view, carded)
   // Each rank read takes its verdict here, whatever it held: nothing is cleared ahead of the read.
   if (!entry || !switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) {
     plan.switched[rank] = 0
     return
   }
   plan.switched[rank] = 1
+  const world = root.world.elements
   const card = (plan.cards[reading.count++] ??= {} as ImpostorCard)
   card.root = rank
   card.mesh = entry.mesh

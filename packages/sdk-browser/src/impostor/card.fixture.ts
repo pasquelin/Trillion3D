@@ -1,17 +1,17 @@
 /**
- * THE CARD QUAD (fact 2). The impostor card is a camera-facing quad, exactly the per-page
- * mechanism sprites already use: the shared `spriteAt` basis (`visibility/shader/spriteWgsl.ts`),
- * never a second quad builder. Its half-extent is the root's world radius `R`, so the card covers
- * the object's projected disc, and it keeps its world size (attenuation on) rather than its screen
- * size, as a distant stand-in must.
+ * THE CARD QUAD (fact 2) on the CPU: what the card pass turns at the eye (`cardCorner`,
+ * `../webgpu/impostor/cardWgsl.ts`), the oracle its corners are read against. The impostor card is a
+ * camera-facing quad, exactly the per-page mechanism sprites already use: the shared `spriteAt`
+ * basis (`visibility/shader/spriteWgsl.ts`), never a second quad builder. Its half-extent is the
+ * root's world radius `R`, so the card covers the object's projected disc, and it keeps its world
+ * size (attenuation on) rather than its screen size, as a distant stand-in must.
  */
-import { core } from './borrowed.ts'
+import { spriteAt } from '../visibility/shader/spriteWgsl.ts'
 import type { VisMaterial } from '../visibility/types.ts'
 
 const CARD_SPRITE: NonNullable<VisMaterial['sprite']> = { rotation: 0, sizeAttenuation: true }
 /** The corner signs in call order, scaled by `radius`: `(-R,-R)`, `(+R,-R)`, `(+R,+R)`, `(-R,+R)`. */
 const CARD_SIDES = [-1, -1, 1, -1, 1, 1, -1, 1]
-// The card is drawn per frame: the placement and the corner it reads stay, no allocation per call.
 const cardPlace = new Float64Array(16)
 cardPlace[0] = cardPlace[5] = cardPlace[10] = cardPlace[15] = 1
 const cardCorner = new Float64Array(4)
@@ -31,7 +31,7 @@ export function impostorCardCorners(
   cardPlace[13] = pivot[1]
   cardPlace[14] = pivot[2]
   for (let i = 0; i < 4; i++) {
-    core.spriteAt(
+    spriteAt(
       cardCorner,
       toClip,
       cardPlace,

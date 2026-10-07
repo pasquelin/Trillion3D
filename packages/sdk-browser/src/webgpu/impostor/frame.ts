@@ -5,14 +5,10 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import {
   createImpostorCards,
   dropImpostorCards,
+  impostorWorldsMoved,
   planImpostorCards,
   type CardMoved,
 } from '../../impostor/cards.ts'
-import { cutViewPlanes } from '../../gpu/core/aheadView.ts'
-import { cutMotion } from '../pages/render/gpuCut.ts'
-
-/** The absolute planes the plan reads the roots in view through, filled each image. */
-const viewPlanes = new Float64Array(24)
 import { createImpostorPass, type ImpostorPass } from './pass.ts'
 
 /** A session's impostor tier on WebGPU: the pass, the baked meshes, and this image's cards. */
@@ -26,13 +22,19 @@ function createWebgpuImpostors(
   // The roots whose card bit moved are handed to the GPU cut (`markWorld`), their reach kept.
   const moved: CardMoved = (rank, root) =>
     rt.run.gpuSelection?.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
-  return {
+  const cards = createImpostorCards<GPUBindGroup>(section)
+  return Object.assign(cards, {
     pass,
-    ...createImpostorCards<GPUBindGroup>(section),
     moved,
+    /** The roots `ranks` moved — every root when absent —: their switch and cards follow. */
+    worldsMoved: (ranks?: ArrayLike<number>) => impostorWorldsMoved(cards, ranks),
+    /** A placement's link to the world DAG moved: whether it may take a card is read again. */
+    linkMoved: (rank: number) => cards.watch.touch(rank),
+    /** The card buffer the records were last written into whole. */
+    uploadedTo: undefined as GPUBuffer | undefined,
     /** The group of a mesh's atlas, drawn this image; asked while absent (`feed.ts`). */
     atlasOf: (mesh: number, maps: ImpostorMaps) => pass.feed.group(mesh, maps, rt.run.frame),
-  }
+  })
 }
 
 /** The session's impostor tier, made by the first image that can draw it: a baked section, the
@@ -57,11 +59,11 @@ function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
 }
 
 /**
- * THE IMAGE'S IMPOSTOR PLAN on WebGPU: the shared plan (`planImpostorCards`) at the
- * engine's focal length for the image's viewport, each card kept once its mesh's atlas group is
- * made (`feed.ts`), save on a root the packed world DAG stands in for, whose super-roots draw it
- * far away instead. The roots whose card bit moved are handed to the GPU cut too: every camera cut,
- * CPU and GPU, leaves a marked root to its card, every light cut keeps its clusters.
+ * THE IMAGE'S IMPOSTOR PLAN on WebGPU: the shared plan (`planImpostorCards`) at the engine's focal
+ * length for the image's viewport, each card kept once its mesh's atlas group is made (`feed.ts`),
+ * save on a root the packed world DAG stands in for, whose super-roots draw it far away instead.
+ * The roots whose card bit moved are handed to the GPU cut too: every camera cut, CPU and GPU,
+ * leaves a marked root to its card, every light cut keeps its clusters.
  */
 export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const roots = rt.layout.selectionRoots,
@@ -69,17 +71,15 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing.
   if (!state) return dropImpostorCards(rt.gpu.impostors, roots, rt.gpu.impostors?.moved)
   const viewport = rt.setup.viewport ?? rt.gpu.targetSize
-  // The roots the cut's views may hold — the camera's, and the view ahead the cut also reads card
-  // bits in, so a root entering it is planned before the cut asks its pages —, through the cut's
-  // placement tree, when it has one: the plan reads them alone, never every root every image, and
-  // one it leaves keeps its card bit. A root linked to the world DAG is its super-roots' far away
-  // (`../../gpu/dag/worldLinks.ts`): it takes no card, which would draw it twice; one the world
-  // does not hold — a host mesh, an object outside its table — keeps its card.
+  // A root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`): it
+  // takes no card, which would draw it twice; one the world does not hold — a host mesh, an object
+  // outside its table — keeps its card. A link that moves reads the root again (`linkMoved`).
   const selection = rt.run.gpuSelection,
-    visible = selection?.visiblePlacements,
     linked = selection?.worldStandsIn
-  const planes = visible && cutViewPlanes(cam, cutMotion(rt), viewPlanes)
-  const ranks = planes ? (visit: (rank: number) => void) => visible(planes, visit) : undefined
+  if (selection && selection.linkMoved !== state.linkMoved) {
+    selection.linkMoved = state.linkMoved
+    state.watch.touchAll()
+  }
   const carded = linked ? (rank: number) => !linked(rank) : undefined
-  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, ranks, carded)
+  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, carded)
 }

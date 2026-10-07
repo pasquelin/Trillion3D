@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import './lent.fixture.ts'
-import { impostorCardCorners } from './card.ts'
+import { impostorCardCorners } from './card.fixture.ts'
 import { spriteAt } from '../visibility/shader/spriteWgsl.ts'
 
 /** A projection whose image-plane axes are +x and +y: the corners then read off directly. */

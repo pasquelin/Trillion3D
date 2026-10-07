@@ -7,7 +7,7 @@
  * these core modules would be shared by its chunk and split the CDN core into more chunks, which
  * gzip worse (`check-bundle-size.ts`).
  */
-export { markCard, spriteAt } from '../../visibility/shader/spriteWgsl.ts'
+export { markCard, SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
 export { pixelScaleOf } from '../../streaming/priority.ts'
 export { grownCapacity } from '../../placement/rows.ts'
 export { createHeldLevels, readHeldLevel } from '../../texture/heldLevels.ts'
