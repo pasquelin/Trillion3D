@@ -1,5 +1,4 @@
-/** The greatest finite single-precision value, `(2 − 2⁻²³) · 2¹²⁷`. */
-const F32_MAX = 3.4028234663852886e38
+import { FLOAT32_MAX } from '../constants.ts'
 
 /**
  * A WGSL float literal naming the single-precision value nearest `value`, the one the processor
@@ -16,6 +15,6 @@ export function wgslF32(value: number) {
   if (!Number.isFinite(single)) throw new RangeError(`no f32 literal for ${value}`)
   if (Object.is(single, -0)) return '-0.00000000'
   let text = single.toPrecision(9)
-  if (Math.abs(Number(text)) > F32_MAX) text = String(single)
+  if (Math.abs(Number(text)) > FLOAT32_MAX) text = String(single)
   return text.includes('.') || text.includes('e') ? text : `${text}.0`
 }

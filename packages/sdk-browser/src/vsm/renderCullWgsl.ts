@@ -34,6 +34,7 @@
  * the sphere radius.
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
+import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { PROJECTED_BOUND_WGSL } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
@@ -110,7 +111,6 @@ export const VSM_RENDER_ROWS_WGSL = wgslBlock(
   'VSM_RENDER_ROWS_WGSL',
   [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, PROJECTED_BOUND_WGSL, CUT_RULE_WGSL],
   `
-const INF:f32=3.402823466e38;
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
 struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii:vec4f,}
 @group(0) @binding(0) var<uniform> params:VsmRenderParams;
@@ -331,7 +331,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  let cull=vsmShiftedBoxInView(center,vec3f(radius),shiftedToClip,viewToClip,isOrtho,nearClip);
  visible=cull.inMapView;
  if(visible&&!staticLayer){
-  visible=cull.clipHigh.z>0.0&&cull.clipLow.z<3.402823466e38;
+  visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
  }
  if(!visible){return;}
  var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS);
@@ -364,6 +364,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
       VSM_COVER_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       VSM_BOX_CULL_WGSL,
+      FLOAT32_MAX,
     ],
   )
 

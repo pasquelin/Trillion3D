@@ -23,7 +23,7 @@
 import { VSM_PLASTIC_STEP } from './blueNoise.ts'
 import { VSM_F32_BELOW_ONE, VSM_UNIT_PER_CM } from './constants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { PI } from '../../../math/src/wgsl/constants.ts'
+import { FLOAT32_MAX, PI } from '../../../math/src/wgsl/constants.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
@@ -94,7 +94,7 @@ fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapol
 /** The traces' common helpers and the ray jitter step. */
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [PI],
+  [PI, FLOAT32_MAX],
   `
 struct VsmMarchStep{valid:bool,storedDepth:f32,marchRayDepth:f32,slopeCap:f32,restartSlope:bool,}
 fn vsmEmptyStep()->VsmMarchStep{return VsmMarchStep(false,0.0,0.0,0.0,false);}
@@ -201,7 +201,7 @@ fn vsmAcrossLightOnScreen(e:vec3f,l:vec3f,n:vec3f,nl:f32,ndc:vec2f,toPixels:vec2
  */
 fn vsmSunRaySpread(l:vec3f,s:f32,n:vec3f,viewPosition:vec3f,ditherUv:f32,uvPerWorld:f32)->vec2f{
  let nl=dot(n,l);
- if(!(nl>0.0)){return vec2f(3.402823466e38);}
+ if(!(nl>0.0)){return vec2f(FLOAT32_MAX);}
  let clip=vsmView.viewToClip*vec4f(viewPosition,1.0);
  let ndc=clip.xy/clip.w;
  let toPixels=0.5*vsmView.viewPixels.xy/clip.w;

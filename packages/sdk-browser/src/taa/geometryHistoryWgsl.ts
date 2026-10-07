@@ -1,4 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 /** Geometry retained with every display pixel: full placement identity and reversed depth.
  * Four taps bound the slope represented by the historical pixel footprint; `slack`, the current
  * surface's own depth step across one render texel (`closestSurface`), widens it: a frame drawn
@@ -12,7 +14,7 @@ export const GEOMETRY_HISTORY_WGSL = wgslBlock(
   [],
   `
 fn geometryDepthAccepts(expected:f32,low:f32,high:f32)->bool{
- let rounding=4.0*1.1920928955078125e-7*max(abs(expected),max(abs(low),abs(high)));
+ let rounding=${wgslF32(4 * FLOAT32_STEP)}*max(abs(expected),max(abs(low),abs(high)));
  let reach=(high-low)+rounding;
  return expected>=low-reach&&expected<=high+reach;
 }

@@ -7,11 +7,11 @@ import { builtins, each } from '../texture/shaderRunBuiltins.fixture.ts'
 import { unit } from './pageWorld.fixture.ts'
 import { seeded } from './planFrames.fixture.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
+import { FLOAT32_MAX } from '../../../math/src/constants.ts'
 
-const F32_MAX = 3.4028234663852886e38,
-  F32_MIN_NORMAL = 1.1754943508222875e-38
+const F32_MIN_NORMAL = 1.1754943508222875e-38
 /** The values an input takes now and then. */
-const EDGES = [0, -0, 1, -1, 0.5, -0.5, 2, -2, F32_MAX, -F32_MAX, F32_MIN_NORMAL]
+const EDGES = [0, -0, 1, -1, 0.5, -0.5, 2, -2, FLOAT32_MAX, -FLOAT32_MAX, F32_MIN_NORMAL]
 /** The values an input takes now and then where the shader meets them: infinities and NaN. */
 const NON_FINITE = [Infinity, -Infinity, NaN]
 

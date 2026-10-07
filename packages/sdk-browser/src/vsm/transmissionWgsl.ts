@@ -43,6 +43,7 @@
  * issued per cell: the cells are counted in a slice's own group.
  */
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -628,7 +629,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   }
  }
  let scale=f32(VSM_LEVEL0_TEXELS>>((view>>16u)&7u));
- var lo=vec2f(3.402823466e38);var hi=vec2f(-3.402823466e38);
+ var lo=vec2f(FLOAT32_MAX);var hi=vec2f(-FLOAT32_MAX);
  for(var i=0u;i<out.count;i++){let v=vsmTTexel(out.h[i],scale,vec2f(0.0));lo=min(lo,v);hi=max(hi,v);}
  out.box=vec4f(lo,hi);
  return out;
@@ -688,6 +689,7 @@ var<workgroup> wgCommand:array<u32,5>;
       matrixWindingCw,
       PAGE_GEOMETRY_WGSL,
       BLEND_TRANSMITTANCE_WGSL,
+      FLOAT32_MAX,
     ],
   )
 

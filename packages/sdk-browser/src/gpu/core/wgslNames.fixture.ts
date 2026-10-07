@@ -7,7 +7,7 @@
  * only: a member a structure lacks, a wrong type or a name declared twice passes it.
  */
 
-import { withoutComments } from '../../../../math/src/wgsl/comments.ts'
+import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
 
 /** WGSL's own words: keywords, the phony assignment's `_`, types, address spaces, access modes,
  *  texel formats, built-in functions. The only names a shader uses without declaring them. */
