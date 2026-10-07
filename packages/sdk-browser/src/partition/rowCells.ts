@@ -7,9 +7,8 @@
  */
 import type { PlacementRows } from '../placement/rows.ts'
 
-/** Where a row's node lies: its cell, its rank among the cell's nodes, and the mesh rank of each
- *  node of that cell, shared by the cell's rows. */
-export type RowCell = { cell: number; node: number; meshes: Int32Array }
+/** Where a row's node lies (`PlacementRows.cells`), its meshes shared by the cell's rows. */
+export type RowCell = NonNullable<NonNullable<PlacementRows['cells']>[number]>
 
 /** Row `index` of `rows` places `at` now, or nothing. */
 export function setRowCell(rows: PlacementRows, index: number, at: RowCell | undefined) {

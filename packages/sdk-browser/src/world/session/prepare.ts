@@ -12,6 +12,7 @@ import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { sessionFamilies } from './familyUse.ts'
 import { loadEngine, webgpuEngine } from '../../engine/factory.ts'
 import type { ExplorerSession } from './session.ts'
+import { isWorldRootsHold } from '../../scene/worldRoots.ts'
 import type { HostCamera } from '../../camera/world.ts'
 
 /** What a session owns as it opens, released by whoever ends it: by its failure path before the
@@ -159,7 +160,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     sceneLightingSource: loadedScene.sceneLightingSource,
     associations: loadedScene.associations,
     textureIndices: loadedScene.textureIndices,
-    worldRoots: loadedScene.worldRoots,
+    worldRoots: loadedScene.worldRoots.filter(isWorldRootsHold),
   })
   resources.engine = engine
   await families

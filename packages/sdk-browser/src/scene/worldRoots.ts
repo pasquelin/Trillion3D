@@ -189,8 +189,16 @@ export async function openWorldRoots(
   }
   // The engine whose scene is this manifest's draws from it (`EngineContext.worldRoots`).
   hold.metadata = metadata
+  opened.add(hold)
   return hold
 }
+
+/** The holds `openWorldRoots` opened: what a model's record shows of one is its count alone. */
+const opened = new WeakSet<object>()
+
+/** Whether `counted` — a model's world roots as its record shows them, the bytes the session
+ *  counts — is a hold `openWorldRoots` opened: the engine's own view of it. */
+export const isWorldRootsHold = (counted: object): counted is WorldRootsHold => opened.has(counted)
 
 /** A bundle's pages, read and verified. */
 type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>

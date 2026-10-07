@@ -16,7 +16,6 @@
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { MatrixElements } from '../math/matrixElements.ts'
-import type { RowCell } from '../partition/rowCells.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
@@ -32,9 +31,10 @@ export type PlacementRows = {
   readonly shadowless: Uint8Array
   /** Rows that fit before it grows. */
   readonly capacity: number
-  /** Where each row a partition placed lies (`../partition/rowCells.ts`): a column of its own,
+  /** Where each row a partition placed lies (`../partition/rowCells.ts`): its cell, its rank
+   *  among the cell's nodes, and the mesh rank of each node of that cell; a column of its own,
    *  absent until a cell places one. */
-  cells?: (RowCell | undefined)[]
+  cells?: ({ cell: number; node: number; meshes: Int32Array } | undefined)[]
 }
 
 export function createPlacementRows(capacity: number): PlacementRows {
