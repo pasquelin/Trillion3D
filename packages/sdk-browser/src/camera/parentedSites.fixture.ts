@@ -1,30 +1,22 @@
 // The engine sites that read a camera pose, each called by its real code, for the parented-camera
 // test (`parented.test.ts`). A site is `{ name, create, measure }`: `create()` returns the state
-// of a frame sequence (Hi-Z history, cut, engine), `measure(state, camera)` returns, ready to be
+// of a frame sequence (cut, engine), `measure(state, camera)` returns, ready to be
 // JSON-stringified, what the site took from the camera for that frame.
 import { surfaceOf } from '../page/surface.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
 import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
-import { boundsFor, projectBoxesFlat } from '../hiz/projection.ts'
-import { sameHizView } from '../hiz/temporal.ts'
+import { boundsFor, projectBoxesFlat } from '../hiz/projection.fixture.ts'
 import { visibilityDepth } from '../hiz/visibilityDepth.fixture.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import type { VisPage } from '../visibility/types.ts'
 import type { HizPage } from '../hiz/types.ts'
 import { projectedPageError } from '../page/selection/diagnostic.ts'
 import { resolvePixelError } from '../page/selection/requests.ts'
-import type { CameraMotion } from './world.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
-import {
-  createEngineCamera,
-  holdCameraWorld,
-  readCameraWorld,
-  type EngineCamera,
-  type HostCamera,
-} from './world.ts'
+import { createEngineCamera, readCameraWorld, type CameraMotion, type HostCamera } from './world.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 
@@ -97,19 +89,6 @@ const pureSites: Site[] = [
       const bounds = boundsFor(vis.length)
       projectBoxesFlat(vis, identityRoots(), vis.length, engine(camera), VIEWPORT, bounds)
       return list(bounds)
-    },
-  },
-  {
-    // The view the occluder history follows, held as the frame holds it (`hizViewMoved`): the
-    // move is read against the last frame's, and reread at once the held view is equal.
-    name: 'holdCameraWorld + sameHizView (occluder history view)',
-    create: () => ({ held: undefined as EngineCamera | undefined }),
-    measure: (state, camera: HostCamera) => {
-      const history = state as { held: EngineCamera | undefined }
-      const view = engine(camera),
-        moved = !sameHizView(history.held, view)
-      history.held = holdCameraWorld(history.held ?? createEngineCamera(), view)
-      return { moved, sameHistory: sameHizView(history.held, view) }
     },
   },
   {

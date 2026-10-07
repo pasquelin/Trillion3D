@@ -4,14 +4,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRowUse } from './rowUse.ts'
-import { ROW_IDLE_READBACKS } from './rowCache.fixture.ts'
 
 test('a table whose rows are all in use has no victim until a row goes unused', () => {
   const use = createRowUse(4)
   use.tick()
   for (const row of [0, 1, 2, 3]) use.stamp(row)
   assert.equal(use.victim(4), -1, 'every row stamped by the last readback')
-  for (let k = 1; k < ROW_IDLE_READBACKS; k++) {
+  for (let k = 1; k < use.idleReadbacks; k++) {
     use.tick()
     for (const row of [0, 1, 3]) use.stamp(row)
     assert.equal(use.victim(4), -1, `readback ${k}: row 2 still within the idle span`)

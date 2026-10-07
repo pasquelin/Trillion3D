@@ -1,5 +1,5 @@
-import { hizBuildFlat } from '../../../sdk-core/src/index.ts'
-import type { HizPyramid } from './types.ts'
+import { hizBuildFlat } from '../../../packages/sdk-core/src/index.ts'
+import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 
 /**
  * Visbuffer Hi-Z pyramid: far background, reduce toward farthest. The pyramid is flat: one buffer

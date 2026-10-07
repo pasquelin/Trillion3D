@@ -2,7 +2,6 @@
 import { coneSkipsPage } from '../cone/cone.fixture.ts'
 import { frustumClipBox } from '../../../../sdk-core/src/index.ts'
 import { framePixels } from '../selection/frame.fixture.ts'
-import { pixelsAtZero } from '../selection/projection.fixture.ts'
 import { drawsCluster } from './rule.fixture.ts'
 import {
   fitPacked,
@@ -48,10 +47,10 @@ function keep<T extends PageRecord>(
   s.shownTriangles += triangles
 }
 
-/** Test page `index`, except its band when an ancestor already settled it (`settled`): the frustum
- *  and the cone stay as they are, and the emission order stays that of the full descent.
- *  `inside`, `exact`, `cones` and `boxes` are constant under a node: the loop passes them instead
- *  of rereading them from state at each cluster.
+/** Test page `index`: the frustum unless an ancestor placed it entirely inside (`inside`), its
+ *  band, then its cone; the emission order is that of the descent. `inside`, `cones` and `boxes`
+ *  are constant under a node: the loop passes them instead of rereading them from state at each
+ *  cluster.
  *
  *  The cut rule (`./rule.ts`) decides twice: on the cut's residency for what is drawn, and on
  *  full residency for what is requested — the cut every page would draw once loaded. */
@@ -59,9 +58,7 @@ export function take<T extends PageRecord>(
   s: SelectionState<T>,
   pages: T[],
   index: number,
-  settled: boolean,
   inside: boolean,
-  exact: boolean,
   cones: boolean,
   boxes: boolean,
 ) {
@@ -79,25 +76,18 @@ export function take<T extends PageRecord>(
     }
   } else if (!boxes && (!rec.min || !rec.max)) return
   const held = s.flatHeld,
-    ready = !held || held.isReady(index)
-  // Settled: every cluster under the node meets the threshold and its parent does not.
-  let wanted = true,
-    drawn = ready,
+    ready = !held || held.isReady(index),
+    childReady = !held || held.isChildReady(index),
+    pixels = framePixels(s, rec, selectionScratch.pixels),
+    t = s.pixelError
+  const wanted = drawsCluster(true, pixels[1], pixels[0], true, t),
+    drawn = drawsCluster(ready, pixels[1], pixels[0], childReady, t),
     // A hole: a root-cover cluster (nothing coarser stands in for it) the rule would draw were it
     // resident. With group links, readiness is closed upward: nothing under it is ready either, and
     // the rule always would. Without them, a finer resident cluster may draw its surface instead.
-    uncovered = !ready && rec.parentError == null
-  if (!settled) {
-    const childReady = !held || held.isChildReady(index),
-      pixels = selectionScratch.pixels,
-      t = s.pixelError
-    if (exact && !(s.flatReach > 0)) pixelsAtZero(rec, pixels)
-    else framePixels(s, rec, pixels)
-    wanted = drawsCluster(true, pixels[1], pixels[0], true, t)
-    drawn = drawsCluster(ready, pixels[1], pixels[0], childReady, t)
-    uncovered &&= drawsCluster(true, pixels[1], pixels[0], childReady, t)
-    if (!wanted && !drawn && !uncovered) return
-  }
+    uncovered =
+      !ready && rec.parentError == null && drawsCluster(true, pixels[1], pixels[0], childReady, t)
+  if (!wanted && !drawn && !uncovered) return
   if (cones && rec.cone && coneSkipsPage(rec, s.flatCone, s.flatWorld, s.cam, rec.min!, rec.max!))
     return
   if (uncovered) s.uncoveredTriangles += rec.triangles

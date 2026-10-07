@@ -2,7 +2,7 @@
 // (`packages/sdk-browser/src/gpu/hiz/rectWgsl.ts`). No oracle here: it has no prior implementation
 // to confront; its correctness is held by `packages/sdk-browser/src/hiz/occlusion.test.ts`, and
 // the line says so rather than staying silent. `visibilityDepth` left this bench: only tests call it.
-import { hizTestRect } from '../../../packages/sdk-browser/src/hiz/occlusion.ts'
+import { hizTestRect } from '../../oracles/browser/hizOcclusion.ts'
 import { measure, stress, rapport } from '../../core/index.ts'
 import { rectangles, type SceneRect } from './support/scenes.ts'
 
@@ -23,7 +23,7 @@ const testAll = (list: SceneRect[]) => {
 
 const hizResult = await measure({
   name: 'hizTestRect',
-  fichier: 'packages/sdk-browser/src/hiz/occlusion.ts',
+  fichier: 'bench/oracles/browser/hizOcclusion.ts',
   cas: [
     { name: '20k rects 12 levels', input: rects, size: rects.length },
     { name: 'no rectangles', input: [], size: 0 },

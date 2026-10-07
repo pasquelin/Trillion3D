@@ -84,38 +84,6 @@ export function projectCornersInto(
   into[base + 4] = nearestZ
   into[base + 5] = 0
 }
-const cornerScratch = new Float64Array(BOX_CORNER_VALUES)
-/**
- * Conservative screen AABB of one box into `into` at `base`. min/max are inclusive integer samples
- * (fillIds last pixel is ceil(max)). Near-plane crossings never reject. The caller passes the view
- * and view-projection elements, so a batch builds them once instead of once per box; the arithmetic
- * is `boxCornersInto` (sdk-core) for both, so the flat and object forms agree bit for bit.
- */
-export function projectBoxInto(
-  min: readonly number[],
-  max: readonly number[],
-  world: MatrixElements,
-  viewElements: ArrayLike<number>,
-  viewProjElements: ArrayLike<number>,
-  near: number,
-  width: number,
-  height: number,
-  into: Float64Array,
-  base: number,
-) {
-  boxCornersInto(cornerScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2], world.elements)
-  projectCornersInto(
-    cornerScratch,
-    0,
-    viewElements,
-    viewProjElements,
-    near,
-    width,
-    height,
-    into,
-    base,
-  )
-}
 /** The box `page`'s row is bounded by this frame: a dynamic page's where its vertices are
  *  (`moved`), else its own, which grows by `rowGrowth`. */
 export const rowBox = (page: HizPage) => page.moved ?? page
@@ -127,7 +95,8 @@ export const rowGrowth = (page: HizPage, reach = 0) => (page.moved ? 0 : reach)
  * World-space corners of `page`'s box, written in `out` from `at`: eight corners of three doubles,
  * derived from its local bounds and the `world` of its root on every read, as the GPU partition receives
  * them per row. Nothing is kept per page — a host table of every packed page cost 24 doubles each
- * —, and the arithmetic is `projectBoxInto`'s, so the doubles are the same bit for bit. A
+ * —, and the arithmetic is `projectBoxInto`'s (`projection.fixture.ts`), so the doubles are the
+ * same bit for bit. A
  * dynamic page's box is where its vertices are this frame (`moved`); another grows by its
  * root's `reach` on every side, the farthest a deformation moved a vertex from where its page is
  * bounded, as every cut and sphere grows it: an occlusion test of the rest box would reject a page

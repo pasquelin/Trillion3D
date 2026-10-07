@@ -8,10 +8,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { enginePose, holdCameraWorld, resolveCameraWorld } from './world.ts'
+import { enginePose, holdCameraWorld, resolveCameraWorld, sameOccluderView } from './world.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { resolvePixelError } from '../page/selection/requests.ts'
-import { sameHizView } from '../hiz/temporal.ts'
 import { createFrameGateCore } from '../frame/gateCore.ts'
 import {
   POSES_PARENT,
@@ -113,13 +112,13 @@ test('boundary: the view history freezes the world pose, not the local pose', ()
   const gelee = holdCameraWorld(createEngineCamera(), engineCamera(resolveCameraWorld(camera)))
   assert.deepEqual([...gelee.world], [...flattened.matrixWorld.elements])
   assert.equal(
-    sameHizView(engineCamera(gelee), engineCamera(camera)),
+    sameOccluderView(engineCamera(gelee), engineCamera(camera)),
     true,
     'reread at once, the history describes this view',
   )
   poseRig(rig, DEPLACE_ET_TOURNE, false)
   assert.equal(
-    sameHizView(engineCamera(gelee), engineCamera(camera)),
+    sameOccluderView(engineCamera(gelee), engineCamera(camera)),
     false,
     'a rig that moves alone invalidates the history: the local pose, for its part, has not changed',
   )

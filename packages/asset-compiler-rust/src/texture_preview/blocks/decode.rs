@@ -67,7 +67,7 @@ fn decode_eac_rg(
     if blocks.len() < across * height.div_ceil(4) * BLOCK_BYTES || image.len() < width * height {
         return Err("truncated");
     }
-    for (index, block) in blocks.chunks_exact(BLOCK_BYTES).enumerate() {
+    for (index, block) in blocks.as_chunks::<BLOCK_BYTES>().0.iter().enumerate() {
         let (bx, by) = (index % across * 4, index / across * 4);
         if by >= height {
             break;

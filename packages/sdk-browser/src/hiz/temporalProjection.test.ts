@@ -2,13 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from './hiz.ts'
-import { splitOccludersInto } from './split.ts'
-import { rankByDepth } from './depthRank.ts'
+import { splitOccludersInto } from './split.fixture.ts'
+import { rankByDepth } from './depthRank.fixture.ts'
 import { projectCornersInto, HIZ_BOUNDS_VALUES } from './corners.ts'
 import { projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { locatedBy } from '../page/selection/placements.fixture.ts'
-import { projectBoxesFlat } from './projection.ts'
+import { projectBoxesFlat } from './projection.fixture.ts'
 
 test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
   let seed = 12345

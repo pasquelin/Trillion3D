@@ -66,10 +66,10 @@ plane, one convention for every pass (`camera/depthConvention.ts`).
 `webgpuPagesEngine` (`webgpu/pages/pages.ts`) draws from the bounded page cache of
 `gpu/page/pages.ts`. A compute pass selects the camera's resident cut and draws it through indirect
 commands into a visibility buffer (`webgpu/pages/render/gpuCut.ts`); occlusion is two-phase Hi-Z
-(`webgpu/visibility/passes.ts`, CPU oracle `hiz/temporal.ts`). The render passes whose commands
-repeat from frame to frame — the raster's slot draws, the material surfaces — are render bundles,
-recorded once and replayed while the few identities and revisions they are keyed by hold
-(`gpu/core/renderBundles.ts`); their passes keep the timestamps. Which pages load and leave is
+(`webgpu/visibility/passes.ts`, CPU oracle `bench/oracles/browser/hizOcclusion.ts`). The render
+passes whose commands repeat from frame to frame — the raster's slot draws, the material surfaces —
+are render bundles, recorded once and replayed while the few identities and revisions they are
+keyed by hold (`gpu/core/renderBundles.ts`); their passes keep the timestamps. Which pages load and leave is
 [RESIDENCY.md](RESIDENCY.md).
 
 ## Material surfaces

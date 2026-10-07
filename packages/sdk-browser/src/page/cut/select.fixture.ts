@@ -3,7 +3,6 @@ import {
   frustumFarPlane,
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts'
-import { clusterErrorAtDepth } from '../../../../sdk-core/src/lod/screenErrorBound.ts'
 import type { ConeContext } from '../cone/cone.fixture.ts'
 import { worldStretch } from './logic.ts'
 import { selectionScratch, type PageRecord, type SelectionState } from './state.fixture.ts'
@@ -24,18 +23,6 @@ function growPlanes(planes: Float64Array, reach: number) {
       reach * (Math.abs(planes[i]) + Math.abs(planes[i + 1]) + Math.abs(planes[i + 2]))
 }
 
-/** The frame's stretch, focal length and near plane pass the guard `clusterErrorAtDepth` puts on
- *  every projection: a cluster sound on its own side — a unit error, on the axis at unit depth, a
- *  point — is refused only on the frame's. */
-function frameSound(stretch: number, focal: number, near: number) {
-  try {
-    clusterErrorAtDepth(1, stretch, 0, 1, 0, focal, near)
-    return true
-  } catch {
-    return false
-  }
-}
-
 export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: ClusterRoot<T>) {
   const pages = root.pages
   const { viewMatrix, clip, planes, pixelScale } = selectionScratch
@@ -46,11 +33,6 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatElements = viewMatrix
   s.flatStretch = worldStretch(root) * s.cameraStretch
   s.flatFocal = Math.max(pixelScale[0], pixelScale[1])
-  // Null-threshold paths consult neither camera nor sphere: they only hold if the frame's three
-  // scalars are those a strictly positive quotient asks for. They never read the projection, which
-  // is left out (its default 1 passes).
-  s.flatExact =
-    s.pixelError === 0 && s.flatStretch > 0 && frameSound(s.flatStretch, s.flatFocal, s.cam.near)
   // The cone context belongs to this root: it will be set at the first cluster that has one.
   ;(s.flatCone as ConeContext).ready = false
   // A deformed root's vertices leave the cones its pages were cooked with: it tests none.

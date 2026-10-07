@@ -1,16 +1,16 @@
-// A10: `renderWebgpuPages` copies the Hi-Z comparison view (`run.previousHizView`) into the same
-// kept engine camera instead of allocating one per view change. `sameHizView` reads only the view
-// and the projection, so copying into an already-allocated structure must yield exactly the same
-// verdict, image after image, as a fresh structure.
+// A10: `renderWebgpuPages` copies the occluder history's view (`run.previousOccluderView`) into
+// the same kept engine camera instead of allocating one per view change. `sameOccluderView` reads
+// only the view and the projection, so copying into an already-allocated structure must yield
+// exactly the same verdict, image after image, as a fresh structure.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { sameHizView } from '../../../hiz/hiz.ts'
 import { invalidateOccluderHistory } from '../io/drops.ts'
 import {
   createEngineCamera,
   holdCameraWorld,
   readCameraWorld,
+  sameOccluderView,
   type EngineCamera,
 } from '../../../camera/world.ts'
 import { engineCamera } from '../../../camera/camera.fixture.ts'
@@ -38,9 +38,9 @@ test('copying a view into a kept engine camera matches a fresh one, verdict for 
   let gardee: EngineCamera | undefined
   for (const frame of frames) {
     const courante = engineCamera(frame)
-    const viaNeuve = sameHizView(neuve, courante)
+    const viaNeuve = sameOccluderView(neuve, courante)
     neuve = holdCameraWorld(createEngineCamera(), courante)
-    const viaCopie = sameHizView(gardee, courante)
+    const viaCopie = sameOccluderView(gardee, courante)
     gardee = holdCameraWorld(gardee ?? createEngineCamera(), courante)
     assert.equal(viaCopie, viaNeuve, 'same-image verdict must not depend on a fresh structure')
   }
@@ -52,7 +52,7 @@ test('the kept camera is the same object across frames: never reallocated, never
   const identities = new Set<EngineCamera>()
   for (const frame of frames) {
     const courante = engineCamera(frame)
-    sameHizView(kept, courante)
+    sameOccluderView(kept, courante)
     kept = holdCameraWorld(kept ?? createEngineCamera(), courante)
     identities.add(kept)
   }
@@ -65,21 +65,21 @@ test('a repeated identical pose is stable, and NaN in the world matrix never rep
   a.lookAt(0, 0, 0)
   a.updateMatrixWorld()
   const kept = holdCameraWorld(createEngineCamera(), engineCamera(a))
-  assert.equal(sameHizView(kept, engineCamera(a)), true)
+  assert.equal(sameOccluderView(kept, engineCamera(a)), true)
   // The kept camera is frozen; THIS image's is copied from the host, which inverts its world matrix:
   // a NaN must enter through the local pose, not by touching the numbers by hand, or it would be
   // rewritten before the comparison.
   const nanCam = a.clone()
   nanCam.position.x = NaN
   assert.equal(
-    sameHizView(kept, readCameraWorld(createEngineCamera(), nanCam)),
+    sameOccluderView(kept, readCameraWorld(createEngineCamera(), nanCam)),
     false,
     'NaN never compares equal to itself',
   )
 })
 
 // "Occluder history" lever: the history names pages only, so only what changes the pages drawn
-// drops it; a moving camera lets its rows leave the occluders instead (`hizViewMoved`).
+// drops it; a moving camera lets its rows leave the occluders instead (`occluderViewMoved`).
 test('invalidateOccluderHistory drops the occluder history', () => {
   const run = { noOccluderHistory: false } as unknown as Parameters<
     typeof invalidateOccluderHistory

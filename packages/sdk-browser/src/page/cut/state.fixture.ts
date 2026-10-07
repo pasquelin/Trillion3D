@@ -59,9 +59,6 @@ export interface SelectionState<T extends PageRecord> {
   /** Where the cut rule's readiness of each root is held and moved (`./held.fixture.ts`); absent when
    *  the cut holds no residency. */
   held: HeldResidency | undefined
-  /** This image's threshold is zero and stretch, focal length and near plane are sound: the
-   *  cut then decides without projecting, identically. */
-  flatExact: boolean
   /** What the two lists actually hold. The arrays are not cleared with `length = 0` each
    *  image — they would lose their capacity and grow it back from zero to eighty thousand — but
    *  rewritten by index, and their length is set only once the cut is finished. During the cut,
@@ -130,7 +127,6 @@ const reusedState: SelectionState<PageRecord> = {
   flatCones: true,
   flatBoxes: false,
   held: undefined,
-  flatExact: false,
   shownCount: 0,
   wantedCount: 0,
   wantedTriangles: 0,

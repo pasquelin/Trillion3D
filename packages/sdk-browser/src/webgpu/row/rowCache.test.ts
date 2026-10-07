@@ -2,7 +2,8 @@
 // never by the placements; a request takes back a row no cut used for a while, never one in use.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { range, ROW_IDLE_READBACKS, rowCache } from './rowCache.fixture.ts'
+import { range, rowCache } from './rowCache.fixture.ts'
+import { createRowUse } from './rowUse.ts'
 
 test('a scene whose instances fit holds a row for every resident instance, as they land', () => {
   const cache = rowCache(6, 8)
@@ -53,7 +54,7 @@ test('an instance asked for before its bytes land takes its row as they do, befo
   cache.land(range(3))
   cache.frame()
   // Page 5 is asked for without its bytes; the rows of 0..2 go unused for the idle span.
-  for (let k = 0; k <= ROW_IDLE_READBACKS; k++) cache.readback([], [5])
+  for (let k = 0; k <= createRowUse(0).idleReadbacks; k++) cache.readback([], [5])
   cache.frame()
   assert.deepEqual(cache.held(), [0, 1, 2], 'nothing to place without bytes')
   // Pages 4 and 5 land together: 4 no cut asked for finds the table full, 5 takes a row back.

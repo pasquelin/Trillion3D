@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { rankByDepth } from './depthRank.ts'
+import { rankByDepth } from './depthRank.fixture.ts'
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
 
 const keyDouble = new Float64Array(1),

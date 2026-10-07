@@ -9,7 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { forEachRewrittenRun } from '../../../packages/sdk-browser/src/webgpu/row/dirty.ts'
-import { ROW_IDLE_READBACKS } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
+import { createRowUse } from '../../../packages/sdk-browser/src/webgpu/row/rowUse.ts'
 import { ROW_WORDS, rowCacheScene, settleView } from './rowCacheScene.ts'
 
 /** Rows the table holds: far fewer than the placements' instances, more than one view asks. */
@@ -23,7 +23,7 @@ test('a row evicted for another placement names its new occupant to every reader
   const owners = Array.from(rows.rowPageIndex.subarray(0, rows.packedCount))
   rows.clearDirty()
   // The view moves three placements down: what it wants takes rows back from the cache.
-  const moved = await settleView(scene, 3, 2 * ROW_IDLE_READBACKS)
+  const moved = await settleView(scene, 3, 2 * createRowUse(0).idleReadbacks)
   assert.ok(moved.wanted.length > 4, 'the moved view wants a cut of several pages')
   assert.deepEqual(moved.drawn, moved.wanted, 'every wanted page drawn, no ancestor in its place')
   const own = (page: number) => page >= base(3) && page < base(3) + pagesPer

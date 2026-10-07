@@ -1,6 +1,6 @@
-import { hizHides } from './hides.ts'
-import { HIZ_KERNEL_TEXELS } from './counts.ts'
-import type { HizPyramid } from './types.ts'
+import { hizHides } from './hizHides.ts'
+import { HIZ_KERNEL_TEXELS } from '../../../packages/sdk-browser/src/hiz/counts.ts'
+import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 
 // The test kernel is a power of two: `firstLevel` depends on that to bound the search.
 const KERNEL_LOG2 = Math.log2(HIZ_KERNEL_TEXELS)

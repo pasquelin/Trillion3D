@@ -1,7 +1,42 @@
-import { HIZ_BOUNDS_VALUES, projectBoxInto, rowBox } from './corners.ts'
+import { boxCornersInto } from '../../../sdk-core/src/index.ts'
+import { BOX_CORNER_VALUES, HIZ_BOUNDS_VALUES, projectCornersInto, rowBox } from './corners.ts'
 import type { HizPage } from './types.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import { locationOf, type PageLocations } from '../page/selection/placements.ts'
+import type { MatrixElements } from '../math/matrixElements.ts'
+
+const cornerScratch = new Float64Array(BOX_CORNER_VALUES)
+/**
+ * Conservative screen AABB of one box into `into` at `base`. min/max are inclusive integer samples
+ * (fillIds last pixel is ceil(max)). Near-plane crossings never reject. The caller passes the view
+ * and view-projection elements, so a batch builds them once instead of once per box; the arithmetic
+ * is `boxCornersInto` (sdk-core) for both, so the flat and object forms agree bit for bit.
+ */
+function projectBoxInto(
+  min: readonly number[],
+  max: readonly number[],
+  world: MatrixElements,
+  viewElements: ArrayLike<number>,
+  viewProjElements: ArrayLike<number>,
+  near: number,
+  width: number,
+  height: number,
+  into: Float64Array,
+  base: number,
+) {
+  boxCornersInto(cornerScratch, 0, min[0], min[1], min[2], max[0], max[1], max[2], world.elements)
+  projectCornersInto(
+    cornerScratch,
+    0,
+    viewElements,
+    viewProjElements,
+    near,
+    width,
+    height,
+    into,
+    base,
+  )
+}
 
 export function projectBoxesFlat(
   pages: ArrayLike<HizPage | undefined>,

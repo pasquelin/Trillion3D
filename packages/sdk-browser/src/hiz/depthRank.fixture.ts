@@ -1,4 +1,4 @@
-// The depth rank of the Hi-Z occluder split (`split.ts`): the boxes in front of the near plane,
+// The depth rank of the Hi-Z occluder split (`split.fixture.ts`): the boxes in front of the near plane,
 // nearest first, by a stable radix sort on their depth's sortable bits.
 import { HIZ_BOUNDS_VALUES } from './corners.ts'
 

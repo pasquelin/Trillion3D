@@ -1,5 +1,9 @@
-import { sameHizView } from '../../../hiz/hiz.ts'
-import { createEngineCamera, holdCameraWorld, type HostCamera } from '../../../camera/world.ts'
+import {
+  createEngineCamera,
+  holdCameraWorld,
+  sameOccluderView,
+  type HostCamera,
+} from '../../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { setWindingEpoch } from './winding.ts'
@@ -132,15 +136,15 @@ function drawFrameInputs(
   const worldsMoved = uploadWorlds(rt, cam)
   // The GPU deformation of this image, on the poses just uploaded (#357).
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
-  // A camera that moves keeps the occluder half: it only chooses the pass where a cluster is
-  // drawn, and this image's pyramid remains the sole judge of what is withdrawn. The GPU
-  // partition still learns of the move: while the view stands still, a row the test has kept is
-  // not sent back to the tested half — that is what lets the halves converge under the
-  // antialiasing jitter, and an image be held.
-  run.hizViewMoved = !sameHizView(run.previousHizView, cam)
-  // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
-  if (run.hizViewMoved)
-    run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam)
+  // A moved view lets every row the GPU partition kept leave the occluders again; while it stands
+  // still, the halves converge under the antialiasing jitter and an image can be held.
+  run.occluderViewMoved = !sameOccluderView(run.previousOccluderView, cam)
+  // The world pose is copied into the already-held camera: no clone per image.
+  if (run.occluderViewMoved)
+    run.previousOccluderView = holdCameraWorld(
+      run.previousOccluderView ?? createEngineCamera(),
+      cam,
+    )
   marks.blendStart = performance.now()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.

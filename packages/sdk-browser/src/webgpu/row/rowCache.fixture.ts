@@ -5,13 +5,8 @@ import { createWebgpuRowSync } from './sync.ts'
 import type { CloseInstances } from './rowDemand.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
-import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
 
 const WORDS = PAGE_INFO_STRIDE / 4
-
-/** The idle span the row use is held to (`rowUse.ts`): readbacks a row stays unused before a
- *  request may take it back, four times the slots in flight and the image being encoded. */
-export const ROW_IDLE_READBACKS = 4 * (DAG_READBACK_SLOTS + 1)
 
 /** A mirror with nothing to report: the fixtures move residency by hand. */
 export const MIRROR = { sync: () => {}, dirty: true }

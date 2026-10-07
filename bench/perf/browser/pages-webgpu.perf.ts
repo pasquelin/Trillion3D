@@ -1,7 +1,6 @@
 // winding of a cluster and view-camera comparison.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
-import { sameHizView } from '../../../packages/sdk-browser/src/hiz/temporal.ts'
 import {
   setWindingEpoch,
   windingCw,
@@ -12,6 +11,7 @@ import {
   createEngineCamera,
   holdCameraWorld,
   readCameraWorld,
+  sameOccluderView,
 } from '../../../packages/sdk-browser/src/camera/world.ts'
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
@@ -84,14 +84,14 @@ const viewWalk = (garder: (camera: G.Camera) => boolean) => (images: number) => 
 
 const referenceView = viewWalk((camera) => {
   const lue = readCameraWorld(courante, camera)
-  const verdict = sameHizView(gardeeReference, lue)
+  const verdict = sameOccluderView(gardeeReference, lue)
   gardeeReference = holdCameraWorld(createEngineCamera(), lue)
   return verdict
 })
 
 const optimisedView = viewWalk((camera) => {
   const lue = readCameraWorld(courante, camera)
-  const verdict = sameHizView(keptOptimised, lue)
+  const verdict = sameOccluderView(keptOptimised, lue)
   keptOptimised = holdCameraWorld(keptOptimised ?? createEngineCamera(), lue)
   return verdict
 })

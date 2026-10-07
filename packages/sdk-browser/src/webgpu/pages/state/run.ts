@@ -51,8 +51,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   outputDiagnosticLogged: boolean
   noOccluderHistory: boolean
   /** The view moved since the last image: every row may leave the occluders again. */
-  hizViewMoved: boolean
-  previousHizView: EngineCamera | undefined
+  occluderViewMoved: boolean
+  previousOccluderView: EngineCamera | undefined
   rowsSyncedFrame: number
   motion: CameraMotion
   /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */

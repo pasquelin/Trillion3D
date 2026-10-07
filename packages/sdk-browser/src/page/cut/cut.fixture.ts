@@ -85,7 +85,6 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatElements = (roots[0]?.world ?? IDENTITY_WORLD).elements
   state.flatStretch = 1
   state.flatFocal = 1
-  state.flatExact = false
   state.flatBase = -1
   state.shownCount = 0
   state.wantedCount = 0

@@ -12,11 +12,6 @@ export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities']
   capabilities.unsupported = capabilities.unsupported.filter((entry) => entry !== item)
 }
 
-function resetHizHistory(run: WebgpuRunState) {
-  invalidateOccluderHistory(run)
-  run.previousHizView = undefined
-}
-
 /**
  * The GPU cut failed — a readback the device could not map, a send or an encode it refused. It is
  * the engine's one cut (#1483): nothing else draws, so the device is declared lost as for any error
@@ -54,7 +49,8 @@ function dropGpuHiz(rt: WebgpuPagesRuntime) {
   vis.visHizRestBack = undefined
   vis.visHizRestNone = undefined
   vis.visHizRestFront = undefined
-  resetHizHistory(rt.run)
+  invalidateOccluderHistory(rt.run)
+  rt.run.previousOccluderView = undefined
 }
 
 function dropGpuDraw(rt: WebgpuPagesRuntime) {

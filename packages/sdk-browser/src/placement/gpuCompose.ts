@@ -27,9 +27,8 @@
  * linked row's world sphere, what the shadow cull drops a row by, from its composed world.
  *
  * Still derived at the last full write, not on the GPU yet: the primitive stretch, the corners and
- * world boxes (a linked row whose composed world left the one its corners were derived from takes
- * no Hi-Z verdict), the shadow levels of detail. A link made with the rows' own CPU write
- * changes none of these: the CPU's row write follows them.
+ * world boxes, the shadow levels of detail. A link made with the rows' own CPU write changes none
+ * of these: the CPU's row write follows them.
  */
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL, MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import { MOTION_SKIP, packDoubles } from './composedMotion.ts'
