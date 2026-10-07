@@ -12,11 +12,11 @@ const GOLDEN: &str = "../../tests/fixtures/physics/ramp-tile.bin";
 /// The golden height field: the 5 × 5 grid below, cooked by native Jolt; the physics module's
 /// tests restore these very bytes (`packages/sdk-browser/src/physics`).
 const HEIGHT_GOLDEN: &str = "../../tests/fixtures/physics/height-field-tile.bin";
-/// Cooks `pos` twice, the same bytes, and checks them against the golden file `golden`
+/// Cooks a tile twice by `cook`, the same bytes, and checks them against the golden file `golden`
 /// (`TRILLION3D_WRITE_GOLDEN` rewrites it).
-pub(super) fn golden_tile(pos: &[f32], golden: &str) -> Vec<u8> {
-    let first = mesh_shape(pos, &RAMP_TRIANGLES).unwrap();
-    assert_eq!(first, mesh_shape(pos, &RAMP_TRIANGLES).unwrap());
+pub(super) fn golden_tile(cook: impl Fn() -> Vec<u8>, golden: &str) -> Vec<u8> {
+    let first = cook();
+    assert_eq!(first, cook());
     assert_golden(&first, golden);
     first
 }
@@ -36,7 +36,7 @@ pub(super) fn assert_golden(bytes: &[u8], golden: &str) {
 // Behaviour: the cook is deterministic and its bytes are the golden ones the runtime restores.
 #[test]
 fn a_tile_cooks_to_the_same_golden_bytes() {
-    golden_tile(&RAMP, GOLDEN);
+    golden_tile(|| mesh_shape(&RAMP, &RAMP_TRIANGLES).unwrap(), GOLDEN);
 }
 
 // Behaviour: a regular grid is detected, sample for sample, and cooks to the golden height field;
@@ -67,9 +67,7 @@ fn a_regular_grid_becomes_a_height_field() {
     assert_eq!(grid.samples[3 * grid.size + 2], 0.6f32);
     assert_eq!(grid.scale, [0.5, 1.0, 0.5]);
     let cook = || height_field_shape(&grid.samples, grid.size, grid.offset, grid.scale).unwrap();
-    let shape = cook();
-    assert_eq!(shape, cook());
-    assert_golden(&shape, HEIGHT_GOLDEN);
+    golden_tile(cook, HEIGHT_GOLDEN);
     pos[3 * 3] += 0.2;
     assert!(height::detect(&pos, &triangles).is_none());
 }
