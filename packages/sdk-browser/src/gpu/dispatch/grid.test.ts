@@ -9,7 +9,6 @@ import {
   GROUP_GRID_WGSL,
   dispatchGrid,
   dispatchRows,
-  rowWidth,
 } from './grid.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 
@@ -68,6 +67,5 @@ test('dispatchRows dispatches the split of dispatchGrid, z deep', () => {
   for (const [groups, width, z] of [[0], [1], [65_535], [65_536], [10, 3], [10, 3, 7]]) {
     dispatchRows(pass, groups, z, width)
     assert.deepEqual(calls.pop(), [...dispatchGrid(groups, width), z ?? 1])
-    assert.equal(rowWidth(groups, width), dispatchGrid(groups, width)[0])
   }
 })

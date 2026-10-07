@@ -3,7 +3,7 @@
  *  holds them to it): a literal is what a bundler can drop when nothing reads it. `HALF_PI` keeps
  *  its expression, shorter than its digits, because the cone tolerances read it in every bundle. */
 
-/** A quarter turn, in radians: `Math.PI / 2`. */
+/** A quarter turn, in radians. */
 export const HALF_PI = Math.PI / 2
 /** A full turn, in radians: `Math.PI * 2`. */
 export const TAU = 6.283185307179586

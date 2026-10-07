@@ -7,12 +7,14 @@ export const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.ma
 export const clampLowWins = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x))
 
 /**
- * The comparison-ordered clamp: `x < lo ? lo : x > hi ? hi : x`. Unlike `clamp` and
- * `clampLowWins` it keeps -0 at a 0 bound and returns `x` past a NaN bound instead of NaN; when
- * `lo > hi` it gives `lo` below `lo` and `hi` from `lo` up, where `clamp` always gives `hi` and
- * `clampLowWins` always `lo`.
+ * The comparison-ordered clamp: `value < min ? min : value > max ? max : value`, the public
+ * `math.clamp` (its parameter names are that API's). Unlike `clamp` and `clampLowWins` it keeps -0
+ * at a 0 bound and returns `value` past a NaN bound instead of NaN; when `min > max` it gives `min`
+ * below `min` and `max` from `min` up, where `clamp` always gives the upper bound and
+ * `clampLowWins` always the lower.
  */
-export const clampCompare = (x: number, lo: number, hi: number) => (x < lo ? lo : x > hi ? hi : x)
+export const clampCompare = (value: number, min: number, max: number) =>
+  value < min ? min : value > max ? max : value
 
 /** `x` held to `[0, 1]`: `clamp(x, 0, 1)`. */
 export const saturate = (x: number) => clamp(x, 0, 1)

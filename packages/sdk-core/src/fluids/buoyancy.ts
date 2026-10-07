@@ -6,6 +6,7 @@
  * A body floats on its own when its density is below the water's: the push is the water's weight
  * displaced, and the physics module measures the displaced volume exactly.
  */
+import { nextPow2 } from '../../../math/src/scalar/integers.ts'
 import { BUOYANCY_WORDS, OP, PLANE_WORDS } from '../physics/layout.ts'
 import { Waves, type WaveSpec } from './waves.ts'
 
@@ -92,7 +93,7 @@ export class StepWords {
 
   private reserve(count: number) {
     if (count <= this.words.length) return
-    this.words = new Uint32Array(2 ** Math.ceil(Math.log2(count)))
+    this.words = new Uint32Array(nextPow2(count))
     this.floats = new Float32Array(this.words.buffer)
   }
 

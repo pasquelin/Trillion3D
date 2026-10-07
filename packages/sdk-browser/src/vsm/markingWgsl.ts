@@ -114,6 +114,7 @@ export const VSM_CLEAR_SPECS: readonly VsmBindingSpec[] = [
  * `vsmPerPage` (VsmMapWalkParams) and `vsmProjectionData`.
  */
 export const VSM_PER_PAGE_DISPATCH_WGSL = /* wgsl */ `${FLAT_INDEX_WGSL}
+/** \`gridWidth\`: a grouped bin's walk side and row pitch; 0 for a thread-per-id bin, which ranks itself (\`flatIndex\`). */
 struct VsmMapWalkParams{idStart:u32,idCount:u32,gridWidth:u32,threadPerId:u32,}
 struct VsmMapWalk{
  valid:bool,

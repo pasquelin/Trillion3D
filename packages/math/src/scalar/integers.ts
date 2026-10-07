@@ -27,5 +27,6 @@ export const floorLog2 = (v: number) => 31 - Math.clz32(v)
 /** Whether the int32 `v` is a power of two, 1 included; 0 and negatives are not. */
 export const isPow2 = (v: number) => v > 0 && (v & (v - 1)) === 0
 
-/** The 32-bit words that hold `n` bits, `n` an integer in `[0, 2 ** 32[`: `(n + 31) >>> 5`. */
-export const bitWords = (n: number) => (n + 31) >>> 5
+/** The 32-bit words that hold `n` bits, `n` a non-negative integer: exact up to 2^53, so a count read
+ *  from untrusted data never wraps as `(n + 31) >>> 5` would from 2^32 - 31. */
+export const bitWords = (n: number) => Math.ceil(n / 32)

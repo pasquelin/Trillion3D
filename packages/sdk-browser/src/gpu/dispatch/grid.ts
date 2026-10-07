@@ -16,7 +16,7 @@ export const DEFAULT_GROUP_WIDTH = 65535
 
 /** The workgroups along x of a dispatch of `groups` in rows of at most `width`: one half of the
  *  split, for a host that writes the x of an argument itself. */
-export const rowWidth = (groups: number, width = DEFAULT_GROUP_WIDTH) => Math.min(groups, width)
+const rowWidth = (groups: number, width = DEFAULT_GROUP_WIDTH) => Math.min(groups, width)
 
 /** The rows of a dispatch of `groups` in rows of at most `width`: the split's other half. */
 const rowsOf = (groups: number, width: number) => (groups <= width ? 1 : ceilDiv(groups, width))
