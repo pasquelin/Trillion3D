@@ -35,10 +35,7 @@ test('webgpu pages cut on the GPU name its clusters once the readback lands', as
  * `scene` cut on the GPU at `pixelError` — four resident pages, a 960 × 540 viewport — once its
  * readback has landed, and the CPU oracle's cut under the same camera.
  */
-async function gpuAndCpuCuts(
-  scene: Parameters<typeof flushedGpuScene>[0],
-  pixelError: number,
-) {
+async function gpuAndCpuCuts(scene: Parameters<typeof flushedGpuScene>[0], pixelError: number) {
   const viewport: [number, number] = [960, 540]
   const { backend, roots } = await flushedGpuScene(
     scene,
