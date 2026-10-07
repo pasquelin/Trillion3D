@@ -45,11 +45,21 @@ export function createTileStreamer(
   const models = new Map<Model, TileOpening>()
   // The static collision's shares: of the memory, and of the bodies, the others keeping the rest.
   const share = collisionBytesOf(budget)
-  const shapes = new SharedShapes({ writer, bodies, failed })
+  const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed })
   const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
   const resident = createResidentTiles(writer, bodies, shapes)
   const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
-  bodies.onFull({ held: resident.held, evictFarthest: () => schedule.evictFarthest() })
+  // A body no tile holds takes the farthest tiles' slots and bytes when none are left for it.
+  bodies.ledger.onFull({
+    get bodies() {
+      return resident.held.bodies
+    },
+    get bytes() {
+      return shapes.bytes
+    },
+    evictFarthest: () => schedule.evictFarthest(),
+    letGoFarthest: (bytes) => schedule.letGoFarthest(bytes),
+  })
   function open(model: Model) {
     const opening: TileOpening = { placed: [], abort: new AbortController() }
     const { signal } = opening.abort
@@ -80,11 +90,14 @@ export function createTileStreamer(
         seen.add(node)
         if (!models.has(node)) open(node)
       })
+      const opened = models.size
       for (const [model, opening] of models)
         if (!seen.has(model)) {
           drop(model, opening)
           models.delete(model)
         }
+      // A model gone: no list names its placements any more.
+      if (models.size < opened) schedule.trim()
       shapes.settle()
     },
     /** Carries the bodies a dynamic one holds (`carriedBodies.ts`), then brings the resident
@@ -133,6 +146,7 @@ export function createTileStreamer(
     clear() {
       models.forEach((opening, model) => drop(model, opening))
       models.clear()
+      schedule.trim()
       shapes.settle()
     },
   }

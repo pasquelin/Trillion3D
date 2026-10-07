@@ -43,9 +43,9 @@ export interface Placed {
   id: number
   /** How near the last update wanted it (`nearness`). */
   near: number
-  /** The update its body last left by for another body's slot (`evictFarthest`); `Infinity` once
-   *  it is out for good, its model gone or its body refused: no body is built for it since. */
-  left: number
+  /** Out for good, its model gone or its tile or body refused: no body is built for it since,
+   *  and its opening drops it. */
+  out: boolean
 }
 
 /** A cooked tile as the session shares it (`sharedShapes.ts`), its manifest entry beside, and the
@@ -94,32 +94,32 @@ export function placedOf(
   shapes: Pick<SharedShapes, 'hold'>,
 ): Placed[] {
   const placed: Placed[] = [],
-    counts = new Map<CookedTile, { href: string; count: number }>()
+    byTile = new Map<CookedTile, { href: string; placed: Placed[] }>()
   for (const instance of cooked.instances) {
     const { tiles, material } = cooked.colliders[instance.collider]
     for (const tile of tiles) {
-      const p: Placed = {
-        ...{ model, instance, shape: null as unknown as TileShape, material: material ?? -1 },
-        ...{ box: new Float64Array(6), id: -1, near: Infinity, left: -1 },
-      }
+      // Its shape set below, once every placement is read.
+      const p = {
+        model,
+        instance,
+        material: material ?? -1,
+        box: new Float64Array(6),
+        id: -1,
+        near: Infinity,
+        out: false,
+      } as Placed
       locate(p, tile)
       placed.push(p)
-      const counted = counts.get(tile)
-      if (counted) counted.count++
-      else counts.set(tile, { href: cookedHref(model, tile.url), count: 1 })
+      const of = byTile.get(tile)
+      if (of) of.placed.push(p)
+      else byTile.set(tile, { href: cookedHref(model, tile.url), placed: [p] })
     }
   }
-  const held = new Map<CookedTile, TileShape>()
-  for (const [tile, { href, count }] of counts) {
-    const extra = { tile, near: Infinity, seen: -1, slotted: -1, counted: -1, kept: -1 }
-    held.set(
-      tile,
-      shapes.hold('tile', href, tile.bytes, { ...extra, waiting: [], waits: 0 }, count),
-    )
+  for (const [tile, { href, placed: on }] of byTile) {
+    const marks = { tile, near: Infinity, seen: -1, slotted: -1, counted: -1, kept: -1, waits: 0 }
+    const shape = shapes.hold('tile', href, tile.bytes, { ...marks, waiting: [] }, on.length)
+    for (const p of on) p.shape = shape
   }
-  let at = 0
-  for (const { collider } of cooked.instances)
-    for (const tile of cooked.colliders[collider].tiles) placed[at++].shape = held.get(tile)!
   return placed
 }
 

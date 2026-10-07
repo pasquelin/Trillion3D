@@ -1,11 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
-import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
-import { Material } from '../../../sdk-core/src/world/material/material.ts'
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { repeated, residentAt } from './tileShapes.fixture.ts'
-import { landed, owners, settle, streamedModel } from './tiles.fixture.ts'
+import { crate, owners, repeated, residentAt } from './tileShapes.fixture.ts'
+import { cooked, landed, place, settle, streamedModel, tile } from './tiles.fixture.ts'
 
 /** A model placing one tile `count` times, opened within `bodies` bodies and `budget`, and
  *  settled around the origin: the streamer. */
@@ -15,12 +12,9 @@ async function filled(count: number, bodies: number, budget: Partial<PhysicsBudg
   return streamer
 }
 
-/** A page's unit box, its body asking `physics`. */
-const crate = (physics: unknown) => {
-  const mesh = new Mesh(box(1, 1, 1), new Material('meshStandard'))
-  mesh.physics = physics as Mesh['physics']
-  return mesh
-}
+/** Brings the page bodies of `bodies` in line with its scene, a refusal failing the test. */
+const reconciled = (bodies: Awaited<ReturnType<typeof filled>>['bodies']) =>
+  bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
 
 test('a body refused for its bytes takes no tile body’s slot: one is taken only when the slot alone is missing', async () => {
   const { bodies, model } = await filled(100, 8)
@@ -78,9 +72,9 @@ test('a tile body evicted for a page body is built again by the next update alon
     const before = placements(),
       one = crate('dynamic')
     scene.add(one)
-    bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
+    reconciled(bodies)
     scene.remove(one)
-    bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
+    reconciled(bodies)
     for (const p of before) if (p.id < 0) evicted.add(p)
   })
   tiles.update([0, 0, 0], 1e5)
@@ -103,4 +97,40 @@ test('a refused placement leaves its opening of a hundred thousand alone, the re
   await settle(streamer, [0, 0, 0], 1e6)
   // The next nearest sixty-four, none of the refused.
   assert.deepEqual([bodies.count.bodies, Math.min(...residentAt(bodies, 64))], [64, 640])
+})
+
+test('a burst of page bodies takes the farthest tile bodies’ slots, farthest first', async () => {
+  const { bodies, scene } = await filled(100, 8)
+  for (let i = 0; i < 3; i++) scene.add(crate('dynamic'))
+  reconciled(bodies)
+  assert.deepEqual([bodies.count.bodies, Math.max(...residentAt(bodies, 8))], [8, 40])
+})
+
+test('a page mesh past the share the tiles fill lets the farthest tiles go, and they stay out', async () => {
+  // A share of 400 bytes, three tiles of 100, a page mesh of twelve triangles: 192.
+  const tiles = [0, 10, 20].map((x) => ({ ...tile(x), bytes: 100 }))
+  const file = cooked([{ kind: 'mesh', tiles }], [place(0)])
+  const streamer = await streamedModel(file, new Uint8Array(1), { memoryBytes: 800 })
+  const { bodies, scene, errors } = streamer
+  await settle(streamer, [0, 0, 0], 100)
+  assert.equal(bodies.count.collisionBytes, 300)
+  scene.add(crate({ type: 'static', shape: { type: 'triangles' } }))
+  reconciled(bodies)
+  /** What the share holds, and the least x of each resident tile. */
+  const held = () => [bodies.count.collisionBytes, residentAt(bodies, 8).sort((a, b) => a - b)]
+  assert.deepEqual(held(), [392, [0, 10]], 'the farthest tile gone for it')
+  await settle(streamer, [0, 0, 0], 100)
+  assert.deepEqual([...held(), errors], [392, [0, 10], []], 'and not back')
+})
+
+test('a tile landing once page bodies took slots meanwhile builds what the slots left, no failure', async () => {
+  const streamer = await streamedModel(repeated(100), new Uint8Array(1), { bodies: 8 })
+  const { tiles, bodies, scene, errors } = streamer
+  tiles.update([0, 0, 0], 1e5)
+  for (let i = 0; i < 3; i++) scene.add(crate('dynamic'))
+  reconciled(bodies)
+  await landed()
+  assert.deepEqual([bodies.count.bodies, residentAt(bodies, 8).length, errors], [8, 5, []])
+  await settle(streamer, [0, 0, 0], 1e5)
+  assert.deepEqual([bodies.count.bodies, errors], [8, []])
 })

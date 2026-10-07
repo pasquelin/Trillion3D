@@ -24,15 +24,21 @@ export function followModel<O>(
   release: (index: number) => void,
 ) {
   const { made, refused } = opening
-  for (const one of refused.splice(0)) {
+  const waited = refused.length
+  let waiting = 0
+  for (let i = 0; i < waited; i++) {
+    const one = refused[i]
     const { scale } = tilePose({ model, instance: one.body })
-    if (fits(scale, one.scale)) refused.push(one)
+    if (fits(scale, one.scale)) refused[waiting++] = one
     else {
       countNodes(opening, one.body, 1)
       const again = remake(model, opening, one, [scale.x, scale.y, scale.z])
       if (again) made.push(again)
     }
   }
+  // Those a remake refused again, listed past the first, follow the ones still waiting.
+  refused.copyWithin(waiting, waited)
+  refused.length -= waited - waiting
   let kept = 0
   for (const one of made) {
     const { position, quaternion, scale } = tilePose({ model, instance: one.body })

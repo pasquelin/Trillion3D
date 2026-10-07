@@ -3,6 +3,9 @@ import type {
   CookedBody,
   CookedSoftBody,
 } from '../../../sdk-core/src/physics/index.ts'
+import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
+import { Material } from '../../../sdk-core/src/world/material/material.ts'
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import {
   cooked,
@@ -10,7 +13,6 @@ import {
   hull,
   landed,
   modelStreamer,
-  owners,
   place,
   settle,
   stubFetch,
@@ -22,10 +24,7 @@ import {
 export const repeated = (count: number) =>
   cooked(
     [{ kind: 'mesh', tiles: [tile()] }],
-    Array.from({ length: count }, (_, i) => ({
-      ...{ node: i, collider: 0, position: [i * 10, 0, 0] },
-      ...{ rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-    })),
+    Array.from({ length: count }, (_, i) => place(i, { collider: 0 })),
   )
 
 /** What `writer` writes from now on: the handles it restores and releases, and the handle each
@@ -78,3 +77,18 @@ export async function opened(
   await settle({ ...streamer, fetched }, [0, 0, 0], 100)
   return { ...streamer, ...written, fetched }
 }
+
+/** Who holds each of the first `slots` body slots of `bodies`, the empty ones left out. */
+export const owners = (bodies: ReturnType<typeof createPhysicsBodies>, slots: number) =>
+  Array.from({ length: slots }, (_, i) => bodies.slots.at(i)).filter((owner) => !!owner)
+
+/** A page's unit box, its body asking `physics`. */
+export const crate = (physics: unknown) => {
+  const mesh = new Mesh(box(1, 1, 1), new Material('meshStandard'))
+  mesh.physics = physics as Mesh['physics']
+  return mesh
+}
+
+/** How many times `fetched` (`stubFetch`) asked file `name`. */
+export const reads = (fetched: readonly string[], name: string) =>
+  fetched.filter((file) => file === name).length

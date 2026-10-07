@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { castDown, startModule } from './module.fixture.ts'
-import { cooked, fixture, landed, modelStreamer } from './tiles.fixture.ts'
+import { cooked, fixture, landed, modelStreamer, place, stubFetch } from './tiles.fixture.ts'
 
 type Kind = 'heightField' | 'mesh'
 /** The cook's golden tile of each kind and its box: a 5 × 5 height field over x and z from 0 to
@@ -21,15 +21,15 @@ async function grounded(kinds: Kind[]) {
       return { kind, tiles: [{ ...tile, triangles: 2, bounds: BOUNDS[kind] }] }
     }),
   )
-  const instances = kinds.map((_, i) => ({
-    ...{ node: i, collider: i, position: [i * 10, 0, 0] },
-    ...{ rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
-  }))
-  const file = JSON.stringify(cooked(colliders, instances))
-  globalThis.fetch = (async (url: string) =>
-    new Response(
-      url.endsWith('physics.json') ? file : files.get(url.split('/').pop()!)!.slice(),
-    )) as typeof fetch
+  const file = cooked(
+    colliders,
+    kinds.map((_, i) => place(i)),
+  )
+  // Each tile its golden bytes.
+  stubFetch(file, new Uint8Array(0), (name) => {
+    const bytes = files.get(name)
+    return bytes && new Response(bytes.slice())
+  })
   const streamer = modelStreamer({ bodies: 16 })
   streamer.tiles.scan(streamer.scene)
   await landed()

@@ -1,6 +1,6 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
-import type { createPhysicsBodies } from './bodies.ts'
+import type { BodyLedger } from './bodyLedger.ts'
 import { createSimulatedIds } from './simulatedIds.ts'
 import { readShared } from './cookedReads.ts'
 
@@ -36,16 +36,14 @@ export interface SharedShape {
  *  claimed in, and where a failed read or restore is reported. */
 type SharedParts = {
   writer: CommandWriter
-  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claimShape' | 'releaseShape'>
+  ledger: Pick<BodyLedger, 'room' | 'claim' | 'give'>
   failed: (error: EngineError) => void
 }
-
-const held = (shape: SharedShape) => shape.holders > 0
 
 /**
  * The cooked objects a session's bodies are built from, one per kind and object however many
  * models, placements or bodies name it, while one holds it: read once, a failed read reported
- * once; a shape restored once as its bytes land, its bytes claimed then (`claimShape`), under a
+ * once; a shape restored once as its bytes land if they fit, claimed then in the ledger, under a
  * handle of the session's ids (`createSimulatedIds`: a handle taken again is another), and
  * released by `settle` once no user keeps it or nothing holds it — never before, and never twice.
  */
@@ -69,8 +67,18 @@ export class SharedShapes {
     let shape = this.known.get(`${kind} ${url}`)
     if (!shape) {
       shape = {
-        ...{ kind, url, bytes, handle: -1, users: 0, holders: 0, read: null, abort: null },
-        ...{ landed: null, refused: false, listed: false, ...extra },
+        kind,
+        url,
+        bytes,
+        handle: -1,
+        users: 0,
+        holders: 0,
+        read: null,
+        abort: null,
+        landed: null,
+        refused: false,
+        listed: false,
+        ...extra,
       }
       this.known.set(`${kind} ${url}`, shape)
     }
@@ -94,21 +102,20 @@ export class SharedShapes {
   }
   /**
    * Whether `shape` is restored, read first when it is not — in `tries` requests — and restored
-   * as its bytes land if it is still held and `wanted`: false when it is not, when its read
-   * failed, or its restore — reported once here, but past the share, where it waits.
+   * as its bytes land if it is still held, `wanted`, and fits the share: false when it is not —
+   * past the share, it waits, no failure —, when its read failed, or its restore, reported once
+   * here.
    */
-  async restored<S extends SharedShape>(
-    shape: S,
-    wanted: (shape: S) => boolean = held,
-    tries?: number,
-  ) {
+  async restored<S extends SharedShape>(shape: S, wanted?: (shape: S) => boolean, tries?: number) {
     if (shape.handle >= 0) return true
     const bytes = await this.read(shape, tries).catch(() => null)
-    if (!bytes || shape.handle >= 0 || !held(shape) || !wanted(shape)) return shape.handle >= 0
+    const fits = this.parts.ledger.room('collisionBytes') >= shape.bytes
+    if (!bytes || shape.handle >= 0 || !shape.holders || !fits || (wanted && !wanted(shape)))
+      return shape.handle >= 0
     try {
       this.restore(shape, bytes)
     } catch (error) {
-      if ((error as EngineError).code !== 'PHYSICS_BUDGET') this.parts.failed(error as EngineError)
+      this.parts.failed(error as EngineError)
     }
     return shape.handle >= 0
   }
@@ -128,10 +135,12 @@ export class SharedShapes {
       if (!bare[i].users || !bare[i].holders) this.release(bare[i])
     }
     this.bares = 0
+    // Nothing held any more: the list lets go of the shapes it named.
+    if (!this.known.size) bare.length = 0
   }
-  /** Restores `shape` from its object's `bytes`, counted (`claimShape`): refused past the share. */
+  /** Restores `shape` from its object's `bytes`, claimed in the ledger. */
   private restore(shape: SharedShape, bytes: Uint8Array) {
-    this.parts.bodies.claimShape(shape, shape.bytes)
+    this.parts.ledger.claim(shape, shape.bytes)
     this.bytes += shape.bytes
     shape.handle = this.handles.take(shape)
     this.parts.writer.restore(shape.handle, bytes)
@@ -147,7 +156,7 @@ export class SharedShapes {
     if (shape.handle < 0) return
     this.parts.writer.release(shape.handle)
     this.handles.release(shape.handle)
-    this.parts.bodies.releaseShape(shape)
+    this.parts.ledger.give(shape)
     this.bytes -= shape.bytes
     shape.handle = -1
     this.forget(shape)

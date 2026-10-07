@@ -1,10 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
-import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
-import { Material } from '../../../sdk-core/src/world/material/material.ts'
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { recorded, repeated, residentAt } from './tileShapes.fixture.ts'
+import { crate, reads, recorded, repeated, residentAt } from './tileShapes.fixture.ts'
 import { landed, settle, streamedModel } from './tiles.fixture.ts'
 
 /** `repeated(count)` opened by a tile streamer within `budget` (twice `count` bodies), what its
@@ -13,8 +10,11 @@ async function streamed(count: number, budget: Partial<PhysicsBudget> = {}) {
   const streamer = await streamedModel(repeated(count), new Uint8Array(1), {
     ...{ bodies: 2 * count, ...budget },
   })
-  const reads = () => streamer.fetched.filter((name) => name === 't0.bin').length
-  return { ...streamer, ...recorded(streamer.writer), reads }
+  return {
+    ...streamer,
+    ...recorded(streamer.writer),
+    reads: () => reads(streamer.fetched, 't0.bin'),
+  }
 }
 
 test('a tile a model places 1,000 times within range is read once and restored once', async () => {
@@ -93,9 +93,7 @@ test('tile bodies take every free slot; a page body that needs one takes the far
   const { scene, bodies, errors } = streamer
   await settle(streamer, [0, 0, 0], 1e5)
   assert.deepEqual([bodies.count.bodies, Math.max(...residentAt(bodies, 8))], [8, 70])
-  const crate = new Mesh(box(1, 1, 1), new Material('meshStandard'))
-  crate.physics = 'dynamic'
-  scene.add(crate)
+  scene.add(crate('dynamic'))
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
   assert.deepEqual([bodies.count.bodies, Math.max(...residentAt(bodies, 8)), errors], [8, 60, []])
 })

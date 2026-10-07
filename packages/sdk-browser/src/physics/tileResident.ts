@@ -50,10 +50,12 @@ export function createResidentTiles(
     /** Takes tile `p` out for good — its model leaving, its tile or its body refused —, once: its
      *  body removed, its tile let go of; its opening drops it at the next update (`want`). */
     remove(p: Placed) {
-      if (p.left === Infinity) return
+      if (p.out) return
       evict(p)
-      p.left = Infinity
+      p.out = true
       shapes.letGo(p.shape)
+      // Its tile let go of by all: the placements it waited with let go of too.
+      if (!p.shape.holders) p.shape.waiting.length = p.shape.waits = 0
     },
   }
 }

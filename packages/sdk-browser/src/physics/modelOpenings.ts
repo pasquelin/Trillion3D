@@ -9,7 +9,7 @@ import type { Model } from './tilePlace.ts'
  */
 export function createOpenings<O extends { made: { id: number }[] }>(
   release: (index: number) => void,
-  left?: (opening: O) => void,
+  left: (opening: O) => void,
 ) {
   const held = new Map<Model, O>()
   const forget = (model: Model) => {
@@ -17,7 +17,7 @@ export function createOpenings<O extends { made: { id: number }[] }>(
     if (!opening) return
     opening.made.forEach(({ id }) => release(id & BODY_INDEX))
     held.delete(model)
-    left?.(opening)
+    left(opening)
   }
   return {
     get: (model: Model) => held.get(model),

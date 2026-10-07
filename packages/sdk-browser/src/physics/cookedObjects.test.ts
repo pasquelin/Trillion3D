@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cloth, hulled, opened, recorded } from './tileShapes.fixture.ts'
+import { cloth, hulled, opened, owners, reads } from './tileShapes.fixture.ts'
 import {
   compiledModel,
   cooked,
@@ -9,7 +9,6 @@ import {
   hull,
   landed,
   modelStreamer,
-  owners,
   stubFetch,
 } from './tiles.fixture.ts'
 
@@ -21,12 +20,10 @@ test('a hull three declared bodies share is read and restored once, each body bu
   const crates = [0, 1, 2].map((node) =>
     declared(node, [node * 3, 0, 0], { isKinematic: true }, hull()),
   )
-  const fetched = stubFetch({ ...cooked([], []), bodies: crates }, await fixture('cube-hull.bin'))
-  const { tiles, scene, writer, bodies } = modelStreamer({}, 1, crates)
-  const { restored, released, builtOn } = recorded(writer)
-  tiles.scan(scene)
-  await landed()
-  assert.deepEqual([fetched.filter((file) => file === 'hull.bin').length, restored.length], [1, 1])
+  const file = { ...cooked([], []), bodies: crates }
+  const streamer = await opened(file, crates, {}, await fixture('cube-hull.bin'))
+  const { tiles, scene, bodies, restored, released, builtOn, fetched } = streamer
+  assert.deepEqual([reads(fetched, 'hull.bin'), restored.length], [1, 1])
   assert.deepEqual([bodies.count.bodies, builtOn], [3, [restored[0], restored[0], restored[0]]])
   scene.clear()
   tiles.scan(scene)
@@ -37,8 +34,8 @@ test('two cloths made from one settings object read it once, and keep it while t
   const settings = { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 4 }
   const file = cooked([], [], [cloth(0, settings), cloth(1, settings)])
   const { fetched, bodies, errors } = await opened(file, [])
-  const reads = fetched.filter((name) => name === 'cloth.bin').length
-  assert.deepEqual([reads, bodies.count.softVertices, errors], [1, 18, []])
+  const cloths = reads(fetched, 'cloth.bin')
+  assert.deepEqual([cloths, bodies.count.softVertices, errors], [1, 18, []])
 })
 
 test('a declared body’s hull counts no static collision: a share the tiles fill still builds it', async () => {
@@ -57,27 +54,27 @@ test('a hull lives while its opening holds it, every body of it refused, and lea
   scene.clear()
   tiles.scan(scene)
   assert.deepEqual([released.length, bodies.count.collisionBytes], [2, 0], 'its model gone')
-  assert.equal(fetched.filter((name) => name === 'hull.bin').length, 1)
+  assert.equal(reads(fetched, 'hull.bin'), 1)
 })
 
 test('a cloth’s settings serve its remake at its scale, and leave with its model', async () => {
   const settings = { url: 'cloth.bin', sha256: 'c'.repeat(64), bytes: 4 }
   const streamer = await opened(cooked([], [], [cloth(0, settings)]), [])
   const { tiles, scene, model, bodies, fetched } = streamer
-  const reads = () => fetched.filter((name) => name === 'cloth.bin').length
+  const cloths = () => reads(fetched, 'cloth.bin')
   for (const scale of [2, 1]) {
     model.scale.setScalar(scale)
     model.updateMatrixWorld(true)
     tiles.moved(model)
     await landed()
   }
-  assert.deepEqual([reads(), bodies.count.softVertices], [1, 9], 'made again, nothing read')
+  assert.deepEqual([cloths(), bodies.count.softVertices], [1, 9], 'made again, nothing read')
   scene.remove(model)
   tiles.scan(scene)
   scene.add(model)
   tiles.scan(scene)
   await landed()
-  assert.deepEqual([reads(), bodies.count.softVertices], [2, 9], 'opened again: read again')
+  assert.deepEqual([cloths(), bodies.count.softVertices], [2, 9], 'opened again: read again')
 })
 
 test('a second load of an asset makes its cloth from the settings the first one read', async () => {
@@ -90,8 +87,8 @@ test('a second load of an asset makes its cloth from the settings the first one 
   scene.add(compiledModel())
   tiles.scan(scene)
   await landed()
-  const reads = fetched.filter((name) => name === 'cloth.bin').length
-  assert.deepEqual([reads, bodies.count.softVertices], [1, 18])
+  const cloths = reads(fetched, 'cloth.bin')
+  assert.deepEqual([cloths, bodies.count.softVertices], [1, 18])
 })
 
 test('declared bodies on a cooked hull count no static bytes, each or shared, as before the registry', async () => {

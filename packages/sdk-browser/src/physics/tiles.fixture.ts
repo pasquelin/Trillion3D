@@ -41,7 +41,8 @@ export const sharedShapes = (
   bodies: ReturnType<typeof createPhysicsBodies>,
 ) =>
   new SharedShapes({
-    ...{ writer, bodies },
+    writer,
+    ledger: bodies.ledger,
     failed: (error) => {
       throw error
     },
@@ -74,13 +75,12 @@ export async function settle(
   throw new Error('the tiles never settle')
 }
 
-/** Who holds each of the first `slots` body slots of `bodies`, the empty ones left out. */
-export const owners = (bodies: ReturnType<typeof createPhysicsBodies>, slots: number) =>
-  Array.from({ length: slots }, (_, i) => bodies.slots.at(i)).filter((owner) => !!owner)
-
 /** A cooked hull of `bytes` at `url`, as a declared body's shape names it. */
 export const hull = (url = 'hull.bin', bytes = 1) => ({
-  ...{ type: 'cooked', url, sha256: 'h'.repeat(64), bytes },
+  type: 'cooked',
+  url,
+  sha256: 'h'.repeat(64),
+  bytes,
 })
 
 /** A two-triangle tile at `x` along its collider. */
@@ -102,13 +102,19 @@ export const cooked = (colliders: object[], instances: object[], softBodies: obj
 export const modelFiles = (file: object, bytes: Uint8Array) => (url: string) =>
   new Response(url.endsWith('physics.json') ? JSON.stringify(file) : bytes.slice())
 
-/** Answers every fetch from now on with `modelFiles`; the names of the files fetched. */
-export function stubFetch(file: object, bytes: Uint8Array) {
+/** Answers every fetch from now on with what `answer` gives for its file's name, else with
+ *  `modelFiles`; the names of the files fetched. */
+export function stubFetch(
+  file: object,
+  bytes: Uint8Array,
+  answer: (name: string) => object | undefined = () => undefined,
+) {
   const fetched: string[] = []
   const serve = modelFiles(file, bytes)
   globalThis.fetch = (async (url: string) => {
-    fetched.push(url.split('/').pop()!)
-    return serve(url)
+    const name = url.split('/').pop()!
+    fetched.push(name)
+    return answer(name) ?? serve(url)
   }) as typeof fetch
   return fetched
 }

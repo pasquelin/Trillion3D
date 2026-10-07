@@ -1,10 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
-import { Material } from '../../../sdk-core/src/world/material/material.ts'
-import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { SharedShapes } from './sharedShapes.ts'
-import { hulled, opened, recorded, repeated } from './tileShapes.fixture.ts'
+import { crate, hulled, opened, reads, recorded, repeated } from './tileShapes.fixture.ts'
 import {
   compiledModel,
   cooked,
@@ -38,8 +35,8 @@ test('two loads of one asset share its tile: one read, one shape, released once 
   const streamer = await twins()
   const { tiles, scene, model, bodies, restored, released, builtOn, twin, fetched } = streamer
   await settle(streamer, [0, 0, 0], 100)
-  const reads = (name: string) => fetched.filter((file) => file === name).length
-  assert.deepEqual([reads('physics.json'), reads('t0.bin'), restored.length], [2, 1, 1])
+  const files = [reads(fetched, 'physics.json'), reads(fetched, 't0.bin')]
+  assert.deepEqual([...files, restored.length], [2, 1, 1])
   assert.deepEqual([bodies.count.bodies, builtOn], [2, [restored[0], restored[0]]])
   scene.remove(model)
   tiles.scan(scene)
@@ -91,35 +88,29 @@ test('a shape left bodiless again and again is released once', async () => {
 
 test('a 4xx is asked and reported once while its object is held; held again after, asked again', async () => {
   const { file, crates } = hulled(2, 'hull.bin', 1)
-  const fetched = stubFetch(file, new Uint8Array(4))
-  const served = globalThis.fetch
-  globalThis.fetch = (async (url: string) =>
-    url.endsWith('hull.bin')
-      ? (fetched.push('hull.bin'), new Response(null, { status: 404 }))
-      : served(url)) as typeof fetch
+  const fetched = stubFetch(file, new Uint8Array(4), (name) =>
+    name === 'hull.bin' ? new Response(null, { status: 404 }) : undefined,
+  )
   const { tiles, scene, model, errors } = modelStreamer({}, 1, crates)
-  const reads = () => fetched.filter((name) => name === 'hull.bin').length
+  const hulls = () => reads(fetched, 'hull.bin')
   tiles.scan(scene)
   await landed()
-  assert.deepEqual([reads(), errors.length], [1, 1], 'two bodies name it: one request, one report')
+  assert.deepEqual([hulls(), errors.length], [1, 1], 'two bodies name it: one request, one report')
   scene.remove(model)
   tiles.scan(scene)
   scene.add(model)
   tiles.scan(scene)
   await landed()
   assert.deepEqual(
-    [reads(), errors.map((error) => error.code)],
+    [hulls(), errors.map((error) => error.code)],
     [2, ['RESOURCE_HTTP_ERROR', 'RESOURCE_HTTP_ERROR']],
   )
 })
 
 test('a read failing with no error object is reported, never thrown', async () => {
   const { file, crates } = hulled(1, 'hull.bin', 1)
-  const fetched = stubFetch(file, new Uint8Array(4))
-  const served = globalThis.fetch
   const torn = { ok: true, status: 200, arrayBuffer: () => Promise.reject('torn') }
-  globalThis.fetch = (async (url: string) =>
-    url.endsWith('hull.bin') ? (fetched.push('hull.bin'), torn) : served(url)) as typeof fetch
+  stubFetch(file, new Uint8Array(4), (name) => (name === 'hull.bin' ? torn : undefined))
   const { tiles, scene, errors } = modelStreamer({}, 1, crates)
   tiles.scan(scene)
   await landed()
@@ -131,7 +122,7 @@ test('a shape past the share as it lands is left unrestored, never built on, and
   // A share of 4 bytes, past which a tile of ten waits.
   const { bodies, writer } = modelStreamer({ memoryBytes: 8 })
   const { restored } = recorded(writer)
-  const shapes = new SharedShapes({ writer, bodies, failed: assert.fail })
+  const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed: assert.fail })
   const shape = shapes.hold('tile', 'https://cache.test/model/x.bin', 10, {})
   assert.equal(await shapes.restored(shape), false)
   assert.deepEqual([shape.handle, restored, bodies.count.collisionBytes], [-1, [], 0])
@@ -139,20 +130,21 @@ test('a shape past the share as it lands is left unrestored, never built on, and
 
 test('a shared shape’s bytes are claimed in the bodies’ ledger under it, checked as theirs', () => {
   // A share of 4 bytes.
-  const { bodies } = modelStreamer({ memoryBytes: 8 })
+  const { ledger, count } = modelStreamer({ memoryBytes: 8 }).bodies
   const [shape, other] = [{}, {}]
-  bodies.claimShape(shape, 3)
-  assert.throws(() => bodies.claimShape(other, 2), { code: 'PHYSICS_BUDGET' })
-  bodies.releaseShape(shape)
-  bodies.claimShape(other, 2)
-  assert.equal(bodies.count.collisionBytes, 2)
+  ledger.claim(shape, 3)
+  assert.equal(ledger.room('collisionBytes'), 1)
+  assert.throws(() => ledger.claim(other, 2), { code: 'PHYSICS_BUDGET' })
+  ledger.give(shape)
+  ledger.claim(other, 2)
+  assert.equal(count.collisionBytes, 2)
 })
 
 test('a shape whose last holder let go while it was read is never restored', async () => {
   stubFetch(cooked([], []), new Uint8Array(4))
   const { bodies, writer } = modelStreamer()
   const { restored } = recorded(writer)
-  const shapes = new SharedShapes({ writer, bodies, failed: assert.fail })
+  const shapes = new SharedShapes({ writer, ledger: bodies.ledger, failed: assert.fail })
   const shape = shapes.hold('hull', 'https://cache.test/model/x.bin', 0, {})
   const made = shapes.restored(shape)
   shapes.letGo(shape)
@@ -170,9 +162,7 @@ test('bytes landing for a tile no update lets in any more count nothing: a page 
   // Left out before its bytes land: they are dropped.
   tiles.update([100, 0, 0], 10)
   await landed()
-  const wall = new Mesh(box(1, 1, 1), new Material('meshStandard'))
-  wall.physics = { type: 'static', shape: { type: 'triangles' } }
-  scene.add(wall)
+  scene.add(crate({ type: 'static', shape: { type: 'triangles' } }))
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)))
   assert.deepEqual([bodies.count.collisionBytes, restored], [192, []])
 })

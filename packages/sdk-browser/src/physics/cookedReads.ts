@@ -6,7 +6,7 @@ import { checked, optionalFile, retriableError } from '../cluster/checked.ts'
 
 /** The bytes of a cooked object — a tile, a hull, a soft body's settings — read as every cache
  *  file is (`checked`, in `tries` requests), until `signal` aborts. */
-export async function cookedBytes(href: string, signal: AbortSignal, tries?: number) {
+async function cookedBytes(href: string, signal: AbortSignal, tries?: number) {
   const response = await checked(href, signal, tries)
   return new Uint8Array(await response.arrayBuffer())
 }

@@ -10,7 +10,8 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
-import { cooked, landed, owners, place, settle, streamedModel, tile } from './tiles.fixture.ts'
+import { owners } from './tileShapes.fixture.ts'
+import { cooked, landed, place, settle, streamedModel, tile } from './tiles.fixture.ts'
 import { createWorldPhysics } from './worldPhysics.ts'
 
 /** Tiles of the generated scene, 10 m apart along x, and the triangles of each: 15 M in all. */
