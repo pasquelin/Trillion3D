@@ -7,7 +7,7 @@ import { NATIVE_CRATES } from './native-crates.ts'
 // tests, each through `assertGolden('<name>', …)` (`packages/math/src/golden.fixture.ts`).
 
 /** A file of reference values; its name is the first group. */
-export const GOLDEN = /^packages\/math\/golden\/(\w+)\.json$/
+export const GOLDEN = /^packages\/math\/golden\/([^/]+)\.json$/
 
 export interface GoldenChecks {
   /** The crates, from the repository root, whose `golden_twins` test reads a changed file. */
@@ -22,7 +22,10 @@ export function goldenChecks(
   paths: readonly string[],
   read = (file: string) => readFileSync(file, 'utf8'),
 ): GoldenChecks {
-  const names = [...changed].flatMap((file) => GOLDEN.exec(file)?.[1] ?? [])
+  // A name is matched as written: a `.` or a `+` in it is no pattern.
+  const names = [...changed]
+    .flatMap((file) => GOLDEN.exec(file)?.[1] ?? [])
+    .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   const reads = (file: string, pattern: (name: string) => RegExp) =>
     names.some((name) => pattern(name).test(read(file)))
   return {

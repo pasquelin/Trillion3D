@@ -18,6 +18,9 @@ trillion3d-math = { path = "../math/rust" }
 # The reader of the reference values the codec's mirrored primitives are tested against.
 [dev-dependencies]
 trillion3d-math = { path = "../math/rust", features = ["golden"] }
+# fdlibm's `log2` in pure Rust from musl (MIT), the same on every host: what the integer
+# logarithms of `src/bits/log2.rs` are tested against beside their exact integers.
+libm = "0.2.16"
 
 [profile.release]
 lto = true

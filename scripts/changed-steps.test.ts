@@ -39,3 +39,24 @@ test('a changed reference value runs the golden tests that read it', () => {
     tests: [],
   })
 })
+
+// Behaviour: a reference file is found whatever its name holds — a dash, a dot —, the name matched
+// as written, never as a pattern.
+test('a reference file of any name runs the golden tests that read it', () => {
+  const sources: Record<string, string> = {
+    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "page-grid.v2",',
+    'packages/math/src/grid.golden.test.ts': "assertGolden('page-grid.v2', 'tile'",
+    'packages/math/src/other.golden.test.ts': "assertGolden('page-gridXv2', 'tile'",
+  }
+  assert.deepEqual(
+    goldenChecks(
+      ['packages/math/golden/page-grid.v2.json'],
+      Object.keys(sources),
+      (path) => sources[path],
+    ),
+    {
+      crates: ['packages/math/rust'],
+      tests: ['packages/math/src/grid.golden.test.ts'],
+    },
+  )
+})

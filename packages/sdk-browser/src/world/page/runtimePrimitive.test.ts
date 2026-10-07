@@ -115,10 +115,10 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
   }
 })
 
-// Without the SDK module a cut keeps the compiler's tiled grid (`cutGrid.ts`, the TypeScript twin of
-// its rules): a kilometre plane takes the finest grid a page holds, 2^-13, coarser than the tile's
-// 2^-15 a page of that width could not hold.
-test('without the SDK module a kilometre plane takes the finest grid a page holds', async () => {
+// A cut keeps the compiler's tiled grid (`cutGrid.ts`, the TypeScript twin of its rules): a
+// kilometre plane takes the finest grid a page holds, 2^-13, coarser than the tile's 2^-15 a page
+// of that width could not hold.
+test('a kilometre plane takes the finest grid a page holds', async () => {
   const cut = await cutDrawnTriangles(
     drawnTriangles(geometry.plane(1000, 1000), 'triangles')!,
     false,
