@@ -16,17 +16,9 @@ import { uniformStride } from '../../residency/pools.ts'
 import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { COMPUTE } from '../core/computeBindings.ts'
 import { WORLD_REBASE_WGSL } from './worldRebaseWgsl.ts'
+import { packDoubles } from '../../placement/composedMotion.ts'
 
 type Ranges = GpuSelection['worldRanges']
-
-/** A double's IEEE bits as the shader holds them: high word, then low word. */
-const bits = new Float64Array(1),
-  words = new Uint32Array(bits.buffer)
-function writeDoubleWords(out: Uint32Array, at: number, value: number) {
-  bits[0] = value
-  out[at] = words[1]
-  out[at + 1] = words[0]
-}
 
 /** The pass over every range of the cut's worlds, its pipeline compiled once. */
 export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
@@ -67,7 +59,7 @@ export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
       ranges.forEach(({ count }, r) => {
         const at = (r * stride) / 4
         params[at] = count
-        for (let a = 0; a < 3; a++) writeDoubleWords(params, at + 2 + 2 * a, eye[a])
+        packDoubles(params, at + 2, eye, 0, 3)
       })
       device.queue.writeBuffer(uniforms, 0, params)
       const pass = encoder.beginComputePass({ label: 'Trillion3D world rebase' })

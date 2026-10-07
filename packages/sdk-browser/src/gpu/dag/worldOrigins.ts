@@ -1,26 +1,17 @@
 import type { PackedDag } from './types.ts'
+import { packDoubles } from '../../placement/composedMotion.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
  *  translation as three doubles, high word then low word, as the GPU holds a double (`DOUBLE_WGSL`),
  *  and two words of padding. The cut's worlds are brought to the eye from them (`worldRebase.ts`). */
 export const WORLD_ORIGIN_BYTES = 32
 
-const bits = new Float64Array(1),
-  bitWords = new Uint32Array(bits.buffer)
-
 /** Writes one placement's exact translation, three doubles, into `out` (words) from `at`. */
-function writeOrigin(
+const writeOrigin = (
   out: Uint32Array,
   at: number,
   source: NonNullable<PackedDag['worldSources']>[number],
-) {
-  const e = source.world.elements
-  for (let axis = 0; axis < 3; axis++) {
-    bits[0] = e[12 + axis]
-    out[at + 2 * axis] = bitWords[1]
-    out[at + 2 * axis + 1] = bitWords[0]
-  }
-}
+) => packDoubles(out, at, source.world.elements, 12, 3)
 
 export function createWorldOrigins(
   device: GPUDevice,
