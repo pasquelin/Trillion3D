@@ -164,11 +164,12 @@ function allocatePacking(capacity: DagCapacity, shared: PackShared): Packing {
  * What a packing of `roots` at `capacity` holds before any is written: its live counts, the
  * placement tree over every placement but the world DAG's — wherever it sits, which starts its own
  * descent —, laid out for the capacity's placements, and its levels: a member's lie below the
- * tree's. A packing that holds the world DAG keeps no room.
+ * tree's. The world DAG's rank is named (`PackedWorld.root`), so a packing that holds it keeps
+ * room as any other, its links laid out for every placement the room takes.
  */
 function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagCapacity) {
   const world = roots.findIndex((root) => root.origins),
-    room = world < 0 ? capacity : undefined,
+    room = capacity,
     worlds = Math.max(roots.length, room?.worlds ?? 0),
     members = worlds - (world >= 0 ? 1 : 0)
   // The tree's nodes follow every placement's, the room's included: an append fills those first.
@@ -191,7 +192,7 @@ function packPlan(roots: readonly DagRoot[], shared: PackShared, capacity?: DagC
  * shift leads the page to its record (`layout.ts`). Nodes stay per placement, and the placement
  * tree's follow them all (`placementTree.ts`). A packing with room past its roots (a growth's,
  * `grownCapacity`) takes later placements of its primitives in place (`appendDagRoots`), each a
- * member of its tree; one that packs the world DAG keeps none.
+ * member of its tree and linked to the world DAG as the others.
  */
 export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapacity): PackedDag {
   const shared = emptyShared()
@@ -240,7 +241,9 @@ export function packDagSelection(roots: readonly DagRoot[], capacity?: DagCapaci
     ...(room && { shared }),
     ...(tree && { placementTree: tree }),
     ...(world >= 0 && {
-      world: packWorldLinks(roots, [world, p.recordShift[world]], p.cutLinks, cold, linkBase),
+      world: packWorldLinks(roots, [world, p.recordShift[world]], plan.worlds, {
+        ...{ cutLinks: p.cutLinks, cold, at: linkBase },
+      }),
     }),
   }
 }
@@ -257,7 +260,7 @@ function recordTables(
   p: Packing,
   records: ReturnType<typeof createRecordTable>,
   pages: number,
-  { tree, world }: ReturnType<typeof packPlan>,
+  { tree, world, worlds }: ReturnType<typeof packPlan>,
 ) {
   const recordSlots = Math.max(1, records.count),
     coldAt = coldBase(pages)
@@ -265,7 +268,7 @@ function recordTables(
   const members = coldAt + recordSlots * COLD_WORDS,
     linkBase = members + (tree?.capacity ?? 0)
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
-    pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(roots.length) : 0)),
+    pageCones = new Float32Array(linkBase + (world >= 0 ? worldLinkWords(worlds) : 0)),
     cold = new Uint32Array(pageCones.buffer)
   cold.set(p.pageWorlds)
   if (tree) cold.set(tree.order, (tree.members = members))

@@ -76,22 +76,22 @@ export const worldLinkWords = (worldCount: number) => 1 + worldCount
 
 /**
  * The world DAG of `roots`, packed at `world` with `cutLinks` and its record `shift`, written into
- * the cold table `cold` from `at`: the shift, then one link per placement (`linkBase`), none until
- * a placement says which object it places (`GpuSelection.placeObject`, `worldFollow.ts`).
+ * the cold table `cold` from `at`: the shift, then one link per placement slot of the packing —
+ * `slots`, those a growth appends included (`linkBase`) —, none until a placement says which
+ * object it places (`GpuSelection.placeObject`, `worldFollow.ts`).
  */
 export function packWorldLinks(
   roots: readonly DagRoot[],
   [world, shift]: [number, number],
-  cutLinks: readonly DagCutLinks[],
-  cold: Uint32Array,
-  at: number,
+  slots: number,
+  { cutLinks, cold, at }: { cutLinks: readonly DagCutLinks[]; cold: Uint32Array; at: number },
 ): PackedWorld {
   const linkBase = at + 1
   cold[at] = shift
   const origins = roots[world].origins!,
     clusterOf = objectClusters(origins),
     base = cutLinks[world].pageBase
-  const links = new Uint32Array(roots.length).fill(NONE)
+  const links = new Uint32Array(Math.max(slots, roots.length)).fill(NONE)
   cold.set(links, linkBase)
   const linkOf = (object: number) => {
     const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1
