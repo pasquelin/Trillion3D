@@ -3,7 +3,7 @@
 //! the header carries, measured with `dequant` itself.
 
 use super::{bits_for, pow2, MAX_BITS, MAX_EXPONENT};
-use trillion3d_math::aabb::aabb_of;
+use trillion3d_math::aabb::extend_aabb;
 
 /// A grid value back to its float: `min + q * step`, the product exact, the sum rounded once.
 pub fn dequant(min: f32, q: u32, step: f32) -> f32 {
@@ -83,10 +83,15 @@ pub fn quantize<const N: usize>(
 ) -> Result<(Quant<N>, Vec<[u32; N]>), QuantRefusal> {
     let count = values.len() / N;
     let step = f64::from(pow2(exponent));
+    // The box grows in the pass that rounds the cells, as `aabb_of` would grow it after them.
+    let (mut lo, mut hi) = ([f64::INFINITY; N], [f64::NEG_INFINITY; N]);
     let grid: Vec<[f64; N]> = (0..count)
-        .map(|i| core::array::from_fn(|c| (f64::from(values[i * N + c]) / step).round()))
+        .map(|i| {
+            let cell = core::array::from_fn(|c| (f64::from(values[i * N + c]) / step).round());
+            extend_aabb(&mut lo, &mut hi, cell);
+            cell
+        })
         .collect();
-    let (lo, hi) = aabb_of(grid.iter().copied());
     let range = |c: usize| hi[c] - lo[c];
     if (0..N).any(|c| range(c) >= (1u64 << MAX_BITS) as f64) {
         return Err(QuantRefusal::Range);

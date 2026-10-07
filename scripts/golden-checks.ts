@@ -26,25 +26,23 @@ export function goldenChecks(
   const names = [...changed]
     .flatMap((file) => GOLDEN.exec(file)?.[1] ?? [])
     .map((name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const reads = (file: string, pattern: (name: string) => RegExp) =>
-    names.some((name) => pattern(name).test(read(file)))
+  if (!names.length) return { crates: [], tests: [] }
+  // Every changed name in one pattern per reader, each candidate file read once.
+  const anyName = names.join('|')
+  const twin = new RegExp(`file:\\s*"(?:${anyName})"`)
+  const golden = new RegExp(`assertGolden\\(\\s*'(?:${anyName})'`)
+  const texts = new Map<string, string>()
+  const reads = (file: string, pattern: RegExp) => {
+    const text = texts.get(file) ?? read(file)
+    texts.set(file, text)
+    return pattern.test(text)
+  }
   return {
-    crates: !names.length
-      ? []
-      : NATIVE_CRATES.map((crate) => crate.path).filter((crate) =>
-          paths.some(
-            (file) =>
-              file.startsWith(`${crate}/src/`) &&
-              file.endsWith('.rs') &&
-              reads(file, (name) => new RegExp(`file:\\s*"${name}"`)),
-          ),
-        ),
-    tests: !names.length
-      ? []
-      : paths.filter(
-          (file) =>
-            file.endsWith('.golden.test.ts') &&
-            reads(file, (name) => new RegExp(`assertGolden\\(\\s*'${name}'`)),
-        ),
+    crates: NATIVE_CRATES.map((crate) => crate.path).filter((crate) =>
+      paths.some(
+        (file) => file.startsWith(`${crate}/src/`) && file.endsWith('.rs') && reads(file, twin),
+      ),
+    ),
+    tests: paths.filter((file) => file.endsWith('.golden.test.ts') && reads(file, golden)),
   }
 }

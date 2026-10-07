@@ -60,3 +60,25 @@ test('a reference file of any name runs the golden tests that read it', () => {
     },
   )
 })
+
+// Behaviour: several changed reference files read each candidate once, every name tested against
+// it at once.
+test('several changed reference files read each candidate once', () => {
+  const sources: Record<string, string> = {
+    'packages/page-codec-wasm/src/golden_tests/grid.rs': 'Twin {\n    file: "grid",',
+    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "acos",',
+    'packages/page-codec/src/gridExponent.golden.test.ts': "assertGolden('grid', 'tile_log2'",
+    'packages/math/src/float/trig.golden.test.ts': "assertGolden('acos', 'acos'",
+  }
+  const reads: string[] = []
+  const changed = ['packages/math/golden/grid.json', 'packages/math/golden/acos.json']
+  const checks = goldenChecks(changed, Object.keys(sources), (path) => {
+    reads.push(path)
+    return sources[path]
+  })
+  assert.deepEqual(checks, {
+    crates: ['packages/page-codec-wasm', 'packages/math/rust'],
+    tests: Object.keys(sources).filter((file) => file.endsWith('.golden.test.ts')),
+  })
+  assert.deepEqual(reads.toSorted(), Object.keys(sources).toSorted())
+})

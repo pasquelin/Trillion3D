@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
@@ -51,27 +51,11 @@ export function firstNewer(
   return null
 }
 
-/**
- * The folders of `crate` and of the crates its manifest names by a `path`, theirs too: where a Rust
- * input of the binary can be. A superset — every `path = "…"` of every table, a test-only one too —,
- * since it only chooses where to look for a newer file; the binary's own list decides.
- */
-function crateFolders(crate: string): string[] {
-  const folders = [crate]
-  for (let at = 0; at < folders.length; at++) {
-    const manifest = readFileSync(join(folders[at], 'Cargo.toml'), 'utf8')
-    for (const [, path] of manifest.matchAll(/\bpath\s*=\s*["']([^"']*)["']/g)) {
-      const folder = join(folders[at], path)
-      if (!folders.includes(folder) && modified(join(folder, 'Cargo.toml'))) folders.push(folder)
-    }
-  }
-  return folders
-}
-
-/** The files a compiler's build hashed, as paths from its crate, or null when it cannot tell. */
+/** The lines of `trillion3d-compiler --build-inputs`: the crate folders its build read, each
+ *  ending in `/`, then the files it hashed, as paths from its crate; null when it cannot tell. */
 type BuildInputs = (binary: string) => string[] | null
 
-/** Asks the binary (`trillion3d-compiler --build-inputs`); null for one built before the flag. */
+/** Asks the binary; null for one built before the flag. */
 const askBinary: BuildInputs = (binary) => {
   const run = spawnSync(binary, ['--build-inputs'], { encoding: 'utf8', timeout: 30_000 })
   if (run.status !== 0) return null
@@ -81,24 +65,58 @@ const askBinary: BuildInputs = (binary) => {
     .filter(Boolean)
 }
 
-/** The binary's list by binary and build time: asked once per build, not on every launch. */
-const listed = new Map<string, { builtAt: number; files: string[] | null }>()
-function listOf(binary: string, builtAt: number, ask: BuildInputs) {
+/** What a build read: the folders of its crates and the files it hashed, from its crate. */
+type Listing = { folders: string[]; files: string[] } | null
+
+function listing(lines: string[] | null): Listing {
+  if (!lines) return null
+  const folders = lines.filter((line) => line.endsWith('/')).map((line) => line.slice(0, -1))
+  return folders.length ? { folders, files: lines.filter((line) => !line.endsWith('/')) } : null
+}
+
+/** The answer of a build, kept beside its binary: a new process reads it rather than spawn it. */
+const answerFile = (binary: string) => `${binary}.build-inputs.json`
+
+function storedAnswer(binary: string, builtAt: number): Listing | undefined {
+  try {
+    const stored = JSON.parse(readFileSync(answerFile(binary), 'utf8')) as {
+      builtAt: number
+      listing: Listing
+    }
+    return stored.builtAt === builtAt ? stored.listing : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** The binary's answer by binary and build time: asked once per build, not on every launch nor
+ *  in every process — in memory, then on disk beside the binary. */
+const listed = new Map<string, { builtAt: number; listing: Listing }>()
+function listOf(binary: string, builtAt: number, ask: BuildInputs): Listing {
   const known = listed.get(binary)
-  if (known?.builtAt === builtAt) return known.files
-  const files = ask(binary)
-  listed.set(binary, { builtAt, files })
-  return files
+  if (known?.builtAt === builtAt) return known.listing
+  let answer = storedAnswer(binary, builtAt)
+  if (answer === undefined) {
+    answer = listing(ask(binary))
+    try {
+      writeFileSync(answerFile(binary), JSON.stringify({ builtAt, listing: answer }))
+    } catch {
+      // A read-only build folder: the next process asks again.
+    }
+  }
+  listed.set(binary, { builtAt, listing: answer })
+  return answer
 }
 
 /**
  * The input a built compiler is older than, or null when the binary is current. Null too when
  * there is nothing to compare: no binary (the launch reports it by contract) or no crate sources
- * beside it (an installed package ships the binary alone). Only timestamps are read while nothing
- * is newer, so a current binary costs one directory walk. A newer file in a crate's folder may be
- * test code, which the build leaves out: the binary's list of what it hashed then decides, so a
- * launch calls it stale exactly when its hash would move — and any newer file does for a binary
- * that cannot tell.
+ * beside it (an installed package ships the binary alone). The binary names the crate folders its
+ * build read, once per build; only timestamps are read while nothing in them is newer, so a
+ * current binary costs one directory walk. A newer file there may be test code, which the build
+ * leaves out: the binary's list of what it hashed then decides, so a launch calls it stale exactly
+ * when its hash would move. A binary that cannot tell — built before `--build-inputs` — names no
+ * crate either: any newer file of its own crate makes it stale.
  */
 export function sourceNewerThan(
   binary: string,
@@ -111,14 +129,13 @@ export function sourceNewerThan(
     const newer = firstNewer(join(crate, input), built.mtimeMs)
     if (newer) return newer
   }
-  const watched = [join(crate, CARGO_CONFIG), ...crateFolders(crate)]
-  const newer = watched.reduce<string | null>(
+  const read = listOf(binary, built.mtimeMs, ask)
+  const folders = read ? read.folders.map((folder) => join(crate, folder)) : [crate]
+  const newer = [join(crate, CARGO_CONFIG), ...folders].reduce<string | null>(
     (found, path) => found ?? firstNewer(path, built.mtimeMs, product),
     null,
   )
-  if (!newer) return null
-  const files = listOf(binary, built.mtimeMs, ask)
-  if (!files) return newer
-  const inputs = files.map((file) => join(crate, file))
+  if (!newer || !read) return newer
+  const inputs = read.files.map((file) => join(crate, file))
   return inputs.find((input) => (modified(input)?.mtimeMs ?? 0) > built.mtimeMs) ?? null
 }

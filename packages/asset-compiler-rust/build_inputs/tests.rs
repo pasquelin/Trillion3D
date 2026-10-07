@@ -124,6 +124,35 @@ fn inline_modules_are_followed() {
     );
 }
 
+// Behaviour: a `#[path]` on an inline module names its children's folder as rustc reads it: from
+// the declaring file's folder outside every inline module, a named file as a `mod.rs` — no folder
+// of its stem —, and from the folder of its parent's children inside one.
+#[test]
+fn a_path_on_an_inline_module_is_its_childrens_folder() {
+    let text = "#[path = \"t\"] mod m { mod x; }";
+    for file in [
+        "src/a/b.rs",
+        "src/a/mod.rs",
+        "src/a/lib.rs",
+        "src/a/main.rs",
+    ] {
+        assert_eq!(
+            read(file, text),
+            [(PathBuf::from("src/a/t/x"), false, false)],
+            "{file}"
+        );
+    }
+    let nested = "mod n { #[path = \"t\"] mod m { mod x; } }";
+    assert_eq!(
+        read("src/a/b.rs", nested),
+        [(PathBuf::from("src/a/b/n/t/x"), false, false)]
+    );
+    assert_eq!(
+        read("src/a/mod.rs", nested),
+        [(PathBuf::from("src/a/n/t/x"), false, false)]
+    );
+}
+
 // Behaviour: `#[cfg(test)]` at any spacing gates its module, and an inline module's gate holds for
 // what it declares, to the deepest, not for what follows it.
 #[test]

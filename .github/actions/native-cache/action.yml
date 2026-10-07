@@ -25,18 +25,20 @@ outputs:
 runs:
   using: composite
   steps:
-    # Keyed on the CONTENT of the Rust sources, the message catalogue the compiler embeds, and the
-    # golden values and fixtures the native tests read: a hit skips those tests (`quality.yml`)
-    # (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The crates are
-    # globbed, never listed: every crate at `packages/<name>` or `packages/<name>/<dir>` — its
-    # manifest, lock and Rust sources — so a crate the compiler comes to link is keyed already;
-    # the globs stop at that depth, short of the `node_modules` and the Jolt tree.
+    # Keyed on the CONTENT of the Rust sources, every other input the compiler's build script
+    # hashes or watches (`asset-compiler-rust/build.rs`: the physics cook's C++ and headers, the
+    # Jolt tree, the cargo configuration's C++ flags), the message catalogue the compiler embeds,
+    # and the golden values and fixtures the native tests read: a hit skips those tests
+    # (`quality.yml`) (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The
+    # crates are globbed, never listed: every crate at `packages/<name>` or `packages/<name>/<dir>`
+    # — its manifest, lock and Rust sources — so a crate the compiler comes to link is keyed
+    # already; the globs stop at that depth, short of the `node_modules` and the Jolt tree.
     - uses: actions/cache/restore@v4
       id: native
       with:
         path: packages/asset-compiler-rust/target/release/trillion3d-compiler
         lookup-only: ${{ inputs.lookup-only }}
-        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', 'packages/*/Cargo.*', 'packages/*/*/Cargo.*', 'packages/*/src/**/*.rs', 'packages/*/*/src/**/*.rs', '!packages/**/target/**', 'packages/math/golden/**', 'packages/sdk-node/src/messages/messages.json', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
+        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', 'packages/*/Cargo.*', 'packages/*/*/Cargo.*', 'packages/*/src/**/*.rs', 'packages/*/*/src/**/*.rs', '!packages/**/target/**', 'packages/math/golden/**', 'packages/sdk-node/src/messages/messages.json', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/src/mesh.h', 'packages/physics-jolt-wasm/src/softSettings.h', 'packages/physics-jolt-wasm/src/words.h', '.cargo/config.toml', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
     # A restored binary keeps the time it was built at, older than this checkout's files, and a
     # launch refuses a compiler older than its sources (`sdk-node/src/compiler/freshness.mts`).
     # The key above already proves these sources built it: it takes the checkout's time.

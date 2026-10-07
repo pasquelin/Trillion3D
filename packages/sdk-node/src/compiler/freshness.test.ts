@@ -97,23 +97,20 @@ test('no binary or no crate sources is not a refusal', async () => {
 })
 
 // Behaviour: the crates the compiler links — the page codec, and the maths through it — are built
-// into it: an edit in either is a stale build — their folders found from the manifests, the
-// edited file from the list the binary prints of what its build hashed.
-const MANIFESTS: Record<string, string> = {
-  'asset-compiler-rust': '[dependencies]\ncodec = { path = "../page-codec-wasm" }\n',
-  'page-codec-wasm': '[dependencies]\nmath = {path="../math/rust"}\n',
-  'math/rust': '[package]\n',
-}
+// into it: an edit in either is a stale build — their folders and the edited file both from what
+// the binary prints of its build, no manifest read.
+const CRATES = ['asset-compiler-rust', 'page-codec-wasm', 'math/rust']
 
-/** What the compiler's binary answers to `--build-inputs` here: the manifests and the libraries,
- *  never the test code; counted, to prove it is asked once per build. */
+/** What the compiler's binary answers to `--build-inputs` here: its crate folders, then the
+ *  manifests and the libraries, never the test code; counted, to prove it is asked once per
+ *  build. */
 function stubBinary() {
   const asked: string[] = []
   const inputs = (binary: string) => {
     asked.push(binary)
-    return ['Cargo.toml', 'src/lib.rs', '../page-codec-wasm/Cargo.toml']
-      .concat(['../page-codec-wasm/src/lib.rs', '../math/rust/Cargo.toml'])
-      .concat(['../math/rust/src/lib.rs'])
+    return ['./', '../math/rust/', '../page-codec-wasm/', 'Cargo.toml', 'src/lib.rs']
+      .concat(['../page-codec-wasm/Cargo.toml', '../page-codec-wasm/src/lib.rs'])
+      .concat(['../math/rust/Cargo.toml', '../math/rust/src/lib.rs'])
   }
   return { asked, inputs }
 }
@@ -125,9 +122,9 @@ async function linkedCrates() {
   await mkdir(join(root, 'target/release'), { recursive: true })
   await writeFile(binary, '')
   const files = [binary]
-  for (const [crate, manifest] of Object.entries(MANIFESTS)) {
+  for (const crate of CRATES) {
     await mkdir(join(packages, crate, 'src/golden'), { recursive: true })
-    await writeFile(join(packages, crate, 'Cargo.toml'), manifest)
+    await writeFile(join(packages, crate, 'Cargo.toml'), '[package]\n')
     await writeFile(join(packages, crate, 'src/lib.rs'), '#[cfg(test)]\nmod screen;\n')
     for (const test of ['src/lib_tests.rs', 'src/golden/value.rs', 'src/screen.rs'])
       await writeFile(join(packages, crate, test), '')
@@ -155,7 +152,8 @@ for (const linked of ['page-codec-wasm', 'math/rust'])
 
 // Behaviour: test code is not built into the compiler: a test, the golden harness or a
 // `#[cfg(test)]` module edited after the build leaves it current, as it leaves its hash — the
-// binary's own list says so, asked once for as many launches as its build serves.
+// binary's own list says so, asked once for as many launches as its build serves, in this process
+// and in a new one, which reads the answer kept beside the binary.
 test('editing test code leaves the compiler current, the binary asked once per build', async () => {
   const { packages, root, binary } = await linkedCrates()
   const { asked, inputs } = stubBinary()
@@ -167,6 +165,11 @@ test('editing test code leaves the compiler current, the binary asked once per b
     assert.equal(sourceNewerThan(binary, root, inputs), null)
     assert.equal(sourceNewerThan(binary, root, inputs), null)
     assert.deepEqual(asked, [binary])
+    const another = (await import(`./freshness.mts?process=${Date.now()}`)) as {
+      sourceNewerThan: typeof sourceNewerThan
+    }
+    assert.equal(another.sourceNewerThan(binary, root, inputs), null)
+    assert.deepEqual(asked, [binary])
     await utimes(binary, 2_500, 2_500)
     assert.equal(sourceNewerThan(binary, root, inputs), null)
     assert.deepEqual(asked, [binary, binary])
@@ -176,11 +179,16 @@ test('editing test code leaves the compiler current, the binary asked once per b
 })
 
 // Behaviour: a binary that cannot tell what it was built from — one built before
-// `--build-inputs` — is stale on any newer file of its crates, test code too.
-test('a binary that cannot list its inputs is stale on any newer file', async () => {
+// `--build-inputs` — names no crate folder either: any newer file of its own crate, test code
+// too, makes it stale.
+test('a binary that cannot list its inputs is stale on any newer file of its crate', async () => {
   const { packages, root, binary } = await linkedCrates()
-  const test = join(packages, 'math/rust', 'src/lib_tests.rs')
+  const test = join(root, 'src/lib_tests.rs')
   try {
+    assert.equal(
+      sourceNewerThan(binary, root, () => null),
+      null,
+    )
     await utimes(test, 3_000, 3_000)
     assert.equal(
       sourceNewerThan(binary, root, () => null),

@@ -63,7 +63,8 @@ const objectUnits = (metres: number, scale: number | null) =>
 export const tileLog2 = (scale: number | null) =>
   floorLog2(objectUnits(2 ** TILE_EXTENT_LOG2, scale))
 
-/** The finest grid on which a positive `span` fits a page's field: at most 2^23 steps
+/** The finest grid on which a positive `span` fits a page's field: at most 2^23 steps; a NaN or
+ *  a negative span 2^-23, a zero the finest grid, an infinite one the coarsest
  *  (`finest_exponent`). */
 const finestExponent = (span: number) => clamp(ceilLog2(span) - (MAX_BITS - 1))
 

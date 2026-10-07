@@ -2,6 +2,8 @@
 //! finest grid a span fits, a tile's width, the position grid and the texture grid.
 
 use crate::bits::grid::{finest_exponent, primitive_grid_exponent, tile_log2, uv_grid_exponent};
+// `libm`'s pure-Rust `exp2`, the same on every host: the inputs never follow the host's libm.
+use libm::exp2;
 use trillion3d_math::golden::{f64s, ordinary, Twin, Value, HOSTILE_F64};
 
 pub(crate) fn twins() -> [Twin; 4] {
@@ -95,9 +97,9 @@ fn powers_of_two() -> Vec<f64> {
     .collect()
 }
 
-/// A sweep of spans from 2^-100 to 2^100.
+/// A sweep of spans from 2^-100 to 2^100, the same on every host.
 fn sweep(n: u64) -> impl Iterator<Item = f64> {
-    (0..n).map(|i| ordinary(i).exp2())
+    (0..n).map(|i| exp2(ordinary(i)))
 }
 
 fn finest_cases() -> Vec<Vec<Value>> {
@@ -109,7 +111,7 @@ fn tile_cases() -> Vec<Vec<Value>> {
     let scales = spans()
         .into_iter()
         .chain([0.008, 1e3, 0.5, 2.0, 4.0])
-        .chain((0..64).map(|i| (ordinary(i) / 4.0).exp2()));
+        .chain((0..64).map(|i| exp2(ordinary(i) / 4.0)));
     let mut cases = vec![vec![Value::U32(0), Value::F64(0.0)]];
     cases.extend(scales.map(|scale| vec![Value::U32(1), Value::F64(scale)]));
     cases
@@ -159,10 +161,10 @@ fn primitive_cases() -> Vec<Vec<Value>> {
     for i in 0..256u64 {
         let error = match i % 3 {
             0 => None,
-            1 => Some((ordinary(i + 1000) / 3.0).exp2()),
+            1 => Some(exp2(ordinary(i + 1000) / 3.0)),
             _ => Some(0.0),
         };
-        let extent = (ordinary(i) / 2.0).exp2();
+        let extent = exp2(ordinary(i) / 2.0);
         cases.push(primitive_case(
             extent,
             error,

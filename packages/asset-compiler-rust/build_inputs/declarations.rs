@@ -114,8 +114,9 @@ pub fn declarations(file: &Path, text: &str) -> Vec<Declaration> {
                         continue;
                     }
                 };
-                // A `#[path]` outside every inline module is from the file's folder; inside one,
-                // from the folder of its children.
+                // A `#[path]` outside every inline module is from the file's folder, on an inline
+                // module as on a file one and whatever the file's name: rustc keeps no folder of a
+                // named file's stem there. Inside an inline module, from the folder of its children.
                 let from = |path: &str| normal(&inner.map_or(here, |_| base).join(path));
                 let module = path.as_deref().map_or_else(|| base.join(&name), from);
                 if open {

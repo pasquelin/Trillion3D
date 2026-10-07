@@ -6,6 +6,7 @@ import {
   tileLog2,
   uvGridExponent,
 } from './gridExponent.ts'
+import { log2Integers } from './log2.fixture.ts'
 
 // The cases of the Rust rules' own tests (`asset-compiler-rust` `geometry_page_quant/tile_tests.rs`,
 // `tile_quantum_tests.rs`), held by the TypeScript twin of `bits/grid.rs`.
@@ -125,12 +126,12 @@ test("drawn texture coordinates take the format's grid, coarser only where the w
   }
 })
 
-// Behaviour: the logarithms the rules read from the bits (`floorLog2`, `ceilLog2`) are the
-// integers of the rounded logarithm, which this engine's `Math.log2` gives too, next to every power
-// of two — where a last bit decides the integer, past the widest band of 709 doubles: a tile from
-// a scale, rounded down, and the finest grid of a span, rounded up.
+// Behaviour: the logarithms the rules read from the bits (`floorLog2`, `ceilLog2`) are the exact
+// integers of the rounded logarithm, from the bits and the bounds of ln 2 (`log2.fixture.ts`), the
+// same in every engine, next to every power of two — where a last bit decides the integer, past
+// the widest band of 709 doubles: a tile from a scale, rounded down, and the finest grid of a
+// span, rounded up.
 test('the grids take the integers of the rounded logarithm next to every power of two', () => {
-  const cast = (x: number) => (x !== x ? 0 : Math.min(2 ** 31 - 1, Math.max(-(2 ** 31), x)) + 0)
   const view = new DataView(new ArrayBuffer(8))
   const double = (bits: bigint) => (view.setBigUint64(0, bits), view.getFloat64(0))
   const values: number[] = []
@@ -140,8 +141,8 @@ test('the grids take the integers of the rounded logarithm next to every power o
       values.push(double(power + d), ...(power > d ? [double(power - d)] : []))
   }
   for (const x of values) {
-    assert.equal(tileLog2(x), cast(Math.floor(Math.log2(2 / x))), `tile of scale ${x}`)
-    const finestOf = Math.min(64, Math.max(-64, cast(Math.ceil(Math.log2(x))) - 23))
+    assert.equal(tileLog2(x), log2Integers(2 / x)[0], `tile of scale ${x}`)
+    const finestOf = Math.min(64, Math.max(-64, log2Integers(x)[1] - 23))
     assert.equal(finest(x), finestOf, `finest grid of span ${x}`)
   }
 })
