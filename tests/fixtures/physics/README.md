@@ -4,6 +4,8 @@ The files the native compiler's physics cook tests and the physics module's test
 goldens are written by the cook itself under `TRILLION3D_WRITE_GOLDEN=1`.
 
 - `ramp-tile.bin`, `small-ramp-tile.bin`: golden cooked tiles of a two-triangle ramp.
+- `height-field-tile.bin`: the golden cooked height field of a 5 × 5 grid 0.5 m apart, rising as
+  x z (`tests.rs`); the physics module's tests restore it beside the ramp (`tileGround.test.ts`).
 - `cloth-settings.bin`: the golden cooked soft body, a 1 m cloth of 2 × 2 squares pinned at its top
   corners, Jolt's `SoftBodySharedSettings` binary state (`soft_tests.rs`); the physics module's test
   restores it (`packages/sdk-browser/src/physics/cookedSoft.test.ts`).

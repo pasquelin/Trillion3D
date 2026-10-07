@@ -4,6 +4,7 @@ import type { createPhysicsBodies } from './bodies.ts'
 import type { SlotOwner } from './bodySlots.ts'
 import { createCookedBodies } from './cookedBodies.ts'
 import { createCookedSoftBodies } from './cookedSoft.ts'
+import type { SharedShapes } from './sharedShapes.ts'
 import type { Model } from './tilePlace.ts'
 
 /** The bodies the compiled models in a scene declare, soft (`cookedSoft.ts`) and rigid, opened,
@@ -11,11 +12,12 @@ import type { Model } from './tilePlace.ts'
 export function createModelBodies(
   writer: CommandWriter,
   bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'claim' | 'release'>,
+  shapes: SharedShapes,
   invalidate: () => void,
   failed: (error: EngineError) => void,
 ) {
-  const softs = createCookedSoftBodies(writer, bodies, invalidate, failed)
-  const rigid = createCookedBodies(writer, bodies, invalidate, failed)
+  const softs = createCookedSoftBodies(writer, bodies, shapes, invalidate, failed)
+  const rigid = createCookedBodies(writer, bodies, shapes, invalidate, failed)
   const both = [softs, rigid]
   return {
     /** Makes the bodies `model` was `cooked` with, read until `signal` aborts. */

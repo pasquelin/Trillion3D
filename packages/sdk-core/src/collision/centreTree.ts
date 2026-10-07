@@ -1,3 +1,5 @@
+import { selectByKey } from '../../../math/src/select.ts'
+
 /**
  * THE SHAPE OF A BOUNDING-VOLUME HIERARCHY over points — the centres of whatever it bounds —,
  * shared by the triangle tree of collisions (`../collision/triangleTree.ts`) and the transparent
@@ -41,7 +43,8 @@ export function buildCentreTree(
     // The left half takes a whole number of full leaves: every leaf but the last is full.
     const axis = longestAxis(centres, order, start, end),
       middle = start + leaf * Math.ceil((end - start) / (2 * leaf))
-    selectMedian(order, centres, axis, start, end, middle)
+    // The median centre on `axis` at `middle`, the smaller before it and the larger after.
+    selectByKey(order, (entry) => centres[3 * entry + axis], start, end, middle)
     build(start, middle)
     links[node] = build(middle, end)
     return node
@@ -64,36 +67,4 @@ function longestAxis(centres: Float32Array, order: Uint32Array, start: number, e
     if (high - low > widest) [widest, axis] = [high - low, k]
   }
   return axis
-}
-
-/** Rearranges `order[start..end)` so `order[middle]` has the median centre on `axis`, the
- *  smaller before it and the larger after: a linear-time selection by repeated partition. */
-function selectMedian(
-  order: Uint32Array,
-  centres: Float32Array,
-  axis: number,
-  start: number,
-  end: number,
-  middle: number,
-) {
-  const key = (i: number) => centres[3 * order[i] + axis]
-  let low = start,
-    high = end - 1
-  while (low < high) {
-    const pivot = key((low + high) >> 1)
-    let i = low,
-      j = high
-    while (i <= j) {
-      while (key(i) < pivot) i++
-      while (key(j) > pivot) j--
-      if (i <= j) {
-        ;[order[i], order[j]] = [order[j], order[i]]
-        i++
-        j--
-      }
-    }
-    if (middle <= j) high = j
-    else if (middle >= i) low = i
-    else return
-  }
 }

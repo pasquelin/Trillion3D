@@ -5,7 +5,6 @@ import {
   FLAG,
   LAYER,
   MOTION,
-  checkPhysicsBudget,
   physicsMatterOf,
   isSoftType,
   resolveShape,
@@ -16,11 +15,10 @@ import {
 } from '../../../sdk-core/src/physics/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { worldPoseOf, worldScaleOf } from './bodyFrame.ts'
-// What a body IS lives in `bodied.ts`: `hasBody` reads a node and creates nothing, and held
-// here the modules that only ask whether a node has one had to import the module that builds them.
 export { hasBody, type Bodied } from './bodied.ts'
 import { hasBody, type Bodied } from './bodied.ts'
 import { addSoftBody, fits } from './softBodies.ts'
+import { createBodyLedger } from './bodyLedger.ts'
 import { createBodySlots, type SlotOwner } from './bodySlots.ts'
 
 /** A body's flag bits as its settings ask; a hidden mesh sends no pose. */
@@ -49,10 +47,10 @@ export function createPhysicsBodies(
 ) {
   const slots = createBodySlots(budget.bodies)
   const { meshes, physicsAt } = slots
-  /** What each slot's body counts against the budget beyond itself; a soft body's vertex map. */
-  const claimed = new Map<number, { bytes: number; softVertices: number }>()
+  /** What the bodies count against the budget (`bodyLedger.ts`); a soft body's vertex map. */
+  const ledger = createBodyLedger(budget)
+  const { count } = ledger
   const softMaps: (Uint32Array | null)[] = []
-  const count = { bodies: 0, decorative: 0, collisionBytes: 0, softVertices: 0 }
   /** Bodies taken out: asleep decorative or refused ones (`null`), their mesh left where it came
    *  to rest; soft ones placed at another scale than the one they were made at, kept. */
   const retired = new WeakMap<Bodied['physics'], readonly number[] | null>()
@@ -61,8 +59,6 @@ export function createPhysicsBodies(
     const scale = retired.get(mesh.physics)
     return !!scale && fits(worldScaleOf(mesh), scale)
   }
-  const check = (key: keyof typeof count, more: number) =>
-    checkPhysicsBudget(budget, key, count[key] + more)
   const add = (mesh: Bodied) => {
     const p = mesh.physics
     if (p._host) return
@@ -72,12 +68,12 @@ export function createPhysicsBodies(
         'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
         { name: mesh.name },
       )
-    check('bodies', 1)
-    if (p.decorative) check('decorative', 1)
+    const owner: SlotOwner = { mesh, physics: p }
+    // Refused before its shape is built, no tile leaving for it yet.
+    ledger.admit(owner, 0, 0)
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
       size = worldScaleOf(mesh)
-    const owner: SlotOwner = { mesh, physics: p }
     if (isSoftType(p.type)) {
       owner.scale = [size.x, size.y, size.z]
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
@@ -113,16 +109,15 @@ export function createPhysicsBodies(
     if (p.decorative) count.decorative++
     p._attach(host, index, state)
   }
-  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. */
+  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. A
+   *  body no tile holds makes room for itself from the farthest tiles, once all else fits
+   *  (`admit`, `makeRoom`). */
   const claim = (bytes: number, softVertices: number, owner: SlotOwner) => {
-    check('bodies', 1)
-    check('collisionBytes', bytes)
-    check('softVertices', softVertices)
+    ledger.admit(owner, bytes, softVertices)
+    if (!('tile' in owner)) ledger.makeRoom(bytes)
     const id = slots.take(owner)
     count.bodies++
-    if (bytes || softVertices) claimed.set(id & BODY_INDEX, { bytes, softVertices })
-    count.collisionBytes += bytes
-    count.softVertices += softVertices
+    ledger.hold(id & BODY_INDEX, bytes, softVertices)
     return id
   }
   /** A slot's body removed, and the slot freed for the next. */
@@ -130,9 +125,7 @@ export function createPhysicsBodies(
     writer.remove(index)
     slots.release(index)
     count.bodies--
-    count.collisionBytes -= claimed.get(index)?.bytes ?? 0
-    count.softVertices -= claimed.get(index)?.softVertices ?? 0
-    claimed.delete(index)
+    ledger.give(index)
     softMaps[index] = null
   }
   const removeAt = (index: number) => {
@@ -147,6 +140,8 @@ export function createPhysicsBodies(
     /** By slot: the compiled nodes bodies move (`createBodySlots`), their last step (`state`). */
     ...{ nested: slots.nested, state },
     generation: slots.generation,
+    /** What the bodies, and the shapes they share, count against the budget. */
+    ledger,
     count,
     add,
     removeAt,
@@ -156,8 +151,7 @@ export function createPhysicsBodies(
     slots,
     /** Each geometry vertex's simulated vertex, for the soft body in slot `index`. */
     softMap: (index: number) => softMaps[index] ?? null,
-    /** A body no mesh holds — a cooked tile or soft body (`tiles.ts`) —: its slot, then its
-     *  removal. */
+    /** A body no mesh holds (a cooked tile or soft body): its slot, then its removal. */
     claim,
     release,
     /** A body asleep decorative or refused: out of the simulation and budget until its `physics`
