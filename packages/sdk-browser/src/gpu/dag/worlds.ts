@@ -30,21 +30,34 @@ export function refreshWorldStretch(
   frameData: Float32Array,
 ) {
   let count = 0
-  for (let w = 0; w < packed.worldCount; w++) {
-    const base = w * 16
-    let stretched = false
-    for (let k = 0; k < LINEAR.length; k++)
-      if (previous[base + LINEAR[k]] !== next[base + LINEAR[k]]) {
-        stretched = true
-        break
-      }
-    if (!stretched) continue
-    count++
-    const stretch = maxStretch(next.subarray(base, base + 16))
-    packed.worldStretch[w] = stretch
-    frameData[primitiveWordAt(w)] = stretch
-  }
+  for (let w = 0; w < packed.worldCount; w++)
+    if (refreshStretchAt(previous, next, packed, frameData, w)) count++
   return count
+}
+
+/** Primitive `w`'s stretch recomputed when its linear part moved (`refreshWorldStretch`); whether
+ *  it was. */
+export function refreshStretchAt(
+  previous: Float32Array,
+  next: Float32Array,
+  packed: Pick<PackedDag, 'worldStretch'>,
+  frameData: Float32Array,
+  w: number,
+) {
+  const base = w * 16
+  let k = 0
+  while (k < LINEAR.length && previous[base + LINEAR[k]] === next[base + LINEAR[k]]) k++
+  if (k === LINEAR.length) return false
+  const stretch = maxStretch(next.subarray(base, base + 16))
+  packed.worldStretch[w] = stretch
+  frameData[primitiveWordAt(w)] = stretch
+  return true
+}
+
+/** Whether primitive `w`'s sixteen floats differ between `previous` and `next`. */
+export function worldChangedAt(previous: Float32Array, next: Float32Array, w: number) {
+  for (let j = w * 16; j < w * 16 + 16; j++) if (previous[j] !== next[j]) return true
+  return false
 }
 
 /**

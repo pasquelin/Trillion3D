@@ -1,6 +1,7 @@
 import { createDeformationFrame } from './frame.ts'
 import { createWebgpuLightState } from '../webgpu/pages/state/lights.ts'
 import type { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
+import { createMovedWorlds } from '../webgpu/pages/render/movedWorlds.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
 /**
@@ -31,7 +32,7 @@ export function deformationRuntime(
     gpu: { device: { queue: { writeBuffer() {} } } },
     lights,
     layout: { selectionRoots, rows },
-    run: { gate: { pixelError: 0 } },
+    run: { gate: { pixelError: 0 }, movedWorlds: createMovedWorlds() },
     setup: {},
     blendState: { blendGpu: [] },
   } as unknown as WebgpuPagesRuntime

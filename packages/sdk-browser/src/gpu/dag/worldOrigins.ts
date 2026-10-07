@@ -1,5 +1,8 @@
 import type { PackedDag } from './types.ts'
 import { packDoubles } from '../../placement/composedMotion.ts'
+import { writeRanges, type RangeTarget } from './split.ts'
+import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices: its exact
  *  translation as three doubles, high word then low word, as the GPU holds a double (`DOUBLE_WGSL`),
@@ -22,36 +25,50 @@ export function createWorldOrigins(
   // Every placement the ranges hold: the live ones, and those a growth appends to `sources`.
   const slots = ranges.reduce((sum, { count }) => sum + count, 0),
     words = new Uint32Array(Math.max(slots, sources?.length ?? 0) * 8),
-    next = new Uint32Array(8)
+    next = new Uint32Array(8),
+    spans = new Int32Array(RESIDENCY_RULE.cap * 2),
+    source = { data: words, sourceBase: 0, targetBase: 0, stride: 8 }
+  let changed = new Int32Array(8)
+  /** Placement `row`'s translation taken into `words`; whether it moved. */
+  const take = (row: number) => {
+    writeOrigin(next, 0, sources![row])
+    const at = row * 8
+    if (next.every((value, k) => value === words[at + k])) return false
+    words.set(next, at)
+    return true
+  }
+  /** Bytes from `offset` of the translations, laid behind each range's worlds. */
+  const target: RangeTarget = (offset, data, dataOffset, size) => {
+    for (const [r, { first, count }] of ranges.entries()) {
+      const a = Math.max(offset, first * WORLD_ORIGIN_BYTES),
+        b = Math.min(offset + size, (first + count) * WORLD_ORIGIN_BYTES)
+      if (a < b)
+        device.queue.writeBuffer(
+          buffers[r],
+          count * 64 + a - first * WORLD_ORIGIN_BYTES,
+          data,
+          dataOffset + a - offset,
+          b - a,
+        )
+    }
+  }
   return {
     hostBytes: words.byteLength + next.byteLength,
-    /** Called only for physical pose changes, never for a camera rebase. */
-    write() {
+    /** Called only for physical pose changes, never for a camera rebase: every placement's, or
+     *  only those of `named`, increasing — the placements a call moved. Whether any moved. */
+    write(named?: Int32Array) {
       if (!sources) return false
-      let from = Infinity,
-        to = -1
-      for (let row = 0; row < sources.length; row++) {
-        const at = row * 8
-        writeOrigin(next, 0, sources[row])
-        if (next.every((value, k) => value === words[at + k])) continue
-        words.set(next, at)
-        from = Math.min(from, row)
-        to = row
+      let count = 0
+      const all = named === undefined,
+        length = all ? sources.length : named.length
+      for (let k = 0; k < length; k++) {
+        const row = all ? k : named[k]
+        if (row >= sources.length || !take(row)) continue
+        if (count === changed.length) changed = grown(changed, count + 1, count)
+        changed[count++] = row
       }
-      if (to < from) return false
-      for (const [r, { first, count }] of ranges.entries()) {
-        const a = Math.max(from, first),
-          b = Math.min(to + 1, first + count)
-        if (a < b)
-          device.queue.writeBuffer(
-            buffers[r],
-            count * 64 + (a - first) * WORLD_ORIGIN_BYTES,
-            words.buffer,
-            a * WORLD_ORIGIN_BYTES,
-            (b - a) * WORLD_ORIGIN_BYTES,
-          )
-      }
-      return true
+      if (count) writeRanges(device, target, changed, count, source, spans)
+      return count > 0
     },
   }
 }

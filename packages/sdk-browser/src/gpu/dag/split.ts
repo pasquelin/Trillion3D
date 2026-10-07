@@ -97,6 +97,16 @@ export function writeParts(
   }
 }
 
+/** Where `writeRanges` sends a run that is not a split table: `size` bytes of `data` from
+ *  `dataOffset`, at byte `offset` of the table the target lays out — the cut's worlds and their
+ *  exact translations, one buffer per range of placements (`frameRanges.ts`). */
+export type RangeTarget = (
+  offset: number,
+  data: ArrayBuffer,
+  dataOffset: number,
+  size: number,
+) => void
+
 /** What `writeRanges` sends: the source's words, `stride` per index, from word `sourceBase` there
  *  and from word `targetBase` in the table. */
 export type RangeSource = {
@@ -110,11 +120,12 @@ export type RangeSource = {
  * The one run writer of the cut's tables: the `count` increasing indices of `sorted` joined into
  * the ranges the residency flush's rule makes (`RESIDENCY_RULE`, `coalesceRanges`), each sent as
  * one write into `parts` — the residency bits and node counts, the placement tree's nodes, the
- * placements' links. `ranges` is a scratch of `RESIDENCY_RULE.cap` pairs.
+ * placements' links — or through `parts` when it is a `RangeTarget` — the worlds a call named.
+ * `ranges` is a scratch of `RESIDENCY_RULE.cap` pairs.
  */
 export function writeRanges(
   device: GPUDevice,
-  parts: DagParts,
+  parts: DagParts | RangeTarget,
   sorted: Int32Array,
   count: number,
   { data, sourceBase, targetBase, stride }: RangeSource,
@@ -123,14 +134,10 @@ export function writeRanges(
   const spans = coalesceRanges(sorted, count, ranges, RESIDENCY_RULE)
   for (let r = 0; r < spans; r++) {
     const first = ranges[r * 2],
-      bytes = (ranges[r * 2 + 1] - first + 1) * stride * 4
-    writeParts(
-      device,
-      parts,
-      (targetBase + first * stride) * 4,
-      data.buffer as ArrayBuffer,
-      data.byteOffset + (sourceBase + first * stride) * 4,
-      bytes,
-    )
+      bytes = (ranges[r * 2 + 1] - first + 1) * stride * 4,
+      offset = (targetBase + first * stride) * 4,
+      from = data.byteOffset + (sourceBase + first * stride) * 4
+    if (typeof parts === 'function') parts(offset, data.buffer as ArrayBuffer, from, bytes)
+    else writeParts(device, parts, offset, data.buffer as ArrayBuffer, from, bytes)
   }
 }

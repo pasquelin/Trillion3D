@@ -98,10 +98,16 @@ export type GpuSelection = {
   readonly worldsWritten: number
   /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
    *  `walked`: the host's walk wrote them, naming no placement — any may have moved —; else the
-   *  placements that moved were named first (`placementMoved`). */
-  updateWorlds(worlds: Float32Array, posesMoved?: boolean, walked?: boolean): boolean
-  /** Placement `world`'s pose was just written by a call that names it (a node moved): its tree
-   *  group alone is fitted again (`../dag/treeFollow.ts`); absent without a tree. */
+   *  placements that moved were named first (`placementMoved`), and `named` lists them, increasing:
+   *  those alone are compared and sent. */
+  updateWorlds(
+    worlds: Float32Array,
+    posesMoved?: boolean,
+    walked?: boolean,
+    named?: Int32Array,
+  ): boolean
+  /** Placement `world`'s pose was just written by a call that names it (`moveRootRows`): its
+   *  tree group alone is fitted again (`../dag/treeFollow.ts`); absent without a tree. */
   placementMoved?(world: number): void
   /** Placement `world` is posed on the GPU by its parent from now on, or no longer
    *  (`../../placement/gpuCompose.ts`): its tree group opens while it is; absent without a tree. */

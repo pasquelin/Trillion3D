@@ -5,6 +5,7 @@ import { HOLD_SIGNATURE_VALUES } from '../../frame/signature.ts'
 import { createWebgpuBudgetState } from '../../residency/budgetState.ts'
 import { RASTER_BACKGROUND } from '../../../page/raster.ts'
 import type { WebgpuRunState } from './run.ts'
+import { createMovedWorlds } from '../render/movedWorlds.ts'
 
 export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunState {
   return {
@@ -69,6 +70,7 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     worldUploadRevision: 0,
     // No frame before the first image: it rebases, whatever happens.
     worldUploadOrigin: new Float64Array([NaN, NaN, NaN]),
+    movedWorlds: createMovedWorlds(),
     occluderSignature: 0,
   }
 }

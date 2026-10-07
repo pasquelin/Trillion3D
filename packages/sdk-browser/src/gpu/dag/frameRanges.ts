@@ -5,6 +5,8 @@ import { FRAME_VEC4 } from './types.ts'
 import { primitiveWordAt } from './worlds.ts'
 import { dagGroupEntries } from './shader/bindings.ts'
 import { PRIMITIVE_BYTES, cameraFrameRanges } from './cameraRanges.ts'
+import { writeRanges } from './split.ts'
+import { RESIDENCY_RULE } from '../../webgpu/residency/ranges.ts'
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4
 /** Bytes of one primitive's world matrix in `worlds`. */
@@ -36,6 +38,7 @@ export function createCameraFrames(
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: { from: Infinity, to: -1 },
     written: 0,
+    spans: new Int32Array(RESIDENCY_RULE.cap * 2),
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -52,9 +55,10 @@ export function createCameraFrames(
     ranges,
     buffers,
     worldBuffers,
-    /** Every placement's exact translation, its doubles to its range; whether any moved. */
-    writeWorldOrigins() {
-      const moved = origins.write()
+    /** Every placement's exact translation — or those of `named`, increasing —, its doubles to
+     *  its range; whether any moved. */
+    writeWorldOrigins(named?: Int32Array) {
+      const moved = origins.write(named)
       if (moved) f.written++
       return moved
     },
@@ -75,8 +79,17 @@ export function createCameraFrames(
     /** The host rows of primitives `[from, to)` — every one by default —, each to its range's
      *  buffer at its row. `dagPrepare` writes the rest. */
     writeRows: (from = 0, to = Infinity) => writeRows(f, from, to),
+    /** The host rows of the `count` increasing primitives of `named`, each run to its range. */
+    writeNamedRows: (named: Int32Array, count: number) =>
+      writeNamed(f, f.buffers, ROW_FLOATS, f.frameData, named, count),
     /** Every primitive's world matrix in `next`, each to its range's `worlds`. */
     writeWorlds: (next: Float32Array) => writeWorlds(f, next),
+    /** The world matrices in `next` of the `count` increasing primitives of `named`: the ones a
+     *  call moved, each run to its range (`writeRanges`). */
+    writeNamedWorlds(next: Float32Array, named: Int32Array, count: number) {
+      f.written++
+      writeNamed(f, worldBuffers, 16, next, named, count)
+    },
     /** Word `slot` of primitive `w`'s frame words, set in the host's row; its range receives it
      *  at the next `flushWords`, with every word written since, as one interval (CPU-15). */
     writeWord: (w: number, slot: number, value: number) => writeWord(f, w, slot, value),
@@ -108,6 +121,23 @@ type Frames = {
   pending: { from: number; to: number }
   /** Writes of worlds or origins to the GPU so far (`worldsWritten`). */
   written: number
+  /** The runs a named write joins its placements into (`writeRanges`). */
+  spans: Int32Array
+}
+
+/** The `count` increasing primitives of `named`, `stride` words each of `data`, to the buffers
+ *  of their ranges, which start at the range's first primitive: one table split in equal parts. */
+function writeNamed(
+  { device, per, spans }: Frames,
+  buffers: GPUBuffer[],
+  stride: number,
+  data: Float32Array,
+  named: Int32Array,
+  count: number,
+) {
+  const parts = { buffers, bytes: per * stride * 4 },
+    source = { data, sourceBase: 0, targetBase: 0, stride }
+  writeRanges(device, parts, named, count, source, spans)
 }
 
 /** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written

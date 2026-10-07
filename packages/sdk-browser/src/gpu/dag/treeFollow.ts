@@ -72,8 +72,8 @@ export function followPlacementTree(
   }
   // A pose a call named fits its group again; a host walk, which names none, fits every box.
   selection.placementMoved = (w) => void dirty.add(w)
-  selection.updateWorlds = (worlds, posesMoved = true, walked = true) => {
-    const moved = updateWorlds(worlds, posesMoved, walked)
+  selection.updateWorlds = (worlds, posesMoved = true, walked = true, named) => {
+    const moved = updateWorlds(worlds, posesMoved, walked, named)
     if (moved && posesMoved && walked) whole = true
     return moved
   }

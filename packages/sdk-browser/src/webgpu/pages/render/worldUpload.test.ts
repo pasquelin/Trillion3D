@@ -3,11 +3,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
+import { createMovedWorlds, noteWorldMoved } from './movedWorlds.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
 
 /** An image entry after a scene change; `walked` says whether the host's write made it. */
-function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) {
+function image(walked: boolean, gpuSelection?: { updateWorlds: (...args: never[]) => boolean }) {
   return {
     setup: { worlds: {} },
     // No deformation: a host walk has no staleness to forget (`deformation/frame.ts`).
@@ -28,6 +29,7 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) 
       worldUploadRevision: 1,
       worldUploadOrigin: new Float64Array(3),
       gpuSelection,
+      movedWorlds: createMovedWorlds(),
       noOccluderHistory: false,
     },
   } as unknown as WebgpuPagesRuntime
@@ -79,3 +81,25 @@ for (const kind of ['GPU selection', 'no selection'] as const)
     uploadWorlds(rt, eye(2))
     assert.equal(rows.tableEpoch, 4, 'the eye at rest, a pose moved: every row again')
   })
+
+test('a pose a call named sends its world alone, every other left as the cut holds it', () => {
+  const calls: [Float32Array, boolean, boolean, Int32Array][] = []
+  const rt = image(false, {
+    updateWorlds: (...args: never[]) => (calls.push(args as never), true),
+  })
+  const at = (x: number) => ({
+    world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1] },
+  })
+  Object.assign(rt.layout, {
+    selectionRoots: [at(1), at(2), at(3)],
+    worldUpdates: new Float32Array(48),
+  })
+  noteWorldMoved(rt.run, 1)
+  uploadWorlds(rt, cam)
+  const [[worlds, , walked, named]] = calls
+  assert.equal(walked, false)
+  assert.deepEqual([...named], [1], 'the one named placement')
+  assert.equal(worlds[1 * 16 + 12], 2, 'its world taken')
+  assert.equal(worlds[0 * 16 + 12] + worlds[2 * 16 + 12], 0, 'no other read')
+  assert.equal(rt.layout.rows.tableEpoch, 1, 'the table stands')
+})

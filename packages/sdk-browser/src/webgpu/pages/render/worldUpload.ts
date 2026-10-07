@@ -3,6 +3,7 @@ import { invalidateOccluderHistory } from '../io/drops.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
 import { followHostVisibility } from '../../../placement/hidden.ts'
 import { flipWorld } from '../../../placement/webgpuPlacements.ts'
+import { takeMovedWorlds } from './movedWorlds.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /**
@@ -40,22 +41,39 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   }
   run.worldUploadOrigin.set(cam.eye)
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene
-  rt.timing.worldCounts.rootsRebased = worldsMoved ? selectionRoots.length : 0
+  rt.timing.worldCounts.rootsRebased = 0
   if (!worldsMoved) return false
   run.worldUploadRevision = run.gate.revisions.scene
+  // The placements a call moved, each named beside its rows' write (`movedWorlds.ts`): their
+  // worlds alone go up. A host walk named none: every one does.
+  const named = takeMovedWorlds(run.movedWorlds)
+  if (!hostWalked) {
+    rootWorldsAt(worldUpdates, selectionRoots, named)
+    rt.timing.worldCounts.rootsRebased = named.length
+    if (named.length) run.gpuSelection?.updateWorlds(worldUpdates, true, false, named)
+    return true
+  }
+  rt.timing.worldCounts.rootsRebased = selectionRoots.length
   // A host write that moved no pose — a light dimmed — keeps the table: the worlds it sends are
   // the ones the cut holds, bit for bit, whatever the eye.
-  const posesMoved = !hostWalked || rootWorldsMoved(worldUpdates, selectionRoots)
+  const posesMoved = rootWorldsMoved(worldUpdates, selectionRoots)
   rootWorlds(worldUpdates, selectionRoots)
-  // A host walk named no root: every placement of the tree may have moved. A named move told the
-  // tree its roots already (`movedBatch.ts`, `placementMoved`).
-  const posted = run.gpuSelection?.updateWorlds(worldUpdates, true, hostWalked)
+  const posted = run.gpuSelection?.updateWorlds(worldUpdates, true, true)
   // A host write names no root: every row's world matrix, the only shared input to a row the
   // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it
   // holds: one that found them all unchanged — the host wrote a light, not a pose — keeps the table.
-  if (hostWalked && posted !== false && posesMoved) {
+  if (posted !== false && posesMoved) {
     rows.tableEpoch++
     invalidateOccluderHistory(run)
   }
   return true
+}
+
+/** The worlds of the placements of `ranks` taken into `worlds` (`rootWorlds`), and no other. */
+function rootWorldsAt(
+  worlds: Float32Array,
+  roots: WebgpuPagesRuntime['layout']['selectionRoots'],
+  ranks: Int32Array,
+) {
+  for (const rank of ranks) if (roots[rank]) worlds.set(roots[rank].world.elements, rank * 16)
 }

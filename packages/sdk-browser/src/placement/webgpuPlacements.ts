@@ -56,7 +56,7 @@ export function updateWebgpuPlacements(
       return mobility.move(rank, world, true)
     },
     (rank) => {
-      moveRootRows(rt, layout.selectionRoots[rank])
+      moveRootRows(rt, layout.selectionRoots[rank], rank)
       // The object its row draws now, which its world group stands in for (`worldRoot.ts`).
       linkWorldObject(rt, rank)
     },

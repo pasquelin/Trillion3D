@@ -68,7 +68,8 @@ function selectionOver(run: DagRun): GpuSelection {
     get worldRevision() {
       return state.worldRevision
     },
-    updateWorlds: (next, posesMoved = true) => updateRuntimeWorlds(run, next, posesMoved),
+    updateWorlds: (next, posesMoved = true, _walked = true, named) =>
+      updateRuntimeWorlds(run, next, posesMoved, named),
     worldsMovedOnGpu() {
       if (live()) state.worldRevision++
     },

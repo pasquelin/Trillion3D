@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { uploadRowLods } from './rowLods.ts'
 import { ROW_LOD_FLOATS, writeRowLod } from './rowLodWords.ts'
 import { moveRootRows } from '../pages/render/movedRoot.ts'
+import { createMovedWorlds } from '../pages/render/movedWorlds.ts'
 import { createWebgpuRowState } from '../row/state.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -72,6 +73,7 @@ function scene() {
     },
     run: {
       noOccluderHistory: false,
+      movedWorlds: createMovedWorlds(),
       gpuSelection: {
         isReady: (page: number) => ready[page] === 1,
         isChildReady: (page: number) => childReady[page] === 1,
@@ -115,7 +117,7 @@ test('a model scattered across the table writes the detail of its own rows, run 
   // The model moves and a terrain page's readiness moves (its row marked, as the stream does).
   model.world.elements[12] = 3.5
   model.world.elements[0] = 2
-  assert.equal(moveRootRows(rt, model), MODEL_ROWS.length)
+  assert.equal(moveRootRows(rt, model, 0), MODEL_ROWS.length)
   const terrainPage = rows.packedPageIndex[600]
   ready[terrainPage] = 0
   rows.markRowWords(600)

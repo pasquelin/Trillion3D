@@ -4,7 +4,14 @@ import {
   type ResidencyChanges,
 } from '../core/selection.ts'
 import { DAG_NODE_FLOATS, type DagRoot } from './types.ts'
-import { refreshWorldStretch, worldsChanged, writePrimitiveWords } from './worlds.ts'
+import {
+  refreshStretchAt,
+  refreshWorldStretch,
+  worldChangedAt,
+  worldsChanged,
+  writePrimitiveWords,
+} from './worlds.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
 import type { createDagResidencyUpload } from './residencyUpload.ts'
 import type { createDagPoolList } from './poolList.ts'
 import type { createDagDispatch } from './dispatch.ts'
@@ -37,15 +44,19 @@ function voidCuts(state: DagRuntimeState) {
   state.last = null
 }
 
-/** `GpuSelection.updateWorlds`: the placements sent, compared with the last ones. */
+/** `GpuSelection.updateWorlds`: the placements sent, compared with the last ones — every one, or
+ *  those of `named` alone (`updateNamedWorlds`). */
 export function updateRuntimeWorlds(
-  { resources, state }: DagRun,
+  run: DagRun,
   next: Float32Array,
   posesMoved: boolean,
+  named?: Int32Array,
 ) {
-  const { packed, frames, frameData } = resources
+  const { resources, state } = run,
+    { packed, frames, frameData } = resources
   if (state.disposed || state.dead) return false
   if (next.byteLength !== packed.worlds.byteLength) throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
+  if (named) return updateNamedWorlds(run, next, posesMoved, named)
   const originChanged = posesMoved && frames.writeWorldOrigins()
   // `packed.worlds` is what this selection last received, and only this method writes it:
   // the worlds the next send is compared with, without a second copy of them beside it.
@@ -61,6 +72,43 @@ export function updateRuntimeWorlds(
   // Cuts in hand and in flight keep their revision and still name what to stream (#358).
   if (posesMoved) state.worldRevision++
   return true
+}
+
+/** The placements that moved among those of `named`, and those whose stretch moved with them. */
+let movedScratch = new Int32Array(8),
+  stretchedScratch = new Int32Array(8)
+
+/**
+ * The placements of `named`, increasing — the ones a call moved —, compared with the worlds last
+ * received and those that moved sent, each run to its range, with their exact translations and,
+ * where the linear part moved, their stretch: a frame's CPU and upload follow what moved, never
+ * the placements' count.
+ */
+function updateNamedWorlds(
+  { resources, state }: DagRun,
+  next: Float32Array,
+  posesMoved: boolean,
+  named: Int32Array,
+) {
+  const { packed, frames, frameData } = resources
+  const originChanged = posesMoved && frames.writeWorldOrigins(named)
+  let moved = 0,
+    stretched = 0
+  for (const w of named) {
+    if (w >= packed.worldCount || !worldChangedAt(packed.worlds, next, w)) continue
+    if (refreshStretchAt(packed.worlds, next, packed, frameData, w)) {
+      if (stretched === stretchedScratch.length)
+        stretchedScratch = grown(stretchedScratch, stretched + 1, stretched)
+      stretchedScratch[stretched++] = w
+    }
+    packed.worlds.set(next.subarray(w * 16, w * 16 + 16), w * 16)
+    if (moved === movedScratch.length) movedScratch = grown(movedScratch, moved + 1, moved)
+    movedScratch[moved++] = w
+  }
+  if (moved) frames.writeNamedWorlds(packed.worlds, movedScratch, moved)
+  if (stretched) frames.writeNamedRows(stretchedScratch, stretched)
+  if (posesMoved && (moved || originChanged)) state.worldRevision++
+  return moved > 0 || originChanged
 }
 
 /** `GpuSelection.appendRoots`: roots packed behind the others, their words sent. */
