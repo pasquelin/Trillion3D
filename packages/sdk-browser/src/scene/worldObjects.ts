@@ -12,18 +12,6 @@
 import type { WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
 import type { Primitive } from '../../../sdk-core/src/index.ts'
 
-/** The rank of the first object of `cell`: the least object the table places in it or after it,
- *  `cellOf` naming the last cell starting at or before an object. */
-function firstObject(table: WorldRoots, cell: number) {
-  let [low, high] = [0, 2 ** 31]
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2)
-    if (table.cells.cellOf(mid) >= cell) high = mid
-    else low = mid + 1
-  }
-  return low
-}
-
 /** Per node of a cell whose nodes place meshes `meshes`, its first object among the cell's
  *  `objects`, -1 for a node without one. */
 function nodeRuns(
@@ -61,7 +49,7 @@ export function createWorldObjects(table: WorldRoots, primitives: readonly Primi
         const objects = cell < table.cells.count ? table.cells.objects(cell) : []
         own = {
           meshes,
-          first: firstObject(table, cell),
+          first: cell < table.cells.count ? table.cells.first(cell) : 0,
           objects,
           runs: nodeRuns(objects, meshes, primitives),
         }

@@ -71,6 +71,8 @@ export type WorldRoots = {
   cells: {
     count: number
     objects(cell: number): WorldRootsObject[]
+    /** The rank of `cell`'s first object among the table's: its record says it. */
+    first(cell: number): number
     cellOf(object: number): number
   }
 }

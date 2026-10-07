@@ -116,6 +116,7 @@ function tableCells(
   }
   return {
     count: cellCount,
+    first: (cell) => word(cellsAt + cell * CELL),
     objects(cell) {
       const first = word(cellsAt + cell * CELL)
       return Array.from({ length: word(cellsAt + cell * CELL + 4) }, (_, i) => objectAt(first + i))
