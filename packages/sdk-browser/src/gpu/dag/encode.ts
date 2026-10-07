@@ -90,10 +90,18 @@ function encodeOnce(
   // level's whole queue and keeps its own primitives' nodes.
   perRange(pass, ranges, rootLevelPipeline, width, roots.level)
   // Each following level reads only the nodes the previous one kept, and fills the next of the
-  // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
-  // nodes, an upper bound the layout knows, never more than its queue holds.
+  // three queues — the one a level earlier cleared. Level 1 is dispatched flat on its stage's nodes,
+  // an upper bound the layout knows and a small one: the placement tree's second level, or the
+  // first below each root. Deeper, a stage counts every placement's nodes of that level, the
+  // world's: each level is dispatched on what the level before it deposited, its queue's groups
+  // armed in the pass (`shader/armWgsl.ts`) — threads follow the view, never the world.
   for (let level = 1; level < levelSizes.length; level++) {
     const pipeline = levelPipelines[level % levelPipelines.length]
+    if (level >= 2) {
+      arm(pass, resources)
+      perRangeIndirect(pass, ranges, pipeline, dispatchArgs, DAG_ARGS.queues[level % 3])
+      continue
+    }
     const bound = Math.min(levelSizes[level], resources.nodeCount)
     perRange(pass, ranges, pipeline, width, () => bound)
   }

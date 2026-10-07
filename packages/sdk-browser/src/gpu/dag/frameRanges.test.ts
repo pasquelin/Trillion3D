@@ -96,7 +96,11 @@ test('each kernel that reads a primitive runs once per range, under its bind gro
   const of = (kernel: string) => dispatches.filter((l) => l.kernel === kernel).map((l) => l.groups)
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks')
   assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots")
-  assert.deepEqual(of('dagLevel1'), [1, 1, 1, 1], 'levels 1 and 4: each range walks the queue')
+  assert.deepEqual(
+    of('dagLevel1'),
+    [1, 1, 'indirect', 'indirect'],
+    'levels 1 and 4: each range walks the queue, level 4 on its armed groups',
+  )
   assert.deepEqual(of('dagWanted'), ['indirect', 'indirect'])
   assert.deepEqual(of('dagMask'), ['indirect', 'indirect'])
   assert.deepEqual(of('dagSortRequests'), [1], 'a kernel that reads no primitive runs once')

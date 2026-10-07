@@ -56,9 +56,9 @@ test('moving, parking or opening one placement refits its group and its cell, at
     const groupNode = tree.levels.at(-1)!.base + Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
     const box = () => Array.from(dag.nodes.subarray(groupNode * 24, groupNode * 24 + 7))
     const before = box()
-    // Placement 70 moves 1 km away: its group's box follows, and only two nodes are rewritten.
+    // Placement 70 moves 1 km away: its group's box follows, and only a node per tree level is rewritten.
     ;(roots[70].world.elements as Float64Array)[12] = 1000
-    assert.equal(refitPlacementTree(dag, tree, [70]).length, 2)
+    assert.equal(refitPlacementTree(dag, tree, [70]).length, tree.depth)
     assert.ok(box()[4] >= 1000 && box()[4] > before[4])
     // Its cut is the flat one's at the new pose.
     const moved = fieldCut(roots, fieldCamera([990, 2, 0], [1000, 0, -50]), true, dag)
@@ -148,4 +148,26 @@ test('an open group opens every node above it, by its flag, its bounds past ever
       `node ${node}: exactly the open bounds`,
     )
   }
+})
+
+test('the tree is ceil(log64 n) levels deep, its top one node: the descent opens on it alone', () => {
+  for (const [side, depth] of [
+    [10, 2],
+    [64, 2],
+    [71, 3],
+  ]) {
+    const dag = packDagSelection(placementField(side, 6)),
+      tree = dag.placementTree!
+    assert.equal(tree.depth, depth, `${side * side} placements`)
+    assert.equal(tree.levels[0].count, 1, 'one top node')
+    assert.equal(dag.levelSizes.length >= depth + 1, true, 'members below the tree')
+  }
+  // Its cut is the flat one's, three levels deep as two.
+  const roots = placementField(71, 6),
+    dag = packDagSelection(roots)
+  const camera = fieldCamera([30, 2, -30], [30, 0, -200])
+  assert.deepEqual(
+    fieldCut(roots, camera, true, dag).pages,
+    fieldCut(roots, camera, false, dag).pages,
+  )
 })

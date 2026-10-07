@@ -79,11 +79,14 @@ export type PlacementTree = {
  *  one group saving the descent nothing. */
 export const groupsPlacements = (members: number) => members > TREE_SPAN
 
-/** The levels of a tree of `capacity` members: groups of `TREE_SPAN` members, cells of `TREE_SPAN`
- *  nodes above them, top first. */
+/** The levels of a tree of `capacity` members, top first: groups of `TREE_SPAN` members, cells of
+ *  `TREE_SPAN` nodes of the level below, `ceil(log64 capacity)` levels in all, so its top is one
+ *  node whatever the world: the descent opens on it alone. */
 function treeLevels(capacity: number, cellBase: number) {
-  const groups = Math.ceil(capacity / TREE_SPAN)
-  const counts = [Math.ceil(groups / TREE_SPAN), groups]
+  let depth = 1
+  for (let span = TREE_SPAN; span < capacity; span *= TREE_SPAN) depth++
+  const counts = [Math.ceil(capacity / TREE_SPAN)]
+  while (counts.length < depth) counts.unshift(Math.ceil(counts[0] / TREE_SPAN))
   let base = cellBase
   return counts.map((count) => {
     const level = { base, count }

@@ -45,10 +45,10 @@ export function dagWorkLayout(blockCount: number) {
     drawnGroupsMax,
     /** The camera cuts run so far, the clock of each page's last use (`lastUseWgsl.ts`). */
     frame: drawnGroupsMax + 1,
-    /** The two kept lists' group counts, then the journal a swap writes back's, x and y each
-     *  (`armWgsl.ts`). */
+    /** The two kept lists' group counts, then the journal a swap writes back's, then the three
+     *  descent queues', x and y each (`armWgsl.ts`). */
     listGroups: drawnGroupsMax + 2,
-    words: drawnGroupsMax + 8,
+    words: drawnGroupsMax + 14,
   }
 }
 

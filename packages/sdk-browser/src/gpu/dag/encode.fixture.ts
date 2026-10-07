@@ -15,12 +15,15 @@ type Copie = { de: string; vers: string; enPasse: boolean }
 
 export const LIVE = 1234,
   CAND = 3000,
-  DRAWN = 4000
+  DRAWN = 4000,
+  /** Descent queue `q`'s record: `QUEUE + q`. */
+  QUEUE = 5000
 /** The list each argument record of `dispatchArgs` holds once armed (`DAG_ARGS`). */
 const LIST_OF_RECORD = new Map<number, number>([
   [DAG_ARGS.drawn, DRAWN],
   [DAG_ARGS.cand, CAND],
   [DAG_ARGS.live, LIVE],
+  ...DAG_ARGS.queues.map((record, q): [number, number] => [record, QUEUE + q]),
 ])
 /** Nodes of each stage: the upper bound on which that level's pass dispatches flat. */
 export const ETAGES = [2, 9, 40, 150, 600]
