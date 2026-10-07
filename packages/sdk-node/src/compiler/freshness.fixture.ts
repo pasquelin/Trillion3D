@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { compilerFileName } from './platform.mts'
 
-export const binaryName = compilerFileName(process.platform)
+const binaryName = compilerFileName(process.platform)
 
 /** A crate built at `builtAt` from sources dated `editedAt`: seconds since the epoch. */
 export async function crate(builtAt: number, editedAt: number) {
@@ -23,7 +23,7 @@ export async function crate(builtAt: number, editedAt: number) {
   return { root, binary, stage: sources[2] }
 }
 
-export const CRATES = ['asset-compiler-rust', 'page-codec-wasm', 'math/rust']
+const CRATES = ['asset-compiler-rust', 'page-codec-wasm', 'math/rust']
 
 /** What the compiler's binary answers to `--build-inputs` here: its crate folders, then the
  *  manifests and the libraries, never the test code; counted, to prove it is asked once per
