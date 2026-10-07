@@ -82,20 +82,27 @@ function createBundleCounts(table: WorldRoots) {
 function createBinding(table: WorldRoots, url: string) {
   let queue: PageQueue | undefined, bind!: (session: PageQueue) => void
   let bound = new Promise<PageQueue>((resolve) => (bind = resolve))
+  /** `session` closed: a read asked from now on waits for the next one. */
+  const closed = (session: PageQueue) => {
+    if (queue !== session) return
+    queue = undefined
+    bound = new Promise<PageQueue>((resolve) => (bind = resolve))
+  }
   return {
-    /** The queue bound now, else the next one bound, waited on till `signal` lets go. */
-    next: (signal?: AbortSignal) => (queue ? Promise.resolve(queue) : waited(bound, signal)),
+    /** The queue bound now, else the next one bound, waited on till `signal` lets go: a closed
+     *  queue is never handed out. */
+    next(signal?: AbortSignal) {
+      if (queue?.signal.aborted) closed(queue)
+      return queue ? Promise.resolve(queue) : waited(bound, signal)
+    },
+    /** `session` reads the bundles from now on; one already closed — its device lost before it
+     *  bound — is refused. */
     bind(session: PageQueue) {
-      if (queue === session) return
+      if (queue === session || session.signal.aborted) return
       session.admit(bundlePages(table, url, table.pinned))
       queue = session
       bind(session)
-      const closed = () => {
-        if (queue !== session) return
-        queue = undefined
-        bound = new Promise<PageQueue>((resolve) => (bind = resolve))
-      }
-      session.signal.addEventListener('abort', closed, { once: true })
+      session.signal.addEventListener('abort', () => closed(session), { once: true })
     },
   }
 }
@@ -156,13 +163,13 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       await readAtOpen(bundles, bundles.map(take), read)
     },
     /** A bundle's pages: the pinned top's, else held for the one request while it reads, as a cell
-     *  holds it, on its session's life, and let go once read (the GPU page pool keeps what it
-     *  uploads). */
-    async pages(bundle: number) {
+     *  holds it, till `signal` — its askers' — lets it go, and let go once read (the GPU page pool
+     *  keeps what it uploads). */
+    async pages(bundle: number, signal: AbortSignal) {
       if (bundle < table.pinned) return top[bundle]
       const own = take(bundle)
       try {
-        await read([bundle], [own], {})
+        await read([bundle], [own], { signal })
         return own.pages!
       } finally {
         letGo(bundle)

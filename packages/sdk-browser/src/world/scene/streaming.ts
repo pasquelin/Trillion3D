@@ -115,11 +115,10 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     streamingPromise = streamer
       .request(urls, { signal: controller.signal, priority: PRIORITY_VISIBLE, onPage: land })
       .catch((error) => {
+        // The page's failure reached the host already, once, from the read layer (`onStalled`,
+        // `streamFailed`): the batch only keeps it for its owner to read.
         if (state.disposed || signal?.aborted || controller.signal.aborted) return
-        const detail = String(error)
-        if (streamingError === detail) return
-        streamingError = detail
-        streamFailed(session, engine, streamer.stats().failed, detail)
+        streamingError = String(error)
       })
       .finally(() => {
         if (backgroundFetchController === controller) backgroundFetchController = undefined

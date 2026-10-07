@@ -25,7 +25,8 @@ export function rangedReader(url: string, signal?: AbortSignal) {
     const own = { promise: response.arrayBuffer(), askers: 0, stop }
     const forget = () => void (whole === own && (whole = undefined))
     stop.signal.addEventListener('abort', forget, { once: true })
-    own.promise.then((buffer) => void (held = buffer.byteLength), forget)
+    // Stopped before it landed, it is forgotten, and holds nothing.
+    own.promise.then((buffer) => void (whole === own && (held = buffer.byteLength)), forget)
     whole = own
   }
   /** One request of `[offset, offset + length)`, on a signal of its own that its asker's stops
@@ -43,6 +44,8 @@ export function rangedReader(url: string, signal?: AbortSignal) {
     if (!ranged) asking = answer
     try {
       const response = (asked.meter ?? unmetered).read(await answer, url)
+      // Its asker left while it was asked: what came is let go, never kept.
+      if (stop.signal.aborted) throw (letGo(response), stop.signal.reason)
       if (response.status === 206) return ((ranged = true), await response.arrayBuffer())
       if (!whole) keep(response, stop)
       else letGo(response) // a server that stopped answering ranges
@@ -68,6 +71,7 @@ export function rangedReader(url: string, signal?: AbortSignal) {
     const bytes = await waitShared(own, mine, () => own.stop.abort(mine?.reason))
     return bytes.slice(offset, offset + length)
   }
-  /** The bytes the whole file holds once a server answered it whole, else zero. */
-  return Object.assign(read, { held: () => held })
+  /** The bytes the whole file holds once a server answered it whole, else zero; and whether it
+   *  holds nothing and waits on nothing — a reader its owner may let go. */
+  return Object.assign(read, { held: () => held, idle: () => !asking && !whole })
 }

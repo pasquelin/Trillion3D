@@ -109,3 +109,20 @@ export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 
   for (const roots of scene.worldRoots) roots.bind(streamer)
   return scene
 }
+
+/** What an opening keeps of the scene source its load builds, into `owned`, while `opening` runs;
+ *  one that lands after the opening failed is released at once (`release`) — the failure path ran
+ *  already, no one else would — and once: the source it released stays named, never released
+ *  twice. */
+export function openingKeeps<T>(
+  owned: { source?: T },
+  opening: AbortSignal,
+  release: (source: T) => void,
+) {
+  return (source: T) => {
+    if (!opening.aborted) return void (owned.source = source)
+    if (source === owned.source) return
+    owned.source = source
+    release(source)
+  }
+}

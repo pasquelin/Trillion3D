@@ -49,10 +49,13 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
   /** The one reader of each file read by ranges (`rangedReader`), for every load and session that
    *  reads through this cache: a server that ignores the Range answers a file whole once. */
   const readers = new Map<string, ReturnType<typeof rangedReader>>()
-  /** The bytes of the files those readers keep whole. */
+  /** The bytes of the files those readers keep whole; a reader that holds nothing and waits on
+   *  nothing — its download stopped with its last asker — is let go. */
   const readerBytes = () => {
     let held = 0
-    for (const read of readers.values()) held += read.held()
+    for (const [url, read] of readers)
+      if (read.idle()) readers.delete(url)
+      else held += read.held()
     return held
   }
   let bytes = 0,

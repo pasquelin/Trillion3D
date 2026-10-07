@@ -23,7 +23,15 @@ const FIRST_WAIT_MS = 500,
 
 /** A page's failures in a row: the last one's error, how many, when its wait ends — `Infinity`
  *  for good —, and its place in the waits' heap, −1 out of it. */
-type ReadFailure = { url: string; error: Error; tries: number; due: number; slot: number }
+type ReadFailure = {
+  url: string
+  error: Error
+  tries: number
+  due: number
+  slot: number
+  /** Said once (`onStalled`): its failures in a row end only when its page lands. */
+  said: boolean
+}
 
 /** What the failures read of their streamer: its jobs and catalogue, and who hears a stall. */
 type Reads = {
@@ -89,6 +97,11 @@ function createWaits(ended: (failure: ReadFailure) => void) {
   }
 }
 
+/** A page's first failure in a row, before it is recorded. */
+const fresh = (url: string): ReadFailure => {
+  return { url, error: new Error(), tries: 0, due: 0, slot: -1, said: false }
+}
+
 /** The failures of `reads`' pages, a job whose wait ended queued again by `requeue`. */
 export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
   const failures = new Map<string, ReadFailure>()
@@ -109,7 +122,7 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
     /** `url`'s read failed by `cause`: the error its job fails with, and whether it waits — queued
      *  again once its wait ends — rather than failing for good. */
     record(url: string, cause: unknown) {
-      const failure = failures.get(url) ?? { url, error: new Error(), tries: 0, due: 0, slot: -1 }
+      const failure = failures.get(url) ?? fresh(url)
       const tries = ++failure.tries,
         retried = retriableError(cause),
         wait = retried ? Math.max(waitAfter(tries), retryAfterOf(cause)) : Infinity
@@ -121,8 +134,10 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
         final++
         waits.leave(failure)
       }
-      if (wait >= LAST_WAIT_MS && waitAfter(tries - 1) < LAST_WAIT_MS)
+      if (wait >= LAST_WAIT_MS && !failure.said) {
+        failure.said = true
         reads.onStalled?.({ url, cause })
+      }
       return { error: failure.error, waits: retried }
     },
     /** `url` was read: its failures in a row are over. */

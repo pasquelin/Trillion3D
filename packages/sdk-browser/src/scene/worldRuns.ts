@@ -49,22 +49,21 @@ export async function readBundle(
 }
 
 /** Bundles `[first, end)` of `table`'s binary at `url`, read by `read` (`rangedReader`) in one
- *  range `meter` counts, each checked against its digest: their pages, bundle by bundle. */
+ *  range `meter` counts, asked till `signal` — the load's — lets it go, each checked against its
+ *  digest: their pages, bundle by bundle. */
 export async function readSpan(
   read: ReturnType<typeof rangedReader>,
   url: string,
   table: WorldRoots,
   [first, end]: readonly [number, number],
-  meter: ByteMeter,
+  { meter, signal }: { meter: ByteMeter; signal?: AbortSignal },
 ) {
   const bundles = table.bundles.slice(first, end),
     last = bundles[bundles.length - 1]
   const from = bundles[0].offset,
     run = bundles.map((own, at) => ({ ...own, url: bundleUrl(url, first + at) }))
-  const checked = await verifiedRun(
-    run,
-    await read(from, last.offset + last.bytes - from, { meter }),
-  )
+  const bytes = await read(from, last.offset + last.bytes - from, { meter, signal })
+  const checked = await verifiedRun(run, bytes)
   return checked.map((own, at) => {
     if (!own.bytes) throw own.refused
     return worldBundlePages(own.bytes, bundles[at].count, first + at)

@@ -84,7 +84,7 @@ function worldStream(
   dag: Announced | undefined,
   dagUrl: string,
   signal: AbortSignal | undefined,
-  pages: (bundle: number) => Promise<WorldRootsPage[]>,
+  pages: (bundle: number, signal: AbortSignal) => Promise<WorldRootsPage[]>,
 ) {
   let stream: WorldStream | undefined
   const open = async () => {
@@ -118,7 +118,7 @@ function readTop(
   signal: AbortSignal | undefined,
   { queue, read, meter }: { queue?: PageQueue; read: () => RangedRead; meter: ByteMeter },
 ) {
-  if (!queue) return readSpan(read(), url, table, [0, table.pinned], meter)
+  if (!queue) return readSpan(read(), url, table, [0, table.pinned], { meter, signal })
   queue.admit(bundlePages(table, url))
   const tops = Array.from({ length: table.pinned }, (_, bundle) =>
     readBundle(queue, table, url, bundle, signal ?? queue.signal, PRIORITY_VISIBLE),
@@ -156,7 +156,7 @@ export async function openWorldRoots(
   if (whole && queue) await bundles.hold(0, { signal })
   else if (whole) {
     const own = read()
-    await bundles.keep(0, (span) => readSpan(own, url, table, span, meter))
+    await bundles.keep(0, (span) => readSpan(own, url, table, span, { meter, signal }))
   }
   const stream = worldStream(table, files[WORLD_ROOTS_DAG], urls.dag, signal, bundles.pages)
   return {
