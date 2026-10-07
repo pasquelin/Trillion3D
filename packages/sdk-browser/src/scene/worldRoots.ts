@@ -183,7 +183,8 @@ export async function openWorldRoots(
     worldStreamOf(table, bundlePages, { url: urls.dag, announced: dag }, signal),
   )
   if (table.cells.count > 1 && dag) {
-    hold.drawn = await hold.stream()
+    await hold.stream()
+    hold.draws = true
     hold.drawnBytes = dag.bytes
   }
   // The engine whose scene is this manifest's draws from it (`EngineContext.worldRoots`).
@@ -222,15 +223,16 @@ function worldRootsHold(
   let opened: WorldStream | undefined
   const hold = {
     table,
-    /** The world pages' source (`worldPageServe.ts`), and their DAG
-     *  in the engine's own `DagRoot` shape from the cook's rank order (`undefined` for a cache
-     *  without its DAG file), opened once, on first use. A table out of its
-     *  rank is refused here (`WORLD_CLUSTER_RANK`), before any page is drawn from it. */
+    /** The world pages' source (`worldPageServe.ts`) and their DAG in the engine's own `DagRoot`
+     *  shape (`undefined` without its DAG file), opened once, on first use; a table out of its
+     *  rank refused here (`WORLD_CLUSTER_RANK`). `draws`: the cut packs and draws it (`drawn`), a
+     *  partitioned world's, opened at load, the DAG's bytes `drawnBytes`. */
     stream: async () => (opened = await stream()),
-    /** The stream a partitioned world opened at load, which the cut packs and draws from, and the
-     *  bytes of the DAG it read. */
-    drawn: undefined as WorldStream | undefined,
+    draws: false,
     drawnBytes: 0,
+    get drawn() {
+      return hold.draws ? opened : undefined
+    },
     /** The manifest that opened it: an engine over that scene draws from it. */
     metadata: undefined as object | undefined,
     /** The object each placed row draws (`worldObjects.ts`). */
@@ -240,23 +242,20 @@ function worldRootsHold(
     /** `cell` is placed: the bundles its objects' roots need past the top are read and held,
      *  each once whatever the cells sharing it. A read that fails holds nothing of the cell. */
     hold: holds.hold,
-    /** `cell` left: a bundle no placed cell needs any more is let go, and what was read of its
-     *  objects. */
+    /** `cell` left: a bundle no placed cell needs any more is let go, and its objects read. */
     release(cell: number) {
       holds.release(cell)
       objects.release(cell)
     },
     /** The bundles past the top the placed cells hold now, ascending. */
     held: () => [...holds.held.keys()].sort((a, b) => a - b),
-    /** Tells `watcher` each bundle the cells start or stop holding, those held now first; returns
-     *  what stops telling it. */
+    /** Tells `watcher` each bundle the cells start or stop holding (`worldHeldBundles.ts`). */
     watch: holds.watch,
     /** The room the cut's cache leaves the roots held cells add, and whether a cell may be held
      *  far within it (`worldHeldBundles.ts`). */
     cover: holds.cover,
-    /** Every byte held here: the pinned top's, the placed cells' bundles', the whole binary a
-     *  server that ignores the Range answered (`rangedReader`), and the DAG a partitioned world
-     *  read. */
+    /** Every byte held here: the pinned top's, the placed cells' bundles', the binary a server
+     *  that ignores the Range answered whole (`rangedReader`), and the DAG a world draws. */
     bytes: () =>
       table.pinnedTopBytes +
       holds.bytes() +
