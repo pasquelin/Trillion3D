@@ -47,7 +47,7 @@ function scheduled(file: ReturnType<typeof cooked>) {
   })
   const want = () => schedule.want(new Map([[model, opening]]), [0, 0, 0], 100)
   want()
-  return { schedule, opening, tiles, calls, want, remove }
+  return { schedule, opening, tiles, calls, want, remove, shapes }
 }
 
 test('an update counts the bytes of the tiles it gives a body alone', () => {
@@ -103,4 +103,24 @@ test('a schedule whose models all left names none of their placements or tiles',
   opening.placed.forEach(remove)
   schedule.trim()
   assert.equal(schedule.listed, 0)
+})
+
+test('a tile never restored that a model still holds names no placement of the model gone', () => {
+  const { schedule, opening, tiles, remove, shapes } = scheduled(repeated(10))
+  const twin = compiledModel()
+  twin.position.set(0, 0, 5)
+  twin.updateMatrixWorld(true)
+  const other = { placed: placedOf(twin, repeated(10) as never, shapes) }
+  const both = new Map<unknown, { placed: Placed[] }>([
+    ['model', opening],
+    [twin, other],
+  ])
+  schedule.want(both, [0, 0, 0], 100)
+  schedule.admit(100, 20)
+  const [shape] = tiles
+  assert.equal(shape.waiting.length, 20, 'both models’ placements wait for it')
+  opening.placed.forEach(remove)
+  schedule.trim()
+  assert.ok(shape.holders > 0 && shape.handle < 0, 'held by the twin, never restored')
+  assert.deepEqual([shape.waiting.length, shape.waiting.every((p) => p.model === twin)], [10, true])
 })

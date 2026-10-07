@@ -128,6 +128,9 @@ export class TileSchedule {
     // In order: those let in stay first.
     this.wanted.length = this.wants = partitionBy(this.wanted, this.wants, isIn)
     this.tiles.length = this.tileCount = partitionBy(this.tiles, this.tileCount, isHeld)
+    // A tile still held, never restored, lets go of the placements of the model gone.
+    for (const shape of this.tiles)
+      shape.waiting.length = shape.waits = partitionBy(shape.waiting, shape.waits, isIn)
     this.in = admitted
     this.ready = 0
     this.keeps.trim()
