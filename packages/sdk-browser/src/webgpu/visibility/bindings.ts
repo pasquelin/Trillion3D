@@ -1,5 +1,4 @@
-import { visUniformLayout } from '../core/bindLayout.ts'
-import { visUniformSlots } from './uniforms.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts'
 import { liveResources } from '../core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -13,8 +12,8 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -
       pageTable: () => rt.vis.pageTable,
       flags: () => (hiz ? rt.vis.gpuHiz?.flags : rt.vis.zeroFlags),
       uniform: () => rt.vis.visUniform,
-      uniformOffset: () =>
-        (slot + 1) * visUniformLayout(rt.gpu.device?.limits, visUniformSlots(rt.vis)).stride,
+      // The uniform's slots lie the device's alignment apart (`visUniformLayout`).
+      uniformOffset: () => (slot + 1) * uniformStride(rt.gpu.device?.limits),
       textures: () => rt.vis.textures,
       sampler: () => rt.vis.mapsSampler,
       instances: () => (slot < 0 ? rt.vis.zeroFlags : rt.vis.gpuDraw?.instanceBuffer),
