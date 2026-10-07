@@ -9,6 +9,7 @@ import {
   hizBuildWords,
 } from './uniforms.ts'
 import { evaluateHizReduce } from './oracle.fixture.ts'
+import { uniformStride } from '../../residency/pools.ts'
 
 // The reference pyramid build (a copy of level 0, then the per-level reduction the oracle
 // states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.
@@ -145,14 +146,14 @@ function workgroup(
 export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => number) {
   const { sizes, offsets, count, stride } = layout(scene)
   const passes = hizBuildPasses(sizes, scene.maxLevels)
-  const words = hizBuildWords(sizes, offsets, passes, stride)
+  const words = hizBuildWords(sizes, offsets, passes, uniformStride(), stride)
   const { pass, dispatches } = recordingPass()
   encodeHizPyramid(
     pass,
     {} as GPUBindGroup,
     {} as GPUComputePipeline,
     passes,
-    hizBuildSlots(passes),
+    hizBuildSlots(passes, uniformStride()),
     count,
   )
   for (const [at, gx, gy, gz] of dispatches) {

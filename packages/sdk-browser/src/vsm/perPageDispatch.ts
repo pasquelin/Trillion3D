@@ -9,6 +9,7 @@
  */
 import {
   VSM_PER_PAGE_BIN_COUNT,
+  VSM_PER_PAGE_BIN_WORDS,
   vsmDispatchPerPageBin,
   vsmWritePerPageBinArgs,
   type VsmPerPageBin,
@@ -16,7 +17,7 @@ import {
 import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
 import { vsmBufferEntry, vsmDynamicUniformEntry } from './passKit.ts'
 import type { VsmResources } from './resources.ts'
-import { vsmWriteChanged } from './writeChanged.ts'
+import { vsmWriteChangedSlots } from './writeChanged.ts'
 
 /**
  * Bindings of the per-page dispatch setup in `group` (0 = `vsmPerPage` dynamic uniform, 1 = `vsmPerPageIds`)
@@ -83,12 +84,19 @@ export class VsmPerPageDispatcher {
   }
 
   /** This frame's `all` bins (ids already in `res.perPageIds`); the slots that changed go up by
-   *  queue write, before this frame's submit (`vsmWriteChanged`). */
+   *  queue write, before this frame's submit (`vsmWriteChangedSlots`). */
   setBins(bins: readonly VsmPerPageBin[]) {
     const words = this.words
     this.args.fill(0)
     for (let b = 0; b < bins.length; b++) vsmWritePerPageBinArgs(this.args, b * words, bins[b], b)
-    vsmWriteChanged(this.device, this.params, this.args, 0, this.args.length)
+    vsmWriteChangedSlots(
+      this.device,
+      this.params,
+      this.args,
+      VSM_PER_PAGE_BIN_COUNT,
+      VSM_PER_PAGE_BIN_WORDS,
+      words,
+    )
     this.bins = bins
   }
 

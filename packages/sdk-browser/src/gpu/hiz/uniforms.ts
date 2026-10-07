@@ -21,7 +21,8 @@ export function hizTestSlot(
   image[at + TEST_COUNTING_WORD] = counting ? 1 : 0
 }
 
-/** Bytes of one uniform slot, and the deepest pyramid the camera builds. */
+/** Bytes one uniform slot binds — its slots lie the device's `uniformStride` apart, the alignment
+ *  of their dynamic offsets —, and the deepest pyramid the camera builds. */
 export const HIZ_UNIFORM_BYTES = 256
 export const HIZ_MAX_LEVELS = 16
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
@@ -53,25 +54,26 @@ export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels = HIZ_M
 }
 
 /** The dynamic offset of each build pass's uniform slot, one array a pass so that encoding a frame
- *  allocates none: pass `i` binds slot `i`. */
-export const hizBuildSlots = (passes: HizBuildPass[]) =>
-  passes.map((_, i) => [i * HIZ_UNIFORM_BYTES])
+ *  allocates none: pass `i` binds slot `i`, the slots `slotStride` bytes apart. */
+export const hizBuildSlots = (passes: HizBuildPass[], slotStride: number) =>
+  passes.map((_, i) => [i * slotStride])
 
 /**
  * Every pass's source and destinations are a function of the target size alone, so the whole
  * uniform array is written once per allocation and no image uploads a byte to build the pyramid.
- * Slot `i` holds pass `i`: its source level's offset and size, the count of levels it writes,
- * `stride` — the words between two pyramids built in one dispatch, zero for the camera's single
- * pyramid (`shader.ts`) — then each written level's offset and size. The source at offset zero
- * is level 0, read from the texture.
+ * Slot `i`, `slotStride` bytes from the next, holds pass `i`: its source level's offset and size,
+ * the count of levels it writes, `stride` — the words between two pyramids built in one dispatch,
+ * zero for the camera's single pyramid (`shader.ts`) — then each written level's offset and size.
+ * The source at offset zero is level 0, read from the texture.
  */
 export function hizBuildWords(
   sizes: Array<[number, number]>,
   offsets: number[],
   passes: HizBuildPass[],
+  slotStride: number,
   stride = 0,
 ) {
-  const slot = HIZ_UNIFORM_BYTES / 4,
+  const slot = slotStride / 4,
     words = new Uint32Array(passes.length * slot)
   passes.forEach(({ source, width, height, levels }, i) => {
     words.set([offsets[source], width, height, levels, stride], i * slot)

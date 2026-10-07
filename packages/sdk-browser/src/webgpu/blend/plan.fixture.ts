@@ -12,9 +12,8 @@ export function blendSceneOf(
   limits?: { minUniformBufferOffsetAlignment?: number },
 ) {
   const blendState = createWebgpuBlendState()
-  blendState.uniformStride = uniformStride(limits)
   blendState.blendGpu.push(...items)
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride(limits))
   refreshBlendPlan(blendState)
   return blendState
 }

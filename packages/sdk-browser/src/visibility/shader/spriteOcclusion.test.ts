@@ -23,6 +23,7 @@ import { createWebgpuGpuState } from '../../webgpu/pages/state/gpu.ts'
 import { createWebgpuBlendState } from '../../webgpu/blend/state.ts'
 import { prepareWebgpuBlend } from '../../webgpu/blend/prepare.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../../webgpu/blend/plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../../webgpu/blend/order.ts'
 import { itemKept } from '../../webgpu/blend/hierarchyCull.ts'
 import { surfaceOf } from '../../page/surface.ts'
@@ -163,7 +164,7 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   )
   // Planes no box passes: the attenuated sprite leaves, the constant-size one stays.
   blendState.blendPlanes.set(Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? -1 : 0)))
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   assert.equal(orderBlendPasses(blendState, [0, 0, 0]), 1)
   assert.deepEqual(

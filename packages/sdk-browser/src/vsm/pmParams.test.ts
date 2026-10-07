@@ -137,7 +137,7 @@ test('a device aligning at 512 lays the parameter and per-page slots 512 bytes a
   assert.equal(size('vsm.pm.perPage'), VSM_PER_PAGE_BIN_COUNT * 512)
   // What the ledger counts for the context is what it made.
   const made = ['vsm.pm.params', 'vsm.pm.perPage', 'vsm.pm.argsInit'].map(size)
-  assert.equal(vsmPmContextBytes(512), made[0] + made[1] + made[2])
+  assert.equal(vsmPmContextBytes(fake.device.limits), made[0] + made[1] + made[2])
   const sorted = (values: Iterable<number | undefined>) =>
     [...new Set(values)].sort((a, b) => a! - b!)
   // The two parameter slots, each written at its own 512-byte step.
@@ -150,9 +150,7 @@ test('a device aligning at 512 lays the parameter and per-page slots 512 bytes a
 
 test('the guard fails when a word beyond the struct is written', () => {
   const writes = parameterWrites()
-  const spilled = writes.map(({ offset, words }) => ({
-    offset,
-    words: words.map((w, k) => (k % 64 === 3 ? 1 : w)),
-  }))
+  // A write one slot's 2 words long, spilled 2 words past them.
+  const spilled = writes.map(({ offset, words }) => ({ offset, words: [...words, 0, 1] }))
   assert.throws(() => assertWithinWords(spilled, 2), /word 3 of a slot holds 1/)
 })

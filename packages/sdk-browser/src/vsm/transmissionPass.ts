@@ -55,6 +55,7 @@ import {
   vsmChunkKernels,
   vsmChunkListGroups,
   vsmChunkListSizes,
+  vsmChunkPasses,
   vsmChunkRows,
   vsmChunkRowsWithin,
   vsmContextBytes,
@@ -330,8 +331,8 @@ interface Ctx extends VsmChunkKernels {
   >
   /** Bytes between two chunks' parameter slots: the device's `uniformStride`. */
   slot: number
-  /** Each chunk's parameter offset, made once for every frame. */
-  offsets: number[][]
+  /** Each chunk's parameter offset, made once for every frame (`vsmChunkPasses`). */
+  passes: ReturnType<typeof vsmChunkPasses>
   /** What the chunk groups bound when made (`chunkGroups`). */
   bound: WebgpuBindIdentity
   /** The chunk groups over those alone, made again when one of them moved. */
@@ -463,6 +464,8 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
   const existing = contexts.get(trans)
   if (existing && existing.device === device) return existing
   const { layout } = trans
+  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
+  const slot = uniformStride(device.limits)
   const ctx: Ctx = {
     device,
     ...vsmTransmissionPipes(device, layout),
@@ -473,9 +476,8 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
-    // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-    slot: uniformStride(device.limits),
-    offsets: [],
+    slot,
+    passes: vsmChunkPasses('vsm.transmission', slot),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -773,7 +775,6 @@ function binPlan(
         viewCount: views.length / 4,
         chunks: ceilDiv(used, chunkRows),
         chunkRows,
-        slot: ctx.slot,
       },
       chosen,
     )
@@ -799,7 +800,7 @@ function binLists(
   plan: BinPlan,
 ) {
   const { params, views, counts, args } = vsmEnsureLists(ctx, 'vsm.transmission', plan.within.size!)
-  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views)
+  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slot)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   return { args, ...chunkGroups(ctx, trans, res, scene) }
 }
@@ -816,7 +817,7 @@ function encodeBin(
   encodeVsmCandidates(pass, ctx.candidates.pipeline, lists.cand, ctx, lists.args, plan.rowCount)
   const cull = { cull0: tables.cull0, cull1: lists.cull1, args: lists.args }
   for (let c = 0; c < plan.chunks; c++) {
-    const offset = (ctx.offsets[c] ??= [c * ctx.slot])
+    const { offset } = ctx.passes.chunk(c)
     encodeVsmChunkCommands(pass, ctx, cull, args, c, offset)
     // A group per command, as the expand's arguments: its pages, then its triangles.
     const at = (c * VSM_RENDER_ARGS_STRIDE_WORDS + VSM_RENDER_ARGS_EXPAND) * 4

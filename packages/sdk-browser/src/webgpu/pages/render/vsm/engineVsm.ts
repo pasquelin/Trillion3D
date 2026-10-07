@@ -192,11 +192,10 @@ const LIGHT_SLOTS = 256,
   DIRECTIONAL_IDS_BYTES = 4 * 64
 /** Copies of the page counters read back at once (`vsmFrameEnd.ts`). */
 const STATS_READBACKS = 3
-/** Bytes the maps hold beside their set (`vsmResourceBytes`) and the frame's lists: the marking,
- *  its uniform slots `stride` bytes apart (the device's `uniformStride`), the light and sun ids,
- *  the status feedback and the counters' readbacks. */
-export const engineVsmSideBytes = (stride: number) =>
-  vsmMarkingBytes(stride) +
+/** Bytes the maps hold beside their set (`vsmResourceBytes`) and the frame's lists on a device of
+ *  `limits`: the marking, the light and sun ids, the status feedback and the counters' readbacks. */
+export const engineVsmSideBytes = (limits: GPUSupportedLimits) =>
+  vsmMarkingBytes(limits) +
   4 * LIGHT_SLOTS +
   DIRECTIONAL_IDS_BYTES +
   vsmFeedbackReadbackBytes() +

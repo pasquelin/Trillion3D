@@ -33,8 +33,7 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
         ? item.vertexBase
         : 0
   // The order's step words are laid at the device's alignment, as the kernels' buffers.
-  blendState.uniformStride = uniformStride(device.limits)
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride(device.limits))
   // The scene's transparent list IS the draw list: what an image takes out of it, it takes out
   // with a zero instance count, and the readbacks keep naming the scene's items.
   blendState.visibleBlend.length = 0

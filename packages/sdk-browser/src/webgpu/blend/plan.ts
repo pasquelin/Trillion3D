@@ -73,9 +73,12 @@ function instanceCapacity(libres: readonly number[], shift: number, capacity: nu
  *
  * A paged instance draws a cluster, an unpaged instance a chunk of at most one index stride. The
  * vertex index carries the rank of its run's first instance, not the item rank (`runs.ts`): that
- * is what lets a whole run fit in ONE draw, and all paged items share ONE bind group.
+ * is what lets a whole run fit in ONE draw, and all paged items share ONE bind group. The order's
+ * step words and the expansion's uniform slots lie `uniformStride` bytes apart: the device's
+ * dynamic-offset alignment, held in the state for the plan and the kernels' buffers.
  */
-export function buildBlendStatics(blendState: BlendState) {
+export function buildBlendStatics(blendState: BlendState, uniformStride: number) {
+  blendState.uniformStride = uniformStride
   const items = blendState.blendGpu,
     table = blendState.table
   const paged = table?.maxVertexWords ?? 0

@@ -10,6 +10,8 @@ import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 /** Label of every bloom pass: where it shows in a GPU capture. */
 const BLOOM_PASS = 'Trillion3D bloom'
 const FORMAT: GPUTextureFormat = 'rgba16float'
+/** Words of one uniform slot, the `Bloom` struct a pass binds. */
+const SLOT_WORDS = BLOOM_UNIFORM_BYTES / 4
 type Size = readonly [number, number]
 
 /**
@@ -102,9 +104,10 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     inputs = new WeakMap()
     levelBytes = passes = 0
   }
-  /** Writes one uniform slot: inverse sizes written and read, radius, blend. */
+  /** Writes uniform slot `index`, its words packed at `SLOT_WORDS` a slot: inverse sizes written
+   *  and read, radius, blend. */
   const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) => {
-    const base = (index * stride) / 4
+    const base = index * SLOT_WORDS
     packed[base] = 1 / out[0]
     packed[base + 1] = 1 / out[1]
     packed[base + 2] = 1 / read[0]
@@ -127,8 +130,9 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     for (let level = 0; level + 1 < count; level++)
       slot(first + count + level, sizes[level], sizes[level + 1], radius)
     slot(last, full, sizes[0], radius, keep, glow)
-    const at = first * stride
-    device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * stride) / 2)
+    // Each slot's words alone go up, never the padding up to the device's alignment.
+    for (let s = first; s <= last; s++)
+      device.queue.writeBuffer(uniform!, s * stride, packed, s * SLOT_WORDS, SLOT_WORDS)
   }
   const draw = (
     encoder: GPUCommandEncoder,
@@ -176,7 +180,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         size: passes * sizes.length * 2 * stride,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       })
-      packed = new Float32Array(uniform.size / 4)
+      packed = new Float32Array(passes * sizes.length * 2 * SLOT_WORDS)
       held = new Float64Array(2 * passes).fill(Number.NaN)
       views = sizes.map((_, level) =>
         texture!.createView({ baseMipLevel: level, mipLevelCount: 1 }),

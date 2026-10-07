@@ -11,6 +11,7 @@ import { writeKeyRecords } from './keyRecords.ts'
 import { orderBlendPasses } from './order.ts'
 import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture.ts'
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { planWords, RUN_WORDS } from './planLayout.ts'
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
 import type { TransparentTable } from '../transparent/table.ts'
@@ -139,7 +140,7 @@ export function transparentScene(count: number, seed: number) {
     length: ranges.length / 2,
     itemRanges: Uint32Array.from(ranges),
   } as unknown as TransparentTable
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
   return { blendState, next }

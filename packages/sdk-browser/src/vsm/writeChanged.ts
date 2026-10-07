@@ -83,6 +83,27 @@ export function vsmWriteChanged(
   send(device, buffer, image, count)
 }
 
+/** As `vsmWriteChanged`, over the first `words` words of each of `count` uniform slots, `stride`
+ *  words apart: the padding up to the device's alignment, never written, is never compared, and
+ *  two slots share a write only where the coalescer joins the gap between them (`coalesceRanges`),
+ *  so what goes up does not grow with the alignment. */
+export function vsmWriteChangedSlots(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  image: Uint32Array<ArrayBuffer>,
+  count: number,
+  words: number,
+  stride: number,
+) {
+  if (!count) return
+  const held = heldWords(buffer, (count - 1) * stride + words)
+  let changes = 0
+  for (let s = 0; s < count; s++)
+    for (let k = s * stride, end = k + words; k < end; k++)
+      changes = follow(held, image, k, changes)
+  send(device, buffer, image, changes)
+}
+
 /** As `vsmWriteChanged`, over the records `records` lists alone — `count` record indices,
  *  increasing and distinct, `width` words each at `index · width`: an image whose other words
  *  never change, sparse in a wide table, is compared where it can differ and nowhere else. */

@@ -43,7 +43,7 @@ import type { VsmLayout } from './layout.ts'
 export const VSM_PM_GROUP_RESOURCES = 0
 export const VSM_PM_GROUP_PARAMS = 1
 export const VSM_PM_GROUP_PER_PAGE = 2
-/** Byte size of `VsmPmParams`; slots are 256 bytes apart. */
+/** Byte size of `VsmPmParams`; its slots lie the device's `uniformStride` apart. */
 export const VSM_PM_PARAMS_BYTES = 8
 
 /**

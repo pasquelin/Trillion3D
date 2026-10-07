@@ -1,6 +1,6 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
 import { HIZ_UNIFORM_BYTES as UNIFORM_BYTES, hizTestSlot } from './uniforms.ts'
-import { vsmWriteChanged } from '../../vsm/writeChanged.ts'
+import { vsmWriteChanged, vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
 import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
@@ -9,6 +9,8 @@ import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../dispatch/grid.ts'
 
 const TEST_WORKGROUP = 64
+/** Words one uniform slot binds: those the kernels read, the rest of its stride never written. */
+const UNIFORM_WORDS = UNIFORM_BYTES / 4
 
 export type HizPipelines = NonNullable<Awaited<ReturnType<typeof createHizPipelines>>>
 
@@ -19,6 +21,8 @@ export type HizState = HizPipelines & {
   level0Usage: number
   pagesGroup: ReturnType<typeof hizPagesGroup>
   uniforms: GPUBuffer
+  /** Bytes between two uniform slots: the device's `uniformStride`. */
+  stride: number
   /** Every word the kernels read: the drawn pyramid's build passes from word zero
    *  (`hizBuildWords`), the test's slot behind them (`hizTestSlot`). */
   image: Uint32Array<ArrayBuffer>
@@ -72,15 +76,15 @@ export function installHiz(h: HizState, gpu: GpuHiz, next: Pyramid | undefined) 
   gpu.width = next?.width ?? 0
   gpu.height = next?.height ?? 0
   if (!next) return
-  sendHizBuild(h, next.drawn.words)
+  sendHizBuild(h, next.drawn)
   gpu.level0 = next.level0
   gpu.level0View = next.level0View
 }
 
-/** The drawn pyramid's build words, from word zero: only those that changed go up. */
-function sendHizBuild(h: HizState, words: Uint32Array) {
+/** The drawn pyramid's build words, from word zero: only those of its slots that changed go up. */
+function sendHizBuild(h: HizState, { passes, words }: Pyramid['drawn']) {
   h.image.set(words, 0)
-  vsmWriteChanged(h.device, h.uniforms, h.image, 0, words.length)
+  vsmWriteChangedSlots(h.device, h.uniforms, h.image, passes.length, UNIFORM_WORDS, h.stride / 4)
 }
 
 /** Verdict flags for `rows` rows, made now and put in place by `commit` (`GpuHiz.growFlags`). */
@@ -105,8 +109,8 @@ export function hizExtent(h: HizState, drawnWidth: number, drawnHeight: number) 
   const w = Math.min(at.width, drawnWidth),
     hh = Math.min(at.height, drawnHeight)
   if (at.drawn.width === w && at.drawn.height === hh) return
-  at.drawn = pyramidLayout(w, hh)
-  sendHizBuild(h, at.drawn.words)
+  at.drawn = pyramidLayout(w, hh, h.stride)
+  sendHizBuild(h, at.drawn)
 }
 
 /** The test of the compacted boxes, in the frame's compute pass (`GpuHiz.encodeTest`). */
@@ -122,10 +126,10 @@ export function hizTest(
   if (h.disposed || !bindGroup || !at || h.bounds === h.idle) return 0
   const rows = Math.min(maxRows, h.cap)
   const { passes, width: w, height: hh } = at.drawn,
-    slot = passes.length * UNIFORM_BYTES
+    slot = passes.length * h.stride
   const word = slot / 4
   hizTestSlot(image, word, w, hh, rows, counting)
-  vsmWriteChanged(queueDevice, h.uniforms, image, word, word + UNIFORM_BYTES / 4)
+  vsmWriteChanged(queueDevice, h.uniforms, image, word, word + UNIFORM_WORDS)
   // The compacted box count lives in the state: the dispatch covers every drawable row
   // and threads past the count leave at the first test.
   const pass = open.pass
@@ -150,7 +154,7 @@ export function hizResize(
   try {
     // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
     h.at?.destroy()
-    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height))
+    installHiz(h, gpu, allocPyramid(h.device, h.level0Usage, width, height, h.stride))
     return true
   } catch {
     return false

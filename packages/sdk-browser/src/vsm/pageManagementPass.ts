@@ -81,7 +81,7 @@ interface Ctx {
   pipes: Record<KernelName, Pipe>
   params: GPUBuffer
   /** Bytes between two slots of `params`: the device's `uniformStride`. */
-  slot: number
+  stride: number
   /** Each slot's dynamic offset, made once. */
   offsets: number[][]
   /** The CPU image of `params`, every slot at its own offset. */
@@ -93,11 +93,13 @@ interface Ctx {
 
 const contexts = new WeakMap<VsmResources, Ctx>()
 
-/** Bytes a set's page management context holds on the device: its parameter slots, its per-page
- *  dispatch slots — both `slot` bytes apart, the device's `uniformStride` — and its cleared
- *  indirect arguments. */
-export const vsmPmContextBytes = (slot: number) =>
-  slot * SLOT_COUNT + vsmPerPageDispatcherBytes(slot) + ARGS_INIT_BYTES
+/** Bytes a set's page management context holds on a device of `limits`: its parameter slots, its
+ *  per-page dispatch slots — both the device's `uniformStride` apart, as `context` lays them — and
+ *  its cleared indirect arguments. */
+export const vsmPmContextBytes = (limits: { minUniformBufferOffsetAlignment?: number }) => {
+  const stride = uniformStride(limits)
+  return stride * SLOT_COUNT + vsmPerPageDispatcherBytes(stride) + ARGS_INIT_BYTES
+}
 
 /** Frees the page management context of `res`, with the set (`destroyEngineVsm`). */
 export function releaseVsmPageManagement(res: VsmResources) {
@@ -152,8 +154,8 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   if (existing && existing.device === frame.device && existing.stats === stats) return existing
   const device = frame.device
   // Every slot, the parameters' and the per-page dispatch's, at the device's alignment.
-  const slot = uniformStride(device.limits)
-  const dispatcher = new VsmPerPageDispatcher(device, res, slot)
+  const stride = uniformStride(device.limits)
+  const dispatcher = new VsmPerPageDispatcher(device, res, stride)
   // The pipes' parameter groups are made of the same entries: this one's group binds to each.
   const paramsLayout = device.createBindGroupLayout({
     label: 'vsm.pm.params',
@@ -161,7 +163,7 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   })
   const params = device.createBuffer({
     label: 'vsm.pm.params',
-    size: slot * SLOT_COUNT,
+    size: stride * SLOT_COUNT,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const paramsGroup = device.createBindGroup({
@@ -189,9 +191,9 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
     stats,
     pipes,
     params,
-    slot,
-    offsets: Array.from({ length: SLOT_COUNT }, (_, s) => [s * slot]),
-    paramsU32: new Uint32Array((slot * SLOT_COUNT) / 4),
+    stride,
+    offsets: Array.from({ length: SLOT_COUNT }, (_, s) => [s * stride]),
+    paramsU32: new Uint32Array((stride * SLOT_COUNT) / 4),
     paramsGroup,
     argsInit,
     dispatcher,
@@ -223,21 +225,14 @@ function writeParams(
   first: number,
   end: number,
 ) {
-  const words = ctx.slot / 4
-  const u = ctx.paramsU32
+  const { stride, paramsU32: u } = ctx
+  // Each slot's struct alone goes up: never the padding up to the device's alignment.
   for (let s = first; s < end; s++) {
-    const b = s * words
+    const b = (s * stride) / 4
     u[b + 0] = frame.nextMapCount ?? 0
     u[b + 1] = cacheValid ? 1 : 0
+    ctx.device.queue.writeBuffer(ctx.params, s * stride, u, b, VSM_PM_PARAMS_BYTES / 4)
   }
-  const { slot } = ctx
-  ctx.device.queue.writeBuffer(
-    ctx.params,
-    first * slot,
-    u.buffer,
-    first * slot,
-    (end - first) * slot,
-  )
 }
 
 function bind(

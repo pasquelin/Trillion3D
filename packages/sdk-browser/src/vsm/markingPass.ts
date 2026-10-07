@@ -39,7 +39,7 @@ import {
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { vsmWriteChanged } from './writeChanged.ts'
+import { vsmWriteChanged, vsmWriteChangedSlots } from './writeChanged.ts'
 import {
   VSM_CLEAR_SPECS,
   VSM_COARSE_SPECS,
@@ -170,6 +170,9 @@ export function vsmCachePerPageBins(cache: VsmCacheManager, frame: VsmPerPageFra
 /** The thread-per-id bin's groups of 8 × 8, in rows past one dimension's (`dispatchRows`): its
  *  kernel ranks its threads of every row with `flatIndex` (`vsmMapWalkOf`). */
 const threadPerIdGroups = (bin: VsmPerPageBin) => ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2)
+
+/** Words of one bin's slot, the `VsmMapWalkParams` a per-page dispatch binds. */
+export const VSM_PER_PAGE_BIN_WORDS = 4
 
 /** Bin `b`'s `VsmMapWalkParams` words — offset, count, page-walk step (0 for the thread-per-id bin), thread per id —
  *  at `out[at]`. */
@@ -357,9 +360,10 @@ const newTableGroups = (): TableGroups => ({ clear: {} })
 type ClearSet = 'all' | 'directionalOnly'
 /** Bytes of the per-page dispatch slots, `stride` bytes apart (the device's `uniformStride`). */
 const perPageBytes = (stride: number) => DISPATCHERS * VSM_PER_PAGE_BIN_COUNT * stride
-/** Bytes a marking holds on the device: its parameters and its per-page dispatch slots, `stride`
- *  bytes apart. */
-export const vsmMarkingBytes = (stride: number) => VSM_MARKING_PARAMS_BYTES + perPageBytes(stride)
+/** Bytes a marking holds on a device of `limits`: its parameters and its per-page dispatch slots,
+ *  the device's `uniformStride` apart (`createVsmMarking`). */
+export const vsmMarkingBytes = (limits: { minUniformBufferOffsetAlignment?: number }) =>
+  VSM_MARKING_PARAMS_BYTES + perPageBytes(uniformStride(limits))
 
 export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarking {
   const layout = res.layout
@@ -437,7 +441,14 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
         b,
       )
     }
-    vsmWriteChanged(device, perPage, perPageData, 0, perPageData.length)
+    vsmWriteChangedSlots(
+      device,
+      perPage,
+      perPageData,
+      slotOffsets.length,
+      VSM_PER_PAGE_BIN_WORDS,
+      words,
+    )
   }
 
   /** The clears of the tables `set` walks the maps of: one dispatch per non-empty bin. */

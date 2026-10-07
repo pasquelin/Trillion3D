@@ -6,6 +6,7 @@ import { FLAG_CLUSTER_PAGE, FLAG_PAGED } from '../../visibility/types.ts'
 import { prepareWebgpuBlend } from '../blend/prepare.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { orderBlendPasses } from '../blend/order.ts'
 import { beginWaterBounds, includeWaterItem } from './bounds.ts'
 import { device, prepared } from './pass.fixture.ts'
@@ -36,7 +37,7 @@ function scene(enabled = true) {
     state,
     source.source as never,
   )
-  buildBlendStatics(state)
+  buildBlendStatics(state, uniformStride())
   refreshBlendPlan(state)
   state.volumePacked = new Float32Array(8)
   const host = waterCostCamera()

@@ -1,5 +1,4 @@
 import type { OrderStep } from './orderSteps.ts'
-import { uniformStride } from '../../residency/pools.ts'
 
 /** What the transparent passes hold of their encoding plan and paint order (`plan.ts`,
  *  `order.ts`, `runs.ts`): reused from one image to the next, rebuilt with the plan. */
@@ -29,9 +28,9 @@ export const createBlendOrderState = () => ({
   /** Each item's sort key by source rank: the own items' every frame (`order.ts`). */
   orderKeys: new Float64Array(0),
   /** Bytes between two uniform slots of the order's steps and of the expansion's passes: the
-   *  device's dynamic-offset alignment, set as the scene's resources are made
-   *  (`prepareBlendResources`). */
-  uniformStride: uniformStride(),
+   *  device's dynamic-offset alignment, which `buildBlendStatics` is given as the scene's resources
+   *  are made (`prepareBlendResources`) — zero until then, when nothing is planned. */
+  uniformStride: 0,
   /** The order kernel's dispatches of each pass and their uniform words (`orderSteps.ts`). */
   orderSteps: [[], []] as OrderStep[][],
   orderStepWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,

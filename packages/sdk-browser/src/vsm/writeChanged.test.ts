@@ -4,7 +4,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { vsmWriteChanged, vsmWriteChangedCopy, vsmWriteChangedRecords } from './writeChanged.ts'
+import {
+  vsmWriteChanged,
+  vsmWriteChangedCopy,
+  vsmWriteChangedRecords,
+  vsmWriteChangedSlots,
+} from './writeChanged.ts'
 
 /** A buffer copied from and into, written by the queue. */
 const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
@@ -83,5 +88,44 @@ test('a sparse table compared on the records it may have changed sends what a wh
     replayWrites(sent.buffer, whole.writes.splice(0))
     assert.deepEqual(replayed, image, 'the buffer holds the image')
     assert.deepEqual(replayed, sent, 'the same words as a whole compare sends')
+  }
+})
+
+test('uniform slots go up by their words: as a whole compare at 256 bytes, never the padding past it', () => {
+  // Eight slots of 32 words, at a 256-byte device (64 words) and a 1024-byte one (256 words).
+  const frames = [
+    [1, 2],
+    [1, 3],
+    [4, 3],
+    [4, 3],
+  ]
+  const slotsOf = (stride: number, frame: number[]) => {
+    const image = new Uint32Array(8 * stride)
+    for (let s = 0; s < 8; s++) image.fill(frame[s % 2] + s, s * stride, s * stride + 32)
+    return image
+  }
+  const whole = fakeDevice(),
+    slots = fakeDevice(),
+    wide = fakeDevice()
+  const usage = GPUBufferUsage.COPY_DST,
+    a = whole.device.createBuffer({ label: 'whole', size: 8 * 256, usage }),
+    b = slots.device.createBuffer({ label: 'slots', size: 8 * 256, usage }),
+    c = wide.device.createBuffer({ label: 'wide', size: 8 * 1024, usage })
+  const held = new Uint32Array(8 * 256)
+  for (const frame of frames) {
+    const narrow = slotsOf(64, frame),
+      image = slotsOf(256, frame)
+    vsmWriteChanged(whole.device, a, narrow, 0, narrow.length)
+    vsmWriteChangedSlots(slots.device, b, narrow, 8, 32, 64)
+    vsmWriteChangedSlots(wide.device, c, image, 8, 32, 256)
+    const shape = (w: typeof whole.writes) => w.map((x) => [x.offset, x.dataOffset, x.size])
+    assert.deepEqual(shape(slots.writes.splice(0)), shape(whole.writes.splice(0)))
+    for (const w of wide.writes)
+      assert.ok(
+        ((w.offset / 4) % 256) + w.size! <= 32,
+        `a write reaches the padding at ${w.offset}`,
+      )
+    replayWrites(held.buffer, wide.writes)
+    assert.deepEqual(held, image, 'the buffer holds the slots')
   }
 })

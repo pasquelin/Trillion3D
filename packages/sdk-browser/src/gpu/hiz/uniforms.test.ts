@@ -4,6 +4,7 @@ import { HIZ_UNIFORM_BYTES, hizTestSlot } from './uniforms.ts'
 import { createGpuHiz } from './hiz.ts'
 import { pyramidLayout } from './pyramid.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { uniformStride } from '../../residency/pools.ts'
 
 const SLOT_WORDS = HIZ_UNIFORM_BYTES / 4
 
@@ -44,7 +45,7 @@ test('the uniforms go up as the words that changed: build words, then the test s
     return words
   }
   // The pyramid's build words, at creation.
-  const { words } = pyramidLayout(64, 32)
+  const { words } = pyramidLayout(64, 32, uniformStride())
   assert.deepEqual([...held().subarray(0, words.length)], [...words])
   hiz.attach({} as GPUBuffer, {} as GPUBuffer)
   const open = {
@@ -63,5 +64,56 @@ test('the uniforms go up as the words that changed: build words, then the test s
   hiz.encodeTest(device, open, 6, {} as GPUBuffer, true)
   assert.deepEqual(slot(), slotBefore(64, 32, 6, 1))
   assert.equal(uniform().length, after + 1, 'one write: the words that changed')
+  hiz.dispose()
+})
+
+test('a device aligning at 512 lays the build and test slots 512 bytes apart, the padding unsent', async () => {
+  const { device, writes, buffers } = fakeDevice({
+    limits: { minUniformBufferOffsetAlignment: 512 },
+  })
+  const hiz = (await createGpuHiz(device, 64, 32, 8))!
+  const uniforms = buffers.find((b) => b.label === 'Trillion3D HiZ uniforms')!
+  // The deepest pyramid's four build passes, then the test's slot.
+  assert.equal(uniforms.size, 5 * 512)
+  const sent = () => writes.filter((w) => w.buffer.label === uniforms.label)
+  const held = new Uint32Array(uniforms.size / 4)
+  /** Every write so far over the buffer's zeros; throws if one reaches a slot's padding. */
+  const replay = () => {
+    for (const w of sent()) {
+      const at = w.offset / 4,
+        data = new Uint32Array(written(w))
+      held.set(data, at)
+      assert.ok((at % 128) + data.length <= SLOT_WORDS, `a write reaches the padding at word ${at}`)
+    }
+    return held
+  }
+  // Each build slot holds what the slot of a 256-byte device held, at its 512-byte step.
+  const at256 = pyramidLayout(64, 32, 256)
+  const { passes, slots } = pyramidLayout(64, 32, 512)
+  assert.deepEqual(
+    slots,
+    at256.slots.map(([offset]) => [offset * 2]),
+  )
+  replay()
+  for (let i = 0; i < passes.length; i++)
+    assert.deepEqual(
+      [...held.subarray(i * 128, i * 128 + SLOT_WORDS)],
+      [...at256.words.subarray(i * SLOT_WORDS, (i + 1) * SLOT_WORDS)],
+    )
+  // The test slot follows the build's, bound at its own 512-byte step.
+  hiz.attach({} as GPUBuffer, {} as GPUBuffer)
+  const bound: number[] = []
+  const pass = {
+    setPipeline() {},
+    setBindGroup: (_: number, __: unknown, offsets?: readonly number[]) =>
+      void (offsets && bound.push(offsets[0])),
+    dispatchWorkgroups() {},
+  } as unknown as GPUComputePassEncoder
+  hiz.encodePyramid({ pass })
+  hiz.encodeTest(device, { pass }, 5, {} as GPUBuffer, true)
+  const test = passes.length * 512
+  assert.deepEqual(bound, [...slots.map(([offset]) => offset), test])
+  replay()
+  assert.deepEqual([...held.subarray(test / 4, test / 4 + SLOT_WORDS)], slotBefore(64, 32, 5, 1))
   hiz.dispose()
 })

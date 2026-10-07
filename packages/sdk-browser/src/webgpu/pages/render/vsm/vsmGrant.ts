@@ -10,7 +10,6 @@ import {
 } from '../../../../vsm/transmissionPass.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
-import { uniformStride } from '../../../../residency/pools.ts'
 import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
 import { VSM_INVALIDATION_PARAMS_BYTES } from '../../../../vsm/invalidationWgsl.ts'
 import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
@@ -101,11 +100,12 @@ function bytesBeside(
   const casting = castingCount(lights)
   // The passes' own state a new set makes: its page management, its projection's views and blue
   // noise, the invalidation's first parameters.
-  const stride = uniformStride(device.limits)
   const passes =
-    vsmPmContextBytes(stride) + vsmProjectionBytesToMake(undefined) + VSM_INVALIDATION_PARAMS_BYTES
+    vsmPmContextBytes(device.limits) +
+    vsmProjectionBytesToMake(undefined) +
+    VSM_INVALIDATION_PARAMS_BYTES
   return (
-    engineVsmSideBytes(stride) +
+    engineVsmSideBytes(device.limits) +
     passes +
     (mask ? maskBytes(width, height, casting) : 0) +
     Math.max(held.lists, raster) +
@@ -285,7 +285,7 @@ export function regrowEngineVsm(
   const grown = pool?.layout.poolPages ?? 0
   if (grown <= pages) return vsm
   const { lights } = rt
-  if (pool!.allocatedBytes + engineVsmSideBytes(uniformStride(device.limits)) <= room)
+  if (pool!.allocatedBytes + engineVsmSideBytes(device.limits) <= room)
     try {
       const made = createEngineVsm(device, { ...options, poolPages: grown })
       made.regrowFrame = vsm.regrowFrame

@@ -82,7 +82,7 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   )
   bloom.intensity = 0.25
   effects.encode(encoder, [bloom], input, 64, 32)
-  assert.equal(gpu.writes.length, writes + 1, 'a setting rewrites the uniform once')
+  assert.equal(gpu.writes.length, writes + 2 * levels, 'a setting rewrites each slot once')
   effects.encode(encoder, [bloom], input, 128, 64)
   assert.equal(
     effects.bytes,
@@ -192,7 +192,11 @@ test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart'
   // Each slot's radius at its fifth float, 128 floats a slot.
   const floats = new Float32Array(uniform.size / 4)
   for (const write of gpu.writes)
-    if (write.buffer === (uniform as unknown)) floats.set(written(write), write.offset / 4)
+    if (write.buffer === (uniform as unknown)) {
+      // A slot's struct alone goes up, never the padding to the next 512-byte step.
+      assert.deepEqual([write.offset % 512, written(write).byteLength], [0, 32])
+      floats.set(written(write), write.offset / 4)
+    }
   for (let slot = 0; slot < 2 * levels; slot++) assert.equal(floats[slot * 128 + 4], 2)
   passes.length = 0
   effects.encode(encoder, [bloom], input, 64, 32, true)

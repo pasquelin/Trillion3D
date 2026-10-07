@@ -111,7 +111,7 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
   const perPage = fake.buffers.find((b) => b.label === 'vsm.marking.perPage')!
   const params = fake.buffers.find((b) => b.label === 'vsm.marking.params')!
   assert.equal(perPage.size, 2 * VSM_PER_PAGE_BIN_COUNT * 512)
-  assert.equal(vsmMarkingBytes(512), params.size + perPage.size)
+  assert.equal(vsmMarkingBytes(device.limits), params.size + perPage.size)
   // Each bin's words open its 512-byte slot: all bins, then the directional-only ones.
   const words = new Uint32Array(perPage.size / 4)
   replayWrites(
