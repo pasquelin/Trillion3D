@@ -7,7 +7,7 @@
 // copies, never both, never neither; every other object exactly once.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldScene } from './worldScene.fixture.ts'
+import { objectCovers, worldScene } from './worldScene.fixture.ts'
 import { ruleResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
@@ -74,14 +74,7 @@ function cut(s: Lone, cell: Cell, threshold: number, covers: boolean[], held: bo
 /** Per other object, how many drawn pages cover it; and whether the lone object's placement draws,
  *  and how many of its copies. */
 function drawnBy(s: Lone, drawn: readonly number[]) {
-  const others = new Array<number>(s.object).fill(0)
-  for (const page of drawn) {
-    if (page < s.object) others[page]++
-    const rank = page - s.base
-    if (!s.superRoots.includes(rank)) continue
-    const [from, to] = s.world.pages[rank].units
-    for (let u = from; u < to; u++) others[u]++
-  }
+  const others = objectCovers(s, drawn).slice(0, s.object)
   const copies = s.copies.filter((rank) => drawn.includes(s.base + rank)).length
   return { others, placement: drawn.includes(s.object), copies }
 }

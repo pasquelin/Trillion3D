@@ -36,3 +36,19 @@ export function worldScene(alone = 0) {
   packedWorldsToRenderOrigin(packed, roots, cam.eye)
   return { world, roots, packed, cam, base: packed.cutLinks[world.leaves].pageBase }
 }
+
+export type WorldScene = ReturnType<typeof worldScene>
+
+/** Per object of `s`, how many of the `drawn` pages cover it: a placement its own, a super-root
+ *  its units. */
+export function objectCovers(s: WorldScene, drawn: readonly number[]) {
+  const count = new Array<number>(s.world.leaves).fill(0)
+  for (const page of drawn) {
+    if (page < s.base) count[page]++
+    else if (s.world.pages[page - s.base].level > 0) {
+      const [a, b] = s.world.pages[page - s.base].units
+      for (let u = a; u < b; u++) count[u]++
+    }
+  }
+  return count
+}

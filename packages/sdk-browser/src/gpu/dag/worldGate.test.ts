@@ -5,7 +5,7 @@
 // placement of a unit-wide cluster, continued into its cell's super-root and one world top.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { worldScene } from './worldScene.fixture.ts'
+import { objectCovers, worldScene, type WorldScene } from './worldScene.fixture.ts'
 import { ruleResidency } from './readiness.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { oracleWorldCovers, oracleWorldPixels } from './oracle/worldGate.fixture.ts'
@@ -16,11 +16,9 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { worldFadeScale } from './worldFade.ts'
 
-const scene = () => worldScene()
-
 /** A frame's residency: the objects `placed` (each its cluster, its world object with it), the
  *  super-roots `held`, the world top always. */
-function residency(s: ReturnType<typeof scene>, placed: boolean[], held: boolean[]) {
+function residency(s: WorldScene, placed: boolean[], held: boolean[]) {
   const resident = new Uint8Array(s.packed.pageCount)
   placed.forEach((on, u) => on && (resident[u] = resident[s.base + u] = 1))
   for (let rank = s.world.leaves; rank < s.world.pages.length; rank++)
@@ -28,21 +26,8 @@ function residency(s: ReturnType<typeof scene>, placed: boolean[], held: boolean
   return ruleResidency(s.packed, resident)
 }
 
-/** The objects each drawn page covers: a placement's its own, a super-root its units. */
-function cover(s: ReturnType<typeof scene>, drawn: readonly number[]) {
-  const count = new Array<number>(s.world.leaves).fill(0)
-  for (const page of drawn) {
-    if (page < s.base) count[page]++
-    else if (s.world.pages[page - s.base].level > 0) {
-      const [a, b] = s.world.pages[page - s.base].units
-      for (let u = a; u < b; u++) count[u]++
-    }
-  }
-  return count
-}
-
 test('every object is drawn exactly once, by its placement or its world group', () => {
-  const s = scene(),
+  const s = worldScene(),
     next = random(1473)
   let byPlacement = 0,
     byWorld = 0
@@ -53,7 +38,7 @@ test('every object is drawn exactly once, by its placement or its world group', 
     const uniforms = cameraSelectionUniforms(s.cam, threshold, [1280, 720])
     const cut = evaluateDagSelectionKernel(s.packed, uniforms, residency(s, placed, held))
     const drawn = cut.drawablePageIds ?? []
-    assert.deepEqual(cover(s, drawn), new Array(s.world.leaves).fill(1), `frame ${frame}`)
+    assert.deepEqual(objectCovers(s, drawn), new Array(s.world.leaves).fill(1), `frame ${frame}`)
     byPlacement += drawn.filter((page) => page < s.base).length
     byWorld += drawn.filter((page) => page >= s.base).length
   }
@@ -61,7 +46,7 @@ test('every object is drawn exactly once, by its placement or its world group', 
 })
 
 test('a placement the world draws is never descended', () => {
-  const s = scene()
+  const s = worldScene()
   // Far enough for the world top: no placement opens a node.
   const uniforms = cameraSelectionUniforms(s.cam, 1e3, [1280, 720])
   const placed = new Array<boolean>(s.world.leaves).fill(true)
@@ -83,7 +68,7 @@ test('a placement the world draws is never descended', () => {
 })
 
 test("the kernel's own gate decides as its model does, its threshold faded", () => {
-  const s = scene(),
+  const s = worldScene(),
     next = random(1335)
   const cold = new Uint32Array(s.packed.pageCones.buffer),
     link = s.packed.world!,
@@ -131,7 +116,7 @@ test("the kernel's own gate decides as its model does, its threshold faded", () 
 })
 
 test('a hand-over is dithered in time: within the band, by turns, never both', () => {
-  const s = scene()
+  const s = worldScene()
   const all = new Array<boolean>(s.world.leaves).fill(true)
   const residentAll = residency(
     s,
@@ -148,7 +133,7 @@ test('a hand-over is dithered in time: within the band, by turns, never both', (
     s.packed.world!.scale = worldFadeScale(cut)
     const uniforms = cameraSelectionUniforms(s.cam, threshold, [1280, 720])
     const drawn = evaluateDagSelectionKernel(s.packed, uniforms, residentAll).drawablePageIds ?? []
-    assert.deepEqual(cover(s, drawn), new Array(s.world.leaves).fill(1), `cut ${cut}`)
+    assert.deepEqual(objectCovers(s, drawn), new Array(s.world.leaves).fill(1), `cut ${cut}`)
     if (drawn.includes(5)) byPlacement++
   }
   // The band's width, read from the scales themselves: their lowest is one minus it.
@@ -158,4 +143,4 @@ test('a hand-over is dithered in time: within the band, by turns, never both', (
 })
 
 /** The world cluster object `u`'s placement links to. */
-const link = (s: ReturnType<typeof scene>, u: number) => s.packed.world!.links[u]
+const link = (s: WorldScene, u: number) => s.packed.world!.links[u]
