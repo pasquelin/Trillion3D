@@ -65,7 +65,7 @@ export function renderGpuCut(
 
 /** The camera's motion the view's cut reads its view ahead from: the main view's alone, which
  *  looks a round trip further for pages that come from further away; none for a view aside. */
-export function cutMotion(rt: WebgpuPagesRuntime) {
+function cutMotion(rt: WebgpuPagesRuntime) {
   const { run, context, views } = rt
   run.motion.horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.())
   return views.active === views.main ? run.motion : undefined

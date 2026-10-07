@@ -157,12 +157,7 @@ function sameLinear(held: Float64Array, at: number, world: ArrayLike<number>) {
  * The entry of the root at `rank` with its radius and depths, taken again only when the root or
  * the linear part of its world changed; `undefined` for a root no impostor may replace.
  */
-export function rootSwitch(
-  table: SwitchTable,
-  rank: number,
-  root: ImpostorRoot,
-  byMesh: BakedLookup,
-) {
+function rootSwitch(table: SwitchTable, rank: number, root: ImpostorRoot, byMesh: BakedLookup) {
   if (table.held[rank] !== root) {
     table.held[rank] = root
     const entry = byMesh.get(root.mesh)
