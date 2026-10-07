@@ -19,7 +19,6 @@ const pixels = (level: number, reach: number) =>
     0.1,
     1,
     new Float64Array(2),
-    true,
     reach,
   )
 

@@ -1,6 +1,4 @@
-import { sameHizView } from '../../../hiz/hiz.ts'
-import { createEngineCamera, holdCameraWorld, type HostCamera } from '../../../camera/world.ts'
-import { invalidateTemporalPyramid } from '../io/drops.ts'
+import type { HostCamera } from '../../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { setWindingEpoch } from './winding.ts'
@@ -107,8 +105,8 @@ function followSceneInputs(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   askFramePipelines(rt)
 }
 
-/** What a drawn frame brings up before its cut: tiles, worlds, deformation, the temporal pyramid
- *  and the transparent scene. */
+/** What a drawn frame brings up before its cut: tiles, worlds, deformation, the view the occluder
+ *  history follows and the transparent scene. */
 function drawFrameInputs(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
@@ -133,17 +131,10 @@ function drawFrameInputs(
   const worldsMoved = uploadWorlds(rt, cam)
   // The GPU deformation of this image, on the poses just uploaded (#357).
   rt.vis.deformationCode?.updateWebgpuDeformation(rt, cam, worldsMoved)
-  // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
-  // only chooses the pass where a cluster is drawn, and this image's pyramid remains the sole
-  // judge of what is withdrawn. The GPU partition still learns of the move: while the view
-  // stands still, a row the test has kept is not sent back to the tested half — that is what
-  // lets the halves converge under the antialiasing jitter, and an image be held.
-  run.hizViewMoved = !sameHizView(run.previousHizView, cam)
-  if (run.hizViewMoved) {
-    invalidateTemporalPyramid(run)
-    // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
-    run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam)
-  }
+  // A moved view lets every row the GPU partition kept leave the occluders again; while it stands
+  // still, the halves converge under the antialiasing jitter and an image can be held. The motion
+  // is the view fingerprint's, the unjittered view and projection, since the last drawn image.
+  run.occluderViewMoved = run.gate.takeViewMoved()
   marks.blendStart = performance.now()
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.

@@ -62,7 +62,7 @@ for (const [name, cam] of [
     assert.deepEqual(hierarchical.wanted, flat.wanted, 'same requested clusters')
   })
 
-test('a node accepted as a block only shows clusters under the threshold (monotonicity)', () => {
+test('the hierarchical cut only shows clusters under the threshold (monotonicity)', () => {
   const fixture = hierarchicalFixture()
   const roots = rootsOf(fixture)
   for (const pixelError of [0, 0.01, 0.02, 0.1, 0.2, 1]) {
@@ -71,7 +71,7 @@ test('a node accepted as a block only shows clusters under the threshold (monoto
       if (cluster.lodError !== undefined)
         assert.ok(
           cluster.lodError <= pixelError,
-          `${cluster.url}: error ${cluster.lodError} accepted above threshold ${pixelError}`,
+          `${cluster.url}: error ${cluster.lodError} shown above threshold ${pixelError}`,
         )
   }
   fixture.geometry.dispose()

@@ -11,7 +11,7 @@
 import type { HostColour, HostMaterial, HostTexture } from './resources.ts'
 
 /** A map slot: the texture the material names there, or nothing. */
-export type HostMap = HostTexture | null | undefined
+type HostMap = HostTexture | null | undefined
 
 /** A host colour is declared as such by its owner; three loose numbers are not one. */
 export const isHostColour = (value: unknown): value is HostColour =>

@@ -7,7 +7,6 @@
  * with its controls, and a mesh copy sharing the geometry and the surface of the mesh it comes
  * from. Nothing else happens here: every number arrives computed.
  */
-import { numbered } from '../graph/serial.ts'
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
@@ -22,7 +21,7 @@ export const hostFramingCamera = (
   aspect: number,
   near: number,
   far: number,
-): HostCamera => numbered(new Camera('perspective', { fov, aspect, near, far }))
+): HostCamera => new Camera('perspective', { fov, aspect, near, far })
 
 /** A point the host reads and its controls aim at: the scene centre, the home offset. */
 export const hostPoint = (x: number, y: number, z: number): ControlVector => new Vector3(x, y, z)
@@ -33,5 +32,4 @@ export const hostBox = (flat: ArrayLike<number>): HostBox =>
 
 /** A copy of `mesh` sharing its geometry and its surface, posed by whoever asked for it:
  *  replication copies transforms alone, and a resource is never rebuilt. */
-export const hostMeshCopy = (mesh: HostMesh): HostMesh =>
-  numbered(new Mesh(mesh.geometry, mesh.material))
+export const hostMeshCopy = (mesh: HostMesh): HostMesh => new Mesh(mesh.geometry, mesh.material)

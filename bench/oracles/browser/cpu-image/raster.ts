@@ -1,11 +1,6 @@
 // The CPU visbuffer: packed identifiers and depth, the oracle the GPU rasters are compared to. The
-// engine's own CPU raster is `rasterDepth` (`packages/sdk-browser/src/visibility/raster.ts`), the
-// depth alone for the Hi-Z; this one keeps the identifier of the winning triangle too, and a test
-// holds the two depths equal (`rasterDepth.test.ts`).
-import {
-  signedArea,
-  type Projected,
-} from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+// engine rasterises on the GPU alone; this keeps the identifier of the winning triangle and its depth.
+import { signedArea, triangleAt, type Projected } from './projection.ts'
 import { matrixWindingCw } from '../../../../packages/sdk-core/src/index.ts'
 import { uvTransformed } from '../../../../packages/sdk-core/src/texture/contract.ts'
 import { refreshSurface, surfaceSide } from '../../../../packages/sdk-browser/src/page/surface.ts'
@@ -13,7 +8,6 @@ import {
   DEPTH_CLEAR,
   depthNearer,
 } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/math.ts'
 import {
   assertVisibilityPageTriangles,
   VIS_MAX_PAGES,
@@ -21,7 +15,7 @@ import {
   type VisPage,
 } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { packVisibilityId } from './ids.ts'
-import { cutout } from '../../../../packages/sdk-browser/src/visibility/raster.ts'
+import { cutout } from './cutout.ts'
 import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
 import {
   locationOf,

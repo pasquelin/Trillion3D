@@ -1,8 +1,7 @@
 /**
  * The engine's graph draws the core's own `Mesh` and `InstancedMesh`: a walk finds them,
  * the guards pick them out and nothing else, a pose write on one is heard by the hook, and a copy
- * keeps what the draw reads — the placements, their count, the morph weights and the creation
- * number a draw breaks ties with.
+ * keeps what the draw reads — the placements, their count and the morph weights.
  */
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -10,7 +9,6 @@ import * as THREE from 'three'
 import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { meshes } from '../../../../../../../packages/sdk-browser/src/scene/meshes.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
-import { hostMeshCopy } from '../../../../../../../packages/sdk-browser/src/host/scene/graphObjects.ts'
 
 const placed = () => new G.InstancedMesh(G.boxGeometry(), G.basicSurface(), 4)
 
@@ -60,14 +58,4 @@ test('a copied instanced mesh keeps its placements, count, morph weights and dra
   assert.equal(copy.count, 1)
   assert.deepEqual(copy.morphTargetInfluences, [0.5])
   assert.equal(geometry._listeners.size, 0, 'a mesh in engine surfaces holds no listener')
-})
-
-test('the engine numbers the meshes it builds in its one count; a page-built mesh takes none', () => {
-  const page = new G.Mesh(G.boxGeometry(), G.basicSurface())
-  const light = G.pointLight(),
-    built = G.mesh(),
-    copy = hostMeshCopy(built)
-  assert.equal(G.serialOf(page), undefined, 'a world mesh: its diagnostic colour keys on its id')
-  assert.ok(G.serialOf(light)! < G.serialOf(built)! && G.serialOf(built)! < G.serialOf(copy)!)
-  assert.ok(!('serial' in page), 'the core mesh carries no engine number')
 })

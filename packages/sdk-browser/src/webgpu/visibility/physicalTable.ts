@@ -6,7 +6,7 @@ import { PHYSICAL_SECOND_UV } from '../../visibility/types.ts'
 
 /** Words of one record (`physicalTableWgsl`, `../../visibility/shader/physicalWgsl.ts`): the four
  *  factors, the coat normal's two scales, the maps' UV channels, a pad, the four map slots. */
-export const PHYSICAL_RECORD_WORDS = 12
+const PHYSICAL_RECORD_WORDS = 12
 /** Records a row of the table texture holds, three `rgba32uint` texels each: a row is 768 texels,
  *  within every device's side, and a record's index splits into its row and column by a shift. */
 export const PHYSICAL_ROW_RECORDS = 256

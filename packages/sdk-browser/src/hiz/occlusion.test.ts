@@ -2,7 +2,7 @@
 // that the mip chosen is the finest whose outward-rounded footprint fits the test kernel.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HIZ_TEST_VALUES, hizTestRect } from './occlusion.ts'
+import { HIZ_TEST_VALUES, hizTestRect } from '../../../../bench/oracles/browser/hizOcclusion.ts'
 import { HIZ_KERNEL_TEXELS } from './counts.ts'
 import { seededRandom } from '../../../../tests/fixtures/hiz.ts'
 

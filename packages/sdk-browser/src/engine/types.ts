@@ -81,8 +81,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
     plan?: import('../page/integration/host.ts').ArrivalPlan,
   ): void
   dropPage(url: string): void
-  /** Bytes of the engine's CPU cut tables now, sized by the view and the pool: the CPU total holds
-   *  them beside the pages the streamer caches (`../residency/memoryBudget.ts`). */
+  /** Bytes of the cut's host tables now — the GPU cut publication's host mirrors, sized by the
+   *  view and the pool: the CPU total holds them beside the pages the streamer caches
+   *  (`../residency/memoryBudget.ts`). */
   hostTableBytes(): number
   syncResident(): void
   flush(options?: { image?: boolean }): Promise<void> // image: false skips the readback

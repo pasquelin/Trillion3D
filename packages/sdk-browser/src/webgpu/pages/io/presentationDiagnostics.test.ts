@@ -98,7 +98,6 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     assert.ok(
       frames.every((event) => event.context.coverage && typeof event.context.coverage === 'object'),
     )
-    assert.equal(events.filter((event) => event.phase === 'cpu-selection').length, 0)
     assert.ok(events.some((event) => event.phase === 'residency-queue'))
     assert.ok(
       events.some((event) => event.phase === 'gpu-selection-current-frame'),

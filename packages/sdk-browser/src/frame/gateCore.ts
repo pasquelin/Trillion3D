@@ -73,6 +73,9 @@ export function createFrameGateCore(holdValues: number) {
     /** The drawn view's target will no longer carry its held frame: its own hold alone breaks. */
     viewReplaced: () => bumpView(revisions),
     viewChanged: (...view: ViewRead) => viewChanged(core, ...view),
+    /** The drawn view's view, projection, near plane or viewport moved since the last drawn image
+     *  took it: every row the occluder history kept may leave the occluders again. */
+    takeViewMoved: () => core.own.fingerprint.takeMoved(),
     readScene: (source: Object3D, drawn: FrameGateSources) => readScene(core, source, drawn),
     /** True when two identical frames followed each other and nothing has moved since. */
     held: () => held(core),

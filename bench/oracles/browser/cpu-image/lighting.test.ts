@@ -9,7 +9,7 @@ import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixtur
 import { shadeLit } from './lighting.ts'
 import { referenceShadeLit } from '../pixel-lighting.ts'
 import type { VisPage, VisMaterial } from '../../../../packages/sdk-browser/src/visibility/types.ts'
-import type { Projected } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+import type { Projected } from './projection.ts'
 import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 import { litMaterial } from '../../../../packages/sdk-browser/src/visibility/shader/material.fixture.ts'

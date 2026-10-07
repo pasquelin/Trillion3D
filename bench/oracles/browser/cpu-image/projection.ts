@@ -1,14 +1,16 @@
+// The CPU image oracle's projection: a page's triangle on screen, as every GPU raster places it —
+// a line quad's corners widened (`./line.ts`), a sprite's turned to the camera (`spriteAt`).
 import {
   transformAffinePoint,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../../sdk-core/src/index.ts'
-import type { DepthCamera } from '../camera/depthConvention.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
-import { lineClip } from './shader/lineWgsl.ts'
-import { spriteAt } from './shader/spriteWgsl.ts'
-import type { VisMaterial, VisPage } from './types.ts'
-import { DEFAULT_PIXEL_RATIO } from '../engine/common.ts'
+} from '../../../../packages/sdk-core/src/index.ts'
+import type { DepthCamera } from '../../../../packages/sdk-browser/src/camera/depthConvention.ts'
+import type { MatrixElements } from '../../../../packages/sdk-browser/src/math/matrixElements.ts'
+import { spriteAt } from '../../../../packages/sdk-browser/src/visibility/shader/spriteWgsl.ts'
+import type { VisMaterial, VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
+import { lineClip } from './line.ts'
 
 /** World vertex of the last projected point, and its clip-space point: re-read at once, never
  *  kept. A world matrix is affine, fourth row `(0, 0, 0, 1)`: the base's affine transform is then
@@ -101,8 +103,8 @@ type ScreenPoint = { x: number; y: number }
 
 /**
  * Signed area of the screen triangle `(a, b, c)`: the barycentric denominator, and the sign that
- * says from which side the face is seen. The visibility-buffer raster, reconstructed depth and the
- * page reference raster each take the same line from here.
+ * says from which side the face is seen. The CPU image raster, the reconstructed-depth fixture and
+ * the page reference raster each take the same line from here.
  */
 export function signedArea(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)

@@ -158,17 +158,3 @@ test('a whole link set sent again keeps the motion pose of the roots it already 
   frame()
   assert.deepEqual(seeded(), [0], 'root 0 linked anew starts from its CPU pose again')
 })
-
-test('the temporal pyramid is dropped by a parent moved on the GPU, not by a link its rows wrote', () => {
-  const { rt, rows } = session()
-  const hiz = rt.run.temporalHizState as { pyramid?: unknown }
-  const parent = {},
-    links = [0, 1].map((index) => ({ rows, index, local: turn(0.4) }))
-  hiz.pyramid = 'held'
-  composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  assert.equal(hiz.pyramid, 'held', 'linked with its rows own write: the CPU write staled them')
-  composeWebgpuPlacements(rt, parent, turn(0), [], false)
-  assert.equal(hiz.pyramid, 'held', 'sent at the world it held')
-  composeWebgpuPlacements(rt, parent, turn(0.1), [], false)
-  assert.equal(hiz.pyramid, undefined, 'turned on the GPU alone')
-})

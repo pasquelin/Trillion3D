@@ -814,7 +814,8 @@
     "summary": "Erforderliches externes Cache-Format für BLEND in Clustern (8, bevor das Manifest in Seiten aufgeteilt wurde, 10 vor Format 11); Quellmanifeste behalten ihr eigenes Format."
   },
   "clusterErrorAtDepth": {
-    "summary": "Derselbe projizierte Fehler, wenn die Entfernung des Zentrums zur Sichtachse und seine Tiefe (Sicht-−z) bereits bekannt sind: ein Knoten, der Boden und Decke auf derselben Kugel festlegt, teilt sich seine Tiefe."
+    "summary": "Derselbe projizierte Fehler, wenn die Entfernung des Zentrums zur Sichtachse und seine Tiefe (Sicht-−z) bereits bekannt sind: ein Knoten, der Boden und Decke auf derselben Kugel festlegt, teilt sich seine Tiefe.",
+    "description": "Ein Fehler von null ergibt 0 und ein unendlicher unendlich, vor jeder Prüfung; danach wird jeder andere Parameter auf einmal geprüft — Fehler, Streckung und Radius endlich und nicht negativ, Brennweite und Nahebene endlich und positiv, Achsabstand endlich und nicht negativ, Tiefe endlich, Clip-w-Gewicht in [0, 1] — vor der Projektion. Rust-Spiegel, eine Prüfung, gleiche Urteile: `projected_error_at` in `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` eines Clusters, dessen Sichtzentrum gegeben ist, Parameter geprüft.",
@@ -1391,8 +1392,7 @@
     "description": "Jeder Pfad liest diese eine Funktion und gibt ihr für seinen eigenen Tiefentest ein Vorzeichen."
   },
   "detectCapabilities": {
-    "summary": "Prüft, was das WebGPU dieses Rechners gewährt, und sagt warum, wenn es nichts gewährt.",
-    "description": "`gpu` steht für `navigator.gpu`."
+    "summary": "Prüft, was das WebGPU dieses Rechners gewährt, und sagt warum, wenn es nichts gewährt."
   },
   "GpuCapabilities": {
     "summary": "Was das WebGPU dieser Maschine gewährt, gelesen, bevor eine Sitzung geöffnet wird.",
@@ -1779,8 +1779,8 @@
       "selectedTriangles": "Vom Schnitt gewählte Dreiecke.",
       "residentPages": "Im Speicher gehaltene Seiten.",
       "submittedTriangles": "Gesendete Dreiecke: auf dem WebGPU-Pfad nach Seiten, jede zeichenbare Zeile — Verdeckungsablehnungen kommen nach dem Senden —, von der Tabelle gehalten, also exakt und aus diesem Bild.",
-      "totalSubmittedTriangles": "Alle gesendeten Dreiecke, durchsichtige Durchgänge eingeschlossen. Null, wenn eine Engine sie nicht zählen kann.",
-      "pagesDetached": "Cluster, die den gezeichneten Schnitt während dieser Sitzung verlassen haben. Eine bewegte Kamera löst bei jedem Bild Cluster ab; das ist kein Zeichen von Cache-Druck. Null für eine Engine, die keinen Schnitt verfolgt.",
+      "totalSubmittedTriangles": "Alle gesendeten Dreiecke, durchsichtige Durchgänge eingeschlossen. Null, solange das Bild aussteht.",
+      "pagesDetached": "Cluster, die den gezeichneten Schnitt während dieser Sitzung verlassen haben. Eine bewegte Kamera löst bei jedem Bild Cluster ab; das ist kein Zeichen von Cache-Druck. Null, solange die Engine sie nicht zählt.",
       "cacheEvictions": "Wirklich aus dem Cache verdrängte Seiten, der die gezeichnete Geometrie versorgt: der GPU-Seiten-Cache der Engine, wenn sie einen hat, sonst der Seitenstrom des Hosts. Das ist das Signal für Cache-Druck.",
       "geometryAllocationBytes": "Bytes des Geometriespeichers.",
       "vramBytes": "Bytes GPU-Speicher.",
@@ -1790,7 +1790,7 @@
       "pagesLoading": "Seiten unterwegs.",
       "cacheHits": "Vom Cache bediente Seitenlesevorgänge.",
       "cacheMisses": "Seitenlesevorgänge, die im Cache fehlten.",
-      "frustumRejected": "Was der Schnitt verworfen hat, ohne es zu behalten. Beim GPU-DAG-Schnitt, der die Sortierhierarchie Stufe für Stufe durchläuft, sind das die durch den Abstieg verworfenen Knoten — außerhalb des Sichtkegels, oder deren Ersatz-Fehlerobergrenze schon unter die Schwelle fällt — plus die Kandidatenseiten, die ein Test pro Seite danach verwirft. Ein verworfener Knoten zählt als einer, unabhängig von der Seitenzahl seines Teilbaums: diese Seiten werden nie besucht, also nie gezählt. Der CPU-Schnitt zählt dagegen seine eigenen getesteten Knoten und seine eigenen Ablehnungen.",
+      "frustumRejected": "Was der Schnitt verworfen hat, ohne es zu behalten. Beim GPU-DAG-Schnitt, der die Sortierhierarchie Stufe für Stufe durchläuft, sind das die durch den Abstieg verworfenen Knoten — außerhalb des Sichtkegels, oder deren Ersatz-Fehlerobergrenze schon unter die Schwelle fällt — plus die Kandidatenseiten, die ein Test pro Seite danach verwirft. Ein verworfener Knoten zählt als einer, unabhängig von der Seitenzahl seines Teilbaums: diese Seiten werden nie besucht, also nie gezählt.",
       "lodLevel": "Detailstufe des Schnitts.",
       "transparentMeshes": "Durchsichtige Zähler von WebGPU. `transparentDrawCalls` zählt jede Zeichnung, beide Hälften eines Materials in zwei Durchgängen eingeschlossen; `transparentSubmittedTriangles` zählt die Dreiecke des durchsichtigen Schnitts je einmal, unabhängig davon, wie viele Durchgänge sie rastern — die Vervielfachung pro Durchgang ist die der GPU, da die Instanzzahlen von der Kompaktierung geschrieben und nie zurückgelesen werden. Null, wenn nicht verfügbar.",
       "transparentFrustumRejected": "Durchsichtige Cluster außerhalb der Ansicht.",
@@ -5075,7 +5075,7 @@
     }
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Fließkommazahlen der Umgebung im GPU-Puffer."
+    "summary": "Fließkommazahlen der Umgebung im GPU-Puffer: die Koeffizienten, 9 × 4, dann der Nebelblock, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Fließkommazahlen eines Lichts im GPU-Puffer: fünf `vec4f`."
@@ -5573,7 +5573,7 @@
       "rgba": "Die Pixel, je vier Bytes.",
       "width": "Breite in Pixeln.",
       "height": "Höhe in Pixeln.",
-      "backend": "Das Rendering-Backend, das es gezeichnet hat."
+      "backend": "Die Engine, die es gezeichnet hat: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "STAGE_LABELS": {
@@ -6532,8 +6532,8 @@
       "selectedTriangles": "Vom Schnitt gewählte Dreiecke.",
       "residentPages": "Im Speicher gehaltene Seiten.",
       "submittedTriangles": "Gesendete Dreiecke: auf dem WebGPU-Pfad nach Seiten, jede zeichenbare Zeile — Verdeckungsablehnungen kommen nach dem Senden —, von der Tabelle gehalten, also exakt und aus diesem Bild.",
-      "totalSubmittedTriangles": "Alle gesendeten Dreiecke, durchsichtige Durchgänge eingeschlossen. Null, wenn eine Engine sie nicht zählen kann.",
-      "pagesDetached": "Cluster, die den gezeichneten Schnitt während dieser Sitzung verlassen haben. Eine bewegte Kamera löst bei jedem Bild Cluster ab; das ist kein Zeichen von Cache-Druck. Null für eine Engine, die keinen Schnitt verfolgt.",
+      "totalSubmittedTriangles": "Alle gesendeten Dreiecke, durchsichtige Durchgänge eingeschlossen. Null, solange das Bild aussteht.",
+      "pagesDetached": "Cluster, die den gezeichneten Schnitt während dieser Sitzung verlassen haben. Eine bewegte Kamera löst bei jedem Bild Cluster ab; das ist kein Zeichen von Cache-Druck. Null, solange die Engine sie nicht zählt.",
       "cacheEvictions": "Wirklich aus dem Cache verdrängte Seiten, der die gezeichnete Geometrie versorgt: der GPU-Seiten-Cache der Engine, wenn sie einen hat, sonst der Seitenstrom des Hosts. Das ist das Signal für Cache-Druck.",
       "geometryAllocationBytes": "Bytes des Geometriespeichers.",
       "vramBytes": "Bytes GPU-Speicher.",
@@ -6543,7 +6543,7 @@
       "pagesLoading": "Seiten unterwegs.",
       "cacheHits": "Vom Cache bediente Seitenlesevorgänge.",
       "cacheMisses": "Seitenlesevorgänge, die im Cache fehlten.",
-      "frustumRejected": "Was der Schnitt verworfen hat, ohne es zu behalten. Beim GPU-DAG-Schnitt, der die Sortierhierarchie Stufe für Stufe durchläuft, sind das die durch den Abstieg verworfenen Knoten — außerhalb des Sichtkegels, oder deren Ersatz-Fehlerobergrenze schon unter die Schwelle fällt — plus die Kandidatenseiten, die ein Test pro Seite danach verwirft. Ein verworfener Knoten zählt als einer, unabhängig von der Seitenzahl seines Teilbaums: diese Seiten werden nie besucht, also nie gezählt. Der CPU-Schnitt zählt dagegen seine eigenen getesteten Knoten und seine eigenen Ablehnungen.",
+      "frustumRejected": "Was der Schnitt verworfen hat, ohne es zu behalten. Beim GPU-DAG-Schnitt, der die Sortierhierarchie Stufe für Stufe durchläuft, sind das die durch den Abstieg verworfenen Knoten — außerhalb des Sichtkegels, oder deren Ersatz-Fehlerobergrenze schon unter die Schwelle fällt — plus die Kandidatenseiten, die ein Test pro Seite danach verwirft. Ein verworfener Knoten zählt als einer, unabhängig von der Seitenzahl seines Teilbaums: diese Seiten werden nie besucht, also nie gezählt.",
       "lodLevel": "Detailstufe des Schnitts.",
       "transparentMeshes": "Durchsichtige Zähler von WebGPU. `transparentDrawCalls` zählt jede Zeichnung, beide Hälften eines Materials in zwei Durchgängen eingeschlossen; `transparentSubmittedTriangles` zählt die Dreiecke des durchsichtigen Schnitts je einmal, unabhängig davon, wie viele Durchgänge sie rastern — die Vervielfachung pro Durchgang ist die der GPU, da die Instanzzahlen von der Kompaktierung geschrieben und nie zurückgelesen werden. Null, wenn nicht verfügbar.",
       "transparentFrustumRejected": "Durchsichtige Cluster außerhalb der Ansicht.",

@@ -3,9 +3,9 @@ import { projectedErrorAt, viewDepth, viewLateral } from './projection.ts'
 import type { PageRecord, SelectionState } from '../cut/state.fixture.ts'
 
 /** `clusterPixels` through the frame's own lens — its view, stretch, focal length, near plane and
- *  projection, checked once per root (`flatSound`) — into `out`. */
+ *  projection — into `out`. */
 export function framePixels<T extends PageRecord>(s: SelectionState<T>, rec: T, out: Float64Array) {
-  const { flatElements, flatStretch, flatFocal, cam, flatSound, flatReach } = s
+  const { flatElements, flatStretch, flatFocal, cam, flatReach } = s
   return clusterPixels(
     rec,
     flatElements,
@@ -14,7 +14,6 @@ export function framePixels<T extends PageRecord>(s: SelectionState<T>, rec: T, 
     cam.near,
     cam.perspective,
     out,
-    flatSound,
     flatReach,
   )
 }
@@ -26,7 +25,7 @@ export function frameClusterError<T extends PageRecord>(
   sphere: ArrayLike<number> | null | undefined,
   offset = 0,
 ) {
-  const { flatElements, flatStretch, flatFocal, cam, flatSound, flatReach } = s
+  const { flatElements, flatStretch, flatFocal, cam, flatReach } = s
   const { near, perspective } = cam
   return projectedClusterError(
     error,
@@ -37,7 +36,6 @@ export function frameClusterError<T extends PageRecord>(
     flatFocal,
     near,
     perspective,
-    flatSound,
     flatReach,
   )
 }
@@ -48,8 +46,7 @@ export function frameClusterError<T extends PageRecord>(
  *
  * A cluster whose parent has no sphere of its own reuses its own: both sides then project the same
  * sphere, so its view distance is taken once and both errors read it, `projectedErrorAt` getting
- * the same operands in the same order as `projectedClusterError`. `sound` as in `projectedErrorAt`;
- * both spheres grow by `reach`. Coarse and replacement errors add twice that reach: by the
+ * the same operands in the same order as `projectedClusterError`. Both spheres grow by `reach`. Coarse and replacement errors add twice that reach: by the
  * triangle inequality, arbitrary source displacement cannot separate corresponding points by
  * more than the two displacement bounds. Level-zero vertices need no transfer allowance.
  */
@@ -61,7 +58,6 @@ export function clusterPixels(
   near: number,
   perspective: number,
   out: Float64Array,
-  sound = false,
   reach = 0,
 ) {
   const sphere = rec.sphere,
@@ -71,21 +67,11 @@ export function clusterPixels(
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
       radius = sphere[3] + reach
-    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective, sound)
-    out[1] = projectedErrorAt(
-      parent,
-      lateral,
-      depth,
-      radius,
-      stretch,
-      focal,
-      near,
-      perspective,
-      sound,
-    )
+    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective)
+    out[1] = projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective)
     return out
   }
-  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective, sound, reach)
+  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective, reach)
   out[1] = projectedClusterError(
     parent,
     rec.parentSphere ?? sphere,
@@ -95,7 +81,6 @@ export function clusterPixels(
     focal,
     near,
     perspective,
-    sound,
     reach,
   )
   return out

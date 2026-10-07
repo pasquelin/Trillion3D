@@ -1,7 +1,7 @@
 import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
 import type { VisPage } from './buffer.ts'
-import { triangleAt } from './math.ts'
+import { triangleAt } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
 import { UV_GRADIENTS_WGSL } from './shader/shadeDeclWgsl.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import type { EngineCamera } from '../camera/world.ts'

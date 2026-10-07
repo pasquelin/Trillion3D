@@ -1,4 +1,5 @@
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
+import type { ClusterCut } from '../../page/selection/math.ts'
 import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import {
   NODE_MIN,
@@ -45,7 +46,7 @@ type Culling = NonNullable<DagRoot['culling']>
  *  not the data — so the reduction is done once per array and recovered by identity. */
 export function cullingBoundsFor(
   culling: Culling,
-  pages: DagRoot['pages'],
+  pages: readonly ClusterCut[],
   cache: Map<Float64Array, Float64Array>,
 ) {
   if (culling.bounds) return culling.bounds

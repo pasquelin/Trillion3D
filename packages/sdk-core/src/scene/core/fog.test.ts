@@ -5,12 +5,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSceneLightStore } from '../light/store.ts'
 import { ENVIRONMENT_COEFFICIENTS, SCENE_ENVIRONMENT_FLOATS } from './environment.ts'
-import { FOG_MODE, SCENE_FOG_FLOATS, validateSceneFog } from './fog.ts'
+import { FOG_MODE, packFog, validateSceneFog } from './fog.ts'
 
 const GREY = [0.5, 0.5, 0.5] as const
 
 test('the fog block follows the irradiance: colour and mode, then the law', () => {
-  assert.equal(SCENE_ENVIRONMENT_FLOATS, ENVIRONMENT_COEFFICIENTS * 4 + SCENE_FOG_FLOATS)
+  // The fog's block is what `packFog` writes: absent, it zeroes the block and nothing beyond.
+  const written = new Float32Array(64).fill(NaN)
+  packFog(undefined, written, 0)
+  const fogFloats = written.findIndex(Number.isNaN)
+  assert.equal(SCENE_ENVIRONMENT_FLOATS, ENVIRONMENT_COEFFICIENTS * 4 + fogFloats)
   const store = createSceneLightStore()
   const block = () => Array.from(store.environmentPacked.subarray(36, 44))
   store.setEnvironment({ exposure: 1, fog: { color: GREY, near: 3, far: 30 } })

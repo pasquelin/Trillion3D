@@ -1,8 +1,8 @@
 // The transparent occlusion test's rejects refuted, cluster by cluster, by the engine's own
 // reference: `projectCornersInto` (`hiz/corners.ts`) in double precision, `hizNearestBound` for
-// the lift and the layer's bias, then `buildHizPyramid` and `hizRejectsFlat` (`hiz/depth.ts`,
-// `hiz/occlusion.ts`) on the depth the GPU left after the opaque pass, read back at full
-// resolution. Every transparent cluster the GPU removed must be rejected by the reference on its
+// the lift and the layer's bias, then `buildHizPyramid` and `hizRejectsFlat`
+// (`bench/oracles/browser/hizPyramid.ts`, `hizOcclusion.ts`) on the depth the GPU left after the
+// opaque pass, read back at full resolution. Every transparent cluster the GPU removed must be rejected by the reference on its
 // own, tighter, bounds: `nearest < far − bias` holds with every GPU margin taken away — its error
 // margin, its widened rectangle, its coarser mip.
 import {
@@ -11,8 +11,8 @@ import {
   projectCornersInto,
 } from '../../../packages/sdk-browser/src/hiz/corners.ts'
 import { hizNearestBound } from '../../../packages/sdk-browser/src/hiz/nearestBound.fixture.ts'
-import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts'
-import { hizRejectsFlat } from '../../../packages/sdk-browser/src/hiz/occlusion.ts'
+import { buildHizPyramid } from '../../../bench/oracles/browser/hizPyramid.ts'
+import { hizRejectsFlat } from '../../../bench/oracles/browser/hizOcclusion.ts'
 import type { TransparentOcclusionAudit } from '../../../packages/sdk-browser/src/webgpu/transparent/occlusionAudit.ts'
 
 const scratch = new Float64Array(HIZ_BOUNDS_VALUES)

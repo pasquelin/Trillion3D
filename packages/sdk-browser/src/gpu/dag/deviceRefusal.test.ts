@@ -1,5 +1,5 @@
 // A camera cut the device cannot hold is refused by name before any buffer: the host says
-// why the CPU cut draws, instead of a GPU cut gone without a word. A dispatch is not one of
+// why the session is refused, instead of a GPU cut gone without a word. A dispatch is not one of
 // them: past one dimension, it runs in rows; nor is a table past one binding, split in parts.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -35,7 +35,7 @@ test('a table past one binding splits in parts the device binds at once, instead
     assert.equal(
       dagDeviceRefusal(limits, dag(name))?.buffer,
       'storage bindings',
-      `${name}: its parts past WebGPU's eight bindings, the CPU cut draws`,
+      `${name}: its parts past WebGPU's eight bindings, the session is refused by name`,
     )
   }
   // The readout and `work` — a quarter of a byte a page (`dagWorkLayout`) — fit, flags do not.

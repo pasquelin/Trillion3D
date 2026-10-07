@@ -1,6 +1,8 @@
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
-import type { Projected } from './projection.ts'
+
+/** A projected vertex as the perspective weights read it: its `1 / w`. */
+type Projected = { invW: number }
 
 export function perspectiveBary(
   a: Projected,
@@ -23,9 +25,6 @@ export function wrapTexel(t: number, size: number, wrap: WrapMode) {
   const i = Math.floor(scaled * size)
   return Math.min(size - 1, Math.max(0, i < size ? i : 2 * size - 1 - i))
 }
-
-/** The projected triangle of a page, which the projection owns (`./projection.ts`). */
-export { triangleAt } from './projection.ts'
 
 /**
  * Rank of the texel a map reads at a coordinate, not its components: that byte indexes the sRGB

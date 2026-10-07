@@ -27,7 +27,7 @@ test('no reader keeps the main view once another is drawn, and switching back fi
     eye = [...rt.run.gate.cam.eye],
     temporal = rt.gpu.temporal!,
     sample = temporal.frame.sample
-  assert.ok(temporal.frame.hasHistory && rt.run.previousHizView && rt.vis.gpuHiz)
+  assert.ok(temporal.frame.hasHistory && rt.vis.gpuHiz)
   const side = createWebgpuView(16, 16)
   useWebgpuView(rt, side)
   const objects = (values: unknown[]) => values.filter((v) => typeof v === 'object' && v)

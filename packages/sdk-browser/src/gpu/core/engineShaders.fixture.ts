@@ -46,7 +46,7 @@ import { waterCompositeShader } from '../../webgpu/water/compositeWgsl.ts'
 import { waterRoutedShader } from '../../webgpu/water/routedWgsl.ts'
 import { waterSurfaceWgsl } from '../../webgpu/water/surfaceWgsl.ts'
 import { particlesWgsl, PARTICLE_DRAW_WGSL } from '../../webgpu/particles/particlesWgsl.ts'
-import { TEXEL_TURN_WGSL } from '../../webgpu/tile/texelTurn.ts'
+import { TEXEL_TURN_WGSL } from '../../webgpu/tile/texelTurnWgsl.ts'
 import { WATER_DEPTH_RESTORE_SHADER } from '../../webgpu/water/depthRestoreShader.ts'
 import { blendShader } from '../../webgpu/blend/shader.ts'
 import {

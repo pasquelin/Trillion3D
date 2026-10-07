@@ -134,9 +134,9 @@ function fillPlacement(host: HostTexture, placed: Float64Array) {
  * `KHR_texture_transform` is read at load (`../scene/tables.ts`) —, then brought up to its host
  * by `followHostTexture`. A held record is handed back with its picture current — a new version
  * or image read, the matrix left to the follow —, so what reads it at prepare (`tileCatalogue`)
- * or on the CPU (`../visibility/math.ts`, `../visibility/raster.ts`) reads the host's image. The
- * record ALIASES the host's UV matrix (`transform`). A host that disposes of a texture it still
- * draws keeps its record: the picture is sent again at the next follow.
+ * or on the CPU (`mapTexel`, `../visibility/math.ts`) reads the host's image. The record ALIASES
+ * the host's UV matrix (`transform`). A host that disposes of a texture it still draws keeps its
+ * record: the picture is sent again at the next follow.
  */
 export function importHostTexture(host: HostTexture): Texture {
   const held = imported.get(host)

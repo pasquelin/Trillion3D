@@ -139,7 +139,7 @@ test('a missing cluster is replaced by its nearest resident ancestor, and only i
   fixture.geometry.dispose()
 })
 
-test('a device without compute pipelines keeps the CPU cut by not creating GPU selection', async () => {
+test('a device without compute pipelines gets no GPU selection: the session is refused', async () => {
   const fixture = dagFixture()
   const { dag } = packed(fixture)
   const { device } = fakeDevice({

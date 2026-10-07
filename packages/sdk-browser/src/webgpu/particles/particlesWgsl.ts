@@ -3,7 +3,7 @@ import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
 /** Slots one workgroup steps. */
-export const PARTICLE_WORKGROUP = 64
+const PARTICLE_WORKGROUP = 64
 
 /** Vertices of a disc: two triangles as one strip (`DISC_TOPOLOGY`). */
 export const DISC_VERTICES = 4

@@ -1,8 +1,6 @@
 import * as G from '../host/graph/graph.fixture.ts'
-import assert from 'node:assert/strict'
-import type { EngineContext, Engine } from './types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
-import { DAG, dagRoots, dagLevel, MANIFEST_IDENTITY, type Cluster } from './pagesEngine.fixture.ts'
+import { DAG, type Cluster } from './pagesEngine.fixture.ts'
 
 /** One indexed triangle over three `positions`; by default (−1, −1), (1, −1), (0, 1) at z = 0. */
 export function triangleGeometry(positions = [-1, -1, 0, 1, -1, 0, 0, 1, 0]) {
@@ -50,8 +48,7 @@ export function quadCluster(id: number, start?: number): Cluster {
   }
 }
 
-/** The quad's two triangles as two exact clusters, with the indices each one draws. */
-export const quadPages = () => [0, 1].map((id) => quadCluster(id))
+/** The indices each of the quad's two exact clusters draws. */
 export const quadIndices = () =>
   new Map([
     ['0', new Uint32Array([0, 1, 2])],
@@ -64,36 +61,6 @@ export function frontCamera() {
   camera.position.z = 5
   camera.lookAt(0, 0, 0)
   return camera
-}
-
-/** An engine context over the quad's two root clusters; `resident` hands the indices over up front. */
-export function quadRootsContext(resident: boolean, extra: Partial<EngineContext> = {}) {
-  const scene = quadScene()
-  const context: EngineContext = {
-    source: scene.source,
-    metadata: {
-      ...QUAD_MANIFEST,
-      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...dagRoots(quadPages()) }],
-    },
-    indices: resident ? quadIndices() : new Map<string, Uint32Array>(),
-    associations: new Map([[scene.mesh, { meshes: 0, primitives: 0 }]]),
-    ...extra,
-  }
-  return { ...scene, context }
-}
-
-/** Renders the quad from the front and checks the cut collapsed to one coarse cluster. */
-export function assertSingleCoarseCluster(
-  backend: Engine,
-  scene: { geometry: G.Geometry; material: G.GraphSurface },
-) {
-  backend.render(frontCamera())
-  assert.equal(backend.metrics().clusters, 1)
-  assert.equal(backend.metrics().selectedTriangles, 1)
-  assert.equal(backend.metrics().lodLevel, 1)
-  backend.dispose()
-  scene.geometry.dispose()
-  scene.material.dispose()
 }
 
 /** A transparent, double-sided fan of three triangles: clusters 0..2, plus the indices of their
@@ -117,28 +84,4 @@ export function fanScene() {
     ['4', new Uint32Array([1, 2, 3])],
   ])
   return { geometry, material, mesh, source, indices }
-}
-
-/** The quad with two clusters replaced by one coarser cluster whose screen error clears a 10 px
- *  budget, as an engine context at `pixelError`; the scene comes back with it. */
-export function coarseQuadContext(pixelError: number) {
-  const scene = quadScene()
-  const level = dagLevel([quadCluster(0), quadCluster(1)], [quadCluster(2)], 0.001)
-  const context = {
-    source: scene.source,
-    metadata: {
-      ...DAG,
-      ...MANIFEST_IDENTITY,
-      primitives: [{ mesh: 0, primitive: 0, pass: 'exact-clusters', ...level }],
-    },
-    indices: new Map([
-      ['0', new Uint32Array([0, 1, 2])],
-      ['1', new Uint32Array([0, 2, 3])],
-      ['2', new Uint32Array([0, 1, 2])],
-    ]),
-    associations: new Map([[scene.mesh, { meshes: 0, primitives: 0 }]]),
-    pixelError,
-    viewport: [960, 540] as [number, number],
-  }
-  return { ...scene, context }
 }

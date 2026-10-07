@@ -1,7 +1,7 @@
 import type { Engine } from '../../engine/types.ts'
-import type { HostCamera } from '../../camera/world.ts'
 import { createSessionState, type SessionState } from './sessionState.ts'
 import { createSessionFrame } from './sessionFrame.ts'
+import { engineReads } from './sessionReads.ts'
 import { createExplorerLifecycle } from '../session/lifecycle.ts'
 import { frameWaits } from '../session/familyUse.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
@@ -15,23 +15,6 @@ type Inputs = {
   engine: Engine
 }
 type Frame = ReturnType<typeof createSessionFrame>
-
-/** What the session reads of its engine directly: its images. */
-export function engineReads(engine: Engine, check: () => void, camera: HostCamera) {
-  return {
-    /** The session's current image, bottom row first, at the canvas's size: the engine reads its
-     *  GPU image back itself — the one its last flush read when it is still current, else one
-     *  texture copy into a mapped buffer, awaited without stalling a frame. */
-    capture: async () => (check(), engine.capture()),
-    /** The composed image of the session's camera at `width × height`, bottom row first, drawn
-     *  OFFSCREEN in a view of the engine's own at that size: the page's canvas keeps its size
-     *  and its image. */
-    captureView: async (width: number, height: number) => (
-      check(),
-      engine.captureColorView(camera, { width, height })
-    ),
-  }
-}
 
 /** Whether another frame is wanted: a family or a read on its way, arrivals queued, the engine's
  *  own work, or cells placed by the frames after their read, camera still or not. */

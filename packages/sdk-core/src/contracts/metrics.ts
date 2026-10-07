@@ -69,10 +69,10 @@ export type GpuFrameMs = number | null
   /** Submitted triangles: on the WebGPU-by-pages path, every drawable row — occlusion
    *  rejects after submit —, held by the table, hence exact and of this frame. */
   submittedTriangles?: number | null
-  /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
+  /** All submitted triangles, including transparent passes. Null while the image is pending. */
   totalSubmittedTriangles?: number | null
   /** Clusters that left the drawn cut this session. A moving camera detaches clusters every frame;
-   *  this is not a cache pressure signal. Null on a backend that does not track a cut. */
+   *  this is not a cache pressure signal. Null while the engine does not count it. */
   pagesDetached?: number | null
   /** Pages actually evicted from the cache that feeds the drawn geometry: the backend's own GPU page
    *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
@@ -94,7 +94,6 @@ export type GpuFrameMs = number | null
    * frustum, or whose replacement error ceiling already falls under the threshold — plus the
    * candidate pages that a per-page test then discards. A discarded node counts as one, whatever the
    * number of pages of its subtree: those pages are never visited, hence never counted.
-   * The CPU cut, for its part, counts its own tested nodes and its own rejects.
    */
   frustumRejected?: number | null
   /** Detail level of the cut. */ lodLevel?: number | null

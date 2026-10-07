@@ -16,7 +16,7 @@ const dag = ruleDag(64),
   n = dag.pages.length
 
 const backends = {
-  'CPU cut': cpuBackend,
+  'CPU oracle': cpuBackend,
 }
 /** `name`'s backend over `roots`, by default two placements of the DAG, both in view. */
 const mount = <K extends keyof typeof backends>(name: K, roots = placements(dag, 2)) =>

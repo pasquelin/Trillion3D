@@ -1,8 +1,7 @@
 // A wanted page that is not resident yet does not throw GPU selection away. The scene's residency
 // budget is too small for its leaves, so the kernel asks for missing pages and the cut climbs to
 // the resident ancestor. Such a frame once raised `GPU_COVERAGE_INCOMPLETE` and GPU selection was
-// abandoned for the session without the host being told: the GPU cut must still choose, and no
-// fallback be declared.
+// abandoned for the session without the host being told: the GPU cut must still choose.
 //
 // No hole: on every frame the drawn cut covers each leaf of the strip exactly once —
 // none uncovered, none twice. The check reads the drawn cut, not a counter, so it fails on a hole:
@@ -56,6 +55,4 @@ test('the GPU cut keeps choosing over missing pages, and covers each leaf once',
     )
     assert.ok((clusters ?? 0) > 0, `frame ${frame}: empty cut`)
   }
-  // A fallback is not only absent from the counters: it would have been announced.
-  assert.ok(!events.some((e) => e.phase === 'gpu-selection-fallback'), JSON.stringify(events))
 })

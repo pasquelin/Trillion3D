@@ -2,6 +2,7 @@
 // of `slots` visibility rows, the residency mirror and the readbacks driven by hand.
 import { createWebgpuRowState } from './state.ts'
 import { createWebgpuRowSync } from './sync.ts'
+import { createRowUse } from './rowUse.ts'
 import type { CloseInstances } from './rowDemand.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -61,3 +62,16 @@ export function rowCache(instances: number, slots: number) {
 
 /** `0, 1, …, count - 1`. */
 export const range = (count: number, from = 0) => Array.from({ length: count }, (_, i) => from + i)
+
+/** Readbacks a row stays in use after the last that named it, read by behaviour: a lone row
+ *  stamped once, ticked until a request may take it back. */
+export function rowIdleSpan() {
+  const use = createRowUse(1)
+  use.stamp(0)
+  let span = 0
+  while (use.victim(1) < 0 && span < 1 << 16) {
+    use.tick()
+    span++
+  }
+  return span
+}

@@ -26,7 +26,7 @@ export const readbackOf = (ids: ArrayLike<number>, packed: readonly PageRec[], t
 
 /** The admission counts the GPU writes beside such a list (`levelCountsWord`): each bucket's
  *  requests, a bucket the page's level, the minimum capacity's bit above. */
-export function bucketCounts(ids: ArrayLike<number>, packed: readonly PageRec[]) {
+function bucketCounts(ids: ArrayLike<number>, packed: readonly PageRec[]) {
   const counts = new Uint32Array(ADMISSION_BUCKETS)
   for (const id of Array.from(ids)) {
     const page = packed[id]

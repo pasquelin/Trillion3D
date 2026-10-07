@@ -1198,8 +1198,8 @@
       "selectedTriangles": "Kesitin seçtiği üçgenler.",
       "residentPages": "Bellekte tutulan sayfalar.",
       "submittedTriangles": "Gönderilen üçgenler: sayfalara göre WebGPU yolunda, her çizilebilir satır — gizlenme göndermeden sonra reddeder —, tablo tarafından tutulur, dolayısıyla kesin ve bu kareye ait.",
-      "totalSubmittedTriangles": "Şeffaf geçişler dahil, gönderilen tüm üçgenler. Bir backend onları sayamadığında null.",
-      "pagesDetached": "Bu oturumda çizilen kesiti terk eden cluster'lar. Hareketli bir kamera her karede cluster'ları ayırır; bu bir önbellek baskısı sinyali değildir. Bir kesiti izlemeyen bir backend'de null.",
+      "totalSubmittedTriangles": "Şeffaf geçişler dahil, gönderilen tüm üçgenler. Görüntü beklemedeyken null.",
+      "pagesDetached": "Bu oturumda çizilen kesiti terk eden cluster'lar. Hareketli bir kamera her karede cluster'ları ayırır; bu bir önbellek baskısı sinyali değildir. Motor bunları saymadığı sürece null.",
       "cacheEvictions": "Çizilen geometriyi besleyen önbellekten gerçekten tahliye edilen sayfalar: backend'in kendi GPU sayfa önbelleği varsa, yoksa host sayfa akıtıcısı. Bu, önbellek baskısı sinyalidir.",
       "geometryAllocationBytes": "Geometri belleği baytları.",
       "vramBytes": "GPU belleği baytları.",
@@ -1209,7 +1209,7 @@
       "pagesLoading": "Yolda olan sayfalar.",
       "cacheHits": "Önbellekten karşılanan sayfa okumaları.",
       "cacheMisses": "Önbelleği ıskalayan sayfa okumaları.",
-      "frustumRejected": "Kesitin tutmadan attığı şey. Eleme hiyerarşisini seviye seviye dolaşan GPU DAG kesitinde, bunlar inişin attığı düğümlerdir — frustum dışında, ya da yerine geçme hata tavanı zaten eşiğin altına düşen — artı sayfa başına bir testin sonra attığı aday sayfalar. Atılan bir düğüm, alt ağacının sayfa sayısı ne olursa olsun bir olarak sayılır: o sayfalar hiç ziyaret edilmez, dolayısıyla hiç sayılmaz. CPU kesiti, kendi payına, kendi test edilen düğümlerini ve kendi reddettiklerini sayar.",
+      "frustumRejected": "Kesitin tutmadan attığı şey. Eleme hiyerarşisini seviye seviye dolaşan GPU DAG kesitinde, bunlar inişin attığı düğümlerdir — frustum dışında, ya da yerine geçme hata tavanı zaten eşiğin altına düşen — artı sayfa başına bir testin sonra attığı aday sayfalar. Atılan bir düğüm, alt ağacının sayfa sayısı ne olursa olsun bir olarak sayılır: o sayfalar hiç ziyaret edilmez, dolayısıyla hiç sayılmaz.",
       "lodLevel": "Kesitin ayrıntı seviyesi.",
       "transparentMeshes": "WebGPU şeffaf sayaçları. `transparentDrawCalls`, iki geçişli bir malzemenin her iki yarısı dahil her çizimi sayar; `transparentSubmittedTriangles`, onları rasterize eden geçiş sayısı ne olursa olsun, şeffaf kesitin üçgenlerini her birini bir kez sayar — geçiş başına çarpma GPU'nun kendisine aittir, çünkü örnek sayıları sıkıştırma tarafından yazılır ve asla geri okunmaz. Kullanılamadığında null.",
       "transparentFrustumRejected": "Görünümün dışındaki şeffaf cluster'lar.",
@@ -3159,7 +3159,7 @@
     "summary": "Motorun çalışırken kendisi hakkında bildirdiği şey: görünümün atlattığı, elinde zaten bulunanla çizilen bir hata (`degraded`) ya da atlatamadığı bir hata (`fatal`)."
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "GPU tamponundaki ortamın float'ları."
+    "summary": "GPU tamponundaki ortamın float'ları: katsayılar, 9 × 4, ardından sisin bloğu, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "GPU tamponunda bir ışığın float'ları: beş `vec4f`."
@@ -3783,7 +3783,7 @@
       "rgba": "Pikseller, her biri dört bayt.",
       "width": "Piksel cinsinden genişlik.",
       "height": "Piksel cinsinden yükseklik.",
-      "backend": "Onu çizen render motoru."
+      "backend": "Onu çizen motor: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "StageProfile": {
@@ -4918,8 +4918,8 @@
       "selectedTriangles": "Kesitin seçtiği üçgenler.",
       "residentPages": "Bellekte tutulan sayfalar.",
       "submittedTriangles": "Gönderilen üçgenler: sayfalara göre WebGPU yolunda, her çizilebilir satır — gizlenme göndermeden sonra reddeder —, tablo tarafından tutulur, dolayısıyla kesin ve bu kareye ait.",
-      "totalSubmittedTriangles": "Şeffaf geçişler dahil, gönderilen tüm üçgenler. Bir backend onları sayamadığında null.",
-      "pagesDetached": "Bu oturumda çizilen kesiti terk eden cluster'lar. Hareketli bir kamera her karede cluster'ları ayırır; bu bir önbellek baskısı sinyali değildir. Bir kesiti izlemeyen bir backend'de null.",
+      "totalSubmittedTriangles": "Şeffaf geçişler dahil, gönderilen tüm üçgenler. Görüntü beklemedeyken null.",
+      "pagesDetached": "Bu oturumda çizilen kesiti terk eden cluster'lar. Hareketli bir kamera her karede cluster'ları ayırır; bu bir önbellek baskısı sinyali değildir. Motor bunları saymadığı sürece null.",
       "cacheEvictions": "Çizilen geometriyi besleyen önbellekten gerçekten tahliye edilen sayfalar: backend'in kendi GPU sayfa önbelleği varsa, yoksa host sayfa akıtıcısı. Bu, önbellek baskısı sinyalidir.",
       "geometryAllocationBytes": "Geometri belleği baytları.",
       "vramBytes": "GPU belleği baytları.",
@@ -4929,7 +4929,7 @@
       "pagesLoading": "Yolda olan sayfalar.",
       "cacheHits": "Önbellekten karşılanan sayfa okumaları.",
       "cacheMisses": "Önbelleği ıskalayan sayfa okumaları.",
-      "frustumRejected": "Kesitin tutmadan attığı şey. Eleme hiyerarşisini seviye seviye dolaşan GPU DAG kesitinde, bunlar inişin attığı düğümlerdir — frustum dışında, ya da yerine geçme hata tavanı zaten eşiğin altına düşen — artı sayfa başına bir testin sonra attığı aday sayfalar. Atılan bir düğüm, alt ağacının sayfa sayısı ne olursa olsun bir olarak sayılır: o sayfalar hiç ziyaret edilmez, dolayısıyla hiç sayılmaz. CPU kesiti, kendi payına, kendi test edilen düğümlerini ve kendi reddettiklerini sayar.",
+      "frustumRejected": "Kesitin tutmadan attığı şey. Eleme hiyerarşisini seviye seviye dolaşan GPU DAG kesitinde, bunlar inişin attığı düğümlerdir — frustum dışında, ya da yerine geçme hata tavanı zaten eşiğin altına düşen — artı sayfa başına bir testin sonra attığı aday sayfalar. Atılan bir düğüm, alt ağacının sayfa sayısı ne olursa olsun bir olarak sayılır: o sayfalar hiç ziyaret edilmez, dolayısıyla hiç sayılmaz.",
       "lodLevel": "Kesitin ayrıntı seviyesi.",
       "transparentMeshes": "WebGPU şeffaf sayaçları. `transparentDrawCalls`, iki geçişli bir malzemenin her iki yarısı dahil her çizimi sayar; `transparentSubmittedTriangles`, onları rasterize eden geçiş sayısı ne olursa olsun, şeffaf kesitin üçgenlerini her birini bir kez sayar — geçiş başına çarpma GPU'nun kendisine aittir, çünkü örnek sayıları sıkıştırma tarafından yazılır ve asla geri okunmaz. Kullanılamadığında null.",
       "transparentFrustumRejected": "Görünümün dışındaki şeffaf cluster'lar.",
@@ -5591,7 +5591,8 @@
     "description": "Herkese açık API'nin verdiği şey bunlardan biridir: aldığı kopyaya yazan bir host motorda hiçbir şeyi değiştirmez, ve zaten gönderdiği bir ışığı değiştiren bir host de hiçbir şeyi değiştirmez — depo kendi kopyasını girişte doğruladı. Kopya, host'un okuduğu yerde yapılır, asla kare yolunda değil: motorlar tutulan kaydı ve paketlenmiş tamponu okur, ve hiçbir şey kopyalamaz."
   },
   "clusterErrorAtDepth": {
-    "summary": "Merkezin görünüm eksenine mesafesi ve derinliği (view'ın −z'si) zaten bilindiğinde aynı izdüşürülmüş hata: aynı kürede taban ve tavan belirleyen bir düğüm derinliğini paylaşır."
+    "summary": "Merkezin görünüm eksenine mesafesi ve derinliği (view'ın −z'si) zaten bilindiğinde aynı izdüşürülmüş hata: aynı kürede taban ve tavan belirleyen bir düğüm derinliğini paylaşır.",
+    "description": "Sıfır hata 0, sonsuz hata ise sonsuz verir, her denetimden önce; sonra diğer her parametre tek seferde denetlenir — hata, esneme ve yarıçap sonlu ve negatif değil, odak uzaklığı ve yakın düzlem sonlu ve pozitif, eksene uzaklık sonlu ve negatif değil, derinlik sonlu, clip-w ağırlığı [0, 1] içinde — izdüşümden önce. Rust yansıması, tek bir koruma, aynı hükümler: `packages/page-codec-wasm/src/cut_error.rs` içindeki `projected_error_at`."
   },
   "clusterErrorPixels": {
     "summary": "Görünüm merkezi verilen, parametreleri doğrulanmış bir cluster'ın `screenErrorBound`'u.",
@@ -5813,8 +5814,7 @@
     "description": "Her yol bu tek fonksiyonu okur ve kendi derinlik testi için ona işaret verir."
   },
   "detectCapabilities": {
-    "summary": "Bu makinenin WebGPU'sunun ne sağladığını denetler, hiçbir şey sağlamadığında nedenini söyler.",
-    "description": "`gpu`, `navigator.gpu` anlamına gelir."
+    "summary": "Bu makinenin WebGPU'sunun ne sağladığını denetler, hiçbir şey sağlamadığında nedenini söyler."
   },
   "GpuCapabilities": {
     "summary": "Bu makinenin WebGPU'sunun verdiği şey, herhangi bir oturum açılmadan önce okunur.",

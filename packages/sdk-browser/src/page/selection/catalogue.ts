@@ -44,8 +44,6 @@ export function createPackedPages(
  * The cut and the residency route by packed ranks; no consumer builds a second catalogue or a
  * second record reference beside this one (#483 rule 4).
  */
-export type PageCatalogue = ReturnType<typeof createPageCatalogue>
-
 export function createPageCatalogue(packedPages: PageList) {
   const recordOf =
     'recordOf' in packedPages

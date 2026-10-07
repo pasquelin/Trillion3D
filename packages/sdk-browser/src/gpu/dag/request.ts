@@ -28,7 +28,7 @@
  * capacity holds first (`../../residency/minimumCapacity.ts`), then the coarsest level, then the
  * larger error, in the same nine bits. The host admits the head of the list as it comes.
  */
-export const REQUEST_PRIORITY_BITS = 10
+const REQUEST_PRIORITY_BITS = 10
 /** The whole priority field. */
 export const REQUEST_PRIORITY_MAX = (1 << REQUEST_PRIORITY_BITS) - 1
 /** The priority bit of a request ahead of the camera: the field's top bit. */
@@ -51,8 +51,8 @@ export const AHEAD_ERROR_MAX = (1 << REQUEST_AHEAD_ERROR_BITS) - 1
 /** A visible request ranked by admission splits its nine bits: one for the minimum capacity's
  *  pages, five for the level — thirty-two, past any cooked DAG —, three for the error, one step
  *  per four doublings over the same thirty-two. */
-export const ADMISSION_LEVEL_BITS = 5,
-  ADMISSION_ERROR_BITS = 3,
+const ADMISSION_LEVEL_BITS = 5
+export const ADMISSION_ERROR_BITS = 3,
   ADMISSION_SCALE = 0.25
 export const ADMISSION_LEVEL_MAX = (1 << ADMISSION_LEVEL_BITS) - 1,
   ADMISSION_ERROR_MAX = (1 << ADMISSION_ERROR_BITS) - 1

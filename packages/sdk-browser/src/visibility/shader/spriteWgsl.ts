@@ -89,8 +89,9 @@ export function markShadowless(root: { mark?: number }, shadowless: boolean) {
 export const spriteMark = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>
   !surface?.sprite ? 0 : SPRITE_ROOT | (neverCulled(surface) ? SPRITE_UNCULLED : 0)
 
-/** `SPRITE_WGSL` on the CPU, statement for statement: the software raster's sprite corner. Both
- *  matrices are column-major; writes the point, `w` one, into `out` and returns it. */
+/** `SPRITE_WGSL` on the CPU, statement for statement: the impostor card's corner
+ *  (`../../impostor/card.ts`). Both matrices are column-major; writes the point, `w` one, into
+ *  `out` and returns it. */
 export function spriteAt(
   out: Float64Array,
   toClip: ArrayLike<number>,

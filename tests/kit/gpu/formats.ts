@@ -37,7 +37,7 @@ export const STORAGE_FORMATS = set(
 export const READ_WRITE_FORMATS = set('r32uint r32sint r32float')
 
 /** The depth and stencil formats: sampled or rendered, never stored to. */
-export const DEPTH_FORMATS = set(
+const DEPTH_FORMATS = set(
   'stencil8 depth16unorm depth24plus depth24plus-stencil8 depth32float depth32float-stencil8',
 )
 /** The colour formats a pass renders to; `rg11b10ufloat` only with its feature. */
@@ -48,9 +48,9 @@ const RENDERABLE_COLOR = set(
     'rgba32sint rgba32float rgb10a2uint rgb10a2unorm',
 )
 
-export const isStorage = (format: string) => STORAGE_FORMATS.has(format)
+const isStorage = (format: string) => STORAGE_FORMATS.has(format)
 
-export const isRenderable = (format: string, features: Features) =>
+const isRenderable = (format: string, features: Features) =>
   RENDERABLE_COLOR.has(format) ||
   DEPTH_FORMATS.has(format) ||
   (format === 'rg11b10ufloat' && features.has('rg11b10ufloat-renderable'))
