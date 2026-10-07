@@ -16,6 +16,7 @@ import { createRecordTable } from './packRecords.ts'
 import { packWorldLinks, worldLinkWords } from './worldLinks.ts'
 import {
   joinPlacementTree,
+  joinStart,
   packPlacementTree,
   placementTreeShape,
   treeNodeCount,
@@ -304,7 +305,7 @@ export function appendDagRoots(
     words = new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset),
     keyAt = keyBase(packed.pageCount),
     tree = packed.placementTree,
-    joined: ReturnType<typeof joinPlacementTree>[] = []
+    batch: number[] = []
   const p: Packing = {
     ...packed,
     nodeInts: new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset, packed.nodes.length),
@@ -325,20 +326,20 @@ export function appendDagRoots(
     for (let level = 0; level < sizes.length; level++)
       packed.levelSizes[level + shift] += sizes[level]
     ;(packed.worldSources as DagRoot[]).push(root)
-    // A member of the tree from now on, in its last group (`joinPlacementTree`).
-    if (tree) joined.push(joinPlacementTree(packed, tree, live.worlds - 1))
+    batch.push(live.worlds - 1)
   }
   packed.rootCount = p.rootClusters
-  // The members joined, their order words sent with the tree nodes they rewrote.
-  for (const { member } of joined) words[tree!.members + member] = tree!.order[member]
+  // Members of the tree from now on, in new groups (`joinPlacementTree`): their order words sent
+  // with the tree nodes they rewrote.
+  const joined = tree ? joinPlacementTree(packed, tree, batch) : undefined
+  if (joined)
+    for (let k = joined.members[0]; k < joined.members[1]; k++)
+      words[tree!.members + k] = tree!.order[k]
   return {
     pages: [from.pages, live.pages],
     nodes: [from.nodes, live.nodes],
     worlds: [from.worlds, live.worlds],
-    tree: {
-      nodes: [...new Set(joined.flatMap(({ nodes }) => nodes))].sort((a, b) => a - b),
-      members: [joined[0]?.member ?? 0, (joined.at(-1)?.member ?? -1) + 1],
-    },
+    tree: { nodes: joined?.nodes ?? [], members: joined?.members ?? [0, 0] },
   }
 }
 
@@ -356,7 +357,10 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
     pages += root.pages.length
     nodes += culling.nodes.length / culling.stride
   }
-  // The tree's nodes close the node table: placements fill what lies before them.
+  // The tree's nodes close the node table: placements fill what lies before them; its member
+  // slots take the batch from a new group on (`joinStart`).
+  const tree = packed.placementTree
+  if (tree && joinStart(tree) + roots.length > tree.capacity) return false
   return (
     pages <= packed.pageCount &&
     nodes <= packed.nodeCount - treeNodeCount(packed.placementTree) &&

@@ -113,9 +113,10 @@ test("a growth's placements join the tree in place, the cut the flat one's", () 
   assert.ok(tree && tree.capacity === 160, 'the tree is laid out for the capacity')
   const added = appendDagRoots(dag, roots.slice(80))!
   assert.ok(added, 'a packing with a tree keeps room')
-  assert.equal(tree.count, 100)
+  // The batch fills new groups from the third: no group holds placements of two batches.
+  assert.equal(tree.count, 128 + 20)
   for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
-  assert.deepEqual(added.tree.members, [80, 100])
+  assert.deepEqual(added.tree.members, [128, 148])
   for (const camera of views) {
     const cut = fieldCut(roots, camera, true, dag)
     assert.deepEqual(cut.pages, fieldCut(roots, camera, false, dag).pages)
@@ -169,5 +170,24 @@ test('the tree is ceil(log64 n) levels deep, its top one node: the descent opens
   assert.deepEqual(
     fieldCut(roots, camera, true, dag).pages,
     fieldCut(roots, camera, false, dag).pages,
+  )
+})
+
+test("a growth's batch far from the packed placements fills its own groups: none spans the two", () => {
+  // 80 placements near the origin, then 20 a growth brings ten kilometres off.
+  const field = placementField(10, 6),
+    near = field.slice(0, 80),
+    far = field.slice(80)
+  for (const root of far) (root.world.elements as Float64Array)[12] += 10_000
+  const counts = dagRootCounts([...near, ...far])
+  const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
+  const dag = packDagSelection(near, capacity)
+  assert.ok(appendDagRoots(dag, far))
+  const seen: number[] = []
+  const at = engineCamera(fieldCamera([10_012, 30, 20], [10_012, 0, -12], 200)).planes
+  visitPlacements(dag, dag.placementTree!, at, (w) => seen.push(w))
+  assert.ok(
+    seen.length > 0 && seen.every((w) => w >= 80),
+    `${seen.filter((w) => w < 80).length} near read`,
   )
 })

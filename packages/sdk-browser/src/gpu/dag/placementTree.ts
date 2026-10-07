@@ -9,8 +9,9 @@
  * nodes of the level below. Its top level starts the descent; a kept group deposits its placements,
  * each prepared then where it is read (`placementTreeWgsl.ts`), and a rejected one costs its members
  * nothing. Every placement but the world DAG's is a member, wherever it sits in the packing, and
- * the tree is laid out for the packing's capacity: a placement a growth appends in place joins the
- * last group (`joinPlacementTree`), its nodes kept at the end of the node table.
+ * the tree is laid out for the packing's capacity: the placements a growth appends in place fill
+ * new groups in the order the full build gives them (`joinPlacementTree`), its nodes kept at the
+ * end of the node table.
  * A group's members are consecutive in the tree's ORDER: the rows' own when a partition fills them
  * (a cell takes consecutive rows, `../../partition/rows.ts`, and gives them back together), else
  * the placements on a Morton curve of their positions, so a group is a patch of the world whatever
@@ -59,8 +60,9 @@ type TreeLevel = { base: number; count: number }
  * `cellBase` on; `depth` the levels it sets above a member's root. `order[k]` is the placement
  * member `k` names (`NONE` past the `count` live members, up to `capacity`), `slot[w]` the member
  * placement `w` is (`NONE` for the world DAG), and the order lies in the cold table from word
- * `members` on. `open[w]`: the group of `w` stays open whatever its mark (a pose the GPU
- * composes); `nodeOpen[n]`: tree node `cellBase + n` is open.
+ * `members` on — a member slot a growth left before its new groups names none. `open[w]`: the
+ * group of `w` stays open whatever its mark (a pose the GPU composes); `nodeOpen[n]`: tree node
+ * `cellBase + n` is open.
  */
 export type PlacementTree = {
   capacity: number
@@ -214,20 +216,30 @@ export function packPlacementTree(packed: TreeSource, tree: PlacementTree) {
   fitPlacementTree(packed, tree)
 }
 
+/** The member slot the next batch a growth appends starts at: the first of a new group, so no
+ *  group holds placements of two batches. */
+export const joinStart = (tree: PlacementTree) => Math.ceil(tree.count / TREE_SPAN) * TREE_SPAN
+
 /**
- * Placement `w`, appended to the packing in place, joins the last group as member `count`: its
- * order word, its slot and its group's member count; returns the tree nodes it rewrote and the
- * member it took, whose word the cold table sends.
+ * Placements `batch`, appended to the packing in place, ordered as the full build orders its
+ * members (`placementOrder`) and filling new groups from `joinStart`: each group's box covers its
+ * own members alone. Their order words, slots and groups' member counts; returns the tree nodes
+ * rewritten and the member slots taken, `[from, to)`, whose words the cold table sends.
  */
-export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, w: number) {
-  if (tree.count >= tree.capacity) throw new Error('GPU_PLACEMENT_TREE_FULL')
-  const k = tree.count++
-  tree.order[k] = w
-  tree.slot[w] = k
-  const g = Math.floor(k / TREE_SPAN),
+export function joinPlacementTree(packed: TreeSource, tree: PlacementTree, batch: number[]) {
+  const from = joinStart(tree)
+  if (from + batch.length > tree.capacity) throw new Error('GPU_PLACEMENT_TREE_FULL')
+  const order = placementOrder(packed.worldSources!, batch),
     nodeInts = new Uint32Array(packed.nodes.buffer, packed.nodes.byteOffset)
-  nodeInts[(groupLevel(tree).base + g) * DAG_NODE_FLOATS + NODE_CHILD_COUNT] = groupMembers(tree, g)
-  return { nodes: refitPlacementTree(packed, tree, [w]), member: k }
+  order.forEach((w, i) => {
+    tree.order[from + i] = w
+    tree.slot[w] = from + i
+  })
+  tree.count = from + batch.length
+  const groups = groupLevel(tree).base
+  for (let g = from / TREE_SPAN; g * TREE_SPAN < tree.count; g++)
+    nodeInts[(groups + g) * DAG_NODE_FLOATS + NODE_CHILD_COUNT] = groupMembers(tree, g)
+  return { nodes: refitPlacementTree(packed, tree, batch), members: [from, tree.count] as const }
 }
 
 /** Fits every group, then every level above, bottom up: at pack, and after poses moved past what a
@@ -292,11 +304,13 @@ export function visitPlacements(
   const walk = (l: number, j: number) => {
     if (outside(tree.levels[l].base + j)) return
     const first = j * TREE_SPAN
-    if (l === bottom)
-      for (let k = first; k < first + groupMembers(tree, j); k++) visit(tree.order[k])
-    else
+    if (l !== bottom) {
       for (let c = first; c < Math.min(first + TREE_SPAN, tree.levels[l + 1].count); c++)
         walk(l + 1, c)
+      return
+    }
+    for (let k = first; k < first + groupMembers(tree, j); k++)
+      if (tree.order[k] !== NONE) visit(tree.order[k])
   }
   for (let j = 0; j < tree.levels[0].count; j++) walk(0, j)
   if (packed.world) visit(packed.world.root)
@@ -329,7 +343,7 @@ function fitNode(packed: TreeSource, tree: PlacementTree, l: number, j: number) 
 
 /** Member `w`'s root box through its world, joined to `box`; whether it opens its group. */
 function unionMember(packed: TreeSource, tree: PlacementTree, w: number) {
-  if (packed.rootNodes[w] === NONE) return false
+  if (w === NONE || packed.rootNodes[w] === NONE) return false
   if (tree.open[w] !== 0 || opensTree(packed.mark[w])) return true
   const root = packed.rootBases[w] * DAG_NODE_FLOATS,
     { nodes } = packed
