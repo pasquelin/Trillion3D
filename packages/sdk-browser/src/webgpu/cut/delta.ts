@@ -1,6 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { grown } from '../../page/cut/sparseInts.ts'
-import { createDenseInts } from '../../page/cut/denseInts.ts'
+import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 import type { HeldList } from './heldList.ts'
 import { applyHashed } from './hashedDifference.ts'
@@ -66,10 +65,10 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * the difference omits it: no record list is then built, and the shown list costs only its own
  * length.
  *
- * Membership is an epoch mark, a word per packed id (`../../page/cut/denseInts.ts`, 4 bytes a
- * catalogue page) read with no hash; an id that leaves loses its mark, and the lists grow to the
- * longest cut seen, then are rewritten in place. A frame that adopts the shown list it already
- * holds writes nothing at all.
+ * Every table follows the cut, never the catalogue: membership is an epoch mark held
+ * in a sparse map (`../../page/cut/sparseInts.ts`) for the ids the cut holds, an id that leaves
+ * loses its mark, and the lists grow to the longest cut seen, then are rewritten in place. A frame
+ * that adopts the shown list it already holds writes nothing at all.
  *
  * The main cut arrives there by its ids and the ranks its readback claims for them (`apply` with
  * claims), a view drawn aside by its ids alone (`apply`), the bootstrap cover by its records
@@ -82,7 +81,7 @@ export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDel
   const recordIds: number[] = []
   const delta: HeldDelta = {
     recordOf: createPageCatalogue(packedPages).recordOf,
-    mark: createDenseInts(),
+    mark: createSparseInts(),
     pages,
     // Epochs start at 1: an id without a mark reads 0, never a current or previous epoch.
     epoch: 1,

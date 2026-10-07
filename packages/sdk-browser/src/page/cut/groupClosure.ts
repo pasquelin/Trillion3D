@@ -3,8 +3,7 @@ import { createPageCatalogue, type PageList } from '../selection/catalogue.ts'
 import type { ClusterRoot } from '../selection/types.ts'
 import type { PlacementIndex } from '../selection/placements.ts'
 import type { IdDelta } from '../../webgpu/cut/delta.ts'
-import { grown } from './sparseInts.ts'
-import { createDenseInts } from './denseInts.ts'
+import { createSparseInts, grown } from './sparseInts.ts'
 
 /**
  * What the cache must hold for the cut to draw what it asks for: whole groups, closed upward.
@@ -22,8 +21,8 @@ import { createDenseInts } from './denseInts.ts'
  *
  * Every placement of a primitive shares its records (#1235), and what the cache holds is a record,
  * never an instance: so a group is held once per primitive, named at the packed ranks of the first
- * placement that asked for it, however many placements the cut selects it on (#1232). Its tables
- * are words indexed by packed id (`./denseInts.ts`): read id by id every readback, never hashed.
+ * placement that asked for it, however many placements the cut selects it on (#1232). The tables
+ * follow the records the cut closes over — bounded by the view's rows —, never the world's instances.
  */
 export type GroupClosure = ReturnType<typeof createGroupClosure>
 
@@ -43,15 +42,15 @@ function createWalk(
   placement: PlacementIndex,
   packedPages: PageList,
 ) {
-  const heldPages = createDenseInts()
+  const heldPages = createSparseInts()
   return {
     roots,
     placement,
     recordOf: createPageCatalogue(packedPages).recordOf,
-    heldGroups: createDenseInts(),
+    heldGroups: createSparseInts(),
     heldPages,
-    seen: createDenseInts(true),
-    walked: createDenseInts(true),
+    seen: createSparseInts(),
+    walked: createSparseInts(),
     touched: [] as number[],
     delta: {
       entered: new Int32Array(8),
@@ -152,11 +151,10 @@ function settleDelta(w: Walk) {
 }
 
 /**
- * Every table is a word per packed id (`./denseInts.ts`), grown to the largest the cut closed over:
- * an O(1) read with no hash, at 4 bytes a catalogue page for the counts and 8 for the two emptied
- * every walk. A placement's pages are packed contiguously from its root's packed base
- * (`postPackedBases`, #1235), and a group is keyed by its first member's packed id, which no other
- * group shares.
+ * Every table is sparse (`./sparseInts.ts`): it holds the groups and pages the cut closes over,
+ * never the placements' catalogue (#483 rule 6). A placement's pages are packed contiguously from
+ * its root's packed base (`postPackedBases`, #1235), and a group is keyed by its first member's
+ * packed id, which no other group shares.
  */
 export function createGroupClosure(
   roots: readonly ClusterRoot<PageRec>[],

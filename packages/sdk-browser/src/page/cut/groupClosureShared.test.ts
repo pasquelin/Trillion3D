@@ -56,11 +56,7 @@ test('a primitive selected on many placements holds its groups once, at its firs
     single.map((id) => 7 * n + id),
     'the same records as one placement holds',
   )
-  // A word per packed id, up to the holder's ranks (`denseInts.ts`): the tables of eight
-  // placements, the holder the eighth, whatever the placements past it.
-  const eight = placements(8)
-  eight.apply(cut([7 * n + leaves[0], ...everyLeaf(8)]))
-  assert.equal(many.hostBytes, eight.hostBytes, 'tables up to the holder, not of 512 placements')
+  assert.equal(many.hostBytes, one.hostBytes, 'tables of the view, not of 512 placements')
   const first = placements(1)
   first.apply(cut([leaves[0]]))
   const kept = first.delta.enteredCount
