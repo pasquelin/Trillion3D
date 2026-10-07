@@ -15,7 +15,7 @@ export const unorm8x3 = wgslFn(
 )
 
 /** The luminance weights of the linear sRGB primaries. */
-export const LUMA_WEIGHTS = wgslConst(
+const LUMA_WEIGHTS = wgslConst(
   'LUMA_WEIGHTS',
   [],
   `const LUMA_WEIGHTS:vec3f=vec3f(${[0.2126, 0.7152, 0.0722].map(wgslF32)});`,

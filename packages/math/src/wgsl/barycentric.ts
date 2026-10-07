@@ -16,7 +16,7 @@ export const edgeFunction = wgslFn(
 
 /** The affine weights of `p` on `a, b, c`, `area` their `edgeFunction(a, b, c)`; the third is one
  *  minus the others. */
-export const affineBarycentric = wgslFn(
+const affineBarycentric = wgslFn(
   'affineBarycentric',
   [edgeFunction],
   `fn affineBarycentric(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
