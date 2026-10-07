@@ -1,7 +1,7 @@
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts'
 import { cpuModel, orderBlendPlanCpu, orderEye, refreshEyeKeys } from './expandCpu.fixture.ts'
 import { RUN_WORDS } from './planLayout.ts'
-import { precedes } from './sortPlan.ts'
+import { precedes } from './paintOrder.ts'
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
 
 /** A blend state holding `items`, its statics and encoding plan built as a frame would. */

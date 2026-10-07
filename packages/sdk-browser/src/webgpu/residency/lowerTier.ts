@@ -84,7 +84,7 @@ export type LowerList = {
  * follow one another between two reports read it as it is, and a job still walking the one before
  * — a capture's `ensureResident` runs beside the queue — keeps it whole.
  */
-export function createLowerMerge(keyOf: (page: PageRec) => number) {
+function createLowerMerge(keyOf: (page: PageRec) => number) {
   let list: PageRec[] = []
   let seen: (readonly [LowerList, number])[] = []
   const current = (tiers: readonly LowerList[]) =>

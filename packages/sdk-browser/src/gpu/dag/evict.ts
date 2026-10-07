@@ -17,9 +17,9 @@ export const EVICT_LEVELS = 32,
  *  in the five above, as many as `EVICT_LEVELS` tells apart. */
 export const KEY_PAGE_BITS = 27
 export const KEY_PAGE_MAX = 2 ** KEY_PAGE_BITS
-export const keyWord = (page: number, level: number) =>
+const keyWord = (page: number, level: number) =>
   ((Math.min(EVICT_LEVELS - 1, level) << KEY_PAGE_BITS) | page) >>> 0
-export const keyLevel = (word: number) => word >>> KEY_PAGE_BITS
+const keyLevel = (word: number) => word >>> KEY_PAGE_BITS
 
 /** Writes the key column at `words[at]`, one word per page in packing order (`layout.ts`). */
 export function writeKeyColumn(roots: readonly DagRoot[], words: Uint32Array, at: number) {

@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPlacementRows, growPlacementRows, placementWorld } from './rows.ts'
-import { growWebgpuPlacements, growthOf, startGrownCut } from './webgpuGrowth.ts'
+import { growthOf, startGrownCut, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 
@@ -37,7 +37,7 @@ function session() {
   } as unknown as WebgpuPagesRuntime
   const grow = () => {
     const to = growPlacementRows(rows, rows.capacity + 1)
-    growWebgpuPlacements(rt, rows, to)
+    webgpuPlacementApi(rt).growPlacements(rows, to)
     rows = to
   }
   return { rt, cut, grow }

@@ -2,10 +2,10 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts'
-import { createReflectionSource, type ReflectionSourceInputs } from './source.ts'
+import { createReflectionSource } from './source.ts'
 import { REFLECTION_PLACEMENT_VERSIONS } from './historyFrame.ts'
 
-function inputsOf(motion = {} as GPUBuffer): ReflectionSourceInputs {
+function inputsOf(motion = {} as GPUBuffer) {
   return {
     ids: {} as GPUTextureView,
     pages: {} as GPUBuffer,

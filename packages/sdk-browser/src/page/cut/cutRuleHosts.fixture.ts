@@ -3,8 +3,7 @@
  * over placements of the synthetic DAG. It names to its pool's feed the pages whose residency
  * flipped, as the WebGPU rank journal does, and counts the residency answers its cuts asked for.
  */
-import { selectVisiblePages } from './cut.fixture.ts'
-import type { SelectionResult } from './result.ts'
+import { selectVisiblePages, type SelectionResult } from './cut.fixture.ts'
 import { createHeldResidency, type HeldResidency } from './held.fixture.ts'
 import { postPackedBases, type PlacementIndex } from '../selection/placements.ts'
 import { placements, stripCamera } from './cutRuleBackends.fixture.ts'

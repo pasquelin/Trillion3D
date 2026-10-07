@@ -13,7 +13,7 @@
  * bit for bit.
  *
  * A NaN result is the one pattern of all ones: as an unsigned 64-bit number it lies above +∞, which
- * is where the order ranks a NaN key (`sortPlan.ts`, `precedes`). The other keys are squares and
+ * is where the order ranks a NaN key (`paintOrder.ts`, `precedes`). The other keys are squares and
  * sums of squares, never negative, so their bits compare as the numbers do.
  */
 export const DOUBLE_WGSL = `

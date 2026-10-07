@@ -15,7 +15,7 @@ export type CutStamp = {
 
 /** A view's last cut on the shared tables: its inputs, its serial, and whether its readback came
  *  back whole — its journal is then its whole mask, and comes back without a cut. */
-export type ViewCut = CutStamp & {
+type ViewCut = CutStamp & {
   serial: number
   whole: boolean
 }

@@ -2,8 +2,7 @@
 // never by the placements; a request takes back a row no cut used for a while, never one in use.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { range, rowCache } from './rowCache.fixture.ts'
-import { ROW_IDLE_READBACKS } from './rowUse.ts'
+import { range, ROW_IDLE_READBACKS, rowCache } from './rowCache.fixture.ts'
 
 test('a scene whose instances fit holds a row for every resident instance, as they land', () => {
   const cache = rowCache(6, 8)

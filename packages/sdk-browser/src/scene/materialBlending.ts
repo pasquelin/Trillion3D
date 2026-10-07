@@ -47,7 +47,7 @@ export function blendingOf(host: number | undefined): Blending | undefined {
 
 /** Why a surface's mode is drawn by no path, or `undefined`: the one refusal every draw shares. A transmissive surface composes by the backdrop it reads, and a mode the
  *  engine has no name for is no mode at all: both are refused by name, never drawn as normal. */
-export function blendingRefusal(blending: Blending | undefined, transmissive: boolean) {
+function blendingRefusal(blending: Blending | undefined, transmissive: boolean) {
   if (!blending) return 'a surface declares a blending no path draws'
   if (transmissive && blending !== 'normal')
     return `a transmissive material cannot use ${blending} blending`

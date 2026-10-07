@@ -3,7 +3,8 @@
 // moved and taken again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createRowUse, ROW_IDLE_READBACKS } from './rowUse.ts'
+import { createRowUse } from './rowUse.ts'
+import { ROW_IDLE_READBACKS } from './rowCache.fixture.ts'
 
 test('a table whose rows are all in use has no victim until a row goes unused', () => {
   const use = createRowUse(4)

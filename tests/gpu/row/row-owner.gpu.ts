@@ -9,7 +9,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { forEachRewrittenRun } from '../../../packages/sdk-browser/src/webgpu/row/dirty.ts'
-import { ROW_IDLE_READBACKS } from '../../../packages/sdk-browser/src/webgpu/row/rowUse.ts'
+import { ROW_IDLE_READBACKS } from '../../../packages/sdk-browser/src/webgpu/row/rowCache.fixture.ts'
 import { ROW_WORDS, rowCacheScene, settleView } from './rowCacheScene.ts'
 
 /** Rows the table holds: far fewer than the placements' instances, more than one view asks. */

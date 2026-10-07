@@ -5,7 +5,7 @@ import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts'
  * can still be drawn from after the last one that named it — the slots in flight and the image
  * being encoded —, so a camera that turns away and back keeps its rows.
  */
-export const ROW_IDLE_READBACKS = 4 * (DAG_READBACK_SLOTS + 1)
+const ROW_IDLE_READBACKS = 4 * (DAG_READBACK_SLOTS + 1)
 
 /**
  * THE ROWS' LAST USE (#1483): what makes the row table a cache of the GPU cut. Each readback the

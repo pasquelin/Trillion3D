@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { inertTaaDevice } from './device.fixture.ts'
 import { prepareTemporalAntialiasing, setWebgpuTemporalAntialiasing } from './prepare.ts'
-import { TAA_CAPABILITY, UPSCALE_CAPABILITY } from './capability.ts'
+import { TAA_CAPABILITIES, TAA_CAPABILITY } from './capability.ts'
 import { beginTaaFrame, taaSettled } from './frame.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { createScaleControl } from '../frame/scaleControl.ts'
@@ -22,7 +22,7 @@ function runtime(temporalAntialiasing: boolean) {
       allocatedSize: [4, 2],
       targetSize: [4, 2],
     },
-    capabilities: { unsupported: [TAA_CAPABILITY, UPSCALE_CAPABILITY] },
+    capabilities: { unsupported: [...TAA_CAPABILITIES] },
     layout: { selectionRoots: [] },
     signal: new AbortController().signal,
     capture: { capturing: false },
@@ -80,10 +80,12 @@ test('switched off, the history leaves its targets; on again, it is made at once
   assert.equal(temporal.frame.hasHistory, false, 'its first image reads no history')
 })
 
-// The renderer's temporal upscaling is the pass's own, served and withdrawn with it.
+// The renderer's temporal upscaling is the pass's own (`TAA_CAPABILITIES`), served and withdrawn
+// with it.
 test('temporal upscaling is served with the pass', async () => {
   const { rt } = runtime(true)
-  const upscales = () => !rt.capabilities.unsupported.includes(UPSCALE_CAPABILITY)
+  const upscales = () =>
+    TAA_CAPABILITIES.every((name) => !rt.capabilities.unsupported.includes(name))
   assert.equal(upscales(), false, 'not before the pass exists')
   await prepareTemporalAntialiasing(rt, rt.gpu.device!)
   assert.equal(upscales(), true)

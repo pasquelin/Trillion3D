@@ -72,17 +72,3 @@ export async function collectedPages(source: ExplorerSource) {
     rec.array = new Uint32Array(await resolveObjectURL(rec.url)!.arrayBuffer())
   return { roots, records: allPages as (PageRec & { array: Uint32Array })[] }
 }
-
-/** Whether every corner of `rec` at `positions` lies within its box grown by `reach`. */
-export function cornersWithin(
-  rec: PageRec & { array: Uint32Array },
-  positions: ArrayLike<number>,
-  reach: number,
-) {
-  for (const v of rec.array)
-    for (let a = 0; a < 3; a++) {
-      const at = positions[v * 3 + a]
-      if (at < rec.min[a] - reach || at > rec.max[a] + reach) return false
-    }
-  return true
-}

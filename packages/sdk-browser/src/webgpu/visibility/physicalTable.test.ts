@@ -1,16 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  createPhysicalTable,
-  PHYSICAL_RECORD_WORDS,
-  PHYSICAL_ROW_RECORDS,
-} from './physicalTable.ts'
+import { createPhysicalTable, PHYSICAL_ROW_RECORDS } from './physicalTable.ts'
 import { visMaterial } from '../../visibility/shader/material.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
+
+/** A record's words as the shader reads it: three `rgba32uint` texels. */
+const PHYSICAL_RECORD_WORDS = 3 * 4
 
 /** The collector, called on demand: what the open world's churn waits for. */
 function gcOf() {

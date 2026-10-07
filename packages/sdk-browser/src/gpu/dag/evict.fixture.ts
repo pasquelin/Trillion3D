@@ -1,6 +1,6 @@
 import { REQUEST_AHEAD } from './request.ts'
 import { sortStaged, stagedPage, stagedRequest } from './request.fixture.ts'
-import { EVICT_LEVELS, EVICT_AGES, keyLevel } from './evict.ts'
+import { EVICT_LEVELS, EVICT_AGES, KEY_PAGE_BITS } from './evict.ts'
 
 /** CPU mirror of `dagListEvictions`: the pool's listed pages (`poolList.ts`) not stamped `now`, by
  *  `evictionRank` through `sortStaged`, the first `cap`; within a rank, page order. */
@@ -25,7 +25,7 @@ export function listEvictions(options: {
  *  as the kernel's: the age step is the bit length of the age, one step per doubling. A key's five
  *  level bits never pass `EVICT_LEVELS - 1`. */
 function evictionRank(keyWord: number, age: number) {
-  const level = keyLevel(keyWord),
+  const level = keyWord >>> KEY_PAGE_BITS,
     step = Math.min(EVICT_AGES - 1, 32 - Math.clz32(age >>> 0))
   return ((EVICT_LEVELS - 1 - level) * EVICT_AGES) | step
 }

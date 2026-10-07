@@ -6,6 +6,12 @@ import { sharedGpuDevice } from '../../gpu/core/sessionHandle.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { storageBufferCap, uniformStride } from '../../residency/pools.ts'
 import { levelView, MATERIAL_MIP_FORMAT } from '../../texture/mips.ts'
+import {
+  TEXEL_FLIP,
+  TEXEL_PREMULTIPLY,
+  TEXEL_TURN_WGSL,
+  TEXEL_TURN_WORKGROUP,
+} from './texelTurnWgsl.ts'
 import { textureRgba } from '../../visibility/types.ts'
 import type { TileTexture } from './tileTexture.ts'
 
@@ -21,37 +27,9 @@ import type { TileTexture } from './tileTexture.ts'
  * written (the queue orders them), the last in the caller's encoder. The CPU touches no texel.
  */
 const LABEL = 'Trillion3D texel turn'
-/** Texels one workgroup turns, along a row. */
-const WORKGROUP = 64
 /** Bytes the staging ring holds at most: device memory bounded whatever the picture (8 MiB for a
  *  1080p frame, 32 MiB a load for an 8K picture's 256 MiB). */
 const TURN_RING_BYTES = 32 << 20
-/** The turns a host texture asks, as bits. */
-export const TEXEL_FLIP = 1,
-  TEXEL_PREMULTIPLY = 2
-
-/** One invocation per texel of a band of `rows` source rows: its colour times its alpha rounded to
- *  the nearest byte under `TEXEL_PREMULTIPLY` (`(c·a + 127) / 255`, the rounding of `c·a / 255`,
- *  never a half), stored at level 0's row `first + y`, reversed in the band under `TEXEL_FLIP`. */
-export const TEXEL_TURN_WGSL = /* wgsl */ `
-struct Turn { width: u32, rows: u32, first: u32, flags: u32 }
-@group(0) @binding(0) var<uniform> turn: Turn;
-@group(0) @binding(1) var<storage, read> source: array<u32>;
-@group(0) @binding(2) var turned: texture_storage_2d<${MATERIAL_MIP_FORMAT}, write>;
-fn times(c: u32, a: u32) -> u32 { return (c * a + 127u) / 255u; }
-@compute @workgroup_size(${WORKGROUP})
-fn main(@builtin(global_invocation_id) id: vec3u) {
-  let x = id.x;
-  let y = id.y;
-  if (x >= turn.width || y >= turn.rows) { return; }
-  var t = source[y * turn.width + x];
-  if ((turn.flags & ${TEXEL_PREMULTIPLY}u) != 0u) {
-    let a = t >> 24u;
-    t = times(t & 255u, a) | (times((t >> 8u) & 255u, a) << 8u) | (times((t >> 16u) & 255u, a) << 16u) | (a << 24u);
-  }
-  let to = select(turn.first + y, turn.first + turn.rows - 1u - y, (turn.flags & ${TEXEL_FLIP}u) != 0u);
-  textureStore(turned, vec2u(x, to), unpack4x8unorm(t));
-}`
 
 /** The device's one turn program: its layout, and its pipeline compiled off the thread before the
  *  first picture turns (`prepareTexelTurn`), else at once where it is used. */
@@ -115,7 +93,7 @@ const SOURCE = `${LABEL} source`,
 
 /** Rows of a band: as many as `bandBytes` holds, a multiple of the rows whose bytes land on the
  *  256-byte alignment a storage binding's offset asks; never under that multiple. */
-export function texelBandRows(width: number, height: number, bandBytes: number) {
+function texelBandRows(width: number, height: number, bandBytes: number) {
   const row = width * 4,
     unit = 256 / gcd(row, 256)
   return Math.min(height, Math.max(unit, Math.floor(bandBytes / row / unit) * unit))
@@ -190,7 +168,7 @@ function encodeBand(
   const pass = encoder.beginComputePass({ label: LABEL })
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(Math.ceil(width / WORKGROUP), rows)
+  pass.dispatchWorkgroups(Math.ceil(width / TEXEL_TURN_WORKGROUP), rows)
   pass.end()
 }
 

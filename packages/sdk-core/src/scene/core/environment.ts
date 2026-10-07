@@ -14,7 +14,7 @@
  * environment irradiance stays black whatever its exposure.
  */
 import type { NumberSink } from '../../math/matrix/matrix4.ts'
-import { packFog, type SceneFog } from './fog.ts'
+import { packFog, SCENE_FOG_FLOATS, type SceneFog } from './fog.ts'
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
 export const TONE_MAPPING_RANK = {
@@ -58,7 +58,7 @@ export interface SceneEnvironment {
  *  Written as literals, like the factors below, so a bundle that reads none of them keeps none. */
 export const ENVIRONMENT_COEFFICIENTS = 9
 /** Floats of the environment in the GPU buffer: the coefficients, then the fog's block. */
-export const SCENE_ENVIRONMENT_FLOATS = 44
+export const SCENE_ENVIRONMENT_FLOATS = ENVIRONMENT_COEFFICIENTS * 4 + SCENE_FOG_FLOATS
 
 /**
  * The factors of the cosine-lobe convolution per band: the irradiance at a normal is the

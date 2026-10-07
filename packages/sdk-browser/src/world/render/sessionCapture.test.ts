@@ -10,7 +10,7 @@ import type { Engine } from '../../engine/types.ts'
 import { createEngineCamera, readCameraWorld, type HostCamera } from '../../camera/world.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import { followPageCamera } from '../core/worldCamera.ts'
-import { engineReads } from './sessionRuntime.ts'
+import { engineReads } from './sessionReads.ts'
 
 test('a capture checks the session, then awaits the engine readback', async () => {
   const image = new Uint8Array(4)

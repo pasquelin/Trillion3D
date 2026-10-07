@@ -7,11 +7,11 @@
 //   node bench/dawn/proofs.ts tests/gpu/texture/texel-turn.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createTexelTurn } from '../../../packages/sdk-browser/src/webgpu/tile/texelTurn.ts'
 import {
-  createTexelTurn,
   TEXEL_FLIP,
   TEXEL_PREMULTIPLY,
-} from '../../../packages/sdk-browser/src/webgpu/tile/texelTurn.ts'
+} from '../../../packages/sdk-browser/src/webgpu/tile/texelTurnWgsl.ts'
 import { premultipliedByte } from '../../../bench/oracles/browser/cpu-image/math.ts'
 import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
 import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts'

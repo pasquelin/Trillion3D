@@ -60,7 +60,7 @@ const BLEND_ITEM_FIELDS = [
 const LAYOUT = fieldLayout('BlendItem', BLEND_ITEM_FIELDS)
 
 /** Each field's first word in the record: constants, read by the writer as literal offsets were. */
-export const ITEM = LAYOUT.at
+const ITEM = LAYOUT.at
 export const BLEND_ITEM_WORDS = LAYOUT.words
 
 /** Atlas tables the record cites: each texture's slot, per atlas, and the atlases; the session's

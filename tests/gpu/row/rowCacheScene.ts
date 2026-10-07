@@ -24,7 +24,7 @@ import { runOnDawn } from '../kit/onDawn.ts'
 /** Words of one page-table row: the record writer below names its page in the first. */
 export const ROW_WORDS = PAGE_INFO_STRIDE / 4
 /** Placements apart along -x: one view sees one of them. */
-export const SPACING = 1e4
+const SPACING = 1e4
 
 /** `copies` placements of the DAG, the one the strip camera sees packed last; the row cache of
  *  `table` rows over their instances, every one's bytes resident, each row's record naming its

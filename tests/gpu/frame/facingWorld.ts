@@ -7,7 +7,7 @@ import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import { coplanarCache, openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 
 /** The image's size: small, every surface still many pixels wide. */
-export const VIEW: [number, number] = [192, 144]
+const VIEW: [number, number] = [192, 144]
 
 /** The eye: nine units in front of the point (3, 3, 0) of the plane `z = 0`, looking at it. The
  *  goldens lie in `[0, 6]²` of that plane, their faces towards `+z`. */
@@ -21,7 +21,7 @@ export const FACING: CameraPose = {
 
 /** The first byte of the pixel where the point `(x, y, 0)` of the plane lands in an image of
  *  `VIEW`, bottom row first as `capture()` returns it. */
-export function pixelOf(x: number, y: number) {
+function pixelOf(x: number, y: number) {
   const [width, height] = VIEW
   const half = (FACING.position[2] - FACING.target[2]) * Math.tan((FACING.fov * Math.PI) / 360)
   const ndcX = (x - FACING.target[0]) / (half * (width / height)),

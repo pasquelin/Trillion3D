@@ -148,7 +148,7 @@ function moveKeptSnapshot(
  *  readbacks in `state.pending`; no frame cuts until it is in place or refused, and the next one
  *  cuts and reads again — on the grown list, or, refused, to hand the truncated readout to the host
  *  and draw the views aside without a region. */
-export function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
+function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
   const { swap } = resources,
     cap = Math.max(state.grow, resources.listCap),
     regions = state.regionsFull ? swap.regions : Math.max(swap.regions, regionsWanted(swap))

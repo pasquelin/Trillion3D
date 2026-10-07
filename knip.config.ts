@@ -54,7 +54,6 @@ const config: KnipConfig = {
         'tests/integration/public-types-union.fixture.ts',
         // Served to the harness page and imported by URL, never by local import.
         'bench/runner/series/cutPage.ts',
-        'bench/runner/witness/witnessPage.ts',
         'bench/runner/harness/explorerPage.ts',
         'bench/runner/lighting/lightingPage.ts',
         'bench/runner/references/referencePage.ts',

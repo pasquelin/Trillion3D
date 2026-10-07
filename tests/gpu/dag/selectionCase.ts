@@ -73,7 +73,7 @@ function withResidency(packed: PackedDag, resident: ArrayLike<number>) {
 
 /** What the kernel binds for `selectionCase`, each buffer under its WGSL name, with the sizes the
  *  engine gives the ones it writes. */
-export function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
+function caseBuffers({ packed, uniforms, resident }: SelectionCase) {
   // Before the node words are read: readiness writes each node's open count into them.
   const cold = withResidency(packed, resident ?? new Uint8Array(packed.pageCount).fill(1))
   const listCap = selectionListCap(packed.pageCount)

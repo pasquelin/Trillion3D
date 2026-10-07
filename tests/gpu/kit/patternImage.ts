@@ -8,7 +8,7 @@ import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/readbac
 export type Texel = (x: number, y: number) => ArrayLike<number>
 
 /** `texel` over `width` × `height`: RGBA rows, the top first as WebGPU writes them. */
-export function patternBytes(width: number, height: number, texel: Texel) {
+function patternBytes(width: number, height: number, texel: Texel) {
   const bytes = new Uint8Array(width * height * 4)
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) bytes.set(texel(x, y), (y * width + x) * 4)

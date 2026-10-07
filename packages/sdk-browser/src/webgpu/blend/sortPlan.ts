@@ -1,4 +1,5 @@
 import { planItem } from './plan.ts'
+import { precedes } from './paintOrder.ts'
 
 /**
  * FAR-TO-NEAR SORT OF SEEDS ON THE CPU, on the order the previous frame left (`order.ts`).
@@ -18,23 +19,6 @@ import { planItem } from './plan.ts'
  */
 const SHIFT_BUDGET_PER_ENTRY = 8,
   SHIFT_BUDGET_FLOOR = 256
-
-/**
- * Total order every path produces: decreasing key, then increasing rank — the GPU's and the CPU
- * model's rank is the seed, in source order.
- *
- * Rank breaks equal keys, so the result depends neither on the previous frame, nor on arrival
- * order, nor on the machine — two overlapping items cannot swap from one frame to the next, so
- * the image does not flicker. A NaN key — a non-finite eye or item position — ranks farthest,
- * NaN keys among themselves by rank: compared as it is, a NaN would answer false both ways and
- * leave the entry wherever the previous frame had put it. `true` says the already-placed entry
- * must recede.
- */
-export function precedes(keyA: number, rankA: number, keyB: number, rankB: number) {
-  if (keyA === keyB) return rankA > rankB
-  if (keyB !== keyB) return keyA === keyA || rankA > rankB
-  return keyA < keyB
-}
 
 let sortKeys = new Float64Array(0),
   mergeKeys = new Float64Array(0),
