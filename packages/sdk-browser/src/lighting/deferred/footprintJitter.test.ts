@@ -39,6 +39,7 @@ const run = shaderRun<{
     'worldAt',
     'pixelToNdc',
     'unprojectPoint',
+    'perspectiveDivide',
     'transformHomogeneousPoint',
   ],
   {

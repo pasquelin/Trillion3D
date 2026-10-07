@@ -16,7 +16,7 @@ const drawn = { triangle: [] as unknown as Triangle, viewport: [0, 0] }
 const shipped = shaderRun<{
   vertexFacing: (cull: number, world: Mat, page: 0, h: 0, corners: number[]) => number
   facingDiscarded: (mode: number, front: boolean) => boolean
-}>(FACING_WGSL, ['vertexFacing', 'facingDiscarded'], {
+}>(FACING_WGSL, ['vertexFacing', 'facingDiscarded', 'perspectiveDivide'], {
   uni: { viewProj: IDENTITY, viewport: drawn.viewport },
   pagePosition: (_page: 0, _h: 0, k: number) => [...drawn.triangle[k]],
   // The corner carries its own `w`: the position the shader extends with 1 is already clip space.

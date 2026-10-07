@@ -45,7 +45,7 @@ test('the four depths read at once give the length the one-by-one reads give', (
       uv[0] > wall ? near : Math.round((ground + 0.05 * uv[1]) * 64) / 64
     const { vsmScreenRayCast } = shaderRun<{
       vsmScreenRayCast: (o: number[], d: number[], l: number, dither: number) => number
-    }>(CODE, ['vsmScreenRayCast'], {
+    }>(CODE, ['vsmScreenRayCast', 'perspectiveDivide'], {
       vsmView: { shiftedToClip: CLIP, clipToBufferUv: SCALE_BIAS },
       vsmSampleSceneDepth: depthAt,
     })
