@@ -9,29 +9,29 @@ type DeformationResource = GPUBuffer | GPUTextureView
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { DEFORMATION_PASS } from './pass.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlots } from '../residency/pools.ts'
 
 /** The stage's image records, one per dispatch at its own aligned offset (`slot`): the image
  *  number, then the rows that dispatch deforms — its padding groups leave past them. */
 function deformationImage(device: GPUDevice) {
-  const stride = uniformStride(device.limits)
+  const slots = uniformSlots(device.limits, 2, 4)
   const buffer = device.createBuffer({
     label: 'Trillion3D deformation image',
-    size: stride + 16,
+    size: slots.offset(1)[0] + 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // A record's two words that change, written at each slot; the queue copies them at the call.
   const words = new Uint32Array(2)
   return {
     buffer,
-    entry: (slot: number) => ({ buffer, offset: slot * stride, size: 16 }),
+    entry: (slot: number) => ({ buffer, offset: slots.offset(slot)[0], size: 16 }),
     write(frame: number, rows: number, wholeRows: number) {
       words[0] = frame
       words[1] = rows
       device.queue.writeBuffer(buffer, 0, words)
       if (!wholeRows) return
       words[1] = wholeRows
-      device.queue.writeBuffer(buffer, stride, words)
+      device.queue.writeBuffer(buffer, slots.offset(1)[0], words)
     },
   }
 }

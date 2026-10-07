@@ -1,7 +1,7 @@
 import { createRadianceMipChain } from '../texture/radianceMips.ts'
 import { createReflectionBoundsPyramid, type ReflectionBoundsPipelines } from './boundsPyramid.ts'
 import { mipTailBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlotBytes } from '../residency/pools.ts'
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts'
 
 /** A cone's source hierarchy: existing radiance plus explicit nearest/farthest depth.
@@ -65,10 +65,10 @@ export function reflectionConeAllocation(
   }
   const radianceBytes = radiance
     ? mipTailBytes(width, height, 'rgba16float', levels) +
-      Math.max(1, levels - 1) * uniformStride(limits)
+      uniformSlotBytes(limits, Math.max(1, levels - 1))
     : 0
   return {
     descriptor,
-    bytes: radianceBytes + textureBytesOf(descriptor)! + boundsLevels * uniformStride(limits),
+    bytes: radianceBytes + textureBytesOf(descriptor)! + uniformSlotBytes(limits, boundsLevels),
   }
 }

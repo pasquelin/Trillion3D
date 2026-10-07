@@ -3,7 +3,7 @@ import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { validated } from '../core/errorScope.ts'
 import { shaderFailed } from '../core/shaderModule.ts'
 import { oncePerDevice } from '../core/oncePerDevice.ts'
-import { HIZ_UNIFORM_BINDING_BYTES } from './uniforms.ts'
+import { HIZ_SLOT_WORDS } from './uniforms.ts'
 
 /**
  * The two Hi-Z kernels, build and test, compiled under one device validation scope, once a device:
@@ -12,7 +12,7 @@ import { HIZ_UNIFORM_BINDING_BYTES } from './uniforms.ts'
 export const createHizPipelines = oncePerDevice((device) =>
   validated(device, async () => {
     const layout = device.createBindGroupLayout({
-      entries: hizBindEntries(HIZ_UNIFORM_BINDING_BYTES),
+      entries: hizBindEntries(HIZ_SLOT_WORDS * 4),
     })
     const module = device.createShaderModule({ code: HIZ_SHADER })
     if (await shaderFailed(module)) return undefined

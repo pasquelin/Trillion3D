@@ -1,7 +1,7 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { levelSize, mipLevelCountFor } from './tiles.ts'
 import { coveragePipelines, LEVEL_BIN_BYTES, pickGroup } from './coverageMips.ts'
 import { heldBuffers } from '../gpu/core/heldBuffers.ts'
@@ -19,9 +19,11 @@ export type { MipChain }
 
 type Place = ChainPlace & { cutoff: number }
 
-/** A batch's picks (`COVERAGE_CHOOSE_WGSL`): their group, the uniform stride, the first pick
+/** A batch's picks (`COVERAGE_CHOOSE_WGSL`): their group, the uniform slots, the first pick
  *  block, and the levels of each cutting chain, the most first. */
-type Picks = { group: GPUBindGroup; stride: number; base: number; levels: number[] }
+type Picks = { group: GPUBindGroup; slots: UniformSlots; base: number; levels: number[] }
+/** Words a chain's reduction block holds (`packBlocks`). */
+const BLOCK_WORDS = 7
 
 /**
  * The buffers of the batches — their uniforms, the coverage bins —, kept per device and label and
@@ -60,10 +62,11 @@ export function generateMaterialMips(
   }
   if (!places.length) return
   const shared = sharedGpuDevice(device)
-  const stride = uniformStride(device.limits)
   const cut = places.filter(({ cutoff }) => cutoff).sort((a, b) => b.levels - a.levels)
   const levels = cut.map((place) => place.levels)
-  const packed = packBlocks(places, blocks, stride, cut, levels)
+  // A block each reduction, then one a level of the picks.
+  const slots = uniformSlots(device.limits, blocks + (cut.length ? levels[0] : 0), BLOCK_WORDS)
+  const packed = packBlocks(places, blocks, slots, cut, levels)
   const { UNIFORM, STORAGE } = GPUBufferUsage
   const uniforms = held(
     shared,
@@ -81,10 +84,10 @@ export function generateMaterialMips(
     STORAGE,
   )
   const groups = places.map((place) =>
-    chainGroups(device, shared, place, { uniforms, stride, bins }),
+    chainGroups(device, shared, place, { uniforms, stride: slots.stride, bins }),
   )
   const picks: Picks | undefined = cut.length
-    ? { group: pickGroup(device, uniforms, bins), stride, base: blocks, levels }
+    ? { group: pickGroup(device, uniforms, bins), slots, base: blocks, levels }
     : undefined
   const own = encoder ?? device.createCommandEncoder()
   if (binBytes) own.clearBuffer(bins, 0, binBytes)
@@ -106,11 +109,11 @@ export function generateMaterialMips(
 function packBlocks(
   places: readonly Place[],
   blocks: number,
-  stride: number,
+  slots: UniformSlots,
   cut: Place[],
   cutLevels: readonly number[],
 ) {
-  const words = stride / 4,
+  const words = slots.strideWords,
     top = cut.length ? cut[0].levels : 0,
     table = (blocks + top) * words
   const packed = new Uint32Array(cut.length ? table + 2 * cut.length : blocks * words)
@@ -177,7 +180,7 @@ function encodeByLevel(
         dispatch(pass, sizes[level])
       }
       pass.setPipeline(coverage.pick)
-      pass.setBindGroup(0, picks.group, [(picks.base + level) * picks.stride])
+      pass.setBindGroup(0, picks.group, picks.slots.offset(picks.base + level))
       // A group a cutting chain.
       dispatchRows(pass, cutting)
     }
@@ -202,17 +205,17 @@ export function reductionGroups(
   count: number,
   group: (index: number, extent: GPUBufferBinding) => GPUBindGroup,
 ) {
-  const stride = uniformStride(device.limits)
+  const slots = uniformSlots(device.limits, Math.max(1, count), 4)
   const uniforms = device.createBuffer({
     label,
-    size: Math.max(1, count) * stride,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   try {
     const packed = new Uint32Array(uniforms.size / 4)
     const groups = Array.from({ length: count }, (_, index) => {
-      packed.set([...levelSize(width, height, index), width, height], (index * stride) / 4)
-      return group(index, { buffer: uniforms, offset: index * stride, size: 16 })
+      packed.set([...levelSize(width, height, index), width, height], index * slots.strideWords)
+      return group(index, { buffer: uniforms, offset: slots.offset(index)[0], size: 16 })
     })
     device.queue.writeBuffer(uniforms, 0, packed)
     return { uniforms, groups }

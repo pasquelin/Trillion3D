@@ -37,7 +37,7 @@ import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/cor
 import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
-import { storageBufferCap, uniformStride, type UniformSlots } from '../residency/pools.ts'
+import { storageBufferCap, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { createVsmReadbackRing } from './readbackRing.ts'
 import { vsmWriteChanged } from './writeChanged.ts'
@@ -622,12 +622,12 @@ function clearTablesGroup(
 }
 
 /** The transmission's lists for a chunk of `rows` of its `used` blended rows, by buffer: the
- *  render lists, their parameter slots `slot` bytes apart, its page list holding a header a
+ *  render lists, their parameter slots `slots`, its page list holding a header a
  *  command and the pages after them. */
 const transmissionSizes =
-  (used: number, rowCount: number, viewWords: number, holds: VsmChunk, slot: number) =>
+  (used: number, rowCount: number, viewWords: number, holds: VsmChunk, slots: UniformSlots) =>
   (rows: number) => ({
-    ...vsmChunkListSizes(rows, used, rowCount, viewWords, holds, slot),
+    ...vsmChunkListSizes(rows, used, rowCount, viewWords, holds, slots),
     pairs:
       holds.cmds(rows) * VSM_TRANSMISSION_HEADER_BYTES +
       holds.pairs(rows) * VSM_TRANSMISSION_PAGE_BYTES,
@@ -650,7 +650,7 @@ export function vsmTransmissionFloorBytes(
   const holds = vsmWorstChunk(Math.min(CHUNK_ROWS, used), Math.min(viewMips, pages), pages)
   return vsmDrawFloorBytes(
     Math.min(CHUNK_ROWS, used),
-    transmissionSizes(used, rowCount, viewWords, holds, uniformStride(limits)),
+    transmissionSizes(used, rowCount, viewWords, holds, vsmChunkParamSlots(limits)),
   )
 }
 
@@ -765,7 +765,7 @@ function binPlan(
     frame.device,
     ctx.buffers,
     chosen.rows,
-    transmissionSizes(used, rowCount, views.length, chosen, ctx.slots.stride),
+    transmissionSizes(used, rowCount, views.length, chosen, ctx.slots),
   )
   const chunkRows = within.rows
   // The opaque raster's parameter slots (`renderPass.ts`), `rowCount` = the blended rows.

@@ -6,7 +6,7 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { READBACK_IDLE_MS } from '../../gpu/core/heldReadback.ts'
 import { sharedGpuDevice } from '../../gpu/core/sessionHandle.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
-import { storageBufferCap, uniformStride } from '../../residency/pools.ts'
+import { storageBufferCap, uniformSlots, type UniformSlots } from '../../residency/pools.ts'
 import { levelView, MATERIAL_MIP_FORMAT } from '../../texture/mips.ts'
 import {
   TEXEL_FLIP,
@@ -101,15 +101,21 @@ function texelBandRows(width: number, height: number, bandBytes: number) {
   return clamp(Math.floor(bandBytes / row / unit) * unit, unit, height)
 }
 
-/** A turn's shape: the picture's size, the rows of a ring load, the loads, the uniform stride. */
-type Bands = { width: number; height: number; band: number; bands: number; stride: number }
+/** A turn's shape: the picture's size, the rows of a ring load, the loads, their uniform slots. */
+type Bands = {
+  width: number
+  height: number
+  band: number
+  bands: number
+  slots: UniformSlots
+}
 
 /** The shape of a `width × height` turn on `device`: ring loads of at most `bandBytes`, and of
  *  what a storage binding takes. */
 function bandsOf(device: GPUDevice, width: number, height: number, bandBytes: number): Bands {
   const band = texelBandRows(width, height, Math.min(bandBytes, storageBufferCap(device.limits)))
-  const stride = uniformStride(device.limits)
-  return { width, height, band, bands: ceilDiv(height, band), stride }
+  const bands = ceilDiv(height, band)
+  return { width, height, band, bands, slots: uniformSlots(device.limits, bands, 4) }
 }
 
 /** What a turn holds between uploads: the words of every load, the ring, and a group a load. */
@@ -119,13 +125,13 @@ type TurnHold = { words: GPUBuffer; ring: GPUBuffer; groups: GPUBindGroup[] }
  *  turn to — from the top, or mirrored. Written word by word: nothing allocated a load. */
 function turnBands(
   packed: Uint32Array,
-  { width, height, band, bands, stride }: Bands,
+  { width, height, band, bands, slots }: Bands,
   flags: number,
 ) {
   for (let b = 0; b < bands; b++) {
     const first = b * band,
       rows = Math.min(band, height - first),
-      at = (b * stride) / 4
+      at = b * slots.strideWords
     packed[at] = width
     packed[at + 1] = rows
     packed[at + 2] = flags & TEXEL_FLIP ? height - first - rows : first
@@ -139,18 +145,18 @@ function takeHold(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
   level: GPUTextureView,
-  { width, height, band, bands, stride }: Bands,
+  { width, height, band, bands, slots }: Bands,
 ): TurnHold {
   const row = width * 4
   const { UNIFORM, STORAGE, COPY_DST } = GPUBufferUsage
-  const words = spares.take(device, WORDS, bands * stride, UNIFORM | COPY_DST),
+  const words = spares.take(device, WORDS, slots.bytes, UNIFORM | COPY_DST),
     ring = spares.take(device, SOURCE, band * row, STORAGE | COPY_DST)
   const groups = Array.from({ length: bands }, (_, b) =>
     device.createBindGroup({
       label: LABEL,
       layout,
       entries: [
-        { binding: 0, resource: { buffer: words, offset: b * stride, size: 16 } },
+        { binding: 0, resource: { buffer: words, offset: slots.offset(b)[0], size: 16 } },
         { binding: 1, resource: { buffer: ring, size: Math.min(band, height - b * band) * row } },
         { binding: 2, resource: level },
       ],
@@ -189,7 +195,7 @@ export function createTexelTurn(
     { band } = shape
   // In the texture's own `rgba8unorm`: its storage view.
   const level = levelView(texture, 0)
-  const packed = new Uint32Array((shape.bands * shape.stride) / 4),
+  const packed = new Uint32Array(shape.slots.bytes / 4),
     row = width * 4
   let written = -1
   /** Taken at the first upload after a `release`. */

@@ -1,4 +1,4 @@
-import { uniformStride } from '../../residency/pools.ts'
+import { visUniformLayout } from '../core/bindLayout.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { slotCount } from '../../gpu/draw/draw.ts'
 import { computeSpanFor } from '../../diagnostic/gpuGeometry.ts'
@@ -28,8 +28,8 @@ export function writeWebgpuVisibilityUniforms(
 ) {
   const { vis, run } = rt,
     slots = visUniformSlots(vis),
-    stride = uniformStride(device.limits),
-    slotWords = stride / 4
+    layout = visUniformLayout(device.limits, slots),
+    slotWords = layout.strideWords
   if (vis.visUniPacked.length !== slots * slotWords)
     vis.visUniPacked = new Float32Array(slots * slotWords)
   const { visUniPacked, shadeUniPacked } = vis,
@@ -39,7 +39,7 @@ export function writeWebgpuVisibilityUniforms(
     pixelRatio = renderPixelRatio(rt),
     mipBias = renderMipBias(rt)
   const visUniform = (vis.visUniform ??= device.createBuffer({
-    size: slots * stride,
+    size: layout.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   }))
   const visInts = new Uint32Array(visUniPacked.buffer)

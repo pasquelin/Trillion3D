@@ -6,7 +6,7 @@ const TEST_COUNTING_WORD = 5
 
 /**
  * The test slot at word `at` of `image`, the uniform buffer's words: `[width, height, rows]`, then
- * 1 at `counting` on a sampled frame, the rest of the slot zero — a pyramid of another depth may
+ * 1 at `counting` on a sampled frame, the rest of the struct zero — a pyramid of another depth may
  * have left its build words there.
  */
 export function hizTestSlot(
@@ -17,16 +17,14 @@ export function hizTestSlot(
   rows: number,
   counting: boolean,
 ) {
-  image.fill(0, at, at + HIZ_UNIFORM_BINDING_BYTES / 4)
+  image.fill(0, at, at + HIZ_SLOT_WORDS)
   image[at] = width
   image[at + 1] = height
   image[at + 2] = rows
   image[at + TEST_COUNTING_WORD] = counting ? 1 : 0
 }
 
-/** Bytes the uniform binding spans from a slot's offset: past the `Uni` struct the kernels read
- *  (`HIZ_SLOT_WORDS`), never compared nor written past it. The deepest pyramid the camera builds. */
-export const HIZ_UNIFORM_BINDING_BYTES = 256
+/** The deepest pyramid the camera builds. */
 export const HIZ_MAX_LEVELS = 16
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
  *  tile down to one texel. */

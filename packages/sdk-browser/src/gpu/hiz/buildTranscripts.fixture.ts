@@ -3,7 +3,7 @@ import { pyramidBytes } from './oracle.ts'
 import {
   HIZ_BUILD_SIDE as S,
   HIZ_PASS_LEVELS,
-  HIZ_UNIFORM_BINDING_BYTES,
+  HIZ_SLOT_WORDS,
   hizBuildPasses,
   hizBuildWords,
   hizUniformSlots,
@@ -13,7 +13,7 @@ import { uniformStride } from '../../residency/pools.ts'
 
 // The reference pyramid build (a copy of level 0, then the per-level reduction the oracle
 // states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.
-const SLOT_WORDS = HIZ_UNIFORM_BINDING_BYTES / 4
+const SLOT_WORDS = HIZ_SLOT_WORDS
 
 /** The tests' seeded random: the same sequence on every run. */
 export function lcg(seed: number) {

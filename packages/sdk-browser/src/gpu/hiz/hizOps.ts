@@ -1,5 +1,5 @@
 import { allocPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
-import { HIZ_UNIFORM_BINDING_BYTES, hizTestSlot } from './uniforms.ts'
+import { HIZ_SLOT_WORDS, hizTestSlot } from './uniforms.ts'
 import type { UniformSlots } from '../../residency/pools.ts'
 import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
@@ -58,7 +58,7 @@ export function bindHiz(h: HizState) {
     entries: [
       { binding: 0, resource: { buffer: at.pyramid } },
       { binding: 1, resource: at.level0View },
-      { binding: 2, resource: { buffer: h.uniforms, size: HIZ_UNIFORM_BINDING_BYTES } },
+      { binding: 2, resource: { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 } },
       { binding: 3, resource: { buffer: h.bounds } },
       { binding: 4, resource: { buffer: h.flags } },
       { binding: 5, resource: { buffer: h.state } },

@@ -88,7 +88,7 @@ import {
   vsmPerFrameSet,
 } from './resources.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
-import { uniformSlots, uniformStride, type UniformSlots } from '../residency/pools.ts'
+import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
 
@@ -154,7 +154,7 @@ const PARAMS_WORDS = VSM_RENDER_PARAMS_BYTES / 4
 /** The chunks' parameter slots on a device of `limits`, as many as a frame's chunks (`offset`
  *  makes each the first time it is asked): the raster's and the transmission's. */
 export const vsmChunkParamSlots = (limits: Parameters<typeof uniformSlots>[0]) =>
-  uniformSlots(limits, 0, PARAMS_WORDS)
+  uniformSlots(limits, 0, PARAMS_WORDS, true)
 /** Usage of the lists the kernels fill. */
 export const vsmRenderStorage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
@@ -418,18 +418,18 @@ function growthBytes(buffers: Partial<Record<string, GPUBuffer>>, sizes: Record<
 
 /** The lists a chunk of `rows` rows takes, by buffer, when `chunked` rows are drawn in chunks
  *  over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`, its
- *  parameter slot `slot` bytes from the next (the device's `uniformStride`). */
+ *  parameter slots `slots`. */
 export function vsmChunkListSizes(
   rows: number,
   chunked: number,
   candidates: number,
   viewWords: number,
   holds: Omit<VsmChunk, 'rows'>,
-  slot: number,
+  slots: UniformSlots,
 ) {
   const chunks = ceilDiv(chunked, rows)
   return {
-    params: chunks * slot,
+    params: chunks * slots.stride,
     views: viewWords * 4,
     candidates: candidates * VSM_RENDER_CANDIDATE_BYTES,
     counts: (VSM_RENDER_COUNTS_HEAD + chunks * 4) * 4,
@@ -550,17 +550,17 @@ interface VsmRenderParamsImage {
 }
 const eye = new Float32Array(8)
 
-/** The parameter slots of `chunking.chunks` chunks (`VsmRenderParams`), `slot` bytes apart: the
+/** The parameter slots of `chunking.chunks` chunks (`VsmRenderParams`), `slots` apart: the
  *  frame's values in every slot, the chunk's own index and range — into `image` (its words past the
  *  slots' 32 left as they are: zero, as nothing else writes them). */
 function vsmRenderParams(
   camera: VsmRenderCamera,
   chunking: VsmRenderChunking,
   image: VsmRenderParamsImage,
-  slot: number,
+  slots: UniformSlots,
 ) {
   const { chunks, chunkRows } = chunking
-  const slotWords = slot / 4
+  const slotWords = slots.strideWords
   const { f, u } = image
   for (let a = 0; a < 3; a++) writeSplitDouble(eye, a, 4 + a, camera.eye[a])
   for (let c = 0; c < chunks; c++) {
@@ -720,11 +720,10 @@ function renderChunking(
   return { rows: Math.min(rows, rowCount), cmdsPerRow, cap: pairs }
 }
 
-/** The raster's lists for a chunk of `rows` rows, by buffer, its parameter slots `slot` bytes
- *  apart. */
+/** The raster's lists for a chunk of `rows` rows, by buffer, its parameter slots `slots`. */
 const renderSizes =
-  (rowCount: number, viewWords: number, holds: VsmChunk, slot: number) => (rows: number) =>
-    vsmChunkListSizes(rows, rowCount, rowCount, viewWords, holds, slot)
+  (rowCount: number, viewWords: number, holds: VsmChunk, slots: UniformSlots) => (rows: number) =>
+    vsmChunkListSizes(rows, rowCount, rowCount, viewWords, holds, slots)
 
 /** The raster's dummy target (`context`): one page of depth. */
 const renderTarget = () => ({
@@ -758,7 +757,7 @@ export function vsmRenderFloorBytes(
         rowCount,
         viewWords,
         vsmWorstChunk(rows, cmdsPerRow, pages),
-        uniformStride(limits),
+        vsmChunkParamSlots(limits),
       ),
     )
   )
@@ -886,7 +885,7 @@ export function vsmWriteChunkParams(
 ) {
   const { chunks } = vsmChunking
   vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
-  vsmRenderParams(camera, vsmChunking, paramsImage, slots.stride)
+  vsmRenderParams(camera, vsmChunking, paramsImage, slots)
   vsmWriteChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
   if (viewWords.length < views.length)
     viewWords = new Uint32Array(ensuredBytes(views.length * 4) / 4)
@@ -1067,7 +1066,7 @@ export function encodeVsmRender(
     device,
     ctx.buffers,
     chosen.rows,
-    renderSizes(scene.rowCount, views.length, chosen, ctx.slots.stride),
+    renderSizes(scene.rowCount, views.length, chosen, ctx.slots),
   )
   const roomLimited = within.limited,
     size = within.size

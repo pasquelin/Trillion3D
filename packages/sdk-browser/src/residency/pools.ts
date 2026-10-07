@@ -45,16 +45,19 @@ export type UniformSlots = {
   /** Bytes the `count` slots occupy (`uniformSlotBytes`). */
   readonly bytes: number
   /** Slot `i`'s dynamic offset, one array a slot made once and kept, so a frame allocates none;
-   *  past `count` — a list whose slots grow with the frame — made the first time it is asked. */
+   *  past `count` only on a `growable` layout — a list whose slots grow with the frame — made the
+   *  first time it is asked; a fixed layout refuses it. */
   offset(i: number): number[]
 }
 
 /** The layout of `count` uniform slots of `words` words on a device of `limits`: the one place
- *  where a slot's stride, its offsets and the bytes the slots occupy are drawn. */
+ *  where a slot's stride, its offsets and the bytes the slots occupy are drawn. `growable` lets
+ *  `offset` go past `count` (the slots of a list as long as the frame's); otherwise it throws. */
 export function uniformSlots(
   limits: Parameters<typeof uniformStride>[0],
   count: number,
   words: number,
+  growable = false,
 ): UniformSlots {
   const stride = uniformStride(limits)
   if (words * 4 > stride) throw new Error(`UNIFORM_SLOT_WORDS: ${words} words past ${stride} bytes`)
@@ -64,8 +67,13 @@ export function uniformSlots(
     words,
     stride,
     strideWords: stride / 4,
-    bytes: uniformSlotBytes(limits, count),
-    offset: (i) => (offsets[i] ??= [i * stride]),
+    bytes: stride * count,
+    offset: (i) => {
+      if (i >= count && !growable) {
+        throw new Error(`UNIFORM_SLOT_PAST_COUNT: slot ${i} of ${count} slots of ${words} words`)
+      }
+      return (offsets[i] ??= [i * stride])
+    },
   }
 }
 
