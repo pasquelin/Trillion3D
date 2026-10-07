@@ -97,7 +97,7 @@ export function cellDependencies(table: WorldRoots, cell: number): number[] {
 
 /** Each bundle's first page in the table, its pages lying in bundle order (`records.rs`). */
 const firstPages = new WeakMap<WorldRoots, Uint32Array>()
-function firstPage(table: WorldRoots, bundle: number) {
+export function firstPage(table: WorldRoots, bundle: number) {
   let first = firstPages.get(table)
   if (!first) {
     first = new Uint32Array(table.bundles.length + 1)
