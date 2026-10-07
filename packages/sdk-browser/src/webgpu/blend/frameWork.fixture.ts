@@ -6,7 +6,7 @@ import { createBlendExpand } from './expand.ts'
 import { planWords, scratchWords } from './planLayout.ts'
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts'
 
-export const ITEMS = 2000
+const ITEMS = 2000
 
 /** Paged single-sided items of one blend mode, each counting the reads of its world matrix: the
  *  key of an item reads it, the frustum verdict does not. */

@@ -25,7 +25,7 @@ export function hizTestSlot(
 }
 
 /** The deepest pyramid the camera builds. */
-export const HIZ_MAX_LEVELS = 16
+const HIZ_MAX_LEVELS = 16
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
  *  tile down to one texel. */
 export const HIZ_PASS_LEVELS = 4
