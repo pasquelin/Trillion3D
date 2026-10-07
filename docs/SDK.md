@@ -123,8 +123,10 @@ const x = geometry.attributes.position.getX(0)
 Every model file read over HTTP — manifest, tables, binary, images, lights, pages, cooked physics,
 the WebAssembly modules — goes through one loader. A failure that may pass (the network, 408, 429,
 5xx) is asked again once after its `Retry-After` wait (ten seconds at most), or by the reader's own
-retry (the page streamer's three attempts, the GPU page cache's two, a physics tile's next update);
-other 4xx never. What still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
+retry (the GPU page cache's two attempts, a physics tile's next update). The page streamer asks a
+page again for as long as the failure may pass, one request per step, after a wait of 0.5 s · 2^k
+(8 s at most, never less than the server's `Retry-After`); only a 4xx refusal fails for good. What
+still fails is `RESOURCE_HTTP_ERROR` (`details.url`, `details.status`, `null`
 for the network). `lights.json` and `physics.json` are absent, not failed, on a 404 or a hiding
 store's 403. An unreadable `kernels.wasm` leaves the batch kernels to their JavaScript twins.
 

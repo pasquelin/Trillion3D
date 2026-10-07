@@ -262,9 +262,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Wie `request` einen Stapel liest: sein Abbruch, seine Priorität und was beim Eintreffen jeder Seite läuft.",
+    "summary": "Wie `request` einen Stapel liest: das Signal seines Besitzers, seine Priorität und was beim Eintreffen jeder Seite läuft.",
     "members": {
-      "signal": "Bricht die Lesevorgänge des Stapels ab.",
+      "signal": "Lässt die Lesevorgänge des Stapels los: Ein Lesevorgang, auf den niemand mehr wartet, wird fallen gelassen, solange er wartet.",
       "priority": "Priorität in der Warteschlange, standardmäßig 1.",
       "onPage": "Läuft, sobald jede Seite gelesen ist, nicht erst nach dem ganzen Stapel."
     }
@@ -1197,7 +1197,8 @@
       "options.onEvict": "Hört jede Seite, die den Cache verlässt.",
       "options.maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "options.onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
-      "options.maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB."
+      "options.maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB.",
+      "options.onStalled": "Hört einmal einen Lesevorgang, der endgültig scheitert oder zuerst am längsten wartet: erneut erst, nachdem er angekommen ist."
     }
   },
   "createPathGovernor": {
@@ -4550,7 +4551,8 @@
       "onEvict": "Hört jede Seite, die den Cache verlässt.",
       "maxTransferBytes": "Bytes, die die Übertragungswarteschlange halten darf; standardmäßig 8 MiB.",
       "onDiagnostic": "Hört jeden Schritt jedes Lesevorgangs.",
-      "maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB."
+      "maxCachedBytes": "Bytes CPU-Speicher, die die Seiten des Caches halten dürfen; Manifest-Tabellen und Übertragungswarteschlange werden zusätzlich reserviert; standardmäßig 256 MiB.",
+      "onStalled": "Hört einmal einen Lesevorgang, der endgültig scheitert oder zuerst am längsten wartet: erneut erst, nachdem er angekommen ist."
     }
   },
   "PanZoomCameraControls": {
@@ -5643,9 +5645,11 @@
   "StreamPage": {
     "summary": "Eine Seite, die ein Stream abruft: wo, welche Größe, und ihr Fingerabdruck.",
     "members": {
-      "url": "Wo sie gelesen wird.",
+      "url": "Wo sie gelesen wird, oder ihr Name im Katalog, wenn sie ein `range` einer anderen Datei ist.",
       "bytes": "Ihre Größe.",
-      "sha256": "Fingerabdruck ihrer Bytes."
+      "sha256": "Fingerabdruck ihrer Bytes.",
+      "range": "Eine Seite, die die `bytes` der Datei `file` ab `offset` ist und per HTTP Range gelesen wird: Die Warteschlange liest die Bereiche, die in einer Datei lückenlos hintereinander eingereiht sind, mit einer einzigen Anfrage (`queueRanges.ts`).",
+      "kept": "False für eine Seite, bei der jeder Anfragende behält, was er dekodiert: gelesen für alle, die sich ihrem Lesevorgang anschließen, nie im Seitencache behalten, ihre Bytes nur einmal gehalten."
     }
   },
   "summarize": {
