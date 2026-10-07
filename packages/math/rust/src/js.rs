@@ -46,6 +46,13 @@ pub fn js_max(a: f64, b: f64) -> f64 {
     }
 }
 
+/// `Math.min(1, Math.max(0, x))`: `x` clamped to `[0, 1]`, NaN kept, `−0` raised to `+0` — where
+/// `f64::clamp` keeps `−0`.
+#[inline]
+pub fn clamp01(x: f64) -> f64 {
+    js_min(1.0, js_max(0.0, x))
+}
+
 /// The squares of `values` summed in order with Kahan compensation: each step takes back from the
 /// next square what the rounding of the running sum lost.
 #[inline]

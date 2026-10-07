@@ -50,7 +50,9 @@ fn the_edge_cases_give_their_known_ball() {
 #[test]
 fn a_random_cloud_is_enclosed_by_a_ball_no_nearby_centre_beats_in_any_order() {
     let mut state = trillion3d_math::GOLDEN;
-    let mut next = move || (xorshift(&mut state) >> 11) as f64 / (1u64 << 52) as f64 - 1.0;
+    let mut next = move || {
+        (trillion3d_math::random::xorshift64(&mut state) >> 11) as f64 / (1u64 << 52) as f64 - 1.0
+    };
     for case in 0..200 {
         let squash = [1.0, 1e-3, 0.0][case % 3];
         let points: Vec<[f64; 3]> = (0..1 + case % 60)

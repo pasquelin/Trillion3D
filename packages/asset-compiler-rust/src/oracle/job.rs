@@ -5,7 +5,7 @@ use super::{
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::PathBuf;
-use trillion3d_math::vec3::{divide, length};
+use trillion3d_math::vec3::normalize_where;
 
 fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_ORACLE_JOB", message)
@@ -48,11 +48,8 @@ fn light_of(value: &Value) -> Result<OracleLight> {
         [0.0, -1.0, 0.0]
     } else {
         let raw = vector(value.get("direction"), "light.direction")?;
-        let norm = length(raw);
-        if norm <= 0.0 {
-            return Err(bad("light.direction has no length"));
-        }
-        divide(raw, norm)
+        normalize_where(raw, |norm| norm > 0.0 || norm.is_nan())
+            .ok_or_else(|| bad("light.direction has no length"))?
     };
     Ok(OracleLight {
         kind,

@@ -9,7 +9,6 @@ mod log2;
 mod oct;
 mod quant;
 pub(crate) use oct::oct_decode_stream;
-pub use oct::{oct_decode, oct_encode, OCT_SCALE};
 pub use quant::{dequant, quantization_error, quantize, Quant, QuantRefusal};
 
 /// Widest field of the format: a 24-bit field read at any bit offset spans two words at most.

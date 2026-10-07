@@ -14,7 +14,8 @@
 //! culls less (`tests/integration/cooked-cones.test.ts`).
 use crate::min_ball::min_ball;
 use trillion3d_math::js::hypot;
-use trillion3d_math::vec3::{cross, divide, dot, point, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::{add, divide, dot, point};
 
 /// How many ulps the angle is raised by. fdlibm and the runtime's arccosine each lie within one ulp
 /// of the true angle, an ulp of which is at most two ulps of fdlibm's result where it crosses a
@@ -27,7 +28,7 @@ pub const OPEN_CONE: [f64; 4] = [0.0, 0.0, 1.0, std::f64::consts::PI];
 /// The cross product of a triangle's two edges from its first corner, in float64.
 fn face_cross(pos: &[f32], triangle: [u32; 3]) -> [f64; 3] {
     let [a, b, c] = triangle.map(|vertex| point(pos, vertex));
-    cross(sub(b, a), sub(c, a))
+    triangle_cross(a, b, c)
 }
 
 /// The bounding cone of the normals of `indices`' triangles over `pos`, as `[x, y, z, angle]`:
@@ -63,9 +64,7 @@ fn mean_cone(faces: &[([f64; 3], f64)]) -> [f64; 4] {
     if faces.is_empty() {
         return OPEN_CONE;
     }
-    let s = faces.iter().fold([0.0f64; 3], |s, (c, _)| {
-        [s[0] + c[0], s[1] + c[1], s[2] + c[2]]
-    });
+    let s = faces.iter().fold([0.0f64; 3], |s, (c, _)| add(s, *c));
     let sl = hypot(s);
     // `!(sl > 0)` in the TypeScript: a NaN length opens the cone as a zero one does.
     if sl.is_nan() || sl <= 0.0 {

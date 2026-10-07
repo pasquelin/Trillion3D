@@ -69,20 +69,20 @@ fn normalized_or_falls_back_under_the_guard_and_normalizes_above_it() {
     );
 }
 
-// `unit` and the oracle's `normalise` share one reciprocal division and keep
+// `unit` and the oracle's `unit_or_itself` share one reciprocal division and keep
 // their own guards — an infinite length is refused by the first, divided by the second.
 #[test]
-fn unit_and_the_oracle_normalise_keep_their_own_guards() {
-    use crate::proxy::tracer::normalise;
+fn unit_and_the_oracle_unit_keep_their_own_guards() {
+    use trillion3d_math::vec3::unit_or_itself;
     // 49 · (1 / 49) is one ulp under 1: the reciprocal is kept, not a division.
     assert_eq!(
         unit([0.0, 49.0, 0.0]),
         Some([0.0, 49.0 * (1.0 / 49.0), 0.0])
     );
     assert_ne!(49.0 * (1.0 / 49.0), 1.0);
-    assert_eq!(normalise([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
+    assert_eq!(unit_or_itself([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
     assert_eq!(unit([f64::INFINITY, 0.0, 0.0]), None);
-    assert!(normalise([f64::INFINITY, 0.0, 0.0])[0].is_nan());
+    assert!(unit_or_itself([f64::INFINITY, 0.0, 0.0])[0].is_nan());
 }
 
 /// `node_bounds` (`dag/culling.rs`) is private; it is exercised through the public

@@ -2,8 +2,8 @@
 //! to its float, and the error bound between the two the header carries.
 
 use crate::bits::{dequant, pow2, quantization_error, quantize, Quant};
-use crate::min_ball::xorshift;
 use trillion3d_math::golden::{f32s, Twin, Value};
+use trillion3d_math::random::xorshift64;
 
 pub(super) fn twins() -> [Twin; 3] {
     [
@@ -60,7 +60,7 @@ pub(super) fn twins() -> [Twin; 3] {
 /// past 2^24 cells, a minimum past the largest float.
 fn attributes() -> Vec<(i32, Vec<f32>)> {
     let mut state = 1495;
-    let mut unit = || (xorshift(&mut state) >> 40) as f32 / (1u64 << 24) as f32;
+    let mut unit = || (xorshift64(&mut state) >> 40) as f32 / (1u64 << 24) as f32;
     let mut sets: Vec<Vec<f32>> = vec![
         vec![
             0.5, -0.5, 1.5, -1.5, 2.5, -2.5, 0.0, -0.0, 0.0, 1.0, 1.0, 1.0,

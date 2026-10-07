@@ -4,7 +4,7 @@ use crate::geometry_page::Attribute;
 use crate::geometry_page_quant::{max_error, quantize, COLOR_EXPONENT};
 use crate::shared_math::word_map;
 use crate::{CompilerError, Result};
-use trillion3d_page_codec::bits::oct_encode;
+use trillion3d_math::octahedral::oct_encode;
 use trillion3d_page_codec::bits::{bits_for, stream_words, Quant};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 

@@ -31,3 +31,14 @@ fn hypot_rounds_as_javascript_does_where_a_plain_root_does_not() {
     );
     assert!(hypot(black_box([f64::NAN, 2.0, 1.0])).is_nan());
 }
+
+#[test]
+fn clamp01_clamps_as_javascript_does() {
+    assert_eq!(clamp01(0.25), 0.25);
+    assert_eq!(clamp01(-3.0), 0.0);
+    assert_eq!(clamp01(7.0), 1.0);
+    assert!(clamp01(f64::NAN).is_nan());
+    // `Math.max(0, -0)` is `+0`; `f64::clamp` keeps the negative zero.
+    assert!(clamp01(-0.0).is_sign_positive());
+    assert!((-0.0f64).clamp(0.0, 1.0).is_sign_negative());
+}

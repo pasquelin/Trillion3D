@@ -1,6 +1,7 @@
 //! Lossless sharing has no geometry path of its own: compare expansion with the flat assembler.
-use super::apply;
 use crate::proxy::{assemble::assemble, bvh, encode::tests::fixture, tracer, SceneProxy};
+use trillion3d_math::matrix::transform_point_3x4_f32;
+use trillion3d_math::random::lcg32;
 
 fn expanded(proxy: &SceneProxy) -> Vec<f32> {
     let mut triangles = proxy.triangles.clone();
@@ -11,7 +12,8 @@ fn expanded(proxy: &SceneProxy) -> Vec<f32> {
             at += 1;
             for vertex in 0..3 {
                 let from = source as usize * 9 + vertex * 3;
-                let point = apply(map, &proxy.triangles[from..from + 3]);
+                let point =
+                    transform_point_3x4_f32(map, [0, 1, 2].map(|k| proxy.triangles[from + k]));
                 triangles[position * 9 + vertex * 3..position * 9 + vertex * 3 + 3]
                     .copy_from_slice(&point);
             }
@@ -35,10 +37,7 @@ fn world(mut triangles: Vec<f32>, mut tags: Vec<u32>) -> tracer::World {
 #[test]
 fn expanded_grid_and_random_inputs_keep_flat_bits_and_ray_hits() {
     let mut seed = 957u32;
-    let mut random = || {
-        seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-        f64::from(seed) / f64::from(u32::MAX)
-    };
+    let mut random = || f64::from(lcg32(&mut seed)) / f64::from(u32::MAX);
     for count in [0, 1, 60, 1000] {
         let proxy = fixture::lattice(count, fixture::plate());
         let triangles = expanded(&proxy);
@@ -54,7 +53,7 @@ fn expanded_grid_and_random_inputs_keep_flat_bits_and_ray_hits() {
         let b = world(triangles, proxy.albedo.clone());
         for _ in 0..128 {
             let origin = [random() * 40., 45., random() * 40.];
-            let ray = tracer::normalise([random() - 0.5, -1., random() - 0.5]);
+            let ray = trillion3d_math::vec3::unit_or_itself([random() - 0.5, -1., random() - 0.5]);
             let x = tracer::trace(&a, origin, ray, 100., false);
             let y = tracer::trace(&b, origin, ray, 100., false);
             assert_eq!(
@@ -87,10 +86,7 @@ fn ten_thousand_random_runs_round_trip_every_coordinate() {
     let mut seed = 957u32;
     for _ in 0..10_000 {
         let source: Vec<f32> = (0..72)
-            .map(|_| {
-                seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
-                (seed % 1000) as f32 / 8.0
-            })
+            .map(|_| (lcg32(&mut seed) % 1000) as f32 / 8.0)
             .collect();
         let mut flat = source.clone();
         crate::proxy::place(&source, &translation([256., 0., 0.]), &mut flat);

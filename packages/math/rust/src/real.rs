@@ -3,7 +3,8 @@
 
 use core::ops::{Add, Div, Mul, Neg, Sub};
 
-/// `f32` or `f64`.
+/// `f32` or `f64`. Its sine, cosine and tangent are the platform's (`std`), which may differ in the
+/// last bit between hosts; `trig::sin` is fdlibm's, the same everywhere.
 pub trait Real:
     Copy
     + Add<Output = Self>
@@ -19,6 +20,7 @@ pub trait Real:
     fn sin_cos(self) -> (Self, Self);
     fn sin(self) -> Self;
     fn cos(self) -> Self;
+    fn tan(self) -> Self;
     fn sqrt(self) -> Self;
 }
 
@@ -42,6 +44,10 @@ macro_rules! real {
                 <$float>::cos(self)
             }
             #[inline]
+            fn tan(self) -> Self {
+                <$float>::tan(self)
+            }
+            #[inline]
             fn sqrt(self) -> Self {
                 <$float>::sqrt(self)
             }
@@ -50,3 +56,7 @@ macro_rules! real {
 }
 real!(f32);
 real!(f64);
+
+#[cfg(test)]
+#[path = "real_tests.rs"]
+mod tests;

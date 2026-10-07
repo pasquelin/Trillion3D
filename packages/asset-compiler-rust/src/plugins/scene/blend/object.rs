@@ -13,22 +13,16 @@
 //! always compiled to.
 use super::*;
 use crate::compiler_world::{identity, quaternion_wxyz, turn};
+use trillion3d_math::euler::{euler_matrix, ORDERS_BY_NAME};
 use trillion3d_math::matrix::multiply_matrix4;
 use trillion3d_math::rotation::half_angle_wxyz;
+use trillion3d_math::vec3::normalize_finite_f32;
 
 /// The object type that holds a mesh.
 pub(super) const OB_MESH: i64 = 1;
 /// Rotation modes: quaternion, six Euler-angle orders, and axis-angle.
 const QUATERNION: i64 = 0;
 const AXIS_ANGLE: i64 = -1;
-const ORDERS: [[usize; 3]; 6] = [
-    [0, 1, 2],
-    [0, 2, 1],
-    [1, 0, 2],
-    [1, 2, 0],
-    [2, 0, 1],
-    [2, 1, 0],
-];
 /// Maximum depth of a parent chain, cycle included.
 const MAX_DEPTH: usize = 64;
 
@@ -100,12 +94,8 @@ fn rotation(object: &At<'_>) -> Matrix {
 
 /// Euler angles of a given order: each axis turns in turn, the first named first.
 fn euler(angles: &[f32; 3], mode: i64) -> Matrix {
-    let order = ORDERS[usize::try_from(mode - 1).unwrap_or(0).min(5)];
-    let mut matrix = identity();
-    for axis in order.iter().rev() {
-        matrix = multiply_matrix4(&matrix, &turn(*axis, angles[*axis]));
-    }
-    matrix
+    let order = ORDERS_BY_NAME[usize::try_from(mode - 1).unwrap_or(0).min(5)];
+    euler_matrix(order, |axis| turn(axis, angles[axis]))
 }
 
 /// Rotation of a quaternion written (w, x, y, z), as Blender stores it; one of no finite,
@@ -118,7 +108,7 @@ fn quaternion(value: [f32; 4]) -> Matrix {
 /// (`half_angle_wxyz`). Blender's own formula, apart from `axis_angle` (Rodrigues) on purpose: it
 /// rounds apart.
 fn axis_angle(axis: &[f32; 3], angle: f32) -> Matrix {
-    let Some(unit) = normals::unit(*axis) else {
+    let Some(unit) = normalize_finite_f32(*axis) else {
         return identity();
     };
     quaternion(half_angle_wxyz(unit, angle))

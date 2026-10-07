@@ -6,13 +6,14 @@ use super::clusters::edge_key;
 use super::*;
 use crate::join::Join;
 use crate::qem::Attribute;
-use trillion3d_math::vec3::{cross, length, point, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::{length, point, sub};
 
 /// Per texture set of `uv_sets`, the surface length one unit of it spans over the triangles `live`:
 /// the square root of their surface area over their texture area; zero where the set spans no area.
 pub(super) fn densities(positions: &[f32], uv_sets: &[&[f32]], live: &[u32]) -> Vec<f64> {
     let point = |v: u32| point(positions, v);
-    let area = |[a, b, c]: [[f64; 3]; 3]| length(cross(sub(b, a), sub(c, a)));
+    let area = |[a, b, c]: [[f64; 3]; 3]| length(triangle_cross(a, b, c));
     let density = |uvs: &[f32]| {
         let texel = |v: u32| {
             let i = v as usize * 2;

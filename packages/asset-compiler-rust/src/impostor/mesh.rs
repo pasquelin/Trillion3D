@@ -7,7 +7,9 @@ use crate::dag::bounds::bounding_sphere;
 use crate::proxy::bvh;
 use crate::proxy::tracer::{normal_of, trace_where, World};
 use crate::shared_math::normalized_or;
+use trillion3d_math::triangle::barycentric_weights;
 use trillion3d_math::vec3::{dot, scale};
+use trillion3d_math::vecn::weighted_sum;
 
 /// Texture coordinate sets a triangle carries: a texture naming a higher set reads the last.
 pub(crate) const SETS: usize = 2;
@@ -43,8 +45,8 @@ pub(crate) struct Sample {
 }
 
 fn mix<const N: usize>(corners: &[f32], at: [f64; 2]) -> [f64; N] {
-    let w = [1.0 - at[0] - at[1], at[0], at[1]];
-    std::array::from_fn(|c| (0..3).map(|k| w[k] * f64::from(corners[k * N + c])).sum())
+    let values = std::array::from_fn(|k| std::array::from_fn(|c| f64::from(corners[k * N + c])));
+    weighted_sum(values, barycentric_weights(at[0], at[1]))
 }
 
 impl Traceable {

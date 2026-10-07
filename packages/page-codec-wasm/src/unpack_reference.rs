@@ -5,9 +5,9 @@
 //! `positions.test.ts`.
 
 use super::*;
-use crate::bits::oct_decode;
 use crate::bits::tests::random_field;
 use crate::triangles::{BLOCK, WIDTH_BITS};
+use trillion3d_math::octahedral::oct_decode;
 
 const CORNERS: usize = 3 * BLOCK;
 

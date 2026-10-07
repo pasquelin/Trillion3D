@@ -1,11 +1,11 @@
 use super::geometry::albedo_of;
 use super::trace::{direct, scene_reach};
 use super::OracleJob;
-use crate::proxy::tracer::{normalise, surface_at, trace, World};
-use crate::shared_math::splitmix_unit;
+use crate::proxy::tracer::{surface_at, trace, World};
 use std::f64::consts::PI;
-use trillion3d_math::vec3::{cross, sub};
-use trillion3d_math::GOLDEN;
+use trillion3d_math::random::splitmix_unit;
+use trillion3d_math::vec3::{cross, sub, unit_or_itself};
+use trillion3d_math::{GOLDEN, GOLDEN_32};
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,
 /// and the second bounce needs fewer paths for the same error.
@@ -27,10 +27,10 @@ fn cosine_direction(n: [f64; 3], u1: f64, u2: f64) -> [f64; 3] {
     } else {
         [1.0, 0.0, 0.0]
     };
-    let tangent = normalise(cross(up, n));
+    let tangent = unit_or_itself(cross(up, n));
     let bitangent = cross(n, tangent);
     let z = (1.0 - u1).max(0.0).sqrt();
-    normalise([
+    unit_or_itself([
         tangent[0] * radius * angle.cos() + bitangent[0] * radius * angle.sin() + n[0] * z,
         tangent[1] * radius * angle.cos() + bitangent[1] * radius * angle.sin() + n[1] * z,
         tangent[2] * radius * angle.cos() + bitangent[2] * radius * angle.sin() + n[2] * z,
@@ -79,7 +79,8 @@ pub fn indirect(
                 surface,
                 (samples / SECONDARY_SHARE).max(1),
                 depth - 1,
-                seed.wrapping_mul(0x9e37_79b9).wrapping_add(sample as u64),
+                seed.wrapping_mul(u64::from(GOLDEN_32))
+                    .wrapping_add(sample as u64),
             );
             for axis in 0..3 {
                 arriving[axis] += deeper[axis];
@@ -102,14 +103,14 @@ pub fn indirect(
 /// field of view, y up, pixel targeted at its center.
 fn camera_ray(job: &OracleJob, x: usize, y: usize) -> [f64; 3] {
     let camera = &job.camera;
-    let forward = normalise(sub(camera.target, camera.position));
-    let right = normalise(cross(forward, camera.up));
+    let forward = unit_or_itself(sub(camera.target, camera.position));
+    let right = unit_or_itself(cross(forward, camera.up));
     let up = cross(right, forward);
     let half = (camera.fov_degrees.to_radians() * 0.5).tan();
     let aspect = job.width as f64 / job.height as f64;
     let sx = ((x as f64 + 0.5) / job.width as f64 * 2.0 - 1.0) * half * aspect;
     let sy = (1.0 - (y as f64 + 0.5) / job.height as f64 * 2.0) * half;
-    normalise([
+    unit_or_itself([
         forward[0] + right[0] * sx + up[0] * sy,
         forward[1] + right[1] * sx + up[1] * sy,
         forward[2] + right[2] * sx + up[2] * sy,

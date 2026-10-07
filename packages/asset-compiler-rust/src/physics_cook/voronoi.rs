@@ -6,7 +6,9 @@
 use crate::shared_math::unit;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use trillion3d_math::vec3::{cross, dot, point, scale, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::{dot, point, scale, sub, triple};
+use trillion3d_math::vecn::lerp;
 
 type Point = [f64; 3];
 /// A convex polytope: its faces, each a polygon wound as the solid's faces are.
@@ -27,7 +29,7 @@ fn crossing(a: Point, b: Point, da: f64, db: f64) -> Point {
         (b, a, db, da)
     };
     let t = dp / (dp - dq);
-    [0, 1, 2].map(|k| p[k] + (q[k] - p[k]) * t)
+    lerp(p, q, t)
 }
 
 /// `faces` less what lies beyond `plane`, closed by a cap on it. A corner within `eps` of the
@@ -169,10 +171,10 @@ pub(super) fn face_planes(mesh: (&[f32], &[u32]), corners: &[Point], eps: f64) -
     let (pos, triangles) = mesh;
     let at = |t: &[u32; 3]| t.map(|i| point(pos, i));
     let faces = triangles.as_chunks::<3>().0;
-    let volume = |[a, b, c]: [Point; 3]| dot(a, cross(b, c));
+    let volume = |[a, b, c]: [Point; 3]| triple(a, b, c);
     let signed: f64 = faces.iter().map(at).map(volume).sum();
     let planes = faces.par_iter().map(at).filter_map(|[a, b, c]| {
-        let normal = unit(scale(cross(sub(b, a), sub(c, a)), signed.signum()))?;
+        let normal = unit(scale(triangle_cross(a, b, c), signed.signum()))?;
         Some((normal, dot(normal, a)))
     });
     let supporting = |&(n, c): &Plane| corners.iter().all(|&p| dot(n, p) - c <= eps);

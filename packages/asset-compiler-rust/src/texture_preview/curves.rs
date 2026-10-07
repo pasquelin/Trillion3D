@@ -3,6 +3,7 @@
 //! byte. Split from reduction because they depend only on the atlas format, never
 //! on the geometry of the levels.
 use trillion3d_math::color::{linear_to_srgb_f32, srgb_to_linear_f32};
+use trillion3d_math::scalar::unit_to_byte_f32;
 
 /// The 256 linear-byte values, at their scale: the neutral table.
 pub(super) fn linear_table() -> &'static [f32; 256] {
@@ -31,5 +32,5 @@ pub(super) fn srgb_table() -> &'static [f32; 256] {
 
 /// A linear value as an sRGB byte: the `f32` curve, clamped to `[0, 1]`, times 255, rounded.
 pub(crate) fn linear_to_srgb(value: f32) -> u8 {
-    (linear_to_srgb_f32(value).clamp(0.0, 1.0) * 255.0).round() as u8
+    unit_to_byte_f32(linear_to_srgb_f32(value))
 }

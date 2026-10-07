@@ -4,6 +4,7 @@
 
 use super::{bits_for, pow2, MAX_BITS, MAX_EXPONENT};
 use trillion3d_math::aabb::extend_aabb;
+use trillion3d_math::vecn::{length, sub};
 
 /// A grid value back to its float: `min + q * step`, the product exact, the sum rounded once.
 pub fn dequant(min: f32, q: u32, step: f32) -> f32 {
@@ -129,13 +130,12 @@ pub fn quantization_error<const N: usize>(
         .iter()
         .enumerate()
         .map(|(i, cell)| {
-            (0..N)
-                .map(|c| {
-                    let decoded = dequant(record.min[c], cell[c], step);
-                    (f64::from(decoded) - f64::from(values[i * N + c])).powi(2)
-                })
-                .sum::<f64>()
-                .sqrt()
+            length(sub(
+                core::array::from_fn::<f64, N, _>(|c| {
+                    f64::from(dequant(record.min[c], cell[c], step))
+                }),
+                core::array::from_fn(|c| f64::from(values[i * N + c])),
+            ))
         })
         .fold(0.0, f64::max);
     let rounded = worst as f32;

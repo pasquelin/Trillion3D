@@ -2,6 +2,7 @@
 use super::meshes::{gaussian, normalize, uniform, Mesh, V};
 use crate::tests::random::Xorshift;
 use std::f64::consts::TAU;
+use trillion3d_math::scalar::lerp;
 use trillion3d_math::vec3::{add, cross, length, scale as scaled, sub};
 
 /// A tree: a tapered trunk, 40 branches (smooth cylinders) and 15,000 leaf cards, each a quad
@@ -45,7 +46,7 @@ fn cylinder(mesh: &mut Mesh, p0: V, p1: V, (r0, r1): (f64, f64), (segments, ring
     let base = (mesh.positions.len() / 3) as u32;
     for i in 0..=rings {
         let s = f64::from(i) / f64::from(rings);
-        let (centre, r) = (add(p0, scaled(axis, l * s)), r0 + (r1 - r0) * s);
+        let (centre, r) = (add(p0, scaled(axis, l * s)), lerp(r0, r1, s));
         for j in 0..=segments {
             let a = TAU * f64::from(j) / f64::from(segments);
             let n = add(scaled(t, a.cos()), scaled(bt, a.sin()));

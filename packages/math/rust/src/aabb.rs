@@ -144,6 +144,56 @@ pub fn centre<const N: usize>(low: [f64; N], high: [f64; N]) -> [f64; N] {
     core::array::from_fn(|axis| (low[axis] + high[axis]) * 0.5)
 }
 
+/// Corner `index` of the box: on each axis `a`, the high bound when bit `a` of `index` is set, the
+/// low one otherwise. `0` is the low corner, `2ᴺ − 1` the high one.
+#[inline]
+pub fn corner<const N: usize>(low: [f64; N], high: [f64; N], index: usize) -> [f64; N] {
+    core::array::from_fn(|axis| {
+        if index & (1 << axis) == 0 {
+            low[axis]
+        } else {
+            high[axis]
+        }
+    })
+}
+
+/// The eight corners of a box in space, `corner` 0 to 7.
+#[inline]
+pub fn corners(low: [f64; 3], high: [f64; 3]) -> [[f64; 3]; 8] {
+    core::array::from_fn(|index| corner(low, high, index))
+}
+
+/// The longest side of the box, `high − low` axis by axis, from `0.0` by `f64::max` in axis order:
+/// a NaN side is passed over, and an empty box gives `0.0`.
+#[inline]
+pub fn longest_side<const N: usize>(low: [f64; N], high: [f64; N]) -> f64 {
+    (0..N).fold(0.0f64, |best, axis| best.max(high[axis] - low[axis]))
+}
+
+/// The axis along which the box is widest: the first on a tie, by a strict `>`, so a NaN side
+/// never changes the choice.
+#[inline]
+pub fn longest_axis<const N: usize>(low: &[f64; N], high: &[f64; N]) -> usize {
+    let mut axis = 0;
+    for a in 1..N {
+        if high[a] - low[a] > high[axis] - low[axis] {
+            axis = a;
+        }
+    }
+    axis
+}
+
+/// The length of the box's diagonal, `vecn::length(high − low)`: the root of its squared sides
+/// summed in axis order.
+#[inline]
+pub fn diagonal<const N: usize>(low: [f64; N], high: [f64; N]) -> f64 {
+    crate::vecn::length(crate::vecn::sub(high, low))
+}
+
 #[cfg(test)]
 #[path = "aabb_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "aabb_extent_tests.rs"]
+mod extent_tests;

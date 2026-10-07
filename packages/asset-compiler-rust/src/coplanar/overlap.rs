@@ -1,4 +1,6 @@
 use super::*;
+use trillion3d_math::aabb::{corners, extend_aabb};
+use trillion3d_math::vec2::{barycentric, double_area};
 use trillion3d_math::vec3::dot;
 
 /// The triangles of a surface, flattened into the two axes of its own world plane. Built once per
@@ -13,26 +15,9 @@ pub struct Footprint {
 pub fn rectangle(surface: &Surface, u: [f64; 3], v: [f64; 3]) -> Rect {
     let mut low = [f64::INFINITY; 2];
     let mut high = [f64::NEG_INFINITY; 2];
-    for corner in 0..8 {
-        let point = [
-            if corner & 1 == 0 {
-                surface.low[0]
-            } else {
-                surface.high[0]
-            },
-            if corner & 2 == 0 {
-                surface.low[1]
-            } else {
-                surface.high[1]
-            },
-            if corner & 4 == 0 {
-                surface.low[2]
-            } else {
-                surface.high[2]
-            },
-        ];
+    for point in corners(surface.low, surface.high) {
         let flat = [dot(u, point), dot(v, point)];
-        trillion3d_math::aabb::extend_aabb(&mut low, &mut high, flat);
+        extend_aabb(&mut low, &mut high, flat);
     }
     (low, high)
 }
@@ -153,7 +138,7 @@ pub fn cover(footprint: &Footprint, rect: &Rect, grid: usize, into: &mut [u64]) 
     let step = [span[0] / grid as f64, span[1] / grid as f64];
     for triangle in footprint.points.as_chunks::<3>().0 {
         let (a, b, c) = (triangle[0], triangle[1], triangle[2]);
-        let area = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+        let area = double_area(a, b, c);
         if area == 0.0 {
             continue;
         }
@@ -166,8 +151,7 @@ pub fn cover(footprint: &Footprint, rect: &Rect, grid: usize, into: &mut [u64]) 
             let py = rect.0[1] + (y as f64 + 0.5) * step[1];
             for x in low_x..=high_x {
                 let px = rect.0[0] + (x as f64 + 0.5) * step[0];
-                let w0 = ((b[0] - a[0]) * (py - a[1]) - (px - a[0]) * (b[1] - a[1])) / area;
-                let w1 = ((px - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (py - a[1])) / area;
+                let [w1, w0] = barycentric(a, b, c, [px, py], area);
                 if w0 < 0.0 || w1 < 0.0 || w0 + w1 > 1.0 {
                     continue;
                 }

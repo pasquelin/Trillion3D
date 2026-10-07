@@ -15,7 +15,8 @@ use crate::shared_math::unit;
 use crate::{CompilerError, Result};
 use rayon::prelude::*;
 use trillion3d_math::acos::acos;
-use trillion3d_math::vec3::{cross, dot, length, sub};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::{add, dot, length, sub};
 
 /// Largest angle, in degrees, a coarse cluster may put between a face and the normal its centre is
 /// shaded with, unless the source triangles it descends from already go further. Past 90° the face
@@ -97,9 +98,7 @@ fn triangle_deviation(
     let mean = tri
         .iter()
         .filter_map(|&corner| unit_normal(normals, corner))
-        .fold([0.0; 3], |sum, n| {
-            [sum[0] + n[0], sum[1] + n[1], sum[2] + n[2]]
-        });
+        .fold([0.0; 3], add);
     let shading = unit(mean)?;
     // fdlibm's arc cosine (the maths crate's, the bits of `libm::acos`), not the platform's: macOS
     // and glibc differ in its last bit, and the deviation enters the cook's bytes.
@@ -128,7 +127,7 @@ const SLIVER: f64 = 1e-3;
 pub(crate) fn face_normal(positions: &[f32], tri: &[u32; 3]) -> Option<([f64; 3], f64)> {
     let [a, b, c] = [tri[0], tri[1], tri[2]].map(|v| vector(positions, v));
     let (a, b, c) = (a?, b?, c?);
-    let normal = cross(sub(b, a), sub(c, a));
+    let normal = triangle_cross(a, b, c);
     // |normal| is twice the area, the longest edge times the width.
     let longest = length(sub(b, a))
         .max(length(sub(c, a)))

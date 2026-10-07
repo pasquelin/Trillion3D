@@ -9,6 +9,7 @@ use crate::compiler_world::{cofactor_direction, Mat4};
 use crate::shared_math::linear_columns;
 use std::collections::BTreeMap;
 use trillion3d_math::linear::determinant;
+use trillion3d_math::matrix::transform_point_3x4_f32;
 
 /// Numbers per stored map: three rows of a 3×4 affine matrix, row-major.
 pub const PROXY_TRANSFORM_FLOATS: usize = 12;
@@ -31,17 +32,6 @@ pub struct Sharing {
     pub instances: Vec<(u32, [f32; PROXY_TRANSFORM_FLOATS])>,
     /// Flat position of each placed shape triangle, placement after placement.
     pub positions: Vec<u32>,
-}
-
-/// A shape vertex placed by `m`, operation for operation as the reader computes it: products and
-/// sums in f64, left to right, rounded once to f32.
-pub fn apply(m: &[f32; PROXY_TRANSFORM_FLOATS], p: &[f32]) -> [f32; 3] {
-    [0, 1, 2].map(|r| {
-        (m[r * 4] as f64 * p[0] as f64
-            + m[r * 4 + 1] as f64 * p[1] as f64
-            + m[r * 4 + 2] as f64 * p[2] as f64
-            + m[r * 4 + 3] as f64) as f32
-    })
 }
 
 /// Map from `a`'s run to `b`'s: linear part `B·A⁻¹` rounded to whole numbers, since snapping to
@@ -71,12 +61,12 @@ fn map(a: &Mat4, b: &Mat4, a0: &[f32], b0: &[f32]) -> Option<[f32; 12]> {
 fn carries(flat: &[f32], albedo: &[u32], from: &[u32], to: &[u32], m: &[f32; 12]) -> bool {
     let vertex = |t: u32, v: usize| {
         let at = t as usize * PROXY_TRIANGLE_FLOATS + v * 3;
-        &flat[at..at + 3]
+        [flat[at], flat[at + 1], flat[at + 2]]
     };
     from.iter().zip(to).all(|(&a, &b)| {
         albedo[a as usize] == albedo[b as usize]
             && (0..3).all(|v| {
-                let placed = apply(m, vertex(a, v));
+                let placed = transform_point_3x4_f32(m, vertex(a, v));
                 placed
                     .iter()
                     .zip(vertex(b, v))

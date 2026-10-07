@@ -101,6 +101,30 @@ pub fn transform_point(matrix: &[f64; MATRIX_VALUES], point: [f64; 3]) -> [f64; 
     out
 }
 
+/// `direction` under the linear part of the column-major `matrix`, row by row
+/// `(m₀·x + m₄·y) + m₈·z`: no translation.
+#[inline]
+pub fn transform_direction(matrix: &[f64; MATRIX_VALUES], direction: [f64; 3]) -> [f64; 3] {
+    core::array::from_fn(|row| {
+        matrix[row] * direction[0] + matrix[4 + row] * direction[1] + matrix[8 + row] * direction[2]
+    })
+}
+
+/// Floats of an affine map laid out as three rows of four, row-major: `[m₀₀, m₀₁, m₀₂, t₀, …]`.
+pub const AFFINE_3X4_VALUES: usize = 12;
+
+/// `point` under the row-major 3×4 affine map `m`, in `f64` and rounded once to `f32`: row by row
+/// `((m₀·x + m₁·y) + m₂·z) + m₃`, every float widened first.
+#[inline]
+pub fn transform_point_3x4_f32(m: &[f32; AFFINE_3X4_VALUES], point: [f32; 3]) -> [f32; 3] {
+    core::array::from_fn(|r| {
+        (m[r * 4] as f64 * point[0] as f64
+            + m[r * 4 + 1] as f64 * point[1] as f64
+            + m[r * 4 + 2] as f64 * point[2] as f64
+            + m[r * 4 + 3] as f64) as f32
+    })
+}
+
 /// Translation by `by`.
 pub fn translation(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
     let mut out = IDENTITY;
@@ -133,3 +157,7 @@ pub fn compose_trs(t: [f64; 3], r: [f64; 4], s: [f64; 3]) -> [f64; MATRIX_VALUES
 #[cfg(test)]
 #[path = "matrix_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "matrix_apply_tests.rs"]
+mod apply_tests;

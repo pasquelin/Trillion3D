@@ -3,7 +3,8 @@
 //! kept (a sampled Hausdorff distance, published as such). Triangles are binned in a uniform grid
 //! and a query widens ring by ring until no nearer cell can remain.
 use crate::shared_math::WordMap;
-use trillion3d_math::aabb::extend_aabb;
+use trillion3d_math::aabb::{extend_aabb, longest_side};
+use trillion3d_math::triangle::closest_point;
 use trillion3d_math::vec3::{dot, sub};
 
 mod bounded;
@@ -20,43 +21,9 @@ fn at(pos: &[f32], index: u32) -> P {
     let i = index as usize * 3;
     [pos[i] as f64, pos[i + 1] as f64, pos[i + 2] as f64]
 }
-fn lerp(a: P, b: P, w: f64) -> P {
-    [
-        a[0] + (b[0] - a[0]) * w,
-        a[1] + (b[1] - a[1]) * w,
-        a[2] + (b[2] - a[2]) * w,
-    ]
-}
-
 /// Squared distance from `p` to triangle `abc` (closest point, found by testing the vertex, edge and face Voronoi regions in turn).
 fn triangle_distance2(p: P, a: P, b: P, c: P) -> f64 {
-    let (ab, ac, ap) = (sub(b, a), sub(c, a), sub(p, a));
-    let (d1, d2) = (dot(ab, ap), dot(ac, ap));
-    let closest = if d1 <= 0.0 && d2 <= 0.0 {
-        a
-    } else {
-        let bp = sub(p, b);
-        let (d3, d4) = (dot(ab, bp), dot(ac, bp));
-        let cp = sub(p, c);
-        let (d5, d6) = (dot(ab, cp), dot(ac, cp));
-        let (vc, vb, va) = (d1 * d4 - d3 * d2, d5 * d2 - d1 * d6, d3 * d6 - d5 * d4);
-        if d3 >= 0.0 && d4 <= d3 {
-            b
-        } else if d6 >= 0.0 && d5 <= d6 {
-            c
-        } else if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
-            lerp(a, b, d1 / (d1 - d3))
-        } else if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
-            lerp(a, c, d2 / (d2 - d6))
-        } else if va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0 {
-            lerp(b, c, (d4 - d3) / ((d4 - d3) + (d5 - d6)))
-        } else {
-            let denom = 1.0 / (va + vb + vc);
-            let (v, w) = (vb * denom, vc * denom);
-            [0, 1, 2].map(|k| a[k] + ab[k] * v + ac[k] * w)
-        }
-    };
-    let d = sub(p, closest);
+    let d = sub(p, closest_point(p, a, b, c));
     dot(d, d)
 }
 
@@ -74,10 +41,7 @@ impl<'a> Grid<'a> {
         for &i in triangles {
             extend_aabb(&mut min, &mut max, at(pos, i));
         }
-        let extent = (0..3)
-            .map(|k| max[k] - min[k])
-            .fold(0.0, f64::max)
-            .max(1e-9);
+        let extent = longest_side(min, max).max(1e-9);
         // About one triangle per cell along a surface: the cube root is wrong for a surface, the
         // square root of the count per face is right.
         let count = (triangles.len() / 3).max(1) as f64;

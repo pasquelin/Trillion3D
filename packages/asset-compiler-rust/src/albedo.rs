@@ -7,6 +7,7 @@
 //! oracle remakes it on the source image — and the caller supplies it.
 use serde_json::Value;
 use std::collections::BTreeMap;
+use trillion3d_math::scalar::unit_to_byte;
 
 /// Diffuse albedo of each material, packed RGBA8 linear, in glTF order.
 pub struct Palette {
@@ -27,7 +28,7 @@ impl Palette {
 /// A linear colour in four bytes. Alpha is always 255: neither transparency nor
 /// emission travels here, and that is said in the report rather than guessed.
 pub fn pack(colour: [f64; 3]) -> u32 {
-    let byte = |value: f64| (value.clamp(0.0, 1.0) * 255.0).round() as u32;
+    let byte = |value: f64| u32::from(unit_to_byte(value));
     byte(colour[0]) | (byte(colour[1]) << 8) | (byte(colour[2]) << 16) | (255 << 24)
 }
 

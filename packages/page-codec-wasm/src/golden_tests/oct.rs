@@ -1,9 +1,9 @@
 //! The octahedral normal both ways (`bits/oct.rs`): a normal to two bytes, two bytes back to a
 //! unit normal, and a normal through both.
 
-use crate::bits::{oct_decode, oct_encode};
-use crate::min_ball::xorshift;
 use trillion3d_math::golden::{f32s, Twin, Value};
+use trillion3d_math::octahedral::{oct_decode, oct_encode};
+use trillion3d_math::random::xorshift64;
 
 pub(super) fn twins() -> [Twin; 3] {
     [
@@ -58,7 +58,7 @@ fn normal_cases() -> Vec<Vec<Value>> {
         [1e-40, -1e-40, 1e-45],
     ];
     let mut state = trillion3d_math::GOLDEN;
-    let mut unit = || (xorshift(&mut state) >> 40) as f32 / (1u64 << 24) as f32;
+    let mut unit = || (xorshift64(&mut state) >> 40) as f32 / (1u64 << 24) as f32;
     normals.extend((0..256).map(|_| [0; 3].map(|_| unit() * 2.0 - 1.0)));
     normals.into_iter().map(|n| f32s(&n)).collect()
 }
@@ -71,6 +71,6 @@ fn code_cases() -> Vec<Vec<Value>> {
         .collect();
     q.extend((0..256).map(|x| x | (255 - x) << 8));
     let mut state = trillion3d_math::GOLDEN;
-    q.extend((0..256).map(|_| (xorshift(&mut state) & 0xffff) as u32));
+    q.extend((0..256).map(|_| (xorshift64(&mut state) & 0xffff) as u32));
     q.into_iter().map(|q| vec![Value::U32(q)]).collect()
 }

@@ -10,8 +10,9 @@
 //! (one at least), where its values start, its width, its kind (`QUATERNION` bit, interpolation in
 //! the bits above) and where its sample starts in `out`. A quaternion track is four wide.
 
-use trillion3d_math::js::{js_max, js_min};
+use trillion3d_math::js::clamp01;
 use trillion3d_math::quaternion::{normalize, slerp_arc, slerp_weights};
+use trillion3d_math::scalar::{hermite, hermite_basis, mix, remap};
 
 /// Words describing one track.
 pub const TRACK_WORDS: usize = 6;
@@ -57,7 +58,7 @@ pub fn sample_tracks(
         let j = (i + 1).min(count - 1);
         let span = f64::from(times[j]) - f64::from(times[i]);
         let w = if span > 0.0 {
-            js_min(1.0, js_max(0.0, (t - f64::from(times[i])) / span))
+            clamp01(remap(t, f64::from(times[i]), f64::from(times[j])))
         } else {
             0.0
         };
@@ -68,17 +69,18 @@ pub fn sample_tracks(
                 *slot = v(i * stride + at + c);
             }
         } else if cubic {
-            let w2 = w * w;
-            let w3 = w2 * w;
-            let a = 2.0 * w3 - 3.0 * w2 + 1.0;
-            let b = w3 - 2.0 * w2 + w;
-            let c1 = -2.0 * w3 + 3.0 * w2;
-            let d = w3 - w2;
+            let basis = hermite_basis(w);
             for (c, slot) in o.iter_mut().enumerate() {
-                *slot = a * v(i * stride + size + c)
-                    + b * span * v(i * stride + 2 * size + c)
-                    + c1 * v(j * stride + size + c)
-                    + d * span * v(j * stride + c);
+                *slot = hermite(
+                    basis,
+                    span,
+                    [
+                        v(i * stride + size + c),
+                        v(i * stride + 2 * size + c),
+                        v(j * stride + size + c),
+                        v(j * stride + c),
+                    ],
+                );
             }
         } else if quaternion {
             let arc = &mut arcs[k * ARC_VALUES..k * ARC_VALUES + ARC_VALUES];
@@ -94,7 +96,7 @@ pub fn sample_tracks(
             }
         } else {
             for (c, slot) in o.iter_mut().enumerate() {
-                *slot = v(i * size + c) * (1.0 - w) + v(j * size + c) * w;
+                *slot = mix(v(i * size + c), v(j * size + c), w);
             }
         }
         if quaternion {

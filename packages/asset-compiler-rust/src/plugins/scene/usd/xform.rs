@@ -5,6 +5,7 @@
 //! which cuts the parent stack and has no equivalent in a glTF graph, and the inverse of an
 //! arbitrary matrix, which is not computed so as not to invent a transform.
 use super::*;
+use trillion3d_math::euler::compose_turns_from_zero;
 
 /// Prefix USD puts in front of an operation to invert.
 const INVERT: &str = "!invert!";
@@ -105,11 +106,11 @@ fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     } else {
         steps.reverse();
     }
-    let mut out = matrix::IDENTITY;
-    for (axis, angle) in steps {
-        out = matrix::multiply_matrix4_from_zero(&out, &matrix::turn(axis, angle.to_radians()));
-    }
-    Some(out)
+    Some(compose_turns_from_zero(
+        steps
+            .into_iter()
+            .map(|(axis, angle)| matrix::turn(axis, angle.to_radians())),
+    ))
 }
 
 /// A translation triple, negated when the operation is inverted.

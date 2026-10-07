@@ -2,7 +2,8 @@
 //! moves and each target's largest displacement, which the runtime inflates a cluster's bounds by
 //! so that culling never drops a visible deformed cluster.
 use super::Deformation;
-use trillion3d_math::aabb::extend_aabb;
+use trillion3d_math::aabb::{centre, extend_aabb};
+use trillion3d_math::vec3::{length, sub};
 
 impl Deformation {
     /// Whole-copy soft geometry names compact simulation vertices explicitly, without page streams.
@@ -48,9 +49,8 @@ impl Deformation {
             .iter()
             .flat_map(|(low, high)| match low[0] <= high[0] {
                 true => {
-                    let centre: [f64; 3] = std::array::from_fn(|c| (low[c] + high[c]) / 2.0);
-                    let half: f64 = (0..3).map(|c| (high[c] - centre[c]).powi(2)).sum();
-                    [centre[0], centre[1], centre[2], half.sqrt()]
+                    let centre = centre(*low, *high);
+                    [centre[0], centre[1], centre[2], length(sub(*high, centre))]
                 }
                 false => [0.0; 4],
             })

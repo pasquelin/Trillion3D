@@ -2,7 +2,7 @@
 //! A missing, non-finite, or out-of-bounds field takes the default published in : the light
 //! remains on, it does not disappear because an exporter wrote an impossible number.
 use super::*;
-use trillion3d_math::vec3::{divide, length};
+use trillion3d_math::vec3::normalize_where;
 
 pub(super) fn number(value: Option<&Value>, fallback: f64) -> f64 {
     value.and_then(Value::as_f64).unwrap_or(fallback)
@@ -23,11 +23,7 @@ pub(super) fn colour_of(light: &Value) -> [f64; 3] {
 /// of light propagation, exactly what the contract expects from a spot light and the sun.
 pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     let raw = [-m[8], -m[9], -m[10]];
-    let norm = length(raw);
-    if !norm.is_finite() || norm <= 1e-9 {
-        return None;
-    }
-    Some(divide(raw, norm))
+    normalize_where(raw, |norm| norm.is_finite() && norm > 1e-9)
 }
 /// Declared range, otherwise the one imposed by intensity: the distance where irradiance of the strongest
 /// channel drops below . Never infinite, never zero.
