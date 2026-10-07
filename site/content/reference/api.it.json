@@ -4647,7 +4647,7 @@
       "capacity": "Righe che ci stanno prima che cresca.",
       "sources": "Proprietari originali delle righe a specchio; le loro sorgenti di animazione restano vive quando le righe vengono riutilizzate.",
       "sourceModels": "Mesh che condividono questa risorsa, comprese quelle in attesa di una riga di posizionamento.",
-      "cells": "Dove si trova ogni riga posizionata da una partizione (`../partition/rowCells.ts`): una colonna a sé, assente finché una cella non ne posiziona una."
+      "cells": "Dove si trova ogni riga posizionata da una partizione (`../partition/rowCells.ts`): la sua cella, il suo rango tra i nodi della cella e il rango di mesh di ciascun nodo di quella cella; una colonna a sé, assente finché una cella non ne posiziona una."
     }
   },
   "Plane": {

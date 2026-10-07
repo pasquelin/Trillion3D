@@ -2524,7 +2524,7 @@
       "capacity": "Baris yang muat sebelum ia tumbuh.",
       "sources": "Pemilik asli baris yang dicerminkan; sumber animasinya tetap hidup saat baris digunakan kembali.",
       "sourceModels": "Mesh yang berbagi sumber daya ini, termasuk yang menunggu baris penempatan.",
-      "cells": "Letak setiap baris yang ditempatkan sebuah partisi (`../partition/rowCells.ts`): kolom tersendiri, tidak ada sampai sebuah sel menempatkan satu."
+      "cells": "Letak setiap baris yang ditempatkan sebuah partisi (`../partition/rowCells.ts`): selnya, peringkatnya di antara node sel itu, dan peringkat mesh setiap node sel tersebut; kolom tersendiri, tidak ada sampai sebuah sel menempatkan satu."
     }
   },
   "Plane": {

@@ -2506,7 +2506,7 @@
       "capacity": "Linhas que cabem antes de crescer.",
       "sources": "Proprietários originais das linhas espelhadas; as suas fontes de animação continuam vivas quando as linhas são reutilizadas.",
       "sourceModels": "Malhas que partilham este recurso, incluindo as que esperam uma linha de posicionamento.",
-      "cells": "Onde está cada linha que uma partição posicionou (`../partition/rowCells.ts`): uma coluna própria, ausente até que uma célula posicione uma."
+      "cells": "Onde está cada linha que uma partição posicionou (`../partition/rowCells.ts`): a sua célula, a sua posição entre os nós da célula e a posição de malha de cada nó dessa célula; uma coluna própria, ausente até que uma célula posicione uma."
     }
   },
   "Plane": {
