@@ -4,7 +4,8 @@ import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
 import { BLOOM_WGSL } from './bloomWgsl.ts'
 import { BLOOM_UNIFORM_BYTES, bloomLevelLayout } from '../../effects/bloomLevel.ts'
-import { uniformStride } from '../../residency/pools.ts'
+import { uniformSlots } from '../../residency/pools.ts'
+import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 
 /** Label of every bloom pass: where it shows in a GPU capture. */
@@ -48,8 +49,6 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     magFilter: 'linear',
     minFilter: 'linear',
   }) // clamped to the edge, the default address mode
-  // Bytes between two uniform slots: the device's dynamic-offset alignment.
-  const stride = uniformStride(device.limits)
   let texture: GPUTexture | undefined,
     uniform: GPUBuffer | undefined,
     full: Size = [0, 0],
@@ -59,7 +58,10 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     blends: FusedBlend[] = [],
     inputs = new WeakMap<GPUTextureView, { level: GPUBindGroup; scene: GPUBindGroup }>(),
     blend: FusedBlend | undefined,
+    // The uniform's slots, the device's alignment apart, and their words laid as the buffer.
+    slots = uniformSlots(device.limits, 0, SLOT_WORDS),
     packed = new Float32Array(0),
+    packedWords = new Uint32Array(0),
     // The intensity and radius each bloom's range holds, NaN until it is written.
     held = new Float64Array(0),
     levelBytes = 0,
@@ -84,12 +86,11 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     }
     return bound
   }
-  /** The one descriptor and dynamic offset every pass begins with, rewritten in place: a pass
-   *  reads them when it begins, so a frame allocates none of them (11 passes at 6 levels). A
-   *  cleared level clears to zero, the default clear value. */
+  /** The one descriptor every pass begins with, rewritten in place: a pass reads it when it
+   *  begins, so a frame allocates none (11 passes at 6 levels); each slot's dynamic offset is made
+   *  once (`uniformSlots`). A cleared level clears to zero, the default clear value. */
   const attachment = { storeOp: 'store' } as GPURenderPassColorAttachment
-  const descriptor = { label: BLOOM_PASS, colorAttachments: [attachment] },
-    offset = new Uint32Array(1)
+  const descriptor = { label: BLOOM_PASS, colorAttachments: [attachment] }
   const release = () => {
     if (!passes) return // free already: nothing is allocated for it
     texture?.destroy()
@@ -104,10 +105,10 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     inputs = new WeakMap()
     levelBytes = passes = 0
   }
-  /** Writes uniform slot `index`, its words packed at `SLOT_WORDS` a slot: inverse sizes written
-   *  and read, radius, blend. */
+  /** Writes uniform slot `index`, at its place in the buffer's image: inverse sizes written and
+   *  read, radius, blend. */
   const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) => {
-    const base = index * SLOT_WORDS
+    const base = index * slots.strideWords
     packed[base] = 1 / out[0]
     packed[base + 1] = 1 / out[1]
     packed[base + 2] = 1 / read[0]
@@ -130,9 +131,9 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     for (let level = 0; level + 1 < count; level++)
       slot(first + count + level, sizes[level], sizes[level + 1], radius)
     slot(last, full, sizes[0], radius, keep, glow)
-    // Each slot's words alone go up, never the padding up to the device's alignment.
-    for (let s = first; s <= last; s++)
-      device.queue.writeBuffer(uniform!, s * stride, packed, s * SLOT_WORDS, SLOT_WORDS)
+    // What changed of the range's slots goes up in one write, as the whole range once did: never
+    // the padding up to the device's alignment, never more writes.
+    vsmWriteChangedSlots(device, uniform!, packedWords, slots, first, last + 1, 'one')
   }
   const draw = (
     encoder: GPUCommandEncoder,
@@ -144,10 +145,9 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   ) => {
     attachment.view = view
     attachment.loadOp = pipeline === up ? 'load' : 'clear'
-    offset[0] = uniformSlot * stride
     const pass = encoder.beginRenderPass(descriptor)
     pass.setPipeline(pipeline)
-    pass.setBindGroup(0, group, offset, 0, 1)
+    pass.setBindGroup(0, group, slots.offset(uniformSlot))
     if (scene) pass.setBindGroup(1, scene)
     pass.draw(3)
     pass.end()
@@ -175,12 +175,14 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         format: FORMAT,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
       })
+      slots = uniformSlots(device.limits, passes * sizes.length * 2, SLOT_WORDS)
       uniform = device.createBuffer({
         label: `${BLOOM_PASS} uniform`,
-        size: passes * sizes.length * 2 * stride,
+        size: slots.bytes,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       })
-      packed = new Float32Array(passes * sizes.length * 2 * SLOT_WORDS)
+      packed = new Float32Array(slots.bytes / 4)
+      packedWords = new Uint32Array(packed.buffer)
       held = new Float64Array(2 * passes).fill(Number.NaN)
       views = sizes.map((_, level) =>
         texture!.createView({ baseMipLevel: level, mipLevelCount: 1 }),
@@ -208,7 +210,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         draw(encoder, views[level], up, groups[level + 1], first + count + level)
       if (!output) {
         // Made once per bloom and size, kept while the levels are: a frame allocates none.
-        blend = blends[nth] ??= { group: groups[0], offset: last * stride }
+        blend = blends[nth] ??= { group: groups[0], offset: slots.offset(last)[0] }
         return 2 * count - 1
       }
       draw(encoder, output, composite, groups[0], last, source.scene)

@@ -3,17 +3,17 @@ import { pyramidBytes } from './oracle.ts'
 import {
   HIZ_BUILD_SIDE as S,
   HIZ_PASS_LEVELS,
-  HIZ_UNIFORM_BYTES,
+  HIZ_UNIFORM_BINDING_BYTES,
   hizBuildPasses,
-  hizBuildSlots,
   hizBuildWords,
+  hizUniformSlots,
 } from './uniforms.ts'
 import { evaluateHizReduce } from './oracle.fixture.ts'
 import { uniformStride } from '../../residency/pools.ts'
 
 // The reference pyramid build (a copy of level 0, then the per-level reduction the oracle
 // states) and `buildHiz` transcribed line by line, for `buildEquivalence.test.ts`.
-const SLOT_WORDS = HIZ_UNIFORM_BYTES / 4
+const SLOT_WORDS = HIZ_UNIFORM_BINDING_BYTES / 4
 
 /** The tests' seeded random: the same sequence on every run. */
 export function lcg(seed: number) {
@@ -153,7 +153,7 @@ export function buildAfter(scene: Scene, pyramid: Float32Array, rand: () => numb
     {} as GPUBindGroup,
     {} as GPUComputePipeline,
     passes,
-    hizBuildSlots(passes, uniformStride()),
+    passes.map((_, i) => hizUniformSlots().offset(i)),
     count,
   )
   for (const [at, gx, gy, gz] of dispatches) {

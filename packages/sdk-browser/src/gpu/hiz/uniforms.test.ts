@@ -1,12 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HIZ_UNIFORM_BYTES, hizTestSlot } from './uniforms.ts'
+import { HIZ_UNIFORM_BINDING_BYTES, hizTestSlot, hizUniformSlots } from './uniforms.ts'
 import { createGpuHiz } from './hiz.ts'
 import { pyramidLayout } from './pyramid.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
-import { uniformStride } from '../../residency/pools.ts'
 
-const SLOT_WORDS = HIZ_UNIFORM_BYTES / 4
+const SLOT_WORDS = HIZ_UNIFORM_BINDING_BYTES / 4
 
 /** The slot a test encoding uploads: a zeroed float array, integer words written through a fresh
  *  view, the fourth word the bits of a fresh `Float32Array([0])`, the sixth word 1 on a sampled
@@ -45,7 +44,7 @@ test('the uniforms go up as the words that changed: build words, then the test s
     return words
   }
   // The pyramid's build words, at creation.
-  const { words } = pyramidLayout(64, 32, uniformStride())
+  const { words } = pyramidLayout(64, 32, hizUniformSlots())
   assert.deepEqual([...held().subarray(0, words.length)], [...words])
   hiz.attach({} as GPUBuffer, {} as GPUBuffer)
   const open = {
@@ -88,8 +87,8 @@ test('a device aligning at 512 lays the build and test slots 512 bytes apart, th
     return held
   }
   // Each build slot holds what the slot of a 256-byte device held, at its 512-byte step.
-  const at256 = pyramidLayout(64, 32, 256)
-  const { passes, slots } = pyramidLayout(64, 32, 512)
+  const at256 = pyramidLayout(64, 32, hizUniformSlots())
+  const { passes, slots } = pyramidLayout(64, 32, hizUniformSlots(device.limits))
   assert.deepEqual(
     slots,
     at256.slots.map(([offset]) => [offset * 2]),

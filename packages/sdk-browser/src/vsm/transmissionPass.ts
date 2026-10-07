@@ -37,7 +37,7 @@ import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/cor
 import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
-import { storageBufferCap, uniformStride } from '../residency/pools.ts'
+import { storageBufferCap, uniformStride, type UniformSlots } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { createVsmReadbackRing } from './readbackRing.ts'
 import { vsmWriteChanged } from './writeChanged.ts'
@@ -56,6 +56,7 @@ import {
   vsmChunkListGroups,
   vsmChunkListSizes,
   vsmChunkPasses,
+  vsmChunkParamSlots,
   vsmChunkRows,
   vsmChunkRowsWithin,
   vsmContextBytes,
@@ -329,8 +330,8 @@ interface Ctx extends VsmChunkKernels {
   buffers: Partial<
     Record<'params' | 'views' | 'candidates' | 'counts' | 'cmds' | 'pairs' | 'args', GPUBuffer>
   >
-  /** Bytes between two chunks' parameter slots: the device's `uniformStride`. */
-  slot: number
+  /** The chunks' parameter slots (`vsmChunkParamSlots`). */
+  slots: UniformSlots
   /** Each chunk's parameter offset, made once for every frame (`vsmChunkPasses`). */
   passes: ReturnType<typeof vsmChunkPasses>
   /** What the chunk groups bound when made (`chunkGroups`). */
@@ -465,7 +466,7 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
   if (existing && existing.device === device) return existing
   const { layout } = trans
   // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-  const slot = uniformStride(device.limits)
+  const slots = vsmChunkParamSlots(device.limits)
   const ctx: Ctx = {
     device,
     ...vsmTransmissionPipes(device, layout),
@@ -476,8 +477,8 @@ function context(trans: VsmTransmission, device: GPUDevice): Ctx {
       vsmRenderCullWgsl(layout, { marksDirty: false }),
     ),
     buffers: {},
-    slot,
-    passes: vsmChunkPasses('vsm.transmission', slot),
+    slots,
+    passes: vsmChunkPasses('vsm.transmission', slots),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -764,7 +765,7 @@ function binPlan(
     frame.device,
     ctx.buffers,
     chosen.rows,
-    transmissionSizes(used, rowCount, views.length, chosen, ctx.slot),
+    transmissionSizes(used, rowCount, views.length, chosen, ctx.slots.stride),
   )
   const chunkRows = within.rows
   // The opaque raster's parameter slots (`renderPass.ts`), `rowCount` = the blended rows.
@@ -800,7 +801,7 @@ function binLists(
   plan: BinPlan,
 ) {
   const { params, views, counts, args } = vsmEnsureLists(ctx, 'vsm.transmission', plan.within.size!)
-  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slot)
+  vsmWriteChunkParams(ctx.device, scene.camera, params, views, plan.views, ctx.slots)
   encoder.clearBuffer(counts, 0, plan.within.size!.counts)
   return { args, ...chunkGroups(ctx, trans, res, scene) }
 }

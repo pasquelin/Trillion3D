@@ -1,3 +1,6 @@
+import { uniformSlots } from '../../residency/pools.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+
 /** Word of the test slot that says the frame's counters are sampled (`counting` in `shader.ts`). */
 const TEST_COUNTING_WORD = 5
 
@@ -14,16 +17,16 @@ export function hizTestSlot(
   rows: number,
   counting: boolean,
 ) {
-  image.fill(0, at, at + HIZ_UNIFORM_BYTES / 4)
+  image.fill(0, at, at + HIZ_UNIFORM_BINDING_BYTES / 4)
   image[at] = width
   image[at + 1] = height
   image[at + 2] = rows
   image[at + TEST_COUNTING_WORD] = counting ? 1 : 0
 }
 
-/** Bytes one uniform slot binds — its slots lie the device's `uniformStride` apart, the alignment
- *  of their dynamic offsets —, and the deepest pyramid the camera builds. */
-export const HIZ_UNIFORM_BYTES = 256
+/** Bytes the uniform binding spans from a slot's offset: past the `Uni` struct the kernels read
+ *  (`HIZ_SLOT_WORDS`), never compared nor written past it. The deepest pyramid the camera builds. */
+export const HIZ_UNIFORM_BINDING_BYTES = 256
 export const HIZ_MAX_LEVELS = 16
 /** Mips one build pass reduces in workgroup memory: an 8 × 8 workgroup reduces a 16 × 16 source
  *  tile down to one texel. */
@@ -33,6 +36,14 @@ export const HIZ_PASS_LEVELS = 4
 export const HIZ_BUILD_SIDE = 1 << (HIZ_PASS_LEVELS - 1)
 /** Words of one pass's uniform: the source level, then one `vec4u` per level it writes. */
 const PASS_HEADER_WORDS = 8
+/** Words a slot holds, the `Uni` struct (`shader.ts`): a build pass's header and the levels it
+ *  writes, or the test's words; its other words up to the device's alignment are never written. */
+export const HIZ_SLOT_WORDS = PASS_HEADER_WORDS + 4 * HIZ_PASS_LEVELS
+
+/** The Hi-Z's uniform slots on a device of `limits`: the deepest pyramid's build passes, then the
+ *  test's slot behind them (`hizTest`). */
+export const hizUniformSlots = (limits?: Parameters<typeof uniformSlots>[0]) =>
+  uniformSlots(limits, ceilDiv(HIZ_MAX_LEVELS - 1, HIZ_PASS_LEVELS) + 1, HIZ_SLOT_WORDS)
 
 /** One build pass: the level it reads, its size, and the count of levels it writes. */
 export type HizBuildPass = { source: number; width: number; height: number; levels: number }
@@ -52,11 +63,6 @@ export function hizBuildPasses(sizes: Array<[number, number]>, maxLevels = HIZ_M
   } while ((source += HIZ_PASS_LEVELS) < last)
   return passes
 }
-
-/** The dynamic offset of each build pass's uniform slot, one array a pass so that encoding a frame
- *  allocates none: pass `i` binds slot `i`, the slots `slotStride` bytes apart. */
-export const hizBuildSlots = (passes: HizBuildPass[], slotStride: number) =>
-  passes.map((_, i) => [i * slotStride])
 
 /**
  * Every pass's source and destinations are a function of the target size alone, so the whole

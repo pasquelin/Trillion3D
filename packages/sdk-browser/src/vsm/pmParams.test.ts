@@ -92,6 +92,16 @@ function encodeAll(alignment = 256) {
   const res = createVsmResources(fake.device, { ...options, poolPages: 256 })
   const perPageBins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
   const writes: { offset: number; words: number[] }[] = []
+  /** The parameter writes each encoder call made, in call order. */
+  const perCall: number[] = []
+  const params = () =>
+    fake.writes.filter((w) => (w.buffer as unknown as { label: string }).label === 'vsm.pm.params')
+      .length
+  const counted = (encode: () => void) => {
+    const before = params()
+    encode()
+    perCall.push(params() - before)
+  }
   for (const valid of [false, true])
     for (const stats of [false, true]) {
       res.prevFrameKept = valid
@@ -103,9 +113,11 @@ function encodeAll(alignment = 256) {
         perPageBins,
         options: { stats },
       }
-      encodeVsmPageCarry(pass as GPUComputePassEncoder, res, frame)
-      encodeVsmPageMapping(encoder, res, frame)
-      encodeVsmAfterRaster(encoder, res, frame)
+      for (let again = 0; again < 2; again++) {
+        counted(() => encodeVsmPageCarry(pass as GPUComputePassEncoder, res, frame))
+        counted(() => encodeVsmPageMapping(encoder, res, frame))
+        counted(() => encodeVsmAfterRaster(encoder, res, frame))
+      }
       for (const w of fake.writes.splice(0)) {
         if ((w.buffer as unknown as { label: string }).label !== 'vsm.pm.params') continue
         const d = written(w)
@@ -114,7 +126,7 @@ function encodeAll(alignment = 256) {
         writes.push({ offset: w.offset, words: Array.from(new Uint32Array(copy.buffer)) })
       }
     }
-  return { fake, bound, writes }
+  return { fake, bound, writes, perCall }
 }
 
 /** The parameter buffer's writes over the three encoders, the cache valid and not. */
@@ -148,9 +160,18 @@ test('a device aligning at 512 lays the parameter and per-page slots 512 bytes a
   assert.deepEqual(at(VSM_PM_GROUP_PER_PAGE), [0, 512, 1024, 1536])
 })
 
+test('at 256 bytes a call writes its parameter slot once, as the whole slot went, and a frame the same nothing', () => {
+  // Develop wrote each call's slot whole: one write. Each context is made for its frame: the
+  // first frame writes the carry's and the mapping's slots once, the same frame again nothing.
+  const { perCall } = encodeAll()
+  assert.deepEqual(perCall, Array(4).fill([1, 1, 0, 0, 0, 0]).flat())
+})
+
 test('the guard fails when a word beyond the struct is written', () => {
-  const writes = parameterWrites()
-  // A write one slot's 2 words long, spilled 2 words past them.
-  const spilled = writes.map(({ offset, words }) => ({ offset, words: [...words, 0, 1] }))
+  // Each slot's 2 words — a write sends only those that changed —, spilled 2 words past them.
+  const spilled = parameterWrites().map(({ offset }) => {
+    const slot = offset & ~255
+    return { offset: slot, words: [7, 1, 0, 1] }
+  })
   assert.throws(() => assertWithinWords(spilled, 2), /word 3 of a slot holds 1/)
 })

@@ -88,7 +88,7 @@ import {
   vsmPerFrameSet,
 } from './resources.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlots, uniformStride, type UniformSlots } from '../residency/pools.ts'
 import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
 
@@ -151,6 +151,10 @@ export interface VsmRenderStats {
 /** Bytes of the parameters a kernel binds from its chunk's slot (`VsmRenderParams`). */
 const VSM_RENDER_PARAMS_BYTES = 128
 const PARAMS_WORDS = VSM_RENDER_PARAMS_BYTES / 4
+/** The chunks' parameter slots on a device of `limits`, as many as a frame's chunks (`offset`
+ *  makes each the first time it is asked): the raster's and the transmission's. */
+export const vsmChunkParamSlots = (limits: Parameters<typeof uniformSlots>[0]) =>
+  uniformSlots(limits, 0, PARAMS_WORDS)
 /** Usage of the lists the kernels fill. */
 export const vsmRenderStorage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
 
@@ -176,8 +180,8 @@ interface Ctx extends VsmChunkKernels {
   target: GPUTextureView
   targetTexture: GPUTexture
   buffers: Partial<Record<VsmListName, GPUBuffer>>
-  /** Bytes between two chunks' parameter slots: the device's `uniformStride`. */
-  slot: number
+  /** The chunks' parameter slots (`vsmChunkParamSlots`). */
+  slots: UniformSlots
   /** The chunks' pass labels and parameter offsets (`vsmChunkPasses`), made once a context. */
   passes: ReturnType<typeof vsmChunkPasses>
   /** The scene's rows and the lists the groups bound when made (`renderGroups`). */
@@ -342,7 +346,7 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
   if (existing?.device === device) existing.targetTexture.destroy()
   const targetTexture = device.createTexture(renderTarget())
   // The chunks' parameter slots lie at the device's dynamic-offset alignment.
-  const slot = uniformStride(device.limits)
+  const slots = vsmChunkParamSlots(device.limits)
 
   const ctx: Ctx = {
     device,
@@ -353,8 +357,8 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     target: targetTexture.createView(),
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
-    slot,
-    passes: vsmChunkPasses('vsm.render', slot),
+    slots,
+    passes: vsmChunkPasses('vsm.render', slots),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -814,16 +818,16 @@ export function vsmSetChunking(
   vsmChunking.pairCapacity = chosen.pairs(counts.chunkRows)
 }
 
-/** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset, its slots
- *  `slot` bytes apart: made once for every frame (the raster's and the transmission's). */
-export function vsmChunkPasses(prefix: string, slot: number) {
+/** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset in `slots`:
+ *  made once for every frame (the raster's and the transmission's). */
+export function vsmChunkPasses(prefix: string, slots: UniformSlots) {
   const held: { cullPass: GPUComputePassDescriptor; raster: string; offset: number[] }[] = []
   return {
     chunk: (c: number) =>
       (held[c] ??= {
         cullPass: { label: `${prefix}.cull ${c}` },
         raster: `${prefix}.raster ${c}`,
-        offset: [c * slot],
+        offset: slots.offset(c),
       }),
   }
 }
@@ -870,7 +874,7 @@ function vsmEncodeChunks(
   }
 }
 
-/** The parameter slots of `vsmChunking`, `slot` bytes apart, and the views `views` up to their
+/** The parameter slots of `vsmChunking`, laid in `slots`, and the views `views` up to their
  *  buffers: each slot's words where they changed alone (`vsmWriteChangedSlots`). */
 export function vsmWriteChunkParams(
   device: GPUDevice,
@@ -878,12 +882,12 @@ export function vsmWriteChunkParams(
   paramsBuffer: GPUBuffer,
   viewsBuffer: GPUBuffer,
   views: readonly number[],
-  slot: number,
+  slots: UniformSlots,
 ) {
   const { chunks } = vsmChunking
-  vsmGrowParamsImage(paramsImage, (chunks * slot) / 4)
-  vsmRenderParams(camera, vsmChunking, paramsImage, slot)
-  vsmWriteChangedSlots(device, paramsBuffer, paramsImage.u, chunks, PARAMS_WORDS, slot / 4)
+  vsmGrowParamsImage(paramsImage, chunks * slots.strideWords)
+  vsmRenderParams(camera, vsmChunking, paramsImage, slots.stride)
+  vsmWriteChangedSlots(device, paramsBuffer, paramsImage.u, slots, 0, chunks)
   if (viewWords.length < views.length)
     viewWords = new Uint32Array(ensuredBytes(views.length * 4) / 4)
   for (let k = 0; k < views.length; k++) viewWords[k] = views[k]
@@ -1063,7 +1067,7 @@ export function encodeVsmRender(
     device,
     ctx.buffers,
     chosen.rows,
-    renderSizes(scene.rowCount, views.length, chosen, ctx.slot),
+    renderSizes(scene.rowCount, views.length, chosen, ctx.slots.stride),
   )
   const roomLimited = within.limited,
     size = within.size
@@ -1073,7 +1077,7 @@ export function encodeVsmRender(
 
   const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, 'vsm.render', size)
   vsmSetChunking({ rowCount: scene.rowCount, viewCount, chunks, chunkRows }, chosen)
-  vsmWriteChunkParams(device, scene.camera, params, viewsBuffer, views, ctx.slot)
+  vsmWriteChunkParams(device, scene.camera, params, viewsBuffer, views, ctx.slots)
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)

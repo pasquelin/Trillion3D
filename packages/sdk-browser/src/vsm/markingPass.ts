@@ -55,7 +55,7 @@ import {
   vsmMarkingClears,
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlotBytes, uniformSlots } from '../residency/pools.ts'
 import { dispatchGrid, dispatchRows } from '../gpu/dispatch/grid.ts'
 import type { VsmLayout } from './layout.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
@@ -358,12 +358,12 @@ interface TableGroups {
 const newTableGroups = (): TableGroups => ({ clear: {} })
 /** The maps a clear walks (`vsmMarkingClears`). */
 type ClearSet = 'all' | 'directionalOnly'
-/** Bytes of the per-page dispatch slots, `stride` bytes apart (the device's `uniformStride`). */
-const perPageBytes = (stride: number) => DISPATCHERS * VSM_PER_PAGE_BIN_COUNT * stride
+/** The per-page dispatch slots: all then directional-only bins (`resetPageTables`). */
+const PER_PAGE_SLOTS = DISPATCHERS * VSM_PER_PAGE_BIN_COUNT
 /** Bytes a marking holds on a device of `limits`: its parameters and its per-page dispatch slots,
  *  the device's `uniformStride` apart (`createVsmMarking`). */
 export const vsmMarkingBytes = (limits: { minUniformBufferOffsetAlignment?: number }) =>
-  VSM_MARKING_PARAMS_BYTES + perPageBytes(uniformStride(limits))
+  VSM_MARKING_PARAMS_BYTES + uniformSlotBytes(limits, PER_PAGE_SLOTS)
 
 export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarking {
   const layout = res.layout
@@ -373,20 +373,17 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   // The per-page slots lie at the device's dynamic-offset alignment.
-  const stride = uniformStride(device.limits)
-  /** Each per-page slot's dynamic offset, all then directional-only bins (`resetPageTables`). */
-  const slotOffsets = Array.from({ length: DISPATCHERS * VSM_PER_PAGE_BIN_COUNT }, (_, slot) => [
-    slot * stride,
-  ])
+  const slots = uniformSlots(device.limits, PER_PAGE_SLOTS, VSM_PER_PAGE_BIN_WORDS)
   const perPage = device.createBuffer({
     label: 'vsm.marking.perPage',
-    size: perPageBytes(stride),
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const paramData = new ArrayBuffer(VSM_MARKING_PARAMS_BYTES),
     paramF32 = new Float32Array(paramData),
     paramU32 = new Uint32Array(paramData)
-  const perPageData = new Uint32Array(perPageBytes(stride) / 4)
+  // Laid as the buffer; the padding past each slot's words stays zero, never compared.
+  const perPageData = new Uint32Array(slots.bytes / 4)
 
   const pipes = vsmMarkingPipes(device, layout)
 
@@ -430,8 +427,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       throw new Error('VSM: per-page ids exceed res.perPageIds')
     // The ids only when they changed: a new set's buffer starts zeroed (`vsmWriteChanged`).
     vsmWriteChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
-    perPageData.fill(0)
-    const words = stride / 4
+    // Every slot's words are written again: nothing is cleared first.
+    const words = slots.strideWords
     for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
       vsmWritePerPageBinArgs(perPageData, b * words, bins.all[b], b)
       vsmWritePerPageBinArgs(
@@ -441,14 +438,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
         b,
       )
     }
-    vsmWriteChangedSlots(
-      device,
-      perPage,
-      perPageData,
-      slotOffsets.length,
-      VSM_PER_PAGE_BIN_WORDS,
-      words,
-    )
+    vsmWriteChangedSlots(device, perPage, perPageData, slots)
   }
 
   /** The clears of the tables `set` walks the maps of: one dispatch per non-empty bin. */
@@ -477,7 +467,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       pass.setBindGroup(
         0,
         group,
-        slotOffsets[(set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b],
+        slots.offset((set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b),
       )
       vsmDispatchPerPageBin(pass, bin, b)
     }

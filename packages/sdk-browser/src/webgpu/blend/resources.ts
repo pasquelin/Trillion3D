@@ -60,7 +60,6 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
       entries,
       planWords: planWords(entries),
       scratchWords: scratchWords(entries),
-      stride: blendState.uniformStride,
     },
     {
       counts: blendState.compaction?.indirectBuffer,

@@ -1,10 +1,5 @@
-import {
-  HIZ_BUILD_SIDE,
-  hizBuildPasses,
-  hizBuildSlots,
-  hizBuildWords,
-  type HizBuildPass,
-} from './uniforms.ts'
+import { HIZ_BUILD_SIDE, hizBuildPasses, hizBuildWords, type HizBuildPass } from './uniforms.ts'
+import type { UniformSlots } from '../../residency/pools.ts'
 import { pyramidBytes } from './oracle.ts'
 import type { HizPyramid } from './types.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
@@ -22,7 +17,7 @@ const TILE = 2 * HIZ_BUILD_SIDE
 /**
  * The build passes of `count` pyramids, one per `z`, as dispatches of the open compute `pass`:
  * consecutive dispatches inside a pass already see each other's writes. Build pass `i` reads
- * uniform slot `i`, bound at `slots[i]` (`hizBuildSlots`).
+ * uniform slot `i`, bound at `slots[i]` (`UniformSlots.offset`).
  */
 export function encodeHizPyramid(
   pass: GPUComputePassEncoder,
@@ -41,18 +36,19 @@ export function encodeHizPyramid(
 
 /**
  * The build and the test of a pyramid over the `width × height` drawn in its level 0: its passes,
- * their uniform words, slots `slotStride` bytes apart, and its mips with their offset and width, a
- * function of that size alone. The packed mips of a smaller size fit in the buffer of a larger one.
+ * their uniform words and offsets in `slots` (`hizUniformSlots`), and its mips with their offset
+ * and width, a function of that size alone. The packed mips of a smaller size fit in the buffer of
+ * a larger one.
  */
-export function pyramidLayout(width: number, height: number, slotStride: number) {
+export function pyramidLayout(width: number, height: number, slots: UniformSlots) {
   const { sizes, offsets } = pyramidBytes(width, height),
     passes = hizBuildPasses(sizes)
   return {
     width,
     height,
     passes,
-    slots: hizBuildSlots(passes, slotStride),
-    words: hizBuildWords(sizes, offsets, passes, slotStride),
+    slots: passes.map((_, i) => slots.offset(i)),
+    words: hizBuildWords(sizes, offsets, passes, slots.stride),
     levels: sizes.map((size, level) => ({ offset: offsets[level], width: size[0] })),
   }
 }
@@ -69,13 +65,13 @@ export type Pyramid = HizPyramid & {
 }
 
 /** One view's pyramid at `width × height`: its level 0 and its packed mips, its build's uniform
- *  slots `slotStride` bytes apart. */
+ *  words laid in `slots`. */
 export function allocPyramid(
   device: GPUDevice,
   usage: number,
   width: number,
   height: number,
-  slotStride: number,
+  slots: UniformSlots,
 ): Pyramid {
   const level0 = device.createTexture({
     label: HIZ_LEVEL0_LABEL,
@@ -94,7 +90,7 @@ export function allocPyramid(
     level0,
     level0View: level0.createView(),
     pyramid,
-    drawn: pyramidLayout(width, height, slotStride),
+    drawn: pyramidLayout(width, height, slots),
     destroy() {
       level0.destroy()
       pyramid.destroy()

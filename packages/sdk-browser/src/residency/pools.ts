@@ -27,6 +27,48 @@ export const storageBufferCap = (limits?: {
 export const uniformStride = (limits?: { minUniformBufferOffsetAlignment?: number }) =>
   Math.max(256, limits?.minUniformBufferOffsetAlignment ?? 256)
 
+/** Bytes `count` uniform slots occupy on a device of `limits`, `uniformStride` apart. */
+export const uniformSlotBytes = (limits: Parameters<typeof uniformStride>[0], count: number) =>
+  uniformStride(limits) * count
+
+/** Slots of one uniform buffer bound at dynamic offsets: where each lies and what it holds. */
+export type UniformSlots = {
+  /** Slots the buffer holds. */
+  readonly count: number
+  /** Words a slot really holds, the struct its kernels read: the rest of its stride is never
+   *  written nor compared. */
+  readonly words: number
+  /** Bytes between two slots: the device's `uniformStride`. */
+  readonly stride: number
+  /** Words between two slots: a slot's first word in an image laid as the buffer. */
+  readonly strideWords: number
+  /** Bytes the `count` slots occupy (`uniformSlotBytes`). */
+  readonly bytes: number
+  /** Slot `i`'s dynamic offset, one array a slot made once and kept, so a frame allocates none;
+   *  past `count` — a list whose slots grow with the frame — made the first time it is asked. */
+  offset(i: number): number[]
+}
+
+/** The layout of `count` uniform slots of `words` words on a device of `limits`: the one place
+ *  where a slot's stride, its offsets and the bytes the slots occupy are drawn. */
+export function uniformSlots(
+  limits: Parameters<typeof uniformStride>[0],
+  count: number,
+  words: number,
+): UniformSlots {
+  const stride = uniformStride(limits)
+  if (words * 4 > stride) throw new Error(`UNIFORM_SLOT_WORDS: ${words} words past ${stride} bytes`)
+  const offsets = Array.from({ length: count }, (_, i) => [i * stride])
+  return {
+    count,
+    words,
+    stride,
+    strideWords: stride / 4,
+    bytes: uniformSlotBytes(limits, count),
+    offset: (i) => (offsets[i] ??= [i * stride]),
+  }
+}
+
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null

@@ -20,6 +20,8 @@ import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts'
 import { blendExpandUniform } from './runs.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
 import { UNI_WORDS } from './expandUniform.ts'
+import { uniformSlots, type UniformSlots } from '../../residency/pools.ts'
+import { vsmWriteChangedSlots } from '../../vsm/writeChanged.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
 
@@ -35,8 +37,9 @@ type BlendPlanUpload = {
     region: { seeds: number; order: number; runs: number; args: number }
   }[]
   scene: { maxVertexWords: number; vertexShift: number }
-  /** The order kernel's dispatch words (`orderSteps.ts`), and the items' key records. */
-  stepWords: Uint32Array
+  /** The order kernel's dispatch words (`orderSteps.ts`), laid as its steps' slots, and the
+   *  items' key records. */
+  stepWords: Uint32Array<ArrayBuffer>
   keyWords: Uint32Array
 }
 
@@ -52,14 +55,13 @@ function expandApi(
   buffers: Record<'uniforms' | 'plan' | 'keep' | 'draws' | 'steps' | 'keyed' | 'frame', GPUBuffer>,
   order: Kernel,
   expansion: Kernel,
-  sizes: ExpandSizes,
+  items: number,
+  slots: ExpandSlots,
   made: GPUBuffer[],
 ) {
-  const { items, stride } = sizes
   const uni = new Uint32Array(UNI_WORDS)
-  // The arrays encoding rereads in place: one dynamic offset, four expansion dispatches.
-  const offsets = [0],
-    launches = [0, 0, 0, 0]
+  // The array encoding rereads in place: four expansion dispatches.
+  const launches = [0, 0, 0, 0]
   const write = (buffer: GPUBuffer, word: number, source: Uint32Array, words?: number) =>
     writeWords(device.queue, buffer, word, source, words)
   return {
@@ -77,9 +79,9 @@ function expandApi(
       plan.passes.forEach(({ seeds, counts, region }, pass) => {
         if (seeds.length) write(buffers.plan, region.seeds, seeds)
         blendExpandUniform(uni, counts, region, plan.scene)
-        device.queue.writeBuffer(buffers.uniforms, pass * stride, uni)
+        device.queue.writeBuffer(buffers.uniforms, slots.passes.offset(pass)[0], uni)
       })
-      write(buffers.steps, 0, plan.stepWords)
+      sendSteps(device, buffers.steps, plan.stepWords, slots.steps)
       if (plan.keyWords.length) write(buffers.keyed, 0, plan.keyWords)
     },
     /** The frame's eye, own keys and own seeds: the only words a frame sends the order. */
@@ -93,9 +95,8 @@ function expandApi(
       steps: readonly OrderStep[],
       counts: { entries: number; runs: number },
     ) {
-      encodeOrder(encoder, order, steps, offsets, stride)
-      offsets[0] = pass * stride
-      encoder.setBindGroup(0, expansion.group, offsets)
+      encodeOrder(encoder, order, steps, slots.steps)
+      encoder.setBindGroup(0, expansion.group, slots.passes.offset(pass))
       blendExpandDispatch(launches, counts.entries, counts.runs)
       for (let step = 0; step < expansion.pipelines.length; step++) {
         encoder.setPipeline(expansion.pipelines[step])
@@ -108,6 +109,20 @@ function expandApi(
   }
 }
 
+/** A plan's order step words up to `buffer`, laid as `slots`: what changed of each step's words,
+ *  in one write as the whole steps once went — never the padding up to the device's alignment,
+ *  never more writes. A plan laid on another stride than the kernels bind is refused, never
+ *  misread. */
+function sendSteps(
+  device: GPUDevice,
+  buffer: GPUBuffer,
+  words: Uint32Array<ArrayBuffer>,
+  slots: UniformSlots,
+) {
+  if (words.length !== slots.bytes / 4) throw new Error(STEP_LAYOUT)
+  vsmWriteChangedSlots(device, buffer, words, slots, 0, slots.count, 'one')
+}
+
 /** `words` of `source` — all of them by default — written from word `word` of `buffer`. */
 const writeWords = (
   queue: GPUQueue,
@@ -117,21 +132,18 @@ const writeWords = (
   words = source.length,
 ) => queue.writeBuffer(buffer, word * 4, source.buffer as ArrayBuffer, source.byteOffset, words * 4)
 
-/** The order's dispatches of one pass, each step at its uniform's dynamic offset (`offsets`, the
- *  array the encoding rereads in place), `stride` bytes a step. */
+/** The order's dispatches of one pass, each step at its uniform slot's dynamic offset. */
 function encodeOrder(
   encoder: GPUComputePassEncoder,
   order: Kernel,
   steps: readonly OrderStep[],
-  offsets: number[],
-  stride: number,
+  slots: UniformSlots,
 ) {
   let bound: GPUComputePipeline | undefined
   for (const step of steps) {
     const pipeline = order.pipelines[step.entry]
     if (pipeline !== bound) encoder.setPipeline((bound = pipeline))
-    offsets[0] = step.uniform * stride
-    encoder.setBindGroup(0, order.group, offsets)
+    encoder.setBindGroup(0, order.group, slots.offset(step.uniform))
     dispatchRows(encoder, step.groups)
   }
 }
@@ -152,6 +164,8 @@ const stagesOn = <E extends string>(
 
 /** A device's refusal of the kernels: the scene's, by name. */
 const EXPANSION_REFUSED = 'WEBGPU_BLEND_EXPANSION_UNAVAILABLE'
+/** A plan's step words not laid as the kernels' step slots. */
+const STEP_LAYOUT = 'WEBGPU_BLEND_STEP_LAYOUT'
 
 /**
  * The two kernels of the transparent pass — the order, then the expansion of the sorted plan — and
@@ -172,9 +186,11 @@ export async function createBlendExpand(
 ) {
   const made: GPUBuffer[] = []
   try {
-    const buffers = expandBuffers(device, sizes, made)
+    const slots = expandSlots(device, sizes.entries)
+    const buffers = expandBuffers(device, sizes, slots, made)
     const built = await validated(device, () => expandKernels(device, buffers, shared, outputs))
-    if (built) return expandApi(device, buffers, built.order, built.expansion, sizes, made)
+    if (built)
+      return expandApi(device, buffers, built.order, built.expansion, sizes.items, slots, made)
   } catch (error) {
     cleanupFailedHiz(made)
     throw new Error(EXPANSION_REFUSED, { cause: error })
@@ -184,20 +200,26 @@ export async function createBlendExpand(
   throw new Error(EXPANSION_REFUSED)
 }
 
-/** The scene's counts, and `stride`, the bytes between two uniform slots — the order's steps, the
- *  expansion's passes —: the device's `uniformStride`, the one the plan's step words are laid at
- *  (`BlendState.uniformStride`). */
-type ExpandSizes = {
-  items: number
-  entries: number
-  planWords: number
-  scratchWords: number
-  stride: number
-}
+/** The scene's counts. */
+type ExpandSizes = { items: number; entries: number; planWords: number; scratchWords: number }
+
+/** The uniform slots of the order's steps and of the expansion's passes, the device's
+ *  `uniformStride` apart: the stride the plan's step words are laid at (`BlendState.uniformStride`,
+ *  from the same device's limits). */
+const expandSlots = (device: GPUDevice, entries: number) => ({
+  steps: uniformSlots(device.limits, EXPAND_PASSES * orderStepCount(entries), ORDER_UNI_WORDS),
+  passes: uniformSlots(device.limits, EXPAND_PASSES, UNI_WORDS),
+})
+type ExpandSlots = ReturnType<typeof expandSlots>
 
 /** The kernels' scene buffers, each kept in `made`: what the frame writes, then their own work
  *  memory — the expansion's scratch, the order's network and places. */
-function expandBuffers(device: GPUDevice, sizes: ExpandSizes, made: GPUBuffer[]) {
+function expandBuffers(
+  device: GPUDevice,
+  sizes: ExpandSizes,
+  slots: ExpandSlots,
+  made: GPUBuffer[],
+) {
   const make = (label: string, size: number, usage: number) => {
     const buffer = device.createBuffer({ label, size: Math.max(16, size), usage })
     made.push(buffer)
@@ -206,13 +228,12 @@ function expandBuffers(device: GPUDevice, sizes: ExpandSizes, made: GPUBuffer[])
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     work = GPUBufferUsage.STORAGE
-  const steps = EXPAND_PASSES * orderStepCount(sizes.entries) * sizes.stride
   return {
-    uniforms: make('Trillion3D blend expand uniforms', sizes.stride * EXPAND_PASSES, uniform),
+    uniforms: make('Trillion3D blend expand uniforms', slots.passes.bytes, uniform),
     plan: make('Trillion3D blend sorted plan', sizes.planWords * 4, storage),
     keep: make('Trillion3D blend frustum verdicts', bitWords(sizes.items) * 4, storage),
     draws: make('Trillion3D blend draw descriptions', sizes.items * 16, storage),
-    steps: make('Trillion3D blend order steps', steps, uniform),
+    steps: make('Trillion3D blend order steps', slots.steps.bytes, uniform),
     keyed: make('Trillion3D blend key records', sizes.items * KEY_RECORD_WORDS * 4, storage),
     frame: make(
       'Trillion3D blend order frame',

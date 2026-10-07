@@ -11,10 +11,10 @@ import { createBlendExpand } from './expand.ts'
 import { encodeBlendExpansion } from './resources.ts'
 import { EXPAND_PASSES, planWords, scratchWords } from './planLayout.ts'
 import { orderStepCount } from './orderSteps.ts'
-import { ORDER_UNI } from './orderWgsl.ts'
+import { ORDER_UNI, ORDER_UNI_WORDS } from './orderWgsl.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, replayWrites, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const ITEMS = 2000
 
@@ -70,7 +70,6 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
       entries,
       planWords: planWords(entries),
       scratchWords: scratchWords(entries),
-      stride: blendState.uniformStride,
     },
     { counts: undefined, clusters: undefined },
     { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
@@ -103,6 +102,52 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   }
 })
 
+test('a plan sends its order steps in one write at 256 bytes, as the whole steps went, and no more', async () => {
+  const { items } = counted()
+  items.forEach((item, i) => (item.transmissive = i % 2 === 1))
+  const { device, buffers, writes } = fakeDevice()
+  const blendState = blendSceneOf(items, device.limits)
+  for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
+  const entries = blendState.maxPlanEntries
+  const output = (label: string) =>
+    device.createBuffer({ label, size: 16, usage: GPUBufferUsage.STORAGE })
+  blendState.expandedBuffer = output('expanded')
+  blendState.argsBuffer = output('args')
+  blendState.expand = await createBlendExpand(
+    device,
+    {
+      items: ITEMS,
+      entries,
+      planWords: planWords(entries),
+      scratchWords: scratchWords(entries),
+    },
+    { counts: undefined, clusters: undefined },
+    { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
+  )
+  const encoder = {
+    beginComputePass: () => new Proxy({}, { get: () => () => undefined }),
+  } as unknown as GPUCommandEncoder
+  const steps = buffers.find((b) => b.label === 'Trillion3D blend order steps')!
+  const ofSteps = () => writes.filter((w) => w.buffer === (steps as unknown as GPUBuffer))
+  writes.length = 0
+  orderBlendPasses(blendState, [0, 5, 0])
+  encodeBlendExpansion({ blendState } as unknown as WebgpuPagesRuntime, encoder)
+  const sent = ofSteps()
+  assert.equal(sent.length, 1, 'one write, the one the whole steps made')
+  assert.ok(written(sent[0]).byteLength <= steps.size, 'never past the whole steps')
+  // The buffer holds each step's words where its slot lies.
+  const held = new Uint32Array(steps.size / 4)
+  replayWrites(held.buffer, sent)
+  for (const passSteps of blendState.orderSteps)
+    for (const { uniform } of passSteps) {
+      const at = uniform * 64
+      assert.deepEqual(
+        [...held.subarray(at, at + ORDER_UNI_WORDS)],
+        [...blendState.orderStepWords.subarray(at, at + ORDER_UNI_WORDS)],
+      )
+    }
+})
+
 test('a device aligning uniform offsets at 512 lays every step and pass 512 bytes apart', async () => {
   const { items } = counted()
   // Half the items transmissive: both passes are ordered and expanded.
@@ -126,7 +171,6 @@ test('a device aligning uniform offsets at 512 lays every step and pass 512 byte
       entries,
       planWords: planWords(entries),
       scratchWords: scratchWords(entries),
-      stride,
     },
     { counts: undefined, clusters: undefined },
     { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },

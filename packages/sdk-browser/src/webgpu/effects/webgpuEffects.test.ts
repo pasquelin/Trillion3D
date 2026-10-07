@@ -3,11 +3,17 @@
 // holds, counts their bytes, and gives them back when it empties.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { fakeDevice, written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
 import { uniformStride } from '../../residency/pools.ts'
+
+/** A write's words as the floats the bloom's slots hold. */
+const floatsOf = (write: FakeWrite) => {
+  const data = written(write)
+  return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
+}
 
 /** An encoder that records the passes begun on it, their target and the dynamic offset of
  *  their first bind group, as each begins, and every descriptor and offset array it was handed. */
@@ -74,6 +80,10 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   const made = gpu.textures.length,
     writes = gpu.writes.length
   assert.equal(made, 2, 'one pass target and the level chain')
+  // At 256 bytes the range goes up as one write, as the whole range did, never longer than it.
+  const uniform = gpu.writes.filter((w) => w.buffer.label === 'Trillion3D bloom uniform')
+  assert.equal(uniform.length, 1, 'the range in one write')
+  assert.ok(written(uniform[0]).byteLength <= 2 * levels * 256)
   effects.encode(encoder, [bloom], input, 64, 32)
   assert.deepEqual(
     [gpu.textures.length, gpu.writes.length],
@@ -82,7 +92,7 @@ test('a bloom compiles once, then draws 2 × levels passes into targets made onc
   )
   bloom.intensity = 0.25
   effects.encode(encoder, [bloom], input, 64, 32)
-  assert.equal(gpu.writes.length, writes + 2 * levels, 'a setting rewrites each slot once')
+  assert.equal(gpu.writes.length, writes + 1, 'a setting rewrites the uniform once')
   effects.encode(encoder, [bloom], input, 128, 64)
   assert.equal(
     effects.bytes,
@@ -120,7 +130,7 @@ test('two blooms draw with their own settings, each from its own uniform range',
   const uniform = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D bloom uniform')!
   const floats = new Float32Array(uniform.size / 4)
   for (const write of gpu.writes)
-    if (write.buffer === (uniform as unknown)) floats.set(written(write), write.offset / 4)
+    if (write.buffer === (uniform as unknown)) floats.set(floatsOf(write), write.offset / 4)
   const levels = bloomLevelSizes(64, 32).length,
     each = 2 * levels
   chain.forEach((bloom, n) => {
@@ -155,10 +165,15 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   assert.ok(passes.every((pass) => pass.view !== input && pass.label === 'Trillion3D bloom'))
   const stride = uniformStride(gpu.device.limits)
   assert.equal(effects.blend!.offset, (2 * levels - 1) * stride, 'the blend reads its own slot')
-  const fused = effects.blend
+  const fused = effects.blend,
+    kept = handed.size
   effects.encode(encoder, [bloom], input, 64, 32, true)
   assert.equal(effects.blend, fused, 'the same blend, kept from frame to frame')
-  assert.equal(handed.size, 2, 'every pass began with one descriptor and one offset array')
+  assert.equal(
+    handed.size,
+    kept,
+    'a frame hands the descriptor and offset arrays it had: none made',
+  )
   assert.equal(gpu.destroyed.length, 1, 'the pass target is given back')
   assert.equal(effects.bytes, bloomLevelBytes(64, 32))
   // Two blooms: the first writes the one target left, the second blends it in the composition.
@@ -191,13 +206,15 @@ test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart'
   )
   // Each slot's radius at its fifth float, 128 floats a slot.
   const floats = new Float32Array(uniform.size / 4)
-  for (const write of gpu.writes)
-    if (write.buffer === (uniform as unknown)) {
-      // A slot's struct alone goes up, never the padding to the next 512-byte step.
-      assert.deepEqual([write.offset % 512, written(write).byteLength], [0, 32])
-      floats.set(written(write), write.offset / 4)
-    }
+  const writes = gpu.writes.filter((write) => write.buffer === (uniform as unknown))
+  // The range in one write, as at 256 bytes: from the first slot's struct to the last's.
+  assert.equal(writes.length, 1)
+  for (const write of writes) floats.set(floatsOf(write), write.offset / 4)
   for (let slot = 0; slot < 2 * levels; slot++) assert.equal(floats[slot * 128 + 4], 2)
+  assert.ok(
+    floats.every((word, k) => k % 128 < 8 || word === 0),
+    'the padding holds zeros',
+  )
   passes.length = 0
   effects.encode(encoder, [bloom], input, 64, 32, true)
   assert.equal(effects.blend!.offset, (2 * levels - 1) * 512, 'the blend reads its own slot')

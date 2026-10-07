@@ -18,6 +18,7 @@ import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
 import { vsmBufferEntry, vsmDynamicUniformEntry } from './passKit.ts'
 import type { VsmResources } from './resources.ts'
 import { vsmWriteChangedSlots } from './writeChanged.ts'
+import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
 
 /**
  * Bindings of the per-page dispatch setup in `group` (0 = `vsmPerPage` dynamic uniform, 1 = `vsmPerPageIds`)
@@ -36,32 +37,30 @@ export const vsmPerPageDispatchEntries = (): GPUBindGroupLayoutEntry[] => [
   vsmBufferEntry(1, GPUShaderStage.COMPUTE, 'read-only-storage'),
 ]
 
-/** Bytes a dispatcher holds on the device: its slots, `stride` bytes apart. */
-export const vsmPerPageDispatcherBytes = (stride: number) => stride * VSM_PER_PAGE_BIN_COUNT
+/** Bytes a dispatcher holds on a device of `limits`: its slots, the device's `uniformStride` apart. */
+export const vsmPerPageDispatcherBytes = (limits: Parameters<typeof uniformSlotBytes>[0]) =>
+  uniformSlotBytes(limits, VSM_PER_PAGE_BIN_COUNT)
 
-/** One per `VsmResources`: per-bin uniform slots, `stride` bytes apart (the device's
- *  `uniformStride`), and the bind group over them and `res.perPageIds`. */
+/** One per `VsmResources`: per-bin uniform slots, the device's `uniformStride` apart, and the bind
+ *  group over them and `res.perPageIds`. */
 export class VsmPerPageDispatcher {
   readonly bindGroupLayout: GPUBindGroupLayout
   bindGroup!: GPUBindGroup
   bins: readonly VsmPerPageBin[] = []
   private readonly params: GPUBuffer
   private readonly device: GPUDevice
-  /** Words between two slots. */
-  private readonly words: number
-  /** The slots' words, written again each frame. */
+  /** The bins' slots: their stride, offsets and words. */
+  private readonly slots: UniformSlots
+  /** The slots' words, laid as the buffer, written again each frame. */
   private readonly args: Uint32Array<ArrayBuffer>
-  /** The dynamic offset of each bin's slot, made once. */
-  private readonly offsets: number[][]
 
-  constructor(device: GPUDevice, res: VsmResources, stride: number) {
+  constructor(device: GPUDevice, res: VsmResources) {
     this.device = device
-    this.words = stride / 4
-    this.args = new Uint32Array(this.words * VSM_PER_PAGE_BIN_COUNT)
-    this.offsets = Array.from({ length: VSM_PER_PAGE_BIN_COUNT }, (_, b) => [b * stride])
+    this.slots = uniformSlots(device.limits, VSM_PER_PAGE_BIN_COUNT, VSM_PER_PAGE_BIN_WORDS)
+    this.args = new Uint32Array(this.slots.bytes / 4)
     this.params = device.createBuffer({
       label: 'vsm.pm.perPage',
-      size: vsmPerPageDispatcherBytes(stride),
+      size: this.slots.bytes,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     })
     this.bindGroupLayout = device.createBindGroupLayout({
@@ -86,17 +85,14 @@ export class VsmPerPageDispatcher {
   /** This frame's `all` bins (ids already in `res.perPageIds`); the slots that changed go up by
    *  queue write, before this frame's submit (`vsmWriteChangedSlots`). */
   setBins(bins: readonly VsmPerPageBin[]) {
-    const words = this.words
-    this.args.fill(0)
-    for (let b = 0; b < bins.length; b++) vsmWritePerPageBinArgs(this.args, b * words, bins[b], b)
-    vsmWriteChangedSlots(
-      this.device,
-      this.params,
-      this.args,
-      VSM_PER_PAGE_BIN_COUNT,
-      VSM_PER_PAGE_BIN_WORDS,
-      words,
-    )
+    const { args, slots } = this
+    for (let b = 0; b < slots.count; b++) {
+      const at = b * slots.strideWords
+      // A bin this frame does not have holds zeros; the padding is never compared.
+      if (b < bins.length) vsmWritePerPageBinArgs(args, at, bins[b], b)
+      else args.fill(0, at, at + slots.words)
+    }
+    vsmWriteChangedSlots(this.device, this.params, args, slots)
     this.bins = bins
   }
 
@@ -105,7 +101,7 @@ export class VsmPerPageDispatcher {
     for (let b = 0; b < this.bins.length; b++) {
       const bin = this.bins[b]
       if (bin.count === 0) continue
-      pass.setBindGroup(group, this.bindGroup, this.offsets[b])
+      pass.setBindGroup(group, this.bindGroup, this.slots.offset(b))
       vsmDispatchPerPageBin(pass, bin, b)
     }
   }

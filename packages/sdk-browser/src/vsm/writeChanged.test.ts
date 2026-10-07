@@ -10,6 +10,7 @@ import {
   vsmWriteChangedRecords,
   vsmWriteChangedSlots,
 } from './writeChanged.ts'
+import { uniformSlots } from '../residency/pools.ts'
 
 /** A buffer copied from and into, written by the queue. */
 const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
@@ -106,7 +107,8 @@ test('uniform slots go up by their words: as a whole compare at 256 bytes, never
   }
   const whole = fakeDevice(),
     slots = fakeDevice(),
-    wide = fakeDevice()
+    wide = fakeDevice(),
+    at1024 = { minUniformBufferOffsetAlignment: 1024 }
   const usage = GPUBufferUsage.COPY_DST,
     a = whole.device.createBuffer({ label: 'whole', size: 8 * 256, usage }),
     b = slots.device.createBuffer({ label: 'slots', size: 8 * 256, usage }),
@@ -116,8 +118,8 @@ test('uniform slots go up by their words: as a whole compare at 256 bytes, never
     const narrow = slotsOf(64, frame),
       image = slotsOf(256, frame)
     vsmWriteChanged(whole.device, a, narrow, 0, narrow.length)
-    vsmWriteChangedSlots(slots.device, b, narrow, 8, 32, 64)
-    vsmWriteChangedSlots(wide.device, c, image, 8, 32, 256)
+    vsmWriteChangedSlots(slots.device, b, narrow, uniformSlots(undefined, 8, 32))
+    vsmWriteChangedSlots(wide.device, c, image, uniformSlots(at1024, 8, 32))
     const shape = (w: typeof whole.writes) => w.map((x) => [x.offset, x.dataOffset, x.size])
     assert.deepEqual(shape(slots.writes.splice(0)), shape(whole.writes.splice(0)))
     for (const w of wide.writes)
@@ -128,4 +130,36 @@ test('uniform slots go up by their words: as a whole compare at 256 bytes, never
     replayWrites(held.buffer, wide.writes)
     assert.deepEqual(held, image, 'the buffer holds the slots')
   }
+})
+
+test('slots a whole write once sent go up in one write at 256 bytes, the changed words alone', () => {
+  // Develop wrote these slots whole, one write a call: one write at most, never longer than it.
+  const { device, writes } = fakeDevice()
+  const layout = uniformSlots(undefined, 6, 8)
+  const buffer = device.createBuffer({
+    label: 'one',
+    size: layout.bytes,
+    usage: GPUBufferUsage.COPY_DST,
+  })
+  const image = new Uint32Array(layout.bytes / 4),
+    held = new Uint32Array(layout.bytes / 4)
+  // Changes far apart within the range — the first slot's first word, the last slot's last —,
+  // then a single word, then none.
+  for (const words of [[0, 5 * 64 + 7], [2 * 64 + 4], []]) {
+    for (const k of words) image[k]++
+    vsmWriteChangedSlots(device, buffer, image, layout, 0, 6, 'one')
+    assert.equal(writes.length, words.length ? 1 : 0)
+    for (const w of writes) assert.ok(w.size! <= 6 * 64, 'never past the whole slots')
+    if (words.length) assert.equal(writes[0].offset, words[0] * 4, 'from the first changed word')
+    replayWrites(held.buffer, writes)
+    assert.deepEqual(held, image)
+  }
+  // Slots [2, 4) alone: one write within them.
+  image[3 * 64 + 1] = 9
+  image[0] = 7
+  vsmWriteChangedSlots(device, buffer, image, layout, 2, 4, 'one')
+  assert.deepEqual(
+    writes.map((w) => [w.offset, w.size]),
+    [[(3 * 64 + 1) * 4, 1]],
+  )
 })

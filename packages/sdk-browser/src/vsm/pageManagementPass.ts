@@ -35,7 +35,8 @@ import {
 } from './physicalPagesWgsl.ts'
 import { type VsmResources, vsmBindGroupEntries, vsmBindGroupLayoutEntries } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
+import { vsmWriteChangedSlots } from './writeChanged.ts'
 import type { VsmLayout } from './layout.ts'
 
 /** Options of the page management passes. */
@@ -80,11 +81,9 @@ interface Ctx {
   stats: boolean
   pipes: Record<KernelName, Pipe>
   params: GPUBuffer
-  /** Bytes between two slots of `params`: the device's `uniformStride`. */
-  stride: number
-  /** Each slot's dynamic offset, made once. */
-  offsets: number[][]
-  /** The CPU image of `params`, every slot at its own offset. */
+  /** The slots of `params`: their stride, offsets and words. */
+  slots: UniformSlots
+  /** The CPU image of `params`, laid as the buffer: a slot's change goes up in one write. */
   paramsU32: Uint32Array<ArrayBuffer>
   paramsGroup: GPUBindGroup
   argsInit: GPUBuffer
@@ -96,10 +95,8 @@ const contexts = new WeakMap<VsmResources, Ctx>()
 /** Bytes a set's page management context holds on a device of `limits`: its parameter slots, its
  *  per-page dispatch slots — both the device's `uniformStride` apart, as `context` lays them — and
  *  its cleared indirect arguments. */
-export const vsmPmContextBytes = (limits: { minUniformBufferOffsetAlignment?: number }) => {
-  const stride = uniformStride(limits)
-  return stride * SLOT_COUNT + vsmPerPageDispatcherBytes(stride) + ARGS_INIT_BYTES
-}
+export const vsmPmContextBytes = (limits: { minUniformBufferOffsetAlignment?: number }) =>
+  uniformSlotBytes(limits, SLOT_COUNT) + vsmPerPageDispatcherBytes(limits) + ARGS_INIT_BYTES
 
 /** Frees the page management context of `res`, with the set (`destroyEngineVsm`). */
 export function releaseVsmPageManagement(res: VsmResources) {
@@ -154,8 +151,8 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   if (existing && existing.device === frame.device && existing.stats === stats) return existing
   const device = frame.device
   // Every slot, the parameters' and the per-page dispatch's, at the device's alignment.
-  const stride = uniformStride(device.limits)
-  const dispatcher = new VsmPerPageDispatcher(device, res, stride)
+  const slots = uniformSlots(device.limits, SLOT_COUNT, VSM_PM_PARAMS_BYTES / 4)
+  const dispatcher = new VsmPerPageDispatcher(device, res)
   // The pipes' parameter groups are made of the same entries: this one's group binds to each.
   const paramsLayout = device.createBindGroupLayout({
     label: 'vsm.pm.params',
@@ -163,7 +160,7 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   })
   const params = device.createBuffer({
     label: 'vsm.pm.params',
-    size: stride * SLOT_COUNT,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const paramsGroup = device.createBindGroup({
@@ -191,9 +188,8 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
     stats,
     pipes,
     params,
-    stride,
-    offsets: Array.from({ length: SLOT_COUNT }, (_, s) => [s * stride]),
-    paramsU32: new Uint32Array((stride * SLOT_COUNT) / 4),
+    slots,
+    paramsU32: new Uint32Array(slots.bytes / 4),
     paramsGroup,
     argsInit,
     dispatcher,
@@ -225,14 +221,15 @@ function writeParams(
   first: number,
   end: number,
 ) {
-  const { stride, paramsU32: u } = ctx
-  // Each slot's struct alone goes up: never the padding up to the device's alignment.
+  const { slots, paramsU32: u } = ctx
   for (let s = first; s < end; s++) {
-    const b = (s * stride) / 4
+    const b = s * slots.strideWords
     u[b + 0] = frame.nextMapCount ?? 0
     u[b + 1] = cacheValid ? 1 : 0
-    ctx.device.queue.writeBuffer(ctx.params, s * stride, u, b, VSM_PM_PARAMS_BYTES / 4)
   }
+  // What changed of the slots' structs, in one write: never the padding, never more writes than
+  // the whole slots sent.
+  vsmWriteChangedSlots(ctx.device, ctx.params, u, slots, first, end, 'one')
 }
 
 function bind(
@@ -245,7 +242,7 @@ function bind(
   const pipe = ctx.pipes[name]
   pass.setPipeline(pipe.pipe.pipeline)
   pass.setBindGroup(VSM_PM_GROUP_RESOURCES, group0(ctx, res, pipe))
-  pass.setBindGroup(VSM_PM_GROUP_PARAMS, ctx.paramsGroup, ctx.offsets[slot])
+  pass.setBindGroup(VSM_PM_GROUP_PARAMS, ctx.paramsGroup, ctx.slots.offset(slot))
 }
 
 function run(
