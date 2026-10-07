@@ -17,9 +17,6 @@ import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { BLEND_VIEW_SIZE, VIEW } from './viewLayout.ts'
 
-/** Uniform stride at the dynamic-binding alignment: each expand pass's region (`expand.ts`). */
-export const UNIFORM_STRIDE = 256
-
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
 function diagnosticBits(diagnostic: DiagnosticMode) {
   if (diagnostic === 'beauty') return 0

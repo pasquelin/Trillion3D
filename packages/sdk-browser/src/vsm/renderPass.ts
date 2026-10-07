@@ -69,7 +69,6 @@ import {
   VSM_RENDER_CULL_SPECS,
   VSM_RENDER_EXPAND_SPECS,
   VSM_RENDER_GROUP,
-  VSM_RENDER_PARAMS_SLOT,
   VSM_RENDER_VIEW_DIRECTIONAL,
   vsmRenderCandidatesWgsl,
   vsmRenderCullWgsl,
@@ -89,6 +88,7 @@ import {
   vsmPerFrameSet,
 } from './resources.ts'
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { uniformStride } from '../residency/pools.ts'
 import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import type { VsmLayout } from './layout.ts'
 
@@ -175,6 +175,10 @@ interface Ctx extends VsmChunkKernels {
   target: GPUTextureView
   targetTexture: GPUTexture
   buffers: Partial<Record<VsmListName, GPUBuffer>>
+  /** Bytes between two chunks' parameter slots: the device's `uniformStride`. */
+  slot: number
+  /** The chunks' pass labels and parameter offsets (`vsmChunkPasses`), made once a context. */
+  passes: ReturnType<typeof vsmChunkPasses>
   /** The scene's rows and the lists the groups bound when made (`renderGroups`). */
   bound: WebgpuBindIdentity
   /** The groups over the scene's rows and the lists alone, made again when one of them moved. */
@@ -336,6 +340,8 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
   // A context made again for the same device keeps its lists; its old target is freed.
   if (existing?.device === device) existing.targetTexture.destroy()
   const targetTexture = device.createTexture(renderTarget())
+  // The chunks' parameter slots lie at the device's dynamic-offset alignment.
+  const slot = uniformStride(device.limits)
 
   const ctx: Ctx = {
     device,
@@ -346,6 +352,8 @@ function context(res: VsmResources, device: GPUDevice, pageLayout: GPUBindGroupL
     target: targetTexture.createView(),
     targetTexture,
     buffers: existing?.device === device ? existing.buffers : {},
+    slot,
+    passes: vsmChunkPasses('vsm.render', slot),
     bound: createWebgpuBindIdentity(),
     tables: new WeakMap(),
     rowBound: existing?.rowBound ?? createVsmRowBound(),
@@ -404,17 +412,19 @@ function growthBytes(buffers: Partial<Record<string, GPUBuffer>>, sizes: Record<
 }
 
 /** The lists a chunk of `rows` rows takes, by buffer, when `chunked` rows are drawn in chunks
- *  over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`. */
+ *  over `candidates` candidate rows, `viewWords` words of views, a chunk holding `holds`, its
+ *  parameter slot `slot` bytes from the next (the device's `uniformStride`). */
 export function vsmChunkListSizes(
   rows: number,
   chunked: number,
   candidates: number,
   viewWords: number,
   holds: Omit<VsmChunk, 'rows'>,
+  slot: number,
 ) {
   const chunks = ceilDiv(chunked, rows)
   return {
-    params: chunks * VSM_RENDER_PARAMS_SLOT,
+    params: chunks * slot,
     views: viewWords * 4,
     candidates: candidates * VSM_RENDER_CANDIDATE_BYTES,
     counts: (VSM_RENDER_COUNTS_HEAD + chunks * 4) * 4,
@@ -526,6 +536,8 @@ interface VsmRenderChunking {
   chunkRows: number
   cmdCapacity: number
   pairCapacity: number
+  /** Bytes between two chunks' parameter slots: the device's `uniformStride`. */
+  slot: number
 }
 
 /** An image of parameter slots, its words seen as floats and as integers. */
@@ -544,7 +556,7 @@ function vsmRenderParams(
   image: VsmRenderParamsImage,
 ) {
   const { chunks, chunkRows } = chunking
-  const slotWords = VSM_RENDER_PARAMS_SLOT / 4
+  const slotWords = chunking.slot / 4
   const { f, u } = image
   for (let a = 0; a < 3; a++) writeSplitDouble(eye, a, 4 + a, camera.eye[a])
   for (let c = 0; c < chunks; c++) {
@@ -704,9 +716,11 @@ function renderChunking(
   return { rows: Math.min(rows, rowCount), cmdsPerRow, cap: pairs }
 }
 
-/** The raster's lists for a chunk of `rows` rows, by buffer. */
-const renderSizes = (rowCount: number, viewWords: number, holds: VsmChunk) => (rows: number) =>
-  vsmChunkListSizes(rows, rowCount, rowCount, viewWords, holds)
+/** The raster's lists for a chunk of `rows` rows, by buffer, its parameter slots `slot` bytes
+ *  apart. */
+const renderSizes =
+  (rowCount: number, viewWords: number, holds: VsmChunk, slot: number) => (rows: number) =>
+    vsmChunkListSizes(rows, rowCount, rowCount, viewWords, holds, slot)
 
 /** The raster's dummy target (`context`): one page of depth. */
 const renderTarget = () => ({
@@ -736,7 +750,12 @@ export function vsmRenderFloorBytes(
     target +
     vsmDrawFloorBytes(
       rows,
-      renderSizes(rowCount, viewWords, vsmWorstChunk(rows, cmdsPerRow, pages)),
+      renderSizes(
+        rowCount,
+        viewWords,
+        vsmWorstChunk(rows, cmdsPerRow, pages),
+        uniformStride(limits),
+      ),
     )
   )
 }
@@ -758,6 +777,7 @@ const vsmChunking: VsmRenderChunking = {
   chunkRows: 0,
   cmdCapacity: 0,
   pairCapacity: 0,
+  slot: 0,
 }
 
 /** The seven lists of a chunked raster under `label`, grown to `size` (`vsmChunkListSizes`): the
@@ -785,9 +805,9 @@ export function vsmEnsureLists(
 }
 
 /** Sets `vsmChunking`: `chunks` chunks of `chunkRows` rows over `rowCount` rows and `viewCount`
- *  views, the lists as big as `chosen` holds. */
+ *  views, their parameter slots `slot` bytes apart, the lists as big as `chosen` holds. */
 export function vsmSetChunking(
-  counts: Pick<VsmRenderChunking, 'rowCount' | 'viewCount' | 'chunks' | 'chunkRows'>,
+  counts: Pick<VsmRenderChunking, 'rowCount' | 'viewCount' | 'chunks' | 'chunkRows' | 'slot'>,
   chosen: VsmChunk,
 ) {
   Object.assign(vsmChunking, counts)
@@ -795,16 +815,16 @@ export function vsmSetChunking(
   vsmChunking.pairCapacity = chosen.pairs(counts.chunkRows)
 }
 
-/** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset: made once
- *  for every frame. */
-function vsmChunkPasses(prefix: string) {
+/** The pass labels of a chunked raster under `prefix`, and chunk `c`'s parameter offset, its slots
+ *  `slot` bytes apart: made once for every frame. */
+function vsmChunkPasses(prefix: string, slot: number) {
   const held: { cullPass: GPUComputePassDescriptor; raster: string; offset: number[] }[] = []
   return {
     chunk: (c: number) =>
       (held[c] ??= {
         cullPass: { label: `${prefix}.cull ${c}` },
         raster: `${prefix}.raster ${c}`,
-        offset: [c * VSM_RENDER_PARAMS_SLOT],
+        offset: [c * slot],
       }),
   }
 }
@@ -860,7 +880,7 @@ export function vsmWriteChunkParams(
   viewsBuffer: GPUBuffer,
   views: readonly number[],
 ) {
-  const slotWords = (vsmChunking.chunks * VSM_RENDER_PARAMS_SLOT) / 4
+  const slotWords = (vsmChunking.chunks * vsmChunking.slot) / 4
   vsmGrowParamsImage(paramsImage, slotWords)
   vsmRenderParams(camera, vsmChunking, paramsImage)
   vsmWriteChanged(device, paramsBuffer, paramsImage.u, 0, slotWords)
@@ -936,7 +956,6 @@ export function vsmChunkListGroups(
     args: group(kernels.args.cull.groups[0], [params, counts, args]),
   }
 }
-const chunkPasses = vsmChunkPasses('vsm.render')
 
 /** A bind group of whole buffers in binding order, but for the entries that name their own window
  *  (a `GPUBufferBinding`, the raster's parameters). No `instanceof GPUBuffer`: the interface is no
@@ -1044,7 +1063,7 @@ export function encodeVsmRender(
     device,
     ctx.buffers,
     chosen.rows,
-    renderSizes(scene.rowCount, views.length, chosen),
+    renderSizes(scene.rowCount, views.length, chosen, ctx.slot),
   )
   const roomLimited = within.limited,
     size = within.size
@@ -1053,11 +1072,11 @@ export function encodeVsmRender(
   const chunks = ceilDiv(scene.rowCount, chunkRows)
 
   const { params, views: viewsBuffer, counts, args } = vsmEnsureLists(ctx, 'vsm.render', size)
-  vsmSetChunking({ rowCount: scene.rowCount, viewCount, chunks, chunkRows }, chosen)
+  vsmSetChunking({ rowCount: scene.rowCount, viewCount, chunks, chunkRows, slot: ctx.slot }, chosen)
   vsmWriteChunkParams(device, scene.camera, params, viewsBuffer, views)
   encoder.clearBuffer(counts, 0, size.counts)
 
   const tables = renderGroups(ctx, res, scene)
-  vsmEncodeChunks(encoder, ctx, chunkPasses, tables, scene.pageGroup, args, scene.rowCount, chunks)
+  vsmEncodeChunks(encoder, ctx, ctx.passes, tables, scene.pageGroup, args, scene.rowCount, chunks)
   return { chunks, chunkRows, roomLimited }
 }

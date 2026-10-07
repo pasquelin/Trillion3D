@@ -7,7 +7,6 @@ import { surfaceOf } from '../../page/surface.ts'
 import { hostBlending } from '../../scene/materialBlending.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { BLEND_ORDER_SHADER, ORDER_UNI, SLOT_GROUP, SORT_BLOCK } from './orderWgsl.ts'
-import { ORDER_STEP_STRIDE } from './orderSteps.ts'
 import { writeKeyRecords } from './keyRecords.ts'
 import { orderBlendPasses } from './order.ts'
 import { cpuModel, orderBlendPlanCpu, refreshEyeKeys } from './expandCpu.fixture.ts'
@@ -57,7 +56,7 @@ function runOrder(blendState: BlendState, pass: number, gpu: ReturnType<typeof g
     words = blendState.orderStepWords
   for (const step of blendState.orderSteps[pass]) {
     for (const [name, rank] of Object.entries(ORDER_UNI))
-      scope.uni[name] = words[(step.uniform * ORDER_STEP_STRIDE) / 4 + rank]
+      scope.uni[name] = words[(step.uniform * blendState.uniformStride) / 4 + rank]
     const { uni } = scope
     if (step.entry === 1) {
       for (let group = 0; group < step.groups; group++)

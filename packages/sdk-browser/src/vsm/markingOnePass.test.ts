@@ -6,8 +6,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
-import { createVsmMarking } from './markingPass.ts'
+import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
+import { createVsmMarking, VSM_PER_PAGE_BIN_COUNT, vsmMarkingBytes } from './markingPass.ts'
 import { vsmMarkingClears, vsmResetPageTableWgsl, type VsmClearTarget } from './markingWgsl.ts'
 import { createVsmResources } from './resources.ts'
 import { vsmLayout } from './layout.ts'
@@ -85,6 +85,50 @@ test('the marking records into the pass it is given: its clears, rects and coars
     ...(clears.directionalOnly.length ? ['vsmClearPageTables', 'dispatch'] : []),
     ...['vsmInitPageRects', 'dispatch', 'vsmMarkCoarse', 'dispatch'],
   ])
+})
+
+test('a device aligning at 512 lays the per-page slots 512 bytes apart', () => {
+  const fake = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 27, minUniformBufferOffsetAlignment: 512 },
+  })
+  const { device } = fake
+  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const marking = createVsmMarking(device, res)
+  const offsets: number[] = []
+  const pass = {
+    setPipeline() {},
+    setBindGroup: (_group: number, _set: unknown, dynamic?: readonly number[]) =>
+      void (dynamic && offsets.push(dynamic[0])),
+    dispatchWorkgroups() {},
+    end() {},
+  } as unknown as GPUComputePassEncoder
+  const bins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
+  marking.encode(pass, {
+    fullMapCount: 1,
+    singlePageMapCount: 0,
+    perPage: { ids: new Uint32Array(20), all: bins, directionalOnly: bins },
+  })
+  const perPage = fake.buffers.find((b) => b.label === 'vsm.marking.perPage')!
+  const params = fake.buffers.find((b) => b.label === 'vsm.marking.params')!
+  assert.equal(perPage.size, 2 * VSM_PER_PAGE_BIN_COUNT * 512)
+  assert.equal(vsmMarkingBytes(512), params.size + perPage.size)
+  // Each bin's words open its 512-byte slot: all bins, then the directional-only ones.
+  const words = new Uint32Array(perPage.size / 4)
+  replayWrites(
+    words.buffer,
+    fake.writes.filter((w) => w.buffer === (perPage as unknown as GPUBuffer)),
+  )
+  for (let slot = 0; slot < 2 * VSM_PER_PAGE_BIN_COUNT; slot++) {
+    const bin = bins[slot % VSM_PER_PAGE_BIN_COUNT]
+    assert.deepEqual([words[slot * 128], words[slot * 128 + 1]], [bin.offset, bin.count])
+  }
+  // The clears bind each bin's slot at its 512-byte step.
+  const clears = vsmMarkingClears(res.layout)
+  const sets = clears.directionalOnly.length ? 2 : 1
+  assert.deepEqual(
+    offsets,
+    Array.from({ length: sets * VSM_PER_PAGE_BIN_COUNT }, (_, slot) => slot * 512),
+  )
 })
 
 test('the frame opens the marking pass: the dirty flags cleared before it, the address update first', () => {

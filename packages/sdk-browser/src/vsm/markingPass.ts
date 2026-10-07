@@ -46,7 +46,6 @@ import {
   VSM_INIT_RECT_SPECS,
   VSM_MARK_PIXELS_GROUP_XY,
   VSM_MARKING_PARAMS_BYTES,
-  VSM_PER_PAGE_DISPATCH_STRIDE,
   VSM_PER_PAGE_GROUP_XY,
   VSM_PIXELS_SPECS,
   vsmResetPageTableWgsl,
@@ -56,6 +55,7 @@ import {
   vsmMarkingClears,
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { uniformStride } from '../residency/pools.ts'
 import { dispatchGrid, dispatchRows } from '../gpu/dispatch/grid.ts'
 import type { VsmLayout } from './layout.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
@@ -355,13 +355,11 @@ interface TableGroups {
 const newTableGroups = (): TableGroups => ({ clear: {} })
 /** The maps a clear walks (`vsmMarkingClears`). */
 type ClearSet = 'all' | 'directionalOnly'
-/** Each per-page slot's dynamic offset, all then directional-only bins (`resetPageTables`). */
-const SLOT_OFFSETS = Array.from({ length: DISPATCHERS * VSM_PER_PAGE_BIN_COUNT }, (_, slot) => [
-  slot * VSM_PER_PAGE_DISPATCH_STRIDE,
-])
-const PER_PAGE_BYTES = DISPATCHERS * VSM_PER_PAGE_BIN_COUNT * VSM_PER_PAGE_DISPATCH_STRIDE
-/** Bytes a marking holds on the device: its parameters and its per-page dispatch slots. */
-export const VSM_MARKING_BYTES = VSM_MARKING_PARAMS_BYTES + PER_PAGE_BYTES
+/** Bytes of the per-page dispatch slots, `stride` bytes apart (the device's `uniformStride`). */
+const perPageBytes = (stride: number) => DISPATCHERS * VSM_PER_PAGE_BIN_COUNT * stride
+/** Bytes a marking holds on the device: its parameters and its per-page dispatch slots, `stride`
+ *  bytes apart. */
+export const vsmMarkingBytes = (stride: number) => VSM_MARKING_PARAMS_BYTES + perPageBytes(stride)
 
 export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarking {
   const layout = res.layout
@@ -370,15 +368,21 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     size: VSM_MARKING_PARAMS_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
+  // The per-page slots lie at the device's dynamic-offset alignment.
+  const stride = uniformStride(device.limits)
+  /** Each per-page slot's dynamic offset, all then directional-only bins (`resetPageTables`). */
+  const slotOffsets = Array.from({ length: DISPATCHERS * VSM_PER_PAGE_BIN_COUNT }, (_, slot) => [
+    slot * stride,
+  ])
   const perPage = device.createBuffer({
     label: 'vsm.marking.perPage',
-    size: PER_PAGE_BYTES,
+    size: perPageBytes(stride),
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const paramData = new ArrayBuffer(VSM_MARKING_PARAMS_BYTES),
     paramF32 = new Float32Array(paramData),
     paramU32 = new Uint32Array(paramData)
-  const perPageData = new Uint32Array(PER_PAGE_BYTES / 4)
+  const perPageData = new Uint32Array(perPageBytes(stride) / 4)
 
   const pipes = vsmMarkingPipes(device, layout)
 
@@ -423,12 +427,12 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     // The ids only when they changed: a new set's buffer starts zeroed (`vsmWriteChanged`).
     vsmWriteChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
     perPageData.fill(0)
+    const words = stride / 4
     for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
-      const stride = VSM_PER_PAGE_DISPATCH_STRIDE / 4
-      vsmWritePerPageBinArgs(perPageData, b * stride, bins.all[b], b)
+      vsmWritePerPageBinArgs(perPageData, b * words, bins.all[b], b)
       vsmWritePerPageBinArgs(
         perPageData,
-        (VSM_PER_PAGE_BIN_COUNT + b) * stride,
+        (VSM_PER_PAGE_BIN_COUNT + b) * words,
         bins.directionalOnly[b],
         b,
       )
@@ -462,7 +466,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       pass.setBindGroup(
         0,
         group,
-        SLOT_OFFSETS[(set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b],
+        slotOffsets[(set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b],
       )
       vsmDispatchPerPageBin(pass, bin, b)
     }

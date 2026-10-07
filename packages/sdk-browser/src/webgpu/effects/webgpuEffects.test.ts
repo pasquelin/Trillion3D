@@ -7,6 +7,7 @@ import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
 import { createWebgpuEffects } from './webgpuEffects.ts'
+import { uniformStride } from '../../residency/pools.ts'
 
 /** An encoder that records the passes begun on it, their target and the dynamic offset of
  *  their first bind group, as each begins, and every descriptor and offset array it was handed. */
@@ -32,8 +33,9 @@ function recorder() {
 
 const input = { input: true } as unknown as GPUTextureView
 
-async function loaded() {
-  const gpu = fakeDevice()
+/** The chain on a device aligning uniform offsets at `alignment` bytes. */
+async function loaded(alignment = 256) {
+  const gpu = fakeDevice({ limits: { minUniformBufferOffsetAlignment: alignment } })
   const effects = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
   return { gpu, effects }
 }
@@ -151,7 +153,8 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   assert.equal(passes.length, 2 * levels - 1, 'no blend pass')
   assert.equal(effects.draws, 2 * levels - 1)
   assert.ok(passes.every((pass) => pass.view !== input && pass.label === 'Trillion3D bloom'))
-  assert.equal(effects.blend!.offset, (2 * levels - 1) * 256, 'the blend reads its own slot')
+  const stride = uniformStride(gpu.device.limits)
+  assert.equal(effects.blend!.offset, (2 * levels - 1) * stride, 'the blend reads its own slot')
   const fused = effects.blend
   effects.encode(encoder, [bloom], input, 64, 32, true)
   assert.equal(effects.blend, fused, 'the same blend, kept from frame to frame')
@@ -165,7 +168,33 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   assert.equal(passes.length, 4 * levels - 1)
   assert.equal(passes[2 * levels - 1].view, output, 'the first bloom wrote what the second read')
   assert.equal(effects.bytes, 64 * 32 * 8 + bloomLevelBytes(64, 32))
-  assert.equal(effects.blend!.offset, (4 * levels - 1) * 256, 'the second bloom’s last slot')
+  assert.equal(effects.blend!.offset, (4 * levels - 1) * stride, 'the second bloom’s last slot')
   effects.encode(encoder, [bloom], input, 64, 32)
   assert.equal(effects.blend, undefined, 'unfused again, the bloom blends itself')
+})
+
+test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart', async () => {
+  const { gpu, effects } = await loaded(512)
+  const { encoder, passes } = recorder()
+  const bloom = effect.bloom({ intensity: 0.5, radius: 2 })
+  effects.encode(encoder, [bloom], input, 64, 32)
+  await effects.settled()
+  passes.length = 0
+  effects.encode(encoder, [bloom], input, 64, 32)
+  const levels = bloomLevelSizes(64, 32).length
+  const uniform = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D bloom uniform')!
+  assert.equal(uniform.size, 2 * levels * 512)
+  // Every pass reads its own slot, the up passes from the smallest level back.
+  assert.deepEqual(
+    passes.map((pass) => pass.offset!).sort((a, b) => a - b),
+    Array.from({ length: 2 * levels }, (_, slot) => slot * 512),
+  )
+  // Each slot's radius at its fifth float, 128 floats a slot.
+  const floats = new Float32Array(uniform.size / 4)
+  for (const write of gpu.writes)
+    if (write.buffer === (uniform as unknown)) floats.set(written(write), write.offset / 4)
+  for (let slot = 0; slot < 2 * levels; slot++) assert.equal(floats[slot * 128 + 4], 2)
+  passes.length = 0
+  effects.encode(encoder, [bloom], input, 64, 32, true)
+  assert.equal(effects.blend!.offset, (2 * levels - 1) * 512, 'the blend reads its own slot')
 })

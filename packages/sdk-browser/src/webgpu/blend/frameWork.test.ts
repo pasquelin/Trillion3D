@@ -9,7 +9,9 @@ import { orderBlendPasses } from './order.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import { createBlendExpand } from './expand.ts'
 import { encodeBlendExpansion } from './resources.ts'
-import { planWords, scratchWords } from './planLayout.ts'
+import { EXPAND_PASSES, planWords, scratchWords } from './planLayout.ts'
+import { orderStepCount } from './orderSteps.ts'
+import { ORDER_UNI } from './orderWgsl.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -63,7 +65,13 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
   blendState.argsBuffer = output('args')
   blendState.expand = await createBlendExpand(
     device,
-    { items: ITEMS, entries, planWords: planWords(entries), scratchWords: scratchWords(entries) },
+    {
+      items: ITEMS,
+      entries,
+      planWords: planWords(entries),
+      scratchWords: scratchWords(entries),
+      stride: blendState.uniformStride,
+    },
     { counts: undefined, clusters: undefined },
     { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
   )
@@ -93,4 +101,76 @@ test('a steady frame sends the GPU the eye alone: no order, no run, no word per 
     // The order's dispatches, fixed by the plan, then the expansion's four: the CPU asks no count.
     assert.equal(dispatches.length, blendState.orderSteps[0].length + 4)
   }
+})
+
+test('a device aligning uniform offsets at 512 lays every step and pass 512 bytes apart', async () => {
+  const { items } = counted()
+  // Half the items transmissive: both passes are ordered and expanded.
+  items.forEach((item, i) => (item.transmissive = i % 2 === 1))
+  const { device, buffers, writes } = fakeDevice({
+    limits: { minUniformBufferOffsetAlignment: 512 },
+  })
+  const blendState = blendSceneOf(items, device.limits)
+  for (let p = 0; p < 6; p++) blendState.blendPlanes.set([0, 0, 0, 1], p * 4)
+  const entries = blendState.maxPlanEntries,
+    stride = blendState.uniformStride
+  assert.equal(stride, 512)
+  const output = (label: string) =>
+    device.createBuffer({ label, size: 16, usage: GPUBufferUsage.STORAGE })
+  blendState.expandedBuffer = output('expanded')
+  blendState.argsBuffer = output('args')
+  blendState.expand = await createBlendExpand(
+    device,
+    {
+      items: ITEMS,
+      entries,
+      planWords: planWords(entries),
+      scratchWords: scratchWords(entries),
+      stride,
+    },
+    { counts: undefined, clusters: undefined },
+    { expanded: blendState.expandedBuffer, args: blendState.argsBuffer },
+  )
+  const offsets: number[] = []
+  const pass = new Proxy(
+    {},
+    {
+      get: (_, name) =>
+        name === 'setBindGroup'
+          ? (_index: number, _group: unknown, dynamic: readonly number[]) =>
+              void offsets.push(dynamic[0])
+          : () => undefined,
+    },
+  )
+  const encoder = { beginComputePass: () => pass } as unknown as GPUCommandEncoder
+  orderBlendPasses(blendState, [0, 5, 0])
+  encodeBlendExpansion({ blendState } as unknown as WebgpuPagesRuntime, encoder)
+
+  const steps = blendState.orderSteps
+  assert.ok(steps[0].length && steps[1].length, 'both passes ordered')
+  const size = (label: string) => buffers.find((b) => b.label === label)!.size
+  assert.equal(size('Trillion3D blend expand uniforms'), EXPAND_PASSES * 512)
+  const stepCount = EXPAND_PASSES * orderStepCount(entries)
+  assert.equal(size('Trillion3D blend order steps'), stepCount * 512)
+  assert.equal(blendState.orderStepWords.length, stepCount * 128)
+  // Each step's words open its 512-byte slot: the pass's entry count at its first word.
+  steps.forEach((passSteps, p) => {
+    for (const step of passSteps)
+      assert.equal(
+        blendState.orderStepWords[step.uniform * 128 + ORDER_UNI.entryCount],
+        blendState.seeds[p].length,
+      )
+  })
+  // The expansion's uniform of pass p written at p × 512.
+  const uniforms = buffers.find((b) => b.label === 'Trillion3D blend expand uniforms')
+  const uniformWrites = writes
+    .filter((w) => w.buffer === (uniforms as unknown as GPUBuffer))
+    .map((w) => w.offset)
+  assert.deepEqual(uniformWrites, [0, 512])
+  // Each pass: its order's steps at 512 bytes a step, then its expansion at 512 bytes a pass.
+  const expected = steps.flatMap((passSteps, p) => [
+    ...passSteps.map((step) => step.uniform * 512),
+    p * 512,
+  ])
+  assert.deepEqual(offsets, expected)
 })

@@ -8,7 +8,7 @@ import { buildBlendHierarchy } from './hierarchy.ts'
 import { EXPAND_PASSES, blendChunkWords, blendVertexShift, planRegions } from './planLayout.ts'
 import { slotCount } from './runs.ts'
 import { FRAME_EYE_WORDS, NOT_OWN, orderFrameWords } from './orderWgsl.ts'
-import { ORDER_STEP_STRIDE, orderStepCount, planOrderSteps } from './orderSteps.ts'
+import { orderStepCount, planOrderSteps } from './orderSteps.ts'
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts'
 import {
   PLAN_PIPELINE_MASK,
@@ -126,7 +126,7 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(items.length, entries), 2))
   blendState.frameWords = new Uint32Array(blendState.frameDoubles.buffer)
   blendState.orderStepWords = new Uint32Array(
-    EXPAND_PASSES * orderStepCount(entries) * (ORDER_STEP_STRIDE / 4),
+    EXPAND_PASSES * orderStepCount(entries) * (blendState.uniformStride / 4),
   )
   blendState.planMoved = true
 }
@@ -250,6 +250,7 @@ function planBlendOrder(blendState: BlendState) {
           },
           blendState.orderStepWords,
           step,
+          blendState.uniformStride,
         )
       : []
     step += blendState.orderSteps[pass].length

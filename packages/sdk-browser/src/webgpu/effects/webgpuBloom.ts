@@ -3,11 +3,8 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
 import { BLOOM_WGSL } from './bloomWgsl.ts'
-import {
-  BLOOM_UNIFORM_BYTES,
-  BLOOM_UNIFORM_STRIDE,
-  bloomLevelLayout,
-} from '../../effects/bloomLevel.ts'
+import { BLOOM_UNIFORM_BYTES, bloomLevelLayout } from '../../effects/bloomLevel.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { type FusedBlend, type WebgpuEffectKind } from './webgpuKinds.ts'
 
 /** Label of every bloom pass: where it shows in a GPU capture. */
@@ -49,6 +46,8 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     magFilter: 'linear',
     minFilter: 'linear',
   }) // clamped to the edge, the default address mode
+  // Bytes between two uniform slots: the device's dynamic-offset alignment.
+  const stride = uniformStride(device.limits)
   let texture: GPUTexture | undefined,
     uniform: GPUBuffer | undefined,
     full: Size = [0, 0],
@@ -105,7 +104,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   }
   /** Writes one uniform slot: inverse sizes written and read, radius, blend. */
   const slot = (index: number, out: Size, read: Size, radius: number, keep = 0, glow = 0) => {
-    const base = (index * BLOOM_UNIFORM_STRIDE) / 4
+    const base = (index * stride) / 4
     packed[base] = 1 / out[0]
     packed[base + 1] = 1 / out[1]
     packed[base + 2] = 1 / read[0]
@@ -128,8 +127,8 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     for (let level = 0; level + 1 < count; level++)
       slot(first + count + level, sizes[level], sizes[level + 1], radius)
     slot(last, full, sizes[0], radius, keep, glow)
-    const at = first * BLOOM_UNIFORM_STRIDE
-    device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * BLOOM_UNIFORM_STRIDE) / 2)
+    const at = first * stride
+    device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * stride) / 2)
   }
   const draw = (
     encoder: GPUCommandEncoder,
@@ -141,7 +140,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
   ) => {
     attachment.view = view
     attachment.loadOp = pipeline === up ? 'load' : 'clear'
-    offset[0] = uniformSlot * BLOOM_UNIFORM_STRIDE
+    offset[0] = uniformSlot * stride
     const pass = encoder.beginRenderPass(descriptor)
     pass.setPipeline(pipeline)
     pass.setBindGroup(0, group, offset, 0, 1)
@@ -174,7 +173,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
       })
       uniform = device.createBuffer({
         label: `${BLOOM_PASS} uniform`,
-        size: passes * sizes.length * 2 * BLOOM_UNIFORM_STRIDE,
+        size: passes * sizes.length * 2 * stride,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       })
       packed = new Float32Array(uniform.size / 4)
@@ -205,7 +204,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         draw(encoder, views[level], up, groups[level + 1], first + count + level)
       if (!output) {
         // Made once per bloom and size, kept while the levels are: a frame allocates none.
-        blend = blends[nth] ??= { group: groups[0], offset: last * BLOOM_UNIFORM_STRIDE }
+        blend = blends[nth] ??= { group: groups[0], offset: last * stride }
         return 2 * count - 1
       }
       draw(encoder, output, composite, groups[0], last, source.scene)

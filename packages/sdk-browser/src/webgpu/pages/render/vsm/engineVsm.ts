@@ -33,11 +33,7 @@ import {
   type VsmFrameState,
 } from '../../../../vsm/frameSetup.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
-import {
-  createVsmMarking,
-  VSM_MARKING_BYTES,
-  type VsmMarking,
-} from '../../../../vsm/markingPass.ts'
+import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'
 import {
   releaseVsmRender,
   vsmRenderContextBytes,
@@ -197,9 +193,10 @@ const LIGHT_SLOTS = 256,
 /** Copies of the page counters read back at once (`vsmFrameEnd.ts`). */
 const STATS_READBACKS = 3
 /** Bytes the maps hold beside their set (`vsmResourceBytes`) and the frame's lists: the marking,
- *  the light and sun ids, the status feedback and the counters' readbacks. */
-export const ENGINE_VSM_SIDE_BYTES =
-  VSM_MARKING_BYTES +
+ *  its uniform slots `stride` bytes apart (the device's `uniformStride`), the light and sun ids,
+ *  the status feedback and the counters' readbacks. */
+export const engineVsmSideBytes = (stride: number) =>
+  vsmMarkingBytes(stride) +
   4 * LIGHT_SLOTS +
   DIRECTIONAL_IDS_BYTES +
   vsmFeedbackReadbackBytes() +

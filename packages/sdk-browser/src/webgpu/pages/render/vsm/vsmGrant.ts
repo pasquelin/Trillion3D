@@ -9,7 +9,8 @@ import {
   vsmTransmissionFloorBytes,
 } from '../../../../vsm/transmissionPass.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
-import { VSM_PM_CONTEXT_BYTES } from '../../../../vsm/pageManagementPass.ts'
+import { vsmPmContextBytes } from '../../../../vsm/pageManagementPass.ts'
+import { uniformStride } from '../../../../residency/pools.ts'
 import { vsmProjectionBytesToMake, vsmProjectionReserve } from '../../../../vsm/projectionPass.ts'
 import { VSM_INVALIDATION_PARAMS_BYTES } from '../../../../vsm/invalidationWgsl.ts'
 import { outOfMemoryContext } from '../../../../residency/outOfMemory.ts'
@@ -19,7 +20,7 @@ import {
   createEngineVsm,
   destroyEngineVsm,
   directionalCount,
-  ENGINE_VSM_SIDE_BYTES,
+  engineVsmSideBytes,
   engineVsmBytes,
   engineVsmOptions,
   ensureMask,
@@ -67,7 +68,7 @@ const heldBeside = (vsm: EngineVsm | undefined): HeldBeside => ({
 
 /**
  * Bytes the frame makes beside a set of `layout`: the maps' own buffers beside the set
- * (`ENGINE_VSM_SIDE_BYTES`) and the passes' own state; the projection's mask at the targets' size, a layer per four casting
+ * (`engineVsmSideBytes`) and the passes' own state; the projection's mask at the targets' size, a layer per four casting
  * lights; the raster's draw context as large as the replaced set's, and never under the least
  * that draws every caster row (`vsmRenderFloorBytes`); and, while a blended caster casts, the
  * coloured atlas as large as the replaced set's, never under the first one and its least draw
@@ -94,16 +95,17 @@ function bytesBeside(
       ? Math.max(
           held.transmission,
           vsmTransmissionBytes(layout) +
-            vsmTransmissionFloorBytes(used, blended, viewWords, viewMips, pages),
+            vsmTransmissionFloorBytes(device.limits, used, blended, viewWords, viewMips, pages),
         )
       : 0
   const casting = castingCount(lights)
   // The passes' own state a new set makes: its page management, its projection's views and blue
   // noise, the invalidation's first parameters.
+  const stride = uniformStride(device.limits)
   const passes =
-    VSM_PM_CONTEXT_BYTES + vsmProjectionBytesToMake(undefined) + VSM_INVALIDATION_PARAMS_BYTES
+    vsmPmContextBytes(stride) + vsmProjectionBytesToMake(undefined) + VSM_INVALIDATION_PARAMS_BYTES
   return (
-    ENGINE_VSM_SIDE_BYTES +
+    engineVsmSideBytes(stride) +
     passes +
     (mask ? maskBytes(width, height, casting) : 0) +
     Math.max(held.lists, raster) +
@@ -283,7 +285,7 @@ export function regrowEngineVsm(
   const grown = pool?.layout.poolPages ?? 0
   if (grown <= pages) return vsm
   const { lights } = rt
-  if (pool!.allocatedBytes + ENGINE_VSM_SIDE_BYTES <= room)
+  if (pool!.allocatedBytes + engineVsmSideBytes(uniformStride(device.limits)) <= room)
     try {
       const made = createEngineVsm(device, { ...options, poolPages: grown })
       made.regrowFrame = vsm.regrowFrame

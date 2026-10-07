@@ -35,8 +35,6 @@ export const VSM_MARK_PIXELS_GROUP_XY = 8
 export const VSM_PER_PAGE_GROUP_XY = 8
 /** Byte size of `VsmMarkingParams`. */
 export const VSM_MARKING_PARAMS_BYTES = 160
-/** Byte size of one `VsmMapWalkParams` slot (uniform dynamic-offset alignment). */
-export const VSM_PER_PAGE_DISPATCH_STRIDE = 256
 
 /**
  * The marking passes' own parameters (the page marks generation, coarse marking and page rect

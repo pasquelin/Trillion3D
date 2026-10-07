@@ -56,8 +56,6 @@ import type { VsmLayout } from './layout.ts'
 
 /** Threads per group of every render-cull kernel. */
 export const VSM_RENDER_GROUP = 64
-/** Bytes of one parameter slot (dynamic uniform offset, `minUniformBufferOffsetAlignment`). */
-export const VSM_RENDER_PARAMS_SLOT = 256
 /** Words per chunk in the indirect argument buffer: cull dispatch 3, expand dispatch 3, draw 4, pad 2. */
 export const VSM_RENDER_ARGS_STRIDE_WORDS = 12
 export const VSM_RENDER_ARGS_CULL = 0
@@ -69,9 +67,10 @@ export const VSM_RENDER_COUNTS_HEAD = 4
 export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
 /**
- * Per-chunk parameters (one 256-byte slot each, same frame values in every slot). The camera is the
- * main view whose level of detail the casters take: eye (split double), world-to-view rotation
- * rows (engine convention, −Z forward), focal in pixels, near, perspective 0/1, the cut's threshold.
+ * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
+ * every slot). The camera is the main view whose level of detail the casters take: eye (split
+ * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
+ * perspective 0/1, the cut's threshold.
  */
 export const VSM_RENDER_PARAMS_WGSL = /* wgsl */ `
 struct VsmRenderParams{

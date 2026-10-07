@@ -11,7 +11,7 @@ import {
   ORDER_UNI_WORDS,
   orderFrameWords,
 } from './orderWgsl.ts'
-import { ORDER_STEP_STRIDE, orderStepCount, sortSize, type OrderStep } from './orderSteps.ts'
+import { orderStepCount, sortSize, type OrderStep } from './orderSteps.ts'
 import { namedBufferEntries } from '../../gpu/core/computeBindings.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
@@ -20,7 +20,6 @@ import { cleanupFailedHiz } from '../../gpu/hiz/pipelines.ts'
 import { blendExpandUniform } from './runs.ts'
 import { EXPAND_PASSES } from './planLayout.ts'
 import { UNI_WORDS } from './expandUniform.ts'
-import { UNIFORM_STRIDE } from './uniforms.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
 
@@ -53,9 +52,10 @@ function expandApi(
   buffers: Record<'uniforms' | 'plan' | 'keep' | 'draws' | 'steps' | 'keyed' | 'frame', GPUBuffer>,
   order: Kernel,
   expansion: Kernel,
-  items: number,
+  sizes: ExpandSizes,
   made: GPUBuffer[],
 ) {
+  const { items, stride } = sizes
   const uni = new Uint32Array(UNI_WORDS)
   // The arrays encoding rereads in place: one dynamic offset, four expansion dispatches.
   const offsets = [0],
@@ -77,7 +77,7 @@ function expandApi(
       plan.passes.forEach(({ seeds, counts, region }, pass) => {
         if (seeds.length) write(buffers.plan, region.seeds, seeds)
         blendExpandUniform(uni, counts, region, plan.scene)
-        device.queue.writeBuffer(buffers.uniforms, pass * UNIFORM_STRIDE, uni)
+        device.queue.writeBuffer(buffers.uniforms, pass * stride, uni)
       })
       write(buffers.steps, 0, plan.stepWords)
       if (plan.keyWords.length) write(buffers.keyed, 0, plan.keyWords)
@@ -93,8 +93,8 @@ function expandApi(
       steps: readonly OrderStep[],
       counts: { entries: number; runs: number },
     ) {
-      encodeOrder(encoder, order, steps, offsets)
-      offsets[0] = pass * UNIFORM_STRIDE
+      encodeOrder(encoder, order, steps, offsets, stride)
+      offsets[0] = pass * stride
       encoder.setBindGroup(0, expansion.group, offsets)
       blendExpandDispatch(launches, counts.entries, counts.runs)
       for (let step = 0; step < expansion.pipelines.length; step++) {
@@ -118,18 +118,19 @@ const writeWords = (
 ) => queue.writeBuffer(buffer, word * 4, source.buffer as ArrayBuffer, source.byteOffset, words * 4)
 
 /** The order's dispatches of one pass, each step at its uniform's dynamic offset (`offsets`, the
- *  array the encoding rereads in place). */
+ *  array the encoding rereads in place), `stride` bytes a step. */
 function encodeOrder(
   encoder: GPUComputePassEncoder,
   order: Kernel,
   steps: readonly OrderStep[],
   offsets: number[],
+  stride: number,
 ) {
   let bound: GPUComputePipeline | undefined
   for (const step of steps) {
     const pipeline = order.pipelines[step.entry]
     if (pipeline !== bound) encoder.setPipeline((bound = pipeline))
-    offsets[0] = step.uniform * ORDER_STEP_STRIDE
+    offsets[0] = step.uniform * stride
     encoder.setBindGroup(0, order.group, offsets)
     dispatchRows(encoder, step.groups)
   }
@@ -173,7 +174,7 @@ export async function createBlendExpand(
   try {
     const buffers = expandBuffers(device, sizes, made)
     const built = await validated(device, () => expandKernels(device, buffers, shared, outputs))
-    if (built) return expandApi(device, buffers, built.order, built.expansion, sizes.items, made)
+    if (built) return expandApi(device, buffers, built.order, built.expansion, sizes, made)
   } catch (error) {
     cleanupFailedHiz(made)
     throw new Error(EXPANSION_REFUSED, { cause: error })
@@ -183,7 +184,16 @@ export async function createBlendExpand(
   throw new Error(EXPANSION_REFUSED)
 }
 
-type ExpandSizes = { items: number; entries: number; planWords: number; scratchWords: number }
+/** The scene's counts, and `stride`, the bytes between two uniform slots — the order's steps, the
+ *  expansion's passes —: the device's `uniformStride`, the one the plan's step words are laid at
+ *  (`BlendState.uniformStride`). */
+type ExpandSizes = {
+  items: number
+  entries: number
+  planWords: number
+  scratchWords: number
+  stride: number
+}
 
 /** The kernels' scene buffers, each kept in `made`: what the frame writes, then their own work
  *  memory — the expansion's scratch, the order's network and places. */
@@ -196,9 +206,9 @@ function expandBuffers(device: GPUDevice, sizes: ExpandSizes, made: GPUBuffer[])
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     uniform = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     work = GPUBufferUsage.STORAGE
-  const steps = EXPAND_PASSES * orderStepCount(sizes.entries) * ORDER_STEP_STRIDE
+  const steps = EXPAND_PASSES * orderStepCount(sizes.entries) * sizes.stride
   return {
-    uniforms: make('Trillion3D blend expand uniforms', UNIFORM_STRIDE * EXPAND_PASSES, uniform),
+    uniforms: make('Trillion3D blend expand uniforms', sizes.stride * EXPAND_PASSES, uniform),
     plan: make('Trillion3D blend sorted plan', sizes.planWords * 4, storage),
     keep: make('Trillion3D blend frustum verdicts', bitWords(sizes.items) * 4, storage),
     draws: make('Trillion3D blend draw descriptions', sizes.items * 16, storage),
