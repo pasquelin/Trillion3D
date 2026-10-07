@@ -1,3 +1,4 @@
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 /** What a diagnostic run binds beside its output: a storage buffer holding these bytes, or any
  *  resource as it is (a texture view, a sampler). */
 export type ComputeInput = ArrayBufferView<ArrayBuffer> | GPUBindingResource
@@ -83,7 +84,7 @@ export async function readBuffer(
 export async function readTexture(device: GPUDevice, texture: GPUTexture, bytesPerTexel: number) {
   const { width, height } = texture,
     row = width * bytesPerTexel,
-    pitch = Math.ceil(row / 256) * 256
+    pitch = alignUp(row, 256)
   const target = device.createBuffer({
     size: pitch * height,
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,

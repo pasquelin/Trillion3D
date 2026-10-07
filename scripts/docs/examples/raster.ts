@@ -1,6 +1,7 @@
 import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import { snap, type RandomStream } from './random.ts'
+import { clampLowWins } from '../../../packages/math/src/scalar/reals.ts'
 
 /**
  * A small raster toolkit for the textures drawn in code: square float images of one or three
@@ -147,12 +148,10 @@ export function png(image: Raster) {
         k === 3
           ? 255
           : Math.floor(
-              Math.max(
+              clampLowWins(
+                snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
                 0,
-                Math.min(
-                  255,
-                  snap(image.data[p * image.channels + (image.channels === 1 ? 0 : k)]),
-                ),
+                255,
               ),
             )
   return encodePng(image.size, image.size, rgba)

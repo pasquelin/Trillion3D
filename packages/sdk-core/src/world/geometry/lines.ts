@@ -2,6 +2,7 @@ import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vect
 import { BufferAttribute } from '../buffer/index.ts'
 import { Geometry } from './geometry.ts'
 import { pointAt } from './bounds.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 
 /** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
 export function edgesOf(geometry: Geometry) {
@@ -48,7 +49,7 @@ function segments(geometry: Geometry, keep: (normals: number[][]) => boolean) {
  * @param thresholdAngle - Least angle between two faces, in degrees, for their shared edge to show.
  */
 export function edges(geometry: Geometry, thresholdAngle = 1) {
-  const limit = Math.cos((thresholdAngle * Math.PI) / 180)
+  const limit = Math.cos(thresholdAngle * DEG2RAD)
   return segments(
     geometry,
     (normals) =>

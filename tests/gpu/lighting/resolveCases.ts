@@ -5,6 +5,8 @@ import { resolve } from 'node:path'
 import { lois, seeded } from '../kit/randomDraw.ts'
 import { loadPage, runOnDawn } from '../kit/onDawn.ts'
 import type { ResolveScene } from './resolvePage.ts'
+import { distanceVector3 } from '../../../packages/math/src/vector/vector.ts'
+import { unit as unitTuple } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 /** A seeded draw: a number in a range, a vector in a cube, a unit vector. */
 export function resolveRandom(seed: number) {
@@ -14,7 +16,7 @@ export function resolveRandom(seed: number) {
     between(-size, size),
     between(-size, size),
   ]
-  const unit = (v: number[]) => v.map((x) => x / Math.hypot(...v)) as [number, number, number]
+  const unit = (v: number[]) => unitTuple([v[0], v[1], v[2]])
   return { r, between, vector, unit }
 }
 
@@ -33,7 +35,7 @@ export function resolveSamples(count: number, draw: ReturnType<typeof resolveRan
 }
 
 /** The distance between two points. */
-export const distance = (a: number[], b: number[]) => Math.hypot(...a.map((x, i) => x - b[i]))
+export const distance = (a: number[], b: number[]) => distanceVector3(a, b)
 
 /** A cell's record as the grid pass writes it, its list after it in the same buffer: its
  *  count, the high bit set when a listed rank of `shadowed` holds a shadow slot, then where its list

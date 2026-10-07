@@ -3,10 +3,12 @@ import {
   DEPTH_CLEAR,
   DEPTH_NEAR,
   composeMatrix4,
+  copyMatrix4,
   createCameraFrame,
   frustumExcludesBox,
   matrixAtRenderOrigin,
   perspectiveProjection,
+  saturate,
   transformHomogeneousPoint,
   updateCameraFrame,
   viewToRenderOrigin,
@@ -113,7 +115,7 @@ export const CAMERA_DEMOS: Record<string, DemoDef> = {
       const relative = new Float32Array(16)
       worldToRenderOrigin(relative, world, origin)
       const direct = new Float32Array(16)
-      for (let index = 0; index < 16; index++) direct[index] = world[index]
+      copyMatrix4(direct, world)
       const shifted = scratch()
       matrixAtRenderOrigin(shifted, world, origin)
       const view = new Float64Array(16)
@@ -154,7 +156,7 @@ function drawDepth(
     // Logarithmic in distance, from the near plane to a hundred thousand times it.
     const distance = near * Math.pow(1e5, pixel / width)
     const depth = depthAt(projection, distance)
-    const y = height - Math.min(1, Math.max(0, depth)) * (height - 8) - 4
+    const y = height - saturate(depth) * (height - 8) - 4
     if (pixel === 0) context.moveTo(pixel, y)
     else context.lineTo(pixel, y)
   }

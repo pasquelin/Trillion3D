@@ -6,6 +6,7 @@
 import * as THREE from 'three'
 import { xorshiftRandom } from '../../../core/index.ts'
 import { dansDe } from './scenesCore.ts'
+import { HALF_PI } from '../../../../packages/math/src/constants.ts'
 
 const alea = xorshiftRandom(52021)
 /** Values a float can take that a volume must traverse without smoothing them. */
@@ -139,7 +140,7 @@ for (let i = 0; i < 1500; i++) {
       : [centre.x + dans(80), centre.y + dans(80), centre.z + dans(80)]
   casCones.push({
     axe,
-    angle: i % 19 === 0 ? count() : alea() * (Math.PI / 2),
+    angle: i % 19 === 0 ? count() : alea() * HALF_PI,
     min: box.slice(0, 3),
     max: box.slice(3, 6),
     world,

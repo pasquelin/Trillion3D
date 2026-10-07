@@ -5,6 +5,7 @@
 // so a capture shows the slide itself: a wall reading `37` where `38` is expected is off by one
 // cell, whatever the filtering did to the edges.
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
+import { clampLowWins } from '../../../packages/math/src/scalar/reals.ts'
 
 /** 5 × 7 glyphs, one string of 35 characters per digit, row after row. */
 const DIGITS = [
@@ -72,12 +73,10 @@ export function facadeTexels() {
       rgba.set((cellX + cellY) % 2 === 0 ? light : dark, (y * TEXTURE_SIZE + x) * 4)
     }
   const digits = String(TEXTURE_CELLS * TEXTURE_CELLS - 1).length
-  const scale = Math.max(
+  const scale = clampLowWins(
+    Math.floor(TEXTURE_CELL_PIXELS / (digits * (FONT_WIDTH + 1))),
     1,
-    Math.min(
-      Math.floor(TEXTURE_CELL_PIXELS / (digits * (FONT_WIDTH + 1))),
-      Math.floor(TEXTURE_CELL_PIXELS / FONT_HEIGHT),
-    ),
+    Math.floor(TEXTURE_CELL_PIXELS / FONT_HEIGHT),
   )
   for (let cellY = 0; cellY < TEXTURE_CELLS; cellY++)
     for (let cellX = 0; cellX < TEXTURE_CELLS; cellX++) {

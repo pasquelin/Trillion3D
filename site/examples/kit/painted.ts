@@ -1,5 +1,6 @@
 import type { Families, Vec3 } from './engineTypes.ts'
 import { mix } from './opening.ts'
+import { saturate } from '../../../packages/math/src/scalar/reals.ts'
 
 /** The side of every painted picture, in pixels. */
 const SIZE = 256
@@ -27,7 +28,7 @@ export function leafTexture(engine: Families<'texture'>) {
       across = Math.abs(px / SIZE - 0.5)
     const width = 0.42 * Math.sin(Math.PI * along) ** 0.8,
       rib = across < 0.012 && along > 0.05 && along < 0.9
-    const alpha = Math.min(1, Math.max(0, (width - across) * 40 + 0.5))
+    const alpha = saturate((width - across) * 40 + 0.5)
     const rgba = [rib ? 0.3 : 0.36 - along * 0.1, rib ? 0.5 : 0.68, 0.16, alpha]
     rgba.forEach((value, channel) => (data[offset + channel] = Math.round(value * 255)))
   })

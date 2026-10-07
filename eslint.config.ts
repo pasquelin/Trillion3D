@@ -1,4 +1,5 @@
 import { localFileGlobs } from './scripts/repository-files.ts'
+import { MATHS_FORMS, MATHS_HOME, MATHS_ORACLES } from './scripts/lint-maths.ts'
 import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import globals from 'globals'
@@ -19,6 +20,14 @@ export default tseslint.config(
     ],
   },
   js.configs.recommended,
+  {
+    // The inline forms of a formula `packages/math` holds (`scripts/lint-maths.ts`), refused outside
+    // it and its declared oracles. A later block that sets `no-restricted-syntax` for its own files
+    // replaces these entries there, so it lists them too.
+    files: ['**/*.{ts,mts,tsx}'],
+    ignores: [MATHS_HOME, ...MATHS_ORACLES],
+    rules: { 'no-restricted-syntax': ['error', ...MATHS_FORMS] },
+  },
   {
     files: ['site/app/**/*.tsx'],
     languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
@@ -42,6 +51,7 @@ export default tseslint.config(
             'CallExpression[callee.name=/^use(Layout)?Effect$/] > ArrowFunctionExpression[expression=true]',
           message: 'An effect body is a block: it returns its cleanup or nothing.',
         },
+        ...MATHS_FORMS,
       ],
     },
   },
@@ -83,6 +93,7 @@ export default tseslint.config(
           message:
             'A data field or a function, never an accessor: it puts the object in dictionary mode.',
         },
+        ...MATHS_FORMS,
       ],
     },
   },

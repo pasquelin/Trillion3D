@@ -5,7 +5,7 @@
 // geometry, its maps and its material go through the engine's page rows, atlases, resolve or blend
 // pass, and lighting; no shader is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { HALF_PI, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
 import { runOnDevice as withDevice } from '../kit/deviceProof.ts'
 import { colorAt, untilHeld } from '../kit/sceneImageProof.ts'
 import { VIEWPORT, batisseur, cameraFace, engine, release } from '../kit/sharedSceneProof.ts'
@@ -167,7 +167,7 @@ export const CLEARCOAT_CASES: Record<string, G.SurfaceParameters> = {
 export const ANISOTROPY_CASES: Record<string, G.SurfaceParameters> = {
   none: METAL,
   along: { ...METAL, anisotropy: 0.8 },
-  turned: { ...METAL, anisotropy: 0.8, anisotropyRotation: Math.PI / 2 },
+  turned: { ...METAL, anisotropy: 0.8, anisotropyRotation: HALF_PI },
   strengthMapZero: { ...METAL, anisotropy: 0.8, anisotropyMap: texel(255, 128, 0, 255) },
 }
 

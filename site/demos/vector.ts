@@ -1,6 +1,8 @@
 /** Vector and colour demos: the engine function runs on what the reader sets, live. */
 import {
+  RAD2DEG,
   addScaledVector3,
+  clamp,
   copyScaledVector3,
   crossVector3,
   dotVector3,
@@ -38,10 +40,7 @@ export const VECTOR_DEMOS: Record<string, DemoDef> = {
           ['a', show(a)],
           ['b', show(b)],
           ['dotVector3(a, b)', formatNumber(dot)],
-          [
-            'angle between them',
-            `${formatNumber((Math.acos(Math.min(1, Math.max(-1, cosine))) * 180) / Math.PI)}°`,
-          ],
+          ['angle between them', `${formatNumber(Math.acos(clamp(cosine, -1, 1)) * RAD2DEG)}°`],
         ]),
         canvasView('a and b, seen from above (x to the right, z down)', (context, width, height) =>
           drawVectors(context, width, height, [

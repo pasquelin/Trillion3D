@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { math } from '../../../packages/sdk-core/src/world/math/index.ts'
 import { HALTON_SWEEP, haltonSpan } from '../../../packages/math/src/sequence/sweep.fixture.ts'
+import { HALF_PI, RAD2DEG, TAU } from '../../../packages/math/src/constants.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
+import { formatNumber } from '../../demos/kit.ts'
 import { mix } from './opening.ts'
 import { matcapBall } from './painted.ts'
 import { valueNoise } from './random.ts'
@@ -76,4 +79,19 @@ test("the kit's mix blends by math.lerp, the formula it wrote before, number for
       old = oldMix(a, b, t)
     for (let k = 0; k < 3; k++) assert.ok(Object.is(now[k], old[k]), `sweep ${i}`)
   }
+})
+
+test('the vector demo prints the angle it printed, by RAD2DEG and clamp', () => {
+  for (let i = 1; i <= HALTON_SWEEP; i++) {
+    const cosine = haltonSpan(i, 2, -1.5, 1.5),
+      old = (Math.acos(Math.min(1, Math.max(-1, cosine))) * 180) / Math.PI,
+      now = Math.acos(clamp(cosine, -1, 1)) * RAD2DEG
+    assert.equal(formatNumber(now), formatNumber(old), `cosine ${cosine}`)
+  }
+})
+
+test("the courtyard's star and the kit's quarter turns are the radians they were written as", () => {
+  for (let k = 0; k < 16; k++)
+    assert.ok(Object.is((k * TAU) / 16 + TAU / 16, (k * Math.PI) / 8 + Math.PI / 8), `point ${k}`)
+  assert.ok(Object.is(HALF_PI, Math.PI / 2))
 })

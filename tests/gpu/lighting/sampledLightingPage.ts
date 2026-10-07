@@ -17,6 +17,7 @@ import {
 } from '../kit/sharedSceneProof.ts'
 import { image, untilHeld } from '../kit/sceneImageProof.ts'
 import { runAccumulation as withAndWithoutAccumulation } from '../kit/deviceProof.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 
 /** Moving images rendered under the shake: enough for the history to settle again. */
 const SHAKES = 24
@@ -40,7 +41,7 @@ function scene() {
 /** The ring of lights, declared to the host store as any host would. */
 function ring(store: SceneLightStore) {
   for (let i = 0; i < LIGHTS; i++) {
-    const angle = (i / LIGHTS) * Math.PI * 2
+    const angle = (i / LIGHTS) * TAU
     store.add({
       id: `light-${i}`,
       kind: 'point',

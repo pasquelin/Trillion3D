@@ -2,6 +2,7 @@
 // fast the GPU runs right now. A frame's cost divided by it compares across days and clock states.
 import type { BenchGpu } from './device.ts'
 import { readBack } from './readBack.ts'
+import { ceilDiv } from '../../packages/math/src/scalar/integers.ts'
 
 /** The calibration's work: one display of 4112 × 2294 pixels, 16 bytes read and 16 written each. */
 export const CALIBRATION_BYTES = 4112 * 2294 * 16
@@ -48,7 +49,7 @@ export async function createCalibration(gpu: BenchGpu, device: GPUDevice) {
   const refused = await device.popErrorScope()
   if (refused) throw new Error(`BENCH_CALIBRATION: ${refused.message}`)
   const { set, resolved, read, pipeline, halves } = made
-  const workgroups = Math.ceil(HALF_BYTES / 16 / 256)
+  const workgroups = ceilDiv(HALF_BYTES / 16, 256)
   return {
     /** One copy of the calibration's bytes, timed alone on an idle queue: ms. */
     async time() {

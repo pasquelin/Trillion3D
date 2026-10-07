@@ -14,6 +14,7 @@ import { inverseTransposeBeforeIn } from './substitutionBefore.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuModule } from '../kit/webgpuDevice.ts'
 import type { GpuRow, LitCase } from './lightingNormalCases.ts'
+import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 const WORKGROUP = 64
 
@@ -84,7 +85,7 @@ async function run({ shader, data, count }: Input) {
   const pass = encoder.beginComputePass()
   pass.setPipeline(pipeline)
   pass.setBindGroup(0, group)
-  pass.dispatchWorkgroups(Math.ceil(count / WORKGROUP))
+  pass.dispatchWorkgroups(ceilDiv(count, WORKGROUP))
   pass.end()
   device.queue.submit([encoder.finish()])
   const values = Array.from(new Float32Array((await readGpuBuffer(device, output, bytes))!.buffer))

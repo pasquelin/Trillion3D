@@ -8,6 +8,7 @@ import type { MemoryBudgets } from '../../witnesses/measurement.ts'
 import type { LiveTuning, NetworkBytes } from '../report/types.ts'
 import type { LivePools } from './benchSettings.ts'
 import { residentBudget } from './poolFill.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 export { gpuReadings } from './gpuReadings.ts'
 
 interface MovingLight {
@@ -18,7 +19,7 @@ interface MovingLight {
 
 /** Position of the moving light at frame `frame`: a small circle walked in `period` frames. */
 export function movableLampPosition(moving: MovingLight, frame: number): [number, number, number] {
-  const angle = (frame / moving.period) * Math.PI * 2
+  const angle = (frame / moving.period) * TAU
   return [
     moving.origin[0] + Math.cos(angle) * moving.radius,
     moving.origin[1],

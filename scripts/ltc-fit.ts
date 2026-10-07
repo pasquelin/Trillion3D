@@ -27,6 +27,7 @@ import { pathToFileURL } from 'node:url'
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts'
 import { unit as normalize } from '../packages/math/src/vector/vectorTuple.ts'
 import { minimise } from './ltc-minimise.ts'
+import { hypot3 } from '../packages/math/src/float/hypot.ts'
 
 type V3 = [number, number, number]
 const PI = Math.PI
@@ -92,7 +93,7 @@ const apply = (a: number[], v: V3): V3 => [
 /** Density of the transformed cosine at the unit direction w. */
 function ltcDensity(t: Ltc, w: V3) {
   const o = apply(t.inverse, w)
-  const l = Math.hypot(o[0], o[1], o[2])
+  const l = hypot3(o[0], o[1], o[2])
   if (!(o[2] > 0)) return 0
   return o[2] / l / PI / Math.abs(t.det) / (l * l * l)
 }

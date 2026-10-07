@@ -22,7 +22,6 @@ import { NORMAL_TRANSFORM_WGSL as NORMAL_TRANSFORM } from '../../lighting/standa
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import {
-  DEG,
   DROPOUT_DEG,
   angleBetween,
   unit,
@@ -37,6 +36,7 @@ import {
   TINY_REGULAR,
   THRESHOLD_SCALE,
 } from '../../../../../tests/gpu/math/normalTransformCases.ts'
+import { RAD2DEG } from '../../../../math/src/constants.ts'
 
 /** The lighting normal transformation, as a program holds it. */
 const NORMAL_TRANSFORM_WGSL = wgslModule(NORMAL_TRANSFORM)
@@ -52,7 +52,7 @@ test('lighting normal follows rotation at all scales, from 1e3 to 1e-16', () => 
     assert.ok(v.ok, `${cas.name} : ${v.reason}`)
   }
   // Without effective rotation, these cases prove nothing: true normal must have moved.
-  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * DEG > 10).length
+  const tournees = CASES.filter((cas) => angleBetween(cas.truth, cas.normal) * RAD2DEG > 10).length
   assert.ok(tournees > CASES.length / 2, `only ${tournees} cases rotate normal`)
 })
 
@@ -81,7 +81,7 @@ test('outside threshold band, batch did not move rendered normal', () => {
       angleBetween(
         xformNormalModel(cas.world, cas.normal),
         xformNormalBefore(cas.world, cas.normal),
-      ) * DEG
+      ) * RAD2DEG
     assert.ok(gap < 1e-4, `${cas.name} : normal moved by ${gap}° outside band`)
   }
 })
@@ -94,7 +94,7 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
   for (const cas of FLATTENED) {
     const v = verdict(cas, xformNormalModel(cas.world, cas.normal))
     assert.ok(v.ok, `${cas.name} : ${v.reason}`)
-    const gap = angleBetween(cas.truth, unit(cas.normal)) * DEG
+    const gap = angleBetween(cas.truth, unit(cas.normal)) * RAD2DEG
     assert.ok(gap > 10, `${cas.name} : local and true normals differ by only ${gap}°`)
   }
   for (const cas of COLLAPSED)

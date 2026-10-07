@@ -4,6 +4,7 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type { Vec3 } from '../kit/vecTypes.ts'
 import { DROPOUT_DEG, normalVerdict } from './inverseTransposeF32.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 
 /** The `scale ∘ rotation` pose `worldPose` and `lightingCase` take. */
 export interface PoseParams {
@@ -53,7 +54,7 @@ export function worldPose({ s, kind, axis, angleDeg }: PoseParams): G.Matrix4 {
   const scale = kind === 'uniform' ? [s, s, s] : [s, s * 1.7, s * 0.6]
   const rotation = new G.Quaternion().setFromAxisAngle(
     new G.Vector3(...axis).normalize(),
-    (angleDeg * Math.PI) / 180,
+    angleDeg * DEG2RAD,
   )
   return new G.Matrix4().compose(new G.Vector3(), rotation, new G.Vector3(...scale))
 }

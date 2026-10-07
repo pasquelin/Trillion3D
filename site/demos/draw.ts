@@ -1,4 +1,5 @@
 /** The two pictures the demos draw: a curve over [0, 1], and vectors seen from above. */
+import { TAU } from './engine.ts'
 import { formatNumber } from './kit.ts'
 
 export function drawCurve(
@@ -61,7 +62,7 @@ export function drawVectors(
     context.lineTo(x, y)
     context.stroke()
     context.beginPath()
-    context.arc(x, y, 3, 0, Math.PI * 2)
+    context.arc(x, y, 3, 0, TAU)
     context.fill()
     context.font = '12px ui-monospace, monospace'
     context.fillText(`${label} (y ${formatNumber(v[1])})`, x + 6, y - 6)

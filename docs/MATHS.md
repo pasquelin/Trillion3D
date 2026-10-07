@@ -139,8 +139,31 @@ expression rounds nothing: its spellings (`a+31u` or `a+32u-1u`, `/32u` or `>>5u
 declaration ([`integer.ts`](../packages/math/src/wgsl/integer.ts)).
 `library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
 declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
-finds no program declaring a module-scope name twice, whatever the texts, and
-`wgslDeclarations.test.ts` no source declaring a library name and no fragment spliced as text.
+finds no program declaring a module-scope name twice, whatever the texts,
+`wgslDeclarations.test.ts` no program holding a library declaration but as the library's text and
+no fragment spliced as text, and `check:wgsl-library` (below) no source declaring a library name.
+
+### The gates
+
+Three gates keep a formula in its one home; each runs in `check:changed` and in the CI's
+`validate`:
+
+- the lint (`no-restricted-syntax`, the selectors of
+  [`scripts/lint-maths.ts`](../scripts/lint-maths.ts)) refuses, outside `packages/math`, the
+  inline forms the package holds: `Math.ceil(a / b)` (`ceilDiv`), a clamp written with
+  `Math.min` and `Math.max` (`clamp`, `clampLowWins`), `Math.hypot` (`length2`, `length3`, or a
+  `hypot` declared above), a sixteen-element copy loop (`copyMatrix4`), `Math.PI` times or over a
+  number (`HALF_PI`, `QUARTER_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`, `perspectiveSlope`) and
+  `2 ** Math.ceil(Math.log2(v))` (`nextPow2`);
+- `check:helpers` reports a free function of any tree whose signature and body are those of a
+  `packages/math` function, whatever its name and its parameters' names;
+- `check:wgsl-library` reports a shader whose text declares a function, a constant or a structure
+  the WGSL library holds.
+
+The declared oracles — the bench's reference implementations and witnesses, the image metric's
+reference, the test kit's references, the before-forms a rewrite is proved against, and the test
+modules, fixtures and GPU proofs, whose expectations are their own arithmetic — keep their forms on
+purpose: the list is `MATHS_ORACLES` of the same file, read by all three gates.
 
 ## Batch math for hosts
 

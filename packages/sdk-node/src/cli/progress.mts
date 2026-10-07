@@ -7,6 +7,7 @@ import type {
 } from '../compiler/contracts.ts'
 import { messageTally } from './messageTally.mts'
 import { describeMessage } from '../messages/catalogue.mts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /**
  * Terminal progress for compiler jobs: one live line per job on a TTY (spinner, bar, phase, elapsed),
@@ -143,8 +144,7 @@ export function createTerminalProgress({
         finish('✖', describeMessage(event.code ?? 'COMPILER_EXIT', event.message))
         return
       }
-      if (typeof event.ratio === 'number')
-        state.ratio = Math.min(1, Math.max(state.ratio, event.ratio))
+      if (typeof event.ratio === 'number') state.ratio = clamp(event.ratio, state.ratio, 1)
       if (event.phase === 'import' && typeof event.primitives === 'number')
         state.primitivesTotal = event.primitives
       if (event.phase === 'primitive') state.primitives += 1

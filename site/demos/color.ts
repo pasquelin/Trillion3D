@@ -1,5 +1,5 @@
 /** Colour demos: the engine's own curve and HSL conversion, on values the reader moves. */
-import { hslToRgb, linearToSrgb, srgbToLinear } from './engine.ts'
+import { hslToRgb, linearToSrgb, saturate, srgbToLinear } from './engine.ts'
 import {
   showVector as show,
   canvasView,
@@ -52,7 +52,7 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
         ]),
         swatchView('what those numbers are', [
           {
-            css: `rgb(${encoded.map((c) => Math.round(Math.min(1, Math.max(0, c)) * 255)).join(',')})`,
+            css: `rgb(${encoded.map((c) => Math.round(saturate(c) * 255)).join(',')})`,
             label: 'the colour',
           },
         ]),
@@ -62,6 +62,6 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
 }
 
 function grey(value: number) {
-  const level = Math.round(Math.min(1, Math.max(0, value)) * 255)
+  const level = Math.round(saturate(value) * 255)
   return `rgb(${level},${level},${level})`
 }

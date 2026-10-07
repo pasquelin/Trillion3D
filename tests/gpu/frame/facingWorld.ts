@@ -5,6 +5,7 @@ import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/index.ts'
 import { coplanarCache, openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
+import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 
 /** The image's size: small, every surface still many pixels wide. */
 const VIEW: [number, number] = [192, 144]
@@ -23,7 +24,7 @@ export const FACING: CameraPose = {
  *  `VIEW`, bottom row first as `capture()` returns it. */
 function pixelOf(x: number, y: number) {
   const [width, height] = VIEW
-  const half = (FACING.position[2] - FACING.target[2]) * Math.tan((FACING.fov * Math.PI) / 360)
+  const half = (FACING.position[2] - FACING.target[2]) * perspectiveSlope(FACING.fov)
   const ndcX = (x - FACING.target[0]) / (half * (width / height)),
     ndcY = (y - FACING.target[1]) / half
   const column = Math.floor(((ndcX + 1) / 2) * width),

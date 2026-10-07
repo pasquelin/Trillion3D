@@ -6,6 +6,7 @@ import { functionText } from '../../../packages/sdk-browser/src/bounce/wgslBody.
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { alignUp } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One texture, its RGBA8 bytes, read as a `texture_2d_array` by every batch. */
 interface TapTexture {
@@ -137,7 +138,7 @@ async function sample({ code, textures, batches }: Input) {
     pass.setBindGroup(0, group)
     pass.draw(3)
     pass.end()
-    const row = Math.ceil((n * 16) / 256) * 256
+    const row = alignUp(n * 16, 256)
     const readbacks = targets.map((texture) => {
       const usage = GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
       const buffer = device.createBuffer({ size: row, usage })

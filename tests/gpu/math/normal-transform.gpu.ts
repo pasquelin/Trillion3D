@@ -13,7 +13,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  DEG,
   DROPOUT_DEG,
   angleBetween,
   normalVerdict,
@@ -21,6 +20,7 @@ import {
 } from './inverseTransposeF32.ts'
 import { CASES, COLLAPSED, FLATTENED, TINY_REGULAR } from './normalTransformCases.ts'
 import { SUBSTITUTIONS, lightNormals } from './lightingNormalGpu.ts'
+import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 
 test('the shipped normal transform renders the model, the true normal, and zero for no face', async () => {
   const cases = [...CASES, ...FLATTENED, TINY_REGULAR, ...COLLAPSED]
@@ -38,7 +38,7 @@ test('the shipped normal transform renders the model, the true normal, and zero 
     // The model, to the one gap expected: the GPU's `normalize` and the model's round their last
     // f32 place apart.
     const model = xformNormalModel(lit.world, lit.normal)
-    const gap = angleBetween(rendered, model) * DEG
+    const gap = angleBetween(rendered, model) * RAD2DEG
     assert.ok(gap < 1e-3, `${lit.name}: shader ${rendered}, model ${model}, ${gap}° apart`)
     // The right normal: the rotated surface's, on the right side, unit, at any scale — and where
     // the pose flattens the primitive, the transformed face's, worked out by hand.

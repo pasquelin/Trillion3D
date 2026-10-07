@@ -8,6 +8,7 @@ import { SearchInput } from '../ui/Input.tsx'
 import { Modal } from '../ui/Modal.tsx'
 import { Note } from '../ui/Text.tsx'
 import { usePortal } from './PortalContext.ts'
+import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 const LIMIT = 50
 
@@ -25,7 +26,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
     const step = { ArrowDown: 1, ArrowUp: -1 }[event.key]
     if (step !== undefined) {
       event.preventDefault()
-      setActive((value) => Math.min(Math.max(value + step, 0), results.length - 1))
+      setActive((value) => clamp(value + step, 0, results.length - 1))
     } else if (event.key === 'Escape') {
       // A search field eats the first Escape to clear itself; here it closes the search.
       onClose()

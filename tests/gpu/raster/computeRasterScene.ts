@@ -3,10 +3,12 @@
 // round far outside the image, and a tile that crosses the near plane.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { VIEWPORT, batisseur, square, type ScenePreparee } from '../kit/sharedSceneProof.ts'
+import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 
 /** Pixels of one world unit at this distance from the face-on camera, 55° vertical aperture. */
 const pixelsPerUnit = (distance: number): number =>
-  VIEWPORT[1] / 2 / Math.tan((55 / 2) * (Math.PI / 180)) / distance
+  VIEWPORT[1] / 2 / perspectiveSlope(55) / distance
 
 export function tileScene(): ScenePreparee {
   const builder = batisseur()
@@ -40,7 +42,7 @@ export function tileScene(): ScenePreparee {
   const near = G.mesh(square(3), material)
   near.name = 'near'
   near.position.set(0, -2.2, 2.95)
-  near.rotation.set(0, Math.PI / 3, 0)
+  near.rotation.set(0, 60 * DEG2RAD, 0)
   add(near, 3)
   return builder.fini()
 }

@@ -6,6 +6,7 @@ import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { TriangleTree } from '../../../packages/sdk-core/src/collision/triangleTree.ts'
 import { VIEWS, poseAt, type Bounds } from '../trajectory/poses.ts'
+import { TAU } from '../../../packages/math/src/constants.ts'
 
 export const POSE_SETS = ['orbit', 'terrain', 'bench'] as const
 export type PoseSet = (typeof POSE_SETS)[number]
@@ -14,7 +15,7 @@ export interface NamedPose {
   pose: CameraPose
 }
 
-const ANGLES = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3]
+const ANGLES = [0, TAU / 3, (2 * TAU) / 3]
 const FOV = 55
 
 /** Height of the source corner nearest to `(x, z)` in plan: the ground a walker stands on. */

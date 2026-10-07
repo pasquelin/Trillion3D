@@ -6,6 +6,7 @@
 // receive the same lighting, and their per-pixel delta measures materials and rendering, not the
 // lighting convention.
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
+import { saturate } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Physical inverse-square of the contract: `directIncidence` knows no other falloff. */
 const DECAY = 2
@@ -17,7 +18,7 @@ const DECAY = 2
  */
 function penombre(coneAngle: number, douceur: number) {
   const interieur = Math.acos(Math.min(1, Math.cos(coneAngle) + douceur))
-  return Math.min(1, Math.max(0, 1 - interieur / Math.max(coneAngle, 1e-6)))
+  return saturate(1 - interieur / Math.max(coneAngle, 1e-6))
 }
 
 /** A light as `appliquer` writes it: a Three light of the witness (`witness/threeBareScene.ts`). */

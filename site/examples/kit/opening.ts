@@ -5,23 +5,22 @@
  */
 
 import type { Families } from './engineTypes.ts'
-
-const unit = (t: number) => Math.min(1, Math.max(0, t))
+import { saturate } from '../../../packages/math/src/scalar/reals.ts'
 
 /** The curves a move eases on: `t` from 0 to 1 (clamped) gives how far along it is. */
 export const ease = {
   /** Slow at both ends, the smoothstep. */
   smooth: (t: number) => {
-    const x = unit(t)
+    const x = saturate(t)
     return x * x * (3 - 2 * x)
   },
   /** Slow at both ends, more sharply: a cubic in, then out. */
   inOut: (t: number) => {
-    const x = unit(t)
+    const x = saturate(t)
     return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2
   },
   /** Fast at first, landing softly: a cubic out. */
-  out: (t: number) => 1 - (1 - unit(t)) ** 3,
+  out: (t: number) => 1 - (1 - saturate(t)) ** 3,
 }
 
 /** The numbers of `a` moved a fraction `t` of the way to those of `b`, one by one, each by the

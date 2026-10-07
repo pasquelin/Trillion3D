@@ -10,6 +10,8 @@
 // the same arithmetic, instead of each holding a copy.
 import { SINGULAR_DETERMINANT } from '../../../packages/math/src/matrix/singular.ts'
 import type { Vec3, Mat3 } from '../kit/vecTypes.ts'
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
+import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 
 export const f = Math.fround
 const cross = (a: Vec3, b: Vec3): Vec3 => [
@@ -19,11 +21,9 @@ const cross = (a: Vec3, b: Vec3): Vec3 => [
 ]
 const dot = (a: Vec3, b: Vec3): number => f(f(f(a[0] * b[0]) + f(a[1] * b[1])) + f(a[2] * b[2]))
 const divide = (a: Vec3, t: number): Vec3 => [f(a[0] / t), f(a[1] / t), f(a[2] / t)]
-const magnitude = (a: Vec3): number => Math.hypot(a[0], a[1], a[2])
+const magnitude = (a: Vec3): number => length3(a[0], a[1], a[2])
 export const unit = (a: Vec3): Vec3 => divide(a, magnitude(a))
 
-/** Degrees per radian: the criterion is judged in degrees wherever it is read. */
-export const DEG = 180 / Math.PI
 /** The dropout: beyond it, a rendered normal is not the rotated surface's. */
 export const DROPOUT_DEG = 1e-3
 
@@ -56,7 +56,7 @@ const direction = (v: Vec3): boolean =>
 export function angleBetween(a: Vec3, b: Vec3): number {
   if (!direction(a) || !direction(b)) return NaN
   const c = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
-  return Math.atan2(Math.hypot(c[0], c[1], c[2]), a[0] * b[0] + a[1] * b[1] + a[2] * b[2])
+  return Math.atan2(length3(c[0], c[1], c[2]), a[0] * b[0] + a[1] * b[1] + a[2] * b[2])
 }
 
 /**
@@ -67,7 +67,7 @@ export function angleBetween(a: Vec3, b: Vec3): number {
  */
 export function normalVerdict(rendered: Vec3, expected: Vec3, dropoutDeg: number) {
   const norm = direction(rendered) ? magnitude(rendered) : NaN
-  const gapDeg = angleBetween(rendered, expected) * DEG
+  const gapDeg = angleBetween(rendered, expected) * RAD2DEG
   const reason = !direction(rendered)
     ? `rendered normal has no direction: [${rendered}]`
     : !direction(expected)
