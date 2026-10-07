@@ -35,7 +35,16 @@ const PIXEL = shaderRun<{
   composeRowFrame: (world: Mat) => Frame
 }>(
   READ,
-  ['rowFrame', 'cacheVec3', 'composeRowFrame', 'invTranspose3Prep', 'worldMatrix3', 'windingKept'],
+  [
+    'rowFrame',
+    'cacheVec3',
+    'composeRowFrame',
+    'invTranspose3Prep',
+    'absoluteSum3',
+    'isFiniteScale',
+    'worldMatrix3',
+    'windingKept',
+  ],
   scope,
 )
 
@@ -73,7 +82,7 @@ test('each row a pixel reads reads the frame its pixels compose, bit for bit', (
   WORLDS.forEach((_, row) => (words[marks + row * ROW_MARK_WORDS + (row % 2) * PLANE_WORDS] = 1))
   const pass = shaderRun<{ shade_rows: (g: V, n: V) => void }>(
     SHADE_CACHE_SHADER,
-    'shade_rows storeRowFrame storeVec3 storeWord composeRowFrame invTranspose3Prep worldMatrix3 windingKept rowMarks flatIndex'.split(
+    'shade_rows storeRowFrame storeVec3 storeWord composeRowFrame invTranspose3Prep absoluteSum3 isFiniteScale worldMatrix3 windingKept rowMarks flatIndex'.split(
       ' ',
     ),
     {

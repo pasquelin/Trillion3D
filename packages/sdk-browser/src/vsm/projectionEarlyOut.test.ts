@@ -105,7 +105,9 @@ function traces(
     'vsmSubtractHighLow',
     'vsmSunRayBegin',
     'vsmSunTexelPlaneBias',
-    ...(rays === 'wide' ? [] : ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'frameAround']),
+    ...(rays === 'wide'
+      ? []
+      : ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'frameAround', 'perspectiveDivide']),
     ...RAY_FUNCTIONS.filter((name) => proof || name !== 'vsmSunRayMisses'),
   ]
   const { vsmTraceSun, vsmMaskCode } = shaderRun<{

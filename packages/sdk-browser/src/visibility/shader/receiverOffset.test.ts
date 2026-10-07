@@ -141,6 +141,7 @@ const SHIPPED = wgslModule(receiverOffsetWgsl(0))
 const HELPERS = [
   'framebuffer',
   'clipToFramebuffer',
+  'perspectiveDivide',
   'edgeFunction',
   'affineBarycentric',
   'pixelBary',
