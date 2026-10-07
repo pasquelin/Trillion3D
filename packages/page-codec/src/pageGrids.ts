@@ -2,8 +2,12 @@
  * Grids and streams of the reference encoder: integer cells on a power-of-two grid, octahedral
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
  */
-/** Bits of a page field: a component's cells span less than 2^MAX_BITS. */
-export const MAX_BITS = 24
+/** The format's field bounds, written once for the encoder and the readers (`sdk-browser`
+ *  `geometryPageHeader.ts`): the bits of a page field — a component's cells span less than
+ *  2^MAX_BITS, and a field read at any bit offset spans two words at most —, and the largest
+ *  magnitude of a grid exponent, whose step stays a normal 32-bit float. */
+export const MAX_BITS = 24,
+  MAX_EXPONENT = 64
 /** Corners per block of eight triangles, and the bits of a block's width. */
 const BLOCK_CORNERS = 24,
   WIDTH_BITS = 5

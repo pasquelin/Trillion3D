@@ -23,8 +23,10 @@ test('quantize writes the minimum, widths and offsets of its Rust twin, and refu
     try {
       const { min, bits, cells } = quantize(Float32Array.from(values), 3, exponent)
       return [...min, ...bits, ...cells]
-    } catch {
-      return []
+    } catch (error) {
+      // The format's refusal is the twin's empty output; any other throw is a defect.
+      if (error instanceof Error && error.message === 'PAGE_ATTRIBUTE_RANGE') return []
+      throw error
     }
   })
 })

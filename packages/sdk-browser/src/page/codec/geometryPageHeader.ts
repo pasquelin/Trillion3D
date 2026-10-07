@@ -7,7 +7,7 @@ import {
   type PageSkin,
   validateRawDeformation,
 } from './geometryPageDeform.ts'
-import { bitsFor } from '../../../../page-codec/src/pageGrids.ts'
+import { bitsFor, MAX_BITS, MAX_EXPONENT } from '../../../../page-codec/src/pageGrids.ts'
 import { field } from '../../../../page-codec/src/bits.ts'
 import {
   CLUSTER_HEADER_WORDS,
@@ -19,8 +19,6 @@ import {
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
-  MAX_BITS,
-  MAX_EXPONENT,
   MAX_WIDTH,
   OPTIONAL,
   BLOCK_CORNERS,

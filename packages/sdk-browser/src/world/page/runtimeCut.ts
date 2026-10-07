@@ -7,8 +7,8 @@
  * lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */
-import { encodeGeometryPage, UV_EXPONENT } from '../../../../page-codec/src/geometryPage.ts'
-import { finestExponent } from '../../../../page-codec/src/gridExponent.ts'
+import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
+import { drawnUvGridExponent } from '../../../../page-codec/src/gridExponent.ts'
 import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
 import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
@@ -83,17 +83,10 @@ export async function cutDrawnTriangles(
   const ranges = recut
     ? givenClusters(recut.ends)
     : [...clusters(indices, positions.length / 3, compactAt)]
-  // Drawn texture coordinates: the format's grid, or the finest one the widest cluster fits.
-  const drawnUvExponent = (span: number) =>
-    span > 0
-      ? blended
-        ? finestExponent(span)
-        : Math.max(UV_EXPONENT, finestExponent(span))
-      : UV_EXPONENT
   const uvExponent =
     recut && uvs
       ? await textureGridExponent(primitiveUvSpan(uvs), blended)
-      : drawnUvExponent(uvs ? widestUvSpan(uvs, indices, ranges) : 0)
+      : drawnUvGridExponent(uvs ? widestUvSpan(uvs, indices, ranges) : 0, blended)
   const built = cones && !held ? await clusterCones(positions, indices, ranges) : null
   const positionExponent = await grid
   const cut = []

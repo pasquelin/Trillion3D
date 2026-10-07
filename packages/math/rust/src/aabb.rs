@@ -37,6 +37,7 @@ pub fn extend_aabb_f32<const N: usize>(low: &mut [f32; N], high: &mut [f32; N], 
 
 /// The box of `points`: low bounds at `+∞` and high at `−∞` when there is none, each point taken
 /// in order by `extend_aabb`.
+#[inline]
 pub fn aabb_of<const N: usize>(points: impl IntoIterator<Item = [f64; N]>) -> ([f64; N], [f64; N]) {
     let (mut low, mut high) = ([f64::INFINITY; N], [f64::NEG_INFINITY; N]);
     for point in points {
@@ -46,6 +47,7 @@ pub fn aabb_of<const N: usize>(points: impl IntoIterator<Item = [f64; N]>) -> ([
 }
 
 /// `aabb_of` in single precision, by `extend_aabb_f32`.
+#[inline]
 pub fn aabb_of_f32<const N: usize>(
     points: impl IntoIterator<Item = [f32; N]>,
 ) -> ([f32; N], [f32; N]) {
@@ -58,6 +60,7 @@ pub fn aabb_of_f32<const N: usize>(
 
 /// The box of `boxes`, each merged in order by `merge_aabb`: low bounds at `+∞` and high at `−∞`
 /// when there is none.
+#[inline]
 pub fn aabb_of_boxes<const N: usize>(
     boxes: impl IntoIterator<Item = ([f64; N], [f64; N])>,
 ) -> ([f64; N], [f64; N]) {

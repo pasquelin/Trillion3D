@@ -89,9 +89,23 @@ fn text(sections: &[&Twin]) -> Result<String, std::fmt::Error> {
     Ok(text)
 }
 
-/// Asserts that each section's twin returns every expected output of its cases, bit for bit.
+/// Asserts that each section's cases are its twin's current `cases`, in order — a stale file does
+/// not pass —, and that the twin returns every expected output, bit for bit.
 fn check(file: &str, sections: &[&Twin]) {
     let text = std::fs::read_to_string(path(file)).expect("the golden file exists");
+    let stale =
+        |name: &str| format!("{file} {name}: the cases are not the twin's; run {REGENERATE}");
+    // Each section's inputs as written: the tokens `text` gives them.
+    let wanted: Vec<Vec<Vec<String>>> = sections
+        .iter()
+        .map(|twin| {
+            let cases = (twin.cases)();
+            cases
+                .iter()
+                .map(|case| case.iter().map(|v| v.token()).collect())
+                .collect()
+        })
+        .collect();
     let mut cases = vec![0usize; sections.len()];
     let mut current = None;
     for line in text.lines().map(str::trim) {
@@ -111,6 +125,12 @@ fn check(file: &str, sections: &[&Twin]) {
             .iter()
             .position(|&t| t == "out")
             .expect("an output list");
+        let case = wanted[at].get(cases[at]);
+        assert!(
+            case.is_some_and(|case| case.iter().eq(&tokens[1..out])),
+            "{}",
+            stale(name)
+        );
         let inputs: Vec<Value> = tokens[1..out].iter().map(|t| Value::parse(t)).collect();
         let expected = tokens[out + 1..].iter().map(|t| Value::parse(t));
         let actual = compute(&inputs);
@@ -120,7 +140,8 @@ fn check(file: &str, sections: &[&Twin]) {
         assert!(same, "{file} {name}: {line} returns {got:?}");
         cases[at] += 1;
     }
-    for (twin, count) in sections.iter().zip(cases) {
+    for ((twin, count), wanted) in sections.iter().zip(cases).zip(&wanted) {
         assert!(count > 0, "{file} {}: no case", twin.name);
+        assert_eq!(count, wanted.len(), "{}", stale(twin.name));
     }
 }

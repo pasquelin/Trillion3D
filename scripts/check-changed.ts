@@ -122,20 +122,11 @@ async function main(): Promise<void> {
   else if (!testFiles.length) console.log('No related unit test; the CI runs the whole suite.')
 }
 
+// Every crate of `native-crates.ts`, formatted and linted with its own flags (`native.ts`): the
+// compiler links the codec and the maths, so a change in one is checked across them all.
 function runRust(): void {
-  const manifest = ['--manifest-path', 'packages/asset-compiler-rust/Cargo.toml']
-  run('cargo', ['fmt', '--all', ...manifest, '--', '--check'])
-  run('cargo', [
-    'clippy',
-    '--release',
-    '--locked',
-    ...manifest,
-    '--all-targets',
-    '--all-features',
-    '--',
-    '-D',
-    'warnings',
-  ])
+  run('node', ['scripts/native.ts', 'fmt-check'])
+  run('node', ['scripts/native.ts', 'lint'])
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main()

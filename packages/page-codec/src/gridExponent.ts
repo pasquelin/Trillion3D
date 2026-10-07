@@ -2,13 +2,12 @@
  * The position and texture grids of a primitive, the TypeScript twin of the compiler's rules
  * (`packages/page-codec-wasm/src/bits/grid.rs`), term for term: the run-time cut takes them from
  * the SDK module, and from here when that module is not there (`sdk-browser` `cutGrid.ts`). The
- * reasons for each constant are written once, on the Rust side.
+ * reasons for each constant are written once, on the Rust side. One rule has no twin: the texture
+ * grid of drawn triangles, which only the run-time cut encodes (`drawnUvGridExponent`).
  */
 import { UV_EXPONENT } from './geometryPage.ts'
-import { MAX_BITS } from './pageGrids.ts'
+import { MAX_BITS, MAX_EXPONENT } from './pageGrids.ts'
 
-/** Largest magnitude of a grid exponent: the step stays a normal 32-bit float. */
-const MAX_EXPONENT = 64
 /** A tile spans 2^1 = 2 m of the world. */
 const TILE_EXTENT_LOG2 = 1
 
@@ -28,12 +27,11 @@ export const tileLog2 = (scale: number | null) =>
 
 /** The finest grid on which a positive `span` fits a page's field: at most 2^23 steps
  *  (`finest_exponent`). */
-export const finestExponent = (span: number) =>
-  clamp(asI32(Math.ceil(Math.log2(span))) - (MAX_BITS - 1))
+const finestExponent = (span: number) => clamp(asI32(Math.ceil(Math.log2(span))) - (MAX_BITS - 1))
 
 /** The grid of a primitive: its widest extent, capped at its tile, in 2^16 steps, or an eighth of
  *  its DAG's finest error, the finer, never finer than `finestExponent` (`grid_exponent`). */
-export function gridExponent(extent: number, finestError: number | null, tile: number) {
+function gridExponent(extent: number, finestError: number | null, tile: number) {
   const positive = extent > 0,
     widest = positive ? asI32(Math.floor(Math.log2(extent))) : 0,
     finest = positive ? finestExponent(extent) : -(MAX_BITS - 2)
@@ -55,3 +53,14 @@ export const primitiveGridExponent = (
  *  `blended` one the finest that span fits, never coarser (`uv_grid_exponent`). */
 export const uvGridExponent = (span: number, blended: boolean) =>
   blended && span > 0 ? Math.min(finestExponent(span), UV_EXPONENT) : UV_EXPONENT
+
+/** The texture grid of drawn triangles, whose widest page's coordinates span `span`: the run-time
+ *  cut's rule alone, no compiled primitive takes it. A `blended` primitive takes the finest grid
+ *  that span fits; any other the format's, coarser only where the span would not fit a page's
+ *  field; no span, the format's. */
+export const drawnUvGridExponent = (span: number, blended: boolean) =>
+  span > 0
+    ? blended
+      ? finestExponent(span)
+      : Math.max(UV_EXPONENT, finestExponent(span))
+    : UV_EXPONENT

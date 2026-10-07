@@ -9,9 +9,6 @@ use std::{
 /// `cook/cook.cpp`, built by the same CMake file as the web module (`-DCOOK=ON`).
 const PHYSICS: &str = "../physics-jolt-wasm";
 
-/// The page codec (`packages/page-codec-wasm`), a path dependency built into the compiler.
-const CODEC: &str = "../page-codec-wasm";
-
 /// The repository's cargo configuration, which sets the C++ flags the C++ simplifier is built with.
 const CARGO_CONFIG: &str = "../../.cargo/config.toml";
 
@@ -114,16 +111,36 @@ fn source_files(directory: &Path, into: &mut Vec<PathBuf>) -> std::io::Result<()
     Ok(())
 }
 
+/// The crates the compiler builds from the repository — the `{ path = "…" }` entries of its
+/// manifest (the page codec, the maths): linked in, their code is the compiler's.
+fn path_dependencies() -> std::io::Result<Vec<PathBuf>> {
+    let manifest = fs::read_to_string("Cargo.toml")?;
+    let mut crates: Vec<PathBuf> = manifest
+        .lines()
+        .filter(|line| line.contains('{'))
+        .filter_map(|line| line.split_once("path = \"")?.1.split_once('"'))
+        .map(|(path, _)| PathBuf::from(path))
+        .collect();
+    crates.sort();
+    crates.dedup();
+    Ok(crates)
+}
+
 fn main() -> std::io::Result<()> {
     let mut files = Vec::new();
     source_files(Path::new("src"), &mut files)?;
-    // The page codec is linked in: its encoding is the compiler's, so it enters the hash.
-    source_files(&Path::new(CODEC).join("src"), &mut files)?;
+    // The path dependencies are linked in: their encoding and their arithmetic are the compiler's,
+    // so they enter the hash and their source directories are watched.
+    let crates = path_dependencies()?;
+    for path in &crates {
+        source_files(&path.join("src"), &mut files)?;
+        files.push(path.join("Cargo.toml"));
+        println!("cargo:rerun-if-changed={}/src", path.display());
+    }
     files.extend([
         PathBuf::from("Cargo.toml"),
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
-        Path::new(CODEC).join("Cargo.toml"),
         // The C++ flags of the simplifier: `-ffp-contract=off` changes the bytes it produces.
         PathBuf::from(CARGO_CONFIG),
     ]);
@@ -133,7 +150,6 @@ fn main() -> std::io::Result<()> {
     // next build would keep the previous implementation hash — a cache key that stays still while
     // the compiler moves.
     println!("cargo:rerun-if-changed=src");
-    println!("cargo:rerun-if-changed={CODEC}/src");
     let mut digest = Sha256::new();
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR"));
     // The inputs as hashed, one per line: what the compiler's own test reads (`compiler_identity`).
