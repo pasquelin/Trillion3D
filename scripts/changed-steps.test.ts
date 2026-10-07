@@ -4,14 +4,16 @@ import { changedSteps } from './changed-steps.ts'
 import { goldenChecks } from './golden-checks.ts'
 
 // Behaviour: the native step runs for a Rust source, the message catalogue the compiler embeds, and
-// the golden values the crates' tests read; a TypeScript change alone leaves it out.
+// not a golden value alone (only the golden step reads it); a TypeScript change leaves it out.
 test('the native step follows the files the crates build from or read', () => {
   for (const file of [
     'packages/math/rust/src/aabb.rs',
     'packages/sdk-node/src/messages/messages.json',
-    'packages/math/golden/quantize.json',
   ])
     assert.ok(changedSteps([file], [file], 0).includes('rust'), file)
+  const golden = 'packages/math/golden/quantize.json'
+  const steps = changedSteps([golden], [golden], 0)
+  assert.ok(!steps.includes('rust') && steps.includes('golden'))
   const typescript = 'packages/math/src/index.ts'
   assert.ok(!changedSteps([typescript], [typescript], 0).includes('rust'))
 })

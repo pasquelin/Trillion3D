@@ -4,7 +4,7 @@ import { NATIVE_CRATES } from './native-crates.ts'
 // The golden checks a change of reference values runs (`check-changed.ts`): the values of
 // `packages/math/golden/<name>.json` are read by the crates' `golden_twins` tests, each through a
 // `Twin` of `file: "<name>"` (`packages/math/rust/src/golden.rs`), and by the TypeScript golden
-// tests, each through `assertGolden('<name>', …)` (`packages/math/src/golden.fixture.ts`).
+// tests, each through `assertGolden('<name>', …)` or `eachGolden('<name>', …)` (`packages/math/src/golden.fixture.ts`).
 
 /** A file of reference values; its name is the first group. */
 export const GOLDEN = /^packages\/math\/golden\/([^/]+)\.json$/
@@ -30,7 +30,7 @@ export function goldenChecks(
   // Every changed name in one pattern per reader, each candidate file read once.
   const anyName = names.join('|')
   const twin = new RegExp(`file:\\s*"(?:${anyName})"`)
-  const golden = new RegExp(`assertGolden\\(\\s*'(?:${anyName})'`)
+  const golden = new RegExp(`(?:assertGolden|eachGolden)\\(\\s*'(?:${anyName})'`)
   const texts = new Map<string, string>()
   const reads = (file: string, pattern: RegExp) => {
     const text = texts.get(file) ?? read(file)

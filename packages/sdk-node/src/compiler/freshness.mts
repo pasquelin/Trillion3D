@@ -52,12 +52,15 @@ export function firstNewer(
 }
 
 /** The lines of `trillion3d-compiler --build-inputs`: the crate folders its build read, each
- *  ending in `/`, then the files it hashed, as paths from its crate; null when it cannot tell. */
-type BuildInputs = (binary: string) => string[] | null
+ *  ending in `/`, then the files it hashed, as paths from its crate. Null when the binary
+ *  definitely cannot tell (it exited with a status: the flag is unknown to it); undefined when it
+ *  could not answer this time (timeout, signal, spawn error): nothing is learnt about the binary. */
+type BuildInputs = (binary: string) => string[] | null | undefined
 
-/** Asks the binary; null for one built before the flag. */
+/** Asks the binary. */
 const askBinary: BuildInputs = (binary) => {
   const run = spawnSync(binary, ['--build-inputs'], { encoding: 'utf8', timeout: 30_000 })
+  if (run.error || run.signal || run.status === null) return undefined
   if (run.status !== 0) return null
   return run.stdout
     .split('\n')
@@ -74,38 +77,57 @@ function listing(lines: string[] | null): Listing {
   return folders.length ? { folders, files: lines.filter((line) => !line.endsWith('/')) } : null
 }
 
-/** The answer of a build, kept beside its binary: a new process reads it rather than spawn it. */
+/** The answer of a build, kept beside its binary: a new process reads it rather than spawn it.
+ *  `lastGood` is the latest real listing of any build of this binary, kept through builds that
+ *  could not list. */
 const answerFile = (binary: string) => `${binary}.build-inputs.json`
 
-function storedAnswer(binary: string, builtAt: number): Listing | undefined {
+type Stored = { builtAt: number; listing: Listing; lastGood?: Listing }
+
+function readStored(binary: string): Stored | undefined {
   try {
-    const stored = JSON.parse(readFileSync(answerFile(binary), 'utf8')) as {
-      builtAt: number
-      listing: Listing
-    }
-    return stored.builtAt === builtAt ? stored.listing : undefined
+    return JSON.parse(readFileSync(answerFile(binary), 'utf8')) as Stored
   } catch {
     return undefined
   }
 }
 
+/** The folders a binary that cannot list its inputs was built from. One that predates
+ *  `--build-inputs` was built from the crates beside the compiler's, the page codec and the math
+ *  crate, which the compiler's manifest links by path; an older build's listing, when kept, is
+ *  the better witness of them. */
+const LINKED_FOLDERS = ['.', '../page-codec-wasm', '../math/rust']
+
 /** The binary's answer by binary and build time: asked once per build, not on every launch nor
- *  in every process — in memory, then on disk beside the binary. */
+ *  in every process — in memory, then on disk beside the binary. A binary that could not answer
+ *  (timeout, signal) is not recorded: `unable` is true for this launch only. */
 const listed = new Map<string, { builtAt: number; listing: Listing }>()
-function listOf(binary: string, builtAt: number, ask: BuildInputs): Listing {
+function listOf(
+  binary: string,
+  builtAt: number,
+  ask: BuildInputs,
+): { listing: Listing; lastGood: Listing; unable: boolean } {
   const known = listed.get(binary)
-  if (known?.builtAt === builtAt) return known.listing
-  let answer = storedAnswer(binary, builtAt)
-  if (answer === undefined) {
-    answer = listing(ask(binary))
-    try {
-      writeFileSync(answerFile(binary), JSON.stringify({ builtAt, listing: answer }))
-    } catch {
-      // A read-only build folder: the next process asks again.
-    }
+  const stored = readStored(binary)
+  const lastGood = stored?.lastGood ?? stored?.listing ?? null
+  if (known?.builtAt === builtAt) return { listing: known.listing, lastGood, unable: false }
+  if (stored?.builtAt === builtAt) {
+    listed.set(binary, { builtAt, listing: stored.listing })
+    return { listing: stored.listing, lastGood, unable: false }
+  }
+  const lines = ask(binary)
+  if (lines === undefined) return { listing: null, lastGood, unable: true }
+  const answer = listing(lines)
+  try {
+    writeFileSync(
+      answerFile(binary),
+      JSON.stringify({ builtAt, listing: answer, lastGood: answer ?? lastGood }),
+    )
+  } catch {
+    // A read-only build folder: the next process asks again.
   }
   listed.set(binary, { builtAt, listing: answer })
-  return answer
+  return { listing: answer, lastGood: answer ?? lastGood, unable: false }
 }
 
 /**
@@ -115,8 +137,8 @@ function listOf(binary: string, builtAt: number, ask: BuildInputs): Listing {
  * build read, once per build; only timestamps are read while nothing in them is newer, so a
  * current binary costs one directory walk. A newer file there may be test code, which the build
  * leaves out: the binary's list of what it hashed then decides, so a launch calls it stale exactly
- * when its hash would move. A binary that cannot tell — built before `--build-inputs` — names no
- * crate either: any newer file of its own crate makes it stale.
+ * when its hash would move. A binary that cannot tell — built before `--build-inputs`, or not answering — still has its
+ * linked crate folders walked (see LINKED_FOLDERS): any newer file there makes it stale.
  */
 export function sourceNewerThan(
   binary: string,
@@ -129,9 +151,10 @@ export function sourceNewerThan(
     const newer = firstNewer(join(crate, input), built.mtimeMs)
     if (newer) return newer
   }
-  const read = listOf(binary, built.mtimeMs, ask)
-  const folders = read ? read.folders.map((folder) => join(crate, folder)) : [crate]
-  const newer = [join(crate, CARGO_CONFIG), ...folders].reduce<string | null>(
+  const { listing: read, lastGood } = listOf(binary, built.mtimeMs, ask)
+  const folders = (read ?? lastGood)?.folders ?? LINKED_FOLDERS
+  const walked = folders.map((folder) => join(crate, folder))
+  const newer = [join(crate, CARGO_CONFIG), ...walked].reduce<string | null>(
     (found, path) => found ?? firstNewer(path, built.mtimeMs, product),
     null,
   )

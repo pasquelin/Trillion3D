@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, rm, utimes, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { currentCompilerExecutable } from './executable.mts'
@@ -194,6 +195,63 @@ test('a binary that cannot list its inputs is stale on any newer file of its cra
       sourceNewerThan(binary, root, () => null),
       test,
     )
+  } finally {
+    await rm(packages, { recursive: true, force: true })
+  }
+})
+
+// Behaviour: a binary that cannot list its inputs still has the linked crates walked, from the
+// last good listing kept beside it when there is one, else the crates a pre-flag build read.
+test('a binary that cannot list its inputs is stale on a newer linked crate file', async () => {
+  const { packages, root, binary } = await linkedCrates()
+  const source = join(packages, 'math/rust/src/lib.rs')
+  try {
+    assert.equal(
+      sourceNewerThan(binary, root, () => null),
+      null,
+    )
+    await utimes(source, 3_000, 3_000)
+    assert.equal(
+      sourceNewerThan(binary, root, () => null),
+      source,
+    )
+  } finally {
+    await rm(packages, { recursive: true, force: true })
+  }
+})
+
+test("an older build's kept listing names the folders a newer unlisting build walks", async () => {
+  const { packages, root, binary } = await linkedCrates()
+  const { inputs } = stubBinary()
+  const source = join(packages, 'page-codec-wasm/src/lib.rs')
+  try {
+    assert.equal(sourceNewerThan(binary, root, inputs), null)
+    await utimes(binary, 2_500, 2_500)
+    await utimes(source, 3_000, 3_000)
+    assert.equal(
+      sourceNewerThan(binary, root, () => null),
+      source,
+    )
+  } finally {
+    await rm(packages, { recursive: true, force: true })
+  }
+})
+
+// Behaviour: only a definite "flag unknown" is kept on disk; a timeout or a signal is asked
+// again at the next launch.
+test('an unanswered ask is not kept, an unknown flag is', async () => {
+  const { packages, root, binary } = await linkedCrates()
+  let asked = 0
+  try {
+    sourceNewerThan(binary, root, () => (asked++, undefined))
+    sourceNewerThan(binary, root, () => (asked++, undefined))
+    assert.equal(asked, 2)
+    assert.equal(existsSync(`${binary}.build-inputs.json`), false)
+    sourceNewerThan(binary, root, () => (asked++, null))
+    assert.equal(asked, 3)
+    assert.equal(existsSync(`${binary}.build-inputs.json`), true)
+    sourceNewerThan(binary, root, () => (asked++, null))
+    assert.equal(asked, 3)
   } finally {
     await rm(packages, { recursive: true, force: true })
   }
