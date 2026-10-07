@@ -35,6 +35,7 @@ export function createCameraFrames(
     ...rangeBuffers(device, ranges, stride, own),
     frameInts: new Uint32Array(frameData.buffer, frameData.byteOffset, frameData.length),
     pending: { from: Infinity, to: -1 },
+    written: 0,
   }
   const { buffers, worldBuffers, bounds } = f
   const origins = createWorldOrigins(device, ranges, worldBuffers, sources)
@@ -51,7 +52,17 @@ export function createCameraFrames(
     ranges,
     buffers,
     worldBuffers,
-    writeWorldOrigins: origins.write,
+    /** Every placement's exact translation, its doubles to its range; whether any moved. */
+    writeWorldOrigins() {
+      const moved = origins.write()
+      if (moved) f.written++
+      return moved
+    },
+    /** Bumped at every write of worlds or origins to the GPU: what is written there is absolute
+     *  until the rebase brings it to the eye (`worldRebase.ts`), the one place that knows it. */
+    get worldsWritten() {
+      return f.written
+    },
     originBytes: origins.hostBytes,
     bindGroup,
     /** One bind group per range (`bindGroup`), with its primitive count. */
@@ -95,6 +106,8 @@ type Frames = {
   bounds: GPUBuffer
   /** Words written and not yet sent: one interval, in `frameInts` indices. */
   pending: { from: number; to: number }
+  /** Writes of worlds or origins to the GPU so far (`worldsWritten`). */
+  written: number
 }
 
 /** Each range's `frames` and `worlds`, and the uniform of every range's `{first, count}`, written
@@ -147,7 +160,9 @@ function writeRows({ device, ranges, buffers, frameData }: Frames, from: number,
   }
 }
 
-function writeWorlds({ device, ranges, worldBuffers }: Frames, next: Float32Array) {
+function writeWorlds(f: Frames, next: Float32Array) {
+  const { device, ranges, worldBuffers } = f
+  f.written++
   for (let r = 0; r < ranges.length; r++) {
     const { first, count } = ranges[r],
       bytes = Math.min(count * WORLD_BYTES, next.byteLength - first * WORLD_BYTES)

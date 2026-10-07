@@ -86,7 +86,8 @@ export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
 
 /**
  * `selection` whose dispatches bring its worlds to the uniforms' eye first, when that eye moved or
- * a world was sent since: the pass in the caller's encoder, or in one of its own submitted before.
+ * worlds were written since, by whatever path (`worldsWritten`): the pass in the caller's encoder,
+ * or in one of its own submitted before.
  */
 export function rebaseWorldsOnGpu(
   selection: GpuSelection,
@@ -94,21 +95,17 @@ export function rebaseWorldsOnGpu(
   rebase: Awaited<ReturnType<typeof createWorldRebase>>,
 ) {
   const held = new Float64Array(3).fill(NaN)
-  let sent = true
-  const { dispatch, updateWorlds, dispose } = selection
-  selection.updateWorlds = (...args) => {
-    const posted = updateWorlds(...args)
-    if (posted) sent = true
-    return posted
-  }
+  let rebased = -1
+  const { dispatch, dispose } = selection
   selection.dispatch = (uniforms: SelectionUniforms, shared?: GPUCommandEncoder) => {
-    const eye = uniforms.cameraWorld
-    if (sent || eye[0] !== held[0] || eye[1] !== held[1] || eye[2] !== held[2]) {
+    const eye = uniforms.cameraWorld,
+      written = selection.worldsWritten
+    if (written !== rebased || eye[0] !== held[0] || eye[1] !== held[1] || eye[2] !== held[2]) {
       const encoder = shared ?? device.createCommandEncoder()
       rebase.encode(encoder, eye)
       if (!shared) device.queue.submit([encoder.finish()])
       held.set(eye)
-      sent = false
+      rebased = written
     }
     return dispatch(uniforms, shared)
   }

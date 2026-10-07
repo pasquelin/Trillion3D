@@ -93,6 +93,9 @@ export type GpuSelection = {
   /** The buffers of the cut's worlds, one per range of primitives (`../dag/frameRanges.ts`): what
    *  a GPU composition of the poses writes (`../../placement/gpuCompose.ts`). */
   readonly worldRanges: readonly { first: number; count: number; buffer: GPUBuffer }[]
+  /** Advanced at every write of worlds or their exact translations to the GPU (`updateWorlds`,
+   *  `appendRoots`): absolute until the rebase brings them to the eye (`../dag/worldRebase.ts`). */
+  readonly worldsWritten: number
   /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
    *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
   updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean

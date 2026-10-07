@@ -1,7 +1,7 @@
 // The cut's worlds are brought to the eye on the GPU: the kernel's text, run as is
 // (`shaderRun`), takes the eye off each exact translation in double and rounds once — the bits the
 // CPU's rebase wrote (`worldToRenderOrigin`), on random translations and eyes and on the edges.
-// A selection rebases before a cut whose eye moved or after a world was sent, and only then.
+// A selection rebases before a cut whose eye moved or after worlds were written, and only then.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -37,13 +37,14 @@ test('a translation brought to the eye on the GPU is the CPU rebase, bit for bit
     }
 })
 
-test('a selection rebases before a cut whose eye moved or after a world was sent, only then', () => {
+test('a selection rebases before a cut whose eye moved or after worlds were written, only then', () => {
   const encoded: number[][] = []
+  // Whatever writes the worlds — a pose sent, roots appended — advances `worldsWritten`.
   const selection = {
+    worldsWritten: 0,
     dispatch: () => undefined,
-    updateWorlds: () => true,
     dispose: () => {},
-  } as unknown as GpuSelection
+  } as unknown as GpuSelection & { worldsWritten: number }
   const device = {
     createCommandEncoder: () => ({ finish: () => ({}) }),
     queue: { submit: () => {} },
@@ -57,7 +58,7 @@ test('a selection rebases before a cut whose eye moved or after a world was sent
   selection.dispatch(at(0))
   selection.dispatch(at(0))
   selection.dispatch(at(1))
-  selection.updateWorlds(new Float32Array(16))
+  selection.worldsWritten++
   selection.dispatch(at(1))
   selection.dispatch(at(1))
   assert.deepEqual(encoded, [

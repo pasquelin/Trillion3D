@@ -119,3 +119,25 @@ test('the GPU cut over the roots appended in place selects what a cut over every
   reference.dispose()
   appended.dispose()
 })
+
+test('roots appended under a still eye are brought to it before the next cut', async () => {
+  installGpuGlobals()
+  const { roots, capacity } = scene()
+  const whole = packDagSelection(roots, capacity),
+    grown = packDagSelection(roots.slice(0, 2), capacity)
+  const uniforms = kernelUniforms(whole, roots, frontCamera(20), 1)
+  const cut = async (packed: ReturnType<typeof packDagSelection>, append = false) => {
+    const selection = (await createGpuDagSelection(mockDagDevice(packed).device, packed))!
+    selection.dispatch(uniforms)
+    await selection.flush()
+    // The eye has not moved: only the worlds the append wrote, absolute, ask the rebase.
+    if (append) assert.equal(selection.appendRoots(roots.slice(2)), true)
+    selection.dispatch(uniforms)
+    const pages = (await selection.flush())?.pageIds.slice().sort((a, b) => a - b)
+    selection.dispose()
+    return pages
+  }
+  const [reference, appended] = [await cut(whole), await cut(grown, true)]
+  assert.ok(reference!.length > 0)
+  assert.deepEqual(appended, reference)
+})
