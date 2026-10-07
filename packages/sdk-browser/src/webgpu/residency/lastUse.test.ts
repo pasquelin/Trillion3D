@@ -23,7 +23,10 @@ function residency(slots: number, spare: string[]) {
   const packed = [...pages, ...spare.map(pageOf)]
   const tracking = createWebgpuPageTracking(packed)
   const bootstrapKey = new Uint8Array(tracking.keyCount)
-  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed })
+  const sets = createWebgpuResidencySets({
+    ...{ tracking, bootstrapKey, bootstrapUrls: new Set<string>() },
+    packedPages: packed,
+  })
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, [])
   const closure = createGroupClosure(

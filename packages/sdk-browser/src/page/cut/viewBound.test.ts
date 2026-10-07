@@ -69,6 +69,7 @@ function tables(copies: number) {
   const sets = createWebgpuResidencySets({
     tracking,
     bootstrapKey: new Uint8Array(tracking.keyCount),
+    bootstrapUrls: new Set(),
     packedPages: packed,
   })
   sets.applyCut(closure.delta)

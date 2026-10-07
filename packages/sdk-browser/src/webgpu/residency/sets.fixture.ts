@@ -43,7 +43,10 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const tracking = createWebgpuPageTracking([...packed, ...cover])
   const bootstrapKey = new Uint8Array(tracking.keyCount)
   for (const page of cover) bootstrapKey[tracking.keyOf(page)] = 1
-  const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed })
+  const sets = createWebgpuResidencySets({
+    ...{ tracking, bootstrapKey, bootstrapUrls: new Set<string>() },
+    packedPages: packed,
+  })
   const pages: PageRec[] = []
   const delta = createCutDelta(packed, pages)
   const closure = createGroupClosure(

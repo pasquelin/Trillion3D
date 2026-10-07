@@ -15,7 +15,7 @@ type Union = ReturnType<typeof createKeyUnion>
  */
 export function createCoverHolders(options: {
   holders: Uint8Array
-  urls?: Set<string>
+  urls: Set<string>
   keyOf: (page: PageRec) => number
   requested: Union
   keep: Union
@@ -23,26 +23,32 @@ export function createCoverHolders(options: {
   const { holders, urls, keyOf, requested, keep } = options
   const missingPages: PageRec[] = []
   const lacking = createDenseKeySet(missingPages)
+  /** `page` gains a holder: with its first, it joins the cover — kept, out of what the budget
+   *  weighs, missing until the pool holds it. */
+  const join = (page: PageRec) => {
+    const key = keyOf(page)
+    if (holders[key]++ > 0) return false
+    urls.add(pageAddress(page))
+    keep.retain(key, page)
+    requested.cover(key, true, page)
+    lacking.add(key, page)
+    return true
+  }
+  /** `page` loses a holder: with its last, it leaves the cover. */
+  const leave = (page: PageRec) => {
+    const key = keyOf(page)
+    if (!holders[key] || --holders[key] > 0) return false
+    urls.delete(pageAddress(page))
+    requested.cover(key, false, page)
+    keep.release(key)
+    lacking.remove(key)
+    return true
+  }
   return {
     /** `pages` gain a holder, `held`, or lose one; true when one joined or left the cover. */
     hold(pages: readonly PageRec[], held: boolean) {
       let moved = false
-      for (const page of pages) {
-        const key = keyOf(page),
-          had = holders[key]
-        if (!held && !had) continue
-        holders[key] = had + (held ? 1 : -1)
-        if (had !== (held ? 0 : 1)) continue
-        urls?.[held ? 'add' : 'delete'](pageAddress(page))
-        if (held) keep.retain(key, page)
-        requested.cover(key, held, page)
-        if (held) lacking.add(key, page)
-        else {
-          keep.release(key)
-          lacking.remove(key)
-        }
-        moved = true
-      }
+      for (const page of pages) moved = (held ? join(page) : leave(page)) || moved
       return moved
     },
     /** The pages a later holder brought into the cover that the pool lacks, as `holds` says:

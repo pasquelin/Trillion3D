@@ -24,6 +24,7 @@ function tree(leaves: number, room: number) {
   const sets = createWebgpuResidencySets({
     tracking,
     bootstrapKey: new Uint8Array(tracking.keyCount),
+    bootstrapUrls: new Set(),
     packedPages: packed,
   })
   const cut = createCutDelta(packed, []),

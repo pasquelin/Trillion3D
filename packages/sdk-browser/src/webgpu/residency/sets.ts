@@ -30,7 +30,7 @@ export function createWebgpuResidencySets(options: {
   bootstrapKey: Uint8Array
   packedPages: PageList
   /** The cover's pool addresses, following its holders. */
-  bootstrapUrls?: Set<string>
+  bootstrapUrls: Set<string>
 }) {
   const { tracking, bootstrapKey, packedPages, bootstrapUrls } = options
   const { keyCount, keyOf, wanted, wantedPages } = tracking
@@ -70,8 +70,10 @@ export function createWebgpuResidencySets(options: {
     },
   })
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key)
-  const urls = bootstrapUrls,
-    cover = createCoverHolders({ holders: bootstrapKey, urls, keyOf, requested, keep })
+  const cover = createCoverHolders({
+    ...{ holders: bootstrapKey, urls: bootstrapUrls },
+    ...{ keyOf, requested, keep },
+  })
   /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0

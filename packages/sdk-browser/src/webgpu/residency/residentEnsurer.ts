@@ -135,49 +135,55 @@ async function admitWanted(
   landed: () => void,
   reads: AbortSignal,
 ) {
-  const { tracking, budget, bootstrapKey } = s
-  const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec)),
-    asked = (key: number) => tracking.wanted.has(key) || bootstrapKey[key] > 0
+  const { tracking } = s
+  const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
   const pool = run.cache,
     covering = s.coverMissing?.((rec) => !!pool.get(pageAddress(rec))) ?? []
   s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
-  for (let i = 0; i < covering.length + wanted.length; i++) {
-    const rec = i < covering.length ? covering[i] : wanted[i - covering.length],
-      key = tracking.keyOf(rec),
-      address = pageAddress(rec)
-    if (!asked(key)) continue
-    s.signal?.throwIfAborted()
-    if (s.isLost()) throw new Error('WEBGPU_LOST')
-    if (run.cache.get(address)) continue
-    run.missing++
-    if (!s.hasBytes(rec)) continue
-    // The share: past it the burst resumes after a task, nothing dropped — the page read again
-    // against `wanted` and the pool, which a camera that moved in between may have changed.
-    if (!budget.admits()) {
-      await s.nextShare()
-      run.cache = currentCache(s)
-      if (!asked(key) || run.cache.get(address)) {
-        run.missing--
-        continue
-      }
-    }
-    try {
-      // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
-      if ((await s.admit(rec)) > 0) {
-        landed()
-        run.missing--
-      }
-      budget.spend()
-    } catch (error) {
-      if (!String(error).includes('ALL_PAGES_PINNED')) throw error
-      // Pool full of pages the image holds: the burst stops there, without dropping anything.
-      // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
-      // only reports that the image asks for more than the slots hold.
-      run.full = true
-      return
-    }
+  for (const rec of covering) if (!(await admitOne(s, run, rec, landed))) return
+  for (let i = 0; i < wanted.length; i++) if (!(await admitOne(s, run, wanted[i], landed))) return
+}
+
+/** One page of the burst admitted, unless the image no longer asks for it — the queue or the root
+ *  cover —, the pool holds it or its bytes have not come; false once the pool is full. */
+async function admitOne(s: EnsureState, run: EnsureRun, rec: PageRec, landed: () => void) {
+  const { tracking, budget, bootstrapKey } = s
+  const key = tracking.keyOf(rec),
+    address = pageAddress(rec),
+    asked = () => tracking.wanted.has(key) || bootstrapKey[key] > 0
+  if (!asked()) return true
+  s.signal?.throwIfAborted()
+  if (s.isLost()) throw new Error('WEBGPU_LOST')
+  if (run.cache.get(address)) return true
+  run.missing++
+  if (!s.hasBytes(rec)) return true
+  // The share: past it the burst resumes after a task, nothing dropped — the page read again
+  // against `wanted` and the pool, which a camera that moved in between may have changed.
+  if (!budget.admits()) {
+    await s.nextShare()
     run.cache = currentCache(s)
+    if (!asked() || run.cache.get(address)) {
+      run.missing--
+      return true
+    }
   }
+  try {
+    // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+    if ((await s.admit(rec)) > 0) {
+      landed()
+      run.missing--
+    }
+    budget.spend()
+  } catch (error) {
+    if (!String(error).includes('ALL_PAGES_PINNED')) throw error
+    // Pool full of pages the image holds: the burst stops there, without dropping anything.
+    // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
+    // only reports that the image asks for more than the slots hold.
+    run.full = true
+    return false
+  }
+  run.cache = currentCache(s)
+  return true
 }
 
 /** The pool after an await: lost with the device. */
