@@ -1,16 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { wgslF32 } from './number.ts'
-
-const F32_MAX = 3.4028234663852886e38
+import { FLOAT32_MAX } from '../constants.ts'
+import { wgslF32, wgslMatrix3 } from './number.ts'
 
 test('the literal names the f32 nearest the number, nine digits', () => {
   const cases: [number, string][] = [
     [0, '0.00000000'],
     [-0, '-0.00000000'],
     [2 ** -149, '1.40129846e-45'],
-    [F32_MAX, '3.4028234663852886e+38'],
-    [-F32_MAX, '-3.4028234663852886e+38'],
+    [FLOAT32_MAX, '3.4028234663852886e+38'],
+    [-FLOAT32_MAX, '-3.4028234663852886e+38'],
     [0.1, '0.100000001'],
     [1 / 3, '0.333333343'],
     [1, '1.00000000'],
@@ -24,7 +23,7 @@ test('the literal names the f32 nearest the number, nine digits', () => {
     // Read back, it is the very f32, within the finite range a device accepts, never an integer.
     const read = Number(text)
     assert.ok(Object.is(Math.fround(read), Math.fround(value)), text)
-    assert.ok(Math.abs(read) <= F32_MAX, text)
+    assert.ok(Math.abs(read) <= FLOAT32_MAX, text)
     assert.match(text, /[.e]/)
   }
 })
@@ -43,4 +42,14 @@ test('the literals of f32 neighbours differ: nine digits tell every f32 apart', 
 test('a number with no f32 is refused', () => {
   for (const value of [NaN, Infinity, -Infinity, 3.5e38, -1e39])
     assert.throws(() => wgslF32(value), RangeError, String(value))
+})
+
+test('a 3×3 matrix is written column after column, each entry its f32 literal', () => {
+  const m = [1, 2, 3, 0.1, -0, 1 / 3, FLOAT32_MAX, 7, Math.PI]
+  assert.equal(
+    wgslMatrix3(m),
+    'mat3x3f(vec3f(1.00000000,2.00000000,3.00000000),' +
+      'vec3f(0.100000001,-0.00000000,0.333333343),' +
+      'vec3f(3.4028234663852886e+38,7.00000000,3.14159274))',
+  )
 })

@@ -1,7 +1,8 @@
 // Defect 9 (`NORMAL_TRANSFORM_WGSL`, `standardLighting.ts`): the `abs(det)<1e-20` guard bore on the
 // RAW determinant of the world 3×3. A uniform-scale rotation s has determinant ±s³: from s ≲ 2.15e-7
 // the lighting normal stayed LOCAL, unrotated — the surface lit as if it had not turned. Defect 6 in
-// another file, fixed by sharing one text (`packages/math/src/wgsl/inverseTranspose.ts`) instead of writing a variant.
+// another file, fixed by sharing one text (`packages/math/src/wgsl/inverseTranspose.ts`) instead
+// of writing a variant.
 //
 // The engine's lighting texts run on Dawn (`lightingNormalGpu.ts`); the truth is the graph's f64
 // normal matrix, and the luminance gap is the same BRDF's, lit on the GPU with the rendered normal

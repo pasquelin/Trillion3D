@@ -1,6 +1,6 @@
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { PHYSICAL_RECORD_MASK } from '../types.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
 import { PHYSICAL_ROW_RECORDS } from '../../webgpu/visibility/physicalTable.ts'
 import {
@@ -11,7 +11,6 @@ import {
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
-import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The records' table bound at `binding` (`../../webgpu/visibility/physicalTable.ts`), and record `i`
  *  read from its three texels: the very words the table holds. */
@@ -48,7 +47,7 @@ fn physicalAt(i:u32)->PhysicalInfo{
 export const physicalCoreWgsl = (sampled: string) =>
   wgslBlock(
     `physicalCoreWgsl(${sampled})`,
-    [uniteOuZero, tangentFallback],
+    [ROUGHNESS_FLOOR, uniteOuZero, tangentFallback],
     `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
 var<private> physicalRecord:PhysicalInfo;
 var<private> physicalCoord0:PhysicalCoord;
@@ -96,7 +95,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
  if(r.maps.y!=0u){coatSample=physicalSample(1u,r.maps.y);coat*=coatSample.r;}
  if(r.maps.z!=0u){
   if(r.maps.z!=r.maps.y||physicalChannel(1u)!=physicalChannel(2u)){coatSample=physicalSample(2u,r.maps.z);}
-  coatRough=clamp(r.lobes.w*coatSample.g,${wgslF32(ROUGHNESS_FLOOR)},1.0);
+  coatRough=clamp(r.lobes.w*coatSample.g,ROUGHNESS_FLOOR,1.0);
  }
  var direction=vec3f(0.0,0.0,1.0);
  var frame0:CotangentFrame;

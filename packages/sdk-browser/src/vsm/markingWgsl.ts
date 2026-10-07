@@ -70,19 +70,6 @@ struct VsmMarkingParams{
 `,
 )
 
-const COMMON_WGSL = wgslBlock(
-  'VSM_MARKING_COMMON_WGSL',
-  [
-    VSM_CONSTANTS_WGSL,
-    VSM_UNIFORMS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_STRUCTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_PROJECTION_DATA_WGSL,
-  ],
-  '',
-)
-
 // ---- Page table reset ------------------------------------------------------------------------
 
 /** What a page table clear variant clears: one of the 2D tables, its mip count and sample stride. */
@@ -119,12 +106,12 @@ export const VSM_CLEAR_SPECS: readonly VsmBindingSpec[] = [
 ]
 
 /**
- * The per-page dispatch setup. Needs `vsmPerPageIds`,
- * `vsmPerPage` (VsmMapWalkParams) and `vsmProjectionData`.
+ * The per-page dispatch setup, through the module's `vsmPerPageIds`, `vsmPerPage`
+ * (VsmMapWalkParams) and `vsmProjectionData`.
  */
 export const VSM_PER_PAGE_DISPATCH_WGSL = wgslBlock(
   'VSM_PER_PAGE_DISPATCH_WGSL',
-  [FLAT_INDEX_WGSL],
+  [FLAT_INDEX_WGSL, VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL],
   `
 /** \`gridWidth\`: a grouped bin's walk side and row pitch; 0 for a thread-per-id bin, which ranks itself (\`flatIndex\`). */
 struct VsmMapWalkParams{idStart:u32,idCount:u32,gridWidth:u32,threadPerId:u32,}
@@ -233,7 +220,12 @@ ${tables.map((t) => t.body).join('\n')}
  }
 }
 `,
-    [COMMON_WGSL, vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout), VSM_PER_PAGE_DISPATCH_WGSL],
+    [
+      VSM_UNIFORMS_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout),
+      VSM_PER_PAGE_DISPATCH_WGSL,
+    ],
   )
 }
 
@@ -277,7 +269,7 @@ fn vsmSetPageListCount(pageList:u32,newCount:i32){
 }
 `,
     [
-      COMMON_WGSL,
+      VSM_CONSTANTS_WGSL,
       VSM_MARKING_PARAMS_WGSL,
       vsmBindingsWgsl(0, VSM_INIT_RECT_SPECS, layout),
       FLAT_INDEX_WGSL,
@@ -287,12 +279,12 @@ fn vsmSetPageListCount(pageList:u32,newCount:i32){
 // ---- Marking helpers ----------------------------------------
 
 /**
- * Requests a page, and fills its whole receiver cover. Needs
+ * Requests a page, and fills its whole receiver cover, through the module's
  * `vsmPageRequestsStore` and, for the full-page mask, `vsmReceiverCoverStore`.
  */
 const VSM_MARK_PAGE_ADDRESS_WGSL = wgslBlock(
   'VSM_MARK_PAGE_ADDRESS_WGSL',
-  [],
+  [VSM_PAGE_ADDRESS_WGSL],
   `
 fn vsmRequestPage(entryCell:VsmTableCell,flags:u32){
  let t=entryCell.tableXY;
@@ -302,7 +294,7 @@ fn vsmRequestPage(entryCell:VsmTableCell,flags:u32){
 )
 const VSM_FILL_COVER_WGSL = wgslBlock(
   'VSM_FILL_COVER_WGSL',
-  [],
+  [VSM_PAGE_ADDRESS_WGSL],
   `
 fn vsmCoverStore0(t:vec2u,v:u32){if(vsmCoverInBounds(t,0u)){vsmReceiverCoverStore(vsmCoverIndex(t,0u),v);}}
 fn vsmFillCover(entryCell:VsmTableCell){
@@ -375,7 +367,9 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
 }
 `,
     [
-      COMMON_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
       VSM_MARKING_PARAMS_WGSL,
       vsmBindingsWgsl(0, VSM_COARSE_SPECS, layout),
       VSM_PROJECTION_DATA_READ_WGSL,
@@ -397,12 +391,19 @@ export const VSM_PIXELS_SPECS: readonly VsmBindingSpec[] = [
 
 /**
  * The page marking and the projection helpers it calls, against the primary
- * view in `vsmMarking`. Needs `vsmProjectionOf`, `vsmPageRequestsStore`,
- * `vsmReceiverCoverOr`.
+ * view in `vsmMarking`, through the module's `vsmPageRequestsStore` and `vsmReceiverCoverOr`.
  */
 const VSM_PAGE_MARKING_WGSL = wgslBlock(
   'VSM_PAGE_MARKING_WGSL',
-  [],
+  [
+    VSM_CONSTANTS_WGSL,
+    VSM_HANDLE_WGSL,
+    VSM_PAGE_ADDRESS_WGSL,
+    VSM_STRUCTS_WGSL,
+    VSM_PROJECTION_DATA_WGSL,
+    VSM_PROJECTION_DATA_READ_WGSL,
+    VSM_MARK_PAGE_ADDRESS_WGSL,
+  ],
   `
 /** The biased clipmap level of a position, against the marking view's origin shift. */
 fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f)->i32{
@@ -581,7 +582,8 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
 }
 `,
     [
-      COMMON_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
       VSM_MARKING_PARAMS_WGSL,
       VIEW_WGSL,
       vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout),
@@ -589,7 +591,6 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
       TILE_SLICE_WGSL,
       pixelCellWgsl(),
       VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_MARK_PAGE_ADDRESS_WGSL,
       VSM_PAGE_MARKING_WGSL,
       WORLD_AT_WGSL,
       FLAT_INDEX_WGSL,

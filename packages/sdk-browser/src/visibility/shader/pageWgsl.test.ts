@@ -28,6 +28,8 @@ const SMALL_SHADER = rasterSource(4, 16)
 /** How many times `fragment` appears, character for character, in `text`. */
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
+/** That `fragment`, a declaration's own text (`.text`), appears once in each of `shaders`; what a
+ *  fragment declares with its uses is read through `wgslSource`. */
 function eachOnce(fragment: string, shaders: Record<string, string>) {
   for (const [name, text] of Object.entries(shaders))
     assert.equal(occurrences(text, fragment), 1, `${name} should carry the fragment once`)

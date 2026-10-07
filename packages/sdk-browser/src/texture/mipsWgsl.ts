@@ -56,8 +56,6 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
  @group(0) @binding(3) var written:texture_storage_2d<rgba8unorm,write>;
  override weighted:bool;
  override srgb:bool;
- 
- 
  @compute @workgroup_size(8,8) fn reduceLevel(@builtin(global_invocation_id) id:vec3u){
   if(any(id.xy>=textureDimensions(written))){return;}
   let p=vec2i(id.xy)*2;let hi=vec2i(level.extent.xy)-vec2i(1);
@@ -89,7 +87,6 @@ export const RADIANCE_MIP_WGSL = wgslProgram(
   `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
- 
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
   return vec4f(${FULLSCREEN_XY},0.0,1.0);
  }
@@ -113,8 +110,6 @@ export const COVERAGE_COUNT_WGSL = wgslBlock(
   `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<atomic<u32>>;
- 
- 
  fn sizeOf(k:u32)->vec2u{return max(level.base.xy>>vec2u(k),vec2u(1u));}
  fn alphaAt(q:vec2u)->u32{
   let k=level.base.z;let p=vec2i(min(q,sizeOf(k)-vec2u(1u)));
@@ -159,7 +154,6 @@ export const COVERAGE_CHOOSE_WGSL = wgslProgram(
  @group(0) @binding(0) var<uniform> pick:Pick;
  @group(0) @binding(1) var<storage,read> blocks:array<u32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<u32>;
- 
  var<workgroup> sums:array<u32,256>;
  var<workgroup> keys:array<vec4u,256>;
  fn total(t:u32,v:u32)->u32{

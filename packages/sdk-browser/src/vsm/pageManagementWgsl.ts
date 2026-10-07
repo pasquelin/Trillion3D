@@ -8,7 +8,10 @@
  */
 import type { VsmBindingSpec } from './resources.ts'
 import { type VsmPmKernel, vsmPmModule } from './physicalPagesWgsl.ts'
-import { VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_COVER_GATHER_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
@@ -55,7 +58,14 @@ function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
   ]
   const body = wgslBlock(
     'pageFlagPyramid',
-    [VSM_MIP_MASK_WGSL],
+    [
+      VSM_MIP_MASK_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_COVER_GATHER_WGSL,
+    ],
     `
 /** True when this hierarchical texel already held Flag (someone else continues). */
 fn pmOrMarkAtLevel(flag:u32,entryCell:VsmTableCell,pyramidLevel:u32)->bool{
@@ -122,7 +132,7 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
     entryPoint: 'vsmPageFlagPyramid',
     specs,
     perPage: false,
-    code: vsmPmModule(layout, specs, body, { coverGather: true }),
+    code: vsmPmModule(layout, specs, body),
   }
 }
 
@@ -136,7 +146,14 @@ function fillCoarserFallbacks(layout: VsmLayout): VsmPmKernel {
   const g = VSM_PER_PAGE_GROUP_XY
   const body = wgslBlock(
     'fillCoarserFallbacks',
-    [],
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_PER_PAGE_DISPATCH_WGSL,
+    ],
     `
 fn pmFallbacksDirectional(setup:VsmMapWalk,projectionData:VsmProjectionData){
  let loopEnd=vsmPagesAcross(0u);

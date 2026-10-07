@@ -18,6 +18,7 @@ import {
   WATER_COMPOSITE_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { ROUGHNESS_FLOOR as FLOOR_DECLARATION } from '../lighting/shaderConstantsWgsl.ts'
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
   // The term is part of the lit sum, fed the pixel's own roughness.
@@ -54,10 +55,11 @@ test('diffuse and toon keep no specular lobe, while rough physical materials ret
   )
   // The floor is the clamp the surface buffer is written at, and it survives the half-float target.
   assert.ok(
-    SHADE_SHADER.includes(`clamp(page.roughness*roughSample.y,${wgslF32(ROUGHNESS_FLOOR)},1.0)`),
+    SHADE_SHADER.includes('clamp(page.roughness*roughSample.y,ROUGHNESS_FLOOR,1.0)') &&
+      SHADE_SHADER.includes(FLOOR_DECLARATION.text),
   )
   // In [2⁻⁵, 2⁻⁴) a half float steps by 2⁻¹⁵: the floor rounds to a value the test still admits.
-  const floor = Number(ROUGHNESS_FLOOR)
+  const floor = ROUGHNESS_FLOOR
   assert.ok(floor >= 2 ** -5 && floor < 2 ** -4)
   assert.ok(Math.round(floor * 2 ** 15) / 2 ** 15 <= floor)
 })

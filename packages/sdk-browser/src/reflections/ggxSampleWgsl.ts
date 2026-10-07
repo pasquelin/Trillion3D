@@ -1,5 +1,5 @@
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
-import { STANDARD_LIGHTING_WGSL } from '../lighting/standardLighting.ts'
+import { GGX_DISTRIBUTION_WGSL } from '../lighting/standardLighting.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { tangentAround } from '../../../math/src/wgsl/basis.ts'
 
@@ -11,10 +11,10 @@ import { tangentAround } from '../../../math/src/wgsl/basis.ts'
  * own surface (behind its normal `N`), contributes zero weight: the surface stops it. Weighed by
  * the mirror ray alone, a rough lobe's directions under a floor seen low — a third of its weight at
  * roughness 0.3 — read what lies about the receiver on the screen. D is the engine's
- * \`ggxDistribution\` of \`STANDARD_LIGHTING_WGSL\`. */
+ * \`ggxDistribution\` (\`GGX_DISTRIBUTION_WGSL\`, \`standardLighting.ts\`). */
 export const GGX_REFLECTION_SAMPLE_WGSL = wgslBlock(
   'GGX_REFLECTION_SAMPLE_WGSL',
-  [TWO_PI, tangentAround, STANDARD_LIGHTING_WGSL],
+  [TWO_PI, tangentAround, GGX_DISTRIBUTION_WGSL],
   `
 fn stochasticReflection(R:vec3f,N:vec3f,rough:f32,xi:vec2f)->vec4f{
  let alpha=rough*rough;let a2=alpha*alpha;

@@ -11,20 +11,21 @@
  *   helpers every pass shares, each the one text of its maths: the clipmap level and distance, the
  *   cube face, a view's depth from device depth, a pixel's world size and a local map's pixel
  *   footprint, a sun's back face.
- * - `VSM_PROJECTION_DATA_READ_WGSL`: `vsmProjectionOf(handle)`; needs the
+ * - `VSM_PROJECTION_DATA_READ_WGSL`: `vsmProjectionOf(handle)`, through the module's
  *   `vsmProjectionData` binding.
- * - `vsmProjectionSampleWgsl(pool)`: the page sampling; needs everything above plus the page lookup
- *   (`VSM_PAGE_LOOKUP_WGSL`), and lists `pool`, the host's `vsmPoolLoad(texel, slice)`: a pass's
+ * - `vsmProjectionSampleWgsl(pool)`: the page sampling, through the page lookup
+ *   (`VSM_PAGE_LOOKUP_WGSL`) and `pool`, the host's `vsmPoolLoad(texel, slice)`: a pass's
  *   (`vsmPoolLoadOf`, `resources.ts`) or a consumer's (`../lighting/direct/shadowWgsl.ts`).
  */
-import { VSM_UNIT_PER_CM } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from './constants.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_LOOKUP_WGSL } from './pageTableWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
 export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
   'VSM_PROJECTION_DATA_WGSL',
-  [],
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL],
   `
 struct VsmProjectionRecord{
  lightKind:u32,
@@ -164,10 +165,10 @@ fn vsmFacesAwayFromSun(normal:vec3f,lightDirection:vec3f,emitterSize:f32)->bool{
 `,
 )
 
-/** Reads a map's projection data. Needs the `vsmProjectionData` binding. */
+/** Reads a map's projection data, through the module's `vsmProjectionData` binding. */
 export const VSM_PROJECTION_DATA_READ_WGSL = wgslBlock(
   'VSM_PROJECTION_DATA_READ_WGSL',
-  [],
+  [VSM_HANDLE_WGSL, VSM_PROJECTION_DATA_WGSL],
   `
 fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vsmProjectionData[h.id],h);}
 `,
@@ -180,7 +181,14 @@ fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vs
 export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
   wgslBlock(
     'VSM_PROJECTION_SAMPLE_WGSL',
-    [pool],
+    [
+      pool,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+    ],
     `
 /** The biased level of a distance, without a depth-of-field bias. A clipmap's levels all carry its
  *  one resolution bias (\`vsmClipmapProjectionData\`, \`clipmapBias.test.ts\`), the base level's among them,

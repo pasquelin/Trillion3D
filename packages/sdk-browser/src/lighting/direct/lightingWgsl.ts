@@ -7,7 +7,12 @@ import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradiance
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 import { directLightSamplingWgsl } from './lightSamplingWgsl.ts'
-import { CONTRACT_VSM_BINDINGS, directShadowWgsl, type VsmConsumerBindings } from './shadowWgsl.ts'
+import {
+  CONTRACT_VSM_BINDINGS,
+  directShadowWgsl,
+  type VsmConsumerBindings,
+  vsmBindingsLabel,
+} from './shadowWgsl.ts'
 import { shadowKindsOf } from './shadowKinds.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts'
@@ -77,6 +82,15 @@ export type LightingBindings = {
   resolveTransmission?: number
 }
 
+/** The bindings as a block name reads them, in their declared order, the defaults resolved. */
+const bindingsLabel = ({
+  proxy,
+  transmittance,
+  vsm = CONTRACT_VSM_BINDINGS,
+  resolveTransmission,
+}: LightingBindings) =>
+  `${proxy}, ${transmittance}, ${vsmBindingsLabel(vsm)}, ${resolveTransmission ?? null}`
+
 /**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
  * single declared light at the point, its shadow included — the engine's only lighting
@@ -91,7 +105,7 @@ const lightingBase = (
 ) => {
   const shadowed = !key.unshadowed
   return wgslBlock(
-    `lightingBase(${JSON.stringify(bindings)}, ${variantLabel(key)}, ${narrow}, ${pair})`,
+    `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}, ${pair})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
       RECT_SHADING_WGSL,
@@ -209,7 +223,7 @@ export const declaredLightingWgsl = (
   { pair = false } = {},
 ) =>
   wgslBlock(
-    `declaredLightingWgsl(${JSON.stringify(bindings)}, ${variantLabel(key)}, ${pair})`,
+    `declaredLightingWgsl(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${pair})`,
     [lightingBase(bindings, key, { pair })],
     `
 fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->${pair ? 'LightPair' : 'vec3f'}{

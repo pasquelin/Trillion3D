@@ -42,13 +42,24 @@ const SHADOW_SETUP_WGSL = wgslBlock(
 }`,
 )
 
-/** The surface of the contract programs: it reads its lobes where its flag says so, and the
- *  environment goes under their coat (`../direct/lobesWgsl.ts`) — in a lobeless program, or on a
- *  pixel without lobes, a call that reads nothing and a multiplication by one, which changes no
- *  bit. */
-export const contractSurfaceBody = (bounce: string, diagnostic = '') =>
-  wgslBlock(
-    `contractSurfaceBody(${bounce}, ${diagnostic})`,
+/** What the bounce program adds to the direct sum, the mirror term last, and its diagnostic view of
+ *  the bounced light alone; the direct program adds the mirror term only. */
+const SURFACE_TERMS = {
+  bounce: {
+    sum: `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)*lobeThrough()+thinBounce(N,P,emissive.a)${MIRROR_TERM}`,
+    diagnostic: 'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
+  },
+  direct: { sum: MIRROR_TERM, diagnostic: '' },
+}
+
+/** The surface of the contract programs, with `bounce` the bounce program's: it reads its lobes
+ *  where its flag says so, and the environment goes under their coat (`../direct/lobesWgsl.ts`) —
+ *  in a lobeless program, or on a pixel without lobes, a call that reads nothing and a
+ *  multiplication by one, which changes no bit. */
+export const contractSurfaceBody = (bounce: boolean) => {
+  const { sum, diagnostic } = SURFACE_TERMS[bounce ? 'bounce' : 'direct']
+  return wgslBlock(
+    `contractSurfaceBody(${bounce})`,
     [
       receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING),
       PIXEL_FOOTPRINT_WGSL,
@@ -77,7 +88,8 @@ export const contractSurfaceBody = (bounce: string, diagnostic = '') =>
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
  var ambient=environmentLighting(base.rgb,base.a,N,emissive.a)*lobeThrough();
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
- var rgb=lit+ambient+emissive.rgb${bounce};${CAMERA_FOG}
+ var rgb=lit+ambient+emissive.rgb${sum};${CAMERA_FOG}
  return vec4f(rgb,1.0);
 }`,
   )
+}

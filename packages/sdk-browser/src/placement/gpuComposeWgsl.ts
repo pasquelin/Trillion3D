@@ -66,11 +66,8 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
 }`,
 )
 
-const SHARED_WGSL = wgslBlock(
-  'SHARED_WGSL',
-  [DOUBLE_WGSL, TO_F32_WGSL, FROM_F32_WGSL, PRODUCT_WGSL, FLAT_INDEX_WGSL],
-  ``,
-)
+/** What both passes use: double arithmetic, its conversions, the product and the grid index. */
+const SHARED = [DOUBLE_WGSL, TO_F32_WGSL, FROM_F32_WGSL, PRODUCT_WGSL, FLAT_INDEX_WGSL]
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -135,7 +132,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [SHARED_WGSL, SAME_WORD_WGSL, MOTION_WGSL],
+  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL],
 )
 
 /**
@@ -222,5 +219,5 @@ fn composeRow(row:u32){
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
  let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
 }`,
-  [SHARED_WGSL, SPHERE_WGSL],
+  [...SHARED, SPHERE_WGSL],
 )

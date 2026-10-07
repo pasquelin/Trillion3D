@@ -85,7 +85,7 @@ test('the material pass writes the bit; the resolve and the unlit view fetch thr
     /return SurfaceOut\(vec4f\(rgb,metal\),vec4f\(N,rough\),vec4f\(emissive,ao\),flag\|emissiveAoFlag\(emissive,ao\),request\);/
   assert.match(SHADE_SHADER, lit)
   assert.match(SHADE_SHADER, /fn emissiveAoFlag\(/)
-  for (const reader of [contractSurfaceBody('').text, UNLIT_LIGHTING_SHADER]) {
+  for (const reader of [contractSurfaceBody(false).text, UNLIT_LIGHTING_SHADER]) {
     assert.doesNotMatch(
       reader.replace(SURFACE_EMISSIVE_AO_WGSL.text, ''),
       /textureLoad\(emissiveAo/,

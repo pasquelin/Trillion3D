@@ -34,9 +34,6 @@ export const REFLECTION_SEGMENT = `
  *    screen, its steps equal; a curved one's close), or both none (a surface facing the screen);
  *    never across the background. `reflectionSideSlope`: at a rim, the background on one side, the
  *    step to the drawn one; else none.
- *  - `tangentAround` (the maths library): a unit vector across `v`, from the z axis, or the y axis
- *    where `v` is nearly z: one frame round a direction for every lobe and plane the walks span,
- *    which the cone and the sample list (`coneShader.ts`, `ggxSampleWgsl.ts`).
  *  - `reflectionHalves`: the opaque walk's surface along `axis`: the depth's change per pixel over
  *    the pixel's lower and upper half, the step to the neighbour on that side where it lies on the
  *    pixel's own surface. Two pixels of one surface then meet at the middle of their shared border

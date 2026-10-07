@@ -28,11 +28,9 @@ export const octDecode = wgslFn(
 }`,
 )
 
-// sdk-browser/src/visibility/shader/impostorWgsl.ts (`impSide`): ±1, never 0, called by
-// `octDecodeHemi` alone
+/** ±1, never 0, called by `octDecodeHemi` alone. */
 const octSide = wgslFn('octSide', [], 'fn octSide(x:f32)->f32{return select(1.0,-1.0,x<0.0);}')
 
-// sdk-browser/src/visibility/shader/impostorWgsl.ts (`impOctEncode`)
 export const octEncodeHemi = wgslFn(
   'octEncodeHemi',
   [],
@@ -46,7 +44,6 @@ export const octEncodeHemi = wgslFn(
 }`,
 )
 
-// sdk-browser/src/visibility/shader/impostorWgsl.ts (`impOctDecode`)
 export const octDecodeHemi = wgslFn(
   'octDecodeHemi',
   [octSide],
@@ -62,7 +59,6 @@ export const octDecodeHemi = wgslFn(
 }`,
 )
 
-// sdk-browser/src/cluster/decodeWgsl.ts (`clusterNormal`, past its byte unpacking)
 export const octDecodeScalar = wgslFn(
   'octDecodeScalar',
   [],

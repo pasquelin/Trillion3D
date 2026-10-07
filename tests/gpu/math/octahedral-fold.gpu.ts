@@ -1,5 +1,5 @@
-// One octahedral map for every caller (`packages/math/src/wgsl/octahedral.ts`), class 1: on Dawn, the lobes'
-// pack and unpack (`scene/physicalLobes.ts`), the shadow receiver's plane both ways
+// One octahedral map for every caller (`packages/math/src/wgsl/octahedral.ts`), class 1: on Dawn,
+// the lobes' pack and unpack (`scene/physicalLobes.ts`), the shadow receiver's plane both ways
 // (`visibility/shader/receiverTargetWgsl.ts`) and the impostor card's direction to its grid
 // (`visibility/shader/impostorWgsl.ts`) return, bit for bit, what each one's own formula returned
 // before they shared it — kept below as `develop` wrote it. A million directions of every octant,

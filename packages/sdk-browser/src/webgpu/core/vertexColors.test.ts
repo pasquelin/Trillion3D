@@ -104,5 +104,6 @@ test('a transparent item multiplies its colour by the vertex colour when its mat
     `if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}`,
   )
   assert.ok(fetch > 0 && multiply > fetch)
-  assert.ok(BLEND_SHADER.includes(VERTEX_COLOR_WGSL.text))
+  // The colour it multiplies is the library's `vertColor`, declared once in the module.
+  assert.equal(BLEND_SHADER.split('fn vertColor(').length, 2)
 })

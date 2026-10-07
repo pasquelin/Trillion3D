@@ -29,7 +29,12 @@ import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/proj
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
 import { interleavedGradient } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { ALL_SHADOW_KINDS, byShadowKind, type ShadowKinds } from './shadowKinds.ts'
+import {
+  ALL_SHADOW_KINDS,
+  byShadowKind,
+  shadowKindsLabel,
+  type ShadowKinds,
+} from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmShadowFactor`): the page
  *  table, the projection data, the uniforms and the pool's dynamic slice (one part). */
@@ -47,6 +52,9 @@ export const CONTRACT_VSM_BINDINGS: VsmConsumerBindings = {
   uniforms: 10,
   pool: 19,
 }
+/** The bindings as a block name reads them, in their declared order. */
+export const vsmBindingsLabel = (b: VsmConsumerBindings) =>
+  `${b.pageTable}, ${b.projectionData}, ${b.uniforms}, ${b.pool}`
 
 /** A consumer's read of the pool's dynamic slice, at `binding`: its `vsmPoolLoad`, which the
  *  projection sample calls (`vsmProjectionSampleWgsl`). */
@@ -86,7 +94,7 @@ const vsmConsumerWgsl = (
   { transmission, pool, kinds }: { transmission: number; pool: boolean; kinds: ShadowKinds },
 ) =>
   wgslBlock(
-    `vsmConsumerWgsl(${JSON.stringify(b)}, ${transmission}, ${pool}, ${JSON.stringify(kinds)})`,
+    `vsmConsumerWgsl(${vsmBindingsLabel(b)}, ${transmission}, ${pool}, ${shadowKindsLabel(kinds)})`,
     [
       VSM_CONSTANTS_WGSL,
       VSM_UNIFORMS_WGSL,
@@ -172,7 +180,7 @@ fn vsmShadowFactor(id:u32,directional:bool,P:vec3f,Nin:vec3f)->f32{
  */
 const filteredReadWgsl = (kinds: ShadowKinds) =>
   wgslBlock(
-    `filteredReadWgsl(${JSON.stringify(kinds)})`,
+    `filteredReadWgsl(${shadowKindsLabel(kinds)})`,
     [],
     `
 const VSM_FILTER_TAPS:array<vec2f,${PCF_TAPS.length}>=array<vec2f,${PCF_TAPS.length}>(${PCF_TAPS.map(([x, y]) => `vec2f(${x},${y})`).join(',')});
@@ -364,7 +372,7 @@ const tracedKindStatement = (kinds: ShadowKinds) =>
  */
 const tracedReadWgsl = (kinds: ShadowKinds) =>
   wgslBlock(
-    `tracedReadWgsl(${JSON.stringify(kinds)})`,
+    `tracedReadWgsl(${shadowKindsLabel(kinds)})`,
     [
       interleavedGradient,
       VSM_TRACE_LIGHT_WGSL,
@@ -425,7 +433,7 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  */
 const vsmTranslucentReadWgsl = (traced: boolean, kinds: ShadowKinds) =>
   wgslBlock(
-    `vsmTranslucentReadWgsl(${traced}, ${JSON.stringify(kinds)})`,
+    `vsmTranslucentReadWgsl(${traced}, ${shadowKindsLabel(kinds)})`,
     [filteredReadWgsl(kinds), ...(traced ? [tracedReadWgsl(kinds)] : [])],
     `fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
  let mode=vsm.translucentShadowFilter;
@@ -474,7 +482,7 @@ export const directShadowWgsl = (
   }: DirectShadowOptions = {},
 ) =>
   wgslBlock(
-    `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${JSON.stringify(vsm)}, ${traced}, ${JSON.stringify(kinds)})`,
+    `directShadowWgsl(${maskBinding}, ${resolveTransmission}, ${vsmBindingsLabel(vsm)}, ${traced}, ${shadowKindsLabel(kinds)})`,
     [
       SHADOW_VIEW_WGSL,
       vsmConsumerWgsl(vsm, {
@@ -523,7 +531,7 @@ export type DirectShadowOptions = {
 
 const vsmMaskWgsl = (binding: number, kinds: ShadowKinds) =>
   wgslBlock(
-    `vsmMaskWgsl(${binding}, ${JSON.stringify(kinds)})`,
+    `vsmMaskWgsl(${binding}, ${shadowKindsLabel(kinds)})`,
     [VSM_MASK_TABLE_READ_WGSL],
     `
 @group(0) @binding(${binding}) var vsmShadowMask:texture_2d_array<u32>;

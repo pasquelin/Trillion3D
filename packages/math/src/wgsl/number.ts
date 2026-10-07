@@ -18,3 +18,16 @@ export function wgslF32(value: number) {
   if (Math.abs(Number(text)) > FLOAT32_MAX) text = String(single)
   return text.includes('.') || text.includes('e') ? text : `${text}.0`
 }
+
+/** `m`, a 3×3 matrix of nine numbers column after column, as a WGSL `mat3x3f`: one `vec3f` a
+ *  column, each entry its `f32` literal (`wgslF32`). */
+export const wgslMatrix3 = (m: readonly number[]) =>
+  `mat3x3f(${[0, 3, 6]
+    .map(
+      (at) =>
+        `vec3f(${m
+          .slice(at, at + 3)
+          .map(wgslF32)
+          .join(',')})`,
+    )
+    .join(',')})`

@@ -98,12 +98,10 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   )
-  // 720: the WGSL library supersedes HALF_PI_WGSL, CONE_LENGTH_RATIO_WGSL, CONE_ORTHO_EPS_WGSL and
-  // SINGULAR_DETERMINANT_WGSL, removed from the public API (724 before). It holds neither a shadow
-  // atlas, a CPU transport, nested Hi-Z oracles,
-  // example-only helpers nor the removed graphics path's renderer, CPU page decoding and comparison
-  // layout; it holds the names the public signatures carry: PageHome, PageHomes, QualityResolution
-  // and WorldQualityOptions.
+  // 720 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // it), a shadow atlas, a CPU transport, nested Hi-Z oracles, example-only helpers nor the removed
+  // graphics path's renderer, CPU page decoding and comparison layout; it holds the names the
+  // public signatures carry: PageHome, PageHomes, QualityResolution and WorldQualityOptions.
   assert.equal(inventory.exports.length, 720)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
@@ -170,11 +168,10 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const inputs = Object.keys(proposed.metafile.inputs)
   assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The engine entry shrank from 4 396 to 3 819 bytes with the retired exports; the two others grew
-  // to 2 141 and 3 821 with the machine-independent quaternion normalisation and arc trigonometry
-  // (determinism). The constants module and the scalar helpers took them to 3 821, 2 145 and 3 940
-  // (the browser entry's modules call the one `ceilDiv`, `clamp`, `saturate` and `wrap`), and the
-  // deleted `*_WGSL` text exports and number-writer twins to 3 715, 2 043 and 3 819.
+  // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry:
+  // the engine core;
+  // the package, with the machine-independent quaternion normalisation and arc trigonometry;
+  // its browser condition, whose modules call the one `ceilDiv`, `clamp`, `saturate` and `wrap`.
   assert.equal(baseline.outputFiles[0].contents.length, 3_715)
   assert.equal(proposed.outputFiles[0].contents.length, 2_043)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_819)

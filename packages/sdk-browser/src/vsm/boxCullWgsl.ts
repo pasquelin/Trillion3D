@@ -1,5 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_PAGE_MARKS_GATHER_WGSL } from './pageTableWgsl.ts'
 /**
  * The cull of a box and of its pages that the cache invalidation (`invalidationWgsl.ts`) and the
  * render cull (`renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
@@ -10,12 +12,10 @@ import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
  * local-to-world and then the view's world-to-clip, the render cull through one shifted-to-clip
  * matrix — and hands the cull the clip-space centre (or corner) and axes it computed: the
  * floating-point operations of each are its own, in its own order.
- *
- * Needs, in the module: `VSM_CONSTANTS_WGSL`, the `vsm` uniform and `VSM_PAGE_MARKS_GATHER_WGSL`.
  */
 export const VSM_BOX_CULL_WGSL = wgslBlock(
   'VSM_BOX_CULL_WGSL',
-  [FLOAT32_MAX],
+  [FLOAT32_MAX, VSM_CONSTANTS_WGSL, VSM_PAGE_MARKS_GATHER_WGSL],
   `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
 /** The mip level whose texels cover a rect (inclusive) within a desired footprint. */

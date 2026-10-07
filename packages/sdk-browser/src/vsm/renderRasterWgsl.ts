@@ -46,7 +46,6 @@ import {
   tilePoolWgsl,
 } from '../webgpu/tile/wgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts'
-import { VSM_HANDLE_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -161,7 +160,6 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
       maskAlphaWgsl(true),
       MASK_KEEP_WGSL,
       VSM_CONSTANTS_WGSL,
-      VSM_HANDLE_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),

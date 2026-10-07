@@ -106,7 +106,7 @@ fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
  *  \`k\` 0 for M⁻¹'s entries, 1 for the lobe's magnitude and Fresnel share (\`ltcTable.ts\`). */
 const LTC_WGSL = wgslBlock(
   'LTC_WGSL',
-  [],
+  [bilinear4],
   `
 const LTC_SIZE:u32=${LTC_SIZE}u;
 fn ltcTexel(x:u32,y:u32,k:u32)->vec4f{return directLights.ltc[(y*LTC_SIZE+x)*2u+k];}
@@ -121,7 +121,7 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  *  its exact irradiance, the specular of its fitted lobe. */
 export const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
-  [PI, f0Of, lambertAlbedoMul, ndotvClamped, splitSumTerm, tangentSide, bilinear4, LTC_WGSL],
+  [PI, f0Of, lambertAlbedoMul, ndotvClamped, splitSumTerm, tangentSide, LTC_WGSL],
   `
 /** A corner in the frame (T1, T2, N) moved by M⁻¹ = [[m.x, 0, m.y], [0, 1, 0], [m.z, 0, m.w]]. */
 fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{

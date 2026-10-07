@@ -27,7 +27,6 @@ const REFERENCE_WGSL = wgslProgram(
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
  override weighted:bool;
- 
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
   return vec4f(${FULLSCREEN_XY},0.0,1.0);
  }
@@ -49,7 +48,6 @@ const CHOOSE_WGSL = wgslBlock(
   'CHOOSE_WGSL',
   [COVERAGE_COUNT_WGSL, COVERAGE_PICK_WGSL],
   `
- 
  @compute @workgroup_size(1) fn choose(){
   let c=level.extent.z;var covered=0u;
   for(var b=c;b<256u;b++){covered+=atomicLoad(&cover[b]);}

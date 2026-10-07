@@ -1,14 +1,7 @@
 import { PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { inverseTranspose3, uniteOuZero } from '../../../math/src/wgsl/inverseTranspose.ts'
-import {
-  DIELECTRIC_F0,
-  f0Of,
-  fresnelScalar,
-  fresnelSchlick,
-  lambertAlbedo,
-  ndotvFloor,
-} from '../../../math/src/wgsl/lighting.ts'
+import { f0Of, fresnelSchlick, lambertAlbedo, ndotvFloor } from '../../../math/src/wgsl/lighting.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
 /**
@@ -21,7 +14,7 @@ import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
  * in a sharp highlight), 9 % off at worst. The cross product keeps the sine whole
  * (\`standardLighting.test.ts\`).
  */
-const GGX_DISTRIBUTION_WGSL = wgslBlock(
+export const GGX_DISTRIBUTION_WGSL = wgslBlock(
   'GGX_DISTRIBUTION_WGSL',
   [PI],
   `
@@ -48,15 +41,7 @@ fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  *  (\`direct/lobesWgsl.ts\`) runs on its own normal with the base's \`L\` and \`H\`. */
 export const STANDARD_LIGHTING_WGSL = wgslBlock(
   'STANDARD_LIGHTING_WGSL',
-  [
-    DIELECTRIC_F0,
-    fresnelSchlick,
-    fresnelScalar,
-    f0Of,
-    lambertAlbedo,
-    ndotvFloor,
-    GGX_DISTRIBUTION_WGSL,
-  ],
+  [fresnelSchlick, f0Of, lambertAlbedo, ndotvFloor, GGX_DISTRIBUTION_WGSL],
   `struct LobeSurface{f0:vec3f,diffuse:vec3f,alpha2:f32,rest:f32,NdotV:f32,viewG:f32,}
 fn lobeSurface(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
  var s:LobeSurface;

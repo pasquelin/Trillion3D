@@ -1,12 +1,8 @@
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
-import { LTC_SIZE } from '../../../sdk-core/src/lighting/ltcTable.ts'
+import { MIRROR_TRANSITION_END, ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
 import { MODEL_FLAG } from '../scene/surfaceModel.ts'
 import { type WgslDecl, wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { f0Of, ndotvClamped, splitSumTerm } from '../../../math/src/wgsl/lighting.ts'
 
-/** One roughness sample of the lobe table: transition resolution, not a rough-lobe filter. */
-export const MIRROR_TRANSITION_END = ROUGHNESS_FLOOR + 1 / (LTC_SIZE - 1)
 /** The roughness above which a lobe is never screen-traced and takes the environment/probe
  *  reflection alone. */
 export const SCREEN_REFLECTION_CUTOFF = 0.6
@@ -15,9 +11,9 @@ export const SCREEN_REFLECTION_CUTOFF = 0.6
 export const TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS = 2 / 6.6
 export const MIRROR_WEIGHT_WGSL = wgslBlock(
   'MIRROR_WEIGHT_WGSL',
-  [],
+  [ROUGHNESS_FLOOR, MIRROR_TRANSITION_END],
   `fn mirrorWeight(rough:f32)->f32{
- return 1.0-smoothstep(${wgslF32(ROUGHNESS_FLOOR)},${wgslF32(MIRROR_TRANSITION_END)},rough);
+ return 1.0-smoothstep(ROUGHNESS_FLOOR,MIRROR_TRANSITION_END,rough);
 }`,
 )
 

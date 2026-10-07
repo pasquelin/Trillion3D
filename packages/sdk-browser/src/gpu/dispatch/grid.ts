@@ -15,7 +15,8 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const DEFAULT_GROUP_WIDTH = 65535
 
-/** The workgroups along x of a dispatch of `groups` in rows of at most `width`: one half of the split. */
+/** The workgroups along x of a dispatch of `groups` in rows of at most `width`: one half of the
+ *  split. */
 const rowWidth = (groups: number, width = DEFAULT_GROUP_WIDTH) => Math.min(groups, width)
 
 /** The rows of a dispatch of `groups` in rows of at most `width`: the split's other half. */

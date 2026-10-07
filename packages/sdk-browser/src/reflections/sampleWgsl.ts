@@ -3,7 +3,7 @@ import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import type { LitProgram } from '../lighting/deferred/shaders.ts'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
 import { SCREEN_REFLECTION_WGSL } from './screenWgsl.ts'
 import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts'
 import { HIZ_TRACE_WGSL, REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts'
@@ -24,6 +24,7 @@ const stochasticReflectionWgsl = (unbounded: boolean) =>
     `stochasticReflectionWgsl(${unbounded})`,
     [
       hashUnit,
+      ROUGHNESS_FLOOR,
       GGX_REFLECTION_SAMPLE_WGSL,
       SCREEN_REFLECTION_WGSL,
       REFLECTION_PHASE_WGSL,
@@ -39,7 +40,7 @@ const stochasticReflectionWgsl = (unbounded: boolean) =>
  let nr=textureLoad(normalRough,at,0);
  // Mirrors take the exact ray; from the cutoff on, where the display's fade is zero, it reads
  // the environment alone.
- if(nr.a<=${wgslF32(ROUGHNESS_FLOOR)}||nr.a>=${wgslF32(SCREEN_REFLECTION_CUTOFF)}){return vec4f(0.0);}
+ if(nr.a<=ROUGHNESS_FLOOR||nr.a>=${wgslF32(SCREEN_REFLECTION_CUTOFF)}){return vec4f(0.0);}
  let z=textureLoad(depth,at,0);
  let P=worldAt(pixel,z);
  shadowFootprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-P);

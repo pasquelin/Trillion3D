@@ -17,6 +17,9 @@
  * a texel past it reads as no occluder, so a split slice gives those surfaces no shadow there.
  */
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
+import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
+import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { vsmWriteChangedCopy } from './writeChanged.ts'
 import {
   bufferBytes,
@@ -364,15 +367,22 @@ function elementType(resource: VsmBindingResource, atomic: boolean) {
   }
 }
 
+/** The fragment declaring the struct a resource's elements are (`elementType`). */
+const STRUCT_OF: Partial<Record<VsmBindingResource, WgslDecl>> = {
+  projectionData: VSM_PROJECTION_DATA_WGSL,
+  poolPageInfo: VSM_STRUCTS_WGSL,
+  nextMaps: VSM_STRUCTS_WGSL,
+}
+
 /**
  * WGSL declarations (and loaders) for `specs` in `group`. Emits, per u32 table named N:
  * `fn NLoad(i:u32)->u32`, plus `NStore(i,v)` when writable and `NOr(i,v)->u32` when atomic.
  * The pool emits `vsmPoolLoad(texel:vec2u,slice:u32)->u32`, and when writable `vsmPoolStore`,
  * and when atomic `vsmPoolAtomicMax(texel,slice,value)` (the raster's atomic max: a value no
  * greater than the word already held writes nothing, the word being the same).
- * Structs used by the declarations come from `VSM_UNIFORMS_WGSL`, `VSM_PROJECTION_DATA_WGSL`,
- * `VSM_STRUCTS_WGSL`, which the caller includes once. The pool's load is a declaration of its
- * own (`vsmPoolLoadOf`), which the projection sample lists (`vsmProjectionSampleWgsl`).
+ * The block lists the structs its bindings name (`VSM_UNIFORMS_WGSL`, `VSM_PROJECTION_DATA_WGSL`,
+ * `VSM_STRUCTS_WGSL`). The pool's load is a declaration of its own (`vsmPoolLoadOf`), which the
+ * projection sample lists (`vsmProjectionSampleWgsl`).
  */
 export function vsmBindingsWgsl(
   group: number,
@@ -380,7 +390,7 @@ export function vsmBindingsWgsl(
   layout: VsmLayout,
 ) {
   const out: string[] = []
-  const pools: WgslDecl[] = []
+  const deps = new Set<WgslDecl>()
   for (const spec of specs) {
     // Both frames hold one buffer of a shared member: its previous frame's content is gone.
     if (spec.prev && SHARED_FRAME_MEMBERS.has(spec.resource))
@@ -390,13 +400,16 @@ export function vsmBindingsWgsl(
     const space = access === 'read' ? 'storage,read' : 'storage,read_write'
     const name = varName(spec)
     if (spec.resource === 'uniforms') {
+      deps.add(VSM_UNIFORMS_WGSL)
       out.push(`@group(${group}) @binding(${spec.binding}) var<uniform> ${name}:VsmUniforms;`)
       continue
     }
     if (spec.resource === 'pagePool') {
-      pools.push(vsmPoolWgsl(group, spec.binding, access, layout, name).accessors)
+      deps.add(vsmPoolWgsl(group, spec.binding, access, layout, name).accessors)
       continue
     }
+    const struct = STRUCT_OF[spec.resource]
+    if (struct) deps.add(struct)
     out.push(
       `@group(${group}) @binding(${spec.binding}) var<${space}> ${name}:array<${elementType(spec.resource, atomic)}>;`,
     )
@@ -412,7 +425,7 @@ export function vsmBindingsWgsl(
   }
   return wgslBlock(
     `vsmBindingsWgsl(${group}, ${JSON.stringify(specs)}, ${layoutKey(layout)})`,
-    pools,
+    [...deps],
     out.join('\n'),
   )
 }
@@ -429,7 +442,25 @@ export function vsmPoolLoadOf(group: number, specs: readonly VsmBindingSpec[], l
   return vsmPoolWgsl(group, spec.binding, spec.access ?? 'read', layout, varName(spec)).load
 }
 
+/** Each pool's declarations, built once per binding, access and layout numbers: the bindings and
+ *  `vsmPoolLoadOf` share them. */
+const pools = new Map<string, { load: WgslDecl; accessors: WgslDecl }>()
+
 function vsmPoolWgsl(
+  group: number,
+  first: number,
+  access: VsmAccess,
+  layout: VsmLayout,
+  name: string,
+) {
+  const key = `${name}(${group}, ${first}, ${access}, ${layoutKey(layout)})`
+  let pool = pools.get(key)
+  if (!pool) pools.set(key, (pool = buildPool(key, group, first, access, layout, name)))
+  return pool
+}
+
+function buildPool(
+  key: string,
   group: number,
   first: number,
   access: VsmAccess,
@@ -456,7 +487,6 @@ function vsmPoolWgsl(
     `fn ${name}${signature}{\n let l=${name}TexelIndex(t);\n let i=l&${mask};\n switch(slice*${parts}u+(l>>${shift}u)){\n${vars
       .map((v, k) => ` case ${k}u:{${body(v)}}`)
       .join('\n')}\n default:{${otherwise}}\n }\n}`
-  const key = `${name}(${group}, ${first}, ${access}, ${layoutKey(layout)})`
   // Texture2DArray texel (x, y, slice): its word in the slice, page by page.
   const load = wgslFn(
     `${name}Load`,

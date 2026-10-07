@@ -1,4 +1,4 @@
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../lighting/shaderConstantsWgsl.ts'
 import { SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -51,15 +51,15 @@ export function screenRadianceShader({
  if(weight>0.0){hit=screenReflection(P,R);}else{hit=${march}(P,R);}
  var filtered:vec4f=vec4f(0.0,0.0,0.0,1.0);
  if(hit.a!=0.0){filtered=vec4f(hit.rgb,0.0);}`,
-        transition: `if(weight>0.0&&filtered.a>0.0){traced=mix(traced,${fallback(wgslF32(ROUGHNESS_FLOOR))},weight);}`,
+        transition: `if(weight>0.0&&filtered.a>0.0){traced=mix(traced,${fallback('ROUGHNESS_FLOOR')},weight);}`,
       }
     : {
         lobe: `let filtered:vec4f=${filtered};`,
         transition: 'if(weight>0.0){traced=mix(traced,resolvedReflectionRay(P,N,R),weight);}',
       }
   return wgslBlock(
-    `screenRadianceShader(${JSON.stringify({ filtered, march, mirror, maxRoughness })})`,
-    [],
+    `screenRadianceShader(${filtered}, ${march}, ${mirror}, ${maxRoughness})`,
+    mirror ? [] : [ROUGHNESS_FLOOR],
     `
 fn screenReflectionFade(rough:f32)->f32{
  return clamp(2.0-2.0*rough/${wgslF32(maxRoughness)},0.0,1.0);
@@ -70,7 +70,7 @@ fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{${
         : `
  let hit:vec4f=screenReflection(P,R);
  if(hit.a!=0.0){return hit.rgb;}
- return ${fallback(wgslF32(ROUGHNESS_FLOOR))};`
+ return ${fallback('ROUGHNESS_FLOOR')};`
     }
 }
 fn filteredResolvedReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{

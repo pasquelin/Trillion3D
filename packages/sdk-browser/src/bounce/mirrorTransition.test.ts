@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
-import { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts'
+import { MIRROR_TRANSITION_END, ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
 import { functionText } from './wgslBody.fixture.ts'
 import { BOUNCE_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
@@ -22,6 +21,7 @@ const evaluate = new Function(`
  const smoothstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
  const mix=(a,b,t)=>a*(1-t)+b*t, dot=()=>1, reflect=x=>x;
  const ltcLookup=()=>({x:1,y:0}), INVERSE_PI_BOUNCE=1/Math.PI, DIELECTRIC_F0=0.04;
+ const ROUGHNESS_FLOOR=${wgslF32(ROUGHNESS_FLOOR)}, MIRROR_TRANSITION_END=${wgslF32(MIRROR_TRANSITION_END)};
  const proxy={offsetMetres:0,startMetres:0};
  function mirrorWeight(rough){${scalarBody('mirrorWeight')}}
  // The maths library's terms the surface's mirror calls (\`mirrorLightingWgsl\`).

@@ -119,7 +119,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
   const lobes: Record<string, unknown> = {}
   const ours = shaderRun<Record<string, Light>>(shipped, NAMES, { ...F32_SCOPE, lobes })
   const theirs = shaderRun<Record<string, Light>>(divides, NAMES, { ...F32_SCOPE, lobes })
-  const floor = f(Number(ROUGHNESS_FLOOR)),
+  const floor = f(ROUGHNESS_FLOOR),
     pi = f(Math.PI)
   let lit = 0,
     moved = 0
@@ -132,7 +132,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
       lift = round % 2 ? u(0.001, 0.2) : u(0.2, 1)
     const V = unit(N.map((n, i) => n * lift + T[i] * across[0] + B[i] * across[1]))
     // A third of the pixels at the roughness floor, the narrowest lobe.
-    const rough = round % 3 ? u(Number(ROUGHNESS_FLOOR), 1) : floor
+    const rough = round % 3 ? u(ROUGHNESS_FLOOR, 1) : floor
     const strength = u(0.05, 1),
       coat = round % 5 ? 0 : u(0.1, 1),
       coatRough = u(0.05, 1),

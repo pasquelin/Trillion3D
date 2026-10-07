@@ -1,3 +1,5 @@
+import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
@@ -9,20 +11,19 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  * `vsmTableEntryAt`, `vsmMipTailOffset`) is that of a 2D table, unchanged, so the same texel
  * holds the same entry.
  *
- * Three strings, each needing the previous ones:
+ * Each fragment lists the declarations its text uses; what a module's bindings provide
+ * (`vsmBindingsWgsl`) the module brings:
  * - `VSM_HANDLE_WGSL`: the shadow map handle. No bindings.
- * - `VSM_PAGE_ADDRESS_WGSL`: addressing, entry encode/decode, page info. Needs the `vsm`
- *   uniform (`VSM_UNIFORMS_WGSL`) and `VSM_CONSTANTS_WGSL`.
- * - `VSM_PAGE_LOOKUP_WGSL`: page table reads. Needs `vsmPageTableLoad(index)`,
- *   emitted by the binding builder.
- * - `VSM_PAGE_MARKS_GATHER_WGSL` / `VSM_COVER_GATHER_WGSL`: the 2x2 gathers,
- *   needing `vsmPageMarksLoad(index)` / `vsmReceiverCoverLoad(index)`.
+ * - `VSM_PAGE_ADDRESS_WGSL`: addressing, entry encode/decode, page info. Reads the `vsm` uniform.
+ * - `VSM_PAGE_LOOKUP_WGSL`: page table reads, through `vsmPageTableLoad(index)`.
+ * - `VSM_PAGE_MARKS_GATHER_WGSL` / `VSM_COVER_GATHER_WGSL`: the 2x2 gathers, through
+ *   `vsmPageMarksLoad(index)` / `vsmReceiverCoverLoad(index)`.
  */
 
 /** The shadow map handle: its id and whether it is a single-page map. */
 export const VSM_HANDLE_WGSL = wgslBlock(
   'VSM_HANDLE_WGSL',
-  [],
+  [VSM_CONSTANTS_WGSL],
   `
 struct VsmHandle{id:u32,isSinglePage:bool,}
 fn vsmHandleFromId(id:u32)->VsmHandle{return VsmHandle(id,id<VSM_SINGLE_PAGE_MAP_SLOTS);}
@@ -37,7 +38,7 @@ fn vsmHandleIsValid(h:VsmHandle)->bool{return h.id!=0xFFFFFFFFu;}
 /** Page-address arithmetic and the buffer linearisation of the 2D tables. */
 export const VSM_PAGE_ADDRESS_WGSL = wgslBlock(
   'VSM_PAGE_ADDRESS_WGSL',
-  [],
+  [VSM_CONSTANTS_WGSL, VSM_UNIFORMS_WGSL, VSM_HANDLE_WGSL],
   `
 fn vsmLog2PagesAtLevel(level:u32)->u32{return VSM_LOG2_LEVEL0_PAGES-level;}
 fn vsmPagesAtLevel(level:u32)->u32{return 1u<<vsmLog2PagesAtLevel(level);}
@@ -131,10 +132,10 @@ fn vsmCoverInBounds(t:vec2u,m:u32)->bool{return all(t<(vsm.coverSize>>vec2u(m)))
 `,
 )
 
-/** Page lookups. Needs `vsmPageTableLoad(index:u32)->u32` (emitted by `vsmBindingsWgsl`). */
+/** Page lookups, through the module's `vsmPageTableLoad(index:u32)->u32` (`vsmBindingsWgsl`). */
 export const VSM_PAGE_LOOKUP_WGSL = wgslBlock(
   'VSM_PAGE_LOOKUP_WGSL',
-  [],
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL],
   `
 /** The entry's word, undecoded: what a reader keeps to decode it again. */
 fn vsmTableWord(o:VsmTableCell)->u32{return vsmPageTableLoad(vsmTableIndex(o.tableXY));}
@@ -166,7 +167,7 @@ fn vsmLocalPageAt(h:VsmHandle,mapUvAt:vec2f,finestMip:u32)->VsmLocalPage{
 const gatherWgsl = (name: string, inBounds: string, load: string, index: string) =>
   wgslBlock(
     `gatherWgsl(${name})`,
-    [],
+    [VSM_PAGE_ADDRESS_WGSL],
     `
 fn ${name}(texelCoord:vec2u,pyramidMip:u32)->vec4u{
  let t=texelCoord>>vec2u(pyramidMip);
@@ -180,21 +181,26 @@ fn ${name}(texelCoord:vec2u,pyramidMip:u32)->vec4u{
   )
 
 /**
- * The 2x2 gather over the page marks (out-of-range texels read 0).
- * Needs `vsmPageMarksLoad(index:u32)->u32`.
+ * The 2x2 gather over the page marks (out-of-range texels read 0) and a page's own marks word,
+ * through the module's `vsmPageMarksLoad(index:u32)->u32`.
  */
 export const VSM_PAGE_MARKS_GATHER_WGSL = wgslBlock(
   'VSM_PAGE_MARKS_GATHER_WGSL',
-  [gatherWgsl('vsmGatherPageMarks', 'vsmPageMarkInBounds', 'vsmPageMarksLoad', 'vsmPageMarkIndex')],
+  [
+    VSM_PAGE_ADDRESS_WGSL,
+    gatherWgsl('vsmGatherPageMarks', 'vsmPageMarkInBounds', 'vsmPageMarksLoad', 'vsmPageMarkIndex'),
+  ],
   `fn vsmPageMarkWord(o:VsmTableCell)->u32{return vsmPageMarksLoad(vsmPageMarkIndex(o.tableXY,0u));}
 `,
 )
 
-/** The same gather over the receiver covers. Needs `vsmReceiverCoverLoad(index:u32)->u32`. */
-export const VSM_COVER_GATHER_WGSL = wgslBlock(
-  'VSM_COVER_GATHER_WGSL',
-  [gatherWgsl('vsmGatherCover', 'vsmCoverInBounds', 'vsmReceiverCoverLoad', 'vsmCoverIndex')],
-  ``,
+/** The same gather over the receiver covers, through the module's
+ *  `vsmReceiverCoverLoad(index:u32)->u32`. */
+export const VSM_COVER_GATHER_WGSL = gatherWgsl(
+  'vsmGatherCover',
+  'vsmCoverInBounds',
+  'vsmReceiverCoverLoad',
+  'vsmCoverIndex',
 )
 
 /**
@@ -205,7 +211,7 @@ export const VSM_COVER_GATHER_WGSL = wgslBlock(
  */
 export const VSM_STRUCTS_WGSL = wgslBlock(
   'VSM_STRUCTS_WGSL',
-  [],
+  [VSM_CONSTANTS_WGSL],
   `
 struct VsmPoolPageInfo{
  flags:u32,

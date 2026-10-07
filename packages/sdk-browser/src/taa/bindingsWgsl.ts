@@ -1,5 +1,6 @@
 import { readOnly } from '../webgpu/core/bindLayout.ts'
 import * as layer from './layers.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Pass bindings, in the order of its layout entries. */
@@ -110,7 +111,7 @@ export const TAA_VIEW_WGSL = wgslBlock(
 
 export const BINDINGS_WGSL = wgslBlock(
   'BINDINGS_WGSL',
-  [],
+  [PAGE_INFO_STRUCT_WGSL, TAA_VIEW_WGSL],
   `
 @group(0) @binding(${TAA_BINDINGS.current}) var current:texture_2d<f32>;
 @group(0) @binding(${TAA_BINDINGS.history}) var history:texture_2d<f32>;

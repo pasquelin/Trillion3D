@@ -64,9 +64,8 @@ import {
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_RENDER_GROUP, VSM_RENDER_PARAMS_WGSL, VSM_RENDER_ROWS_WGSL } from './renderCullWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -81,7 +80,6 @@ import {
 } from './transmissionLayout.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Texels a side of a cell. */
@@ -259,9 +257,6 @@ fn vsmTransmissionRelease(index:u32,slice:u32){
 `,
     [
       VSM_CONSTANTS_WGSL,
-      VSM_UNIFORMS_WGSL,
-      VSM_HANDLE_WGSL,
-      VSM_STRUCTS_WGSL,
       vsmBindingsWgsl(0, VSM_TRANSMISSION_CLEAR_SPECS, layout),
       frameWgsl(layout),
     ],
@@ -360,10 +355,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
 }
 `,
     [
-      VSM_CONSTANTS_WGSL,
-      VSM_UNIFORMS_WGSL,
       VSM_HANDLE_WGSL,
-      VSM_STRUCTS_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
       vsmBindingsWgsl(0, VSM_TRANSMISSION_PAGES_SPECS, layout),
       VSM_PAGE_LOOKUP_WGSL,
@@ -682,7 +674,6 @@ var<workgroup> wgCommand:array<u32,5>;
       maskAlphaWgsl(true),
       MASK_KEEP_WGSL,
       VSM_CONSTANTS_WGSL,
-      VSM_HANDLE_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       frameWgsl(layout),
       VSM_TRANSMISSION_COVER_WGSL,
@@ -955,13 +946,13 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  * moved off its surface by the normal bias: a surface's own triangle is never above it. Up to two
  * crossings multiply in any order to the same bits; three or more multiply in increasing distance
  * (then by their quantised value), so the result is the same whatever the list order.
- * Needs `VsmMapRead`, `vsmProjectionOf`, the VSM constants and uniforms (`vsm`), and the maths
- * library's `bilinear3`, which it lists.
+ * Lists `vsmProjectionOf` and the maths library's `bilinear3`; reads its host's `VsmMapRead` (the
+ * page sampling) and `vsm` uniform.
  */
 export const vsmTransmissionReadWgsl = (binding: number) =>
   wgslBlock(
     `vsmTransmissionReadWgsl(${binding})`,
-    [VSM_TRANSMISSION_EDGE_WGSL, bilinear3],
+    [VSM_TRANSMISSION_EDGE_WGSL, bilinear3, VSM_PROJECTION_DATA_READ_WGSL],
     `
 @group(0) @binding(${binding}) var vsmTransmissionMemory:texture_2d_array<u32>;
 fn vsmTLoad(t:vec2u)->vec4u{return textureLoad(vsmTransmissionMemory,t,0,0);}

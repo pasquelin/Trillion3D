@@ -10,6 +10,9 @@ export type ShadowKinds = { sun: boolean; local: boolean }
 /** Both kinds: the program every scene can be lit by. */
 export const ALL_SHADOW_KINDS: Readonly<ShadowKinds> = { sun: true, local: true }
 
+/** The kinds as a block name reads them: the sun's, then the local light's. */
+export const shadowKindsLabel = ({ sun, local }: ShadowKinds) => `${sun}, ${local}`
+
 /** The kinds a key names: what it leaves out (`sunless`, `localless`) is not read. */
 export const shadowKindsOf = ({
   sunless,
