@@ -1,10 +1,12 @@
 //! The reference values of the codec's mirrored primitives (`trillion3d_math::golden`): the
 //! quaternion normalisation and slerp of the animation sampler here, the octahedral normal
-//! (`oct.rs`) and the quantization (`quant.rs`) each with its inverse.
+//! (`oct.rs`) and the quantization (`quant.rs`) each with its inverse, and a primitive's grids
+//! (`grid.rs`).
 
 use crate::anim::{normalize, sample_tracks, ARC_VALUES, QUATERNION};
 use trillion3d_math::golden::{f32s, f64s, run, Twin, Value, HOSTILE_F64};
 
+mod grid;
 mod oct;
 mod quant;
 
@@ -82,6 +84,7 @@ fn golden_twins() {
     let twins = twins()
         .into_iter()
         .chain(oct::twins())
-        .chain(quant::twins());
+        .chain(quant::twins())
+        .chain(grid::twins());
     run(&twins.collect::<Vec<_>>());
 }

@@ -4,18 +4,14 @@ import { floorLog2 } from '../../math/src/scalar/integers.ts'
  * Grids and streams of the reference encoder: integer cells on a power-of-two grid, octahedral
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
  */
-const MAX_BITS = 24
+/** Bits of a page field: a component's cells span less than 2^MAX_BITS. */
+export const MAX_BITS = 24
 /** Corners per block of eight triangles, and the bits of a block's width. */
 const BLOCK_CORNERS = 24,
   WIDTH_BITS = 5
 
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
 export const bitsFor = (range: number) => (range <= 0 ? 0 : floorLog2(range) + 1)
-
-/** The finest grid exponent, never below `finest`, on which a `span` of values fits the field: at
- *  most 2^23 steps, which rounding at both ends keeps under the 2^24 a page holds. */
-export const gridExponentFor = (span: number, finest: number) =>
-  span > 0 ? Math.max(finest, Math.ceil(Math.log2(span)) - (MAX_BITS - 1)) : finest
 
 /** One attribute's cells on its grid: the bits and float minimum per component, the exponent
  *  that set the grid step, and the cells themselves (n components per vertex, row-major). */
@@ -66,6 +62,10 @@ export function ceil32(value: number): number {
 
 const f = Math.fround,
   OCT_STEP = f(2 / 255)
+
+/** A grid value back to its float, `min + q * step` in 32-bit steps, the product exact and the sum
+ *  rounded once: the one every reader decodes with (`dequant`, `bits/quant.rs`). */
+export const dequant = (min: number, q: number, step: number) => f(min + f(q * step))
 
 /** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
  *  32-bit steps: the one decoder the reader and the encoder below share. */

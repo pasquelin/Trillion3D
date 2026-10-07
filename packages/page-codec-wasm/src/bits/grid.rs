@@ -1,7 +1,8 @@
 //! The position and texture grids of a primitive, written once for both cuts: the compiler's
 //! (`geometry_page_quant::primitive_exponent`, `primitive_uv_exponent`) and the one the engine
 //! runs on drawn triangles or on a compiled primitive's own clusters
-//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`, through `wasm_cone.rs`).
+//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`, through `wasm_cone.rs`, or without
+//! WebAssembly through its TypeScript twin, `packages/page-codec/src/gridExponent.ts`).
 
 use super::{MAX_BITS, MAX_EXPONENT};
 
@@ -58,10 +59,13 @@ pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> 
 }
 
 /// The finest grid on which a positive `span` fits a page's field: at most 2^23 steps, which
-/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds (`gridExponentFor`,
-/// `pageGrids.ts`, for texture coordinates), so a blended surface sits on one grid however it is cut.
+/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds, so a blended surface sits on
+/// one grid however it is cut.
 pub fn finest_exponent(span: f64) -> i32 {
-    (span.log2().ceil() as i32 - (MAX_BITS as i32 - 1)).clamp(-MAX_EXPONENT, MAX_EXPONENT)
+    // Saturating: a span of 0 gives `i32::MIN`, which a plain subtraction would wrap to the coarsest grid.
+    (span.log2().ceil() as i32)
+        .saturating_sub(MAX_BITS as i32 - 1)
+        .clamp(-MAX_EXPONENT, MAX_EXPONENT)
 }
 
 /// The grid of a primitive of widest `extent`: a `blended` one takes the finest grid its pages
