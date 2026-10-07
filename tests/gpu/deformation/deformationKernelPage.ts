@@ -80,7 +80,7 @@ export async function run({
   for (const [index, { writes, read: from }] of frames.entries()) {
     for (const { buffer: name, at, words } of writes)
       device.queue.writeBuffer(named[name], at * 4, new Uint32Array(words))
-    device.queue.writeBuffer(named.image, 0, new Uint32Array([index + 1, 0, 0, 0]))
+    device.queue.writeBuffer(named.image, 0, new Uint32Array([index + 1, 1, 0, 0]))
     const encoder = device.createCommandEncoder()
     const pass = encoder.beginComputePass()
     pass.setPipeline(pipeline)

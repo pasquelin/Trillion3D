@@ -41,9 +41,10 @@ export type TexturePools = {
   liveBytes?: number
 }
 
+/** The pool layers `tiles` tiles fill. */
+const layersFor = (tiles: number) => ceilDiv(tiles, TILES_PER_LAYER)
 /** A lane's floor: its tails, and one tile to stream into when the lane streams. */
-const laneFloor = (tails: number, streams: boolean) =>
-  ceilDiv(tails + Number(streams), TILES_PER_LAYER)
+const laneFloor = (tails: number, streams: boolean) => layersFor(tails + Number(streams))
 
 /**
  * Layers of each lane pool that the texture-pool budget yields: half the budget per atlas; in an
@@ -89,15 +90,13 @@ export function texturePoolFor(
       const total = [...open].reduce((sum, lane) => sum + weight(lane), 0)
       const share = (lane: PoolLane) =>
         Math.floor((budget * weight(lane)) / total / layerBytes(lane))
-      const capped = [...open].filter(
-        (lane) => share(lane) >= ceilDiv(lanes[lane], TILES_PER_LAYER) - floor[lane],
-      )
+      const capped = [...open].filter((lane) => share(lane) >= layersFor(lanes[lane]) - floor[lane])
       if (!capped.length) {
         for (const lane of open) layers[lane] += share(lane)
         break
       }
       for (const lane of capped) {
-        layers[lane] = ceilDiv(lanes[lane], TILES_PER_LAYER)
+        layers[lane] = layersFor(lanes[lane])
         budget -= (layers[lane] - floor[lane]) * layerBytes(lane)
         open.delete(lane)
       }
@@ -106,7 +105,7 @@ export function texturePoolFor(
     // The device refuses only tails it cannot hold: the slot to stream into gives way to its limit.
     for (const lane of POOL_LANES)
       if (layers[lane] > limit) {
-        if (limit < Math.max(1, ceilDiv(kept[lane], TILES_PER_LAYER)))
+        if (limit < Math.max(1, layersFor(kept[lane])))
           throw new Error(
             `TEXTURE_POOL_DEVICE_LIMIT: ${kept[lane]} ${lane} tails, device allows ${limit} layers`,
           )
@@ -154,7 +153,7 @@ export function poolTaking(
   const current = pool.layers[kind][lane]
   const wanted = Math.max(
     current,
-    ceilDiv(taking.resident + 1, TILES_PER_LAYER),
+    layersFor(taking.resident + 1),
     laneFloor(taking.tails, taking.streams),
   )
   if (wanted === current) return pool

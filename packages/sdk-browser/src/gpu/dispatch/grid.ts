@@ -14,19 +14,24 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
  */
 export const DEFAULT_GROUP_WIDTH = 65535
 
+/** The rows of a dispatch of `groups` in rows of at most `width`: the split's one rule, the
+ *  workgroups along x being `min(groups, width)`. */
+const rowsOf = (groups: number, width: number) => (groups <= width ? 1 : ceilDiv(groups, width))
+
 /** The `[x, y]` workgroups of a dispatch of `groups`, in rows of at most `width`. */
 export function dispatchGrid(groups: number, width = DEFAULT_GROUP_WIDTH): [number, number] {
-  return groups <= width ? [groups, 1] : [width, ceilDiv(groups, width)]
+  return [Math.min(groups, width), rowsOf(groups, width)]
 }
 
-/** Dispatches `groups` workgroups on `pass`, in rows of at most `width` (`dispatchGrid`). */
+/** Dispatches `groups` workgroups on `pass`, in rows of at most `width` (`dispatchGrid`), `z`
+ *  deep: the split goes straight to the pass, nothing allocated. */
 export function dispatchRows(
   pass: Pick<GPUComputePassEncoder, 'dispatchWorkgroups'>,
   groups: number,
   width = DEFAULT_GROUP_WIDTH,
+  z = 1,
 ) {
-  if (groups <= width) pass.dispatchWorkgroups(groups, 1)
-  else pass.dispatchWorkgroups(width, ceilDiv(groups, width))
+  pass.dispatchWorkgroups(Math.min(groups, width), rowsOf(groups, width), z)
 }
 
 /** The width a device's dispatches run in: its own limit, WebGPU's guaranteed one without it. */

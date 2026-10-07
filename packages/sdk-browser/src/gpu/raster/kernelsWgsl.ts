@@ -95,8 +95,9 @@ var<workgroup> rowDet:f32;
  else if(klass==2u){atomicStore(&work[LIST_L+atomicAdd(&work[LIST+${CNT_LARGE}u],1u)],entry);}
  else{
   atomicStore(&work[LIST_L+${capacity}u-1u-atomicAdd(&work[LIST+${CNT_HUGE}u],1u)],entry);
-  // The frame's tallest box gives the y dimension of the huge-class dispatch: one group per
-  // eight-row tile, and those that overshoot their triangle's box leave at once.
+  // The frame's tallest box gives the z dimension of the huge-class dispatch, its triangles in
+  // rows along x and y: one group per eight-row tile, and those that overshoot their triangle's
+  // box leave at once.
   atomicMax(&work[LIST+${TILE_ROWS}u],tileRows(t));
  }
 }

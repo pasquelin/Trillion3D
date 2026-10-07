@@ -1,5 +1,5 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clampLowWins, lerp } from '../../../../math/src/scalar/reals.ts'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
@@ -9,7 +9,6 @@ import { Box3 } from './box3.ts'
 import { Frustum, Plane, Ray, Sphere, Triangle } from './volumes.ts'
 import { Color, type ColorInput } from './color.ts'
 import { Path, Shape, SplineCurve } from './curves.ts'
-import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 /** The `math` family: the value types of a scene, each built by the member named after it. */
 export const math = {
@@ -122,11 +121,11 @@ export const math = {
   shape: (points?: readonly (readonly [number, number])[]) => new Shape(points),
   /**
    * Keeps a number between a lowest and a highest value.
-   * @param x - The number to keep in range.
-   * @param lo - The lowest allowed.
-   * @param hi - The highest allowed.
+   * @param value - The number to keep in range.
+   * @param min - The lowest allowed.
+   * @param max - The highest allowed.
    */
-  clamp,
+  clamp: (value: number, min: number, max: number) => clampLowWins(value, min, max),
   /**
    * The number `t` of the way from `a` to `b`.
    * @param a - The start.

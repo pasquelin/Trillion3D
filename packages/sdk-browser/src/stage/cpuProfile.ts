@@ -1,3 +1,5 @@
+import { quantile } from '../../../math/src/scalar/quantile.ts'
+
 /**
  * CPU step profile of a render loop: a bounded ring of recent images plus the worst images by total
  * duration, summarised on demand. It exists so an engine can report where its own CPU time goes in
@@ -5,8 +7,6 @@
  * Nothing is allocated per image: the caller fills the scratch row and hands it over. Two windows
  * over the same images — one on the publish cadence, one a host pulls — share that row (`row`).
  */
-import { quantile } from '../../../math/src/scalar/quantile.ts'
-
 export type CpuStepSummary = {
   /** Frames measured. */
   frames: number

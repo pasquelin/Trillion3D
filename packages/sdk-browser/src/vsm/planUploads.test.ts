@@ -28,6 +28,8 @@
 // record dropped past the frame's count is zeroed that frame, where it was left until the count
 // reached it again — seed 1's third frame, records 8234 to 8238 of a count of 8234, words no shader
 // reads (`prevHandle.id < nextMapCount`); every word read, and every other buffer, kept.
+// Retaken when the invalidation read its rows' width off `num_workgroups` (`flatIndex`): its params'
+// third word, the width it carried, a pad, 0 — seed 2's third frame; every other word kept.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { planFrames, randomWorld, seeded } from './planFrames.fixture.ts'
@@ -41,7 +43,7 @@ const DIGESTS: Record<number, string[]> = {
   2: [
     '6f1d70f9e26b0eb55cf2dffc6b735dfab1f7a27eb6d4bc8a9232cb0f539cb203',
     '7c1efdf7558dd2f964a8f2c0dc4726b82f29a550a33f2ccb62e85f7a5d8f333a',
-    '252f762369d8500f530187e8dcd5f6bf76f13c9bff8c103e12dbff9a88fa9d45',
+    'ec0f2c83565daaf0c608864013c7806b048c7ea9f671fd331f8c13294e650a7b',
   ],
 }
 

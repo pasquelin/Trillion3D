@@ -61,11 +61,11 @@ test('the flat rank reaches every thread and every group of the rows once, in or
   }
 })
 
-test('dispatchRows dispatches the split of dispatchGrid', () => {
+test('dispatchRows dispatches the split of dispatchGrid, z deep', () => {
   const calls: number[][] = []
-  const pass = { dispatchWorkgroups: (...xy: number[]) => void calls.push(xy) }
-  for (const [groups, width] of [[0], [1], [65_535], [65_536], [10, 3]]) {
-    dispatchRows(pass, groups, width)
-    assert.deepEqual(calls.pop(), dispatchGrid(groups, width))
+  const pass = { dispatchWorkgroups: (...xyz: number[]) => void calls.push(xyz) }
+  for (const [groups, width, z] of [[0], [1], [65_535], [65_536], [10, 3], [10, 3, 7]]) {
+    dispatchRows(pass, groups, width, z)
+    assert.deepEqual(calls.pop(), [...dispatchGrid(groups, width), z ?? 1])
   }
 })

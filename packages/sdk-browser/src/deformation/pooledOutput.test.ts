@@ -51,6 +51,7 @@ function stage(positions: Float32Array, indices: Uint32Array, normals: Float32Ar
     /** Each row of `rows` deformed at image `frame`, every lane of its group. */
     frame(rows: Page[], frame: number) {
       image[0] = frame
+      image[1] = rows.length
       const scope = { pages: rows, arrayLength: () => rows.length }
       Object.assign(globalThis, scope)
       for (let row = 0; row < rows.length; row++)

@@ -167,10 +167,9 @@ export function vsmCachePerPageBins(cache: VsmCacheManager, frame: VsmPerPageFra
   return bins
 }
 
-/** The thread-per-id bin's groups of 8 × 8, in rows past one dimension's (`dispatchGrid`): its
+/** The thread-per-id bin's groups of 8 × 8, in rows past one dimension's (`dispatchRows`): its
  *  kernel's `y · gridWidth + x` already ranks the threads of every row (`vsmMapWalkOf`). */
-const threadPerIdGrid = (bin: VsmPerPageBin) =>
-  dispatchGrid(ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2))
+const threadPerIdGroups = (bin: VsmPerPageBin) => ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2)
 
 /** Bin `b`'s `VsmMapWalkParams` words — offset, count, row pitch, thread per id —
  *  at `out[at]`. */
@@ -183,9 +182,11 @@ export function vsmWritePerPageBinArgs(
   const dim = VSM_PER_PAGE_BIN_GRID[b]
   out[at] = bin.offset
   out[at + 1] = bin.count
-  // Thread-per-id: the row pitch of its launch's rows (`threadPerIdGrid`).
+  // Thread-per-id: the row pitch of its launch's rows (`threadPerIdGroups`).
   out[at + 2] =
-    dim === 0 ? threadPerIdGrid(bin)[0] * VSM_PER_PAGE_GROUP_XY : dim * VSM_PER_PAGE_GROUP_XY
+    dim === 0
+      ? dispatchGrid(threadPerIdGroups(bin))[0] * VSM_PER_PAGE_GROUP_XY
+      : dim * VSM_PER_PAGE_GROUP_XY
   out[at + 3] = dim === 0 ? 1 : 0
 }
 
@@ -194,10 +195,8 @@ export function vsmWritePerPageBinArgs(
  *  up y: its kernel ranks a map by its row and z (`vsmMapWalkOf`). */
 export function vsmDispatchPerPageBin(pass: GPUComputePassEncoder, bin: VsmPerPageBin, b: number) {
   const dim = VSM_PER_PAGE_BIN_GRID[b]
-  if (dim === 0) {
-    const [x, y] = threadPerIdGrid(bin)
-    pass.dispatchWorkgroups(x, y, 1)
-  } else {
+  if (dim === 0) dispatchRows(pass, threadPerIdGroups(bin))
+  else {
     const [z, rows] = dispatchGrid(bin.count)
     pass.dispatchWorkgroups(dim, dim * rows, z)
   }
@@ -510,11 +509,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
   ])
 
   /** One dispatch of `p` in `pass`: its tables' group `g0`, the view's `g1` when it has one,
-   *  `x` × `y` groups. Every caller's count stays under 65,535 groups a dimension: the maps are
-   *  at most 8,192 single-page ones and under 2³² / 24,576 = 174,763 full ones — the page table's
-   *  index is a u32 word, 128 × 192 words a full map (`vsmTableIndex`) —, so `rect` asks at most
-   *  ⌈182,955 · 8 / 256⌉ = 5,718 groups and `coarse` 715; `pixels` asks a view side over 8 at
-   *  most a dimension, 2,048 for a side of 16,384, the widest 2D texture of today's adapters. */
+   *  `groups` workgroups, split in rows past one dimension's (`dispatchRows`). */
   function dispatch(
     pass: GPUComputePassEncoder,
     p: VsmComputePipe,

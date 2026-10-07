@@ -43,7 +43,7 @@ import {
 } from './resources.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { VsmLayout } from './layout.ts'
-import { dispatchGrid } from '../gpu/dispatch/grid.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
@@ -226,7 +226,7 @@ let items = new Uint32Array(64)
 let image = new ArrayBuffer(VSM_INVALIDATION_INSTANCE_BYTES * 16)
 let imageF = new Float32Array(image),
   imageU = new Uint32Array(image)
-/** The params' words; the fourth pads the struct, 0. */
+/** The params' words: the item count, the threads; the last two pad the struct, 0. */
 const paramsImage = new Uint32Array(4)
 const INSTANCE_WORDS = VSM_INVALIDATION_INSTANCE_BYTES / 4
 // The ranges of one phase, by their first instance: the index in the range lists of the last range
@@ -338,12 +338,10 @@ function dispatchPhase(
     16,
   )
   if (instanceBuffer !== was0 || itemBuffer !== was1) slot.group = undefined
-  const [groupsX, groupsY] = dispatchGrid(ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE))
   device.queue.writeBuffer(instanceBuffer, 0, imageU, 0, instanceBytes / 4)
   device.queue.writeBuffer(itemBuffer, 0, items, 0, itemCount * 4)
   paramsImage[0] = itemCount
   paramsImage[1] = threads
-  paramsImage[2] = groupsX
   device.queue.writeBuffer(slot.params, 0, paramsImage)
 
   const p = pipe(device, res)
@@ -358,7 +356,7 @@ function dispatchPhase(
       itemBuffer,
     ])),
   )
-  pass.dispatchWorkgroups(groupsX, groupsY)
+  dispatchRows(pass, ceilDiv(threads, VSM_INVALIDATION_GROUP_SIZE))
   pass.end()
 }
 

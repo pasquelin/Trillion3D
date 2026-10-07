@@ -1,4 +1,4 @@
-import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { boxCornersInto, IDENTITY_MATRIX4, invertMatrix4 } from '../../../../sdk-core/src/index.ts'
 import { projectCornersInto } from '../../hiz/corners.ts'
 import { readHostBox } from '../../host/boxBounds.ts'
@@ -82,10 +82,10 @@ function project(b: WaterBounds, box: Float64Array) {
   if (b.projected[5]) return false
   const dx = Math.ceil((b.error[0] * b.width) / 2 + ROUND * b.width) + 1
   const dy = Math.ceil((b.error[1] * b.height) / 2 + ROUND * b.height) + 1
-  b.rect[0] = clamp(b.projected[0] - dx, 0, b.width - 1)
-  b.rect[1] = clamp(b.projected[1] - dy, 0, b.height - 1)
-  b.rect[2] = clamp(b.projected[2] + dx, 1, b.width)
-  b.rect[3] = clamp(b.projected[3] + dy, 1, b.height)
+  b.rect[0] = clampLowWins(b.projected[0] - dx, 0, b.width - 1)
+  b.rect[1] = clampLowWins(b.projected[1] - dy, 0, b.height - 1)
+  b.rect[2] = clampLowWins(b.projected[2] + dx, 1, b.width)
+  b.rect[3] = clampLowWins(b.projected[3] + dy, 1, b.height)
   return b.rect.every(Number.isFinite)
 }
 
