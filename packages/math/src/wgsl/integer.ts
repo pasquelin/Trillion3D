@@ -1,10 +1,11 @@
 import { wgslFn } from './decl.ts'
 
 /**
- * Integer counts and powers of two, as the shaders write them (`../scalar/integers.ts` on the
- * processor). Unsigned arithmetic wraps modulo 2³² and rounds nothing, so a sum written `a+31u` or
- * `a+32u-1u`, a quotient by 32 written `/32u` or `>>5u`, gives the same word: these hold one text
- * each, the integer value being the same whatever the spelling.
+ * Integer counts and powers of two, bit sets, the bytes of a word and the class of a float's bits,
+ * as the shaders write them (`../scalar/integers.ts` on the processor). Unsigned arithmetic wraps
+ * modulo 2³² and rounds nothing, so a sum written `a+31u` or `a+32u-1u`, a quotient by 32 written
+ * `/32u` or `>>5u`, a bit tested `(w>>i)&1u` or `w&(1u<<i)`, gives the same word: these hold one
+ * text each, the integer value being the same whatever the spelling.
  */
 
 /** The groups of `n` that `a` takes, the last one part full (`ceilDiv`); `a+n-1u` wraps past
@@ -31,4 +32,46 @@ export const pow2FromExponent = wgslFn(
   'pow2FromExponent',
   [],
   'fn pow2FromExponent(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}',
+)
+
+/** The word of a bit set that holds bit `i`, `i/32` (`bitWords` counts them on the processor). */
+export const bitWord = wgslFn('bitWord', [], 'fn bitWord(i:u32)->u32{return i>>5u;}')
+
+/** Bit `i`'s mask within its word, `1 << (i mod 32)`. */
+export const bitMask = wgslFn('bitMask', [], 'fn bitMask(i:u32)->u32{return 1u<<(i&31u);}')
+
+/** Bit `i` of `word` (`i` taken modulo 32), 0 or 1. */
+export const bitAt = wgslFn(
+  'bitAt',
+  [],
+  'fn bitAt(word:u32,i:u32)->u32{return (word>>(i&31u))&1u;}',
+)
+
+/** Whether bit `i` of `word` (`i` taken modulo 32) is set. */
+export const bitIsSet = wgslFn(
+  'bitIsSet',
+  [bitAt],
+  'fn bitIsSet(word:u32,i:u32)->bool{return bitAt(word,i)!=0u;}',
+)
+
+/** Byte `k` of `word`, the lowest first: `k` from 0 to 3. */
+export const byteOf = wgslFn(
+  'byteOf',
+  [],
+  'fn byteOf(word:u32,k:u32)->u32{return (word>>(8u*k))&255u;}',
+)
+
+/** Whether the `f32` of bits `word` is a NaN: its magnitude bits past the infinity's. */
+export const isNanWord = wgslFn(
+  'isNanWord',
+  [],
+  'fn isNanWord(word:u32)->bool{return (word&0x7fffffffu)>0x7f800000u;}',
+)
+
+/** Whether the `f32` of bits `word` is finite: its exponent bits not all set. A compiler may assume
+ *  no infinity nor NaN in float arithmetic; the bits decide whatever it assumes. */
+export const isFiniteWord = wgslFn(
+  'isFiniteWord',
+  [],
+  'fn isFiniteWord(word:u32)->bool{return (word&0x7f800000u)!=0x7f800000u;}',
 )

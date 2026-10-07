@@ -70,6 +70,13 @@ export const frameAround = wgslFn(
 }`,
 )
 
+/** The frame of `tangentAround(N)`: its `x` that tangent, its `y` `cross(N, x)`, its `z` `N`. */
+export const tangentFrame = wgslFn(
+  'tangentFrame',
+  [Frame3, tangentAround],
+  'fn tangentFrame(N:vec3f)->Frame3{let T=tangentAround(N);return Frame3(T,cross(N,T),N);}',
+)
+
 /** The vector `v` in the frame `m`: its dot with each of the frame's rows. */
 export const intoFrame = wgslFn(
   'intoFrame',

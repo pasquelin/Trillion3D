@@ -141,8 +141,9 @@ test('the slab entry is where the slab cut starts, from 0 on, or past the limit 
     } else assert.ok(entry > limit, `miss ${i}`)
   }
   assert.ok(hits > 50 && hits < 350, `both outcomes met: ${hits}`)
-  // A zero component is taken as +1e-20: finite, never an infinity.
-  assert.deepEqual(run.rayInverseDirection([0, -0, 2]), [1e20, 1e20, 0.5])
+  // A zero component is taken as +1e-20 (`DIVISOR_FLOOR`, its f32): finite, never an infinity.
+  const floored = (run.rayInverseDirection([0, -0, 2]) as V).map(Math.fround)
+  assert.deepEqual(floored, [Math.fround(1e20), Math.fround(1e20), 0.5])
 })
 
 test('the ray meets the triangle where the ray meets its plane inside its corners', () => {

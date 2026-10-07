@@ -1,11 +1,11 @@
-import { boxCenter } from './box.ts'
-import { distanceSqVector3, length3, plainLength3 } from '../vector/vector.ts'
+import { boundsDiagonal, boxCenter } from './box.ts'
+import { distanceSqVector3, plainLength3 } from '../vector/vector.ts'
 
 /**
  * Bounding sphere of a box, written flat: centre `x, y, z` then radius, from `o`.
  *
  * The centre is the midpoint of the bounds, `(min + max) * 0.5`; the radius is half the diagonal,
- * `‖max − min‖ * 0.5`, the length being `length3`. An empty box — an upper bound
+ * `boundsDiagonal · 0.5` (`boxRadius`), the length being `length3`. An empty box — an upper bound
  * below its lower bound — yields the empty sphere, zero centre and radius `-1`. The arithmetic
  * is the box's, term by term: the same bits, NaN, signed zeros and infinities included.
  */
@@ -27,7 +27,7 @@ export function sphereFromBounds(
     return
   }
   boxCenter(out, o, minX, minY, minZ, maxX, maxY, maxZ)
-  out[o + 3] = length3(maxX - minX, maxY - minY, maxZ - minZ) * 0.5
+  out[o + 3] = boundsDiagonal(minX, minY, minZ, maxX, maxY, maxZ) * 0.5
 }
 
 /** True when the sphere of radius `ar` centred at `a[aAt]` and the one of radius `br` at `b[bAt]`

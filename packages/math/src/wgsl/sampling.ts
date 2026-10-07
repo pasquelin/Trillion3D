@@ -1,8 +1,9 @@
 import { wgslFn } from './decl.ts'
 
 /**
- * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, the
- * bilinear combine of four taps already read, and the greatest and least channels of a colour.
+ * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, a texel
+ * held on its image, the bilinear combine of four taps already read, and the greatest and least
+ * channels of a colour.
  * The combine holds no load: each shader reads its four taps its own way, and only the `mix` of
  * `mix` is common, one declaration per type.
  */
@@ -58,4 +59,12 @@ export const minChannel = wgslFn(
   'minChannel',
   [],
   'fn minChannel(c:vec3f)->f32{return min(c.r,min(c.g,c.b));}',
+)
+
+/** The texel `p` held on an image of `size` texels, `clamp(p, 0, size − 1)` per axis: the fetch at
+ *  an edge reads the edge's texel. */
+export const clampToExtent = wgslFn(
+  'clampToExtent',
+  [],
+  'fn clampToExtent(p:vec2i,size:vec2i)->vec2i{return clamp(p,vec2i(0),size-vec2i(1));}',
 )

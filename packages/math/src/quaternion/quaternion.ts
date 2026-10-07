@@ -85,6 +85,16 @@ export function dotQuaternion(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 
   )
 }
 
+/** The squared distance of the four-vectors at `a[aAt]` and `b[bAt]`: the squares of `a − b`,
+ *  component by component, summed `x, y, z, w` left to right (`distanceSqVector3` on four). */
+export function distanceSqQuaternion(a: ArrayLike<number>, b: ArrayLike<number>, aAt = 0, bAt = 0) {
+  const dx = a[aAt] - b[bAt],
+    dy = a[aAt + 1] - b[bAt + 1],
+    dz = a[aAt + 2] - b[bAt + 2],
+    dw = a[aAt + 3] - b[bAt + 3]
+  return dx * dx + dy * dy + dz * dz + dw * dw
+}
+
 /** The length of the quaternion at `at`: the root of `dotQuaternion(q, q)` in the normal band of
  *  `length3`, `hypot4` outside it — the rule of `length3` on four terms. `normalizeQuaternion`
  *  keeps its own, the sampler twin's. */

@@ -1,5 +1,6 @@
-//! Axis-aligned boxes, as a low and a high corner, grown by points and by boxes: every compiler
-//! stage that bounds geometry grows its boxes here, with the same bits on every machine.
+//! Axis-aligned boxes, as a low and a high corner, grown by points and by boxes, and crossed by a
+//! ray: every compiler stage that bounds geometry grows its boxes here, with the same bits on every
+//! machine.
 
 /// The lower of a bound and a coordinate: `f64::min`, a NaN coordinate leaving the bound and a NaN
 /// bound taking the coordinate, but `−0.0` below `+0.0` whichever comes first, as JavaScript's
@@ -190,9 +191,38 @@ pub fn diagonal<const N: usize>(low: [f64; N], high: [f64; N]) -> f64 {
     crate::vecn::length(crate::vecn::sub(high, low))
 }
 
+/// Whether the ray from `origin`, its direction's reciprocal `inverse`, crosses the box `[low,
+/// high]` between 0 and `limit`: the slab test, axis by axis in axis order, each side's distance
+/// `(bound − origin) · inverse`, the entry raised from 0 by `f64::max` of the nearer and the exit
+/// lowered from `limit` by `f64::min` of the farther; a hit when the entry is not past the exit. A
+/// NaN distance (`0 · ∞`, a zero component of the direction against a bound through the origin) is
+/// passed over by `min` and `max`, the other bound's distance then both the nearer and the farther.
+#[inline]
+pub fn ray_aabb(
+    low: [f64; 3],
+    high: [f64; 3],
+    origin: [f64; 3],
+    inverse: [f64; 3],
+    limit: f64,
+) -> bool {
+    let mut entry = 0.0f64;
+    let mut exit = limit;
+    for axis in 0..3 {
+        let near = (low[axis] - origin[axis]) * inverse[axis];
+        let far = (high[axis] - origin[axis]) * inverse[axis];
+        entry = entry.max(near.min(far));
+        exit = exit.min(near.max(far));
+    }
+    entry <= exit
+}
+
 #[cfg(test)]
 #[path = "aabb_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "aabb_ray_tests.rs"]
+mod ray_tests;
 
 #[cfg(test)]
 #[path = "aabb_extent_tests.rs"]

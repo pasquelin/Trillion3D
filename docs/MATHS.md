@@ -22,12 +22,13 @@ Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`
 float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
 rounded in float32 as the GPU computes it),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
-spheres, cones, slabs, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal and pixel
-scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
+spheres, cones, slabs, triangles, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal
+and pixel scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
 reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
 `scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest rank and the median), `sequence/`
-(`halton.ts`; `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old
-expression against), `batch/` and `wgsl/` (below); `index.ts` is the
+(`halton.ts`; `random.ts`, the seeded generators, twins of the Rust crate's `random.rs`;
+`sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old expression
+against), `batch/` and `wgsl/` (below); `index.ts` is the
 barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
 and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
@@ -129,12 +130,14 @@ A name written twice with two texts, or a dependency cycle, throws when the pipe
 the text is built once a pipeline, never in a frame. Two operation orders of one formula round
 apart, so each is its own declaration under its own name, never merged. The library writes a number
 through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
-holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π), the greatest
-finite `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`, 3.4e38, never the greatest
-`f32`), the golden ratio's fraction and the singularity threshold are `wgslConst` declarations of
+holds, the engine's one helper that writes a number as WGSL; π, π/4, 1/π, 2π, 1/(2π), √2, the
+greatest finite and the least normal `f32`, the finite stand-in for infinity (`FINITE_SENTINEL`,
+3.4e38, never the greatest `f32`), the golden ratio's fraction and angle, the plastic steps, the
+half-float bounds and the singularity threshold are `wgslConst` declarations of
 [`constants.ts`](../packages/math/src/wgsl/constants.ts), written from the values of
 [`packages/math/src/constants.ts`](../packages/math/src/constants.ts), beside the shaders' own
-sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`). An integer
+sentinels, one per value and meaning (`INFINITE_THRESHOLD`, `FAR_VALUE`, `GOLDEN_U32`,
+`DIVISOR_FLOOR`, `RANGE_BOUND`). An integer
 expression rounds nothing: its spellings (`a+31u` or `a+32u-1u`, `/32u` or `>>5u`) are one
 declaration ([`integer.ts`](../packages/math/src/wgsl/integer.ts)).
 `library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
