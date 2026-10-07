@@ -147,8 +147,6 @@ export function createImpostorWatch() {
   }
 }
 
-export type ImpostorWatch = ReturnType<typeof createImpostorWatch>
-
 /** The per-root arrays at `n` roots, each verdict kept. */
 function fit(s: State, n: number) {
   const keep = <T extends Uint8Array | Uint32Array>(from: T) => {
