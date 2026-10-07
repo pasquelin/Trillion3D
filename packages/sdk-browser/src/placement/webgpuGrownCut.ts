@@ -15,6 +15,7 @@ import type { GpuSelection } from '../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { forgetRowRoots } from './update.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
+import { replayComposed } from './gpuCompose.ts'
 import { growthOf, heldPage } from './webgpuGrowth.ts'
 
 /**
@@ -83,7 +84,8 @@ export function adoptGrownCut(rt: WebgpuPagesRuntime) {
   return true
 }
 
-/** `cut` replaces the running cut: it holds every root's park and mark word, the pool's residency
+/** `cut` replaces the running cut: it holds every root's park and mark word and the roots composed
+ *  on the GPU now (`replayComposed`), the pool's residency
  *  and absolute worlds until this image rebases them; the views drawn aside cut on it anew. The
  *  pool was listed when the cut began: the pages it `moved` since are noted again, they alone. */
 function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<number>) {
@@ -100,6 +102,7 @@ function swapCut(rt: WebgpuPagesRuntime, cut: GpuSelection, moved: ReadonlySet<n
     cut.parkWorld(rank, !!root.parked)
     cut.markWorld(rank, markReach(root.mark ?? 0, root.reach ?? 0))
   })
+  replayComposed(rt, cut)
   cut.updateResidency(layout.rows.residentFlags)
   // The pool's slots taken or given back while the cut was made: a page whose held state moved.
   for (const page of moved)

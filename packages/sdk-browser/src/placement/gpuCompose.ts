@@ -348,6 +348,16 @@ const composeKernels = oncePerDevice((device) => {
   }
 })
 
+/** `cut` told every root a parent composes on the GPU now, read off the one compose state: its
+ *  tree group opens there as in the cut it replaces (`composedPlacement`) — a link or an unlink
+ *  made while it was being made included. */
+export function replayComposed(rt: WebgpuPagesRuntime, cut: GpuSelection) {
+  const parentOf = rt.compose?.parentOf
+  if (!parentOf || !cut.composedPlacement) return
+  for (let rank = 0; rank < parentOf.length; rank++)
+    if (parentOf[rank] !== NONE) cut.composedPlacement(rank, true)
+}
+
 /** Asks the kernels the next frame binds once a parent holds a link
  *  (`../webgpu/frame/framePipelines.ts`); nothing while none does. */
 export function askComposedPlacements(rt: WebgpuPagesRuntime, device: GPUDevice) {
