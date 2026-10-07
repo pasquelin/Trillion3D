@@ -49,7 +49,7 @@ import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { FLOAT32_STEP, SQRT3 } from '../../../math/src/constants.ts'
-import { dotVector3Xyz, length3 } from '../../../math/src/vector/vector.ts'
+import { dotScalar3, dotVector3Xyz, length3 } from '../../../math/src/vector/vector.ts'
 import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 
 /** The CPU copy of the rows' world spheres (`webgpu/shadow/spheres.ts`): centre high, radius,
@@ -244,15 +244,17 @@ export const createVsmRowBound = (): VsmRowBound => ({
  *  (`binOf`): each row's s widened and its e grown by the f32 room of its distance to `ref`. */
 function binBlock(ref: Float64Array, shape: Shape, p: Float32Array, start: number, n: number) {
   const { spread, roomScale, cone } = shape
-  const { axes } = shape,
+  // The nine axes in locals once: the row loop stores into typed arrays, so reads of `axes` in it
+  // would be reloaded every row.
+  const [a0, a1, a2, a3, a4, a5, a6, a7, a8] = shape.axes,
     [h0, h1, h2, l0, l1, l2] = ref
   for (let i = 0, at = start * STRIDE; i < n; i++, at += STRIDE) {
     const dx = p[at] - h0 + (p[at + 4] - l0),
       dy = p[at + 1] - h1 + (p[at + 5] - l1),
       dz = p[at + 2] - h2 + (p[at + 6] - l2)
-    const x = dotVector3Xyz(axes, dx, dy, dz),
-      y = dotVector3Xyz(axes, dx, dy, dz, 3),
-      z = dotVector3Xyz(axes, dx, dy, dz, 6)
+    const x = dotScalar3(a0, a1, a2, dx, dy, dz),
+      y = dotScalar3(a3, a4, a5, dx, dy, dz),
+      z = dotScalar3(a6, a7, a8, dx, dy, dz)
     const r = p[at + 3] * spread,
       e = r + ROOM * (roomScale * (Math.abs(dx) + Math.abs(dy) + Math.abs(dz)) + r)
     const reach = Math.max(Math.abs(x), Math.abs(y))

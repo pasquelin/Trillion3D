@@ -3,10 +3,13 @@ import test from 'node:test'
 import {
   distanceSqVector3,
   distanceVector3,
+  dotScalar3,
+  dotVector3,
   length2,
   length3,
   normalizeVector2,
   normalizeVector3,
+  plainLength3,
   transformAffinePointRowMajor,
 } from './vector.ts'
 import { hypot3 } from '../float/hypot.ts'
@@ -29,6 +32,27 @@ test('length3 is the plain root of the squares summed left to right, not Math.hy
     z = 0.4516414701938629
   assert.equal(bitsOf(hypot3(x, y, z)), 0x3fe4b46054c7ac11n)
   assert.equal(bitsOf(length3(x, y, z)), 0x3fe4b46054c7ac12n)
+})
+
+test("plainLength3 is the Rust twins' root: the band's bits, Infinity and 0 outside it", () => {
+  const x = 0.4471859335899353,
+    y = -0.1211518868803978,
+    z = 0.4516414701938629
+  assert.equal(bitsOf(plainLength3(x, y, z)), bitsOf(length3(x, y, z)))
+  // Past the band the squares overflow, below it they underflow: `dot(a, a).sqrt()` in Rust.
+  assert.equal(plainLength3(1e155, 0, 0), Infinity)
+  assert.equal(length3(1e155, 0, 0), 1e155)
+  assert.equal(plainLength3(1e-170, 0, 0), 0)
+  assert.equal(length3(1e-170, 0, 0), 1e-170)
+})
+
+test("dotScalar3 sums dotVector3's terms in its order", () => {
+  const a = [0.1, 1e16, -1e16],
+    b = [3, 1, 1]
+  // Left to right, 1e16 + (−1e16) cancels after 0.1·3: the terms' order shows in the last bits.
+  assert.equal(dotScalar3(a[0], a[1], a[2], b[0], b[1], b[2]), dotVector3(a, b))
+  assert.equal(dotScalar3(a[0], a[1], a[2], b[0], b[1], b[2]), 0)
+  assert.equal(dotScalar3(1, 2, 3, 4, 5, 6), 32)
 })
 
 test('length2: Pythagorean triples are exact, a signed zero gives +0', () => {

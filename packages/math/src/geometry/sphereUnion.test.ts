@@ -58,3 +58,16 @@ test('sphereUnion holds both spheres and is the old fold, bit for bit', () => {
     assert.ok(distanceVector3(held, read, 0, 4) + read[7] <= held[3] + slack, `read ${i}`)
   }
 })
+
+test("sphereUnion keeps the old fold's plain root outside the length band, as its Rust twin", () => {
+  // Two point spheres 1e-160 apart: the squares underflow, the gap is 0 and the held one is kept
+  // as it is. Two 1e155 apart: the squares overflow, the gap is Infinity and the centre NaN.
+  for (const gap of [1e-160, 1e155]) {
+    const held = Float64Array.of(0, 0, 0, 0),
+      old = Float64Array.from(held),
+      read = [gap, 0, 0, 0]
+    oldGrow(old, 0, read, 0)
+    sphereUnion(held, 0, read, 0)
+    for (let k = 0; k < 4; k++) assert.ok(Object.is(held[k], old[k]), `${gap}.${k}`)
+  }
+})

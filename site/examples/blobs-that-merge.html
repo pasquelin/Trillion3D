@@ -42,8 +42,8 @@
       // The wax is a field: every blob adds a smooth bump that falls to zero at its reach, and the
       // surface is where the sum crosses a level. Two blobs close enough add up between them and
       // the level is crossed there too: a bridge grows, and the two become one.
-      // The scratch each surface normal is normalised in.
-      const fall = math.vector3();
+      // The scratch each surface normal is normalised in, and the one a distance from the axis is read in.
+      const fall = math.vector3(), ring = math.vector2();
       function field(x, y, z, blobs, reach2) {
         let sum = 0;
         for (let b = 0; b < blobs.length; b += 5) {
@@ -53,7 +53,7 @@
         }
         // The glass, the floor of the lamp and its neck fade the field out: the surface closes
         // before it would touch them.
-        const wall = wallAt(y) - 0.07 - Math.hypot(x, z);
+        const wall = wallAt(y) - 0.07 - ring.set(x, z).length();
         return sum * math.clamp(wall / 0.12, 0, 1) * math.clamp((y - 1.62) / 0.1, 0, 1) * math.clamp((5.15 - y) / 0.1, 0, 1);
       }
 

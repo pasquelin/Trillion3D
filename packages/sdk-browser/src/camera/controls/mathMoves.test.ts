@@ -1,74 +1,25 @@
-// The controllers' lengths moved from `hypot2`/`hypot3` to `length2`/`length3` (#1493): each
-// gesture is replayed by an oracle that takes its lengths as a parameter. Run with the new ones it
-// gives the controller's own pose bit for bit, which proves the oracle is the controller; run with
-// the old ones, the same pose once in float32, on HALTON_SWEEP points.
+// The pivot's lengths moved from `hypot2`/`hypot3` to `length2`/`length3` (#1493): each pinch
+// is replayed by an oracle that takes its lengths as a parameter. Run with the new ones it gives
+// the controller's own pose bit for bit, which proves the oracle is the controller; run with the
+// old ones, the same pose once in float32 — after one gesture, and at every step of a chain of
+// gestures on one controller, where the eye and the pivot carry their doubles from one to the
+// next, on HALTON_SWEEP points. The head's are in `mathMovesLook.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HALF_PI } from '../../../../math/src/constants.ts'
-import { hypot2, hypot3 } from '../../../../math/src/float/hypot.ts'
-import { length2, length3 } from '../../../../math/src/vector/vector.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
+import { length2 } from '../../../../math/src/vector/vector.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { RADIUS_EPSILON } from '../../../../math/src/vector/spherical.ts'
-import {
-  normalizeQuaternion,
-  rotateByQuaternion,
-} from '../../../../math/src/quaternion/quaternion.ts'
+import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import {
   HALTON_SWEEP,
   assertSameFloat32,
   haltonSpan,
 } from '../../../../math/src/sequence/sweep.fixture.ts'
-import { dollyDistance, orbitOrientation, panOffset, pixelWorldScale } from './math.ts'
-import { HEAD_DEFAULTS } from './look.ts'
-import { createFirstPersonCameraControls } from './firstPersonControls.ts'
+import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
 import { createPanZoomCameraControls } from './panZoomControls.ts'
-import { fixtureCamera, fixtureDrag, fixturePinch, fixtureSurface } from './controls.fixture.ts'
-
-type Lengths = {
-  l2: (x: number, y: number) => number
-  l3: (x: number, y: number, z: number) => number
-}
-const OLD: Lengths = { l2: hypot2, l3: hypot3 },
-  NEW: Lengths = { l2: length2, l3: length3 }
-
-/** The `i`-th Halton unit quaternion, from bases 2, 3, 5 and 7. */
-function quaternion(i: number) {
-  const q = new Float64Array(4)
-  for (let k = 0; k < 4; k++) q[k] = haltonSpan(i, [2, 3, 5, 7][k], -1, 1)
-  return normalizeQuaternion(q)
-}
-
-/** `createHead`'s sample and turn: a host orientation read back into yaw and pitch, the look
- *  of `(dx, dy)` pixels applied, the level orientation rebuilt. */
-function headTurn(L: Lengths, q: Float64Array, dx: number, dy: number) {
-  const f = rotateByQuaternion(new Float64Array(3), q, 0, 0, -1)
-  const pitch = Math.atan2(f[1], L.l2(f[0], f[2])),
-    yaw = Math.atan2(-f[0], -f[2]) - dx * 0.002
-  const kept = clampCompare(pitch - dy * 0.002, HEAD_DEFAULTS.minPitch, HEAD_DEFAULTS.maxPitch)
-  return orbitOrientation(new Float64Array(4), [0, yaw, HALF_PI + kept])
-}
-
-test('look: a host orientation read back keeps the head in float32', () => {
-  const camera = fixtureCamera(),
-    surface = fixtureSurface(400),
-    controls = createFirstPersonCameraControls(camera, surface.element)
-  for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const q = quaternion(i),
-      dx = Math.round(haltonSpan(i, 11, -40, 40)),
-      dy = Math.round(haltonSpan(i, 13, -40, 40))
-    camera.quaternion.set(q[0], q[1], q[2], q[3])
-    fixtureDrag(surface, dx, dy)
-    controls.update(0)
-    const { x, y, z, w } = camera.quaternion,
-      now = [x, y, z, w]
-    const ours = headTurn(NEW, q, dx, dy),
-      old = headTurn(OLD, q, dx, dy)
-    for (let k = 0; k < 4; k++) {
-      assert.ok(Object.is(now[k], ours[k]), `oracle ${i}.${k}`)
-      assertSameFloat32(old[k], now[k], `head ${i}.${k}`)
-    }
-  }
-})
+import { fixtureCamera, fixturePinch, fixtureSurface } from './controls.fixture.ts'
+import { NEW, OLD, quaternion, type Lengths } from './mathMoves.fixture.ts'
 
 /** The pivot's state: eye, pivot and the camera's fixed orientation. */
 type Pivot = {
@@ -127,42 +78,58 @@ function pinchGesture(L: Lengths, p: Pivot, from: [Finger, Finger], to: [Finger,
   return p
 }
 
-test('pivot and pinch: the pan and the dolly keep the camera pose in float32', () => {
-  const finger = (i: number, a: number, b: number) => ({
-    x: haltonSpan(i, a, 0, 1920),
-    y: haltonSpan(i, b, 0, 1080),
+const finger = (i: number, a: number, b: number) => ({
+  x: haltonSpan(i, a, 0, 1920),
+  y: haltonSpan(i, b, 0, 1080),
+})
+
+/** Sweep point `i`'s pivot controller, its pose and limits, with two oracles of its state. */
+function pivotCase(i: number) {
+  const q = quaternion(i),
+    eye = [0, 1, 2].map((k) => haltonSpan(i, [11, 13, 17][k], -1e3, 1e3)),
+    center = [0, 1, 2].map((k) => haltonSpan(i, [19, 23, 29][k], -10, 10)),
+    min = i % 3 ? 0 : haltonSpan(i, 31, 0, 50),
+    max = i % 5 ? Infinity : haltonSpan(i, 37, 50, 2000)
+  const camera = fixtureCamera(eye[0], eye[1], eye[2]),
+    surface = fixtureSurface(400),
+    controls = createPanZoomCameraControls(camera, surface.element)
+  camera.quaternion.set(q[0], q[1], q[2], q[3])
+  controls.target.set(center[0], center[1], center[2])
+  controls.minDistance = min
+  controls.maxDistance = max
+  const state = (): Pivot => ({
+    position: Float64Array.from(eye),
+    center: Float64Array.from(center),
+    q,
+    min,
+    max,
   })
+  return { camera, surface, ours: state(), old: state() }
+}
+
+/** Gesture `g`'s pinch on the controller and both oracles, then the pose against them. */
+function assertPinch(c: ReturnType<typeof pivotCase>, g: number, at: string) {
+  const from: [Finger, Finger] = [finger(g, 41, 43), finger(g, 47, 53)],
+    to: [Finger, Finger] = [finger(g, 59, 61), finger(g, 67, 71)]
+  fixturePinch(c.surface, from, to)
+  pinchGesture(NEW, c.ours, from, to)
+  pinchGesture(OLD, c.old, from, to)
+  const now = [c.camera.position.x, c.camera.position.y, c.camera.position.z]
+  for (let k = 0; k < 3; k++) {
+    assert.ok(Object.is(now[k], c.ours.position[k]), `oracle ${at}.${k}`)
+    assertSameFloat32(c.old.position[k], now[k], `eye ${at}.${k}`)
+    assertSameFloat32(c.old.center[k], c.ours.center[k], `pivot ${at}.${k}`)
+  }
+}
+
+test('pivot and pinch: the pan and the dolly keep the camera pose in float32', () => {
+  for (let i = 1; i <= HALTON_SWEEP; i++) assertPinch(pivotCase(i), i, `${i}`)
+})
+
+test('pivot and pinch: a chain of 12 gestures keeps the camera pose in float32 at every step', () => {
   for (let i = 1; i <= HALTON_SWEEP; i++) {
-    const q = quaternion(i),
-      eye = [0, 1, 2].map((k) => haltonSpan(i, [11, 13, 17][k], -1e3, 1e3)),
-      center = [0, 1, 2].map((k) => haltonSpan(i, [19, 23, 29][k], -10, 10)),
-      min = i % 3 ? 0 : haltonSpan(i, 31, 0, 50),
-      max = i % 5 ? Infinity : haltonSpan(i, 37, 50, 2000)
-    const from: [Finger, Finger] = [finger(i, 41, 43), finger(i, 47, 53)],
-      to: [Finger, Finger] = [finger(i, 59, 61), finger(i, 67, 71)]
-    const camera = fixtureCamera(eye[0], eye[1], eye[2]),
-      surface = fixtureSurface(400),
-      controls = createPanZoomCameraControls(camera, surface.element)
-    camera.quaternion.set(q[0], q[1], q[2], q[3])
-    controls.target.set(center[0], center[1], center[2])
-    controls.minDistance = min
-    controls.maxDistance = max
-    fixturePinch(surface, from, to)
-    const now = [camera.position.x, camera.position.y, camera.position.z]
-    const state = (): Pivot => ({
-      position: Float64Array.from(eye),
-      center: Float64Array.from(center),
-      q,
-      min,
-      max,
-    })
-    const ours = pinchGesture(NEW, state(), from, to),
-      old = pinchGesture(OLD, state(), from, to)
-    for (let k = 0; k < 3; k++) {
-      assert.ok(Object.is(now[k], ours.position[k]), `oracle ${i}.${k}`)
-      assertSameFloat32(old.position[k], now[k], `eye ${i}.${k}`)
-      assertSameFloat32(old.center[k], ours.center[k], `pivot ${i}.${k}`)
-    }
+    const c = pivotCase(i)
+    for (let s = 1; s <= 12; s++) assertPinch(c, i * 12 + s, `${i} step ${s}`)
   }
 })
 

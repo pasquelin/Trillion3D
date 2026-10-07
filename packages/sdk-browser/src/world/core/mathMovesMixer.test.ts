@@ -34,14 +34,19 @@ function pixels(
   return p < Infinity ? p : Number.MAX_VALUE
 }
 
-/** The hold's two decisions on a drift of `p` pixels over one frame: held, and the frames left
- *  unasked. */
-const decisions = (p: number) => [
-  p < MOST_PIXELS,
-  p > MOST_PIXELS && p < Number.MAX_VALUE
-    ? Math.min(WAITS, Math.floor(2 * Math.log2(p / MOST_PIXELS)))
-    : 0,
-]
+/** The hold's decisions on a drift of `p` pixels (`mixerHold.ts`), after each count of frames
+ *  held from 0 to 63: held, and the frames left unasked, from the drift a frame
+ *  `p / (held + 1)` — its thresholds at `0.5·(held + 1)` and its `log2` buckets. */
+const decisions = (p: number) =>
+  Array.from({ length: 64 }, (_, held) => {
+    const perFrame = p / (held + 1)
+    return [
+      p < MOST_PIXELS,
+      perFrame > MOST_PIXELS && p < Number.MAX_VALUE
+        ? Math.min(WAITS, Math.floor(2 * Math.log2(perFrame / MOST_PIXELS)))
+        : 0,
+    ]
+  })
 
 test('the mixer hold decides from the length3 axis as from the hypot one', () => {
   const m = new Float64Array(16),

@@ -88,16 +88,18 @@
       // framing moves it towards or away from the object, never round it.
       const bounds = (node) => {
         const box = math.box3().setFromObject(node), centre = box.getCenter(), size = box.getSize();
-        return { centre: [centre.x, centre.y, centre.z], radius: Math.hypot(size.x, size.y, size.z) / 2 };
+        return { centre: [centre.x, centre.y, centre.z], radius: size.length() / 2 };
       };
       const fitDistance = (radius, margin) => {
         const vertical = math.degToRad(world.camera.fov), { clientWidth: w, clientHeight: h } = world.canvas, aspect = w && h ? w / h : 1;
         const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * aspect);
         return (radius * margin) / Math.sin(Math.min(vertical, horizontal) / 2);
       };
+      // The scratch the view's direction is read and made unit in.
+      const gaze = math.vector3();
       const lookFrom = () => {
-        const p = world.camera.position, t = world.controls.target, d = [p.x - t.x, p.y - t.y, p.z - t.z], length = Math.hypot(...d);
-        return { d: d.map((value) => value / length), length, target: [t.x, t.y, t.z] };
+        const p = world.camera.position, t = world.controls.target, d = gaze.set(p.x - t.x, p.y - t.y, p.z - t.z), length = d.length();
+        return { d: d.normalize().toArray(), length, target: [t.x, t.y, t.z] };
       };
       const place = (target, d, away) => {
         world.controls.target.set(...target);
@@ -115,8 +117,8 @@
         if (!flight) return false;
         const e = ease.inOut(time / flight.span), { from, to } = flight;
         const target = mix({ math }, from.target, to.target, e);
-        const d = mix({ math }, from.d, to.d, e), n = Math.hypot(...d);
-        place(target, d.map((v) => v / n), Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
+        const d = gaze.fromArray(mix({ math }, from.d, to.d, e)).normalize().toArray();
+        place(target, d, Math.exp(Math.log(from.length) + (Math.log(to.length) - Math.log(from.length)) * e));
         if (time < flight.span) return true;
         world.controls.minDistance = flight.nearest;
         if (flight.resume) drift.restart();
@@ -162,7 +164,7 @@
       });
       // The opening: close on the ring, which then pulls back to show the whole courtyard.
       {
-        const { centre, radius: r } = bounds(pick('the gold ring')), d = [0.55, 0.42, 0.72].map((v) => v / Math.hypot(0.55, 0.42, 0.72));
+        const { centre, radius: r } = bounds(pick('the gold ring')), d = gaze.set(0.55, 0.42, 0.72).normalize().toArray();
         place(centre, d, fitDistance(r, 1.1));
         name(say('the gold ring'));
         radius(`${(r * 100).toFixed(1)} cm`);

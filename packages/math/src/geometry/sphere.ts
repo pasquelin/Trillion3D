@@ -1,5 +1,5 @@
 import { boxCenter } from './box.ts'
-import { distanceSqVector3, length3 } from '../vector/vector.ts'
+import { distanceSqVector3, length3, plainLength3 } from '../vector/vector.ts'
 
 /**
  * Bounding sphere of a box, written flat: centre `x, y, z` then radius, from `o`.
@@ -49,9 +49,10 @@ export function spheresOverlap(
  * the one read at `sphere[from]`. A negative or NaN radius is an empty sphere: one read is skipped,
  * one held is replaced. When either sphere holds the other, the outer one is kept as is; otherwise
  * the union's diameter runs through both centres, `(d + held + radius) / 2`, its centre moved
- * toward the new sphere by `(next − held) / d` of the gap, `d` the gap's `length3`. The fold of a
- * node's children into its bounds, in the order of the compiler's own merge; its Rust twin is
- * `merge_spheres` of `packages/math/rust/src/sphere.rs`.
+ * toward the new sphere by `(next − held) / d` of the gap, `d` the gap's plain root
+ * (`plainLength3`), the length of its Rust twin, `merge_spheres` of
+ * `packages/math/rust/src/sphere.rs`, at every distance. The fold of a node's children into its
+ * bounds, in the order of the compiler's own merge.
  */
 export function sphereUnion(
   into: Float64Array,
@@ -75,7 +76,7 @@ export function sphereUnion(
   const dx = cx - into[at],
     dy = cy - into[at + 1],
     dz = cz - into[at + 2]
-  const distance = length3(dx, dy, dz)
+  const distance = plainLength3(dx, dy, dz)
   if (distance + radius <= held) return
   if (distance + held <= radius) {
     into[at] = cx

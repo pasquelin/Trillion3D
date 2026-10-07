@@ -15,7 +15,8 @@ import { spriteAt } from './spriteWgsl.ts'
 
 type Sprite = NonNullable<VisMaterial['sprite']>
 
-/** `spriteAt` as it was, with `hypot3` for the four axis lengths. */
+/** `spriteAt` as it was, with `hypot3` for the four axis lengths: the same terms in the same
+ *  order (a size-attenuated sprite's factor 1 leaves a product as it is). */
 function oldSpriteAt(
   out: Float64Array,
   toClip: ArrayLike<number>,
@@ -24,21 +25,18 @@ function oldSpriteAt(
   cornerY: number,
   sprite: Sprite,
 ) {
-  let ax = cornerX * hypot3(place[0], place[1], place[2]),
-    ay = cornerY * hypot3(place[4], place[5], place[6])
-  if (!sprite.sizeAttenuation) {
-    const w = toClip[3] * place[12] + toClip[7] * place[13] + toClip[11] * place[14] + toClip[15]
-    ax *= w
-    ay *= w
-  }
-  const c = Math.cos(sprite.rotation),
-    s = Math.sin(sprite.rotation)
-  const r = hypot3(toClip[0], toClip[4], toClip[8]),
-    u = hypot3(toClip[1], toClip[5], toClip[9])
-  const x = c * ax - s * ay,
-    y = s * ax + c * ay
-  for (let i = 0; i < 3; i++)
-    out[i] = place[12 + i] + (x * toClip[4 * i]) / r + (y * toClip[4 * i + 1]) / u
+  const column = (k: number) => hypot3(place[k], place[k + 1], place[k + 2]),
+    row = (k: number) => hypot3(toClip[k], toClip[k + 4], toClip[k + 8])
+  const w = sprite.sizeAttenuation
+    ? 1
+    : toClip[3] * place[12] + toClip[7] * place[13] + toClip[11] * place[14] + toClip[15]
+  const [ax, ay] = [cornerX * column(0) * w, cornerY * column(4) * w],
+    [c, s] = [Math.cos(sprite.rotation), Math.sin(sprite.rotation)]
+  const [x, y] = [c * ax - s * ay, s * ax + c * ay],
+    [r, u] = [row(0), row(1)]
+  out.set(
+    [0, 1, 2].map((i) => place[12 + i] + (x * toClip[4 * i]) / r + (y * toClip[4 * i + 1]) / u),
+  )
   out[3] = 1
   return out
 }

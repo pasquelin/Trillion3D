@@ -18,6 +18,12 @@ export function dotVector3Xyz(a: ArrayLike<number>, x: number, y: number, z: num
   return a[aAt] * x + a[aAt + 1] * y + a[aAt + 2] * z
 }
 
+/** `(ax, ay, az) · (bx, by, bz)`: `dotVector3`'s terms and order on six numbers, for a hot loop
+ *  that holds both vectors in locals. */
+export function dotScalar3(ax: number, ay: number, az: number, bx: number, by: number, bz: number) {
+  return ax * bx + ay * by + az * bz
+}
+
 /**
  * `out[outAt..outAt + 2] = a × b`, operands read at `aAt` and `bAt`. The six components are read
  * before the first write, so `out` may be `a` or `b`.
@@ -123,6 +129,14 @@ export function transformDirectionRow(
 export function length3(x: number, y: number, z: number) {
   const s = x * x + y * y + z * z
   return s < NORMAL_SQUARES || s === Infinity ? hypot3(x, y, z) : Math.sqrt(s)
+}
+
+/** The plain root `Math.sqrt(x·x + y·y + z·z)`, the squares summed left to right, without
+ *  `length3`'s band: past about 1e154 it overflows to Infinity, below about 1e-146 the squares
+ *  underflow. The length of the Rust vectors (`length` of `packages/math/rust/src/vec3.rs`), for
+ *  the TypeScript twin of a Rust function (docs/MATHS.md "Lengths"). */
+export function plainLength3(x: number, y: number, z: number) {
+  return Math.sqrt(x * x + y * y + z * z)
 }
 
 /** The length of `(x, y)`: the rule of `length3` in the plane, `hypot2` outside the band. */

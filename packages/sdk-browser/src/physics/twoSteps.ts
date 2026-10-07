@@ -20,7 +20,7 @@ type States = { from: Float32Array | Float64Array; to: Float32Array | Float64Arr
 
 /**
  * THE TWO STEPS EVERYTHING THE PHYSICS DRAWS IS DRAWN BETWEEN: a body's pose (`poses.ts`), a
- * vehicle's wheels (`vehicles.ts`), a soft body's vertices (`softBodies.ts`), the character's feet
+ * vehicle's wheels (`vehicles.ts`), a soft body's vertices (`softVertices.ts`), the character's feet
  * (`physicsCharacter.ts`). Each is kept, under a key below `capacity`, as its state at the newest
  * step a tick brought and its state a step before (`FROM`), in its drawer's own store; every frame
  * draws all of them at the one fraction `t` of that step the frame's time stands at (`along`,

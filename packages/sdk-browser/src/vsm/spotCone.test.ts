@@ -1,7 +1,10 @@
 // A spot's map is as wide as its outer cone, clamped in radians and rounded once: at least the
 // inner cone (itself within [0, 88.9°]) plus 0.001 rad, at most 88.9° plus 0.001 rad. Its scale,
 // the map's x and y, is 1 / tan of that f32 angle. Its depth is the shared forward perspective
-// (`forwardPerspectiveProjection`) between the nearest and farthest caster depths.
+// (`forwardPerspectiveProjection`) between the nearest and farthest caster depths. Declared change
+// (the lead's decision, recorded in the pull request), outside class 1 for that spot alone: a spot
+// whose depth range rounds to nothing (near === far) takes the shared builder's finite projection
+// where the former one wrote ±Infinity.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VsmCacheManager } from './cacheManager.ts'

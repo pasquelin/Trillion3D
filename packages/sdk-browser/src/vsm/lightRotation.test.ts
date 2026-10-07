@@ -46,3 +46,14 @@ test('the world axes give exact matrices: +X the identity, a vertical direction 
   vsmWorldToLightRotation(m, [0, 1, 0])
   assert.deepEqual([...m], [0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 })
+
+test('a direction within 1e-146 of vertical keeps its own horizontal axis (declared)', () => {
+  // Declared change: inside the length rule's band, `length2` is the former plain root bit for bit;
+  // below it (|x|, |y| ≲ 1e-146) that root underflowed to 0 and the rotation took world Y as its
+  // horizontal axis, a quarter turn from the axis just above the band. `length2` keeps
+  // (−d.y, d.x) / h at every size.
+  for (const tiny of [1e-140, 1e-160, 1e-300]) {
+    vsmWorldToLightRotation(m, [0, tiny, -1])
+    assert.deepEqual([m[1], m[5], m[9]], [-1, 0, 0], `${tiny}`)
+  }
+})

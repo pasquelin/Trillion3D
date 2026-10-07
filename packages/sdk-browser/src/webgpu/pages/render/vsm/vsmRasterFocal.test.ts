@@ -1,9 +1,12 @@
 // The non-cluster shadow raster measures its screen error with the main view's focal length in
 // pixels, `focalPixels(cam.projection, width, height)` (`vsmProject.ts` encodeVsmRaster). It was
 // `Math.max((p[0]·width) / 2, (p[5]·height) / 2)`: the same number for every camera whose
-// projection scales are positive, the product's operands only swapped. Declared fix: a mirrored
+// projection scales are positive, the product's operands only swapped. Declared change (the lead's
+// decision, recorded in the pull request), outside class 1 for mirrored cameras alone: a mirrored
 // orthographic box (left > right, bottom > top) or a negative zoom gave a negative scale, a
-// nonsense pixel size for the shadow LOD; the magnitudes give the mirror image's own size.
+// nonsense pixel size for the shadow LOD; the magnitudes give the mirror image's own size. With
+// one axis mirrored the former maximum took the other, positive axis; the magnitudes take the
+// larger of the two, so that camera's shadow LOD may change too.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createEngineCamera, writeEngineCamera } from '../../../../camera/engineCamera.ts'
@@ -44,11 +47,14 @@ test('the raster focal length is the former one for every camera that is not mir
 })
 
 test('a mirrored camera takes a positive focal length, its mirror image', () => {
-  let flipped = 0
+  let flipped = 0,
+    oneAxis = 0
   for (let i = 1; i <= HALTON_SWEEP; i++) {
     const [width, height] = camera(i, true)
-    const p = cam.projection
-    if (oldFocalPixels(p, width, height) < 0) flipped++
+    const p = cam.projection,
+      old = oldFocalPixels(p, width, height)
+    if (old < 0) flipped++
+    else if (old !== focalPixels(p, width, height)) oneAxis++
     assert.ok(focalPixels(p, width, height) > 0, `camera ${i}`)
     const mirror = Float64Array.from(p)
     mirror[0] = Math.abs(p[0])
@@ -56,4 +62,5 @@ test('a mirrored camera takes a positive focal length, its mirror image', () => 
     assert.equal(focalPixels(p, width, height), oldFocalPixels(mirror, width, height))
   }
   assert.ok(flipped > 0, 'the sweep meets the former negative scale')
+  assert.ok(oneAxis > 0, 'the sweep meets one mirrored axis the larger')
 })
