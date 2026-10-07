@@ -7,12 +7,11 @@ import { createCutDelta } from '../cut/delta.ts'
 import { createWebgpuPageTracking } from '../row/pageTracking.ts'
 import { createWebgpuPinUpdater } from './pinUpdater.ts'
 import { createPageAdmission } from './admission.ts'
-import { createWebgpuResidencySets } from './sets.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts'
 import { LAST_USE_WINDOW as W } from './lastUseWindow.ts'
-import { readbackOf } from './sets.fixture.ts'
+import { readbackOf, setsOver } from './sets.fixture.ts'
 
 const FULL = /ALL_PAGES_PINNED/
 
@@ -23,10 +22,7 @@ function residency(slots: number, spare: string[]) {
   const packed = [...pages, ...spare.map(pageOf)]
   const tracking = createWebgpuPageTracking(packed)
   const bootstrapKey = new Uint8Array(tracking.keyCount)
-  const sets = createWebgpuResidencySets({
-    ...{ tracking, bootstrapKey, bootstrapUrls: new Set<string>() },
-    packedPages: packed,
-  })
+  const sets = setsOver(tracking, bootstrapKey, packed)
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, [])
   const closure = createGroupClosure(

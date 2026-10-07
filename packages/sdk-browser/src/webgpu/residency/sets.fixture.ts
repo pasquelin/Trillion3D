@@ -10,6 +10,17 @@ import { ADMISSION_BUCKETS, ADMISSION_LEVEL_MAX } from '../../gpu/dag/request.ts
 
 export const rec = (url: string, level: number) => ({ url, level }) as unknown as PageRec
 
+/** The residency sets over `packed`, the cover's holders in `bootstrapKey`, its addresses apart. */
+export const setsOver = (
+  tracking: ReturnType<typeof createWebgpuPageTracking>,
+  bootstrapKey: Uint8Array,
+  packed: readonly PageRec[],
+) =>
+  createWebgpuResidencySets({
+    ...{ tracking, bootstrapKey, bootstrapUrls: new Set<string>() },
+    packedPages: packed,
+  })
+
 /** `ids` in the order the GPU ranks a short pool's requests (`../../gpu/dag/request.ts`,
  *  `admitByLevel`): the minimum capacity's pages, then the coarser level first, each level in the
  *  order the ids came in — one of the orders the kernel's threads give. */
@@ -43,10 +54,7 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const tracking = createWebgpuPageTracking([...packed, ...cover])
   const bootstrapKey = new Uint8Array(tracking.keyCount)
   for (const page of cover) bootstrapKey[tracking.keyOf(page)] = 1
-  const sets = createWebgpuResidencySets({
-    ...{ tracking, bootstrapKey, bootstrapUrls: new Set<string>() },
-    packedPages: packed,
-  })
+  const sets = setsOver(tracking, bootstrapKey, packed)
   const pages: PageRec[] = []
   const delta = createCutDelta(packed, pages)
   const closure = createGroupClosure(
