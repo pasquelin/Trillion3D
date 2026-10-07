@@ -4,13 +4,14 @@
  * Where a placement hands over to its world group, or a super-root to the region above it, the cut
  * switches at the threshold: held there, a camera on the move would see the switch at one distance.
  * Each cut holds the world DAG instead to the frame's threshold `t` scaled by `s` in
- * `(1 − WORLD_FADE, 1]`, a new one every cut, and its placements' links with it (`worldCovers`,
- * `thresholdOf`, `shader/placementTreeWgsl.ts`): a group whose error projects to `p` within
- * `(t · (1 − WORLD_FADE), t]` is drawn by its placements in a share `(p/t − 1 + WORLD_FADE) /
- * WORLD_FADE` of the cuts and by its super-roots in the others, never both in one, and the temporal
- * antialiasing averages the cuts into a cross-fade over that band. `s` never exceeds one: the
- * world's error never passes the frame's threshold. A camera that stops cuts no more, and the image
- * settles on the last cut's choice.
+ * `(1 − WORLD_FADE, 1]`, a new one each cut the camera moved for, and its placements' links with it
+ * (`worldCovers`, `thresholdOf`, `shader/placementTreeWgsl.ts`): a group whose error projects to `p`
+ * within `(t · (1 − WORLD_FADE), t]` is drawn by its placements in a share
+ * `(p/t − 1 + WORLD_FADE) / WORLD_FADE` of those cuts and by its super-roots in the others, never
+ * both in one, and the temporal antialiasing averages them into a cross-fade over that band. `s`
+ * never exceeds one: the world's error never passes the frame's threshold. A camera that stops
+ * keeps its last scale whatever it cuts — pages arriving cut again —: the image settles on one
+ * choice, and no hand-over flickers.
  *
  * The scales follow the golden-ratio sequence, of low discrepancy: any run of cuts covers the band
  * evenly, its first cuts already spread over it.

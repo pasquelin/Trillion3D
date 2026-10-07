@@ -11,7 +11,7 @@
  * cluster turns out the frame its placement leaves, so its group's super-roots stand in at once.
  * Each cut takes its own scale of the world's threshold (`worldFade.ts`).
  */
-import type { GpuSelection, ResidencyChanges } from '../core/selection.ts'
+import type { GpuSelection, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import { objectClusters } from './worldLinks.ts'
 import { worldFadeScale } from './worldFade.ts'
@@ -90,13 +90,27 @@ export function followWorldLinks(
     low = links.length
     high = -1
   }
-  let cuts = 0
+  /** The camera of the last cut — its view and its eye —, and the moves seen since the first. */
+  const held = new Float64Array(19).fill(NaN)
+  let moves = 0
   selection.dispatch = (uniforms, shared) => {
     takeUp()
     if (pending && rows) selection.updateResidency(rows, NO_ROWS)
-    // Each cut its own scale of the world's threshold: its transitions dithered in time.
-    world.scale = worldFadeScale(cuts++)
+    // A camera that moved takes the next scale of the world's threshold, its transitions dithered
+    // in time; a still one keeps its own, whatever arrives meanwhile: no hand-over flickers.
+    if (cameraMoved(held, uniforms)) moves++
+    world.scale = worldFadeScale(moves)
     return dispatch(uniforms, shared)
   }
   return selection
+}
+
+/** Whether `uniforms`' camera — its view, its eye — is not the one `held`, which takes it. */
+function cameraMoved(held: Float64Array, { view, cameraWorld }: SelectionUniforms) {
+  let moved = false
+  for (let k = 0; k < 16; k++) moved = moved || held[k] !== view[k]
+  for (let a = 0; a < 3; a++) moved = moved || held[16 + a] !== cameraWorld[a]
+  held.set(view)
+  held.set(cameraWorld, 16)
+  return moved
 }
