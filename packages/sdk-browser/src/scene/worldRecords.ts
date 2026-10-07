@@ -7,7 +7,7 @@
  * the one pool holds them and the one raster draws them:
  *
  *  - a super-root is a geometry page in world space (`world-roots.bin`, read through the world
- *    page source, `worldRootsPage.ts`), worn in the surface of the primitive its cluster names
+ *    page server, `worldPageServe.ts`), worn in the surface of the primitive its cluster names
  *    (`primitive`): every object of its build wears the same material, so the material's own
  *    textures draw it, at the texture coordinates the cook carried through its simplification;
  *  - a placed object's cluster has no page: its own placement draws it. Its record is never

@@ -17,6 +17,7 @@
  * partitioned is one cell, placed for its whole life. The session counts every byte held here in
  * its CPU budget (`bytes`).
  */
+import type { WorldPageServer } from './worldPageServe.ts'
 import {
   worldBundlePages,
   WORLD_ROOTS_BIN,
@@ -35,7 +36,6 @@ import { corruptObject, fetchVerified } from '../cluster/pages.ts'
 import { verifyPageBytes } from '../page/work/host.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
 import { families } from '../host/families.ts'
-import { worldRootsPageSource } from './worldRootsPage.ts'
 import { worldRootDag } from './worldSuperRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { createWorldObjects } from './worldObjects.ts'
@@ -45,7 +45,7 @@ import { createHeldBundles } from './worldHeldBundles.ts'
  *  partition's plan reads (`partition/superRoots.ts`): a partitioned world opens them at load,
  *  the WebGPU cut drawing its far cells from them; any other reads them on first use. */
 type WorldStream = {
-  source: ReturnType<typeof worldRootsPageSource>
+  source: WorldPageServer
   dag: ReturnType<typeof worldRootDag>
   superRoots: Float64Array | undefined
   /** Who is told the pages a bundle read landed beside the one asked (`worldPageServer`). */
@@ -129,7 +129,7 @@ function worldStreamOf(
       // An object root's cell is its object's (`origin`, the table's rank).
       superRoots:
         records && cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
-      source: worldRootsPageSource(worldPageServer(table, bundlePages, tell)),
+      source: worldPageServer(table, bundlePages, tell),
     })
   }
 }
@@ -222,7 +222,7 @@ function worldRootsHold(
   let opened: WorldStream | undefined
   const hold = {
     table,
-    /** The world pages' detached source, both engines' shape (`worldRootsPage.ts`), and their DAG
+    /** The world pages' source (`worldPageServe.ts`), and their DAG
      *  in the engine's own `DagRoot` shape from the cook's rank order (`undefined` for a cache
      *  without its DAG file), opened once, on first use. A table out of its
      *  rank is refused here (`WORLD_CLUSTER_RANK`), before any page is drawn from it. */

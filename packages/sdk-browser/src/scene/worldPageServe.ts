@@ -1,14 +1,25 @@
-// The world stream's own code, a family on demand (`../host/families.ts`, #1238): the world pages
+// The world stream's own code, a family on demand (`../host/families.ts`): the world pages
 // named at their address in the cook's rank, and the server that reads each bundle once for every
 // caller in flight. A scene opens without it; it imports no engine code, so the CDN bundle makes
 // one chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's
-// (`worldRootsPage.ts`, `worldSuperRoots.ts`).
+// (`worldSuperRoots.ts`).
+//
+// A world page (`world-roots.bin`, docs/FORMAT.md, World super-roots) is a `WGP3` geometry page:
+// its vertices in world space, with the normals, texture coordinates and colour of the objects it
+// stands for. The server is the ONE page source of the world (`PageSource`), read at a page's world
+// address (`worldRootsPageAddress`), in the shape the engine already uploads, binds and draws, no
+// second draw stack and no second BVH (rule 7): `read` gives the page's own bytes, which a WebGPU
+// page slot holds and its shaders decode in place, as any geometry page's. What stays resident is
+// the caller's (`openWorldRoots`: the pinned top and the bundles the placed cells hold) and the GPU
+// page pool's, never a second cache here. The world matrix stays the identity: the positions are
+// already in world space, never placed by a per-cluster pose.
 import {
   firstPage,
   type WorldRoots,
   type WorldRootsCluster,
   type WorldRootsPage,
 } from '../../../sdk-core/src/manifest/worldRoots.ts'
+import type { PageSource } from '../../../sdk-core/src/contracts/cache.ts'
 
 /** The world address of one page: its binary, its bundle and its byte offset inside that bundle. */
 export const worldRootsPageAddress = (url: string, bundle: number, offset: number) =>
@@ -144,7 +155,7 @@ export function worldPageServer(
       if (--own.users === 0 && streamed.get(bundle) === own) streamed.delete(bundle)
     }
   }
-  return {
+  const server = {
     /** The bytes of the bundles it reads now past the pinned top that `held` does not hold. */
     keptBytes(held: { has(bundle: number): boolean }) {
       let kept = 0
@@ -157,6 +168,7 @@ export function worldPageServer(
     /** The bytes a GPU page slot holds: the page's own, decoded in place as any page's. */
     read: async (key: string, signal?: AbortSignal) => (await serve(key, signal)).bytes,
   }
+  return server satisfies PageSource
 }
 
 export type WorldPageServer = ReturnType<typeof worldPageServer>

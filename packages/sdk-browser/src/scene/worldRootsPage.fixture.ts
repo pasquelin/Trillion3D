@@ -1,6 +1,5 @@
 import { worldRootsFixture } from '../../../sdk-core/src/manifest/worldRoots.fixture.ts'
 import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifest/worldRoots.ts'
-import { worldRootsPageSource } from './worldRootsPage.ts'
 import { worldPageServer } from './worldPageServe.ts'
 
 /** The page source of `table` over `bin`, the cook's world binary, and the bundles it reads;
@@ -16,8 +15,7 @@ export function worldRootsBinSource(
     const { offset, bytes } = table.bundles[bundle]
     return worldBundlePages(table, bundle, bin.slice(offset, offset + bytes))
   }
-  const server = worldPageServer(table, read, landed)
-  const source = worldRootsPageSource(server)
+  const source = worldPageServer(table, read, landed)
   return { source, reads }
 }
 
