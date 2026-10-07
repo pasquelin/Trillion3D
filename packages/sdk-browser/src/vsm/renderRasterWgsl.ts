@@ -34,6 +34,7 @@
  * data (vertex), 2.. pool slices × parts (fragment, atomic).
  */
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
 import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts'
@@ -91,7 +92,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
  if((page.flags&${FLAG_DOUBLE}u)!=0u){return true;}
  let w=page.world;
  let mirrored=matrixWindingCw(w);
- var n=cross(b-a,c-a);
+ var n=faceNormal(a,b,c);
  if(mirrored){n=-n;}
  let uv=raw.shiftedToMapUv;
  let isOrtho=raw.lightViewToClip[3][3]>=1.0;
@@ -164,6 +165,7 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
       matrixWindingCw,
+      faceNormal,
       PAGE_GEOMETRY_WGSL,
     ],
   )

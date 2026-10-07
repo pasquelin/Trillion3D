@@ -33,6 +33,7 @@ function fixture() {
       'pointBefore',
       'placementOf',
       'pixelToNdcInv',
+      'transformHomogeneousPoint',
     ],
     {
       ...Object.fromEntries(Object.keys(samples).map((key) => [key, key])),

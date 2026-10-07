@@ -3,6 +3,8 @@ import { DAG_ACCESS_WGSL, DAG_BINDINGS_WGSL } from './bindings.ts'
 import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { FINITE_SENTINEL } from '../../../../../math/src/wgsl/constants.ts'
+import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
@@ -43,7 +45,7 @@ struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>
 struct FrameRange{first:u32,count:u32,}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the oracle's Infinity for any finite threshold. */
-const INF:f32=3.4e38;
+const INF:f32=FINITE_SENTINEL;
 /** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
 const FRAME:u32=${FRAME_VEC4}u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
@@ -51,7 +53,7 @@ const FRAME:u32=${FRAME_VEC4}u;
  *  An infinite far plane is not tested (\`farless\`): it rejects no box. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  let skip=select(6u,FAR_PLANE,farless());
- for(var i=0u;i<6u;i++){if(i!=skip&&outsidePlane(frames[base+i],bmin,bmax)){return true;}}
+ for(var i=0u;i<6u;i++){if(i!=skip&&boxBehindPlane(frames[base+i],bmin,bmax)){return true;}}
  return false;
 }
 /** Rank of the far plane among the six (\`frustum.ts\`: right, left, bottom, top, far, near). */
@@ -71,11 +73,6 @@ fn grownPlane(p:vec4f)->vec4f{return vec4f(p.xyz,p.w+deformReach*(abs(p.x)+abs(p
 var<private> deformReach:f32;
 /** The primitive's deformation reach, a half float in its mark's high sixteen bits (\`markReach\`). */
 fn reachOf(w:u32)->f32{return unpack2x16float(markOf(w)).y;}
-/** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
-fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
- let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
- return dot(plane.xyz,vec3f(px,py,pz))+plane.w<0.0;
-}
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
 fn visible(r:u32,w:u32,cluster:Cluster)->bool{
@@ -167,6 +164,8 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_VIEWS_WGSL,
       DAG_RECORD_WGSL,
       DAG_AHEAD_WGSL,
+      boxBehindPlane,
+      FINITE_SENTINEL,
     ],
   )
 

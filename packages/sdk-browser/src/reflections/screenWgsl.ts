@@ -2,6 +2,7 @@ import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { interleavedGradient } from '../../../math/src/wgsl/sampling.ts'
+import { clipToUvUnflipped } from '../../../math/src/wgsl/projection.ts'
 import { type ReflectionDepthRead, REFLECTION_SEGMENT, screenTraceWgsl } from './traceShader.ts'
 import { type ScreenLobeFade, screenRadianceShader } from './screenRadianceShader.ts'
 import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'
@@ -220,12 +221,12 @@ export const BOUNDED_SCREEN_REFLECTION_WGSL = screenReflectionWgsl({
  *  no weight, and leaves its whole lobe to the environment reflection, never black. */
 const HELD_REFLECTION_WGSL = wgslBlock(
   'HELD_REFLECTION_WGSL',
-  [screenReflectionWgsl({ filtered: 'heldReflection(P)' })],
+  [screenReflectionWgsl({ filtered: 'heldReflection(P)' }), clipToUvUnflipped],
   `
 @group(1) @binding(3) var roughHistory:texture_2d<f32>;
 fn heldReflection(P:vec3f)->vec4f{
  let projected=reflectionProject(vec4f(P,1.0));
- let at=vec2i((projected.xy/projected.w*0.5+vec2f(0.5))*reflectionSize());
+ let at=vec2i(clipToUvUnflipped(projected)*reflectionSize());
  let held=textureLoad(roughHistory,at,0);
  if(held.a>0.0){return vec4f(held.rgb,0.0);}
  return vec4f(0.0,0.0,0.0,1.0);

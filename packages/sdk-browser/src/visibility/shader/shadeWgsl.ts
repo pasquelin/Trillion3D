@@ -2,6 +2,8 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
 import { invTranspose3Apply, uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
+import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
@@ -46,9 +48,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  // the resolve reads (\`decodeTriangle\`).
  let s0=t.p0.xyz;let s1=t.p1.xyz;let s2=t.p2.xyz;let c0=t.p0;let c1=t.p1;let c2=t.p2;
  let p=vec2f(pos.x,pos.y);
- let area=edge(s1.xy,s2.xy,s0.xy);
+ let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  var rgb=page.baseColor.xyz;
- let bary=perspectiveBary(s0,s1,s2,t.iw,p,area);
+ let bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
  var uv=vec2f(0.0);
  let absArea=abs(area);
  let width=select(vec3f(0.005),vec3f(abs(s1.y-s2.y)+abs(s2.x-s1.x),abs(s2.y-s0.y)+abs(s0.x-s2.x),abs(s0.y-s1.y)+abs(s1.x-s0.x))/absArea,absArea>0.0);
@@ -121,9 +123,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    let lit=select(1.0,face,DOUBLE_SIDED);
    let P=(w0*bary.x+w1*bary.y+w2*bary.z).xyz;
    rcvOffset=shadingPointOffset(P,bary,w0.xyz,w1.xyz,w2.xyz,n0*lit,n1*lit,n2*lit);
-   rcvPlane=cross(w1.xyz-w0.xyz,w2.xyz-w0.xyz);
+   rcvPlane=faceNormal(w0.xyz,w1.xyz,w2.xyz);
   }
-  var N=uniteOuZero(cross((w1-w0).xyz,(w2-w0).xyz))*screenFace;
+  var N=uniteOuZero(faceNormal(w0.xyz,w1.xyz,w2.xyz))*screenFace;
   if(HAS_VERTEX_NORMAL){
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
@@ -185,6 +187,9 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       worldMatrix3,
       invTranspose3Apply,
       uniteOuZero,
+      edgeFunction,
+      perspectiveBarycentric,
+      faceNormal,
       ...(diagnostic ? [diagnostic] : []),
     ],
   )

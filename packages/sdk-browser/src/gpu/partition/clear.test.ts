@@ -21,7 +21,7 @@ function cleared(rows: number, restWords: number, slotWords: number, width?: num
   const m = { state: junk(STATE_WORDS), restBits: junk(restWords), slotUsed: junk(slotWords) }
   const { clearRows } = shaderRun<{ clearRows: (id: number[], n: number[]) => void }>(
     PARTITION_SHADER,
-    ['clearRows', 'flatIndex'],
+    ['clearRows', 'flatIndex', 'ceilDiv'],
     { ...m, uni: { rows }, arrayLength: (p: Ref) => p.get().length },
   )
   const groups = ceilDiv(partitionClearThreads(rows, slotWords), PARTITION_WORKGROUP),

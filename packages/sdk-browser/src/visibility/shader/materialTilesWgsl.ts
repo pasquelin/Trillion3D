@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv as ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
@@ -28,11 +29,11 @@ const LANES = 8
 
 const CONSTANTS_WGSL = wgslBlock(
   'CONSTANTS_WGSL',
-  [],
+  [ceilDivWgsl],
   `const MATERIAL_TILE_SIZE:u32=${MATERIAL_TILE_SIZE}u;
 const MATERIAL_TILE_SLOTS:u32=${MATERIAL_TILE_SLOTS}u;
 /** Tiles on a row of the image \`size\`: the dispatch's and the draw's one count. */
-fn materialTilesX(size:vec2u)->u32{return (size.x+MATERIAL_TILE_SIZE-1u)/MATERIAL_TILE_SIZE;}
+fn materialTilesX(size:vec2u)->u32{return ceilDiv(size.x,MATERIAL_TILE_SIZE);}
 /** Where slot \`slot\`'s list starts in \`classTiles\`: the one layout the lists are written and read in. */
 fn tileListStart(slot:u32)->u32{return slot*(arrayLength(&classTiles)/MATERIAL_TILE_SLOTS);}`,
 )

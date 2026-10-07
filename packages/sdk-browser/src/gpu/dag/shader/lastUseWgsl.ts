@@ -1,5 +1,6 @@
 import { LEVEL_QUEUES } from './levelWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Each page's last use, written by the GPU: the last camera cut that drew it — the nearest
@@ -19,13 +20,13 @@ export const dagFlagsWords = (queueCap: number, pageCount: number, lastUse = tru
 
 export const DAG_LAST_USE_WGSL = wgslBlock(
   'DAG_LAST_USE_WGSL',
-  [],
+  [ceilDiv],
   `fn frameWord()->u32{return drawnGroupsMax()+1u;}
 /** Kept list \`l\`'s group count in \`work\`, x then y (0, 1), then the restored journal's (2):
  *  what the arming kernel copies (\`armWgsl.ts\`). */
 fn listGroups(l:u32)->u32{return frameWord()+1u+2u*l;}
 /** The groups of a list of \`n\`, at least one, written for \`listGroups(l)\`. */
-fn armList(l:u32,n:u32){let g=groupGrid((max(n,1u)+63u)>>6u);atomicStore(&work[listGroups(l)],g.x);atomicStore(&work[listGroups(l)+1u],g.y);}
+fn armList(l:u32,n:u32){let g=groupGrid(ceilDiv(max(n,1u),64u));atomicStore(&work[listGroups(l)],g.x);atomicStore(&work[listGroups(l)+1u],g.y);}
 fn lastUseAt(i:u32)->u32{return queueBase(${LEVEL_QUEUES}u)+i;}
 /** One camera cut more: the clock the pages it uses are stamped with. */
 fn countFrame(){atomicAdd(&work[frameWord()],1u);}

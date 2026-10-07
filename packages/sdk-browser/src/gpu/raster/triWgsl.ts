@@ -1,5 +1,6 @@
 import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 
 /**
  * What a triangle decides before a pixel is named, and the only writing of that compute: binning
@@ -25,7 +26,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const RASTER_TRI_WGSL = wgslBlock(
   'RASTER_TRI_WGSL',
-  [],
+  [edgeFunction],
   `
 struct Clip{n:u32,p:array<vec4f,4>,u:array<vec3f,4>,}
 fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec3f,ub:vec3f,uc:vec3f)->Clip{
@@ -78,9 +79,9 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  let cl=clipNear(ca,cb,cc,ua,ub,uc);
  if(cl.n<3u){return t;}
  let a=screen(cl.p[0]);let b=screen(cl.p[1]);let c=screen(cl.p[2]);
- let area0=edge(a,b,c);
+ let area0=edgeFunction(a,b,c);
  var d=a;var ud=vec3f(0.0);var area1=0.0;
- if(cl.n==4u){d=screen(cl.p[3]);ud=cl.u[3];area1=edge(a,c,d);t.quad=1u;}
+ if(cl.n==4u){d=screen(cl.p[3]);ud=cl.u[3];area1=edgeFunction(a,c,d);t.quad=1u;}
  // Orientation of the clipped polygon is that of the original triangle: on an unclipped
  // triangle, \`area0\` alone decides, to the bit as before.
  let orient=area0+area1;

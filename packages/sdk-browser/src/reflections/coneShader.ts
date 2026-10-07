@@ -1,6 +1,8 @@
 import { REFLECTION_SEGMENT } from './traceShader.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
+import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 
 /** Screen-space cone tracing.
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite
@@ -16,7 +18,7 @@ import { tangentAround } from '../../../math/src/wgsl/basis.ts'
  * `reflectionConeSection`: the section at fraction `t`, its footprint in pixels and depth spread. */
 export const REFLECTION_CONE_TRACE_WGSL = wgslBlock(
   'REFLECTION_CONE_TRACE_WGSL',
-  [tangentAround],
+  [tangentAround, sinFromCos, FAR_VALUE],
   `
 fn reflectionGgxMass(u:f32,k:f32)->f32{
  let d:f32=k-1.0;
@@ -41,7 +43,7 @@ fn reflectionConeSlope(rough:f32)->f32{
  }
  let u:f32=(lo+hi)*0.5;
  let cosine:f32=(1.0-(k+1.0)*u)/(1.0+(k-1.0)*u);
- return sqrt(max(0.0,1.0-cosine*cosine))/max(cosine,1e-6);
+ return sinFromCos(cosine)/max(cosine,1e-6);
 }
 fn reflectionConeSection(c:vec4f,d:vec4f,e:vec4f,reach:f32,t:f32,basis:vec4f,slope:f32,size:vec2f)->vec4f{
  let distance:f32=reach*t*c.w/(e.w*(1.0-t)+c.w*t);
@@ -104,7 +106,7 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
   }
   let side:f32=exp2(f32(level));
   let cell:vec2f=floor(at/side);
-  var boundary:vec2f=vec2f(1e30);
+  var boundary:vec2f=vec2f(FAR_VALUE);
   if(delta.x>0.0){boundary.x=((cell.x+1.0)*side-start.x)/delta.x;}
   if(delta.x<0.0){boundary.x=(cell.x*side-start.x)/delta.x;}
   if(delta.y>0.0){boundary.y=((cell.y+1.0)*side-start.y)/delta.y;}

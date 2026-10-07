@@ -2,6 +2,7 @@ import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import {
   DIELECTRIC_F0,
   fresnelScalar,
@@ -34,14 +35,14 @@ import {
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor, vectorRejection],
   `
 struct Lobes{on:bool,strength:f32,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;
 /** A pixel's lobes: its direction \`d\` kept orthogonal to the normal the lighting reads, and what
  *  its lights share of them at its roughness \`rough\`. */
 fn setLobes(d:vec3f,strength:f32,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,rough:f32){
- let t=d-N*dot(N,d);let l=dot(t,t);
+ let t=vectorRejection(d,N);let l=dot(t,t);
  lobes.on=true;
  lobes.strength=select(0.0,strength,l>1e-12);
  lobes.T=select(vec3f(0.0),t*inverseSqrt(max(l,1e-24)),l>1e-12);

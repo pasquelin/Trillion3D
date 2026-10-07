@@ -1,6 +1,6 @@
 import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { matrixWindingCwTriple } from '../../../../math/src/wgsl/matrix.ts'
+import { cofactor3, matrixWindingCwTriple } from '../../../../math/src/wgsl/matrix.ts'
 import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts'
 
 /** KHR_materials_volume's raster approximation applies the declared mesh-space path at
@@ -10,7 +10,7 @@ import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts'
  * This uses the declared thickness, not a second geometry/intersection representation. */
 export const BLEND_TRANSMITTANCE_WGSL = wgslBlock(
   'BLEND_TRANSMITTANCE_WGSL',
-  [matrixWindingCwTriple, VOLUME_LAW_WGSL],
+  [matrixWindingCwTriple, cofactor3, VOLUME_LAW_WGSL],
   `fn volumeBoundary(page:PageInfo,front:bool)->bool{
  let mirrored=matrixWindingCwTriple(page.world);
  return page.transmission<=0.0||page.thickness<=0.0||(front!=mirrored);
@@ -19,8 +19,9 @@ export const BLEND_TRANSMITTANCE_WGSL = wgslBlock(
  * The adjugate avoids an inverse matrix and defines a collapsed transform's path as zero. */
 fn volumeWorldThickness(page:PageInfo,ray:vec3f)->f32{
  let a=page.world[0].xyz;let b=page.world[1].xyz;let c=page.world[2].xyz;
- let determinant=dot(a,cross(b,c));
- let local=vec3f(dot(cross(b,c),ray),dot(cross(c,a),ray),dot(cross(a,b),ray));
+ let C=cofactor3(a,b,c);
+ let determinant=dot(a,C[0]);
+ let local=vec3f(dot(C[0],ray),dot(C[1],ray),dot(C[2],ray));
  let size=length(local);
  if(size==0.0){return 0.0;}
  return max(page.thickness,0.0)*abs(determinant)*length(ray)/size;

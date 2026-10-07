@@ -1,7 +1,7 @@
 import { FULLSCREEN_XY } from '../gpu/shader/fullscreenTriangle.ts'
 import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { cellReductionWgsl } from './cellReduction.ts'
-import { SRGB_ENCODE_WGSL } from './srgbEncode.ts'
+import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -70,7 +70,7 @@ export const MATERIAL_MIP_WGSL = wgslProgram(
   if(c!=0u){t=cover[level.base.z*256u];}
   textureStore(written,vec2i(id.xy),vec4f(rgb,reducedAlpha(a,c,t)));
  }`,
-  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, SRGB_ENCODE_WGSL],
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, linearToSrgb],
 )
 
 /** A radiance level's read of the one above (`cellReductionWgsl`): its texel, as stored. */

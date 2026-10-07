@@ -1,9 +1,11 @@
 // The box culls of the cache invalidation and of the render cull before they shared one
-// (`boxCullWgsl.ts`), word for word but for comments: what `boxCull.test.ts` holds the shipped to.
+// (`boxCullWgsl.ts`), word for word but for comments and the greatest f32, written with its exact
+// value: the GPU rounds `3.4028234663852886e38` to that f32, the double run of `boxCull.test.ts` reads what
+// the GPU reads. What `boxCull.test.ts` holds the shipped to.
 
 /** The invalidation's frustum box cull and screen rect (`invalidationWgsl.ts`). */
 export const INVALIDATION_BOX_CULL = /* wgsl */ `
-const VSM_F32_MAX_BEFORE:f32=3.402823466e+38;
+const VSM_F32_MAX_BEFORE:f32=3.4028234663852886e+38;
 struct VsmBoxInViewBefore{
  clipLow:vec3f,
  clipHigh:vec3f,
@@ -143,7 +145,7 @@ fn vsmShiftedBoxPerspective(center:vec3f,extent:vec3f,m:mat4x4f,viewToClip:mat4x
  let dx=(2.0*extent.x)*m[0];
  let dy=(2.0*extent.y)*m[1];
  let dz=(2.0*extent.z)*m[2];
- var wLow=3.402823466e38;var wHigh=-3.402823466e38;
+ var wLow=3.4028234663852886e38;var wHigh=-3.4028234663852886e38;
  var sideLow=vec4f(1.0);
  cull.clipLow=vec3f(1.0);cull.clipHigh=vec3f(-1.0);
  let corner000=m*vec4f(center-extent,1.0);

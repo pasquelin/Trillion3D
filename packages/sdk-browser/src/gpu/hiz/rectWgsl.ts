@@ -1,6 +1,7 @@
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { floorLog2 as floorLog2Decl } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
@@ -14,12 +15,12 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 const HIZ_LEVEL_WGSL = wgslBlock(
   'HIZ_LEVEL_WGSL',
-  [],
+  [floorLog2Decl],
   `
 /** Mirror of \`premierNiveau\` (../../hiz/occlusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
- let level=31u-countLeadingZeros(u32(span))-${floorLog2(HIZ_KERNEL_TEXELS) - 1}u;
+ let level=floorLog2(u32(span))-${floorLog2(HIZ_KERNEL_TEXELS) - 1}u;
  return select(level,0u,level>31u);
 }
 /** Whether the level-0 rectangle spans fewer than \`n\` texel steps per side in mip \`l\`. */

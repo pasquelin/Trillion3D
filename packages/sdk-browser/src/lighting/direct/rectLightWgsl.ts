@@ -10,6 +10,7 @@ import {
   splitSumTerm,
 } from '../../../../math/src/wgsl/lighting.ts'
 import { tangentSide } from '../../../../math/src/wgsl/basis.ts'
+import { faceNormal, vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
 
 /**
@@ -38,7 +39,7 @@ import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
  */
 export const RECT_LIGHT_WGSL = wgslBlock(
   'RECT_LIGHT_WGSL',
-  [INVERSE_TWO_PI, PI],
+  [INVERSE_TWO_PI, PI, faceNormal],
   `
 const KIND_RECT:f32=${LIGHT_KIND.rect}.0;
 fn isRect(light:DirectLight)->bool{return abs(light.params.x-KIND_RECT)<0.5;}
@@ -71,7 +72,7 @@ fn polygonFormFactor(a:vec3f,b:vec3f,c:vec3f,d:vec3f,up:vec3f)->vec4f{
   // The arc lies on the rectangle's side of the horizon, that of k (the corners wind about it):
   // past a right angle it passes k, and turns from the exit toward it, a sign no rounding flips
   // when exit and entry are near opposite (a point near the rectangle's plane).
-  let k=cross(b-a,d-a);let x=dot(o.exit,o.entry);let y=dot(cross(o.exit,o.entry),up);
+  let k=faceNormal(a,b,d);let x=dot(o.exit,o.entry);let y=dot(cross(o.exit,o.entry),up);
   let turn=select(y,select(-1.0,1.0,dot(cross(o.exit,k),up)>=0.0)*abs(y),x<0.0);
   F=o.F+up*atan2(turn,x);
  }
@@ -121,7 +122,7 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  *  its exact irradiance, the specular of its fitted lobe. */
 export const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
-  [PI, f0Of, lambertAlbedoMul, ndotvClamped, splitSumTerm, tangentSide, LTC_WGSL],
+  [PI, f0Of, lambertAlbedoMul, ndotvClamped, splitSumTerm, tangentSide, vectorRejection, LTC_WGSL],
   `
 /** A corner in the frame (T1, T2, N) moved by M⁻¹ = [[m.x, 0, m.y], [0, 1, 0], [m.z, 0, m.w]]. */
 fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
@@ -133,7 +134,7 @@ fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
  *  the normal and the view, integrated, weighed by the lobe's magnitude and Fresnel share. */
 fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  let NdotV=ndotvClamped(N,V);
- let side=V-N*dot(N,V);
+ let side=vectorRejection(V,N);
  let other=tangentSide(N);
  let T1=normalize(select(side,other,dot(side,side)<1e-10));let T2=cross(N,T1);
  let m=ltcLookup(rough,NdotV,0u);let t=ltcLookup(rough,NdotV,1u);

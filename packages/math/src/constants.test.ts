@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   DEG2RAD,
+  FINITE_SENTINEL,
   FLOAT32_MAX,
   FLOAT32_STEP,
   GOLDEN_FRACTION,
@@ -28,4 +29,10 @@ test('FLOAT32_MAX is the largest finite float32 and not 3.4e38', () => {
   assert.equal(Math.fround(FLOAT32_MAX * (1 + 2 ** -25)), FLOAT32_MAX)
   assert.equal(Math.fround(FLOAT32_MAX * 1.0001), Infinity)
   assert.notEqual(Math.fround(3.4e38), FLOAT32_MAX)
+})
+
+test('FINITE_SENTINEL is 3.4e38, a float32 under FLOAT32_MAX', () => {
+  assert.equal(FINITE_SENTINEL, 3.4e38)
+  assert.ok(Math.fround(FINITE_SENTINEL) < FLOAT32_MAX)
+  assert.equal(Math.fround(Math.fround(FINITE_SENTINEL) * 2), Infinity)
 })

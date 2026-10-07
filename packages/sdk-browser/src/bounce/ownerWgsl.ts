@@ -1,5 +1,7 @@
 import { PROXY_GROUP_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { unorm8x3 } from '../../../math/src/wgsl/color.ts'
+import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 
 /** Owner a hit on a posed leaf reports: its triangle stands at its pose, no owner word is read. */
 const PROXY_POSED_OWNER = 0xfffffffe
@@ -9,7 +11,7 @@ const PROXY_POSED_OWNER = 0xfffffffe
  *  every helper below tests the same thing: `owner==PROXY_POSED`. */
 export const PROXY_OWNER_WGSL = wgslBlock(
   'PROXY_OWNER_WGSL',
-  [],
+  [unorm8x3, faceNormal],
   `
 const PROXY_POSED:u32=${PROXY_POSED_OWNER}u;
 const PROXY_GROUP_OWNED:u32=${PROXY_GROUP_OWNED}u;
@@ -42,8 +44,7 @@ fn proxyOwnerVertex(triangle:u32,vertex:u32,owner:u32)->vec3f{
  return result;
 }
 fn proxyOwnerNormal(triangle:u32,owner:u32)->vec3f{
- let a=proxyOwnerVertex(triangle,0u,owner);
- return normalize(cross(proxyOwnerVertex(triangle,1u,owner)-a,proxyOwnerVertex(triangle,2u,owner)-a));
+ return normalize(faceNormal(proxyOwnerVertex(triangle,0u,owner),proxyOwnerVertex(triangle,1u,owner),proxyOwnerVertex(triangle,2u,owner)));
 }
 fn proxyOwnerCentre(triangle:u32,owner:u32)->vec3f{
  return (proxyOwnerVertex(triangle,0u,owner)+proxyOwnerVertex(triangle,1u,owner)+proxyOwnerVertex(triangle,2u,owner))/3.0;
@@ -51,7 +52,6 @@ fn proxyOwnerCentre(triangle:u32,owner:u32)->vec3f{
 /** An owner's albedo; a posed hit reads the surface cache instead and never asks. */
 fn proxyOwnerAlbedo(owner:u32)->vec3f{
  if(owner==PROXY_POSED){return vec3f(0.0);}
- let packed=proxy.words[proxy.ownersWord+owner*2u+1u];
- return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
+ return unorm8x3(proxy.words[proxy.ownersWord+owner*2u+1u]);
 }`,
 )

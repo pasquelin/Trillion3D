@@ -74,7 +74,7 @@ test('the sample budget is the published setting', () => {
   // The offset depends on the pixel and the bounded rank only: a replayed image is the same image.
   assert.match(
     sampling,
-    /fract\(hashUnit\(u32\(pixel\.y\)\*65536u\+u32\(pixel\.x\)\)\+f32\(rank\)\*GOLDEN_RATIO\)/,
+    /fract\(hashUnit\(u32\(pixel\.y\)\*65536u\+u32\(pixel\.x\)\)\+f32\(rank\)\*GOLDEN_FRACTION\)/,
   )
   assert.ok(SAMPLED_RANKS * 0.61803399 < 2 ** 10, 'the rank keeps the fraction its precision')
 })

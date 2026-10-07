@@ -2,9 +2,9 @@ import { wgslFn } from './decl.ts'
 
 /**
  * Where a shader samples: a seed folded into [0, 1), the interleaved gradient of a pixel, the
- * bilinear combine of four taps already read, and the greatest channel of a colour. The combine
- * holds no load: each shader reads its four taps its own way, and only the `mix` of `mix` is
- * common, one declaration per type.
+ * bilinear combine of four taps already read, and the greatest and least channels of a colour.
+ * The combine holds no load: each shader reads its four taps its own way, and only the `mix` of
+ * `mix` is common, one declaration per type.
  */
 
 export const hashUnit = wgslFn(
@@ -52,4 +52,10 @@ export const maxChannel = wgslFn(
   'maxChannel',
   [],
   'fn maxChannel(c:vec3f)->f32{return max(c.r,max(c.g,c.b));}',
+)
+
+export const minChannel = wgslFn(
+  'minChannel',
+  [],
+  'fn minChannel(c:vec3f)->f32{return min(c.r,min(c.g,c.b));}',
 )

@@ -1,5 +1,6 @@
 import { SELECTION_LIST_CAP } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Cold record of a cluster, the working table and page residency, read by word in one buffer.
@@ -17,12 +18,12 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_RECORD_WGSL = wgslBlock(
   'DAG_RECORD_WGSL',
-  [],
+  [ceilDiv],
   `const COLD:u32=13u;
 fn pageWorld(i:u32)->u32{return coldAt(i);}
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
 fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[rowOf(w)*FRAME+6u].z);}
-fn residentWords()->u32{return (views[0u].clusterCount+31u)>>5u;}
+fn residentWords()->u32{return ceilDiv(views[0u].clusterCount,32u);}
 fn poolBase()->u32{return views[0u].clusterCount+2u*residentWords();}
 /** The pool's list holds \`selectionListCap\` pages (\`../layout.ts\`), whatever the readout's cap. */
 fn keyBase()->u32{return poolBase()+1u+min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}

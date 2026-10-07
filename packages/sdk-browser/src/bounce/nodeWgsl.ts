@@ -5,6 +5,7 @@ import {
   PROXY_NODE_WORDS,
 } from '../../../sdk-core/src/index.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { unorm8x3 } from '../../../math/src/wgsl/color.ts'
 
 /** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
  *  owner ranges and transforms. Only the bounds, quantized children and owner poses change. */
@@ -74,25 +75,11 @@ fn proxyVertex(index:u32,vertex:u32)->vec3f{
  let base=proxy.trianglesWord+index*TRIANGLE_FLOATS+vertex*3u;
  return vec3f(proxyFloat(base),proxyFloat(base+1u),proxyFloat(base+2u));
 }
-/** Inverse of a direction, with no division in the loop and no infinity on a zero axis. */
-fn rayInverse(direction:vec3f)->vec3f{
- return vec3f(1.0)/select(direction,vec3f(1e-20),abs(direction)<vec3f(1e-20));
-}
 /** Exact bounds of a node, which also serve as the frame for its children's boxes. */
 fn nodeBox(node:u32)->Box{
  let base=proxy.boundsWord+node*NODE_FLOATS;
  return Box(vec3f(proxyFloat(base),proxyFloat(base+1u),proxyFloat(base+2u)),
             vec3f(proxyFloat(base+3u),proxyFloat(base+4u),proxyFloat(base+5u)));
-}
-/** Entry distance of a ray into a box, or beyond the limit if it misses. */
-fn boxEntry(box:Box,origin:vec3f,inverse:vec3f,limit:f32)->f32{
- let first=(box.low-origin)*inverse;
- let second=(box.high-origin)*inverse;
- let near=min(first,second);
- let far=max(first,second);
- let entry=max(max(near.x,near.y),max(near.z,0.0));
- let exit=min(min(far.x,far.y),min(far.z,limit));
- return select(limit+1.0,entry,entry<=exit);
 }
 /** A child of a node, dequantized in its parent's bounds. An owned leaf holds canonical
  *  triangles traced under their owners' poses, as proxyLeaves.ts writes. */
@@ -115,10 +102,9 @@ fn proxyChild(node:u32,slot:u32,frame:Box)->ProxyChild{
  */
 export const PROXY_ALBEDO_WGSL = wgslBlock(
   'PROXY_ALBEDO_WGSL',
-  [],
+  [unorm8x3],
   `
 fn proxyAlbedoOf(index:u32)->vec3f{
- let packed=proxyAlbedo[index];
- return vec3f(f32(packed&255u),f32((packed>>8u)&255u),f32((packed>>16u)&255u))/255.0;
+ return unorm8x3(proxyAlbedo[index]);
 }`,
 )

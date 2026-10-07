@@ -1,6 +1,7 @@
 import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * What the frame's kernels count from zero, zeroed by the first dispatch of the partition's pass,
@@ -11,13 +12,13 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const PARTITION_CLEAR_WGSL = wgslBlock(
   'PARTITION_CLEAR_WGSL',
-  [],
+  [ceilDiv],
   `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(id,n,${PARTITION_WORKGROUP}u);
  if(i<${STATE_WORDS}u){atomicStore(&state[i],0u);}
- if(i<(uni.rows+31u)/32u){atomicStore(&restBits[i],0u);}
+ if(i<ceilDiv(uni.rows,32u)){atomicStore(&restBits[i],0u);}
  if(i<arrayLength(&slotUsed)){atomicStore(&slotUsed[i],0u);}
 }
 `,

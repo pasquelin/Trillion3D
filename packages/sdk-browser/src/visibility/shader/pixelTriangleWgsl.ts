@@ -5,6 +5,7 @@ import {
   invTranspose3Prep,
   uniteOuZero,
 } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
 /**
  * How the surface resolve places a pixel on its triangle, shared by the resolve (`shadeWgsl.ts`)
@@ -27,19 +28,13 @@ export const FRAMEBUFFER_WGSL = wgslBlock(
 )
 
 /** The perspective-correct barycentrics of `p` in the screen triangle `s0..s2` of clip corners
- *  `c0..c2` and signed area `area`; a fixed third each on a degenerate triangle. `perspectiveBary`
+ *  `c0..c2` and signed area `area`; a fixed third each on a degenerate triangle. `perspectiveBarycentric`
  *  takes the corners' `1/w` (\`iw\`), which the resolve reads with its triangle (`decodeTriangle`). */
 export const PIXEL_BARY_WGSL = wgslBlock(
   'PIXEL_BARY_WGSL',
-  [],
+  [perspectiveBarycentric],
   `fn pixelBary(s0:vec3f,s1:vec3f,s2:vec3f,c0:vec4f,c1:vec4f,c2:vec4f,p:vec2f,area:f32)->vec3f{
- return perspectiveBary(s0,s1,s2,vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w),p,area);
-}
-fn perspectiveBary(s0:vec3f,s1:vec3f,s2:vec3f,iw:vec3f,p:vec2f,area:f32)->vec3f{
- if(area==0.0){return vec3f(0.333,0.333,0.334);}
- let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
- let p0w=a0*iw.x;let p1w=a1*iw.y;let p2w=a2*iw.z;let sum=p0w+p1w+p2w;
- return select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);
+ return perspectiveBarycentric(s0,s1,s2,vec3f(1.0/c0.w,1.0/c1.w,1.0/c2.w),p,area);
 }`,
 )
 

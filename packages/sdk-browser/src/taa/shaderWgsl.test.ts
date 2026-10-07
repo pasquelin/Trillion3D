@@ -65,7 +65,10 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // Homogeneous position is built with the read depth as-is: at zero — reversed depth's
   // infinite far plane — the product by the inverse yields a point at infinity, and
   // reprojection follows it without ever dividing before the previous matrix.
-  assert.match(TAA_REPROJECT_WGSL, /view\.invViewProj\*vec4f\(ndc,depthValue,1\.0\)/)
+  assert.match(
+    TAA_REPROJECT_WGSL,
+    /transformHomogeneousPoint\(view\.invViewProj,vec3f\(ndc,depthValue\)\)/,
+  )
   // Neither record nor matrix is read until a placement has moved; the identifier is the one the
   // resolve read once for its tag.
   assert.match(

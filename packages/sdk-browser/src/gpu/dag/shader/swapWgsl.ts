@@ -1,5 +1,6 @@
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /** A region that names none: the swap kernels skip it (`../swap.ts`). */
 export const REGION_NONE = 0xffff
@@ -24,7 +25,7 @@ export const swapRegionsWord = (save: number, back: number) => (save | (back << 
  */
 export const DAG_SWAP_WGSL = wgslBlock(
   'DAG_SWAP_WGSL',
-  [],
+  [ceilDiv],
   `const REGION_NONE:u32=${REGION_NONE}u;
 /** Region \`v\` of \`out.pages\`: its journal's length, then its pages (\`savedJournalWord\`). */
 fn savedAt(v:u32)->u32{return keptAt(${KEPT_HEADER_WORDS}u+2u*views[0u].listCap+v*(1u+views[0u].listCap));}
@@ -53,7 +54,7 @@ fn dagRestoreJournal(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgr
  let s=flatIndex(id,n,64u);let v=views[0u].swapRegions>>16u;
  let count=min(out.pages[savedAt(v)],views[0u].listCap);
  if(s==0u){
-  let grid=select(vec2u(0u),groupGrid((count+63u)>>6u),count>0u);
+  let grid=select(vec2u(0u),groupGrid(ceilDiv(count,64u)),count>0u);
   atomicStore(&work[drawnCounter()],count);
   atomicStore(&work[drawnGroups()],grid.x);
   atomicStore(&work[drawnGroups()+1u],grid.y);

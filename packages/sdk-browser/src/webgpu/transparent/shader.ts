@@ -1,6 +1,7 @@
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -52,7 +53,7 @@ fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_w
  let base=itemRanges[item*2u];
  let held=itemRanges[item*2u+1u];
  let first=base/${TRANSPARENT_GROUP}u;
- let groups=(held+${TRANSPARENT_GROUP}u-1u)/${TRANSPARENT_GROUP}u;
+ let groups=ceilDiv(held,${TRANSPARENT_GROUP}u);
  var cursor=base;
  for(var g=0u;g<groups;g++){
   groupOffsets[first+g]=cursor;
@@ -75,5 +76,5 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num
  instances[groupOffsets[group]+rank]=i;
 }
 `,
-  [FLAT_INDEX_WGSL],
+  [FLAT_INDEX_WGSL, ceilDiv],
 )

@@ -47,10 +47,24 @@ export const ndcToPixel = wgslFn(
   'fn ndcToPixel(ndc:vec2f,size:vec2f)->vec2f{return vec2f((ndc.x*0.5+0.5)*size.x,(0.5-ndc.y*0.5)*size.y);}',
 )
 
+/** `y` flipped as `1 − (y·½ + ½)`. */
+export const ndcToPixelFlip = wgslFn(
+  'ndcToPixelFlip',
+  [],
+  'fn ndcToPixelFlip(ndc:vec2f,size:vec2f)->vec2f{return vec2f((ndc.x*0.5+0.5)*size.x,(1.0-(ndc.y*0.5+0.5))*size.y);}',
+)
+
 export const clipToUv = wgslFn(
   'clipToUv',
   [],
   'fn clipToUv(clip:vec4f)->vec2f{return vec2f(clip.x/clip.w*0.5+0.5,0.5-clip.y/clip.w*0.5);}',
+)
+
+/** `y` kept: a projection that already flips it. */
+export const clipToUvUnflipped = wgslFn(
+  'clipToUvUnflipped',
+  [],
+  'fn clipToUvUnflipped(clip:vec4f)->vec2f{return clip.xy/clip.w*0.5+vec2f(0.5);}',
 )
 
 export const ndcToUv = wgslFn(
@@ -59,8 +73,8 @@ export const ndcToUv = wgslFn(
   'fn ndcToUv(c:vec2f)->vec2f{return vec2f(0.5,-0.5)*c+0.5;}',
 )
 
-/** No division (`../vector/vector.ts`), called by `unprojectPoint` alone. */
-const transformHomogeneousPoint = wgslFn(
+/** The homogeneous image of the point `p`, no division (`../vector/vector.ts`). */
+export const transformHomogeneousPoint = wgslFn(
   'transformHomogeneousPoint',
   [],
   'fn transformHomogeneousPoint(m:mat4x4f,p:vec3f)->vec4f{return m*vec4f(p,1.0);}',

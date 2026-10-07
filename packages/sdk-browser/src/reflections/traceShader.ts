@@ -1,4 +1,5 @@
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
 
 /** The host's read of the depth a reflection walks (`reflectionDepthAt`, `fn(p:vec2i)->f32`) and
  *  of its size in pixels (`reflectionSize`, `fn()->vec2f`), each a declaration under that name:
@@ -148,15 +149,15 @@ const into = `let into:vec2f=${CELL};`
 export const screenTraceWgsl = (read: ReflectionDepthRead) =>
   wgslBlock(
     'SCREEN_TRACE_WGSL',
-    [reflectionPlaneWgsl(read), read.depthAt],
+    [reflectionPlaneWgsl(read), read.depthAt, FAR_VALUE],
     `fn reflectionExit(c:vec4f,d:vec4f)->f32{
  // The four side planes and the two depth planes: how far inside each the ray starts, and how fast
  // it leaves it.
  let p=vec4f(c.w+c.x,c.w-c.x,c.w+c.y,c.w-c.y);let pz=vec2f(c.z,c.w-c.z);
  if(any(p<vec4f(0.0))||any(pz<vec2f(0.0))){return 0.0;}
  let v=vec4f(d.w+d.x,d.w-d.x,d.w+d.y,d.w-d.y);let vz=vec2f(d.z,d.w-d.z);
- let ends=select(vec4f(1e30),-p/v,v<vec4f(0.0));let endsZ=select(vec2f(1e30),-pz/vz,vz<vec2f(0.0));
- return min(min(min(ends.x,ends.y),min(ends.z,ends.w)),min(min(endsZ.x,endsZ.y),1e30));
+ let ends=select(vec4f(FAR_VALUE),-p/v,v<vec4f(0.0));let endsZ=select(vec2f(FAR_VALUE),-pz/vz,vz<vec2f(0.0));
+ return min(min(min(ends.x,ends.y),min(ends.z,ends.w)),min(min(endsZ.x,endsZ.y),FAR_VALUE));
 }
 fn reflectionHiZSteps(size:vec2f,top:i32)->i32{return 2*(i32(size.x+size.y)+top)+2;}
 fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
@@ -167,7 +168,7 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  var level:i32=0;var t:f32=0.0;
  // The last cell a descent entered, its level (none: -1) and depth range: at level 0, the cell of
  // level 1 that holds the pixel, whose range holds the pixel's.
- var heldLevel:i32=-1;var held:vec2f=vec2f(0.0);var heldRange:vec2f=vec2f(-1e30,1e30);
+ var heldLevel:i32=-1;var held:vec2f=vec2f(0.0);var heldRange:vec2f=vec2f(-FAR_VALUE,FAR_VALUE);
  // The last pixel read at level 0, its depth (the clear depth: none) and its neighbours' (left,
  // right, down, up): the pixel beside it reads three depths, not five, and at an edge across that
  // side no depth two pixels out.
@@ -182,7 +183,7 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
   // Where the segment leaves the cell on each axis: its far border, none along an axis it does not
   // move on.
   let edge=select(cell,cell+vec2f(1.0),delta>vec2f(0.0))*side;
-  let bound=select(vec2f(1e30),(edge-start)/delta,(delta>vec2f(0.0))|(delta<vec2f(0.0)));
+  let bound=select(vec2f(FAR_VALUE),(edge-start)/delta,(delta>vec2f(0.0))|(delta<vec2f(0.0)));
   let exited:f32=min(1.0,min(bound.x,bound.y));
   let before:f32=mix(za,zb,t);let after:f32=mix(za,zb,exited);
   // The cell's range (at level 0, the level-1 cell's that holds the pixel), and whether the

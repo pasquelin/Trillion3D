@@ -30,6 +30,7 @@ import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
 
 /** The group side of the page marks from pixels pass. */
 export const VSM_MARK_PIXELS_GROUP_XY = 8
@@ -512,7 +513,7 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  @builtin(num_workgroups) n:vec3u){
  // A group a tile of the strided view, row after row of \`tilesX\`: its rank read back as the tile.
  let side=${VSM_MARK_PIXELS_GROUP_XY}u;
- let tilesX=((vsmMarking.viewSize.x+vsmMarking.pixelStride.x-1u)/vsmMarking.pixelStride.x+side-1u)/side;
+ let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,vsmMarking.pixelStride.x),side);
  let tile=flatIndex(group,n,1u);
  let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*vsmMarking.pixelStride;
  let pixelPos=vsmMarking.viewRectMin+stridedPixel;
@@ -594,5 +595,6 @@ fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
       VSM_PAGE_MARKING_WGSL,
       WORLD_AT_WGSL,
       FLAT_INDEX_WGSL,
+      ceilDiv,
     ],
   )

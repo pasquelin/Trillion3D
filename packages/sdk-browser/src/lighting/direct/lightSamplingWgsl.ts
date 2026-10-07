@@ -1,5 +1,6 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { GOLDEN_FRACTION } from '../../../../math/src/wgsl/constants.ts'
+import { luminance } from '../../../../math/src/wgsl/color.ts'
 import { hashUnit } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
@@ -9,7 +10,7 @@ export const SAMPLED_RANKS = 1024
 /** A rectangle's weight, before any punctual light's (`lightWeight`): only in the program of a
  *  scene that holds a rectangle (`declaredLightWgsl`). */
 const RECT_WEIGHT = `
- if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*dot(light.colorIntensity.rgb,LUMINANCE);}`
+ if(isRect(light)){return light.colorIntensity.w*rectIrradiance(light,P,N).w*luminance(light.colorIntensity.rgb);}`
 
 /**
  * Sampled resolve of a cell's light list, for a MOVING image that temporal
@@ -40,16 +41,15 @@ const RECT_WEIGHT = `
 export const directLightSamplingWgsl = (rects = true) =>
   wgslBlock(
     `directLightSamplingWgsl(${rects})`,
-    [hashUnit, GOLDEN_FRACTION],
+    [hashUnit, GOLDEN_FRACTION, luminance],
     `
 const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
-const LUMINANCE:vec3f=vec3f(0.2126,0.7152,0.0722);
 /** Unshadowed weight of a light at the point: its share of the pixel's drawing. Zero exactly
  *  when the unshadowed contribution is — out of range, or behind the surface —, so no light
  *  that could contribute is ever left undrawable. */
 fn lightWeight(light:DirectLight,N:vec3f,P:vec3f)->f32{${rects ? RECT_WEIGHT : ''}
  let incidence=directIncidence(light,P);
- return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*dot(light.colorIntensity.rgb,LUMINANCE);
+ return light.colorIntensity.w*incidence.w*max(dot(N,incidence.xyz),0.0)*luminance(light.colorIntensity.rgb);
 }
 /** Weight of the \`index\`th light of a list starting at \`first\` in the pool. */
 fn listedWeight(first:u32,index:u32,N:vec3f,P:vec3f)->f32{

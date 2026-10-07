@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Inclusive scan of one `u32` per lane over a 64-lane workgroup, in workgroup memory: each step
@@ -18,7 +19,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const LANE_SCAN_WGSL = wgslBlock(
   'LANE_SCAN_WGSL',
-  [],
+  [ceilDiv],
   `
 var<workgroup> laneSums:array<u32,128>;
 fn laneScan(lane:u32,value:u32)->u32{
@@ -35,7 +36,7 @@ fn laneScan(lane:u32,value:u32)->u32{
  return laneSums[src+lane];
 }
 fn laneRun(lane:u32,len:u32)->vec2u{
- let run=(len+63u)/64u;
+ let run=ceilDiv(len,64u);
  let first=min(lane*run,len);
  return vec2u(first,min(first+run,len));
 }

@@ -5,6 +5,7 @@ import { residentProxyWgsl } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
@@ -86,7 +87,7 @@ fn probeStore(probe:vec3u,k:u32,value:vec4f){
 fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let index=f32(slot)+jitter;
  let z=1.0-2.0*index/f32(RAYS_PER_PROBE);
- let radius=sqrt(max(0.0,1.0-z*z));
+ let radius=sinFromCos(z);
  let angle=index*GOLDEN_ANGLE+rotation;
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
@@ -185,6 +186,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     BOUNCE_TRACE_WGSL,
     TWO_PI,
     hashUnit,
+    sinFromCos,
     SURFACE_RAY_WGSL,
   ],
 )

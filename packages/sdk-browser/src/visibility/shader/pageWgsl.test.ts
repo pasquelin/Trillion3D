@@ -7,11 +7,9 @@ import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import {
   PAGE_INFO_STRUCT_WGSL,
-  EDGE_WGSL,
   PAGE_VERTEX_WGSL,
   PAGE_UV_WGSL,
   MASK_KEEP_WGSL,
-  BARY_WEIGHTS_WGSL,
 } from './pageWgsl.ts'
 import { WRAP_COORD_WGSL } from '../wrapModes.ts'
 import { linearTexels } from '../../../../../tests/gpu/texture/addressingCases.ts'
@@ -21,6 +19,7 @@ import { SHADE_SHADER } from './shadeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { TAA_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { affineBarycentric, edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const SMALL_SHADER = rasterSource(4, 16)
@@ -45,9 +44,9 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
   })
 })
 
-test('EDGE_WGSL declares fn edge only once in the small-triangle raster and in shading', () => {
-  assert.match(wgslSource(EDGE_WGSL), /fn edge\(/)
-  eachOnce(EDGE_WGSL.text, { SMALL_SHADER, SHADE_SHADER })
+test('edgeFunction declares fn edgeFunction only once in the small-triangle raster and in shading', () => {
+  assert.match(wgslSource(edgeFunction), /fn edgeFunction\(/)
+  eachOnce(edgeFunction.text, { SMALL_SHADER, SHADE_SHADER })
 })
 
 test('PAGE_VERTEX_WGSL declares fn vertPos only once in the raster and shading', () => {
@@ -70,11 +69,11 @@ test('MASK_KEEP_WGSL declares fn maskKeep only once in the raster', () => {
   eachOnce(MASK_KEEP_WGSL.text, { SMALL_SHADER, VIS_SHADER })
 })
 
-test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in the raster', () => {
-  assert.match(wgslSource(BARY_WEIGHTS_WGSL), /fn baryWeights\(/)
-  eachOnce(BARY_WEIGHTS_WGSL.text, { SHADE_SHADER })
+test('affineBarycentric declares fn affineBarycentric only once in shading, never in the raster', () => {
+  assert.match(wgslSource(affineBarycentric), /fn affineBarycentric\(/)
+  eachOnce(affineBarycentric.text, { SHADE_SHADER })
   // The raster decides coverage on its three edges, not on derived weights.
-  assert.doesNotMatch(SMALL_SHADER, /baryWeights/)
+  assert.doesNotMatch(SMALL_SHADER, /affineBarycentric/)
 })
 
 // Defect 7: under linear filtering with `Repeat`, a period's seam must mix the last texel and
@@ -149,11 +148,7 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
       `${nom} must fold each level on that level's size`,
     )
     assert.match(bloc, /if\(!t\.couture\|\|nearest\)\{return /, `${nom} must keep the unique read`)
-    assert.match(
-      bloc,
-      /mix\(mix\(s00,s10,t\.poids\.x\),mix\(s01,s11,t\.poids\.x\),t\.poids\.y\)/,
-      nom,
-    )
+    assert.match(bloc, /bilinear4\(s00,s10,s01,s11,t\.poids\)/, nom)
   }
   for (const [nom, text] of Object.entries({
     SMALL_SHADER,

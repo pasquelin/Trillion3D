@@ -14,7 +14,11 @@ import {
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { clipToUv, pixelToNdcInv } from '../../../math/src/wgsl/projection.ts'
+import {
+  clipToUv,
+  pixelToNdcInv,
+  transformHomogeneousPoint,
+} from '../../../math/src/wgsl/projection.ts'
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import {
   GEOMETRY_HISTORY_WGSL,
@@ -55,12 +59,12 @@ export const texelReads = (blended: boolean): TexelReads => ({
 export const taaReprojectWgsl = (deformation = true) =>
   wgslBlock(
     `taaReprojectWgsl(${deformation})`,
-    [pixelToNdcInv, clipToUv],
+    [pixelToNdcInv, clipToUv, transformHomogeneousPoint],
     `
 fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
 fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
  let ndc=pixelToNdcInv(vec2f(coord)+0.5,view.viewport.zw);
- return view.invViewProj*vec4f(ndc,depthValue,1.0);
+ return transformHomogeneousPoint(view.invViewProj,vec3f(ndc,depthValue));
 }
 fn pointBefore(here:vec4f,id:u32)->vec4f{
  var position=here;

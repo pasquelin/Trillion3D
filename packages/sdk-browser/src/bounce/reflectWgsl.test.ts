@@ -103,9 +103,7 @@ test('water and probes read the same ray: one reflection model', () => {
 
 test('water preserves its exact mirror ray and transitions into filtered probe radiance', () => {
   // The water's roughness reaches the model, clamped to the floor it traces at.
-  assert.ok(
-    WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${wgslF32(ROUGHNESS_FLOOR)},1.0);`),
-  )
+  assert.ok(WATER_COMPOSITE_SHADER.includes('let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);'))
   assert.match(
     WATER_COMPOSITE_SHADER,
     /reflected=waterCoatMirror\(F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)\*lobeThrough\(\),/,

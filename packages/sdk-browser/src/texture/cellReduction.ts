@@ -1,4 +1,5 @@
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 
 /** A source cell's width in original pixels, `2^k` at source level `k`, `s = max(o >> k, 1)` a
  *  side: the larger difference of the two sides' leading bits (`firstLeadingBit`), `2^k` built
@@ -6,11 +7,11 @@ import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
  *  division, which WGSL allows a shader to round (`x·rcp(y)`), halving the step of an odd size. */
 const REDUCTION_STEP_WGSL = wgslBlock(
   'REDUCTION_STEP_WGSL',
-  [],
+  [pow2FromExponent],
   `
 fn reductionStep(o:vec2i,s:vec2i)->f32{
  let k=max(firstLeadingBit(o.x)-firstLeadingBit(s.x),firstLeadingBit(o.y)-firstLeadingBit(s.y));
- return bitcast<f32>(u32(k+127)<<23u);
+ return pow2FromExponent(k);
 }`,
 )
 

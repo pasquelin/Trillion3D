@@ -77,7 +77,9 @@ function pool() {
 const NAMES = [
   ...'pageHeader pageHeaderFor deformWholeCopy pageCorner pageRestPosition vertPos'.split(' '),
   ...'clusterPointHeader clusterSurfaceHeader clusterStream clusterWidths clusterStep'.split(' '),
-  ...'clusterPow2 clusterBitsFor clusterIndex clusterBlock clusterWindow clusterField'.split(' '),
+  ...'pow2FromExponent bitLength ceilDiv clusterIndex clusterBlock clusterWindow clusterField'.split(
+    ' ',
+  ),
   ...'clusterPosition clusterGrid'.split(' '),
 ]
 const flat = (v: unknown): number[] =>

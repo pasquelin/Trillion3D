@@ -1,6 +1,8 @@
 import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { uvToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
+import { faceNormal, sphereBehindPlane } from '../../../../math/src/wgsl/geometry.ts'
+import { INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
 
 /**
  * A column of the light grid and the run of its cells a light's range meets:
@@ -21,7 +23,7 @@ import { uvToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts
  */
 export const GRID_BOUNDS_WGSL = wgslBlock(
   'GRID_BOUNDS_WGSL',
-  [uvToNdc, unprojectPoint],
+  [uvToNdc, unprojectPoint, faceNormal, sphereBehindPlane, INFINITE_THRESHOLD],
   `/** The steps each end of a light's run takes toward its sphere. */
 const NEWTON_STEPS:u32=4u;
 /** The factors a run's front and back depth are widened by: never the neighbour's slice by a
@@ -66,7 +68,7 @@ fn gridColumn(cell:vec2u)->Column{
   let a=i^(i>>1u);let b=((i+1u)%4u)^(((i+1u)%4u)>>1u);
   column.planes[i]=inwardPlane(cross(deep[b]-deep[a],deep[a]-near[a]),near[a],inside);
  }
- column.planes[4]=inwardPlane(cross(deep[1]-deep[0],deep[2]-deep[0]),near[0],inside);
+ column.planes[4]=inwardPlane(faceNormal(deep[0],deep[1],deep[2]),near[0],inside);
  column.into=column.planes[4].xyz;
  column.across=normalize(deep[1]-deep[0]);
  column.down=normalize(deep[2]-deep[0]);
@@ -80,7 +82,7 @@ fn gridColumn(cell:vec2u)->Column{
 }
 /** A sphere not wholly behind any of the column's planes. */
 fn sphereInColumn(column:Column,centre:vec3f,radius:f32)->bool{
- for(var i=0u;i<5u;i++){if(dot(column.planes[i].xyz,centre)+column.planes[i].w< -radius){return false;}}
+ for(var i=0u;i<5u;i++){if(sphereBehindPlane(column.planes[i],centre,radius)){return false;}}
  return true;
 }
 /** f(t), the squared distance from the centre \`c\` (across, down, along) to the column's section at
@@ -106,7 +108,7 @@ fn depthAt(column:Column,centre:vec3f,t:f32,margin:f32)->u32{
 /** The first and last slice of the column a sphere may meet, \`vec2u(1u,0u)\` for none. */
 fn lightRun(column:Column,centre:vec3f,radius:f32)->vec2u{
  if(!(radius>0.0)){return vec2u(1u,0u);}
- if(radius>3.0e38){return vec2u(0u,GRID_SLICES-1u);}
+ if(radius>INFINITE_THRESHOLD){return vec2u(0u,GRID_SLICES-1u);}
  let r=radius*1.001;let R=r*r;
  let c=vec3f(dot(column.across,centre),dot(column.down,centre),dot(column.into,centre));
  var lo=max(c.z-r,column.near);var hi=c.z+r;

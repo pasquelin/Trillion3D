@@ -1,6 +1,7 @@
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 
 /**
  * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
@@ -38,14 +39,14 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const RASTER_PIXEL_WGSL = wgslBlock(
   'RASTER_PIXEL_WGSL',
-  [],
+  [edgeFunction],
   `
 /** Canonical order of two screen vertices: highest first, then leftmost. */
 fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}
-/** \`edge(a,b,p)\` computed in canonical order: both triangles of an edge read the same bits. */
+/** \`edgeFunction(a,b,p)\` computed in canonical order: both triangles of an edge read the same bits. */
 fn canonEdge(a:vec2f,b:vec2f,p:vec2f,before:bool)->f32{
- if(before){return edge(a,b,p);}
- return -edge(b,a,p);
+ if(before){return edgeFunction(a,b,p);}
+ return -edgeFunction(b,a,p);
 }
 /** True when edge \`a→b\` value \`e\` leaves the pixel on the interior side of a triangle of area \`area\`. */
 fn edgeCovers(e:f32,before:bool,inside:bool)->bool{

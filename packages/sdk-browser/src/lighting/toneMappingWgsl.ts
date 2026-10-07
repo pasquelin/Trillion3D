@@ -2,6 +2,7 @@ import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { maxChannel, minChannel } from '../../../math/src/wgsl/sampling.ts'
 
 /** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
 const ACES_WGSL = wgslBlock(
@@ -31,7 +32,7 @@ const R = TONE_MAPPING_RANK
  */
 export const TONE_MAPPING_WGSL = wgslBlock(
   'TONE_MAPPING_WGSL',
-  [ACES_WGSL],
+  [ACES_WGSL, maxChannel, minChannel],
   `fn cineonCurve(color:vec3f)->vec3f{
  let x=max(vec3f(0.0),color-${CINEON.offset});
  return pow(${CINEON.curve},vec3f(2.2));
@@ -50,9 +51,9 @@ fn agxCurve(color:vec3f)->vec3f{
  return clamp(toNarrow*c,vec3f(0.0),vec3f(1.0));
 }
 fn neutralCurve(color:vec3f)->vec3f{
- let low=min(color.r,min(color.g,color.b));
+ let low=minChannel(color);
  var c=color-select(${NEUTRAL.offset},${NEUTRAL.toeOffset},${NEUTRAL.toe});
- let peak=max(c.r,max(c.g,c.b));
+ let peak=maxChannel(c);
  if(peak<${NEUTRAL.knee}){return c;}
  let top=${NEUTRAL.top};
  c*=top/peak;

@@ -44,7 +44,8 @@ import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { uvToNdc } from '../../../math/src/wgsl/projection.ts'
+import { ceilDiv as ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
+import { unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL, vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
@@ -225,8 +226,7 @@ fn vsmZOrderDecode(m:u32)->vec2u{return vec2u(vsmUnpackEvenBits(m),vsmUnpackEven
 /** A fragment's shifted position (projection rect = view rect). */
 fn vsmPixelToShifted(sv:vec4f)->vec3f{
  let p=(sv.xy-vec2f(vsmView.projectionRect.xy))*vsmView.viewPixels.zw;
- let h=vsmView.clipToShifted*vec4f(uvToNdc(p),sv.z,1.0);
- return h.xyz/h.w;
+ return unprojectPoint(vsmView.clipToShifted,vec3f(uvToNdc(p),sv.z));
 }
 /** The distance to the camera from a view vector (along the view axis for an orthographic view). */
 fn vsmCameraDistance(v:vec3f)->f32{
@@ -525,7 +525,7 @@ fn vsmTileLayers(tileLights:vec2u)->u32{
  *  the view's), in increasing order: a layer holding one is traced and stored whole — a lane of a
  *  light the tile does not hold 0 —, a layer holding none is not stored. */
 fn vsmProjectTile(pixel:VsmPixel,lights:vec2u,tileLights:vec2u,lightCount:u32,voteSplit:bool){
- for(var layer=0u;layer<(lightCount+3u)/4u;layer++){
+ for(var layer=0u;layer<ceilDiv(lightCount,4u);layer++){
   let held=vsmLayerLights(tileLights,layer);
   if(held==0u){continue;}
   let first=4u*layer;
@@ -625,6 +625,8 @@ export function vsmProjectionWgsl(
       VSM_TRACE_RESULT_WGSL,
       vsmTraceWgsl(true),
       uvToNdc,
+      unprojectPoint,
+      ceilDivWgsl,
       ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
     ],
   )
