@@ -119,3 +119,11 @@ test('a relative specifier that climbs above the repository root is red', () => 
     ['packages/math/src/float/k.ts: ../../../../../math/src/float/x.ts'],
   )
 })
+
+test('a test of the package reads its own data beside the sources, a module does not', () => {
+  const asset = "new URL('../golden/grid.json', import.meta.url)"
+  assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', asset]])), [])
+  assert.equal(mathLayeringBreaks(new Map([['packages/math/src/a.ts', asset]])).length, 1)
+  const other = "new URL('../../sdk-core/src/x.json', import.meta.url)"
+  assert.equal(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', other]])).length, 1)
+})

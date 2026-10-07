@@ -96,21 +96,39 @@ test('no binary or no crate sources is not a refusal', async () => {
   }
 })
 
-// Behaviour: the crates the compiler links — the page codec, the maths — are built into it: an
-// edit in either is a stale build.
+// Behaviour: the crates the compiler links — the page codec, and the maths through it — are built
+// into it: an edit in either is a stale build, found from the manifests, never from a list.
+const MANIFESTS: Record<string, string> = {
+  'asset-compiler-rust': '[dependencies]\ncodec = { path = "../page-codec-wasm" }\n',
+  'page-codec-wasm': '[dependencies]\nmath = { path = "../math/rust" }\n',
+  'math/rust': '[package]\n',
+}
+
+async function linkedCrates() {
+  const packages = await mkdtemp(join(tmpdir(), 'trillion3d-freshness-'))
+  const root = join(packages, 'asset-compiler-rust')
+  const binary = join(root, 'target/release', binaryName)
+  await mkdir(join(root, 'target/release'), { recursive: true })
+  await writeFile(binary, '')
+  const files = [binary]
+  for (const [crate, manifest] of Object.entries(MANIFESTS)) {
+    await mkdir(join(packages, crate, 'src/golden'), { recursive: true })
+    await writeFile(join(packages, crate, 'Cargo.toml'), manifest)
+    await writeFile(join(packages, crate, 'src/lib.rs'), '#[cfg(test)]\nmod screen;\n')
+    for (const test of ['src/lib_tests.rs', 'src/golden/value.rs', 'src/screen.rs'])
+      await writeFile(join(packages, crate, test), '')
+    files.push(join(packages, crate, 'Cargo.toml'), join(packages, crate, 'src/lib.rs'))
+  }
+  for (const file of files) await utimes(file, 1_000, 1_000)
+  await utimes(binary, 2_000, 2_000)
+  return { packages, root, binary }
+}
+
 for (const linked of ['page-codec-wasm', 'math/rust'])
   test(`editing ${linked} beside the crate reports the compiler stale`, async () => {
-    const packages = await mkdtemp(join(tmpdir(), 'trillion3d-freshness-'))
-    const root = join(packages, 'asset-compiler-rust'),
-      binary = join(root, 'target/release', binaryName),
-      source = join(packages, linked, 'src/lib.rs')
+    const { packages, root, binary } = await linkedCrates()
+    const source = join(packages, linked, 'src/lib.rs')
     try {
-      await mkdir(join(root, 'target/release'), { recursive: true })
-      await mkdir(join(packages, linked, 'src'), { recursive: true })
-      for (const file of [join(root, 'Cargo.toml'), source, binary]) await writeFile(file, '')
-      await utimes(join(root, 'Cargo.toml'), 1_000, 1_000)
-      await utimes(source, 1_000, 1_000)
-      await utimes(binary, 2_000, 2_000)
       assert.equal(sourceNewerThan(binary, root), null)
       await utimes(source, 3_000, 3_000)
       assert.equal(sourceNewerThan(binary, root), source)
@@ -118,3 +136,18 @@ for (const linked of ['page-codec-wasm', 'math/rust'])
       await rm(packages, { recursive: true, force: true })
     }
   })
+
+// Behaviour: test code is not built into the compiler: a test, the golden harness or a
+// `#[cfg(test)]` module edited after the build leaves it current, as it leaves its hash.
+test('editing test code leaves the compiler current', async () => {
+  const { packages, root, binary } = await linkedCrates()
+  try {
+    for (const test of ['src/lib_tests.rs', 'src/golden/value.rs', 'src/screen.rs']) {
+      await utimes(join(packages, 'math/rust', test), 3_000, 3_000)
+      await utimes(join(root, test), 3_000, 3_000)
+    }
+    assert.equal(sourceNewerThan(binary, root), null)
+  } finally {
+    await rm(packages, { recursive: true, force: true })
+  }
+})

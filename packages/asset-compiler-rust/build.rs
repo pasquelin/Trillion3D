@@ -1,3 +1,5 @@
+mod build_inputs;
+
 use sha2::{Digest, Sha256};
 use std::{
     env, fs,
@@ -96,44 +98,13 @@ fn physics_cook(output: &Path) -> String {
     commit
 }
 
-fn source_files(directory: &Path, into: &mut Vec<PathBuf>) -> std::io::Result<()> {
-    for entry in fs::read_dir(directory)? {
-        let path = entry?.path();
-        if path.is_dir() {
-            if path.file_name().is_some_and(|name| name == "tests") {
-                continue;
-            }
-            source_files(&path, into)?;
-        } else if path.extension().is_some_and(|ext| ext == "rs") {
-            into.push(path);
-        }
-    }
-    Ok(())
-}
-
-/// The crates the compiler builds from the repository — the `{ path = "…" }` entries of its
-/// manifest (the page codec, the maths): linked in, their code is the compiler's.
-fn path_dependencies() -> std::io::Result<Vec<PathBuf>> {
-    let manifest = fs::read_to_string("Cargo.toml")?;
-    let mut crates: Vec<PathBuf> = manifest
-        .lines()
-        .filter(|line| line.contains('{'))
-        .filter_map(|line| line.split_once("path = \"")?.1.split_once('"'))
-        .map(|(path, _)| PathBuf::from(path))
-        .collect();
-    crates.sort();
-    crates.dedup();
-    Ok(crates)
-}
-
 fn main() -> std::io::Result<()> {
     let mut files = Vec::new();
-    source_files(Path::new("src"), &mut files)?;
-    // The path dependencies are linked in: their encoding and their arithmetic are the compiler's,
-    // so they enter the hash and their source directories are watched.
-    let crates = path_dependencies()?;
-    for path in &crates {
-        source_files(&path.join("src"), &mut files)?;
+    build_inputs::production_sources(Path::new("."), &mut files)?;
+    // The path dependencies, theirs too, are linked in: their encoding and their arithmetic are
+    // the compiler's, so their production sources enter the hash and their folders are watched.
+    for path in build_inputs::path_dependencies()? {
+        build_inputs::production_sources(&path, &mut files)?;
         files.push(path.join("Cargo.toml"));
         println!("cargo:rerun-if-changed={}/src", path.display());
     }
@@ -141,6 +112,7 @@ fn main() -> std::io::Result<()> {
         PathBuf::from("Cargo.toml"),
         PathBuf::from("Cargo.lock"),
         PathBuf::from("build.rs"),
+        PathBuf::from("build_inputs.rs"),
         // The C++ flags of the simplifier: `-ffp-contract=off` changes the bytes it produces.
         PathBuf::from(CARGO_CONFIG),
     ]);

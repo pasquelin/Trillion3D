@@ -10,8 +10,8 @@ import { createWorldCuts } from './worldCuts.ts'
 import { WaterSurface } from '../../../../sdk-core/src/fluids/waterSurface.ts'
 import { prepareSdkWasm } from '../../wasm/sdkWasm.ts'
 
-// An opaque cut takes the compiler's grid from the SDK module (`cutGrid.ts`): Node cannot fetch
-// the module by its URL, so the test hands it the bytes.
+// An opaque cut takes its clusters' normal cones from the SDK module (`cutCones.ts`): Node cannot
+// fetch the module by its URL, so the test hands it the bytes.
 await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../wasm/kernels.wasm')))
 
 // A line worn by a dashed material is read with its distance along the line; the same line

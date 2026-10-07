@@ -10,11 +10,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { WASM_CRATE } from './native-crates.ts'
 
-const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..')
-const MANIFESTE = join(RACINE, WASM_CRATE.path, 'Cargo.toml')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const MANIFESTE = join(ROOT, WASM_CRATE.path, 'Cargo.toml')
 const CIBLE = 'wasm32-unknown-unknown'
 const KERNELS = join('sdk-browser', 'src', 'wasm')
-const SORTIES = [join(RACINE, 'packages', KERNELS), join(RACINE, 'dist', KERNELS)]
+const SORTIES = [join(ROOT, 'packages', KERNELS), join(ROOT, 'dist', KERNELS)]
 const NOM = 'kernels.wasm'
 
 function rustc(...args: string[]): string {
@@ -84,8 +84,13 @@ function main(): void {
     AR_wasm32_unknown_unknown: rustTool('llvm-ar'),
     CFLAGS_wasm32_unknown_unknown: '-msimd128',
     // A path dependency (`packages/math/rust`) is compiled under its absolute path, which its panic
-    // locations would carry into the committed module: the checkout's root becomes `.`.
-    RUSTFLAGS: `-C target-feature=+simd128,-relaxed-simd --remap-path-prefix=${RACINE}=.`,
+    // locations would carry into the committed module: the checkout's root becomes `.`. The flags
+    // go one per field, split by the unit separator, so a root with a space stays one flag.
+    CARGO_ENCODED_RUSTFLAGS: [
+      '-C',
+      'target-feature=+simd128,-relaxed-simd',
+      `--remap-path-prefix=${ROOT}=.`,
+    ].join('\x1f'),
   }
 
   execFileSync(

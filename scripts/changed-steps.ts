@@ -1,3 +1,4 @@
+import { GOLDEN } from './golden-checks.ts'
 import { TREE_GATES } from './validate-steps.ts'
 
 // What `check:changed` runs for a change (`scripts/check-changed.ts`). A change that touches only
@@ -9,8 +10,6 @@ export const formatPattern = /\.(?:[cm]?ts|tsx|json)$/
 
 const markdown = /\.md$/
 const MESSAGE_CATALOGUE = 'packages/sdk-node/src/messages/messages.json'
-// The reference values the crates' golden tests read (`packages/math/rust/src/golden.rs`).
-const GOLDEN = /^packages\/math\/golden\//
 // The notices ship in the package (`package.json` `files`): code, not documentation.
 const packaged = /^THIRD_PARTY_NOTICES\.md$/
 const translation = /^site\/(?:content\/|examples\/)?i18n\/[^/]+\.json$/
@@ -51,6 +50,7 @@ export type ChangedStep =
   | 'check:i18n'
   | (typeof TREE_GATES)[number]
   | 'rust'
+  | 'golden'
   | 'tests'
 
 /**
@@ -84,6 +84,9 @@ export function changedSteps(
     existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE || GOLDEN.test(file))
   )
     steps.push('rust')
+  // A reference value changed: the crates' golden tests that read it hold it to the Rust; the
+  // TypeScript ones, among the unit tests, hold the twins to it (`golden-checks.ts`).
+  if (changed.some((file) => GOLDEN.test(file))) steps.push('golden')
   if (tests) steps.push('tests')
   return steps
 }

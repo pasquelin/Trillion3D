@@ -3,7 +3,7 @@
   "packages/asset-compiler-rust": 128,
   "packages/sdk-browser": 188,
   "packages/sdk-node": 8,
-  "scripts": 66,
+  "scripts": 62,
   "site": 3,
   "tests": 1
 }
