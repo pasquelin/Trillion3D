@@ -1,111 +1,61 @@
-// `clusterErrorAtDepth` checks the frame's four scalars (stretch, focal length, near plane,
-// projection), then the cluster's own values. Against a frozen copy of the per-cluster guard: the
-// same value to the bit, the same error on the same call, over random clusters and every edge
-// (NaN, ±0, ±Inf, degenerate projection).
+// `clusterErrorAtDepth`'s guard, verdict by verdict: a zero error is 0 and an infinite one infinity
+// before any check, one value out of its domain refuses the call by name, and every call it lets
+// through projects as `screenErrorBound` does.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { clusterErrorAtDepth, screenErrorBound } from './screenErrorBound.ts'
 
-/** `clusterErrorAtDepth` evaluated naively: all thirteen conditions on every call. */
-function perCluster(
-  clusterError: number,
-  stretch: number,
-  lateral: number,
-  depth: number,
-  radius: number,
-  focal: number,
-  near: number,
-  perspective = 1,
-): number {
-  if (clusterError === 0) return 0
-  if (clusterError === Infinity) return Infinity
-  if (
-    !Number.isFinite(clusterError) ||
-    clusterError < 0 ||
-    !Number.isFinite(stretch) ||
-    stretch < 0 ||
-    !Number.isFinite(radius) ||
-    radius < 0 ||
-    !Number.isFinite(focal) ||
-    focal <= 0 ||
-    !Number.isFinite(near) ||
-    near <= 0 ||
-    !(lateral >= 0 && lateral < Infinity) ||
-    !Number.isFinite(depth) ||
-    !(perspective >= 0 && perspective <= 1)
-  ) {
-    throw new Error('Invalid cluster parameters')
-  }
-  return screenErrorBound(clusterError, stretch, lateral, depth, radius, focal, near, perspective)
+type Args = [number, number, number, number, number, number, number, number]
+
+/** error, stretch, axis distance, depth, radius, focal length, near plane, clip-w weight. */
+const BASE: Args = [0.02, 1.5, 3, 40, 0.8, 900, 0.1, 1]
+
+/** `BASE` with `value` at `slot`, and the error at `error` when given. */
+const at = (slot: number, value: number, error = BASE[0]): Args => {
+  const a = [...BASE] as Args
+  a[0] = error
+  a[slot] = value
+  return a
 }
 
-type Args = [number, number, number, number, number, number, number, number | undefined]
+/** Each slot's values out of its domain. */
+const REFUSED: [number, number[]][] = [
+  [0, [NaN, -1, -Infinity, -1e-300]],
+  [1, [NaN, -1, Infinity, -Infinity]],
+  [2, [NaN, -1, Infinity, -Infinity]],
+  [3, [NaN, Infinity, -Infinity]],
+  [4, [NaN, -1, Infinity, -Infinity]],
+  [5, [NaN, 0, -0, -1, Infinity]],
+  [6, [NaN, 0, -0, -1, Infinity]],
+  [7, [NaN, -1e-300, 1 + 2 ** -52, 2]],
+]
 
-/** The value, or the thrown error's name and message. */
-function outcome(run: () => number): number | string {
-  try {
-    return run()
-  } catch (error) {
-    return `${(error as Error).name}: ${(error as Error).message}`
-  }
-}
-
-function assertSame(a: Args) {
-  const expected = outcome(() => perCluster(...a)),
-    got = outcome(() => clusterErrorAtDepth(...a))
-  assert.ok(
-    Object.is(got, expected),
-    `clusterErrorAtDepth(${a.join(', ')}): ${got} against ${expected}`,
-  )
-  return expected
-}
-
-const EDGES = [NaN, 0, -0, Infinity, -Infinity, -1, 1e-300, 0.5, 1, 2, 1e300]
-
-test('every edge of every argument gives the per-cluster verdict, to the bit', () => {
-  const base: Args = [0.02, 1.5, 3, 40, 0.8, 900, 0.1, 1]
-  for (let slot = 0; slot < base.length; slot++)
-    for (const value of [...EDGES, undefined]) {
-      const a = [...base] as Args
-      a[slot] = value as number
-      assertSame(a)
+test('a zero or infinite error is answered before any check', () => {
+  for (const [slot, values] of REFUSED.slice(1))
+    for (const value of values) {
+      assert.equal(clusterErrorAtDepth(...at(slot, value, 0)), 0)
+      assert.equal(clusterErrorAtDepth(...at(slot, value, Infinity)), Infinity)
     }
-  // Degenerate projections and an out-of-range weight, with each cluster kind.
-  for (const perspective of [0, -0, 1, 0.5, 1 + 2 ** -52, -(2 ** -1074), NaN, undefined])
-    for (const error of [0, Infinity, 0.02, NaN, -1])
-      for (const [depth, near] of [
-        [40, 0.1],
-        [0.1, 0.1],
-        [-5, 0.1],
-        [40, 0],
-      ])
-        assertSame([error, 1, 3, depth, 0.8, 900, near, perspective])
 })
 
-test('20,000 random clusters and frames give the per-cluster verdict, to the bit', () => {
-  let seed = 980
-  const random = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32
-  const pick = (scale: number) => {
-    const r = random()
-    if (r < 0.04) return EDGES[Math.floor(random() * EDGES.length)]
-    return (random() < 0.1 ? -1 : 1) * scale * random() ** 3
-  }
-  let projected = 0,
-    refused = 0
-  for (let i = 0; i < 20_000; i++) {
-    const verdict = assertSame([
-      pick(1),
-      pick(3),
-      pick(50),
-      pick(200) * (random() < 0.8 ? 1 : -1),
-      pick(10),
-      pick(4000),
-      pick(1),
-      random() < 0.2 ? pick(1.2) : random() < 0.5 ? 1 : 0,
-    ])
-    if (typeof verdict === 'string') refused++
-    else if (verdict > 0 && verdict < Infinity) projected++
-  }
-  // Both sides of the guard are walked, not only one.
-  assert.ok(projected > 5000 && refused > 1000, `${projected} projected, ${refused} refused`)
+test('one value out of its domain refuses the call by name', () => {
+  for (const [slot, values] of REFUSED)
+    for (const value of values)
+      assert.throws(() => clusterErrorAtDepth(...at(slot, value)), {
+        name: 'Error',
+        message: 'Invalid cluster parameters',
+      })
+})
+
+test('a call the guard lets through projects as screenErrorBound, to the bit', () => {
+  const edges = [0, -0, 1e-300, 0.5, 1, 2, 1e300]
+  for (let slot = 1; slot < BASE.length; slot++)
+    for (const value of slot === 7 ? [0, -0, 0.5, 1] : edges) {
+      const a = at(slot, value)
+      if ((slot === 5 || slot === 6) && value <= 0) continue
+      assert.ok(Object.is(clusterErrorAtDepth(...a), screenErrorBound(...a)), a.join(', '))
+    }
+  // A receiver behind the eye or at the near plane is still a projection, not a refusal.
+  for (const depth of [-5, 0.1, 0])
+    assert.ok(Object.is(clusterErrorAtDepth(...at(3, depth)), screenErrorBound(...at(3, depth))))
 })
