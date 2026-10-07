@@ -3,6 +3,7 @@
 // dropped unread, one that may pass waits its turn, and one refused for good is never asked again.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from '../streaming/eventually.fixture.ts'
 import {
   worldRootsDag,
   worldRootsFixture,
@@ -42,12 +43,12 @@ test("a cell's bundles contiguous in the binary are one ranged read", async (t) 
 
 test('a hold let go while its bundle waits in the queue drops it, its cell still placed; a shared one is read once', async (t) => {
   // The first bundle past the top holds the queue's one transfer until `land`.
-  const { roots, ranges, table, land } = await heldAt(t, 1, 1)
+  const { roots, queue, ranges, table, land } = await heldAt(t, 1, 1)
   const placed = roots.hold(0) // bundles 1 and 3: two ranges apart
-  await new Promise(setImmediate)
+  await eventually(() => ranges.length === 2) // bundle 1 transfers
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundle 3 on its way, bundle 2 queued
-  await new Promise(setImmediate)
+  await eventually(() => queue.loading('http://world/world-roots.bin#2'))
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2)], 'one transfer, the rest wait')
   leaving.abort() // the hold lets go: its cell is not released yet
   await assert.rejects(left, { name: 'AbortError' })
@@ -83,7 +84,7 @@ test('a bundle whose read may pass keeps its hold waiting; let go, it is dropped
   const leaving = new AbortController()
   let settled = false
   const held = roots.hold(0, { signal: leaving.signal }).finally(() => (settled = true))
-  for (let i = 0; i < 4; i++) await new Promise(setImmediate)
+  await eventually(() => queue.stats().failed === 1)
   assert.deepEqual([settled, queue.loading(bundle), queue.failed(bundle)], [false, true, false])
   leaving.abort()
   await assert.rejects(held, { name: 'AbortError' })
@@ -112,7 +113,7 @@ test('a cell let go while its bundles transfer and held again joins that read: r
   const { roots, ranges, table, land } = await heldAt(t, 2)
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one read
-  await new Promise(setImmediate)
+  await eventually(() => ranges.length === 2) // under way
   leaving.abort()
   await assert.rejects(left, { name: 'AbortError' })
   roots.release(1)
@@ -146,7 +147,7 @@ test('a page asked while its bundle transfers holds the bundle: its cell leaving
   const [, far] = stream.dag!.pages.filter((page) => page.url) // bundle 2's super-root
   const leaving = new AbortController()
   const left = roots.hold(1, { signal: leaving.signal }) // bundles 2 and 3, one read
-  await new Promise(setImmediate)
+  await eventually(() => ranges.length === 2) // under way
   const page = stream.source.page(far.url)
   leaving.abort()
   await assert.rejects(left, { name: 'AbortError' })
@@ -171,7 +172,7 @@ test('a cell held before its world is bound waits for the bind, then reads', asy
 test("a hold under way as its session's queue closes reads in the next session's queue: never lost", async (t) => {
   const { roots, queue, ranges, table, land } = await heldAt(t, 2)
   const held = roots.hold(1) // bundles 2 and 3, one read, under way
-  await new Promise(setImmediate)
+  await eventually(() => ranges.length === 2)
   const next = createPageStreamer([], 'http://world/')
   queue.dispose() // the device is lost: its session closes
   land()

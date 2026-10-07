@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 test('a priority read overtakes queued detail without exceeding one transfer', async () => {
@@ -24,7 +25,7 @@ test('a priority read overtakes queued detail without exceeding one transfer', a
   })
   try {
     const detail = streamer.request(['a.bin', 'b.bin'], { signal: streamer.signal, priority: 2 })
-    await new Promise(setImmediate) // the queue pumps once the task's reads are all queued
+    await eventually(() => started.length === 1) // the queue pumps once the task's reads are queued
     const urgent = streamer.read('c.bin', streamer.signal)
     assert.deepEqual(started, ['a.bin'])
     assert.equal(streamer.stats().transferInFlightBytes, 12)

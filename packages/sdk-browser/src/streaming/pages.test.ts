@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 import { servedPages } from './servedPages.fixture.ts'
@@ -98,7 +99,7 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
   )
   try {
     const job = streamer.read('a.bin', streamer.signal)
-    await new Promise(setImmediate) // its transfer under way
+    await eventually(() => attempts === 1) // its transfer under way
     controller.abort()
     release()
     await assert.rejects(job, { name: 'AbortError' })

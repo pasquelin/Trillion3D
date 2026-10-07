@@ -2,6 +2,7 @@
 // bundles past it that its objects' roots depend on, and lets them go when it leaves.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from '../streaming/eventually.fixture.ts'
 import { EngineError, type ClusterManifest } from '../../../sdk-core/src/index.ts'
 import {
   worldRootsDag,
@@ -38,7 +39,7 @@ test('a bundle whose bytes are not those its table names waits its turn, its hol
   const { roots, queue } = await opened(t, manifest)
   const leaving = new AbortController()
   const held = roots.hold(0, { signal: leaving.signal })
-  for (let i = 0; i < 6; i++) await new Promise(setImmediate)
+  await eventually(() => queue.stats().failed === 1)
   assert.deepEqual([heldBy(roots), queue.stats().failed], [[1, 3], 1], 'it may pass: it waits')
   leaving.abort()
   await assert.rejects(held, { name: 'AbortError' })
@@ -62,7 +63,7 @@ test('the top read at open and a bundle read through the queue are refused alike
   bin[at(3)] ^= 1
   const leaving = new AbortController()
   roots.hold(0, { signal: leaving.signal }).catch(() => {})
-  for (let i = 0; i < 6; i++) await new Promise(setImmediate)
+  await eventually(() => refusals.length > 0)
   assert.equal(refusals.length, 1, 'through the queue')
   assert.ok(refusals[0].includes(`${expected(3)} announced`))
   leaving.abort()

@@ -2,6 +2,7 @@
 // is let go — dropped while it waits —, one it asks again is waited on till it lands.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from '../../streaming/eventually.fixture.ts'
 import { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
 import { createViewAsks } from './viewAsks.ts'
@@ -37,7 +38,7 @@ test('a page the next frame no longer asks is let go: waiting after a failure, i
   asks.ask(['p0.bin'], PRIORITY_VISIBLE)
   asks.end()
   release()
-  await turns()
+  await eventually(() => streamer.stats().failed === 1)
   assert.equal(streamer.loading('p0.bin'), true, 'it may pass: it waits its turn')
   asks.end() // the camera turned away: this frame asks it no more
   assert.equal(streamer.loading('p0.bin'), false, 'dropped, never asked again')
@@ -49,7 +50,7 @@ test('a page asked again while on its way is waited on till it lands, lifted onc
   asks.ask(['p0.bin'], PRIORITY_VISIBLE) // the one transfer
   asks.ask(['p1.bin', 'p2.bin'], PRIORITY_PREFETCH)
   asks.end()
-  await turns()
+  await eventually(() => sent.length === 1) // p0 under way, the others queued
   let landed = false
   const [visible] = asks.ask(['p2.bin'], PRIORITY_VISIBLE) // turned visible
   void visible.then(() => (landed = true))
@@ -59,6 +60,6 @@ test('a page asked again while on its way is waited on till it lands, lifted onc
   assert.equal(landed, false, 'the frame waits on it')
   release()
   await visible
-  await turns()
+  await eventually(() => sent.length === 3)
   assert.deepEqual(sent, ['p0.bin', 'p2.bin', 'p1.bin'], 'lifted before the one still ahead')
 })

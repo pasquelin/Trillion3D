@@ -4,11 +4,12 @@
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { createPageStreamer } from './pageStreamer.ts'
+import { eventually } from './eventually.fixture.ts'
 
-/** Lets the queue's tasks run: its pump, the request, the failure's record. */
-const settle = async () => {
-  for (let i = 0; i < 4; i++) await new Promise(setImmediate)
-}
+/** Waits till `streamer` reads nothing and queues nothing: every read it was asked landed, failed
+ *  or waits its turn — the events themselves, however slow the machine. */
+const idle = (streamer: ReturnType<typeof createPageStreamer>) =>
+  eventually(() => streamer.stats().loading === 0 && streamer.stats().queued === 0)
 
 /** A streamer of the pages `urls` the server answers with `status`, the clock and its timers in
  *  the test's hands: the requests sent, when, and the failures said. */
@@ -27,7 +28,10 @@ function refusing(t: TestContext, status: number, urls = ['a.bin'], headers?: He
     onStalled: ({ url }) => void said.push(url),
   })
   t.after(() => streamer.dispose())
-  /** The clock moved to `end` in steps of 250 ms, the timers with it. */
+  /** Its reads settled: landed, failed, or waiting their turn. */
+  const settle = () => idle(streamer)
+  /** The clock moved to `end` in steps of 250 ms, the timers with it, each step's reads settled
+   *  before the next. */
   const until = async (end: number) => {
     for (; clock.now < end;) {
       clock.now += 250
@@ -35,11 +39,11 @@ function refusing(t: TestContext, status: number, urls = ['a.bin'], headers?: He
       await settle()
     }
   }
-  return { streamer, sent, said, until, clock }
+  return { streamer, sent, said, until, clock, settle }
 }
 
 test('a read that may pass is asked once a wait, 0.5 s · 2^k up to 8 s, its asker still waiting', async (t) => {
-  const { streamer, sent, said, until } = refusing(t, 503)
+  const { streamer, sent, said, until, settle } = refusing(t, 503)
   let settled = false
   void streamer.request(['a.bin'], { signal: streamer.signal }).then(
     () => (settled = true),
@@ -53,7 +57,7 @@ test('a read that may pass is asked once a wait, 0.5 s · 2^k up to 8 s, its ask
 })
 
 test('a read that may pass lands once its source answers: its asker never told it failed', async (t) => {
-  const { streamer, until } = refusing(t, 503)
+  const { streamer, until, settle } = refusing(t, 503)
   const bytes = new Uint8Array([7, 0, 0, 0])
   const read = streamer.readBytes('a.bin', streamer.signal)
   await settle()
@@ -79,7 +83,7 @@ test('a read another request would meet again (404) fails for good, said once, n
 })
 
 test('a read waiting its turn whose last asker lets go is dropped: never asked again', async (t) => {
-  const { streamer, sent, until } = refusing(t, 503)
+  const { streamer, sent, until, settle } = refusing(t, 503)
   const leaving = new AbortController()
   const read = streamer.readBytes('a.bin', leaving.signal)
   await settle()
@@ -90,7 +94,7 @@ test('a read waiting its turn whose last asker lets go is dropped: never asked a
 })
 
 test('a failure outlives its page while its wait runs, then leaves; one for good leaves with it', async (t) => {
-  const { streamer, sent, until, clock } = refusing(t, 503)
+  const { streamer, sent, until, clock, settle } = refusing(t, 503)
   const page = { url: 'a.bin', bytes: 4, sha256: '' }
   const leaving = new AbortController()
   void streamer.readBytes('a.bin', leaving.signal).catch(() => {})
@@ -116,20 +120,18 @@ test('a refusal for good leaves with its page: nothing asks it any more', async 
 
 test('a hundred thousand failed reads wait on one timer, each asked once a wait', async (t) => {
   const urls = Array.from({ length: 100_000 }, (_, i) => `p${i}.bin`)
-  const { streamer, sent, until } = refusing(t, 503, urls)
+  const { streamer, sent, until, settle } = refusing(t, 503, urls)
   const armed = t.mock.method(globalThis, 'setTimeout')
   void streamer.request(urls, { signal: streamer.signal }).catch(() => {})
   await settle()
-  for (let i = 0; i < 200 && sent.length < urls.length; i++) await settle()
   assert.deepEqual([sent.length, streamer.stats().failed], [urls.length, urls.length])
   assert.equal(armed.mock.callCount(), 1, 'one timer, set for the first wait')
   await until(500)
-  for (let i = 0; i < 200 && sent.length < 2 * urls.length; i++) await settle()
   assert.equal(sent.length, 2 * urls.length, 'each asked again once its wait ended')
 })
 
 test('a refusal that asks a wait (Retry-After) waits at least that long', async (t) => {
-  const { streamer, sent, until } = refusing(t, 429, ['a.bin'], { 'retry-after': '3' })
+  const { streamer, sent, until, settle } = refusing(t, 429, ['a.bin'], { 'retry-after': '3' })
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   await settle()
   await until(4_000)
@@ -137,7 +139,7 @@ test('a refusal that asks a wait (Retry-After) waits at least that long', async 
 })
 
 test('a refusal asking a long wait on every attempt is said once, not once an attempt', async (t) => {
-  const { streamer, said, until } = refusing(t, 503, ['a.bin'], { 'retry-after': '9' })
+  const { streamer, said, until, settle } = refusing(t, 503, ['a.bin'], { 'retry-after': '9' })
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
   await settle()
   await until(60_000)
@@ -145,7 +147,7 @@ test('a refusal asking a long wait on every attempt is said once, not once an at
 })
 
 test('a stall is said once, and again only once its page landed and stalls anew', async (t) => {
-  const { streamer, said, until } = refusing(t, 503)
+  const { streamer, said, until, settle } = refusing(t, 503)
   const first = streamer.request(['a.bin'], { signal: streamer.signal })
   await settle()
   await until(8_000)
@@ -180,13 +182,13 @@ test('a page forgotten while its read transfers ends with it, failed or not: nev
   const streamer = createPageStreamer([{ url: 'a.bin', bytes: 4, sha256: '' }], 'http://cache/')
   t.after(() => streamer.dispose())
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
-  await settle()
+  await eventually(() => sent === 1) // under way
   streamer.forget(['a.bin']) // its cell's page closed while the read is under way
   release()
-  await settle()
+  await idle(streamer)
   for (clock.now = 250; clock.now <= 2_000; clock.now += 250) {
     t.mock.timers.tick(250)
-    await settle()
+    await idle(streamer)
   }
   assert.deepEqual([sent, streamer.loading('a.bin'), streamer.stats().failed], [1, false, 0])
 })

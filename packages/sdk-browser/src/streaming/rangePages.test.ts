@@ -3,6 +3,7 @@
 // each checked where it lies; once under way, a range is read to its end for whoever asks it again.
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from './eventually.fixture.ts'
 import { sha256Hex } from './sha256Hex.ts'
 import { createPageStreamer } from './pageStreamer.ts'
 import type { StreamPage } from './types.ts'
@@ -59,9 +60,9 @@ test('ranges end to end asked within a task are one request, each checked, kept 
 test('ranges queued behind a transfer are merged with their neighbours as it frees', async (t) => {
   const { streamer, asked, release } = await served(t, 4, { held: true })
   const first = streamer.readBytes('part0', streamer.signal)
-  await new Promise(setImmediate)
+  await eventually(() => asked.length === 1) // its transfer under way
   const rest = [3, 1, 2].map((i) => streamer.readBytes(`part${i}`, streamer.signal)) // queued out of order
-  await new Promise(setImmediate)
+  await eventually(() => streamer.stats().queued === 3)
   release()
   await Promise.all([first, ...rest])
   assert.deepEqual(asked, ['bytes=0-3', 'bytes=4-15'], 'the three queued, one request')
@@ -99,7 +100,7 @@ test('a range whose last asker lets go while it transfers is read to its end: as
   const { streamer, asked, release } = await served(t, 1, { held: true })
   const letGo = new AbortController()
   const left = streamer.readBytes('part0', letGo.signal)
-  await new Promise(setImmediate)
+  await eventually(() => asked.length === 1) // under way
   letGo.abort()
   await assert.rejects(left, { name: 'AbortError' })
   assert.equal(streamer.loading('part0'), true, 'still under way')

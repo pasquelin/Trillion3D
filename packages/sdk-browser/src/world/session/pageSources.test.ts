@@ -2,6 +2,7 @@
 // catalogued and bound there.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { eventually } from '../../streaming/eventually.fixture.ts'
 import type { PageQueue, StreamPage } from '../../streaming/types.ts'
 import { openExplorerPageSources, openingKeeps, sceneThrough } from './pageSources.ts'
 import { streamFailed } from '../scene/streaming.ts'
@@ -58,9 +59,11 @@ test('a page read that keeps failing reaches the host once, as it first waits th
   const { streamer } = await opening.sources
   t.after(() => streamer.dispose())
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
-  for (; clock.now <= 16_000; clock.now += 250) {
+  // Each step's read settled before the clock moves on: failed and waiting, however slow the machine.
+  const idle = () => streamer.stats().loading === 0 && streamer.stats().queued === 0
+  for (await eventually(idle); clock.now <= 16_000; clock.now += 250) {
     t.mock.timers.tick(250)
-    for (let i = 0; i < 4; i++) await new Promise(setImmediate)
+    await eventually(idle)
   }
   assert.equal(told.length, 1, 'said once, never once a wait')
   assert.match(told[0][0], /a\.bin: .*HTTP 503/)
