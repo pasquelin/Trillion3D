@@ -34,7 +34,7 @@
  * the sphere radius.
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
-import { DEFAULT_GROUP_WIDTH } from '../gpu/dag/shader/gridWgsl.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { PROJECTED_BOUND_WGSL } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
@@ -56,11 +56,6 @@ import type { VsmLayout } from './layout.ts'
 
 /** Threads per group of every render-cull kernel. */
 export const VSM_RENDER_GROUP = 64
-/** Workgroups per dispatch dimension (WebGPU default limit, the host's `dispatchGrid` width);
- *  larger counts wrap into y. */
-export const VSM_RENDER_MAX_GROUPS_X = DEFAULT_GROUP_WIDTH
-/** Bytes of one parameter slot (dynamic uniform offset, `minUniformBufferOffsetAlignment`). */
-export const VSM_RENDER_PARAMS_SLOT = 256
 /** Words per chunk in the indirect argument buffer: cull dispatch 3, expand dispatch 3, draw 4, pad 2. */
 export const VSM_RENDER_ARGS_STRIDE_WORDS = 12
 export const VSM_RENDER_ARGS_CULL = 0
@@ -72,9 +67,10 @@ export const VSM_RENDER_COUNTS_HEAD = 4
 export const VSM_RENDER_VIEW_DIRECTIONAL = 1
 
 /**
- * Per-chunk parameters (one 256-byte slot each, same frame values in every slot). The camera is the
- * main view whose level of detail the casters take: eye (split double), world-to-view rotation
- * rows (engine convention, −Z forward), focal in pixels, near, perspective 0/1, the cut's threshold.
+ * Per-chunk parameters (one slot each, the device's `uniformStride` apart, same frame values in
+ * every slot). The camera is the main view whose level of detail the casters take: eye (split
+ * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
+ * perspective 0/1, the cut's threshold.
  */
 export const VSM_RENDER_PARAMS_WGSL = /* wgsl */ `
 struct VsmRenderParams{
@@ -94,8 +90,6 @@ const VSM_RENDER_CAND_DEFORMING:u32=2u;
 const VSM_RENDER_VIEW_DIRECTIONAL:u32=${VSM_RENDER_VIEW_DIRECTIONAL}u;
 const VSM_RENDER_COUNTS_HEAD:u32=${VSM_RENDER_COUNTS_HEAD}u;
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
-/** Linear workgroup of a dispatch wrapped into y. */
-fn vsmRenderGroup(wid:vec3u,nwg:vec3u)->u32{return wid.y*nwg.x+wid.x;}
 `
 
 // ---- Candidates (per row) ----------------------------------------------------------------------
@@ -141,8 +135,8 @@ fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
 
 /** The opaque caster rows the camera's cut selects (`VSM_RENDER_ROWS_WGSL`). */
 export const vsmRenderCandidatesWgsl = () => /* wgsl */ `${VSM_RENDER_ROWS_WGSL}
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let row=vsmRenderGroup(wid,nwg)*${VSM_RENDER_GROUP}u+lane;
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let row=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
  if(row>=params.rowCount){return;}
  let page=pages[row];
  if(page.indexCount==0u||(page.flags&${FLAG_BLEND_CASTER}u)!=0u||page.sprite.y!=0.0||(mobility[row]&${MOBILITY_SHADOWLESS}u)!=0u){return;}
@@ -397,8 +391,8 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
   if((markBits&(1u<<s))!=0u){vsmRasterMarksStore(n*s+drawnPool,1u);}
  }
 }
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let index=vsmRenderGroup(wid,nwg);
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let index=flatIndex(wid,nwg,1u);
  let count=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
  if(index>=count){return;}
  let cmd=cmds[index];
@@ -453,8 +447,7 @@ ${VSM_RENDER_PARAMS_WGSL}
 @group(0) @binding(1) var<storage,read_write> counts:array<atomic<u32>>;
 @group(0) @binding(2) var<storage,read_write> args:array<u32>;
 fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRIDE_WORDS}u+word;}
-fn vsmRenderWrapped(n:u32)->vec2u{return vec2u(min(n,${VSM_RENDER_MAX_GROUPS_X}u),(n+${VSM_RENDER_MAX_GROUPS_X - 1}u)/${VSM_RENDER_MAX_GROUPS_X}u);}
-/** Cull dispatch of every chunk, once the candidates are known. */
+${GROUP_GRID_WGSL}/** Cull dispatch of every chunk, once the candidates are known. */
 @compute @workgroup_size(1) fn vsmRenderArgsCull(){
  let total=atomicLoad(&counts[0]);
  for(var c=0u;c<params.chunkCount;c++){
@@ -469,7 +462,7 @@ fn vsmRenderWrapped(n:u32)->vec2u{return vec2u(min(n,${VSM_RENDER_MAX_GROUPS_X}u
 /** Expand dispatch of this chunk: one workgroup per command. */
 @compute @workgroup_size(1) fn vsmRenderArgsExpand(){
  let n=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
- let g=vsmRenderWrapped(n);
+ let g=groupGrid(n);
  let at=vsmRenderArgsAt(params.chunk,${VSM_RENDER_ARGS_EXPAND}u);
  args[at]=g.x;args[at+1u]=g.y;args[at+2u]=1u;
 }

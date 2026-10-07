@@ -3,6 +3,7 @@
  * and the loader's rule for naming them, each built as the host loader built it from the same
  * declaration (`./graph.ts` assembles them).
  */
+import { RAD2DEG } from '../../../../math/src/constants.ts'
 import type {
   TableCamera,
   TableLight,
@@ -17,9 +18,6 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 /** The characters a node name may not hold, which the loader drops: the ones a path to an
  *  animated property is written with. */
 const RESERVED = /[[\].:/]/g
-/** Degrees per radian, the factor a field of view is converted by. */
-const RAD_TO_DEG = 180 / Math.PI
-
 /** The loader's unique-name rule: sanitised, then numbered from the second use on. */
 export function uniqueNames() {
   const used = new Set<string>()
@@ -61,7 +59,7 @@ export function camera(declared: TableCamera) {
   const [x, y] = [declared.xmag ?? 0, declared.ymag ?? 0]
   return declared.type === 'perspective'
     ? new Camera('perspective', {
-        fov: (declared.yfov ?? 0) * RAD_TO_DEG,
+        fov: (declared.yfov ?? 0) * RAD2DEG,
         aspect: declared.aspectRatio || 1,
         near: declared.znear || 1,
         far: declared.zfar || 2e6,

@@ -1,3 +1,4 @@
+import { TAU } from '../../../../math/src/constants.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/index.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { cone } from '../../../../sdk-core/src/world/geometry/basic.ts'
@@ -26,7 +27,7 @@ function circle(radius: number, sides: number, plane: 'xy' | 'xz' = 'xz') {
   const out: number[] = []
   for (let i = 0; i < sides; i++)
     for (const k of [i, i + 1]) {
-      const a = (k / sides) * Math.PI * 2
+      const a = (k / sides) * TAU
       const [x, y] = [Math.cos(a) * radius, Math.sin(a) * radius]
       out.push(...(plane === 'xz' ? [x, 0, y] : [x, y, 0]))
     }
@@ -95,7 +96,7 @@ export const helper = markedFamily({
   polarGrid(radius = 10, sectors = 16, rings = 8, color: ColorInput = 0x888888) {
     const out: number[] = []
     for (let s = 0; s < sectors; s++) {
-      const a = (s / sectors) * Math.PI * 2
+      const a = (s / sectors) * TAU
       out.push(0, 0, 0, Math.cos(a) * radius, 0, Math.sin(a) * radius)
     }
     for (let r = 1; r <= rings; r++) out.push(...circle((radius * r) / rings, 64))

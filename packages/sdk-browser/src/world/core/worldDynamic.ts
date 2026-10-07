@@ -1,3 +1,4 @@
+import { MIB } from '../../../../math/src/constants.ts'
 import {
   drawnTriangles,
   type DrawnTriangles,
@@ -17,7 +18,7 @@ import type { Cut } from './worldCuts.ts'
 /** THE PER-FRAME UPLOAD BUDGET OF DYNAMIC GEOMETRY, in bytes sent the GPU: past it an
  *  upload waits for the next frame, never dropped; a larger one still goes as a frame's first. Not
  *  derived from a scene: 4 MiB, a 60 × 60 m sea at 15 cm, 480 MB/s at 120 Hz. */
-export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024
+export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * MIB
 
 /** What a dynamic resource holds beside its pages: the box its vertices never leave, the cut that
  *  serves them again in a larger one, the geometry version read into its lists (`Reading`), where

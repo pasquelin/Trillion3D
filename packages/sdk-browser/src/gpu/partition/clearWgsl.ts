@@ -1,4 +1,5 @@
 import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 /**
  * What the frame's kernels count from zero, zeroed by the first dispatch of the partition's pass,
@@ -9,8 +10,8 @@ import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
  */
 export const PARTITION_CLEAR_WGSL = `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
-fn clearRows(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;
+fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,${PARTITION_WORKGROUP}u);
  if(i<${STATE_WORDS}u){atomicStore(&state[i],0u);}
  if(i<(uni.rows+31u)/32u){atomicStore(&restBits[i],0u);}
  if(i<arrayLength(&slotUsed)){atomicStore(&slotUsed[i],0u);}
@@ -20,4 +21,4 @@ fn clearRows(@builtin(global_invocation_id) id:vec3u){
 /** Threads `clearRows` needs for `rows` rows and `slotWords` slot counts: one per word of the
  *  longest of the three. */
 export const partitionClearThreads = (rows: number, slotWords: number) =>
-  Math.max(STATE_WORDS, Math.ceil(rows / 32), slotWords)
+  Math.max(STATE_WORDS, bitWords(rows), slotWords)

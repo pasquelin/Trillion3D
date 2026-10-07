@@ -1,3 +1,5 @@
+import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { MIB } from '../../../../math/src/constants.ts'
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/index.ts'
 import {
   morphWords,
@@ -105,10 +107,10 @@ function layoutStreams(h: HeaderFields, skin: PageSkin, morphs: readonly PageMor
   let at = 0
   const stream = (present: boolean, count: number, bits: number) => {
     const start = at
-    if (present) at += Math.ceil((count * bits) / 32)
+    if (present) at += bitWords(count * bits)
     return start
   }
-  const blockCount = Math.ceil(indexCount / 3 / TRIANGLE_BLOCK),
+  const blockCount = ceilDiv(indexCount / 3, TRIANGLE_BLOCK),
     blocks = stream(true, blockCount, recordBits),
     cornerStream = stream(true, cornerBits, 1),
     positions = h.position.bits.map((b) => stream(true, positionCount, b)),
@@ -222,7 +224,7 @@ function checkCornerBlocks(
  * every reader that only admits the bytes — the WebGPU pool, which uploads the page words in place
  * and never decodes them on the CPU — so both refuse the same bytes for the same reason.
  */
-export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 1024 * 1024) {
+export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * MIB) {
   if (data.byteLength < CLUSTER_HEADER_WORDS * 4) throw new Error('GEOMETRY_PAGE_HEADER')
   const head = new DataView(data.buffer, data.byteOffset, data.byteLength)
   const h = readHeaderFields(head)

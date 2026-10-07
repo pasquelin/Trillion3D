@@ -3,6 +3,7 @@ import { box, cylinder } from '../world/geometry/basic.ts'
 import { Material } from '../world/material/material.ts'
 import { Mesh } from '../world/object/mesh.ts'
 import { WHEEL_WORDS } from './wire.fixture.ts'
+import { HALF_PI } from '../../../math/src/constants.ts'
 
 const stuff = () => new Material('meshStandard')
 /** A body with a wheel of radius 0.3 and width 0.2 at each `[x, z]`, 0.3 below its centre. */
@@ -11,7 +12,7 @@ export function rig(at: readonly (readonly number[])[]) {
   const wheels = at.map(([x, z]) => {
     const wheel = new Mesh(cylinder(0.3, 0.3, 0.2), stuff())
     wheel.position.set(x, -0.3, z)
-    wheel.rotation.z = Math.PI / 2
+    wheel.rotation.z = HALF_PI
     body.add(wheel)
     return wheel
   })

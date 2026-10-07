@@ -10,6 +10,7 @@ import {
 import { HIZ_HIDES_WGSL } from './rectWgsl.ts'
 import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS } from './uniforms.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 
 /**
  * Group-0 bindings, published under the WGSL that declares them. The production layout and the
@@ -55,7 +56,7 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
  * several pyramids at once. The camera's `g` is zero: one pyramid, from
  * texel zero.
  */
-export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}
+export const HIZ_SHADER = `${PAGE_INFO_STRUCT_WGSL}${FLAT_INDEX_WGSL}
 struct Uni{a:u32,b:u32,c:u32,d:u32,g:u32,counting:u32,pad1:u32,pad2:u32,dst:array<vec4u,${HIZ_PASS_LEVELS}>,}
 struct Bounds{minX:i32,minY:i32,maxX:i32,maxY:i32,nearest:f32,rowAndClip:u32,fineOffset:u32,fineWidth:u32,triangles:u32,coarseOffset:u32,coarseWidth:u32,coarseShift:u32,}
 @group(0) @binding(0) var<storage, read_write> pyramid:array<f32>;
@@ -129,8 +130,9 @@ ${HIZ_HIDES_WGSL}
 // The box count is the one the partition compacted: the CPU does not know it.
 // Its reject counters, on a sampled frame only (\`uni.counting\`, \`STATE_TALLY_WGSL\`).
 @compute @workgroup_size(64)
-fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
- if(id.x<atomicLoad(&state[${ST_TESTED}u])){testBox(id.x);}
+fn testHiz(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,64u);
+ if(i<atomicLoad(&state[${ST_TESTED}u])){testBox(i);}
  flushTally(lane);
 }
 fn testBox(i:u32){

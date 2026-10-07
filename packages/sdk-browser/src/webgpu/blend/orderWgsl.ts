@@ -2,6 +2,7 @@ import { COMPUTE } from '../../gpu/core/computeBindings.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
 import { DOUBLE_WGSL } from './doubleWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -110,8 +111,7 @@ export const BLEND_ORDER_SHADER = `${orderUniformWgsl()}
 @group(0) @binding(${B.sorted}) var<storage,read_write> sorted:array<vec4u>;
 @group(0) @binding(${B.placed}) var<storage,read_write> placed:array<u32>;
 var<workgroup> held:array<vec4u,${SORT_BLOCK}>;
-${DOUBLE_WGSL}
-fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
+${DOUBLE_WGSL}${FLAT_INDEX_WGSL}fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
 fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}
 /** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
 fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
@@ -181,8 +181,9 @@ fn blockPair(t:u32,j:u32,k:u32,base:u32){
 }
 /** A block's stages \`stageFrom\` to \`stageTo\`, from their first step that fits a block down. */
 @compute @workgroup_size(${SORT_THREADS})
-fn sortBlendBlocks(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u){
- let base=wid.x*${SORT_BLOCK}u;
+fn sortBlendBlocks(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
+ // A block of the last row past the size has nothing to sort.
+ let base=flatIndex(wid,n,1u)*${SORT_BLOCK}u;if(base>=uni.size){return;}
  let t=lid.x;
  held[t]=sortLoad(base+t);
  held[t+${SORT_THREADS}u]=sortLoad(base+t+${SORT_THREADS}u);
@@ -198,8 +199,8 @@ fn sortBlendBlocks(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id
 }
 /** One step of stage \`stageTo\` whose pairs straddle blocks: \`step\` is a block or wider. */
 @compute @workgroup_size(${SORT_THREADS})
-fn sortBlendStep(@builtin(global_invocation_id) id:vec3u){
- let t=id.x;
+fn sortBlendStep(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
+ let t=flatIndex(wid,n,1u)*${SORT_THREADS}u+lid.x;
  if(t>=(uni.size>>1u)){return;}
  let i=pairOf(t,uni.step);
  let l=i+uni.step;
@@ -217,8 +218,8 @@ fn sortBlendStep(@builtin(global_invocation_id) id:vec3u){
  * their slots, which is the GPU's order: the same keys, the same rule.
  */
 @compute @workgroup_size(${SLOT_GROUP})
-fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u){
- let k=id.x;
+fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let k=flatIndex(id,n,${SLOT_GROUP}u);
  if(uni.ownCount==0u){
   if(k==0u&&uni.gaps!=0u){writeRun(0u,0u,uni.entryCount);}
   return;

@@ -39,14 +39,13 @@ import {
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { bufferEntry, resourceEntry } from '../webgpu/core/liveEntries.ts'
 import { vsmBufferEntry, vsmComputePipe, type VsmComputePipe } from './passKit.ts'
-import { vsmWriteChanged } from './writeChanged.ts'
+import { vsmWriteChanged, vsmWriteChangedSlots } from './writeChanged.ts'
 import {
   VSM_CLEAR_SPECS,
   VSM_COARSE_SPECS,
   VSM_INIT_RECT_SPECS,
   VSM_MARK_PIXELS_GROUP_XY,
   VSM_MARKING_PARAMS_BYTES,
-  VSM_PER_PAGE_DISPATCH_STRIDE,
   VSM_PER_PAGE_GROUP_XY,
   VSM_PIXELS_SPECS,
   vsmResetPageTableWgsl,
@@ -55,7 +54,11 @@ import {
   vsmCoarseMarkingWgsl,
   vsmMarkingClears,
 } from './markingWgsl.ts'
-import { type VsmLayout, ceilDiv } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { uniformSlotBytes, uniformSlots } from '../residency/pools.ts'
+import { dispatchGrid, dispatchRows } from '../gpu/dispatch/grid.ts'
+import type { VsmLayout } from './layout.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 // ---- The per-page dispatcher ------------------------------------------------------------------
 
@@ -164,7 +167,14 @@ export function vsmCachePerPageBins(cache: VsmCacheManager, frame: VsmPerPageFra
   return bins
 }
 
-/** Bin `b`'s `VsmMapWalkParams` words — offset, count, row pitch, thread per id —
+/** The thread-per-id bin's groups of 8 × 8, in rows past one dimension's (`dispatchRows`): its
+ *  kernel ranks its threads of every row with `flatIndex` (`vsmMapWalkOf`). */
+const threadPerIdGroups = (bin: VsmPerPageBin) => ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2)
+
+/** Words of one bin's slot, the `VsmMapWalkParams` a per-page dispatch binds. */
+export const VSM_PER_PAGE_BIN_WORDS = 4
+
+/** Bin `b`'s `VsmMapWalkParams` words — offset, count, page-walk step (0 for the thread-per-id bin), thread per id —
  *  at `out[at]`. */
 export function vsmWritePerPageBinArgs(
   out: Uint32Array,
@@ -175,19 +185,20 @@ export function vsmWritePerPageBinArgs(
   const dim = VSM_PER_PAGE_BIN_GRID[b]
   out[at] = bin.offset
   out[at + 1] = bin.count
-  // Thread-per-id: a row pitch of the (groups, 1, 1) launch.
-  out[at + 2] =
-    dim === 0
-      ? ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2) * VSM_PER_PAGE_GROUP_XY
-      : dim * VSM_PER_PAGE_GROUP_XY
+  out[at + 2] = dim * VSM_PER_PAGE_GROUP_XY
   out[at + 3] = dim === 0 ? 1 : 0
 }
 
-/** Bin `b`'s dispatch: `dim`² groups per id, or one thread per id for the last bin. */
+/** Bin `b`'s dispatch: `dim`² groups per id, or one thread per id for the last bin. The ids of
+ *  a grouped bin run along z in rows past one dimension's (`dispatchGrid`), each row `dim` groups
+ *  up y: its kernel ranks a map by its row and z (`vsmMapWalkOf`). */
 export function vsmDispatchPerPageBin(pass: GPUComputePassEncoder, bin: VsmPerPageBin, b: number) {
   const dim = VSM_PER_PAGE_BIN_GRID[b]
-  if (dim === 0) pass.dispatchWorkgroups(ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2), 1, 1)
-  else pass.dispatchWorkgroups(dim, dim, bin.count)
+  if (dim === 0) dispatchRows(pass, threadPerIdGroups(bin))
+  else {
+    const [z, rows] = dispatchGrid(bin.count)
+    pass.dispatchWorkgroups(dim, dim * rows, z)
+  }
 }
 
 // ---- Map view looking down +z ----------------------------------------------------------------
@@ -347,13 +358,12 @@ interface TableGroups {
 const newTableGroups = (): TableGroups => ({ clear: {} })
 /** The maps a clear walks (`vsmMarkingClears`). */
 type ClearSet = 'all' | 'directionalOnly'
-/** Each per-page slot's dynamic offset, all then directional-only bins (`resetPageTables`). */
-const SLOT_OFFSETS = Array.from({ length: DISPATCHERS * VSM_PER_PAGE_BIN_COUNT }, (_, slot) => [
-  slot * VSM_PER_PAGE_DISPATCH_STRIDE,
-])
-const PER_PAGE_BYTES = DISPATCHERS * VSM_PER_PAGE_BIN_COUNT * VSM_PER_PAGE_DISPATCH_STRIDE
-/** Bytes a marking holds on the device: its parameters and its per-page dispatch slots. */
-export const VSM_MARKING_BYTES = VSM_MARKING_PARAMS_BYTES + PER_PAGE_BYTES
+/** The per-page dispatch slots: all then directional-only bins (`resetPageTables`). */
+const PER_PAGE_SLOTS = DISPATCHERS * VSM_PER_PAGE_BIN_COUNT
+/** Bytes a marking holds on a device of `limits`: its parameters and its per-page dispatch slots,
+ *  the device's `uniformStride` apart (`createVsmMarking`). */
+export const vsmMarkingBytes = (limits: { minUniformBufferOffsetAlignment?: number }) =>
+  VSM_MARKING_PARAMS_BYTES + uniformSlotBytes(limits, PER_PAGE_SLOTS)
 
 export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarking {
   const layout = res.layout
@@ -362,15 +372,18 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     size: VSM_MARKING_PARAMS_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
+  // The per-page slots lie at the device's dynamic-offset alignment.
+  const slots = uniformSlots(device.limits, PER_PAGE_SLOTS, VSM_PER_PAGE_BIN_WORDS)
   const perPage = device.createBuffer({
     label: 'vsm.marking.perPage',
-    size: PER_PAGE_BYTES,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const paramData = new ArrayBuffer(VSM_MARKING_PARAMS_BYTES),
     paramF32 = new Float32Array(paramData),
     paramU32 = new Uint32Array(paramData)
-  const perPageData = new Uint32Array(PER_PAGE_BYTES / 4)
+  // Laid as the buffer; the padding past each slot's words stays zero, never compared.
+  const perPageData = new Uint32Array(slots.bytes / 4)
 
   const pipes = vsmMarkingPipes(device, layout)
 
@@ -397,8 +410,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     f[23] = VSM_SUN_PAGE_MARGIN
     f[27] = VSM_LOCAL_PAGE_MARGIN
     // The pixel stride is clamped to [1, 128].
-    u[32] = Math.min(128, Math.max(1, VSM_MARK_STRIDE_X))
-    u[33] = Math.min(128, Math.max(1, VSM_MARK_STRIDE_Y))
+    u[32] = clamp(VSM_MARK_STRIDE_X, 1, 128)
+    u[33] = clamp(VSM_MARK_STRIDE_Y, 1, 128)
     // A pixel facing away from a light marks no page of it (its own back shadows it).
     u[35] = 1
     // The number of page rects to clear.
@@ -414,18 +427,18 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       throw new Error('VSM: per-page ids exceed res.perPageIds')
     // The ids only when they changed: a new set's buffer starts zeroed (`vsmWriteChanged`).
     vsmWriteChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
-    perPageData.fill(0)
+    // Every slot's words are written again: nothing is cleared first.
+    const words = slots.strideWords
     for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
-      const stride = VSM_PER_PAGE_DISPATCH_STRIDE / 4
-      vsmWritePerPageBinArgs(perPageData, b * stride, bins.all[b], b)
+      vsmWritePerPageBinArgs(perPageData, b * words, bins.all[b], b)
       vsmWritePerPageBinArgs(
         perPageData,
-        (VSM_PER_PAGE_BIN_COUNT + b) * stride,
+        (VSM_PER_PAGE_BIN_COUNT + b) * words,
         bins.directionalOnly[b],
         b,
       )
     }
-    vsmWriteChanged(device, perPage, perPageData, 0, perPageData.length)
+    vsmWriteChangedSlots(device, perPage, perPageData, slots)
   }
 
   /** The clears of the tables `set` walks the maps of: one dispatch per non-empty bin. */
@@ -454,7 +467,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       pass.setBindGroup(
         0,
         group,
-        SLOT_OFFSETS[(set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b],
+        slots.offset((set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b),
       )
       vsmDispatchPerPageBin(pass, bin, b)
     }
@@ -497,19 +510,18 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
   ])
 
   /** One dispatch of `p` in `pass`: its tables' group `g0`, the view's `g1` when it has one,
-   *  `x` × `y` groups. */
+   *  `groups` workgroups, split in rows past one dimension's (`dispatchRows`). */
   function dispatch(
     pass: GPUComputePassEncoder,
     p: VsmComputePipe,
     g0: GPUBindGroup,
     g1: GPUBindGroup | undefined,
-    x: number,
-    y = 1,
+    groups: number,
   ) {
     pass.setPipeline(p.pipeline)
     pass.setBindGroup(0, g0)
     if (g1) pass.setBindGroup(1, g1)
-    pass.dispatchWorkgroups(x, y)
+    dispatchRows(pass, groups)
   }
 
   /** The pixel pass's group 1 over `v`. */
@@ -551,8 +563,8 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
           pixels,
           groups.pixels,
           pixelsViewGroup(pixels, v),
-          ceilDiv(stridedX, VSM_MARK_PIXELS_GROUP_XY),
-          ceilDiv(stridedY, VSM_MARK_PIXELS_GROUP_XY),
+          // A group a tile, in rows: the kernel reads its tile back (`vsmMarkPagesFromPixels`).
+          ceilDiv(stridedX, VSM_MARK_PIXELS_GROUP_XY) * ceilDiv(stridedY, VSM_MARK_PIXELS_GROUP_XY),
         )
       }
     },

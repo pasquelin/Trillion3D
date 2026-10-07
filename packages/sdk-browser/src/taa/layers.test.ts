@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts'
 import { owed } from './upscaleOwed.fixture.ts'
 import { TAA_WEIGHTS, taaWeights } from './filterWeights.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** Within the uniform's 32-bit weights, whose sum is 1 to 1e-9. */
 const near = (a: number[], b: number[], what: string) =>
@@ -22,7 +23,7 @@ const JITTER: [number, number] = [0.3, -0.2]
 function weighed(layer: typeof checker, px: number, py: number, size: number) {
   const weights = taaWeights(...JITTER, new Float32Array(TAA_WEIGHTS), 0),
     sum = [0, 0, 0, 0],
-    inGrid = (v: number) => Math.min(Math.max(v, 0), size - 1)
+    inGrid = (v: number) => clamp(v, 0, size - 1)
   for (let k = 0; k < 9; k++) {
     const value = layer(inGrid(px + (k % 3) - 1), inGrid(py + Math.floor(k / 3) - 1))
     value.forEach((v, c) => (sum[c] += v * weights[k]))
@@ -30,7 +31,7 @@ function weighed(layer: typeof checker, px: number, py: number, size: number) {
   return sum
 }
 
-const clampBox = (v: number) => Math.min(Math.max(v, 0.2), 0.6)
+const clampBox = (v: number) => clamp(v, 0.2, 0.6)
 const mixed = (now: number[], history: number) =>
   now.map((v) => 0.25 * v + 0.75 * clampBox(history))
 

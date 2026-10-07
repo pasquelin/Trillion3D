@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import type { EngineCamera } from '../../../camera/world.ts'
 import { surfaceColorAttachments } from '../prepare/attachments.ts'
 import { createGpuRaster } from '../../../gpu/raster/raster.ts'
@@ -142,7 +143,7 @@ export function computeRasterStages(
   input.textures = ready.textures
   input.sampler = ready.mapsSampler
   input.pageRows = tableRows
-  input.maxTriangles = Math.ceil(maxVertexCount / 3)
+  input.maxTriangles = ceilDiv(maxVertexCount, 3)
   input.idsView = idsView
   input.depthView = depthTarget
   input.hizView = gpuHiz.level0View

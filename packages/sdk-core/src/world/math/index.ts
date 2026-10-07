@@ -1,4 +1,5 @@
-import { DEG2RAD, clampNumber } from './spherical.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
+import { clampCompare, lerp } from '../../../../math/src/scalar/reals.ts'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'
@@ -124,14 +125,14 @@ export const math = {
    * @param min - The lowest allowed.
    * @param max - The highest allowed.
    */
-  clamp: clampNumber,
+  clamp: clampCompare,
   /**
    * The number `t` of the way from `a` to `b`.
    * @param a - The start.
    * @param b - The end.
    * @param t - How far along, 0 to 1.
    */
-  lerp: (a: number, b: number, t: number) => a + (b - a) * t,
+  lerp,
   /**
    * Turns degrees into radians.
    * @param d - An angle in degrees.

@@ -16,6 +16,7 @@ import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const GUARDED =
@@ -43,7 +44,7 @@ const NAMES = [
 
 test('the skipped thin transmission and back-facing lobes keep every sum, bit for bit, in f32', () => {
   const r = random(1564),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   let lit = 0
   for (const shadowed of [false, true])
     for (const rects of [false, true]) {

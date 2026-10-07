@@ -13,6 +13,7 @@
  * = layer k / 4, component k % 4, and the map a non-mask read samples; −1 for a light with no
  * virtual shadow map this frame.
  */
+import { workgroupCount, alignUp } from '../../../../../../math/src/scalar/integers.ts'
 import type { WebgpuPagesRuntime } from '../../runtime.ts'
 import { createVsmResources, growVsmTables, type VsmResources } from '../../../../vsm/resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/errorScope.ts'
@@ -32,11 +33,7 @@ import {
   type VsmFrameState,
 } from '../../../../vsm/frameSetup.ts'
 import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../../../../vsm/cacheManager.ts'
-import {
-  createVsmMarking,
-  VSM_MARKING_BYTES,
-  type VsmMarking,
-} from '../../../../vsm/markingPass.ts'
+import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../../../../vsm/markingPass.ts'
 import {
   releaseVsmRender,
   vsmRenderContextBytes,
@@ -77,8 +74,7 @@ const CLIPMAP_LEVELS = VSM_SUN_COARSEST_LEVEL - VSM_SUN_FINEST_LEVEL + 1
 const TABLES_PER_ROW = 64
 /** Room for `maps` full maps, rounded up to whole page-table rows (the last entry of the last row
  *  holds the single-page maps). */
-export const wholeTableRows = (maps: number) =>
-  Math.ceil((maps + 1) / TABLES_PER_ROW) * TABLES_PER_ROW - 1
+export const wholeTableRows = (maps: number) => alignUp(maps + 1, TABLES_PER_ROW) - 1
 
 /** The projection's mask, made and freed as one (`ensureMask`): its array, a layer per four
  *  shadowed lights, and its tile words, a texel per projection group naming the layers it stored,
@@ -196,10 +192,10 @@ const LIGHT_SLOTS = 256,
   DIRECTIONAL_IDS_BYTES = 4 * 64
 /** Copies of the page counters read back at once (`vsmFrameEnd.ts`). */
 const STATS_READBACKS = 3
-/** Bytes the maps hold beside their set (`vsmResourceBytes`) and the frame's lists: the marking,
- *  the light and sun ids, the status feedback and the counters' readbacks. */
-export const ENGINE_VSM_SIDE_BYTES =
-  VSM_MARKING_BYTES +
+/** Bytes the maps hold beside their set (`vsmResourceBytes`) and the frame's lists on a device of
+ *  `limits`: the marking, the light and sun ids, the status feedback and the counters' readbacks. */
+export const engineVsmSideBytes = (limits: GPUSupportedLimits) =>
+  vsmMarkingBytes(limits) +
   4 * LIGHT_SLOTS +
   DIRECTIONAL_IDS_BYTES +
   vsmFeedbackReadbackBytes() +
@@ -349,8 +345,7 @@ export function unshadowLights(store: WebgpuPagesRuntime['lights']['store']) {
 }
 
 /** The mask array's layers for `lights` shadowed lights: one per four, one at least. */
-export const maskLayersFor = (lights: number) =>
-  Math.max(1, Math.ceil(lights / VSM_PROJECTION_MAX_LIGHTS))
+export const maskLayersFor = (lights: number) => workgroupCount(lights, VSM_PROJECTION_MAX_LIGHTS)
 
 const maskDescriptor = (width: number, height: number, layers: number) => ({
   label: 'vsm.engine.shadowMask',

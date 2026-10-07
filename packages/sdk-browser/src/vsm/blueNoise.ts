@@ -1,3 +1,5 @@
+import { GOLDEN_FRACTION } from '../../../math/src/constants.ts'
+import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 /**
  * Spatio-temporal blue noise for the projection: one noise value and a pair per pixel and frame,
  * the frames' slices stacked down one texture, a pixel's texel at (x mod 64, 64·(frame mod 64) +
@@ -20,7 +22,7 @@
 export const VSM_BLUE_NOISE_SIZE = 64
 export const VSM_BLUE_NOISE_SLICES = 64
 
-const GOLDEN = 0.6180339887498949
+const GOLDEN = GOLDEN_FRACTION
 /** The step of the additive 2D sequence, (1/p, 1/p²), p the plastic number: its points spread
  *  evenly over the unit square. The pair's slices walk it, and so do the rays' noise offsets
  *  (`vsmAdditive2d`, `traceWgsl.ts`). */
@@ -43,7 +45,7 @@ function prng(seed: number) {
 function vsmVoidAndCluster(n: number, seed: number, sigma = 1.9): Float64Array {
   const N = n * n,
     mask = n - 1,
-    shift = Math.log2(n),
+    shift = floorLog2(n),
     R = Math.min(n >> 1, Math.ceil(4 * sigma)),
     side = 2 * R + 1
   const kernel = new Float64Array(side * side)

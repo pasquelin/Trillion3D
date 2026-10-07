@@ -1,3 +1,5 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
+
 /** Counts the bytes a load reads, against the lengths its manifest declares. */
 export interface ByteMeter {
   /** The files the load reads, address to declared length: their sum joins the total at once,
@@ -48,7 +50,7 @@ export function byteMeter(report: (loaded: number, total: number) => void): Byte
       const counted = response.body.pipeThrough(
         new TransformStream<Uint8Array, Uint8Array>({
           transform(chunk, controller) {
-            const within = Math.max(0, Math.min(chunk.byteLength, expected - seen))
+            const within = clamp(expected - seen, 0, chunk.byteLength)
             seen += chunk.byteLength
             loaded += chunk.byteLength
             total += chunk.byteLength - within

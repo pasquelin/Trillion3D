@@ -1,4 +1,6 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../../gpu/dispatch/grid.ts'
 
 // The particle kernels: the step (`webgpuParticles.ts`) and the draw (`webgpuParticleDraw.ts`).
 
@@ -55,11 +57,12 @@ fn foldStep(local: u32, span: vec2u) -> vec2u {
     : `${LANES_FOLD_WGSL}
 fn foldStep(local: u32, span: vec2u) -> vec2u { return foldLanes(local, span); }`
 
-/** Bytes of a pool's window dispatch: its workgroups, then 1 and 1, written by `bound`. */
+/** Bytes of a pool's window dispatch: its workgroups along x, its rows of them along y past one
+ *  dimension's (`groupGrid`), then 1, written by `bound`. */
 export const PARTICLE_ARGS_BYTES = 12
 
 /** The workgroups covering `slots` slots. */
-export const particleGroups = (slots: number) => Math.ceil(slots / PARTICLE_WORKGROUP)
+export const particleGroups = (slots: number) => ceilDiv(slots, PARTICLE_WORKGROUP)
 
 /** One invocation per slot that can change: `main` over the window of the slots alive after the
  *  last step, its workgroups the dispatch `bound` wrote; `emit` over the ring's records of this
@@ -86,7 +89,7 @@ struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u3
 @group(0) @binding(2) var<storage, read_write> state: State;
 @group(0) @binding(3) var<storage, read_write> partials: array<vec2u>;
 @group(0) @binding(4) var<storage, read_write> args: array<u32>;
-${stepFoldWgsl(subgroups)}
+${stepFoldWgsl(subgroups)}${FLAT_INDEX_WGSL}${GROUP_GRID_WGSL}
 fn stepSlot(i: u32) -> bool {
   let d = i - step.first;
   let k = select(d, d + step.capacity, i < step.first);
@@ -103,22 +106,27 @@ fn stepSlot(i: u32) -> bool {
 fn spanOf(i: u32, alive: bool) -> vec2u { return select(vec2u(0u), vec2u(~i, i + 1u), alive); }
 fn windowGroups() -> u32 { return (step.capacity + ${PARTICLE_WORKGROUP - 1}u) / ${PARTICLE_WORKGROUP}u; }
 @compute @workgroup_size(${PARTICLE_WORKGROUP})
-fn main(@builtin(global_invocation_id) id: vec3u, @builtin(local_invocation_index) local: u32, @builtin(workgroup_id) wg: vec3u) {
-  let i = state.window.first + id.x;
-  let span = foldStep(local, spanOf(i, id.x < state.window.instances && stepSlot(i)));
-  if (local == 0u) { partials[wg.x] = span; }
+fn main(@builtin(global_invocation_id) id: vec3u, @builtin(workgroup_id) wg: vec3u, @builtin(local_invocation_index) local: u32, @builtin(num_workgroups) n: vec3u) {
+  let k = flatIndex(id, n, ${PARTICLE_WORKGROUP}u);
+  let i = state.window.first + k;
+  let span = foldStep(local, spanOf(i, k < state.window.instances && stepSlot(i)));
+  // A group of the last row past the window, its first lane past it, writes no partial.
+  if (local == 0u && k < state.window.instances) { partials[flatIndex(wg, n, 1u)] = span; }
 }
 @compute @workgroup_size(${PARTICLE_WORKGROUP})
-fn emit(@builtin(global_invocation_id) id: vec3u, @builtin(local_invocation_index) local: u32, @builtin(workgroup_id) wg: vec3u) {
-  let j = step.first + id.x;
+fn emit(@builtin(global_invocation_id) id: vec3u, @builtin(workgroup_id) wg: vec3u, @builtin(local_invocation_index) local: u32, @builtin(num_workgroups) n: vec3u) {
+  let k = flatIndex(id, n, ${PARTICLE_WORKGROUP}u);
+  let j = step.first + k;
   let i = select(j, j - step.capacity, j >= step.capacity);
-  let span = foldStep(local, spanOf(i, id.x < step.count && stepSlot(i)));
-  if (local == 0u) { partials[windowGroups() + wg.x] = span; }
+  let span = foldStep(local, spanOf(i, k < step.count && stepSlot(i)));
+  // A group of the last row past the records, its first lane past the count, writes no partial.
+  if (local == 0u && k < step.count) { partials[windowGroups() + flatIndex(wg, n, 1u)] = span; }
 }
 @compute @workgroup_size(${PARTICLE_WORKGROUP})
 fn bound(@builtin(local_invocation_index) local: u32) {
   var span = vec2u(0u);
-  let stepped = args[0];
+  // The window's workgroups \`main\` stepped: its rows' padding wrote no partial.
+  let stepped = (state.window.instances + ${PARTICLE_WORKGROUP - 1}u) / ${PARTICLE_WORKGROUP}u;
   for (var g = local; g < stepped; g += ${PARTICLE_WORKGROUP}u) { span = max(span, partials[g]); }
   for (var g = local; g < step.groups; g += ${PARTICLE_WORKGROUP}u) { span = max(span, partials[windowGroups() + g]); }
   span = foldStep(local, span);
@@ -126,7 +134,9 @@ fn bound(@builtin(local_invocation_index) local: u32) {
     let first = select(0u, ~span.x, span.y != 0u);
     state.window.first = first;
     state.window.instances = span.y - first;
-    args[0] = (span.y - first + ${PARTICLE_WORKGROUP - 1}u) / ${PARTICLE_WORKGROUP}u;
+    let grid = groupGrid((span.y - first + ${PARTICLE_WORKGROUP - 1}u) / ${PARTICLE_WORKGROUP}u);
+    args[0] = grid.x;
+    args[1] = grid.y;
   }
 }`
 

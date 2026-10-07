@@ -1,3 +1,5 @@
+import { clamp } from '../scalar/reals.ts'
+import { HALF_PI } from '../constants.ts'
 // Mathematical oracles and reference algorithms for Trillion3D: pure TypeScript, no DOM
 // and no platform dependency.
 
@@ -54,7 +56,7 @@ export function maxStretch(elements: ArrayLike<number>): number {
     b12 = m12 / spread
   const determinant =
     b00 * (b11 * b22 - b12 * b12) - b01 * (b01 * b22 - b12 * b02) + b02 * (b01 * b12 - b11 * b02)
-  const angle = Math.acos(Math.min(1, Math.max(-1, determinant / 2))) / 3
+  const angle = Math.acos(clamp(determinant / 2, -1, 1)) / 3
   return Math.sqrt(Math.max(mean + 2 * spread * Math.cos(angle), 0))
 }
 
@@ -71,5 +73,5 @@ export function coneRejects(axisDotView: number, angle: number, directionSpread 
     throw new Error('Invalid cone')
   }
   const totalAngle = angle + directionSpread
-  return totalAngle < Math.PI / 2 && axisDotView < -Math.sin(totalAngle)
+  return totalAngle < HALF_PI && axisDotView < -Math.sin(totalAngle)
 }

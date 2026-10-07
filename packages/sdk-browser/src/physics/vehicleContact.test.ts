@@ -8,6 +8,7 @@ import { Ray } from '../../../sdk-core/src/world/math/volumes.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { jointRig, type Rig } from './joints.fixture.ts'
 import { flatRig, placeVehicle } from './vehicles.fixture.ts'
+import { DEG2RAD } from '../../../math/src/constants.ts'
 
 /** The module's penetration slop (`PhysicsSettings::mPenetrationSlop`, m): the overlap its contacts
  *  leave by design, and all two bodies at rest against each other may share. */
@@ -110,7 +111,7 @@ test('a car driven into a tank at full speed stops against it, not inside it', a
 })
 
 test('a car driven down a slope into a tank does not slip under it among its wheels', async () => {
-  const { drive } = await carBehindTank(1, (10 * Math.PI) / 180)
+  const { drive } = await carBehindTank(1, 10 * DEG2RAD)
   const { deepest } = drive(6, 'gear')
   assert.ok(deepest <= SLOP, `kept out of its running gear: ${deepest}`)
 })

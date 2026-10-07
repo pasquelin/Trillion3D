@@ -1,3 +1,5 @@
+import { FLOAT32_STEP } from '../constants.ts'
+
 /**
  * Matrix sixteen floats, compared or copied: knowing if view moved, or if requested
  * pose is the one node already holds. Every caller wrote its own loop; they all read
@@ -15,9 +17,6 @@ export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) 
   for (let i = 0; i < 16; i++) if (!Object.is(held[i], now[i])) return false
   return true
 }
-
-/** One float32 step at magnitude 1: the GPU draws every world in float32. */
-export const FLOAT32_STEP = 2 ** -23
 
 /**
  * Whether pose `now` leaves local box `box` (its min, then its max) where pose `held` (at

@@ -3,6 +3,8 @@ import { buildComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
+import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchRows } from '../dispatch/grid.ts'
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -45,7 +47,8 @@ export async function createTransparentOcclusion(
     const o: Occlusion = {
       ...{ device, entryCount, sources, corners, unculled, ...made },
       ...{ bound: undefined, bindGroup: undefined, disposed: false },
-      groups: Math.max(1, Math.ceil(entryCount / PARTITION_WORKGROUP)),
+      // A thread an entry.
+      groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
     }
     return {
       /** World corners of entries `[from, to]`, on the only interval the table changed. */
@@ -99,7 +102,7 @@ function occlusionBuffers(device: GPUDevice, entryCount: number) {
     size: entryCount * CORNER_VALUES * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  const unculledBits = new Uint32Array(Math.ceil(entryCount / 32)),
+  const unculledBits = new Uint32Array(bitWords(entryCount)),
     unculled = device.createBuffer({
       label: 'Trillion3D transparent occlusion never culled v1',
       size: unculledBits.byteLength,
@@ -160,6 +163,6 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
   const pass = encoder.beginComputePass({ label: 'Trillion3D transparent occlusion' })
   pass.setPipeline(o.pipeline)
   pass.setBindGroup(0, o.bindGroup)
-  pass.dispatchWorkgroups(o.groups)
+  dispatchRows(pass, o.groups)
   pass.end()
 }

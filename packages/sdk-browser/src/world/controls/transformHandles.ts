@@ -1,3 +1,4 @@
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import { box, cone, cylinder, plane } from '../../../../sdk-core/src/world/geometry/basic.ts'
 import { torus } from '../../../../sdk-core/src/world/geometry/round.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
@@ -12,8 +13,8 @@ import type { TransformHandle, TransformMode } from './transformMath.ts'
 const COLOURS = { x: 0xff0000, y: 0x00ff00, z: 0x0000ff, xyz: 0xffffff }
 /** The turn that lays a part built along `+y` (arrows, shafts) or around `+z` (rings) on each
  *  axis, as Euler angles. */
-const ALONG = { x: [0, 0, -Math.PI / 2], y: [0, 0, 0], z: [Math.PI / 2, 0, 0] } as const
-const AROUND = { x: [0, Math.PI / 2, 0], y: [Math.PI / 2, 0, 0], z: [0, 0, 0] } as const
+const ALONG = { x: [0, 0, -HALF_PI], y: [0, 0, 0], z: [HALF_PI, 0, 0] } as const
+const AROUND = { x: [0, HALF_PI, 0], y: [HALF_PI, 0, 0], z: [0, 0, 0] } as const
 /** Proportions of the handles, in units of the gizmo's own size — its screen size is set by the
  *  control (`transform.ts`): a shaft's radius, a tip's length, a plane square's side. */
 const SHAFT = 0.04,

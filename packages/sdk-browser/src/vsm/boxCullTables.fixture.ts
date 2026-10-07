@@ -10,6 +10,7 @@ import { vsmInvalidationWgsl } from './invalidationWgsl.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { MORE_BUILTINS, hashWord, inputs, withArrays } from './sameBits.fixture.ts'
 import { vsmLayout } from './layout.ts'
+import { TAU } from '../../../math/src/constants.ts'
 
 export type Draw = ReturnType<typeof inputs>
 const LAYOUT = vsmLayout({ fullMapCapacity: 63 }, 1 << 27)
@@ -105,7 +106,7 @@ export function pageRect(d: Draw, size: number) {
 export function lightView(d: Draw, k: number) {
   if (k % 3 === 0) return { uv: d.mat(), viewToClip: d.mat(), directional: d.bool() }
   const directional = d.bool(),
-    [a, b, c] = d.vec(3, () => d.random() * 2 * Math.PI)
+    [a, b, c] = d.vec(3, () => d.random() * TAU)
   const [ca, sa, cb, sb, cc, sc] = [a, a, b, b, c, c].map((x, i) =>
     (i % 2 ? Math.sin : Math.cos)(x),
   )

@@ -9,6 +9,7 @@ import { ensureWebgpuShadeBindings } from './shadeBindings.ts'
 import { drawBlendPass } from '../blend/draw.ts'
 import { blendLightResources } from '../blend/lighting.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts'
+import { uniformStride } from '../../residency/pools.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { orderBlendPasses } from '../blend/order.ts'
 import { createWebgpuBlendState } from '../blend/state.ts'
@@ -90,7 +91,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
   // The transparent pass encodes one RUN at a time, and the unpaged item is a run on its own.
   const blendState = createWebgpuBlendState()
   blendState.blendGpu.push(item as unknown as (typeof blendState.blendGpu)[number])
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
   orderBlendPasses(blendState, [0, 0, 0])
   Object.assign(blendState, { argsBuffer: {}, itemBuffer: {}, viewBuffer: {} })

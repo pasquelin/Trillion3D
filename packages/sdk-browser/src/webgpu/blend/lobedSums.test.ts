@@ -5,6 +5,7 @@
 // lobes set with neither a strength nor a coat (what `setLobes` leaves of maps that zeroed both):
 // the sums are the same numbers, bit for bit. A lobed fragment is proved on the GPU
 // (`tests/gpu/blend/lobes.gpu.ts`).
+import { lerp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
@@ -35,7 +36,7 @@ const NOTHING = { on: true, strength: 0, coat: 0, coatRough: 0.5, coatN: [0, 0, 
 
 test('the lobed blend program sums a fragment without lobes as the lobeless one, bit for bit', () => {
   const r = random(2207),
-    u = (lo: number, hi: number) => lo + (hi - lo) * r()
+    u = (lo: number, hi: number) => lerp(lo, hi, r())
   const key = { rectless: true, unshadowed: true }
   const lobed = blendShader(key),
     plain = blendShader({ ...key, lobeless: true })

@@ -10,6 +10,7 @@
  * The phase advances from one image to the next so the sixteen pixels of a square have all spoken in
  * sixteen images; a barrier that must converge asks for every pixel at once.
  */
+import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { PICK_CYCLE } from './pickCycle.ts'
 
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
@@ -19,7 +20,7 @@ import { PICK_CYCLE } from './pickCycle.ts'
 export const FEEDBACK_STRIDE = 4
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE
 /** First bit above the phase and the `FEEDBACK_EVERY` bit. */
-export const PICK_SHIFT = Math.log2(FEEDBACK_EVERY) + 1
+export const PICK_SHIFT = floorLog2(FEEDBACK_EVERY) + 1
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer

@@ -14,7 +14,7 @@ import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
-import { DAG_GRID_WGSL } from './gridWgsl.ts'
+import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
 import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
@@ -86,7 +86,7 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
  *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let head=rangeFirst()==0u;let i=flatIndex(id.x,id.y,n.x);
+ let head=rangeFirst()==0u;let i=flatIndex(id,n,64u);
  if(head&&i==0u){
   atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);atomicStore(&out.ahead,0u);out.aheadPlaced=0u;
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
@@ -113,7 +113,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  // Totals are summed in the workgroup first (\`totalsWgsl.ts\`), so EVERY thread in the
  // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
- let s=flatIndex(id.x,id.y,n.x);
+ let s=flatIndex(id,n,64u);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
@@ -148,7 +148,7 @@ ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
-${DAG_GRID_WGSL}
+${FLAT_INDEX_WGSL}${OPEN_SLICE_WGSL}
 ${DAG_VIEWS_WGSL}
 ${DAG_RECORD_WGSL}
 ${DAG_AHEAD_WGSL}`

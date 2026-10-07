@@ -63,12 +63,7 @@ import {
   VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
-import {
-  VSM_RENDER_GROUP,
-  VSM_RENDER_MAX_GROUPS_X,
-  VSM_RENDER_PARAMS_WGSL,
-  VSM_RENDER_ROWS_WGSL,
-} from './renderCullWgsl.ts'
+import { VSM_RENDER_GROUP, VSM_RENDER_PARAMS_WGSL, VSM_RENDER_ROWS_WGSL } from './renderCullWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import {
@@ -80,6 +75,8 @@ import {
   vsmTransmissionRegions,
   VSM_TRANSMISSION_WIDTH,
 } from './transmissionLayout.ts'
+import { floorLog2 } from '../../../math/src/scalar/integers.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 
 /** Texels a side of a cell. */
@@ -91,8 +88,8 @@ const CELL_COUNT = VSM_TRANSMISSION_CELLS ** 2
 const VSM_TRANSMISSION_CHAIN = 32
 /** The shifts that divide by a block, by the width, by the pages a header row holds (four words a
  *  texel, two a page): every size a power of two, so the read folds by mask and shift. */
-const BLOCK_SHIFT = Math.log2(VSM_TRANSMISSION_BLOCK_TEXELS)
-const WIDTH_SHIFT = Math.log2(VSM_TRANSMISSION_WIDTH)
+const BLOCK_SHIFT = floorLog2(VSM_TRANSMISSION_BLOCK_TEXELS)
+const WIDTH_SHIFT = floorLog2(VSM_TRANSMISSION_WIDTH)
 const HEADER_SHIFT = WIDTH_SHIFT + 1
 /** A slice's first texels: the cell headers, then the chain. */
 const HEADER_TEXELS = CELL_COUNT / 4
@@ -142,16 +139,12 @@ const VSM_T_RECORD_WORDS:u32=${VSM_TRANSMISSION_RECORD_WORDS}u;
 const VSM_T_HEADER_ROWS:u32=${headerRows(P)}u;
 /** Where block \`b\`'s texel \`t\` lies in the readable memory. */
 fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}
-fn vsmTGroup(wid:vec3u,nwg:vec3u)->u32{return wid.y*nwg.x+wid.x;}`
+${FLAT_INDEX_WGSL}`
 }
 
-/** One dispatch's arguments for `n` groups, wrapped into y. */
-const ARGS_WGSL = /* wgsl */ `
-fn vsmTArgs(at:u32,n:u32){
- args[at]=min(n,${VSM_RENDER_MAX_GROUPS_X}u);
- args[at+1u]=(n+${VSM_RENDER_MAX_GROUPS_X - 1}u)/${VSM_RENDER_MAX_GROUPS_X}u;
- args[at+2u]=1u;
-}`
+/** One dispatch's arguments for `n` groups, in rows. */
+const ARGS_WGSL = /* wgsl */ `${GROUP_GRID_WGSL}
+fn vsmTArgs(at:u32,n:u32){let g=groupGrid(n);args[at]=g.x;args[at+1u]=g.y;args[at+2u]=1u;}`
 
 // ---- Candidates ---------------------------------------------------------------------------------
 
@@ -164,8 +157,8 @@ fn vsmTArgs(at:u32,n:u32){
 export const vsmTransmissionCandidatesWgsl = () => /* wgsl */ `${VSM_RENDER_ROWS_WGSL}
 ${FRAME_STRUCT_WGSL}
 @group(0) @binding(7) var<uniform> frame:VsmTransmissionFrame;
-@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmTransmissionCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let i=vsmRenderGroup(wid,nwg)*${VSM_RENDER_GROUP}u+lane;
+${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmTransmissionCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+ let i=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
  if(i>=params.rowCount){return;}
  let row=frame.rowFirst+i;
  let page=pages[row];
@@ -307,7 +300,7 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  return rect.xy+vec2u(i-size.x*y,y);
 }
 @compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionPages(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let index=vsmTGroup(wid,nwg);
+ let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
  if(lane==0u){
   wgCommands=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
@@ -616,7 +609,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
 var<workgroup> tris:array<VsmTTri,${VSM_TRANSMISSION_COMMAND_GROUP}>;
 var<workgroup> wgCommand:array<u32,5>;
 @compute @workgroup_size(${VSM_TRANSMISSION_COMMAND_GROUP}) fn vsmTransmissionBin(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let index=vsmTGroup(wid,nwg);
+ let index=flatIndex(wid,nwg,1u);
  if(index>=frame.cmds){return;}
  if(lane==0u){
   for(var j=0u;j<4u;j++){wgCommand[j]=list[4u*index+j];}
@@ -719,7 +712,7 @@ ${frameWgsl(layout)}
 @group(0) @binding(0) var<uniform> frame:VsmTransmissionFrame;
 @group(0) @binding(1) var<storage,read_write> build:array<u32>;
 @compute @workgroup_size(${VSM_TRANSMISSION_PAGE_GROUP}) fn vsmTransmissionPlace(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let g=vsmTGroup(wid,nwg)*${VSM_TRANSMISSION_PAGE_GROUP}u+lane;
+ let g=flatIndex(wid,nwg,1u)*${VSM_TRANSMISSION_PAGE_GROUP}u+lane;
  if(g>=min(build[VSM_TC_RECORDS],frame.records)){return;}
  let r=frame.regionRecords+g*VSM_T_RECORD_WORDS;
  build[VSM_T_ORDER+build[VSM_T_FIRST+build[r+16u]]+build[r+17u]]=g;
@@ -791,7 +784,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  }
 }
 @compute @workgroup_size(${CELL_COUNT}) fn vsmTransmissionResolve(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let k=vsmTGroup(wid,nwg);
+ let k=flatIndex(wid,nwg,1u);
  if(lane==0u){
   held[0]=0u;held[1]=0u;
   if(k<vsmTBuild(VSM_TC_SLICES)){held[1]=vsmTBuild(VSM_T_KEYS+k);held[0]=vsmTBuild(VSM_T_COUNTS+held[1]);}
@@ -887,7 +880,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  for(var i=lane;i<records;i+=${CELL_COUNT}u){vsmTCopy(vsmTBuild(VSM_T_ORDER+first+i),i,patches);}
 }
 @compute @workgroup_size(${VSM_TRANSMISSION_PAGE_GROUP}) fn vsmTransmissionHeaders(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
- let i=vsmTGroup(wid,nwg)*${VSM_TRANSMISSION_PAGE_GROUP}u+lane;
+ let i=flatIndex(wid,nwg,1u)*${VSM_TRANSMISSION_PAGE_GROUP}u+lane;
  if(i>=vsmTBuild(VSM_TC_DIRTY)){return;}
  let t=vsmTBuild(VSM_T_DIRTY+i)>>2u;
  let w=vec4u(table[4u*t],table[4u*t+1u],table[4u*t+2u],table[4u*t+3u]);
@@ -1022,7 +1015,7 @@ fn vsmTScanPage(blocks:vec2u,r:VsmTReceiver,after:vec2f)->VsmTScan{
  *  receiver in the shifted space of the sample's map (local), \`fromEye\` + \`eye\` its world
  *  position (directional). The axis is the sample's own level's, as its records were binned. */
 fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,directional:bool)->vec3f{
- let blocks=vsmTransmissionBlocks(sm.poolTexel>>vec2u(${Math.log2(VSM_PAGE_TEXELS)}u));
+ let blocks=vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u));
  if(all(blocks==vec2u(${VSM_TRANSMISSION_NONE}u))){return vec3f(1.0);}
  let M=vsmProjectionOf(sm.handle).shiftedToMapUv;
  let axis=normalize(vec3f(M[0].z,M[1].z,M[2].z));
@@ -1040,5 +1033,5 @@ fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,di
 }
 /** Whether sample \`sm\` lies in a page with a translucent slice. */
 fn vsmTransmissionPaned(sm:VsmMapRead)->bool{
- return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${Math.log2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
+ return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
 }`

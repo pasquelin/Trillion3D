@@ -9,9 +9,10 @@ import { createGpuLightTiles } from './tiles.ts'
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts'
 import { shippedColumn, suns } from './gridColumn.fixture.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** 160 × 160 pixels: 3 × 3 columns of cells. */
-const COLUMNS = Math.ceil(160 / LIGHT_SETTINGS.tileSize) ** 2
+const COLUMNS = ceilDiv(160, LIGHT_SETTINGS.tileSize) ** 2
 const START = COLUMNS * LIGHT_SETTINGS.tileLights * 16,
   MOST = START * 16,
   /** Where the pool starts: the cell records, each `TILE_STRIDE_WORDS` wide. */
@@ -66,7 +67,7 @@ async function poolOf(width: number, height: number, lights: number) {
   const fake = fakeDevice()
   const tiles = await createGpuLightTiles(fake.device)
   tiles.ensure(width, height, lightList(fake.device), lights)
-  const columns = Math.ceil(width / CELL) * Math.ceil(height / CELL)
+  const columns = ceilDiv(width, CELL) * ceilDiv(height, CELL)
   return tiles.buffer!.size / 4 - columns * SLICES * TILE_STRIDE_WORDS
 }
 const CELL = LIGHT_SETTINGS.tileSize,

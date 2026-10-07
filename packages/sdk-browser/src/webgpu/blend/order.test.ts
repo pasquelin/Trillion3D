@@ -79,7 +79,7 @@ const changes: [string, (scene: ReturnType<typeof rankedScene>) => void][] = [
     'an item joins',
     ({ blendState }) => {
       blendState.blendGpu.push(item(-3))
-      buildBlendStatics(blendState)
+      buildBlendStatics(blendState, blendState.uniformStride)
       refreshBlendPlan(blendState)
     },
   ],

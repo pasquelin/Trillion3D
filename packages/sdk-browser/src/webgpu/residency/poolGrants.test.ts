@@ -1,3 +1,4 @@
+import { MIB } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
@@ -116,14 +117,13 @@ test('a texture pool the device refuses is drawn with fewer layers, down to one 
   const lanes = { ...laneCounts(), lossless: 20_000 }
   const poolFor = (bytes: number) =>
     texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes, noTails)
-  const asked = poolFor(512 * 1024 * 1024)
+  const asked = poolFor(512 * MIB)
   const layerBytes = asked.allocatedBytes / (2 * asked.layers.color.lossless)
   // Room for two layers per atlas, not for what the budget asked.
   const { device } = refusingDevice(2 * layerBytes)
   const { seen, diagnose } = diagnostics()
   const probe = textureProbe(device, encoding)
-  const pool = (await grantedTexturePool(device, 512 * 1024 * 1024, { poolFor }, diagnose, probe))
-    ?.pool
+  const pool = (await grantedTexturePool(device, 512 * MIB, { poolFor }, diagnose, probe))?.pool
   assert.ok(pool && pool.layers.color.lossless <= 2 && pool.layers.color.lossless >= 1)
   assert.ok(pool.allocatedBytes < asked.allocatedBytes)
   assert.equal(seen[0].pool, 'texture')

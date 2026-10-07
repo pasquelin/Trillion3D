@@ -1,3 +1,4 @@
+import { clamp } from '../../../math/src/scalar/reals.ts'
 /**
  * The engine's texture: the image the compiler imported and the sampler state declared beside it,
  * in the engine's own words. No rendering-library object — a texture reaches a pool, an atlas lane
@@ -80,5 +81,5 @@ export function uvTransformed(m: ArrayLike<number>) {
  */
 export function grantedAnisotropy(texture: Texture, ceiling: number) {
   if (texture.magFilter === 'nearest' || texture.minFilter.endsWith('mip-nearest')) return 1
-  return Math.min(ceiling, Math.max(1, texture.anisotropy))
+  return clamp(texture.anisotropy, 1, ceiling)
 }

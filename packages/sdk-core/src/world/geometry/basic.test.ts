@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { box, plane, circle, ring, cylinder, cone, sphere } from './basic.ts'
 import type { Geometry } from './geometry.ts'
 import { RECIPES } from './recipes.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 function verify(g: Geometry, vertices: number, triangles: number) {
   const p = g.attributes.position,
@@ -115,7 +116,7 @@ test('disc fans and annular strips preserve hole, radius, winding and texture pl
     [0.5, 0.5, 1, 0.5, 0.5, 1, 0, 0.5, 0.5, 0, 1, 0.5],
   )
   assert.deepEqual([...disc.index!.array], [0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5])
-  const arc = circle(3, 4, Math.PI / 2, Math.PI)
+  const arc = circle(3, 4, HALF_PI, Math.PI)
   assert.ok(Math.abs(arc.attributes.position.getX(1)) < 1e-9)
   assert.equal(arc.attributes.position.getY(1), 3)
   assert.equal(arc.attributes.position.getY(5), -3)

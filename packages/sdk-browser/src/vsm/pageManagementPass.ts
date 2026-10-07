@@ -7,8 +7,9 @@
  * - `keepVsmFrame`: the page-management part of the frame data extraction: the frame just
  *   rendered becomes `prev` (`res.swapFrames()`), and the cache is available next frame.
  *
- * Loose shader parameters go through one uniform buffer of 256-byte slots (dynamic offsets) written
- * with `queue.writeBuffer` at encode time: encode at most one frame per submit. The per-page kernels
+ * Loose shader parameters go through one uniform buffer of slots the device's `uniformStride` apart
+ * (dynamic offsets) written with `queue.writeBuffer` at encode time: encode at most one frame per
+ * submit. The per-page kernels
  * replay `frame.perPageBins`, built and uploaded by the page marking (`markingPass.ts`).
  *
  * Not here (other steps): the clears of the page marking (page table / flags / request flags,
@@ -20,7 +21,7 @@ import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
 import { vsmComputePipe, vsmDynamicUniformEntry, type VsmComputePipe } from './passKit.ts'
 import type { VsmPerPageBin } from './markingPass.ts'
 import {
-  VSM_PER_PAGE_DISPATCHER_BYTES,
+  vsmPerPageDispatcherBytes,
   VsmPerPageDispatcher,
   vsmPerPageDispatchEntries,
 } from './perPageDispatch.ts'
@@ -33,7 +34,10 @@ import {
   vsmPhysicalPageKernels,
 } from './physicalPagesWgsl.ts'
 import { type VsmResources, vsmBindGroupEntries, vsmBindGroupLayoutEntries } from './resources.ts'
-import { ceilDiv, type VsmLayout } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../residency/pools.ts'
+import { vsmWriteChangedSlots } from './writeChanged.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {
@@ -55,7 +59,6 @@ export interface VsmPageManagementFrame {
   options?: VsmPageManagementOptions
 }
 
-const SLOT = 256
 const SLOT_MAIN = 0
 const SLOT_ADDRESSES = 1
 const SLOT_COUNT = 2
@@ -78,7 +81,9 @@ interface Ctx {
   stats: boolean
   pipes: Record<KernelName, Pipe>
   params: GPUBuffer
-  /** The CPU image of `params`, every slot at its own offset. */
+  /** The slots of `params`: their stride, offsets and words. */
+  slots: UniformSlots
+  /** The CPU image of `params`, laid as the buffer: a slot's change goes up in one write. */
   paramsU32: Uint32Array<ArrayBuffer>
   paramsGroup: GPUBindGroup
   argsInit: GPUBuffer
@@ -87,10 +92,11 @@ interface Ctx {
 
 const contexts = new WeakMap<VsmResources, Ctx>()
 
-/** Bytes a set's page management context holds on the device: its parameter slots, its per-page
- *  dispatch slots and its cleared indirect arguments. */
-export const VSM_PM_CONTEXT_BYTES =
-  SLOT * SLOT_COUNT + VSM_PER_PAGE_DISPATCHER_BYTES + ARGS_INIT_BYTES
+/** Bytes a set's page management context holds on a device of `limits`: its parameter slots, its
+ *  per-page dispatch slots — both the device's `uniformStride` apart, as `context` lays them — and
+ *  its cleared indirect arguments. */
+export const vsmPmContextBytes = (limits: { minUniformBufferOffsetAlignment?: number }) =>
+  uniformSlotBytes(limits, SLOT_COUNT) + vsmPerPageDispatcherBytes(limits) + ARGS_INIT_BYTES
 
 /** Frees the page management context of `res`, with the set (`destroyEngineVsm`). */
 export function releaseVsmPageManagement(res: VsmResources) {
@@ -144,6 +150,8 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   const existing = contexts.get(res)
   if (existing && existing.device === frame.device && existing.stats === stats) return existing
   const device = frame.device
+  // Every slot, the parameters' and the per-page dispatch's, at the device's alignment.
+  const slots = uniformSlots(device.limits, SLOT_COUNT, VSM_PM_PARAMS_BYTES / 4)
   const dispatcher = new VsmPerPageDispatcher(device, res)
   // The pipes' parameter groups are made of the same entries: this one's group binds to each.
   const paramsLayout = device.createBindGroupLayout({
@@ -152,7 +160,7 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
   })
   const params = device.createBuffer({
     label: 'vsm.pm.params',
-    size: SLOT * SLOT_COUNT,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   const paramsGroup = device.createBindGroup({
@@ -180,7 +188,8 @@ function context(res: VsmResources, frame: VsmPageManagementFrame): Ctx {
     stats,
     pipes,
     params,
-    paramsU32: new Uint32Array((SLOT * SLOT_COUNT) / 4),
+    slots,
+    paramsU32: new Uint32Array(slots.bytes / 4),
     paramsGroup,
     argsInit,
     dispatcher,
@@ -212,23 +221,16 @@ function writeParams(
   first: number,
   end: number,
 ) {
-  const words = SLOT / 4
-  const u = ctx.paramsU32
+  const { slots, paramsU32: u } = ctx
   for (let s = first; s < end; s++) {
-    const b = s * words
+    const b = s * slots.strideWords
     u[b + 0] = frame.nextMapCount ?? 0
     u[b + 1] = cacheValid ? 1 : 0
   }
-  ctx.device.queue.writeBuffer(
-    ctx.params,
-    first * SLOT,
-    u.buffer,
-    first * SLOT,
-    (end - first) * SLOT,
-  )
+  // What changed of the slots' structs, in one write: never the padding, never more writes than
+  // the whole slots sent.
+  vsmWriteChangedSlots(ctx.device, ctx.params, u, slots, first, end, 'one')
 }
-
-const groupsFor = (n: number) => ceilDiv(n, VSM_GROUP_WIDTH)
 
 function bind(
   ctx: Ctx,
@@ -240,7 +242,7 @@ function bind(
   const pipe = ctx.pipes[name]
   pass.setPipeline(pipe.pipe.pipeline)
   pass.setBindGroup(VSM_PM_GROUP_RESOURCES, group0(ctx, res, pipe))
-  pass.setBindGroup(VSM_PM_GROUP_PARAMS, ctx.paramsGroup, [slot * SLOT])
+  pass.setBindGroup(VSM_PM_GROUP_PARAMS, ctx.paramsGroup, ctx.slots.offset(slot))
 }
 
 function run(
@@ -252,6 +254,7 @@ function run(
   groups: number,
 ) {
   bind(ctx, res, pass, name, slot)
+  // One group, or ⌈poolPages / 256⌉: one row for the largest pool (`poolDispatch.test.ts`).
   pass.dispatchWorkgroups(groups)
 }
 
@@ -275,7 +278,7 @@ export function encodeVsmPageCarry(
   const ctx = context(res, frame)
   const cacheValid = res.prevFrameKept
   writeParams(ctx, frame, cacheValid, SLOT_ADDRESSES, SLOT_ADDRESSES + 1)
-  run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES, groupsFor(res.layout.poolPages))
+  run(ctx, res, pass, 'carryPages', SLOT_ADDRESSES, ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH))
 }
 
 /**
@@ -293,7 +296,7 @@ export function encodeVsmPageMapping(
   const cacheValid = res.prevFrameKept
   writeParams(ctx, frame, cacheValid, SLOT_MAIN, SLOT_ADDRESSES)
   ctx.dispatcher.setBins(frame.perPageBins ?? [])
-  const maxGroups = groupsFor(res.layout.poolPages)
+  const maxGroups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH)
   // The indirect dispatch args, 1D, in (16, pages, 1) form.
   encoder.copyBufferToBuffer(ctx.argsInit, 0, res.clearArgs, 0, 16)
 
@@ -323,7 +326,7 @@ export function encodeVsmAfterRaster(
 ) {
   if (frame.mapCount === 0) return
   const ctx = context(res, frame)
-  const maxGroups = groupsFor(res.layout.poolPages)
+  const maxGroups = ceilDiv(res.layout.poolPages, VSM_GROUP_WIDTH)
   // The indirect dispatch args: merge set in (16, pages, 1) form, filter set (0, 1, 1).
   encoder.copyBufferToBuffer(ctx.argsInit, 16, res.mergeArgs, 0, 32)
   // The tile depths' pages in (16, pages, 1) form.

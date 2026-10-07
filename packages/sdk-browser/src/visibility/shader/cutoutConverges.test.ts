@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import { TAA_SAMPLES, taaJitter } from '../../taa/jitter.ts'
 import { taaWeightTable } from '../../taa/weights.ts'
 import { TAA_STILL_FRAMES } from '../../taa/stillFrames.fixture.ts'
+import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 
 const SIDE = 24,
   THRESHOLD = 0.5,
@@ -19,7 +20,7 @@ type Field = (x: number, y: number) => number
  *  luminance, so the resolve's inverse-luminance weights are the plain 1/k. */
 function resolve(current: Float64Array, history: Float64Array, frame: number, w: Float32Array) {
   const out = new Float64Array(SIDE * SIDE),
-    at = (v: number) => Math.min(SIDE - 1, Math.max(0, v))
+    at = (v: number) => clamp(v, 0, SIDE - 1)
   for (let y = 0; y < SIDE; y++)
     for (let x = 0; x < SIDE; x++) {
       let filtered = 0,
@@ -33,7 +34,7 @@ function resolve(current: Float64Array, history: Float64Array, frame: number, w:
           lo = Math.min(lo, v)
           hi = Math.max(hi, v)
         }
-      const kept = Math.min(hi, Math.max(lo, history[y * SIDE + x]!))
+      const kept = clamp(history[y * SIDE + x]!, lo, hi)
       out[y * SIDE + x] = frame === 1 ? filtered : filtered / frame + kept * (1 - 1 / frame)
     }
   return out
@@ -74,7 +75,7 @@ const coverage = (alpha: Field) => {
 }
 
 /** A leaf edge across the frame, slanted. */
-const edge: Field = (x, y) => Math.min(1, Math.max(0, 0.5 + 0.8 * (x - 12) + 0.6 * (y - 12)))
+const edge: Field = (x, y) => saturate(0.5 + 0.8 * (x - 12) + 0.6 * (y - 12))
 /** A small round leaf, `radius` pixels. */
 const leaf =
   (radius: number): Field =>

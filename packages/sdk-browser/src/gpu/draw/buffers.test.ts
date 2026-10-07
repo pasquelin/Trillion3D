@@ -11,6 +11,7 @@ import {
   WORKGROUP,
   slotCount,
 } from './contract.ts'
+import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 // Compact buffers depend on the row count (slotCap) and the coplanar-layer count (layerSlots),
 // never on the frame: this file pins their sizes and alignments, including the layerSlots = 1
@@ -22,7 +23,7 @@ test('createGpuDrawBuffers sizes the item, rest and instance buffers from slotCa
   const buffers = createGpuDrawBuffers(device, slotCap, 1, 1)
   assert.equal(buffers.slots, BASE_SLOTS, 'layerSlots = 1 reproduces the six slots from before')
   assert.equal(buffers.itemsBuf.size, slotCap * DRAW_ITEM_U32 * 4)
-  assert.equal(buffers.restBuf.size, Math.max(4, Math.ceil(slotCap / 32) * 4))
+  assert.equal(buffers.restBuf.size, Math.max(4, bitWords(slotCap) * 4))
   assert.equal(buffers.uniforms.size, UNIFORM_BYTES)
   assert.equal(buffers.instanceBuffer.size, slotCap * 4)
   assert.equal(buffers.indirectBuffer.size, BASE_SLOTS * DRAW_INDIRECT_STRIDE)
@@ -49,7 +50,7 @@ test('the indirect, group and slotUsed buffers grow with layerSlots; the item, r
   assert.equal(one.uniforms.size, three.uniforms.size)
   assert.equal(three.indirectBuffer.size, slotCount(3) * DRAW_INDIRECT_STRIDE)
   assert.equal(three.slotUsedBuf.size, slotCount(3) * 4)
-  const groupCount = Math.ceil(slotCap / WORKGROUP)
+  const groupCount = ceilDiv(slotCap, WORKGROUP)
   assert.equal(three.groupCounts.size, groupCount * slotCount(3) * 4)
   assert.equal(three.groupOffsets.size, groupCount * slotCount(3) * 4)
   assert.ok(

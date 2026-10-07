@@ -9,8 +9,8 @@ import { createPageStreamerWith } from '../streaming/pageStreamer.ts'
 import { servedPages } from '../streaming/servedPages.fixture.ts'
 import { worldBudget, worldPools } from '../world/core/worldBudget.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../sdk-core/src/physics/index.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
-const MiB = 1024 * 1024
 const BASE = 'https://host/cache/full/clusters.json'
 const textures = { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 }
 /** Bytes of a `side`² block level file: a server that ignores Range sends it whole. */
@@ -119,8 +119,8 @@ test('the texture levels cap follows world.budget.cpu live', async () => {
   await ask(0)
   await ask(1)
   assert.equal(levels.bytes, 2 * fileBytes(1024))
-  handle.cpu = 2 * MiB
-  const cap = (3 * 2 * MiB) / 4
+  handle.cpu = 2 * MIB
+  const cap = (3 * 2 * MIB) / 4
   assert.deepEqual([pools.pageCache.levels.budgetBytes, handle.split.textureLevels], [cap, cap])
   assert.equal(levels.bytes, fileBytes(1024), 'the level read first left')
   assert.ok(levels.get(request(1), [1024, 1024], 0, 0), 'the one read last stays')

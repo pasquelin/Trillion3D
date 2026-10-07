@@ -6,6 +6,7 @@ import { KIND_MORPH, KIND_SKIN, KIND_WAVE, recordLayout } from './layout.ts'
 import { animation } from '../../../sdk-core/src/world/animation/family.ts'
 import { object } from '../../../sdk-core/src/world/object/index.ts'
 import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
+import { HALF_PI } from '../../../math/src/constants.ts'
 
 const IDENTITY = { elements: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]) }
 
@@ -47,7 +48,7 @@ test('each deformed placement gets its record, moves when a source moves, and sa
   assert.equal(frame.reach[0], 1)
   const wave = water.waveModel
   assert.ok(Math.abs(frame.reach[2] - (wave.amplitude[0] + wave.lateral[0]) / 2) < 1e-12)
-  knee.quaternion.setFromAxisAngle({ x: 0, y: 0, z: 1 }, Math.PI / 2)
+  knee.quaternion.setFromAxisAngle({ x: 0, y: 0, z: 1 }, HALF_PI)
   root.updateMatrixWorld(true)
   assert.equal(
     frame.update(() => false),

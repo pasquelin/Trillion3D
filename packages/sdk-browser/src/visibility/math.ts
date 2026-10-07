@@ -1,3 +1,4 @@
+import { clamp, saturate } from '../../../math/src/scalar/reals.ts'
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
 import { uvTransformed } from '../../../sdk-core/src/texture/contract.ts'
 
@@ -21,9 +22,9 @@ export function perspectiveBary(
 /** Texel of an axis by the sampler's integer rule: mirror folds two periods. */
 export function wrapTexel(t: number, size: number, wrap: WrapMode) {
   const p = wrap === 'mirror' ? 2 : 1
-  const scaled = wrap === 'clamp' ? Math.min(1, Math.max(0, t)) : t - p * Math.floor(t / p)
+  const scaled = wrap === 'clamp' ? saturate(t) : t - p * Math.floor(t / p)
   const i = Math.floor(scaled * size)
-  return Math.min(size - 1, Math.max(0, i < size ? i : 2 * size - 1 - i))
+  return clamp(i < size ? i : 2 * size - 1 - i, 0, size - 1)
 }
 
 /**

@@ -1,6 +1,8 @@
 // A subtree's own-error floor certifies a rejection only with the sphere it is seen through:
 // `cullingBounds` never leaves a finite strictly positive floor without one, whatever clusters
 // the pages carry — those preparation produces, and those it leaves without an error band.
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from './bounds.ts'
@@ -38,13 +40,13 @@ test('a finite positive node floor always comes from a cluster that had its sphe
   const stride = 15,
     count = 5
   const nodes = new Float64Array(count * stride)
-  const perLeaf = Math.ceil(all.length / 4)
+  const perLeaf = ceilDiv(all.length, 4)
   nodes[11] = 1
   nodes[12] = 4
   for (let leaf = 0; leaf < 4; leaf++) {
     const base = (leaf + 1) * stride
     nodes[base + 13] = leaf * perLeaf
-    nodes[base + 14] = Math.min(perLeaf, Math.max(0, all.length - leaf * perLeaf))
+    nodes[base + 14] = clamp(all.length - leaf * perLeaf, 0, perLeaf)
   }
   const values = cullingBounds({ nodes, stride }, all)
   for (let node = 0; node < count; node++) {

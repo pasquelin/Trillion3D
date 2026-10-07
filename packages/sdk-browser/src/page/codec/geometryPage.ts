@@ -1,3 +1,4 @@
+import { MIB } from '../../../../math/src/constants.ts'
 import {
   FLAG_COLOR,
   FLAG_MORPH,
@@ -62,7 +63,7 @@ function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: 
 /** Decode one complete page without referring to any source glTF buffer. */
 export function decodeGeometryPage(
   data: Uint8Array,
-  maxDecodedBytes = 16 * 1024 * 1024,
+  maxDecodedBytes = 16 * MIB,
 ): DecodedGeometryPage {
   const {
     vertexCount,

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { readOptions } from './options.ts'
 import { residentFraction, residentFractionBudget } from './poolFill.ts'
 import { textures } from '../summary/summaryTextures.ts'
+import { MIB } from '../../../packages/math/src/constants.ts'
 
 const ROOT = '/tmp/trillion3d-bench'
 /** The live pools the command line asks with a texture pool of `value`. */
@@ -22,7 +23,7 @@ test('a percentage is a fraction of the working set, a bare number stays MiB', (
     textureResidentFraction: 0.4,
   })
   const bytes = livePools('64')
-  assert.equal(bytes?.texturePoolBytes, 64 * 1024 * 1024)
+  assert.equal(bytes?.texturePoolBytes, 64 * MIB)
   assert.equal(bytes?.textureResidentFraction, undefined)
   assert.equal(livePools(), null)
 })

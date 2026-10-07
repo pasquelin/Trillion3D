@@ -6,6 +6,7 @@ import { stagedOutputBytes } from './layout.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
 import { type TableSplit } from './splitFlags.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 /** One storage buffer of a cut: its label, its bytes, and whether a copy reads it. */
 export type DagBufferRow = { label: string; size: number; copySource?: boolean }
@@ -50,7 +51,7 @@ export function cameraCutBuffers(
   >,
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
-  const blockCount = Math.ceil(packed.pageCount / SELECTION_WORKGROUP),
+  const blockCount = ceilDiv(packed.pageCount, SELECTION_WORKGROUP),
     workLayout = dagWorkLayout(blockCount)
   const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount)
   const split = dagSplit(limits, packed, {

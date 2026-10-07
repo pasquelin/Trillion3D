@@ -10,6 +10,7 @@ import {
   SCENE_ENVIRONMENT_FLOATS,
 } from '../../../sdk-core/src/scene/core/environment.ts'
 import { packFog, type SceneFog } from '../../../sdk-core/src/scene/core/fog.ts'
+import { clamp, lerp, saturate } from '../../../math/src/scalar/reals.ts'
 
 type V3 = [number, number, number]
 const length = (v: V3) => Math.hypot(v[0], v[1], v[2])
@@ -17,7 +18,7 @@ const length = (v: V3) => Math.hypot(v[0], v[1], v[2])
 /** The oracle: the fog law at `P` seen from `eye`, the optical depth summed over 20 000 steps. */
 function oracle(fog: SceneFog, eye: V3, P: V3) {
   const d = length(sub(P, eye))
-  if ('near' in fog) return Math.min(1, Math.max(0, (fog.far - d) / (fog.far - fog.near)))
+  if ('near' in fog) return saturate((fog.far - d) / (fog.far - fog.near))
   const { density, heightFalloff = 0, baseHeight = 0 } = fog
   let tau = 0
   for (let i = 0, n = 20000; i < n; i++) {
@@ -34,9 +35,9 @@ const vec = (v: ArrayLike<number>) => {
 }
 const sub = (a: V3, b: V3) => vec([a[0] - b[0], a[1] - b[1], a[2] - b[2]])
 const BUILTINS = {
-  clamp: (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x)),
+  clamp,
   select: (no: unknown, yes: unknown, when: boolean) => (when ? yes : no),
-  mix: (a: V3, b: V3, t: number) => a.map((value, i) => value + (b[i] - value) * t),
+  mix: (a: V3, b: V3, t: number) => a.map((value, i) => lerp(value, b[i], t)),
   length,
   sub,
   ...{ exp: Math.exp, abs: Math.abs, min: Math.min, max: Math.max },
@@ -71,7 +72,7 @@ const RGB: V3 = [0.8, 0.3, 0.1]
 const COLOR: V3 = [0.5, 0.6, 0.7]
 const expected = (fog: SceneFog, P: V3, eye: V3) => {
   const t = oracle(fog, eye, P)
-  return RGB.map((value, i) => COLOR[i] + (value - COLOR[i]) * t)
+  return RGB.map((value, i) => lerp(COLOR[i], value, t))
 }
 const close = (actual: number[], wanted: number[], label: string) =>
   actual.forEach((value, i) =>

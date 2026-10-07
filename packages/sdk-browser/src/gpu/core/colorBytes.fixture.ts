@@ -1,3 +1,5 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
+
 /**
  * The colour bytes per sample the attachments `formats` take, as WebGPU checks them against
  * `maxColorAttachmentBytesPerSample`: each cost aligned to its own alignment, summed in order.
@@ -10,7 +12,7 @@ export function colorBytesPerSample(formats: readonly (GPUTextureFormat | undefi
     const entry = COLOR_TARGET_COST[format]
     if (!entry) throw new Error(`no colour byte cost for ${format}`)
     const [cost, alignment] = entry
-    total = Math.ceil(total / alignment) * alignment + cost
+    total = alignUp(total, alignment) + cost
   }
   return total
 }

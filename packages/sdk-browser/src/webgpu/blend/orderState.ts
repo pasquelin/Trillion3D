@@ -27,6 +27,10 @@ export const createBlendOrderState = () => ({
   runCount: [0, 0],
   /** Each item's sort key by source rank: the own items' every frame (`order.ts`). */
   orderKeys: new Float64Array(0),
+  /** Bytes between two uniform slots of the order's steps and of the expansion's passes: the
+   *  device's dynamic-offset alignment, which `buildBlendStatics` is given as the scene's resources
+   *  are made (`prepareBlendResources`) — zero until then, when nothing is planned. */
+  uniformStride: 0,
   /** The order kernel's dispatches of each pass and their uniform words (`orderSteps.ts`). */
   orderSteps: [[], []] as OrderStep[][],
   orderStepWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,

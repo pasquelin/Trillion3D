@@ -20,9 +20,11 @@ imports it. Its contract:
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
-`color/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
+`color/`, `scalar/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
 re-exports. The path governor, the transform tree and the shader programs are not primitives and live in
 `sdk-core` and `sdk-browser`.
+
+`scalar/`: counting and range helpers; `constants.ts`: shared numbers.
 
 ## Batch math for hosts
 

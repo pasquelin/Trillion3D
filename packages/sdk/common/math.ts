@@ -49,7 +49,6 @@ export {
   CONE_LENGTH_RATIO_WGSL,
   CONE_ORTHO_EPS,
   CONE_ORTHO_EPS_WGSL,
-  HALF_PI,
   HALF_PI_WGSL,
 } from '../../math/src/geometry/cone.ts'
 export {
@@ -97,6 +96,7 @@ export {
 } from '../../math/src/batch/transforms.ts'
 export { frustumClipBox, frustumExcludesBox } from '../../math/src/geometry/frustum/box.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
+export { HALF_PI } from '../../math/src/constants.ts'
 export {
   HIZ_NOTHING,
   hizBuildFlat,

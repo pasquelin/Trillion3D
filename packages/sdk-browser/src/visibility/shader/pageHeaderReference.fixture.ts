@@ -2,6 +2,7 @@
 // the header and the stream order, never the shader (`pageHeaderReference.test.ts`).
 import { BLOCK_CORNERS, CLUSTER_HEADER_WORDS, MORPH_WORDS } from '../../cluster/format.ts'
 import { TRIANGLE_BLOCK, WIDTH_BITS } from '../../cluster/format.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 export type Header = Record<string, number | number[]>
 const bitsFor = (range: number) => 32 - Math.clz32(range)
@@ -30,7 +31,7 @@ export function reference(words: Uint32Array, base: number): Header {
     if (present) at += words32(count, bits)
     return start
   }
-  const blocks = stream(true, Math.ceil(indexCount / 3 / TRIANGLE_BLOCK), recordBits)
+  const blocks = stream(true, ceilDiv(indexCount / 3, TRIANGLE_BLOCK), recordBits)
   const corners = stream(true, w(21), 1)
   const pos = posBits.map((bits) => stream(true, positionCount, bits))
   const links = at

@@ -14,6 +14,7 @@ import { encodeVirtualShadowProjection } from './projectionPass.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { orthographicProjection } from '../../../math/src/projection/camera.ts'
 import { vsmLayout } from './layout.ts'
+import { MIB } from '../../../math/src/constants.ts'
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
 const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -48,7 +49,7 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
 })
 
 test('only the sun marks without the divide: a lamp keeps it', () => {
-  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }, 128 * 1024 * 1024))
+  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }, 128 * MIB))
   assert.match(
     functionText(code, 'vsmMarkPage'),
     /if\(!ortho\)\{mapUvz=vec4f\(mapUvz\.xyz\/mapUvz\.w,mapUvz\.w\);\}/,

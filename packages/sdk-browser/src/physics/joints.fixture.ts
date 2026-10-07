@@ -1,3 +1,4 @@
+import { TAU } from '../../../math/src/constants.ts'
 import {
   PHYSICS_STEP,
   ASLEEP_BIT,
@@ -104,7 +105,7 @@ export const gap = (p: ArrayLike<number>, q: ArrayLike<number>) =>
 /** Twelve points round a 3 m circle about the y axis, at height `y`. */
 export const circle = (y = 0) =>
   Array.from({ length: 12 }, (_, i) => {
-    const angle = (2 * Math.PI * i) / 12
+    const angle = (TAU * i) / 12
     return [3 * Math.cos(angle), y, 3 * Math.sin(angle)] as const
   })
 

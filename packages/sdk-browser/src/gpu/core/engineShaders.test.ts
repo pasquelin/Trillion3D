@@ -13,6 +13,7 @@ import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pag
 import { VIS_SHADER } from '../../visibility/buffer.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
 import { DAG_SELECTION_SHADER_BEFORE } from '../../../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
+import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
@@ -144,11 +145,10 @@ test('a member type, a case selector, a size attribute and code after a comment 
 test('every float literal of the engine WGSL is a finite f32: a compiler refuses one past its greatest value', () => {
   // WGSL keeps a decimal literal only when it lies within f32's finite range: 3.40282347e38 is
   // past 3.4028234663852886e38 and makes the device refuse the whole module.
-  const F32_MAX = 3.4028234663852886e38
   const literal = /(?<![\w.])(\d+\.\d*(?:e[+-]?\d+)?|\d+e[+-]?\d+)f?(?![\w.])/gi
   const past: string[] = []
   for (const [name, code] of Object.entries(ENGINE_SHADERS))
     for (const [, text] of code.matchAll(literal))
-      if (Math.abs(Number(text)) > F32_MAX) past.push(`${name}: ${text}`)
+      if (Math.abs(Number(text)) > FLOAT32_MAX) past.push(`${name}: ${text}`)
   assert.deepEqual(past, [])
 })

@@ -9,6 +9,7 @@
  * space: it only reaches the matrix the raster, shading and blend read, never the engine camera —
  * selection, its planes and its screen-error threshold see none of this jitter.
  */
+import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { halton } from '../../../math/src/sequence/halton.ts'
 
 /** The jitter positions of a frame drawn at the display's size, before the prime: eight. */
@@ -48,7 +49,7 @@ const TAA_STILL_DRAWS = 64
 /** Holding is legal only after the still average has converged and every phase has contributed
  *  as often as every other: a whole number of cycles, the first to hold `TAA_STILL_DRAWS` draws —
  *  66 at native size, six cycles of eleven; 74 at half, two of 37. */
-export const taaStillFrames = (phases: number) => Math.ceil(TAA_STILL_DRAWS / phases) * phases
+export const taaStillFrames = (phases: number) => alignUp(TAA_STILL_DRAWS, phases)
 
 /**
  * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the

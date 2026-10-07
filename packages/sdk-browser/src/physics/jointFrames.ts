@@ -1,3 +1,4 @@
+import { wrap } from '../../../math/src/scalar/reals.ts'
 import { unit } from '../../../math/src/vector/vectorTuple.ts'
 import type { Joint, SixDofAxis } from '../../../sdk-core/src/physics/index.ts'
 import { rotateByQuaternion } from '../../../math/src/quaternion/quaternion.ts'
@@ -72,7 +73,7 @@ function trackIn(node: Object3D | null, path: readonly Vec3Input[], loop: boolea
   let normal: Vec = [0, 1, 0]
   return points.flatMap((point, i) => {
     const [before, after] = loop
-      ? [(i + n - 1) % n, (i + 1) % n]
+      ? [wrap(i - 1, n), (i + 1) % n]
       : [Math.max(i - 1, 0), Math.min(i + 1, n - 1)]
     const span = loop ? 2 : after - before
     const p = points[before],

@@ -1,5 +1,6 @@
 // The visibility uniform (`VIS_UNIFORM_BYTES`). Defect this test catches: a group binds it at
 // another size than the struct the shaders declare — the real device then refuses the dispatch.
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts'
@@ -59,5 +60,5 @@ test('the uniform size covers its words, rounded to the matrix alignment', () =>
   const vec2 = (VIS_UNIFORMS_WGSL.match(/:vec2f/g) ?? []).length
   const bytes = 64 + 4 * words.length + 8 * vec2
   assert.match(VIS_UNIFORMS_WGSL, /selectionEnabled:u32,pixelRatio:f32,mipBias:f32,\}$/)
-  assert.equal(VIS_UNIFORM_BYTES, Math.ceil(bytes / 16) * 16)
+  assert.equal(VIS_UNIFORM_BYTES, alignUp(bytes, 16))
 })

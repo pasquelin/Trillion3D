@@ -1,3 +1,4 @@
+import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
 
 /**
@@ -25,7 +26,7 @@ import { WATER_RANK_SHIFT } from '../water/rank.ts'
  * `2·step·(|e1|₁ + |e2|₁) + 8·step²`, e1 and e2 the two edges from the first corner. A doubtful
  * triangle only costs the fragments of its discarded side.
  */
-const FACING_TOLERANCE = 8 * 2 ** -23 * 2 ** 10
+const FACING_TOLERANCE = 8 * FLOAT32_STEP * 2 ** 10
 const SNAP_STEP = 2 ** -4
 /** What `vertexFacing` answers besides a mode: the vertex stage drops the triangle. */
 export const FACING_DROP = 3

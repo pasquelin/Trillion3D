@@ -1,6 +1,7 @@
 // #836, #1483: admission reads the readback's requests (#478) in the order the GPU ranked them for
 // a short pool. Past the pool it keeps the coarsest levels whole, from a room the image's arrivals
 // never move, so a still view settles on one queue.
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -85,7 +86,7 @@ test('the pool short of the cuts keeps its ranking until they fall a tenth below
   assert.equal(settled(desired), false, 'the cuts fit')
   assert.equal(settled(desired - 1), true, 'past the pool: short')
   assert.equal(settled(desired), true, 'back at the edge: still short')
-  assert.equal(settled(Math.ceil(desired / 0.9) + 1), false, 'a tenth below: whole')
+  assert.equal(settled(ceilDiv(desired, 0.9) + 1), false, 'a tenth below: whole')
   assert.equal(settled(desired), false, 'and whole at the edge again')
 })
 

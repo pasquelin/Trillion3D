@@ -3,12 +3,17 @@ import { cpuModel, orderBlendPlanCpu, orderEye, refreshEyeKeys } from './expandC
 import { RUN_WORDS } from './planLayout.ts'
 import { precedes } from './paintOrder.ts'
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts'
+import { uniformStride } from '../../residency/pools.ts'
 
-/** A blend state holding `items`, its statics and encoding plan built as a frame would. */
-export function blendSceneOf(items: readonly BlendGpuItem[]) {
+/** A blend state holding `items`, its statics and encoding plan built as a frame would, its uniform
+ *  slots at the alignment of a device of `limits` (`prepareBlendResources`). */
+export function blendSceneOf(
+  items: readonly BlendGpuItem[],
+  limits?: { minUniformBufferOffsetAlignment?: number },
+) {
   const blendState = createWebgpuBlendState()
   blendState.blendGpu.push(...items)
-  buildBlendStatics(blendState)
+  buildBlendStatics(blendState, uniformStride(limits))
   refreshBlendPlan(blendState)
   return blendState
 }

@@ -4,6 +4,7 @@
 // field's edges, an error ε, and the worst pair (sphere point, displacement of at most ε) found by
 // sampling then climbing, per family of displacement.
 import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
+import { TAU } from '../../../math/src/constants.ts'
 
 type Vec3 = number[]
 type Mat3 = number[][]
@@ -39,7 +40,7 @@ type Draws = ReturnType<typeof draws>
 
 const unit = ({ between }: Draws): Vec3 => {
   const z = between(-1, 1),
-    a = between(0, 2 * Math.PI),
+    a = between(0, TAU),
     r = Math.sqrt(1 - z * z)
   return [r * Math.cos(a), r * Math.sin(a), z]
 }

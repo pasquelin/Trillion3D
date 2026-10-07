@@ -5,6 +5,7 @@ import { tilesAt } from './tiles.ts'
 import { tileRegion } from '../webgpu/tile/write.ts'
 import { writeTileFromBlocks } from '../webgpu/tile/writeBlocks.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** `rows` block rows of `blocks` blocks from `data`, `stride` bytes apart from `offset`. */
 function rowsOf(data: Uint8Array, offset: number, stride: number, rows: number, blocks: number) {
@@ -41,15 +42,15 @@ test('a tile written from its record lands the blocks the whole-level cut wrote'
     },
   } as unknown as GPUQueue
   for (const [width, height] of sizes) {
-    const row = Math.ceil(width / 4) * 16
-    const level = Uint8Array.from({ length: row * Math.ceil(height / 4) }, () => next() * 256)
+    const row = ceilDiv(width, 4) * 16
+    const level = Uint8Array.from({ length: row * ceilDiv(height, 4) }, () => next() * 256)
     const [tw, th] = tilesAt(width, height, 0)
     let end = 0
     for (let ty = 0; ty < th; ty++)
       for (let tx = 0; tx < tw; tx++) {
         const region = tileRegion(width, height, tx, ty),
           { sx, sy } = region
-        const [across, down] = [Math.ceil(region.width / 4), Math.ceil(region.height / 4)]
+        const [across, down] = [ceilDiv(region.width, 4), ceilDiv(region.height, 4)]
         const { offset, bytes } = tileRecord(width, height, tx, ty),
           name = `${width}×${height} tile ${tx},${ty}`
         assert.deepEqual([offset, bytes], [end, across * down * 16], name)

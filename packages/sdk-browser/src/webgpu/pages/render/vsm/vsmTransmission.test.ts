@@ -2,6 +2,7 @@
 // transmission a frame found short grows once to the capacities that frame wanted, only when the
 // room holds what they add to what it frees; past it it is capped, said once, never asked of the
 // device, and the maps no longer wait for it to grow.
+import { nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createVsmSettle } from '../../state/vsmSettle.ts'
@@ -32,12 +33,8 @@ test('a frame that wanted more grows once to the power of two that holds it, eac
   assert.equal(a.held.wanted, undefined, 'exactly held: none')
   await read({ records: 5 * caps.records + 3, blocksShort: 3 })
   const grown = a.held.wanted!
-  assert.equal(
-    grown.records,
-    2 ** Math.ceil(Math.log2(5 * caps.records + 3)),
-    'one step, not doublings',
-  )
-  assert.equal(grown.blocks, 2 ** Math.ceil(Math.log2(caps.blocks + 3)))
+  assert.equal(grown.records, nextPow2(5 * caps.records + 3), 'one step, not doublings')
+  assert.equal(grown.blocks, nextPow2(caps.blocks + 3))
   assert.equal(grown.patchWords, caps.patchWords)
 })
 

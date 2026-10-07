@@ -9,6 +9,7 @@ import type { GpuBounceProxy } from './proxy.ts'
 import { createWebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts'
 import { buildComputePipeline } from '../lighting/deferred/fullscreen.ts'
+import { ceilDiv, workgroupCount } from '../../../math/src/scalar/integers.ts'
 
 /** What the cache pass binds: the grid, the proxy and its albedo, lights, frozen probes, the
  *  cache — the two atlases of `atlas.ts`. */
@@ -148,7 +149,7 @@ export async function createGpuBounceSurface(
     bytes,
     /** Frames of a full cache sweep at the current batch: the other half of the lag. */
     get sweepFrames() {
-      return Math.max(1, Math.ceil(texels / Math.max(1, sweep.batch)))
+      return workgroupCount(texels, Math.max(1, sweep.batch))
     },
     /** Full sweeps since the last invalidation. */
     get sweeps() {
@@ -171,7 +172,7 @@ export async function createGpuBounceSurface(
       device.queue.writeBuffer(span, 0, spanWords(sweep, texels, load))
       pass.setPipeline(pipeline)
       pass.setBindGroup(0, groupOf(lights()))
-      pass.dispatchWorkgroups(Math.ceil(sweep.batch / SURFACE_WORKGROUP), 1, 1)
+      pass.dispatchWorkgroups(ceilDiv(sweep.batch, SURFACE_WORKGROUP), 1, 1)
       advance(sweep, texels)
     },
     dispose: release,

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { lathe, capsule } from './round.ts'
 import { RECIPES } from './recipes.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-8, `${a} != ${b}`)
 
@@ -11,13 +12,13 @@ test('lathe spins translated profiles with slope normals and partial-arc endpoin
     [3, 0],
     [4, 3],
   ]
-  const g = lathe(profile, 4, Math.PI / 2, Math.PI),
+  const g = lathe(profile, 4, HALF_PI, Math.PI),
     p = g.attributes.position,
     n = g.attributes.normal
   const object = lathe(
     profile.map(([x, y]) => ({ x, y })),
     4,
-    Math.PI / 2,
+    HALF_PI,
     Math.PI,
   )
   assert.deepEqual(object.attributes.position.array, p.array)

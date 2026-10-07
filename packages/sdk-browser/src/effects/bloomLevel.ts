@@ -1,9 +1,9 @@
 import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 
-/** Bytes of one bloom uniform slot, and the stride between slots: dynamic offsets align on 256. */
+/** Bytes of one bloom uniform slot; slots lie the device's `uniformStride` apart, the alignment
+ *  of their dynamic offsets. */
 export const BLOOM_UNIFORM_BYTES = 32
-export const BLOOM_UNIFORM_STRIDE = 256
 
 /** A bilinear read of the level at `uv` plus `offset` texels of `stride`: every filter's tap. */
 export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`

@@ -1,4 +1,5 @@
 import type { WrapMode } from '../../../sdk-core/src/index.ts'
+import { clamp, saturate } from '../../../math/src/scalar/reals.ts'
 
 /**
  * CPU mirror of `wrapAxis`, just above: the two texels a linear filter mixes on an axis of `size`
@@ -11,13 +12,7 @@ import type { WrapMode } from '../../../sdk-core/src/index.ts'
 export function wrapLinear(t: number, size: number, wrap: WrapMode): [number, number, number] {
   const repeat = wrap === 'repeat'
   const p = wrap === 'mirror' ? t - 2 * Math.floor(t / 2) : 0
-  const c = repeat
-    ? t - Math.floor(t)
-    : wrap === 'clamp'
-      ? Math.min(1, Math.max(0, t))
-      : p > 1
-        ? 2 - p
-        : p
+  const c = repeat ? t - Math.floor(t) : wrap === 'clamp' ? saturate(t) : p > 1 ? 2 - p : p
   const demi = 0.5 / size
   if (repeat && (c < demi || c > 1 - demi)) {
     const u = c * size + 0.5,
@@ -26,6 +21,6 @@ export function wrapLinear(t: number, size: number, wrap: WrapMode): [number, nu
   }
   const centre = c * size - 0.5,
     bas = Math.floor(centre)
-  const borne = (i: number) => Math.min(size - 1, Math.max(0, i))
+  const borne = (i: number) => clamp(i, 0, size - 1)
   return [borne(bas), borne(bas + 1), centre - bas]
 }

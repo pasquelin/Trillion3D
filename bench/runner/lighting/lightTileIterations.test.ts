@@ -9,9 +9,10 @@ import {
 import { blockIndex, depthField, emptyBlocks, type City, type Light } from './lightTileCity.ts'
 import { countGrid } from './lightGridCount.ts'
 import { COST_MODEL, modelMs } from './lightTileIterations.ts'
+import { HALF_PI } from '../../../packages/math/src/constants.ts'
 
 // Straight down from 100 m onto one 30 m building (x and z 8 to 52 m), the ground all around.
-const view = camera([30, 100, 30], 0, -Math.PI / 2, 60, 64, 48)
+const view = camera([30, 100, 30], 0, -HALF_PI, 60, 64, 48)
 const city = (lights: Light[]): City => {
   const blocks = emptyBlocks()
   blocks[blockIndex(0, 0)] = 30

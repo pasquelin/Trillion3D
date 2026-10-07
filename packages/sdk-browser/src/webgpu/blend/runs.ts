@@ -1,3 +1,4 @@
+import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { EXPAND_GROUP } from './planLayout.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_UNI } from './expandUniform.ts'
@@ -75,7 +76,7 @@ export function blendExpandUniform(
   scene: { maxVertexWords: number; vertexShift: number },
 ) {
   out[EXPAND_UNI.entryCount] = counts.entries
-  out[EXPAND_UNI.groupCount] = Math.ceil(Math.max(1, counts.entries) / EXPAND_GROUP)
+  out[EXPAND_UNI.groupCount] = workgroupCount(counts.entries, EXPAND_GROUP)
   out[EXPAND_UNI.runCount] = counts.runs
   out[EXPAND_UNI.instanceBase] = counts.instanceBase
   out[EXPAND_UNI.argsBase] = region.args

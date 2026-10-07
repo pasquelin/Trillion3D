@@ -1,3 +1,4 @@
+import { uniformSlots, uniformStride, type UniformSlots } from '../../residency/pools.ts'
 import { POOL_LANES } from '../../texture/blockFormats.ts'
 
 /**
@@ -31,6 +32,13 @@ export const atlasLayoutEntries = (
 /** Bytes of the visibility-buffer uniform `Uniforms` (`../../visibility/shader/pageWgsl.ts`): its
  *  nine words after the matrix, rounded up to the struct's 16-byte alignment. */
 export const VIS_UNIFORM_BYTES = 112
+let visSlots: UniformSlots | undefined
+/** The visibility uniform's `count` slots on a device of `limits`: the layout the upload writes
+ *  every frame, kept while the count and the alignment hold (nothing allocated a frame). */
+export const visUniformLayout = (limits: Parameters<typeof uniformSlots>[0], count: number) =>
+  visSlots?.count === count && visSlots.stride === uniformStride(limits)
+    ? visSlots
+    : (visSlots = uniformSlots(limits, count, VIS_UNIFORM_BYTES / 4))
 export const VIS_BINDINGS = {
   cache: 0,
   position: 1,

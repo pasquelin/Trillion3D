@@ -5,6 +5,7 @@ import { createGpuTiming } from './timing.ts'
 import { QUERY_COUNT } from './queries.ts'
 import { QUERY_SET_SIZE } from './querySetSize.ts'
 import { READBACKS } from './encoder.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('an image spanning two encoders yields one sample whose passes carry their own duration in submission order', async () => {
   const f = fixture(),
@@ -55,7 +56,7 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   timer.dispose()
   assert.equal(
     f.destroys(),
-    Math.ceil(QUERY_COUNT / QUERY_SET_SIZE) + 1 + READBACKS,
+    ceilDiv(QUERY_COUNT, QUERY_SET_SIZE) + 1 + READBACKS,
     'the sets, the resolve buffer and the readbacks',
   )
 })

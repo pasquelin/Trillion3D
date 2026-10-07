@@ -10,6 +10,7 @@ import { runtime, scene, selectionRoot } from '../../core/transformShear.fixture
 import { createPlacementRows, placementWorld } from '../../../placement/rows.ts'
 import { updateWebgpuPlacements } from '../../../placement/webgpuPlacements.ts'
 import type { PageRec } from '../../../page/selection/types.ts'
+import { TAU } from '../../../../../math/src/constants.ts'
 
 /** A ring of eight metres lying on the ground, its tube a quarter metre, cut in 26 clusters. */
 const RADIUS = 8,
@@ -24,7 +25,7 @@ function arc(i: number) {
   const min = [Infinity, -TUBE, Infinity],
     max = [-Infinity, TUBE, -Infinity]
   for (let k = 0; k <= 16; k++) {
-    const angle = ((i + k / 16) * 2 * Math.PI) / CLUSTERS
+    const angle = ((i + k / 16) * TAU) / CLUSTERS
     for (const r of [RADIUS - TUBE, RADIUS + TUBE]) {
       const [x, z] = [r * Math.cos(angle), r * Math.sin(angle)]
       ;[min[0], max[0]] = [Math.min(min[0], x), Math.max(max[0], x)]

@@ -1,6 +1,7 @@
 // One segment of a track between two keys, as `sample` draws it: the most its value moves per
 // second, which bounds how far a pose kept since lags the true one (`trackMotion.ts`).
 import type { Track } from './clip.ts'
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 
 /** What `segmentSpeed` gives a segment at whose end the value itself leaps. */
 export const LEAPS = -1
@@ -104,7 +105,7 @@ function normalised(a: Float64Array, b: Float64Array, span: number, bend: number
     chord += (b[c] - a[c]) ** 2
     along -= a[c] * (b[c] - a[c])
   }
-  const lambda = chord > 0 ? Math.min(1, Math.max(0, along / chord)) : 0
+  const lambda = chord > 0 ? saturate(along / chord) : 0
   let near = 0
   for (let c = 0; c < 4; c++) near += (a[c] + lambda * (b[c] - a[c])) ** 2
   const least = Math.sqrt(near) - (bend * span * span) / 8

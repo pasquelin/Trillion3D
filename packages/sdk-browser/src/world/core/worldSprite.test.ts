@@ -1,5 +1,6 @@
 // #364: what a world hands the engine for a sprite — its surface, its bounds, its row — so that
 // every raster turns it to the camera and every culling test keeps it whichever way it turns.
+import { HALF_PI } from '../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
@@ -153,7 +154,7 @@ test("a tall sprite's row and page cube hold its quad under any camera and any r
   ]
   const corner = new Float64Array(4)
   for (const view of views)
-    for (const rotation of [0, 0.7, Math.PI / 2])
+    for (const rotation of [0, 0.7, HALF_PI])
       for (let i = 0; i < drawn.positions.length; i += 3) {
         spriteAt(corner, view, row, drawn.positions[i], drawn.positions[i + 1], {
           rotation,

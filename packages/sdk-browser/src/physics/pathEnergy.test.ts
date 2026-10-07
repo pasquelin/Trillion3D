@@ -1,3 +1,4 @@
+import { TAU } from '../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { joint, type JointMotor } from '../../../sdk-core/src/physics/index.ts'
@@ -7,7 +8,7 @@ test('a body on a frictionless vertical loop keeps its energy over a lap, to wit
   const R = 5,
     N = 64
   const loop = Array.from({ length: N }, (_, i): [number, number, number] => {
-    const a = (i / N) * 2 * Math.PI
+    const a = (i / N) * TAU
     return [R * Math.sin(a), R + 1 - R * Math.cos(a), 0]
   })
   // Fast enough to go over the top: v² > 4·g·R at the bottom.
@@ -20,7 +21,7 @@ test('a body on a frictionless vertical loop keeps its energy over a lap, to wit
 
 /** A level ring of radius 5 m, 64 points, 1 m up, from the origin along +x. */
 const RING = Array.from({ length: 64 }, (_, i): [number, number, number] => {
-  const a = (i / 64) * 2 * Math.PI
+  const a = (i / 64) * TAU
   return [5 * Math.sin(a), 1, 5 - 5 * Math.cos(a)]
 })
 

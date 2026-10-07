@@ -2,6 +2,7 @@ import { FULLSCREEN_XY_WGSL } from '../gpu/shader/fullscreenTriangle.ts'
 import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { cellReductionWgsl } from './cellReduction.ts'
 import { SRGB_ENCODE_WGSL } from './srgbEncode.ts'
+import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 
 // The mip chains' kernels: the reduction of a material level and the coverage counts of a
 // coverage chain (`mipBatch.ts`, `coverageMips.ts`), and a reflection's radiance reduction.
@@ -121,9 +122,10 @@ ${LEVEL_WGSL}
 
 /**
  * The picks of one level of a batch, one workgroup a cutting chain (`mipBatch.ts`), one dispatch
- * for them all. `pick`: the level, the table's first word and the words a block; `blocks`: the
- * batch's uniform words — each chain's level blocks (`LEVEL_WGSL`, word 3 its first bin word), then
- * the table, a cutting chain's first block and levels, those reaching the level first. One lane a
+ * for them all. `pick`: the level, the table's first word, the words a
+ * block and the chains reaching the level; `blocks`: the batch's uniform words — each chain's
+ * level blocks (`LEVEL_WGSL`, word 3 its first bin word), then the table, a cutting chain's first
+ * block and levels, those reaching the level first. One lane a
  * byte `t`: level 0's covered count is the sum of its bins at and past the cutoff, `above` the
  * level's bins from `t` up (a suffix scan), each lane's `pickKey`, and the least key of lanes 1 to
  * 255 is the pick — keys differ by `t`, so the least is the serial loop's, whatever the order —,
@@ -131,11 +133,11 @@ ${LEVEL_WGSL}
  * same `t` as one thread looping over the bins.
  */
 export const COVERAGE_CHOOSE_WGSL = `
- struct Pick{level:u32,table:u32,words:u32,pad:u32}
+ struct Pick{level:u32,table:u32,words:u32,count:u32}
  @group(0) @binding(0) var<uniform> pick:Pick;
  @group(0) @binding(1) var<storage,read> blocks:array<u32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<u32>;
- ${COVERAGE_PICK_WGSL}
+ ${COVERAGE_PICK_WGSL}${FLAT_INDEX_WGSL}
  var<workgroup> sums:array<u32,256>;
  var<workgroup> keys:array<vec4u,256>;
  fn total(t:u32,v:u32)->u32{
@@ -155,8 +157,10 @@ export const COVERAGE_CHOOSE_WGSL = `
   workgroupBarrier();
   return sums[t];
  }
- @compute @workgroup_size(256) fn choose(@builtin(local_invocation_index) t:u32,@builtin(workgroup_id) g:vec3u){
-  let block=(blocks[pick.table+2u*g.x]+pick.level)*pick.words;
+ @compute @workgroup_size(256) fn choose(@builtin(local_invocation_index) t:u32,@builtin(workgroup_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+  // A group of the last row past the cutting chains has none.
+  let chain=flatIndex(g,n,1u);if(chain>=pick.count){return;}
+  let block=(blocks[pick.table+2u*chain]+pick.level)*pick.words;
   let c=blocks[block+2u];let bins=blocks[block+3u];
   let n0=vec2u(blocks[block+4u],blocks[block+5u]);let nk=max(n0>>vec2u(pick.level),vec2u(1u));
   let here=bins+pick.level*256u;

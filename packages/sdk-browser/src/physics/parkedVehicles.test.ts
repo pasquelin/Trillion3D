@@ -6,6 +6,7 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import { jointRig, type Rig } from './joints.fixture.ts'
 import { flatRig, placeVehicle, RELEASED } from './vehicles.fixture.ts'
+import { DEG2RAD } from '../../../math/src/constants.ts'
 
 /** Steps `rig` one step at a time for `steps`: whether each step brought `vehicle` a state. */
 function writes(t: TestContext, rig: Rig, vehicle: Vehicle, steps: number) {
@@ -58,7 +59,7 @@ test('a parked vehicle something falls on wakes and writes again', async (t) => 
 test('a vehicle parked on a slope holds its brakes, stays where it stopped and goes quiet', async (t) => {
   // A valley's floor is never flat: released, a vehicle would creep down it for good, so its
   // body and wheels moved every step and every shadow page they cover was drawn again.
-  const slope = (8 * Math.PI) / 180
+  const slope = 8 * DEG2RAD
   for (const kind of ['car', 'motorcycle', 'tracked'] as const) {
     const rig = await jointRig()
     const ground = new Mesh(box(200, 1, 200), new Material('meshStandard', { physics: 'stone' }))
@@ -80,7 +81,7 @@ test('a vehicle parked on a slope holds its brakes, stays where it stopped and g
 test('a vehicle parked on a slope drives off when the throttle is pressed', async (t) => {
   // The parked brake holds only while the pedals rest: the throttle releases it in the step it
   // reaches the vehicle, so a parked car drives off instead of standing in gear at 0 km/h.
-  const slope = (8 * Math.PI) / 180
+  const slope = 8 * DEG2RAD
   const rig = await jointRig()
   const ground = new Mesh(box(200, 1, 200), new Material('meshStandard', { physics: 'stone' }))
   ground.position.set(0, -0.5, 0)

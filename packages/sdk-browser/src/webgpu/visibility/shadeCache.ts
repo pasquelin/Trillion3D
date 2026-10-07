@@ -1,4 +1,5 @@
-import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { dispatchRows } from '../../gpu/dispatch/grid.ts'
 import { CACHED, cachePasses } from './shadeCachePasses.ts'
 import { heldSwitch } from '../../host/heldSwitch.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
@@ -52,8 +53,6 @@ export async function createShadeCache(device: GPUDevice) {
     // The header words the host writes, the rows and the capacity; the cursor and the end of the
     // fitting slots, which the passes raise, the pass's first dispatch zeroes (`shade_clear`).
     header: new Uint32Array(SHADE_CACHE_HEADER_WORDS),
-    clearGrid: [0, 0],
-    rowsGrid: [0, 0],
     buffer: cacheBuffer(device, SHADE_CACHE_HEADER_WORDS),
     words: SHADE_CACHE_HEADER_WORDS,
     ...{ rowsGroup: undefined, trisGroup: undefined, width: 0, height: 0 },
@@ -88,9 +87,6 @@ type Cache = {
   device: GPUDevice
   passes: Awaited<ReturnType<typeof cachePasses>>
   header: Uint32Array<ArrayBuffer>
-  /** The image's grids, laid with its rows: the clear's, one lane per mark word, and the rows'. */
-  clearGrid: [number, number]
-  rowsGrid: [number, number]
   buffer: GPUBuffer
   words: number
   rowsGroup: GPUBindGroup | undefined
@@ -117,7 +113,7 @@ function layFor(
   const { passes, header } = c
   const rows = passes ? tableRows : 0,
     capacity = Math.min(
-      rows * Math.min(Math.ceil(maxCorners / 3), ROW_TRIANGLES),
+      rows * Math.min(ceilDiv(maxCorners, 3), ROW_TRIANGLES),
       Math.floor((pixelWidth * pixelHeight) / TRIANGLE_WORDS),
     )
   const needed =
@@ -130,10 +126,6 @@ function layFor(
   }
   c.width = pixelWidth
   c.height = pixelHeight
-  if (rows !== header[SHADE_CACHE_ROWS_WORD] && passes) {
-    c.clearGrid = dispatchGrid(Math.ceil((rows * ROW_MARK_WORDS) / SHADE_ROWS_LANES), passes.span)
-    c.rowsGrid = dispatchGrid(Math.ceil(rows / SHADE_ROWS_LANES), passes.span)
-  }
   header[SHADE_CACHE_ROWS_WORD] = rows
   header[SHADE_CACHE_CAPACITY_WORD] = capacity
   // The words that changed; a new buffer is held as its zeros (`vsmWriteChanged`).
@@ -142,7 +134,8 @@ function layFor(
 
 function encodeShade(c: Cache, open: OpenPass, inputs: ShadeCacheInputs) {
   const { passes } = c
-  if (!passes || !c.header[SHADE_CACHE_ROWS_WORD]) return
+  const rows = c.header[SHADE_CACHE_ROWS_WORD]
+  if (!passes || !rows) return
   const n = c.bound.next
   n[0] = c.buffer
   n[1] = inputs.pages
@@ -157,11 +150,12 @@ function encodeShade(c: Cache, open: OpenPass, inputs: ShadeCacheInputs) {
   // The marks and the triangles' dispatch start from zero: the pass's first dispatch.
   pass.setPipeline(passes.shade_clear)
   pass.setBindGroup(0, c.rowsGroup!)
-  pass.dispatchWorkgroups(c.clearGrid[0], c.clearGrid[1])
+  // The clear a lane per mark word, the rows a lane per row: in rows of the passes' width.
+  dispatchRows(pass, ceilDiv(rows * ROW_MARK_WORDS, SHADE_ROWS_LANES), 1, passes.span)
   pass.setPipeline(passes.shade_marks)
-  pass.dispatchWorkgroups(Math.ceil(c.width / MARK_TILE), Math.ceil(c.height / MARK_TILE))
+  pass.dispatchWorkgroups(ceilDiv(c.width, MARK_TILE), ceilDiv(c.height, MARK_TILE))
   pass.setPipeline(passes.shade_rows)
-  pass.dispatchWorkgroups(c.rowsGrid[0], c.rowsGrid[1])
+  dispatchRows(pass, ceilDiv(rows, SHADE_ROWS_LANES), 1, passes.span)
   pass.setPipeline(passes.shade_tris)
   pass.setBindGroup(0, c.trisGroup!)
   pass.dispatchWorkgroupsIndirect(passes.work, 0)

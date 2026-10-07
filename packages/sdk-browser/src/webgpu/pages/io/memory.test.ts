@@ -1,3 +1,4 @@
+import { MIB } from '../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -26,7 +27,7 @@ test('setMemoryBudgets sets the pools in session, brings them back by name, and 
       [12, 2, 'root-cover'],
     )
     // More than the scene has pages: brought back to the scene, by name, nothing is evicted.
-    const grown = await backend.setMemoryBudgets!({ geometryPoolBytes: 1024 * 1024 * 1024 })
+    const grown = await backend.setMemoryBudgets!({ geometryPoolBytes: 1024 * MIB })
     assert.deepEqual([grown.geometryPool.clamp, grown.geometryPool.slots], ['scene', 2])
     assert.equal(grown.evictedPages, 0)
     // Under root coverage: raised to it, by name; roots never leave.

@@ -30,6 +30,8 @@ import {
 } from './clusterFlags.ts'
 import { REQUEST_STAGED_WORDS } from './request.ts'
 import { stagedRequestsWord } from './readoutWords.ts'
+import { bitWords, ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 export {
   SELECTION_HEADER_WORDS,
   evictionWord,
@@ -51,7 +53,7 @@ export function packClusterFlags(
   transparent = false,
   rootChild = false,
 ) {
-  const bounded = Math.min(Math.max(Math.trunc(level) || 0, 0), CLUSTER_LEVEL_MAX)
+  const bounded = clamp(Math.trunc(level) || 0, 0, CLUSTER_LEVEL_MAX)
   return (
     ((never ? CLUSTER_NEVER : 0) |
       (transparent ? CLUSTER_TRANSPARENT : 0) |
@@ -80,8 +82,7 @@ export function packClusterFlags(
  */
 export const SELECTION_LIST_CAP = 262144
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
-export const selectionListCap = (pageCount: number) =>
-  Math.min(Math.max(0, pageCount), SELECTION_LIST_CAP)
+export const selectionListCap = (pageCount: number) => clamp(pageCount, 0, SELECTION_LIST_CAP)
 /** Bytes a resident cut's frame copies: everything before the staged requests. */
 export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(listCap) * 4
 /** Requests ahead of the camera one sample stages: half its cap. They wait behind the camera's own
@@ -112,9 +113,9 @@ export const stagedOutputBytes = (listCap: number, regions = 0) =>
 export function listCapHeld(bytes: number) {
   // A rank is a word: past 2^32 ranks no list is named, and the halving stays exact.
   let low = 0,
-    high = Math.min(2 ** 32, Math.max(0, Math.floor(bytes / 4)))
+    high = clamp(Math.floor(bytes / 4), 0, 2 ** 32)
   while (low < high) {
-    const mid = Math.ceil((low + high) / 2)
+    const mid = ceilDiv(low + high, 2)
     if (stagedOutputBytes(mid) <= bytes) low = mid
     else high = mid - 1
   }
@@ -136,7 +137,7 @@ export const OUT_COUNT = 0,
  *  (`../../page/cut/readiness.ts`, `ready`). */
 export const residentBase = (pageCount: number) => pageCount
 /** Residency words: one bit per cluster, thirty-two clusters per word. */
-export const residentWords = (pageCount: number) => (Math.max(0, pageCount) + 31) >>> 5
+export const residentWords = (pageCount: number) => bitWords(Math.max(0, pageCount))
 /** First word of the second bit set, the rule's `resident(childGroup(c))` (`childReady`). */
 export const childBase = (pageCount: number) => residentBase(pageCount) + residentWords(pageCount)
 /** First word of the pool's list: its count, then a canonical page per held slot (`poolList.ts`). */

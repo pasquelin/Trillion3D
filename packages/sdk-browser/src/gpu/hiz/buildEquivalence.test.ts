@@ -1,7 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HIZ_SHADER } from './shader.ts'
-import { HIZ_BUILD_SIDE as S, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
+import { HIZ_BUILD_SIDE as S, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
+
+/** The deepest pyramid the camera builds (`uniforms.ts`, the passes' default). */
+const HIZ_MAX_LEVELS = 16
 import { buildAfter, buildBefore, layout, lcg, type Scene } from './buildTranscripts.fixture.ts'
 import { hizLevelSizes } from './levelSizes.ts'
 

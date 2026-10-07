@@ -15,6 +15,7 @@ import { HIZ_SHADER } from '../hiz/shader.ts'
 import { createGpuPartition } from './factory.ts'
 import * as C from './contract.ts'
 import { HALF_SLOTS, slotCount } from '../draw/contract.ts'
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 
 type Fn = (...args: unknown[]) => unknown
 type Ref = { get: () => number; set: (value: number) => void }
@@ -55,7 +56,7 @@ function run(frame: ReturnType<typeof frameOf>, counting: boolean, perRow: boole
   const m = {
     rowData: [...frame.rowData],
     flags: [...frame.flags],
-    restBits: new Array<number>(Math.ceil(rows / 32)).fill(0),
+    restBits: new Array<number>(bitWords(rows)).fill(0),
     // `uni.layerTop` 1: two layers' slots.
     slotUsed: new Array<number>(slotCount(2)).fill(0),
     state: new Array<number>(C.STATE_WORDS).fill(0),
@@ -153,15 +154,9 @@ test('every counter but the allocator goes through the tally; the kernels flush 
     )
     assert.deepEqual(atomics, text === HIZ_SHADER ? [] : [C.ST_TESTED])
   }
-  assert.match(
-    PARTITION_SHADER,
-    /if\(id\.x<uni\.rows\)\{projectRow\(id\.x\);\}\n flushTally\(lane\);/,
-  )
-  assert.match(
-    PARTITION_SHADER,
-    /if\(id\.x<uni\.rows\)\{classifyRow\(id\.x\);\}\n flushTally\(lane\);/,
-  )
-  assert.match(HIZ_SHADER, /\{testBox\(id\.x\);\}\n flushTally\(lane\);/)
+  assert.match(PARTITION_SHADER, /if\(row<uni\.rows\)\{projectRow\(row\);\}\n flushTally\(lane\);/)
+  assert.match(PARTITION_SHADER, /if\(row<uni\.rows\)\{classifyRow\(row\);\}\n flushTally\(lane\);/)
+  assert.match(HIZ_SHADER, /\{testBox\(i\);\}\n flushTally\(lane\);/)
 })
 
 test('the partition copies its counters on the frame that counted, and only then', async () => {

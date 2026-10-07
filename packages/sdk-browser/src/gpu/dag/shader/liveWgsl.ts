@@ -17,7 +17,7 @@ import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
  *
  * The workgroup count is not pulled afterwards by a single-thread kernel: the append
  * that opens a sixty-four-wide slice — the one whose rank is a multiple of the group size —
- * raises the count itself, in rows past one dimension (`gridWgsl.ts`). It is therefore exactly
+ * raises the count itself (`openSlice`). It is therefore exactly
  * `ceil(live / 64)`, with no extra dispatch and without the fixed latency a single-thread
  * dispatch pays anyway.
  *
@@ -38,7 +38,7 @@ import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
  */
 export const DAG_LIVE_WGSL = `fn liveBase()->u32{return views[0u].queueCap+views[0u].clusterCount*2u;}
 fn liveCounter()->u32{return blockCount()*${WORK_BLOCK_WORDS}u;}
-/** The live list's dispatch argument, x then y (\`gridWgsl.ts\`). */
+/** The live list's dispatch argument, x then y. */
 fn liveGroups()->u32{return liveCounter()+1u;}
 fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].clusterCount);}
 /** \`entry\` is the candidate's, view included. */

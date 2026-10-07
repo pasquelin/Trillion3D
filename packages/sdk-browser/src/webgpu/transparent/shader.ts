@@ -1,4 +1,5 @@
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
+import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -26,15 +27,15 @@ export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupC
 @group(0) @binding(6) var<storage, read_write> indirect:array<u32>;
 @group(0) @binding(7) var<storage, read> itemRanges:array<u32>;
 @group(0) @binding(8) var<storage, read> occluded:array<u32>;
-fn selected(i:u32)->bool{
+${FLAT_INDEX_WGSL}fn selected(i:u32)->bool{
  let cluster=entries[i];
  if(cluster==${TRANSPARENT_NONE}u){return false;}
  if(occluded[i]!=0u){return false;}
  return selectionMask[uni.selectionOffset+cluster]!=0u;
 }
 @compute @workgroup_size(64)
-fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u){
- let group=id.x;
+fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let group=flatIndex(id,n,64u);
  if(group>=uni.groupCount){return;}
  let begin=group*${TRANSPARENT_GROUP}u;
  let end=min(begin+${TRANSPARENT_GROUP}u,uni.entryCount);
@@ -43,8 +44,8 @@ fn countTransparentGroups(@builtin(global_invocation_id) id:vec3u){
  groupCounts[group]=count;
 }
 @compute @workgroup_size(64)
-fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u){
- let item=id.x;
+fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let item=flatIndex(id,n,64u);
  if(item>=uni.itemCount){return;}
  let base=itemRanges[item*2u];
  let held=itemRanges[item*2u+1u];
@@ -62,8 +63,8 @@ fn prefixTransparentItems(@builtin(global_invocation_id) id:vec3u){
  indirect[o+3u]=0u;
 }
 @compute @workgroup_size(64)
-fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;
+fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id,n,64u);
  if(i>=uni.entryCount||!selected(i)){return;}
  let group=i/${TRANSPARENT_GROUP}u;
  let begin=group*${TRANSPARENT_GROUP}u;

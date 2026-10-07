@@ -4,6 +4,7 @@ import { Light } from './light.ts'
 import { lampCastsShadow, lampRecord, lightFromRecord } from './lightRecord.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 test('only a lamp giving light is recorded', () => {
   for (const kind of ['ambient', 'hemisphere', 'probe'])
@@ -88,7 +89,7 @@ test('a spot’s cone is held open below a right angle, its penumbra in [0, 1]',
   spot.angle = Math.PI
   spot.penumbra = 3
   const wide = lampRecord(spot, 'c', () => 9)!
-  assert.ok(wide.coneAngle! < Math.PI / 2 && wide.coneAngle! > Math.PI / 2 - 1e-8)
+  assert.ok(wide.coneAngle! < HALF_PI && wide.coneAngle! > HALF_PI - 1e-8)
   assert.equal(wide.penumbra, 1)
   spot.penumbra = 0.25
   assert.equal(lampRecord(spot, 'c', () => 9)!.penumbra, 0.25)
@@ -103,7 +104,7 @@ test('a rectangle faces down its −z, its width along its x, and casts no shado
     radius: 1,
   })
   panel.scale.set(3, 1, 1)
-  panel.rotation.y = Math.PI / 2
+  panel.rotation.y = HALF_PI
   const record = lampRecord(panel, 'r', () => 9)!
   assert.equal(record.kind, 'rect')
   assert.equal(record.castsShadow, false)

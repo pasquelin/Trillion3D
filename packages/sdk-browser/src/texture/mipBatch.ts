@@ -1,5 +1,7 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { dispatchRows } from '../gpu/dispatch/grid.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
-import { uniformStride } from '../residency/pools.ts'
+import { uniformSlots, type UniformSlots } from '../residency/pools.ts'
 import { levelSize, mipLevelCountFor } from './tiles.ts'
 import { coveragePipelines, LEVEL_BIN_BYTES, pickGroup } from './coverageMips.ts'
 import { heldBuffers } from '../gpu/core/heldBuffers.ts'
@@ -17,9 +19,11 @@ export type { MipChain }
 
 type Place = ChainPlace & { cutoff: number }
 
-/** A batch's picks (`COVERAGE_CHOOSE_WGSL`): their group, the uniform stride, the first pick
+/** A batch's picks (`COVERAGE_CHOOSE_WGSL`): their group, the uniform slots, the first pick
  *  block, and the levels of each cutting chain, the most first. */
-type Picks = { group: GPUBindGroup; stride: number; base: number; levels: number[] }
+type Picks = { group: GPUBindGroup; slots: UniformSlots; base: number; levels: number[] }
+/** Words a chain's reduction block holds (`packBlocks`). */
+const BLOCK_WORDS = 7
 
 /**
  * The buffers of the batches — their uniforms, the coverage bins —, kept per device and label and
@@ -58,9 +62,11 @@ export function generateMaterialMips(
   }
   if (!places.length) return
   const shared = sharedGpuDevice(device)
-  const stride = uniformStride(device.limits)
   const cut = places.filter(({ cutoff }) => cutoff).sort((a, b) => b.levels - a.levels)
-  const packed = packBlocks(places, blocks, stride, cut)
+  const levels = cut.map((place) => place.levels)
+  // A block each reduction, then one a level of the picks.
+  const slots = uniformSlots(device.limits, blocks + (cut.length ? levels[0] : 0), BLOCK_WORDS)
+  const packed = packBlocks(places, blocks, slots, cut, levels)
   const { UNIFORM, STORAGE } = GPUBufferUsage
   const uniforms = held(
     shared,
@@ -78,11 +84,10 @@ export function generateMaterialMips(
     STORAGE,
   )
   const groups = places.map((place) =>
-    chainGroups(device, shared, place, { uniforms, stride, bins }),
+    chainGroups(device, shared, place, { uniforms, stride: slots.stride, bins }),
   )
-  const levels = cut.map((place) => place.levels)
   const picks: Picks | undefined = cut.length
-    ? { group: pickGroup(device, uniforms, bins), stride, base: blocks, levels }
+    ? { group: pickGroup(device, uniforms, bins), slots, base: blocks, levels }
     : undefined
   const own = encoder ?? device.createCommandEncoder()
   if (binBytes) own.clearBuffer(bins, 0, binBytes)
@@ -97,11 +102,18 @@ export function generateMaterialMips(
  * extent of the source level, so as not to read off the image, the cutoff and the chain's first
  * bin word; then level 0's extent and the level, for the counts and the `t` the reduction reads.
  * Its block `first` is level 0's own count. When a chain cuts, the pick blocks follow, one a level
- * — the level, the table's first word, the words a block —, then the table: each cutting chain's
- * first block and levels, in `cut`'s order. Written word by word: nothing allocated a level.
+ * — the level, the table's first word, the words a block, the chains reaching the level —, then
+ * the table: each cutting chain's first block and levels, in `cut`'s order. Written word by word:
+ * nothing allocated a level.
  */
-function packBlocks(places: readonly Place[], blocks: number, stride: number, cut: Place[]) {
-  const words = stride / 4,
+function packBlocks(
+  places: readonly Place[],
+  blocks: number,
+  slots: UniformSlots,
+  cut: Place[],
+  cutLevels: readonly number[],
+) {
+  const words = slots.strideWords,
     top = cut.length ? cut[0].levels : 0,
     table = (blocks + top) * words
   const packed = new Uint32Array(cut.length ? table + 2 * cut.length : blocks * words)
@@ -122,6 +134,7 @@ function packBlocks(places: readonly Place[], blocks: number, stride: number, cu
     packed[at] = level
     packed[at + 1] = table
     packed[at + 2] = words
+    packed[at + 3] = reaching(cutLevels, level)
   }
   cut.forEach(({ first, levels }, n) => {
     packed[table + 2 * n] = first
@@ -131,7 +144,7 @@ function packBlocks(places: readonly Place[], blocks: number, stride: number, cu
 }
 
 const dispatch = (pass: GPUComputePassEncoder, [w, h]: readonly number[]) =>
-  pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8))
+  pass.dispatchWorkgroups(ceilDiv(w, 8), ceilDiv(h, 8))
 
 /** The cutting chains that reach `level`: the first ones, the most levels first. */
 const reaching = (levels: readonly number[], level: number) => {
@@ -167,8 +180,9 @@ function encodeByLevel(
         dispatch(pass, sizes[level])
       }
       pass.setPipeline(coverage.pick)
-      pass.setBindGroup(0, picks.group, [(picks.base + level) * picks.stride])
-      pass.dispatchWorkgroups(cutting)
+      pass.setBindGroup(0, picks.group, picks.slots.offset(picks.base + level))
+      // A group a cutting chain.
+      dispatchRows(pass, cutting)
     }
     let set: GPUComputePipeline | undefined
     for (const { levels, reduce, sizes, pipeline } of chains) {
@@ -191,17 +205,17 @@ export function reductionGroups(
   count: number,
   group: (index: number, extent: GPUBufferBinding) => GPUBindGroup,
 ) {
-  const stride = uniformStride(device.limits)
+  const slots = uniformSlots(device.limits, Math.max(1, count), 4)
   const uniforms = device.createBuffer({
     label,
-    size: Math.max(1, count) * stride,
+    size: slots.bytes,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
   try {
     const packed = new Uint32Array(uniforms.size / 4)
     const groups = Array.from({ length: count }, (_, index) => {
-      packed.set([...levelSize(width, height, index), width, height], (index * stride) / 4)
-      return group(index, { buffer: uniforms, offset: index * stride, size: 16 })
+      packed.set([...levelSize(width, height, index), width, height], index * slots.strideWords)
+      return group(index, { buffer: uniforms, offset: slots.offset(index)[0], size: 16 })
     })
     device.queue.writeBuffer(uniforms, 0, packed)
     return { uniforms, groups }

@@ -18,6 +18,7 @@
  * one surface shares a single record and comparing two surfaces is comparing two references. A
  * page keeps the record alone, never the host declaration it was read from.
  */
+import { saturate } from '../../../math/src/scalar/reals.ts'
 import type { Side } from '../../../sdk-core/src/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
 import { isAssignment, type AlphaChange } from '../placement/engineSceneUpdates.ts'
@@ -55,8 +56,7 @@ export const surfaceFrontOnly = (surface: PageSurface) => surfaceSide(surface) =
 
 /** A surface's opacity, its colour factor's alpha, clamped: the light a blended one stops before
  *  its colour map's alpha, and what a masked one multiplies that alpha by before its cutoff. */
-export const surfaceOpacity = (surface: { opacity: number }) =>
-  Math.min(1, Math.max(0, surface.opacity))
+export const surfaceOpacity = (surface: { opacity: number }) => saturate(surface.opacity)
 
 const held = new WeakMap<object, PageSurface>()
 const declarations = new WeakMap<PageSurface, HostMaterials>()

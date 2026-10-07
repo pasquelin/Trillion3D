@@ -6,6 +6,7 @@ import type { createDagResources } from './resources.ts'
 import { noteWhole } from './swap.ts'
 import { readDagSlot, SlotMapRefused } from './readbackSlot.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
 /** What a copy was cut under, taken when it is copied: the readback's cut is made of it. */
@@ -105,7 +106,7 @@ async function readAsideSlot(
     )
     // The next copy follows what the cut asks, twice it, within the list.
     if (demand > slots.copied || 4 * demand < slots.copied)
-      slots.copied = Math.min(listCap, Math.max(ASIDE_LEAST_RANKS, 2 * demand))
+      slots.copied = clamp(2 * demand, ASIDE_LEAST_RANKS, listCap)
     // A cut past its list grows it, as the main cut's does (`listCap.ts`).
     if (grown) state.grow = Math.max(state.grow, grown)
     // Lists copied short of the cut are copied again at their size; a residency moved since names

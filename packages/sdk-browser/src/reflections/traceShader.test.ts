@@ -11,6 +11,7 @@ import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { SCREEN_TRACE_WGSL } from './traceShader.ts'
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
 import { REFLECTION_BOUNDS_DEPTH_WGSL, REFLECTION_BOUNDS_LEVEL_WGSL } from './boundsPyramidWgsl.ts'
+import { TAU } from '../../../math/src/constants.ts'
 
 /** Sizes whose every level halves evenly, as the reductions' integer halving runs here in doubles. */
 const W = 32,
@@ -117,7 +118,7 @@ test('the walk over the depth pyramid answers the pixel the pixel walk answers',
       pixels = walkOf(depth, [])
     for (let ray = 0; ray < 60; ray++) {
       const start = [next() * W, next() * H]
-      const angle = next() * 2 * Math.PI,
+      const angle = next() * TAU,
         length = 1 + next() * 48
       const delta = [Math.cos(angle) * length, Math.sin(angle) * length]
       // From just before the receiver's own depth, mostly away from the eye — into the scene —,

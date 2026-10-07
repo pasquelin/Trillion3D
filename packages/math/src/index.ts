@@ -78,7 +78,6 @@ export {
   CONE_LENGTH_RATIO_WGSL,
   CONE_ORTHO_EPS,
   CONE_ORTHO_EPS_WGSL,
-  HALF_PI,
   HALF_PI_WGSL,
   boxConeRejects,
 } from './geometry/cone.ts'
@@ -100,3 +99,6 @@ export {
   normalizeQuaternion,
   rotateByQuaternion,
 } from './quaternion/quaternion.ts'
+// The scalar helpers and the other constants are engine internals, deep-imported by their users;
+// only `HALF_PI` was public before they had a home.
+export { HALF_PI } from './constants.ts'

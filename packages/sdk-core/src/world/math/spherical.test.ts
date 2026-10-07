@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clampNumber, toSpherical, fromSpherical } from './spherical.ts'
+import { toSpherical, fromSpherical } from './spherical.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { HALF_PI } from '../../../../math/src/constants.ts'
 
 test('clamping preserves interior and boundary values and rejects either excess', () => {
   for (const [value, expected] of [
@@ -10,7 +12,7 @@ test('clamping preserves interior and boundary values and rejects either excess'
     [7, 7],
     [20, 7],
   ])
-    assert.equal(clampNumber(value, -2, 7), expected)
+    assert.equal(clamp(value, -2, 7), expected)
 })
 
 test('spherical coordinates describe cardinal and oblique directions in world units', () => {
@@ -25,11 +27,11 @@ test('spherical coordinates describe cardinal and oblique directions in world un
     ],
     [
       [5, 0, 0],
-      [5, Math.PI / 2, Math.PI / 2],
+      [5, HALF_PI, HALF_PI],
     ],
     [
       [0, 0, -5],
-      [5, Math.PI, Math.PI / 2],
+      [5, Math.PI, HALF_PI],
     ],
     [
       [2, 2 * Math.SQRT2, 2],
@@ -50,5 +52,5 @@ test('a vanishing offset keeps the prior camera angles; a resolvable one sets th
   toSpherical(out, [0, 0, 0])
   assert.deepEqual([...out], [0, 0.3, 0.8])
   toSpherical(out, [1e-3, 0, 0])
-  assert.deepEqual([...out], [1e-3, Math.PI / 2, Math.PI / 2])
+  assert.deepEqual([...out], [1e-3, HALF_PI, HALF_PI])
 })

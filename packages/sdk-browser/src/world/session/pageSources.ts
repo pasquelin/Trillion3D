@@ -1,3 +1,4 @@
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
 import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
@@ -67,7 +68,7 @@ export function openExplorerPageSources(
     options.maxCachedPages ??
     (bundles.length > 0
       ? Math.max(8192, bundles.length * 2)
-      : Math.max(8192, Math.min(flatPages, DEFAULT_CACHED_PAGES)))
+      : clamp(flatPages, 8192, DEFAULT_CACHED_PAGES))
   // The page worker pool never exceeds the already-in-force transfer admission.
   configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
   const streamer = createPageStreamerWith([...pages, ...geometryPages, ...bundles], base, {

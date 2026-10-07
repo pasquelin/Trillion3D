@@ -1,6 +1,7 @@
 // The one-pixel model of the blend tests: WebGPU's blend equation, factor by factor, and
 // the reference display value, an ACES filmic fit then sRGB, kept independent of the
 // engine's shader on purpose.
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 import assert from 'node:assert/strict'
 import { linearToSrgb } from '../../../../math/src/color/color.ts'
 
@@ -52,7 +53,7 @@ export function filmic([r, g, b]: readonly number[]): number[] {
   const fit = times(into, c).map(
     (v) => (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.432951) + 0.238081),
   )
-  return times(out, fit).map((v) => Math.min(1, Math.max(0, v)))
+  return times(out, fit).map((v) => saturate(v))
 }
 
 /** The sRGB transfer of a linear colour. */

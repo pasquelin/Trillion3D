@@ -12,6 +12,7 @@ import { ROW_PLACEMENT_WORD } from '../webgpu/row/rowPlacement.ts'
 import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
 import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 
@@ -55,7 +56,7 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
  return sum;
 }`
 
-const SHARED_WGSL = `${DOUBLE_WGSL}${TO_F32_WGSL}${FROM_F32_WGSL}${PRODUCT_WGSL}`
+const SHARED_WGSL = `${DOUBLE_WGSL}${TO_F32_WGSL}${FROM_F32_WGSL}${PRODUCT_WGSL}${FLAT_INDEX_WGSL}`
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -85,9 +86,9 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
 @group(0) @binding(6) var<uniform> motionMode:MotionMode;
 @group(0) @binding(7) var<storage,read_write> previous:array<u32>;
 ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=params.count){return;}
- let rank=params.first+id.x;
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(g,n,64u);if(i>=params.count){return;}
+ let rank=params.first+i;
  if(rank>=params.rootCount){return;}
  let p=parentOf[rank];
  if(p==${NONE}u){return;}
@@ -97,7 +98,7 @@ ${SHARED_WGSL}${SAME_WORD_WGSL}${MOTION_WGSL}
   var value=composed(p*${MATRIX_DOUBLES}u,rank*${MATRIX_DOUBLES}u,k);
   world[k]=toF32(value);
   if(k>=12u&&k<15u){value=dSub(value,eye[k-12u]);}
-  worlds[id.x*16u+k]=toF32(value);
+  worlds[i*16u+k]=toF32(value);
  }
  let mode=motionMode.mode;
  if(params.motion==0u||mode==${MOTION_SKIP}u){return;}
@@ -194,6 +195,6 @@ fn composeRow(row:u32){
  if(moved){table[base+${ROW_HIZ_SLOT_WORD}u]=${NO_HIZ_SLOT}u;}
  if(params.spheres!=0u){composeSphere(row,world);}
 }
-@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
- if(id.x<params.rowCount){composeRow(id.x);}
+@compute @workgroup_size(64) fn main(@builtin(global_invocation_id) g:vec3u,@builtin(num_workgroups) n:vec3u){
+ let row=flatIndex(g,n,64u);if(row<params.rowCount){composeRow(row);}
 }`

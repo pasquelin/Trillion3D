@@ -1,3 +1,4 @@
+import { MIB } from '../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -84,7 +85,7 @@ test('the texture budget recorded mid-session is the one the device granted, not
   const lanes = { ...laneCounts(), lossless: 20_000 }
   const poolFor = (bytes: number) =>
     texturePoolFor(bytes, undefined, { color: lanes, data: lanes }, encoding.texelBytes, noTails)
-  const asked = 512 * 1024 * 1024,
+  const asked = 512 * MIB,
     wanted = poolFor(asked)
   const layerBytes = wanted.allocatedBytes / (2 * wanted.layers.color.lossless)
   // Room for two layers per atlas, not for what the budget asks.

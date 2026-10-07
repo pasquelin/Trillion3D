@@ -2,6 +2,7 @@
 // writes its four bytes into the display colour (`rgba8unorm`) and the composite packs them back.
 // Every rank and opacity must read back as the word the stage packed — what the `r32uint` target
 // returned — through the GPU's float-to-unorm8 store and its unorm8-to-float load.
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
@@ -14,12 +15,11 @@ const f32 = Math.fround
 const unpack4x8unorm = (word: number) =>
   [0, 8, 16, 24].map((shift) => f32(((word >>> shift) & 255) / 255))
 /** What an `rgba8unorm` target keeps of a channel written, then returns when loaded. */
-const stored = (channel: number) => f32(Math.round(Math.min(1, Math.max(0, channel)) * 255) / 255)
+const stored = (channel: number) => f32(Math.round(saturate(channel) * 255) / 255)
 /** WGSL `pack4x8unorm`: `u32(0.5 + 255 × clamp(e, 0, 1))` per channel, low byte first. */
 const pack4x8unorm = (channels: number[]) =>
   channels.reduce(
-    (word, e, i) =>
-      (word | (Math.trunc(f32(0.5 + f32(255 * Math.min(1, Math.max(0, e))))) << (8 * i))) >>> 0,
+    (word, e, i) => (word | (Math.trunc(f32(0.5 + f32(255 * saturate(e)))) << (8 * i))) >>> 0,
     0,
   )
 

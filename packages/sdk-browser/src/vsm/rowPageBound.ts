@@ -47,7 +47,8 @@ import type { VsmClipmap } from './clipmap.ts'
 import { VSM_LEVEL0_PAGES, VSM_MIPS } from './constants.ts'
 import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
-import { ceilDiv } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { FLOAT32_STEP } from '../../../math/src/constants.ts'
 
 /** The CPU copy of the rows' world spheres (`webgpu/shadow/spheres.ts`): centre high, radius,
  *  centre low, pad, per row; and the row runs `[from, to]` (flat pairs) its upload `epoch` wrote. */
@@ -103,8 +104,8 @@ const eMost = Float64Array.from({ length: E_BINS }, (_, k) =>
 )
 const S_TOP = sLeast[S_BINS - 1],
   E_TOP = eMost[E_BINS - 2],
-  DOWN = 1 - 2 ** -23,
-  UP = 1 + 2 ** -23
+  DOWN = 1 - FLOAT32_STEP,
+  UP = 1 + FLOAT32_STEP
 /** Rows binned a block at a time: their s and e as f32, then as bits. */
 const BLOCK = 2048
 const blockS = new Float32Array(BLOCK),
@@ -898,7 +899,7 @@ class Heaviest implements Top {
     let lo = 0,
       hi = n
     while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1
+      const mid = ceilDiv(lo + hi, 2)
       if (rows[mid] <= k) lo = mid
       else hi = mid - 1
     }
@@ -1055,7 +1056,7 @@ function measure(
   let lo = worst.rows,
     hi = Math.max(lo, candidates)
   while (lo < hi) {
-    const mid = Math.ceil((lo + hi) / 2)
+    const mid = ceilDiv(lo + hi, 2)
     if (chunk.pairs(mid) <= worst.cap && chunk.cmds(mid) <= worst.cap) lo = mid
     else hi = mid - 1
   }

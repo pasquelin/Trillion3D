@@ -7,6 +7,7 @@ import { decodeGeometryPage } from './geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import { octDecode, octEncode } from '../../../../page-codec/src/pageGrids.ts'
 import { ringMesh } from './ringMesh.fixture.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {
   const { encoded, indices, attributes } = ringMesh(40, -10, 3)
@@ -32,7 +33,7 @@ test('a page decodes to its triangles, every attribute within the declared error
     }
     assert.ok(Math.sqrt(distance) <= decoded.quantizationError, `position ${corner}`)
     assert.ok(Math.sqrt(distance) <= (step * Math.sqrt(3)) / 2 + 1e-9)
-    assert.ok(Math.acos(Math.min(1, dot)) < (1 * Math.PI) / 180, `normal ${corner}`)
+    assert.ok(Math.acos(Math.min(1, dot)) < 1 * DEG2RAD, `normal ${corner}`)
     for (let c = 0; c < 2; c++)
       assert.ok(
         Math.abs(

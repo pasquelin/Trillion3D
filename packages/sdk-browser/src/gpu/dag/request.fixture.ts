@@ -15,6 +15,7 @@ import {
   REQUEST_PRIORITY_SCALE,
   REQUEST_STEP_MAX,
 } from './request.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** A staged request as one number: its priority above its whole-word page, the two words
  *  `dagWanted` stages (`shader/snapshotWgsl.ts`), exact in a double. */
@@ -26,7 +27,7 @@ export const stagedPriority = (staged: number) => Math.floor(staged / 2 ** 32)
 function errorStep(pixels: number, scale: number, max: number) {
   if (!(pixels > 0)) return 0
   if (!Number.isFinite(pixels)) return max
-  return Math.min(max, Math.max(0, Math.round(Math.log2(1 + pixels) * scale)))
+  return clamp(Math.round(Math.log2(1 + pixels) * scale), 0, max)
 }
 
 /** Priority of a visible request's error in pixels, monotone increasing and bounded in its tier.
@@ -49,7 +50,7 @@ export function quantizeAheadPriority(pixels: number, due: number) {
  *  pages first, then the coarser level, then the larger error. */
 export const quantizeAdmission = (level: number, rootChild: boolean, pixels: number) =>
   (rootChild ? ADMISSION_FLOOR : 0) |
-  (Math.min(ADMISSION_LEVEL_MAX, Math.max(0, level)) << ADMISSION_ERROR_BITS) |
+  (clamp(level, 0, ADMISSION_LEVEL_MAX) << ADMISSION_ERROR_BITS) |
   errorStep(pixels, ADMISSION_SCALE, ADMISSION_ERROR_MAX)
 
 /** The order a priority is served in, highest first: the visible tier above the tier ahead. */

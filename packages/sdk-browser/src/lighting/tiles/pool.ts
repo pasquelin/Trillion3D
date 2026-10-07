@@ -1,5 +1,6 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { createGpuPeriodicReadback } from '../../gpu/core/periodicReadback.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 
 /** Pool words per column of the light grid a view starts with: `tileLights` lights over sixteen of
  *  its slices, a run of a lamp across a doubling of the view depth. */
@@ -57,7 +58,7 @@ export function createTileLightPool(device: GPUDevice) {
      */
     words(tiles: number, lights: number) {
       const start = Math.min(START_WORDS_PER_TILE, LIGHT_SETTINGS.gridSlices * Math.max(1, lights))
-      return Math.min(Math.max(tiles * start, asked), tiles * MOST_WORDS_PER_TILE)
+      return clamp(asked, tiles * start, tiles * MOST_WORDS_PER_TILE)
     },
     /** Opens the frame's pool at word `start`, `capacity` words: nothing reserved, no overflow. */
     open(start: number, capacity: number) {

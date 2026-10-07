@@ -31,6 +31,7 @@ import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
 import { createCellHolds } from './cellHolds.ts'
 import { createFarCells } from './farCells.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import type { StreamPage } from '../streaming/types.ts'
 
@@ -136,7 +137,7 @@ export function createPartitionCells(inputs: Inputs) {
       if (local.rung > Math.max(sized, wanted)) {
         wanted = local.rung
         // Twice the side that outgrew them, as buffers grow: an ongoing zoom resizes O(log) times.
-        const rung = Math.min(RUNGS, Math.max(local.rung, sized + 2))
+        const rung = clamp(sized + 2, local.rung, RUNGS)
         if (!io.grow || !resize(rung, io.grow)) io.outgrown?.()
       }
       const plan = far.plan(index, local, eye, io.lens, leave)

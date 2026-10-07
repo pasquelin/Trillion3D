@@ -1,8 +1,9 @@
 import { GeometryBuilder, fromArrays, normalize, pieces, withRecipe } from './builder.ts'
 import { sphereArrays, turnPoint } from './sphere.ts'
+import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { TAU } from '../../../../math/src/constants.ts'
 
 type V3 = [number, number, number]
-const TAU = Math.PI * 2
 
 /** Where step `s` (a fraction of `segments`) of an edge `size` long and centred on 0 falls,
  *  from the step's integers: the ends are exactly `±size / 2`, the middle exactly 0. */
@@ -116,7 +117,7 @@ export function ring(inner = 0.5, outer = 1, segments = 32, phiSegments = 1) {
   ;[segments, phiSegments] = [pieces(segments, 3), pieces(phiSegments, 1)]
   b.grid(segments, phiSegments, (u, v) => {
     const [c, s] = turnPoint(u),
-      r = inner + (outer - inner) * v
+      r = lerp(inner, outer, v)
     const x = r * c,
       y = r * s
     return { p: [x, y, 0], n: [0, 0, 1], uv: [(x / outer + 1) / 2, (y / outer + 1) / 2] }
@@ -146,7 +147,7 @@ export function cylinder(
   const slope = (radiusBottom - radiusTop) / height
   b.grid(rs, (heightSegments = pieces(heightSegments, 1)), (u, v) => {
     const [c, s] = turnPoint(u),
-      r = radiusTop + (radiusBottom - radiusTop) * v
+      r = lerp(radiusTop, radiusBottom, v)
     return {
       p: [r * s, height / 2 - v * height, r * c],
       n: normalize(s, slope, c),

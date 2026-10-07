@@ -1,3 +1,4 @@
+import { workgroupCount } from '../../../math/src/scalar/integers.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
 import type { ViewTile } from '../camera/engineCamera.ts'
 import { devicePixels } from '../engine/common.ts'
@@ -51,8 +52,8 @@ export function referenceTilePlan(
     // A tile no wider or taller than `side` output pixels has a supersampled target no larger
     // than `side · samples`, which the choice of `side` keeps within the portable side.
     const side = Math.max(1, Math.floor(GUARANTEED_SIDE / samples))
-    cols = Math.max(1, Math.ceil(outW / side))
-    rows = Math.max(1, Math.ceil(outH / side))
+    cols = workgroupCount(outW, side)
+    rows = workgroupCount(outH, side)
     if (cols * rows <= maxTiles || samples === 1) break
     samples--
   }

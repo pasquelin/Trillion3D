@@ -10,6 +10,7 @@ import {
   REFLECTION_BOUNDS_DEPTH_WGSL,
   REFLECTION_BOUNDS_LEVEL_WGSL,
 } from './boundsPyramidWgsl.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** A reduction's bindings: its source — the depth for level 0, else the level below —, its
  *  extents, and the level it writes. */
@@ -91,7 +92,7 @@ export function createReflectionBoundsPyramid(
   )
   // Level `index` is source level `index + 1`'s size: its threads, by workgroup.
   const workgroups = views.map((_, index) =>
-    levelSize(width, height, index + 1).map((side) => Math.ceil(side / BOUNDS_WORKGROUP)),
+    levelSize(width, height, index + 1).map((side) => ceilDiv(side, BOUNDS_WORKGROUP)),
   )
   return {
     encode(encoder: GPUCommandEncoder, pipelines: ReflectionBoundsPipelines) {

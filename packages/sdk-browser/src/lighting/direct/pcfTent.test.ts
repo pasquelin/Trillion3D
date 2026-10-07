@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directShadowWgsl } from './shadowWgsl.ts'
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 
 const SOURCE = directShadowWgsl(null, 18)
 
@@ -14,8 +15,7 @@ test("the tent weights are develop's floor-and-fraction weights, bit for bit in 
   assert.match(SOURCE, /let wx=saturate\(min\(q\.x-below,above-q\.x\)\);/)
   const [below, above] = [shipped[1], shipped[2]].map((v) => v.split(',').map(Number))
   const f = Math.fround
-  const sat = (x: number) => Math.min(Math.max(x, 0), 1)
-  const tent = (q: number) => below.map((b, k) => sat(Math.min(f(q - b), f(above[k] - q))))
+  const tent = (q: number) => below.map((b, k) => saturate(Math.min(f(q - b), f(above[k] - q))))
   const develop = (q: number) => {
     const c = Math.floor(q),
       fr = f(q - c)

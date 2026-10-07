@@ -4,6 +4,7 @@ import { SplineCurve, Path, Curve } from '../math/curves.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { torusKnot, tube, torus } from './round.ts'
 import { RECIPES } from './recipes.ts'
+import { TAU } from '../../../../math/src/constants.ts'
 
 /** Every vertex of the last ring of a `(tubular + 1) × (radial + 1)` sweep sits on the first's. */
 function assertCloses(position: ArrayLike<number>, tubular: number, radial: number) {
@@ -47,7 +48,7 @@ test('a closed tube along a curve out of any plane closes on itself', () => {
 })
 
 test('torus tube lies at the declared distance from its central circle, with outward normals', () => {
-  for (const arc of [Math.PI, Math.PI * 2]) {
+  for (const arc of [Math.PI, TAU]) {
     const g = torus(5, 2, 4, 8, arc),
       p = g.attributes.position,
       n = g.attributes.normal,
