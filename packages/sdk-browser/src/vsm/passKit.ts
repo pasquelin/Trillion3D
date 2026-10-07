@@ -1,8 +1,8 @@
 /**
  * What the shadow maps' compute passes share: a buffer binding's layout entries, the compute
  * pipeline of a WGSL source described once a device and compiled the engine's one way
- * (`preparedComputePipeline`). How sizes and dispatches round (`ceilDiv`, `roundUpPow2`) is
- * `layout.ts`'s.
+ * (`preparedComputePipeline`). How sizes and dispatches round (`ceilDiv`, `nextPow2`) is
+ * the maths package's (`packages/math/src/scalar`).
  */
 import { preparedComputePipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 

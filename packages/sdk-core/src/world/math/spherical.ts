@@ -8,7 +8,6 @@ import { hypot3 } from '../../../../math/src/float/hypot.ts'
  * `(r·sinφ·sinθ, r·cosφ, r·sinφ·cosθ)`.
  */
 
-export const DEG2RAD = Math.PI / 180
 /** Distance below which an offset no longer defines an azimuth. */
 export const RADIUS_EPSILON = 1e-9
 /** How close to a pole an elevation may come; beyond it the azimuth flips on every pixel. */

@@ -1,4 +1,5 @@
-import { DEG2RAD, clampNumber } from './spherical.ts'
+import { DEG2RAD } from '../../../../math/src/constants.ts'
+import { clampNumber } from './spherical.ts'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { Matrix3, Matrix4 } from './matrix4.ts'

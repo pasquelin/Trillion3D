@@ -1,5 +1,6 @@
 import { coneRejects } from '../projection/projectionOracles.ts'
 import { hypot3 } from '../float/hypot.ts'
+import { HALF_PI } from '../constants.ts'
 
 /**
  * Cone rejection tolerances, shared by the processor mirror and the shader: a transformation is conformal when its columns have the same length within
@@ -10,8 +11,6 @@ import { hypot3 } from '../float/hypot.ts'
 export const CONE_LENGTH_RATIO = 1.0001
 /** How far from square two columns may be and still count as square. */
 export const CONE_ORTHO_EPS = 1e-4
-/** A quarter turn, in radians. */
-export const HALF_PI = Math.PI / 2
 /** `CONE_LENGTH_RATIO` as shader text. */
 export const CONE_LENGTH_RATIO_WGSL = CONE_LENGTH_RATIO.toString()
 /** `CONE_ORTHO_EPS` as shader text. */

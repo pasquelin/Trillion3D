@@ -33,7 +33,8 @@ import {
   vsmPhysicalPageKernels,
 } from './physicalPagesWgsl.ts'
 import { type VsmResources, vsmBindGroupEntries, vsmBindGroupLayoutEntries } from './resources.ts'
-import { ceilDiv, type VsmLayout } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {

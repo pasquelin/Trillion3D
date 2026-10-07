@@ -78,7 +78,6 @@ export {
   CONE_LENGTH_RATIO_WGSL,
   CONE_ORTHO_EPS,
   CONE_ORTHO_EPS_WGSL,
-  HALF_PI,
   HALF_PI_WGSL,
   boxConeRejects,
 } from './geometry/cone.ts'
@@ -100,3 +99,26 @@ export {
   normalizeQuaternion,
   rotateByQuaternion,
 } from './quaternion/quaternion.ts'
+export {
+  DEG2RAD,
+  FLOAT32_MAX,
+  FLOAT32_STEP,
+  GOLDEN_FRACTION,
+  GOLDEN_RATIO,
+  HALF_PI,
+  MIB,
+  RAD2DEG,
+  TAU,
+} from './constants.ts'
+export {
+  alignDown,
+  alignUp,
+  bitWords,
+  ceilDiv,
+  floorLog2,
+  isPow2,
+  nextPow2,
+  workgroupCount,
+} from './scalar/integers.ts'
+export { clamp, lerp, saturate, wrap } from './scalar/reals.ts'
+export { quantile } from './scalar/quantile.ts'

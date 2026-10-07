@@ -35,7 +35,8 @@ import {
 } from './rowPageBound.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
-import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts'
+import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
 import { storageBufferCap } from '../residency/pools.ts'
 import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { createVsmReadbackRing } from './readbackRing.ts'
@@ -184,7 +185,7 @@ function vsmTransmissionWanted(
   counters: Uint32Array,
 ): VsmTransmissionCaps | undefined {
   const C = VSM_TRANSMISSION_COUNTERS
-  const grow = (held: number, need: number) => (need > held ? roundUpPow2(need) : held)
+  const grow = (held: number, need: number) => (need > held ? nextPow2(need) : held)
   const next = {
     records: grow(caps.records, counters[C.records]),
     patchWords: grow(caps.patchWords, counters[C.patchWords]),

@@ -88,7 +88,8 @@ import {
   vsmBindGroupLayoutEntries,
   vsmPerFrameSet,
 } from './resources.ts'
-import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts'
+import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** The main view whose level of detail the casters take (the level of detail the main view draws). */
 interface VsmRenderCamera {
@@ -386,7 +387,7 @@ export function vsmContextBytes(ctx: {
 
 /** Bytes `vsmEnsureBuffer` makes for `size`: a power of two, 256 at least. */
 function ensuredBytes(size: number, minBytes = 256) {
-  return Math.max(minBytes, roundUpPow2(size))
+  return Math.max(minBytes, nextPow2(size))
 }
 
 /** Bytes the device is asked for when `buffers` grow to `sizes` (`vsmEnsureBuffer`): each one

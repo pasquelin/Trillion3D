@@ -23,6 +23,7 @@ import {
   VSM_COVER_LOCAL,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
+import { floorLog2, isPow2, nextPow2 } from '../../../math/src/scalar/integers.ts'
 import type { VsmFrameBuffers } from './resources.ts'
 import type { ShrunkPool } from '../residency/outOfMemory.ts'
 
@@ -85,15 +86,6 @@ export const SHARED_FRAME_MEMBERS: ReadonlySet<string> = new Set<keyof VsmFrameB
   'receiverCover',
   'staleRects',
 ])
-
-/** The groups of `size` that `count` takes, the last one part full. */
-export const ceilDiv = (count: number, size: number) => Math.ceil(count / size)
-
-/** The least power of two not under `v`, 1 at least. */
-export const roundUpPow2 = (v: number) => (v <= 1 ? 1 : 2 ** Math.ceil(Math.log2(v)))
-
-const floorLog2 = (v: number) => 31 - Math.clz32(v)
-const isPow2 = (v: number) => v > 0 && (v & (v - 1)) === 0
 
 function mipChain(width: number, height: number, mips: number) {
   const offsets: number[] = []
@@ -164,7 +156,7 @@ export function vsmLayout(
   const rowWords = poolTexelsXY[0] * VSM_PAGE_TEXELS
   const rowsFit = Math.floor(maxStorageBufferBindingSize / (rowWords * 4))
   if (rowsFit < 1) throw new Error('VSM: one physical page row exceeds maxStorageBufferBindingSize')
-  const poolPageRowsPerPart = Math.min(2 ** floorLog2(rowsFit), roundUpPow2(physicalPagesY))
+  const poolPageRowsPerPart = Math.min(2 ** floorLog2(rowsFit), nextPow2(physicalPagesY))
   const poolPartsPerSlice = Math.ceil(physicalPagesY / poolPageRowsPerPart)
 
   return {
@@ -189,7 +181,7 @@ export function vsmLayout(
     coverMips,
     coverMipOffsets: masks.offsets,
     coverWords: masks.words,
-    pageRectCount: roundUpPow2(mapSlots * VSM_MIPS),
+    pageRectCount: nextPow2(mapSlots * VSM_MIPS),
     poolPageRowsPerPart,
     poolPartsPerSlice,
     poolPartTexelShift: floorLog2(poolPageRowsPerPart * rowWords),

@@ -20,9 +20,11 @@ imports it. Its contract:
 Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
 spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
-`color/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
+`color/`, `scalar/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
 re-exports. The path governor, the transform tree and the shader programs are not primitives and live in
 `sdk-core` and `sdk-browser`.
+
+`scalar/` holds the counting and range helpers every package repeats (`integers.ts`: `ceilDiv`, `workgroupCount`, `alignUp`, `alignDown`, `nextPow2`, `floorLog2`, `isPow2`, `bitWords`; `reals.ts`: `clamp`, `saturate`, `lerp`, `wrap`; `quantile.ts`: the nearest-rank percentile) and `constants.ts` the shared numbers (`HALF_PI`, `TAU`, `DEG2RAD`, `RAD2DEG`, `GOLDEN_RATIO`, `GOLDEN_FRACTION`, `FLOAT32_MAX`, `FLOAT32_STEP`, `MIB`); each carries its own input rules in its doc comment. A caller imports them, never respells them.
 
 ## Batch math for hosts
 

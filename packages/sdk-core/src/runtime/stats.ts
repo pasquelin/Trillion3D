@@ -1,10 +1,7 @@
+import { quantile } from '../../../math/src/scalar/quantile.ts'
+
 /** A frame interval longer than this, in milliseconds, is a stutter. */
 export const STUTTER_MS = 50
-
-/** The value at rank `p` (in (0, 1]) of a sorted, non-empty list, never interpolated. */
-function quantile(sorted: readonly number[], p: number) {
-  return sorted[Math.ceil(p * sorted.length) - 1]
-}
 
 /** The mean, median, 95th, 99th and worst of a list of times. */
 export function summarize(values: readonly number[]) {

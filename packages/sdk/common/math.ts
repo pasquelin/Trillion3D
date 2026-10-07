@@ -24,6 +24,16 @@ export {
 } from '../../sdk-core/src/world/transform-tree/transformTree.ts'
 export type { TransformTree } from '../../sdk-core/src/world/transform-tree/transformTree.ts'
 export {
+  alignDown,
+  alignUp,
+  bitWords,
+  ceilDiv,
+  floorLog2,
+  isPow2,
+  nextPow2,
+  workgroupCount,
+} from '../../math/src/scalar/integers.ts'
+export {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
@@ -49,7 +59,6 @@ export {
   CONE_LENGTH_RATIO_WGSL,
   CONE_ORTHO_EPS,
   CONE_ORTHO_EPS_WGSL,
-  HALF_PI,
   HALF_PI_WGSL,
 } from '../../math/src/geometry/cone.ts'
 export {
@@ -67,6 +76,7 @@ export {
   updateCameraFrame,
 } from '../../math/src/projection/camera.ts'
 export type { CameraFrame } from '../../math/src/projection/camera.ts'
+export { clamp, lerp, saturate, wrap } from '../../math/src/scalar/reals.ts'
 export {
   clipPlanesFromMatrix,
   FRUSTUM_PLANE_VALUES,
@@ -95,6 +105,17 @@ export {
   invertMatrix4Batch,
   normalMatrix3Batch,
 } from '../../math/src/batch/transforms.ts'
+export {
+  DEG2RAD,
+  FLOAT32_MAX,
+  FLOAT32_STEP,
+  GOLDEN_FRACTION,
+  GOLDEN_RATIO,
+  HALF_PI,
+  MIB,
+  RAD2DEG,
+  TAU,
+} from '../../math/src/constants.ts'
 export { frustumClipBox, frustumExcludesBox } from '../../math/src/geometry/frustum/box.ts'
 export { frustumKeepsBoxBatch, sphereFromBoundsBatch } from '../../math/src/batch/culling.ts'
 export {
@@ -146,6 +167,7 @@ export {
   nodeWorldQuaternion,
 } from '../../sdk-core/src/world/transform-tree/read.ts'
 export { normalMatrix3 } from '../../math/src/matrix/matrix3.ts'
+export { quantile } from '../../math/src/scalar/quantile.ts'
 export {
   removeTransformNode,
   reparentTransformNode,

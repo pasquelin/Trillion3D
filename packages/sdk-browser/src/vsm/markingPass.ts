@@ -55,7 +55,8 @@ import {
   vsmCoarseMarkingWgsl,
   vsmMarkingClears,
 } from './markingWgsl.ts'
-import { type VsmLayout, ceilDiv } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
 
 // ---- The per-page dispatcher ------------------------------------------------------------------
 

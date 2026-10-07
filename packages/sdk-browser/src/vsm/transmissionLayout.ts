@@ -6,7 +6,8 @@
  * transmission's share here without the passes (`residency/shadowBudgetBytes.ts`).
  */
 import { textureBytesOf } from '../gpu/core/textureBytes.ts'
-import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts'
+import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Texels of a block: 2 048 words, so a sea page's slice (~1 300 words) takes one. */
 export const VSM_TRANSMISSION_BLOCK_TEXELS = 512
@@ -73,7 +74,7 @@ export const VSM_TRANSMISSION_ARGS_AT = { place: 0, resolve: 12, headers: 24 } a
 export function vsmTransmissionFirstCaps(pages: number): VsmTransmissionCaps {
   return {
     records: 64 * pages,
-    patchWords: roundUpPow2(130 * 130),
+    patchWords: nextPow2(130 * 130),
     blocks: pages,
   }
 }

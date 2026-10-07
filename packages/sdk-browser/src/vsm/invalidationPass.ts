@@ -41,7 +41,8 @@ import {
   type VsmResources,
   vsmPerFrameSet,
 } from './resources.ts'
-import { ceilDiv, type VsmLayout } from './layout.ts'
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import type { VsmLayout } from './layout.ts'
 
 /** Words of a phase's box (`VsmInvalidationPhase.boxes`): its world centre, its half extent, and
  *  1 when it is cached as dynamic, else 0. */
