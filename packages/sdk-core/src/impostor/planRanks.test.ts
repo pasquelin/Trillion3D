@@ -40,16 +40,29 @@ test('every rank given, the plan is the plan of every root', () => {
   assert.ok(switched.includes(1) && switched.includes(0), 'near trees whole, far ones switched')
 })
 
-test('a plan of some ranks reads those alone, the others keep their verdict', () => {
+test('a plan of some ranks reads those alone; a rank it left loses its card, the others keep theirs', () => {
   const plan = planImpostors(roots, section, VIEW, FOCAL)
   const before = [...plan.switched]
-  // The view now holds the first three roots alone.
+  assert.ok(before.slice(3).includes(1), 'far trees switched')
+  // The view now holds the first three roots alone: the far trees the last plan read leave theirs.
   const some = (visit: (rank: number) => void) => [0, 1, 2].forEach(visit)
   const again = planImpostors(roots, section, VIEW, FOCAL, plan, some)
-  assert.deepEqual(again.visited, [0, 1, 2])
-  assert.deepEqual([...again.switched].slice(3), before.slice(3), 'the unread keep theirs')
+  const left = before.flatMap((bit, rank) => (rank >= 3 && bit ? [rank] : []))
+  assert.deepEqual(again.visited, [0, 1, 2, ...left], 'their card bits handed over too')
+  assert.deepEqual([...again.switched].slice(3), new Array(9).fill(0), 'no card out of view')
   assert.ok(
     again.cards.every((card) => card.root < 3),
     'cards only of the ranks read',
   )
+  // Read again with the same view: nothing left, nothing to hand over.
+  const still = planImpostors(roots, section, VIEW, FOCAL, again, some)
+  assert.deepEqual(still.visited, [0, 1, 2])
+})
+
+test('a new focal length retakes the depths of the ranks read, as the plan of every root does', () => {
+  const some = (visit: (rank: number) => void) => [4, 7].forEach(visit)
+  const plan = planImpostors(roots, section, VIEW, FOCAL, undefined, every)
+  planImpostors(roots, section, VIEW, FOCAL / 8, plan, some)
+  const fresh = planImpostors(roots, section, VIEW, FOCAL / 8)
+  for (const rank of [4, 7]) assert.equal(plan.switched[rank], fresh.switched[rank], `rank ${rank}`)
 })

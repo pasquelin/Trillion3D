@@ -136,12 +136,17 @@ type SwitchTable = {
   radius: Float64Array
   texelDepth: Float64Array
   triangleDepth: Float64Array
+  /** The focal length each root's depths were taken at: a new one retakes a root's as it is read. */
+  depthFocal: Float64Array
+  /** The plan each rank was last read by (`stamp`), when a plan reads some ranks alone. */
+  read: Uint32Array
+  stamp: number
 }
 const tables = new WeakMap<ImpostorPlan, SwitchTable>()
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
 
 /** The plan's table, made again for another root list or section; a new focal length retakes the
- *  depths it scales. */
+ *  depths it scales root by root, as each is read (`rootSwitch`). */
 function switchTable(
   plan: ImpostorPlan,
   roots: readonly ImpostorRoot[],
@@ -167,22 +172,20 @@ function switchTable(
       radius: new Float64Array(n),
       texelDepth: new Float64Array(n),
       triangleDepth: new Float64Array(n),
+      depthFocal: new Float64Array(n).fill(NaN),
+      read: new Uint32Array(n),
+      stamp: 0,
     }
     tables.set(plan, table)
   }
-  if (table.focal !== focal) {
-    table.focal = focal
-    for (let rank = 0; rank < roots.length; rank++) {
-      const entry = table.entries[rank]
-      if (entry && table.held[rank]) depthsOf(table, rank, entry)
-    }
-  }
+  table.focal = focal
   return table
 }
 
 /** The two switch depths of a root of radius `table.radius[rank]` at the table's focal length. */
 function depthsOf(table: SwitchTable, rank: number, entry: BakedEntry) {
   const radius = table.radius[rank]
+  table.depthFocal[rank] = table.focal
   table.texelDepth[rank] = impostorTexelDepth(radius, entry.frameSide, table.focal)
   table.triangleDepth[rank] = impostorTriangleDepth(
     radius,
@@ -219,7 +222,7 @@ function rootSwitch(table: SwitchTable, rank: number, root: ImpostorRoot, byMesh
     table.radius[rank] = impostorRadius(entry.objectRadius as number, maxStretch(world))
     for (let k = 0; k < LINEAR.length; k++) table.linear[at + k] = world[LINEAR[k]]
     depthsOf(table, rank, entry)
-  }
+  } else if (table.depthFocal[rank] !== table.focal) depthsOf(table, rank, entry)
   return entry
 }
 
@@ -238,13 +241,12 @@ export function planImpostors(
   focalPixels: number,
   into?: ImpostorPlan,
   /** Hands each rank to read to `visit`, when only some can change what the image draws (the
-   *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); the others keep their
-   *  verdict. Absent, every root, every image. */
+   *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); a rank the last plan read and
+   *  this one does not leaves its card (`leftRanks`). Absent, every root, every image. */
   ranks?: (visit: (rank: number) => void) => void,
 ): ImpostorPlan {
   const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) }
   if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length)
-  else if (!ranks) plan.switched.fill(0)
   const reading = {
     plan,
     roots,
@@ -254,18 +256,43 @@ export function planImpostors(
     count: 0,
   }
   if (ranks) {
-    const visited = (plan.visited ??= [])
-    visited.length = 0
+    const { table } = reading,
+      stamp = ++table.stamp,
+      previous = plan.visited,
+      visited: number[] = []
     ranks((rank) => {
+      table.read[rank] = stamp
       visited.push(rank)
       planRoot(reading, rank)
     })
+    plan.visited = leftRanks(plan, previous, visited, table)
   } else {
     if (plan.visited) delete plan.visited
     for (let rank = 0; rank < roots.length; rank++) planRoot(reading, rank)
   }
   plan.cards.length = reading.count
   return plan
+}
+
+/**
+ * `visited`, then each rank the last plan read — every rank after a plan of every root — that this
+ * one did not and whose card it had: its verdict cleared, so the card bit leaves with it, and the
+ * GPU cut descends it again when the view comes back. A rank read and left both is listed once.
+ */
+function leftRanks(
+  plan: ImpostorPlan,
+  previous: readonly number[] | undefined,
+  visited: number[],
+  table: SwitchTable,
+) {
+  const left = (rank: number) => {
+    if (table.read[rank] === table.stamp || !plan.switched[rank]) return
+    plan.switched[rank] = 0
+    visited.push(rank)
+  }
+  if (previous) for (const rank of previous) left(rank)
+  else for (let rank = 0; rank < plan.switched.length; rank++) left(rank)
+  return visited
 }
 
 /** One root's verdict, and its card when it switches. */
@@ -283,11 +310,13 @@ function planRoot(
   const { plan, table } = reading,
     root = reading.roots[rank],
     entry = rootSwitch(table, rank, root, reading.byMesh)
-  plan.switched[rank] = 0
-  if (!entry) return
   const world = root.world.elements
-  transformAffinePoint(point, reading.view, world[12], world[13], world[14])
-  if (!switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) return
+  if (entry) transformAffinePoint(point, reading.view, world[12], world[13], world[14])
+  // Each rank read takes its verdict here, whatever it held: nothing is cleared ahead of the read.
+  if (!entry || !switchesAt(table.texelDepth[rank], table.triangleDepth[rank], point)) {
+    plan.switched[rank] = 0
+    return
+  }
   plan.switched[rank] = 1
   const card = (plan.cards[reading.count++] ??= {} as ImpostorCard)
   card.root = rank

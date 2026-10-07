@@ -3,8 +3,8 @@
  * fitted again where a change lands, and only there, once before the next cut is encoded — a
  * placement parked or taken back, or marked past what a box holds, refits its group and its cell;
  * poses moved refit every box once, as the worlds they move are sent whole. Each refit writes back
- * the tree nodes it changed, never the placements' own nodes. The CPU reads the same tree for the
- * placements a view may hold (`visiblePlacements`). A pose the GPU composes (`../../placement/gpuCompose.ts`) is not one the
+ * the tree nodes it changed, never the placements' own nodes, before the tree is read again: by the
+ * CPU, for the placements a view may hold (`visiblePlacements`), or by the cut. A pose the GPU composes (`../../placement/gpuCompose.ts`) is not one the
  * host holds: the first opens every group for the session, so no box the CPU fitted rejects it.
  */
 import type { GpuSelection } from '../core/selection.ts'
@@ -54,17 +54,21 @@ export function followPlacementTree(
   if (!tree) return selection
   const upload = (nodes: readonly number[]) => uploadNodes(device, nodeParts, packed, nodes)
   const all = Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
-  // What moved since the last cut: refitted once, as the next one is encoded.
+  // What moved since the tree was last read: refitted once, before whoever reads it next — the
+  // CPU's plan of the image (`visiblePlacements`) or the cut.
   const dirty = new Set<number>()
   let whole = false
-  const { dispatch, parkWorld, markWorld, updateWorlds, worldsMovedOnGpu } = selection
-  selection.dispatch = (uniforms, shared) => {
+  const refit = () => {
     if (whole) {
       fitPlacementTree(packed, tree)
       upload(all)
-    } else if (dirty.size) upload(refitPlacementTree(packed, tree, dirty).sort((a, b) => a - b))
+    } else if (dirty.size) upload(refitPlacementTree(packed, tree, dirty))
     whole = false
     dirty.clear()
+  }
+  const { dispatch, parkWorld, markWorld, updateWorlds, worldsMovedOnGpu } = selection
+  selection.dispatch = (uniforms, shared) => {
+    refit()
     return dispatch(uniforms, shared)
   }
   selection.parkWorld = (w, parked) => {
@@ -81,7 +85,10 @@ export function followPlacementTree(
     if (moved && posesMoved && !translationsOnly) whole = true
     return moved
   }
-  selection.visiblePlacements = (planes, visit) => visitPlacements(packed, tree, planes, visit)
+  selection.visiblePlacements = (planes, visit) => {
+    refit()
+    visitPlacements(packed, tree, planes, visit)
+  }
   selection.worldsMovedOnGpu = () => {
     worldsMovedOnGpu()
     if (!tree.open.includes(0)) return
