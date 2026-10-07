@@ -23,8 +23,8 @@ type Kernel = {
   sortLoad(p: number): Vec
   sortStore(p: number, v: Vec): void
   blockPair(t: number, j: number, k: number, base: number): void
-  sortBlendStep(id: Vec): void
-  placeBlendSlots(id: Vec): void
+  sortBlendStep(lid: Vec, wid: Vec, n: Vec): void
+  placeBlendSlots(id: Vec, n: Vec): void
 }
 
 /** Every function the kernel declares, read from its text. */
@@ -60,11 +60,14 @@ function runOrder(blendState: BlendState, pass: number, gpu: ReturnType<typeof g
       scope.uni[name] = words[(step.uniform * ORDER_STEP_STRIDE) / 4 + rank]
     const { uni } = scope
     if (step.entry === 1) {
-      for (let t = 0; t < step.groups * THREADS; t++) kernel.sortBlendStep([t, 0, 0])
+      for (let group = 0; group < step.groups; group++)
+        for (let t = 0; t < THREADS; t++)
+          kernel.sortBlendStep([t, 0, 0], [group, 0, 0], [step.groups, 1, 1])
       continue
     }
     if (step.entry === 2) {
-      for (let r = 0; r < step.groups * SLOT_GROUP; r++) kernel.placeBlendSlots([r, 0, 0])
+      for (let r = 0; r < step.groups * SLOT_GROUP; r++)
+        kernel.placeBlendSlots([r, 0, 0], [step.groups, 1, 1])
       continue
     }
     for (let group = 0; group < step.groups; group++) {

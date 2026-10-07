@@ -6,6 +6,9 @@ import { REST_COMPACT_SHADER } from './restCompactWgsl.ts'
 import { VIS_SHADER } from '../../visibility/buffer.ts'
 import { BASE_SLOTS } from '../draw/draw.ts'
 import { HIZ_REJECTED_WGSL, VERDICT_REJECTED } from '../partition/contract.ts'
+import { shaderRun } from '../../texture/shaderRun.fixture.ts'
+import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
+import type { OpenPass } from '../core/lazyComputePass.ts'
 
 // Behaviour 1: compaction keeps EXACTLY what the vertex stage drew — both texts carry the same
 // `hizRejected`, and compaction keeps its negation. A hand-copied predicate had truncated the
@@ -62,4 +65,47 @@ test('a device without compute does not mount compaction', async () => {
     flags: buffer,
   })
   assert.equal(made, undefined)
+})
+
+// Behaviour 5: a slot of more tiles than one dimension of a dispatch holds runs them in rows up
+// z (`dispatchGrid`), the slot still up y; the shipped `tileOf` ranks every in-range group's tile
+// once, a single row's as x did, and the groups past the tiles leave.
+test('tiles past one dimension of a dispatch run in rows up z, each tile ranked once', async () => {
+  const buffer = { size: 4 * 64 } as GPUBuffer
+  const { device } = fakeDevice()
+  const made = (await createGpuRestCompact(device, {
+    instances: buffer,
+    indirect: buffer,
+    slotOffsets: buffer,
+    flags: buffer,
+  }))!
+  const tiles = 65_537,
+    calls: number[][] = []
+  const pass = {
+    setBindGroup() {},
+    setPipeline() {},
+    dispatchWorkgroups: (...xyz: number[]) => void calls.push(xyz),
+  } as unknown as GPUComputePassEncoder
+  assert.ok(made.encode({ pass } as OpenPass, 3, tiles * 64, buffer))
+  assert.deepEqual(calls, [[65_535, 3, 2], [1], [65_535, 3, 2]])
+  const { tileOf } = shaderRun<{ tileOf: (wg: number[], n: number[]) => number }>(
+    REST_COMPACT_SHADER,
+    ['tileOf', 'flatGroup'],
+    {},
+  )
+  for (const count of [5, tiles]) {
+    const [x, z] = dispatchGrid(count),
+      seen = new Uint8Array(count)
+    let past = 0
+    for (let row = 0; row < z; row++)
+      for (let at = 0; at < x; at++) {
+        const t = tileOf([at, 0, row], [x, 3, z])
+        if (t >= count) past++
+        else assert.equal(seen[t]++, 0, `tile ${t} ranked twice`)
+        if (z === 1) assert.equal(t, at, 'one row: the tile of x, as before the rows')
+      }
+    assert.ok(seen.every((hit) => hit === 1))
+    assert.equal(past, x * z - count)
+  }
+  made.dispose()
 })

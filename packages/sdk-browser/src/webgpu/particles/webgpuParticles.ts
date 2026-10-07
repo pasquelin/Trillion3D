@@ -6,6 +6,7 @@ import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
 import { createPoolStates, usedSlots } from '../../particles/poolStates.ts'
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts'
 import { DRAW_FLOATS } from '../../particles/drawWords.ts'
+import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
 import {
   DISC_VERTICES,
   particleGroups,
@@ -202,7 +203,9 @@ function encodeSteps(
     stepped.forEach(({ group }, at) => {
       if (!records[at]) return
       computing.setBindGroup(0, group)
-      computing.dispatchWorkgroups(records[at])
+      // In rows past one dimension's groups (`dispatchGrid`): `emit` reads its flat index.
+      const [x, y] = dispatchGrid(records[at])
+      computing.dispatchWorkgroups(x, y)
       dispatches++
     })
   }

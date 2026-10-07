@@ -5,6 +5,7 @@ import { constructGpuResources } from '../core/errorScope.ts'
 import { pendingBuffers } from '../core/tableGrowth.ts'
 import { vsmWriteChanged } from '../../vsm/writeChanged.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
 
 type Held = ReturnType<typeof createGpuDrawBuffers>
 
@@ -86,12 +87,14 @@ export function encodeDraw(
   const pass = open.pass
   pass.setBindGroup(0, d.bindGroup)
   pass.setPipeline(d.countPipeline)
-  // One workgroup per group of items: each lane reads its own item once (`countGroups`).
-  pass.dispatchWorkgroups(liveGroups)
+  // One workgroup per group of items: each lane reads its own item once (`countGroups`), in rows
+  // past one dimension's groups (`flatGroup`).
+  const [x, y] = dispatchGrid(liveGroups)
+  pass.dispatchWorkgroups(x, y)
   pass.setPipeline(d.prefixPipeline)
   pass.dispatchWorkgroups(1)
   pass.setPipeline(d.scatterPipeline)
-  pass.dispatchWorkgroups(liveGroups)
+  pass.dispatchWorkgroups(x, y)
 }
 
 /** Row buffers for `rows` rows, put in place by the pending growth's commit (`GpuDraw.grow`). */

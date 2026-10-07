@@ -122,7 +122,7 @@ struct VsmMapWalk{
  firstMip:u32,
  endMip:u32,
 }
-fn vsmMapWalkOf(dispatchThreadId:vec3u)->VsmMapWalk{
+fn vsmMapWalkOf(dispatchThreadId:vec3u,numWorkgroups:vec3u)->VsmMapWalk{
  var s:VsmMapWalk;
  s.valid=false;
  s.handle=vsmHandleInvalid();
@@ -133,8 +133,12 @@ fn vsmMapWalkOf(dispatchThreadId:vec3u)->VsmMapWalk{
   if(threadIndex>=vsmPerPage.idCount){return s;}
   s.handle=vsmHandleFromId(vsmPerPageIds[vsmPerPage.idStart+threadIndex]);
  }else{
-  s.handle=vsmHandleFromId(vsmPerPageIds[vsmPerPage.idStart+dispatchThreadId.z]);
-  s.walkStart=dispatchThreadId.xy;
+  // A map's \`gridWidth\` threads a side, its rank \`z\` in a row of maps, rows of maps up \`y\`
+  // past one dimension's groups (\`vsmDispatchPerPageBin\`); a map past the bin's leaves.
+  let mapIndex=dispatchThreadId.y/vsmPerPage.gridWidth*numWorkgroups.z+dispatchThreadId.z;
+  if(mapIndex>=vsmPerPage.idCount){return s;}
+  s.handle=vsmHandleFromId(vsmPerPageIds[vsmPerPage.idStart+mapIndex]);
+  s.walkStart=vec2u(dispatchThreadId.x,dispatchThreadId.y%vsmPerPage.gridWidth);
   s.walkStep=vsmPerPage.gridWidth;
  }
  s.valid=true;
@@ -200,8 +204,8 @@ ${vsmBindingsWgsl(0, VSM_CLEAR_SPECS, layout)}
 ${VSM_PER_PAGE_DISPATCH_WGSL}
 const VSM_CLEAR_VALUE:u32=0u;
 ${tables.map((t) => t.declarations).join('\n')}
-@compute @workgroup_size(${VSM_PER_PAGE_GROUP_XY},${VSM_PER_PAGE_GROUP_XY}) fn vsmClearPageTables(@builtin(global_invocation_id) dispatchThreadId:vec3u){
- let setup=vsmMapWalkOf(dispatchThreadId);
+@compute @workgroup_size(${VSM_PER_PAGE_GROUP_XY},${VSM_PER_PAGE_GROUP_XY}) fn vsmClearPageTables(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
+ let setup=vsmMapWalkOf(dispatchThreadId,numWorkgroups);
  if(!setup.valid){return;}
  for(var mipLevel=setup.firstMip;mipLevel<setup.endMip;mipLevel++){
   let lo=vsmTableLevelOrigin(setup.handle,mipLevel);

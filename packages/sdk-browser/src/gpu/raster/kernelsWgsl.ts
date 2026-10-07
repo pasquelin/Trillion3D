@@ -18,6 +18,7 @@ import {
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
 import { wgslFloat } from '../partition/margins.ts'
+import { FLAT_INDEX_WGSL } from '../dag/shader/gridWgsl.ts'
 
 /** The twelve entry points: four size classes, each in the frame's three modes. */
 const entryPoints = () =>
@@ -48,8 +49,8 @@ const entryPoints = () =>
 export const rasterKernels = (capacity: number) => `
 const LIST_S:u32=LIST+${LIST_HEADER}u;
 const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
-@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u){
- let offset=gid.x;let pixels=pixelCount();if(offset>=pixels){return;}
+${FLAT_INDEX_WGSL}@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
+ let offset=flatIndex(gid.x,gid.y,n.x);let pixels=pixelCount();if(offset>=pixels){return;}
  // Reverse-Z: the buffer starts at FAR, and the GREATEST wins afterwards.
  atomicStore(&work[offset],bitcast<u32>(${wgslFloat(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
 }

@@ -16,6 +16,7 @@ import { createRasterResolves } from './resolve.ts'
 import { preparedComputePipeline } from '../../lighting/deferred/fullscreen.ts'
 import type { GpuRasterInput } from './types.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
 
 /**
  * Compute raster of the opaque and masked cut.
@@ -157,8 +158,11 @@ function encodeOccluders(r: Raster, encoder: GPUCommandEncoder, input: GpuRaster
   const binning = encoder.beginComputePass({ label: 'Trillion3D raster binning' })
   binning.setBindGroup(0, group)
   binning.setPipeline(r.clear.get())
-  binning.dispatchWorkgroups(ceilDiv(width * height, 64))
+  // A thread a pixel, past one dimension's groups from 2048 × 2048 on: in rows (`flatIndex`).
+  const [clearX, clearY] = dispatchGrid(ceilDiv(width * height, 64))
+  binning.dispatchWorkgroups(clearX, clearY)
   binning.setPipeline(r.bin.get())
+  // x: a page's triangles, at most 256 (`VIS_TRIANGLE_BITS`), 4 groups; its rows over y and z.
   binning.dispatchWorkgroups(workgroupCount(input.maxTriangles, 64), spanY, spanZ)
   binning.setPipeline(r.plan.get())
   binning.dispatchWorkgroups(1)

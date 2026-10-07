@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts'
 import { uniformStride } from '../residency/pools.ts'
 import { levelSize, mipLevelCountFor } from './tiles.ts'
@@ -98,8 +99,9 @@ export function generateMaterialMips(
  * extent of the source level, so as not to read off the image, the cutoff and the chain's first
  * bin word; then level 0's extent and the level, for the counts and the `t` the reduction reads.
  * Its block `first` is level 0's own count. When a chain cuts, the pick blocks follow, one a level
- * — the level, the table's first word, the words a block —, then the table: each cutting chain's
- * first block and levels, in `cut`'s order. Written word by word: nothing allocated a level.
+ * — the level, the table's first word, the words a block, the chains reaching the level —, then
+ * the table: each cutting chain's first block and levels, in `cut`'s order. Written word by word:
+ * nothing allocated a level.
  */
 function packBlocks(places: readonly Place[], blocks: number, stride: number, cut: Place[]) {
   const words = stride / 4,
@@ -118,11 +120,14 @@ function packBlocks(places: readonly Place[], blocks: number, stride: number, cu
       packed[at + 5] = chain.height
       packed[at + 6] = level
     }
-  for (let level = 1; level < top; level++) {
+  for (let level = 1, reach = cut.length; level < top; level++) {
     const at = (blocks + level) * words
+    // The cutting chains reaching the level: the first ones, the most levels first.
+    while (cut[reach - 1].levels <= level) reach--
     packed[at] = level
     packed[at + 1] = table
     packed[at + 2] = words
+    packed[at + 3] = reach
   }
   cut.forEach(({ first, levels }, n) => {
     packed[table + 2 * n] = first
@@ -169,7 +174,9 @@ function encodeByLevel(
       }
       pass.setPipeline(coverage.pick)
       pass.setBindGroup(0, picks.group, [(picks.base + level) * picks.stride])
-      pass.dispatchWorkgroups(cutting)
+      // A group a cutting chain, in rows past one dimension's groups (`flatGroup`).
+      const [x, y] = dispatchGrid(cutting)
+      pass.dispatchWorkgroups(x, y)
     }
     let set: GPUComputePipeline | undefined
     for (const { levels, reduce, sizes, pipeline } of chains) {

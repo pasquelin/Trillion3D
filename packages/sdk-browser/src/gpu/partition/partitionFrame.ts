@@ -12,6 +12,7 @@ import type { createPartitionCounters } from './counters.ts'
 import { constructGpuResources } from '../core/errorScope.ts'
 import type { KeptFrame, PartitionSources } from './types.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
 
 /** The partition's kernels, in the order a frame dispatches them. */
 export const KERNELS = ['clearRows', 'projectRows', 'classifyRows'] as const
@@ -118,11 +119,14 @@ export function encodePartition(p: Partition, open: OpenPass) {
   // dispatch; then each row is projected, then classified.
   const pass = open.pass,
     rows = p.kept.rows,
-    rowGroups = workgroupCount(rows, PARTITION_WORKGROUP)
+    rowGrid = dispatchGrid(workgroupCount(rows, PARTITION_WORKGROUP))
   const clearThreads = partitionClearThreads(rows, p.inputs.slotUsed.size / 4)
+  // In rows past one dimension's groups: each kernel reads its flat index (`flatIndex`).
+  const clearGrid = dispatchGrid(ceilDiv(clearThreads, PARTITION_WORKGROUP))
   for (let k = 0; k < KERNELS.length; k++) {
     pass.setPipeline(p.pipelines[k])
     pass.setBindGroup(0, p.groups[k])
-    pass.dispatchWorkgroups(k === CLEAR ? ceilDiv(clearThreads, PARTITION_WORKGROUP) : rowGroups)
+    const [x, y] = k === CLEAR ? clearGrid : rowGrid
+    pass.dispatchWorkgroups(x, y)
   }
 }

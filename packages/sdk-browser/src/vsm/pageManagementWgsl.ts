@@ -186,8 +186,8 @@ fn pmFallbacksLocal(setup:VsmMapWalk){
  }
 }
 @compute @workgroup_size(${g},${g})
-fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u){
- let setup=vsmMapWalkOf(dispatchThreadId);
+fn vsmFillCoarserFallbacks(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
+ let setup=vsmMapWalkOf(dispatchThreadId,numWorkgroups);
  if(!setup.valid||setup.handle.isSinglePage){return;}
  let projectionData=vsmProjectionOf(setup.handle);
  if(projectionData.lightKind==LIGHT_KIND_DIRECTIONAL){

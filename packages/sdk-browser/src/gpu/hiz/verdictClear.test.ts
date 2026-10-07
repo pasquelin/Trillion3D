@@ -109,7 +109,7 @@ test("the partition's classification writes each drawable row's verdict, the occ
   assert.equal(C.VERDICT_OCCLUDER, 0)
   assert.match(
     PARTITION_SHADER,
-    /if\(id\.x<uni\.rows\)\{classifyRow\(id\.x\);\}/,
+    /if\(row<uni\.rows\)\{classifyRow\(row\);\}/,
     'every row below the count is classified',
   )
   const write = `flags[i]=select(${C.VERDICT_OCCLUDER}u,${C.VERDICT_KEPT}u,rest!=0u);`

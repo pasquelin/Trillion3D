@@ -6,6 +6,7 @@ import type { OpenPass } from '../core/lazyComputePass.ts'
 import type { createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import type { GpuHiz } from './types.ts'
 import { workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
 
 const TEST_WORKGROUP = 64
 
@@ -132,7 +133,9 @@ export function hizTest(
   pass.setPipeline(h.testPipeline)
   pass.setBindGroup(0, bindGroup, h.testOffset)
   pass.setBindGroup(1, h.pagesGroup(pages))
-  pass.dispatchWorkgroups(workgroupCount(rows, TEST_WORKGROUP))
+  // In rows past one dimension's groups: the test reads its flat index (`flatIndex`).
+  const [x, y] = dispatchGrid(workgroupCount(rows, TEST_WORKGROUP))
+  pass.dispatchWorkgroups(x, y)
   return rows
 }
 

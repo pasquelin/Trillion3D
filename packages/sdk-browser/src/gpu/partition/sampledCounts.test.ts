@@ -154,15 +154,9 @@ test('every counter but the allocator goes through the tally; the kernels flush 
     )
     assert.deepEqual(atomics, text === HIZ_SHADER ? [] : [C.ST_TESTED])
   }
-  assert.match(
-    PARTITION_SHADER,
-    /if\(id\.x<uni\.rows\)\{projectRow\(id\.x\);\}\n flushTally\(lane\);/,
-  )
-  assert.match(
-    PARTITION_SHADER,
-    /if\(id\.x<uni\.rows\)\{classifyRow\(id\.x\);\}\n flushTally\(lane\);/,
-  )
-  assert.match(HIZ_SHADER, /\{testBox\(id\.x\);\}\n flushTally\(lane\);/)
+  assert.match(PARTITION_SHADER, /if\(row<uni\.rows\)\{projectRow\(row\);\}\n flushTally\(lane\);/)
+  assert.match(PARTITION_SHADER, /if\(row<uni\.rows\)\{classifyRow\(row\);\}\n flushTally\(lane\);/)
+  assert.match(HIZ_SHADER, /\{testBox\(i\);\}\n flushTally\(lane\);/)
 })
 
 test('the partition copies its counters on the frame that counted, and only then', async () => {

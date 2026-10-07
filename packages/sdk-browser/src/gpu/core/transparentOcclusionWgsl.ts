@@ -1,5 +1,6 @@
 import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts'
 import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
+import { FLAT_INDEX_WGSL } from '../dag/shader/gridWgsl.ts'
 import { PARTITION_WORKGROUP } from '../partition/contract.ts'
 import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
 
@@ -32,9 +33,9 @@ export function transparentOcclusionShader(entryCount: number) {
 @group(0) @binding(3) var<uniform> uni:Uni;
 @group(0) @binding(4) var<storage, read> unculled:array<u32>;
 ${BOX_PROJECT_WGSL}
-${HIZ_HIDDEN_WGSL}@compute @workgroup_size(${PARTITION_WORKGROUP})
-fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;if(i>=${Math.max(1, entryCount)}u){return;}
+${HIZ_HIDDEN_WGSL}${FLAT_INDEX_WGSL}@compute @workgroup_size(${PARTITION_WORKGROUP})
+fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id.x,id.y,n.x);if(i>=${Math.max(1, entryCount)}u){return;}
  let box=projectBox(i,max(uni.layerTop,${TRANSPARENT_DEPTH_LAYER}u));
  // Same rectangle clipping, same mip, same pyramid walk as the opaque main-pass cull
  // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the

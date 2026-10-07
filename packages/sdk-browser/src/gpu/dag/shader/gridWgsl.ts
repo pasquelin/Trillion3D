@@ -31,6 +31,12 @@ export const FLAT_INDEX_WGSL = `/** The rank of thread \`(x, y)\` among the disp
 fn flatIndex(x:u32,y:u32,width:u32)->u32{return x+y*width*64u;}
 `
 
+/** A workgroup's flat rank in a dispatch in rows (\`dispatchGrid\`): what a kernel that works a
+ *  group at a time, or whose groups are not of 64 lanes, reads — its lanes after it. */
+export const FLAT_GROUP_WGSL = `/** The rank of workgroup \`(x, y)\` among the dispatch's, row after row of \`width\`. */
+fn flatGroup(x:u32,y:u32,width:u32)->u32{return x+y*width;}
+`
+
 export const DAG_GRID_WGSL = `/** Workgroups along x of a dispatch in rows: the device's limit, set at pipeline creation when it
  *  is not WebGPU's default (\`../pipeline.ts\`). */
 override GROUP_WIDTH:u32=${DEFAULT_GROUP_WIDTH}u;

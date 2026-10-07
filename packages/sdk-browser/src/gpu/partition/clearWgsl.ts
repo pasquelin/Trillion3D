@@ -10,8 +10,8 @@ import { bitWords } from '../../../../math/src/scalar/integers.ts'
  */
 export const PARTITION_CLEAR_WGSL = `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
-fn clearRows(@builtin(global_invocation_id) id:vec3u){
- let i=id.x;
+fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let i=flatIndex(id.x,id.y,n.x);
  if(i<${STATE_WORDS}u){atomicStore(&state[i],0u);}
  if(i<(uni.rows+31u)/32u){atomicStore(&restBits[i],0u);}
  if(i<arrayLength(&slotUsed)){atomicStore(&slotUsed[i],0u);}

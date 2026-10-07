@@ -251,6 +251,8 @@ function run(
   groups: number,
 ) {
   bind(ctx, res, pass, name, slot)
+  // One group, or ⌈poolPages / 256⌉: at most 512, the pool under 2¹⁷ pages — a page table entry
+  // holds a physical page's row in 10 bits, 128 pages a row (`vsmPackTableEntry`).
   pass.dispatchWorkgroups(groups)
 }
 

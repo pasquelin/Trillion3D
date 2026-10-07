@@ -4,6 +4,7 @@ import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { shaderFailed } from './shaderModule.ts'
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts'
 import { bitWords, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../dag/shader/gridWgsl.ts'
 
 export type TransparentOcclusion = NonNullable<
   Awaited<ReturnType<typeof createTransparentOcclusion>>
@@ -46,7 +47,8 @@ export async function createTransparentOcclusion(
     const o: Occlusion = {
       ...{ device, entryCount, sources, corners, unculled, ...made },
       ...{ bound: undefined, bindGroup: undefined, disposed: false },
-      groups: workgroupCount(entryCount, PARTITION_WORKGROUP),
+      // A thread an entry, in rows past one dimension's groups (`flatIndex`).
+      grid: dispatchGrid(workgroupCount(entryCount, PARTITION_WORKGROUP)),
     }
     return {
       /** World corners of entries `[from, to]`, on the only interval the table changed. */
@@ -90,7 +92,7 @@ type Occlusion = NonNullable<Awaited<ReturnType<typeof occlusionPipeline>>> & {
   bound: GPUBuffer | undefined
   bindGroup: GPUBindGroup | undefined
   disposed: boolean
-  groups: number
+  grid: [number, number]
 }
 
 /** The world corners of each entry, and one bit per entry never culled. */
@@ -161,6 +163,6 @@ function encodeOcclusion(o: Occlusion, encoder: GPUCommandEncoder, pyramidFresh:
   const pass = encoder.beginComputePass({ label: 'Trillion3D transparent occlusion' })
   pass.setPipeline(o.pipeline)
   pass.setBindGroup(0, o.bindGroup)
-  pass.dispatchWorkgroups(o.groups)
+  pass.dispatchWorkgroups(o.grid[0], o.grid[1])
   pass.end()
 }

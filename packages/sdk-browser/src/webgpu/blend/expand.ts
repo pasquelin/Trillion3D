@@ -1,5 +1,6 @@
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { BLEND_EXPAND_ENTRIES, BLEND_EXPAND_SHADER, blendExpandDispatch } from './expandWgsl.ts'
+import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
 import { blendExpandBindEntries, EXPAND_BINDING } from './expandBindings.ts'
 import {
   BLEND_ORDER_ENTRIES,
@@ -98,7 +99,8 @@ function expandApi(
       blendExpandDispatch(launches, counts.entries, counts.runs)
       for (let step = 0; step < expansion.pipelines.length; step++) {
         encoder.setPipeline(expansion.pipelines[step])
-        encoder.dispatchWorkgroups(launches[step])
+        const [x, y] = dispatchGrid(launches[step])
+        encoder.dispatchWorkgroups(x, y)
       }
     },
     dispose() {
@@ -130,7 +132,9 @@ function encodeOrder(
     if (pipeline !== bound) encoder.setPipeline((bound = pipeline))
     offsets[0] = step.uniform * ORDER_STEP_STRIDE
     encoder.setBindGroup(0, order.group, offsets)
-    encoder.dispatchWorkgroups(step.groups)
+    // In rows past one dimension's groups: each kernel reads its flat rank (`gridWgsl.ts`).
+    const [x, y] = dispatchGrid(step.groups)
+    encoder.dispatchWorkgroups(x, y)
   }
 }
 

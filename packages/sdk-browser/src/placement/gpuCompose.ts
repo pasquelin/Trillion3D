@@ -31,6 +31,7 @@
  * of these: the CPU's row write follows them.
  */
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { dispatchGrid } from '../gpu/dag/shader/gridWgsl.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL, MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import { MOTION_SKIP, packDoubles } from './composedMotion.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
@@ -403,7 +404,8 @@ export function encodeComposedRoots(
         ],
       })
     pass.setBindGroup(0, held.group)
-    pass.dispatchWorkgroups(ceilDiv(count, 64))
+    const [x, y] = dispatchGrid(ceilDiv(count, 64))
+    pass.dispatchWorkgroups(x, y)
   }
   pass.end()
   rt.run.gpuComputeDispatches += selection.worldRanges.length
@@ -454,7 +456,9 @@ export function encodeComposedRows(
       ],
     })
   pass.setBindGroup(0, held.group)
-  pass.dispatchWorkgroups(ceilDiv(rows, 64))
+  // A thread a row, in rows past one dimension's groups (`flatIndex`), as the roots' above.
+  const [x, y] = dispatchGrid(ceilDiv(rows, 64))
+  pass.dispatchWorkgroups(x, y)
   pass.end()
   rt.run.gpuComputeDispatches++
 }

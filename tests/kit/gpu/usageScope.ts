@@ -114,13 +114,15 @@ export function createUsageScope(kind: 'compute' | 'render') {
 }
 
 /** One dispatch or draw a recording encoder saw: its pass, its pipeline's entry point, and the
- *  buffer and byte offset of an indirect one, or the groups of a direct dispatch. */
+ *  buffer and byte offset of an indirect one, or the groups of a direct dispatch — along x, and
+ *  its rows along y when there are several (`dispatchGrid`). */
 type RecordedCall = {
   pass: number
   entry: string
   buffer?: GPUBuffer
   offset?: number
   direct?: number
+  rows?: number
 }
 
 /**
@@ -143,9 +145,9 @@ export function recordingEncoder() {
       },
       setBindGroup: (index: number, group: unknown, offsets?: readonly number[]) =>
         scope.setBindGroup(index, group, offsets),
-      dispatchWorkgroups(x: number) {
+      dispatchWorkgroups(x: number, y = 1) {
         scope.dispatch(entry)
-        calls.push({ pass: at, entry, direct: x })
+        calls.push({ pass: at, entry, direct: x, ...(y > 1 && { rows: y }) })
       },
       dispatchWorkgroupsIndirect(buffer: GPUBuffer, offset: number) {
         scope.dispatch(entry)

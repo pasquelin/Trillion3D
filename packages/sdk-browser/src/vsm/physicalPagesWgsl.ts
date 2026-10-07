@@ -460,8 +460,8 @@ fn pmGrantPage(handle:VsmHandle,entryAt:VsmTableCell,mipLevel:u32,pageAddress:ve
  vsmPoolPageInfo[poolSlot].pageAddress=pageAddress;
 }
 @compute @workgroup_size(${VSM_PER_PAGE_GROUP_XY},${VSM_PER_PAGE_GROUP_XY})
-fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u){
- let setup=vsmMapWalkOf(dispatchThreadId);
+fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(num_workgroups) numWorkgroups:vec3u){
+ let setup=vsmMapWalkOf(dispatchThreadId,numWorkgroups);
  if(!setup.valid){return;}
  for(var mipLevel=setup.firstMip;mipLevel<setup.endMip;mipLevel++){
   let loopEnd=vsmPagesAcross(mipLevel);

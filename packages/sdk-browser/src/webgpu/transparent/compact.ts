@@ -1,5 +1,6 @@
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
 import { TRANSPARENT_COMPACT_SHADER } from './shader.ts'
+import { dispatchGrid } from '../../gpu/dag/shader/gridWgsl.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
 import { TRANSPARENT_GROUP, type TransparentTable } from './table.ts'
 
@@ -68,6 +69,8 @@ async function compactPasses(
   const uniData = new Uint32Array(UNIFORM_WORDS)
   const groups = workgroupCount(table.length, TRANSPARENT_GROUP)
   const items = Math.max(1, table.pagedItems.length)
+  // A thread a group, an item, an entry: in rows past one dimension's groups (`flatIndex`).
+  const grids = [ceilDiv(groups, 64), ceilDiv(items, 64), groups].map((n) => dispatchGrid(n))
   return (encoder: GPUCommandEncoder, mask: GPUBuffer, maskOffset: number) => {
     uniData[0] = table.length
     uniData[1] = groups
@@ -80,7 +83,8 @@ async function compactPasses(
     pass.setBindGroup(0, bindGroup)
     for (let step = 0; step < 3; step++) {
       pass.setPipeline(pipelines[step])
-      pass.dispatchWorkgroups(step === 1 ? ceilDiv(items, 64) : ceilDiv(groups, step ? 1 : 64))
+      const [x, y] = grids[step]
+      pass.dispatchWorkgroups(x, y)
     }
     pass.end()
   }
