@@ -136,6 +136,14 @@ test('a refusal that asks a wait (Retry-After) waits at least that long', async 
   assert.deepEqual(sent, [0, 3000], 'asked again once the server said, not after half a second')
 })
 
+test('a refusal asking a long wait on every attempt is said once, not once an attempt', async (t) => {
+  const { streamer, said, until } = refusing(t, 503, ['a.bin'], { 'retry-after': '9' })
+  void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})
+  await settle()
+  await until(60_000)
+  assert.deepEqual(said, ['a.bin'])
+})
+
 test('a stall is said once, and again only once its page landed and stalls anew', async (t) => {
   const { streamer, said, until } = refusing(t, 503)
   void streamer.request(['a.bin'], { signal: streamer.signal }).catch(() => {})

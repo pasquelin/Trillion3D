@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageQueue, StreamPage } from '../../streaming/types.ts'
-import { openExplorerPageSources, sceneThrough } from './pageSources.ts'
+import { openExplorerPageSources, openingKeeps, sceneThrough } from './pageSources.ts'
 import { streamFailed } from '../scene/streaming.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
@@ -73,4 +73,17 @@ test('a page read that fails is fatal while no cover is resident, degraded while
       ['degraded', 'PAGE_STREAM_FAILED'],
     ],
   )
+})
+
+test('a scene that lands after its opening failed is released by its own branch, once', () => {
+  const released: string[] = []
+  const owned: { source?: string } = {},
+    opening = new AbortController()
+  const keep = openingKeeps(owned, opening.signal, (source) => void released.push(source))
+  keep('first') // registered while the opening runs: its failure path releases it
+  opening.abort() // the other branch failed: `failedOpening` released `owned.source`
+  keep('first') // the load lands, the same source: released already
+  keep('replica') // a later source nobody holds
+  keep('replica')
+  assert.deepEqual(released, ['replica'], 'what landed late, released once')
 })
