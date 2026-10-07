@@ -2,6 +2,7 @@ import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { planeBarycentric } from '../../../math/src/wgsl/barycentric.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /**
  * Per-vertex motion of a deformed surface: where the last frame drew the surface point a
@@ -13,7 +14,7 @@ import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
  */
 export const TAA_DEFORM_WGSL = wgslBlock(
   'TAA_DEFORM_WGSL',
-  [PAGE_GEOMETRY_WGSL, worldMatrix3, planeBarycentric],
+  [PAGE_GEOMETRY_WGSL, worldMatrix3, planeBarycentric, perspectiveDivide],
   `
 /** \`position\`, the homogeneous point of identifier \`id\` relative to the eye, where its surface
  *  stood in the last frame: untouched off a deformed row. */
@@ -25,7 +26,7 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  let m=worldMatrix3(page.world);
  let t=page.world[3].xyz-view.eye.xyz;
  let c0=pagePosition(page,h,corners.x);let c1=pagePosition(page,h,corners.y);let c2=pagePosition(page,h,corners.z);
- let q=position.xyz/position.w;
+ let q=perspectiveDivide(position);
  let b=planeBarycentric(q,m*c0+t,m*c1+t,m*c2+t);
  let d0=pagePreviousPosition(page,h,corners.x)-c0;let d1=pagePreviousPosition(page,h,corners.y)-c1;
  let d2=pagePreviousPosition(page,h,corners.z)-c2;

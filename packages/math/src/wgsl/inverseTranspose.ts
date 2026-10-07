@@ -25,12 +25,30 @@ import { SINGULAR_DETERMINANT } from './constants.ts'
 
 export const InvT3 = wgslStruct('InvT3', [], 'struct InvT3{adj:mat3x3f,scale:f32,regular:bool,}')
 
+/** The sum of the absolute values of the nine entries: the scale a 3×3 is divided by. */
+export const absoluteSum3 = wgslFn(
+  'absoluteSum3',
+  [],
+  `fn absoluteSum3(m:mat3x3f)->f32{
+ let w=abs(m[0])+abs(m[1])+abs(m[2]);
+ return w.x+w.y+w.z;
+}`,
+)
+
+/** Whether `t`, an `absoluteSum3`, can divide: above zero and neither infinite nor NaN, read at the
+ *  bit. */
+export const isFiniteScale = wgslFn(
+  'isFiniteScale',
+  [],
+  'fn isFiniteScale(t:f32)->bool{return (t>0.0)&&(bitcast<u32>(t)&0x7f800000u)!=0x7f800000u;}',
+)
+
 export const invTranspose3Prep = wgslFn(
   'invTranspose3Prep',
-  [InvT3, SINGULAR_DETERMINANT],
+  [InvT3, SINGULAR_DETERMINANT, absoluteSum3, isFiniteScale],
   `fn invTranspose3Prep(m:mat3x3f)->InvT3{
- let w=abs(m[0])+abs(m[1])+abs(m[2]);let t=w.x+w.y+w.z;
- let finite=(t>0.0)&&(bitcast<u32>(t)&0x7f800000u)!=0x7f800000u;
+ let t=absoluteSum3(m);
+ let finite=isFiniteScale(t);
  let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
  let det=dot(a,cross(b,c));let z=vec3f(0.0);
  return InvT3(mat3x3f(select(z,cross(b,c),finite),select(z,cross(c,a),finite),select(z,cross(a,b),finite)),1.0/(det*t),finite&&abs(det)>SINGULAR_DETERMINANT);

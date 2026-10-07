@@ -2,7 +2,11 @@ import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { interleavedGradient } from '../../../math/src/wgsl/sampling.ts'
-import { clipToUvUnflipped } from '../../../math/src/wgsl/projection.ts'
+import {
+  clipToUvUnflipped,
+  ndcToUvUnflipped,
+  perspectiveDivide,
+} from '../../../math/src/wgsl/projection.ts'
 import { type ReflectionDepthRead, REFLECTION_SEGMENT, screenTraceWgsl } from './traceShader.ts'
 import { type ScreenLobeFade, screenRadianceShader } from './screenRadianceShader.ts'
 import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'
@@ -129,6 +133,8 @@ export const TRANSLUCENT_SCREEN_REFLECTION_WGSL = wgslBlock(
       maxRoughness: TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
     }),
     BLENDED_PLANE_WGSL,
+    perspectiveDivide,
+    ndcToUvUnflipped,
   ],
   `// Where the samples start in their spacing: interleaved gradient noise over the pixel, turned each image
 // (\`translucentReflectionFrame\`): every pixel's offsets fill its interval evenly over the still

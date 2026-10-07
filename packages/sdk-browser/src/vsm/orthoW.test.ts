@@ -52,7 +52,7 @@ test('only the sun marks without the divide: a lamp keeps it', () => {
   const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }, 128 * MIB))
   assert.match(
     functionText(code, 'vsmMarkPage'),
-    /if\(!ortho\)\{mapUvz=vec4f\(mapUvz\.xyz\/mapUvz\.w,mapUvz\.w\);\}/,
+    /if\(!ortho\)\{mapUvz=vec4f\(perspectiveDivide\(mapUvz\),mapUvz\.w\);\}/,
   )
   assert.match(functionText(code, 'vsmMarkPageDirectional'), /marginOffset,true\);/)
   assert.match(functionText(code, 'vsmMarkPageLocal'), /marginOffset,false\);/)

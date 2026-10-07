@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 import { maxChannel } from '../../../math/src/wgsl/sampling.ts'
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import { taaReprojectWgsl } from '../taa/shaderWgsl.ts'
@@ -161,7 +162,7 @@ var<private> moment:f32;
 /** The 4 × 4 block's texels the clip's gather accepted, one bit each: a widened gather reads them
  *  again without testing them again, and the others not at all. */
 var<private> accepted:u32;
-fn pointAt(coord:vec2i,z:f32)->vec3f{let position=pixelPoint(coord,z);return position.xyz/position.w;}
+fn pointAt(coord:vec2i,z:f32)->vec3f{return perspectiveDivide(pixelPoint(coord,z));}
 // \`widen\` scales the tent's reach; a widened gather follows the clip's, so it gathers none.
 fn roughSamples(at:vec2i,id:u32,nr:vec4f,z:f32,widen:f32)->vec4f{
  let drawn=vec2i(view.viewport.xy);let half=vec2i((drawn+vec2i(1))/2);
@@ -277,5 +278,6 @@ ${GATHER_BOUNDS}\n${BOUNDED}
     REFLECTION_PHASE_WGSL,
     taaReprojectWgsl(false),
     maxChannel,
+    perspectiveDivide,
   ],
 )

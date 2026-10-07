@@ -72,10 +72,11 @@ test('the transmission is the receiver’s own, read once wherever a texel lets 
 test('mode 0 is the point read as it stood, byte for byte, and the word picks the mode', () => {
   const point = functionText(SOURCE, 'vsmShadowFactor')
   // Retaken when the record's fields, the normal offset's floor and the map reads took their names
-  // here, and when the light direction no read took left the signature: the same body.
+  // here, when the light direction no read took left the signature and when the perspective divide
+  // took its library name: the same body.
   assert.equal(
     createHash('sha256').update(point).digest('hex'),
-    'a1b9223b2a68debe817ff7bc734b101172c1ce41eaa20332fe5242e45b9906c1',
+    '50273ccefefc44394a152f9d6581d8bd71ef52d275fdc68c4887244c080d5a04',
   )
   const pick = (source: string) => {
     const called: string[] = []

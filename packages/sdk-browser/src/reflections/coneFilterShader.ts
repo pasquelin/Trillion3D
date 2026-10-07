@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { clipToUvUnflipped } from '../../../math/src/wgsl/projection.ts'
 
 /** Up to four mip cells enclose a cone section; integrate their covered areas.
  * The depth range rejects empty or disjoint cells, rather than treating the
@@ -20,7 +21,7 @@ import { tangentAround } from '../../../math/src/wgsl/basis.ts'
  *   of them may hold a hit (one, else none) — the test a coarser block passes whole by. */
 export const REFLECTION_CONE_FILTER_WGSL = wgslBlock(
   'REFLECTION_CONE_FILTER_WGSL',
-  [tangentAround],
+  [tangentAround, clipToUvUnflipped],
   `
 fn reflectionReceiverPlane(c:vec4f,N:vec3f,q0:vec2f,z0:f32)->vec4f{
  let T:vec3f=tangentAround(N);let B:vec3f=cross(N,T);
@@ -29,8 +30,8 @@ fn reflectionReceiverPlane(c:vec4f,N:vec3f,q0:vec2f,z0:f32)->vec4f{
  let c2:vec4f=c+reflectionProject(vec4f(B,0.0))*offset;
  if(c1.w<=0.0||c2.w<=0.0){return vec4f(0.0);}
  let size:vec2f=reflectionSize();
- let d1:vec2f=(c1.xy/c1.w*0.5+vec2f(0.5))*size-q0;let e1:f32=c1.z/c1.w-z0;
- let d2:vec2f=(c2.xy/c2.w*0.5+vec2f(0.5))*size-q0;let e2:f32=c2.z/c2.w-z0;
+ let d1:vec2f=clipToUvUnflipped(c1)*size-q0;let e1:f32=c1.z/c1.w-z0;
+ let d2:vec2f=clipToUvUnflipped(c2)*size-q0;let e2:f32=c2.z/c2.w-z0;
  let det:f32=d1.x*d2.y-d1.y*d2.x;
  if(abs(det)<1e-6){return vec4f(0.0);}
  let g:vec2f=vec2f(e1*d2.y-e2*d1.y,d1.x*e2-d2.x*e1)/det;

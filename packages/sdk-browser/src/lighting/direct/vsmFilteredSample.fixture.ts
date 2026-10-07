@@ -118,6 +118,7 @@ export function sunWorld(stored: number, depthAt: (t: V) => number = () => store
 }
 /** The whole read and what it calls (`sunWorld`). */
 export const SUN_READ = [
+  'perspectiveDivide',
   'vsmShadowRead',
   'vsmShadowFactor',
   'vsmShadowFiltered',

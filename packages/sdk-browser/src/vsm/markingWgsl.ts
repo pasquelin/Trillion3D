@@ -31,6 +31,7 @@ import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
+import { perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /** The group side of the page marks from pixels pass. */
 export const VSM_MARK_PIXELS_GROUP_XY = 8
@@ -398,6 +399,7 @@ const VSM_PAGE_MARKING_WGSL = wgslBlock(
   'VSM_PAGE_MARKING_WGSL',
   [
     VSM_CONSTANTS_WGSL,
+    perspectiveDivide,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
     VSM_STRUCTS_WGSL,
@@ -436,7 +438,7 @@ fn vsmMarkPage(handle:VsmHandle,mipLevel:u32,shiftedPosition:vec3f,hasMargin:boo
  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
  let pointInMap=shiftedPosition+toMapShift;
  var mapUvz=pd.shiftedToMapUv*vec4f(pointInMap,1.0);
- if(!ortho){mapUvz=vec4f(mapUvz.xyz/mapUvz.w,mapUvz.w);}
+ if(!ortho){mapUvz=vec4f(perspectiveDivide(mapUvz),mapUvz.w);}
  // Overlap vs the shadow map space (the divided xyz against w).
  let inClip=mapUvz.w>0.0&&all(mapUvz.xyz<=vec3f(mapUvz.w))&&all(mapUvz.xyz>=vec3f(-mapUvz.w,-mapUvz.w,0.0));
  if(!inClip){return;}

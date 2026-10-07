@@ -53,7 +53,7 @@ test("the invalidation's box cull is its own, bit for bit, the side-culled bit n
     ],
   ])
   const after = run(INVALIDATION, [
-    ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'],
+    ...['vsmBoxInMapView', 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView', 'perspectiveDivide'],
   ])
   const counts = [0, 0]
   for (let k = 0; k < CASES; k++) {
@@ -73,7 +73,12 @@ test("the invalidation's box cull is its own, bit for bit, the side-culled bit n
 test("the render cull's box cull is its own, bit for bit", () => {
   const names = ['vsmShiftedBoxInView', 'vsmShiftedBoxOrtho', 'vsmShiftedBoxPerspective']
   const before = run(RENDER_BOX_CULL, names),
-    after = run(RENDER, [...names, 'vsmBoxInOrthoView', 'vsmBoxInPerspectiveView'])
+    after = run(RENDER, [
+      ...names,
+      'vsmBoxInOrthoView',
+      'vsmBoxInPerspectiveView',
+      'perspectiveDivide',
+    ])
   const counts = [0, 0]
   for (let k = 0; k < CASES; k++) {
     const d = inputs(2000 + k),
