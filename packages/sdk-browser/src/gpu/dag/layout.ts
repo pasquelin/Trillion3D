@@ -34,6 +34,7 @@ export {
   SELECTION_HEADER_WORDS,
   evictionWord,
   EVICTION_BURST,
+  differenceWord,
   levelCountsWord,
 } from './readoutWords.ts'
 

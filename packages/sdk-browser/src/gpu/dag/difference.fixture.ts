@@ -6,14 +6,15 @@ import {
   KEPT_HEADER_WORDS,
   OUT_COUNT,
   SELECTION_HEADER_WORDS as HEAD,
+  differenceWord,
   keptSnapshotWord,
 } from './layout.ts'
-import { DIFFERENCE_HEADER_WORDS, differenceWord } from './readoutWords.ts'
+import { DIFFERENCE_HEADER_WORDS } from './readoutWords.ts'
 import { DIFFERENCE_STAGES, EXIT_STAGES, KEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** `list`'s difference against `kept`: the pages that entered — each occurrence of a page not
  *  kept —, then the pages that left. */
-function differenceOf(list: ArrayLike<number>, kept: ArrayLike<number>) {
+export function differenceOf(list: ArrayLike<number>, kept: ArrayLike<number>) {
   const now = new Set(Array.from(list)),
     was = new Set(Array.from(kept))
   return {
