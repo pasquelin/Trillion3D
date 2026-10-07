@@ -24,12 +24,12 @@ fn worldCovers(w:u32)->bool{
  // The world DAG's record shift leads its links (\`../worldLinks.ts\`).
  let cluster=clusterAt(c+coldAt(views[0u].worldLinks-1u));
  let pixels=clusterPixels(cluster,worldViewOf(),views[vi].cameraStretch,focalPixels());
- return !(pixels.x>thresholdOf(views[0u].worldCount-1u));
+ return !(pixels.x>thresholdOf(views[0u].worldRoot));
 }
 /** The screen error placement \`w\`'s cut is held to under the view \`vi\`: the frame's, the world
- *  DAG's — packed last — scaled by its fade this cut (\`../worldFade.ts\`). */
+ *  DAG's — wherever the packing put it (\`worldRoot\`) — scaled by its fade (\`../worldFade.ts\`). */
 fn thresholdOf(w:u32)->f32{
- let world=views[0u].worldLinks!=0u&&w+1u==views[0u].worldCount;
+ let world=views[0u].worldLinks!=0u&&w==views[0u].worldRoot;
  return views[vi].pixelError*select(1.0,views[0u].worldScale,world);
 }
 `

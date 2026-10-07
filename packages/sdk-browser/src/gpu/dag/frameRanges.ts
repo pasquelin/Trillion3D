@@ -56,7 +56,11 @@ export function createCameraFrames(
     bindGroup,
     /** One bind group per range (`bindGroup`), with its primitive count. */
     bindGroups: (layout: GPUBindGroupLayout, group: DagGroup) =>
-      ranges.map(({ count }, r) => ({ count, bindGroup: bindGroup(layout, group, r) })),
+      ranges.map(({ first, count }, r) => ({
+        first,
+        count,
+        bindGroup: bindGroup(layout, group, r),
+      })),
     /** The host rows of primitives `[from, to)` — every one by default —, each to its range's
      *  buffer at its row. `dagPrepare` writes the rest. */
     writeRows: (from = 0, to = Infinity) => writeRows(f, from, to),

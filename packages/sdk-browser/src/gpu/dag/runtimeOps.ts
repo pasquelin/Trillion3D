@@ -150,7 +150,8 @@ export async function flushRuntime({ resources, state }: DagRun, selection: GpuS
 }
 
 /** What `appendDagRoots` wrote, sent: the appended nodes, their pages' placement words and content
- *  keys, their primitives' frame rows, every world and origin. Nothing else of the tables moved. */
+ *  keys, their primitives' frame rows, every world and origin, and the placement tree's nodes and
+ *  member words they joined. Nothing else of the tables moved. */
 function writeAppended(resources: DagResources, added: DagAppended) {
   const { device, packed, nodeParts, coldParts, frames, frameData } = resources,
     cones = packed.pageCones,
@@ -164,6 +165,10 @@ function writeAppended(resources: DagResources, added: DagAppended) {
   send(nodeParts, packed.nodes, n0 * nodeBytes, (n1 - n0) * nodeBytes)
   send(coldParts, cones, p0 * 4, (p1 - p0) * 4)
   send(coldParts, cones, (keyBase(packed.pageCount) + p0) * 4, (p1 - p0) * 4)
+  const tree = packed.placementTree,
+    [m0, m1] = added.tree.members
+  for (const n of added.tree.nodes) send(nodeParts, packed.nodes, n * nodeBytes, nodeBytes)
+  if (tree) send(coldParts, cones, (tree.members + m0) * 4, (m1 - m0) * 4)
   for (let w = w0; w < w1; w++) writePrimitiveWords(frameData, packed, w)
   frames.writeRows(w0, w1)
   frames.writeWorlds(packed.worlds)

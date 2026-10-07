@@ -86,11 +86,11 @@ fn queueAppend(dst:u32,first:u32,count:u32){
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
-/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
- *  thread per primitive has just deposited its own, at its own rank, with no counter to contest. */
+/** Frame counters, reset by a single thread. Queue 0 already counts its roots: one thread per
+ *  entry has just deposited its own, at its own rank, with no counter to contest (\`rootSlots\`). */
 fn resetCounters(){
  atomicStore(&work[liveCounter()],0u);resetGrid(liveGroups());
- atomicStore(&work[queueCounter(0u)],views[0u].worldCount*views[0u].viewCount);
+ atomicStore(&work[queueCounter(0u)],rootSlots()*views[0u].viewCount);
  atomicStore(&work[queueCounter(1u)],0u);atomicStore(&work[queueCounter(2u)],0u);
  atomicStore(&work[candCounter()],0u);resetGrid(candGroups());
  atomicStore(&work[drawnCounter()],0u);resetGrid(drawnGroups());
@@ -112,14 +112,12 @@ fn levelStep(src:u32,s:u32){
  nodeStep(src,index);
 }
 /** Node \`index\` of the queue \`src\` under the view \`vi\`: a node of the placement tree, or of a
- *  placement's own hierarchy — its root first asked whether the world DAG draws it instead. */
+ *  placement's own hierarchy, whose root its gate already opened (\`opensRoot\`). */
 fn nodeStep(src:u32,index:u32){
  let node=nodeAt(index);
  if(node.kind!=0u){treeStep(src,node);return;}
  let w=node.worldIndex;
  if(!inRange(w)){return;}
- // An ungrouped placement's root asks what a grouped one's group asked (\`placementStep\`).
- if(w>=views[0u].grouped&&index==rootOf(w)&&worldCovers(w)){return;}
  deformReach=reachOf(w);
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
@@ -143,15 +141,14 @@ fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
-/** Pass 0: queue 0 holds one root per slot, so a range's dispatch reads its own slots
- *  (\`rangeSlot\`), a grouped placement's slot the tree's cell of that rank. Queue 0 reused deeper
- *  (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
+/** Pass 0: without a tree, queue 0 holds one root per slot, so a range's dispatch reads its own
+ *  slots (\`rangeSlot\`); with one, its few entries (\`rootSlots\`), which every range's dispatch
+ *  reads whole, each node keeping its own range's. Queue 0 reused deeper (level 3, 6…) mixes
+ *  primitives: read whole (\`dagLevel0\`). */
 @compute @workgroup_size(64)
 fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let t=rangeSlot(flatIndex(id.x,id.y,n.x));
- // A grouped placement's slot holds a cell of the tree, or nothing written this frame.
- if(groupedSlot(t)&&(t%views[0u].worldCount>=views[0u].cells||t>=views[0u].worldCount)){return;}
- levelStep(0u,t);
+ let i=flatIndex(id.x,id.y,n.x);
+ levelStep(0u,select(rangeSlot(i),i,hasTree()));
 }
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id.x,id.y,n.x));}

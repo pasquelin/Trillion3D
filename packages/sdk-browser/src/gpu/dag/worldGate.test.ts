@@ -74,7 +74,16 @@ test("the kernel's own gate decides as its model does, its threshold faded", () 
     link = s.packed.world!,
     shift = cold[link.linkBase - 1]
   // The kernel's text, its projection the model's own: a record is read back at its page here.
-  const views = [{ ...{ worldLinks: link.linkBase, worldScale: 1, worldCount: s.roots.length } }]
+  const views = [
+    {
+      ...{
+        worldLinks: link.linkBase,
+        worldScale: 1,
+        worldCount: s.roots.length,
+        worldRoot: link.root,
+      },
+    },
+  ]
   Object.assign(views[0], { pixelError: 0 })
   let ready: ArrayLike<number> = [],
     pixels = (c: number) => c

@@ -17,7 +17,7 @@ import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
 import { DAG_GRID_WGSL } from './gridWgsl.ts'
-import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
+import { SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts'
@@ -84,8 +84,10 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
  *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
  *  derives once per primitive (\`primitiveWgsl.ts\`).
- *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. Each
- *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
+ *  Without a placement tree, one thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot
+ *  is its primitive, each range's dispatch takes its range's slots (\`rangeSlot\`). With one, the
+ *  tree's top nodes and the world DAG's root alone (\`prepareTreeRoots\`): a member is its kept
+ *  group's to prepare. The first range's dispatch resets the frame. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let head=rangeFirst()==0u;let i=flatIndex(id.x,id.y,n.x);
@@ -96,19 +98,13 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
  if(head&&i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
  if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
+ if(hasTree()){prepareTreeRoots(i);return;}
  let world=views[0u].worldCount;
  if(i>=rangeCount()*views[0u].viewCount){return;}
  let t=rangeSlot(i);vi=t/world;let w=t-vi*world;
- // A grouped placement is its kept group's to prepare (\`placementTreeWgsl.ts\`): its slot only
- // carries the tree's cell of its rank, and is read for nothing else.
- if(groupedSlot(t)){if(t<views[0u].cells){setFlag(queueBase(0u)+t,cellEntry(t));}return;}
- // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
- // camera cut opens none on a primitive its impostor card draws (\`markOf\`, \`drawsCard\`).
- let mark=markOf(w);
- let skips=(mark&${CARD_ROOT}u)!=0u;
- let root=select(rootOf(w),0xffffffffu,skips);
- setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
- preparePlacement(w);
+ // The primitive's root opens the descent: one thread, one root, no counter to contend for, unless
+ // its gate closes it (\`opensRoot\`).
+ openRoot(t,w);
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){

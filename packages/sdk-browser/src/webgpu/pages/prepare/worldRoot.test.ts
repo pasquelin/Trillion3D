@@ -1,4 +1,4 @@
-// The world DAG in the WebGPU cut: a partitioned world's DAG joins the catalogue as the last
+// The world DAG in the WebGPU cut: a partitioned world's DAG joins the catalogue as one more
 // root, its pages read through the world's own source, each placed row linked to the object it
 // draws; the CPU cut, which knows no link, never draws it. On the cook's world fixture, served.
 import test from 'node:test'
@@ -96,7 +96,7 @@ test('a placed row is linked to the object its cell places there, a parked one t
   assert.equal(linked(), -1, 'parked')
 })
 
-test('the layout packs the world DAG last, after the blended placements', async (t) => {
+test('the layout keeps the world DAG among the opaque roots, wherever it sits', async (t) => {
   const { context, opaque } = await scene(t)
   const blended = placed(opaque)
   blended.pages[0].transparent = true
@@ -115,7 +115,8 @@ test('the layout packs the world DAG last, after the blended placements', async 
     cap: 64,
     pageBytes: 64,
   } as unknown as WebgpuPagesSetup)
-  assert.deepEqual(layout.selectionRoots, [roots[0], roots[1], roots[2]])
+  // The world DAG first, as the scene listed it, the blended placement after every opaque one.
+  assert.deepEqual(layout.selectionRoots, [roots[2], roots[0], roots[1]])
 })
 
 test("a held cell's roots gain a holder while it holds them, until the backend ends", async (t) => {

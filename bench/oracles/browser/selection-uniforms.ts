@@ -71,8 +71,8 @@ const FIELDS = [
   ['viewCapacity', 'u', 1],
   ['queueCap', 'u', 1],
   ['ahead', 'u', 1],
-  ['grouped', 'u', 1],
-  ['cells', 'u', 1],
+  ['worldRoot', 'u', 1],
+  ['treeTop', 'u', 1],
   ['cellBase', 'u', 1],
   ['members', 'u', 1],
   ['lightOriginHigh', 'f', 4],
@@ -119,6 +119,8 @@ export function referenceViewBlocks(
     viewCount: [1],
     viewCapacity: [1],
     queueCap: [packed.nodeCount],
+    // No world DAG packed: its placement names none.
+    worldRoot: [0xffffffff],
   }
   const out = Array.from({ length: blocks }, () => zero)
   out[0] = first

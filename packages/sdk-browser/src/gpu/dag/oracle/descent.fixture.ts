@@ -25,6 +25,7 @@ type Descended = {
   rootNodes: Uint32Array
   mark?: Uint32Array
   placementTree?: PlacementTree
+  world?: { root: number }
 }
 
 /**
@@ -43,7 +44,8 @@ type Covers = (w: number) => boolean
 /** The root a placement entry (`nodeCount + k`, member `k` of the tree's order) opens, or none:
  *  parked, drawn by its card, or drawn by the world DAG. */
 function memberRoot(packed: Descended, k: number, covers: Covers) {
-  return placementRoot(packed, packed.placementTree!.order[k], covers)
+  const w = packed.placementTree!.order[k]
+  return w === 0xffffffff ? -1 : placementRoot(packed, w, covers)
 }
 
 /** The root placement `w` opens, or none: parked, drawn by its card, or by the world DAG. */
@@ -59,8 +61,9 @@ function placementRoot(packed: Descended, w: number, covers: Covers) {
  * each node's verdict — non-zero means « the camera does not descend here » —, and only kept leaves
  * fall back to zero: they alone are what clusters consult next. A node the camera rejects is tried
  * against the view `ahead`, when there is one, and what that view keeps continues under it alone;
- * its kept leaves take `AHEAD_LEAF`. Grouped placements start under the placement tree's cells; a
- * placement the world DAG draws in its place (`covers`) opens nothing.
+ * its kept leaves take `AHEAD_LEAF`. With a placement tree, the descent starts at its top nodes and
+ * the world DAG's root, wherever it sits; a placement the world DAG draws in its place (`covers`)
+ * opens nothing.
  *
  * Top-down pruning drops a subtree whose error floor is above the threshold, unless the subtree
  * is open — it holds the nearest resident ancestor of something missing (`../shader/floorWgsl.ts`).
@@ -80,9 +83,11 @@ export function dagOracleDescent(
   /** Pairs: the node, then whether it is the view ahead's alone. */
   const frontier: number[] = []
   // The cut opens no descent on a root its impostor card draws (`drawsCard`, `markOf`).
-  for (let w = tree?.grouped ?? 0; w < packed.worldCount; w++)
+  const opened = tree ? (packed.world ? [packed.world.root] : []) : packed.rootNodes.keys()
+  for (const w of opened)
     if (placementRoot(packed, w, covers) >= 0) frontier.push(packed.rootNodes[w], 0)
-  for (let c = 0; c < (tree?.cells ?? 0); c++) frontier.push(tree!.cellBase + c, 0)
+  const top = tree?.levels[0]
+  for (let c = 0; c < (top?.count ?? 0); c++) frontier.push(top!.base + c, 0)
   while (frontier.length) {
     let aheadOnly = frontier.pop() as number
     let n = frontier.pop() as number

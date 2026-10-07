@@ -1,7 +1,7 @@
 /**
  * THE WORLD DAG'S RESIDENCY, A MIRROR OF THE SCENE'S.
  *
- * The world DAG rides in the one packing as one more root, packed last (`worldSuperRoots.ts`). Its
+ * The world DAG rides in the one packing as one more root, wherever it sits (`worldSuperRoots.ts`). Its
  * super-roots are pages like any other: the rows hold them, their flags are the rows'. Its object
  * clusters are not: a placed object draws itself, through its own placement. This mirror is the
  * one array the cut reads: the rows' flags, each object cluster's set from its placement.
@@ -31,15 +31,19 @@ type Mirror = ReturnType<typeof mirrorState>
 function mirrorState(packed: WorldPacked) {
   const { root, origins } = packed.world
   const { pageBase, pageCount } = packed.cutLinks[root]
-  if (pageBase + pageCount !== packed.pageCount) throw new Error('GPU_WORLD_DAG_NOT_LAST')
   if (origins.length !== pageCount) throw new Error('GPU_WORLD_ORIGINS_COUNT_CHANGED')
   const clusterOf = objectClusters(origins)
   return {
     packed,
     pageBase,
+    pageEnd: pageBase + pageCount,
     clusterOf,
     flags: new Uint32Array(packed.pageCount),
-    pageWorlds: new Uint32Array(packed.pageCones.buffer, packed.pageCones.byteOffset, pageBase),
+    pageWorlds: new Uint32Array(
+      packed.pageCones.buffer,
+      packed.pageCones.byteOffset,
+      packed.pageCount,
+    ),
     /** The placement drawing each object, -1 when none, and the object each placement draws. */
     placementOf: new Int32Array(clusterOf.length).fill(-1),
     objectOf: new Int32Array(packed.worldCount).fill(-1),
@@ -80,7 +84,7 @@ function coverResident(m: Mirror, w: number) {
 /** The rows' flag of `page`: a scene page's, its placement's object told; a super-root's. An
  *  object cluster's is the mirror's own. */
 function rowPage(m: Mirror, scene: ArrayLike<number>, page: number) {
-  if (page >= m.pageBase) {
+  if (page >= m.pageBase && page < m.pageEnd) {
     if (m.packed.world.origins[page - m.pageBase] < 0) write(m, page, scene[page] ? 1 : 0)
     return
   }
@@ -132,7 +136,7 @@ function update(m: Mirror, scene: Uint32Array, changes?: ResidencyChanges) {
   m.handed = true
 }
 
-/** The mirror of `packed`, whose `world` root (`packed.cutLinks`), packed last, is the world DAG
+/** The mirror of `packed`, whose `world` root (`packed.cutLinks`), wherever it sits, is the world DAG
  *  with `origins` per rank (`worldRootDag`): the placed object of an object cluster, -1 otherwise;
  *  each placement linked to an object (`packed.world.links`) draws it, a link that moves
  *  (`packed.world.moved`) read at the next `update`. */

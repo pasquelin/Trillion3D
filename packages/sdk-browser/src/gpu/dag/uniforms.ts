@@ -15,6 +15,7 @@ import { AHEAD_VIEW } from './shader/aheadWgsl.ts'
 import { VIEW_BLOCK_WORDS, viewWord } from './viewLayout.ts'
 import { REGION_NONE, swapRegionsWord } from './shader/swapWgsl.ts'
 import { ADMISSION_BUCKETS } from './request.ts'
+import { SELECTION_NONE as NONE } from '../core/selection.ts'
 
 /**
  * Arrays of a readback slot, reused from one read to the next: reallocating them on every
@@ -100,15 +101,16 @@ export function writeDagUniforms(
   // A pool short of the cut ranks the camera's requests by admission (`request.ts`).
   ints[W('admitByLevel')] = uniforms.admitByLevel ? 1 : 0
   ints[W('swapRegions')] = swapRegionsWord(saveRegion, REGION_NONE)
-  // The placement tree (`placementTree.ts`): the placements its groups prepare, its cells' nodes,
-  // where its order lies in the cold table.
-  const tree = packed.placementTree
-  ints[W('grouped')] = tree?.grouped ?? 0
-  ints[W('cells')] = tree?.cells ?? 0
+  // The world DAG's placement, wherever the packing put it, NONE without one; the placement tree
+  // (`placementTree.ts`): its top level's nodes, which open the descent, from its first node, and
+  // where its order lies in the cold table; no top node, no tree.
+  const tree = packed.placementTree,
+    world = packed.world
+  ints[W('worldRoot')] = world?.root ?? NONE
+  ints[W('treeTop')] = tree?.levels[0].count ?? 0
   ints[W('cellBase')] = tree?.cellBase ?? 0
   ints[W('members')] = tree?.members ?? 0
   // The placements' links to the world DAG (`worldLinks.ts`): none, no gate.
-  const world = packed.world
   ints[W('worldLinks')] = world?.linkBase ?? 0
   // The world DAG's threshold this cut, its transitions dithered in time (`worldFade.ts`).
   target[W('worldScale')] = world?.scale ?? 1

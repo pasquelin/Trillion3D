@@ -36,9 +36,9 @@ test('every field starts where WGSL puts it, by its own alignment', () => {
     ['admitByLevel', 58],
     // The swap's two regions, one word (`shader/swapWgsl.ts`).
     ['swapRegions', 59],
-    // The placement tree's four words, then the world DAG's link base and threshold scale.
-    ['grouped', 60],
-    ['cells', 61],
+    // The world DAG's placement, the placement tree's three words, the world's link base and scale.
+    ['worldRoot', 60],
+    ['treeTop', 61],
     ['cellBase', 62],
     ['members', 63],
     ['worldLinks', 64],
@@ -68,7 +68,7 @@ test('the struct the kernels bind is the one the table describes, in order', () 
       'near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,cameraWorld:vec3f,' +
       'cameraStretch:f32,listCap:u32,perspective:f32,' +
       'viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,admitByLevel:u32,swapRegions:u32,' +
-      'grouped:u32,cells:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
+      'worldRoot:u32,treeTop:u32,cellBase:u32,members:u32,worldLinks:u32,worldScale:f32,' +
       'lightOriginHigh:vec4f,lightOriginLow:vec4f,lightPlanes:array<vec4f,6>,}',
   )
   // And the shipped shader carries that exact struct, not a copy of it.

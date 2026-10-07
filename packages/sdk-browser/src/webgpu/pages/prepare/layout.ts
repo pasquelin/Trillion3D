@@ -70,28 +70,21 @@ export function askedTableRows(
   return boundTableRows(limits, draw, Math.min(blended, resident, viewRows))
 }
 
-/** The world DAG's root among the cut's (`worldRoot.ts`). */
-export const isWorldRoot = <R extends object>(root: R): root is R & { origins: Int32Array } =>
-  'origins' in root
-
 /** The geometry of the drawing path: the packed opaque pages, the row table sized to the slot
  *  budget and to one binding of the device (`limits`), and every per-row scratch array the image
  *  reuses instead of reallocating. The table grows in place when a larger pool or the GPU cut's
  *  requests ask more rows (`growTables.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup
-  // The world DAG is packed last whatever the rest (`../../../gpu/dag/worldMirror.ts`): opaque.
-  const world = roots.filter(isWorldRoot),
-    placed = roots.filter((root) => !isWorldRoot(root)),
-    placedOpaque = placed.filter((root) => !root.pages[0]?.transparent)
-  const opaqueRoots = [...placedOpaque, ...world],
-    transparentRoots = placed.filter((root) => root.pages[0]?.transparent)
-  // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones,
-  // then the world DAG when one is drawn. The GPU selection, the residency and the page budget read
-  // all of it; only the drawing path splits, because a transparent cluster is blended in source
-  // order instead of entering the visibility buffer. Placements grown in place append their opaque
-  // pages after the transparent ones: a page's kind is read from the page, never from its rank.
-  const selectionRoots = [...placedOpaque, ...transparentRoots, ...world]
+  // The world DAG is one more opaque root, wherever it sits (`../../../gpu/dag/worldMirror.ts`).
+  const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
+    transparentRoots = roots.filter((root) => root.pages[0]?.transparent)
+  // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
+  // GPU selection, the residency and the page budget read all of it; only the drawing path splits,
+  // because a transparent cluster is blended in source order instead of entering the visibility
+  // buffer. Placements grown in place append their opaque pages after the transparent ones: a
+  // page's kind is read from the page, never from its rank.
+  const selectionRoots = [...opaqueRoots, ...transparentRoots]
   // One record serves every placement of its primitive (#1235): the packed order is the INSTANCES
   // — a (placement, page) pair —, and the per-placement tables say which root each packed rank
   // belongs to. Every reader finds a page's world, row and winding through `placement`, never on

@@ -22,13 +22,16 @@ import { rowCell } from '../../../partition/rowCells.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
-import { isWorldRoot } from './layout.ts'
 
 type Collected = {
   roots: ClusterRoot<PageRec>[]
   allPages: PageRec[]
   requestCount: number
 }
+
+/** The world DAG's root among the cut's. */
+const isWorldRoot = <R extends object>(root: R): root is R & { origins: Int32Array } =>
+  'origins' in root
 
 /** The world DAG the cut packs for `context`'s scene: the stream a partitioned world drew at load. */
 const drawnWorld = (context: Pick<EngineContext, 'metadata'>) =>

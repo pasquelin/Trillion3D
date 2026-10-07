@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { fieldCamera, fieldCut, placementField } from './placementTree.fixture.ts'
 import { refitPlacementTree, visitPlacements } from './placementTree.ts'
 import { packDagSelection } from './selection.ts'
+import { appendDagRoots, dagRootCounts } from './pack.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { boxTransform, frustumExcludesBox } from '../../../../sdk-core/src/index.ts'
@@ -52,7 +53,7 @@ test('moving, parking or opening one placement refits its group and its cell, at
       { dag } = fieldCut(roots, views[0], true),
       tree = dag.placementTree!
     // A group bounds one workgroup's lanes of placements.
-    const groupNode = tree.cellBase + tree.cells + Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
+    const groupNode = tree.levels.at(-1)!.base + Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
     const box = () => Array.from(dag.nodes.subarray(groupNode * 24, groupNode * 24 + 7))
     const before = box()
     // Placement 70 moves 1 km away: its group's box follows, and only two nodes are rewritten.
@@ -100,4 +101,51 @@ test('the CPU reads through the tree every placement the frustum may hold, and n
   })
   assert.ok(seen[1] <= 1.5 * seen[0], `${seen.join(' → ')} read as the world grows ×16`)
   assert.ok(seen[0] < 1600 / 2)
+})
+
+test("a growth's placements join the tree in place, the cut the flat one's", () => {
+  // A field of 100: 80 packed at a capacity of 160, then 20 appended, as a growth in place does.
+  const roots = placementField(10, 6),
+    counts = dagRootCounts(roots)
+  const capacity = { pages: 2 * counts.pages, nodes: 2 * counts.nodes, worlds: 160 }
+  const dag = packDagSelection(roots.slice(0, 80), capacity),
+    tree = dag.placementTree!
+  assert.ok(tree && tree.capacity === 160, 'the tree is laid out for the capacity')
+  const added = appendDagRoots(dag, roots.slice(80))!
+  assert.ok(added, 'a packing with a tree keeps room')
+  assert.equal(tree.count, 100)
+  for (let w = 0; w < 100; w++) assert.equal(tree.order[tree.slot[w]], w, `placement ${w}`)
+  assert.deepEqual(added.tree.members, [80, 100])
+  for (const camera of views) {
+    const cut = fieldCut(roots, camera, true, dag)
+    assert.deepEqual(cut.pages, fieldCut(roots, camera, false, dag).pages)
+  }
+  const seen = new Set<number>()
+  visitPlacements(
+    dag,
+    tree,
+    engineCamera(fieldCamera([30, 40, 30], [30, 0, -30], 400)).planes,
+    (w) => seen.add(w),
+  )
+  assert.ok(
+    [80, 90, 99].every((w) => seen.has(w)),
+    'the appended are read through the tree',
+  )
+})
+
+test('an open group opens every node above it, by its flag, its bounds past every plane', () => {
+  const roots = placementField(40, 6)
+  roots[70] = { ...roots[70], mark: SPRITE_UNCULLED }
+  const dag = packDagSelection(roots),
+    tree = dag.placementTree!,
+    group = Math.floor(tree.slot[70] / SELECTION_WORKGROUP)
+  const cell = tree.levels[0].base + Math.floor(group / SELECTION_WORKGROUP)
+  for (const node of [tree.levels.at(-1)!.base + group, cell]) {
+    assert.equal(tree.nodeOpen[node - tree.cellBase], 1)
+    assert.deepEqual(
+      Array.from(dag.nodes.subarray(node * 24, node * 24 + 7)).filter((_, a) => a !== 3),
+      [-3.4e38, -3.4e38, -3.4e38, 3.4e38, 3.4e38, 3.4e38].map(Math.fround),
+      `node ${node}: exactly the open bounds`,
+    )
+  }
 })

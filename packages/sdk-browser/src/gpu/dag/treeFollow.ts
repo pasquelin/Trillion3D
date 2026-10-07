@@ -12,6 +12,7 @@ import {
   fitPlacementTree,
   opensTree,
   refitPlacementTree,
+  treeNodeCount,
   visitPlacements,
 } from './placementTree.ts'
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'
@@ -52,7 +53,7 @@ export function followPlacementTree(
     tree = packed.placementTree
   if (!tree) return selection
   const upload = (nodes: readonly number[]) => uploadNodes(device, nodeParts, packed, nodes)
-  const all = Array.from({ length: tree.cells + tree.groups }, (_, k) => tree.cellBase + k)
+  const all = Array.from({ length: treeNodeCount(tree) }, (_, k) => tree.cellBase + k)
   // What moved since the last cut: refitted once, as the next one is encoded.
   const dirty = new Set<number>()
   let whole = false
