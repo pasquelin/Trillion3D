@@ -1,3 +1,5 @@
+import { length3 } from '../../vector/vector.ts'
+
 /**
  * Planes of a viewing frustum, stored flat: twenty-four floats, four per plane `a, b, c, d`,
  * facing inward — a point is inside when `a*x + b*y + c*z + d >= 0` for all six.
@@ -34,7 +36,7 @@ function storePlane(
   unit: boolean,
 ) {
   if (unit) {
-    const reciprocal = 1 / Math.sqrt(a * a + b * b + c * c)
+    const reciprocal = 1 / length3(a, b, c)
     a *= reciprocal
     b *= reciprocal
     c *= reciprocal
@@ -109,4 +111,12 @@ export function frustumFarPlane(
 ) {
   if (!Number.isFinite(far)) return
   storePlane(out, at, view[2], view[6], view[10], view[14] + far, normalize)
+}
+
+/** True when `(x, y, z)` is on the inner side of all six `planes`, a plane's `a*x + b*y + c*z + d`
+ *  summed left to right; a NaN, comparing false, keeps the point. */
+export function frustumContainsPoint(planes: ArrayLike<number>, x: number, y: number, z: number) {
+  for (let i = 0; i < 24; i += 4)
+    if (planes[i] * x + planes[i + 1] * y + planes[i + 2] * z + planes[i + 3] < 0) return false
+  return true
 }

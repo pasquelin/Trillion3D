@@ -8,9 +8,13 @@ import {
   type SceneLightingView,
 } from './contracts.ts'
 import { sameSceneEnvironment, sameSceneLight } from './equal.ts'
-import { SCENE_ENVIRONMENT_FLOATS, packEnvironment } from '../core/environment.ts'
+import {
+  SCENE_ENVIRONMENT_FLOATS,
+  packEnvironment,
+  validateSceneEnvironment,
+} from '../core/environment.ts'
 import { LIGHT_FIELD, baseOf, writeLightFields } from './fields.ts'
-import { validateSceneEnvironment, validateSceneLight } from './validate.ts'
+import { validateSceneLight } from './validate.ts'
 
 export { LIGHT_FIELD } from './fields.ts'
 

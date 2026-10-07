@@ -1,5 +1,6 @@
 import { insideTriangle, triangleNormal } from './closest.ts'
 import type { CapsuleContact } from './capsule.ts'
+import { scaleVector3 } from '../../../math/src/vector/vector.ts'
 
 /**
  * A SPHERE LOWERED ONTO A TRIANGLE: how far a sphere moving straight down travels before it
@@ -35,10 +36,11 @@ export function dropSphere(
     best = distance
     ;[touch[0], touch[1], touch[2]] = [x, y, z]
   }
+  // The unit normal turned up: times `±1 / area`, `area` the root of the squares in `length3`'s
+  // order; a NaN area makes the face NaN.
   const area = Math.sqrt(triangleNormal(face, v, at))
   if (area === 0) return Infinity
-  const up = face[1] < 0 ? -1 : 1
-  for (let k = 0; k < 3; k++) face[k] *= up / area
+  scaleVector3(face, (face[1] < 0 ? -1 : 1) / area)
   if (face[1] > 0) {
     const height =
       (centre[0] - v[at]) * face[0] +

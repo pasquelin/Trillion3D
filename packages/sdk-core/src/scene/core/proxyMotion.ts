@@ -1,5 +1,6 @@
 import type { SceneProxy } from '../../contracts/proxy.ts'
 import { createProxyPoses, proxyNodeDelta, proxyStretch } from './proxyPoses.ts'
+import { IDENTITY_MATRIX4 } from '../../../../math/src/matrix/matrix4.ts'
 import { createProxySettling } from './proxySettling.ts'
 import { createProxyLeaves } from './proxyLeaves.ts'
 import { createProxyRefit } from './proxyRefit.ts'
@@ -32,7 +33,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     data.triangles,
     canonical,
   )
-  const { transforms, groupsOf, binds, inverses, deltas, identity } = createProxyPoses(proxy, data)
+  const { transforms, groupsOf, binds, inverses, deltas } = createProxyPoses(proxy, data)
   const bounds = [...proxy.bounds] as SceneProxy['bounds']
   // The refit reads canonical triangles and plain groups, whatever the leaves hold.
   const refit = createProxyRefit({ ...data, triangles: canonical, triangleGroups: groupOf }),
@@ -67,7 +68,6 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
       data.nodeBounds.byteLength +
       data.nodeChildren.byteLength +
       refit.bytes +
-      identity.byteLength +
       delta.byteLength,
     /** Some leaf is traced under its owners' poses. */
     get dynamic() {
@@ -99,9 +99,9 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
           source = data.sourceParents[source]
           world = worldOf(source)
         }
-        if (!world) world = identity
-        const bind = source === -1 ? identity : binds[source]
-        proxyNodeDelta(delta, world, bind, source === -1 ? identity : inverses[source], identity)
+        if (!world) world = IDENTITY_MATRIX4
+        const bind = source === -1 ? IDENTITY_MATRIX4 : binds[source]
+        proxyNodeDelta(delta, world, bind, source === -1 ? IDENTITY_MATRIX4 : inverses[source])
         let moved = false
         for (let i = 0; i < 16; i++) moved ||= Math.fround(delta[i]) !== deltas[node][i]
         if (!moved) continue

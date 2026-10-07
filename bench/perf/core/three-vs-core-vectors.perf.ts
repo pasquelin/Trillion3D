@@ -9,7 +9,7 @@ import {
   lengthSqVector3,
   transformAffinePoint,
 } from '../../../packages/math/src/vector/vector.ts'
-import { hslToLinearRgb, srgbToLinear } from '../../../packages/math/src/color/color.ts'
+import { hslToRgb, srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { rapport } from '../../core/index.ts'
 import {
   N,
@@ -158,7 +158,7 @@ lines.push(
     core: () => {
       for (let i = 0; i < N; i++) {
         const at = i * 3
-        hslToLinearRgb(out, at, channel[at], channel[at + 1], channel[at + 2])
+        hslToRgb(out, at, channel[at], channel[at + 1], channel[at + 2])
       }
       return out
     },

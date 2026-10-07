@@ -1,4 +1,4 @@
-import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
+import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 
 /** A half float's value from its sixteen bits, positive ones: what `unpack2x16float` reads. */
 const halfValue = (bits: number) => (bits >= 0x7c00 ? Infinity : fromHalf(bits))

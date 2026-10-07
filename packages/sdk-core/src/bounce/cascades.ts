@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { clampLowWins } from '../../../math/src/scalar/reals.ts'
 
 /**
@@ -128,12 +128,12 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
     invalidLevels: 0,
     levels,
     reach:
-      hypot3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
+      length3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
       BOUNCE_SETTINGS.rayReachFraction,
     replan(nextBounds) {
       const planned = spacingsOf(nextBounds)
       const reach =
-        hypot3(
+        length3(
           nextBounds[3] - nextBounds[0],
           nextBounds[4] - nextBounds[1],
           nextBounds[5] - nextBounds[2],

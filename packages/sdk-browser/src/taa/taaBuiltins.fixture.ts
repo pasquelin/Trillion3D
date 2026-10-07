@@ -1,8 +1,8 @@
 // What the temporal resolve calls beyond `shaderRunBuiltins.fixture.ts`, for the runs of its
 // shipped text in JavaScript: the half-float packing its flicker history is stored with (the
-// engine's own half conversion, `ltcTable.ts`), and the engine's integer hash (the maths library's
-// `hashUnit`) in 32-bit integer arithmetic, which a double would not wrap.
-import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
+// engine's own half conversion, `packages/math/src/float/half.ts`), and the engine's integer hash (the
+// maths library's `hashUnit`) in 32-bit integer arithmetic, which a double would not wrap.
+import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 

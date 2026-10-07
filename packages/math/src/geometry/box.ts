@@ -1,3 +1,5 @@
+import { length3 } from '../vector/vector.ts'
+
 /**
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
  * starting at an offset. Free functions, output passed as parameter, zero allocation.
@@ -25,6 +27,57 @@ export function boxIsEmpty(box: ArrayLike<number>, o: number) {
   return box[o + 3] < box[o] || box[o + 4] < box[o + 1] || box[o + 5] < box[o + 2]
 }
 
+/** The centre of the box given by its six bounds, `(min + max) * 0.5` per axis, into `out` at
+ *  `o`. No empty test: the caller decides what an empty box's centre is. */
+export function boxCenter(
+  out: Float64Array,
+  o: number,
+  minX: number,
+  minY: number,
+  minZ: number,
+  maxX: number,
+  maxY: number,
+  maxZ: number,
+) {
+  out[o] = (minX + maxX) * 0.5
+  out[o + 1] = (minY + maxY) * 0.5
+  out[o + 2] = (minZ + maxZ) * 0.5
+}
+
+/** True when `(x, y, z)` lies in the box at `o`, its faces included. Each test is a strict
+ *  comparison denied: one with a NaN coordinate or bound is false, so it never puts a point out. */
+export function boxContainsPoint(
+  box: ArrayLike<number>,
+  o: number,
+  x: number,
+  y: number,
+  z: number,
+) {
+  return !(
+    x < box[o] ||
+    x > box[o + 3] ||
+    y < box[o + 1] ||
+    y > box[o + 4] ||
+    z < box[o + 2] ||
+    z > box[o + 5]
+  )
+}
+
+/** True when the boxes `a` at `ao` and `b` at `bo` overlap, touching faces included: no axis has
+ *  one box's upper bound under the other's lower. A `boxEmpty` box, its bounds infinite and
+ *  inverted, overlaps nothing; a finite inverted box is not empty here and overlaps whatever
+ *  spans its bounds. A comparison with a NaN bound is false, so it never separates them. */
+export function boxesOverlap(a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) {
+  return !(
+    b[bo + 3] < a[ao] ||
+    b[bo] > a[ao + 3] ||
+    b[bo + 4] < a[ao + 1] ||
+    b[bo + 1] > a[ao + 4] ||
+    b[bo + 5] < a[ao + 2] ||
+    b[bo + 2] > a[ao + 5]
+  )
+}
+
 /** True when boxes `a` at `ao` and `b` at `bo` hold the same six values, bit for bit. */
 export function boxEquals(a: ArrayLike<number>, ao: number, b: ArrayLike<number>, bo: number) {
   for (let v = 0; v < BOX_VALUES; v++) if (a[ao + v] !== b[bo + v]) return false
@@ -39,6 +92,25 @@ export function boxExpandByPoint(out: Float64Array, o: number, x: number, y: num
   out[o + 3] = Math.max(out[o + 3], x)
   out[o + 4] = Math.max(out[o + 4], y)
   out[o + 5] = Math.max(out[o + 5], z)
+}
+
+/**
+ * The smallest box around `count` points read from `points` at `at`, one every `stride` numbers,
+ * into `out` at `o`: `boxEmpty`, then `boxExpandByPoint` per point. `Math.min` and `Math.max` decide,
+ * so a NaN coordinate makes its bounds NaN, `-0` sits below `+0`, and no point leaves the box
+ * empty. `out` must not be `points`.
+ */
+export function boxFromPoints(
+  out: Float64Array,
+  o: number,
+  points: ArrayLike<number>,
+  at: number,
+  count: number,
+  stride = 3,
+) {
+  boxEmpty(out, o)
+  for (let i = 0, p = at; i < count; i++, p += stride)
+    boxExpandByPoint(out, o, points[p], points[p + 1], points[p + 2])
 }
 
 /** The box at `bo` of `box` grown by `g` on every side, into `out` at `o` (the same box allowed). */
@@ -192,5 +264,5 @@ export function boxPointDistance(
   const dx = Math.max(box[o] - x, 0, x - box[o + 3]),
     dy = Math.max(box[o + 1] - y, 0, y - box[o + 4]),
     dz = Math.max(box[o + 2] - z, 0, z - box[o + 5])
-  return Math.sqrt(dx * dx + dy * dy + dz * dz)
+  return length3(dx, dy, dz)
 }

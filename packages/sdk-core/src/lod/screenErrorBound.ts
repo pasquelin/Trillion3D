@@ -59,7 +59,9 @@ export function screenErrorBound(
   const nearest = clipWeight(perspective, depth - reach),
     closest = nearest - perspective * shift,
     side = perspective * (lateral + reach)
-  // The near plane first: the hypotenuse root is taken only once it is cleared.
+  // The near plane first: the hypotenuse root is taken only once it is cleared. The plain root of
+  // Rust's `vec2::length`, not `length2`: past the plain sum's range `length2` takes `hypot2`,
+  // and the table's row at a 1e308 depth pins the plain sum's Infinity (docs/MATHS.md "Lengths").
   if (!(closest > perspective * near)) return Infinity
   const slant = Math.sqrt(nearest * nearest + side * side)
   if (!(slant >= nearest && slant < Infinity)) return Infinity
@@ -86,6 +88,7 @@ export function clusterErrorPixels(
   if (clusterError === Infinity) return Infinity
   // No guard on the centre: a NaN or ±infinity in x or y yields a `lateral` that
   // `clusterErrorAtDepth` rejects with the same message, its two short-circuits already set here.
+  // `vec2::length` of `cut_error.rs` too: the plain root, as the slant.
   const lateral = Math.sqrt(centreX * centreX + centreY * centreY)
   return clusterErrorAtDepth(
     clusterError,

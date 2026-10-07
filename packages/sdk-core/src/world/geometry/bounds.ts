@@ -5,6 +5,7 @@
  * vertex by vertex.
  */
 import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
+import { distanceSqVector3 } from '../../../../math/src/vector/vector.ts'
 import type { VertexAttribute } from '../buffer/attribute.ts'
 import type { Geometry } from './geometry.ts'
 import { Box3 } from '../math/box3.ts'
@@ -103,10 +104,7 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   let far = 0
   /** Reaches the point of three numbers at `at` in `p`. */
   const reach = (p: ArrayLike<number>, at = 0) => {
-    const dx = cx - p[at],
-      dy = cy - p[at + 1],
-      dz = cz - p[at + 2]
-    far = Math.max(far, dx * dx + dy * dy + dz * dz)
+    far = Math.max(far, distanceSqVector3(centre.elements, p, 0, at))
   }
   if (plain) for (let i = 0, a = plain.array; i + 2 < a.length; i += 3) reach(a, i)
   else {

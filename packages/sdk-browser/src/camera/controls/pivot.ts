@@ -2,7 +2,7 @@ import { createChangeGate, createControlBase, type ControlBase } from './base.ts
 import { controlPose, readVector, writeVector, type ControlPose } from './pose.ts'
 import { trackPointers, trackWheel, type DragHandlers } from './input.ts'
 import { dollyDistance, panOffset, pixelWorldScale } from './math.ts'
-import { RADIUS_EPSILON } from '../../../../sdk-core/src/world/math/spherical.ts'
+import { RADIUS_EPSILON } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import type { ControlCamera, PivotCameraControls } from './types.ts'

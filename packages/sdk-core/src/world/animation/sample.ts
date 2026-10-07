@@ -1,4 +1,5 @@
 import {
+  conjugateQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   slerpArc,
@@ -60,10 +61,6 @@ export function difference(tr: Track, value: Float64Array, reference: Float64Arr
     for (let c = 0; c < value.length; c++) value[c] -= reference[c]
     return value
   }
-  inverted[0] = -reference[0]
-  inverted[1] = -reference[1]
-  inverted[2] = -reference[2]
-  inverted[3] = reference[3]
-  return multiplyQuaternion(value, inverted, value)
+  return multiplyQuaternion(value, conjugateQuaternion(inverted, reference), value)
 }
 const inverted = new Float64Array(4)

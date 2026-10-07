@@ -880,8 +880,8 @@
     "srgbToLinear": {
       "description": "Kurva sRGB yang pasti — `c / 12,92` di bawah 0,04045, `((c + 0,055) / 1,055)^2,4` di atasnya — dan kebalikannya, nilai negatif dijepit ke nol sebelum pangkatnya."
     },
-    "hslToLinearRgb": {
-      "description": "Hue, saturation dan lightness menjadi tiga komponen linear ditulis di `out[o..o+2]`. `setHSL` acuannya suku demi suku: hue yang dibungkus, saturation dan lightness dijepit ke `[0, 1]`, saturation nol dikembalikan sebagai abu-abu, lalu ramp bertahapnya. Tidak ada kurva transfer yang diterapkan — ruang kerja acuannya sudah linear."
+    "hslToRgb": {
+      "description": "Hue, saturation dan lightness menjadi tiga komponen RGB ditulis di `out[o..o+2]`. `setHSL` acuannya suku demi suku: hue yang dibungkus, saturation dan lightness dijepit ke `[0, 1]`, saturation nol dikembalikan sebagai abu-abu, lalu ramp bertahapnya. RGB keluar dalam pengodean yang sama dengan HSL yang diberikan: tidak ada kurva transfer yang diterapkan."
     },
     "boxUnion": {
       "description": "Sebuah kotak adalah enam angka disimpan datar mulai dari `o`: tiga batas bawah, tiga batas atas. Sebuah kotak kosong punya batas bawahnya di `+Infinity` dan batas atasnya di `-Infinity`; sebuah batas NaN tidak membuat sebuah kotak jadi kosong. Memperluas dan menyatukan mengambil batasnya sebagai parameter, jadi tidak ada objek sementara yang dibuat per panggilan."

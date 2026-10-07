@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MIRROR_TRANSITION_END, ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
-import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
+import { fromHalf, toHalf } from '../../../math/src/float/half.ts'
 import { functionText } from './wgslBody.fixture.ts'
 import { BOUNCE_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'

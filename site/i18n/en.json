@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "The exact sRGB curve — `c / 12.92` below 0.04045, `((c + 0.055) / 1.055)^2.4` above — and its inverse, negatives clamped to zero before the exponent."
     },
-    "hslToLinearRgb": {
-      "description": "Hue, saturation and lightness to three linear components written at `out[o..o+2]`. The reference `setHSL` term by term: wrapped hue, saturation and lightness clamped to `[0, 1]`, zero saturation returned as grey, then the piecewise ramp. No transfer curve is applied — the reference workspace is already linear."
+    "hslToRgb": {
+      "description": "Hue, saturation and lightness to three RGB components written at `out[o..o+2]`. The reference `setHSL` term by term: wrapped hue, saturation and lightness clamped to `[0, 1]`, zero saturation returned as grey, then the piecewise ramp. The RGB comes out in the encoding the HSL is given in: no transfer curve is applied."
     },
     "boxUnion": {
       "description": "A box is six numbers stored flat from `o`: three lower bounds, three upper. An empty box has its lower bounds at `+Infinity` and its upper at `-Infinity`; a NaN bound does not make a box empty. Expanding and uniting take the bounds as parameters, so no temporary object is built per call."

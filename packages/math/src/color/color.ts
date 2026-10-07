@@ -35,19 +35,13 @@ function hueComponent(p: number, q: number, t: number) {
 }
 
 /**
- * Hue, saturation, and lightness to three linear components written to `out[o..o+2]`.
+ * Hue, saturation, and lightness to three RGB components written to `out[o..o+2]`.
  *
  * The hue is wrapped into `[0, 1[`, saturation and lightness are clamped to `[0, 1]`, zero
- * saturation gives a gray, otherwise a piecewise ramp gives each channel. No transfer curve
- * is applied: the HSL values are taken as already linear, so the conversion is the identity.
+ * saturation gives a gray, otherwise a piecewise ramp gives each channel. The components come
+ * out in the encoding the HSL is given in; no transfer curve is applied.
  */
-export function hslToLinearRgb<T extends NumberSink>(
-  out: T,
-  o: number,
-  h: number,
-  s: number,
-  l: number,
-) {
+export function hslToRgb<T extends NumberSink>(out: T, o: number, h: number, s: number, l: number) {
   const hue = wrap(h, 1),
     saturation = saturate(s),
     lightness = saturate(l)

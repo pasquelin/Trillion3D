@@ -248,20 +248,20 @@
       "max": "x, y, z가 가장 큰 꼭짓점.",
       "set": "두 꼭짓점을 모두 설정한다.",
       "makeEmpty": "박스를 비워서, 성장할 준비를 시킨다.",
-      "isEmpty": "박스가 비어 있는지 여부.",
+      "isEmpty": "박스가 비어 있는지 여부 (`boxIsEmpty`).",
       "copy": "다른 박스의 꼭짓점을 가져온다.",
       "clone": "같은 꼭짓점을 가진 새 박스.",
       "expandByPoint": "어떤 점을 담기에 딱 맞을 만큼만 박스를 넓힌다.",
       "expandByScalar": "박스의 각 면을 `s`만큼 넓힌다.",
       "union": "다른 박스도 담도록 박스를 넓힌다.",
-      "setFromArray": "평평한 좌표 목록을 감싸는 가장 작은 박스.",
+      "setFromArray": "평평한 좌표 목록을 감싸는 가장 작은 박스. `itemSize`개의 숫자마다 한 점씩, 온전한 점을 모두 담는다.",
       "setFromPoints": "점들의 목록을 감싸는 가장 작은 박스.",
       "setFromObject": "`node` 아래에 있는 모든 것의 월드 박스. 각 콘텐츠의 박스를 그 월드 행렬로 옮긴 것.",
       "applyMatrix4": "박스를 행렬로 움직이면서도 축에 맞춰진 상태를 유지한다.",
-      "getCenter": "박스의 중심.",
+      "getCenter": "박스의 중심(`boxCenter`). 빈 박스는 원점.",
       "getSize": "박스의 너비, 높이, 깊이.",
-      "containsPoint": "어떤 점이 박스 안에 있는지 여부.",
-      "intersectsBox": "두 박스가 겹치는지 여부.",
+      "containsPoint": "어떤 점이 박스 안에 있는지 여부. 면 위도 포함한다(`boxContainsPoint`).",
+      "intersectsBox": "두 박스가 겹치는지 여부. 면이 맞닿는 경우도 포함한다(`boxesOverlap`).",
       "getBoundingSphere": "꼭짓점들을 지나는 구(`sphereFromBounds`); 빈 박스는 반지름 −1을 준다.",
       "equals": "두 박스가 같은 꼭짓점을 가지는지 여부."
     }
@@ -545,7 +545,7 @@
       "clone": "같은 채널값을 가진 새 색상.",
       "getHex": "0xRRGGBB, sRGB로 인코딩되고 바이트 단위로 반올림됨.",
       "getHexString": "`'ff8800'`처럼 6자리 16진수로 표현한 색상.",
-      "getStyle": "`'rgb(255,136,0)'`처럼 CSS 문자열로 표현한 색상.",
+      "getStyle": "`'#ff8800'`처럼 CSS 16진수 문자열로 표현한 색상.",
       "lerp": "색상을 다른 색상 쪽으로 `t`(0에서 1)만큼 이동시킨다.",
       "multiplyScalar": "각 채널을 `s`배만큼 밝게 만든다.",
       "equals": "두 색상이 같은 채널값을 가지는지 여부.",
@@ -1143,7 +1143,7 @@
       "planes": "정규화된 여섯 평면, 각각 네 개의 숫자: 코어의 레이아웃.",
       "setFromProjectionMatrix": "어떤 카메라 행렬이 보는 범위의 여섯 평면.",
       "intersectsBox": "어떤 박스가 적어도 부분적으로 시야 안에 있는지 여부.",
-      "containsPoint": "어떤 점이 시야 안에 있는지 여부."
+      "containsPoint": "어떤 점이 시야 안에 있는지 여부 (`frustumContainsPoint`)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -1954,7 +1954,7 @@
       "makeRotationY": "y축 중심의 회전이 된다.",
       "makeRotationZ": "z축 중심의 회전이 된다.",
       "setPosition": "이동 부분만 설정한다.",
-      "getMaxScaleOnAxis": "어느 축을 따라서든, 가장 큰 확대율.",
+      "getMaxScaleOnAxis": "어느 축을 따라서든, 가장 큰 확대율. 세 열 중 가장 긴 것(`length3`).",
       "equals": "두 행렬이 같은 숫자를 가지는지 여부."
     }
   },
@@ -2645,7 +2645,7 @@
       "copy": "다른 쿼터니언의 숫자를 가져온다.",
       "clone": "같은 숫자를 가진 새 쿼터니언.",
       "identity": "전혀 회전하지 않은 상태로 초기화한다.",
-      "setFromAxisAngle": "축 `v` 중심으로 `angle` 라디안 회전한 것이 된다.",
+      "setFromAxisAngle": "축 `v` 중심으로 `angle` 라디안 회전한 것이 된다. 축은 먼저 길이 1로 만든다(`normalizeVector3`).",
       "setFromEuler": "세 오일러 각이 지정하는 순서대로의 회전(`localTurnQuaternion`).",
       "setFromRotationMatrix": "열이 단위 길이인 열 우선 행렬의 상위 3×3으로부터.",
       "setFromUnitVectors": "단위 벡터 `a`를 단위 벡터 `b`로 옮기는 최단 회전.",
@@ -2655,7 +2655,7 @@
       "invert": "이 회전을 상쇄하는 회전이 된다.",
       "conjugate": "축 부분을 뒤집는다: 단위 쿼터니언에게는 반대 방향 회전.",
       "dot": "두 회전이 얼마나 일치하는가, −1에서 1.",
-      "length": "네 숫자를 합친 크기.",
+      "length": "네 숫자를 합친 크기 (`lengthQuaternion`).",
       "normalize": "숫자들을 크기 1로, 순수한 회전으로 스케일한다.",
       "angleTo": "두 회전 사이의 각도, 라디안.",
       "slerp": "짧은 쪽 호를 따라 `q` 쪽으로의 구면 보간.",
@@ -3679,8 +3679,8 @@
       "add": "다른 2D 벡터를 더한다.",
       "sub": "다른 2D 벡터를 뺀다.",
       "multiplyScalar": "두 숫자에 `s`를 곱한다.",
-      "length": "그 2D 화살표의 길이.",
-      "normalize": "방향은 유지한 채 길이를 1로 만든다.",
+      "length": "그 2D 화살표의 길이 (`length2`).",
+      "normalize": "방향은 유지한 채 길이를 1로 만든다. 영벡터는 그대로 0이다.",
       "distanceTo": "다른 2D 점까지의 거리.",
       "fromArray": "리스트에서 두 숫자를 읽는다.",
       "toArray": "두 숫자를 리스트로."
@@ -3711,7 +3711,7 @@
       "cross": "둘 다에 수직인 화살표가 된다.",
       "crossVectors": "`u`와 `v` 둘 다에 수직인 화살표가 된다.",
       "lengthSq": "길이의 제곱: 더 빨리 구해진다.",
-      "length": "그 화살표의 길이.",
+      "length": "그 화살표의 길이 (`length3`).",
       "setLength": "방향은 유지한 채 길이를 설정한다.",
       "normalize": "방향은 유지한 채 길이를 1로 만든다.",
       "distanceToSquared": "어떤 점까지의 거리의 제곱.",
@@ -5147,8 +5147,8 @@
   "holdCameraWorld": {
     "summary": "한 엔진 카메라를 다른 것으로 복사한다. 그러면 그것은 이후 뷰를 비트 단위로 유지한다."
   },
-  "hslToLinearRgb": {
-    "summary": "색상, 채도, 명도를 `out[o..o+2]`에 기록되는 세 개의 선형 성분으로."
+  "hslToRgb": {
+    "summary": "색상, 채도, 명도를 `out[o..o+2]`에 기록되는 세 개의 RGB 성분으로."
   },
   "httpPageSource": {
     "summary": "`baseUrl`로부터, 키를 기준으로 HTTP를 통해 페이지를 가져오는 페이지 소스."
@@ -6237,7 +6237,7 @@
     "description": "길이는 `hypot4`가 더하는 방식(Kahan)대로 더한 네 제곱의 제곱근이며, 가장 큰 크기에 의한 스케일링은 하지 않습니다. `SQUARED_MIN`..`SQUARED_MAX` 안에서는 그 스케일링이 반올림만 더합니다. 입구에서 나눗셈 네 번, 출구에서 곱 한 번입니다. 정확한 `q / |q|`에 대해, 측정한 어떤 입력군에서도 스케일된 길이보다 나쁘지 않고 대부분에서 더 낫습니다(거의 단위인 사원수에서 최대 2.7 → 2.3 ULP, 평균 0.73 → 0.64). 나눗셈도 네 번 덜 듭니다. 그 범위 밖(0, NaN, 무한대, 한계에 가까운 크기)에서는 이전과 같이 `hypot4`의 길이입니다."
   },
   "normalizeVector3": {
-    "summary": "`at`의 벡터를 제자리에서 정규화합니다: 각 성분에 `1 / (length || 1)`을 곱하므로 0 벡터는 0으로 유지됩니다."
+    "summary": "`at`의 벡터를 제자리에서 정규화합니다: 각 성분에 `1 / (length3 || 1)`을 곱하므로 0 벡터는 0으로 유지됩니다. 2^-1024보다 짧은 벡터는 길이의 역수가 넘치지 않도록 먼저 2^1000으로 정확히 확대됩니다."
   },
   "normalizedLinearDeterminant": {
     "summary": "**정규화된** 선형 부분의 행렬식, WGSL 커널의 순서로: 세 열을 스케일로 나눈 다음 `a · (b × c)`.",
@@ -7649,6 +7649,7 @@
       "isSkeleton": "항상 `true`: 스켈레톤을 구분합니다.",
       "bones": "관절인 노드들, 관절 순서대로.",
       "boneInverses": "뼈마다 열 우선으로 저장한 16개의 수: 바인드 자세에서 그 월드 행렬의 역행렬.",
+      "inverses": "각 뼈의 `boneInverses` 안 열여섯 개 숫자를 관절 순서대로, 한 번 만든 뷰로 담습니다.",
       "palette": "`meshWorld`에 놓인 메시의 팔레트를 `out`의 `at`부터 씁니다: 각 관절마다 `meshWorld⁻¹ · boneWorld · boneInverse`의 행이며, 메시의 바인드 자세 정점을 그 뼈가 옮겨 놓는 위치로, 메시 자신의 프레임에서 옮깁니다 — 따라서 이후에 적용되는 메시의 배치가, 메시 노드 자신의 자세와 무관하게 뼈가 서 있는 곳에 메시를 그립니다. 각 뼈의 월드는 그 노드가 가진 것(`matrixWorld`)입니다."
     }
   },
@@ -7684,8 +7685,8 @@
       "matrix": "그 월드 자세. 열 우선 순서의 부동소수 16개."
     }
   },
-  "IMPOSTOR_PI": {
-    "summary": "π, 하나의 리터럴로, 전환을 읽는 모든 쪽이 같은 수로 반올림합니다."
+  "PI": {
+    "summary": "반 회전, 라디안 단위: `Math.PI`."
   },
   "IMPOSTOR_VERSION": {
     "summary": "런타임이 읽는 `impostors` 섹션의 형식(#817 파트 1, 컴파일러가 베이크)."

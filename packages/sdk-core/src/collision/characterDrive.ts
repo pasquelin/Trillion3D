@@ -5,7 +5,7 @@ import {
   type CharacterInput,
   type CharacterSettings,
 } from './characterSettings.ts'
-import { hypot2 } from '../../../math/src/float/hypot.ts'
+import { length2 } from '../../../math/src/vector/vector.ts'
 import { gripOf } from './grip.ts'
 
 /**
@@ -110,7 +110,7 @@ export function driveTick(
       : 0
   const push = drive.grounded ? gripOf(drive.floor) * settings.gravity : Infinity
   approach(velocity, tx, tz, rate, push, h, step)
-  if (drive.grounded && !wishing && hypot2(velocity[0], velocity[2]) < REST * rate)
+  if (drive.grounded && !wishing && length2(velocity[0], velocity[2]) < REST * rate)
     velocity[0] = velocity[2] = 0
   return true
 }
@@ -132,7 +132,7 @@ function approach(
 ) {
   const gx = velocity[0] - tx,
     gz = velocity[2] - tz,
-    gap = hypot2(gx, gz)
+    gap = length2(gx, gz)
   const linear = gap > push / rate ? Math.min(h, (gap - push / rate) / push) : 0,
     middle = linear > 0 ? gap - push * linear : gap,
     decay = Math.exp(-rate * (h - linear)),

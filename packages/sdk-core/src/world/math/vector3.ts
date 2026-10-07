@@ -3,7 +3,10 @@ import {
   addVector3,
   applyMatrix3Vector3,
   crossVector3,
+  distanceSqVector3,
+  distanceVector3,
   dotVector3,
+  length3,
   lengthSqVector3,
   normalizeVector3,
   scaleVector3,
@@ -12,7 +15,7 @@ import {
   transformHomogeneousPoint,
 } from '../../../../math/src/vector/vector.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
-import { fromSpherical } from './spherical.ts'
+import { fromSpherical } from '../../../../math/src/vector/spherical.ts'
 import { ObservedComponents } from '../observed.ts'
 import type { Matrix4, Matrix3 } from './matrix4.ts'
 import type { XYZLike as XYZ, XYZWLike as Q } from './likes.ts'
@@ -63,7 +66,7 @@ export class Vector3 extends ObservedComponents {
     return new Vector3(this.x, this.y, this.z)
   }
   /** Adds another vector. */ add(v: XYZ) {
-    return this.set(this.x + v.x, this.y + v.y, this.z + v.z)
+    return this.written(addVector3(a, this.elements, load(b, v)))
   }
   /** Adds `s` to x, y and z. */ addScalar(s: number) {
     return this.set(this.x + s, this.y + s, this.z + s)
@@ -75,7 +78,7 @@ export class Vector3 extends ObservedComponents {
     return this.written(addScaledVector3(load(a, this), load(b, v), s))
   }
   /** Takes another vector away. */ sub(v: XYZ) {
-    return this.addScaledVector(v, -1)
+    return this.written(subVector3(a, this.elements, load(b, v)))
   }
   /** Becomes `u − v`: `u` copied first, then `v` taken from what was written. */
   subVectors(u: XYZ, v: XYZ) {
@@ -111,8 +114,8 @@ export class Vector3 extends ObservedComponents {
   /** The length, squared: quicker to get. */ lengthSq() {
     return lengthSqVector3(this.elements)
   }
-  /** How long the arrow is. */ length() {
-    return Math.sqrt(this.lengthSq())
+  /** How long the arrow is (`length3`). */ length() {
+    return length3(this.x, this.y, this.z)
   }
   /** Keeps the direction, sets the length. */ setLength(length: number) {
     return this.normalize().multiplyScalar(length)
@@ -123,12 +126,10 @@ export class Vector3 extends ObservedComponents {
     return this.written(a)
   }
   /** The distance to a point, squared. */ distanceToSquared(v: XYZ) {
-    load(a, this)
-    addScaledVector3(a, load(b, v), -1)
-    return lengthSqVector3(a)
+    return distanceSqVector3(this.elements, load(b, v))
   }
   /** The distance to a point. */ distanceTo(v: XYZ) {
-    return Math.sqrt(this.distanceToSquared(v))
+    return distanceVector3(this.elements, load(b, v))
   }
   /** Moves `t` of the way to `v`. */ lerp(v: XYZ, t: number) {
     return this.lerpVectors(this, v, t)

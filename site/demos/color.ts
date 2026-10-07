@@ -1,5 +1,5 @@
 /** Colour demos: the engine's own curve and HSL conversion, on values the reader moves. */
-import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './engine.ts'
+import { hslToRgb, linearToSrgb, srgbToLinear } from './engine.ts'
 import {
   showVector as show,
   canvasView,
@@ -35,7 +35,7 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
       ]
     },
   },
-  hslToLinearRgb: {
+  hslToRgb: {
     controls: [
       slider('h', 'hue', 0, 1, 0.08, 0.005),
       slider('s', 'saturation', 0, 1, 0.8, 0.01),
@@ -43,10 +43,10 @@ export const COLOR_DEMOS: Record<string, DemoDef> = {
     ],
     run(state) {
       const rgb = new Float64Array(3)
-      hslToLinearRgb(rgb, 0, state.h, state.s, state.l)
+      hslToRgb(rgb, 0, state.h, state.s, state.l)
       const encoded = Array.from(rgb, linearToSrgb)
       return [
-        valueView('hslToLinearRgb(out, 0, h, s, l)', [
+        valueView('hslToRgb(out, 0, h, s, l)', [
           ['linear rgb', show(rgb)],
           ['encoded for the screen', encoded.map(formatNumber).join(', ')],
         ]),

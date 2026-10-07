@@ -1,19 +1,31 @@
 import {
   axisAngleQuaternion,
+  conjugateQuaternion,
+  dotQuaternion,
+  lengthQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
   localTurnQuaternion,
+  quaternionAngle,
   slerpQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import { writeRotationQuaternion } from '../../../../math/src/matrix/matrix4Trs.ts'
+import { crossVector3, dotVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { ObservedComponents } from '../observed.ts'
 import type { EulerLike, XYZLike as V, XYZWLike as Q } from './likes.ts'
-import { hypot3, hypot4 } from '../../../../math/src/float/hypot.ts'
 
 const other = new Float64Array(4),
   axis = new Float64Array(3),
+  onto = new Float64Array(3),
   turn = new Float64Array(4),
   rows = new Float64Array(9)
+/** A vector read into flat numbers, for the core functions that take them. */
+const loadVector = (into: Float64Array, v: V) => {
+  into[0] = v.x
+  into[1] = v.y
+  into[2] = v.z
+  return into
+}
 const load = (into: Float64Array, q: Q) => {
   into[0] = q.x
   into[1] = q.y
@@ -64,12 +76,9 @@ export class Quaternion extends ObservedComponents {
   identity() {
     return this.set(0, 0, 0, 1)
   }
-  /** Becomes a turn of `angle` radians around the axis `v`. */
+  /** Becomes a turn of `angle` radians around the axis `v`, made unit first (`normalizeVector3`). */
   setFromAxisAngle(v: V, angle: number) {
-    const n = hypot3(v.x, v.y, v.z) || 1
-    axis[0] = v.x / n
-    axis[1] = v.y / n
-    axis[2] = v.z / n
+    normalizeVector3(loadVector(axis, v))
     return this.written(axisAngleQuaternion(other, axis, angle))
   }
   /** The rotation of three Euler angles, in the order they name (`localTurnQuaternion`). */
@@ -89,17 +98,14 @@ export class Quaternion extends ObservedComponents {
   }
   /** The shortest rotation taking unit vector `a` onto unit vector `b`. */
   setFromUnitVectors(a: V, b: V) {
-    const r = a.x * b.x + a.y * b.y + a.z * b.z + 1
+    const r = dotVector3(loadVector(axis, a), loadVector(onto, b)) + 1
     if (r < 1e-8)
       return Math.abs(a.x) > Math.abs(a.z)
         ? this.set(-a.y, a.x, 0, 0).normalize()
         : this.set(0, -a.z, a.y, 0).normalize()
-    return this.set(
-      a.y * b.z - a.z * b.y,
-      a.z * b.x - a.x * b.z,
-      a.x * b.y - a.y * b.x,
-      r,
-    ).normalize()
+    crossVector3(other, axis, onto)
+    other[3] = r
+    return this.written(other).normalize()
   }
   /** Adds the turn `q` after this one. */
   multiply(q: Q) {
@@ -115,7 +121,7 @@ export class Quaternion extends ObservedComponents {
   }
   /** Becomes the turn that undoes this one. */
   invert() {
-    return this.set(-this.x, -this.y, -this.z, this.w)
+    return this.written(conjugateQuaternion(other, this.elements))
   }
   /** Flips the axis part: the opposite turn for a unit quaternion. */
   conjugate() {
@@ -123,11 +129,11 @@ export class Quaternion extends ObservedComponents {
   }
   /** How much two rotations agree, from −1 to 1. */
   dot(q: Q) {
-    return this.x * q.x + this.y * q.y + this.z * q.z + this.w * q.w
+    return dotQuaternion(this.elements, load(turn, q))
   }
-  /** The size of the four numbers together. */
+  /** The size of the four numbers together (`lengthQuaternion`). */
   length() {
-    return hypot4(this.x, this.y, this.z, this.w)
+    return lengthQuaternion(this.elements)
   }
   /** Scales the numbers to size 1, a pure rotation. */
   normalize() {
@@ -136,7 +142,7 @@ export class Quaternion extends ObservedComponents {
   }
   /** The angle between two rotations, in radians. */
   angleTo(q: Q) {
-    return 2 * Math.acos(Math.min(1, Math.abs(this.dot(q))))
+    return quaternionAngle(this.elements, load(turn, q))
   }
   /** Spherical interpolation towards `q`, along the shorter arc. */
   slerp(q: Q, t: number) {

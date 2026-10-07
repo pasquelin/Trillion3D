@@ -1,3 +1,5 @@
+import { normalizeVector3 } from '../../../../math/src/vector/vector.ts'
+
 /**
  * Per-vertex normals from the faces around each vertex: the cross product of two edges is the
  * face normal scaled by twice its area, so summing them weights each face by its area before the
@@ -39,15 +41,6 @@ export function computeNormals<T extends Float32Array | Float64Array = Float32Ar
     normals[c + 1] += ny
     normals[c + 2] += nz
   }
-  // `normalizeVector3` written out on this one array: a zero sum stays zero, scaled by one.
-  for (let v = 0; v < normals.length; v += 3) {
-    const x = normals[v],
-      y = normals[v + 1],
-      z = normals[v + 2],
-      inverse = 1 / (Math.sqrt(x * x + y * y + z * z) || 1)
-    normals[v] = x * inverse
-    normals[v + 1] = y * inverse
-    normals[v + 2] = z * inverse
-  }
+  for (let v = 0; v < normals.length; v += 3) normalizeVector3(normals, v)
   return normals
 }

@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "La curva sRGB exacta — `c / 12,92` por debajo de 0,04045, `((c + 0,055) / 1,055)^2,4` por encima — y su inversa, negativos llevados a cero antes del exponente."
     },
-    "hslToLinearRgb": {
-      "description": "Tono, saturación y luminosidad a tres componentes lineales escritas en `out[o..o+2]`. El `setHSL` de la referencia, término por término: tono envuelto, saturación y luminosidad acotadas a `[0, 1]`, saturación nula devuelta como gris, luego la rampa por tramos. No se aplica ninguna curva de transferencia — el espacio de trabajo de la referencia ya es lineal."
+    "hslToRgb": {
+      "description": "Tono, saturación y luminosidad a tres componentes RGB escritas en `out[o..o+2]`. El `setHSL` de la referencia, término por término: tono envuelto, saturación y luminosidad acotadas a `[0, 1]`, saturación nula devuelta como gris, luego la rampa por tramos. El RGB sale en la codificación en que se da el HSL: no se aplica ninguna curva de transferencia."
     },
     "boxUnion": {
       "description": "Una caja son seis números guardados de forma plana desde `o`: tres límites inferiores, tres superiores. Una caja vacía tiene sus límites inferiores en `+Infinity` y sus superiores en `-Infinity`; un límite NaN no hace que una caja esté vacía. Expandir y unir toman los límites como parámetros, así que no se construye ningún objeto temporal por llamada."

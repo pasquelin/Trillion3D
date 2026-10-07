@@ -6,7 +6,7 @@ import {
   fromSpherical,
   RADIUS_EPSILON,
   toSpherical,
-} from '../../../../sdk-core/src/world/math/spherical.ts'
+} from '../../../../math/src/vector/spherical.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import {
   axisAngleQuaternion,

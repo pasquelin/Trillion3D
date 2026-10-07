@@ -168,3 +168,38 @@ export function copyMatrix4<T extends NumberSink>(
   for (let i = 0; i < 16; i++) out[outAt + i] = m[mAt + i]
   return out
 }
+
+/** `out = mᵀ`: `out[c · 4 + r] = m[r · 4 + c]`. Each mirrored pair is read before it is written,
+ *  so `out` may be `m`. */
+export function transposeMatrix4<T extends NumberSink>(out: T, m: ArrayLike<number>) {
+  for (let r = 0; r < 4; r++) {
+    out[r * 5] = m[r * 5]
+    for (let c = r + 1; c < 4; c++) {
+      const upper = m[c * 4 + r],
+        lower = m[r * 4 + c]
+      out[c * 4 + r] = lower
+      out[r * 4 + c] = upper
+    }
+  }
+  return out
+}
+
+/**
+ * A bound on how much the linear part (the upper 3×3) of the matrix at `at` stretches a vector:
+ * `√(‖L‖₁ · ‖L‖∞)`, the largest absolute row sum times the largest absolute column sum, never below
+ * the true norm. Read column-major, `rows` gathers `m[at + a]`, `m[at + a + 4]`, `m[at + a + 8]`
+ * and `columns` `m[at + 4a]`… ; on a row-major 3×4 the two names swap and, the product commuting,
+ * the bound is the same bits. The maxima start from 0.
+ */
+export function linearStretchBound(m: ArrayLike<number>, at = 0) {
+  let rows = 0,
+    columns = 0
+  for (let a = 0; a < 3; a++) {
+    rows = Math.max(rows, Math.abs(m[at + a]) + Math.abs(m[at + a + 4]) + Math.abs(m[at + a + 8]))
+    columns = Math.max(
+      columns,
+      Math.abs(m[at + 4 * a]) + Math.abs(m[at + 4 * a + 1]) + Math.abs(m[at + 4 * a + 2]),
+    )
+  }
+  return Math.sqrt(rows * columns)
+}

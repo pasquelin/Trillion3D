@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { markReach } from './halfFloat.ts'
-import { fromHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
+import { fromHalf } from '../../../math/src/float/half.ts'
 
 /** The reach the GPU cut reads of `reach`: the half float `markReach` packs in the high bits. */
 const reachBits = (reach: number) => markReach(0, reach) >>> 16

@@ -6,6 +6,7 @@ import type { Mesh } from '../object/mesh.ts'
 import { pointAt } from '../geometry/bounds.ts'
 import { skinStreams } from '../geometry/skin.ts'
 import { trackWidth, type Clip, type Track } from './clip.ts'
+import { length3, transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 
 /**
  * What the clips playing on a root move, in the frame of the root's parent: per track name, the
@@ -54,7 +55,10 @@ export function rigReach(root: Object3D, clips: readonly Clip[]): RigReach {
     let most = own.reach
     for (const child of node.children) {
       const e = extents.get(child)!
-      most = Math.max(most, Math.hypot(...e.move) + Math.max(...e.grow) * spanOf(child))
+      most = Math.max(
+        most,
+        length3(e.move[0], e.move[1], e.move[2]) + Math.max(...e.grow) * spanOf(child),
+      )
     }
     spans.set(node, most)
     return most
@@ -92,7 +96,7 @@ function restOf(node: Object3D): Extent {
     if (box && box.min.x <= box.max.x)
       for (const x of [box.min.x, box.max.x])
         for (const y of [box.min.y, box.max.y])
-          for (const z of [box.min.z, box.max.z]) reach = Math.max(reach, Math.hypot(x, y, z))
+          for (const z of [box.min.z, box.max.z]) reach = Math.max(reach, length3(x, y, z))
   }
   return {
     move: Float64Array.of(Math.abs(p.x), Math.abs(p.y), Math.abs(p.z)),
@@ -101,7 +105,8 @@ function restOf(node: Object3D): Extent {
   }
 }
 
-const vertex = [0, 0, 0]
+const vertex = [0, 0, 0],
+  carried = new Float64Array(3)
 /** Each joint of a skinned `node` under the root reaches the vertices it weighs. */
 function reachSkin(node: Object3D, extents: Map<Object3D, Extent>) {
   const mesh = node as Mesh,
@@ -109,7 +114,7 @@ function reachSkin(node: Object3D, extents: Map<Object3D, Extent>) {
     position = mesh.isMesh ? mesh.geometry.attributes.position : undefined
   if (!skeleton || !position) return
   const streams = skinStreams(mesh.geometry),
-    inverses = skeleton.boneInverses
+    inverses = skeleton.inverses
   for (let v = 0; v < position.count; v++) {
     pointAt(position, v, vertex)
     for (let k = 0; k < streams.width; k++) {
@@ -117,16 +122,8 @@ function reachSkin(node: Object3D, extents: Map<Object3D, Extent>) {
       const j = streams.read(v, k, false),
         joint = extents.get(skeleton.bones[j])
       if (!joint) continue
-      const m = j * 16
-      let sum = 0
-      for (let r = 0; r < 3; r++)
-        sum +=
-          (inverses[m + r] * vertex[0] +
-            inverses[m + 4 + r] * vertex[1] +
-            inverses[m + 8 + r] * vertex[2] +
-            inverses[m + 12 + r]) **
-          2
-      joint.reach = Math.max(joint.reach, Math.sqrt(sum))
+      transformAffinePoint(carried, inverses[j], vertex[0], vertex[1], vertex[2])
+      joint.reach = Math.max(joint.reach, length3(carried[0], carried[1], carried[2]))
     }
   }
 }

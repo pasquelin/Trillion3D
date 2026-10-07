@@ -1333,8 +1333,8 @@
     "srgbToLinear": {
       "description": "Die exakte sRGB-Kurve — `c / 12,92` unter 0,04045, `((c + 0,055) / 1,055)^2,4` darüber — und ihre Umkehrung, negative Werte vor dem Exponenten auf null geklemmt."
     },
-    "hslToLinearRgb": {
-      "description": "Farbton, Sättigung und Helligkeit zu drei linearen Komponenten, geschrieben bei `out[o..o+2]`. Das `setHSL` der Referenz, Term für Term: gewickelter Farbton, Sättigung und Helligkeit auf `[0, 1]` geklemmt, Sättigung null als Grau zurückgegeben, dann die stückweise Rampe. Es wird keine Übertragungskurve angewendet — der Referenz-Arbeitsraum ist bereits linear."
+    "hslToRgb": {
+      "description": "Farbton, Sättigung und Helligkeit zu drei RGB-Komponenten, geschrieben bei `out[o..o+2]`. Das `setHSL` der Referenz, Term für Term: gewickelter Farbton, Sättigung und Helligkeit auf `[0, 1]` geklemmt, Sättigung null als Grau zurückgegeben, dann die stückweise Rampe. Das RGB kommt in der Kodierung heraus, in der das HSL gegeben ist: Es wird keine Übertragungskurve angewendet."
     },
     "boxUnion": {
       "description": "Eine Box sind sechs flach ab `o` gespeicherte Zahlen: drei untere Grenzen, drei obere. Eine leere Box hat ihre unteren Grenzen bei `+Infinity` und ihre oberen bei `-Infinity`; eine NaN-Grenze macht eine Box nicht leer. Erweitern und Vereinigen nehmen die Grenzen als Parameter, sodass pro Aufruf kein temporäres Objekt gebaut wird."
