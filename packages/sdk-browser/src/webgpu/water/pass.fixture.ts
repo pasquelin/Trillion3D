@@ -89,8 +89,8 @@ export function prepared() {
   // it, as `prepareBlendResources` does.
   buildBlendStatics(blendState, uniformStride())
   refreshBlendPlan(blendState)
-  // The image sort posts the keys, the frustum verdict and the slices the pass encodes.
-  // The three copies are at the same place: their keys are equal, and source order splits them.
+  // The image sort posts the keys, the frustum verdict and the slices the pass encodes (the copies
+  // share one place: equal keys, split by source order).
   orderBlendPasses(blendState, [0, 0, 0])
   blendState.visibleBlend.push(...blendState.blendGpu)
   blendState.volumePacked = new Float32Array(blendState.transmissive * VOLUME_WORDS)
@@ -123,7 +123,6 @@ export function targets(gpu: WebgpuGpuState) {
     },
   })
 }
-
 /** One pass as the replay records it. */
 const recordOf = (descriptor: GPURenderPassDescriptor) => ({
   label: descriptor.label!,

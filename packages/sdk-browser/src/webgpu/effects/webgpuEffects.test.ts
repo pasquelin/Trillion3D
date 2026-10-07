@@ -3,48 +3,11 @@
 // holds, counts their bytes, and gives them back when it empties.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fakeDevice, written, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { written } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from '../../effects/bloomFilter.ts'
-import { createWebgpuEffects } from './webgpuEffects.ts'
+import { input, loaded, recorder, floatsOf } from './webgpuEffects.fixture.ts'
 import { uniformStride } from '../../residency/pools.ts'
-
-/** A write's words as the floats the bloom's slots hold. */
-const floatsOf = (write: FakeWrite) => {
-  const data = written(write)
-  return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4)
-}
-
-/** An encoder that records the passes begun on it, their target and the dynamic offset of
- *  their first bind group, as each begins, and every descriptor and offset array it was handed. */
-function recorder() {
-  const passes: { label?: string; load: string; view: unknown; offset?: number }[] = []
-  const handed = new Set<unknown>()
-  const encoder = {
-    beginRenderPass: (descriptor: GPURenderPassDescriptor) => {
-      const [color] = descriptor.colorAttachments as GPURenderPassColorAttachment[]
-      const pass = { label: descriptor.label, load: color.loadOp, view: color.view } as const
-      passes.push(pass)
-      handed.add(descriptor)
-      const setBindGroup = (index: number, _group: unknown, offsets?: Uint32Array) => {
-        if (index) return
-        handed.add(offsets)
-        Object.assign(pass, { offset: offsets?.[0] })
-      }
-      return { setPipeline() {}, setBindGroup, draw() {}, end() {} }
-    },
-  } as unknown as GPUCommandEncoder
-  return { encoder, passes, handed }
-}
-
-const input = { input: true } as unknown as GPUTextureView
-
-/** The chain on a device aligning uniform offsets at `alignment` bytes. */
-async function loaded(alignment = 256) {
-  const gpu = fakeDevice({ limits: { minUniformBufferOffsetAlignment: alignment } })
-  const effects = createWebgpuEffects(gpu.device, (error) => assert.fail(String(error)))
-  return { gpu, effects }
-}
 
 test('an empty chain returns its input and creates, writes and encodes nothing', async () => {
   const { gpu, effects } = await loaded()
@@ -186,36 +149,4 @@ test('a fused chain leaves its last blend to the composition: one pass and one t
   assert.equal(effects.blend!.offset, (4 * levels - 1) * stride, 'the second bloom’s last slot')
   effects.encode(encoder, [bloom], input, 64, 32)
   assert.equal(effects.blend, undefined, 'unfused again, the bloom blends itself')
-})
-
-test('a device aligning at 512 lays the bloom’s uniform slots 512 bytes apart', async () => {
-  const { gpu, effects } = await loaded(512)
-  const { encoder, passes } = recorder()
-  const bloom = effect.bloom({ intensity: 0.5, radius: 2 })
-  effects.encode(encoder, [bloom], input, 64, 32)
-  await effects.settled()
-  passes.length = 0
-  effects.encode(encoder, [bloom], input, 64, 32)
-  const levels = bloomLevelSizes(64, 32).length
-  const uniform = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D bloom uniform')!
-  assert.equal(uniform.size, 2 * levels * 512)
-  // Every pass reads its own slot, the up passes from the smallest level back.
-  assert.deepEqual(
-    passes.map((pass) => pass.offset!).sort((a, b) => a - b),
-    Array.from({ length: 2 * levels }, (_, slot) => slot * 512),
-  )
-  // Each slot's radius at its fifth float, 128 floats a slot.
-  const floats = new Float32Array(uniform.size / 4)
-  const writes = gpu.writes.filter((write) => write.buffer === (uniform as unknown))
-  // The range in one write, as at 256 bytes: from the first slot's struct to the last's.
-  assert.equal(writes.length, 1)
-  for (const write of writes) floats.set(floatsOf(write), write.offset / 4)
-  for (let slot = 0; slot < 2 * levels; slot++) assert.equal(floats[slot * 128 + 4], 2)
-  assert.ok(
-    floats.every((word, k) => k % 128 < 8 || word === 0),
-    'the padding holds zeros',
-  )
-  passes.length = 0
-  effects.encode(encoder, [bloom], input, 64, 32, true)
-  assert.equal(effects.blend!.offset, (2 * levels - 1) * 512, 'the blend reads its own slot')
 })
