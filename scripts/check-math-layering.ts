@@ -12,11 +12,9 @@ export const MATH_UNIT = `${MATH_PACKAGE}/src`
 const MATH_GOLDEN = `${MATH_PACKAGE}/golden`
 
 /** Whether `reached`, a path as `normalized` names it, stays in the maths' unit — or, from a test,
- *  in its reference values: the folder itself, which `normalized` names as a module, or a file in
- *  it. */
+ *  in a file of its reference values. */
 const staysHome = (reached: string, test: boolean) =>
-  reached.startsWith(MATH_UNIT + '/') ||
-  (test && (reached === `${MATH_GOLDEN}.ts` || reached.startsWith(MATH_GOLDEN + '/')))
+  reached.startsWith(MATH_UNIT + '/') || (test && reached.startsWith(MATH_GOLDEN + '/'))
 
 const literalText = (node: ts.Node | undefined): string | null =>
   node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : null
@@ -93,7 +91,12 @@ export function mathLayeringBreaks(files: Map<string, string>): string[] {
       const outside = specifier.startsWith(UNRESOLVED)
         ? true
         : specifier.startsWith('.')
-          ? climbsAboveRoot(file, specifier) || !staysHome(normalized(file, specifier), test)
+          ? climbsAboveRoot(file, specifier) ||
+            // A folder (`'../golden/'`) is judged by a file inside it: `normalized` names modules.
+            !staysHome(
+              normalized(file, specifier.endsWith('/') ? specifier + 'x.json' : specifier),
+              test,
+            )
           : !(specifier.startsWith('node:') && test)
       if (outside) breaks.push(`${file}: ${specifier}`)
     }

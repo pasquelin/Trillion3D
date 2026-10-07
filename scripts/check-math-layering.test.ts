@@ -123,11 +123,8 @@ test('a relative specifier that climbs above the repository root is red', () => 
 test('a test of the package reads its reference values beside the sources, a module does not', () => {
   const asset = "new URL('../golden/grid.json', import.meta.url)"
   const folder = "new URL('../golden/', import.meta.url)"
-  for (const reference of [asset, folder])
-    assert.deepEqual(
-      mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', reference]])),
-      [],
-    )
+  assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', asset]])), [])
+  assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', folder]])), [])
   assert.equal(mathLayeringBreaks(new Map([['packages/math/src/a.ts', asset]])).length, 1)
   for (const other of [
     "new URL('../../sdk-core/src/x.json', import.meta.url)",

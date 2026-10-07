@@ -78,6 +78,26 @@ function goldenCases(file: string, name: string): GoldenCase[] {
 }
 
 /**
+ * Reads each case of section `name` of `file` — its input numbers and the outputs the Rust twin
+ * wrote — for a reader that takes the twin's outputs as its own input (a shader decoding them),
+ * which `assertGolden` cannot hold to the file.
+ */
+export function eachGolden(
+  file: string,
+  name: string,
+  check: (inputs: number[], outputs: number[], line: string) => void,
+) {
+  const cases = goldenCases(file, name)
+  assert.ok(cases.length > 0, `${file} ${name}: no case`)
+  for (const { inputs, outputs, line } of cases)
+    check(
+      inputs.map((v) => v.value),
+      outputs.map((v) => v.value),
+      line,
+    )
+}
+
+/**
  * Asserts that `compute` returns, on the inputs of every case of section `name` of `file`, the
  * outputs the Rust twin wrote, bit for bit; it reads the input numbers and returns the output
  * numbers, none for an input the twin refuses. Every case that differs is listed at once.

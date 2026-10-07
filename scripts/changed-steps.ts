@@ -78,11 +78,9 @@ export function changedSteps(
   if (existing.some((file) => markdown.test(file))) steps.push('check:links')
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n')
   steps.push(...TREE_GATES)
-  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`), and the
-  // crates' tests read the golden values.
-  if (
-    existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE || GOLDEN.test(file))
-  )
+  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`). A golden
+  // value alone is no Rust change: the `golden` step below holds it to the crates.
+  if (existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE))
     steps.push('rust')
   // A reference value changed: the crates' golden tests that read it hold it to the Rust; the
   // TypeScript ones, among the unit tests, hold the twins to it (`golden-checks.ts`).

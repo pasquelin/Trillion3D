@@ -44,7 +44,18 @@ if (!command) {
   process.exit(2)
 }
 const env = name === 'golden' ? { ...process.env, GOLDEN_WRITE: '1' } : process.env
-const named = NATIVE_CRATES.filter((crate) => process.argv.slice(3).includes(crate.path))
+// A crate named as `./packages/math/rust/` is the crate `packages/math/rust`; one that is none is
+// an error, never a silent run of every crate.
+const normalise = (argument: string) => argument.replace(/^\.\//, '').replace(/\/+$/, '')
+const arguments_ = process.argv.slice(3).map(normalise)
+const unknown = arguments_.find((path) => !NATIVE_CRATES.some((crate) => crate.path === path))
+if (unknown !== undefined) {
+  console.error(
+    `native: unknown crate "${unknown}"; one of ${NATIVE_CRATES.map((crate) => crate.path).join(', ')}`,
+  )
+  process.exit(2)
+}
+const named = NATIVE_CRATES.filter((crate) => arguments_.includes(crate.path))
 for (const crate of named.length ? named : NATIVE_CRATES) {
   const done = spawnSync('cargo', command(crate), { stdio: 'inherit', env })
   if (done.status !== 0) process.exit(done.status ?? 1)
