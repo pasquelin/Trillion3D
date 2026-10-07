@@ -110,9 +110,14 @@ fn main() -> std::process::ExitCode {
             );
             0
         }
-        // The files the build hashed into the implementation hash, one per line
-        // (`build_inputs.rs`): what a host compares with the sources to call this binary stale.
+        // The crate folders the build read, each ending in `/`, then the files it hashed into the
+        // implementation hash, one per line (`build_inputs.rs`): what a host compares with the
+        // sources to call this binary stale.
         Some("--build-inputs") => {
+            print!(
+                "{}",
+                include_str!(concat!(env!("OUT_DIR"), "/implementation_crates.txt"))
+            );
             println!(
                 "{}",
                 include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))

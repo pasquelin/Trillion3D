@@ -101,10 +101,11 @@ fn physics_cook(output: &Path) -> String {
 fn main() -> std::io::Result<()> {
     let mut files = Vec::new();
     build_inputs::production_sources(Path::new("."), &mut files)?;
+    let dependencies = build_inputs::path_dependencies()?;
     // The path dependencies, theirs too, are linked in: their encoding and their arithmetic are
     // the compiler's, so their production sources enter the hash and their folders are watched.
-    for path in build_inputs::path_dependencies()? {
-        build_inputs::production_sources(&path, &mut files)?;
+    for path in &dependencies {
+        build_inputs::production_sources(path, &mut files)?;
         files.push(path.join("Cargo.toml"));
         println!("cargo:rerun-if-changed={}/src", path.display());
     }
@@ -134,6 +135,14 @@ fn main() -> std::io::Result<()> {
         .map(|path| path.display().to_string())
         .collect();
     fs::write(output.join("implementation_inputs.txt"), inputs.join("\n"))?;
+    // The crate folders those inputs are in, each ending in `/`: where a launch looks for a newer
+    // file before it reads the list, so it reads no manifest of its own.
+    let crates: String = [PathBuf::from(".")]
+        .iter()
+        .chain(&dependencies)
+        .map(|folder| format!("{}/\n", folder.display()))
+        .collect();
+    fs::write(output.join("implementation_crates.txt"), crates)?;
     for path in files {
         println!("cargo:rerun-if-changed={}", path.display());
         digest.update(path.to_string_lossy().as_bytes());
