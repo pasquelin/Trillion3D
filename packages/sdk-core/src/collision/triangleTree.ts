@@ -1,4 +1,4 @@
-import { buildCentreTree, centreTreeNodes } from '../math/centreTree.ts'
+import { buildCentreTree, centreTreeNodes } from './centreTree.ts'
 
 /**
  * A STATIC TRIANGLE TREE: a bounding-volume hierarchy over triangles, built once and asked for

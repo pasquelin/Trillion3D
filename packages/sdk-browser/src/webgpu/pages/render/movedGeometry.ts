@@ -6,7 +6,7 @@ import {
   boxTransform,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts'
-import { boxGrow } from '../../../../../sdk-core/src/math/primitives/box.ts'
+import { boxGrow } from '../../../../../math/src/geometry/box.ts'
 import { markReach } from '../../../deformation/halfFloat.ts'
 import { markRootRows } from './movedRoot.ts'
 import type { ClusterRoot, MovedBox, PageRec } from '../../../page/selection/types.ts'

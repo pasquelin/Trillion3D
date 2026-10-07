@@ -1,4 +1,4 @@
-//! `multiplyMatrix4` in f64, to the bits of `packages/sdk-core/src/math/matrix/matrix4.ts`: the
+//! `multiplyMatrix4` in f64, to the bits of `packages/math/src/matrix/matrix4.ts`: the
 //! rules of `math.rs` hold here. Column `j` of the product is `((A₀·b₀ + A₁·b₁) + A₂·b₂) + A₃·b₃`,
 //! `Aₖ` the k-th column of `a` and `bₖ` the k-th float of column `j` of `b`.
 

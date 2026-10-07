@@ -1,4 +1,4 @@
-import { crossVector3 } from '../../../packages/sdk-core/src/math/primitives/vector.ts'
+import { crossVector3 } from '../../../packages/math/src/vector/vector.ts'
 import { geometry, type Geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { Box3 } from '../../../packages/sdk-core/src/world/math/box3.ts'
 

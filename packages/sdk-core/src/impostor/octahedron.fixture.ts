@@ -5,7 +5,7 @@
  * centre. Direction `d` to the plane `[-1, 1]²`, the full octahedron or the upper hemi-octahedron.
  */
 
-import { unit } from '../math/primitives/vectorTuple.ts'
+import { unit } from '../../../math/src/vector/vectorTuple.ts'
 
 /** ±1, never 0: the fold of the lower half needs a side even on an axis, where `sign(0) = 0`. */
 function side(x: number): number {

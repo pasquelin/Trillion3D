@@ -1,10 +1,10 @@
 import { transformAffinePoint } from '../../../../sdk-core/src/index.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { writeSplitDouble } from '../../gpu/partition/contract.ts'
 import { worldStretch } from '../../page/cut/logic.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { MovedBox } from '../../page/selection/types.ts'
-import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts'
+import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { rowGrowth } from '../../hiz/corners.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 

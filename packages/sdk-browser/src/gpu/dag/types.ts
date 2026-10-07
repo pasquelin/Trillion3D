@@ -1,5 +1,5 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../../page/cone/cone.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { SelectionUniforms } from '../core/selection.ts'

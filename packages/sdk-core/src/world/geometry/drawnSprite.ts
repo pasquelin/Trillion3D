@@ -1,5 +1,5 @@
 import type { DrawnTriangles } from './drawn.ts'
-import { hypot2 } from '../../math/primitives/hypot.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 /**
  * A sprite's quad as every raster reads it (`spriteWgsl.ts` in sdk-browser): its corners moved in

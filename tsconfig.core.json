@@ -5,6 +5,11 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["packages/sdk-core/**/*.ts", "packages/sdk/index.ts", "packages/sdk/common/**/*.ts"],
-  "exclude": ["packages/sdk-core/**/*.test.ts"]
+  "include": [
+    "packages/math/**/*.ts",
+    "packages/sdk-core/**/*.ts",
+    "packages/sdk/index.ts",
+    "packages/sdk/common/**/*.ts"
+  ],
+  "exclude": ["packages/math/**/*.test.ts", "packages/sdk-core/**/*.test.ts"]
 }

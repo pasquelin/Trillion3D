@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../graph/graph.fixture.ts'
 import { scan, snapshot, type WatchVerdict } from './scan.ts'
-import { updateTransformTree } from '../../../../sdk-core/src/math/transform-tree/pass.ts'
+import { updateTransformTree } from '../../../../sdk-core/src/world/transform-tree/pass.ts'
 
 function scene() {
   const parent = new G.Group()

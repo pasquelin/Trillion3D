@@ -1,5 +1,5 @@
 // `pnpm run test:mutation [--out <dir>] [--mutate <glob>...]`: a measurement, never a gate. Stryker
-// mutates the sources of `packages/sdk-core/src`, runs its unit test files (the list `pnpm test`
+// mutates the sources of `packages/math/src` and `packages/sdk-core/src`, runs their unit test files (the list `pnpm test`
 // runs, `isUnitTest`) under `node:test`'s TAP output and reports per test file the mutants it kills,
 // and the mutants no test kills. A mutant stops at the first test file that kills it: a file then
 // credited with none is run again alone against every mutant it reaches, so a file killing only
@@ -15,7 +15,7 @@ import { mutationMarkdown, mutationTargets, summarizeMutation } from './mutation
 import { localFileGlobs, repositoryFiles } from './repository-files.ts'
 import { isUnitTest } from './unit-tests.ts'
 
-const PACKAGE = 'packages/sdk-core/src/'
+const PACKAGES = ['packages/math/src/', 'packages/sdk-core/src/']
 const root = resolve(import.meta.dirname, '..')
 const { values } = parseArgs({
   options: {
@@ -25,9 +25,9 @@ const { values } = parseArgs({
 })
 const out = resolve(root, values.out!)
 const testFiles = (repositoryFiles() ?? []).filter(
-  (file) => isUnitTest(file) && file.startsWith(PACKAGE),
+  (file) => isUnitTest(file) && PACKAGES.some((prefix) => file.startsWith(prefix)),
 )
-if (!testFiles.length) throw new Error(`No unit test under ${PACKAGE}.`)
+if (!testFiles.length) throw new Error(`No unit test under ${PACKAGES.join(' or ')}.`)
 mkdirSync(out, { recursive: true })
 // The sandbox is a copy without `.git`: a test reading the index (the Jolt pin of `joltCommit.test.ts`)
 // reads this checkout's.
@@ -42,7 +42,7 @@ const mutationRun = (files: string[], full: boolean) =>
     testRunner: 'tap',
     plugins: ['@stryker-mutator/tap-runner'],
     tap: { testFiles: files },
-    mutate: mutationTargets(PACKAGE, values.mutate),
+    mutate: mutationTargets(PACKAGES, values.mutate),
     coverageAnalysis: 'perTest',
     disableBail: full,
     // At least one runner: Stryker starts none at 0 and waits forever (under four cores).

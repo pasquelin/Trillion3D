@@ -1,4 +1,4 @@
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts'
 import { VIS_MAX_PAGE_TRIANGLES, VIS_TRIANGLE_BITS } from '../visWords.ts'
 import { DAG_GRID_WGSL, FLAT_INDEX_WGSL } from '../../gpu/dag/shader/gridWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'

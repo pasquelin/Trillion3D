@@ -1,7 +1,7 @@
 import type { Primitive } from '../../../../sdk-core/src/index.ts'
 import type { HostMesh } from '../../host/resources.ts'
 import type { PageSurface } from '../../page/surface.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
 import { FRUSTUM_PLANE_VALUES, type DiagnosticMode } from '../../../../sdk-core/src/index.ts'
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts'
@@ -51,7 +51,7 @@ export type BlendGpuItem = {
   hidden?: boolean
   sourceMesh?: HostMesh
   sourceGeometry: Geometry
-  /** World box of the item, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`); absent, the item is not rejected. */
+  /** World box of the item, six bounds flat (`packages/math/src/geometry/box.ts`); absent, the item is not rejected. */
   bounds?: Float64Array
   /** Buffer this box occupies, allocated once for the item when the frustum can reject it.
    *  Absent, the item never has a box; present, `bounds` points at it or is `undefined` because

@@ -1,6 +1,6 @@
 import { BOX_VALUES, boxTransform, boxUnionBatch } from '../../../../../sdk-core/src/index.ts'
-import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts'
-import { grown } from '../../../../../sdk-core/src/math/transform-tree/storage.ts'
+import { boxEquals } from '../../../../../math/src/geometry/box.ts'
+import { grown } from '../../../../../sdk-core/src/world/transform-tree/storage.ts'
 import type { PageRec } from '../../../page/selection/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 

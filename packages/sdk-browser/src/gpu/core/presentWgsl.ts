@@ -1,4 +1,4 @@
-import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts'
+import { FULLSCREEN_XY_WGSL } from '../shader/fullscreenTriangle.ts'
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts'
 
 /** The image copied to the whole canvas (`presentation.ts`). */

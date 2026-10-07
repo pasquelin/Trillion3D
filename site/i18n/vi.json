@@ -929,25 +929,25 @@
       "description": "`n` hộp được biến đổi bởi `n` ma trận: `out[i] = boxTransform(boxes[i], mats[i])`. `out` và `boxes` mang sáu con số mỗi phần tử, `mats` là một sub-view mười sáu con số."
     },
     "hierarchyUpdateBatch": {
-      "description": "Toàn bộ một cây phân cấp được cập nhật trong một chặng duy nhất: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó — quá trình duyệt của `packages/sdk-core/src/math/transform-tree/update.ts`, cùng hai công thức đó theo cùng thứ tự đó, trên các bộ đệm phẳng. `parents[i]` **bắt buộc** phải chỉ tới một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau trên cả hai con đường: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau. `local` là một ma trận nháp duy nhất, được dùng lại cho mỗi phần tử."
+      "description": "Toàn bộ một cây phân cấp được cập nhật trong một chặng duy nhất: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó — quá trình duyệt của `packages/sdk-core/src/world/transform-tree/update.ts`, cùng hai công thức đó theo cùng thứ tự đó, trên các bộ đệm phẳng. `parents[i]` **bắt buộc** phải chỉ tới một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau trên cả hai con đường: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau. `local` là một ma trận nháp duy nhất, được dùng lại cho mỗi phần tử."
     },
     "createPathGovernor": {
       "description": "Cái quyết định giữa JS và WebAssembly, cho từng phép toán được đặt tên: các trung vị trượt của số nano giây trên mỗi phần tử, một lần chuyển đổi chỉ sau năm lần thực thi liên tiếp có độ chênh lệch đó, và một trong năm mươi lần thực thi sẽ chạy lại con đường kia để làm mới trung vị của nó. Dưới năm mẫu thì không có gì được quyết định cả — chỉ một giá trị duy nhất sẽ tạo thành trung vị. `metrics()` công bố, cho mỗi phép toán, `path`, `jsNsPerElement`, `wasmNsPerElement`, số lần chuyển đổi, và độ phân giải đồng hồ mà phép đo đó dựa vào."
     },
     "frustumKeepsBoxBatch": {
-      "description": "`n` hộp gồm sáu con số (min rồi tới max) so với hai mươi bốn số thực của một khối nhìn: `kept[i]` bằng 1 khi hộp đó giao cắt hoặc nằm bên trong, và số lượng được giữ lại sẽ được trả về — `frustumExcludesBox` đảo ngược, đúng cực tính mà mốc tham chiếu trả lời. Lô hình cầu ghi ra `SPHERE_VALUES` con số mỗi hộp, tâm rồi tới bán kính tới góc, giống như `sphereFromBounds` làm. Cả hai vòng lặp đều nằm trong `packages/sdk-core/src/math/batch/culling.ts`."
+      "description": "`n` hộp gồm sáu con số (min rồi tới max) so với hai mươi bốn số thực của một khối nhìn: `kept[i]` bằng 1 khi hộp đó giao cắt hoặc nằm bên trong, và số lượng được giữ lại sẽ được trả về — `frustumExcludesBox` đảo ngược, đúng cực tính mà mốc tham chiếu trả lời. Lô hình cầu ghi ra `SPHERE_VALUES` con số mỗi hộp, tâm rồi tới bán kính tới góc, giống như `sphereFromBounds` làm. Cả hai vòng lặp đều nằm trong `packages/math/src/batch/culling.ts`."
     },
     "boxUnionBatch": {
       "description": "`into` được mở rộng bởi `n` hộp, hoặc bởi `n` hộp mỗi cái được biến đổi trước bởi ma trận riêng của nó — một chặng, một hộp nháp, không cấp phát gì cả. Cả hai đều lặp lại `boxUnion`, cái thứ hai thêm `boxTransform` trước đó: các cận thế giới của cả một cảnh trong một lệnh gọi duy nhất."
     },
     "invertMatrix4Batch": {
-      "description": "`n` phép nghịch đảo, `n` ma trận pháp tuyến gồm `NORMAL_MATRIX_VALUES` con số, `n` phép dựng `T · R · S`, `n` phép phân rã. Một ma trận có định thức bằng không được nghịch đảo thành ma trận đơn vị và được đánh dấu trong `singular[i]` — không bao giờ gây lỗi giữa chừng một lô. `composeMatrix4Batch` nhận mọi thứ dạng phẳng hoặc mọi thứ dưới dạng sub-view, và xác định hình dạng trước vòng lặp. Cả bốn vòng lặp đều nằm trong `packages/sdk-core/src/math/batch/transforms.ts`."
+      "description": "`n` phép nghịch đảo, `n` ma trận pháp tuyến gồm `NORMAL_MATRIX_VALUES` con số, `n` phép dựng `T · R · S`, `n` phép phân rã. Một ma trận có định thức bằng không được nghịch đảo thành ma trận đơn vị và được đánh dấu trong `singular[i]` — không bao giờ gây lỗi giữa chừng một lô. `composeMatrix4Batch` nhận mọi thứ dạng phẳng hoặc mọi thứ dưới dạng sub-view, và xác định hình dạng trước vòng lặp. Cả bốn vòng lặp đều nằm trong `packages/math/src/batch/transforms.ts`."
     },
     "transformPointsBatch": {
       "description": "`n` điểm gồm ba con số qua một ma trận affine duy nhất, hoặc một ma trận cho mỗi điểm; `n` hướng qua khối 3×3 phía trên rồi được chuẩn hóa, phần tịnh tiến bị bỏ qua. Chúng lặp lại `transformAffinePoint` và `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
-      "description": "Một kênh cho mỗi phần tử, các đường cong chính xác của `packages/sdk-core/src/math/primitives/color.ts`: mốc tham chiếu nhân với các hằng số đã làm tròn, và khoảng chênh lệch đó — vô hình ở mức 8 bit — được giới hạn một lần, trong bộ đo hiệu năng đối chọi chúng với nhau."
+      "description": "Một kênh cho mỗi phần tử, các đường cong chính xác của `packages/math/src/color/color.ts`: mốc tham chiếu nhân với các hằng số đã làm tròn, và khoảng chênh lệch đó — vô hình ở mức 8 bit — được giới hạn một lần, trong bộ đo hiệu năng đối chọi chúng với nhau."
     },
     "scene-editor": {
       "title": "Dựng một cảnh bằng trình chỉnh sửa",

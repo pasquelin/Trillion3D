@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { sphereArrays, turnPoint } from './sphere.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-10, `${a} != ${b}`)
 

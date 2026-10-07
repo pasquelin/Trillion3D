@@ -6,15 +6,17 @@
 // run on the engine's triangle tree.
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import {
-  addTransformNode,
   createCameraFrame,
-  createTransformTree,
-  lookAtNode,
   perspectiveProjection,
-  setNodePosition,
   updateCameraFrame,
-  updateNodeMatrixWorld,
-} from '../../../packages/sdk-core/src/math/index.ts'
+} from '../../../packages/math/src/index.ts'
+import {
+  addTransformNode,
+  createTransformTree,
+  setNodePosition,
+} from '../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
+import { updateNodeMatrixWorld } from '../../../packages/sdk-core/src/world/transform-tree/update.ts'
+import { lookAtNode } from '../../../packages/sdk-core/src/world/transform-tree/lookAt.ts'
 import { screenErrorBound } from '../../../packages/sdk-core/src/lod/screenErrorBound.ts'
 import {
   closestSegmentTriangle,

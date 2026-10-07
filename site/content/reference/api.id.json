@@ -351,7 +351,7 @@
     "summary": "Skema JSON yang mendokumentasikan opsi untuk kompilasi aset native (prepare / CLI)."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Toleransi penolakan kerucut, dibagikan bersama antara cerminan prosesor (`packages/sdk-browser/src/page/cone/cone.ts`) dan shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`): sebuah transformasi bersifat conformal saat kolom-kolomnya berpanjang sama dalam `CONE_LENGTH_RATIO` dan tegak lurus dalam `CONE_ORTHO_EPS`, secara relatif; sebuah kerucut bersudut ≥ `HALF_PI` tidak pernah menolak.",
+    "summary": "Toleransi penolakan kerucut, dibagikan bersama antara cerminan prosesor dan shader: sebuah transformasi bersifat conformal saat kolom-kolomnya berpanjang sama dalam `CONE_LENGTH_RATIO` dan tegak lurus dalam `CONE_ORTHO_EPS`, secara relatif; sebuah kerucut bersudut ≥ `HALF_PI` tidak pernah menolak.",
     "description": "Varian `_WGSL` adalah teks yang disisipkan ke dalam shader, seperti `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1138,7 +1138,7 @@
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`.",
       "cpuSelectNodesTested": "Node hierarki tempat potongan bingkai ini mengajukan sebuah uji — keputusan frustum atau tingkat detail. Sebuah node yang sudah diputuskan dan sepenuhnya terlihat tidak menerima satu pun: ia dijelajahi, tidak diuji. Ini ukuran pekerjaan sungguhan sebuah potongan hierarkis; sebuah potongan datar menguji nol darinya dan menjelajahi setiap cluster. Null pada mesin yang tidak memilih potongannya di CPU, atau yang tidak menghitungnya.",
-      "mathBatch": "Status pengatur jalur compute (`../math/path/governor.ts`): jalur saat ini setiap operasi batch, median kedua jalur, jumlah pergantian. `null` pada host yang belum membuka sebuah batch — tidak terukur, bukan \"jalur JavaScript\".",
+      "mathBatch": "Status pengatur jalur compute (`../runtime/path/governor.ts`): jalur saat ini setiap operasi batch, median kedua jalur, jumlah pergantian. `null` pada host yang belum membuka sebuah batch — tidak terukur, bukan \"jalur JavaScript\".",
       "pagesPlannedOffThread": "Integrasi halaman di luar thread utama. `pagesPlannedOffThread` menghitung kedatangan yang rencananya — tempat setiap cluster di dalam paket dan peringkat halaman yang dipindahkannya — dihitung sebuah worker, tidak pernah yang direncanakan fallback di thread utama. `pagePlanMs` adalah waktu kumulatif rencana-rencana itu, diukur eksekutornya sendiri, thread mana pun: ini tidak pernah ditambahkan ke `cpu*` atau `gpu*` per-bingkai. Keduanya `null` selama belum ada kedatangan yang direncanakan — tidak terukur, bukan nol.",
       "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan.",
       "dynamicUploadBytes": "Byte verteks geometri dinamis yang diunggah di tempat pada frame ini (#573), dalam anggaran per frame dunia (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Tidak ada jika tidak ada dunia yang menggambar.",
@@ -1152,7 +1152,7 @@
     }
   },
   "Frustum": {
-    "summary": "Enam bidang, dibaca dari sebuah view-projection oleh inti (`math/frustum/frustum.ts`).",
+    "summary": "Enam bidang, dibaca dari sebuah view-projection oleh inti (`packages/math/src/geometry/frustum/frustum.ts`).",
     "members": {
       "isFrustum": "Selalu `true`: membedakan sebuah frustum dari yang lain.",
       "planes": "Enam bidang ternormalisasi, empat angka masing-masing: tata letak inti itu.",
@@ -1356,11 +1356,11 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "HIERARKI PENUH diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya.",
-    "description": "Ini adalah penjelajahan di `../transform-tree/update.ts`, dengan dua rumus persis sama dalam urutan yang sama, pada buffer datar: kernel WebAssembly mereplikasinya suku demi suku. `parents[i]` HARUS berupa indeks sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua sisi: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda."
+    "description": "Kedua rumus berjalan pada buffer datar, dan kernel WebAssembly mereplikasinya suku demi suku. `parents[i]` HARUS berupa indeks sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua sisi: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda."
   },
   "HIZ_NOTHING": {
     "summary": "Nilai yang dikembalikan saat tidak ada texel yang dibaca: tidak bisa mengoklusi apa pun.",
-    "description": "Kedalaman mesin TERBALIK — dekat adalah 1, jauh adalah 0 (`../math/primitives/camera.ts`). Sebuah kotak pembatas teroklusi hanya jika batas kedalaman terdekatnya LEBIH JAUH (nilai lebih kecil) dari kedalaman pengoklusi."
+    "description": "Kedalaman mesin TERBALIK — dekat adalah 1, jauh adalah 0 (`../../../math/src/projection/camera.ts`). Sebuah kotak pembatas teroklusi hanya jika batas kedalaman terdekatnya LEBIH JAUH (nilai lebih kecil) dari kedalaman pengoklusi."
   },
   "HizFlat": {
     "summary": "Piramida Hi-Z per-bingkai: satu `Float32Array` untuk semua tingkat, satu offset dan ukuran per tingkat.",
@@ -1437,7 +1437,7 @@
   },
   "HostNodeMatrix": {
     "summary": "Enam belas float yang sama, BISA DITULIS suku demi suku: pose yang dikembalikan sebuah batas ke sebuah node host atau sebuah kamera host yang dipulihkannya.",
-    "description": "Ini adalah sisi bisa-diubah dari `MatrixElements` dan hidup di sampingnya; tidak ada yang meminta host menyusunnya — `copyElements` menulisnya apa adanya.",
+    "description": "Ini adalah sisi bisa-diubah dari `MatrixElements` dan hidup di sampingnya; tidak ada yang meminta host menyusunnya — `copyMatrix4` menulisnya apa adanya.",
     "members": {
       "elements": "Enam belas angka itu, menurut indeksnya."
     }
@@ -2664,7 +2664,7 @@
     }
   },
   "Quaternion": {
-    "summary": "Sebuah rotasi sebagai quaternion satuan atas `math/matrix/quaternion.ts`.",
+    "summary": "Sebuah rotasi sebagai quaternion satuan atas `packages/math/src/quaternion/quaternion.ts`.",
     "description": "Komponen yang ditulis memberi tahu pemiliknya.",
     "members": {
       "isQuaternion": "Selalu `true`: membedakan sebuah quaternion dari yang lain.",
@@ -3841,7 +3841,7 @@
   },
   "Vector3": {
     "summary": "Sebuah titik atau arah dalam tiga dimensi, bisa dirangkai.",
-    "description": "Angka-angkanya hidup dalam `elements`, yang dibaca dan ditulis fungsi bebas inti `math/primitives/vector.ts`; setiap penulisan memberi tahu pemiliknya.",
+    "description": "Angka-angkanya hidup dalam `elements`, yang dibaca dan ditulis fungsi bebas inti `packages/math/src/vector/vector.ts`; setiap penulisan memberi tahu pemiliknya.",
     "members": {
       "isVector3": "Selalu `true`: membedakan sebuah vektor 3D.",
       "set": "Menulis ketiga angka; sebuah penulisan yang tidak mengubah satu pun tidak memberi tahu siapa pun.",
@@ -3957,7 +3957,7 @@
       "uncoveredTriangles": "Segitiga cluster yang disebut potongan yang diterbitkan tapi tidak bisa digambar bingkai itu — tidak ada halaman yang tersimpan dan tidak ada leluhur penutup. Sebuah lubang sungguhan pada gambar: nol adalah satu-satunya nilai sehat. Null saat sebuah backend tidak bisa mengetahuinya (ia menggambar potongan yang dipilihnya, jadi tidak pernah punya satu pun).",
       "drawnTriangles": "Segitiga yang diserahkan BINGKAI SAAT INI ke gambar: potongan clusternya, opaque dan transparan hierarki digabung. Mesh transparan di luar hierarki tidak termasuk (`transparentSubmittedTriangles`), dan penolakan oklusi tidak dikurangi (`hizRejectedTriangles`). Dihitung saat potongan diadopsi: tidak ada pembacaan balik GPU asinkron yang ditunggu, jadi tidak pernah `null` karena kekurangan waktu, tidak seperti `submittedTriangles`.",
       "cpuSelectNodesTested": "Node hierarki tempat potongan bingkai ini mengajukan sebuah uji — keputusan frustum atau tingkat detail. Sebuah node yang sudah diputuskan dan sepenuhnya terlihat tidak menerima satu pun: ia dijelajahi, tidak diuji. Ini ukuran pekerjaan sungguhan sebuah potongan hierarkis; sebuah potongan datar menguji nol darinya dan menjelajahi setiap cluster. Null pada mesin yang tidak memilih potongannya di CPU, atau yang tidak menghitungnya.",
-      "mathBatch": "Status pengatur jalur compute (`../math/path/governor.ts`): jalur saat ini setiap operasi batch, median kedua jalur, jumlah pergantian. `null` pada host yang belum membuka sebuah batch — tidak terukur, bukan \"jalur JavaScript\".",
+      "mathBatch": "Status pengatur jalur compute (`../runtime/path/governor.ts`): jalur saat ini setiap operasi batch, median kedua jalur, jumlah pergantian. `null` pada host yang belum membuka sebuah batch — tidak terukur, bukan \"jalur JavaScript\".",
       "pagesPlannedOffThread": "Integrasi halaman di luar thread utama. `pagesPlannedOffThread` menghitung kedatangan yang rencananya — tempat setiap cluster di dalam paket dan peringkat halaman yang dipindahkannya — dihitung sebuah worker, tidak pernah yang direncanakan fallback di thread utama. `pagePlanMs` adalah waktu kumulatif rencana-rencana itu, diukur eksekutornya sendiri, thread mana pun: ini tidak pernah ditambahkan ke `cpu*` atau `gpu*` per-bingkai. Keduanya `null` selama belum ada kedatangan yang direncanakan — tidak terukur, bukan nol.",
       "pagePlanMs": "Waktu yang dihabiskan merencanakan kedatangan.",
       "lightsActive": "Cahaya kontrak `SceneLight` yang disinari bingkai ini. Null pada mesin yang mengabaikannya.",
@@ -4238,7 +4238,7 @@
     "summary": "`out = [u | v | n | origin]`: ketiga kolom sebuah basis, lalu titik asalnya — `makeBasis` diikuti `setPosition`."
   },
   "batch": {
-    "summary": "Keluarga `batch`: seribu matriks sekaligus alih-alih sebuah loop, atas kernel batch inti (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "Keluarga `batch`: seribu matriks sekaligus alih-alih sebuah loop, atas kernel batch inti (`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.composeMatrix4": {
     "summary": "`out[i] = T(positions[i]) · R(quaternions[i]) · S(scales[i])` untuk `count` pose.",

@@ -1,4 +1,4 @@
-import { linearToSrgb8, srgbToLinear } from '../../../sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8, srgbToLinear } from '../../../math/src/color/color.ts'
 import type { ViewTile } from '../camera/engineCamera.ts'
 
 /** One tile of the reference: where its pixels land in the output, and how the camera's

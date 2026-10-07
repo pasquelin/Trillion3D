@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Vector2, Vector4, Spherical } from './vector2.ts'
-import { listen, unlisten } from './observed.ts'
+import { listen, unlisten } from '../observed.ts'
 
 test('planar vector arithmetic preserves both coordinates and notifies its owners', () => {
   const value = new Vector2(3, 4)

@@ -13,7 +13,7 @@ import { cullingBounds } from './bounds.ts'
 import { cullingLinks } from './links.ts'
 import { CULL_STRIDE } from '../../gpu/dag/types.ts'
 import { structureIndex } from '../selection/structure.ts'
-import { IDENTITY_WORLD } from '../../math/matrixElements.ts'
+import { IDENTITY_WORLD } from '../../host/matrixElements.ts'
 
 export type RulePage = {
   url: string

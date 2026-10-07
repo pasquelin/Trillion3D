@@ -1,6 +1,6 @@
-import { multiplyMatrix4 } from '../../math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import type { SceneNode } from './node.ts'
 
 /** Scratch of `attachSceneNode`, which allocates nothing; a bundle that never attaches drops it. */

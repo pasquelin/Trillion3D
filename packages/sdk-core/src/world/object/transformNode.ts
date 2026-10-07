@@ -5,15 +5,15 @@ import {
   NODE_TRS_DIRTY,
   NODE_WORLD_NEEDS_UPDATE,
   markTransformNode,
-} from '../../math/transform-tree/transformTree.ts'
-import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../../math/transform-tree/update.ts'
-import * as read from '../../math/transform-tree/read.ts'
+} from '../transform-tree/transformTree.ts'
+import { updateNodeMatrixWorld, updateNodeWorldMatrix } from '../transform-tree/update.ts'
+import * as read from '../transform-tree/read.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { Quaternion } from '../math/quaternion.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { noteNodeWrite, noteObjectEdit } from '../../scene/core/nodeEdits.ts'
-import { keepNumbers } from '../../math/primitives/vector.ts'
-import { copyMatrix4 } from '../../math/matrix/matrix4.ts'
+import { keepNumbers } from '../../../../math/src/vector/vector.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 
 // `matrix` and `matrixWorld` are views of the node's slot of the transform tree, whose flags answer
 // `matrixAutoUpdate` and `matrixWorldNeedsUpdate`; `updateMatrixWorld(force)` follows the engine's

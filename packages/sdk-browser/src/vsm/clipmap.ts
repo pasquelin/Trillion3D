@@ -11,7 +11,7 @@
  * MATRICES. The matrices are the engine's: column-major, column-vector (`m[column·4 + row]`).
  * `multiplyMatrix4(out, A, B)` is A·B, B applied first; `vsmTransformPoint` applies one to a point.
  */
-import { copyMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { copyMatrix4, multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   VSM_SUN_COARSE_FROM,
   VSM_SUN_FINEST_LEVEL,

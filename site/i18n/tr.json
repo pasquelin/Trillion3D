@@ -1382,25 +1382,25 @@
       "description": "`n` matrisle dönüştürülen `n` kutu: `out[i] = boxTransform(boxes[i], mats[i])`. `out` ve `boxes` eleman başına altı sayı taşır, `mats` on altılık bir alt görünüm."
     },
     "hierarchyUpdateBatch": {
-      "description": "Tek bir geçişte güncellenen tüm bir hiyerarşi: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur, sonra bunu ebeveyninin dünya matrisiyle çarpar — `packages/sdk-core/src/math/transform-tree/update.ts`'in dolaşımı, doğrusal tamponlar üzerinde aynı sırada aynı iki formül. `parents[i]`, zaten güncellenmiş bir düğümü indekslemek **zorundadır**, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil, başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki yolda da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onları ayrıştıramaz. `local`, her eleman için yeniden kullanılan tek bir taslak matristir."
+      "description": "Tek bir geçişte güncellenen tüm bir hiyerarşi: ebeveynler çocuklardan önce sıralanmış `n` düğüm, her biri kendi yerel matrisini oluşturur, sonra bunu ebeveyninin dünya matrisiyle çarpar — `packages/sdk-core/src/world/transform-tree/update.ts`'in dolaşımı, doğrusal tamponlar üzerinde aynı sırada aynı iki formül. `parents[i]`, zaten güncellenmiş bir düğümü indekslemek **zorundadır**, dolayısıyla kesinlikle `i`'den küçük olmalıdır; `HIERARCHY_ROOT` nöbetçisi dahil, başka herhangi bir değer, düğümü, dünya matrisi kendi yerel matrisi olan bir köke dönüştürür. Kural her iki yolda da özdeştir: ne kadar düşmanca olursa olsun hiçbir girdi onları ayrıştıramaz. `local`, her eleman için yeniden kullanılan tek bir taslak matristir."
     },
     "createPathGovernor": {
       "description": "Adlandırılmış her işlem için JS ile WebAssembly arasında karar veren şey: eleman başına nanosaniyenin hareketli medyanları, yalnızca o üstünlükte beş ardışık çalıştırmadan sonra bir geçiş, ve medyanını güncellemek için diğer yolu tekrarlayan ellide bir çalıştırma. Beşten az örnekte hiçbir şeye karar verilmez — tek bir değer medyanı oluştururdu. `metrics()`, her işlem için `path`, `jsNsPerElement`, `wasmNsPerElement`, geçiş sayısını ve ölçümün dayandığı saat çözünürlüğünü yayımlar."
     },
     "frustumKeepsBoxBatch": {
-      "description": "Bir frustum'un yirmi dört float'ına karşı altı sayılık (önce min sonra max) `n` kutu: `kept[i]`, kutu kesiştiğinde ya da tamamen içindeyken 1'dir, ve korunan sayı döndürülür — `frustumExcludesBox`'ın tersi, referansın yanıt verdiği kutupluluk. Küre yığını, `sphereFromBounds`'ın yaptığı gibi, kutu başına `SPHERE_VALUES` sayı, merkez sonra köşeye kadar yarıçap yazar. İki döngü de `packages/sdk-core/src/math/batch/culling.ts`'de yaşar."
+      "description": "Bir frustum'un yirmi dört float'ına karşı altı sayılık (önce min sonra max) `n` kutu: `kept[i]`, kutu kesiştiğinde ya da tamamen içindeyken 1'dir, ve korunan sayı döndürülür — `frustumExcludesBox`'ın tersi, referansın yanıt verdiği kutupluluk. Küre yığını, `sphereFromBounds`'ın yaptığı gibi, kutu başına `SPHERE_VALUES` sayı, merkez sonra köşeye kadar yarıçap yazar. İki döngü de `packages/math/src/batch/culling.ts`'de yaşar."
     },
     "boxUnionBatch": {
       "description": "`n` kutuyla, ya da önce her biri kendi matrisiyle dönüştürülmüş `n` kutuyla genişletilen `into` — bir geçiş, bir taslak kutu, hiçbir tahsis yok. İkisi de `boxUnion`'ı tekrarlar, ikincisi öncesinde `boxTransform` ile: tek bir çağrıda tüm bir sahnenin dünya sınırları."
     },
     "invertMatrix4Batch": {
-      "description": "`n` ters, `NORMAL_MATRIX_VALUES` sayılık `n` normal matris, `n` `T · R · S` birleşimi, `n` ayrıştırma. Sıfır determinantlı bir matris birim matrise ters çevrilir ve `singular[i]`'de işaretlenir — bir yığının ortasında asla bir hata fırlatılmaz. `composeMatrix4Batch`, her şeyi ya doğrusal ya da alt görünümler olarak alır, ve döngüden önce biçime karar verir. Dört döngü de `packages/sdk-core/src/math/batch/transforms.ts`'de yaşar."
+      "description": "`n` ters, `NORMAL_MATRIX_VALUES` sayılık `n` normal matris, `n` `T · R · S` birleşimi, `n` ayrıştırma. Sıfır determinantlı bir matris birim matrise ters çevrilir ve `singular[i]`'de işaretlenir — bir yığının ortasında asla bir hata fırlatılmaz. `composeMatrix4Batch`, her şeyi ya doğrusal ya da alt görünümler olarak alır, ve döngüden önce biçime karar verir. Dört döngü de `packages/math/src/batch/transforms.ts`'de yaşar."
     },
     "transformPointsBatch": {
       "description": "Tek bir afin matrisle, ya da nokta başına bir matrisle üç sayılık `n` nokta; üst 3×3 ile ve sonra normalize edilmiş, öteleme yok sayılmış `n` yön. Bunlar `transformAffinePoint` ve `transformDirectionVector3`'ü tekrarlar."
     },
     "srgbToLinearBatch": {
-      "description": "Eleman başına bir kanal, `packages/sdk-core/src/math/primitives/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
+      "description": "Eleman başına bir kanal, `packages/math/src/color/color.ts`'nin tam eğrileriyle: referans yuvarlanmış sabitlerle çarpar, ve 8 bitte görünmez olan fark, onları karşı karşıya getiren bench'te bir kez sınırlanır."
     },
     "scene-editor": {
       "title": "Düzenleyiciyle bir sahne kurmak",

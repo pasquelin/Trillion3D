@@ -1,6 +1,6 @@
 import type { NormalCone } from '../../page/cone/cone.ts'
-import { prepareSdkWasm } from '../../math/wasm/sdkWasm.ts'
-import { reserveArena } from '../../math/wasm/wasmArena.ts'
+import { prepareSdkWasm } from '../../wasm/sdkWasm.ts'
+import { reserveArena } from '../../wasm/wasmArena.ts'
 
 /**
  * The normal cone of each cluster the run-time cut writes, built by the compiler's own builder

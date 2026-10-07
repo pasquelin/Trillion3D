@@ -25,11 +25,11 @@ export type MutationSummary = {
 }
 
 /**
- * What Stryker mutates: the `narrowed` globs, else every source under `root`; a test or a fixture
+ * What Stryker mutates: the `narrowed` globs, else every source under `roots`; a test or a fixture
  * never, even in a narrowed run, as its mutant is no bug of the sources to catch.
  */
-export const mutationTargets = (root: string, narrowed?: readonly string[]) => [
-  ...(narrowed ?? [`${root}**/*.ts`]),
+export const mutationTargets = (roots: readonly string[], narrowed?: readonly string[]) => [
+  ...(narrowed ?? roots.map((root) => `${root}**/*.ts`)),
   '!**/*.test.ts',
   '!**/*.fixture.ts',
 ]

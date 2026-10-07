@@ -17,10 +17,10 @@ import {
   maxStretch,
   multiplyMatrix4,
 } from '../../../sdk-core/src/index.ts'
-import { boxUnion } from '../../../sdk-core/src/math/primitives/box.ts'
+import { boxUnion } from '../../../math/src/geometry/box.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { keepNumbers } from '../../../sdk-core/src/math/primitives/vector.ts'
-import { sameMatrixBits } from '../math/matrixElements.ts'
+import { keepNumbers } from '../../../math/src/vector/vector.ts'
+import { sameMatrixBits } from '../../../math/src/matrix/matrixElements.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 
 const rootInverse = new Float64Array(MATRIX_VALUES),

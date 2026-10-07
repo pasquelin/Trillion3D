@@ -206,7 +206,7 @@
     "summary": "`out = [u | v | n | origin]`: die drei Spalten einer Basis, dann ihr Ursprung — `makeBasis`, gefolgt von `setPosition`."
   },
   "batch": {
-    "summary": "Die Familie `batch`: tausend Matrizen auf einmal statt einer Schleife, aufbauend auf den Batch-Kernen des Kerns (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "Die Familie `batch`: tausend Matrizen auf einmal statt einer Schleife, aufbauend auf den Batch-Kernen des Kerns (`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` für `count` Punkte, drei Zahlen pro Punkt angeordnet.",
@@ -1048,7 +1048,7 @@
     "description": "Zwei Formen, und nur zwei: alles flach, oder alles als `n` Teilsichten — `../batch/batch.ts` erklärt, warum eine Matrix als Teilsicht reist. Die Form wird VOR der Schleife entschieden, nie darin: ein Ternary pro Element kostet 6 % bei zweihunderttausend Zusammensetzungen, gemessen vom Batch-Matrizen-Bench. Wiederholt `composeMatrix4`, über `n` Matrizen."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Toleranzen der Kegelablehnung, geteilt zwischen der Prozessorseiten-Spiegelung (`packages/sdk-browser/src/page/cone/cone.ts`) und dem Shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`): eine Transformation ist konform, wenn ihre Spalten bis auf `CONE_LENGTH_RATIO` dieselbe Länge haben und bis auf `CONE_ORTHO_EPS` relativ orthogonal sind; ein Kegel mit Winkel ≥ `HALF_PI` lehnt nie ab.",
+    "summary": "Toleranzen der Kegelablehnung, geteilt zwischen der Prozessorseiten-Spiegelung und dem Shader: eine Transformation ist konform, wenn ihre Spalten bis auf `CONE_LENGTH_RATIO` dieselbe Länge haben und bis auf `CONE_ORTHO_EPS` relativ orthogonal sind; ein Kegel mit Winkel ≥ `HALF_PI` lehnt nie ab.",
     "description": "Die `_WGSL`-Varianten sind der in den Shader eingefügte Text, wie `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1808,7 +1808,7 @@
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
       "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
-      "mathBatch": "Zustand des Reglers der Rechenpfade (`../math/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
+      "mathBatch": "Zustand des Reglers der Rechenpfade (`../runtime/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
       "pagesPlannedOffThread": "Integration der Seiten außerhalb des Hauptstrangs. `pagesPlannedOffThread` zählt Ankünfte, deren Plan — der Platz jedes Clusters im Paket und die Seitenränge, die er bewegt — von einem Worker berechnet wurde, nie die, die der Rückfall auf dem Hauptstrang geplant hat. `pagePlanMs` ist die kumulierte Zeit dieser Pläne, gemessen vom Ausführenden selbst, unabhängig vom Strang: sie wird nie zu einem `cpu*` oder `gpu*` pro Bild addiert. Beide sind `null`, solange keine Ankunft geplant wurde — nicht gemessen, nicht null.",
       "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
       "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet.",
@@ -1829,7 +1829,7 @@
     "description": "`near` folgt der Größe des Objekts; es gibt keinen absoluten Mindestwert von einem Zentimeter."
   },
   "Frustum": {
-    "summary": "Sechs Ebenen, aus einer View-Projektion gelesen vom Kern (`math/frustum/frustum.ts`).",
+    "summary": "Sechs Ebenen, aus einer View-Projektion gelesen vom Kern (`packages/math/src/geometry/frustum/frustum.ts`).",
     "members": {
       "isFrustum": "Immer `true`: unterscheidet einen Sichtkegel von allem anderen.",
       "planes": "Sechs normalisierte Ebenen, je vier Zahlen: die Anordnung des Kerns.",
@@ -2334,14 +2334,14 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "VOLLSTÄNDIGE HIERARCHIE in einem Durchgang aktualisiert: `n` Knoten, angeordnet Eltern vor Kindern, jeder setzt seine lokale Matrix zusammen und multipliziert sie dann mit der Weltmatrix seines Elternteils.",
-    "description": "Das ist der Durchlauf von `../transform-tree/update.ts`, mit genau denselben zwei Formeln in derselben Reihenfolge, auf flachen Puffern: der WebAssembly-Kernel reproduziert ihn Term für Term. `parents[i]` MUSS der Index eines bereits aktualisierten Knotens sein, also streng kleiner als `i`; jeder andere Wert — die Sentinel `HIERARCHY_ROOT` eingeschlossen — macht den Knoten zu einer Wurzel, deren Weltmatrix ihre lokale Matrix ist. Die Regel ist auf beiden Seiten dieselbe: keine noch so feindselige Eingabe kann sie auseinanderlaufen lassen."
+    "description": "Die zwei Formeln laufen auf flachen Puffern, und der WebAssembly-Kernel reproduziert sie Term für Term. `parents[i]` MUSS der Index eines bereits aktualisierten Knotens sein, also streng kleiner als `i`; jeder andere Wert — die Sentinel `HIERARCHY_ROOT` eingeschlossen — macht den Knoten zu einer Wurzel, deren Weltmatrix ihre lokale Matrix ist. Die Regel ist auf beiden Seiten dieselbe: keine noch so feindselige Eingabe kann sie auseinanderlaufen lassen."
   },
   "hierarchyUpdateBatch": {
     "summary": "Berechnet die Weltmatrizen einer ganzen Hierarchie in einem Durchgang, Eltern zuerst."
   },
   "HIZ_NOTHING": {
     "summary": "Zurückgegebener Wert, wenn kein Texel gelesen wird: kann nichts verdecken.",
-    "description": "Die Tiefe der Engine ist UMGEKEHRT — nah ist 1, fern ist 0 (`../math/primitives/camera.ts`). Eine umschließende Box ist nur verdeckt, wenn ihre nächste Tiefengrenze WEITER (kleinerer Wert) ist als die Tiefe des Hindernisses."
+    "description": "Die Tiefe der Engine ist UMGEKEHRT — nah ist 1, fern ist 0 (`../../../math/src/projection/camera.ts`). Eine umschließende Box ist nur verdeckt, wenn ihre nächste Tiefengrenze WEITER (kleinerer Wert) ist als die Tiefe des Hindernisses."
   },
   "hizBuildFlat": {
     "summary": "Vollständige Pyramide aus der Tiefe des Sichtbarkeitspuffers.",
@@ -2432,7 +2432,7 @@
   },
   "HostNodeMatrix": {
     "summary": "Dieselben sechzehn Fließkommazahlen, term-für-term VERÄNDERBAR: die Pose, die eine Grenze auf einen Host-Knoten oder eine Host-Kamera zurücksetzt, die sie wiederherstellt.",
-    "description": "Das ist die veränderbare Seite von `MatrixElements`, und sie lebt daneben; nichts verlangt vom Host, sie zusammenzusetzen — `copyElements` schreibt sie so, wie sie sind.",
+    "description": "Das ist die veränderbare Seite von `MatrixElements`, und sie lebt daneben; nichts verlangt vom Host, sie zusammenzusetzen — `copyMatrix4` schreibt sie so, wie sie sind.",
     "members": {
       "elements": "Die sechzehn Zahlen, nach Index."
     }
@@ -4931,7 +4931,7 @@
     "summary": "Zahlen pro Proxy-Dreieck: drei Scheitelpunkte in der Welt, keine Normale — sie ergibt sich aus dem Dreieck."
   },
   "Quaternion": {
-    "summary": "Eine Rotation als Einheitsquaternion, oberhalb von `math/matrix/quaternion.ts`.",
+    "summary": "Eine Rotation als Einheitsquaternion, oberhalb von `packages/math/src/quaternion/quaternion.ts`.",
     "description": "Geschriebene Komponenten benachrichtigen ihren Besitzer.",
     "members": {
       "isQuaternion": "Immer `true`: unterscheidet ein Quaternion von allem anderen.",
@@ -6248,7 +6248,7 @@
   },
   "Vector3": {
     "summary": "Ein Punkt oder eine Richtung in drei Dimensionen, verkettet.",
-    "description": "Die Zahlen leben in `elements`, das die Kernfunktionen von `math/primitives/vector.ts` lesen und schreiben; jeder Schreibvorgang benachrichtigt den Besitzer.",
+    "description": "Die Zahlen leben in `elements`, das die Kernfunktionen von `packages/math/src/vector/vector.ts` lesen und schreiben; jeder Schreibvorgang benachrichtigt den Besitzer.",
     "members": {
       "isVector3": "Immer `true`: unterscheidet einen 3D-Vektor.",
       "set": "Schreibt die drei Zahlen; ein Schreibvorgang, der keine ändert, benachrichtigt niemanden.",
@@ -6564,7 +6564,7 @@
       "uncoveredTriangles": "Dreiecke der Cluster, die der veröffentlichte Schnitt benennt, die das Bild aber nicht zeichnen kann — keine residente Seite und kein deckender Vorfahr. Ein echtes Loch im Bild: null ist der einzige gesunde Wert. Null, wenn eine Engine es nicht sagen kann (sie zeichnet den Schnitt, den sie gewählt hat, also hat sie nie welche).",
       "drawnTriangles": "Dreiecke, die das AKTUELLE BILD dem Zeichnen gibt: sein Cluster-Schnitt, opake und durchsichtige der Hierarchie zusammen. Durchsichtige Meshes außerhalb der Hierarchie sind nicht dabei (`transparentSubmittedTriangles`), und die Verdeckungsablehnung wird nicht abgezogen (`hizRejectedTriangles`). Bei der Übernahme des Schnitts gezählt: kein asynchrones GPU-Rücklesen wird erwartet, also ist es nie `null` aus Zeitmangel, im Gegensatz zu `submittedTriangles`.",
       "cpuSelectNodesTested": "Knoten der Hierarchie, an denen der Schnitt dieses Bildes einen Test gemacht hat — Sichtkegel- oder Detailstufenentscheidung. Ein bereits entschiedener und vollständig sichtbarer Knoten erhält keinen: er wird durchlaufen, nicht getestet. Das ist das Maß für die echte Arbeit eines hierarchischen Schnitts; ein flacher Schnitt testet null und durchläuft jeden Cluster. Null für eine Engine, die ihren Schnitt nicht auf der CPU wählt, oder ihn nicht zählt.",
-      "mathBatch": "Zustand des Reglers der Rechenpfade (`../math/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
+      "mathBatch": "Zustand des Reglers der Rechenpfade (`../runtime/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
       "pagesPlannedOffThread": "Integration der Seiten außerhalb des Hauptstrangs. `pagesPlannedOffThread` zählt Ankünfte, deren Plan — der Platz jedes Clusters im Paket und die Seitenränge, die er bewegt — von einem Worker berechnet wurde, nie die, die der Rückfall auf dem Hauptstrang geplant hat. `pagePlanMs` ist die kumulierte Zeit dieser Pläne, gemessen vom Ausführenden selbst, unabhängig vom Strang: sie wird nie zu einem `cpu*` oder `gpu*` pro Bild addiert. Beide sind `null`, solange keine Ankunft geplant wurde — nicht gemessen, nicht null.",
       "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
       "lightsActive": "Lichter des `SceneLight`-Vertrags, die das Bild beleuchtet hat. Null für eine Engine, die sie ignoriert.",

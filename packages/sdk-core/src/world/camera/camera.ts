@@ -3,7 +3,7 @@ import { readVec3, type Vec3Input } from '../math/vector3.ts'
 import { Ray } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { referenceProjection } from './referenceProjection.ts'
-import { drawnView, perspectiveSlope } from '../../math/primitives/camera.ts'
+import { drawnView, perspectiveSlope } from '../../../../math/src/projection/camera.ts'
 
 const view = new Float64Array(4)
 

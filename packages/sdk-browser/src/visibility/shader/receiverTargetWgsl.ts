@@ -1,4 +1,4 @@
-import { octDecodeWgsl, octEncodeWgsl } from '../../math/octahedralWgsl.ts'
+import { octDecodeWgsl, octEncodeWgsl } from '../../gpu/shader/octahedralWgsl.ts'
 
 /**
  * THE SHADOW RECEIVER TARGET: the resolve, which has the pixel's triangle decoded already, writes

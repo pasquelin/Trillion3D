@@ -12,8 +12,8 @@
  *   finishVirtualShadowFrame(state, plan)                  // marks rendered, extracts the frame data, swaps
  */
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { frustumPlanesFromMatrix } from '../../../sdk-core/src/math/frustum/frustum.ts'
-import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { frustumPlanesFromMatrix } from '../../../math/src/geometry/frustum/frustum.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   VSM_SINGLE_PAGE_MAP_SLOTS,
   VSM_PROJECTION_RECORD_BYTES,

@@ -3,7 +3,7 @@ import type { MaterialParameters } from './materialParameters.ts'
 export type { MaterialParameters } from './materialParameters.ts'
 import { alphaModeOf, type Material as EngineMaterial } from '../../contracts/material.ts'
 import { Color, type ColorInput } from '../math/color.ts'
-import { listen, unlisten } from '../math/observed.ts'
+import { listen, unlisten } from '../observed.ts'
 import type { Blending, Side } from '../constants/index.ts'
 
 /** The fields whose value is a colour: written through `Color`, whatever the page passes. */

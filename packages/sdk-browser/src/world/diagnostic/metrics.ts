@@ -1,4 +1,4 @@
-import { mathBatchMetrics } from '../../math/batchState.ts'
+import { mathBatchMetrics } from '../../page/decode/batch/batchState.ts'
 import { pageIntegrationStats } from '../../page/integration/host.ts'
 import { pageWorkStats } from '../../page/work/host.ts'
 import { EngineProfiler } from '../../diagnostic/telemetry.ts'

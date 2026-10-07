@@ -1,4 +1,4 @@
-import type { TransformTree } from '../../math/transform-tree/transformTree.ts'
+import type { TransformTree } from '../../world/transform-tree/transformTree.ts'
 import type { SceneNode } from './node.ts'
 import type { SceneRoot } from './root.ts'
 

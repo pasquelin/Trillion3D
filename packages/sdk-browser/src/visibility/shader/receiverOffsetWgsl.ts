@@ -8,7 +8,7 @@ import {
 } from './pixelTriangleWgsl.ts'
 import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import { PAGE_NORMAL_WGSL, PAGE_POINTS_WGSL } from './pageGeometryWgsl.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts'
 
 /**
  * THE SHADOW RECEIVER OF A PIXEL: its shading-point offset and its triangle's plane, the

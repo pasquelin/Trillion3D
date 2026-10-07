@@ -1,4 +1,4 @@
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 
 /** The compiler's conservative rest balls and target radii, measured once for page-authored data. */

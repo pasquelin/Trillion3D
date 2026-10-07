@@ -1,7 +1,7 @@
 import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts'
 import { DAG_BINDINGS_WGSL } from './bindings.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../shader/inverseTransposeWgsl.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
@@ -43,7 +43,7 @@ const INF:f32=3.4e38;
 /** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
 const FRAME:u32=${FRAME_VEC4}u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum.
+ *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/math/src/geometry/frustum/box.ts): same corners, same sum.
  *  An infinite far plane is not tested (\`farless\`): it rejects no box. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
  let skip=select(6u,FAR_PLANE,farless());

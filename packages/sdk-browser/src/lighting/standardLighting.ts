@@ -1,4 +1,4 @@
-import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../gpu/shader/inverseTransposeWgsl.ts'
 import { PI } from './shaderConstants.ts'
 
 /**

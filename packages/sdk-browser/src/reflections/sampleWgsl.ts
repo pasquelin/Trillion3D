@@ -1,5 +1,5 @@
 import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
-import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { withScreenReflections } from './screenWgsl.ts'
 import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts'

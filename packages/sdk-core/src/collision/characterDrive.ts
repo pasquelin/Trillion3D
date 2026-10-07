@@ -5,7 +5,7 @@ import {
   type CharacterInput,
   type CharacterSettings,
 } from './characterSettings.ts'
-import { hypot2 } from '../math/primitives/hypot.ts'
+import { hypot2 } from '../../../math/src/float/hypot.ts'
 import { gripOf } from './grip.ts'
 
 /**

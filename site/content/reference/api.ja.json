@@ -351,7 +351,7 @@
     "summary": "ネイティブアセットコンパイル(prepare / CLI)のオプションを記述するJSON Schema。"
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "プロセッサ側のミラー(`packages/sdk-browser/src/page/cone/cone.ts`)とシェーダー(`packages/sdk-browser/src/gpu/dag/shader/shader.ts`)が共有する円錐棄却の許容値: ある変換は、その列が相対的に`CONE_LENGTH_RATIO`以内で同じ長さを持ち、`CONE_ORTHO_EPS`以内で直交しているときに等角であるとされる。角度が`HALF_PI`以上の円錐は決して棄却しない。",
+    "summary": "プロセッサ側のミラーとシェーダーが共有する円錐棄却の許容値: ある変換は、その列が相対的に`CONE_LENGTH_RATIO`以内で同じ長さを持ち、`CONE_ORTHO_EPS`以内で直交しているときに等角であるとされる。角度が`HALF_PI`以上の円錐は決して棄却しない。",
     "description": "`_WGSL`版は、シェーダーに挿入されるテキストで、`SINGULAR_DETERMINANT_WGSL`(`../matrix/singular.ts`)と同じ性質のものだ。"
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1130,7 +1130,7 @@
       "uncoveredTriangles": "公開されたカットが名前を挙げているが、フレームが描画できない — 常駐ページも代わりとなる祖先もない — クラスターの三角形。画像の実際の穴であり、ゼロだけが健全な値。バックエンドが判断できない場合はnull(選択したカットをそのまま描くので、この状態は起こり得ない)。",
       "drawnTriangles": "**現在のフレーム**が描画に渡す三角形数: 階層の不透明・透過を合わせたクラスターカット。階層外の透過メッシュはここに含まれず(`transparentSubmittedTriangles`)、オクルージョンによる棄却も差し引かれない(`hizRejectedTriangles`)。カット採用時に数えられる: 非同期のGPU読み戻しを待つことはないので、`submittedTriangles`と違って、時間切れで`null`になることはない。",
       "cpuSelectNodesTested": "このフレームのカットがテストを課した階層ノード(フラスタム判定や詳細レベル判定)。すでに判定済みで完全に可視なノードは1つも数えられない: それは走査されるだけでテストはされない。これが階層的カットの実際の作業量の指標であり、フラットなカットはこれをゼロ回テストしてすべてのクラスターを走査する。CPU上でカットを選ばない、あるいはそれを数えないエンジンではnull。",
-      "mathBatch": "計算経路ガバナー(`../math/path/governor.ts`)の状態: 各バッチ演算の現在のパス、両方のパスの中央値、切りかえ回数。ホストがまだバッチを開いていない場合は`null` — 未計測であって「JavaScriptパス」ではない。",
+      "mathBatch": "計算経路ガバナー(`../runtime/path/governor.ts`)の状態: 各バッチ演算の現在のパス、両方のパスの中央値、切りかえ回数。ホストがまだバッチを開いていない場合は`null` — 未計測であって「JavaScriptパス」ではない。",
       "pagesPlannedOffThread": "メインスレッド外でのページ統合処理。`pagesPlannedOffThread`は、その到着計画(各クラスターがパック内で占める位置と、それが移動させるページのランク)がワーカーによって計算された到着数を数え、フォールバックがメインスレッドで計画したものは決して数えない。`pagePlanMs`は、それらの計画の累積時間で、どのスレッドであれ実行者自身が計測したもの: フレームごとの`cpu*`や`gpu*`に足されることは決してない。どちらも、まだ到着が1つも計画されていない間は`null`である — 未計測であって、ゼロではない。",
       "pagePlanMs": "到着の計画に費やされた時間。",
       "dynamicUploadBytes": "このフレームでその場にアップロードされた動的ジオメトリの頂点バイト数（#573）。ワールドのフレームごとの予算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）内。ワールドが描画しない場合はありません。",
@@ -1144,7 +1144,7 @@
     }
   },
   "Frustum": {
-    "summary": "6つの平面。コア(`math/frustum/frustum.ts`)によって、ビュー射影行列から読み取られる。",
+    "summary": "6つの平面。コア(`packages/math/src/geometry/frustum/frustum.ts`)によって、ビュー射影行列から読み取られる。",
     "members": {
       "isFrustum": "常に`true`: 他の何かとフラスタムを区別する。",
       "planes": "6つの正規化された平面、それぞれ4個の数値: コアのレイアウト。",
@@ -1348,11 +1348,11 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "1回のパスで更新される階層全体: 親が子より先になるよう並べられた`n`個のノードが、それぞれローカル行列を合成してから親のワールド行列と掛け合わせる。",
-    "description": "これは`../transform-tree/update.ts`の走査そのもので、平坦なバッファ上で、まったく同じ2つの式を同じ順序で行う: WebAssemblyカーネルはこれを項ごとに再現する。`parents[i]`は、すでに更新済みのノードのインデックスでなければならず、つまり厳密に`i`より小さくなければならない; それ以外の値(番人値`HIERARCHY_ROOT`を含む)は、そのノードをルートにし、そのワールド行列はローカル行列と同じになる。このルールはどちらの側でも同一だ: どんなに意地悪な入力であっても、両者を食い違わせることはできない。"
+    "description": "2つの式は平坦なバッファ上で実行され、WebAssemblyカーネルはそれらを項ごとに再現する。`parents[i]`は、すでに更新済みのノードのインデックスでなければならず、つまり厳密に`i`より小さくなければならない; それ以外の値(番人値`HIERARCHY_ROOT`を含む)は、そのノードをルートにし、そのワールド行列はローカル行列と同じになる。このルールはどちらの側でも同一だ: どんなに意地悪な入力であっても、両者を食い違わせることはできない。"
   },
   "HIZ_NOTHING": {
     "summary": "テクセルが1つも読まれなかったときに返される値: 何も遮蔽できない。",
-    "description": "エンジンの深度は反転している — 近くが1、遠くが0(`../math/primitives/camera.ts`)。あるバウンディングボックスが遮蔽されるのは、その最も近い深度の境界が、遮蔽物の深度よりも**遠い**(値が小さい)場合だけである。"
+    "description": "エンジンの深度は反転している — 近くが1、遠くが0(`../../../math/src/projection/camera.ts`)。あるバウンディングボックスが遮蔽されるのは、その最も近い深度の境界が、遮蔽物の深度よりも**遠い**(値が小さい)場合だけである。"
   },
   "HizFlat": {
     "summary": "フレームごとのHi-Zピラミッド: すべてのレベルをまとめた1つの`Float32Array`と、レベルごとのオフセットとサイズ。",
@@ -1429,7 +1429,7 @@
   },
   "HostNodeMatrix": {
     "summary": "同じ16個の浮動小数点数、項ごとに**書き込み可能**: 境界がホストノードやホストカメラに書き戻す姿勢。",
-    "description": "`MatrixElements`の可変な側面であり、それと並んで存在する; ホストにそれらを合成させるものは何もない — `copyElements`は、あるがままにそれらを書き込む。",
+    "description": "`MatrixElements`の可変な側面であり、それと並んで存在する; ホストにそれらを合成させるものは何もない — `copyMatrix4`は、あるがままにそれらを書き込む。",
     "members": {
       "elements": "16個の数値、インデックスによる。"
     }
@@ -2646,7 +2646,7 @@
     }
   },
   "Quaternion": {
-    "summary": "`math/matrix/quaternion.ts`にもとづく、単位クォータニオンとしての回転。",
+    "summary": "`packages/math/src/quaternion/quaternion.ts`にもとづく、単位クォータニオンとしての回転。",
     "description": "書き込まれた成分は、その持ち主に通知される。",
     "members": {
       "isQuaternion": "常に`true`: 他の何かとクォータニオンを区別する。",
@@ -3701,7 +3701,7 @@
   },
   "Vector3": {
     "summary": "3次元の点または方向。チェーン可能。",
-    "description": "数値は`elements`に存在し、`math/primitives/vector.ts`のコア関数群がそれを読み書きする; すべての書き込みはその持ち主に伝えられる。",
+    "description": "数値は`elements`に存在し、`packages/math/src/vector/vector.ts`のコア関数群がそれを読み書きする; すべての書き込みはその持ち主に伝えられる。",
     "members": {
       "isVector3": "常に`true`: 3Dベクトルを区別する。",
       "set": "3つの数値を書き込む; どれも変えない書き込みは誰にも伝えない。",
@@ -4000,7 +4000,7 @@
       "uncoveredTriangles": "公開されたカットが名前を挙げているが、フレームが描画できない — 常駐ページも代わりとなる祖先もない — クラスターの三角形。画像の実際の穴であり、ゼロだけが健全な値。バックエンドが判断できない場合はnull(選択したカットをそのまま描くので、この状態は起こり得ない)。",
       "drawnTriangles": "**現在のフレーム**が描画に渡す三角形数: 階層の不透明・透過を合わせたクラスターカット。階層外の透過メッシュはここに含まれず(`transparentSubmittedTriangles`)、オクルージョンによる棄却も差し引かれない(`hizRejectedTriangles`)。カット採用時に数えられる: 非同期のGPU読み戻しを待つことはないので、`submittedTriangles`と違って、時間切れで`null`になることはない。",
       "cpuSelectNodesTested": "このフレームのカットがテストを課した階層ノード(フラスタム判定や詳細レベル判定)。すでに判定済みで完全に可視なノードは1つも数えられない: それは走査されるだけでテストはされない。これが階層的カットの実際の作業量の指標であり、フラットなカットはこれをゼロ回テストしてすべてのクラスターを走査する。CPU上でカットを選ばない、あるいはそれを数えないエンジンではnull。",
-      "mathBatch": "計算経路ガバナー(`../math/path/governor.ts`)の状態: 各バッチ演算の現在のパス、両方のパスの中央値、切りかえ回数。ホストがまだバッチを開いていない場合は`null` — 未計測であって「JavaScriptパス」ではない。",
+      "mathBatch": "計算経路ガバナー(`../runtime/path/governor.ts`)の状態: 各バッチ演算の現在のパス、両方のパスの中央値、切りかえ回数。ホストがまだバッチを開いていない場合は`null` — 未計測であって「JavaScriptパス」ではない。",
       "pagesPlannedOffThread": "メインスレッド外でのページ統合処理。`pagesPlannedOffThread`は、その到着計画(各クラスターがパック内で占める位置と、それが移動させるページのランク)がワーカーによって計算された到着数を数え、フォールバックがメインスレッドで計画したものは決して数えない。`pagePlanMs`は、それらの計画の累積時間で、どのスレッドであれ実行者自身が計測したもの: フレームごとの`cpu*`や`gpu*`に足されることは決してない。どちらも、まだ到着が1つも計画されていない間は`null`である — 未計測であって、ゼロではない。",
       "pagePlanMs": "到着の計画に費やされた時間。",
       "lightsActive": "そのフレームが照らした`SceneLight`契約のライト数。それらを無視するエンジンではnull。",
@@ -4281,7 +4281,7 @@
     "summary": "`out = [u | v | n | origin]`: 基底の3つの列、そしてその原点 — `makeBasis`の後に`setPosition`。"
   },
   "batch": {
-    "summary": "`batch`ファミリー: ループの代わりに一度に千個の行列を扱う。コアのバッチ化されたカーネル群(`packages/sdk-core/src/math/batch/batch.ts`、`packages/sdk-core/src/math/batch/points.ts`、`packages/sdk-core/src/math/matrix/matrix4Compose.ts`、`packages/sdk-core/src/math/batch/culling.ts`)にもとづく。"
+    "summary": "`batch`ファミリー: ループの代わりに一度に千個の行列を扱う。コアのバッチ化されたカーネル群(`packages/math/src/batch/batch.ts`、`packages/math/src/batch/points.ts`、`packages/math/src/matrix/matrix4Compose.ts`、`packages/math/src/batch/culling.ts`)にもとづく。"
   },
   "batch.transformPoints": {
     "summary": "それぞれ3つの数値で保存された`count`個の点に対する`out[i] = m · points[i]`。",

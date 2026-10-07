@@ -1,4 +1,4 @@
-import { FULLSCREEN_X_WGSL, FULLSCREEN_Y_WGSL } from '../../math/fullscreenTriangle.ts'
+import { FULLSCREEN_X_WGSL, FULLSCREEN_Y_WGSL } from '../../gpu/shader/fullscreenTriangle.ts'
 import {
   FRAMEBUFFER_WGSL,
   PIXEL_BARY_WGSL,
@@ -7,7 +7,7 @@ import {
   VERTEX_NORMALS_WGSL,
 } from './pixelTriangleWgsl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
 import {

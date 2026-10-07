@@ -5,7 +5,7 @@ import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../math/transform-tree/transformTree.ts'
+} from '../../world/transform-tree/transformTree.ts'
 import type { SceneNode } from './node.ts'
 import type { SceneState } from './nodeContracts.ts'
 import { sceneNodeFail } from './nodeError.ts'

@@ -1,0 +1,17 @@
+{
+  "name": "@trillion3d/math",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src/**/*.ts",
+    "!src/**/*.test.ts",
+    "!src/**/*.fixture.ts"
+  ],
+  "engines": {
+    "node": ">=22.18"
+  }
+}

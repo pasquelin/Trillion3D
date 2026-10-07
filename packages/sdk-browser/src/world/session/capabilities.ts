@@ -1,4 +1,4 @@
-import { mathBatchMetrics, prepareMathBatch } from '../../math/batchState.ts'
+import { mathBatchMetrics, prepareMathBatch } from '../../page/decode/batch/batchState.ts'
 import { materialTextures, meshes as objects } from '../../scene/meshes.ts'
 import { hostTextureWritten } from '../../host/textureImport.ts'
 import { families } from '../../host/families.ts'

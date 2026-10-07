@@ -4,7 +4,7 @@ import type { PageRec } from '../page/selection/selection.ts'
 import { createDeformationFrame, type DeformedMesh } from './frame.ts'
 import { placementDeformation } from './placementSource.ts'
 import { deformedOf } from './source.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import { createDeformationSkip } from './screen.ts'
 

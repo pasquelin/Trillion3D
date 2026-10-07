@@ -21,12 +21,12 @@
  * the page moves the cells' parents (`sizing.ts`).
  */
 import { invertMatrix4, MATRIX_VALUES, transformAffinePoint } from '../../../sdk-core/src/index.ts'
-import { boxPointDistance } from '../../../sdk-core/src/math/primitives/box.ts'
-import { drawnView, perspectiveSlope } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { boxPointDistance } from '../../../math/src/geometry/box.ts'
+import { drawnView, perspectiveSlope } from '../../../math/src/projection/camera.ts'
 import type { CameraOptics } from '../camera/engineCamera.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 import { AHEAD } from './aheadShare.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 

@@ -1,9 +1,6 @@
-import {
-  ceilFloat32,
-  writeSplitDouble,
-} from '../../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { ceilFloat32, writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts'
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'

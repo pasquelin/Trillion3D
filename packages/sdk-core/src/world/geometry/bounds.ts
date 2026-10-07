@@ -4,7 +4,7 @@
  * from its list when it owns three plain numbers a vertex and no morph target moves it, else
  * vertex by vertex.
  */
-import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import type { VertexAttribute } from '../buffer/attribute.ts'
 import type { Geometry } from './geometry.ts'
 import { Box3 } from '../math/box3.ts'

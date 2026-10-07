@@ -1,9 +1,9 @@
 // Math families that replaced the host-scene arithmetic on per-frame path, compared with
 // that arithmetic down to exact bit (`Object.is`) on hostile cases: NaN, ±0, infinities, negative scale.
 //
-//  - `transformAffinePoint` (`packages/sdk-core/src/math/primitives/vector.ts`) replaces `Vector3.applyMatrix4` at sites
+//  - `transformAffinePoint` (`packages/math/src/vector/vector.ts`) replaces `Vector3.applyMatrix4` at sites
 //    reprojecting a point without perspective divide — `bench/oracles/browser/cpu-image/projection.ts`.
-//  - `decomposeMatrix4` (`packages/sdk-core/src/math/matrix/matrix4Trs.ts`) replaces `Matrix4.decompose`, starting with
+//  - `decomposeMatrix4` (`packages/math/src/matrix/matrix4Trs.ts`) replaces `Matrix4.decompose`, starting with
 //    `enginePose` (`packages/sdk-browser/src/camera/world.ts`), on negative scale — case distinguishing correct
 //    decomposition from one losing sign.
 import test from 'node:test'

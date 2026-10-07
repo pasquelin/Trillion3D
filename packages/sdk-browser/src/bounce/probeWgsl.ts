@@ -4,7 +4,7 @@ import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './grid
 import { residentProxyWgsl } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
-import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { PROBE_TEXELS } from './atlas.ts'
 

@@ -351,7 +351,7 @@
     "summary": "Lược đồ JSON ghi lại tài liệu các tùy chọn cho việc biên dịch tài nguyên gốc (prepare / CLI)."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Các dung sai loại bỏ hình nón, được chia sẻ giữa bản sao bộ xử lý (`packages/sdk-browser/src/page/cone/cone.ts`) và shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`): một phép biến đổi mang tính bảo giác khi các cột của nó dài bằng nhau trong khoảng `CONE_LENGTH_RATIO` và vuông góc trong khoảng `CONE_ORTHO_EPS`, một cách tương đối; một hình nón có góc ≥ `HALF_PI` không bao giờ loại bỏ.",
+    "summary": "Các dung sai loại bỏ hình nón, được chia sẻ giữa bản sao bộ xử lý và shader: một phép biến đổi mang tính bảo giác khi các cột của nó dài bằng nhau trong khoảng `CONE_LENGTH_RATIO` và vuông góc trong khoảng `CONE_ORTHO_EPS`, một cách tương đối; một hình nón có góc ≥ `HALF_PI` không bao giờ loại bỏ.",
     "description": "Các biến thể `_WGSL` là đoạn văn bản được chèn vào shader, như `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1138,7 +1138,7 @@
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
-      "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../math/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
+      "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../runtime/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
       "pagesPlannedOffThread": "Việc tích hợp trang ngoài luồng chính. `pagesPlannedOffThread` đếm các lượt đến mà kế hoạch của chúng — vị trí của mỗi cụm trong gói và các thứ hạng trang mà nó di chuyển — đã được một worker tính toán, không bao giờ những kế hoạch mà phương án dự phòng lập trên luồng chính. `pagePlanMs` là thời gian tích lũy của các kế hoạch đó, do chính bộ thực thi đo, dù là luồng nào: nó không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có lượt đến nào được lập kế hoạch — chưa được đo, không phải bằng không.",
       "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
       "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
@@ -1152,7 +1152,7 @@
     }
   },
   "Frustum": {
-    "summary": "Sáu mặt phẳng, được đọc từ một view-projection bởi lõi (`math/frustum/frustum.ts`).",
+    "summary": "Sáu mặt phẳng, được đọc từ một view-projection bởi lõi (`packages/math/src/geometry/frustum/frustum.ts`).",
     "members": {
       "isFrustum": "Luôn là `true`: phân biệt một khối nhìn với bất cứ thứ gì khác.",
       "planes": "Sáu mặt phẳng đã chuẩn hóa, mỗi mặt bốn con số: bố cục của lõi đó.",
@@ -1356,11 +1356,11 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "TOÀN BỘ PHÂN CẤP được cập nhật trong một chặng: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó.",
-    "description": "Đây là quá trình duyệt trong `../transform-tree/update.ts`, với đúng hai công thức đó theo cùng thứ tự đó, trên các bộ đệm phẳng: nhân WebAssembly sao chép lại nó từng số hạng một. `parents[i]` PHẢI là chỉ số của một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau ở cả hai phía: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau."
+    "description": "Hai công thức chạy trên các bộ đệm phẳng, và nhân WebAssembly sao chép lại chúng từng số hạng một. `parents[i]` PHẢI là chỉ số của một node đã được cập nhật, do đó phải nhỏ hơn hẳn `i`; bất kỳ giá trị nào khác — kể cả giá trị đặc biệt `HIERARCHY_ROOT` — biến node đó thành một gốc mà ma trận thế giới của nó chính là ma trận cục bộ của nó. Quy tắc này giống hệt nhau ở cả hai phía: không đầu vào nào, dù khắc nghiệt tới đâu, có thể khiến chúng khác nhau."
   },
   "HIZ_NOTHING": {
     "summary": "Giá trị trả về khi không có texel nào được đọc: không thể che khuất gì cả.",
-    "description": "Độ sâu của bộ máy bị ĐẢO NGƯỢC — gần là 1, xa là 0 (`../math/primitives/camera.ts`). Một hộp bao chỉ bị che khuất nếu cận độ sâu gần nhất của nó XA HƠN (giá trị nhỏ hơn) độ sâu của vật che khuất."
+    "description": "Độ sâu của bộ máy bị ĐẢO NGƯỢC — gần là 1, xa là 0 (`../../../math/src/projection/camera.ts`). Một hộp bao chỉ bị che khuất nếu cận độ sâu gần nhất của nó XA HƠN (giá trị nhỏ hơn) độ sâu của vật che khuất."
   },
   "HizFlat": {
     "summary": "Kim tự tháp Hi-Z theo từng khung hình: một `Float32Array` duy nhất cho mọi mức, một độ lệch và kích thước cho mỗi mức.",
@@ -1437,7 +1437,7 @@
   },
   "HostNodeMatrix": {
     "summary": "Chính mười sáu số thực đó, CÓ THỂ GHI từng số hạng một: tư thế mà một ranh giới đặt trở lại một node chủ hoặc một camera chủ mà nó khôi phục.",
-    "description": "Đây là mặt có thể thay đổi của `MatrixElements` và tồn tại bên cạnh nó; không có gì yêu cầu ứng dụng chủ dựng chúng — `copyElements` ghi chúng nguyên trạng.",
+    "description": "Đây là mặt có thể thay đổi của `MatrixElements` và tồn tại bên cạnh nó; không có gì yêu cầu ứng dụng chủ dựng chúng — `copyMatrix4` ghi chúng nguyên trạng.",
     "members": {
       "elements": "Mười sáu con số đó, theo chỉ số."
     }
@@ -2664,7 +2664,7 @@
     }
   },
   "Quaternion": {
-    "summary": "Một phép xoay dưới dạng quaternion đơn vị trên `math/matrix/quaternion.ts`.",
+    "summary": "Một phép xoay dưới dạng quaternion đơn vị trên `packages/math/src/quaternion/quaternion.ts`.",
     "description": "Các thành phần được ghi sẽ báo cho chủ sở hữu biết.",
     "members": {
       "isQuaternion": "Luôn là `true`: phân biệt một quaternion với bất cứ thứ gì khác.",
@@ -3841,7 +3841,7 @@
   },
   "Vector3": {
     "summary": "Một điểm hoặc một hướng trong không gian ba chiều, có thể xâu chuỗi.",
-    "description": "Các con số sống trong `elements`, thứ mà các hàm lõi của `math/primitives/vector.ts` đọc và ghi; mỗi lần ghi báo cho chủ sở hữu biết.",
+    "description": "Các con số sống trong `elements`, thứ mà các hàm lõi của `packages/math/src/vector/vector.ts` đọc và ghi; mỗi lần ghi báo cho chủ sở hữu biết.",
     "members": {
       "isVector3": "Luôn là `true`: phân biệt một vectơ 3D.",
       "set": "Ghi ba con số đó; một lần ghi không thay đổi con số nào cả sẽ không báo cho ai biết.",
@@ -3957,7 +3957,7 @@
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
-      "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../math/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
+      "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../runtime/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
       "pagesPlannedOffThread": "Việc tích hợp trang ngoài luồng chính. `pagesPlannedOffThread` đếm các lượt đến mà kế hoạch của chúng — vị trí của mỗi cụm trong gói và các thứ hạng trang mà nó di chuyển — đã được một worker tính toán, không bao giờ những kế hoạch mà phương án dự phòng lập trên luồng chính. `pagePlanMs` là thời gian tích lũy của các kế hoạch đó, do chính bộ thực thi đo, dù là luồng nào: nó không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có lượt đến nào được lập kế hoạch — chưa được đo, không phải bằng không.",
       "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
       "lightsActive": "Các nguồn sáng theo hợp đồng `SceneLight` mà khung hình này đã chiếu sáng. Rỗng trên một bộ máy bỏ qua chúng.",
@@ -4238,7 +4238,7 @@
     "summary": "`out = [u | v | n | origin]`: ba cột của một cơ sở, rồi tới gốc của nó — `makeBasis` theo sau bởi `setPosition`."
   },
   "batch": {
-    "summary": "Họ `batch`: một nghìn ma trận cùng lúc thay vì một vòng lặp, trên các nhân xử lý theo lô của lõi (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "Họ `batch`: một nghìn ma trận cùng lúc thay vì một vòng lặp, trên các nhân xử lý theo lô của lõi (`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.composeMatrix4": {
     "summary": "`out[i] = T(positions[i]) · R(quaternions[i]) · S(scales[i])` cho `count` tư thế.",

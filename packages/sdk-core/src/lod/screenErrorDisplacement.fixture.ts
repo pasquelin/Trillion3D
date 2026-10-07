@@ -3,7 +3,7 @@
 // — a rotation and a uniform or non-uniform scale —, an object sphere whose view centre reaches the
 // field's edges, an error ε, and the worst pair (sphere point, displacement of at most ε) found by
 // sampling then climbing, per family of displacement.
-import { maxStretch } from '../math/projectionOracles.ts'
+import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 
 type Vec3 = number[]
 type Mat3 = number[][]

@@ -1,5 +1,5 @@
 import { maxStretch } from '../../../../sdk-core/src/index.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { MatrixElements } from '../../host/matrixElements.ts'
 
 export function worldStretch(root: {
   world: MatrixElements

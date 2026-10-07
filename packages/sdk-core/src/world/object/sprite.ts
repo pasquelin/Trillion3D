@@ -3,7 +3,7 @@ import { plane } from '../geometry/basic.ts'
 import type { Material } from '../material/material.ts'
 import { material as materials } from '../material/index.ts'
 import { Vector2 } from '../math/vector2.ts'
-import { listen } from '../math/observed.ts'
+import { listen } from '../observed.ts'
 
 /**
  * A flat picture that always faces the camera: a unit square every renderer turns toward the

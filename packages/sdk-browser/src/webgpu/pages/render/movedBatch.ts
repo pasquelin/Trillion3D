@@ -6,12 +6,12 @@ import {
   boxTransform,
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts'
-import { boxEquals } from '../../../../../sdk-core/src/math/primitives/box.ts'
+import { boxEquals } from '../../../../../math/src/geometry/box.ts'
 import { moveRootRows } from './movedRoot.ts'
 import { declareOwnMove, forgetOwnMoves, noteOwnMove, ownsMove } from './movedClusters.ts'
 import { appendRootsUnder } from './movedNode.ts'
-import { transformRootBoxes } from '../../../math/batchBoxes.ts'
-import { grown } from '../../../../../sdk-core/src/math/transform-tree/storage.ts'
+import { transformRootBoxes } from '../../../page/selection/batchBoxes.ts'
+import { grown } from '../../../../../sdk-core/src/world/transform-tree/storage.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 

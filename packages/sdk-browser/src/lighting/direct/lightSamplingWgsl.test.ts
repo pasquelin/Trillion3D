@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { directLightSamplingWgsl, SAMPLED_RANKS } from './lightSamplingWgsl.ts'
 import { directLightingWgsl, declaredLightingWgsl } from './lightingWgsl.ts'
-import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../../gpu/shader/hashUnitWgsl.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import {
   BOUNCE_LIGHTING_SHADER,

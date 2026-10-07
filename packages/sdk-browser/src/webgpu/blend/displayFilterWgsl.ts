@@ -1,4 +1,4 @@
-import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts'
+import { FULLSCREEN_XY_WGSL } from '../../gpu/shader/fullscreenTriangle.ts'
 /** The composed image times the tint, plus the added value (`displayFilterProgram.ts`); on the
  *  capture target, and the canvas too when presented (an output without a target is dropped). The
  *  layers, at the frame's size or resolved to the display's, are sampled at the display pixel's

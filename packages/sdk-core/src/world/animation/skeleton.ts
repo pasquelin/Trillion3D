@@ -1,5 +1,5 @@
-import { multiplyMatrix4 } from '../../math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import type { Object3D } from '../object/object3d.ts'
 
 /** Floats of one joint of a palette: the three rows of its affine matrix. */

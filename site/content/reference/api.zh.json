@@ -351,7 +351,7 @@
     "summary": "描述原生资源编译(prepare / CLI)各项选项的 JSON Schema。"
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "圆锥剔除的容差,由处理器端的镜像实现(`packages/sdk-browser/src/page/cone/cone.ts`)和着色器(`packages/sdk-browser/src/gpu/dag/shader/shader.ts`)共同使用:当一个变换的各列在相对意义上于 `CONE_LENGTH_RATIO` 范围内长度相同、并在 `CONE_ORTHO_EPS` 范围内相互正交时,该变换被视为保角的;角度大于等于 `HALF_PI` 的圆锥永远不会被剔除。",
+    "summary": "圆锥剔除的容差,由处理器端的镜像实现和着色器共同使用:当一个变换的各列在相对意义上于 `CONE_LENGTH_RATIO` 范围内长度相同、并在 `CONE_ORTHO_EPS` 范围内相互正交时,该变换被视为保角的;角度大于等于 `HALF_PI` 的圆锥永远不会被剔除。",
     "description": "带 `_WGSL` 后缀的变体是插入到着色器中的文本,和 `SINGULAR_DETERMINANT_WGSL`(`../matrix/singular.ts`)是同一类东西。"
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1130,7 +1130,7 @@
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
-      "mathBatch": "计算路径调度器(`../math/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
+      "mathBatch": "计算路径调度器(`../runtime/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
       "pagesPlannedOffThread": "主线程之外的页面整合。`pagesPlannedOffThread` 统计的是其到达计划(每个簇在打包中的位置,以及它所移动的页面序号)由某个工作线程计算完成的到达数量,绝不包括回退方案在主线程上规划的部分。`pagePlanMs` 是这些计划的累计耗时,无论在哪个线程上都由执行者本身测量得出:绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何到达被规划之前,两者均为 `null`——表示未测量,而不是零。",
       "pagePlanMs": "花在规划到达上的时间。",
       "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。",
@@ -1144,7 +1144,7 @@
     }
   },
   "Frustum": {
-    "summary": "六个平面,由核心模块(`math/frustum/frustum.ts`)从一个视图投影矩阵中读取而来。",
+    "summary": "六个平面,由核心模块(`packages/math/src/geometry/frustum/frustum.ts`)从一个视图投影矩阵中读取而来。",
     "members": {
       "isFrustum": "始终为 `true`:用来把视锥体和其他对象区分开来。",
       "planes": "六个归一化的平面,每个占四个数字:核心模块所用的布局。",
@@ -1348,11 +1348,11 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "一次遍历更新的完整层级结构:`n` 个节点按父节点先于子节点排序,每个节点先合成自己的局部矩阵,再与父节点的世界矩阵相乘。",
-    "description": "这正是 `../transform-tree/update.ts` 中的遍历过程,使用完全相同的两个公式、相同的顺序,只是作用在扁平缓冲区上:WebAssembly 内核逐项复现了它。`parents[i]` 必须是某个已经更新过的节点的索引,也就是说必须严格小于 `i`;其他任何值(包括哨兵值 `HIERARCHY_ROOT`)都会让该节点成为根节点,其世界矩阵就等于局部矩阵。这条规则在两边完全一致:无论输入多么刁钻,都不可能让二者产生分歧。"
+    "description": "这两个公式作用在扁平缓冲区上,WebAssembly 内核逐项复现了它们。`parents[i]` 必须是某个已经更新过的节点的索引,也就是说必须严格小于 `i`;其他任何值(包括哨兵值 `HIERARCHY_ROOT`)都会让该节点成为根节点,其世界矩阵就等于局部矩阵。这条规则在两边完全一致:无论输入多么刁钻,都不可能让二者产生分歧。"
   },
   "HIZ_NOTHING": {
     "summary": "当没有任何纹素被读取时返回的值:无法遮挡任何东西。",
-    "description": "引擎的深度是反转的——近处为 1,远处为 0(`../math/primitives/camera.ts`)。只有当一个包围盒最近的深度边界比遮挡物的深度**更远**(数值更小)时,它才被视为被遮挡。"
+    "description": "引擎的深度是反转的——近处为 1,远处为 0(`../../../math/src/projection/camera.ts`)。只有当一个包围盒最近的深度边界比遮挡物的深度**更远**(数值更小)时,它才被视为被遮挡。"
   },
   "HizFlat": {
     "summary": "逐帧的 Hi-Z 金字塔:所有层级共用一个 `Float32Array`,每层各有一个偏移量和一个尺寸。",
@@ -1429,7 +1429,7 @@
   },
   "HostNodeMatrix": {
     "summary": "同样的十六个浮点数,可逐项**写入**:边界层写回到某个宿主节点或它恢复的某个宿主摄像机上的姿态。",
-    "description": "它是 `MatrixElements` 的可变一面,与之并存;没有任何东西要求宿主去合成它们——`copyElements` 只是原样把它们写进去。",
+    "description": "它是 `MatrixElements` 的可变一面,与之并存;没有任何东西要求宿主去合成它们——`copyMatrix4` 只是原样把它们写进去。",
     "members": {
       "elements": "十六个数字,按索引排列。"
     }
@@ -2646,7 +2646,7 @@
     }
   },
   "Quaternion": {
-    "summary": "以 `math/matrix/quaternion.ts` 为基础、用单位四元数表示的一次旋转。",
+    "summary": "以 `packages/math/src/quaternion/quaternion.ts` 为基础、用单位四元数表示的一次旋转。",
     "description": "被写入的分量会通知其持有者。",
     "members": {
       "isQuaternion": "始终为 `true`:用来把四元数和其他对象区分开来。",
@@ -3701,7 +3701,7 @@
   },
   "Vector3": {
     "summary": "三维空间中的一个点或一个方向,支持链式调用。",
-    "description": "这些数值保存在 `elements` 中,由 `math/primitives/vector.ts` 的核心函数读写;每次写入都会通知其持有者。",
+    "description": "这些数值保存在 `elements` 中,由 `packages/math/src/vector/vector.ts` 的核心函数读写;每次写入都会通知其持有者。",
     "members": {
       "isVector3": "始终为 `true`:用来标识三维向量。",
       "set": "写入这三个数字;一次不改变任何数值的写入不会通知任何人。",
@@ -4000,7 +4000,7 @@
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
       "cpuSelectNodesTested": "本帧裁切过程中被施加了测试(视锥体或细节层级判定)的层级节点数。一个已经判定完毕且完全可见的节点不会被计入:它只是被遍历,而不是被测试。这正是衡量层级化裁切真实工作量的指标;扁平裁切对此计数为零,却要遍历每一个簇。在不通过 CPU 选择裁切、或不统计这一项的引擎上为 null。",
-      "mathBatch": "计算路径调度器(`../math/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
+      "mathBatch": "计算路径调度器(`../runtime/path/governor.ts`)的状态:每个批处理运算当前所用的路径、两条路径各自的中位数、切换次数。宿主尚未开启任何批处理时为 `null`——这表示未测量,而不是“JavaScript 路径”。",
       "pagesPlannedOffThread": "主线程之外的页面整合。`pagesPlannedOffThread` 统计的是其到达计划(每个簇在打包中的位置,以及它所移动的页面序号)由某个工作线程计算完成的到达数量,绝不包括回退方案在主线程上规划的部分。`pagePlanMs` 是这些计划的累计耗时,无论在哪个线程上都由执行者本身测量得出:绝不会被加进任何一帧的 `cpu*` 或 `gpu*` 中。在还没有任何到达被规划之前,两者均为 `null`——表示未测量,而不是零。",
       "pagePlanMs": "花在规划到达上的时间。",
       "lightsActive": "本帧实际照亮场景的 `SceneLight` 契约光源数。在忽略光源的引擎上为 null。",
@@ -4281,7 +4281,7 @@
     "summary": "`out = [u | v | n | origin]`:一个基的三个列,再加上其原点——相当于 `makeBasis` 之后紧跟 `setPosition`。"
   },
   "batch": {
-    "summary": "`batch` 系列:一次处理上千个矩阵,而不是用循环逐个处理,建立在核心模块的批处理内核之上(`packages/sdk-core/src/math/batch/batch.ts`、`packages/sdk-core/src/math/batch/points.ts`、`packages/sdk-core/src/math/matrix/matrix4Compose.ts`、`packages/sdk-core/src/math/batch/culling.ts`)。"
+    "summary": "`batch` 系列:一次处理上千个矩阵,而不是用循环逐个处理,建立在核心模块的批处理内核之上(`packages/math/src/batch/batch.ts`、`packages/math/src/batch/points.ts`、`packages/math/src/matrix/matrix4Compose.ts`、`packages/math/src/batch/culling.ts`)。"
   },
   "batch.transformPoints": {
     "summary": "对 `count` 个各占三个数字的点计算 `out[i] = m · points[i]`。",

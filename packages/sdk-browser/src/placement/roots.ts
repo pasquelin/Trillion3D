@@ -1,4 +1,4 @@
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import { placementWorld, type PlacementOf, type PlacementRows } from './rows.ts'
 
 /** One place a collected mesh is drawn at: its world, whether it is parked, and its row. */

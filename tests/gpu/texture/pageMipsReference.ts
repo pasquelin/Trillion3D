@@ -6,7 +6,7 @@ import {
   COVERAGE_PICK_WGSL,
   COVERAGE_SCALE_WGSL,
 } from '../../../packages/sdk-browser/src/texture/coverageRule.ts'
-import { FULLSCREEN_XY_WGSL } from '../../../packages/sdk-browser/src/math/fullscreenTriangle.ts'
+import { FULLSCREEN_XY_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/fullscreenTriangle.ts'
 import { levelSize } from '../../../packages/sdk-browser/src/texture/tiles.ts'
 
 /** One chain of the proof: its pool format, size, colour rule, cutoff, and level 0's RGBA8 bytes. */

@@ -351,7 +351,7 @@
     "summary": "네이티브 에셋 컴파일(prepare / CLI)의 옵션을 기술하는 JSON 스키마."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "프로세서 측 미러(`packages/sdk-browser/src/page/cone/cone.ts`)와 셰이더(`packages/sdk-browser/src/gpu/dag/shader/shader.ts`)가 공유하는 원뿔 배제 허용치: 어떤 변환은 그 열들이 상대적으로 `CONE_LENGTH_RATIO` 이내로 같은 길이를 가지고 `CONE_ORTHO_EPS` 이내로 직교할 때 등각으로 간주된다; 각도가 `HALF_PI` 이상인 원뿔은 절대 배제되지 않는다.",
+    "summary": "프로세서 측 미러와 셰이더가 공유하는 원뿔 배제 허용치: 어떤 변환은 그 열들이 상대적으로 `CONE_LENGTH_RATIO` 이내로 같은 길이를 가지고 `CONE_ORTHO_EPS` 이내로 직교할 때 등각으로 간주된다; 각도가 `HALF_PI` 이상인 원뿔은 절대 배제되지 않는다.",
     "description": "`_WGSL` 변형은 셰이더에 삽입되는 텍스트로, `SINGULAR_DETERMINANT_WGSL`(`../matrix/singular.ts`)과 같은 종류다."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1130,7 +1130,7 @@
       "uncoveredTriangles": "공개된 컷이 이름을 언급하지만 프레임이 그릴 수 없는 — 상주 페이지도, 대체할 조상도 없는 — 클러스터의 삼각형. 이미지의 실제 구멍이며, 유일하게 건강한 값은 0이다. 백엔드가 판단할 수 없을 때는 null(그것은 자신이 선택한 컷을 그대로 그리므로, 이런 상황이 생기지 않는다).",
       "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다.",
       "cpuSelectNodesTested": "이 프레임의 컷이 테스트(절두체 또는 디테일 레벨 판정)를 가한 계층 노드 수. 이미 판정이 끝나 완전히 보이는 노드는 하나도 포함되지 않는다: 그것은 순회될 뿐 테스트되지 않는다. 이것이 계층적 컷의 실제 작업량을 나타내는 척도다; 평평한 컷은 이 값을 0으로 유지하며 모든 클러스터를 순회한다. CPU에서 컷을 고르지 않거나 이를 세지 않는 엔진에서는 null.",
-      "mathBatch": "연산 경로 조정기(`../math/path/governor.ts`)의 상태: 각 배치 연산의 현재 경로, 두 경로의 중앙값, 전환 횟수. 호스트가 아직 배치를 열지 않았을 때는 `null` — 측정되지 않은 것이지 「JavaScript 경로」가 아니다.",
+      "mathBatch": "연산 경로 조정기(`../runtime/path/governor.ts`)의 상태: 각 배치 연산의 현재 경로, 두 경로의 중앙값, 전환 횟수. 호스트가 아직 배치를 열지 않았을 때는 `null` — 측정되지 않은 것이지 「JavaScript 경로」가 아니다.",
       "pagesPlannedOffThread": "메인 스레드 밖에서의 페이지 통합. `pagesPlannedOffThread`는 그 도착 계획(각 클러스터가 팩 안에서 차지하는 위치, 그리고 그것이 이동시키는 페이지 순번)이 워커에 의해 계산된 도착 수를 세며, 대체 방식이 메인 스레드에서 계획한 것은 절대 세지 않는다. `pagePlanMs`는 그 계획들의 누적 시간으로, 어느 스레드든 실행자 자신이 측정한다: 프레임별 `cpu*`나 `gpu*`에 절대 더해지지 않는다. 아직 도착이 하나도 계획되지 않은 동안에는 둘 다 `null`이다 — 측정되지 않은 것이지, 0이 아니다.",
       "pagePlanMs": "도착 계획에 소요된 시간.",
       "dynamicUploadBytes": "이 프레임에 제자리에서 업로드된 동적 지오메트리의 정점 바이트(#573), 월드의 프레임당 예산(`DYNAMIC_UPLOAD_BUDGET_BYTES`) 이내. 월드가 그리지 않으면 없음.",
@@ -1144,7 +1144,7 @@
     }
   },
   "Frustum": {
-    "summary": "여섯 개의 평면, 코어(`math/frustum/frustum.ts`)가 뷰-투영 행렬로부터 읽어낸 것.",
+    "summary": "여섯 개의 평면, 코어(`packages/math/src/geometry/frustum/frustum.ts`)가 뷰-투영 행렬로부터 읽어낸 것.",
     "members": {
       "isFrustum": "항상 `true`: 절두체를 다른 무엇과도 구분한다.",
       "planes": "정규화된 여섯 평면, 각각 네 개의 숫자: 코어의 레이아웃.",
@@ -1348,11 +1348,11 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "한 번의 패스로 업데이트되는 전체 계층 구조: 부모가 자식보다 먼저 오도록 정렬된 `n`개의 노드가, 각각 로컬 행렬을 합성한 뒤 부모의 월드 행렬과 곱해진다.",
-    "description": "이는 `../transform-tree/update.ts`의 순회 그 자체로, 평평한 버퍼 위에서 정확히 같은 두 공식을 같은 순서로 수행한다: WebAssembly 커널이 이를 항별로 그대로 재현한다. `parents[i]`는 반드시 이미 업데이트된 노드의 인덱스여야 하며, 즉 엄밀히 `i`보다 작아야 한다; 그 밖의 값(보초값 `HIERARCHY_ROOT` 포함)은 그 노드를 루트로 만들어, 그 월드 행렬이 로컬 행렬과 같아지게 한다. 이 규칙은 양쪽에서 동일하다: 아무리 까다로운 입력이라도 둘을 어긋나게 만들 수 없다."
+    "description": "두 공식은 평평한 버퍼 위에서 실행되며, WebAssembly 커널이 이를 항별로 그대로 재현한다. `parents[i]`는 반드시 이미 업데이트된 노드의 인덱스여야 하며, 즉 엄밀히 `i`보다 작아야 한다; 그 밖의 값(보초값 `HIERARCHY_ROOT` 포함)은 그 노드를 루트로 만들어, 그 월드 행렬이 로컬 행렬과 같아지게 한다. 이 규칙은 양쪽에서 동일하다: 아무리 까다로운 입력이라도 둘을 어긋나게 만들 수 없다."
   },
   "HIZ_NOTHING": {
     "summary": "텍셀이 하나도 읽히지 않았을 때 반환되는 값: 아무것도 가릴 수 없다.",
-    "description": "엔진의 깊이는 반전되어 있다 — 가까운 쪽이 1, 먼 쪽이 0(`../math/primitives/camera.ts`). 어떤 경계 상자가 가려지는 것은 오직 그것의 가장 가까운 깊이 경계가 가림막의 깊이보다 **더 멀 때**(더 작은 값일 때)뿐이다."
+    "description": "엔진의 깊이는 반전되어 있다 — 가까운 쪽이 1, 먼 쪽이 0(`../../../math/src/projection/camera.ts`). 어떤 경계 상자가 가려지는 것은 오직 그것의 가장 가까운 깊이 경계가 가림막의 깊이보다 **더 멀 때**(더 작은 값일 때)뿐이다."
   },
   "HizFlat": {
     "summary": "프레임마다의 Hi-Z 피라미드: 모든 레벨을 위한 단일 `Float32Array`, 레벨마다 오프셋과 크기 하나씩.",
@@ -1429,7 +1429,7 @@
   },
   "HostNodeMatrix": {
     "summary": "같은 16개의 부동소수점, 항별로 **쓰기 가능**: 경계가 어떤 호스트 노드나 복원 중인 호스트 카메라에 다시 써 넣는 자세.",
-    "description": "`MatrixElements`의 가변적인 면이며 그 옆에 존재한다; 호스트에게 그것들을 합성하라고 요구하는 것은 아무것도 없다 — `copyElements`는 있는 그대로 그것들을 써 넣는다.",
+    "description": "`MatrixElements`의 가변적인 면이며 그 옆에 존재한다; 호스트에게 그것들을 합성하라고 요구하는 것은 아무것도 없다 — `copyMatrix4`는 있는 그대로 그것들을 써 넣는다.",
     "members": {
       "elements": "16개의 숫자, 인덱스 기준."
     }
@@ -2646,7 +2646,7 @@
     }
   },
   "Quaternion": {
-    "summary": "`math/matrix/quaternion.ts`에 기반한, 단위 쿼터니언으로서의 회전.",
+    "summary": "`packages/math/src/quaternion/quaternion.ts`에 기반한, 단위 쿼터니언으로서의 회전.",
     "description": "쓰인 성분은 소유자에게 알려진다.",
     "members": {
       "isQuaternion": "항상 `true`: 쿼터니언을 다른 무엇과도 구분한다.",
@@ -3701,7 +3701,7 @@
   },
   "Vector3": {
     "summary": "3차원의 점 또는 방향, 체이닝 가능.",
-    "description": "숫자는 `elements`에 있으며, `math/primitives/vector.ts`의 핵심 함수들이 이를 읽고 쓴다; 모든 쓰기는 소유자에게 알려진다.",
+    "description": "숫자는 `elements`에 있으며, `packages/math/src/vector/vector.ts`의 핵심 함수들이 이를 읽고 쓴다; 모든 쓰기는 소유자에게 알려진다.",
     "members": {
       "isVector3": "항상 `true`: 3D 벡터를 구분한다.",
       "set": "세 숫자를 쓴다; 아무것도 바꾸지 않는 쓰기는 아무에게도 알리지 않는다.",
@@ -4000,7 +4000,7 @@
       "uncoveredTriangles": "공개된 컷이 이름을 언급하지만 프레임이 그릴 수 없는 — 상주 페이지도, 대체할 조상도 없는 — 클러스터의 삼각형. 이미지의 실제 구멍이며, 유일하게 건강한 값은 0이다. 백엔드가 판단할 수 없을 때는 null(그것은 자신이 선택한 컷을 그대로 그리므로, 이런 상황이 생기지 않는다).",
       "drawnTriangles": "**현재 프레임**이 그리기에 넘기는 삼각형 수: 계층의 불투명·투명을 합친 클러스터 컷. 계층 밖의 투명 메시는 여기 포함되지 않으며(`transparentSubmittedTriangles`), 오클루전 배제도 빠지지 않는다(`hizRejectedTriangles`). 컷이 채택될 때 세어진다: 비동기 GPU 리드백을 기다리지 않으므로, `submittedTriangles`와 달리 시간이 부족해서 `null`이 되는 일이 없다.",
       "cpuSelectNodesTested": "이 프레임의 컷이 테스트(절두체 또는 디테일 레벨 판정)를 가한 계층 노드 수. 이미 판정이 끝나 완전히 보이는 노드는 하나도 포함되지 않는다: 그것은 순회될 뿐 테스트되지 않는다. 이것이 계층적 컷의 실제 작업량을 나타내는 척도다; 평평한 컷은 이 값을 0으로 유지하며 모든 클러스터를 순회한다. CPU에서 컷을 고르지 않거나 이를 세지 않는 엔진에서는 null.",
-      "mathBatch": "연산 경로 조정기(`../math/path/governor.ts`)의 상태: 각 배치 연산의 현재 경로, 두 경로의 중앙값, 전환 횟수. 호스트가 아직 배치를 열지 않았을 때는 `null` — 측정되지 않은 것이지 「JavaScript 경로」가 아니다.",
+      "mathBatch": "연산 경로 조정기(`../runtime/path/governor.ts`)의 상태: 각 배치 연산의 현재 경로, 두 경로의 중앙값, 전환 횟수. 호스트가 아직 배치를 열지 않았을 때는 `null` — 측정되지 않은 것이지 「JavaScript 경로」가 아니다.",
       "pagesPlannedOffThread": "메인 스레드 밖에서의 페이지 통합. `pagesPlannedOffThread`는 그 도착 계획(각 클러스터가 팩 안에서 차지하는 위치, 그리고 그것이 이동시키는 페이지 순번)이 워커에 의해 계산된 도착 수를 세며, 대체 방식이 메인 스레드에서 계획한 것은 절대 세지 않는다. `pagePlanMs`는 그 계획들의 누적 시간으로, 어느 스레드든 실행자 자신이 측정한다: 프레임별 `cpu*`나 `gpu*`에 절대 더해지지 않는다. 아직 도착이 하나도 계획되지 않은 동안에는 둘 다 `null`이다 — 측정되지 않은 것이지, 0이 아니다.",
       "pagePlanMs": "도착 계획에 소요된 시간.",
       "lightsActive": "그 프레임이 비춘 `SceneLight` 계약 조명 수. 그것들을 무시하는 엔진에서는 null.",
@@ -4281,7 +4281,7 @@
     "summary": "`out = [u | v | n | origin]`: 기저의 세 열, 그다음 그 원점 — `makeBasis` 다음에 `setPosition`."
   },
   "batch": {
-    "summary": "`batch` 계열: 루프 대신 한 번에 수천 개의 행렬을 처리한다. 코어의 배치 커널들 위에 세워짐(`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "`batch` 계열: 루프 대신 한 번에 수천 개의 행렬을 처리한다. 코어의 배치 커널들 위에 세워짐(`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.transformPoints": {
     "summary": "각각 세 개의 숫자로 저장된 `count`개의 점에 대해 `out[i] = m · points[i]`.",

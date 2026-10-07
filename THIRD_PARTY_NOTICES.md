@@ -47,9 +47,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     `src/math/acos.rs` with the instruction's square root, and the sine of
     `packages/page-codec-wasm/src/trig.rs`, transcribed from `src/math/sin.rs`, `k_sin.rs`,
     `k_cos.rs` and `rem_pio2.rs` (below 2^20 · π/2), both inside
-    `packages/sdk-browser/src/math/wasm/kernels.wasm`;
+    `packages/sdk-browser/src/wasm/kernels.wasm`;
   - their TypeScript twins `fdlibmAcos` and `fdlibmSin` of
-    `packages/sdk-core/src/math/primitives/trig.ts`, from the same files, in the JavaScript
+    `packages/math/src/float/trig.ts`, from the same files, in the JavaScript
     bundles;
   - the native compiler links the crate itself.
 - Licence: MIT (libm), with fdlibm's notice kept in each transcribed file.

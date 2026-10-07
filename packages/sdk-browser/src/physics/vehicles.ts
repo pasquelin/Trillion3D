@@ -8,7 +8,7 @@ import {
   type CommandWriter,
   type Vehicle,
 } from '../../../sdk-core/src/physics/index.ts'
-import { slerpArc } from '../../../sdk-core/src/math/matrix/quaternion.ts'
+import { slerpArc } from '../../../math/src/quaternion/quaternion.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import type { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { createPhysicsBodies } from './bodies.ts'

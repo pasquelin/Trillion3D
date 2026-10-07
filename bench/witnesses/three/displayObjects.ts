@@ -12,7 +12,7 @@ import {
 import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
-import { copyElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts'
+import { copyMatrix4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import { threeLight, threeMeshCopy } from './fromGraphNodes.ts'
 import * as THREE from 'three'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
@@ -58,7 +58,7 @@ export function witnessScene(source: Object3D, clearColor: number) {
       source.updateMatrixWorld(true)
       lights.update()
       for (const [copy, mesh] of copies)
-        copyElements(copy.matrix.elements, mesh.matrixWorld.elements)
+        copyMatrix4(copy.matrix.elements, mesh.matrixWorld.elements)
     },
     dispose: () => scene.clear(),
   }

@@ -1,7 +1,7 @@
 import { pixelScaleOf } from '../streaming/priority.ts'
 import { worldStretch } from '../page/cut/logic.ts'
 import { screenErrorBound } from '../../../sdk-core/src/lod/screenErrorBound.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 import { viewDepthOf, viewLateralOf } from '../page/selection/projection.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import type { ClusterRoot } from '../page/selection/types.ts'

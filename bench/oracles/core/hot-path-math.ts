@@ -1,14 +1,14 @@
-// The hot-path math of sdk-core frozen: the oracles its optimised forms must
-// match bit for bit (`packages/sdk-core/src/math/primitives/{cone,box}.test.ts`,
+// The hot-path math of packages/math frozen: the oracles its optimised forms must
+// match bit for bit (`bench/witnesses/three/parity/core/math/primitives/{cone,box}.test.ts`,
 // `bench/witnesses/three/parity/core/math/frustum/box.test.ts`), with the seeded inputs they are fed.
 import { xorshiftRandom } from '../../core/measure.ts'
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts'
-import { coneRejects } from '../../../packages/sdk-core/src/math/projectionOracles.ts'
+import { coneRejects } from '../../../packages/math/src/projection/projectionOracles.ts'
 import {
   boxCornersInto,
   boxEmpty,
   boxExpandByPoint,
-} from '../../../packages/sdk-core/src/math/primitives/box.ts'
+} from '../../../packages/math/src/geometry/box.ts'
 
 /** Seeded floats: one in eight hostile or maximal, the others of every sign and scale. */
 export function hostileFloats(seed: number) {

@@ -1,4 +1,4 @@
-import { FULLSCREEN_XY_WGSL } from '../math/fullscreenTriangle.ts'
+import { FULLSCREEN_XY_WGSL } from '../gpu/shader/fullscreenTriangle.ts'
 import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { cellReductionWgsl } from './cellReduction.ts'
 import { SRGB_ENCODE_WGSL } from './srgbEncode.ts'

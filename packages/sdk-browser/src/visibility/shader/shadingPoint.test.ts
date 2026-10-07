@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { cross, subtract } from '../../../../sdk-core/src/math/primitives/vectorTuple.ts'
+import { cross, subtract } from '../../../../math/src/vector/vectorTuple.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { random as seeded } from '../../page/cut/cutRuleChecks.fixture.ts'
 

@@ -1382,25 +1382,25 @@
       "description": "`n`개의 행렬로 변환된 `n`개의 박스: `out[i] = boxTransform(boxes[i], mats[i])`. `out`과 `boxes`는 요소당 6개의 숫자를, `mats`는 16개의 서브뷰를 가집니다."
     },
     "hierarchyUpdateBatch": {
-      "description": "계층 구조 전체를 한 번의 패스로 업데이트합니다: `n`개의 노드를 부모가 자식보다 먼저 오도록 정렬하고, 각각 로컬 행렬을 합성한 뒤 부모의 월드 행렬과 곱합니다 — 이는 `packages/sdk-core/src/math/transform-tree/update.ts`의 순회와 동일하며, 평평한 버퍼 위에서 같은 두 공식을 같은 순서로 수행합니다. `parents[i]`는 **반드시** 이미 업데이트된 노드를 가리켜야 하며, 즉 엄밀히 `i`보다 작아야 합니다; 그 밖의 값(`HIERARCHY_ROOT` 보초값 포함)은 그 노드를 루트로 만들어, 그 월드 행렬이 로컬 행렬과 같아지게 합니다. 이 규칙은 두 경로 모두에서 동일합니다: 아무리 까다로운 입력이라도 둘을 어긋나게 만들 수 없습니다. `local`은 모든 요소가 공유해서 재사용하는 하나의 임시 행렬입니다."
+      "description": "계층 구조 전체를 한 번의 패스로 업데이트합니다: `n`개의 노드를 부모가 자식보다 먼저 오도록 정렬하고, 각각 로컬 행렬을 합성한 뒤 부모의 월드 행렬과 곱합니다 — 이는 `packages/sdk-core/src/world/transform-tree/update.ts`의 순회와 동일하며, 평평한 버퍼 위에서 같은 두 공식을 같은 순서로 수행합니다. `parents[i]`는 **반드시** 이미 업데이트된 노드를 가리켜야 하며, 즉 엄밀히 `i`보다 작아야 합니다; 그 밖의 값(`HIERARCHY_ROOT` 보초값 포함)은 그 노드를 루트로 만들어, 그 월드 행렬이 로컬 행렬과 같아지게 합니다. 이 규칙은 두 경로 모두에서 동일합니다: 아무리 까다로운 입력이라도 둘을 어긋나게 만들 수 없습니다. `local`은 모든 요소가 공유해서 재사용하는 하나의 임시 행렬입니다."
     },
     "createPathGovernor": {
       "description": "이름이 붙은 연산마다, JS와 WebAssembly 중 어느 쪽을 쓸지 판정하는 것: 요소당 나노초의 이동 중앙값, 그 우위가 연속 다섯 번의 실행 후에만 전환된다는 규칙, 그리고 50번에 한 번씩 다른 경로를 다시 실행해 중앙값을 갱신하는 것입니다. 샘플이 다섯 개 미만이면 아무것도 결정되지 않습니다 — 그렇지 않으면 단일 값이 중앙값이 되어 버리기 때문입니다. `metrics()`는 연산별로 `path`, `jsNsPerElement`, `wasmNsPerElement`, 전환 횟수, 그리고 측정이 의존하는 시계 분해능을 공개합니다."
     },
     "frustumKeepsBoxBatch": {
-      "description": "6개의 숫자(최솟값, 최댓값)로 이루어진 `n`개의 박스를 절두체의 24개 부동소수점 값과 비교합니다: 박스가 교차하거나 내부에 있으면 `kept[i]`가 1이 되고, 유지된 개수가 반환됩니다 — `frustumExcludesBox`를 뒤집은 것으로, 참조 구현이 답하는 극성과 같습니다. 구 배치는 박스마다 `SPHERE_VALUES`개의 숫자(중심, 그리고 꼭짓점까지의 반지름)를 `sphereFromBounds`와 같은 방식으로 기록합니다. 두 루프 모두 `packages/sdk-core/src/math/batch/culling.ts`에 있습니다."
+      "description": "6개의 숫자(최솟값, 최댓값)로 이루어진 `n`개의 박스를 절두체의 24개 부동소수점 값과 비교합니다: 박스가 교차하거나 내부에 있으면 `kept[i]`가 1이 되고, 유지된 개수가 반환됩니다 — `frustumExcludesBox`를 뒤집은 것으로, 참조 구현이 답하는 극성과 같습니다. 구 배치는 박스마다 `SPHERE_VALUES`개의 숫자(중심, 그리고 꼭짓점까지의 반지름)를 `sphereFromBounds`와 같은 방식으로 기록합니다. 두 루프 모두 `packages/math/src/batch/culling.ts`에 있습니다."
     },
     "boxUnionBatch": {
       "description": "`into`를 `n`개의 박스로 확장하거나, 혹은 `n`개의 박스를 각자의 행렬로 먼저 변환한 뒤 확장합니다 — 어느 쪽이든 한 번의 패스, 하나의 임시 박스, 할당 없이 이루어집니다. 둘 다 `boxUnion`을 반복하며, 후자는 그 전에 `boxTransform`을 수행합니다: 한 번의 호출로 씬 전체의 월드 경계를 얻을 수 있습니다."
     },
     "invertMatrix4Batch": {
-      "description": "`n`개의 역행렬, `NORMAL_MATRIX_VALUES`개의 숫자로 이루어진 `n`개의 법선 행렬, `n`번의 `T · R · S` 합성, `n`번의 분해. 행렬식이 0인 행렬은 단위 행렬로 반전되고 `singular[i]`에 표시됩니다 — 배치 도중에 예외가 던져지는 일은 없습니다. `composeMatrix4Batch`는 모든 것을 평평한 배열로 받거나 모든 것을 서브뷰로 받는 두 방식 중 하나를 취하며, 루프 이전에 그 형식을 확정합니다. 이 네 개의 루프는 모두 `packages/sdk-core/src/math/batch/transforms.ts`에 있습니다."
+      "description": "`n`개의 역행렬, `NORMAL_MATRIX_VALUES`개의 숫자로 이루어진 `n`개의 법선 행렬, `n`번의 `T · R · S` 합성, `n`번의 분해. 행렬식이 0인 행렬은 단위 행렬로 반전되고 `singular[i]`에 표시됩니다 — 배치 도중에 예외가 던져지는 일은 없습니다. `composeMatrix4Batch`는 모든 것을 평평한 배열로 받거나 모든 것을 서브뷰로 받는 두 방식 중 하나를 취하며, 루프 이전에 그 형식을 확정합니다. 이 네 개의 루프는 모두 `packages/math/src/batch/transforms.ts`에 있습니다."
     },
     "transformPointsBatch": {
       "description": "세 개의 숫자로 이루어진 `n`개의 점을 하나의 아핀 행렬로, 혹은 점마다 각자의 행렬로 변환합니다; `n`개의 방향을 상위 3×3 행렬로 변환한 뒤 정규화합니다. 평행이동은 무시됩니다. 이들은 각각 `transformAffinePoint`와 `transformDirectionVector3`를 반복한 것입니다."
     },
     "srgbToLinearBatch": {
-      "description": "요소마다 채널 하나씩, `packages/sdk-core/src/math/primitives/color.ts`의 정확한 곡선을 사용합니다: 참조 구현은 반올림된 상수를 곱하며, 그 차이(8비트에서는 보이지 않음)는 그것과 겨루는 벤치에서 한 번에 경계가 정해져 있습니다."
+      "description": "요소마다 채널 하나씩, `packages/math/src/color/color.ts`의 정확한 곡선을 사용합니다: 참조 구현은 반올림된 상수를 곱하며, 그 차이(8비트에서는 보이지 않음)는 그것과 겨루는 벤치에서 한 번에 경계가 정해져 있습니다."
     },
     "scene-editor": {
       "title": "편집기로 장면 만들기",

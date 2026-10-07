@@ -1,4 +1,4 @@
-import { sameElements } from '../../math/matrixElements.ts'
+import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { copyAheadView } from './aheadView.ts'
 import type { SelectionUniforms } from './selection.ts'
 

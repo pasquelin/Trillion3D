@@ -27,7 +27,7 @@ import {
   VSM_PRESSURE_FALL,
   VSM_FEEDBACK_POOL,
 } from './constants.ts'
-import { sameValues } from '../math/matrixElements.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { vsmDefaultProjectionData, type VsmProjectionDataValues } from './projectionData.ts'
 import { createVsmReadbackRing, type VsmReadbackRing } from './readbackRing.ts'
 

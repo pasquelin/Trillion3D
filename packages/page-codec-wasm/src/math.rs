@@ -1,8 +1,8 @@
 //! Batch calculation kernels of the math foundation, in f64, to the bits of the JavaScript version.
 //!
 //! Each function reproduces term by term, parentheses included, the floating-point operation order
-//! of its counterpart in `packages/sdk-core/`: `packages/sdk-core/src/math/matrix/matrix4.ts::multiplyMatrix4` (`math_matrix.rs`) and
-//! `packages/sdk-core/src/math/primitives/box.ts::boxTransform` (which calls `boxCornersInto`, `boxEmpty` and `boxExpandByPoint`).
+//! of its counterpart in `packages/math/`: `packages/math/src/matrix/matrix4.ts::multiplyMatrix4` (`math_matrix.rs`) and
+//! `packages/math/src/geometry/box.ts::boxTransform` (which calls `boxCornersInto`, `boxEmpty` and `boxExpandByPoint`).
 //!
 //! Equality is structural, not hoped for. WebAssembly has no fused multiply-add instruction:
 //! neither the base set nor `simd128` carries one, and `relaxed-simd`, the only extension that
@@ -16,7 +16,7 @@
 //! Rust does not promise to. Both are rewritten here, with `Math.hypot`, for every kernel of the
 //! crate that must give JavaScript's bits.
 
-/// Floats of a box laid out flat, like `BOX_VALUES` in `packages/sdk-core/src/math/primitives/box.ts`.
+/// Floats of a box laid out flat, like `BOX_VALUES` in `packages/math/src/geometry/box.ts`.
 pub const BOX_VALUES: usize = 6;
 /// Floats of a column-major 4×4 matrix.
 pub const MATRIX_VALUES: usize = 16;
@@ -79,7 +79,7 @@ pub(crate) fn compensated_squares<const N: usize>(values: [f64; N]) -> f64 {
 }
 
 /// `Math.hypot` of `values` to the bit (`hypot2`, `hypot3`, `hypot4` of
-/// `packages/sdk-core/src/math/primitives/hypot.ts`): every magnitude divided by the largest, the
+/// `packages/math/src/float/hypot.ts`): every magnitude divided by the largest, the
 /// squares summed with compensation, the root scaled back; an infinity before a NaN. The
 /// specification leaves `Math.hypot` approximated; this is the rounding Chrome and Node return,
 /// where a plain `sqrt` of the squares differs in the last bit on a large share of inputs. The

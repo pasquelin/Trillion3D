@@ -1,4 +1,4 @@
-import { hypot3 } from '../../math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
 /**
  * Spherical coordinates on flat numbers, shared by the camera controllers and the `math` family.
