@@ -26,9 +26,8 @@ test('every page of the cooked world is served as its own bytes, in world space'
   }
 })
 
-test('a bundle of several pages resolves the one its offset names', async () => {
-  // The cooked fixture gives each page a bundle; a bundle of two proves the offset → page mapping:
-  // the source picks the page whose `offset` the table lists, in binary order.
+/** One bundle of two pages, the triangles at x = 0 and x = 2, in binary order. */
+function twoPageBundle() {
   const [low, high] = [worldPage(0).bytes, worldPage(2).bytes],
     bin = new Uint8Array([...low, ...high])
   const pages = [
@@ -36,9 +35,16 @@ test('a bundle of several pages resolves the one its offset names', async () => 
     { bundle: 0, offset: low.byteLength, bytes: high.byteLength, level: 0, lodError: 0 },
   ]
   const table = {
-      bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
-      pages: { count: pages.length, at: (page: number) => pages[page] },
-    } as unknown as WorldRoots,
+    bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
+    pages: { count: pages.length, at: (page: number) => pages[page] },
+  } as unknown as WorldRoots
+  return { low, high, table, bin }
+}
+
+test('a bundle of several pages resolves the one its offset names', async () => {
+  // The cooked fixture gives each page a bundle; a bundle of two proves the offset → page mapping:
+  // the source picks the page whose `offset` the table lists, in binary order.
+  const { low, high, table, bin } = twoPageBundle(),
     { source, reads } = worldRootsBinSource(table, bin)
   const [atLow, atHigh] = await Promise.all([
     source.page(worldRootsPageAddress('world-roots.bin', 0, 0)),
@@ -73,16 +79,7 @@ test('a shared bundle read serves every caller, one aborting; no bundle, no page
 })
 
 test('a bundle read lands its other pages, which a reader then joins: the bundle is read once', async () => {
-  const [low, high] = [worldPage(0).bytes, worldPage(2).bytes],
-    bin = new Uint8Array([...low, ...high])
-  const pages = [
-    { bundle: 0, offset: 0, bytes: low.byteLength, level: 1, lodError: 1 },
-    { bundle: 0, offset: low.byteLength, bytes: high.byteLength, level: 0, lodError: 0 },
-  ]
-  const table = {
-    bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
-    pages: { count: pages.length, at: (page: number) => pages[page] },
-  } as unknown as WorldRoots
+  const { low, high, table, bin } = twoPageBundle()
   const told: string[] = [],
     joined: Promise<Uint8Array>[] = []
   const { source, reads } = worldRootsBinSource(table, bin, (addresses) => {
