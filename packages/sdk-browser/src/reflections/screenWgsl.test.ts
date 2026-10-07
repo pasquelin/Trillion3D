@@ -6,12 +6,11 @@ import {
   withScreenReflections,
 } from './screenWgsl.ts'
 import {
-  MIRROR_TRANSITION_END,
   SCREEN_REFLECTION_CUTOFF,
   TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
   MIRROR_WEIGHT_WGSL,
 } from './modelShader.ts'
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
+import { MIRROR_TRANSITION_END, ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { REFLECTION_SOURCE_WGSL } from './sourceWgsl.ts'
 import { ENVIRONMENT, FILTERED, RAY, resolvedDisplay } from './receivers.fixture.ts'

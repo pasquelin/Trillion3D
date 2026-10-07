@@ -25,7 +25,7 @@ fn impWeights(f:vec2f)->vec3f{
  */
 const IMPOSTOR_VIEW_WGSL = wgslBlock(
   'IMPOSTOR_VIEW_WGSL',
-  [],
+  [octEncodeHemi, octDecodeHemi, IMPOSTOR_MATH_WGSL],
   `
 struct ImpView{a:vec2f,b:vec2f,c:vec2f,w:vec3f}
 /** The three frames and weights seen from \`eye\` (object space, pivot-relative). */
@@ -86,6 +86,6 @@ fn impBlend(a:ImpTap,b:ImpTap,c:ImpTap,w:vec3f,lod:f32)->ImpBlend{
 /** The whole octahedral read of a card: the mapping, the card's view and the per-pixel tap. */
 export const IMPOSTOR_CARD_WGSL = wgslBlock(
   'IMPOSTOR_CARD_WGSL',
-  [octEncodeHemi, octDecodeHemi, IMPOSTOR_MATH_WGSL, IMPOSTOR_VIEW_WGSL, IMPOSTOR_TAP_WGSL],
+  [IMPOSTOR_MATH_WGSL, IMPOSTOR_VIEW_WGSL, IMPOSTOR_TAP_WGSL],
   '',
 )

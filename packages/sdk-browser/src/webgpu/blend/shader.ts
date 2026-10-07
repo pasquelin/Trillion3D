@@ -1,7 +1,7 @@
 import { TRANSLUCENT_SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts'
 import { FORWARD_MIRROR_WGSL } from '../../reflections/modelShader.ts'
@@ -23,7 +23,6 @@ import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
 import { type ContractKey, variantLabel } from '../../lighting/deferred/contractCuts.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without
@@ -83,6 +82,7 @@ const blendFragmentWgsl = (lobes: boolean) =>
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(2),
       ...(lobes ? [] : [BLEND_LOBELESS_WGSL]),
+      ROUGHNESS_FLOOR,
     ],
     `fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
  let flags=in.ids.y;
@@ -101,7 +101,7 @@ ${BLEND_DIAGNOSTIC}
  // the opaque resolve. Neither ambient, nor sky, nor a default sun (P6).
  let unlit=(flags&${itemFlags.FLAG_UNLIT_VIEW}u)!=0u;
  let V=normalize(uni.camPos.xyz-in.view*uni.camPos.w);
- let clamped=clamp(s.rough,${wgslF32(ROUGHNESS_FLOOR)},1.0);
+ let clamped=clamp(s.rough,ROUGHNESS_FLOOR,1.0);
  if(!unlit){
   if((flags&${itemFlags.FLAG_LIT}u)!=0u){
    let m=clamp(s.metal,0.0,1.0);

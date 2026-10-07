@@ -6,7 +6,6 @@ import { wgslFn } from './decl.ts'
  * five formulas, five declarations, none merged into another.
  */
 
-// sdk-browser/src/reflections/traceShader.ts (`reflectionTangent`), inline in reflections/ggxSampleWgsl.ts
 export const tangentAround = wgslFn(
   'tangentAround',
   [],
@@ -17,7 +16,6 @@ export const tangentAround = wgslFn(
 }`,
 )
 
-// sdk-browser/src/visibility/shader/impostorWgsl.ts (`impFrameX`)
 export const tangentImpostor = wgslFn(
   'tangentImpostor',
   [],
@@ -27,21 +25,20 @@ export const tangentImpostor = wgslFn(
 }`,
 )
 
-// sdk-browser/src/visibility/shader/physicalWgsl.ts, not normalised
+/** Not normalised. */
 export const tangentFallback = wgslFn(
   'tangentFallback',
   [],
   'fn tangentFallback(N:vec3f)->vec3f{return cross(select(vec3f(0.0,1.0,0.0),vec3f(0.0,0.0,1.0),abs(N.z)<0.999),N);}',
 )
 
-// sdk-browser/src/webgpu/particles/particlesWgsl.ts
 export const tangentBillboard = wgslFn(
   'tangentBillboard',
   [],
   'fn tangentBillboard(toEye:vec3f)->vec3f{return normalize(cross(select(vec3f(0, 1, 0), vec3f(1, 0, 0), abs(toEye.y) > 0.99), toEye));}',
 )
 
-// sdk-browser/src/lighting/direct/rectLightWgsl.ts, not normalised
+/** Not normalised. */
 export const tangentSide = wgslFn(
   'tangentSide',
   [],

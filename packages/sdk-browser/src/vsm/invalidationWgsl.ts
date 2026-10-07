@@ -18,11 +18,9 @@ import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -220,9 +218,7 @@ export function vsmInvalidationWgsl(layout: VsmLayout) {
     ),
     [
       VSM_CONSTANTS_WGSL,
-      VSM_UNIFORMS_WGSL,
       VSM_HANDLE_WGSL,
-      VSM_STRUCTS_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),

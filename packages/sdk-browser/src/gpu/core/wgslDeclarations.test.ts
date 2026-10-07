@@ -29,6 +29,8 @@ test('no shader declares a name of the WGSL library outside the library', () => 
         written.push(`${file}: ${decl.name}`)
   assert.deepEqual(written, [])
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  // A test-only check: what the assembler guarantees of a program it writes, each declaration once
+  // and as its own text, read on the text every program finally holds, whoever wrote it.
   const apart: string[] = []
   for (const decl of WGSL_LIBRARY) {
     const declares = new RegExp(`\\b${decl.kind}\\s+${decl.name}\\b`, 'g')

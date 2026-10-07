@@ -3,6 +3,7 @@ import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { REACTIVE_MAX } from './reactive.ts'
 import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 
 /** The samples a history read a display pixel or more away keeps beside the current one. */
 const MOVING_SAMPLES = 4
@@ -70,7 +71,7 @@ fn pageOf(id:u32)->TaaPage{
  */
 export const HISTORY_TEXEL_WGSL = wgslBlock(
   'HISTORY_TEXEL_WGSL',
-  [],
+  [hashUnit],
   `
 fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
  let seed=(u32(coord.y)*65536u+u32(coord.x))*8u+u32(view.jitter.w);

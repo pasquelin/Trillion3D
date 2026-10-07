@@ -21,7 +21,7 @@ export const RECEIVER_TARGET_BYTES = 8
  *  reader decodes (`octDecode`): each side lists only its own half. */
 export const receiverStoreWgsl = (binding: number) =>
   wgslBlock(
-    'receiverStoreWgsl',
+    `receiverStoreWgsl(${binding})`,
     [octEncode],
     `
 @group(0) @binding(${binding}) var receiverOutput:texture_storage_2d<${RECEIVER_TARGET_FORMAT},write>;
@@ -44,7 +44,7 @@ fn storeReceiver(pos:vec2f,offset:vec3f,plane:vec3f){
  *  the texel ahead of its decode. */
 export const receiverTargetReadWgsl = (group: number, binding: number) =>
   wgslBlock(
-    'receiverTargetReadWgsl',
+    `receiverTargetReadWgsl(${group}, ${binding})`,
     [octDecode],
     `
 @group(${group}) @binding(${binding}) var receiverTarget:texture_2d<u32>;

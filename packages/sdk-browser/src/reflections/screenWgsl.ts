@@ -43,7 +43,7 @@ const SCREEN_REFLECTION_DEPTH: ReflectionDepthRead = {
 /** A program's lobe and fade (`ScreenLobeFade`); a `mirror` of its own walks the depth bounds. */
 const screenReflectionWgsl = (lobe: ScreenLobeFade = {}) =>
   wgslBlock(
-    `screenReflectionWgsl(${JSON.stringify(lobe)})`,
+    `screenReflectionWgsl(${lobe.filtered}, ${lobe.march}, ${lobe.mirror}, ${lobe.maxRoughness})`,
     [
       REFLECTION_CONE_WGSL,
       SCREEN_REFLECTION_VIEW_WGSL,

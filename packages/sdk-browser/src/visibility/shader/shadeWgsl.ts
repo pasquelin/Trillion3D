@@ -4,7 +4,7 @@ import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
 import { invTranspose3Apply, uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { lecture, lectureDonnee, siCarte } from './maps.ts'
 import {
   AS_IS_FLAG,
@@ -18,7 +18,6 @@ import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
 import { FLAG_FOG_FREE } from '../types.ts'
 import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
-import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -103,7 +102,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
  if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
  if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
- var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,${wgslF32(ROUGHNESS_FLOOR)},1.0);
+ var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,ROUGHNESS_FLOOR,1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
   let world3=worldMatrix3(page.world);
@@ -182,6 +181,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
       NORMAL_VIEW_COLOR_WGSL,
       EMISSIVE_AO_FLAG_WGSL,
       SHADE_DECL_WGSL,
+      ROUGHNESS_FLOOR,
       worldMatrix3,
       invTranspose3Apply,
       uniteOuZero,

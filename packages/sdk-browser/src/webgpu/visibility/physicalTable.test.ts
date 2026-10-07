@@ -63,10 +63,7 @@ test('a record holds the clamped factors, the coat normal scales, the slots and 
   assert.equal(recordLength, (texelWrites[0].size as number[])[0] * 4)
   const words = new Uint32Array(texelWrites[0].data.buffer, 0, recordLength)
   const floats = new Float32Array(words.buffer, 0, recordLength)
-  assert.deepEqual(
-    [...floats.slice(0, 6)],
-    [1, 0.25, 0, Math.fround(Number(ROUGHNESS_FLOOR)), 2, -1],
-  )
+  assert.deepEqual([...floats.slice(0, 6)], [1, 0.25, 0, Math.fround(ROUGHNESS_FLOOR), 2, -1])
   assert.deepEqual([...words.slice(6)], [0b0001, 0, 3, 0, 0, 7])
   // Nothing changed: nothing goes up again, and the texture stays.
   table.rowWord(surface, layer)

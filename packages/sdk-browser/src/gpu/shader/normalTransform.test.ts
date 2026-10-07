@@ -113,7 +113,8 @@ const occurrences = (text: string, motif: RegExp) => text.match(motif)?.length ?
 
 test('selection kernel and lighting read exact same text, character for character', () => {
   // The selection kernel lists the two functions it calls, the lighting the whole kernel and its
-  // unit-or-zero: each program holds the library's text of what it calls, once.
+  // unit-or-zero: each program holds the library's text of what it calls, once. A test-only check
+  // of what the assembler guarantees, read on the programs' final text.
   for (const [nom, shader, calls] of [
     [
       'lighting',

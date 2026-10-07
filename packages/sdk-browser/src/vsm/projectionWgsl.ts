@@ -47,27 +47,14 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { uvToNdc } from '../../../math/src/wgsl/projection.ts'
 import { vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
-import {
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_LOOKUP_WGSL,
-  VSM_STRUCTS_WGSL,
-} from './pageTableWgsl.ts'
-import {
-  VSM_PROJECTION_DATA_READ_WGSL,
-  VSM_PROJECTION_DATA_WGSL,
-  vsmProjectionSampleWgsl,
-} from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_WGSL, vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
 import {
   VSM_TRACE_RESULT_WGSL,
   VSM_TRACE_COMMON_WGSL,
-  VSM_TRACE_DIRECTIONAL_WGSL,
   VSM_TRACE_LIGHT_WGSL,
-  VSM_TRACE_LOCAL_WGSL,
   vsmTraceWgsl,
 } from './traceWgsl.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
@@ -628,20 +615,13 @@ export function vsmProjectionWgsl(
     ].join('\n'),
     [
       VSM_CONSTANTS_WGSL,
-      VSM_UNIFORMS_WGSL,
-      VSM_HANDLE_WGSL,
-      VSM_STRUCTS_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
-      VSM_PAGE_LOOKUP_WGSL,
-      VSM_PROJECTION_DATA_READ_WGSL,
+      // The page sampling the traces read, on this pass's pool.
       vsmProjectionSampleWgsl(vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout)),
       VSM_TRACE_LIGHT_WGSL,
       vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
       VSM_TRACE_COMMON_WGSL,
-      VSM_TRACE_DIRECTIONAL_WGSL,
-      VSM_TRACE_LOCAL_WGSL,
       VSM_TRACE_RESULT_WGSL,
       vsmTraceWgsl(true),
       uvToNdc,

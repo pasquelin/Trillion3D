@@ -69,7 +69,8 @@ export const blendVertexWgsl = (lobes: boolean) => {
       ...layout.read,
       VERTEX_LISTS_WGSL,
       vsOutWgsl(layout.uv, layout.ids),
-      VERTEX_FACING_WGSL,
+      TRIANGLE_PALETTE_WGSL,
+      FACING_WGSL,
     ],
     blendVertexStage(layout),
   )
@@ -115,20 +116,6 @@ const vsOutWgsl = (uv: string, ids: string) =>
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
 struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:${uv},@location(2) view:vec3f,@location(3) normal:vec4f,@location(4) tangent:vec4f,@location(5) bitangent:vec4f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:${ids},@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}`,
   )
-
-/** The triangle palette and the facing test the stage calls. */
-const VERTEX_FACING_WGSL = wgslBlock(
-  'VERTEX_FACING_WGSL',
-  [TRIANGLE_PALETTE_WGSL, FACING_WGSL],
-  `// An instance draws a paged cluster compaction kept, or a piece of indices of an unpaged primitive,
-// as the list plan expansion wrote it (expandWgsl.ts), both read through \`pageGeometryWgsl.ts\`.
-// The rank of the first instance of the call is read in the high bits of the vertex index, and
-// the local rank of the vertex in the low: the indirect argument of a slice starts at vertex
-// base << vertexShift. That is what lets a whole slice fit in ONE call, with nothing to bind
-// between two plan entries — firstInstance would say the same, but WebGPU only opens it to an
-// indirect call under an extension.
-`,
-)
 
 /** The paged cluster's span, the corners of its triangle and its facing; a padding lane reads none. */
 const VERTEX_PAGE = ` var count=it.indexCount-slot.y;
@@ -182,7 +169,15 @@ const VERTEX_CORNER = ` let v=corners[local%3u];
   out.bitangent=vec4f(uniteOuZero(cross(out.normal.xyz,out.tangent.xyz)*t.w),out.bitangent.w);
  }`
 
-/** The vertex stage of a layout (`LAYOUTS`). */
+/**
+ * The vertex stage of a layout (`LAYOUTS`). An instance draws a paged cluster compaction kept, or a
+ * piece of indices of an unpaged primitive, as the list plan expansion wrote it (`expandWgsl.ts`),
+ * both read through `pageGeometryWgsl.ts`. The rank of the first instance of the call is read in
+ * the high bits of the vertex index, and the local rank of the vertex in the low: the indirect
+ * argument of a slice starts at vertex base << vertexShift. That is what lets a whole slice fit in
+ * ONE call, with nothing to bind between two plan entries — firstInstance would say the same, but
+ * WebGPU only opens it to an indirect call under an extension.
+ */
 const blendVertexStage = ({
   uv,
   ids,

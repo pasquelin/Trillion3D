@@ -36,21 +36,18 @@ export const interleavedGradient = wgslFn(
   'fn interleavedGradient(p:vec2f)->f32{return fract(52.9829189*fract(dot(p,vec2f(0.06711056,0.00583715))));}',
 )
 
-// sdk-browser/src/lighting/direct/rectLightWgsl.ts (`ltcLookup`)
 export const bilinear4 = wgslFn(
   'bilinear4',
   [],
   'fn bilinear4(a:vec4f,b:vec4f,c:vec4f,d:vec4f,f:vec2f)->vec4f{return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}',
 )
 
-// sdk-browser/src/vsm/transmissionWgsl.ts
 export const bilinear3 = wgslFn(
   'bilinear3',
   [],
   'fn bilinear3(a:vec3f,b:vec3f,c:vec3f,d:vec3f,f:vec2f)->vec3f{return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);}',
 )
 
-// sdk-browser/src/lighting/toneMappingWgsl.ts, reflections/resolveWgsl.ts
 export const maxChannel = wgslFn(
   'maxChannel',
   [],

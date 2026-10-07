@@ -1,5 +1,5 @@
 import { FULLSCREEN_XY } from '../../gpu/shader/fullscreenTriangle.ts'
-import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM } from './surfaceWgsl.ts'
+import { contractSurfaceBody, LIGHT_SURFACE_ENTRY } from './surfaceWgsl.ts'
 import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
@@ -87,10 +87,7 @@ export const CONTRACT_BINDINGS_WGSL = wgslBlock(
 )
 /** Shared body of the two contract programs, what its surface lists: only the bounce lines
  *  separate them. Each program lists the full-screen vertex (`FULLSCREEN_VERTEX`). */
-const contractSurface = (bounce: string, diagnostic = '') => [
-  WORLD_AT_WGSL,
-  contractSurfaceBody(bounce, diagnostic),
-]
+const contractSurface = (bounce: boolean) => [WORLD_AT_WGSL, contractSurfaceBody(bounce)]
 /** The bounce program's surface: bounced light, under the coat, and what a mirror reflects
  *  (`mirrorLightingWgsl`, on the radiance `mirror` its pass chooses). */
 const bounceSurfaceWgsl = (mirror: WgslDecl) =>
@@ -102,10 +99,7 @@ const bounceSurfaceWgsl = (mirror: WgslDecl) =>
       mirrorLightingWgsl(mirror),
       BOUNCE_SURFACE_FIELDS_WGSL,
       FULLSCREEN_VERTEX,
-      ...contractSurface(
-        `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)*lobeThrough()+thinBounce(N,P,emissive.a)${MIRROR_TERM}`,
-        'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
-      ),
+      ...contractSurface(true),
     ],
     `fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
@@ -121,7 +115,7 @@ const directSurfaceWgsl = (mirror: WgslDecl) =>
       DIRECT_REFLECTION_WGSL,
       mirrorLightingWgsl(mirror),
       FULLSCREEN_VERTEX,
-      ...contractSurface(MIRROR_TERM),
+      ...contractSurface(false),
     ],
     '',
   )

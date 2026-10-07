@@ -1,7 +1,6 @@
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
-import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import * as layer from './layers.ts'
-import { BINDINGS_WGSL, shareBindingsWgsl, TAA_VIEW_WGSL } from './bindingsWgsl.ts'
+import { BINDINGS_WGSL, shareBindingsWgsl } from './bindingsWgsl.ts'
 import { TAA_DEFORM_WGSL } from './deformWgsl.ts'
 import {
   CATMULL_ROM_WGSL,
@@ -15,7 +14,6 @@ import {
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { clipToUv, pixelToNdcInv } from '../../../math/src/wgsl/projection.ts'
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import {
@@ -157,11 +155,8 @@ export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) =>
   return wgslBlock(
     `taaPrelude(${asIs}, ${blended}, ${filtered})`,
     [
-      hashUnit,
       TAA_DEFORM_WGSL,
       TAA_REPROJECT_WGSL,
-      PAGE_INFO_STRUCT_WGSL,
-      TAA_VIEW_WGSL,
       BINDINGS_WGSL,
       ...(asIs ? [shareBindingsWgsl(blended)] : []),
       FULLSCREEN_VERTEX,

@@ -48,11 +48,9 @@ import {
   VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_COVER_GATHER_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
@@ -109,8 +107,10 @@ fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chu
  */
 export const VSM_RENDER_ROWS_WGSL = wgslBlock(
   'VSM_RENDER_ROWS_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, PROJECTED_BOUND_WGSL, CUT_RULE_WGSL],
+  [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, PROJECTED_BOUND_WGSL, CUT_RULE_WGSL, FLOAT32_MAX],
   `
+/** The bound \`projectedBound\` returns past the near plane, its host's to name. */
+const INF:f32=FLOAT32_MAX;
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
 struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii:vec4f,}
 @group(0) @binding(0) var<uniform> params:VsmRenderParams;
@@ -170,16 +170,6 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'receiverCover', binding: 2 },
   { resource: 'staleRects', binding: 3 },
   { resource: 'projectionData', binding: 4 },
-]
-
-const VSM_COMMON = (layout: VsmLayout, specs: readonly VsmBindingSpec[]) => [
-  VSM_CONSTANTS_WGSL,
-  VSM_UNIFORMS_WGSL,
-  VSM_HANDLE_WGSL,
-  VSM_STRUCTS_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_PROJECTION_DATA_WGSL,
-  vsmBindingsWgsl(0, specs, layout),
 ]
 
 /** The box frustum tests of the shared cull (`VSM_BOX_CULL_WGSL`) on a box of the shifted world,
@@ -358,9 +348,11 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
 `,
     ].join('\n'),
     [
-      ...VSM_COMMON(layout, VSM_RENDER_CULL_SPECS),
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmBindingsWgsl(0, VSM_RENDER_CULL_SPECS, layout),
       VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_COVER_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       VSM_BOX_CULL_WGSL,
@@ -444,7 +436,10 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
 }
 `,
     [
-      ...VSM_COMMON(layout, VSM_RENDER_EXPAND_SPECS),
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmBindingsWgsl(0, VSM_RENDER_EXPAND_SPECS, layout),
       VSM_PAGE_LOOKUP_WGSL,
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,

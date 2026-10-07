@@ -1,5 +1,4 @@
-import { MIRROR_TRANSITION_END } from './modelShader.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { MIRROR_TRANSITION_END } from '../lighting/shaderConstantsWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Which pixel of its 2 × 2 block a half-resolution trace texel serves at `seed`: the four in
@@ -23,11 +22,11 @@ fn reflectionPhase(seed:u32)->vec2i{return vec2i(i32(((seed+1u)>>1u)&1u),i32(see
  *  resolve their ray by it alike. */
 export const HIZ_TRACE_WGSL = wgslBlock(
   'HIZ_TRACE_WGSL',
-  [],
+  [MIRROR_TRANSITION_END],
   `
 fn boundedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
  let hit=screenReflection(P+N*shadowFootprint,R);
  if(hit.a!=0.0){return hit.rgb;}
- return filteredReflectedRadiance(P,N,R,${wgslF32(MIRROR_TRANSITION_END)});
+ return filteredReflectedRadiance(P,N,R,MIRROR_TRANSITION_END);
 }`,
 )

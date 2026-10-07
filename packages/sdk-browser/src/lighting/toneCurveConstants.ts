@@ -3,8 +3,7 @@
  * column, written as WGSL matrices, and the curves' expressions as text. Each is the curve the
  * display pass evaluates.
  */
-import { wgslMatrix3 } from './shaderConstants.ts'
-import { wgslF32 } from '../../../math/src/wgsl/number.ts'
+import { wgslF32, wgslMatrix3 } from '../../../math/src/wgsl/number.ts'
 
 /** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
  *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole

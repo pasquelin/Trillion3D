@@ -3,6 +3,7 @@ import { LOBE_PACK_WGSL, PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import {
+  DIELECTRIC_F0,
   fresnelScalar,
   fresnelSchlick,
   lambertAlbedoMul,
@@ -33,7 +34,7 @@ import {
  */
 export const LOBES_LIGHTING_WGSL = wgslBlock(
   'LOBES_LIGHTING_WGSL',
-  [PI, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor],
+  [PI, DIELECTRIC_F0, fresnelScalar, fresnelSchlick, lambertAlbedoMul, ndotvFloor],
   `
 struct Lobes{on:bool,strength:f32,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,through:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,viewLength:f32,coatSurface:LobeSurface,}
 var<private> lobes:Lobes;

@@ -4,7 +4,6 @@ import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { residentProxyWgsl } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
-import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -184,7 +183,6 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     BOUNCE_GRID_WGSL,
     QUEUED_PROBE_WGSL,
     BOUNCE_TRACE_WGSL,
-    INVERSE_PI_BOUNCE,
     TWO_PI,
     hashUnit,
     SURFACE_RAY_WGSL,
