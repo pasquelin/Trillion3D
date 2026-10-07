@@ -12,7 +12,6 @@ function queue() {
     admit: (pages: readonly StreamPage[]) => void told.admitted.push(...pages.map((p) => p.url)),
     forget() {},
     readBytes: async () => new Uint8Array(),
-    readFrom() {},
     dispose: () => void told.disposed++,
   }
   return { port, told }

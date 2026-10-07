@@ -91,17 +91,20 @@ test('same-size jobs within budget fill up to the active-transfer limit, identic
 
 /** A job of `url` at `priority`, arrived `order`-th, out of any queue. */
 function job(url: string, order: number, priority = 0): Job {
+  const promise = new Promise<Uint8Array>(() => {})
   return {
-    ...{ url, priority, order, bytes: 0, slot: -1, controller: new AbortController() },
-    ...{ state: 'queued', consumers: new Set(), promise: new Promise(() => {}) },
-    ...{ resolve: () => {}, reject: () => {} },
+    ...{ url, priority, order, bytes: 0, slot: -1, stop: new AbortController() },
+    ...{ state: 'queued' as const, askers: 0, promise, resolve: () => {}, reject: () => {} },
   }
 }
 
 /** Every job of `heap`, first to last, taken out. */
 function drained(heap: ReturnType<typeof createJobHeap<Job>>) {
   const urls: string[] = []
-  for (let first = heap.pop(); first; first = heap.pop()) urls.push(first.url)
+  for (let first = heap.first(Infinity); first; first = heap.first(Infinity)) {
+    heap.remove(first)
+    urls.push(first.url)
+  }
   return urls
 }
 
@@ -166,14 +169,16 @@ test('the first admissible job is found in the queue order without moving any jo
   assert.equal(takeAdmissible(heap, 1, 1024, BUDGET)?.url, 'p3')
 })
 
-test('a budget no queued job fits is known at once, by the smallest bytes the queue holds', () => {
+test('a budget no queued job fits is known at once, by a lower bound a search none passes makes exact', () => {
   const heap = createJobHeap<Job>()
   const queued = [job('a', 0, 0), job('b', 1, 0), job('c', 2, 0)]
   queued.forEach((each, at) => ((each.bytes = 100 * (at + 1)), heap.push(each)))
   assert.equal(heap.least(), 100)
   assert.equal(takeAdmissible(heap, 1, BUDGET - 99, BUDGET), undefined, 'none fits')
   heap.remove(queued[0])
-  assert.equal(heap.least(), 200, 'the smallest left, the next found')
+  assert.equal(heap.least(), 100, 'a lower bound: the queue is not rescanned')
+  assert.equal(takeAdmissible(heap, 1, BUDGET - 150, BUDGET), undefined)
+  assert.equal(heap.least(), 200, 'the search that found none saw them all')
   assert.equal(takeAdmissible(heap, 1, BUDGET - 200, BUDGET)?.url, 'b')
   heap.clear()
   assert.equal(heap.least(), Infinity)

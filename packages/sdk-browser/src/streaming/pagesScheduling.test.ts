@@ -24,6 +24,7 @@ test('a priority read overtakes queued detail without exceeding one transfer', a
   })
   try {
     const detail = streamer.request(['a.bin', 'b.bin'], { priority: 2 })
+    await new Promise(setImmediate) // the queue pumps once the task's reads are all queued
     const urgent = streamer.read('c.bin')
     assert.deepEqual(started, ['a.bin'])
     assert.equal(streamer.stats().transferInFlightBytes, 12)

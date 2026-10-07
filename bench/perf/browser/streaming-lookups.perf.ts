@@ -18,7 +18,7 @@ function rafale(total: number, annulations: number, depart: number) {
 }
 
 /** Fields a queue's order and cancellation walk never read: shared across every fixture job. */
-const DUMMY_CONTROLLER = new AbortController()
+const DUMMY_STOP = new AbortController()
 const DUMMY_PROMISE = Promise.resolve(new Uint8Array())
 const noop = () => {}
 const file = ({ urls }: { urls: string[] }): Job[] =>
@@ -28,9 +28,9 @@ const file = ({ urls }: { urls: string[] }): Job[] =>
     order,
     bytes: 0,
     slot: -1,
-    controller: DUMMY_CONTROLLER,
+    stop: DUMMY_STOP,
     state: 'queued',
-    consumers: new Set<symbol>(),
+    askers: 0,
     promise: DUMMY_PROMISE,
     resolve: noop,
     reject: noop,
@@ -50,7 +50,10 @@ function optimisedPass({ urls, vises }: { urls: string[]; vises: number[] }) {
   const cibles = vises.map((rang) => queue[rang % Math.max(1, queue.length)]).filter(Boolean)
   for (const job of cibles) heap.remove(job)
   const left: string[] = []
-  for (let job = heap.pop(); job; job = heap.pop()) left.push(job.url)
+  for (let job = heap.first(Infinity); job; job = heap.first(Infinity)) {
+    heap.remove(job)
+    left.push(job.url)
+  }
   return left
 }
 
@@ -99,7 +102,7 @@ await stress({
   calculation: (q: Job[]) => {
     const heap = createJobHeap<Job>()
     for (const job of q) heap.push(job)
-    return heap.pop()
+    return heap.first(Infinity)
   },
   extremes: [{ name: 'empty', input: [] }],
 })

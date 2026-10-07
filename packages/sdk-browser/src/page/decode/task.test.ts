@@ -52,6 +52,21 @@ test('verify returns the fingerprint, the origin buffer byte for byte, and wasm 
   for (let i = 0; i < octets.length; i++) assert.ok(Object.is(rendus[i], octets[i]))
 })
 
+test('verify by spans digests each where it lies, in one task, the buffer transferred whole', async () => {
+  const octets = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9])
+  const { answer, transfer } = await runPageDecodeTask(
+    requete({ op: 'verify', source: octets.slice().buffer, spans: [0, 4, 6, 9] }),
+  )
+  const bon = answer as PageDecodeDone
+  const digest = async (part: number[]) => {
+    const own = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(part)))
+    return [...own].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+  }
+  assert.deepEqual(bon.digests, [await digest([1, 2, 3, 4]), await digest([7, 8, 9])])
+  assert.equal(bon.sha256, null)
+  assert.deepEqual([transfer.length, bon.source!.byteLength], [1, 9])
+})
+
 test('decode returns the same buffers as in-place decode, attributes included', async () => {
   const data = await pageWithMinusZero()
   const surPlace = decodeGeometryPage(data.slice(), 16 * 1024 * 1024)

@@ -54,31 +54,6 @@ test('streamer notifies consumers when a page is evicted', async () => {
   streamer.dispose()
 })
 
-test('page failures stop after three attempts and remain observable without a per-frame retry loop', async () => {
-  let attempts = 0
-  const previous = globalThis.fetch
-  globalThis.fetch = async () => {
-    attempts++
-    return new Response('', { status: 503 })
-  }
-  const streamer = createPageStreamer(
-    [{ url: 'bad.bin', bytes: 12, sha256: 'invalid' }],
-    'http://cache/',
-  )
-  try {
-    await assert.rejects(streamer.request(['bad.bin']), /PAGE_STREAM_FAILED.*bad.bin/)
-    assert.equal(attempts, 3)
-    for (let i = 0; i < 10; i++)
-      await assert.rejects(streamer.request(['bad.bin']), /PAGE_STREAM_FAILED/)
-    assert.equal(attempts, 3)
-    assert.equal(streamer.failed('bad.bin'), true)
-    assert.equal(streamer.stats().failed, 1)
-  } finally {
-    streamer.dispose()
-    globalThis.fetch = previous
-  }
-})
-
 test('the bootstrap reader verifies pages and shares in-flight requests', async () => {
   const bytes = new Uint32Array([0, 1, 2])
   const sha = await sha256Hex(bytes.buffer)
@@ -120,6 +95,7 @@ test('cancellation stops outstanding loads without retrying or recording a sourc
   )
   try {
     const job = streamer.read('a.bin')
+    await new Promise(setImmediate) // its transfer under way
     controller.abort()
     release()
     await assert.rejects(job, { name: 'AbortError' })

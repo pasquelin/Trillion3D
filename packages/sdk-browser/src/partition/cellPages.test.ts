@@ -72,39 +72,25 @@ test('a cell that leaves mid-read releases its pages once they land', async () =
 })
 
 // A placed cell also holds the world bundles its objects' roots depend on. A hold whose world read
-// fails keeps both wanted until the plan asks it again, once its wait is over, or the cell leaves.
-test('a failed hold keeps its pages wanted until the plan asks again, at the priority it gives then', async (t) => {
-  let now = 0
-  t.mock.method(performance, 'now', () => now)
+// fails for good keeps both wanted till the cell leaves, and no one asks it again meanwhile.
+test('a failed hold keeps its pages wanted while its cell is placed, never asked again', async () => {
   const { pages, counts, land } = countedPages(new Set())
-  const world = { held: 0, fails: 1, priorities: [] as (number | undefined)[] }
+  const world = { held: 0, asked: 0 }
   const held = createCellPages(pages, cell(['x']), {
-    async hold(_, asked) {
+    async hold() {
       world.held++
-      world.priorities.push(asked?.priority)
+      world.asked++
       await Promise.resolve()
-      if (world.fails-- > 0) throw Object.assign(new Error('world read failed'), { due: 500 })
+      throw new Error('PAGE_STREAM_FAILED: refused for good')
     },
     release: () => void world.held--,
   })
   held.hold(0, 1.5)
   land()
   await settled(held)
-  assert.deepEqual([counts.get('x'), world.held, held.held()], [1, 1, 0], 'wanted, not held')
+  held.hold(0, 1.25) // a later frame places it again
   await settled(held)
-  assert.equal(held.held(), 0, 'never asked again by itself, frame after frame')
-  held.retry(() => 1.25, now)
-  assert.equal(world.priorities.length, 1, 'not before its wait is over')
-  assert.equal(held.due(), 500, 'half a second after its first failure')
-  now = 500
-  held.retry(() => 1.25, now)
-  await settled(held)
-  assert.deepEqual(
-    [counts.get('x'), world.held, held.held()],
-    [1, 1, 1],
-    'held; the failed hold let go',
-  )
-  assert.deepEqual(world.priorities, [1.5, 1.25], 'at the priority the plan gives it now')
+  assert.deepEqual([counts.get('x'), world.held, world.asked], [1, 1, 1], 'wanted, asked once')
   held.release(0)
   assert.deepEqual([counts.get('x'), world.held], [0, 0])
 })
@@ -129,22 +115,4 @@ test('a cell that leaves while its hold reads lets its world reads go at once', 
   held.hold(3, 1.25)
   held.release(3)
   assert.deepEqual([asked[0].priority, asked[0].signal!.aborted], [1.25, true])
-})
-
-test('a failed cell that leaves takes its wait with it: the earliest is the next one', async () => {
-  const { pages, land } = countedPages(new Set())
-  const waits = [500, 2000]
-  const held = createCellPages(pages, cell([]), {
-    async hold(cell) {
-      throw Object.assign(new Error('refused'), { due: waits[cell] })
-    },
-    release() {},
-  })
-  held.hold(0)
-  held.hold(1)
-  land()
-  await settled(held)
-  assert.equal(held.due(), 500)
-  held.release(0)
-  assert.equal(held.due(), 2000, 'the frame wakes for a cell still waiting')
 })

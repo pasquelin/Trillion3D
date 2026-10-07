@@ -49,3 +49,20 @@ test('a cell file is never parsed by the frame: its bytes go to the decode, its 
     /INVALID_SCENE_TABLES/,
   )
 })
+
+test('a cell file refused for good is never asked again, and leaves no frame waiting on it', async () => {
+  const { cells, bytes } = await sizedWhole(world())
+  const { port, asked } = io(bytes)
+  await settled(cells, [0, 0, 0], 100, port, noBudget) // the pages of the index it reaches
+  const refused = new Set(asked.filter((url) => url.endsWith('.json')))
+  assert.ok(refused.size > 0, 'the cells within reach were asked')
+  const frame = { ...port, failed: (url: string) => refused.has(url) }
+  asked.length = 0
+  for (let i = 0; i < 3; i++)
+    assert.equal(cells.frame([0, 0, 0], 100, frame, noBudget), false, 'no frame waits on it')
+  assert.deepEqual(
+    asked.filter((url) => refused.has(url)),
+    [],
+    'refused at once by the streamer, never asked a frame',
+  )
+})

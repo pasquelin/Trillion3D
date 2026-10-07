@@ -49,8 +49,8 @@ const gridCell = (side: number, cell: number): TableCell => {
 
 /**
  * A generated world of `side` × `side` cells 10 m apart, its roots served by `answer`
- * (`served`) and read through a page streamer of `transfers` the world is bound to, a read that
- * keeps failing told `stalled`: its partition's cells, its world roots, the streamer, the file
+ * (`served`) and read through a page streamer of `transfers` and `maxTransferBytes` the world is
+ * bound to, a read that keeps failing told `stalled`: its partition's cells, its world roots, the streamer, the file
  * each address reads, and an io of its frames.
  */
 export async function gridWorld(
@@ -59,12 +59,13 @@ export async function gridWorld(
   transfers: number,
   answer: NonNullable<Parameters<typeof served>[1]>['answer'],
   stalled?: PageStreamerOptions['onStalled'],
+  maxTransferBytes?: number,
 ) {
   const table = Array.from({ length: side * side }, (_, cell) => gridCell(side, cell))
   const { partition, files } = paged(table, 4)
   const { manifest } = served(t, { world: gridRoots(side * side), answer })
   const roots = (await openWorldRoots(manifest, 'http://world/'))!
-  const options = { workerCount: transfers, onStalled: stalled }
+  const options = { workerCount: transfers, onStalled: stalled, maxTransferBytes }
   const streamer = createPageStreamer([], 'http://world/', options)
   t.after(() => streamer.dispose())
   roots.bind(streamer)

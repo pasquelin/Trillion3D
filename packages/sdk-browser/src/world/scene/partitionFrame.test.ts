@@ -45,6 +45,7 @@ function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
       void asked.push([urls, options.priority]),
     getBytes: (url: string) => files.get(url.split('/').at(-1)!),
     loading: () => false,
+    failed: () => false,
     admit() {},
     forget() {},
   } as unknown as ReturnType<typeof createPageStreamer>

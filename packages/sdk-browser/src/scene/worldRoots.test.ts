@@ -10,6 +10,7 @@ import {
 import { openWorldRoots } from './worldRoots.ts'
 import { cellSuperRoots } from '../partition/superRoots.ts'
 import { opened, rangeOf, served } from './worldRoots.fixture.ts'
+import { createPageStreamer } from '../streaming/pageStreamer.ts'
 
 test('the pinned set is the world top alone; a placed cell holds its bundles past it', async (t) => {
   const { table, manifest, ranges } = served(t)
@@ -21,7 +22,7 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
   assert.deepEqual(roots.held(), [], 'no object root and no cell bundle is pinned')
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
   assert.deepEqual(roots.held(), [1, 2, 3], 'each bundle the placed cells need, read once')
-  assert.equal(ranges.length, 4)
+  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 4)], 'end to end in the binary: one range')
   roots.release(0)
   assert.deepEqual(roots.held(), [2, 3], 'a bundle another placed cell needs stays')
   roots.release(1)
@@ -29,38 +30,50 @@ test('the pinned set is the world top alone; a placed cell holds its bundles pas
   assert.deepEqual([roots.held(), roots.bytes()], [[], top], 'the pinned top alone is left')
 })
 
-test('a bundle whose bytes are not those its table names is refused, its bundles wanted till released', async (t) => {
+test('a bundle whose bytes are not those its table names waits its turn, its hold on its way, wanted till released', async (t) => {
   const { bin } = worldRootsFixture()
   bin[bin.byteLength - 12] ^= 1 // the last bundle, a cell's
   const { manifest } = served(t, { bin })
-  const { roots } = await opened(t, manifest)
-  await assert.rejects(roots.hold(0), (error: Error) => {
-    const cause = error.cause as EngineError
-    return cause instanceof EngineError && cause.code === 'INVALID_CACHE'
-  })
-  assert.deepEqual(roots.held(), [1, 3], 'a failed hold keeps its bundles wanted')
+  const { roots, queue } = await opened(t, manifest)
+  const leaving = new AbortController()
+  const held = roots.hold(0, { signal: leaving.signal })
+  for (let i = 0; i < 6; i++) await new Promise(setImmediate)
+  assert.deepEqual([roots.held(), queue.stats().failed], [[1, 3], 1], 'it may pass: it waits')
+  leaving.abort()
+  await assert.rejects(held, { name: 'AbortError' })
   roots.release(0)
   assert.deepEqual(roots.held(), [], 'released, it holds nothing')
 })
 
-test('the top read at open and a run read through the queue are refused alike, naming the bundle that differs', async (t) => {
+test('the top read at open and a bundle read through the queue are refused alike, naming the bundle that differs', async (t) => {
   const { bin } = worldRootsFixture()
   const world = served(t, { bin }),
     at = (bundle: number) => world.table.bundles[bundle].offset
-  const differs = (bundle: number) => (error: Error) => {
-    const refusal = (error instanceof EngineError ? error : error.cause) as EngineError
-    const expected = world.table.bundles[bundle].sha256
-    return refusal.code === 'INVALID_CACHE' && refusal.details.expectedSha256 === expected
-  }
-  const { roots } = await opened(t, world.manifest)
+  const expected = (bundle: number) => world.table.bundles[bundle].sha256
+  const refusals: string[] = []
+  const roots = (await openWorldRoots(world.manifest, 'http://world/'))!
+  const queue = createPageStreamer([], 'http://world/', {
+    onDiagnostic: ({ phase, context }) =>
+      phase === 'page-retry' && refusals.push(String((context as { error: string }).error)),
+  })
+  t.after(() => queue.dispose())
+  roots.bind(queue)
   bin[at(3)] ^= 1
-  await assert.rejects(roots.hold(0), differs(3), 'a run, through the queue')
+  const leaving = new AbortController()
+  roots.hold(0, { signal: leaving.signal }).catch(() => {})
+  for (let i = 0; i < 6; i++) await new Promise(setImmediate)
+  assert.equal(refusals.length, 1, 'through the queue')
+  assert.ok(refusals[0].includes(`${expected(3)} announced`))
+  leaving.abort()
   bin[at(3)] ^= 1
   bin[at(0)] ^= 1
-  await assert.rejects(openWorldRoots(world.manifest, 'http://world/'), differs(0), 'the top')
+  await assert.rejects(openWorldRoots(world.manifest, 'http://world/'), (error: Error) => {
+    const refusal = error as EngineError
+    return refusal.code === 'INVALID_CACHE' && refusal.details.expectedSha256 === expected(0)
+  })
 })
 
-test('a server that ignores the Range is read whole once for the session, every byte counted once', async (t) => {
+test('a server that ignores the Range is read whole once by the load, once by the session, each counted once', async (t) => {
   const { manifest, ranges, bin } = served(t, { ignoresRange: true })
   const metered: string[] = []
   const meter = {
@@ -71,19 +84,19 @@ test('a server that ignores the Range is read whole once for the session, every 
   const { roots, queue } = await opened(t, manifest, { meter })
   await Promise.all([roots.hold(0), roots.hold(1), roots.hold(2)])
   assert.deepEqual(roots.held(), [1, 2, 3])
-  assert.equal(ranges.length, 1, `the whole ${bin.byteLength}-byte binary, asked once`)
-  assert.ok(queue.stats().cpuBytes < bin.byteLength, 'the queue reads the one the open kept')
+  assert.equal(
+    ranges.length,
+    2,
+    `the whole ${bin.byteLength}-byte binary, at open and for the session`,
+  )
+  assert.ok(queue.stats().cpuBytes >= bin.byteLength, "the session's reader, counted by its cache")
   assert.deepEqual(
     metered,
     ['http://world/world-roots.table', 'http://world/world-roots.bin'],
-    'the binary read is counted as it arrives, as the table is',
+    "the load's read of the binary is counted as it arrives, as the table is",
   )
   const bundles = roots.held().reduce((sum, at) => sum + roots.table.bundles[at].bytes, 0)
-  assert.equal(
-    roots.bytes(),
-    roots.pinned.bytes + bundles + bin.byteLength,
-    'the whole binary kept is counted in the bytes held',
-  )
+  assert.equal(roots.bytes(), roots.pinned.bytes + bundles, 'never counted twice')
 })
 
 test('the world DAG names its pages through the one source, from what is held', async (t) => {
