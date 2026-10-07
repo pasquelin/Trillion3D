@@ -75,6 +75,27 @@ test('proxyChild decodes the words of the compiler into a box that holds the chi
   })
 })
 
+// The golden words never set the owned bit (bit 25), so the assertions above cannot tell a reader
+// that drops it: the shipped reader runs here on hand-built words, every combination of the
+// present bit (24) and the owned bit (25) under a count byte (16..23) of 255.
+test('proxyChild reads the present bit, the owned bit and the count byte independently', () => {
+  const frame = { low: [0, 0, 0] as Vec3, high: [1, 1, 1] as Vec3 }
+  for (const present of [false, true])
+    for (const owned of [false, true])
+      for (const count of [0, 255]) {
+        const high =
+          ((present ? 1 << 24 : 0) | (owned ? PROXY_LEAF_OWNED : 0) | (count << 16)) >>> 0
+        const child = readers([0, high, 7]).proxyChild(0, 0, frame)
+        const line = `present ${present}, owned ${owned}, count ${count}`
+        assert.equal(child.count, count, line)
+        assert.equal(child.owned, owned, line)
+        assert.equal(child.offset, 7, line)
+        // The shader reads presence as any bit above 23: the owned bit alone also reads present, as
+        // a leaf the compiler writes owned is present.
+        assert.equal(child.present, present || owned, line)
+      }
+})
+
 test('proxyAlbedoOf decodes the word of the compiler into the bytes of the colour over 255', () => {
   eachGolden('albedo_pack', 'albedo_pack', (colour, [word], line) => {
     const albedo = readers([word]).proxyAlbedoOf(0)

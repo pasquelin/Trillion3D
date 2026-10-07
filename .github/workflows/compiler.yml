@@ -18,6 +18,16 @@ on:
       - packages/*/*/Cargo.*
       - packages/*/src/**/*.rs
       - packages/*/*/src/**/*.rs
+      # What the native tests read besides Rust: the golden values, the cargo configuration, the
+      # screen-error table, the error-model contract, the proxy and format fixtures.
+      - packages/math/golden/**
+      - .cargo/config.toml
+      - packages/sdk-core/src/lod/screenErrorBits.json
+      - packages/sdk-core/src/contracts/base.ts
+      - packages/sdk-core/src/scene/core/fixtures/**
+      - packages/sdk-node/src/messages/messages.json
+      - tests/fixtures/formats/**
+      - tests/fixtures/physics/**
       - packages/physics-jolt-wasm/cook/**
       - packages/physics-jolt-wasm/src/**
       - packages/physics-jolt-wasm/CMakeLists.txt

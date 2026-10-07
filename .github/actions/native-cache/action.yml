@@ -28,7 +28,8 @@ runs:
     # Keyed on the CONTENT of the Rust sources, every other input the compiler's build script
     # hashes or watches (`asset-compiler-rust/build.rs`: the physics cook's C++ and headers, the
     # Jolt tree, the cargo configuration's C++ flags), the message catalogue the compiler embeds,
-    # and the golden values and fixtures the native tests read: a hit skips those tests
+    # and every non-Rust file the native tests read (the golden values, the screen-error table
+    # of `page-codec-wasm`, the error-model contract of `sdk-core`, the proxy and format fixtures): a hit skips those tests
     # (`quality.yml`) (`scripts/validate-steps.ts` says why Cargo cannot decide this itself). The
     # crates are globbed, never listed: every crate at `packages/<name>` or `packages/<name>/<dir>`
     # — its manifest, lock and Rust sources — so a crate the compiler comes to link is keyed
@@ -38,7 +39,7 @@ runs:
       with:
         path: packages/asset-compiler-rust/target/release/trillion3d-compiler
         lookup-only: ${{ inputs.lookup-only }}
-        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', 'packages/*/Cargo.*', 'packages/*/*/Cargo.*', 'packages/*/src/**/*.rs', 'packages/*/*/src/**/*.rs', '!packages/**/target/**', 'packages/math/golden/**', 'packages/sdk-node/src/messages/messages.json', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/src/mesh.h', 'packages/physics-jolt-wasm/src/softSettings.h', 'packages/physics-jolt-wasm/src/words.h', '.cargo/config.toml', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
+        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', 'packages/*/Cargo.*', 'packages/*/*/Cargo.*', 'packages/*/src/**/*.rs', 'packages/*/*/src/**/*.rs', '!packages/**/target/**', 'packages/math/golden/**', 'packages/sdk-node/src/messages/messages.json', 'packages/sdk-core/src/lod/screenErrorBits.json', 'packages/sdk-core/src/contracts/base.ts', 'packages/sdk-core/src/scene/core/fixtures/**', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/src/mesh.h', 'packages/physics-jolt-wasm/src/softSettings.h', 'packages/physics-jolt-wasm/src/words.h', '.cargo/config.toml', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
     # A restored binary keeps the time it was built at, older than this checkout's files, and a
     # launch refuses a compiler older than its sources (`sdk-node/src/compiler/freshness.mts`).
     # The key above already proves these sources built it: it takes the checkout's time.

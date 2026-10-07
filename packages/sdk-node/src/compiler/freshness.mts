@@ -100,7 +100,8 @@ const LINKED_FOLDERS = ['.', '../page-codec-wasm', '../math/rust']
 
 /** The binary's answer by binary and build time: asked once per build, not on every launch nor
  *  in every process — in memory, then on disk beside the binary. A binary that could not answer
- *  (timeout, signal) is not recorded: it is asked again at the next launch. */
+ *  (timeout, signal) is remembered as failed in memory only, for this process and this build time:
+ *  it is not asked again here, and not written to disk, so the next process asks again. */
 const listed = new Map<string, { builtAt: number; listing: Listing; lastGood: Listing }>()
 function listOf(
   binary: string,
@@ -116,7 +117,10 @@ function listOf(
     return { listing: stored.listing, lastGood }
   }
   const lines = ask(binary)
-  if (lines === undefined) return { listing: null, lastGood }
+  if (lines === undefined) {
+    listed.set(binary, { builtAt, listing: null, lastGood })
+    return { listing: null, lastGood }
+  }
   const answer = listing(lines)
   try {
     writeFileSync(
