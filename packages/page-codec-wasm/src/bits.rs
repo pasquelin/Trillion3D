@@ -5,6 +5,7 @@
 //! the GPU is the same 32-bit float as one decoded here.
 
 pub mod grid;
+mod log2;
 mod oct;
 mod quant;
 pub(crate) use oct::oct_decode_stream;

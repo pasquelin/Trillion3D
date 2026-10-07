@@ -11,6 +11,7 @@ import {
 import { documentationTests } from './docs/tests.ts'
 import { generateApiFiles } from './generate-api-reference.ts'
 import { gitPaths } from './git-paths.ts'
+import { goldenChecks } from './golden-checks.ts'
 import { heavyStep } from './heavy-lock.ts'
 import { pnpmCommand } from './only-pnpm.ts'
 import { repositoryFiles } from './repository-files.ts'
@@ -50,12 +51,15 @@ async function main(): Promise<void> {
   // A push's one heavy step, the seconds-long build the type check may need, runs beside other
   // worktrees' heavy steps rather than wait for them (`scripts/heavy-lock.ts`).
   if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
+  // A changed reference value runs the golden tests that read it, Rust and TypeScript.
+  const golden = goldenChecks(changed, paths)
   const testFiles = !withTests
     ? []
     : [
         ...new Set([
           ...relatedTests(files, changed),
           ...([...changed].some(isDocumentation) ? documentationTests(paths) : []),
+          ...golden.tests,
         ]),
       ]
   console.log(`Changed files: ${existing.length}; related tests: ${testFiles.length}`)
@@ -109,6 +113,12 @@ async function main(): Promise<void> {
         break
       case 'rust':
         if (withTests) heavyStep('clippy', runRust)
+        break
+      case 'golden':
+        if (withTests && golden.crates.length)
+          heavyStep('golden', () =>
+            run('node', ['scripts/native.ts', 'golden-check', ...golden.crates]),
+          )
         break
       case 'tests':
         runUnitTests(testFiles)

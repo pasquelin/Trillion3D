@@ -2,8 +2,9 @@ import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/dra
 import type { Recut } from './runtimeCut.ts'
 
 /** The words before the arrays: five lengths, whether the pages keep a cone, whether a blended
- *  material wears them, the length of a recut's `ends`, its two inputs as 64-bit floats, a
- * deformation's influences and targets, then whether the triangles are held. */
+ *  material wears them, the length of a recut's `ends`, its two inputs as 64-bit floats — 0 for
+ * none, neither is ever 0 or less —, a deformation's influences and targets, then whether the
+ * triangles are held. */
 const HEADER_WORDS = 16
 const drawnCones = (d: DrawnTriangles) => !d.lines && d.spriteRadius === undefined
 
@@ -96,6 +97,8 @@ export function unpackDrawn(buffer: ArrayBuffer): {
       })),
     }
   if (!ends) return { drawn, cones, blended, held }
-  const [finestError, scale] = new Float64Array(buffer, 32, 2)
+  const [finestError, scale] = Array.from(new Float64Array(buffer, 32, 2), (value) =>
+    value > 0 ? value : null,
+  )
   return { drawn, cones, blended, held, recut: { ends, finestError, scale } }
 }

@@ -4,7 +4,7 @@
 use crate::bits::grid::{finest_exponent, primitive_grid_exponent, tile_log2, uv_grid_exponent};
 use trillion3d_math::golden::{f64s, ordinary, Twin, Value, HOSTILE_F64};
 
-pub(super) fn twins() -> [Twin; 4] {
+pub(crate) fn twins() -> [Twin; 4] {
     [
         Twin {
             file: "grid",

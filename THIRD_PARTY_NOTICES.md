@@ -43,15 +43,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - Source: https://github.com/rust-lang/libm, crate `libm` pinned at `0.2.16`, itself from musl and
   Sun's fdlibm.
 - Shipped as:
-  - the arc cosine of `packages/page-codec-wasm/src/acos.rs`, transcribed from `libm`'s
-    `src/math/acos.rs` with the instruction's square root, and the sine of
-    `packages/page-codec-wasm/src/trig.rs`, transcribed from `src/math/sin.rs`, `k_sin.rs`,
+  - the arc cosine of `packages/math/rust/src/acos.rs` (crate `trillion3d-math`), transcribed
+    from `libm`'s `src/math/acos.rs` with the instruction's square root, and the sine of
+    `packages/math/rust/src/trig.rs` (same crate), transcribed from `src/math/sin.rs`, `k_sin.rs`,
     `k_cos.rs` and `rem_pio2.rs` (below 2^20 · π/2), both inside
-    `packages/sdk-browser/src/wasm/kernels.wasm`;
+    `packages/sdk-browser/src/wasm/kernels.wasm` and the native compiler;
   - their TypeScript twins `fdlibmAcos` and `fdlibmSin` of
     `packages/math/src/float/trig.ts`, from the same files, in the JavaScript
     bundles;
-  - the native compiler links the crate itself.
+  - the native compiler links the crate itself, through its dependencies' `num-traits`.
 - Licence: MIT (libm), with fdlibm's notice kept in each transcribed file.
 
 ```text

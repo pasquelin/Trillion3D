@@ -12,8 +12,12 @@ on:
     branches: [develop, main]
     paths:
       - packages/asset-compiler-rust/**
-      - packages/page-codec-wasm/**
-      - packages/math/**
+      # Every crate's manifest, lock and Rust sources, never a list of crates — and never the
+      # TypeScript beside them (`packages/math/src`).
+      - packages/*/Cargo.*
+      - packages/*/*/Cargo.*
+      - packages/*/src/**/*.rs
+      - packages/*/*/src/**/*.rs
       - packages/physics-jolt-wasm/cook/**
       - packages/physics-jolt-wasm/src/**
       - packages/physics-jolt-wasm/CMakeLists.txt

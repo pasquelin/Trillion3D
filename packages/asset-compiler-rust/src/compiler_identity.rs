@@ -124,6 +124,27 @@ mod tests {
         assert!(inputs.contains(&"src/compiler_identity.rs"));
     }
 
+    // Behaviour: test code is never in the binary, so it never moves the key: the golden harness,
+    // the golden and unit tests, and a `#[cfg(test)]` module are left out, in every crate.
+    #[test]
+    fn the_build_leaves_test_code_out_of_the_hash() {
+        let inputs: Vec<&str> =
+            include_str!(concat!(env!("OUT_DIR"), "/implementation_inputs.txt"))
+                .lines()
+                .collect();
+        for input in [
+            "../math/rust/src/golden.rs",
+            "../math/rust/src/golden/value.rs",
+            "../math/rust/src/golden_tests.rs",
+            "../page-codec-wasm/src/golden_tests/grid.rs",
+            "src/tests/golden.rs",
+            "src/geometry_page_quant/screen/mod.rs",
+        ] {
+            assert!(!inputs.contains(&input), "{input} is hashed");
+        }
+        assert!(!inputs.iter().any(|input| input.contains("_tests")));
+    }
+
     // Behaviour: the runtime reads the error model the compiler writes. A mismatch would make
     // every fresh cache STALE_CACHE, or let a stale one through.
     #[test]

@@ -62,9 +62,12 @@ function matches(expected: Value, actual: number): boolean {
   return holds(expected.kind, actual) && Object.is(expected.value, actual)
 }
 
+/** The package's reference values, beside its sources. */
+const GOLDEN = new URL('../golden/', import.meta.url)
+
 /** The cases of section `name` of `packages/math/golden/<file>.json`. */
 function goldenCases(file: string, name: string): GoldenCase[] {
-  const text = readFileSync(new URL(`../golden/${file}.json`, import.meta.url), 'utf8')
+  const text = readFileSync(new URL(`${file}.json`, GOLDEN), 'utf8')
   const section = (JSON.parse(text) as Record<string, Section>)[name]
   assert.ok(section?.cases, `${file}.json has a section ${name}`)
   return section.cases.map((c) => ({

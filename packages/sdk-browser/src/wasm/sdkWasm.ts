@@ -39,14 +39,6 @@ export type SdkWasm = {
     clusters: number,
     out: number,
   ): number
-  /** The compiler's position and texture grids for the run-time cut (`../world/page/cutGrid.ts`). */
-  position_grid_exponent(
-    extent: number,
-    blended: number,
-    finestError: number,
-    scale: number,
-  ): number
-  texture_grid_exponent(span: number, blended: number): number
 }
 type WasmSource = BufferSource | (() => Promise<BufferSource>)
 

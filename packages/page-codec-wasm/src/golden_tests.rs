@@ -6,7 +6,7 @@
 use crate::anim::{normalize, sample_tracks, ARC_VALUES, QUATERNION};
 use trillion3d_math::golden::{f32s, f64s, run, Twin, Value, HOSTILE_F64};
 
-mod grid;
+pub(crate) mod grid;
 mod oct;
 mod quant;
 

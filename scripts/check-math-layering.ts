@@ -6,7 +6,8 @@ import ts from 'typescript'
 import { normalized } from './check-calls-normalize.ts'
 import { isTestModule } from './repository-files.ts'
 
-export const MATH_UNIT = 'packages/math/src'
+export const MATH_PACKAGE = 'packages/math'
+export const MATH_UNIT = `${MATH_PACKAGE}/src`
 
 const literalText = (node: ts.Node | undefined): string | null =>
   node && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : null
@@ -76,12 +77,13 @@ export function mathLayeringBreaks(files: Map<string, string>): string[] {
   const breaks: string[] = []
   for (const [file, text] of files) {
     if (!file.startsWith(MATH_UNIT + '/')) continue
+    // A test reads the package's own data beside its sources (`packages/math/golden`), never another package.
+    const home = isTestModule(file) ? MATH_PACKAGE + '/' : MATH_UNIT + '/'
     for (const specifier of specifiersOf(file, text)) {
       const outside = specifier.startsWith(UNRESOLVED)
         ? true
         : specifier.startsWith('.')
-          ? climbsAboveRoot(file, specifier) ||
-            !normalized(file, specifier).startsWith(MATH_UNIT + '/')
+          ? climbsAboveRoot(file, specifier) || !normalized(file, specifier).startsWith(home)
           : !(specifier.startsWith('node:') && isTestModule(file))
       if (outside) breaks.push(`${file}: ${specifier}`)
     }

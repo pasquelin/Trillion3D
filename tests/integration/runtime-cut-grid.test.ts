@@ -82,7 +82,7 @@ async function checkScene(pointer: string) {
     const extent = Math.max(0, ...[0, 1, 2].map((axis) => high[axis] - low[axis]))
     const blended = primitive.pass === 'clustered-blend'
     const inputs = {
-      finestError: Number.isFinite(finestError) ? finestError : 0,
+      finestError: Number.isFinite(finestError) ? finestError : null,
       scale: scales.get(primitive.mesh) ?? 0,
     }
     const exponent = await positionGridExponent(extent, blended, inputs)
