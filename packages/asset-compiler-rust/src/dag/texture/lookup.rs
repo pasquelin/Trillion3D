@@ -1,7 +1,10 @@
 //! The live triangles of one texture set, binned by texture island and texture cell, and the
 //! source point a coarse sample's coordinate falls on (`texture.rs`).
 use crate::shared_math::WordMap;
-use crate::shared_math::{length, point, sub};
+use trillion3d_math::triangle::barycentric_weights;
+use trillion3d_math::vec2::{barycentric, double_area};
+use trillion3d_math::vec3::{length, point, sub};
+use trillion3d_math::vecn::weighted_sum;
 
 /// Barycentric weights of the samples: corners, edge midpoints, centroid.
 const SAMPLES: [[f64; 3]; 7] = [
@@ -44,7 +47,7 @@ impl<'a> Lookup<'a> {
         let area: f64 = (0..triangles)
             .map(|t| {
                 let [a, b, c] = uvs_of(uvs, &live[t * 3..t * 3 + 3]);
-                ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])).abs() * 0.5
+                double_area(a, b, c).abs() * 0.5
             })
             .filter(|area| area.is_finite())
             .sum();
@@ -104,9 +107,8 @@ impl<'a> Lookup<'a> {
         SAMPLES
             .iter()
             .map(|w| {
-                let at = [0, 1].map(|a| uvs[0][a] * w[0] + uvs[1][a] * w[1] + uvs[2][a] * w[2]);
-                let spot =
-                    [0, 1, 2].map(|a| spots[0][a] * w[0] + spots[1][a] * w[1] + spots[2][a] * w[2]);
+                let at = weighted_sum(uvs, *w);
+                let spot = weighted_sum(spots, *w);
                 self.sample(&homes, at, spot, floor)
             })
             .fold(0.0, f64::max)
@@ -149,20 +151,12 @@ impl<'a> Lookup<'a> {
     fn read(&self, t: usize, at: [f64; 2], spot: [f64; 3], best: &mut (f64, f64)) {
         let tri = &self.live[t * 3..t * 3 + 3];
         let [a, b, c] = uvs_of(self.uvs, tri);
-        let (ab, ac, ap) = (
-            [b[0] - a[0], b[1] - a[1]],
-            [c[0] - a[0], c[1] - a[1]],
-            [at[0] - a[0], at[1] - a[1]],
-        );
-        let area = ab[0] * ac[1] - ab[1] * ac[0];
+        let area = double_area(a, b, c);
         if !(area.abs() > 0.0 && area.is_finite()) {
             return;
         }
-        let (v, w) = (
-            (ap[0] * ac[1] - ap[1] * ac[0]) / area,
-            (ab[0] * ap[1] - ab[1] * ap[0]) / area,
-        );
-        let weights = [1.0 - v - w, v, w];
+        let [v, w] = barycentric(a, b, c, at, area);
+        let weights = barycentric_weights(v, w);
         let inside = weights.iter().all(|&k| k >= INSIDE);
         let clamped = weights.map(|k| k.max(0.0));
         let total: f64 = clamped.iter().sum();
@@ -170,14 +164,14 @@ impl<'a> Lookup<'a> {
         let miss = if inside {
             0.0
         } else {
-            let on = [0, 1].map(|k| a[k] * weights[0] + b[k] * weights[1] + c[k] * weights[2]);
+            let on = weighted_sum([a, b, c], weights);
             length([at[0] - on[0], at[1] - on[1], 0.0])
         };
         if miss > best.0 {
             return;
         }
         let corners = points_of(self.positions, tri);
-        let there = [0, 1, 2].map(|k| (0..3).map(|c| corners[c][k] * weights[c]).sum::<f64>());
+        let there = weighted_sum(corners, weights);
         let distance = length(sub(spot, there));
         if miss < best.0 || (miss == best.0 && distance < best.1) {
             *best = (miss, distance);

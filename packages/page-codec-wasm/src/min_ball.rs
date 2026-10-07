@@ -3,7 +3,8 @@
 //! (expected linear time, the same result on every host). The normal cone (`normal_cone.rs`)
 //! takes the ball of the unit face normals; it is the one smallest-ball solver, beside the
 //! box-centred sphere of `asset-compiler-rust/src/dag/bounds.rs`.
-use crate::vec3::{add, cross, dot, length, scale, sub};
+use trillion3d_math::random::xorshift64;
+use trillion3d_math::vec3::{add, cross, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
 pub type Ball = ([f64; 3], f64);
@@ -85,16 +86,8 @@ fn circumscribed(p: &[[f64; 3]]) -> Ball {
 fn shuffle(points: &mut [[f64; 3]]) {
     let mut state = 0x2545_f491_4f6c_dd1du64 ^ points.len() as u64;
     for i in (1..points.len()).rev() {
-        points.swap(i, (xorshift(&mut state) % (i as u64 + 1)) as usize);
+        points.swap(i, (xorshift64(&mut state) % (i as u64 + 1)) as usize);
     }
-}
-
-/// One step of a xorshift (13, 7, 17): the shuffle's draws, and the crate's tests'.
-pub(crate) fn xorshift(state: &mut u64) -> u64 {
-    *state ^= *state << 13;
-    *state ^= *state >> 7;
-    *state ^= *state << 17;
-    *state
 }
 
 /// The smallest ball enclosing `points`, which it shuffles, up to the rounding of its support

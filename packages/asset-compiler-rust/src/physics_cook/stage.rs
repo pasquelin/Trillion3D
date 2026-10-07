@@ -10,8 +10,7 @@ use super::{
     PIECES_FORMAT_VERSION,
 };
 use crate::compiler_coplanar::DepthLayerScene;
-use crate::compiler_world::{world_matrices, Mat4};
-use crate::shared_math::{dot, length, linear_columns};
+use crate::compiler_world::world_matrices;
 use crate::{product, required_index, values, Product, Result, COMPILER_VERSION};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -19,65 +18,7 @@ use std::path::Path;
 
 /// A node matrix as translation, rotation (x, y, z, w) and scale; `None` when it shears, which no
 /// body pose can carry.
-pub(crate) fn trs(m: &Mat4) -> Option<([f64; 3], [f64; 4], [f64; 3])> {
-    let [c0, c1, c2] = linear_columns(m);
-    let det = c0[0] * (c1[1] * c2[2] - c1[2] * c2[1]) - c1[0] * (c0[1] * c2[2] - c0[2] * c2[1])
-        + c2[0] * (c0[1] * c1[2] - c0[2] * c1[1]);
-    let s = [length(c0) * det.signum(), length(c1), length(c2)];
-    if s.iter().any(|v| *v == 0.0 || !v.is_finite()) {
-        return None;
-    }
-    let r: Vec<[f64; 3]> = [c0, c1, c2]
-        .iter()
-        .zip(s)
-        .map(|(c, k)| c.map(|v| v / k))
-        .collect();
-    if dot(r[0], r[1])
-        .abs()
-        .max(dot(r[1], r[2]).abs())
-        .max(dot(r[0], r[2]).abs())
-        > 1e-4
-    {
-        return None;
-    }
-    // Rotation matrix to quaternion (branch on the largest of the trace and the diagonal), columns `r[c]`, element (row, col) = r[col][row].
-    let e = |row: usize, col: usize| r[col][row];
-    let trace = e(0, 0) + e(1, 1) + e(2, 2);
-    let q = if trace > 0.0 {
-        let k = 0.5 / (trace + 1.0).sqrt();
-        [
-            (e(2, 1) - e(1, 2)) * k,
-            (e(0, 2) - e(2, 0)) * k,
-            (e(1, 0) - e(0, 1)) * k,
-            0.25 / k,
-        ]
-    } else if e(0, 0) > e(1, 1) && e(0, 0) > e(2, 2) {
-        let k = 2.0 * (1.0 + e(0, 0) - e(1, 1) - e(2, 2)).sqrt();
-        [
-            0.25 * k,
-            (e(0, 1) + e(1, 0)) / k,
-            (e(0, 2) + e(2, 0)) / k,
-            (e(2, 1) - e(1, 2)) / k,
-        ]
-    } else if e(1, 1) > e(2, 2) {
-        let k = 2.0 * (1.0 + e(1, 1) - e(0, 0) - e(2, 2)).sqrt();
-        [
-            (e(0, 1) + e(1, 0)) / k,
-            0.25 * k,
-            (e(1, 2) + e(2, 1)) / k,
-            (e(0, 2) - e(2, 0)) / k,
-        ]
-    } else {
-        let k = 2.0 * (1.0 + e(2, 2) - e(0, 0) - e(1, 1)).sqrt();
-        [
-            (e(0, 2) + e(2, 0)) / k,
-            (e(1, 2) + e(2, 1)) / k,
-            0.25 * k,
-            (e(1, 0) - e(0, 1)) / k,
-        ]
-    };
-    Some(([m[12], m[13], m[14]], q, s))
-}
+pub(crate) use trillion3d_math::linear::decompose_trs as trs;
 
 /// Writes a placement `trs` into `entry` as `physics.json` carries it: a static instance's, a
 /// rigid body's or a soft body's.

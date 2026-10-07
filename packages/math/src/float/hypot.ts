@@ -2,7 +2,7 @@
  * `Math.hypot` for exactly two, three and four numbers, written out in scaled form so it
  * equals `Math.hypot` to the last bit: the largest magnitude, Infinity before NaN, then a Kahan
  * sum of the squares divided by that magnitude, then `sqrt(sum) * max`. The Rust twin is `hypot`
- * of `packages/page-codec-wasm/src/math.rs`.
+ * of `packages/math/rust/src/js.rs`.
  *
  * Why: the optimising compiler does not inline the builtin, which boxes its arguments into an
  * array and returns a heap number (about 55 ns a call in a bench, whose ~1.5 ns side was a

@@ -11,6 +11,9 @@
 //! The negated comparisons are the JavaScript ones: `!(x > 0)` holds on NaN where `x <= 0` does not.
 #![allow(clippy::neg_cmp_op_on_partial_ord)]
 
+use trillion3d_math::matrix::transform_point;
+use trillion3d_math::vec2::length;
+
 /// `clusterErrorAtDepth` refused its parameters: the JavaScript cut throws there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Invalid;
@@ -23,18 +26,6 @@ pub struct Lens {
     pub focal: f64,
     pub near: f64,
     pub perspective: f64,
-}
-
-/// `viewDepthOf` of the point at `at`: `−view(p).z`.
-fn view_depth(v: &[f64], at: usize, e: &[f64; 16]) -> f64 {
-    -(e[2] * v[at] + e[6] * v[at + 1] + e[10] * v[at + 2] + e[14])
-}
-
-/// `viewLateralOf` of the point at `at`: its distance to the view axis.
-fn view_lateral(v: &[f64], at: usize, e: &[f64; 16]) -> f64 {
-    let vx = e[0] * v[at] + e[4] * v[at + 1] + e[8] * v[at + 2] + e[12];
-    let vy = e[1] * v[at] + e[5] * v[at + 1] + e[9] * v[at + 2] + e[13];
-    (vx * vx + vy * vy).sqrt()
 }
 
 /// `clipWeight`: the clip w of a view depth.
@@ -78,7 +69,7 @@ fn projected_error_at(
     if !(closest > p * near) {
         return Ok(f64::INFINITY);
     }
-    let slant = (nearest * nearest + side * side).sqrt();
+    let slant = length([nearest, side]);
     if !(slant >= nearest && slant < f64::INFINITY) {
         return Ok(f64::INFINITY);
     }
@@ -93,14 +84,10 @@ pub fn node_ceiling_error(bound: f64, nodes: &[f64], at: usize, l: &Lens) -> Res
     if bound == f64::INFINITY {
         return Ok(f64::INFINITY);
     }
-    let lateral = view_lateral(nodes, at, &l.view);
-    projected_error_at(
-        bound,
-        lateral,
-        view_depth(nodes, at, &l.view),
-        nodes[at + 3],
-        l,
-    )
+    // `viewLateralOf`, the distance to the view axis, and `viewDepthOf`, `−view(p).z`.
+    let view = transform_point(&l.view, [nodes[at], nodes[at + 1], nodes[at + 2]]);
+    let lateral = length([view[0], view[1]]);
+    projected_error_at(bound, lateral, -view[2], nodes[at + 3], l)
 }
 
 #[cfg(test)]

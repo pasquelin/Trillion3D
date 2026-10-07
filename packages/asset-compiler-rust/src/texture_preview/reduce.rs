@@ -1,5 +1,6 @@
 use super::curves::{linear_to_srgb, srgb_table};
 use super::*;
+use trillion3d_math::scalar::unit_to_byte_f32;
 
 /// What the atlas layer does with the bytes, and therefore what reduction must do
 /// with the same: the colour atlas is `rgba8unorm-srgb`, its first three channels
@@ -111,7 +112,7 @@ fn decode_table(kind: AtlasKind) -> &'static [f32; 256] {
 fn encode(value: f32, kind: AtlasKind) -> u8 {
     match kind {
         AtlasKind::Color | AtlasKind::Coverage(_) => linear_to_srgb(value),
-        AtlasKind::Data => (value.clamp(0.0, 1.0) * 255.0).round() as u8,
+        AtlasKind::Data => unit_to_byte_f32(value),
     }
 }
 

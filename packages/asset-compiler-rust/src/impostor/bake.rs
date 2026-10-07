@@ -2,8 +2,11 @@
 //! through the alpha-aware filter, four rotated-grid rays a texel.
 use super::mesh::{Sample, Traceable};
 use super::octahedron::{basis, frame_direction};
-use crate::shared_math::{add, normalized_or, scale};
+use crate::shared_math::normalized_or;
 use rayon::prelude::*;
+use trillion3d_math::scalar::{mean as scalar_mean, unit_to_byte};
+use trillion3d_math::vec3::{add, scale};
+use trillion3d_math::vecn::mean as mean_of;
 
 /// Rotated-grid subsamples of a texel, in texel units.
 const SUBSAMPLES: [[f64; 2]; 4] = [
@@ -30,27 +33,21 @@ pub(crate) struct Atlas {
     pub maps: [Vec<u8>; 3],
 }
 
-fn byte(x: f64) -> u8 {
-    (x.clamp(0.0, 1.0) * 255.0).round() as u8
-}
-
 /// A texel from its kept samples: colours averaged over the hits, coverage the share of rays
 /// that hit.
 fn resolve(hits: &[Sample], radius: f64) -> [[u8; 4]; 3] {
-    let coverage = byte(hits.len() as f64 / SUBSAMPLES.len() as f64);
+    let coverage = unit_to_byte(hits.len() as f64 / SUBSAMPLES.len() as f64);
     if hits.is_empty() {
         return [[0; 4]; 3];
     }
-    let mean = |f: &dyn Fn(&Sample) -> [f64; 3]| {
-        let sum = hits.iter().fold([0.0; 3], |s, h| add(s, f(h)));
-        scale(sum, 1.0 / hits.len() as f64)
-    };
+    let mean = |f: &dyn Fn(&Sample) -> [f64; 3]| mean_of(hits.iter().map(f));
     let colour = mean(&|h| h.colour).map(|c| crate::texture_preview::linear_to_srgb(c as f32));
-    let normal = normalized_or(mean(&|h| h.normal), [0.0, 1.0, 0.0]).map(|n| byte(n * 0.5 + 0.5));
+    let normal =
+        normalized_or(mean(&|h| h.normal), [0.0, 1.0, 0.0]).map(|n| unit_to_byte(n * 0.5 + 0.5));
     // `D = ½ + height / 2R`, the height `2R − distance` above the frame plane.
-    let distance = hits.iter().map(|h| h.distance).sum::<f64>() / hits.len() as f64;
-    let depth = byte(1.5 - distance / (2.0 * radius));
-    let orm = mean(&|h| h.orm).map(byte);
+    let distance = scalar_mean(hits.iter().map(|h| h.distance));
+    let depth = unit_to_byte(1.5 - distance / (2.0 * radius));
+    let orm = mean(&|h| h.orm).map(unit_to_byte);
     [
         [colour[0], colour[1], colour[2], coverage],
         [normal[0], normal[1], normal[2], depth],

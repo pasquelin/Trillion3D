@@ -15,6 +15,7 @@
 //! proxy. Subdivision is planar: adds no error.
 use super::PROXY_TRIANGLE_FLOATS;
 use std::collections::HashSet;
+use trillion3d_math::vec3::{length, sub};
 
 /// Grid step doublings before giving up: known bound, like `cut.rs` scale.
 const CELL_LADDER: usize = 24;
@@ -36,9 +37,7 @@ fn cell_of(vertex: &[f32], size: f64) -> [i32; 3] {
 /// Longest side of a triangle, in meters.
 fn longest_edge(t: &[f32]) -> f64 {
     let point = |i: usize| [t[i * 3] as f64, t[i * 3 + 1] as f64, t[i * 3 + 2] as f64];
-    let span = |a: [f64; 3], b: [f64; 3]| {
-        ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
-    };
+    let span = |a: [f64; 3], b: [f64; 3]| length(sub(a, b));
     let (a, b, c) = (point(0), point(1), point(2));
     span(a, b).max(span(b, c)).max(span(c, a))
 }

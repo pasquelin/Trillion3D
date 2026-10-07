@@ -17,6 +17,7 @@
 //! - quaternion `(-x, -y, z, w)` — the reflection sends axis `a` to `S·a` and angle `θ` to `-θ` ;
 //! - scale unchanged, since `S·diag(s)·S = diag(s)`.
 use serde_json::{json, Value};
+use trillion3d_math::quaternion::{divide, length, length_squared};
 
 /// A Unity local transform, already converted into glTF space.
 #[derive(Clone, Copy)]
@@ -52,8 +53,10 @@ impl Trs {
     /// report and leaves identity in its place.
     pub(super) fn is_finite(&self) -> bool {
         let finite = |values: &[f64]| values.iter().all(|value| value.is_finite());
-        let length = self.rotation.iter().map(|v| v * v).sum::<f64>();
-        finite(&self.translation) && finite(&self.rotation) && finite(&self.scale) && length > 1e-12
+        finite(&self.translation)
+            && finite(&self.rotation)
+            && finite(&self.scale)
+            && length_squared(self.rotation) > 1e-12
     }
     /// Fields of a glTF node, omitted when they equal the format default.
     pub(super) fn write(&self, node: &mut Value) {
@@ -61,8 +64,7 @@ impl Trs {
             node["translation"] = json!(self.translation);
         }
         if self.rotation != Trs::IDENTITY.rotation {
-            let length = self.rotation.iter().map(|v| v * v).sum::<f64>().sqrt();
-            node["rotation"] = json!(self.rotation.map(|value| value / length));
+            node["rotation"] = json!(divide(self.rotation, length(self.rotation)));
         }
         if self.scale != Trs::IDENTITY.scale {
             node["scale"] = json!(self.scale);

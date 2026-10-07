@@ -5,6 +5,7 @@
 //! accessor that names it carries the bounds glTF requires of positions.
 use super::*;
 use crate::plugins::scene::{scene_output_fields, SceneOutput};
+use trillion3d_math::aabb::aabb_of_f32;
 
 /// The glTF component type of a single float, and that of a 32-bit unsigned integer.
 const FLOAT: u32 = 5126;
@@ -152,18 +153,19 @@ impl SceneOutput for Out {
     }
 }
 
-/// Bounds of a vector array, component by component: glTF requires them of positions.
+/// Bounds of a vector array of two or three components, component by component: glTF requires
+/// them of positions.
 fn extent(values: &[f32], stride: usize) -> (Vec<f32>, Vec<f32>) {
+    fn of<const N: usize>(values: &[f32]) -> (Vec<f32>, Vec<f32>) {
+        let (low, high) = aabb_of_f32(values.as_chunks::<N>().0.iter().copied());
+        (low.to_vec(), high.to_vec())
+    }
     if values.is_empty() {
         return (vec![0.0; stride], vec![0.0; stride]);
     }
-    let mut low = vec![f32::INFINITY; stride];
-    let mut high = vec![f32::NEG_INFINITY; stride];
-    for vector in values.chunks_exact(stride) {
-        for axis in 0..stride {
-            low[axis] = low[axis].min(vector[axis]);
-            high[axis] = high[axis].max(vector[axis]);
-        }
+    if stride == 2 {
+        of::<2>(values)
+    } else {
+        of::<3>(values)
     }
-    (low, high)
 }

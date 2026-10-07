@@ -1,5 +1,7 @@
 //! Deterministic inputs shared by tests outside the generated corpus.
 
+use trillion3d_math::random::xorshift64;
+
 pub(crate) struct Xorshift(u64);
 
 impl Xorshift {
@@ -8,10 +10,7 @@ impl Xorshift {
     }
 
     pub(crate) fn next(&mut self) -> u64 {
-        self.0 ^= self.0 << 13;
-        self.0 ^= self.0 >> 7;
-        self.0 ^= self.0 << 17;
-        self.0
+        xorshift64(&mut self.0)
     }
 
     pub(crate) fn below(&mut self, bound: usize) -> usize {

@@ -1,9 +1,10 @@
 //! The sampled Hausdorff distance raised to a floor the caller already holds: a sample stops
 //! at the first triangle within the floor, so only the samples that can raise the result are
 //! measured exactly, and the result is the full measure's raised to the floor, bit for bit.
-use super::{at, lerp, Grid, P};
+use super::{at, Grid, P};
 use rayon::prelude::*;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use trillion3d_math::vecn::lerp;
 
 /// A floor raised to every value a parallel search returns. A value at or below the floor cannot
 /// raise the search's maximum, so a query may stop there; a value above it is measured exactly and

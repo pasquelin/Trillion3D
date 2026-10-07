@@ -3,7 +3,7 @@
 //! by 0.25 m, flat shading by per-face vertex copies, outward winding.
 use super::meshes::{Mesh, V};
 use std::f64::consts::FRAC_PI_2;
-use trillion3d_page_codec::vec3::{add, cross, dot, sub};
+use trillion3d_math::vec3::{add, cross, dot, sub};
 
 const WIDTH: f64 = 24.0;
 const DEPTH: f64 = 16.0;
@@ -93,7 +93,7 @@ pub(super) fn building() -> Mesh {
 
 /// Every triangle wound so that its geometric normal follows the normal it stores.
 fn orient(mesh: &mut Mesh) {
-    let point = |i: u32| trillion3d_page_codec::vec3::point(&mesh.positions, i);
+    let point = |i: u32| trillion3d_math::vec3::point(&mesh.positions, i);
     let stored = |i: u32| {
         let at = i as usize * 3;
         [0, 1, 2].map(|c| f64::from(mesh.normals[at + c]))

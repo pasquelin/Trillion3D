@@ -94,11 +94,9 @@ transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 ```
 
 **Which path ran.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
-(`math.rs` and `math_matrix.rs` in `packages/page-codec-wasm/src/`), bit-identical to the JavaScript
-loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
+(`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and `box_transform.rs`), bit-identical to the
+JavaScript loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
 `packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) plays the faster measured, per operation.
-`hierarchyUpdateBatch` has a kernel too (`math_hierarchy.rs`, proven by its Rust tests), outside
-the governor.
 `metric.frame(world).mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
 `operations[name].path` is the path the next call plays, `jsNsPerElement` and `wasmNsPerElement` the
 sliding medians in nanoseconds per element (`null` while unmeasured — never zero), `switches` how
@@ -108,6 +106,30 @@ clock steps instead. A host serving its page with the `Cross-Origin-Opener-Polic
 `Cross-Origin-Embedder-Policy` headers gets the fine clock back, one sample per call. A kernel is
 written only where a loop's measured share of the engine's frame passes 0.1 ms; batches serve hosts,
 no engine loop runs through one.
+
+### The Rust twins and their reference values
+
+The Rust maths primitives live once in `packages/math/rust` (`trillion3d-math`, no dependency):
+vectors, boxes, the 4×4 product in `f32` and `f64`, JavaScript's `Math.min`, `Math.max` and
+`Math.hypot`, fdlibm's arc cosine and sine. The page codec (and through it the WebAssembly kernels)
+and the compiler both depend on it and keep no copy. `packages/math/golden` holds the reference
+values every twin of a mirrored primitive — Rust, TypeScript, WGSL — is tested against bit for bit:
+the inputs and outputs of each case written by their bits, one JSON file per primitive, or per
+encoder and its decoder with their round trip (`oct.json`, `quantize.json`), one case per line
+(Prettier leaves the folder alone). The crate that owns a twin checks its files in one test
+(`packages/math/rust/src/golden.rs`); after a deliberate change of a primitive, `pnpm run
+golden:write` rewrites them all, the command each file names.
+
+- TypeScript reader: `packages/math/src/golden.fixture.ts` (`assertGolden`).
+- TypeScript twins: `matrix4.golden.test.ts`, `hypot.golden.test.ts`, `trig.golden.test.ts`,
+  `quaternion.golden.test.ts` (`packages/math/src/`), `sample.golden.test.ts`
+  (`packages/sdk-core/src/world/animation/`), `pageGrids.golden.test.ts` (`packages/page-codec/src/`).
+- WebAssembly twin: `packages/sdk-browser/src/page/decode/batch/multiplyBatch.golden.test.ts`.
+- The proxy BVH child box and albedo bytes are read by WGSL alone (`nodeWgsl.ts`): no CPU twin.
+- The grid rule's TypeScript twin, `packages/page-codec/src/gridExponent.ts`, is held to the Rust
+  rule's own cases (`gridExponent.test.ts`) and to `grid.json` (`gridExponent.golden.test.ts`); on
+  every compiled scene, the run-time cut picks the grid the compiler wrote
+  (`tests/integration/runtime-cut-grid.test.ts`).
 
 ### Measured against the witness library
 
@@ -156,7 +178,7 @@ medians over three runs; the three exceptions are declared on their line.
 | `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` | `for … box.union(b)` | bench `Box3.union batch` (×1.9) |
 | `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/math/src/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `boxTransformUnionBatch(into, boxes, mats[], n)` | transform then union, one pass, one scratch box | `Box3.setFromObject` | bench `Box3 transform and union batch` (×1.8) |
-| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/math/src/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math_matrix.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
+| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/math/src/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`packages/math/rust/src/matrix.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `invertMatrix4Batch(out[], mats[], n, singular?)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()` | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2 |
 | `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/math/src/matrix/singular.ts`) is kept; ceiling 2.2 |
 | `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views | `for … m.compose(p, q, s)` | bench `Matrix4.compose batch` (×1.5) |
@@ -165,4 +187,4 @@ medians over three runs; the three exceptions are declared on their line.
 | `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
 | `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
 | `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/math/src/color/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
-| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | the Rust tests of `packages/page-codec-wasm/src/math_hierarchy.rs` |
+| `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | `tests/integration/sdk-facade.test.ts` (parents before children); its Rust/WebAssembly kernel was removed, no host called it |

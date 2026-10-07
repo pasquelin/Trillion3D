@@ -3,61 +3,6 @@ use crate::dag::{build_culling_bvh, DagCluster};
 use crate::shared_math::*;
 
 #[test]
-fn extend_aabb_starts_from_an_empty_box() {
-    let mut low = [f64::INFINITY; 3];
-    let mut high = [f64::NEG_INFINITY; 3];
-    extend_aabb(&mut low, &mut high, [2.0, -3.0, 4.0]);
-    assert_eq!(low, [2.0, -3.0, 4.0]);
-    assert_eq!(high, [2.0, -3.0, 4.0]);
-}
-
-#[test]
-fn extend_aabb_nan_in_the_point_leaves_the_bound_unchanged() {
-    let mut low = [5.0, 5.0, 5.0];
-    let mut high = [5.0, 5.0, 5.0];
-    extend_aabb(&mut low, &mut high, [f64::NAN, 5.0, 5.0]);
-    assert_eq!(low[0].to_bits(), 5.0_f64.to_bits());
-    assert_eq!(high[0].to_bits(), 5.0_f64.to_bits());
-}
-
-#[test]
-fn extend_aabb_nan_in_the_bound_is_replaced_by_the_coordinate() {
-    let mut low = [f64::NAN, 0.0, 0.0];
-    let mut high = [f64::NAN, 0.0, 0.0];
-    extend_aabb(&mut low, &mut high, [3.0, 0.0, 0.0]);
-    assert_eq!(low[0].to_bits(), 3.0_f64.to_bits());
-    assert_eq!(high[0].to_bits(), 3.0_f64.to_bits());
-}
-
-#[test]
-fn extend_aabb_keeps_the_sign_of_negative_zero() {
-    let mut low = [f64::INFINITY; 3];
-    let mut high = [f64::NEG_INFINITY; 3];
-    extend_aabb(&mut low, &mut high, [-0.0, -0.0, -0.0]);
-    assert_eq!(low[0].to_bits(), (-0.0_f64).to_bits());
-    assert_ne!(low[0].to_bits(), (0.0_f64).to_bits());
-    assert_eq!(high[0].to_bits(), (-0.0_f64).to_bits());
-}
-
-#[test]
-fn merge_aabb_combines_two_disjoint_boxes() {
-    let mut low = [0.0, 0.0, 0.0];
-    let mut high = [1.0, 1.0, 1.0];
-    merge_aabb(&mut low, &mut high, [5.0, 5.0, 5.0], [6.0, 6.0, 6.0]);
-    assert_eq!(low, [0.0, 0.0, 0.0]);
-    assert_eq!(high, [6.0, 6.0, 6.0]);
-}
-
-#[test]
-fn extend_aabb_f32_starts_from_an_empty_box() {
-    let mut low = [f32::INFINITY; 3];
-    let mut high = [f32::NEG_INFINITY; 3];
-    extend_aabb_f32(&mut low, &mut high, [1.5, -2.5, 0.5]);
-    assert_eq!(low, [1.5, -2.5, 0.5]);
-    assert_eq!(high, [1.5, -2.5, 0.5]);
-}
-
-#[test]
 fn longest_axis_keeps_the_first_axis_on_a_tie() {
     let axis = longest_axis(&[0.0, 0.0, 0.0], &[5.0, 5.0, 3.0]);
     assert_eq!(axis, 0);
@@ -124,20 +69,20 @@ fn normalized_or_falls_back_under_the_guard_and_normalizes_above_it() {
     );
 }
 
-// `unit` and the oracle's `normalise` share one reciprocal division and keep
+// `unit` and the oracle's `unit_or_itself` share one reciprocal division and keep
 // their own guards — an infinite length is refused by the first, divided by the second.
 #[test]
-fn unit_and_the_oracle_normalise_keep_their_own_guards() {
-    use crate::proxy::tracer::normalise;
+fn unit_and_the_oracle_unit_keep_their_own_guards() {
+    use trillion3d_math::vec3::unit_or_itself;
     // 49 · (1 / 49) is one ulp under 1: the reciprocal is kept, not a division.
     assert_eq!(
         unit([0.0, 49.0, 0.0]),
         Some([0.0, 49.0 * (1.0 / 49.0), 0.0])
     );
     assert_ne!(49.0 * (1.0 / 49.0), 1.0);
-    assert_eq!(normalise([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
+    assert_eq!(unit_or_itself([0.0, 0.0, 0.0]), [0.0, 0.0, 0.0]);
     assert_eq!(unit([f64::INFINITY, 0.0, 0.0]), None);
-    assert!(normalise([f64::INFINITY, 0.0, 0.0])[0].is_nan());
+    assert!(unit_or_itself([f64::INFINITY, 0.0, 0.0])[0].is_nan());
 }
 
 /// `node_bounds` (`dag/culling.rs`) is private; it is exercised through the public

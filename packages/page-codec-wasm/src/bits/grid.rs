@@ -1,8 +1,11 @@
 //! The position and texture grids of a primitive, written once for both cuts: the compiler's
 //! (`geometry_page_quant::primitive_exponent`, `primitive_uv_exponent`) and the one the engine
 //! runs on drawn triangles or on a compiled primitive's own clusters
-//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`, through `wasm_cone.rs`).
+//! (`packages/sdk-browser/src/world/page/runtimeCut.ts`), through its TypeScript twin,
+//! `packages/page-codec/src/gridExponent.ts`. Their logarithms are read from the bits
+//! (`log2.rs`): both cuts take the same integers on every host.
 
+use super::log2::{ceil_log2, floor_log2};
 use super::{MAX_BITS, MAX_EXPONENT};
 
 /// A tile spans 2^1 = 2 m of the world, in 2^16 steps: primitives wider than 2 m sit on 2^-15 m
@@ -22,9 +25,7 @@ pub const UV_EXPONENT: i32 = -14;
 /// places: 2 m in those units, a missing, zero or non-finite scale taken as a metre per unit.
 /// Rounded down: a tile never spans more than 2 m.
 pub fn tile_log2(scale: Option<f64>) -> i32 {
-    object_units(2f64.powi(TILE_EXTENT_LOG2), scale)
-        .log2()
-        .floor() as i32
+    floor_log2(object_units(2f64.powi(TILE_EXTENT_LOG2), scale))
 }
 
 /// A length of `metres` in the object units of a primitive the largest world `scale` places; a
@@ -45,12 +46,12 @@ pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
 /// power of two: `q * step` is exact.
 pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
     let (widest, finest) = if extent > 0.0 {
-        (extent.log2().floor() as i32, finest_exponent(extent))
+        (floor_log2(extent), finest_exponent(extent))
     } else {
         (0, -(MAX_BITS as i32 - 2))
     };
     let by_extent = widest.min(tile_log2) - 16;
-    let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
+    let by_error = finest_error.map_or(by_extent, |e| floor_log2(e / 8.0));
     by_extent
         .min(by_error)
         .max(finest)
@@ -58,10 +59,13 @@ pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> 
 }
 
 /// The finest grid on which a positive `span` fits a page's field: at most 2^23 steps, which
-/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds (`gridExponentFor`,
-/// `pageGrids.ts`, for texture coordinates), so a blended surface sits on one grid however it is cut.
+/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds, so a blended surface sits on
+/// one grid however it is cut.
 pub fn finest_exponent(span: f64) -> i32 {
-    (span.log2().ceil() as i32 - (MAX_BITS as i32 - 1)).clamp(-MAX_EXPONENT, MAX_EXPONENT)
+    // Saturating: a span of 0 gives `i32::MIN`, which a plain subtraction would wrap to the coarsest grid.
+    ceil_log2(span)
+        .saturating_sub(MAX_BITS as i32 - 1)
+        .clamp(-MAX_EXPONENT, MAX_EXPONENT)
 }
 
 /// The grid of a primitive of widest `extent`: a `blended` one takes the finest grid its pages

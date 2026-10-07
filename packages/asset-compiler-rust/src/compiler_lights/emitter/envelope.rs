@@ -8,7 +8,8 @@
 //! does not contain.
 use super::*;
 use crate::compiler_accessor_create::accessor;
-use crate::compiler_world::transform_point;
+use trillion3d_math::matrix::transform_point;
+use trillion3d_math::vec3::{length, sub};
 
 /// Radius of the envelope around `centre`, if an emissive body is linked to the node's light.
 /// Multiple bodies linked to the same light: the tightest sphere wins, because excluding
@@ -57,8 +58,7 @@ fn reach(e: &Emitter, node: usize, centre: [f64; 3]) -> Option<f64> {
                 &e.world[node],
                 [point[0] as f64, point[1] as f64, point[2] as f64],
             );
-            let spread: f64 = (0..3).map(|k| (world[k] - centre[k]).powi(2)).sum();
-            let distance = spread.sqrt();
+            let distance = length(sub(world, centre));
             farthest = Some(farthest.map_or(distance, |best: f64| best.max(distance)));
         }
     }

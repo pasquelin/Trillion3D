@@ -1,6 +1,7 @@
 //! Bezier control-hull subdivision retains source extrema and bounds each scalar curve's
 //! deviation from its linear chord. Rotation travel is bounded across the whole hierarchy.
 use super::*;
+use trillion3d_math::aabb::centre;
 
 pub(super) fn times(stack: &ufbx::AnimStack) -> Result<Vec<f64>> {
     let mut times = contract::times(stack)?;
@@ -100,10 +101,9 @@ fn subdivide(
         ));
     }
     // de Casteljau halves the time/value Bezier together; its control hull bounds the full curve.
-    let mid = |a: [f64; 2], b: [f64; 2]| [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5];
-    let (a, b, c) = (mid(p[0], p[1]), mid(p[1], p[2]), mid(p[2], p[3]));
-    let (d, e) = (mid(a, b), mid(b, c));
-    let f = mid(d, e);
+    let (a, b, c) = (centre(p[0], p[1]), centre(p[1], p[2]), centre(p[2], p[3]));
+    let (d, e) = (centre(a, b), centre(b, c));
+    let f = centre(d, e);
     subdivide([p[0], a, d, f], angular, tolerance, depth + 1, stack, times)?;
     subdivide([f, e, c, p[3]], angular, tolerance, depth + 1, stack, times)
 }

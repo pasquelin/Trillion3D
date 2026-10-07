@@ -6,12 +6,14 @@ use super::eligibility::{texel_depth, triangle_depth};
 use super::eligibility::{Candidate, ATLAS_LIMIT, FRAMES, PROBE_SIDE};
 use super::mesh::Traceable;
 use crate::compiler_validate::values;
-use crate::compiler_world::{transform_point, world_matrices, Mat4};
+use crate::compiler_world::{world_matrices, Mat4};
 use crate::proxy::{bvh, primitives_by_mesh, stage_proxy, world_scale, ProxyInputs, SceneProxy};
-use crate::shared_math::{length, linear_columns, sub};
+use crate::shared_math::linear_columns;
 use crate::{Options, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
+use trillion3d_math::matrix::transform_point;
+use trillion3d_math::vec3::{length, sub};
 
 /// Report contract: the atlas layout, its maps and their chains. A change moves it.
 pub(crate) const IMPOSTOR_VERSION: u32 = 1;

@@ -1,3 +1,4 @@
+import { GOLDEN } from './golden-checks.ts'
 import { TREE_GATES } from './validate-steps.ts'
 
 // What `check:changed` runs for a change (`scripts/check-changed.ts`). A change that touches only
@@ -49,6 +50,7 @@ export type ChangedStep =
   | 'check:i18n'
   | (typeof TREE_GATES)[number]
   | 'rust'
+  | 'golden'
   | 'tests'
 
 /**
@@ -76,9 +78,13 @@ export function changedSteps(
   if (existing.some((file) => markdown.test(file))) steps.push('check:links')
   if (existing.some((file) => translation.test(file))) steps.push('check:i18n')
   steps.push(...TREE_GATES)
-  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`).
+  // The compiler embeds the message catalogue (`asset-compiler-rust/src/messages.rs`). A golden
+  // value alone is no Rust change: the `golden` step below holds it to the crates.
   if (existing.some((file) => file.endsWith('.rs') || file === MESSAGE_CATALOGUE))
     steps.push('rust')
+  // A reference value changed: the crates' golden tests that read it hold it to the Rust; the
+  // TypeScript ones, among the unit tests, hold the twins to it (`golden-checks.ts`).
+  if (changed.some((file) => GOLDEN.test(file))) steps.push('golden')
   if (tests) steps.push('tests')
   return steps
 }

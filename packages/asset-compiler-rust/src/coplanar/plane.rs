@@ -7,7 +7,9 @@ pub struct ClusterPlane {
     pub area: f64,
 }
 
-use crate::shared_math::{cross, dot, extend_aabb, length, scale, sub};
+use trillion3d_math::aabb::{extend_aabb, longest_side};
+use trillion3d_math::triangle::triangle_cross;
+use trillion3d_math::vec3::{add, cross, dot, length, scale, unit_unless_zero};
 
 /// One orientation per plane, whichever way its triangles wind: a surface and the surface facing it
 /// hash to the same bucket, which is exactly the pair that fights over a pixel.
@@ -58,28 +60,20 @@ pub fn plane_of_triangles(
         for point in [a, b, c] {
             extend_aabb(&mut low, &mut high, point);
         }
-        let normal = cross(sub(b, a), sub(c, a));
+        let normal = triangle_cross(a, b, c);
         let double_area = length(normal);
         if double_area <= 0.0 {
             continue;
         }
         area += double_area * 0.5;
-        accumulated = [
-            accumulated[0] + normal[0],
-            accumulated[1] + normal[1],
-            accumulated[2] + normal[2],
-        ];
+        accumulated = add(accumulated, normal);
     }
     if area <= 0.0 {
         return None;
     }
-    let extent = (0..3).fold(0.0f64, |best, axis| best.max(high[axis] - low[axis]));
+    let extent = longest_side(low, high);
     let tolerance = (extent * tolerance_ratio).max(f64::MIN_POSITIVE);
-    let accumulated_length = length(accumulated);
-    if accumulated_length <= 0.0 {
-        return None;
-    }
-    let normal = scale(accumulated, 1.0 / accumulated_length);
+    let normal = unit_unless_zero(accumulated)?;
     let mut offset = 0.0f64;
     let mut weight = 0.0f64;
     for triangle in triangles {
@@ -101,7 +95,7 @@ pub fn plane_of_triangles(
                 return None;
             }
         }
-        let face = cross(sub(b, a), sub(c, a));
+        let face = triangle_cross(a, b, c);
         let face_length = length(face);
         if face_length > 0.0 && dot(face, normal).abs() < face_length * PARALLEL_COSINE {
             return None;
@@ -129,12 +123,9 @@ pub fn plane_frame(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     } else {
         [0.0, 0.0, 1.0]
     };
-    let mut u = cross(normal, axis);
-    let u_length = length(u);
-    if u_length <= 0.0 {
+    let Some(u) = unit_unless_zero(cross(normal, axis)) else {
         return ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
-    }
-    u = scale(u, 1.0 / u_length);
+    };
     (u, cross(normal, u))
 }
 

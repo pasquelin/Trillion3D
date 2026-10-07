@@ -5,7 +5,8 @@
 //! `EXT_mesh_gpu_instancing`. The expected positions are written here by hand from the file's
 //! numbers, never computed by the compiler's own walk.
 use super::*;
-use crate::compiler_world::{transform_point, world_matrices};
+use crate::compiler_world::world_matrices;
+use trillion3d_math::matrix::transform_point;
 
 type Triangle = [[f64; 3]; 3];
 

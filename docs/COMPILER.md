@@ -33,12 +33,16 @@ trillion3d-compiler SOURCE CACHE slice|full TRIANGLES THREADS RAM_MB RESOURCE_BA
 trillion3d-compiler SOURCE CACHE slice|full TRIANGLES THREADS RAM_MB RESOURCE_BASE_URL SIMPLIFICATION
 trillion3d-compiler --jobs FILE|-
 trillion3d-compiler --version
+trillion3d-compiler --build-inputs
 ```
 
 Exactly 5, 7 or 8 positional arguments, plus `--textures-format=` anywhere (`compiler_args.rs`).
 Another count prints the usage, emits `INVALID_ARGS` and exits 2; a value out of range is refused
 with `INVALID_OPTIONS` (`compiler_validate.rs`). `--version` prints the compiler and format
-versions, the drivers and the platform as JSON.
+versions, the drivers and the platform as JSON. `--build-inputs` prints the files its build hashed
+into the implementation hash, one path per line from the crate (`build_inputs.rs`): the production
+sources of the compiler and of the crates it links, their manifests, the lock file, the build
+scripts and the cargo configuration.
 
 | Argument | Meaning | Default |
 |---|---|---|
@@ -206,8 +210,9 @@ It prints the raw JSON events on a pipe (`TRILLION3D_RAW_EVENTS=1` forces them),
 summary as `message` events.
 
 The executable is `options.executable`, else the installed platform package's, else
-`TRILLION3D_COMPILER_BIN`, else the checkout's build, refused with `COMPILER_STALE` while a crate
-source is newer (`pnpm run build:native`). Elsewhere, a machine no package serves fails with
+`TRILLION3D_COMPILER_BIN`, else the checkout's build, refused with `COMPILER_STALE` while a file
+its build hashed — the list `--build-inputs` prints, asked once per build — or the physics cook and
+message catalogue it reads beside them is newer (`pnpm run build:native`). Elsewhere, a machine no package serves fails with
 `COMPILER_PLATFORM_UNSUPPORTED`, a missing package with `COMPILER_EXECUTABLE_MISSING`
 (`packages/sdk-node/src/compiler/executable.mts`).
 

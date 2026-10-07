@@ -27,7 +27,7 @@ export const OWN_FLOOR = 0,
 
 /** Grows the bounding sphere stored at `at` to cover the one read at `from`.
  *  Negative radius: accumulator still empty. */
-/** TypeScript mirror of the incremental sphere merge in `dag/bounds.rs` (Rust compiler): the
+/** TypeScript mirror of the incremental sphere merge in `packages/math/rust/src/sphere.rs`: the
  *  same recurrence, two languages, nothing to share between the two code stores. */
 export function growSphere(
   into: Float64Array,

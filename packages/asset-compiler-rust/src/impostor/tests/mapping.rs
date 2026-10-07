@@ -1,5 +1,6 @@
 use crate::impostor::eligibility::FRAMES;
-use crate::impostor::octahedron::{cell_weights, decode, encode, frame_direction};
+use crate::impostor::octahedron::{cell_weights, frame_direction};
+use trillion3d_math::octahedral::{octahedral_decode as decode, octahedral_encode as encode};
 
 // Behaviour: on every lattice vertex of both mappings, direction → uv → direction comes back
 // within 1e-6, the lower half of the full octahedron and the hemi's horizon included.

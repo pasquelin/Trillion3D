@@ -1,6 +1,7 @@
 use super::*;
-use crate::compiler_world::{multiply, scaling, translation, IDENTITY};
+use crate::compiler_world::{scaling, translation, IDENTITY};
 use crate::proxy::encode::tests::fixture::plate;
+use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// Placements of `runs`, each a world matrix and its already placed world triangles.
 fn shared(runs: &[(Mat4, Vec<f32>)]) -> Sharing {
@@ -29,7 +30,8 @@ fn one_instance_stays_flat() {
 
 #[test]
 fn a_mirrored_copy_shares_its_shape() {
-    let mirrored = multiply(&translation([9.0, 0.0, 0.0]), &scaling([-1.0, 1.0, 1.0]));
+    let mirrored =
+        multiply_matrix4_from_zero(&translation([9.0, 0.0, 0.0]), &scaling([-1.0, 1.0, 1.0]));
     let sharing = shared(&[
         placed(IDENTITY),
         placed(translation([4.0, 0.0, 0.0])),

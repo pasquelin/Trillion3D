@@ -6,11 +6,12 @@ use super::mass::solid_mass;
 use super::{refused, taken};
 use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::{transform_point, Mat4};
+use crate::compiler_world::Mat4;
 use crate::dag::clusters::weld_positions;
 use crate::qem::compact_region;
 use crate::{Options, Result};
 use serde_json::{json, Value};
+use trillion3d_math::matrix::transform_point;
 
 extern "C" {
     fn cook_hull(points: *const f32, count: u32, out: *mut *const u8, bytes: *mut u32) -> u32;

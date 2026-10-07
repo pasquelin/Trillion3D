@@ -6,7 +6,7 @@ pub fn world_plane(
     plane: &plane::ClusterPlane,
 ) -> Option<([f64; 3], f64, f64)> {
     let direction = crate::compiler_world::cofactor_direction(matrix, plane.normal);
-    let scale = crate::shared_math::length(direction);
+    let scale = trillion3d_math::vec3::length(direction);
     if !matches!(scale.partial_cmp(&0.0), Some(std::cmp::Ordering::Greater)) {
         return None;
     }
@@ -15,7 +15,7 @@ pub fn world_plane(
         direction[1] / scale,
         direction[2] / scale,
     ];
-    let point = crate::compiler_world::transform_point(
+    let point = trillion3d_math::matrix::transform_point(
         matrix,
         [
             plane.normal[0] * plane.offset,
@@ -23,7 +23,7 @@ pub fn world_plane(
             plane.normal[2] * plane.offset,
         ],
     );
-    let (normal, offset) = plane::canonical(unit, crate::shared_math::dot(unit, point));
+    let (normal, offset) = plane::canonical(unit, trillion3d_math::vec3::dot(unit, point));
     Some((normal, offset, scale))
 }
 
@@ -42,7 +42,7 @@ pub fn extend_box(surface: &mut Surface, page: &Value, matrix: &crate::compiler_
                 None => return,
             }
         }
-        let placed = crate::compiler_world::transform_point(matrix, point);
-        crate::shared_math::extend_aabb(&mut surface.low, &mut surface.high, placed);
+        let placed = trillion3d_math::matrix::transform_point(matrix, point);
+        trillion3d_math::aabb::extend_aabb(&mut surface.low, &mut surface.high, placed);
     }
 }

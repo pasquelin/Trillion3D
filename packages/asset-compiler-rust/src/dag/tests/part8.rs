@@ -118,7 +118,7 @@ fn a_slab_keeps_its_face_normals_at_every_level() {
                     "a corner carries one of the slab's normals"
                 );
                 assert!(
-                    crate::shared_math::dot(face, normal) > 0.0,
+                    trillion3d_math::vec3::dot(face, normal) > 0.0,
                     "level {}: a face {face:?} shaded from behind by {normal:?}",
                     cluster.level
                 );

@@ -13,6 +13,8 @@
 use super::eac;
 use super::etc2_planar::planar;
 use super::fit::Texels;
+use trillion3d_math::scalar::mean_f32;
+use trillion3d_math::vecn::distance2_i32;
 
 /// The eight luminance tables, small then large modifier.
 const MODIFIERS: [[i32; 2]; 8] = [
@@ -48,7 +50,7 @@ pub(super) fn rgb(texel: &[f32; 4]) -> Rgb {
 
 /// Squared distance of two colours.
 pub(super) fn gap(a: Rgb, b: Rgb) -> i32 {
-    (0..3).map(|c| (a[c] - b[c]).pow(2)).sum()
+    distance2_i32(a, b)
 }
 
 /// A half at base `colour`: the table whose modifiers err least, its error, and
@@ -76,7 +78,7 @@ fn half(texels: &Texels, members: &[usize; 8], colour: Rgb) -> (i32, u32, [u8; 8
 }
 
 fn mean(texels: &Texels, members: &[usize; 8]) -> [f32; 3] {
-    std::array::from_fn(|c| members.iter().map(|&m| texels[m][c]).sum::<f32>() / 8.0)
+    std::array::from_fn(|c| mean_f32(members.iter().map(|&m| texels[m][c])))
 }
 
 /// The best block in the two half-block modes, both arrangements: error, bytes.

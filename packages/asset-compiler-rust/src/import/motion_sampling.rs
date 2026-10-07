@@ -2,6 +2,7 @@
 //! Every accepted interval checks the emitted LINEAR/SLERP values against ufbx at three interior
 //! points. A source angular-sweep cap prevents whole turns aliasing to an unchanged quaternion.
 use super::*;
+use trillion3d_math::scalar::mix;
 
 /// Component error at validation samples: metres for unit-scale translations, relative above
 /// one; scale/weight components and sign-invariant quaternion components use the same bound.
@@ -87,7 +88,7 @@ fn error(a: &Sample, b: &Sample, actual: &Sample) -> f64 {
                 .zip(&b.parts[part])
                 .zip(&actual.parts[part])
             {
-                component(actual, a as f32 as f64 * (1.0 - t) + b as f32 as f64 * t);
+                component(actual, mix(a as f32 as f64, b as f32 as f64, t));
             }
         }
         let expected = ufbx::quat_slerp(quaternion(&a.parts[1]), quaternion(&b.parts[1]), t);
@@ -103,7 +104,7 @@ fn error(a: &Sample, b: &Sample, actual: &Sample) -> f64 {
             component(actual * sign, expected);
         }
         for ((&a, &b), &actual) in a.weights.iter().zip(&b.weights).zip(&actual.weights) {
-            component(actual as f64, a as f64 * (1.0 - t) + b as f64 * t);
+            component(actual as f64, mix(a as f64, b as f64, t));
         }
     }
     worst

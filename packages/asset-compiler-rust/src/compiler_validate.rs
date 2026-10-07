@@ -113,7 +113,7 @@ pub(super) fn triangle_fingerprint<'a>(triangles: impl Iterator<Item = &'a [u32]
     for tri in triangles {
         let mut corners = [tri[0], tri[1], tri[2]];
         corners.sort_unstable();
-        let mut hash = 0x9e37_79b9_7f4a_7c15u64;
+        let mut hash = trillion3d_math::GOLDEN;
         for corner in corners {
             hash = (hash ^ corner as u64).wrapping_mul(0x100_0000_01b3);
             hash ^= hash >> 29;

@@ -14,6 +14,7 @@
 //! Maya shader declares a cutoff threshold, so never `MASK` — cutting a transparent would be a
 //! fidelity loss.
 use super::*;
+use trillion3d_math::scalar::mean;
 
 /// glTF material of this shader, poured into the tables on first request.
 pub(super) fn resolve(world: &mut World<'_>, shader: usize) -> Option<usize> {
@@ -138,7 +139,7 @@ fn alpha(node: &Node, standard: bool) -> (f64, bool) {
     let Some(colour) = node.attr(names).and_then(Attr::triple) else {
         return (1.0, false);
     };
-    let mean = colour.iter().sum::<f64>() / 3.0;
+    let mean = mean(colour);
     let uneven = colour.iter().any(|channel| *channel != colour[0]);
     let alpha = match standard {
         true => mean,

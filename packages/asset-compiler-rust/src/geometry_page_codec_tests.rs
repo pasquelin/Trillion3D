@@ -4,22 +4,16 @@
 
 use crate::geometry_page::{encode, Attribute, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use crate::geometry_page_quant::UV_EXPONENT;
+use trillion3d_math::random::xorshift32;
 use trillion3d_page_codec as codec;
 use trillion3d_page_codec::bits::pow2;
 
-fn xorshift(state: &mut u32) -> u32 {
-    *state ^= *state << 13;
-    *state ^= *state >> 17;
-    *state ^= *state << 5;
-    *state
-}
-
 /// A float in `[-scale, scale]`, with exact zeros and negative zeros sprinkled in.
 fn value(state: &mut u32, scale: f32) -> f32 {
-    match xorshift(state) % 16 {
+    match xorshift32(state) % 16 {
         0 => 0.0,
         1 => -0.0,
-        _ => (xorshift(state) as f32 / u32::MAX as f32 * 2.0 - 1.0) * scale,
+        _ => (xorshift32(state) as f32 / u32::MAX as f32 * 2.0 - 1.0) * scale,
     }
 }
 
@@ -46,7 +40,7 @@ fn mesh(vertices: usize, state: &mut u32) -> (Vec<u32>, Vec<f32>) {
     for i in 0..vertices {
         indices.push(i as u32);
         indices.push(((i + 1) % vertices) as u32);
-        indices.push((xorshift(state) as usize % vertices) as u32);
+        indices.push((xorshift32(state) as usize % vertices) as u32);
     }
     (indices, positions)
 }
