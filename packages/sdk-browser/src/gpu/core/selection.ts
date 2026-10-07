@@ -128,6 +128,9 @@ export type GpuSelection = {
   /** Placement `world` places `object` of the world DAG now, or none (`-1`): the world stands in
    *  for it where its object's group suffices (`../dag/worldFollow.ts`); absent without a world. */
   placeObject?(world: number, object: number): void
+  /** Whether placement `world` is linked to an object of the world DAG, whose super-roots stand in
+   *  for it far away (`../dag/worldFollow.ts`); absent without a world. */
+  worldStandsIn?(world: number): boolean
   /** True when the cut's residency moved; each page whose readiness did goes to `moved`. */
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges, moved?: Visit): boolean
   /** The cut rule's `resident(c)` of `page`, then `resident(childGroup(c))` (`page/cut/rule.ts`). */

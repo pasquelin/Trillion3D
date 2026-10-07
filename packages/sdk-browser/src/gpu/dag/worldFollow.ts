@@ -51,6 +51,7 @@ export function followWorldLinks(
     pending = false
     return updateResidency(next, changes, moved)
   }
+  selection.worldStandsIn = (w) => w < links.length && links[w] !== NONE
   selection.placeObject = (w, object) => {
     const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1,
       c = rank >= 0 ? base + rank : NONE

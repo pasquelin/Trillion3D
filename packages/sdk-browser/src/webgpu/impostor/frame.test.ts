@@ -165,14 +165,25 @@ test('two meshes placed by one shared world each draw their own card', async () 
   fixture.geometry.dispose()
 })
 
-test('beside a packed world DAG no root draws its card: the super-roots stand in', async () => {
+test('a root the packed world DAG stands in for draws no card; one it does not hold keeps its own', async () => {
   const { rt, roots, marked } = await bench()
+  // Two roots of two baked meshes: one the world holds, one it does not.
+  const other = { ...section.meshes[0], mesh: MESH + 1, sourceMesh: MESH + 1 }
+  rt.context.metadata.impostors = { ...section, baked: 2, meshes: [section.meshes[0], other] }
+  roots.push({ ...roots[0], mesh: MESH + 1 })
   await imagesUntilResident(rt, 200)
   planWebgpuImpostors(rt, engineOf(200))
   assert.equal(roots[0].mark, CARD_ROOT, 'carded while no world DAG is packed')
-  ;(rt.run.gpuSelection as { packsWorld?: boolean }).packsWorld = true
+  assert.equal(rt.gpu.impostors!.count, 2)
+  // Root 0 linked to a world object, the others not: a host mesh outside the world's table.
+  const selection = rt.run.gpuSelection as { worldStandsIn?: (w: number) => boolean }
+  selection.worldStandsIn = (w) => w === 0
   planWebgpuImpostors(rt, engineOf(200))
   assert.equal(roots[0].mark ?? 0, 0, 'its clusters back, the world gating them')
-  assert.deepEqual(marked.at(-1), [0, 0], 'and the GPU cut told')
-  assert.equal(rt.gpu.impostors!.count, 0, 'no card drawn')
+  assert.ok(
+    marked.some(([rank, mark]) => rank === 0 && mark === 0),
+    'and the GPU cut told',
+  )
+  assert.equal(roots[1].mark, CARD_ROOT, 'an unlinked root keeps its card')
+  assert.equal(rt.gpu.impostors!.count, 1)
 })
