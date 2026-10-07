@@ -60,8 +60,10 @@ A name written twice with two texts, or a dependency cycle, throws when the pipe
 the text is built once a pipeline, never in a frame. Two operation orders of one formula round
 apart, so each is its own declaration under its own name, never merged. The library writes a number
 through [`wgslF32`](../packages/math/src/wgsl/number.ts), the literal of the exact `f32` TypeScript
-holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π) and the singularity
-threshold are `wgslConst` declarations of [`constants.ts`](../packages/math/src/wgsl/constants.ts).
+holds, the engine's one helper that writes a number as WGSL; π, 1/π, 2π, 1/(2π), the greatest
+finite `f32`, the golden ratio's fraction and the singularity threshold are `wgslConst`
+declarations of [`constants.ts`](../packages/math/src/wgsl/constants.ts), written from the values of
+[`packages/math/src/constants.ts`](../packages/math/src/constants.ts).
 `library.test.ts` checks each declaration's header and dependencies, and its fixture refuses a
 declaration file left out of the sweep; `packages/sdk-browser/src/gpu/core/engineShaders.test.ts`
 finds no program declaring a module-scope name twice, whatever the texts, and

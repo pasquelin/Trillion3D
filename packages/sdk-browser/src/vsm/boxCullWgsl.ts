@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 /**
  * The cull of a box and of its pages that the cache invalidation (`invalidationWgsl.ts`) and the
  * render cull (`renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
@@ -14,7 +15,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  */
 export const VSM_BOX_CULL_WGSL = wgslBlock(
   'VSM_BOX_CULL_WGSL',
-  [],
+  [FLOAT32_MAX],
   `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
 /** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
@@ -46,7 +47,7 @@ fn vsmBoxInOrthoView(clipCentre:vec3f,axisX:vec3f,axisY:vec3f,axisZ:vec3f,nearCl
  *  extent) and its edges (twice its extent along each local axis) in clip space. */
 fn vsmBoxInPerspectiveView(corner000:vec4f,dx:vec4f,dy:vec4f,dz:vec4f,viewToClip:mat4x4f)->VsmBoxInView{
  var cull:VsmBoxInView;
- var wLow=3.402823466e38;var wHigh=-3.402823466e38;
+ var wLow=FLOAT32_MAX;var wHigh=-FLOAT32_MAX;
  var sideLow=vec4f(1.0);
  cull.clipLow=vec3f(1.0);cull.clipHigh=vec3f(-1.0);
  let corner100=corner000+dz;let corner001=corner000+dx;let corner101=corner100+dx;

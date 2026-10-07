@@ -1,6 +1,6 @@
 import { alignUp } from '../../../math/src/scalar/integers.ts'
 import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
-import { withoutComments } from '../../../math/src/wgsl/comments.ts'
+import { withoutComments } from '../../../math/src/wgsl/comments.fixture.ts'
 
 /** The memory layout of a WGSL struct, computed from its source text by WGSL's layout rules. */
 export interface WgslStructLayout {

@@ -1,7 +1,7 @@
 /** Named numeric constants of the engine: one home each, imported rather than respelled. Each is
  *  written as its literal value, the bits of the expression its doc names (`constants.test.ts`
  *  holds them to it): a literal is what a bundler can drop when nothing reads it. `HALF_PI` keeps
- *  its expression, shorter than its digits, because the cone tolerances read it in every bundle. */
+ *  its expression, shorter than its digits. */
 
 /** A quarter turn, in radians. */
 export const HALF_PI = Math.PI / 2

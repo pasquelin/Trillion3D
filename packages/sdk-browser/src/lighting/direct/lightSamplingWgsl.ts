@@ -1,4 +1,5 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
+import { GOLDEN_FRACTION } from '../../../../math/src/wgsl/constants.ts'
 import { hashUnit } from '../../../../math/src/wgsl/sampling.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
@@ -39,11 +40,10 @@ const RECT_WEIGHT = `
 export const directLightSamplingWgsl = (rects = true) =>
   wgslBlock(
     `directLightSamplingWgsl(${rects})`,
-    [hashUnit],
+    [hashUnit, GOLDEN_FRACTION],
     `
 const LIGHT_SAMPLES:u32=${LIGHT_SETTINGS.samplesPerPixel}u;
 const LUMINANCE:vec3f=vec3f(0.2126,0.7152,0.0722);
-const GOLDEN_RATIO:f32=0.61803399;
 /** Unshadowed weight of a light at the point: its share of the pixel's drawing. Zero exactly
  *  when the unshadowed contribution is — out of range, or behind the surface —, so no light
  *  that could contribute is ever left undrawable. */
@@ -77,7 +77,7 @@ fn sampledSliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao
  // run once per light any pixel of the group drew, and the walk would then cost what it saves.
  var chosen:array<u32,LIGHT_SAMPLES>;
  var used=0u;
- let offset=fract(hashUnit(u32(pixel.y)*65536u+u32(pixel.x))+f32(rank)*GOLDEN_RATIO);
+ let offset=fract(hashUnit(u32(pixel.y)*65536u+u32(pixel.x))+f32(rank)*GOLDEN_FRACTION);
  var running=0.0;
  var point=0u;
  var next=offset/f32(LIGHT_SAMPLES)*total;

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { WGSL_LIBRARY } from './library.fixture.ts'
 import { wgslModule } from './assemble.ts'
-import { withoutComments } from './comments.ts'
+import { withoutComments } from './comments.fixture.ts'
 import type { WgslDecl } from './decl.ts'
 import { wgslConst, wgslFn, wgslStruct } from './decl.ts'
 
