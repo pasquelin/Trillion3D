@@ -33,12 +33,15 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   // A held frame asks nothing more: what it waited for — the lit program among them — is answered
   // above (`deviceAnswer`), and a failed compile leaves the loop idle.
   if (run.frameHeld) return false
-  await gpu.device?.queue.onSubmittedWorkDone()
-  await run.gpuSelection?.flush()
+  // Asked at the frame's submit, all three: the feedback answers for this frame's GPU work and the
+  // reads it queued, never for a frame the loop draws meanwhile (`FRAMES_IN_FLIGHT`).
+  const work = gpu.device?.queue.onSubmittedWorkDone(),
+    cut = run.gpuSelection?.flush(),
+    textures = vis.textures?.settled()
+  await Promise.all([work, cut, textures])
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle()
   // The next page the job lands, not its last: the frames draw while a long job loads.
   await services.residency.progress()
-  await vis.textures?.settled()
   // An image drawn while the effect programs compile is drawn again once, when they arrive,
   // rather than on every frame meanwhile, which would spend the loop's rounds. Waited
   // last: the feedback above is not held back by a compilation.
