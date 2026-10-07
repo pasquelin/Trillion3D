@@ -52,6 +52,11 @@ function createWalk(
     seen: createSparseInts(),
     walked: createSparseInts(),
     touched: [] as number[],
+    /** Per touched page, the id of the difference whose entry first reached it. */
+    reachedBy: [] as number[],
+    /** Per entered page of `delta`, that id: the request that brought it (`enteredBy`). */
+    enteredBy: new Int32Array(8),
+    from: -1,
     delta: {
       entered: new Int32Array(8),
       exited: new Int32Array(8),
@@ -84,6 +89,7 @@ function touchId(w: Walk, id: number, rec: PageRec) {
   if (!w.seen.get(id)) {
     w.seen.set(id, w.heldPages.get(id) > 0 ? 2 : 1)
     w.touched.push(id)
+    w.reachedBy.push(w.from)
   }
   w.heldPages.add(id, w.step)
 }
@@ -115,6 +121,7 @@ function reach(w: Walk, r: number, g: number) {
 /** A page enters through its own group, or alone when nothing replaces it, at its primitive's
  *  holder. */
 function enter(w: Walk, id: number) {
+  w.from = id
   const rec = w.recordOf(id)
   if (!rec) return
   const { rootOfPacked } = w.placement
@@ -136,18 +143,22 @@ function enterAll(w: Walk, ids: ArrayLike<number>, count: number, step: number) 
 /** The difference of the pages held: each page touched that is held now and was not, or was and
  *  is not; the touched pages then forgotten. */
 function settleDelta(w: Walk) {
-  const { delta, touched, heldPages, seen } = w
+  const { delta, touched, reachedBy, heldPages, seen } = w
   if (delta.entered.length < touched.length) delta.entered = grown(delta.entered, touched.length)
+  if (w.enteredBy.length < touched.length) w.enteredBy = grown(w.enteredBy, touched.length)
   if (delta.exited.length < touched.length) delta.exited = grown(delta.exited, touched.length)
   delta.enteredCount = delta.exitedCount = 0
-  for (const id of touched) {
-    const now = heldPages.get(id) > 0,
+  for (let k = 0; k < touched.length; k++) {
+    const id = touched[k],
+      now = heldPages.get(id) > 0,
       before = seen.get(id) === 2
-    if (now && !before) delta.entered[delta.enteredCount++] = id
-    else if (!now && before) delta.exited[delta.exitedCount++] = id
+    if (now && !before) {
+      w.enteredBy[delta.enteredCount] = reachedBy[k]
+      delta.entered[delta.enteredCount++] = id
+    } else if (!now && before) delta.exited[delta.exitedCount++] = id
   }
   seen.clear()
-  touched.length = 0
+  touched.length = reachedBy.length = 0
 }
 
 /**
@@ -169,6 +180,11 @@ export function createGroupClosure(
   const w = createWalk(roots, placement, packedPages)
   return {
     delta: w.delta as IdDelta,
+    /** Per page `delta` entered, aligned with it, the id of the difference that brought it: the
+     *  request a group-mate was closed over for, the page itself when it entered on its own. */
+    get enteredBy(): Int32Array {
+      return w.enteredBy
+    },
     /** Bytes of the tables above, sized by what the cut closes over: the CPU budget holds them on
      *  WebGPU (`../../residency/memoryBudget.ts`). */
     get hostBytes() {
@@ -178,7 +194,8 @@ export function createGroupClosure(
         w.seen.byteLength +
         w.walked.byteLength +
         w.delta.entered.byteLength +
-        w.delta.exited.byteLength
+        w.delta.exited.byteLength +
+        w.enteredBy.byteLength
       )
     },
     /** Visits every page `ids` close over, themselves included, each group once per call:

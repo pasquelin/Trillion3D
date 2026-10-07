@@ -61,9 +61,22 @@ export function createListDifference() {
       heldCount = nextCount
       Object.assign(delta, { entered, exited, enteredCount, exitedCount })
     },
-    /** Bytes of the marks and the lists. */
+    /** The last list applied, each id once, in its order: its first `count` words. */
+    get ids(): Int32Array {
+      return held
+    },
+    get count() {
+      return heldCount
+    },
+    /** Bytes of the marks and the lists, the spare included. */
     get bytes() {
-      return marks.byteLength + held.byteLength + entered.byteLength + exited.byteLength
+      return (
+        marks.byteLength +
+        held.byteLength +
+        spare.byteLength +
+        entered.byteLength +
+        exited.byteLength
+      )
     },
   }
 }
