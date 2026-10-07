@@ -6,7 +6,7 @@ import ts from 'typescript'
 import { normalized } from './check-calls-normalize.ts'
 import { isTestModule } from './repository-files.ts'
 
-export const MATH_PACKAGE = 'packages/math'
+const MATH_PACKAGE = 'packages/math'
 export const MATH_UNIT = `${MATH_PACKAGE}/src`
 
 const literalText = (node: ts.Node | undefined): string | null =>
