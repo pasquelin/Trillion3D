@@ -159,7 +159,7 @@ export async function openWorldRoots(
     await bundles.keep(0, (span) => readSpan(own, url, table, span, { meter, signal }))
   }
   const stream = worldStream(table, files[WORLD_ROOTS_DAG], urls.dag, signal, bundles.pages)
-  return {
+  const roots = {
     table,
     /** The world pages' detached source, both engines' shape (`worldRootsPage.ts`), and their DAG
      *  in the engine's own `DagRoot` shape from the cook's rank order (`undefined` for a cache
@@ -180,6 +180,16 @@ export async function openWorldRoots(
       // The source's own bundles past the top and the held ones: kept for a page's other view.
       stream.keptBytes(bundles),
   }
+  opened.set(roots, roots)
+  return roots
 }
 
 export type WorldRootsHold = NonNullable<Awaited<ReturnType<typeof openWorldRoots>>>
+
+/** Each world roots a load opened, by the object a scene's public record shows of it — its pinned
+ *  top and bytes alone (`ExplorerScene.worldRoots`): the engine's stream, holds and binding stay
+ *  off the public surface. */
+const opened = new WeakMap<object, WorldRootsHold>()
+
+/** The world roots `shown` shows in a scene's record, to bind to a session's queue. */
+export const worldRootsOf = (shown: object) => opened.get(shown)

@@ -1,5 +1,3 @@
-import type { CellFrameIo } from './cellIo.ts'
-
 /**
  * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM (#575): a cell file, or a page of
  * the cell index. Its verified bytes are handed to the page worker pool as soon as a frame needs them
@@ -54,7 +52,11 @@ export function createDecodes<Key, Decoded extends object>() {
 /** Where `takeDecoded` reads and spends: the frame's io, its budget, and whether its list is read
  *  ahead of need. */
 type Taking = {
-  io: Pick<CellFrameIo, 'bytes' | 'failed' | 'request'>
+  io: {
+    bytes(url: string): Uint8Array | undefined
+    failed(url: string): boolean
+    request(urls: readonly string[], ahead: boolean): void
+  }
   budget: { admits(): boolean; spend(): void }
   ahead: boolean
 }

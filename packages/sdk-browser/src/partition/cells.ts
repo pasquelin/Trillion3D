@@ -31,7 +31,8 @@ import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
 import { createCellHolds } from './cellHolds.ts'
 import { createFarCells } from './farCells.ts'
-import type { CellFrameIo, CellPrimeIo } from './cellIo.ts'
+import type { PlacementRows } from '../placement/rows.ts'
+import type { StreamPage } from '../streaming/types.ts'
 
 /** Where a frame sees the cells from, in their frame, and whether the list it places is read
  *  ahead. */
@@ -104,7 +105,30 @@ export function createPartitionCells(inputs: Inputs) {
     frame(
       eye: ArrayLike<number>,
       reach: number,
-      io: CellFrameIo,
+      /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
+       *  thread, those refused for good, requests (`ahead`: before needed), catalogue, rows, else
+       *  the owner told. */
+      io: {
+        bytes(url: string): Uint8Array | undefined
+        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
+        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
+        /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
+        failed(url: string): boolean
+        request(urls: readonly string[], ahead: boolean): void
+        admit(pages: readonly StreamPage[]): void
+        forget(urls: readonly string[]): void
+        update(rows: PlacementRows, from: number, to: number): void
+        grow?: PlacementGrowth
+        outgrown?: () => void
+        /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
+        lens?: {
+          pixelScale: [number, number]
+          pixelError: number
+          near: number
+          perspective?: number
+          slope: number
+        }
+      },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
       rows.follow()
@@ -141,7 +165,18 @@ export function createPartitionCells(inputs: Inputs) {
     /** Before the engines read the rows: sizes them for the camera at `eye` or the widest view a
      *  frame asked (every node unless `owned`), then reads the pages of the index on its way and
      *  places the cells within its reach; the bytes read. */
-    async prime(eye: ArrayLike<number>, reach: number, io: CellPrimeIo, owned: boolean) {
+    async prime(
+      eye: ArrayLike<number>,
+      reach: number,
+      /** Kept internal as `frame`'s: the streamer's verified read, the decodes, the catalogue. */
+      io: {
+        read(url: string): Promise<Uint8Array>
+        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
+        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
+        admit(pages: readonly StreamPage[]): void
+      },
+      owned: boolean,
+    ) {
       const local = view(eye, reach)
       if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS)
       let bytes = 0

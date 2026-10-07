@@ -8,10 +8,12 @@ import { streamFailed } from '../scene/streaming.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
+import { openWorldRoots } from '../../scene/worldRoots.ts'
+import { served } from '../../scene/worldRoots.fixture.ts'
 
 /** A queue that records what it is told. */
 function queue() {
-  const told = { admitted: [] as string[], bound: 0 }
+  const told = { admitted: [] as string[] }
   const port: PageQueue = {
     admit: (pages: readonly StreamPage[]) => void told.admitted.push(...pages.map((p) => p.url)),
     forget() {},
@@ -21,13 +23,18 @@ function queue() {
   return { port, told }
 }
 
-test("a scene read catalogues its partitions' pages and binds its world roots to the queue", async () => {
+test("a scene read catalogues its partitions' pages and binds the world roots its record shows", async (t) => {
   const { port, told } = queue()
   const page = { url: 'scene-page.json', bytes: 1, sha256: '' }
-  const roots = { bind: (bound: PageQueue) => void (told.bound += bound === port ? 1 : 0) }
-  const scene = { partitions: [{ pages: [page] }], worldRoots: [roots, roots] }
+  // A world's model: its roots opened by its load, before any session; its record shows their count.
+  const roots = (await openWorldRoots(served(t).manifest, 'http://world/'))!
+  const shown: { pinned: { bundles: number; bytes: number }; bytes(): number } = roots
+  const scene = { partitions: [{ pages: [page] }], worldRoots: [shown] }
   assert.equal(await sceneThrough(port, undefined, async () => scene as never), scene)
-  assert.deepEqual([told.admitted, told.bound], [['scene-page.json'], 2])
+  const bundles = roots.table.bundles
+    .slice(1)
+    .map((_, at) => `http://world/world-roots.bin#${at + 1}`)
+  assert.deepEqual(told.admitted, ['scene-page.json', ...bundles], 'its bundles join the queue')
 })
 
 test('a page read that keeps failing reaches the host once, as it first waits the longest', async (t) => {
