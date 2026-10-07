@@ -19,20 +19,24 @@
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
 import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
-import type { PlacementRows } from '../placement/rows.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import type { StreamPage } from '../streaming/types.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
 import { createCellIndex, type IndexPage, type PageBody } from './cellIndex.ts'
 import type { CellRows } from './cellDecode.ts'
 import { createDecodes, takeDecoded } from './decodes.ts'
-import { inCellFrame, planCells } from './plan.ts'
+import { holdPriority, inCellFrame, planCells } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
-import { createCellHolds, withHolds } from './cellHolds.ts'
+import { createCellHolds } from './cellHolds.ts'
 import { createFarCells } from './farCells.ts'
+import type { PlacementRows } from '../placement/rows.ts'
+import type { StreamPage } from '../streaming/types.ts'
+
+/** Where a frame sees the cells from, in their frame, and whether the list it places is read
+ *  ahead. */
+type Seen = { local: { eye: ArrayLike<number>; reach: number }; ahead: boolean }
 
 type Inputs = {
   partition: TablePartition
@@ -76,8 +80,11 @@ export function createPartitionCells(inputs: Inputs) {
     return true
   }
   const cellUrl = (cell: number) => index.cell(cell).url
-  const place = (cell: number, decoded: CellRows) =>
-    rows.place(cell, decoded, cellUrl(cell)) && (holds.hold(cell), true)
+  /** Places `cell`, seen from `local` in a list read `ahead` or not, its holds read at the plan's
+   *  priority once its rows took it (`holdPriority`). */
+  const place = (cell: number, decoded: CellRows, { local, ahead }: Seen) =>
+    rows.place(cell, decoded, cellUrl(cell)) &&
+    (holds.hold(cell, holdPriority(index, local, cell, ahead)), true)
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
   const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
@@ -99,19 +106,21 @@ export function createPartitionCells(inputs: Inputs) {
       eye: ArrayLike<number>,
       reach: number,
       /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
-       *  thread, reads, requests (`ahead`: before needed), catalogue, rows, else the owner told. */
+       *  thread, those refused for good, requests (`ahead`: before needed), catalogue, rows, else
+       *  the owner told. */
       io: {
         bytes(url: string): Uint8Array | undefined
         decode: (bytes: Uint8Array, url: string) => Promise<CellRows>
         decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>
-        loading(url: string): boolean
+        /** Whether a read of `url` is refused for good (`PageStreamer.failed`). */
+        failed(url: string): boolean
         request(urls: readonly string[], ahead: boolean): void
         admit(pages: readonly StreamPage[]): void
         forget(urls: readonly string[]): void
         update(rows: PlacementRows, from: number, to: number): void
         grow?: PlacementGrowth
         outgrown?: () => void
-        /** The cut's lens while it packs the world DAG (#1332), structurally a `SuperRootLens`. */
+        /** The cut's lens while it packs the world DAG, structurally a `SuperRootLens`. */
         lens?: {
           pixelScale: [number, number]
           pixelError: number
@@ -136,7 +145,6 @@ export function createPartitionCells(inputs: Inputs) {
       waiting = 0
       let later = false
       const open = (page: IndexPage, body: PageBody) => (io.admit(index.open(page, body)), true)
-      const placed = (cell: number, decoded: CellRows) => place(cell, decoded) || (waiting++, false)
       const pageUrl = (page: IndexPage) => page.slot.url
       for (const ahead of [false, true]) {
         const pages = ahead ? plan.pages.ahead : plan.pages.visible
@@ -145,6 +153,8 @@ export function createPartitionCells(inputs: Inputs) {
         // A page opened now brings its cells to the next frame's plan.
         later ||= !ahead && pages.some((page) => page.body)
         const list = ahead ? plan.ahead : plan.visible
+        const placed = (cell: number, decoded: CellRows) =>
+          place(cell, decoded, { local, ahead }) || (waiting++, false)
         later = takeDecoded(list, at, decodes, cellUrl, io.decode, placed) || later
       }
       pageDecodes.keep(plan.pages.visible, plan.pages.ahead)
@@ -183,14 +193,17 @@ export function createPartitionCells(inputs: Inputs) {
       }
       plan.leave.forEach(leave)
       const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)))
-      plan.visible.forEach((cell, at) => place(cell, decoded[at]))
+      const seen = { local, ahead: false }
+      plan.visible.forEach((cell, at) => place(cell, decoded[at], seen))
       touched.clear()
       return bytes
     },
+    /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
+    reads: () => [...holds.reads(), ...far.reads()],
     /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   }
-  return withHolds(holds, partitionCells)
+  return partitionCells
 }
 
 export type PartitionCells = ReturnType<typeof createPartitionCells>

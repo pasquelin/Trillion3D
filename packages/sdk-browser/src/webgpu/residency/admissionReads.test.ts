@@ -94,12 +94,12 @@ test('the admission joins the read under way; the job drops what nobody joined',
   const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
   const geometryUrls = new Map([0, 1, 2].map((i) => [`p${i}`, `g${i}.bin`]))
   const readAhead = readGeometryAhead(geometryUrls, (url, signal) =>
-    streamer.readBytes(url, signal),
+    streamer.readBytes(url, signal ?? streamer.signal),
   )
   const reads = new AbortController()
   for (const url of ['p0', 'p1', 'p2', 'unknown']) readAhead(pageOf(url), reads.signal)
   // The admission reads its first page: one transfer, the one already under way.
-  await streamer.readBytes('g0.bin')
+  await streamer.readBytes('g0.bin', streamer.signal)
   // The job ends: the reads still queued that nobody joined leave the queue, never transferred.
   reads.abort()
   await new Promise((resolve) => setTimeout(resolve, 10))
@@ -130,16 +130,16 @@ test('a prefetch read waits behind the camera until an admission joining it rais
   const streamer = createPageStreamer(pages, 'http://cache/', { workerCount: 1 })
   const readAhead = readGeometryAhead(
     new Map([1, 2].map((i) => [`p${i}`, `g${i}.bin`])),
-    streamer.readBytes,
+    (url, signal, priority) => streamer.readBytes(url, signal ?? streamer.signal, priority),
   )
-  const first = streamer.readBytes('g0.bin'),
+  const first = streamer.readBytes('g0.bin', streamer.signal),
     reads = new AbortController()
   for (const url of ['p1', 'p2']) readAhead(pageOf(url), reads.signal, PRIORITY_PREFETCH)
   await Promise.all([
     first,
-    streamer.request(['g3.bin'], { priority: PRIORITY_VISIBLE }),
-    streamer.readBytes('g2.bin'),
-    streamer.readBytes('g1.bin', undefined, PRIORITY_PREFETCH),
+    streamer.request(['g3.bin'], { signal: streamer.signal, priority: PRIORITY_VISIBLE }),
+    streamer.readBytes('g2.bin', streamer.signal),
+    streamer.readBytes('g1.bin', streamer.signal, PRIORITY_PREFETCH),
   ])
   const order = ['g0.bin', 'g2.bin', 'g3.bin', 'g1.bin'].map((url) => 'http://cache/' + url)
   assert.deepEqual(fetched, order)

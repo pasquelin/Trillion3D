@@ -131,9 +131,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Como `request` lê um lote: o seu cancelamento, a sua prioridade e o que corre à chegada de cada página.",
+    "summary": "Como `request` lê um lote: o sinal do seu dono, a sua prioridade e o que corre à chegada de cada página.",
     "members": {
-      "signal": "Cancela as leituras do lote.",
+      "signal": "Larga as leituras do lote: uma leitura que ninguém espera mais é descartada enquanto aguarda.",
       "priority": "Prioridade na fila, 1 por omissão.",
       "onPage": "Corre à chegada da leitura de cada página, não depois do lote inteiro."
     }
@@ -2422,7 +2422,8 @@
       "onEvict": "Ouve cada página que sai do cache.",
       "maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "onDiagnostic": "Ouve cada passo de cada leitura.",
-      "maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
+      "maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão.",
+      "onStalled": "Ouve, uma só vez, uma leitura que falha de vez ou que primeiro espera mais tempo: de novo só depois de ter chegado."
     }
   },
   "PanZoomCameraControls": {
@@ -3250,9 +3251,11 @@
   "StreamPage": {
     "summary": "Uma página que um streamer busca: onde, quão grande, e sua impressão digital.",
     "members": {
-      "url": "Onde é lida.",
+      "url": "Onde é lida, ou o seu nome no catálogo quando é um `range` de outro ficheiro.",
       "bytes": "Seu tamanho.",
-      "sha256": "Impressão digital de seus bytes."
+      "sha256": "Impressão digital de seus bytes.",
+      "range": "Uma página que são os `bytes` do ficheiro `file` a partir de `offset`, lida por um HTTP Range: a fila lê, num só pedido, os intervalos enfileirados topo a topo num mesmo ficheiro (`queueRanges.ts`).",
+      "kept": "Falso para uma página cujo decodificado cada requerente guarda para si: lida para quem se junta à sua leitura, nunca guardada na cache de páginas, os seus bytes mantidos uma só vez."
     }
   },
   "SurfaceBuffer": {
@@ -4667,7 +4670,8 @@
       "options.onEvict": "Ouve cada página que sai do cache.",
       "options.maxTransferBytes": "Bytes que a fila de transferência pode conter; 8 MiB por padrão.",
       "options.onDiagnostic": "Ouve cada passo de cada leitura.",
-      "options.maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão."
+      "options.maxCachedBytes": "Bytes de memória de CPU que as páginas do cache podem ocupar, com as tabelas do manifesto e a fila de transferência reservadas à parte; 256 MiB por padrão.",
+      "options.onStalled": "Ouve, uma só vez, uma leitura que falha de vez ou que primeiro espera mais tempo: de novo só depois de ter chegado."
     }
   },
   "createPathGovernor": {

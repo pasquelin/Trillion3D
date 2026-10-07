@@ -262,9 +262,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Cómo `request` lee un lote: su cancelación, su prioridad y lo que se ejecuta al llegar cada página.",
+    "summary": "Cómo `request` lee un lote: la señal de su propietario, su prioridad y lo que se ejecuta al llegar cada página.",
     "members": {
-      "signal": "Cancela las lecturas del lote.",
+      "signal": "Suelta las lecturas del lote: una lectura que ya nadie espera se descarta mientras espera.",
       "priority": "Prioridad en la cola, 1 por defecto.",
       "onPage": "Se ejecuta al llegar la lectura de cada página, no tras todo el lote."
     }
@@ -1197,7 +1197,8 @@
       "options.onEvict": "Escucha cada página que sale de la caché.",
       "options.maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "options.onDiagnostic": "Escucha cada paso de cada lectura.",
-      "options.maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
+      "options.maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto.",
+      "options.onStalled": "Escucha, una sola vez, una lectura que falla definitivamente o que primero espera más tiempo: de nuevo solo después de que llegó."
     }
   },
   "createPathGovernor": {
@@ -4550,7 +4551,8 @@
       "onEvict": "Escucha cada página que sale de la caché.",
       "maxTransferBytes": "Bytes que puede retener la cola de transferencia; 8 MiB por defecto.",
       "onDiagnostic": "Escucha cada paso de cada lectura.",
-      "maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto."
+      "maxCachedBytes": "Bytes de memoria de CPU que pueden ocupar las páginas de la caché, con sus tablas de manifiesto y su cola de transferencia reservadas aparte; 256 MiB por defecto.",
+      "onStalled": "Escucha, una sola vez, una lectura que falla definitivamente o que primero espera más tiempo: de nuevo solo después de que llegó."
     }
   },
   "PanZoomCameraControls": {
@@ -5643,9 +5645,11 @@
   "StreamPage": {
     "summary": "Una página que recupera un flujo: dónde, qué tamaño, y su huella.",
     "members": {
-      "url": "Dónde se lee.",
+      "url": "Dónde se lee, o su nombre en el catálogo cuando es un `range` de otro archivo.",
       "bytes": "Su tamaño.",
-      "sha256": "Huella de sus bytes."
+      "sha256": "Huella de sus bytes.",
+      "range": "Una página que son los `bytes` del archivo `file` desde `offset`, leída con un HTTP Range: la cola lee con una sola petición los rangos encolados de extremo a extremo en un mismo archivo (`queueRanges.ts`).",
+      "kept": "Falso para una página en la que cada quien que la pide conserva lo que decodifica: se lee para quienes se unen a su lectura, nunca se guarda en la caché de páginas y sus bytes se tienen una sola vez."
     }
   },
   "summarize": {

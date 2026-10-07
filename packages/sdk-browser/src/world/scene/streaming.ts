@@ -6,7 +6,6 @@ import type { Engine } from '../../engine/types.ts'
 import type { SessionState } from '../render/sessionState.ts'
 import type { ExplorerSession } from '../session/session.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
-import { PAGE_FETCH_ATTEMPTS } from '../../streaming/fetch.ts'
 
 type Inputs = {
   streamer: ReturnType<typeof createPageStreamer>
@@ -16,12 +15,17 @@ type Inputs = {
   budget: FrameClock
 }
 
-/** A page read failed: `degraded` while the coarse cover the engine already holds is whole — the
- *  view stays drawn on it —, `fatal` otherwise; said once per distinct failure by the caller. */
-function streamFailed(session: ExplorerSession, inputs: Inputs, detail: string) {
+/** A page read failed for good, or waits the longest: `degraded` while the coarse cover the engine
+ *  already holds is whole — the view stays drawn on it —, `fatal` otherwise (no engine yet, or no
+ *  cover resident); said once per failure by its caller, `failedPages` the reads failing now. */
+export function streamFailed(
+  session: Pick<ExplorerSession, 'scope' | 'emit' | 'diagnose'>,
+  engine: Engine | undefined,
+  failedPages: number,
+  detail: string,
+) {
   const { scope, emit, diagnose } = session
-  const { engine, streamer } = inputs
-  const coverageReady = engine.metrics().coverageReady
+  const coverageReady = engine?.metrics().coverageReady
   const recovered = coverageReady === true
   emit(
     recovered
@@ -49,8 +53,7 @@ function streamFailed(session: ExplorerSession, inputs: Inputs, detail: string) 
       kind: 'error',
       version: 1,
       error: detail,
-      failedPages: streamer.stats().failed,
-      maxAttemptsPerPage: PAGE_FETCH_ATTEMPTS,
+      failedPages,
       coverageReady: coverageReady ?? null,
       recovered,
       scope,
@@ -112,11 +115,10 @@ export function createExplorerStreaming(session: ExplorerSession, inputs: Inputs
     streamingPromise = streamer
       .request(urls, { signal: controller.signal, priority: PRIORITY_VISIBLE, onPage: land })
       .catch((error) => {
+        // The page's failure reached the host already, once, from the read layer (`onStalled`,
+        // `streamFailed`): the batch only keeps it for its owner to read.
         if (state.disposed || signal?.aborted || controller.signal.aborted) return
-        const detail = String(error)
-        if (streamingError === detail) return
-        streamingError = detail
-        streamFailed(session, inputs, detail)
+        streamingError = String(error)
       })
       .finally(() => {
         if (backgroundFetchController === controller) backgroundFetchController = undefined

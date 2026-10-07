@@ -131,9 +131,9 @@
     }
   },
   "BatchRead": {
-    "summary": "`request` 如何读取一批：取消、优先级，以及每个页面到达时运行的内容。",
+    "summary": "`request` 如何读取一批：其所有者的信号、优先级，以及每个页面到达时运行的内容。",
     "members": {
-      "signal": "取消该批次的读取。",
+      "signal": "放开该批次的读取：不再有人等待的读取，会在等待期间被丢弃。",
       "priority": "队列优先级，默认为 1。",
       "onPage": "每个页面读取到达时运行，而不是在整批完成后。"
     }
@@ -2422,7 +2422,8 @@
       "onEvict": "接收每个离开缓存的页面。",
       "maxTransferBytes": "传输队列可容纳的字节数；默认 8 MiB。",
       "onDiagnostic": "接收每次读取的每一步。",
-      "maxCachedBytes": "缓存页面可占用的 CPU 内存字节数，清单表和传输队列另行预留；默认 256 MiB。"
+      "maxCachedBytes": "缓存页面可占用的 CPU 内存字节数，清单表和传输队列另行预留；默认 256 MiB。",
+      "onStalled": "只接收一次读取永久失败、或最先等待最久的读取：之后只有在它到达后才会再次接收。"
     }
   },
   "PanZoomCameraControls": {
@@ -3250,9 +3251,11 @@
   "StreamPage": {
     "summary": "流式加载器获取的一个页面:在哪里、有多大,以及它的指纹。",
     "members": {
-      "url": "读取它的位置。",
+      "url": "读取它的位置；当它是另一个文件的 `range` 时，则为它在目录中的名称。",
       "bytes": "它的大小。",
-      "sha256": "其字节内容的指纹。"
+      "sha256": "其字节内容的指纹。",
+      "range": "该页面是文件 `file` 从 `offset` 开始的 `bytes`，通过 HTTP Range 读取：队列用一次请求读取同一文件中首尾相接排队的范围（`queueRanges.ts`）。",
+      "kept": "对于每个请求者各自保留其解码结果的页面为 false：为加入其读取的请求者而读，绝不保留在页面缓存中，其字节只保存一份。"
     }
   },
   "SurfaceBuffer": {
@@ -4667,7 +4670,8 @@
       "options.onEvict": "接收每个离开缓存的页面。",
       "options.maxTransferBytes": "传输队列可容纳的字节数；默认 8 MiB。",
       "options.onDiagnostic": "接收每次读取的每一步。",
-      "options.maxCachedBytes": "缓存页面可占用的 CPU 内存字节数，清单表和传输队列另行预留；默认 256 MiB。"
+      "options.maxCachedBytes": "缓存页面可占用的 CPU 内存字节数，清单表和传输队列另行预留；默认 256 MiB。",
+      "options.onStalled": "只接收一次读取永久失败、或最先等待最久的读取：之后只有在它到达后才会再次接收。"
     }
   },
   "createPathGovernor": {

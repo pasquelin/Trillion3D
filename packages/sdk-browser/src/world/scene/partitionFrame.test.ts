@@ -7,7 +7,6 @@ import { createPartitionCells, type PartitionCells } from '../../partition/cells
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
 import { createSelectionUniforms } from '../../gpu/core/selection.ts'
-import { createCellHolds, withHolds } from '../../partition/cellHolds.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
@@ -23,14 +22,15 @@ const packsNoWorld = () => ({ worldCut: () => undefined }) as unknown as Engine
 /** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
 function recording() {
   const seen: { eye: number[]; reach: number; io: Io }[] = []
-  const cells = withHolds(createCellHolds(), {
+  const cells = {
     frame(eye: number[], reach: number, io: Io) {
       seen.push({ eye: [...eye], reach, io })
       io.request(['near.json'], false)
       io.request(['ahead.json'], true)
     },
     decodes: () => [],
-  } as unknown as PartitionCells)
+    reads: () => [],
+  } as unknown as PartitionCells
   return { cells, seen }
 }
 
@@ -38,10 +38,10 @@ function recording() {
 function streamer(files: ReadonlyMap<string, Uint8Array> = new Map()) {
   const asked: [readonly string[], number][] = []
   const port = {
-    request: async (urls: readonly string[], options: { priority: number }) =>
-      void asked.push([urls, options.priority]),
+    readBytes: async (url: string, _signal: AbortSignal, priority: number) =>
+      void asked.push([[url], priority]),
     getBytes: (url: string) => files.get(url.split('/').at(-1)!),
-    loading: () => false,
+    failed: () => false,
     admit() {},
     forget() {},
   } as unknown as ReturnType<typeof createPageStreamer>

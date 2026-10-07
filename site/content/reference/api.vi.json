@@ -131,9 +131,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Cách `request` đọc một lô: cách hủy, độ ưu tiên và việc chạy khi từng trang về tới.",
+    "summary": "Cách `request` đọc một lô: tín hiệu của chủ nó, độ ưu tiên và việc chạy khi từng trang về tới.",
     "members": {
-      "signal": "Hủy các lần đọc của lô.",
+      "signal": "Buông các lần đọc của lô: lần đọc không còn ai chờ nữa sẽ bị bỏ khi đang chờ.",
       "priority": "Độ ưu tiên trong hàng đợi, mặc định là 1.",
       "onPage": "Chạy khi từng trang được đọc xong, không đợi cả lô."
     }
@@ -2440,7 +2440,8 @@
       "onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
       "maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
-      "maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB."
+      "maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB.",
+      "onStalled": "Nghe một lần một lần đọc thất bại hẳn hoặc chờ lâu nhất trước tiên: chỉ nghe lại sau khi nó đã về tới."
     }
   },
   "PanZoomCameraControls": {
@@ -3334,9 +3335,11 @@
   "StreamPage": {
     "summary": "Một trang mà một bộ truyền tải lấy về: ở đâu, lớn bao nhiêu, và dấu vân tay của nó.",
     "members": {
-      "url": "Nơi nó được đọc.",
+      "url": "Nơi nó được đọc, hoặc tên của nó trong danh mục khi nó là một `range` của tệp khác.",
       "bytes": "Kích thước của nó.",
-      "sha256": "Dấu vân tay của các byte của nó."
+      "sha256": "Dấu vân tay của các byte của nó.",
+      "range": "Trang là `bytes` của tệp `file` từ `offset`, được đọc bằng HTTP Range: hàng đợi đọc bằng một yêu cầu các dải xếp nối đuôi nhau trong cùng một tệp (`queueRanges.ts`).",
+      "kept": "False với trang mà mỗi bên yêu cầu tự giữ những gì nó giải mã: được đọc cho những bên nhập vào lần đọc của nó, không bao giờ được giữ trong bộ đệm trang, các byte của nó chỉ được giữ một lần."
     }
   },
   "SurfaceBuffer": {
@@ -4638,7 +4641,8 @@
       "options.onEvict": "Nghe mỗi trang rời khỏi bộ nhớ đệm.",
       "options.maxTransferBytes": "Số byte hàng đợi truyền được giữ; mặc định 8 MiB.",
       "options.onDiagnostic": "Nghe từng bước của mỗi lượt đọc.",
-      "options.maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB."
+      "options.maxCachedBytes": "Số byte bộ nhớ CPU mà các trang của bộ nhớ đệm được giữ, bảng manifest và hàng đợi truyền được dành riêng thêm; mặc định 256 MiB.",
+      "options.onStalled": "Nghe một lần một lần đọc thất bại hẳn hoặc chờ lâu nhất trước tiên: chỉ nghe lại sau khi nó đã về tới."
     }
   },
   "createPathGovernor": {

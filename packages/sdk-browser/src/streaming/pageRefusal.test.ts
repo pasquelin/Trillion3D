@@ -10,7 +10,10 @@ test('a page the server refuses (404, 403) is asked once, never the three attemp
     const pages = [{ url: 'gone.bin', bytes: 12, sha256: 'unused' }]
     const streamer = createPageStreamer(pages, 'http://cache/')
     try {
-      await assert.rejects(streamer.request(['gone.bin']), /PAGE_STREAM_FAILED.*after one attempt/)
+      await assert.rejects(
+        streamer.request(['gone.bin'], { signal: streamer.signal }),
+        /PAGE_STREAM_FAILED.*after one attempt/,
+      )
       assert.equal(asked.length, 1)
       assert.equal(streamer.failed('gone.bin'), true)
     } finally {

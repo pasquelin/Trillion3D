@@ -7,12 +7,14 @@ import { createCellIndex } from './cellIndex.ts'
 import {
   boxDistance,
   cellReach,
+  holdPriority,
   inCellFrame,
   KEEP,
   planCells as planIndexed,
   type SuperRootPlan,
 } from './plan.ts'
 import { AHEAD } from './aheadShare.ts'
+import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 }
 const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] })
@@ -132,4 +134,15 @@ test('a cell is drawn by its super-roots until the cut needs its objects', () =>
   // Without super-roots the plan reads every cell's objects.
   const plain = planCells(cells, eye, reach, new Set())
   assert.deepEqual([plain.visible, plain.far, plain.demoted], [[0, 1, 2, 3], [], []])
+})
+
+test("a cell's holds read strictly after the view's own pages, nearer first, even at the eye", () => {
+  const at = (distance: number, ahead?: boolean) =>
+    holdPriority({ distance: () => distance }, { eye: [0, 0, 0], reach: 100 }, 0, ahead)
+  assert.ok(at(0) > PRIORITY_VISIBLE, 'a cell around the eye after the visible pages')
+  assert.ok(at(0) < at(50) && at(50) < PRIORITY_VISIBLE + 1, 'nearer first, within the band')
+  assert.ok(
+    at(0, true) > PRIORITY_PREFETCH && at(200) > PRIORITY_PREFETCH,
+    'and after the prefetch',
+  )
 })

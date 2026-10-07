@@ -1,6 +1,5 @@
 import type { Job, StreamContext } from './types.ts'
 import { createJob } from './queueJob.ts'
-import { insereTravail } from './queueOrder.ts'
 
 /** The page when the cache holds it (a hit, touched), nothing when it does not (a miss, counted). */
 export function answerFromCache(
@@ -29,33 +28,29 @@ export function answerFromCache(
   return undefined
 }
 
-/** The job reading `url`: a new one, queued, or the one already reading it, raised to the
- *  urgency of this request. */
+/** The job reading `url`: a new one — queued, or waiting its turn while the wait of its last
+ *  failure runs (`failures.ts`) —, or the one already reading it, raised to the urgency of this
+ *  request. */
 export function jobFor(
   context: StreamContext,
   sync: (url: string) => void,
   url: string,
   priority: number,
 ): Job {
-  const { state, queue, jobs, emit } = context
+  const { state, queue, jobs, emit, catalog, failures } = context
   let job = jobs.get(url)
   if (!job) {
-    job = createJob(url, priority, state.order++)
+    job = createJob(catalog.get(url)!, priority, state.order++)
     jobs.set(url, job)
     sync(url)
-    insereTravail(queue, job)
+    if (failures.waiting(url)) job.state = 'waiting'
+    else queue.push(job)
     return job
   }
-  const raised = priority < job.priority
-  job.priority = raised ? priority : job.priority
-  // A request that gains urgency climbs: it is put back at its new place, the only
-  // priority write that can disturb the order. A job already gone is no longer in the queue.
-  if (raised && job.state === 'queued') {
-    const at = queue.indexOf(job)
-    if (at >= 0) {
-      queue.splice(at, 1)
-      insereTravail(queue, job)
-    }
+  // A request that gains urgency climbs to its new place: a job already gone is no longer queued.
+  if (priority < job.priority) {
+    job.priority = priority
+    queue.raise(job)
   }
   emit?.('page-request-coalesced', 'Request joined to a read in progress', () => ({
     version: 1,
@@ -63,4 +58,21 @@ export function jobFor(
     loading: jobs.size,
   }))
   return job
+}
+
+/** `job`'s last asker left: queued, or waiting its turn after a failure, it is dropped. A page
+ *  under way is paid for and lands, every page alike: a view that asks it again meanwhile — a
+ *  camera turning back, a cell held again — joins its read rather than starting it anew, and the
+ *  cache keeps it for a later ask unless its askers keep it (`StreamPage.kept`). */
+export function dropQueued(
+  context: StreamContext,
+  url: string,
+  job: Job,
+  end: (url: string, job: Job) => void,
+) {
+  const { jobs, queue, emit } = context
+  if (jobs.get(url) !== job || job.state === 'active') return
+  end(url, job)
+  emit?.('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }))
+  queue.remove(job)
 }

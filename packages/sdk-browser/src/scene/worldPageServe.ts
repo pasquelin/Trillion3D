@@ -4,6 +4,7 @@
 // #1333), so a scene opens without it; it imports no engine code, so the CDN bundle makes one
 // chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's
 // (`worldRootsPage.ts`, `worldSuperRoots.ts`).
+import { waitShared, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
 import type {
   WorldRoots,
   WorldRootsCluster,
@@ -47,7 +48,7 @@ function worldRootsPageLocation(address: string): { bundle: number; offset: numb
 }
 
 /** The pages of one bundle of the table, verified, in binary order. */
-type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>
+type BundlePages = (bundle: number, signal: AbortSignal) => Promise<WorldRootsPage[]>
 
 /** What a caller takes of a page: one of its two WebGPU halves, or the whole page at once. */
 type View = 'read' | 'attributes' | 'whole'
@@ -81,9 +82,10 @@ export function worldPageServer(
     ranks.set(bundle, new Map(known.sort((a, b) => a - b).map((offset, rank) => [offset, rank])))
   /** A bundle read once: its pages, the callers still on it, and each page whose GPU half (`read`
    *  or `attributes`) is served and whose other half is still owed. */
-  type Streamed = {
+  type Streamed = SharedRead<WorldRootsPage[]> & {
     bundle: number
-    pages: Promise<WorldRootsPage[]>
+    /** Aborted once its last asker let it go before it landed: its read is dropped. */
+    stop: AbortController
     users: number
     owed: Map<number, View>
   }
@@ -95,9 +97,9 @@ export function worldPageServer(
     if (own.users === 0 && own.owed.size === 0 && streamed.get(own.bundle) === own)
       streamed.delete(own.bundle)
   }
-  // A bundle's read is shared by every caller, so it carries no caller's signal: one caller
-  // aborting must not fail another's page (`serve` checks its own signal after the read). It is
-  // kept while a caller is on it or a page owes its other GPU view, so the two views of a page come
+  // A bundle's read is shared by every caller, each waiting on it with its own signal: one caller
+  // aborting never fails another's page, and the read is dropped once its last caller let it go
+  // (`waitShared`): a closed session's engine waits on nothing, asks nothing. It is kept while a caller is on it or a page owes its other GPU view, so the two views of a page come
   // from one read whatever their order; what stays resident is the holder's and the GPU pool's.
   // A page whose other half aborts, or a bundle pushed past the pending budget (a view never asked:
   // an evicted slot), owes nothing more, so the retention is bounded.
@@ -105,14 +107,25 @@ export function worldPageServer(
     const { bundle, offset } = worldRootsPageLocation(address)
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
     let own = streamed.get(bundle)
-    if (!own) {
-      const fresh: Streamed = { bundle, pages: bundlePages(bundle), users: 0, owed: new Map() }
-      fresh.pages.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
+    // A caller gone already joins nothing, and breaks the pair its page owed.
+    if (signal?.aborted) {
+      own?.owed.delete(ranks.get(bundle)?.get(offset) ?? -1)
+      if (own) letGo(own)
+      signal.throwIfAborted()
+    }
+    if (!own || own.stop.signal.aborted) {
+      const stop = new AbortController()
+      const fresh: Streamed = {
+        ...{ bundle, promise: bundlePages(bundle, stop.signal), askers: 0, stop },
+        ...{ users: 0, owed: new Map() },
+      }
+      fresh.promise.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
       streamed.set(bundle, (own = fresh))
     }
     own.users++
     try {
-      const pages = await own.pages,
+      const shared = own,
+        pages = await waitShared(own, signal, () => shared.stop.abort()),
         index = ranks.get(bundle)?.get(offset) ?? -1
       if (signal?.aborted) {
         own.owed.delete(index)

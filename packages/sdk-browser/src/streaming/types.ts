@@ -1,6 +1,8 @@
 import type { EngineDiagnostic } from '../engine/types.ts'
 import type { PageCache } from './pageCache.ts'
 import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts'
+import type { TransferQueue } from './queueRanges.ts'
+import type { ReadFailures } from './failures.ts'
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -26,9 +28,11 @@ export interface HostRetentionDelta {
   readonly heldCount: number
 }
 
-/** How `request` reads a batch: its cancel, its priority, and what runs as each page lands. */
+/** How `request` reads a batch: its owner's signal, its priority, and what runs as each page
+ *  lands. */
 export interface BatchRead {
-  /** Cancels the batch's reads. */ signal?: AbortSignal
+  /** Lets the batch's reads go: a read no one waits on any more is dropped while it waits. */
+  signal: AbortSignal
   /** Queue priority, 1 by default. */ priority?: number
   /** Runs as each page's read lands, not after the whole batch. */
   onPage?: (url: string) => unknown
@@ -36,12 +40,31 @@ export interface BatchRead {
 
 /** One page a streamer fetches: where, how big, and its fingerprint. */
 export interface StreamPage {
-  /** Where it is read. */
+  /** Where it is read, or its name in the catalogue when it is a `range` of another file. */
   url: string
   /** Its size. */
   bytes: number
   /** Fingerprint of its bytes. */
   sha256: string
+  /** A page that is the `bytes` of the file at `file` from `offset`, read by an HTTP Range: the
+   *  queue reads the ranges queued end to end in one file by one request (`queueRanges.ts`). */
+  range?: { file: string; offset: number }
+  /** False for a page whoever asks it keeps what it decodes: read for those who join its read,
+   *  never kept in the page cache, its bytes held once. */
+  kept?: boolean
+}
+/** The pages a resource mounted in the open session brings: `admit`-ted before they are
+ *  read, `forget`-ten with their bytes once it is unmounted. */
+type PageCatalogue = {
+  admit(pages: readonly StreamPage[]): void
+  forget(urls: readonly string[]): void
+}
+/** What a scene's readers ask of the session's queue (`createPageStreamer`): pages admitted, read
+ *  at a priority with the signal that lets the asker go, and let go; `signal` its life, aborted
+ *  once it is disposed. */
+export type PageQueue = PageCatalogue & {
+  readBytes(url: string, signal: AbortSignal, priority?: number): Promise<Uint8Array>
+  readonly signal: AbortSignal
 }
 /** How a page streamer reads (`createPageStreamer`). Beside its pages, its cache reserves its
  *  manifest tables and its transfer queue; every member has a default. */
@@ -58,6 +81,9 @@ export interface PageStreamerOptions {
   maxTransferBytes?: number
   /** Hears each step of every read. */
   onDiagnostic?: (diagnostic: EngineDiagnostic) => void
+  /** Hears, once, a read that fails for good or first waits the longest: again only after it
+   *  landed. */
+  onStalled?: (failure: { url: string; cause: unknown }) => void
   /** Bytes of CPU memory the cache's pages may hold, its manifest tables and transfer queue
    *  reserved on top; 256 MiB by default. */
   maxCachedBytes?: number
@@ -66,10 +92,17 @@ export type Job = {
   url: string
   priority: number
   order: number
-  controller: AbortController
-  /** `dropped`: no consumer left, the queue drops it on the next `pump` pass. */
-  state: 'queued' | 'active' | 'dropped'
-  consumers: Set<symbol>
+  /** The bytes its transfer holds in flight. */
+  bytes: number
+  /** Its place in the queue's heap, −1 out of it (`queueOrder.ts`). */
+  slot: number
+  /** The range of a file it reads, when its page is one (`StreamPage.range`). */
+  range?: StreamPage['range']
+  /** `waiting`: its last read failed and may pass, queued again once its wait ends
+   *  (`failures.ts`). */
+  state: 'queued' | 'active' | 'waiting'
+  /** How many wait on it (`waitShared`). */
+  askers: number
   promise: Promise<Uint8Array>
   resolve: (value: Uint8Array) => void
   reject: (reason: unknown) => void
@@ -82,9 +115,9 @@ export type StreamContext = {
   store: PageCache
   cache: PageCache['pages']
   jobs: Map<string, Job>
-  queue: Job[]
+  queue: TransferQueue
   pinned: Set<string>
-  failures: Map<string, Error>
+  failures: ReadFailures
   abort: AbortController
   limit: number
   maxPages?: number
@@ -102,8 +135,8 @@ export type StreamContext = {
     loaded: number
     evictions: number
     admissionBlocked: number
-    /** Jobs marked abandoned but still in the queue array. */
-    dropped: number
+    /** CPU bytes the catalogue's tables hold (`manifestTables.ts`), as pages join and leave it. */
+    tableBytes: number
     disposed: boolean
     /** Bytes the engine's own tables take from the cache's share (`reserve`), read each time
      *  the cache weighs itself: those tables follow the view. */

@@ -4,7 +4,14 @@ import { configureExplorer } from './capabilities.ts'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
 import { prepareExplorerEngine } from './engine.ts'
 import { createExplorerCamera } from '../camera/camera.ts'
-import { createExplorerPageSources } from './pageSources.ts'
+import {
+  openExplorerPageSources,
+  openingKeeps,
+  sceneThrough,
+  type ExplorerPageSources,
+} from './pageSources.ts'
+import { releaseOwned } from './lifecycle.ts'
+import { streamFailed } from '../scene/streaming.ts'
 import { loadPreparedScene } from '../scene/scene.ts'
 import { primePartitions } from '../scene/partitionFrame.ts'
 import { ARRIVAL_BUDGET_MS } from '../../engine/common.ts'
@@ -13,6 +20,7 @@ import { sessionFamilies } from './familyUse.ts'
 import { loadEngine, webgpuEngine } from '../../engine/factory.ts'
 import type { ExplorerSession } from './session.ts'
 import type { HostCamera } from '../../camera/world.ts'
+import type { PageQueue } from '../../streaming/types.ts'
 
 /** What a session owns as it opens, released by whoever ends it: by its failure path before the
  *  runtime exists (`explorer.ts`), by the runtime's disposal after. */
@@ -21,6 +29,10 @@ export type ExplorerResources = {
   gpuDevice?: GPUDevice
   /** The session's one engine, once prepared. */
   engine?: Engine
+  /** The session's read queue, from its opening: an opening that fails closes it. */
+  streamer?: ExplorerPageSources['streamer']
+  /** Aborted once the opening failed: what a branch of it builds later, it releases itself. */
+  opening?: AbortController
 }
 
 /** The scene a loader builds: what `loadPreparedScene` returns. */
@@ -51,12 +63,19 @@ type Inputs = {
   progress: (phase: string, completed: number, total: number, message: string) => void
 }
 
-/** The scene the session draws: the one handed in, or the one the cache prepared, its world tops
- *  said. `textureSource` is the loader's, resolved against what the platform can read. */
-async function sessionScene(session: ExplorerSession, inputs: Inputs) {
-  const { options, metadata, scope, signal, diagnose } = session
+/** The scene the session draws: the one handed in, or the one the cache prepared, read through
+ *  `streamer`, the session's queue (`sceneThrough`), its world tops said. `textureSource` is the
+ *  loader's, resolved against what the platform can read. */
+async function sessionScene(
+  session: ExplorerSession,
+  inputs: Inputs,
+  streamer: PageQueue,
+  opening: AbortSignal,
+) {
+  const { options, metadata, scope, diagnose } = session
   const { base, resources, progress } = inputs
   const textureSource = resolveTextureSource(options.textureSource)
+  const keep = openingKeeps(resources, opening, (source) => releaseOwned(session, { source }))
   diagnose('texture-source', 'Texture source of this session', {
     kind: 'configuration',
     scope,
@@ -68,20 +87,19 @@ async function sessionScene(session: ExplorerSession, inputs: Inputs) {
     1,
     `Chargement de ${metadata.selectedTriangles.toLocaleString()} triangles (${scope})`,
   )
-  const loadedScene =
-    inputs.scene ??
-    (await loadPreparedScene(
-      { ...options, textureSource },
+  const loadedScene = await sceneThrough(streamer, inputs.scene, () =>
+    loadPreparedScene(
+      { ...options, textureSource, queue: streamer },
       metadata,
       base,
       scope,
-      signal,
+      opening,
       diagnose,
-      (source) => {
-        resources.source = source
-      },
-    ))
-  resources.source = loadedScene.source
+      keep,
+    ),
+  )
+  keep(loadedScene.source)
+  opening.throwIfAborted()
   // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
   for (const { pinned, bytes } of loadedScene.worldRoots)
     diagnose('world-top', 'World top pinned', {
@@ -101,7 +119,7 @@ async function primeFirstView(
   session: ExplorerSession,
   scene: ExplorerScene,
   camera: HostCamera,
-  streamer: Awaited<ReturnType<typeof createExplorerPageSources>>['streamer'],
+  streamer: ExplorerPageSources['streamer'],
 ) {
   const { options, scope, signal, diagnose } = session
   if (!scene.partitions.length) return
@@ -133,18 +151,27 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   // loaded beside the scene. A measured page's factory (`options.engine`) carries its own code.
   const factory = options.engine ?? webgpuEngine
   const renderer = options.engine ? undefined : loadEngine()
-  const loadedScene = await sessionScene(session, inputs)
-  const { source } = loadedScene
-  const pageSources = await createExplorerPageSources(
+  // The queue first, the scene loaded through it beside the pages it preloads: their longest
+  // wait, not their sum. The queue is the opening's until the session takes it (`resources`).
+  // Both branches stop once the opening fails (`failedOpening`): what lands later is released.
+  const failed = (resources.opening = new AbortController()).signal
+  const live = signal ? AbortSignal.any([signal, failed]) : failed
+  const opening = openExplorerPageSources(
     metadata,
     options,
     base,
-    signal,
+    live,
     () => resources.engine,
     diagnosticChannel,
     progress,
-    loadedScene.partitions.flatMap((cells) => cells.pages),
+    (detail, failedPages) => streamFailed(session, resources.engine, failedPages, detail),
   )
+  resources.streamer = opening.streamer
+  const [pageSources, loadedScene] = await Promise.all([
+    opening.sources,
+    sessionScene(session, inputs, opening.streamer, live),
+  ])
+  const { source } = loadedScene
   await configureExplorer(session, { manifestUrl, metadataUrl, base, source, pageSources })
   // Framing replays the buffer reserved at load, then returns it: it is its last reader.
   const cameraState = createExplorerCamera(source, canvas, options, loadedScene.framingLot)

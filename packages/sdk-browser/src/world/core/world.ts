@@ -68,7 +68,7 @@ function worldParts(target: WorldTarget, options: WorldOptions) {
   const device = holdWorldDevice((lostAt) =>
     worldRecovered(runtime, frames, diagnostic.notices, pools.pageCache, lostAt),
   )
-  const scene = new Scene(worldModelLoader(device.ready, options.signal))
+  const scene = new Scene(worldModelLoader(device.ready, options.signal, pools.pageCache))
   const invalidate = () => runtime.invalidate()
   const diagnostic = worldDiagnostic(() => runtime.explorer, options.debug)
   const switches = worldSwitches(options, () => runtime, frames)

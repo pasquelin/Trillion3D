@@ -262,9 +262,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Comment `request` lit un lot : son annulation, sa priorité, et ce qui s’exécute à l’arrivée de chaque page.",
+    "summary": "Comment `request` lit un lot : le signal de son propriétaire, sa priorité, et ce qui s’exécute à l’arrivée de chaque page.",
     "members": {
-      "signal": "Annule les lectures du lot.",
+      "signal": "Laisse partir les lectures du lot : une lecture que plus personne n’attend est abandonnée tant qu’elle attend.",
       "priority": "Priorité dans la file, 1 par défaut.",
       "onPage": "S’exécute à l’arrivée de chaque page lue, pas après tout le lot."
     }
@@ -1197,7 +1197,8 @@
       "options.onEvict": "Entend chaque page qui quitte le cache.",
       "options.maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
       "options.onDiagnostic": "Entend chaque étape de chaque lecture.",
-      "options.maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
+      "options.maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut.",
+      "options.onStalled": "Entend, une seule fois, une lecture qui échoue pour de bon ou qui attend d’abord le plus longtemps : de nouveau seulement après son arrivée."
     }
   },
   "createPathGovernor": {
@@ -4558,7 +4559,8 @@
       "onEvict": "Entend chaque page qui quitte le cache.",
       "maxTransferBytes": "Octets que la file de transfert peut contenir ; 8 Mio par défaut.",
       "onDiagnostic": "Entend chaque étape de chaque lecture.",
-      "maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut."
+      "maxCachedBytes": "Octets de mémoire CPU que les pages du cache peuvent tenir, ses tables de manifeste et sa file de transfert réservées en plus ; 256 Mio par défaut.",
+      "onStalled": "Entend, une seule fois, une lecture qui échoue pour de bon ou qui attend d’abord le plus longtemps : de nouveau seulement après son arrivée."
     }
   },
   "PanZoomCameraControls": {
@@ -5651,9 +5653,11 @@
   "StreamPage": {
     "summary": "Une page que récupère un flux : où, quelle taille, et son empreinte.",
     "members": {
-      "url": "Où on le lit.",
+      "url": "Où on la lit, ou son nom dans le catalogue quand c’est un `range` d’un autre fichier.",
       "bytes": "Sa taille.",
-      "sha256": "Empreinte de ses octets."
+      "sha256": "Empreinte de ses octets.",
+      "range": "Une page qui est les `bytes` du fichier `file` à partir de `offset`, lue par une requête HTTP Range : la file lit en une seule requête les plages mises en file bout à bout dans un même fichier (`queueRanges.ts`).",
+      "kept": "Faux pour une page dont chacun de ceux qui la demandent garde ce qu’il décode : lue pour ceux qui rejoignent sa lecture, jamais gardée dans le cache de pages, ses octets tenus une seule fois."
     }
   },
   "summarize": {

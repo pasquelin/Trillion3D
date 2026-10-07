@@ -15,14 +15,14 @@ test('a proxy above the transfer budget, asked while pages stream, lands beside 
   const pageCache = createPageCache()
   const session = await openSession(metadata, pageCache)
   const { streamer } = session
-  const first = streamer.request(urls.slice(0, 2))
+  const first = streamer.request(urls.slice(0, 2), { signal: streamer.signal })
   await Promise.all(urls.slice(0, 2).map((url) => asked(base + url)))
   // Two pages in flight: the proxy is asked at once, not after them.
   const reading = session.context.readSceneProxy!()
   await asked(`${base}proxy.bin`)
   assert.equal(pageCache.keptBytes, proxyBytes, 'its announced bytes are reserved while in flight')
   // A page asked while the proxy is in flight is not held back by it.
-  const third = streamer.request([urls[2]])
+  const third = streamer.request([urls[2]], { signal: streamer.signal })
   await asked(base + urls[2])
   assert.equal(streamer.stats().loading, 3)
   release('proxy.bin')

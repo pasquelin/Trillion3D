@@ -131,9 +131,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Cara `request` membaca satu kelompok: pembatalannya, prioritasnya, dan apa yang berjalan saat setiap halaman tiba.",
+    "summary": "Cara `request` membaca satu kelompok: sinyal pemiliknya, prioritasnya, dan apa yang berjalan saat setiap halaman tiba.",
     "members": {
-      "signal": "Membatalkan pembacaan kelompok.",
+      "signal": "Melepaskan pembacaan kelompok: pembacaan yang tidak lagi ditunggu siapa pun dibuang selagi menunggu.",
       "priority": "Prioritas antrean, bawaan 1.",
       "onPage": "Berjalan saat pembacaan setiap halaman tiba, bukan setelah seluruh kelompok."
     }
@@ -2440,7 +2440,8 @@
       "onEvict": "Mendengar setiap halaman yang keluar dari cache.",
       "maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
-      "maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB."
+      "maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB.",
+      "onStalled": "Mendengar, sekali saja, pembacaan yang gagal selamanya atau yang pertama menunggu paling lama: lagi hanya setelah ia tiba."
     }
   },
   "PanZoomCameraControls": {
@@ -3334,9 +3335,11 @@
   "StreamPage": {
     "summary": "Satu halaman yang diambil sebuah streamer: di mana, seberapa besar, dan sidik jarinya.",
     "members": {
-      "url": "Tempat ia dibaca.",
+      "url": "Tempat ia dibaca, atau namanya dalam katalog bila ia berupa `range` dari berkas lain.",
       "bytes": "Ukurannya.",
-      "sha256": "Sidik jari byte-nya."
+      "sha256": "Sidik jari byte-nya.",
+      "range": "Halaman yang berupa `bytes` dari berkas `file` mulai `offset`, dibaca dengan HTTP Range: antrean membaca rentang yang diantre berurutan ujung ke ujung dalam satu berkas dengan satu permintaan (`queueRanges.ts`).",
+      "kept": "False untuk halaman yang setiap peminta menyimpan hasil dekodenya sendiri: dibaca untuk mereka yang bergabung ke pembacaannya, tidak pernah disimpan di cache halaman, byte-nya ditahan sekali saja."
     }
   },
   "SurfaceBuffer": {
@@ -4638,7 +4641,8 @@
       "options.onEvict": "Mendengar setiap halaman yang keluar dari cache.",
       "options.maxTransferBytes": "Byte yang boleh ditampung antrean transfer; bawaan 8 MiB.",
       "options.onDiagnostic": "Mendengar setiap langkah dari setiap pembacaan.",
-      "options.maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB."
+      "options.maxCachedBytes": "Byte memori CPU yang boleh ditempati halaman cache, dengan tabel manifes dan antrean transfernya dicadangkan di atasnya; bawaan 256 MiB.",
+      "options.onStalled": "Mendengar, sekali saja, pembacaan yang gagal selamanya atau yang pertama menunggu paling lama: lagi hanya setelah ia tiba."
     }
   },
   "createPathGovernor": {

@@ -262,9 +262,9 @@
     }
   },
   "BatchRead": {
-    "summary": "Come `request` legge un lotto: il suo annullamento, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
+    "summary": "Come `request` legge un lotto: il segnale del suo proprietario, la sua priorità e ciò che viene eseguito all’arrivo di ogni pagina.",
     "members": {
-      "signal": "Annulla le letture del lotto.",
+      "signal": "Lascia andare le letture del lotto: una lettura che nessuno aspetta più viene scartata mentre attende.",
       "priority": "Priorità in coda, 1 per impostazione predefinita.",
       "onPage": "Viene eseguito all’arrivo della lettura di ogni pagina, non dopo l’intero lotto."
     }
@@ -1197,7 +1197,8 @@
       "options.onEvict": "Riceve ogni pagina che lascia la cache.",
       "options.maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "options.onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita."
+      "options.maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
+      "options.onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo: di nuovo solo dopo che è arrivata."
     }
   },
   "createPathGovernor": {
@@ -4550,7 +4551,8 @@
       "onEvict": "Riceve ogni pagina che lascia la cache.",
       "maxTransferBytes": "Byte che la coda di trasferimento può contenere; 8 MiB per impostazione predefinita.",
       "onDiagnostic": "Riceve ogni passo di ogni lettura.",
-      "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita."
+      "maxCachedBytes": "Byte di memoria CPU che le pagine della cache possono occupare, con tabelle del manifesto e coda di trasferimento riservate in più; 256 MiB per impostazione predefinita.",
+      "onStalled": "Riceve, una sola volta, una lettura che fallisce definitivamente o che per prima attende più a lungo: di nuovo solo dopo che è arrivata."
     }
   },
   "PanZoomCameraControls": {
@@ -5643,9 +5645,11 @@
   "StreamPage": {
     "summary": "Una pagina recuperata da un flusso: dove, quale dimensione, e la sua impronta.",
     "members": {
-      "url": "Dove viene letta.",
+      "url": "Dove viene letta, o il suo nome nel catalogo quando è un `range` di un altro file.",
       "bytes": "La sua dimensione.",
-      "sha256": "Impronta dei suoi byte."
+      "sha256": "Impronta dei suoi byte.",
+      "range": "Una pagina che è i `bytes` del file `file` a partire da `offset`, letta con un HTTP Range: la coda legge con una sola richiesta gli intervalli accodati uno dopo l’altro in uno stesso file (`queueRanges.ts`).",
+      "kept": "False per una pagina di cui ciascuno di chi la chiede tiene ciò che decodifica: letta per chi si unisce alla sua lettura, mai tenuta nella cache delle pagine, i suoi byte conservati una sola volta."
     }
   },
   "summarize": {

@@ -14,14 +14,17 @@
  */
 import type { WorldRootsHold } from '../scene/worldRoots.ts'
 import { createCellHolds } from './cellHolds.ts'
-import { planCells, type SuperRootPlan } from './plan.ts'
+import { holdPriority, planCells, type SuperRootPlan } from './plan.ts'
 import { cellSuperRootError, type SuperRootLens } from './superRoots.ts'
 
 /** The world bundles a cell holds, and the stream its super-roots' bound is read from. */
 type World = Pick<WorldRootsHold, 'hold' | 'release'> & Partial<Pick<WorldRootsHold, 'stream'>>
 
+/** The cells a partition places, by rank. */
+type Placed = ReadonlyMap<number, unknown>
+
 /** The far cells of a partition whose placed cells are `placed`, their bundles held on `world`. */
-export function createFarCells(world: World | undefined, placed: ReadonlyMap<number, unknown>) {
+export function createFarCells(world: World | undefined, placed: Placed) {
   const far = new Set<number>()
   const holds = createCellHolds(world)
   /** Each cell's super-root bound, once the world stream opened; whether it is opening. */
@@ -36,11 +39,7 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
     },
   }
   /** `cell`'s far hold is let go, once placed or past the keep sphere; whether it had one. */
-  const release = (cell: number) => {
-    if (!far.delete(cell)) return false
-    holds.release(cell)
-    return true
-  }
+  const release = (cell: number) => far.delete(cell) && (holds.release(cell), true)
   /** The plan's reading of the super-roots from `eye` through the cut's `lens`, or none: no cut
    *  packs the world DAG, or its bound is not read yet (asked here, once; a refusal asks again). */
   const superRoots = (eye: ArrayLike<number>, lens?: SuperRootLens): SuperRootPlan | undefined => {
@@ -78,19 +77,19 @@ export function createFarCells(world: World | undefined, placed: ReadonlyMap<num
       const plan = planCells(index, local.eye, local.reach, reading ? held : placed, reading)
       for (const cell of plan.far) {
         far.add(cell)
-        holds.hold(cell)
+        holds.hold(cell, holdPriority(index, local, cell))
       }
       // A demoted cell's far hold is taken before its placed hold goes: the world bundles both
       // need stay held, never read again.
       for (const cell of plan.demoted) {
-        holds.hold(cell)
+        holds.hold(cell, holdPriority(index, local, cell))
         leave(cell)
         far.add(cell)
       }
-      // A hold that failed is asked again here, its cell still held far.
-      if (reading) void holds.reads()
       return plan
     },
     release,
+    /** What a frame waits on: the next far hold to land or fail, while one reads. */
+    reads: holds.reads,
   }
 }

@@ -17,7 +17,7 @@ async function lackingPages(missing: string[], pinned: string[] = [], resident =
   globalThis.fetch = async () => new Response(bytes, { status: 200 })
   const pages = ['a.bin', 'b.bin', 'c.bin'].map((url) => ({ url, bytes: 4, sha256 }))
   const streamer = createPageStreamer(pages, 'http://cache/')
-  await streamer.request(resident)
+  await streamer.request(resident, { signal: streamer.signal })
   const accepted: string[] = []
   const backend = {
     render() {},
@@ -141,7 +141,9 @@ test('awaitPages hears the pages a backend reads itself while it flushes, as the
     flush: async () => {
       if (flushed) return
       flushed = true
-      await Promise.all(['a.bin', 'b.bin', 'a.bin'].map((url) => streamer.readBytes(url)))
+      await Promise.all(
+        ['a.bin', 'b.bin', 'a.bin'].map((url) => streamer.readBytes(url, streamer.signal)),
+      )
       assert.deepEqual(heard.at(-1), [2, 2], 'heard while the flush runs')
     },
   })
@@ -162,7 +164,7 @@ test('awaitPages counts a held page once when a backend reads it again after the
   let flushes = 0
   Object.assign(backend, {
     flush: async () => {
-      if (++flushes === 2) await streamer.readBytes('c.bin')
+      if (++flushes === 2) await streamer.readBytes('c.bin', streamer.signal)
     },
   })
   await lifecycle.awaitPages({

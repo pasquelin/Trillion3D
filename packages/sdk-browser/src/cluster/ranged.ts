@@ -1,39 +1,77 @@
 import { unmetered, type ByteMeter } from './byteMeter.ts'
-import { checked } from './checked.ts'
+import { checked, letGo } from './checked.ts'
+import { waitShared, waited, type SharedRead } from '../../../sdk-core/src/runtime/sharedRead.ts'
+
+/** How one range is read: the meter counting what arrives, the requests `checked` makes at most,
+ *  and the signal that lets its asker go, the reader's own by default. */
+type Asked = { meter?: ByteMeter; attempts?: number; signal?: AbortSignal }
 
 /**
- * Reads byte ranges of the file at `url`, each by an HTTP Range (`checked`), the `meter` a read
- * names counting what arrives. A server that ignores the Range answers the whole file: kept, then
- * read no more, its length told by `held`. Until the first answer says which, the ranges asked at
- * once wait on it rather than each fetching.
+ * Reads byte ranges of the file at `url`, each by an HTTP Range (`checked`) as it is `asked`. A
+ * server that ignores the Range answers the whole file: its download is the reader's, shared by
+ * every range waiting on it and stopped once none does before it lands; landed, it is kept and
+ * read no more, its length told by `held`. Until the server answered a range, one request is sent
+ * at a time and the ranges asked meanwhile wait on its answer: the whole file is downloaded once.
  */
 export function rangedReader(url: string, signal?: AbortSignal) {
-  let whole: Promise<ArrayBuffer> | undefined,
-    first: Promise<unknown> | undefined,
+  /** Whether the server answered a range; the request whose answer will say, till it does; the
+   *  whole file it answered instead, on its way or landed; its length once landed. */
+  let ranged = false,
+    asking: Promise<unknown> | undefined,
+    whole: (SharedRead<ArrayBuffer> & { stop: AbortController }) | undefined,
     held = 0
-  const read = async (offset: number, length: number, meter: ByteMeter = unmetered) => {
-    if (first) await first.catch(() => {})
-    if (!whole) {
-      const asked = checked(url, signal, undefined, {
-        Range: `bytes=${offset}-${offset + length - 1}`,
-      })
-      first ??= asked
-      const response = meter.read(await asked, url)
-      if (response.status === 206) return response.arrayBuffer()
-      const kept = response.arrayBuffer()
-      whole ??= kept
-      kept.then(
-        (buffer) => {
-          if (whole === kept) held = buffer.byteLength
-        },
-        // A failed read is not kept: the next need reads again.
-        () => {
-          if (whole === kept) whole = undefined
-        },
-      )
-    }
-    return (await whole).slice(offset, offset + length)
+  /** The whole file `response` brings on `stop`, the reader's: forgotten once stopped or failed. */
+  const keep = (response: Response, stop: AbortController) => {
+    const own = { promise: response.arrayBuffer(), askers: 0, stop }
+    const forget = () => void (whole === own && (whole = undefined))
+    stop.signal.addEventListener('abort', forget, { once: true })
+    // Stopped before it landed, it is forgotten, and holds nothing.
+    own.promise.then((buffer) => void (whole === own && (held = buffer.byteLength)), forget)
+    whole = own
   }
-  /** The bytes the whole file holds once a server answered it whole, else zero. */
-  return Object.assign(read, { held: () => held })
+  /** One request of `[offset, offset + length)`, on a signal of its own that its asker's stops
+   *  until the answer turns out whole: its range, or nothing once the whole file is kept. */
+  const request = async (offset: number, length: number, asked: Asked) => {
+    const own = asked.signal ?? signal,
+      stop = new AbortController()
+    own?.throwIfAborted()
+    const leave = () => stop.abort(own!.reason)
+    own?.addEventListener('abort', leave, { once: true })
+    const lifetime = signal ? AbortSignal.any([stop.signal, signal]) : stop.signal
+    const answer = checked(url, lifetime, asked.attempts, {
+      Range: `bytes=${offset}-${offset + length - 1}`,
+    })
+    if (!ranged) asking = answer
+    try {
+      const response = (asked.meter ?? unmetered).read(await answer, url)
+      // Its asker left while it was asked: what came is let go, never kept.
+      if (stop.signal.aborted) throw (letGo(response), stop.signal.reason)
+      if (response.status === 206) return ((ranged = true), await response.arrayBuffer())
+      if (!whole) keep(response, stop)
+      else letGo(response) // a server that stopped answering ranges
+    } finally {
+      if (asking === answer) asking = undefined
+      own?.removeEventListener('abort', leave)
+    }
+  }
+  const read = async (offset: number, length: number, asked: Asked = {}) => {
+    // Waiting on another range's answer, its own signal still lets it go at once.
+    while (!ranged && asking)
+      await waited(
+        asking.catch(() => {}),
+        asked.signal ?? signal,
+      )
+    if (!whole) {
+      const range = await request(offset, length, asked)
+      if (range) return range
+    }
+    const own = whole!,
+      mine = asked.signal ?? signal
+    // The last to leave stops the download: no one waits for it any more.
+    const bytes = await waitShared(own, mine, () => own.stop.abort(mine?.reason))
+    return bytes.slice(offset, offset + length)
+  }
+  /** The bytes the whole file holds once a server answered it whole, else zero; and whether it
+   *  holds nothing and waits on nothing — a reader its owner may let go. */
+  return Object.assign(read, { held: () => held, idle: () => !asking && !whole })
 }

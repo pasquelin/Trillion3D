@@ -91,7 +91,9 @@ function failedOpening(
   runtime: SessionRuntime | undefined,
 ) {
   if (runtime) return runtime.dispose()
+  resources.opening?.abort()
   resources.engine?.dispose()
+  resources.streamer?.dispose()
   releaseOwned(session, resources)
   session.diagnosticChannel.flushSync()
   session.diagnosticChannel.close()
