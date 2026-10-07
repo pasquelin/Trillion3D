@@ -1,5 +1,6 @@
 // A plan of some ranks — the roots a view may hold — reads those alone; the others keep the
-// verdict the last plan that read them left, and draw no card. Every rank given, it is the plan of
+// verdict the last plan that read them left, and draw no card: a camera turning hands the GPU cut
+// no card bit, as the plan of every root does. Every rank given, it is the plan of
 // every root, card for card.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -40,23 +41,56 @@ test('every rank given, the plan is the plan of every root', () => {
   assert.ok(switched.includes(1) && switched.includes(0), 'near trees whole, far ones switched')
 })
 
-test('a plan of some ranks reads those alone; a rank it left loses its card, the others keep theirs', () => {
+test('a plan of some ranks reads those alone; a rank it left keeps its verdict', () => {
   const plan = planImpostors(roots, section, VIEW, FOCAL)
   const before = [...plan.switched]
   assert.ok(before.slice(3).includes(1), 'far trees switched')
-  // The view now holds the first three roots alone: the far trees the last plan read leave theirs.
+  // The view now holds the first three roots alone: the far trees keep the bit the last read left.
   const some = (visit: (rank: number) => void) => [0, 1, 2].forEach(visit)
   const again = planImpostors(roots, section, VIEW, FOCAL, plan, some)
-  const left = before.flatMap((bit, rank) => (rank >= 3 && bit ? [rank] : []))
-  assert.deepEqual(again.visited, [0, 1, 2, ...left], 'their card bits handed over too')
-  assert.deepEqual([...again.switched].slice(3), new Array(9).fill(0), 'no card out of view')
+  assert.deepEqual(again.visited, [0, 1, 2], 'the ranks read, and no other handed over')
+  assert.deepEqual([...again.switched], before, 'no card bit moves by leaving the view')
   assert.ok(
     again.cards.every((card) => card.root < 3),
     'cards only of the ranks read',
   )
-  // Read again with the same view: nothing left, nothing to hand over.
-  const still = planImpostors(roots, section, VIEW, FOCAL, again, some)
-  assert.deepEqual(still.visited, [0, 1, 2])
+})
+
+/** `count` trees on a ring of radius 300 m about the eye, every one far enough to switch. */
+const ring = (count: number): ImpostorRoot[] =>
+  Array.from({ length: count }, (_, k) => {
+    const a = (2 * Math.PI * k) / count
+    return {
+      mesh: 1,
+      world: {
+        elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 300 * Math.sin(a), 0, -300 * Math.cos(a), 1],
+      },
+    }
+  })
+
+test('a camera turning in place hands the cut no card bit, as the plan of every root does', () => {
+  // A still eye turning: no tree comes nearer or goes farther, so no verdict moves. The ranks read
+  // are those of a quarter turn about the heading (what a placement tree keeps); each image counts
+  // the card bits it hands the GPU cut — each one voids the cut in hand, which then publishes in
+  // full —: none, frame after frame, whichever ranks the view leaves or enters.
+  const trees = ring(200),
+    plan = planImpostors(trees, section, VIEW, FOCAL)
+  let bits = [...plan.switched],
+    handed = 0
+  for (let frame = 0; frame < 40; frame++) {
+    const heading = (frame * 2 * Math.PI) / 40
+    const inView = (visit: (rank: number) => void) =>
+      trees.forEach((_, k) => {
+        const off = Math.abs(
+          (((2 * Math.PI * k) / 200 - heading + 3 * Math.PI) % (2 * Math.PI)) - Math.PI,
+        )
+        if (off < Math.PI / 4) visit(k)
+      })
+    planImpostors(trees, section, VIEW, FOCAL, plan, inView)
+    for (const rank of plan.visited ?? []) if (plan.switched[rank] !== bits[rank]) handed++
+    bits = [...plan.switched]
+  }
+  assert.equal(handed, 0, `${handed} card bits handed over 40 frames`)
 })
 
 test('a new focal length retakes the depths of the ranks read, as the plan of every root does', () => {

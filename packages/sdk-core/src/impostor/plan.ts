@@ -138,9 +138,6 @@ type SwitchTable = {
   triangleDepth: Float64Array
   /** The focal length each root's depths were taken at: a new one retakes a root's as it is read. */
   depthFocal: Float64Array
-  /** The plan each rank was last read by (`stamp`), when a plan reads some ranks alone. */
-  read: Uint32Array
-  stamp: number
 }
 const tables = new WeakMap<ImpostorPlan, SwitchTable>()
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
@@ -173,8 +170,6 @@ function switchTable(
       texelDepth: new Float64Array(n),
       triangleDepth: new Float64Array(n),
       depthFocal: new Float64Array(n).fill(NaN),
-      read: new Uint32Array(n),
-      stamp: 0,
     }
     tables.set(plan, table)
   }
@@ -241,9 +236,12 @@ export function planImpostors(
   focalPixels: number,
   into?: ImpostorPlan,
   /** Hands each rank to read to `visit`, when only some can change what the image draws (the
-   *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); a rank the last plan read and
-   *  this one does not leaves its card (`leftRanks`). Absent, every root, every image. */
-  ranks?: (visit: (rank: number) => void) => void,
+   *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); a rank it does not read keeps
+   *  its verdict — out of view, it draws nothing either way, and its card bit never moves by the
+   *  view leaving it: each move would void the cut in hand. A rank read with `card` false takes
+   *  none, whatever its distance (one another structure draws far away). Absent, every root,
+   *  every image. */
+  ranks?: (visit: (rank: number, card?: boolean) => void) => void,
 ): ImpostorPlan {
   const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) }
   if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length)
@@ -256,43 +254,17 @@ export function planImpostors(
     count: 0,
   }
   if (ranks) {
-    const { table } = reading,
-      stamp = ++table.stamp,
-      previous = plan.visited,
-      visited: number[] = []
-    ranks((rank) => {
-      table.read[rank] = stamp
+    const visited: number[] = (plan.visited = [])
+    ranks((rank, card) => {
       visited.push(rank)
-      planRoot(reading, rank)
+      planRoot(reading, rank, card !== false)
     })
-    plan.visited = leftRanks(plan, previous, visited, table)
   } else {
     if (plan.visited) delete plan.visited
     for (let rank = 0; rank < roots.length; rank++) planRoot(reading, rank)
   }
   plan.cards.length = reading.count
   return plan
-}
-
-/**
- * `visited`, then each rank the last plan read — every rank after a plan of every root — that this
- * one did not and whose card it had: its verdict cleared, so the card bit leaves with it, and the
- * GPU cut descends it again when the view comes back. A rank read and left both is listed once.
- */
-function leftRanks(
-  plan: ImpostorPlan,
-  previous: readonly number[] | undefined,
-  visited: number[],
-  table: SwitchTable,
-) {
-  const left = (rank: number) => {
-    if (table.read[rank] === table.stamp || !plan.switched[rank]) return
-    plan.switched[rank] = 0
-    visited.push(rank)
-  }
-  if (previous) for (const rank of previous) left(rank)
-  else for (let rank = 0; rank < plan.switched.length; rank++) left(rank)
-  return visited
 }
 
 /** One root's verdict, and its card when it switches. */
@@ -306,10 +278,11 @@ function planRoot(
     count: number
   },
   rank: number,
+  carded = true,
 ) {
   const { plan, table } = reading,
     root = reading.roots[rank],
-    entry = rootSwitch(table, rank, root, reading.byMesh)
+    entry = carded ? rootSwitch(table, rank, root, reading.byMesh) : undefined
   const world = root.world.elements
   if (entry) transformAffinePoint(point, reading.view, world[12], world[13], world[14])
   // Each rank read takes its verdict here, whatever it held: nothing is cleared ahead of the read.
