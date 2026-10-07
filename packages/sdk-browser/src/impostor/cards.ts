@@ -11,13 +11,12 @@
  * switched root, C cards whose root switched or moved; zero records for a still view.
  */
 import {
-  createImpostorWatch,
   frustumExcludesBox,
   impostorBakedByMesh,
-  impostorViewCosine,
   type ImpostorMaps,
   type ImpostorSection,
 } from '../../../sdk-core/src/index.ts'
+import { createImpostorWatch, impostorViewCosine } from '../../../sdk-core/src/impostor/watch.ts'
 import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { core } from './borrowed.ts'
 import {

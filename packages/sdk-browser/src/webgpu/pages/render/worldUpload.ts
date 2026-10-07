@@ -48,7 +48,7 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // worlds alone go up. A host walk named none: every one does.
   const named = takeMovedWorlds(run.movedWorlds)
   // The impostor cards follow the same moves: those named, or every root after a host walk.
-  rt.gpu.impostors?.worldsMoved(hostWalked ? undefined : named)
+  rt.gpu?.impostors?.worldsMoved(hostWalked ? undefined : named)
   if (!hostWalked) {
     rootWorldsAt(worldUpdates, selectionRoots, named)
     rt.timing.worldCounts.rootsRebased = named.length
