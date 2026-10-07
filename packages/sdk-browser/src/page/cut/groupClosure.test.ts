@@ -113,13 +113,15 @@ test('the closure holds what the cut closes over, and nothing once the cut has l
   assert.equal(closure.hostBytes, 64, 'two empty difference lists')
   const leaves = dag.pages.map((_, p) => p).filter((p) => dag.pages[p].level === 0)
   closure.apply(cutDelta(leaves))
+  assert.ok(leaves.every(closure.delta.has), 'held while the cut holds them')
   const held = closure.hostBytes
   closure.apply(cutDelta([], leaves))
-  const left = closure.hostBytes
-  assert.ok(left < held, 'the counts leave with the cut; only scratch sized by it stays')
+  assert.ok(!dag.pages.some((_, p) => closure.delta.has(p)), 'the counts leave with the cut')
+  // A word per packed id the cut named (`denseInts.ts`): its tables stay, sized by those ids.
+  assert.equal(closure.hostBytes, held)
   closure.apply(cutDelta(leaves))
   closure.apply(cutDelta([], leaves))
-  assert.equal(closure.hostBytes, left, 'the same cut again grows nothing')
+  assert.equal(closure.hostBytes, held, 'the same cut again grows nothing')
 })
 
 test('a walk whose visitor is full stops before the next page', () => {

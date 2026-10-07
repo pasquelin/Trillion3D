@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts'
-import { grown, type createSparseInts } from '../../page/cut/sparseInts.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
+import type { createDenseInts } from '../../page/cut/denseInts.ts'
 
 /**
  * A delta as its two differences write it: the held list and its records, the marks, and the
@@ -12,7 +13,7 @@ export type HeldList = {
   readonly recordOf: (id: number) => PageRec | undefined
   /** Epoch of the list where the id was last held: an id the held list holds carries `epoch`, an
    *  id it does not hold carries nothing. */
-  readonly mark: ReturnType<typeof createSparseInts>
+  readonly mark: ReturnType<typeof createDenseInts>
   /** The records, rank by rank beside the held ids, when the caller keeps them. */
   readonly pages: PageRec[] | undefined
   epoch: number
