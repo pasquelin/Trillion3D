@@ -1,12 +1,13 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
 
 /** Bright, stable display colors derived from integer triangle IDs. */
 export const TRIANGLE_PALETTE_WGSL = wgslBlock(
   'TRIANGLE_PALETTE_WGSL',
-  [],
+  [GOLDEN_U32],
   `
 fn triangleHash(id:u32)->u32{
- var x=id+0x9e3779b9u;
+ var x=id+GOLDEN_U32;
  x=(x^(x>>16u))*0x7feb352du;
  x=(x^(x>>15u))*0x846ca68bu;
  return x^(x>>16u);

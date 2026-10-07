@@ -31,7 +31,7 @@ export function cacheRun(width: number, height: number, none = false) {
   }
   const decode = shaderRun<Record<string, Fn>>(
     SHADE_TRIS_SHADER,
-    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep clusterPow2 clusterBitsFor clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecodeScalar'.split(
+    'pageHeader pageHeaderFor deformWholeCopy pageTriangle pagePosition pageRestPosition pageDeformed pageUv pageNormal vertPos vertUv vertN clusterPointHeader clusterSurfaceHeader clusterTriangle clusterBlock clusterWindow clusterField clusterWidths clusterStep pow2FromExponent bitLength ceilDiv clusterStream clusterPosition clusterGrid clusterUv clusterNormal octDecodeScalar'.split(
       ' ',
     ),
     {

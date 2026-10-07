@@ -1,6 +1,7 @@
 import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
  * Compaction of the drawable-page list, done by the GPU.
@@ -27,11 +28,11 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
-  [LANE_SCAN_WGSL],
+  [LANE_SCAN_WGSL, ceilDiv],
   `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
-fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
+fn blockCount()->u32{return ceilDiv(views[0u].clusterCount,BLOCK);}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
 /** Two words per block behind the block offsets: bit \`i & 63\` of block \`i / 64\` is page \`i\`'s draw

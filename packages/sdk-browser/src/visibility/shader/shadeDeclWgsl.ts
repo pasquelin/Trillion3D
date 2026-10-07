@@ -3,7 +3,8 @@ import { PIXEL_BARY_WGSL, PIXEL_TRIANGLE_WGSL, SHADE_UNI_WGSL } from './pixelTri
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
-import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
+import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 import {
   PAGE_GEOMETRY_WGSL,
   PAGE_NORMAL_WGSL,
@@ -72,8 +73,7 @@ export const SHADE_DECL_WGSL = wgslBlock(
     PAGE_SCREEN_WGSL,
     PAGE_NORMAL_WGSL,
     PAGE_UV1_WGSL,
-    EDGE_WGSL,
-    BARY_WEIGHTS_WGSL,
+    edgeFunction,
     PIXEL_BARY_WGSL,
     UV_GRADIENTS_WGSL,
     TILE_POOL_WGSL,

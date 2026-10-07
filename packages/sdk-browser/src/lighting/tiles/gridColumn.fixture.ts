@@ -45,7 +45,7 @@ const u32 = (op: string, a: unknown, b: unknown) => {
 }
 /** The pass's workgroup scalars, read through one object the harness sees too. */
 const SCALARS = /\b(cached|resume|walked)\b/g
-const NAMES = ['markEntry', 'countSlices', 'writeSlices', 'cacheEntry', 'laneRun']
+const NAMES = ['markEntry', 'countSlices', 'writeSlices', 'cacheEntry', 'laneRun', 'ceilDiv']
 const ROOM = ['roomBefore', 'takeRoom', 'dealRoom']
 
 /** The shipped routines over one workgroup's memory and the pool. */

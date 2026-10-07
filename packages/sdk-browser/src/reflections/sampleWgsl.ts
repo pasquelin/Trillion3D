@@ -1,5 +1,6 @@
 import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
 import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { GOLDEN_U32 } from '../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import type { LitProgram } from '../lighting/deferred/shaders.ts'
@@ -24,6 +25,7 @@ const stochasticReflectionWgsl = (unbounded: boolean) =>
     `stochasticReflectionWgsl(${unbounded})`,
     [
       hashUnit,
+      GOLDEN_U32,
       ROUGHNESS_FLOOR,
       GGX_REFLECTION_SAMPLE_WGSL,
       SCREEN_REFLECTION_WGSL,
@@ -48,10 +50,7 @@ const stochasticReflectionWgsl = (unbounded: boolean) =>
  let N=normalize(nr.xyz);let V=normalize(view.camera.xyz-P*view.camera.w);
  let pixelSeed=u32(at.y)*u32(reflectionView.enabled.y)+u32(at.x);
  // Integer rank and source epoch are mixed by the caller, independent of wall clock.
- // 0x9e3779b9u: odd 32-bit constant (fractional part of the golden ratio) that flips well-spread
- // bits of the seed, so the second coordinate is decorrelated from the first; any odd value with
- // well-spread bits would serve, this one is declared, not tuned.
- let xi=vec2f(hashUnit(pixelSeed^seed),hashUnit(pixelSeed^seed^0x9e3779b9u));
+ let xi=vec2f(hashUnit(pixelSeed^seed),hashUnit(pixelSeed^seed^GOLDEN_U32));
  let sample=stochasticReflection(reflect(-V,N),N,nr.a,min(xi,vec2f(0.99999994)));
  if(sample.w<=0.0){return vec4f(0.0);}
  textureStore(reflectionOwners,vec2i(texel.xy),vec4u(textureLoad(vis,at,0).r,bitcast<u32>(z),0u,0u));

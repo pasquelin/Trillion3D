@@ -1,10 +1,10 @@
-import { SRGB_ENCODE_WGSL } from '../../texture/srgbEncode.ts'
 import { TONE_MAPPING_WGSL } from '../../lighting/toneMappingWgsl.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 
 /**
  * The display layers: the reference display multiplies and subtracts on a canvas of
@@ -37,7 +37,7 @@ export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
  *  value `shown`, the composition's chain: exposure, curve unless unlit, sRGB. */
 export const DISPLAY_ROUTE_WGSL = wgslBlock(
   'DISPLAY_ROUTE_WGSL',
-  [TONE_MAPPING_WGSL, SRGB_ENCODE_WGSL],
+  [TONE_MAPPING_WGSL, linearToSrgb],
   `override DISPLAY_ROUTE:u32=0u;
 struct Route{keep:f32,tint:vec4f,add:vec4f,}
 fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32)->Route{

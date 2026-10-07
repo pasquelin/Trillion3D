@@ -20,7 +20,7 @@ const shader = shaderRun<{
   ltcCorner: (q: V, T1: V, T2: V, N: V, m: V) => V
 }>(
   wgslModule(RECT_LIGHT_WGSL, RECT_SHADING_WGSL),
-  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner'],
+  ['rectView', 'polygonFormFactor', 'rectEdge', 'cutEdge', 'ltcCorner', 'faceNormal'],
   {
     ...F32_SCOPE,
     rangeWindow: () => 1,

@@ -1,7 +1,11 @@
 import { readdirSync } from 'node:fs'
 import type { WgslDecl } from './decl.ts'
+import * as barycentric from './barycentric.ts'
 import * as basis from './basis.ts'
+import * as color from './color.ts'
 import * as constants from './constants.ts'
+import * as geometry from './geometry.ts'
+import * as integer from './integer.ts'
 import * as inverseTranspose from './inverseTranspose.ts'
 import * as lighting from './lighting.ts'
 import * as matrix from './matrix.ts'
@@ -12,8 +16,12 @@ import * as sampling from './sampling.ts'
 /** The library's declaration files, by name: a file left out of this list would escape the tests
  *  that sweep the engine's shaders, so one is refused below. */
 const MODULES = {
+  barycentric,
   basis,
+  color,
   constants,
+  geometry,
+  integer,
   inverseTranspose,
   lighting,
   matrix,

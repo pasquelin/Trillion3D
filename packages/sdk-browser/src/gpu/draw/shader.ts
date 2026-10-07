@@ -3,6 +3,7 @@ import { LANE_SCAN_WGSL } from '../core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { BASE_SLOTS, BATCH_SHIFT, DRAW_ITEM_WGSL, HALF_SLOTS, slotCount } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Stable compaction of the frame's draw items into one indirect command per slot.
@@ -89,7 +90,7 @@ fn writeCmd(slot:u32,count:u32){
 /** Instances \`item\` draws as: its corners by batches of \`corners\`, at least one, at most the
  *  \`perRow\` the instance list holds a row. */
 fn batchesOf(item:DrawItem)->u32{
- return clamp((item.triangles*3u+uni.corners-1u)/uni.corners,1u,uni.perRow);
+ return clamp(ceilDiv(item.triangles*3u,uni.corners),1u,uni.perRow);
 }
 /** No slot: the lane is past the frame's items, or its item is not selected. */
 const NO_SLOT:u32=0xffffffffu;
@@ -168,6 +169,6 @@ fn scatterGroups(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_index
  for(var b=0u;b<batches;b++){instances[at+b]=page|((b*stride)<<${BATCH_SHIFT}u);}
 }
 `,
-    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL],
+    [DRAW_ITEM_WGSL, LANE_SCAN_WGSL, FLAT_INDEX_WGSL, ceilDiv],
   )
 }

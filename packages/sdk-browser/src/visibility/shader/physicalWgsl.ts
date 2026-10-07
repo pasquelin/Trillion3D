@@ -11,6 +11,7 @@ import {
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { tangentFallback } from '../../../../math/src/wgsl/basis.ts'
+import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 
 /** The records' table bound at `binding` (`../../webgpu/visibility/physicalTable.ts`), and record `i`
  *  read from its three texels: the very words the table holds. */
@@ -47,7 +48,7 @@ fn physicalAt(i:u32)->PhysicalInfo{
 export const physicalCoreWgsl = (sampled: string) =>
   wgslBlock(
     `physicalCoreWgsl(${sampled})`,
-    [ROUGHNESS_FLOOR, uniteOuZero, tangentFallback],
+    [ROUGHNESS_FLOOR, uniteOuZero, tangentFallback, vectorRejection],
     `struct PhysicalCoord{uv:vec2f,ddx:vec2f,ddy:vec2f,d1:vec2f,d2:vec2f,}
 var<private> physicalRecord:PhysicalInfo;
 var<private> physicalCoord0:PhysicalCoord;
@@ -103,7 +104,7 @@ fn physicalValues(N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFa
   let c=physicalCoord0;
   frame0=cotangentFrame(N,e1,e2,c.d1,c.d2);
   let fT=frame0.T*screenFace;let fB=frame0.B*screenFace;
-  var T=fT-N*dot(N,fT);
+  var T=vectorRejection(fT,N);
   if(dot(T,T)<1e-12){T=tangentFallback(N);}
   T=normalize(T);var B=normalize(cross(N,T));
   if(dot(B,fB)<0.0){B=-B;}

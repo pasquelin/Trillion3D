@@ -19,6 +19,7 @@ import {
 import { SAMPLE_WRAP_SHIFT } from '../../texture/sampling.ts'
 import { SAMPLING_WGSL, samplingReadWgsl, atlasReadWgsl } from './samplingWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
 
 /** A place's column-or-row and layer fields in a table word (`packPlace`). */
 const AXIS_MASK = (1 << PLACE_AXIS_BITS) - 1,
@@ -129,7 +130,7 @@ export const TILE_POOL_WGSL = tilePoolWgsl('uni.mipBias')
 const kind = (k: string) =>
   wgslBlock(
     `tileKind(${k})`,
-    [samplingReadWgsl(k)],
+    [samplingReadWgsl(k), bilinear4],
     `fn ${k}Slot(slot:u32)->TileSlot{
  let h=PAGE_HEADER+slot*PAGE_SLOT;
  let last=${k}Pages[h+2u];let tail=${k}Pages[h+3u];let word=last>>${PAGE_FILTER_SHIFT}u;
@@ -184,7 +185,7 @@ fn ${k}Level(s:TileSlot,uv:vec2f,level:u32,finest:bool,nearest:bool)->vec4f{
  let s10=${k}Fetch(s,vec2f(t.loin.x,t.proche.y),level,finest,nearest);
  let s01=${k}Fetch(s,vec2f(t.proche.x,t.loin.y),level,finest,nearest);
  let s11=${k}Fetch(s,t.loin,level,finest,nearest);
- return mix(mix(s00,s10,t.poids.x),mix(s01,s11,t.poids.x),t.poids.y);
+ return bilinear4(s00,s10,s01,s11,t.poids);
 }
 /** Filtered read: the two levels the footprint straddles, mixed by their share. */
 fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool,finest:bool)->vec4f{

@@ -101,27 +101,6 @@ export const normalAtlasWgsl = (binding: number) =>
     `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;`,
   )
 
-/** Signed area of the triangle `(a,b,p)` in screen coordinates; the raster takes its barycentrics from it. */
-export const EDGE_WGSL = wgslBlock(
-  'EDGE_WGSL',
-  [],
-  `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`,
-)
-
-/**
- * The three affine barycentric weights of the point `p`, the signed area already known, for
- * visibility-buffer shading. The compute raster has its own: it decides coverage on its three
- * edges, and a weight derived by `1-w0-w1` is not watertight. It lists `EDGE_WGSL`.
- */
-export const BARY_WEIGHTS_WGSL = wgslBlock(
-  'BARY_WEIGHTS_WGSL',
-  [EDGE_WGSL],
-  `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
- let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;
- return vec3f(w0,w1,1.0-w0-w1);
-}`,
-)
-
 /**
  * Texture coordinate of a vertex and the opacity-mask test of a cluster, as both the
  * visibility-buffer raster and the shadow depth pass apply them. A single write: a cutout that

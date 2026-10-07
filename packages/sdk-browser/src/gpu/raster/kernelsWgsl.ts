@@ -107,7 +107,7 @@ fn spread(slot:u32,groups:u32,z:u32){
 }
 /** Each count becomes its dispatch, without any going through the CPU. */
 @compute @workgroup_size(1) fn plan(){
- let fine=(atomicLoad(&work[LIST+${CNT_FINE}u])+${FINE_PER_GROUP}u-1u)/${FINE_PER_GROUP}u;
+ let fine=ceilDiv(atomicLoad(&work[LIST+${CNT_FINE}u]),${FINE_PER_GROUP}u);
  spread(0u,fine,1u);
  spread(1u,atomicLoad(&work[LIST+${CNT_COARSE}u]),1u);
  spread(2u,atomicLoad(&work[LIST+${CNT_LARGE}u]),1u);

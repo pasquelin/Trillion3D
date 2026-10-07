@@ -80,7 +80,7 @@ function scene() {
 const DECODE = [
   'pageHeader pageHeaderFor pageSurfaceRead deformWholeCopy pageCorner pageTriangle pagePosition',
   'pageRestPosition pageUv pageMaskAlpha pageColor vertPos vertUv clusterPointHeader',
-  'clusterSurfaceHeader clusterStream clusterWidths clusterStep clusterPow2 clusterBitsFor',
+  'clusterSurfaceHeader clusterStream clusterWidths clusterStep pow2FromExponent bitLength ceilDiv',
   'clusterIndex clusterTriangle clusterBlock clusterWindow clusterField clusterPosition clusterGrid',
   'clusterUv clusterNormal clusterColor octDecodeScalar',
 ].flatMap((line) => line.split(' '))

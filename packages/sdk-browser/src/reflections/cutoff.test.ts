@@ -96,6 +96,7 @@ test('a missed or below-horizon sample returns the environment reflection, not b
     'ndotvClamped',
     'f0Of',
     'splitSumTerm',
+    'clipToUvUnflipped',
   ]
   const direct = shaderRun<{
     mirrorLighting: (...args: [number[], number, number, number[], number[], number[]]) => number[]

@@ -9,7 +9,7 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 test('the cone aperture encloses half the weighted GGX lobe and grows with roughness', () => {
   const shader = shaderFunctions<{ reflectionConeSlope(rough: number): number }>(
     wgslModule(REFLECTION_CONE_TRACE_WGSL),
-    ['reflectionGgxMass', 'reflectionConeSlope'],
+    ['reflectionGgxMass', 'reflectionConeSlope', 'sinFromCos'],
     { abs: Math.abs, log: Math.log, sqrt: Math.sqrt },
   )
   let previous = 0

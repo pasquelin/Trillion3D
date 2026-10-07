@@ -16,7 +16,7 @@ import { mirrorLightingWgsl, PROBE_MIRROR_RADIANCE } from '../../reflections/mod
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts'
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts'
-import { SRGB_ENCODE_WGSL } from '../../texture/srgbEncode.ts'
+import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
@@ -217,7 +217,7 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
       VIEW_WGSL,
       ...(bloom ? [BLOOM_COMPOSE_WGSL] : []),
       FULLSCREEN_VERTEX,
-      SRGB_ENCODE_WGSL,
+      linearToSrgb,
       ...(curve ? [curve] : []),
     ],
   )

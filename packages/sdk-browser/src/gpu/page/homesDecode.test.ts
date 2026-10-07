@@ -13,12 +13,15 @@ import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Fn = (...args: unknown[]) => unknown
-const ROUTINES = ['clusterPow2', 'clusterBitsFor', 'clusterField', 'clusterWidths', 'clusterStep']
+const ROUTINES = ['clusterField', 'clusterWidths', 'clusterStep']
 const READERS = ['clusterHeader', 'clusterTriangle', 'clusterIndex', 'clusterPosition', 'clusterUv']
 const ATTRIBUTES = ['clusterNormal', 'clusterColor', 'clusterJoint', 'clusterWeight']
 const NAMES = [...ROUTINES, ...READERS, ...ATTRIBUTES, 'clusterMorph']
 const HELPERS = [
   'octDecodeScalar',
+  'pow2FromExponent',
+  'bitLength',
+  'ceilDiv',
   'clusterStream',
   'clusterWindow',
   'clusterBlock',

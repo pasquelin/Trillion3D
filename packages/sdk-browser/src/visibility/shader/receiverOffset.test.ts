@@ -34,10 +34,10 @@ const STORED_WGSL = `fn storedOffset(pos:vec2f)->vec3f{
  if(page.lineWidth>0.0){c0=pageLine(c0);c1=pageLine(c1);c2=pageLine(c2);}
  let s0=framebuffer(c0);let s1=framebuffer(c1);let s2=framebuffer(c2);
  let p=vec2f(pos.x,pos.y);
- let area=edge(s1.xy,s2.xy,s0.xy);
+ let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  var bary=vec3f(0.333,0.333,0.334);
  if(area!=0.0){
-  let bw=baryWeights(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
+  let bw=affineBarycentric(s0.xy,s1.xy,s2.xy,p,area);let a0=bw.x;let a1=bw.y;let a2=bw.z;
   let iw0=1.0/c0.w;let iw1=1.0/c1.w;let iw2=1.0/c2.w;
   let p0w=a0*iw0;let p1w=a1*iw1;let p2w=a2*iw2;let sum=p0w+p1w+p2w;
   bary=select(vec3f(a0,a1,a2),vec3f(p0w,p1w,p2w)/sum,sum!=0.0);
@@ -141,10 +141,11 @@ const SHIPPED = wgslModule(receiverOffsetWgsl(0))
 const HELPERS = [
   'framebuffer',
   'clipToFramebuffer',
-  'edge',
-  'baryWeights',
+  'edgeFunction',
+  'affineBarycentric',
   'pixelBary',
-  'perspectiveBary',
+  'perspectiveBarycentric',
+  'faceNormal',
   'vertexNormals',
   'transformedNormals',
   'uniteOuZero',

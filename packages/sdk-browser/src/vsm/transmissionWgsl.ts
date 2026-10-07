@@ -44,6 +44,9 @@
  */
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
+import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
+import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
+import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
@@ -495,10 +498,9 @@ fn vsmTCut(i:VsmTCorner,o:VsmTCorner)->VsmTCorner{
 fn vsmTTexel(h:vec4f,scale:f32,corner:vec2f)->vec2f{return vec2f(h.x/h.w*scale,h.y/h.w*scale)-corner;}
 /** The uv at texel point \`p\` of the projected triangle, perspective-correct. */
 fn vsmTUvAt(x:array<vec2f,3>,c:array<VsmTCorner,3>,p:vec2f)->vec2f{
- let b=vec3f(vsmTArea(x[1],x[2],p),vsmTArea(x[2],x[0],p),vsmTArea(x[0],x[1],p))/vec3f(c[0].h.w,c[1].h.w,c[2].h.w);
+ let b=vec3f(edgeFunction(x[1],x[2],p),edgeFunction(x[2],x[0],p),edgeFunction(x[0],x[1],p))/vec3f(c[0].h.w,c[1].h.w,c[2].h.w);
  return (b.x*c[0].uv+b.y*c[1].uv+b.z*c[2].uv)/(b.x+b.y+b.z);
 }
-fn vsmTArea(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
 /** A record's cells, for the resolve: the cell range a box [lo, hi] grown by 2⁻¹⁰ texel meets
  *  (\`vsmTCellRange\`), four bits a corner, and bit 16 when the triangle turns clockwise. */
 fn vsmTCellsWord(lo:vec2f,hi:vec2f,area:f32)->u32{
@@ -511,7 +513,7 @@ fn vsmTCellsWord(lo:vec2f,hi:vec2f,area:f32)->u32{
  * n w), \`q\` its quantised transmittance (textured: from its patch).
  */
 fn vsmTRecord(page:PageInfo,row:u32,key:u32,x:array<vec2f,3>,c:array<VsmTCorner,3>,shape:vec4f,q:u32,ray:vec3f){
- let area=vsmTArea(x[0],x[1],x[2]);
+ let area=edgeFunction(x[0],x[1],x[2]);
  if(area==0.0){return;}
  let lo=min(min(x[0],x[1]),x[2]);let hi=max(max(x[0],x[1]),x[2]);
  if(hi.x<0.0||hi.y<0.0||lo.x>=${VSM_PAGE_TEXELS}.0||lo.y>=${VSM_PAGE_TEXELS}.0){return;}
@@ -585,7 +587,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   corners[i]=VsmTCorner(m,select(vec2f(0.0),pageUv(page,h,tri[i]),mapped));
  }
  // Both faces; the volume rule needs the side facing the light.
- var n=cross(world[1]-world[0],world[2]-world[0]);
+ var n=faceNormal(world[0],world[1],world[2]);
  if(matrixWindingCw(w)){n=-n;}
  let axis=vec3f(M[0].z,M[1].z,M[2].z);
  let front=dot(n,select(-shifted[0],axis,isOrtho))>0.0;
@@ -601,7 +603,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   let a=normalize(axis);
   out.shape=vec4f(dot(world[0],a),dot(world[1],a),dot(world[2],a),0.0);
  }else{
-  let nl=normalize(cross(shifted[1]-shifted[0],shifted[2]-shifted[0]));
+  let nl=normalize(faceNormal(shifted[0],shifted[1],shifted[2]));
   out.shape=vec4f(nl,dot(nl,shifted[0]));
  }
  // A local light's near plane: the polygon kept on w − z ≥ 0, 0 to 4 corners, fanned.
@@ -681,6 +683,8 @@ var<workgroup> wgCommand:array<u32,5>;
       PAGE_GEOMETRY_WGSL,
       BLEND_TRANSMITTANCE_WGSL,
       FLOAT32_MAX,
+      edgeFunction,
+      faceNormal,
     ],
   )
 
@@ -845,7 +849,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
   workgroupBarrier();
  }
  count=min(count,0xFFFFu);
- let texels=(count+3u)/4u;
+ let texels=ceilDiv(count,4u);
  counts[lane]=count;
  sums[lane]=texels;
  workgroupBarrier();
@@ -858,8 +862,8 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  }
  let lists=VSM_T_RECORDS_TEXEL+4u*records;
  let patches=lists+sums[${CELL_COUNT - 1}u];
- let total=patches+(vsmTBuild(VSM_T_PATCH+key)+3u)/4u;
- let blocks=(total+VSM_T_BLOCK_TEXELS-1u)/VSM_T_BLOCK_TEXELS;
+ let total=patches+ceilDiv(vsmTBuild(VSM_T_PATCH+key),4u);
+ let blocks=ceilDiv(total,VSM_T_BLOCK_TEXELS);
  if(lane==0u){
   held[2]=0u;
   if(blocks>VSM_T_CHAIN){atomicAdd(&build[VSM_TC_FULL],1u);}
@@ -895,7 +899,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
   var h=vec4u(0u);
   for(var c=0u;c<4u;c++){
    let at=4u*lane+c;
-   h[c]=((lists+sums[at]-(counts[at]+3u)/4u)<<16u)|counts[at];
+   h[c]=((lists+sums[at]-ceilDiv(counts[at],4u))<<16u)|counts[at];
   }
   textureStore(memory,vsmTAt(lane),h);
  }else if(lane<${RECORDS_TEXEL}u){
@@ -928,7 +932,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  textureStore(memory,vec2u(t%${VSM_TRANSMISSION_WIDTH}u,t/${VSM_TRANSMISSION_WIDTH}u),w);
 }
 `,
-    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL],
+    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL, ceilDiv],
   )
 
 // ---- Consumer read ------------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
+import { bitLength, ceilDiv, pow2FromExponent } from '../../../math/src/wgsl/integer.ts'
 import {
   BLOCK_CORNERS,
   CLUSTER_HEADER_WORDS,
@@ -62,10 +63,8 @@ fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFra
 export function clusterDecodeWgsl(buffer: string) {
   return wgslBlock(
     `clusterDecodeWgsl(${buffer})`,
-    [octDecodeScalar, CLUSTER_HEADER_WGSL],
-    `fn clusterPow2(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}
-fn clusterBitsFor(range:u32)->u32{return 32u-countLeadingZeros(range);}
-// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
+    [octDecodeScalar, CLUSTER_HEADER_WGSL, bitLength, ceilDiv, pow2FromExponent],
+    `// The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
  if(bits==0u){return 0u;}
  let shift=at&31u;let index=base+(at>>5u);
@@ -75,11 +74,11 @@ fn clusterField(base:u32,at:u32,bits:u32)->u32{
 }
 // A record word: six bits per width from bit 0, the exponent as a signed byte on top.
 fn clusterWidths(word:u32)->vec4u{return vec4u(word&63u,(word>>6u)&63u,(word>>12u)&63u,(word>>18u)&63u);}
-fn clusterStep(word:u32)->f32{return clusterPow2(i32(word)>>24u);}
+fn clusterStep(word:u32)->f32{return pow2FromExponent(i32(word)>>24u);}
 // The word a stream of \`count\` fields of \`bits\` bits starts at; \`at\` moves past it when present.
 fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
  let start=*at;
- if(present){*at+=(count*bits+31u)/32u;}
+ if(present){*at+=ceilDiv(count*bits,32u);}
  return start;
 }
 // The header's corners and positions: what a raster reads of a row that draws no surface
@@ -90,15 +89,15 @@ fn clusterPointHeader(base:u32)->ClusterHeader{
  h.vertexCount=${buffer}[base+2u];h.indexCount=${buffer}[base+3u];
  let p=${buffer}[base+5u];h.posBits=clusterWidths(p).xyz;h.posStep=clusterStep(p);
  h.posMin=vec3f(bitcast<f32>(${buffer}[base+6u]),bitcast<f32>(${buffer}[base+7u]),bitcast<f32>(${buffer}[base+8u]));
- h.indexBits=clusterBitsFor(h.vertexCount-1u);
+ h.indexBits=bitLength(h.vertexCount-1u);
  let cornerBits=${buffer}[base+21u];
- h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
+ h.prefixBits=bitLength(cornerBits/${BLOCK_CORNERS}u);
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
- h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
+ h.positionCount=${buffer}[base+22u];h.linkBits=bitLength(h.positionCount-1u);
  // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
  let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
  let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
- h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
+ h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
  h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
  h.links=at;
@@ -180,11 +179,11 @@ fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
 }
 // Every influence is retained; weight words are exact source float32 bits.
 fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
- let w=(h.vertexCount*h.skinBits+31u)/32u;
+ let w=ceilDiv(h.vertexCount*h.skinBits,32u);
  return h.skinBase+clusterField(base+h.skin+influence*w,vertex*h.skinBits,h.skinBits);
 }
 fn clusterWeight(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->f32{
- let w=(h.vertexCount*h.skinBits+31u)/32u;
+ let w=ceilDiv(h.vertexCount*h.skinBits,32u);
  return bitcast<f32>(${buffer}[base+h.skin+h.influences*w+influence*h.vertexCount+vertex]);
 }
 // Morph target \`t\`'s position displacement (\`normal\` false) or normal displacement of a vertex:

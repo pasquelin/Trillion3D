@@ -3,6 +3,8 @@ import { DEPTH_GROW, SCREEN_SLACK_K } from '../partition/margins.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { CORNER_VALUES, FLAG_CLIP } from '../partition/contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FAR_VALUE, INFINITE_THRESHOLD } from '../../../../math/src/wgsl/constants.ts'
+import { ndcToPixelFlip } from '../../../../math/src/wgsl/projection.ts'
 
 const SLACK = wgslF32(SCREEN_SLACK_K),
   GROW = wgslF32(DEPTH_GROW)
@@ -55,7 +57,7 @@ export const PARTITION_UNI_WGSL = wgslBlock(
  */
 export const BOX_PROJECT_WGSL = wgslBlock(
   'BOX_PROJECT_WGSL',
-  [PROJECTION_SLACK_WGSL],
+  [PROJECTION_SLACK_WGSL, FAR_VALUE, INFINITE_THRESHOLD, ndcToPixelFlip],
   `
 /** What a projected box returns: its unclipped rectangle, its depth bound, and the clip flag
  *  that forbids any rejection. */
@@ -68,9 +70,9 @@ fn biasedDepth(value:f32,layer:u32)->f32{
  return bitcast<f32>(min(0x3f800000u,bitcast<u32>(value)+units));
 }
 fn projectBox(slot:u32,layer:u32)->BoxProj{
- var lowX=1.0e30;var highX=-1.0e30;var lowY=1.0e30;var highY=-1.0e30;
+ var lowX=FAR_VALUE;var highX=-FAR_VALUE;var lowY=FAR_VALUE;var highY=-FAR_VALUE;
  // Reversed depth: the NEAREST corner is the one whose depth is the LARGEST.
- var nearestZ=-1.0e30;
+ var nearestZ=-FAR_VALUE;
  var clips=false;
  let m=uni.viewProj;let v=uni.view;
  for(var k=0u;k<8u;k++){
@@ -89,7 +91,7 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
   let depth=-(vz.x/vd.x);
   if(depth-quotientSlack(depth,vz,vd)<=uni.near){clips=true;break;}
   let cw=dot4(m[0][3],m[1][3],m[2][3],m[3][3],d,mag);
-  if(!(cw.x>slackOf(cw))||!(abs(cw.x)<3.0e38)){clips=true;break;}
+  if(!(cw.x>slackOf(cw))||!(abs(cw.x)<INFINITE_THRESHOLD)){clips=true;break;}
   let cx=dot4(m[0][0],m[1][0],m[2][0],m[3][0],d,mag);
   let cy=dot4(m[0][1],m[1][1],m[2][1],m[3][1],d,mag);
   let cz=dot4(m[0][2],m[1][2],m[2][2],m[3][2],d,mag);
@@ -102,10 +104,8 @@ fn projectBox(slot:u32,layer:u32)->BoxProj{
  let wF=f32(uni.width);let hF=f32(uni.height);
  let slack=${SLACK}*max(wF,hF)+1.0e-4;
  let rect=vec4i(
-  i32(floor((lowX*0.5+0.5)*wF-slack)),
-  i32(floor((1.0-(highY*0.5+0.5))*hF-slack)),
-  i32(ceil((highX*0.5+0.5)*wF+slack)),
-  i32(ceil((1.0-(lowY*0.5+0.5))*hF+slack)));
+  vec2i(floor(ndcToPixelFlip(vec2f(lowX,highY),vec2f(wF,hF))-slack)),
+  vec2i(ceil(ndcToPixelFlip(vec2f(highX,lowY),vec2f(wF,hF))+slack)));
  var nearest=nearestZ;
  if(nearest>0.0){nearest=biasedDepth(nearest*${GROW},layer);}
  return BoxProj(rect,nearest,0u);

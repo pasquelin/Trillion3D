@@ -32,6 +32,14 @@ import {
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX, PI } from '../../../math/src/wgsl/constants.ts'
+import { sinFromCosUnclamped } from '../../../math/src/wgsl/geometry.ts'
+import {
+  Frame3,
+  frameAround,
+  intoFrame,
+  outOfFrame,
+  tangentAcross,
+} from '../../../math/src/wgsl/basis.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
@@ -102,7 +110,7 @@ fn ${name}(rayState:ptr<function,${state}>,stepCount:i32,stepJitter:f32,extrapol
 /** The traces' common helpers and the ray jitter step. */
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [PI, FLOAT32_MAX, VSM_STRUCTS_WGSL, VSM_PROJECTION_DATA_WGSL],
+  [PI, FLOAT32_MAX, frameAround, VSM_STRUCTS_WGSL, VSM_PROJECTION_DATA_WGSL],
   `
 struct VsmMarchStep{valid:bool,storedDepth:f32,marchRayDepth:f32,slopeCap:f32,restartSlope:bool,}
 fn vsmEmptyStep()->VsmMarchStep{return VsmMarchStep(false,0.0,0.0,0.0,false);}
@@ -167,18 +175,6 @@ fn vsmSquareToDiskFast(E:vec2f)->vec2f{
  else{sf.y=select(-root,root,sf.y>0.0);}
  return sf;
 }
-/** A tangent basis around \`frameAxis\`: rows (x, y, z). */
-struct VsmFrame3{x:vec3f,y:vec3f,z:vec3f,}
-fn vsmFrameAround(frameAxis:vec3f)->VsmFrame3{
- let s=select(-1.0,1.0,frameAxis.z>=0.0);
- let a=-1.0/(s+frameAxis.z);
- let b=frameAxis.x*frameAxis.y*a;
- return VsmFrame3(vec3f(1.0+s*a*frameAxis.x*frameAxis.x,s*b,-s*frameAxis.x),vec3f(b,s+a*frameAxis.y*frameAxis.y,-frameAxis.y),frameAxis);
-}
-/** The vector \`v\` in the frame \`m\`: its dot with each of the frame's rows. */
-fn vsmIntoFrame(m:VsmFrame3,v:vec3f)->vec3f{return vec3f(dot(m.x,v),dot(m.y,v),dot(m.z,v));}
-/** The vector of components \`v\` in the frame \`m\` back in the world: the rows weighted by them. */
-fn vsmOutOfFrame(v:vec3f,m:VsmFrame3)->vec3f{return v.x*m.x+v.y*m.y+v.z*m.z;}
 /** The next ray's jitter bits: one step of a linear congruential generator modulo 2^32. Declared,
  *  without derivation: its multiplier and increment set every local ray's sample jitter after the
  *  first; another pair moves every penumbra pixel's noise. */
@@ -213,7 +209,7 @@ fn vsmSunRaySpread(l:vec3f,s:f32,n:vec3f,viewPosition:vec3f,ditherUv:f32,uvPerWo
  let clip=vsmView.viewToClip*vec4f(viewPosition,1.0);
  let ndc=clip.xy/clip.w;
  let toPixels=0.5*vsmView.viewPixels.xy/clip.w;
- let across=vsmFrameAround(l);
+ let across=frameAround(l);
  let a=vsmAcrossLightOnScreen(across.x,l,n,nl,ndc,toPixels);
  let b=vsmAcrossLightOnScreen(across.y,l,n,nl,ndc,toPixels);
  let g=vec3f(dot(a,a),dot(b,b),dot(a,b));
@@ -237,6 +233,7 @@ export const VSM_TRACE_DIRECTIONAL_WGSL = wgslBlock(
   'VSM_TRACE_DIRECTIONAL_WGSL',
   [
     VSM_TRACE_COMMON_WGSL,
+    tangentAcross,
     VSM_HANDLE_WGSL,
     VSM_PROJECTION_DATA_WGSL,
     VSM_PROJECTION_DATA_READ_WGSL,
@@ -315,7 +312,7 @@ fn vsmSunDiskRayDirection(lightDirection:vec3f,sourceRadius:f32,E:vec2f)->vec3f{
  var rayDir=lightDirection;
  let diskUv=vsmSquareToDisk(E)*sourceRadius;
  let N=rayDir;
- let diskSide=cross(N,select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.x)>1e-6));
+ let diskSide=tangentAcross(N);
  let diskUp=cross(diskSide,N);
  rayDir+=diskSide*diskUv.x+diskUp*diskUv.y;
  return normalize(rayDir);
@@ -328,6 +325,7 @@ export const VSM_TRACE_LOCAL_WGSL = wgslBlock(
   'VSM_TRACE_LOCAL_WGSL',
   [
     VSM_TRACE_COMMON_WGSL,
+    sinFromCosUnclamped,
     VSM_HANDLE_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
     VSM_PAGE_LOOKUP_WGSL,
@@ -434,7 +432,7 @@ fn vsmReceiverPixelSize(pd:VsmProjectionData,sceneDepth:f32)->f32{
 /** The clamp on a local light's ray distance by the cosine of the angle. */
 fn vsmLocalRayReach(cosTheta:f32)->f32{
  // Declared: a local ray stops at three quarters of the way to the light, sooner off its axis.
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ let sinTheta=sinFromCosUnclamped(cosTheta);
  return 0.75*saturate(1.5/(cosTheta+vsm.traceConeCot*sinTheta));
 }
 `,
@@ -546,6 +544,10 @@ export const vsmTraceWgsl = (waveVotes: boolean) =>
     `vsmTraceWgsl(${waveVotes})`,
     [
       VSM_CONSTANTS_WGSL,
+      Frame3,
+      frameAround,
+      intoFrame,
+      outOfFrame,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
@@ -654,7 +656,7 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
  var ditherUv=0.0;
  var ditherSlopeCap=0.0;
  var depthBiasCap=0.0;
- var basis:VsmFrame3;
+ var basis:Frame3;
  var frameDepthSlope=vec2f(0.0);
  var stepsPerRay=settings.stepsPerRay;
  var mipLevel=0u;
@@ -669,8 +671,8 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
   ditherUv=(settings.ditherTexels*pd.ditherTexels)*pixelSizeHere;
   ditherSlopeCap=vsm.tracePlaneBiasCapLocal*ditherUv;
   depthBiasCap=vsm.tracePlaneBiasCapLocal*pixelSizeHere*depthPerDistance;
-  basis=vsmFrameAround(coneAxis);
-  let normalInFrame=vsmIntoFrame(basis,worldNormal);
+  basis=frameAround(coneAxis);
+  let normalInFrame=intoFrame(basis,worldNormal);
   frameDepthSlope=-normalInFrame.xy/normalInFrame.z;
   if(coneSin==0.0){stepsPerRay=0;}
   mipLevel=vsmLocalMipAt(pd,shiftedInMap,sceneDepth);
@@ -697,12 +699,12 @@ fn vsmTraceLocal(mapId:i32,light:VsmProjectionLight,pixelPos:vec2u,sceneDepth:f3
    let diskPoint=vsmSquareToDiskFast(noise4.xy)*coneSin;
    let sinSq=dot(diskPoint,diskPoint);
    let cosTheta=sqrt(1.0-sinSq);
-   let dir=vsmOutOfFrame(vec3f(diskPoint,cosTheta),basis);
+   let dir=outOfFrame(vec3f(diskPoint,cosTheta),basis);
    var ditheredStart=shiftedInMap;
    if(ditherUv>0.0){
     let ditherOffset=(noise4.zw-0.5)*ditherUv;
     let ditherDepth=min(ditherSlopeCap,2.0*max(0.0,dot(frameDepthSlope,ditherOffset)));
-    ditheredStart+=vsmOutOfFrame(vec3f(ditherOffset,ditherDepth),basis);
+    ditheredStart+=outOfFrame(vec3f(ditherOffset,ditherDepth),basis);
    }
    let rayReach=distToLight*vsmLocalRayReach(cosTheta);
    // The 1e-6 is centimetres.

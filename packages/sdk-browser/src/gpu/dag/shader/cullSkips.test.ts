@@ -59,7 +59,7 @@ function cameraPlanes(far: number) {
 }
 
 test('an infinite far plane is read as absent, a declared one is tested', () => {
-  assert.ok(DAG_SELECTION_SHADER.includes('if(i!=skip&&outsidePlane('))
+  assert.ok(DAG_SELECTION_SHADER.includes('if(i!=skip&&boxBehindPlane('))
   assert.equal(cameraPlanes(Infinity).farless, true)
   assert.equal(cameraPlanes(2000).farless, false)
 })

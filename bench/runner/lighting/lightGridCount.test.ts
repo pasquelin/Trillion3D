@@ -41,7 +41,7 @@ test('the model prices the pass by its tests and entries, the resolve by its lig
 })
 
 test("the model's G-buffer accesses are the resolve's: the emission's texel under its bit alone", () => {
-  const body = contractSurfaceBody('').text
+  const body = contractSurfaceBody(false).text
   for (const target of Object.keys(RESOLVE_GBUFFER.after).filter((t) => t !== 'colour'))
     assert.equal(
       body.match(new RegExp(`textureLoad\\(${target},coord,0\\)`, 'g'))?.length,

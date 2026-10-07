@@ -15,6 +15,7 @@ import {
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
 } from './pixelTriangleWgsl.ts'
+import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
@@ -52,7 +53,8 @@ test('the lighting calls one shared offset function and binds no offset target',
   // The resolve places its pixel with the very functions the offset calls: they cannot drift.
   const shared = wgslModule(receiverOffsetWgsl(0))
   for (const text of [
-    wgslSource(PIXEL_BARY_WGSL),
+    PIXEL_BARY_WGSL.text,
+    perspectiveBarycentric.text,
     VERTEX_NORMALS_WGSL.text,
     FRAMEBUFFER_WGSL.text,
     wgslSource(SHADE_UNI_WGSL),
@@ -60,7 +62,11 @@ test('the lighting calls one shared offset function and binds no offset target',
     assert.ok(SHADE_SHADER.includes(text) && shared.includes(text), 'one shared placement text')
   }
   // With its corners' 1/w, read with its triangle (`decodeTriangle`).
-  assert.match(SHADE_SHADER, /=perspectiveBary\(/, 'the resolve calls the shared barycentrics')
+  assert.match(
+    SHADE_SHADER,
+    /=perspectiveBarycentric\(/,
+    'the resolve calls the shared barycentrics',
+  )
   // The resolve hands them its row's normal matrix (`shadeCacheWgsl.ts`): the shared transform.
   assert.match(SHADE_SHADER, /=transformedNormals\(/, 'the resolve calls the shared normals')
   assert.equal('shadingOffset' in SHADE_BINDINGS, false, 'the resolve binds no offset target')

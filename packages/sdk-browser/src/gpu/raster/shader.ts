@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
 import {
   COLOR_SAMPLE_WGSL,
@@ -8,7 +9,6 @@ import {
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts'
 import {
-  EDGE_WGSL,
   MASK_KEEP_WGSL,
   PAGE_INFO_STRUCT_WGSL,
   VIS_UNIFORMS_WGSL,
@@ -65,7 +65,6 @@ ${rasterKernels(capacity)}`,
       COLOR_SAMPLE_WGSL,
       maskAlphaWgsl(false),
       PAGE_SCREEN_WGSL,
-      EDGE_WGSL,
       UV_GRADIENTS_WGSL,
       MASK_KEEP_WGSL,
       RASTER_TRI_WGSL,
@@ -75,6 +74,7 @@ ${rasterKernels(capacity)}`,
       COMPUTE_TAKES_WGSL,
       FLAT_INDEX_WGSL,
       GROUP_GRID_WGSL,
+      ceilDiv,
     ],
   )
 
