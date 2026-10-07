@@ -1,5 +1,5 @@
 export * from './types.ts'
 export * from './frameNormal.ts'
-export { VIS_SHADER } from './shader/visWgsl.ts'
-export { SHADE_SHADER } from './shader/shadeWgsl.ts'
+export { VIS_SHADER, visShader } from './shader/visWgsl.ts'
+export { SHADE_SHADER, shadeShader } from './shader/shadeWgsl.ts'
 export { clusterHash } from './math.ts'

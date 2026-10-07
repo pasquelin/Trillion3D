@@ -10,16 +10,23 @@ import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Fn = (...args: unknown[]) => unknown
-const ROUTINES = ['clusterPow2', 'clusterBitsFor', 'clusterField', 'clusterWidths', 'clusterStep']
+const ROUTINES = ['clusterField', 'clusterWidths', 'clusterStep']
 const READERS = ['clusterHeader', 'clusterTriangle', 'clusterIndex', 'clusterPosition', 'clusterUv']
 const ATTRIBUTES = ['clusterNormal', 'clusterColor', 'clusterJoint', 'clusterWeight']
 const NAMES = [...ROUTINES, ...READERS, ...ATTRIBUTES, 'clusterMorph']
-const HELPERS = ['clusterStream', 'clusterWindow', 'clusterBlock', 'clusterGrid'].concat([
-  'clusterPointHeader',
-  'clusterSurfaceHeader',
-])
+const HELPERS = [
+  'octDecodeScalar',
+  'pow2FromExponent',
+  'bitLength',
+  'ceilDiv',
+  'clusterStream',
+  'clusterWindow',
+  'clusterBlock',
+  'clusterGrid',
+].concat(['clusterPointHeader', 'clusterSurfaceHeader'])
 /** WGSL's integers where the decode leans on them: it divides integers alone, and truncates;
  *  `i32` of a `u32` keeps its bits, `>>` of a negative `i32` is arithmetic. */
 const INTEGERS = {
@@ -53,10 +60,14 @@ function decoder(page: Uint8Array, after: (i: number) => number) {
       return after(i)
     },
   })
-  const run = shaderRun<Record<string, Fn>>(clusterDecodeWgsl('pool'), [...NAMES, ...HELPERS], {
-    pool,
-    ...INTEGERS,
-  })
+  const run = shaderRun<Record<string, Fn>>(
+    wgslModule(clusterDecodeWgsl('pool')),
+    [...NAMES, ...HELPERS],
+    {
+      pool,
+      ...INTEGERS,
+    },
+  )
   const call = (name: string, ...args: unknown[]) => ((running = name), run[name](...args))
   return { call, past }
 }

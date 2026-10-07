@@ -34,8 +34,9 @@
  * the sphere radius.
  */
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
+import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
-import { PROJECTED_BOUND_WGSL } from '../gpu/dag/shader/projectedBoundWgsl.ts'
+import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BLEND_CASTER } from '../visibility/types.ts'
@@ -47,12 +48,12 @@ import {
   VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
   VSM_COVER_GATHER_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { wgslBlock, wgslConst } from '../../../math/src/wgsl/decl.ts'
 
 /** Threads per group of every render-cull kernel. */
 export const VSM_RENDER_GROUP = 64
@@ -72,7 +73,10 @@ export const VSM_RENDER_VIEW_DIRECTIONAL = 1
  * double), world-to-view rotation rows (engine convention, −Z forward), focal in pixels, near,
  * perspective 0/1, the cut's threshold.
  */
-export const VSM_RENDER_PARAMS_WGSL = /* wgsl */ `
+export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
+  'VSM_RENDER_PARAMS_WGSL',
+  [],
+  `
 struct VsmRenderParams{
  eyeHigh:vec3f,perspective:f32,
  eyeLow:vec3f,focal:f32,
@@ -90,9 +94,14 @@ const VSM_RENDER_CAND_DEFORMING:u32=2u;
 const VSM_RENDER_VIEW_DIRECTIONAL:u32=${VSM_RENDER_VIEW_DIRECTIONAL}u;
 const VSM_RENDER_COUNTS_HEAD:u32=${VSM_RENDER_COUNTS_HEAD}u;
 fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chunk*4u+k;}
-`
+`,
+)
 
 // ---- Candidates (per row) ----------------------------------------------------------------------
+
+/** The render cull's `INF`, the bound `projectedBound` returns past the near plane: the greatest
+ *  finite f32. */
+const VSM_INF = wgslConst('INF', [FLOAT32_MAX], 'const INF:f32=FLOAT32_MAX;')
 
 /**
  * What a candidates kernel reads of the caster rows — group 0: 0 params (uniform, dynamic), 1 page
@@ -100,12 +109,10 @@ fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chu
  * candidates (rw), 6 counters (rw atomic) — and the main view's pixels of a row's error: the
  * opaque rows' (`vsmRenderCandidatesWgsl`) and the blended rows' (`transmissionWgsl.ts`).
  */
-export const VSM_RENDER_ROWS_WGSL = /* wgsl */ `
-${PAGE_INFO_STRUCT_WGSL}
-${VSM_RENDER_PARAMS_WGSL}
-const INF:f32=3.402823466e38;
-${PROJECTED_BOUND_WGSL}
-${CUT_RULE_WGSL}
+export const VSM_RENDER_ROWS_WGSL = wgslBlock(
+  'VSM_RENDER_ROWS_WGSL',
+  [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, projectedBoundWgsl(VSM_INF), CUT_RULE_WGSL],
+  `
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
 struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii:vec4f,}
 @group(0) @binding(0) var<uniform> params:VsmRenderParams;
@@ -131,11 +138,13 @@ fn vsmRenderMainPixels(lod:vec4f,low:vec4f,radius:f32)->f32{
 fn vsmRenderCandidateFlags(word:u32,deformOutput:u32)->u32{
  if((word&${MOBILITY_MOVING}u)==0u){return 0u;}
  return VSM_RENDER_CAND_DYNAMIC|select(0u,VSM_RENDER_CAND_DEFORMING,deformOutput!=0u);
-}`
+}`,
+)
 
 /** The opaque caster rows the camera's cut selects (`VSM_RENDER_ROWS_WGSL`). */
-export const vsmRenderCandidatesWgsl = () => /* wgsl */ `${VSM_RENDER_ROWS_WGSL}
-${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+export const vsmRenderCandidatesWgsl = () =>
+  wgslProgram(
+    `@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let row=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
  if(row>=params.rowCount){return;}
  let page=pages[row];
@@ -150,7 +159,9 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderCand
  let at=atomicAdd(&counts[0],1u);
  candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,flags,bitcast<u32>(lod.radii.z),0u);
 }
-`
+`,
+    [VSM_RENDER_ROWS_WGSL, FLAT_INDEX_WGSL],
+  )
 
 // ---- Cull (per candidate × map view) -------------------------------------------------------
 
@@ -161,16 +172,6 @@ export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'receiverCover', binding: 2 },
   { resource: 'staleRects', binding: 3 },
   { resource: 'projectionData', binding: 4 },
-]
-
-const VSM_COMMON = (layout: VsmLayout, specs: readonly VsmBindingSpec[]) => [
-  VSM_CONSTANTS_WGSL,
-  VSM_UNIFORMS_WGSL,
-  VSM_HANDLE_WGSL,
-  VSM_STRUCTS_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_PROJECTION_DATA_WGSL,
-  vsmBindingsWgsl(0, specs, layout),
 ]
 
 /** The box frustum tests of the shared cull (`VSM_BOX_CULL_WGSL`) on a box of the shifted world,
@@ -269,16 +270,11 @@ fn vsmShiftedToClip(uv:mat4x4f)->mat4x4f{
  * w corners (16 bits) | mark mask << 16 | mark-page-dirty flags << 24.
  */
 export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {}) =>
-  [
-    ...VSM_COMMON(layout, VSM_RENDER_CULL_SPECS),
-    VSM_PROJECTION_DATA_READ_WGSL,
-    VSM_PAGE_MARKS_GATHER_WGSL,
-    VSM_COVER_GATHER_WGSL,
-    VSM_RENDER_PARAMS_WGSL,
-    VSM_BOX_CULL_WGSL,
-    FRUSTUM_WGSL,
-    OVERLAP_WGSL,
-    /* wgsl */ `
+  wgslProgram(
+    [
+      FRUSTUM_WGSL,
+      OVERLAP_WGSL,
+      /* wgsl */ `
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
 @group(1) @binding(1) var<storage,read> views:array<vec4u>;
 @group(1) @binding(2) var<storage,read> candidates:array<VsmRenderCandidate>;
@@ -327,7 +323,7 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  let cull=vsmShiftedBoxInView(center,vec3f(radius),shiftedToClip,viewToClip,isOrtho,nearClip);
  visible=cull.inMapView;
  if(visible&&!staticLayer){
-  visible=cull.clipHigh.z>0.0&&cull.clipLow.z<3.402823466e38;
+  visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
  }
  if(!visible){return;}
  var pixelRadius=vsmClipRadius(isOrtho,radius,center,viewToClip)*f32(VSM_LEVEL0_TEXELS);
@@ -352,7 +348,19 @@ export const vsmRenderCullWgsl = (layout: VsmLayout, { marksDirty = true } = {})
  }
 }
 `,
-  ].join('\n')
+    ].join('\n'),
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmBindingsWgsl(0, VSM_RENDER_CULL_SPECS, layout),
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_COVER_GATHER_WGSL,
+      VSM_RENDER_PARAMS_WGSL,
+      VSM_BOX_CULL_WGSL,
+      FLOAT32_MAX,
+    ],
+  )
 
 // ---- Expand (one workgroup per command) ---------------------------------------------------------
 
@@ -372,11 +380,7 @@ export const VSM_RENDER_EXPAND_SPECS: readonly VsmBindingSpec[] = [
  * z virtual page x | y << 8; w physical page address x | y << 10.
  */
 export const vsmRenderExpandWgsl = (layout: VsmLayout) =>
-  [
-    ...VSM_COMMON(layout, VSM_RENDER_EXPAND_SPECS),
-    VSM_PAGE_LOOKUP_WGSL,
-    VSM_PAGE_MARKS_GATHER_WGSL,
-    VSM_RENDER_PARAMS_WGSL,
+  wgslProgram(
     /* wgsl */ `
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
 @group(1) @binding(1) var<storage,read> cmds:array<vec4u>;
@@ -391,7 +395,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
   if((markBits&(1u<<s))!=0u){vsmRasterMarksStore(n*s+drawnPool,1u);}
  }
 }
-${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpand(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let index=flatIndex(wid,nwg,1u);
  let count=min(atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,0u)]),params.cmdCapacity);
  if(index>=count){return;}
@@ -433,7 +437,17 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpa
  }
 }
 `,
-  ].join('\n')
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmBindingsWgsl(0, VSM_RENDER_EXPAND_SPECS, layout),
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PAGE_MARKS_GATHER_WGSL,
+      VSM_RENDER_PARAMS_WGSL,
+      FLAT_INDEX_WGSL,
+    ],
+  )
 
 // ---- Indirect arguments -------------------------------------------------------------------------
 
@@ -441,13 +455,13 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmRenderExpa
  * One-thread kernels writing the next stage's indirect arguments. Group 0: 0 params, 1 counters
  * (rw atomic), 2 arguments (rw, `VSM_RENDER_ARGS_STRIDE_WORDS` per chunk).
  */
-export const VSM_RENDER_ARGS_WGSL = /* wgsl */ `
-${VSM_RENDER_PARAMS_WGSL}
+export const VSM_RENDER_ARGS_WGSL = wgslProgram(
+  `
 @group(0) @binding(0) var<uniform> params:VsmRenderParams;
 @group(0) @binding(1) var<storage,read_write> counts:array<atomic<u32>>;
 @group(0) @binding(2) var<storage,read_write> args:array<u32>;
 fn vsmRenderArgsAt(chunk:u32,word:u32)->u32{return chunk*${VSM_RENDER_ARGS_STRIDE_WORDS}u+word;}
-${GROUP_GRID_WGSL}/** Cull dispatch of every chunk, once the candidates are known. */
+/** Cull dispatch of every chunk, once the candidates are known. */
 @compute @workgroup_size(1) fn vsmRenderArgsCull(){
  let total=atomicLoad(&counts[0]);
  for(var c=0u;c<params.chunkCount;c++){
@@ -473,4 +487,6 @@ ${GROUP_GRID_WGSL}/** Cull dispatch of every chunk, once the candidates are know
  args[at]=atomicLoad(&counts[vsmRenderChunkCounter(params.chunk,2u)]);
  args[at+1u]=n;args[at+2u]=0u;args[at+3u]=0u;
 }
-`
+`,
+  [VSM_RENDER_PARAMS_WGSL, GROUP_GRID_WGSL],
+)

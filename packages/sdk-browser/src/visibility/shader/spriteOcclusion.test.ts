@@ -30,6 +30,7 @@ import { surfaceOf } from '../../page/surface.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
 import { NO_HIZ_SLOT } from '../../webgpu/row/noHizSlot.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation })
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
@@ -86,7 +87,7 @@ test('a constant-size sprite row carries no Hi-Z slot, which every GPU reader dr
   assert.ok(constant.length > 0)
   for (const slot of constant) assert.equal(slot, NO_HIZ_SLOT)
   assert.deepEqual(await rowHizSlots(true), [0, 1], 'an attenuated sprite keeps its rank')
-  assert.ok(HIZ_REJECTED_WGSL.includes('hizSlot!=0xffffffffu&&'))
+  assert.ok(wgslSource(HIZ_REJECTED_WGSL).includes('hizSlot!=0xffffffffu&&'))
   // A row moved to another rank keeps having none; any other row takes its new rank.
   const ints = new Uint32Array(64)
   ints[ROW_HIZ_SLOT_WORD] = NO_HIZ_SLOT

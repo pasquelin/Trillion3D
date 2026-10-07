@@ -14,6 +14,7 @@ import { createMaterialTiles, materialTileDrawLayout } from './materialTiles.ts'
 import { encodeMaterialPasses } from './materialPasses.ts'
 import { resolveFixture } from './materialPasses.fixture.ts'
 import { MATERIAL_COMPUTE_PASS } from '../../stage/passLabels.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Fn = (...args: number[]) => number
 type Corner = (tile: number, i: number, tilesX: number) => { x: number; y: number }
@@ -50,9 +51,9 @@ test('a pixel is marked for the one class its page holds', () => {
 
 test("a tile's two triangles are its square, corners on whole pixels its neighbours share", () => {
   const { materialTileCorner } = shaderFunctions<{ materialTileCorner: Corner }>(
-    MATERIAL_TILE_DRAW_WGSL,
+    wgslModule(MATERIAL_TILE_DRAW_WGSL),
     ['materialTileCorner'],
-    wgslConstants(MATERIAL_TILE_DRAW_WGSL),
+    wgslConstants(wgslModule(MATERIAL_TILE_DRAW_WGSL)),
   )
   const corners = [0, 1, 2, 3, 4, 5].map((i) => materialTileCorner(4, i, 3))
   // Tile 4 of a row of 3: column 1, row 1. Top-left, top-right, bottom-left, then the other half.

@@ -1,4 +1,4 @@
-// The umbra vote of the adaptive ray count (`rayCountWgsl`, `traceWgsl.ts`) is asked at the
+// The umbra vote of the adaptive ray count (`rayCountStatement`, `traceWgsl.ts`) is asked at the
 // adaptive count alone. Past it, a half its vote did not stop holds a lane that missed, which votes
 // no at every later ray (`missCount` never falls) and so is never stopped; a half it stopped has no
 // lane left running. The shipped `vsmTraceSun` and `vsmTraceLocal` run here for whole groups, lane
@@ -104,13 +104,13 @@ function local(code: string, votes: object, at: Cursor, spot: boolean) {
       vsmLocalDepthGradientUv: () => [0, 0],
       vsmReceiverPixelSize: () => 0.01,
       vsm: { tracePlaneBiasCapLocal: 1 },
-      vsmFrameAround: () => ({ x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }),
-      vsmIntoFrame: (_m: unknown, v: number[]) => v,
+      frameAround: () => ({ x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }),
+      intoFrame: (_m: unknown, v: number[]) => v,
       vsmLocalMipAt: () => 0,
       vsmView: { frameIndex: 0 },
       vsmRayNoise4: (...a: number[]) => ((at.ray = a[2]), (at.face = 0), [0.5, 0.5, 0.5, 0.5]),
       vsmSquareToDiskFast: () => [0, 0],
-      vsmOutOfFrame: (v: number[]) => v,
+      outOfFrame: (v: number[]) => v,
       vsmLocalRayReach: () => 0.75,
       vsmFaceRayBegin: () => ({}),
       vsmCrossFaceRayBegin: () => ({}),

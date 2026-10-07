@@ -7,12 +7,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
-import { VSM_PROJECTION_SAMPLE_WGSL } from './projectionDataWgsl.ts'
+import { vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
+import { wgslFn } from '../../../math/src/wgsl/decl.ts'
 
 const f = Math.fround
 
 test('the shipped reads multiply by the exact inverse of the level scale', () => {
-  const code = VSM_PROJECTION_SAMPLE_WGSL
+  // The page sampling as a consumer reads it, its pool load the opaque resolve's (none read here).
+  const code = vsmProjectionSampleWgsl(
+    wgslFn('vsmPoolLoad', [], 'fn vsmPoolLoad(t:vec2u,slice:u32)->u32{return 0u;}'),
+  )
   const transform = functionText(code, 'vsmLevelToLevelOf')
   assert.match(
     transform,

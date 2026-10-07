@@ -9,10 +9,10 @@ import assert from 'node:assert/strict'
 import { SHADE_SHADER } from '../../../packages/sdk-browser/src/visibility/shader/shadeWgsl.ts'
 import { stochasticReflectionShader } from '../../../packages/sdk-browser/src/reflections/sampleWgsl.ts'
 import { GGX_REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/ggxSampleWgsl.ts'
-import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { REFLECTION_RESOLVE_WGSL } from '../../../packages/sdk-browser/src/reflections/resolveWgsl.ts'
-import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/hashUnitWgsl.ts'
-import { contractLightingShader } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { hashUnit } from '../../../packages/math/src/wgsl/sampling.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { contractLightingProgram } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
 import { withScreenReflections } from '../../../packages/sdk-browser/src/reflections/screenWgsl.ts'
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'
 import { computeReadback } from '../kit/computeReadback.ts'
@@ -22,7 +22,8 @@ import { openGpuDevice } from '../kit/webgpuDevice.ts'
 // The sample at normal incidence (R = N = z): its direction, its weight against the explicit PDF
 // ratio, and the lobe's mean cosine at four roughnesses; then a long f16 history of a constant
 // HDR source, a highlight into it, and two replays of one seed.
-const SAMPLE_WGSL = `${HASH_UNIT_WGSL}${GGX_REFLECTION_SAMPLE_WGSL}${STANDARD_LIGHTING_WGSL}
+const SAMPLE_WGSL = wgslProgram(
+  `
 @group(0) @binding(0) var<storage,read_write> output:array<vec4f>;
 @compute @workgroup_size(1) fn main(){
  let roughs=array<f32,4>(0.05,0.2,0.5,1.0);
@@ -46,7 +47,9 @@ const SAMPLE_WGSL = `${HASH_UNIT_WGSL}${GGX_REFLECTION_SAMPLE_WGSL}${STANDARD_LI
  let a=stochasticReflection(N,N,0.5,vec2f(hashUnit(9u),hashUnit(10u)));
  let b=stochasticReflection(N,N,0.5,vec2f(hashUnit(9u),hashUnit(10u)));
  output[4]=vec4f(mean,highlight,distance(a,b),abs(hashUnit(9u)-hashUnit(11u)));
-}`
+}`,
+  [hashUnit, GGX_REFLECTION_SAMPLE_WGSL],
+)
 
 /** A program built into a render pipeline: its source and fragment entry point, and whether it
  *  is the visibility shading, drawn by `shade_vs` into the surface targets. */
@@ -110,9 +113,12 @@ test('the GGX sample weighs by its PDF, the f16 history holds, the opaque progra
   ]
   for (const bounce of [false, true])
     for (const narrow of [false, true]) {
-      const shader = contractLightingShader(bounce, { narrow, lobeless: true })
+      const shader = contractLightingProgram(bounce, { narrow, lobeless: true })
       programs.push({ code: stochasticReflectionShader(shader), entry: 'traceRoughReflection' })
-      programs.push({ code: withScreenReflections(shader, true), entry: 'lightSurface' })
+      programs.push({
+        code: withScreenReflections(shader, { history: true }),
+        entry: 'lightSurface',
+      })
     }
   const { values, errors } = await runOnDawn(run, { sample: SAMPLE_WGSL, programs })
   assert.deepEqual(errors, [])

@@ -1,25 +1,16 @@
-import { FULLSCREEN_XY_WGSL } from '../shader/fullscreenTriangle.ts'
-import {
-  COLOR_SAMPLE_WGSL,
-  TILE_POOL_WGSL,
-  maskAlphaWgsl,
-  tileDeclarations,
-} from '../../webgpu/tile/wgsl.ts'
-import {
-  EDGE_WGSL,
-  MASK_KEEP_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-  VIS_UNIFORMS_WGSL,
-} from '../../visibility/shader/pageWgsl.ts'
-import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
-import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
+import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
+import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
+import { COLOR_SAMPLE_WGSL, TILE_POOL_WGSL, tileDeclarations } from '../../webgpu/tile/wgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
-import { COMPUTE_TAKES_WGSL } from './contract.ts'
 import { RASTER_PIXEL_WGSL } from './pixelWgsl.ts'
 import { rasterKernels } from './kernelsWgsl.ts'
+import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
-import { wgslFloat } from '../partition/margins.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /**
  * Compute raster of the share of the opaque and masked cut that the split gives it — the small
@@ -32,11 +23,9 @@ import { wgslFloat } from '../partition/margins.ts'
  * the covered sub-triangle. It therefore uses the colour sampler's existing LOD and anisotropy
  * path, at the same threshold and coordinates as the hardware raster.
  */
-const PAGE_INFO = `${PAGE_INFO_STRUCT_WGSL}
-${VIS_UNIFORMS_WGSL}`
-
-export const rasterSource = (capacity: number, listBase: number) => `${PAGE_INFO}
-@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
+export const rasterSource = (capacity: number, listBase: number) =>
+  wgslProgram(
+    `@group(0) @binding(${SMALL_BINDINGS.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${SMALL_BINDINGS.positions}) var<storage,read> positions:array<f32>;
 @group(0) @binding(${SMALL_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(${SMALL_BINDINGS.hizFlags}) var<storage,read> hizFlags:array<u32>;
@@ -50,24 +39,26 @@ ${tileDeclarations(SMALL_BINDINGS.color, 'color')}
 @group(0) @binding(${SMALL_BINDINGS.work}) var<storage,read_write> work:array<atomic<u32>>;
 const LIST:u32=${listBase}u;
 @group(0) @binding(${SMALL_BINDINGS.selectionMask}) var<storage,read> selectionMask:array<u32>;
-${TILE_POOL_WGSL}
-${COLOR_SAMPLE_WGSL}
-${maskAlphaWgsl(false)}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 // The \`viewProj * world\` product and the linear-part determinant depend only on the page: they
 // are computed once for the page and reread as-is by each of its triangles. The same operands
 // in the same order give the same float as a per-triangle compute.
 fn pageTransform(page:PageInfo)->mat4x4f{return uni.viewProj*page.world;}
-fn pageWinding(page:PageInfo)->f32{return determinant(mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz));}
-${PAGE_GEOMETRY_WGSL}
-${PAGE_SCREEN_WGSL}
-${EDGE_WGSL}
-${UV_GRADIENTS_WGSL}
-${COMPUTE_TAKES_WGSL}
-${MASK_KEEP_WGSL}
-${RASTER_TRI_WGSL}
-${RASTER_PIXEL_WGSL}
-${rasterKernels(capacity)}`
+fn pageWinding(page:PageInfo)->f32{return determinant(worldMatrix3(page.world));}
+${rasterKernels(capacity)}`,
+    [
+      PAGE_INFO_STRUCT_WGSL,
+      VIS_UNIFORMS_WGSL,
+      TILE_POOL_WGSL,
+      COLOR_SAMPLE_WGSL,
+      RASTER_TRI_WGSL,
+      RASTER_PIXEL_WGSL,
+      worldMatrix3,
+      FLAT_INDEX_WGSL,
+      GROUP_GRID_WGSL,
+      ceilDiv,
+    ],
+  )
 
 /**
  * Full-screen hardware resolve: a triangle that covers the screen rereads the work buffer and
@@ -81,10 +72,10 @@ ${rasterKernels(capacity)}`
  * against what the hardware raster already wrote: that is where the two producers merge, pixel
  * by pixel.
  */
-export const RESOLVE = `${VIS_UNIFORMS_WGSL}
-@group(0) @binding(0) var<storage,read> frame:array<u32>;
+export const RESOLVE = wgslProgram(
+  `@group(0) @binding(0) var<storage,read> frame:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
-@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY_WGSL},0.0,1.0);}
+@vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
 struct One{@location(0) id:u32,@builtin(frag_depth) depth:f32,}
 struct Two{@location(0) id:u32,@location(1) hiz:f32,@builtin(frag_depth) depth:f32,}
 struct Hiz{@location(0) hiz:f32,@builtin(frag_depth) depth:f32,}
@@ -92,4 +83,6 @@ fn offset(pos:vec4f)->u32{return u32(pos.y)*u32(uni.viewport.x)+u32(pos.x);}
 fn pixelCount()->u32{return u32(uni.viewport.x)*u32(uni.viewport.y);}
 @fragment fn one(@builtin(position) pos:vec4f)->One{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}return One(id,bitcast<f32>(frame[i]));}
 @fragment fn two(@builtin(position) pos:vec4f)->Two{let i=offset(pos);let id=frame[pixelCount()+i];if(id==0xffffffffu){discard;}let depth=bitcast<f32>(frame[i]);return Two(id,depth,depth);}
-@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslFloat(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`
+@fragment fn hiz(@builtin(position) pos:vec4f)->Hiz{let d=bitcast<f32>(frame[offset(pos)]);if(d<=${wgslF32(DEPTH_CLEAR)}){discard;}return Hiz(d,d);}`,
+  [VIS_UNIFORMS_WGSL],
+)

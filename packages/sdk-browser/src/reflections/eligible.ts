@@ -1,5 +1,6 @@
 import type { PageSurface } from '../page/surface.ts'
-import { MIRROR_TRANSITION_END, SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
+import { MIRROR_TRANSITION_END } from '../lighting/shaderConstants.ts'
+import { SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
 
 /** Every lit physical surface has a specular lobe, including a fully rough dielectric. */
 const reflects = (surface: PageSurface) => surface.lit && (surface.model ?? 0) === 0
@@ -13,4 +14,4 @@ const reflectsUnder = (limit: number) => (surface: PageSurface) =>
 export const screenReflects = reflectsUnder(SCREEN_REFLECTION_CUTOFF)
 
 /** A mirror receiver: the surfaces the reduced-resolution resolve precomputes (#1292). */
-export const mirrorRange = reflectsUnder(Number(MIRROR_TRANSITION_END))
+export const mirrorRange = reflectsUnder(MIRROR_TRANSITION_END)

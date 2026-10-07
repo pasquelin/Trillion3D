@@ -43,29 +43,19 @@
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
 import { SUBSURFACE_FLAG } from '../scene/subsurface.ts'
 import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.ts'
-import { vsmBlueNoiseWgsl } from './blueNoise.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { ceilDiv as ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
+import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
+import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
-import {
-  VSM_HANDLE_WGSL,
-  VSM_PAGE_ADDRESS_WGSL,
-  VSM_PAGE_LOOKUP_WGSL,
-  VSM_STRUCTS_WGSL,
-} from './pageTableWgsl.ts'
-import {
-  VSM_PROJECTION_DATA_READ_WGSL,
-  VSM_PROJECTION_DATA_WGSL,
-  VSM_PROJECTION_SAMPLE_WGSL,
-} from './projectionDataWgsl.ts'
-import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
+import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
 import {
   VSM_TRACE_RESULT_WGSL,
   VSM_TRACE_COMMON_WGSL,
-  VSM_TRACE_DIRECTIONAL_WGSL,
   VSM_TRACE_LIGHT_WGSL,
-  VSM_TRACE_LOCAL_WGSL,
   vsmTraceWgsl,
 } from './traceWgsl.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
@@ -123,8 +113,7 @@ export const VSM_PROJECTION_VIEW_BYTES = 416 + VSM_PROJECTION_MAX_PASS_LIGHTS * 
  * Light: 0 shiftedPosition, 12 invRadius, 16 direction (towards the light), 28 sourceRadius,
  * 32 spotAngles (cos outer, 1/(cos inner − cos outer); (−2, 1) when not a spot), 40 mapId, 44 kind.
  */
-const VIEW_WGSL = /* wgsl */ `
-${VSM_TRACE_LIGHT_WGSL}
+const PROJECTION_VIEW = /* wgsl */ `
 struct VsmProjectionView{
  shiftedToClip:mat4x4f,
  shiftedToView:mat4x4f,
@@ -157,8 +146,7 @@ const bindingsWgsl = () => {
 @group(1) @binding(${B.normalRough}) var vsmNormalRough:texture_2d<f32>;
 @group(1) @binding(${B.flags}) var vsmFlags:texture_2d<u32>;
 @group(1) @binding(${B.shadowMask}) var vsmShadowMask:texture_storage_2d_array<${VSM_PROJECTION_MASK_FORMAT},write>;
-@group(1) @binding(${B.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;
-${vsmBlueNoiseWgsl(1, B.blueNoise)}`
+@group(1) @binding(${B.shadowMaskTiles}) var vsmShadowMaskTiles:texture_storage_2d<${VSM_PROJECTION_TILE_FORMAT},write>;`
 }
 
 /** Whether both halves voted true (`halfVoted`: the lane's half's vote), one answer for the
@@ -238,8 +226,7 @@ fn vsmZOrderDecode(m:u32)->vec2u{return vec2u(vsmUnpackEvenBits(m),vsmUnpackEven
 /** A fragment's shifted position (projection rect = view rect). */
 fn vsmPixelToShifted(sv:vec4f)->vec3f{
  let p=(sv.xy-vec2f(vsmView.projectionRect.xy))*vsmView.viewPixels.zw;
- let h=vsmView.clipToShifted*vec4f(p.x*2.0-1.0,1.0-p.y*2.0,sv.z,1.0);
- return h.xyz/h.w;
+ return unprojectPoint(vsmView.clipToShifted,vec3f(uvToNdc(p),sv.z));
 }
 /** The distance to the camera from a view vector (along the view axis for an orthographic view). */
 fn vsmCameraDistance(v:vec3f)->f32{
@@ -265,8 +252,8 @@ fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)
  let startClip=vsmView.shiftedToClip*vec4f(rayOrigin,1.0);
  let stepClip=vsmView.shiftedToClip*vec4f(rayDirection*rayLength,0.0);
  let endClip=startClip+stepClip;
- let startNdc=startClip.xyz/startClip.w;
- let endNdc=endClip.xyz/endClip.w;
+ let startNdc=perspectiveDivide(startClip);
+ let endNdc=perspectiveDivide(endClip);
  let stepNdc=endNdc-startNdc;
  let sb=vsmView.clipToBufferUv;
  let screenUvzStart=vec3f(startNdc.xy*sb.xy+sb.wz,startNdc.z);
@@ -316,7 +303,7 @@ struct VsmPixel{pos:vec2u,inRect:bool,info:VsmSurfaceInfo,sceneDepth:f32,shifted
 
 /** The traces, with the votes of the compute groups, then the light's region and projection. */
 const traceWgsl =
-  () => /* wgsl */ `${vsmTraceWgsl(true)}/** The kinds of the pass's lights, set by the pass (\`pipelineFor\`, \`projectionPass.ts\`): a directional light,
+  () => /* wgsl */ `/** The kinds of the pass's lights, set by the pass (\`pipelineFor\`, \`projectionPass.ts\`): a directional light,
  *  a local one, or both (any other value). A pass of one kind is compiled with that kind's trace alone: the
  *  other kind's code, and the registers its peak holds, are not in it. The same light either way. */
 override VSM_PROJECTION_KINDS:u32=0u;
@@ -538,7 +525,7 @@ fn vsmTileLayers(tileLights:vec2u)->u32{
  *  the view's), in increasing order: a layer holding one is traced and stored whole — a lane of a
  *  light the tile does not hold 0 —, a layer holding none is not stored. */
 fn vsmProjectTile(pixel:VsmPixel,lights:vec2u,tileLights:vec2u,lightCount:u32,voteSplit:bool){
- for(var layer=0u;layer<(lightCount+3u)/4u;layer++){
+ for(var layer=0u;layer<ceilDiv(lightCount,4u);layer++){
   let held=vsmLayerLights(tileLights,layer);
   if(held==0u){continue;}
   let first=4u*layer;
@@ -614,29 +601,37 @@ export function vsmProjectionWgsl(
 ) {
   const { subgroups } = options,
     receiver = options.receiver ?? false
-  return [
-    subgroups ? 'enable subgroups;' : '',
-    VSM_CONSTANTS_WGSL,
-    VSM_UNIFORMS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_STRUCTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_PROJECTION_DATA_WGSL,
-    vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
-    VSM_PAGE_LOOKUP_WGSL,
-    VSM_PROJECTION_DATA_READ_WGSL,
-    VSM_PROJECTION_SAMPLE_WGSL,
-    VIEW_WGSL,
-    bindingsWgsl(),
-    voteWgsl(subgroups),
-    VSM_TRACE_COMMON_WGSL,
-    VSM_TRACE_DIRECTIONAL_WGSL,
-    VSM_TRACE_LOCAL_WGSL,
-    VSM_TRACE_RESULT_WGSL,
-    PIXEL_WGSL,
-    traceWgsl(),
-    tileBoundWgsl(subgroups),
-    receiver ? receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0) : '',
-    entryWgsl(subgroups, receiver),
-  ].join('\n')
+  // `enable` comes before every declaration, the library's included (`wgslProgram`).
+  return wgslProgram(
+    [
+      subgroups ? 'enable subgroups;' : '',
+      PROJECTION_VIEW,
+      bindingsWgsl(),
+      voteWgsl(subgroups),
+      PIXEL_WGSL,
+      traceWgsl(),
+      tileBoundWgsl(subgroups),
+      entryWgsl(subgroups, receiver),
+    ].join('\n'),
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
+      VSM_TRACE_LIGHT_WGSL,
+      vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
+      VSM_TRACE_COMMON_WGSL,
+      VSM_TRACE_RESULT_WGSL,
+      // The traces sample this pass's pool and take the blue noise's pair.
+      vsmTraceWgsl(
+        true,
+        vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
+        vsmBlueNoiseTwo(1, VSM_PROJECTION_BINDING.blueNoise),
+      ),
+      uvToNdc,
+      unprojectPoint,
+      perspectiveDivide,
+      ceilDivWgsl,
+      ...(receiver ? [receiverTargetReadWgsl(VSM_PROJECTION_RECEIVER_GROUP, 0)] : []),
+    ],
+  )
 }

@@ -152,10 +152,10 @@ async function blendWater(
 function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
   const { waterCode, variant, feedback } = setup
   const surface = isTwin(key) ? waterCode : undefined
-  let code =
-    blendShader(key) +
-    (surface?.waterSurfaceWgsl(!key.lobeless) ?? '') +
-    (variant ? DIAGNOSTIC_BLEND_WGSL : '')
+  let code = blendShader(key, {
+    stage: surface?.waterSurfaceWgsl(!key.lobeless),
+    diagnostic: variant ? DIAGNOSTIC_BLEND_WGSL : undefined,
+  })
   if (!feedback) {
     for (const entry of ['fs', 'fsFiltered'])
       code = feedbackFreeEntry(code, entry, 'BlendOut', BLEND_OUT, ...FRAGMENT_IN)

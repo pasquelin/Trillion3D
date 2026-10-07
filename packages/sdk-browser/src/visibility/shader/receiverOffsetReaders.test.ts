@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { receiverOffsetWgsl } from './receiverOffsetWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { receiverStoreWgsl, receiverTargetReadWgsl } from './receiverTargetWgsl.ts'
 import { integers } from '../../texture/integerVectors.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -14,9 +15,11 @@ import {
   SHADE_UNI_WGSL,
   VERTEX_NORMALS_WGSL,
 } from './pixelTriangleWgsl.ts'
+import { perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
-import { contractLightingShader } from '../../lighting/deferred/shaders.ts'
 import { SHADE_BINDINGS } from '../../webgpu/core/bindLayout.ts'
+import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('the lighting calls one shared offset function and binds no offset target', () => {
   const readers: [string, string][] = []
@@ -30,7 +33,11 @@ test('the lighting calls one shared offset function and binds no offset target',
   for (const [name, text] of readers) {
     // The shared text, from the reader's first receiver binding: the visibility buffer's.
     const first = Number(/@binding\((\d+)\) var vis:/.exec(text)?.[1])
-    assert.equal(text.split(receiverOffsetWgsl(first)).length, 2, `${name}: the shared text, once`)
+    assert.equal(
+      text.split(receiverOffsetWgsl(first).text).length,
+      2,
+      `${name}: the shared text, once`,
+    )
     assert.equal(text.match(/\bfn shadowReceiver\(/g)?.length, 1, `${name}: one offset function`)
     assert.equal(text.match(/\bshadowReceiver\(pixel/g)?.length, 2, `${name}: and its one call`)
     assert.doesNotMatch(text, /shadingOffset/, `${name}: no offset target read`)
@@ -44,12 +51,22 @@ test('the lighting calls one shared offset function and binds no offset target',
     'and stores it (`storageOnce.test.ts`)',
   )
   // The resolve places its pixel with the very functions the offset calls: they cannot drift.
-  const shared = receiverOffsetWgsl(0)
-  for (const text of [PIXEL_BARY_WGSL, VERTEX_NORMALS_WGSL, FRAMEBUFFER_WGSL, SHADE_UNI_WGSL]) {
+  const shared = wgslModule(receiverOffsetWgsl(0))
+  for (const text of [
+    PIXEL_BARY_WGSL.text,
+    perspectiveBarycentric.text,
+    VERTEX_NORMALS_WGSL.text,
+    FRAMEBUFFER_WGSL.text,
+    wgslSource(SHADE_UNI_WGSL),
+  ]) {
     assert.ok(SHADE_SHADER.includes(text) && shared.includes(text), 'one shared placement text')
   }
   // With its corners' 1/w, read with its triangle (`decodeTriangle`).
-  assert.match(SHADE_SHADER, /=perspectiveBary\(/, 'the resolve calls the shared barycentrics')
+  assert.match(
+    SHADE_SHADER,
+    /=perspectiveBarycentric\(/,
+    'the resolve calls the shared barycentrics',
+  )
   // The resolve hands them its row's normal matrix (`shadeCacheWgsl.ts`): the shared transform.
   assert.match(SHADE_SHADER, /=transformedNormals\(/, 'the resolve calls the shared normals')
   assert.equal('shadingOffset' in SHADE_BINDINGS, false, 'the resolve binds no offset target')
@@ -70,12 +87,12 @@ test('the receiver target keeps the offset to 1/4095 of its largest component an
   }
   const { storeReceiver } = shaderRun<{
     storeReceiver: (pos: number[], offset: number[], plane: number[]) => void
-  }>(receiverStoreWgsl(0), ['storeReceiver', 'receiverOct'], scope)
+  }>(wgslModule(receiverStoreWgsl(0)), ['storeReceiver', 'octEncode'], scope)
   const { shadowReceiver } = shaderRun<{
     shadowReceiver: (pixel: number[]) => { offset: number[]; plane: number[] }
   }>(
-    receiverTargetReadWgsl(0, 0),
-    ['shadowReceiver', 'shadowReceiverTexel', 'shadowReceiverOf', 'receiverUnoct'],
+    wgslModule(receiverTargetReadWgsl(0, 0)),
+    ['shadowReceiver', 'shadowReceiverTexel', 'shadowReceiverOf', 'octDecode'],
     scope,
   )
   const r = random(1570)

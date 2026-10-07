@@ -1,11 +1,32 @@
-import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
-import { VOLUME_FOG_FREE } from '../transparent/transmission.ts'
+import { VOLUME_FOG_FREE, VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
+import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
+import { SHADOW_VIEW_WGSL } from '../../lighting/direct/shadowViewWgsl.ts'
+import { FOG_WGSL } from '../../lighting/fogShader.ts'
+import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
+import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
+import { WATER_TRANSMITTED_WGSL } from './transmittedWgsl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
 
 /** A water pixel's colour and coverage (`compositeWgsl.ts`): the transmitted backdrop, the
  *  reflection weighted by Fresnel and the surface's lit share, composed as glTF composes them. It
  *  reads only constants: one text for every program of the composite. */
-export const WATER_COLOR_WGSL = `fn waterColor(pixel:vec4f)->vec4f{
+export const WATER_COLOR_WGSL = wgslBlock(
+  'WATER_COLOR_WGSL',
+  [
+    fresnelScalar,
+    ROUGHNESS_FLOOR,
+    WATER_UNPACK_WGSL,
+    WORLD_AT_WGSL,
+    WATER_SHADOW_READ_WGSL,
+    SHADOW_VIEW_WGSL,
+    WATER_TRANSMITTED_WGSL,
+    FOG_WGSL,
+    VOLUME_MARKED_WGSL,
+  ],
+  `fn waterColor(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
  let packed=waterWordAt(coord);
  if(packed==0u){discard;}
@@ -22,7 +43,7 @@ export const WATER_COLOR_WGSL = `fn waterColor(pixel:vec4f)->vec4f{
  shadowSetView(view.camera.xyz,view.viewport.x,pixel.xy,u32(view.jitter.w),shadowFootprint,worldAt(view.viewport.xy*0.5,fragZ));
  let V=waterViewDirection(P);
  let Nv=waterFacing(normal.xyz,V);
- let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);
+ let rough=clamp(normal.a,ROUGHNESS_FLOOR,1.0);
  let metal=clamp(base.a,0.0,1.0);
  let ao=emissiveAo.a;
  // A transmissive material is a physical one, hence lit; only the unlit view keeps raw albedo.
@@ -53,4 +74,5 @@ export const WATER_COLOR_WGSL = `fn waterColor(pixel:vec4f)->vec4f{
  // Seen through the fog between the eye and the surface, as every surface is.
  let color=premultiplied/max(a,1e-4);
  return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit||volumeMarked(vol,${VOLUME_FOG_FREE}u)),a);
-}`
+}`,
+)

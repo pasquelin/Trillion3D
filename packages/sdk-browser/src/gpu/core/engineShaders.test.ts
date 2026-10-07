@@ -7,13 +7,14 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
-import { reservedNames, unresolvedNames } from './wgslNames.fixture.ts'
+import { reservedNames, topLevelNames, unresolvedNames } from './wgslNames.fixture.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { PAGE_BINDING, PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { VIS_SHADER } from '../../visibility/buffer.ts'
 import { CLUSTER_DECODING_SHADER } from '../../../../../tests/gpu/cluster/decodingKernel.ts'
 import { DAG_SELECTION_SHADER_BEFORE } from '../../../../../bench/oracles/browser/cut-dispatches-wgsl.ts'
 import { FLOAT32_MAX } from '../../../../math/src/constants.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 test('every WGSL text the engine and its proofs compile declares every name it uses', () => {
   const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
@@ -27,6 +28,30 @@ test('every WGSL text the engine and its proofs compile declares every name it u
     .map(([name, code]) => [name, reservedNames(code)] as const)
     .filter(([, names]) => names.length)
   assert.deepEqual(Object.fromEntries(reserved), {})
+})
+
+test('no WGSL text the engine and its proofs compile declares a name twice', () => {
+  // A fragment spliced into two others, or a declaration written by a fragment and by its host,
+  // is a module a device refuses even when both texts are equal: each fragment is a declaration
+  // its hosts list, and the assembler writes it once.
+  const shaders = { ...ENGINE_SHADERS, CLUSTER_DECODING_SHADER, DAG_SELECTION_SHADER_BEFORE }
+  const twice: string[] = []
+  for (const [name, code] of Object.entries(shaders)) {
+    const seen = new Set<string>()
+    for (const declared of topLevelNames(code)) {
+      if (seen.has(declared)) twice.push(`${name}: ${declared}`)
+      seen.add(declared)
+    }
+  }
+  assert.deepEqual(twice, [])
+})
+
+test('a module-scope name is read outside braces and comments, every declaration of it counted', () => {
+  const code = `struct S{x:f32,} // fn gone()
+const K=1.0; override N:u32=4u; alias A=vec3f; var<private> p:f32; @group(0) @binding(0) var t:texture_2d<f32>;
+fn f(a:f32)->f32{const local=2.0;var v=a;return v*local;}
+fn f(a:f32)->f32{return a;}`
+  assert.deepEqual(topLevelNames(code), ['S', 'K', 'N', 'A', 'p', 't', 'f', 'f'])
 })
 
 test('a reserved word is found as a local, a parameter or a member, never in a comment', () => {
@@ -113,7 +138,7 @@ test('the list holds the text of every call that compiles a module', () => {
 })
 
 test('the page geometry reads its buffers alone, never the camera uniform', () => {
-  assert.deepEqual(unresolvedNames(PAGE_INFO_STRUCT_WGSL + PAGE_GEOMETRY_WGSL), [
+  assert.deepEqual(unresolvedNames(wgslModule(PAGE_INFO_STRUCT_WGSL, PAGE_GEOMETRY_WGSL)), [
     'indices',
     'positions',
     'uvs',

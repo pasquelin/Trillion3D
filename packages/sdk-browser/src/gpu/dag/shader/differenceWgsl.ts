@@ -2,6 +2,8 @@ import { EVICTION_BURST } from '../readoutWords.ts'
 import { ADMISSION_BUCKETS } from '../request.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -30,7 +32,10 @@ import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts'
 export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as const,
   KEEP_STAGES = ['dagCutKeep0', 'dagCutKeep1'] as const
 
-export const DAG_DIFFERENCE_WGSL = `const RANK_NONE:u32=${SELECTION_NONE}u;
+export const DAG_DIFFERENCE_WGSL = wgslBlock(
+  'DAG_DIFFERENCE_WGSL',
+  [FLAT_INDEX_WGSL],
+  `const RANK_NONE:u32=${SELECTION_NONE}u;
 /** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
  *  burst (\`levelCountsWord\`). */
 fn levelCountAt(b:u32)->u32{return 2u*views[0u].listCap+2u*HEAD+${EVICTION_BURST}u+b;}
@@ -61,7 +66,8 @@ fn keptRankOf(l:u32,i:u32)->u32{
  if(r<out.pages[keptAt(l)]&&out.pages[keptPage(l,r)]==i){return r;}
  return RANK_NONE;
 }
-${[0, 1].map(listKernels).join('')}`
+${[0, 1].map(listKernels).join('')}`,
+)
 
 /** List \`l\`'s two kernels, its ranks bound as \`work\`: one thread per rank of the list. */
 function listKernels(l: number) {

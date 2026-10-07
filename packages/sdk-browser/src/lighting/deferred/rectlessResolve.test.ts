@@ -6,10 +6,10 @@
 // `tests/gpu/lighting/narrow-resolve.gpu.ts` and `sampled-resolve.gpu.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { contractLightingShader } from './shaders.ts'
 import { createDeferredLighting } from './deferred.ts'
 import { recorder } from './recorder.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 
 /** The two rectangle branches of the light loop: its term, then its sampling weight. */
 const RECT_TERM = /\n if\(isRect\(light\)\)\{\n[\s\S]*?\n \}/

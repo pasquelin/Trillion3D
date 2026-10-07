@@ -1,3 +1,13 @@
+import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
+import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
+
+/** The host's read of the depth a reflection walks (`reflectionDepthAt`, `fn(p:vec2i)->f32`) and
+ *  of its size in pixels (`reflectionSize`, `fn()->vec2f`), each a declaration under that name:
+ *  the screen's (`SCREEN_REFLECTION_DEPTH`, `screenWgsl.ts`) or the bounds pyramid's level 0
+ *  (`boundsPyramidWgsl.ts`). The fragments that call them list them. */
+export type ReflectionDepthRead = { depthAt: WgslDecl; size: WgslDecl }
+
 /** The ray from `P` along `R`, clipped to the view (`reflectionExit`) and projected: `start` and
  *  `delta` in pixels, depth `a.z` to `b.z`, `size` the drawn one; clipped away, a miss. The
  *  walk every mirror and rough ray takes (`screenReflection`) and the cone's (`coneShader.ts`)
@@ -10,8 +20,8 @@ export const REFLECTION_SEGMENT = `
  let e:vec4f=c+d*reach;
  if(e.w<=0.0){return vec4f(0.0);}
  let size:vec2f=reflectionSize();
- let a:vec3f=c.xyz/c.w;let b:vec3f=e.xyz/e.w;
- let start:vec2f=(a.xy*0.5+vec2f(0.5))*size;
+ let a:vec3f=perspectiveDivide(c);let b:vec3f=perspectiveDivide(e);
+ let start:vec2f=ndcToUvUnflipped(a.xy)*size;
  let delta:vec2f=(b.xy-a.xy)*0.5*size;
 `
 
@@ -26,8 +36,6 @@ export const REFLECTION_SEGMENT = `
  *    screen, its steps equal; a curved one's close), or both none (a surface facing the screen);
  *    never across the background. `reflectionSideSlope`: at a rim, the background on one side, the
  *    step to the drawn one; else none.
- *  - `reflectionTangent`: a unit vector across `v`, from the z axis, or the y axis where `v` is
- *    nearly z: one frame round a direction for every lobe and plane the walks span.
  *  - `reflectionHalves`: the opaque walk's surface along `axis`: the depth's change per pixel over
  *    the pixel's lower and upper half, the step to the neighbour on that side where it lies on the
  *    pixel's own surface. Two pixels of one surface then meet at the middle of their shared border
@@ -51,7 +59,11 @@ export const REFLECTION_SEGMENT = `
  *  Alone, it serves a program that builds the depth bounds (`boundsPyramidWgsl.ts`) rather than
  *  walks them; that program supplies the depth and its size. The clear depth is the reversed
  *  depth's zero (`REFLECTION_CLEAR_DEPTH`): nearer is greater, for every walk and bound. */
-export const REFLECTION_PLANE_WGSL = `
+export const reflectionPlaneWgsl = (read: ReflectionDepthRead) =>
+  wgslBlock(
+    'REFLECTION_PLANE_WGSL',
+    [read.depthAt, read.size],
+    `
 const REFLECTION_CLEAR_DEPTH:f32=0.0;
 fn reflectionDepthOrClear(p:vec2i)->f32{
  let size:vec2i=vec2i(reflectionSize());
@@ -66,11 +78,6 @@ fn reflectionSideSlope(z:f32,lo:f32,hi:f32)->f32{
  if(lo==REFLECTION_CLEAR_DEPTH&&hi!=REFLECTION_CLEAR_DEPTH){return hi-z;}
  if(hi==REFLECTION_CLEAR_DEPTH&&lo!=REFLECTION_CLEAR_DEPTH){return z-lo;}
  return 0.0;
-}
-fn reflectionTangent(v:vec3f)->vec3f{
- var axis:vec3f=vec3f(0.0,0.0,1.0);
- if(abs(v.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
- return normalize(cross(axis,v));
 }
 fn reflectionHalves(p:vec2i,z:f32,axis:vec2i,lo:f32,hi:f32,beyond:vec2f)->vec2f{
  if(reflectionContinues(z,lo,hi)){return vec2f(z-lo,hi-z);}
@@ -104,7 +111,8 @@ fn reflectionPixelBounds(p:vec2i)->vec2f{
  let low:f32=min(0.0,min(ends.x,ends.y))+min(0.0,min(ends.z,ends.w));
  let high:f32=max(0.0,max(ends.x,ends.y))+max(0.0,max(ends.z,ends.w));
  return vec2f(z+low,z+high);
-}`
+}`,
+  )
 
 /** A pyramid cell's side at `level`, the cell holding `pixel` there and the climb's (`into`): its
  *  coordinates shifted right by the level, the floor of their quotient by 2^level for any sign —
@@ -139,15 +147,18 @@ const into = `let into:vec2f=${CELL};`
  * texture-oriented Y, the hit's radiance, whose
  * alpha 0 is a pixel the source cannot answer: a miss, and the pyramid's levels above the pixels
  * (`reflectionBoundsLevels`). */
-export const SCREEN_TRACE_WGSL = `${REFLECTION_PLANE_WGSL}
-fn reflectionExit(c:vec4f,d:vec4f)->f32{
+export const screenTraceWgsl = (read: ReflectionDepthRead) =>
+  wgslBlock(
+    'SCREEN_TRACE_WGSL',
+    [reflectionPlaneWgsl(read), read.depthAt, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped],
+    `fn reflectionExit(c:vec4f,d:vec4f)->f32{
  // The four side planes and the two depth planes: how far inside each the ray starts, and how fast
  // it leaves it.
  let p=vec4f(c.w+c.x,c.w-c.x,c.w+c.y,c.w-c.y);let pz=vec2f(c.z,c.w-c.z);
  if(any(p<vec4f(0.0))||any(pz<vec2f(0.0))){return 0.0;}
  let v=vec4f(d.w+d.x,d.w-d.x,d.w+d.y,d.w-d.y);let vz=vec2f(d.z,d.w-d.z);
- let ends=select(vec4f(1e30),-p/v,v<vec4f(0.0));let endsZ=select(vec2f(1e30),-pz/vz,vz<vec2f(0.0));
- return min(min(min(ends.x,ends.y),min(ends.z,ends.w)),min(min(endsZ.x,endsZ.y),1e30));
+ let ends=select(vec4f(FAR_VALUE),-p/v,v<vec4f(0.0));let endsZ=select(vec2f(FAR_VALUE),-pz/vz,vz<vec2f(0.0));
+ return min(min(min(ends.x,ends.y),min(ends.z,ends.w)),min(min(endsZ.x,endsZ.y),FAR_VALUE));
 }
 fn reflectionHiZSteps(size:vec2f,top:i32)->i32{return 2*(i32(size.x+size.y)+top)+2;}
 fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
@@ -158,7 +169,7 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  var level:i32=0;var t:f32=0.0;
  // The last cell a descent entered, its level (none: -1) and depth range: at level 0, the cell of
  // level 1 that holds the pixel, whose range holds the pixel's.
- var heldLevel:i32=-1;var held:vec2f=vec2f(0.0);var heldRange:vec2f=vec2f(-1e30,1e30);
+ var heldLevel:i32=-1;var held:vec2f=vec2f(0.0);var heldRange:vec2f=vec2f(-FAR_VALUE,FAR_VALUE);
  // The last pixel read at level 0, its depth (the clear depth: none) and its neighbours' (left,
  // right, down, up): the pixel beside it reads three depths, not five, and at an edge across that
  // side no depth two pixels out.
@@ -173,7 +184,7 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
   // Where the segment leaves the cell on each axis: its far border, none along an axis it does not
   // move on.
   let edge=select(cell,cell+vec2f(1.0),delta>vec2f(0.0))*side;
-  let bound=select(vec2f(1e30),(edge-start)/delta,(delta>vec2f(0.0))|(delta<vec2f(0.0)));
+  let bound=select(vec2f(FAR_VALUE),(edge-start)/delta,(delta>vec2f(0.0))|(delta<vec2f(0.0)));
   let exited:f32=min(1.0,min(bound.x,bound.y));
   let before:f32=mix(za,zb,t);let after:f32=mix(za,zb,exited);
   // The cell's range (at level 0, the level-1 cell's that holds the pixel), and whether the
@@ -235,4 +246,5 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  return vec4f(0.0);
 }
 fn screenReflection(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} return reflectionHiZWalk(start,delta,a.z,b.z,size);
-}`
+}`,
+  )

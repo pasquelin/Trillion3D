@@ -3,6 +3,8 @@ import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_PASSES, RUN_WORDS } from './planLayout.ts'
 import { DOUBLE_WGSL } from './doubleWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * THE PAINT ORDER OF A TRANSPARENT PASS, SORTED ON THE GPU.
@@ -72,7 +74,11 @@ export const ORDER_UNI = Object.fromEntries(
   ORDER_UNI_FIELDS.map((name, rank) => [name, rank]),
 ) as Record<(typeof ORDER_UNI_FIELDS)[number], number>
 const orderUniformWgsl = () =>
-  `struct OrderUni{${ORDER_UNI_FIELDS.map((name) => `${name}:u32,`).join('')}}`
+  wgslBlock(
+    'orderUniformWgsl',
+    [],
+    `struct OrderUni{${ORDER_UNI_FIELDS.map((name) => `${name}:u32,`).join('')}}`,
+  )
 
 /** Group-0 binding of each buffer the order kernel reads, under its WGSL name. */
 export const ORDER_BINDING = {
@@ -103,15 +109,15 @@ export function blendOrderBindEntries(): GPUBindGroupLayoutEntry[] {
   ]
 }
 
-export const BLEND_ORDER_SHADER = `${orderUniformWgsl()}
-@group(0) @binding(${B.uni}) var<uniform> uni:OrderUni;
+export const BLEND_ORDER_SHADER = wgslProgram(
+  `@group(0) @binding(${B.uni}) var<uniform> uni:OrderUni;
 @group(0) @binding(${B.plan}) var<storage,read_write> plan:array<u32>;
 @group(0) @binding(${B.keyed}) var<storage,read> keyed:array<u32>;
 @group(0) @binding(${B.frame}) var<storage,read> frame:array<u32>;
 @group(0) @binding(${B.sorted}) var<storage,read_write> sorted:array<vec4u>;
 @group(0) @binding(${B.placed}) var<storage,read_write> placed:array<u32>;
 var<workgroup> held:array<vec4u,${SORT_BLOCK}>;
-${DOUBLE_WGSL}${FLAT_INDEX_WGSL}fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
+fn keyedDouble(at:u32)->vec2u{return vec2u(keyed[at+1u],keyed[at]);}
 fn frameDouble(at:u32)->vec2u{return vec2u(frame[at+1u],frame[at]);}
 /** One axis of the eye-to-box-centre gap: each bound brought to the eye, then the two averaged. */
 fn boxAxis(low:vec2u,high:vec2u,eye:vec2u)->vec2u{return dMul(dAdd(dSub(low,eye),dSub(high,eye)),vec2u(0x3fe00000u,0u));}
@@ -236,4 +242,6 @@ fn placeBlendSlots(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  }
  if(k==uni.ownCount-1u){writeRun(slot+1u,at+1u,uni.entryCount-at-1u);}
 }
-`
+`,
+  [orderUniformWgsl(), DOUBLE_WGSL, FLAT_INDEX_WGSL],
+)

@@ -1,4 +1,6 @@
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * The kernel that follows the descent, and that visits only what it kept.
@@ -12,7 +14,10 @@ import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
  *
  * Kept apart from `shader.ts`, which holds the other kernels and the bind declarations.
  */
-export const DAG_WANTED_WGSL = `@compute @workgroup_size(64)
+export const DAG_WANTED_WGSL = wgslBlock(
+  'DAG_WANTED_WGSL',
+  [FLAT_INDEX_WGSL],
+  `@compute @workgroup_size(64)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let s=flatIndex(id,n,64u);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
@@ -41,4 +46,5 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
  *  A cluster nothing replaces falls back on its own, as that path does. */
 fn replacementPixels(cluster:Cluster,pixels:vec2f)->f32{return select(pixels.x,pixels.y,cluster.parentError<0.0);}
-`
+`,
+)

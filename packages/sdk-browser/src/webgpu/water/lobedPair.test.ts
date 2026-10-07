@@ -16,12 +16,16 @@ import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts'
 import { randomLampScope } from '../blend/shadedLightScope.fixture.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Pair = (...args: unknown[]) => { lit: number[]; specular: number[] }
 type Sum = (...args: unknown[]) => number[]
 const LOBED = waterCompositeShader(false, {})
 const PLAIN = waterCompositeShader(false, { lobeless: true })
-const SINGLE = `${declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false })}${STANDARD_LIGHTING_WGSL}`
+const SINGLE = wgslModule(
+  declaredLightingWgsl({ proxy: 13, transmittance: 18 }, { lobeless: false }),
+  STANDARD_LIGHTING_WGSL,
+)
 const K = wgslConstants(LOBED)
 const SHARED = [
   'directIncidence',
@@ -30,8 +34,9 @@ const SHARED = [
   'isSunKind',
   'isRect',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 const LOBE = ['lobeLight', 'anisotropicLobe']
 const PAIR = ['sliceLightingPair', 'declaredLightPair', ...SHARED]

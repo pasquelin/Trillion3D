@@ -6,21 +6,27 @@
  * `projectionData.ts`. Matrices are the engine's column-major ones, WGSL's mat4x4f: `M * v`
  * transforms a column vector and `M[i][j]` is column i, row j.
  *
- * Strings:
+ * Declarations:
  * - `VSM_PROJECTION_DATA_WGSL`: the raw and decoded structs and the decode (no bindings), and the
  *   helpers every pass shares, each the one text of its maths: the clipmap level and distance, the
  *   cube face, a view's depth from device depth, a pixel's world size and a local map's pixel
  *   footprint, a sun's back face.
- * - `VSM_PROJECTION_DATA_READ_WGSL`: `vsmProjectionOf(handle)`; needs the
+ * - `VSM_PROJECTION_DATA_READ_WGSL`: `vsmProjectionOf(handle)`, through the module's
  *   `vsmProjectionData` binding.
- * - `VSM_PROJECTION_SAMPLE_WGSL`: the page sampling; needs everything above plus the page lookup
- *   (`VSM_PAGE_LOOKUP_WGSL`) and `vsmPoolLoad(texel, slice)` from the binding builder.
+ * - `vsmProjectionSampleWgsl(pool)`: the page sampling, through the page lookup
+ *   (`VSM_PAGE_LOOKUP_WGSL`) and `pool`, the host's `vsmPoolLoad(texel, slice)`: a pass's
+ *   (`vsmPoolLoadOf`, `resources.ts`) or a consumer's (`../lighting/direct/shadowWgsl.ts`).
  */
-import { VSM_UNIT_PER_CM } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from './constants.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_LOOKUP_WGSL } from './pageTableWgsl.ts'
+import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
 
-export const VSM_PROJECTION_DATA_WGSL = /* wgsl */ `
+export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
+  'VSM_PROJECTION_DATA_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL],
+  `
 struct VsmProjectionRecord{
  lightKind:u32,
  emitterSize:f32,
@@ -156,18 +162,34 @@ fn vsmFacesAwayFromSun(normal:vec3f,lightDirection:vec3f,emitterSize:f32)->bool{
  let emitterSin=max(abs(emitterSize),terminatorSin);
  return dot(normal,lightDirection)< -emitterSin;
 }
-`
+`,
+)
 
-/** Reads a map's projection data. Needs the `vsmProjectionData` binding. */
-export const VSM_PROJECTION_DATA_READ_WGSL = /* wgsl */ `
+/** Reads a map's projection data, through the module's `vsmProjectionData` binding. */
+export const VSM_PROJECTION_DATA_READ_WGSL = wgslBlock(
+  'VSM_PROJECTION_DATA_READ_WGSL',
+  [VSM_HANDLE_WGSL, VSM_PROJECTION_DATA_WGSL],
+  `
 fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vsmProjectionData[h.id],h);}
-`
+`,
+)
 
 /**
  * Clipmap levels are computed in centimetres (`VSM_CM_PER_UNIT`): the
  * level of a distance d is 0.5·log2(d²) with d in cm.
  */
-export const VSM_PROJECTION_SAMPLE_WGSL = /* wgsl */ `
+export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
+  wgslBlock(
+    'VSM_PROJECTION_SAMPLE_WGSL',
+    [
+      pool,
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+    ],
+    `
 /** The biased level of a distance, without a depth-of-field bias. A clipmap's levels all carry its
  *  one resolution bias (\`vsmClipmapProjectionData\`, \`clipmapBias.test.ts\`), the base level's among them,
  *  which the base record already holds. */
@@ -310,4 +332,5 @@ fn vsmReadClipmapPage(h:VsmHandle,page:VsmClipmapPage,mapUvAt:vec2f)->VsmMapRead
  }
  return r;
 }
-`
+`,
+  )

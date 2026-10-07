@@ -16,6 +16,7 @@ import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts
 import type { MaterialParameters } from '../../../../sdk-core/src/world/material/material.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** The engine camera at `eye`, looking at the origin: 55° of field on a square image. */
 function camera(eye: number[]) {
@@ -41,7 +42,7 @@ function place(at: number[], turn: number, scale: number[]) {
   return m.elements
 }
 
-const run = runShaderText(SPRITE_WGSL)
+const run = runShaderText(wgslSource(SPRITE_WGSL))
 const CASES = [
   { eye: [0, 0, 6], at: [0.4, -0.2, 1], turn: 0, scale: [1, 1, 1], rotation: 0, attenuate: true },
   { eye: [7, 2, 0], at: [0, 1, 0], turn: 1.1, scale: [3, 1.5, 1], rotation: 0.7, attenuate: true },

@@ -7,6 +7,8 @@
  * only: a member a structure lacks, a wrong type or a name declared twice passes it.
  */
 
+import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
+
 /** WGSL's own words: keywords, the phony assignment's `_`, types, address spaces, access modes,
  *  texel formats, built-in functions. The only names a shader uses without declaring them. */
 const WGSL_OWN = new Set(
@@ -40,15 +42,20 @@ function declaredNames(code: string) {
   return new Set([...code.matchAll(declares)].map((m) => m[1] ?? m[2]))
 }
 
-/** The names `source` uses and declares nowhere, sorted: comments, directives (`enable`,
- *  `requires`, `diagnostic`), attributes and structure member names left out (their types kept,
- *  and an attribute's argument unless it is a built-in's, an interpolation's or a diagnostic's word), a
- *  case selector never taken for a declaration, a member after a dot never taken for a name. */
-export function unresolvedNames(source: string) {
-  const code = source
-    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+/** `source` without its comments, its directives (`enable`, `requires`, `diagnostic`) and the
+ *  arguments of its built-in, interpolation and diagnostic attributes, which are no names. */
+const codeOf = (source: string) =>
+  withoutComments(source)
     .replace(/\b(?:enable|requires)\s[^;]*;|^diagnostic\s*\([^()]*\);/gm, '')
-    .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)|@\w+/g, '')
+    .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)/g, '')
+
+/** The names `source` uses and declares nowhere, sorted: comments, directives, attributes and
+ *  structure member names left out (their types kept, and an attribute's argument unless it is a
+ *  built-in's, an interpolation's or a diagnostic's word), a case selector never taken for a
+ *  declaration, a member after a dot never taken for a name. */
+export function unresolvedNames(source: string) {
+  const code = codeOf(source)
+    .replace(/@\w+/g, '')
     .replace(/(\bstruct\s+\w+\s*\{)([^}]*)\}/g, (_, head: string, body: string) => {
       return `${head}${body.replace(/\w+\s*:/g, ':')}}`
     })
@@ -56,6 +63,22 @@ export function unresolvedNames(source: string) {
   const declared = declaredNames(code)
   const used = new Set([...code.matchAll(/(?<![\w.])([A-Za-z_]\w*)/g)].map((m) => m[1]))
   return [...used].filter((name) => !declared.has(name) && !WGSL_OWN.has(name)).sort()
+}
+
+/** The names `source` declares at module scope, in its order, each as often as it is declared:
+ *  functions, structures, aliases, constants, overrides and variables, outside every brace and
+ *  comment. A name met twice is a module a device refuses, whatever the two texts. */
+export function topLevelNames(source: string) {
+  const code = withoutComments(source)
+  let depth = 0
+  let outside = ''
+  for (const c of code) {
+    if (c === '{') depth++
+    else if (c === '}') depth--
+    else if (depth === 0) outside += c
+  }
+  const declares = /\b(?:fn|struct|alias|const|override|var(?:\s*<[^>]*>)?)\s+(\w+)/g
+  return [...outside.matchAll(declares)].map((m) => m[1])
 }
 
 /** The words WGSL reserves for later use, which no name may be: a device refuses a module that
@@ -83,10 +106,7 @@ const WGSL_RESERVED = new Set(
  *  module (`'from' is a reserved keyword`). Comments, directives and the arguments of built-in,
  *  interpolation and diagnostic attributes are no names; a member after a dot is one. */
 export function reservedNames(source: string) {
-  const code = source
-    .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
-    .replace(/\b(?:enable|requires)\s[^;]*;|^diagnostic\s*\([^()]*\);/gm, '')
-    .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)/g, '')
+  const code = codeOf(source)
   const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
   return [...names].filter((name) => WGSL_RESERVED.has(name)).sort()
 }

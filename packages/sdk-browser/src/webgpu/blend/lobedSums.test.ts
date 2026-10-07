@@ -15,6 +15,7 @@ import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import { blendShader } from './shader.ts'
 import { randomLampScope } from './shadedLightScope.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Sum = (...args: unknown[]) => number[]
 const LOOP = [
@@ -26,8 +27,9 @@ const LOOP = [
   'isSunKind',
   'isRect',
   'modelLight',
+  'lambertAlbedoMul',
   'thinTransmission',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
 const LOBED = [...LOOP, 'lobeLight', 'anisotropicLobe']
 /** Lobes off, and on with nothing: no strength, no coat, a coat that lets everything through. */

@@ -2,7 +2,8 @@
 // written once, and every shader that needs them carries that one text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
+import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
+import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
 import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
 import { BOUNCE_SURFACE_SHADER } from './surfaceWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
@@ -11,17 +12,24 @@ import {
   irradianceShader,
   radianceProjectionShader,
 } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
-test('INVERSE_PI_WGSL declares the 1/π constant expected by both bounce passes', () => {
-  assert.match(INVERSE_PI_WGSL, /const INVERSE_PI:f32=0\.31830989;/)
+test('INVERSE_PI_BOUNCE declares the 1/π the bounce passes always read, one ulp above 1/π', () => {
+  const literal = /^const INVERSE_PI_BOUNCE:f32=([^;]+);$/.exec(INVERSE_PI_BOUNCE.text)?.[1]
+  assert.ok(literal, INVERSE_PI_BOUNCE.text)
+  // The f32 the passes' literal `0.31830989` named before the library wrote it, to the bit.
+  assert.ok(Object.is(Math.fround(Number(literal)), Math.fround(0.31830989)))
+  const words = new Uint32Array(new Float32Array([Number(literal), 1 / Math.PI]).buffer)
+  assert.equal(words[0] - words[1], 1)
 })
 
-test('INVERSE_PI_WGSL appears once in the application and once in the surface cache', () => {
-  assert.equal(occurrences(BOUNCE_APPLY_WGSL, INVERSE_PI_WGSL), 1)
-  assert.equal(occurrences(BOUNCE_SURFACE_SHADER, INVERSE_PI_WGSL), 1)
+test('INVERSE_PI_BOUNCE appears once in the application and once in the surface cache', () => {
+  assert.equal(occurrences(wgslModule(BOUNCE_APPLY_WGSL), INVERSE_PI_BOUNCE.text), 1)
+  assert.equal(occurrences(BOUNCE_SURFACE_SHADER, INVERSE_PI_BOUNCE.text), 1)
 })
 
 test('every probe shader projects and evaluates the one order-2 basis', () => {
@@ -29,7 +37,7 @@ test('every probe shader projects and evaluates the one order-2 basis', () => {
   // that fills them and the lookup that reads them compile the shared text, as does the scene
   // environment.
   const probeEvaluation = irradianceShader((k) => `probeAt(probe,${k}u).xyz`, 'n')
-  assert.ok(BOUNCE_APPLY_WGSL.includes(probeEvaluation))
+  assert.ok(wgslModule(BOUNCE_APPLY_WGSL).includes(probeEvaluation))
   assert.ok(BOUNCE_SURFACE_SHADER.includes(probeEvaluation))
   assert.ok(
     BOUNCE_PROBE_SHADER.includes(radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')),
@@ -68,7 +76,7 @@ test('a bounce probe is read in the band order the environment uses', () => {
     return sh
   }
   const bounce = channel(
-    between(BOUNCE_GRID_WGSL, 'fn shIrradiance(probe:vec3u,n:vec3f)->vec3f{', '\n}'),
+    between(wgslSource(BOUNCE_GRID_WGSL), 'fn shIrradiance(probe:vec3u,n:vec3f)->vec3f{', '\n}'),
     /probeAt\(probe,(\d)u\)\.xyz/g,
     'n',
   )

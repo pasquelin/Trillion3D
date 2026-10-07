@@ -6,10 +6,11 @@ import { functionText } from '../../bounce/wgslBody.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { type V, PAGE, LEVEL, MAP, World, run } from './vsmFilteredRead.fixture.ts'
 import { pagedSample } from './vsmFilteredSample.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 /** The opaque resolve's read (`shadowFactor` over the mask), as shipped and as it stood: the point
  *  read run whole for its transmission alone. */
-const RESOLVE = `${directShadowWgsl(14, 25)}
+const RESOLVE = `${wgslModule(directShadowWgsl(25, { resolveTransmission: 14 }))}
 fn testTransmission()->vec3f{return shadowTransmission;}`
 const READ_TRANSMISSION = '{vsmTransmissionRead(u32(slice)>>6u,isSun(light),P,N);}'
 const RESOLVE_BEFORE = RESOLVE.replace(
@@ -25,6 +26,7 @@ const RESOLVE_READ = [
   'vsmConsumerSlopeBias',
   'vsmConsumerSlopeBiasAt',
   'testTransmission',
+  'perspectiveDivide',
 ]
 type Resolve = { shadowFactor: (...a: unknown[]) => number; testTransmission: () => V }
 

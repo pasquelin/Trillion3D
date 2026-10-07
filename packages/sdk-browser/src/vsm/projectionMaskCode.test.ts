@@ -15,6 +15,7 @@ import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { createDeferredPlaceholders } from '../lighting/deferred/setup.ts'
 import { VSM_TRACE_RAYS_SUN, VSM_TRACE_RAYS_LOCAL } from './constants.ts'
 import { vsmLayout } from './layout.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 const f = Math.fround
 const CODE = vsmProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27), {
@@ -68,7 +69,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   const word = lanes.reduce((w, code, k) => (w | (code << (8 * k))) >>> 0, 0)
   let loads = 0,
     tileLoads = 0
-  const resolve = directShadowWgsl(14, 25)
+  const resolve = wgslModule(directShadowWgsl(25, { resolveTransmission: 14 }))
   const K = wgslConstants(resolve)
   const scope = {
     ...K,
@@ -106,7 +107,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   assert.ok(resolve.includes('textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(3u),0).r'))
   assert.doesNotMatch(resolve, /textureNumLayers\(vsmShadowMask\)/)
   assert.match(resolve, /var vsmShadowMask:texture_2d_array<u32>;/)
-  assert.ok(resolve.includes(VSM_MASK_TABLE_READ_WGSL))
+  assert.ok(resolve.includes(VSM_MASK_TABLE_READ_WGSL.text))
 })
 
 test('the table compiles off the frame from its creation, then fills once, by one group, in its own submit', async () => {

@@ -98,11 +98,11 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   )
-  // 724: the public API holds neither a shadow atlas, a CPU transport, nested Hi-Z oracles,
-  // example-only helpers nor the removed graphics path's renderer, CPU page decoding and comparison
-  // layout; it holds the names the public signatures carry: PageHome, PageHomes, QualityResolution
-  // and WorldQualityOptions.
-  assert.equal(inventory.exports.length, 724)
+  // 720 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // it), a shadow atlas, a CPU transport, nested Hi-Z oracles, example-only helpers nor the removed
+  // graphics path's renderer, CPU page decoding and comparison layout; it holds the names the
+  // public signatures carry: PageHome, PageHomes, QualityResolution and WorldQualityOptions.
+  assert.equal(inventory.exports.length, 720)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with
@@ -168,14 +168,13 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const inputs = Object.keys(proposed.metafile.inputs)
   assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
-  // The engine entry shrank with the retired exports (4 396 to 3 819); the two others grew with the
-  // machine-independent quaternion normalisation and arc trigonometry (determinism). The engine
-  // entry then took 2 bytes when `HALF_PI` moved into the constants module (3 819 to 3 821), and the
-  // browser entry 119 when its modules called the one `ceilDiv`, `clamp`, `saturate` and `wrap`
-  // instead of inlining each (3 821 to 3 940).
-  assert.equal(baseline.outputFiles[0].contents.length, 3_821)
-  assert.equal(proposed.outputFiles[0].contents.length, 2_145)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_940)
+  // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry:
+  // the engine core;
+  // the package, with the machine-independent quaternion normalisation and arc trigonometry;
+  // its browser condition, whose modules call the one `ceilDiv`, `clamp`, `saturate` and `wrap`.
+  assert.equal(baseline.outputFiles[0].contents.length, 3_715)
+  assert.equal(proposed.outputFiles[0].contents.length, 2_043)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_819)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

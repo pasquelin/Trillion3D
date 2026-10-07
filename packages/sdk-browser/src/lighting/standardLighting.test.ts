@@ -7,8 +7,12 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from './shaderRunF32.fixture.ts'
 import { ROUGHNESS_FLOOR } from './shaderConstants.ts'
-import { STANDARD_LIGHTING_WGSL } from './standardLighting.ts'
+import { STANDARD_LIGHTING_WGSL as STANDARD_LIGHTING } from './standardLighting.ts'
 import { saturate } from '../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+
+/** The standard lobe as a program holds it, its library declarations included. */
+const STANDARD_LIGHTING_WGSL = wgslModule(STANDARD_LIGHTING)
 
 type V3 = number[]
 const { standardLighting } = shaderRun<{
@@ -22,6 +26,9 @@ const { standardLighting } = shaderRun<{
     'standardLobe',
     'ggxDistribution',
     'fresnelSchlick',
+    'ndotvFloor',
+    'f0Of',
+    'lambertAlbedo',
   ],
   F32_SCOPE,
 )
@@ -45,7 +52,7 @@ function metalLobe(rough: number, N: V3, V: V3, L: V3) {
 }
 
 test('a sharp highlight is the GGX distribution, to f32, through its core', () => {
-  const rough = Number(ROUGHNESS_FLOOR)
+  const rough = ROUGHNESS_FLOOR
   const alpha = rough * rough
   const N = unit([0.3, 0.8, 0.52]).map(Math.fround)
   const T = unit([N[1], -N[0], 0])
@@ -92,6 +99,9 @@ test('the Fresnel fifth power as products displays the bytes pow displayed', () 
       'standardLobe',
       'ggxDistribution',
       'fresnelSchlick',
+      'ndotvFloor',
+      'f0Of',
+      'lambertAlbedo',
     ],
     F32_SCOPE,
   ).standardLighting
@@ -108,7 +118,7 @@ test('the Fresnel fifth power as products displays the bytes pow displayed', () 
     worst = 0
   // Grazing views and lights, where the fifth power weighs most, through every roughness, metal,
   // albedo and the energies that span the displayed range.
-  for (const rough of [Number(ROUGHNESS_FLOOR), 0.2, 0.45, 0.7, 1])
+  for (const rough of [ROUGHNESS_FLOOR, 0.2, 0.45, 0.7, 1])
     for (const metal of [0, 0.5, 1])
       for (const rgb of [
         [0.9, 0.6, 0.2],

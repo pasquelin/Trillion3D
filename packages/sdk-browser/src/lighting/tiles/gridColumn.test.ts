@@ -18,6 +18,7 @@ import {
 } from './gridColumn.fixture.ts'
 import { GRID_COMPACT_WGSL } from './compactWgsl.ts'
 import { LIGHT_TILES_SHADER } from './shader.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** `count` lights of a column: a share full depth, a share meeting no cell, the others a run. */
 function series(seed: number, count: number, full: number, none: number): Run[] {
@@ -89,8 +90,11 @@ test('overflow: a column past the pool walks every light, a head past half the w
 })
 
 test('the pass is the routines the harness runs, in its order', () => {
-  assert.match(GRID_COMPACT_WGSL, /laneScan\(lane,sum\)-sum/)
-  assert.doesNotMatch(GRID_COMPACT_WGSL, /for\(var slice=0u;slice<GRID_SLICES;slice\+\+\)/)
+  assert.match(wgslSource(GRID_COMPACT_WGSL), /laneScan\(lane,sum\)-sum/)
+  assert.doesNotMatch(
+    wgslSource(GRID_COMPACT_WGSL),
+    /for\(var slice=0u;slice<GRID_SLICES;slice\+\+\)/,
+  )
   const between = [
     'let span=laneRun(lane,GRID_SLICES);',
     'let before=roomBefore(lane,span);',

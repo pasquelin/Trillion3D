@@ -1,4 +1,9 @@
 import { REFLECTION_SEGMENT } from './traceShader.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+import { FAR_VALUE } from '../../../math/src/wgsl/constants.ts'
+import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
+import { ndcToUvUnflipped, perspectiveDivide } from '../../../math/src/wgsl/projection.ts'
 
 /** Screen-space cone tracing.
  * The cone contains half the N.L-weighted GGX directional mass; it is a finite
@@ -12,7 +17,10 @@ import { REFLECTION_SEGMENT } from './traceShader.ts'
  * level up, coarse to fine as a depth pyramid's walk, but only where that stretch outruns a cell of
  * the cone's own level; a block that holds something is not tried again before the axis leaves it.
  * `reflectionConeSection`: the section at fraction `t`, its footprint in pixels and depth spread. */
-export const REFLECTION_CONE_TRACE_WGSL = `
+export const REFLECTION_CONE_TRACE_WGSL = wgslBlock(
+  'REFLECTION_CONE_TRACE_WGSL',
+  [tangentAround, sinFromCos, FAR_VALUE, perspectiveDivide, ndcToUvUnflipped],
+  `
 fn reflectionGgxMass(u:f32,k:f32)->f32{
  let d:f32=k-1.0;
  if(abs(d)<0.125){
@@ -36,21 +44,21 @@ fn reflectionConeSlope(rough:f32)->f32{
  }
  let u:f32=(lo+hi)*0.5;
  let cosine:f32=(1.0-(k+1.0)*u)/(1.0+(k-1.0)*u);
- return sqrt(max(0.0,1.0-cosine*cosine))/max(cosine,1e-6);
+ return sinFromCos(cosine)/max(cosine,1e-6);
 }
 fn reflectionConeSection(c:vec4f,d:vec4f,e:vec4f,reach:f32,t:f32,basis:vec4f,slope:f32,size:vec2f)->vec4f{
  let distance:f32=reach*t*c.w/(e.w*(1.0-t)+c.w*t);
  let centre:vec4f=c+d*distance;
  let spread:vec4f=basis*distance*slope;
  let nearW:f32=max(centre.w-spread.w,1e-6);
- let footprint:vec2f=(spread.xy+abs(centre.xy/centre.w)*spread.w)/nearW*size*0.5;
+ let footprint:vec2f=(spread.xy+abs(perspectiveDivide(centre).xy)*spread.w)/nearW*size*0.5;
  return vec4f(footprint,(spread.z+abs(centre.z/centre.w)*spread.w)/nearW,0.0);
 }
 fn reflectionConeLimits(z0:f32,z1:f32,spread:f32)->vec2f{
  return vec2f(min(z0,z1)-spread,max(z0,z1)+spread);
 }
 fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_SEGMENT}
- let T:vec3f=reflectionTangent(R);let B:vec3f=cross(R,T);
+ let T:vec3f=tangentAround(R);let B:vec3f=cross(R,T);
  let projectedT:vec4f=reflectionProject(vec4f(T,0.0));
  let projectedB:vec4f=reflectionProject(vec4f(B,0.0));
  let basis:vec4f=sqrt(projectedT*projectedT+projectedB*projectedB);
@@ -99,7 +107,7 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
   }
   let side:f32=exp2(f32(level));
   let cell:vec2f=floor(at/side);
-  var boundary:vec2f=vec2f(1e30);
+  var boundary:vec2f=vec2f(FAR_VALUE);
   if(delta.x>0.0){boundary.x=((cell.x+1.0)*side-start.x)/delta.x;}
   if(delta.x<0.0){boundary.x=(cell.x*side-start.x)/delta.x;}
   if(delta.y>0.0){boundary.y=((cell.y+1.0)*side-start.y)/delta.y;}
@@ -116,4 +124,5 @@ fn screenReflectionCone(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec4f{${REFLECTION_S
   coarse=min(level+2,top);
  }
  return vec4f(0.0);
-}`
+}`,
+)

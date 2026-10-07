@@ -1,4 +1,5 @@
 import { environmentReflectionShader } from './environmentShader.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The scene environment's order-2 radiance (\`directLights.environment\`) through the GGX lobe
  *  (\`environmentShader.ts\`): the WebGPU programs' last fallback, never black (#1341). */
@@ -10,8 +11,10 @@ export const ENVIRONMENT_REFLECTION_WGSL = environmentReflectionShader({
 
 /** The existing order-2 radiance probes convolved with the same GGX kernel moments
  *  (\`reflectionProbeBands\`). The mirror continues to trace the proxy. */
-export const PROBE_REFLECTION_FILTER_WGSL = `${ENVIRONMENT_REFLECTION_WGSL}
-var<private> probeSpecularHeld:bool;
+export const PROBE_REFLECTION_FILTER_WGSL = wgslBlock(
+  'PROBE_REFLECTION_FILTER_WGSL',
+  [ENVIRONMENT_REFLECTION_WGSL],
+  `var<private> probeSpecularHeld:bool;
 var<private> probeSpecularAt:array<vec4u,2>;
 var<private> probeSpecularRay:vec4u;
 var<private> probeSpecular:vec3f;
@@ -26,4 +29,5 @@ fn holdProbeSpecular(P:vec3f,N:vec3f,R:vec3f,rough:f32,specular:vec3f){
 fn filteredProbeReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  if(probeSpecularHeld&&all(bitcast<vec4u>(vec4f(P,0.0))==probeSpecularAt[0])&&all(bitcast<vec4u>(vec4f(N,0.0))==probeSpecularAt[1])&&all(bitcast<vec4u>(vec4f(R,rough))==probeSpecularRay)){return probeSpecular;}
  return sampleProbeField(P,N,R,reflectionProbeBands(rough),true);
-}`
+}`,
+)

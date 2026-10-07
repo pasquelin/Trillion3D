@@ -1,5 +1,10 @@
 import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { PAGE_POINTS_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
+import { CLUSTER_HEADER_WGSL } from '../../cluster/headerWgsl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 
 /**
  * The cull an entry's pipeline leaves to the vertex stage (plan.ts, VERTEX CULL): mode 1 drops
@@ -33,10 +38,13 @@ export const FACING_DROP = 3
 /** The mode the fragment applies rides above the water rank, in the same flat word. */
 export const FACING_SHIFT = WATER_RANK_SHIFT
 
-/** The two functions in WGSL; the host shader declares the page geometry
- *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `corners` are the
+/** The two functions in WGSL, on the page geometry's points
+ *  (`../../visibility/shader/pageGeometryWgsl.ts`); the host declares `uni`. `corners` are the
  *  triangle's local vertex indices (`pageTriangle`). */
-export const FACING_WGSL = `
+export const FACING_WGSL = wgslBlock(
+  'FACING_WGSL',
+  [perspectiveDivide, PAGE_INFO_STRUCT_WGSL, CLUSTER_HEADER_WGSL, PAGE_POINTS_WGSL],
+  `
 fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec3u)->u32{
  var c:array<vec3f,3>;
  var p:array<vec2f,3>;
@@ -44,7 +52,7 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  for(var k=0u;k<3u;k++){
   let q=uni.viewProj*(world*vec4f(pagePosition(page,h,corners[k]),1.0));
   c[k]=q.xyw;
-  p[k]=q.xy/q.w*uni.viewport*0.5;
+  p[k]=perspectiveDivide(q).xy*uni.viewport*0.5;
   inside=inside&&q.w>0.0&&all(abs(q.xy)<=vec2f(q.w))&&q.z>=0.0&&q.z<=q.w;
  }
  let t0=c[0].x*c[1].y*c[2].z;let t1=-c[0].x*c[2].y*c[1].z;let t2=-c[1].x*c[0].y*c[2].z;
@@ -59,4 +67,5 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  return select(0u,${FACING_DROP}u,area<0.0);
 }
 fn facingDiscarded(mode:u32,front:bool)->bool{return (mode==1u&&front)||(mode==2u&&!front);}
-`
+`,
+)

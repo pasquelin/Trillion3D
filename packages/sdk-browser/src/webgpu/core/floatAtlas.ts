@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * THE FLOAT ATLAS: a list of floats the passes read by index, kept in an `r32float`
@@ -99,4 +100,8 @@ export function writeFloatAtlas(
  *  its row width read from the texture. The layer is the row's quotient by the constant
  *  `FLOAT_ATLAS_ROWS`, not a second division by the width: `⌊⌊i/w⌋/rows⌋ = ⌊i/(w·rows)⌋`. */
 export const floatAtlasWgsl = (texture: string, name: string) =>
-  `fn ${name}(i:u32)->f32{let w=textureDimensions(${texture}).x;let row=i/w;return textureLoad(${texture},vec2u(i%w,row%${FLOAT_ATLAS_ROWS}u),row/${FLOAT_ATLAS_ROWS}u,0).r;}`
+  wgslBlock(
+    `floatAtlasWgsl(${texture}, ${name})`,
+    [],
+    `fn ${name}(i:u32)->f32{let w=textureDimensions(${texture}).x;let row=i/w;return textureLoad(${texture},vec2u(i%w,row%${FLOAT_ATLAS_ROWS}u),row/${FLOAT_ATLAS_ROWS}u,0).r;}`,
+  )

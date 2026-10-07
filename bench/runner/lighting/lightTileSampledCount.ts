@@ -17,8 +17,9 @@ import type { TileView } from '../../oracles/browser/gpuLightGridOracle.ts'
 import { walkGrid } from './lightGridWalk.ts'
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts'
 import type { Light } from './lightTileCity.ts'
+import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 const K = wgslConstants(DIRECT_LIGHTING_WGSL)
 type Contract = (...args: unknown[]) => unknown

@@ -11,12 +11,16 @@
  */
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts'
-import { PROJECTED_BOUND_WGSL } from './projectedBoundWgsl.ts'
-import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts'
+import { projectedBoundWgsl } from './projectedBoundWgsl.ts'
+import { REFERENCE_ERROR } from './referenceErrorDecl.ts'
+import { DAG_INF } from './infDecl.ts'
+import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
-export const DAG_ERROR_WGSL = `
-${REFERENCE_ERROR_DECL}
-${PROJECTED_BOUND_WGSL}
+export const DAG_ERROR_WGSL = wgslBlock(
+  'DAG_ERROR_WGSL',
+  [REFERENCE_ERROR, DAG_INF, projectedBoundWgsl(DAG_INF), CUT_RULE_WGSL],
+  `
 /** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
  *  deformation reach (\`deformReach\`), moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
@@ -39,7 +43,8 @@ fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
 /** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
 fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}
 fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}
-`
+`,
+)
 
 /**
  * Shader text for a given variant: returned as-is for ours, a single declaration returned for
@@ -47,11 +52,11 @@ fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);
  */
 export function withScreenErrorVariant(code: string, variant: ScreenErrorVariant): string {
   if (variant !== 'reference') return code
-  const at = code.indexOf(REFERENCE_ERROR_DECL)
+  const at = code.indexOf(REFERENCE_ERROR.text)
   if (at < 0) throw new Error('REFERENCE_ERROR declaration missing from the shader')
   return (
     code.slice(0, at) +
     'const REFERENCE_ERROR:bool=true;' +
-    code.slice(at + REFERENCE_ERROR_DECL.length)
+    code.slice(at + REFERENCE_ERROR.text.length)
   )
 }

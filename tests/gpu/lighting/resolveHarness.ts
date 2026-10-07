@@ -7,10 +7,9 @@
  */
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
-import {
-  CONTRACT_BINDINGS_WGSL,
-  VIEW_WGSL,
-} from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { CONTRACT_BINDINGS_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { VIEW_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
 
 /** Floats of a sample: albedo and metal, normal and roughness, point and occlusion, eye
  *  direction and surface flag. */
@@ -29,12 +28,11 @@ function lighting(
   lobes: boolean,
   per: boolean,
 ) {
-  const shipped = directLightingWgsl({
-    narrow,
-    unshadowed: !shadowed,
-    rectless: !rects,
-    lobeless: !lobes,
-  })
+  // The lights with the standard lobe they shade with, each declaration once.
+  const shipped = wgslModule(
+    directLightingWgsl({ narrow, unshadowed: !shadowed, rectless: !rects, lobeless: !lobes }),
+    STANDARD_LIGHTING_WGSL,
+  )
   const term = '(surfaceLight(shading,N,V,'
   if (!per) return shipped
   if (lobes || shipped.split(term).length !== 2) throw new Error('PER_LIGHT_TERM_UNMATCHED')
@@ -51,11 +49,10 @@ export const resolveHarness = (
   rects = true,
   lobes = false,
   perLight = false,
-) => `
-${VIEW_WGSL}
+) =>
+  wgslProgram(
+    `
 @group(0) @binding(5) var<uniform> view:View;
-${CONTRACT_BINDINGS_WGSL}
-${STANDARD_LIGHTING_WGSL}
 ${lighting(narrow, shadowed, rects, lobes, perLight)}${lobes ? LOBE_ENTRIES_WGSL : ''}
 struct Sample{albedoMetal:vec4f,normalRough:vec4f,pointAo:vec4f,eyeFlag:vec4f,}
 @group(0) @binding(${SAMPLES_BINDING}) var<storage,read> samples:array<Sample>;
@@ -84,7 +81,9 @@ fn drawn(@builtin(global_invocation_id) id:vec3u){
  if(sampledList(slice.y)){lit=sampledSliceLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,N,V,s.pointAo.xyz,s.pointAo.w,slice,u32(view.viewport.w),vec2f(${SAMPLE_PIXEL.join(',')}));}
  else{lit=sliceLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,N,V,s.pointAo.xyz,s.pointAo.w,slice);}
  sums[id.x]=vec4u(bitcast<vec3u>(lit),0u);
-}`
+}`,
+    [VIEW_WGSL, CONTRACT_BINDINGS_WGSL],
+  )
 
 /** A sample's light through the lobes program, its lobes set by hand (\`setLobes\`): \`zeroLobes\`, lobes on with
  *  no strength and no coat — what a pixel whose maps zeroed both would read, were it marked —;

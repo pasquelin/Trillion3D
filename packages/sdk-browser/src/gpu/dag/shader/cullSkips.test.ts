@@ -12,6 +12,7 @@ import { cameraSelectionUniforms } from '../../core/selection.ts'
 import { createEngineCamera, writeEngineCamera } from '../../../camera/engineCamera.ts'
 import { HALF_PI, boxConeRejects, frustumExcludesBox } from '../../../../../sdk-core/src/index.ts'
 import { frustumPlanesToLocal } from '../oracle/math.fixture.ts'
+import { wgslSource } from '../../../../../math/src/wgsl/source.fixture.ts'
 
 /** The end of `coneRejectsBox`, with `sin` given: before and after the early exit. */
 const before = (d: number, total: number, sin: (x: number) => number) =>
@@ -22,7 +23,7 @@ const after = (d: number, total: number, sin: (x: number) => number) =>
 const gpuSin = (x: number) => Math.sin(x) - 2 ** -11
 
 test('the cone exits early before its arcsine: every verdict kept, on random and edge inputs', () => {
-  const text = DAG_CONE_WGSL
+  const text = wgslSource(DAG_CONE_WGSL)
   assert.ok(text.indexOf('if(!(d<0.0)){return false;}') < text.indexOf('let radius='))
   const next = random(906)
   const ds = [NaN, -Infinity, -1, -1e-7, -0, 0, 1e-7, 1, Infinity]
@@ -58,7 +59,7 @@ function cameraPlanes(far: number) {
 }
 
 test('an infinite far plane is read as absent, a declared one is tested', () => {
-  assert.ok(DAG_SELECTION_SHADER.includes('if(i!=skip&&outsidePlane('))
+  assert.ok(DAG_SELECTION_SHADER.includes('if(i!=skip&&boxBehindPlane('))
   assert.equal(cameraPlanes(Infinity).farless, true)
   assert.equal(cameraPlanes(2000).farless, false)
 })

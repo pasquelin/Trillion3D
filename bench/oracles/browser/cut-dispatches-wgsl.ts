@@ -60,7 +60,9 @@ fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
 
 /** A function of the shipped descent, verbatim: from its `fn` to the next doc, `fn` or stage. */
 function shippedFn(name: string) {
-  const found = new RegExp(`^fn ${name}\\(.*?(?=\\n(?:/\\*\\*|fn |@))`, 'ms').exec(DAG_LEVEL_WGSL)
+  const found = new RegExp(`^fn ${name}\\(.*?(?=\\n(?:/\\*\\*|fn |@))`, 'ms').exec(
+    DAG_LEVEL_WGSL.text,
+  )
   if (!found) throw new Error(`levelWgsl.ts no longer defines ${name}`)
   return found[0]
 }
@@ -82,10 +84,10 @@ export const DESCENT_BEFORE = DAG_LEVEL_WGSL_BEFORE.replaceAll('uni.', 'views[0u
 
 /** The shipped cut shader without its swap kernels: the shipped drawn clear lives there (#1483),
  *  and the frozen descent brings its own, on its own layout, with no swap before it. */
-export const SHIPPED_STAGES = DAG_SELECTION_SHADER.replace(DAG_SWAP_WGSL, '')
+export const SHIPPED_STAGES = DAG_SELECTION_SHADER.replace(DAG_SWAP_WGSL.text, '')
 
 /** The shipped cut shader with this descent in place of its own: the module the oracle compiles. */
 export const DAG_SELECTION_SHADER_BEFORE = SHIPPED_STAGES.replace(
-  DAG_LEVEL_WGSL,
+  DAG_LEVEL_WGSL.text,
   DESCENT_BEFORE + BEFORE_SHIMS,
 )

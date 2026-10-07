@@ -12,6 +12,7 @@ import {
   toPixels,
 } from '../visibility/shader/lineProjection.fixture.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 /** The depth slack `GUIDE_WGSL` gives a guide at pixel `(x, y)` over the scene depth `depthAt`,
  *  the image jittered by `(jx, jy)` pixels: its own `jitterSlack`, run as shipped. */
@@ -70,7 +71,9 @@ test('the shader applies the rule of jitterDepthSlack: slack on the test, gentle
 
 // The guides draw with the engine's line corner (`lineClip`), not a second program,
 // and count their width as every line does — CSS pixels times the host's pixel ratio.
-const run = runShaderText(GUIDE_CORNER_WGSL, { lineClip: runShaderText(LINE_CLIP_WGSL) })
+const run = runShaderText(GUIDE_CORNER_WGSL.text, {
+  lineClip: runShaderText(wgslSource(LINE_CLIP_WGSL)),
+})
 const QUAD = [
   [0, -1],
   [1, -1],
@@ -118,5 +121,5 @@ test('a guide behind the eye draws nothing, one crossing it starts on the near p
 })
 
 test('the guide program places its corners with that text', () => {
-  assert.ok(GUIDE_WGSL.includes(LINE_CLIP_WGSL) && GUIDE_WGSL.includes(GUIDE_CORNER_WGSL))
+  assert.ok(GUIDE_WGSL.includes(LINE_CLIP_WGSL.text) && GUIDE_WGSL.includes(GUIDE_CORNER_WGSL.text))
 })

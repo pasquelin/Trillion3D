@@ -1,16 +1,22 @@
-import { FULLSCREEN_XY_WGSL } from '../gpu/shader/fullscreenTriangle.ts'
+import { FULLSCREEN_XY } from '../gpu/shader/fullscreenTriangle.ts'
 import { COVERAGE_CUT_WGSL, COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { cellReductionWgsl } from './cellReduction.ts'
-import { SRGB_ENCODE_WGSL } from './srgbEncode.ts'
+import { linearToSrgb } from '../../../math/src/wgsl/color.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 // The mip chains' kernels: the reduction of a material level and the coverage counts of a
 // coverage chain (`mipBatch.ts`, `coverageMips.ts`), and a reflection's radiance reduction.
 
 /** A material level's uniform block, the counts' as well: the source level's extent, the cutoff
  *  byte `C`, then level 0's extent and the level. */
-const LEVEL_WGSL = ` struct Level{extent:vec4u,base:vec4u}
- @group(0) @binding(1) var<uniform> level:Level;`
+const LEVEL_WGSL = wgslBlock(
+  'LEVEL_WGSL',
+  [],
+  ` struct Level{extent:vec4u,base:vec4u}
+ @group(0) @binding(1) var<uniform> level:Level;`,
+)
 
 /**
  * One level of a material chain from the one above, one thread a texel, the whole chain one
@@ -43,15 +49,13 @@ const LEVEL_WGSL = ` struct Level{extent:vec4u,base:vec4u}
  * is read decoded through its sRGB view and averaged in linear light; an sRGB format has no
  * storage binding, so `srgb` encodes it again (`linearToSrgb`) into the `rgba8unorm` storage view.
  */
-export const MATERIAL_MIP_WGSL = `
+export const MATERIAL_MIP_WGSL = wgslProgram(
+  `
  @group(0) @binding(0) var source:texture_2d<f32>;
-${LEVEL_WGSL}
  @group(0) @binding(2) var<storage,read> cover:array<u32>;
  @group(0) @binding(3) var written:texture_storage_2d<rgba8unorm,write>;
  override weighted:bool;
  override srgb:bool;
- ${COVERAGE_SCALE_WGSL}
- ${SRGB_ENCODE_WGSL}
  @compute @workgroup_size(8,8) fn reduceLevel(@builtin(global_invocation_id) id:vec3u){
   if(any(id.xy>=textureDimensions(written))){return;}
   let p=vec2i(id.xy)*2;let hi=vec2i(level.extent.xy)-vec2i(1);
@@ -65,20 +69,30 @@ ${LEVEL_WGSL}
   let c=level.extent.z;var t=0u;
   if(c!=0u){t=cover[level.base.z*256u];}
   textureStore(written,vec2i(id.xy),vec4f(rgb,reducedAlpha(a,c,t)));
- }`
+ }`,
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, linearToSrgb],
+)
+
+/** A radiance level's read of the one above (`cellReductionWgsl`): its texel, as stored. */
+const TEXTURE_MIP_READ = wgslFn(
+  'mipRead',
+  [],
+  'fn mipRead(p:vec2i)->vec4f{return textureLoad(source,p,0);}',
+)
 
 /** A reflection's radiance level from the one above (`cellReduction`, `cellReduction.ts`), drawn
  *  into the level: its source is the frame's render target, kept free of storage usage. `extent`
  *  is the source level's size, then the image's. */
-export const RADIANCE_MIP_WGSL = `
+export const RADIANCE_MIP_WGSL = wgslProgram(
+  `
  @group(0) @binding(0) var source:texture_2d<f32>;
  @group(0) @binding(1) var<uniform> extent:vec4u;
- fn mipRead(p:vec2i)->vec4f{return textureLoad(source,p,0);}
- ${cellReductionWgsl(false)}
  @vertex fn vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
-  return vec4f(${FULLSCREEN_XY_WGSL},0.0,1.0);
+  return vec4f(${FULLSCREEN_XY},0.0,1.0);
  }
- @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{return cellReduction(vec2i(pos.xy));}`
+ @fragment fn fs(@builtin(position) pos:vec4f)->@location(0) vec4f{return cellReduction(vec2i(pos.xy));}`,
+  [cellReductionWgsl(TEXTURE_MIP_READ)],
+)
 
 /**
  * The counts of the coverage rule (docs/FORMAT.md, "Coverage-preserving alpha"): `count` files the
@@ -87,14 +101,15 @@ export const RADIANCE_MIP_WGSL = `
  * `COVERAGE_CHOOSE_WGSL` then picks that level's `t`. `level`: the block `LEVEL_WGSL` names. A
  * texel's square reads its neighbours' alphas: the workgroup reads its 9×9 alphas once into its own
  * memory, not four times each (OMB-29, #961) — the same alphas, clamped at the edge as before, so
- * the same bins.
+ * the same bins. The counts are a fragment, so a program adding a pass to them (the reference's
+ * serial pick, `tests/gpu/texture/pageMipsReference.ts`) lists it and holds each declaration once.
  */
-export const COVERAGE_WGSL = `
+export const COVERAGE_COUNT_WGSL = wgslBlock(
+  'COVERAGE_COUNT_WGSL',
+  [LEVEL_WGSL, COVERAGE_SCALE_WGSL, COVERAGE_CUT_WGSL],
+  `
  @group(0) @binding(0) var source:texture_2d<f32>;
-${LEVEL_WGSL}
  @group(0) @binding(2) var<storage,read_write> cover:array<atomic<u32>>;
- ${COVERAGE_SCALE_WGSL}
- ${COVERAGE_CUT_WGSL}
  fn sizeOf(k:u32)->vec2u{return max(level.base.xy>>vec2u(k),vec2u(1u));}
  fn alphaAt(q:vec2u)->u32{
   let k=level.base.z;let p=vec2i(min(q,sizeOf(k)-vec2u(1u)));
@@ -118,7 +133,8 @@ ${LEVEL_WGSL}
   // bins once each, not one device atomic per texel on the same two words.
   workgroupBarrier();
   for(var b=i;b<256u;b+=64u){let n=atomicLoad(&tally[b]);if(n>0u){atomicAdd(&cover[k*256u+b],n);}}
- }`
+ }`,
+)
 
 /**
  * The picks of one level of a batch, one workgroup a cutting chain (`mipBatch.ts`), one dispatch
@@ -132,12 +148,12 @@ ${LEVEL_WGSL}
  * left in bin 0, which no key reads, where the level's reduction reads it. Integers only: the
  * same `t` as one thread looping over the bins.
  */
-export const COVERAGE_CHOOSE_WGSL = `
+export const COVERAGE_CHOOSE_WGSL = wgslProgram(
+  `
  struct Pick{level:u32,table:u32,words:u32,count:u32}
  @group(0) @binding(0) var<uniform> pick:Pick;
  @group(0) @binding(1) var<storage,read> blocks:array<u32>;
  @group(0) @binding(2) var<storage,read_write> cover:array<u32>;
- ${COVERAGE_PICK_WGSL}${FLAT_INDEX_WGSL}
  var<workgroup> sums:array<u32,256>;
  var<workgroup> keys:array<vec4u,256>;
  fn total(t:u32,v:u32)->u32{
@@ -174,4 +190,6 @@ export const COVERAGE_CHOOSE_WGSL = `
    if(t<half&&below(keys[t+half],keys[t])){keys[t]=keys[t+half];}
   }
   if(t==0u){cover[here]=keys[0].w;}
- }`
+ }`,
+  [COVERAGE_PICK_WGSL, FLAT_INDEX_WGSL],
+)

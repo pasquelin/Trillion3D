@@ -7,6 +7,8 @@ import assert from 'node:assert/strict'
 import { vsmVariants } from '../gpu/core/engineShaders.vsm.fixture.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 const SHARED = [
   'vsmLevelOfDistanceSq',
@@ -22,10 +24,10 @@ const COPY =
 
 test('one text of each shared helper, in every pass that declares it', () => {
   for (const name of SHARED)
-    assert.equal(VSM_PROJECTION_DATA_WGSL.split(`fn ${name}(`).length, 2, name)
+    assert.equal(wgslSource(VSM_PROJECTION_DATA_WGSL).split(`fn ${name}(`).length, 2, name)
   const texts: Record<string, string> = {
     ...vsmVariants(),
-    TRACED_READ: directShadowWgsl(null, 18, undefined, true),
+    TRACED_READ: wgslModule(directShadowWgsl(18, { traced: true })),
   }
   for (const [module, code] of Object.entries(texts)) {
     for (const name of SHARED)

@@ -13,10 +13,10 @@
  * the division then yields nothing.
  *
  * WHERE IT APPLIES. `normalMatrix3` (`matrix3.ts`) on the CPU, `invTranspose3Prep`
- * on the GPU, which inserts `SINGULAR_DETERMINANT_WGSL`
- * into its text instead of rewriting the number. Both decide the same thing, each in its
+ * on the GPU, which names the threshold's WGSL declaration (`../wgsl/constants.ts`) instead of
+ * rewriting the number. Both decide the same thing, each in its
  * precision: the CPU in double, the GPU in single. What a singular matrix BECOMES — the
- * flattened-normal convention — is written once, in `inverseTransposeWgsl.ts`.
+ * flattened-normal convention — is written once, in `../wgsl/inverseTranspose.ts`.
  *
  * WHAT IT DOES NOT COVER. `invertMatrix4` (`matrix4Inverse.ts`) is the full 4×4 inverse, held
  * to the textbook bits, `det === 0` threshold included; it transports no
@@ -29,9 +29,6 @@
  * nothing but the shape of the matrix, never its size.
  */
 export const SINGULAR_DETERMINANT = 1e-20
-
-/** The threshold as WGSL writes it, rendered from the constant: one number, two languages. */
-export const SINGULAR_DETERMINANT_WGSL = SINGULAR_DETERMINANT.toExponential()
 
 /**
  * The SCALE of a linear part: the sum of the absolute values of the nine terms of the 3×3 block of a

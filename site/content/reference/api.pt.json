@@ -351,17 +351,10 @@
     "summary": "Esquema JSON documentando as opções da compilação nativa de recursos (prepare / CLI)."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Tolerâncias de rejeição de cone, compartilhadas pelo espelho do processador e pelo shader: uma transformação é conforme quando suas colunas têm o mesmo comprimento dentro de `CONE_LENGTH_RATIO` e são ortogonais dentro de `CONE_ORTHO_EPS`, relativamente; um cone com ângulo ≥ `HALF_PI` nunca rejeita.",
-    "description": "As variantes `_WGSL` são o texto inserido no shader, como `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` como texto de shader."
+    "summary": "Tolerâncias de rejeição de cone, compartilhadas pelo espelho do processador e pelo shader: uma transformação é conforme quando suas colunas têm o mesmo comprimento dentro de `CONE_LENGTH_RATIO` e são ortogonais dentro de `CONE_ORTHO_EPS`, relativamente; um cone com ângulo ≥ `HALF_PI` nunca rejeita."
   },
   "CONE_ORTHO_EPS": {
     "summary": "O quanto duas colunas podem estar longe de serem perpendiculares e ainda contarem como perpendiculares."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` como texto de shader."
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "Ficha de resposta de recorte, espelhando `packages/asset-compiler-rust/src/cutout.rs`.",
@@ -1342,9 +1335,6 @@
   },
   "HALF_PI": {
     "summary": "Um quarto de volta, em radianos."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` como texto de shader."
   },
   "HIERARCHY_ROOT": {
     "summary": "HIERARQUIA COMPLETA atualizada em uma única passagem: `n` nós ordenados pais antes de filhos, cada um compondo sua matriz local e então multiplicando-a pela matriz de mundo de seu pai.",
@@ -2745,9 +2735,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "O limiar, sobre o determinante NORMALIZADO.",
     "description": "Abaixo de 1e-12, o cubo de uma escala se torna subnormal em precisão simples: só a normalização atravessa esse piso, então esse limiar não julga mais nada além da forma da matriz, nunca seu tamanho."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "O limiar como o WGSL o escreve, renderizado a partir da constante: um número, duas linguagens."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Primeira palavra do registro no pacote."

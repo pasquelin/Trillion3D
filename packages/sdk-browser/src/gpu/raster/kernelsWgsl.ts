@@ -16,8 +16,7 @@ import {
 } from './contract.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts'
-import { wgslFloat } from '../partition/margins.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /** The twelve entry points: four size classes, each in the frame's three modes. */
 const entryPoints = () =>
@@ -48,10 +47,10 @@ const entryPoints = () =>
 export const rasterKernels = (capacity: number) => `
 const LIST_S:u32=LIST+${LIST_HEADER}u;
 const LIST_L:u32=LIST+${LIST_HEADER + capacity}u;
-${FLAT_INDEX_WGSL}${GROUP_GRID_WGSL}@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
+@compute @workgroup_size(64) fn clear(@builtin(global_invocation_id) gid:vec3u,@builtin(num_workgroups) n:vec3u){
  let offset=flatIndex(gid,n,64u);let pixels=pixelCount();if(offset>=pixels){return;}
  // Reverse-Z: the buffer starts at FAR, and the GREATEST wins afterwards.
- atomicStore(&work[offset],bitcast<u32>(${wgslFloat(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
+ atomicStore(&work[offset],bitcast<u32>(${wgslF32(DEPTH_CLEAR)}));atomicStore(&work[pixels+offset],0xffffffffu);
 }
 /** Verdict of a row, the contract's VERDICT_*; a row without a Hi-Z slot is an occluder. */
 fn rowVerdict(page:PageInfo)->u32{
@@ -108,7 +107,7 @@ fn spread(slot:u32,groups:u32,z:u32){
 }
 /** Each count becomes its dispatch, without any going through the CPU. */
 @compute @workgroup_size(1) fn plan(){
- let fine=(atomicLoad(&work[LIST+${CNT_FINE}u])+${FINE_PER_GROUP}u-1u)/${FINE_PER_GROUP}u;
+ let fine=ceilDiv(atomicLoad(&work[LIST+${CNT_FINE}u]),${FINE_PER_GROUP}u);
  spread(0u,fine,1u);
  spread(1u,atomicLoad(&work[LIST+${CNT_COARSE}u]),1u);
  spread(2u,atomicLoad(&work[LIST+${CNT_LARGE}u]),1u);

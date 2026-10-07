@@ -18,13 +18,12 @@ import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import type { VsmLayout } from './layout.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
 /** Thread group size of the instance load balancer. */
 export const VSM_INVALIDATION_GROUP_SIZE = 64
@@ -185,7 +184,7 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  }
 }
 /** The load-balanced entry point: one thread per (item, instance of the item), in rows. */
-${FLAT_INDEX_WGSL}@compute @workgroup_size(VSM_INVALIDATION_GROUP_SIZE)
+@compute @workgroup_size(VSM_INVALIDATION_GROUP_SIZE)
 fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lidx:u32){
  let thread=flatIndex(wid,nwg,1u)*VSM_INVALIDATION_GROUP_SIZE+lidx;
  if(thread>=vsmInv.boxCount||vsmInv.invItemCount==0u){return;}
@@ -213,19 +212,20 @@ fn vsmStaleBoxes(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:v
 
 /** The whole instance invalidation module (entry `vsmStaleBoxes`). */
 export function vsmInvalidationWgsl(layout: VsmLayout) {
-  return [
-    VSM_CONSTANTS_WGSL,
-    VSM_UNIFORMS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_STRUCTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_PROJECTION_DATA_WGSL,
-    vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),
-    VSM_INVALIDATION_GROUP1_WGSL,
-    VSM_PROJECTION_DATA_READ_WGSL,
-    VSM_PAGE_MARKS_GATHER_WGSL,
-    VSM_BOX_CULL_WGSL,
-    VSM_PAGE_OVERLAP_WGSL,
-    VSM_INVALIDATE_INSTANCE_PAGES_WGSL,
-  ].join('\n')
+  return wgslProgram(
+    [VSM_INVALIDATION_GROUP1_WGSL, VSM_PAGE_OVERLAP_WGSL, VSM_INVALIDATE_INSTANCE_PAGES_WGSL].join(
+      '\n',
+    ),
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      vsmBindingsWgsl(0, VSM_INVALIDATION_SPECS, layout),
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_PAGE_MARKS_GATHER_WGSL,
+      VSM_BOX_CULL_WGSL,
+      FLAT_INDEX_WGSL,
+    ],
+  )
 }

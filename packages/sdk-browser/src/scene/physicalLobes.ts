@@ -1,5 +1,6 @@
 import type { VisMaterial } from '../visibility/materialType.ts'
-import { octDecodeWgsl, octEncodeWgsl } from '../gpu/shader/octahedralWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { octDecode, octEncode } from '../../../math/src/wgsl/octahedral.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 
 /**
@@ -32,9 +33,12 @@ export const PHYSICAL_LOBES_TARGET = loadOnlyTarget(
 export const hasPhysicalLobes = (mat: Pick<VisMaterial, 'lit' | 'anisotropy' | 'clearcoat'>) =>
   mat.lit && ((mat.anisotropy ?? 0) > 0 || (mat.clearcoat ?? 0) > 0)
 
-/** A unit vector to two signed halves and back, octahedral (`octahedralWgsl.ts`): what the
- *  resolve stores and the lighting reads of the anisotropy direction and the coat normal. */
-export const LOBE_PACK_WGSL = `${octEncodeWgsl('lobeOct')}
-${octDecodeWgsl('lobeUnoct')}
-fn lobeOctEncode(n:vec3f)->u32{return pack2x16snorm(lobeOct(n));}
-fn lobeOctDecode(word:u32)->vec3f{return lobeUnoct(unpack2x16snorm(word));}`
+/** A unit vector to two signed halves and back, octahedral (`octEncode`, `octDecode` of the maths
+ *  library): what the resolve stores and the lighting reads of the anisotropy direction and the
+ *  coat normal. A fragment: its host lists it. */
+export const LOBE_PACK_WGSL = wgslBlock(
+  'LOBE_PACK_WGSL',
+  [octEncode, octDecode],
+  `fn lobeOctEncode(n:vec3f)->u32{return pack2x16snorm(octEncode(n));}
+fn lobeOctDecode(word:u32)->vec3f{return octDecode(unpack2x16snorm(word));}`,
+)

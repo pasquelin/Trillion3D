@@ -41,14 +41,14 @@ test('the model prices the pass by its tests and entries, the resolve by its lig
 })
 
 test("the model's G-buffer accesses are the resolve's: the emission's texel under its bit alone", () => {
-  const body = contractSurfaceBody('')
+  const body = contractSurfaceBody(false).text
   for (const target of Object.keys(RESOLVE_GBUFFER.after).filter((t) => t !== 'colour'))
     assert.equal(
       body.match(new RegExp(`textureLoad\\(${target},coord,0\\)`, 'g'))?.length,
       1,
       target,
     )
-  assert.doesNotMatch(body.replace(SURFACE_EMISSIVE_AO_WGSL, ''), /textureLoad\(emissiveAo/)
+  assert.doesNotMatch(body.replace(SURFACE_EMISSIVE_AO_WGSL.text, ''), /textureLoad\(emissiveAo/)
   assert.deepEqual(gbufferAccesses(RESOLVE_GBUFFER.before), { texels: 6, bytes: 37 })
   assert.deepEqual(gbufferAccesses(RESOLVE_GBUFFER.after), { texels: 5, bytes: 29 })
 })

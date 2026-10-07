@@ -2,6 +2,8 @@ import * as layer from './layers.ts'
 import { FLAG_DYNAMIC } from '../visibility/types.ts'
 import { REACTIVE_MAX } from './reactive.ts'
 import { HISTORY_SAMPLES_MAX, LUMA_TO_CHANNEL } from './shadingHistoryWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
 
 /** The samples a history read a display pixel or more away keeps beside the current one. */
 const MOVING_SAMPLES = 4
@@ -18,7 +20,10 @@ export const shareText =
  * Bilinear softens the history a little every image the pixel moves by a fraction;
  * Catmull-Rom keeps its sharpness. Its negative lobes may overshoot: the neighbour box clamps them.
  */
-export const CATMULL_ROM_WGSL = `
+export const CATMULL_ROM_WGSL = wgslBlock(
+  'CATMULL_ROM_WGSL',
+  [],
+  `
 fn historyCatmullRom(uv:vec2f)->vec4f{
  let p=uv*view.viewport.xy;
  let c=floor(p-0.5)+0.5;
@@ -38,7 +43,8 @@ fn historyCatmullRom(uv:vec2f)->vec4f{
  sum+=textureSampleLevel(history,historySampler,vec2f(t12.x,t3.y),0.0)*(w12.x*w3.y);
  let total=w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y;
  return max(sum/total,vec4f(0.0));
-}`
+}`,
+)
 
 /**
  * What a pixel takes of the page record its identifier names, which it reads once: the identity
@@ -46,26 +52,34 @@ fn historyCatmullRom(uv:vec2f)->vec4f{
  * its geometry is dynamic: changing vertices with no tracked deformation cannot reuse placement
  * motion. The background (`id` 0) names no row: nothing is read, and it is neither.
  */
-export const PAGE_OF_WGSL = `
+export const PAGE_OF_WGSL = wgslBlock(
+  'PAGE_OF_WGSL',
+  [],
+  `
 struct TaaPage{identity:u32,animated:f32}
 fn pageOf(id:u32)->TaaPage{
  if(id==0u){return TaaPage(0u,0.0);}
  let page=pages[(id>>8u)-1u];
  return TaaPage(page.placement+1u,select(0.0,1.0,(page.flags&${FLAG_DYNAMIC}u)!=0u&&page.deformOutput==0u));
-}`
+}`,
+)
 
 /**
  * The history texel a pixel's shading measures are read from: the nearest to its reprojected point,
  * after an offset of up to half a texel drawn per pixel and image: a point read, dithered. A still
  * pixel reads its own texel; a moving one does not drift by always rounding one way.
  */
-export const HISTORY_TEXEL_WGSL = `
+export const HISTORY_TEXEL_WGSL = wgslBlock(
+  'HISTORY_TEXEL_WGSL',
+  [hashUnit],
+  `
 fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
  let seed=(u32(coord.y)*65536u+u32(coord.x))*8u+u32(view.jitter.w);
  // 0x5bd1e995u: odd 32-bit constant with well-spread bits that flips the seed for the second coordinate, so it is decorrelated from the first; any odd value with well-spread bits would serve, this one is declared, not tuned.
  let offset=vec2f(hashUnit(seed),hashUnit(seed^0x5bd1e995u))*0.999-0.4995;
  return clamp(vec2i(floor(uv*view.viewport.xy+offset)),vec2i(0),vec2i(view.viewport.xy)-vec2i(1));
-}`
+}`,
+)
 
 /**
  * The most samples a moving pixel's history keeps, the current one included (a history at the
@@ -76,12 +90,16 @@ fn historyTexel(uv:vec2f,coord:vec2i)->vec2i{
  * `now` and `kept`: the YCoCg luma of the current image and of the boxed history. (A history kept
  * at twice the display's size would need no such cap, at four times this one's cost.)
  */
-export const HISTORY_CAP_WGSL = `
+export const HISTORY_CAP_WGSL = wgslBlock(
+  'HISTORY_CAP_WGSL',
+  [],
+  `
 fn historyCap(uv:vec2f,coord:vec2i,now:f32,kept:f32)->f32{
  let speed=length(uv*view.viewport.xy-vec2f(coord)-0.5);
  let contrast=abs(now-kept)/max(max(now,kept),1e-6);
  return 1.0+${HISTORY_SAMPLES_MAX}.0*max(1.0-${1 - MOVING_SAMPLES / HISTORY_SAMPLES_MAX}*saturate(speed),contrast);
-}`
+}`,
+)
 
 /**
  * The current image's share of a moving pixel (the blend's sixth point): today's `alpha` times
@@ -89,11 +107,15 @@ fn historyCap(uv:vec2f,coord:vec2i,now:f32,kept:f32)->f32{
  * overwrite its history —, raised to the pixel's reactive value, never above `REACTIVE_MAX`; a pixel
  * with no history (`fresh`) takes the current sample whole.
  */
-export const CURRENT_SHARE_WGSL = `
+export const CURRENT_SHARE_WGSL = wgslBlock(
+  'CURRENT_SHARE_WGSL',
+  [],
+  `
 fn currentShare(alpha:f32,reach:f32,rho:f32,fresh:bool)->f32{
  if(fresh){return 1.0;}
  return max(alpha*reach,min(rho,${REACTIVE_MAX}));
-}`
+}`,
+)
 
 /**
  * What both resolves close with, once `previous` (and the points it came from, `here` and
@@ -172,7 +194,7 @@ ${share(' if(uncovered){sharePast=vec4f(0.0);}\n')} let animated=${centrePage}.a
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(sharePast.r,shareLo,shareHi);\n')} let tone=select(0.0,view.tsr.x,moving);let wc=alpha/(1.0+lumaNow*tone);
  let wh=(1.0-alpha)/(1.0+clamped.x*tone);
-${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true, still)};`
+${layer.layerText(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true, still)};`
 }
 
 /** The share target, its as-is share and still weight, read at the reprojected point. */

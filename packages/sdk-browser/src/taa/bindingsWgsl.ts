@@ -1,5 +1,7 @@
 import { readOnly } from '../webgpu/core/bindLayout.ts'
 import * as layer from './layers.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Pass bindings, in the order of its layout entries. */
 export const TAA_BINDINGS = {
@@ -101,9 +103,16 @@ export const TAA_VIEW_BYTES = 304
  * count's fade-in rate and the parallax limit's inverse (`FLICKER_COUNT_RATE`, `flickerParallax`), a render pixel's
  * width in the world at a clip w of one (`shadingStill`).
  */
-export const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`
+const TAA_VIEW_WGSL = wgslBlock(
+  'TAA_VIEW_WGSL',
+  [],
+  `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,tsr:vec4f,parallax:vec4f,moire:vec4f,}`,
+)
 
-export const BINDINGS_WGSL = `
+export const BINDINGS_WGSL = wgslBlock(
+  'BINDINGS_WGSL',
+  [PAGE_INFO_STRUCT_WGSL, TAA_VIEW_WGSL],
+  `
 @group(0) @binding(${TAA_BINDINGS.current}) var current:texture_2d<f32>;
 @group(0) @binding(${TAA_BINDINGS.history}) var history:texture_2d<f32>;
 @group(0) @binding(${TAA_BINDINGS.historySampler}) var historySampler:sampler;
@@ -119,6 +128,12 @@ export const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.texelSampler}) var texelSampler:sampler;
 @group(0) @binding(${TAA_BINDINGS.indices}) var<storage,read> indices:array<u32>;
 @group(0) @binding(${TAA_BINDINGS.positions}) var<storage,read> positions:array<f32>;
-@group(0) @binding(${TAA_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;`
-export const shareBindingsWgsl = (blended: boolean) => `
-@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<${blended ? 'f32' : 'u32'}>;`
+@group(0) @binding(${TAA_BINDINGS.uvs}) var<storage,read> uvs:array<f32>;`,
+)
+export const shareBindingsWgsl = (blended: boolean) =>
+  wgslBlock(
+    `shareBindingsWgsl(${blended})`,
+    [],
+    `
+@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<${blended ? 'f32' : 'u32'}>;`,
+  )

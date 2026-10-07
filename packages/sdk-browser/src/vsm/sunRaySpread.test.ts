@@ -34,7 +34,7 @@ const VIEW_TO_CLIP = new Mat([
 
 const { vsmSunRaySpread } = shaderRun<{
   vsmSunRaySpread: (...a: unknown[]) => number[]
-}>(CODE, ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'vsmFrameAround'], {
+}>(CODE, ['vsmSunRaySpread', 'vsmAcrossLightOnScreen', 'frameAround', 'perspectiveDivide'], {
   ...constructors(CODE),
   vsmView: {
     viewToClip: VIEW_TO_CLIP,

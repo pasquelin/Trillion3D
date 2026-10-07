@@ -1,7 +1,7 @@
 // What the temporal resolve calls beyond `shaderRunBuiltins.fixture.ts`, for the runs of its
 // shipped text in JavaScript: the half-float packing its flicker history is stored with (the
-// engine's own half conversion, `ltcTable.ts`), and the engine's integer hash
-// (`../math/hashUnitWgsl.ts`) in 32-bit integer arithmetic, which a double would not wrap.
+// engine's own half conversion, `ltcTable.ts`), and the engine's integer hash (the maths library's
+// `hashUnit`) in 32-bit integer arithmetic, which a double would not wrap.
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
@@ -12,7 +12,7 @@ const pack2x16float = (v: number[]) => (toHalf(v[0]) | (toHalf(v[1]) << 16)) >>>
 /** `unpack2x16float`: the two half floats of a word, the low 16 bits first. */
 const unpack2x16float = (word: number) => [fromHalf(word & 0xffff), fromHalf(word >>> 16)]
 
-/** `hashUnit`, as `HASH_UNIT_WGSL` computes it in `u32`. */
+/** `hashUnit`, as the maths library's `hashUnit` computes it in `u32`. */
 function hashUnit(seed: number) {
   let x = (Math.imul(seed >>> 0, 747796405) + 2891336453) >>> 0
   x = Math.imul(((x >>> ((x >>> 28) + 4)) ^ x) >>> 0, 277803737) >>> 0
@@ -78,12 +78,14 @@ export const textureGatherOf =
     return [at(0, 1), at(1, 1), at(1, 0), at(0, 0)]
   }
 
-/** The resolve's own functions in `shader`, what the fixtures run of it: the colour space's two and
- *  every one declared after the deformation's, the hash left to the scope's integer one. */
+/** The resolve's own functions in `shader`, what the fixtures run of it: the colour space's two, the
+ *  perspective divide the flicker measure calls and every one declared after the deformation's, the
+ *  hash left to the scope's integer one. */
 export function resolveFunctions(shader: string) {
   const declared = [...shader.matchAll(/\bfn (\w+)\(/g)].map((match) => match[1])
   const own = declared.slice(declared.indexOf('deformedPrevious') + 1)
-  return ['toYcocg', 'fromYcocg', ...own.filter((name) => name !== 'hashUnit')]
+  const divide = declared.includes('perspectiveDivide') ? ['perspectiveDivide'] : []
+  return ['toYcocg', 'fromYcocg', ...divide, ...own.filter((name) => name !== 'hashUnit')]
 }
 
 /** The uniform's fields past the header the fixtures fill: no camera move since the last image,

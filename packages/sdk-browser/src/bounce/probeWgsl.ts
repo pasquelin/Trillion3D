@@ -1,13 +1,17 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts'
 import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts'
-import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
+import { BOUNCE_GRID_HEAD_WGSL, BOUNCE_GRID_WGSL } from './gridWgsl.ts'
 import { residentProxyWgsl } from './nodeWgsl.ts'
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts'
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts'
-import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
+import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { sinFromCos } from '../../../math/src/wgsl/geometry.ts'
+import { TWO_PI } from '../../../math/src/wgsl/constants.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { radianceProjectionShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
 const BOUNCE_WORKGROUP = 64
@@ -18,7 +22,10 @@ const BOUNCE_WORKGROUP = 64
  * `[base, base + side)` —, the probe's first texel, and whether the level exists. One text, so the
  * texels the snapshot copies are the ones the update wrote.
  */
-const QUEUED_PROBE_WGSL = `struct QueuedProbe{level:u32,rank:u32,cell:vec3i,probe:vec3u,valid:bool,}
+const QUEUED_PROBE_WGSL = wgslBlock(
+  'QUEUED_PROBE_WGSL',
+  [],
+  `struct QueuedProbe{level:u32,rank:u32,cell:vec3i,probe:vec3u,valid:bool,}
 fn queuedProbe(entry:u32)->QueuedProbe{
  let packed=probeQueue[entry];
  let perLevel=max(bounce.counts.z,1u);
@@ -30,7 +37,8 @@ fn queuedProbe(entry:u32)->QueuedProbe{
  let ranked=vec3i(vec3u(rank%bounce.counts.x,(rank/bounce.counts.x)%bounce.counts.x,rank/(bounce.counts.x*bounce.counts.x)));
  let cell=base+(((ranked-base)%side)+side)%side;
  return QueuedProbe(level,rank,cell,probeOf(level,cell),true);
-}`
+}`,
+)
 
 /**
  * Update of the cascade irradiance probes.
@@ -55,19 +63,14 @@ fn queuedProbe(entry:u32)->QueuedProbe{
  * frame does not depend on the order in which the GPU scheduled its threads. The snapshot then
  * takes, by the pass's next dispatch, the texels the update wrote (`BOUNCE_SNAPSHOT_SHADER`).
  */
-export const BOUNCE_PROBE_SHADER = `
+export const BOUNCE_PROBE_SHADER = wgslProgram(
+  `
 @group(0) @binding(0) var<uniform> bounce:BounceGrid;
-${residentProxyWgsl(1)}
 @group(0) @binding(2) var<storage,read> directLights:DirectLights;
 @group(0) @binding(3) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(4) var probes:texture_2d_array<f32>;
 @group(0) @binding(5) var probesOut:texture_storage_2d_array<rgba32float,write>;
 @group(0) @binding(6) var surface:texture_2d<f32>;
-${DIRECT_LIGHT_WGSL}
-${INVERSE_PI_WGSL}
-${BOUNCE_GRID_WGSL}
-${QUEUED_PROBE_WGSL}
-${BOUNCE_TRACE_WGSL}
 const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
 const WORKGROUP:u32=${BOUNCE_WORKGROUP}u;
 const BLEND_STABLE:f32=${BOUNCE_SETTINGS.blendStable};
@@ -80,16 +83,14 @@ const GOLDEN_ANGLE:f32=2.39996323;
 fn probeStore(probe:vec3u,k:u32,value:vec4f){
  textureStore(probesOut,vec2u(probe.x+k,probe.y),probe.z,value);
 }
-${HASH_UNIT_WGSL}
 /** A direction of a Fibonacci spiral, offset on every update to cover the sphere. */
 fn rayDirection(slot:u32,jitter:f32,rotation:f32)->vec3f{
  let index=f32(slot)+jitter;
  let z=1.0-2.0*index/f32(RAYS_PER_PROBE);
- let radius=sqrt(max(0.0,1.0-z*z));
+ let radius=sinFromCos(z);
  let angle=index*GOLDEN_ANGLE+rotation;
  return vec3f(radius*cos(angle),radius*sin(angle),z);
 }
-${SURFACE_RAY_WGSL}
 /** Partial sums of a group: nine basis accumulators, four of distance, one of travel. */
 var<workgroup> partial:array<array<vec3f,${BOUNCE_WORKGROUP}>,13>;
 var<workgroup> partialTravelled:array<f32,${BOUNCE_WORKGROUP}>;
@@ -108,7 +109,7 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let spacing=bounce.levels[level].originSpacing.w;
  let origin=probeCentre(cell,spacing);
  let reach=bounce.reach.x;
- let rotation=hashUnit(rank*9781u+bounce.frame.z)*6.2831853;
+ let rotation=hashUnit(rank*9781u+bounce.frame.z)*TWO_PI;
  let jitter=hashUnit(rank*6151u+bounce.frame.z*131u);
  var sums:array<vec3f,13>;
  var travelled=0.0;
@@ -176,7 +177,19 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  let keptNegative=select(vec3f(0.0),probeAt(probe,PROBE_DISTANCE_NEGATIVE).xyz,held);
  probeStore(probe,PROBE_DISTANCE_POSITIVE,vec4f(mix(keptPositive,meanPositive,blend),0.0));
  probeStore(probe,PROBE_DISTANCE_NEGATIVE,vec4f(mix(keptNegative,meanNegative,blend),0.0));
-}`
+}`,
+  [
+    residentProxyWgsl(1),
+    DIRECT_LIGHT_WGSL,
+    BOUNCE_GRID_WGSL,
+    QUEUED_PROBE_WGSL,
+    BOUNCE_TRACE_WGSL,
+    TWO_PI,
+    hashUnit,
+    sinFromCos,
+    SURFACE_RAY_WGSL,
+  ],
+)
 
 /**
  * The snapshot's follow-up, in the bounce pass after the update: every texel the update may have
@@ -186,13 +199,12 @@ fn updateProbes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
  * frozen grid without the copy of the whole atlas each image paid. A probe the update
  * skipped — asleep — copies the texels it holds already.
  */
-export const BOUNCE_SNAPSHOT_SHADER = `
+export const BOUNCE_SNAPSHOT_SHADER = wgslProgram(
+  `
 @group(0) @binding(0) var<uniform> bounce:BounceGrid;
 @group(0) @binding(1) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(2) var probes:texture_2d_array<f32>;
 @group(0) @binding(3) var snapshotOut:texture_storage_2d_array<rgba32float,write>;
-${BOUNCE_GRID_HEAD_WGSL}
-${QUEUED_PROBE_WGSL}
 @compute @workgroup_size(${BOUNCE_WORKGROUP})
 fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  let entry=id.x/PROBE_VECTORS;
@@ -201,7 +213,9 @@ fn followSnapshot(@builtin(global_invocation_id) id:vec3u){
  if(!queued.valid){return;}
  let at=vec2u(queued.probe.x+id.x%PROBE_VECTORS,queued.probe.y);
  textureStore(snapshotOut,at,queued.probe.z,textureLoad(probes,at,queued.probe.z,0));
-}`
+}`,
+  [BOUNCE_GRID_HEAD_WGSL, QUEUED_PROBE_WGSL],
+)
 
 /** Workgroups of the snapshot's follow-up for a queue of `entries` probes: a thread a texel. */
 export const snapshotGroups = (entries: number) => ceilDiv(entries * PROBE_TEXELS, BOUNCE_WORKGROUP)

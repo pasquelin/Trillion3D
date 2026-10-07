@@ -14,17 +14,18 @@ import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
-import { PI, ROUGHNESS_FLOOR } from '../shaderConstants.ts'
+import { ROUGHNESS_FLOOR } from '../shaderConstants.ts'
 import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Light = (...args: unknown[]) => number[]
 const NAMES = [
   'lobeLight',
   'anisotropicLobe',
-  ...[...STANDARD_LIGHTING_WGSL.matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
+  ...[...wgslModule(STANDARD_LIGHTING_WGSL).matchAll(/fn (\w+)\(/g)].map(([, name]) => name),
 ]
-const shipped = `${STANDARD_LIGHTING_WGSL}\n${LOBES_LIGHTING_WGSL}`
+const shipped = wgslModule(STANDARD_LIGHTING_WGSL, LOBES_LIGHTING_WGSL)
 /** The order it replaced: the half-vector and the coat's facing first, whatever faces. */
 const before = shipped.replace(
   /(surfaceLight\(s,N,V,light\);\}\n let L=normalize\(light\.xyz\);)[\s\S]*?(var base=vec3f\(0\.0\);)/,
@@ -68,7 +69,7 @@ test('a lobed light pays the half-vector only where the base or the coat faces i
       ab,
       invAt: Math.fround(1 / at),
       invAb: Math.fround(1 / ab),
-      dScale: Math.fround(1 / Math.fround(Math.fround(Math.fround(Number(PI)) * at) * ab)),
+      dScale: Math.fround(1 / Math.fround(Math.fround(Math.fround(Math.PI) * at) * ab)),
       viewLength: u(0.05, 1),
       coatSurface: lobeSurface([0, 0, 0], 0, coatRough, coatN, V),
     }
@@ -106,7 +107,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
   // The lobe as it divided: T·H by αt, B·H by αb, one over the whole denominator.
   const forms = [
     ['dot(T,H)*lobes.invAt,dot(B,H)*lobes.invAb', 'dot(T,H)/at,dot(B,H)/ab'],
-    ['let D=lobes.dScale/(q*q);', `let D=1.0/(${PI}*at*ab*q*q);`],
+    ['let D=lobes.dScale/(q*q);', 'let D=1.0/(PI*at*ab*q*q);'],
   ]
   const divides = forms.reduce((text, [shippedForm, dividedForm]) => {
     assert.ok(text.includes(shippedForm), shippedForm)
@@ -118,8 +119,8 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
   const lobes: Record<string, unknown> = {}
   const ours = shaderRun<Record<string, Light>>(shipped, NAMES, { ...F32_SCOPE, lobes })
   const theirs = shaderRun<Record<string, Light>>(divides, NAMES, { ...F32_SCOPE, lobes })
-  const floor = f(Number(ROUGHNESS_FLOOR)),
-    pi = f(Number(PI))
+  const floor = f(ROUGHNESS_FLOOR),
+    pi = f(Math.PI)
   let lit = 0,
     moved = 0
   for (let round = 0; round < 4000; round++) {
@@ -131,7 +132,7 @@ test('an anisotropic light reads its pixel reciprocals and scale: the same 8-bit
       lift = round % 2 ? u(0.001, 0.2) : u(0.2, 1)
     const V = unit(N.map((n, i) => n * lift + T[i] * across[0] + B[i] * across[1]))
     // A third of the pixels at the roughness floor, the narrowest lobe.
-    const rough = round % 3 ? u(Number(ROUGHNESS_FLOOR), 1) : floor
+    const rough = round % 3 ? u(ROUGHNESS_FLOOR, 1) : floor
     const strength = u(0.05, 1),
       coat = round % 5 ? 0 : u(0.1, 1),
       coatRough = u(0.05, 1),

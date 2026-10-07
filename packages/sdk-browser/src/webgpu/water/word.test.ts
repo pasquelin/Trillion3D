@@ -9,6 +9,7 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
 import { waterSurfaceWgsl, WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts'
 import { WATER_COMPOSITE_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 const f32 = Math.fround
 /** WGSL `unpack4x8unorm`: each byte over 255, low byte first. */
@@ -26,11 +27,11 @@ const pack4x8unorm = (channels: number[]) =>
 type Unpack = { waterWordAt: (coord: unknown) => number }
 
 test('the surface stage writes the word as four unorm bytes into the display colour', () => {
-  assert.match(waterSurfaceWgsl(true), /@location\(3\) word:vec4f/)
+  assert.match(wgslModule(waterSurfaceWgsl(true)), /@location\(3\) word:vec4f/)
   const packed = new RegExp(
     `unpack4x8unorm\\(\\(in\\.water&${WATER_MAX_ITEMS}u\\)\\|\\(opacity<<${WATER_RANK_SHIFT}u\\)\\)`,
   )
-  assert.match(waterSurfaceWgsl(true), packed)
+  assert.match(wgslModule(waterSurfaceWgsl(true)), packed)
   assert.match(WATER_COMPOSITE_SHADER, /@binding\(3\) var waterWord:texture_2d<f32>;/)
   assert.match(WATER_COMPOSITE_SHADER, /let packed=waterWordAt\(coord\);/)
 })

@@ -10,14 +10,16 @@ import { ENGINE_SHADERS } from '../gpu/core/engineShaders.fixture.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 /** The shaders that read the maps: every engine shader and the direct shadow read as each pass
  *  composes it. */
 const COMPOSED: Record<string, string> = {
   ...ENGINE_SHADERS,
-  'direct read, blended': directShadowWgsl(null, 18),
-  'direct read, opaque resolve': directShadowWgsl(14, 25),
-  'direct read, traced': directShadowWgsl(null, 18, undefined, true),
+  'direct read, blended': wgslModule(directShadowWgsl(18)),
+  'direct read, opaque resolve': wgslModule(directShadowWgsl(25, { resolveTransmission: 14 })),
+  'direct read, traced': wgslModule(directShadowWgsl(18, { traced: true })),
 }
 
 /** The field names of struct `name` in `text`, pads left out. */
@@ -51,9 +53,9 @@ function unread(fields: string[], texts: string[], receivers: string[]) {
 }
 
 const texts = () => Object.values(COMPOSED).map((t) => without(t, 'vsmUnpackProjection'))
-const UNIFORM_FIELDS = fieldsOf(VSM_UNIFORMS_WGSL, 'VsmUniforms'),
-  RAW_FIELDS = fieldsOf(VSM_PROJECTION_DATA_WGSL, 'VsmProjectionRecord'),
-  RECORD_FIELDS = fieldsOf(VSM_PROJECTION_DATA_WGSL, 'VsmProjectionData').filter(
+const UNIFORM_FIELDS = fieldsOf(wgslSource(VSM_UNIFORMS_WGSL), 'VsmUniforms'),
+  RAW_FIELDS = fieldsOf(wgslSource(VSM_PROJECTION_DATA_WGSL), 'VsmProjectionRecord'),
+  RECORD_FIELDS = fieldsOf(wgslSource(VSM_PROJECTION_DATA_WGSL), 'VsmProjectionData').filter(
     (f) => f !== 'handle',
   )
 

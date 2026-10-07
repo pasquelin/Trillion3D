@@ -1,9 +1,10 @@
-import { SRGB_ENCODE_WGSL } from '../../texture/srgbEncode.ts'
 import { TONE_MAPPING_WGSL } from '../../lighting/toneMappingWgsl.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts'
 import { programOf } from './displayFilterProgram.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { linearToSrgb } from '../../../../math/src/wgsl/color.ts'
 
 /**
  * The display layers: the reference display multiplies and subtracts on a canvas of
@@ -34,20 +35,28 @@ export const displayTargets = (mode: Blending): GPUColorTargetState[] => [
  *  display layers where `masked`, else to the lit target (`keep`); 2 (multiply, subtractive)
  *  always; 0 leaves the layers at `(1, 0)` and shows nothing. What the layers take is its display
  *  value `shown`, the composition's chain: exposure, curve unless unlit, sRGB. */
-export const DISPLAY_ROUTE_WGSL = `${TONE_MAPPING_WGSL}${SRGB_ENCODE_WGSL}
-override DISPLAY_ROUTE:u32=0u;
+export const DISPLAY_ROUTE_WGSL = wgslBlock(
+  'DISPLAY_ROUTE_WGSL',
+  [TONE_MAPPING_WGSL, linearToSrgb],
+  `override DISPLAY_ROUTE:u32=0u;
 struct Route{keep:f32,tint:vec4f,add:vec4f,}
 fn displayRoute(rgb:vec3f,exposure:f32,curve:u32,unlit:bool,alpha:f32,masked:f32)->Route{
  if(DISPLAY_ROUTE==0u){return Route(1.0,vec4f(1.0),vec4f(0.0));}
  let shown=linearToSrgb(select(toneMap(rgb*exposure,curve),rgb,unlit));
  if(DISPLAY_ROUTE==1u){let a=alpha*masked;return Route(1.0-masked,vec4f(0.0,0.0,0.0,a),vec4f(shown*a,a));}
  return Route(1.0,vec4f(shown,1.0),vec4f(shown,1.0));
-}`
+}`,
+)
 
 /** The mask, read at a fragment's pixel, in bind group `group`. */
-export const displayMaskWgsl = (group: number) => `
+export const displayMaskWgsl = (group: number) =>
+  wgslBlock(
+    `displayMaskWgsl(${group})`,
+    [],
+    `
 @group(${group}) @binding(0) var displayMask:texture_2d<f32>;
-fn maskAt(pixel:vec4f)->f32{return textureLoad(displayMask,vec2i(pixel.xy),0).r;}`
+fn maskAt(pixel:vec4f)->f32{return textureLoad(displayMask,vec2i(pixel.xy),0).r;}`,
+  )
 
 /** The layout of the mask's bind group, the same for every pass that reads it. */
 export const displayMaskLayout = (device: GPUDevice) => programOf(device).mask

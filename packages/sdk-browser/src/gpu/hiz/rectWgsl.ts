@@ -1,5 +1,7 @@
 import { HIZ_KERNEL_TEXELS } from '../../hiz/counts.ts'
 import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { floorLog2 as floorLog2Decl } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * Choice of the mip that answers for a screen rectangle ALREADY clipped to the viewport: GPU
@@ -9,13 +11,16 @@ import { floorLog2 } from '../../../../math/src/scalar/integers.ts'
  * half bounds, the opaque main-pass cull and the transparent-cluster occlusion test — and two
  * writings of the same rule would eventually diverge. It reads no pyramid: only the level and
  * whether it exists come out, and a rectangle no mip covers is never rejected. It travels with
- * `hiddenByPyramid` below, the only reader outside this module.
+ * `hiddenByPyramid` below, and with the partition's classify (`hizLevelFor`).
  */
-const HIZ_LEVEL_WGSL = `
+export const HIZ_LEVEL_WGSL = wgslBlock(
+  'HIZ_LEVEL_WGSL',
+  [floorLog2Decl],
+  `
 /** Mirror of \`premierNiveau\` (../../hiz/occlusion.ts): lowest mip that can fit in the kernel. */
 fn firstLevel(span:i32)->u32{
  if(span<${HIZ_KERNEL_TEXELS}){return 0u;}
- let level=31u-countLeadingZeros(u32(span))-${floorLog2(HIZ_KERNEL_TEXELS) - 1}u;
+ let level=floorLog2(u32(span))-${floorLog2(HIZ_KERNEL_TEXELS) - 1}u;
  return select(level,0u,level>31u);
 }
 /** Whether the level-0 rectangle spans fewer than \`n\` texel steps per side in mip \`l\`. */
@@ -42,7 +47,8 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  }
  return vec3u(0u,0u,0u);
 }
-`
+`,
+)
 
 /**
  * Whether the farthest depth of a box's footprint in a pyramid mip — in reverse-Z, the MINIMUM —
@@ -57,7 +63,10 @@ fn hizLevelFor(rect:vec4i,levels:u32)->vec3u{
  * the footprint itself decides. An empty rectangle, or one wider than the kernel, never hides.
  * The host kernel declares `pyramid`, the only buffer these functions read.
  */
-export const HIZ_HIDES_WGSL = `
+export const HIZ_HIDES_WGSL = wgslBlock(
+  'HIZ_HIDES_WGSL',
+  [],
+  `
 fn texelsHide(x0:i32,y0:i32,x1:i32,y1:i32,offset:u32,width:u32,nearest:f32)->bool{
  for(var y=y0;y<=y1;y++){
   for(var x=x0;x<=x1;x++){
@@ -73,7 +82,8 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  if(shift>0u&&texelsHide(minX>>shift,minY>>shift,maxX>>shift,maxY>>shift,coarseOffset,coarseWidth,nearest)){return true;}
  return texelsHide(minX,minY,maxX,maxY,offset,width,nearest);
 }
-`
+`,
+)
 
 /**
  * Whether a pyramid hides a projected box: the unclipped rectangle is clipped to the viewport,
@@ -84,8 +94,10 @@ fn pyramidHides(minX:i32,minY:i32,maxX:i32,maxY:i32,offset:u32,width:u32,nearest
  * and the transparent-cluster test are this same function on their own inputs, so the two rules
  * cannot diverge.
  */
-export const HIZ_HIDDEN_WGSL = `${HIZ_LEVEL_WGSL}${HIZ_HIDES_WGSL}
-fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
+export const HIZ_HIDDEN_WGSL = wgslBlock(
+  'HIZ_HIDDEN_WGSL',
+  [HIZ_LEVEL_WGSL, HIZ_HIDES_WGSL],
+  `fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
  let x0=max(rect.x,0);let y0=max(rect.y,0);
  let x1=min(rect.z,i32(uni.width)-1);let y1=min(rect.w,i32(uni.height)-1);
  if(x1<x0||y1<y0){return false;}
@@ -96,4 +108,5 @@ fn hiddenByPyramid(rect:vec4i,nearest:f32)->bool{
   uni.levelOffset[l>>2u][l&3u],uni.levelWidth[l>>2u][l&3u],nearest,
   uni.levelOffset[c>>2u][c&3u],uni.levelWidth[c>>2u][c&3u],c-l);
 }
-`
+`,
+)

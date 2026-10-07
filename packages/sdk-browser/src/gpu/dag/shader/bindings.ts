@@ -1,4 +1,5 @@
 import { COMPUTE, namedBufferEntries } from '../../core/computeBindings.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
 export const DAG_BINDING = {
@@ -58,19 +59,12 @@ export function dagGroupEntries(
   ]
 }
 
-/**
- * How the kernel reads the tables a device may split: one accessor each, the table itself when it
- * is whole. A split replaces them (`splitWgsl.ts`); no stage indexes the tables directly.
- */
-export const DAG_ACCESS_WGSL = `fn clusterAt(i:u32)->Cluster{return clusters[i];}
-fn nodeAt(i:u32)->CullNode{return nodes[i];}
-fn coldAt(i:u32)->u32{return cold[i];}
-fn flagAt(i:u32)->u32{return flags[i];}
-fn setFlag(i:u32,v:u32){flags[i]=v;}`
-
-/** Group-0 declarations of the selection kernel, and its table accessors; `shader.ts` inlines them
- *  as they stand. */
-export const DAG_BINDINGS_WGSL = `@group(0) @binding(${B.clusters}) var<storage, read> clusters:array<Cluster>;
+/** Group-0 declarations of the selection kernel; its table accessors are the program's choice
+ *  (`dagSelectionWgsl`). */
+export const DAG_BINDINGS_WGSL = wgslBlock(
+  'DAG_BINDINGS_WGSL',
+  [],
+  `@group(0) @binding(${B.clusters}) var<storage, read> clusters:array<Cluster>;
 @group(0) @binding(${B.nodes}) var<storage, read> nodes:array<CullNode>;
 @group(0) @binding(${B.views}) var<uniform> views:array<Uniforms,MAX_VIEWS>;
 @group(0) @binding(${B.flags}) var<storage, read_write> flags:array<u32>;
@@ -80,7 +74,22 @@ export const DAG_BINDINGS_WGSL = `@group(0) @binding(${B.clusters}) var<storage,
 @group(0) @binding(${B.frames}) var<storage, read_write> frames:array<vec4f>;
 @group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;
 @group(0) @binding(${B.range}) var<uniform> range:FrameRange;
-${DAG_ACCESS_WGSL}`
+`,
+)
+
+/**
+ * How the kernel reads the tables a device may split: one accessor each, the table itself when it
+ * is whole. A split replaces them (`splitWgsl.ts`); no stage indexes the tables directly.
+ */
+export const DAG_ACCESS_WGSL = wgslBlock(
+  'DAG_ACCESS_WGSL',
+  [DAG_BINDINGS_WGSL],
+  `fn clusterAt(i:u32)->Cluster{return clusters[i];}
+fn nodeAt(i:u32)->CullNode{return nodes[i];}
+fn coldAt(i:u32)->u32{return cold[i];}
+fn flagAt(i:u32)->u32{return flags[i];}
+fn setFlag(i:u32,v:u32){flags[i]=v;}`,
+)
 
 const read = 'read-only-storage',
   write = 'storage'

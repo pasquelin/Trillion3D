@@ -1,7 +1,7 @@
 /** Named numeric constants of the engine: one home each, imported rather than respelled. Each is
  *  written as its literal value, the bits of the expression its doc names (`constants.test.ts`
  *  holds them to it): a literal is what a bundler can drop when nothing reads it. `HALF_PI` keeps
- *  its expression, shorter than its digits, because the cone tolerances read it in every bundle. */
+ *  its expression, shorter than its digits. */
 
 /** A quarter turn, in radians. */
 export const HALF_PI = Math.PI / 2
@@ -15,9 +15,16 @@ export const RAD2DEG = 57.29577951308232
 export const GOLDEN_FRACTION = 0.6180339887498949
 /**
  * The largest finite float32, exactly `(2 - 2 ** -23) * 2 ** 127`. It is not `3.4e38`, which is a
- * different number (a sentinel some packed buffers use): the two are never interchangeable.
+ * different number (`FINITE_SENTINEL`): the two are never interchangeable.
  */
 export const FLOAT32_MAX = 3.4028234663852886e38
+/**
+ * `3.4e38`, the finite stand-in for infinity some packed buffers and shaders hold where a constant
+ * may not be infinite: past every finite threshold a comparison meets, times a value it overflows
+ * to that value's signed infinity. It is not `FLOAT32_MAX`: its float32 lies 2.8e35 under it, and
+ * a buffer written with one and read against the other disagrees.
+ */
+export const FINITE_SENTINEL = 3.4e38
 /** One float32 step at magnitude 1, `2 ** -23`: the GPU draws every world in float32. */
 export const FLOAT32_STEP = 1.1920928955078125e-7
 /** One mebibyte, `1024 * 1024` bytes. */

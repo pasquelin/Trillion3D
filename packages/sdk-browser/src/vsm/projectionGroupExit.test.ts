@@ -1,4 +1,4 @@
-// The group's exit from the ray loops (`rayCountWgsl`, `traceWgsl.ts`) is the projection's alone: the
+// The group's exit from the ray loops (`rayCountStatement`, `traceWgsl.ts`) is the projection's alone: the
 // fragment stage's trace, which has no group, never asks for it.
 import test from 'node:test'
 import assert from 'node:assert/strict'

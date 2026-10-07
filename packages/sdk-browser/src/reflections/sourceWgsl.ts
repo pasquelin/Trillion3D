@@ -1,5 +1,6 @@
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts'
 import { taaReprojectWgsl } from '../taa/shaderWgsl.ts'
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { PREVIOUS_DEPTH_WGSL } from './resolveWgsl.ts'
@@ -16,9 +17,8 @@ export const REFLECTION_SOURCE_VIEW_BYTES = 176
  * motion follows (`params.y`), a point the last image drew on another triangle. A trace reaching
  * such a pixel misses and reads the fallback, never another surface's colour.
  */
-export const REFLECTION_SOURCE_WGSL = `
-${FULLSCREEN_VERTEX}
-${PAGE_INFO_STRUCT_WGSL}
+export const REFLECTION_SOURCE_WGSL = wgslProgram(
+  `
 struct ReflectionSourceView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,last:vec4f,}
 @group(0) @binding(0) var lastImage:texture_2d<f32>;
 @group(0) @binding(1) var lastSampler:sampler;
@@ -29,8 +29,6 @@ struct ReflectionSourceView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:ve
 @group(0) @binding(6) var<storage,read> motion:array<mat4x4f>;
 @group(0) @binding(7) var lastDepth:texture_depth_2d;
 @group(0) @binding(8) var lastIds:texture_2d<u32>;
-${taaReprojectWgsl(false)}
-${PREVIOUS_DEPTH_WGSL}
 @fragment fn reprojectReflectionSource(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let at=vec2i(pixel.xy);let z=textureLoad(depth,at,0);let id=textureLoad(ids,at,0).r;
  let expected=previousDepthOf(vec2i(pixel.xy),z,id);
@@ -41,7 +39,9 @@ ${PREVIOUS_DEPTH_WGSL}
  if(abs(textureLoad(lastDepth,prior,0)-expected.x)>expected.y){return vec4f(0.0);}
  if(view.params.y!=0.0&&textureLoad(lastIds,prior,0).r!=id){return vec4f(0.0);}
  return vec4f(textureSampleLevel(lastImage,lastSampler,uv.xy*view.last.xy*view.last.zw,0.0).rgb,1.0);
-}`
+}`,
+  [FULLSCREEN_VERTEX, PAGE_INFO_STRUCT_WGSL, PREVIOUS_DEPTH_WGSL, taaReprojectWgsl(false)],
+)
 
 export const reflectionSourceLayout = oncePerDevice((device) => {
   const visibility = GPUShaderStage.FRAGMENT

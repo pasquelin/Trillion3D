@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * What an opaque pixel asks of virtual textures: ONE tile rank, placed in the frame's
  * feedback target that transparents complete, under the common `TILE_REQUEST_WGSL` rule
@@ -18,7 +20,10 @@ export const DEPTH_RAMP_WORD = 24
 export const SHADE_UNIFORM_WORDS = DEPTH_RAMP_WORD + 4
 export const SHADE_UNIFORM_BYTES = SHADE_UNIFORM_WORDS * 4
 
-export const SHADE_REQUEST_WGSL = `
+export const SHADE_REQUEST_WGSL = wgslBlock(
+  'SHADE_REQUEST_WGSL',
+  [],
+  `
 /** A class reading any map asks for its tiles: a normal map alone is still a texture to stream. */
 override ANY_MAP:bool=HAS_MAP||HAS_ROUGH||HAS_METAL||HAS_NORMAL_MAP||HAS_AO||HAS_EMISSIVE;
 /** Tile rank pick \`p\` of this pixel names, plus one, or zero (\`missing\`: only a tile not held). */
@@ -42,4 +47,5 @@ fn shadeRequest(page:PageInfo,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f)->u32{
   }
  }
  return shadePick(requestPick(pos,choices,uni.feedback),false,page,uv,ddx,ddy);
-}`
+}`,
+)

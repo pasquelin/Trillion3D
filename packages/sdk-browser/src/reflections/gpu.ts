@@ -15,7 +15,7 @@ const reflecting = (surface: PageSurface) => screenReflects(refreshSurface(surfa
 const mirroring = (surface: PageSurface) => mirrorRange(refreshSurface(surface))
 const roughReflecting = (surface: PageSurface) => {
   const material = refreshSurface(surface)
-  return screenReflects(material) && material.roughness > Number(ROUGHNESS_FLOOR)
+  return screenReflects(material) && material.roughness > ROUGHNESS_FLOOR
 }
 
 /** Only opaque receivers own this history. Forward transparents cannot borrow

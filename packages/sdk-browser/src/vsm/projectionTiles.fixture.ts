@@ -145,6 +145,7 @@ export const NAMES = [
   'vsmMaskCode',
   'vsmLayerLights',
   'vsmLightsBelow',
+  'ceilDiv',
 ]
 
 export const CASES = ['lit', 'mixed', 'sky', 'edge', 'far', 'infinite', 'corner']

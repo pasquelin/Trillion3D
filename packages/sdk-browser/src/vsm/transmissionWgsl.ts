@@ -42,17 +42,24 @@
  * records), and `headers` (the page headers of the slices that changed). No global atomic is
  * issued per cell: the cells are counted in a slice's own group.
  */
+import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
+import { edgeFunction } from '../../../math/src/wgsl/barycentric.ts'
+import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
+import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
+import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
+import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BLEND_CASTER, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK } from '../visibility/types.ts'
 import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
-  COLOR_SAMPLE_WGSL,
+  colorSampleWgsl,
   maskAlphaWgsl,
+  SHADOW_TILE_POOL_WGSL,
   tileDeclarations,
-  tilePoolWgsl,
 } from '../webgpu/tile/wgsl.ts'
-import { BLEND_TRANSMITTANCE_WGSL } from '../gpu/shadow/transmittanceWgsl.ts'
+import { blendTransmittanceWgsl } from '../gpu/shadow/transmittanceWgsl.ts'
 import { MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_PAGE_TEXELS } from './constants.ts'
 import {
@@ -60,9 +67,8 @@ import {
   VSM_PAGE_ADDRESS_WGSL,
   VSM_PAGE_MARKS_GATHER_WGSL,
   VSM_PAGE_LOOKUP_WGSL,
-  VSM_STRUCTS_WGSL,
 } from './pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { VSM_RENDER_GROUP, VSM_RENDER_PARAMS_WGSL, VSM_RENDER_ROWS_WGSL } from './renderCullWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -77,7 +83,7 @@ import {
 } from './transmissionLayout.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
-import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** Texels a side of a cell. */
 const VSM_TRANSMISSION_CELL = 8
@@ -107,22 +113,31 @@ const TEXTURED_BIT = 1 << 24
 /** A record's cells word (\`vsmTCellsWord\`): the triangle turns clockwise. */
 const CLOCKWISE_BIT = 1 << 16
 
-const COUNTERS_WGSL = Object.entries(VSM_TRANSMISSION_COUNTERS)
-  .map(([name, at]) => `const VSM_TC_${name.toUpperCase()}:u32=${at}u;`)
-  .join('\n')
+const COUNTERS_WGSL = wgslBlock(
+  'VSM_TRANSMISSION_COUNTERS_WGSL',
+  [],
+  Object.entries(VSM_TRANSMISSION_COUNTERS)
+    .map(([name, at]) => `const VSM_TC_${name.toUpperCase()}:u32=${at}u;`)
+    .join('\n'),
+)
 
 /** The frame uniform: the clear's stamp, the first blended row, the capacities, where the records
  *  and patches start, and the chunk lists' commands and pages (`VsmTransmissionFrame`). */
-const FRAME_STRUCT_WGSL = /* wgsl */ `
-struct VsmTransmissionFrame{stamp:u32,rowFirst:u32,records:u32,patchWords:u32,blocks:u32,regionRecords:u32,regionPatches:u32,cmds:u32,pairs:u32,spare0:u32,spare1:u32,spare2:u32,}`
+const FRAME_STRUCT_WGSL = wgslBlock(
+  'FRAME_STRUCT_WGSL',
+  [],
+  `
+struct VsmTransmissionFrame{stamp:u32,rowFirst:u32,records:u32,patchWords:u32,blocks:u32,regionRecords:u32,regionPatches:u32,cmds:u32,pairs:u32,spare0:u32,spare1:u32,spare2:u32,}`,
+)
 
 /** The frame uniform, the build buffer's regions and the common constants. */
 const frameWgsl = (layout: VsmLayout) => {
   const P = layout.poolPages
   const r = vsmTransmissionRegions(P, { records: 0, patchWords: 0, blocks: 0 })
-  return /* wgsl */ `${FRAME_STRUCT_WGSL}
-${COUNTERS_WGSL}
-const VSM_T_STAMPS:u32=${r.stamps}u;
+  return wgslBlock(
+    `vsmTransmissionFrame(${P})`,
+    [FRAME_STRUCT_WGSL, COUNTERS_WGSL, FLAT_INDEX_WGSL],
+    `const VSM_T_STAMPS:u32=${r.stamps}u;
 const VSM_T_FIRST:u32=${r.first}u;
 const VSM_T_COUNTS:u32=${r.counts}u;
 const VSM_T_PATCH:u32=${r.patchCounts}u;
@@ -138,13 +153,17 @@ const VSM_T_RECORDS_TEXEL:u32=${RECORDS_TEXEL}u;
 const VSM_T_RECORD_WORDS:u32=${VSM_TRANSMISSION_RECORD_WORDS}u;
 const VSM_T_HEADER_ROWS:u32=${headerRows(P)}u;
 /** Where block \`b\`'s texel \`t\` lies in the readable memory. */
-fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}
-${FLAT_INDEX_WGSL}`
+fn vsmTBlockTexel(b:u32,t:u32)->vec2u{return vec2u((b&1u)*VSM_T_BLOCK_TEXELS+t,VSM_T_HEADER_ROWS+(b>>1u));}`,
+  )
 }
 
 /** One dispatch's arguments for `n` groups, in rows. */
-const ARGS_WGSL = /* wgsl */ `${GROUP_GRID_WGSL}
-fn vsmTArgs(at:u32,n:u32){let g=groupGrid(n);args[at]=g.x;args[at+1u]=g.y;args[at+2u]=1u;}`
+const ARGS_WGSL = wgslBlock(
+  'ARGS_WGSL',
+  [GROUP_GRID_WGSL],
+  `
+fn vsmTArgs(at:u32,n:u32){let g=groupGrid(n);args[at]=g.x;args[at+1u]=g.y;args[at+2u]=1u;}`,
+)
 
 // ---- Candidates ---------------------------------------------------------------------------------
 
@@ -154,10 +173,10 @@ fn vsmTArgs(at:u32,n:u32){let g=groupGrid(n);args[at]=g.x;args[at+1u]=g.y;args[a
  * 5 candidates, 6 counters) and 7 the frame uniform (`rowFirst`). `params.rowCount` is the number
  * of blended rows.
  */
-export const vsmTransmissionCandidatesWgsl = () => /* wgsl */ `${VSM_RENDER_ROWS_WGSL}
-${FRAME_STRUCT_WGSL}
-@group(0) @binding(7) var<uniform> frame:VsmTransmissionFrame;
-${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmTransmissionCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
+export const vsmTransmissionCandidatesWgsl = () =>
+  wgslProgram(
+    `@group(0) @binding(7) var<uniform> frame:VsmTransmissionFrame;
+@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmTransmissionCandidates(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let i=flatIndex(wid,nwg,1u)*${VSM_RENDER_GROUP}u+lane;
  if(i>=params.rowCount){return;}
  let row=frame.rowFirst+i;
@@ -171,7 +190,9 @@ ${FLAT_INDEX_WGSL}@compute @workgroup_size(${VSM_RENDER_GROUP}) fn vsmTransmissi
  let at=atomicAdd(&counts[0],1u);
  candidates[at]=VsmRenderCandidate(s.c,s.l.xyz,row,page.indexCount,vsmRenderCandidateFlags(mobility[row],page.deformOutput),0u,0u);
 }
-`
+`,
+    [VSM_RENDER_ROWS_WGSL, FRAME_STRUCT_WGSL, FLAT_INDEX_WGSL],
+  )
 
 // ---- Clear --------------------------------------------------------------------------------------
 
@@ -186,7 +207,7 @@ export const VSM_TRANSMISSION_PAGE_GROUP = 256
 
 /** The persistent tables: page × slice → first block, the block pool [free count, spare, free
  *  blocks…], each block's next in its chain. */
-const TABLES_WGSL = (group: number, first: number) => /* wgsl */ `
+const transmissionTables = (group: number, first: number) => /* wgsl */ `
 @group(${group}) @binding(${first}) var<storage,read_write> table:array<u32>;
 @group(${group}) @binding(${first + 1}) var<storage,read_write> pool:array<atomic<u32>>;
 @group(${group}) @binding(${first + 2}) var<storage,read_write> links:array<u32>;`
@@ -200,16 +221,12 @@ const TABLES_WGSL = (group: number, first: number) => /* wgsl */ `
  * and page metadata (`VSM_TRANSMISSION_CLEAR_SPECS`); group 1: 0 frame uniform, 1 build buffer,
  * 2 table, 3 pool, 4 links.
  */
-export const vsmTransmissionClearWgsl = (layout: VsmLayout) => /* wgsl */ `
-${VSM_CONSTANTS_WGSL}
-${VSM_UNIFORMS_WGSL}
-${VSM_HANDLE_WGSL}
-${VSM_STRUCTS_WGSL}
-${vsmBindingsWgsl(0, VSM_TRANSMISSION_CLEAR_SPECS, layout)}
-${frameWgsl(layout)}
+export const vsmTransmissionClearWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `
 @group(1) @binding(0) var<uniform> frame:VsmTransmissionFrame;
 @group(1) @binding(1) var<storage,read_write> build:array<atomic<u32>>;
-${TABLES_WGSL(1, 2)}
+${transmissionTables(1, 2)}
 fn vsmTransmissionRelease(index:u32,slice:u32){
  let flags=vsmPoolPageInfo[index].flags;
  let allocated=(flags&VSM_PAGE_WANTED)!=0u;
@@ -240,7 +257,13 @@ fn vsmTransmissionRelease(index:u32,slice:u32){
  vsmTransmissionRelease(id.x,0u);
  vsmTransmissionRelease(id.x,1u);
 }
-`
+`,
+    [
+      VSM_CONSTANTS_WGSL,
+      vsmBindingsWgsl(0, VSM_TRANSMISSION_CLEAR_SPECS, layout),
+      frameWgsl(layout),
+    ],
+  )
 
 // ---- Pages: each command's slices ---------------------------------------------------------------
 
@@ -265,17 +288,9 @@ const VSM_TRANSMISSION_COMMAND_GROUP = 64
  * group 1: 0 params (dynamic), 1 commands, 2 render counters, 3 the page list, 4 build buffer,
  * 5 frame uniform.
  */
-export const vsmTransmissionPagesWgsl = (layout: VsmLayout) => /* wgsl */ `
-${VSM_CONSTANTS_WGSL}
-${VSM_UNIFORMS_WGSL}
-${VSM_HANDLE_WGSL}
-${VSM_STRUCTS_WGSL}
-${VSM_PAGE_ADDRESS_WGSL}
-${vsmBindingsWgsl(0, VSM_TRANSMISSION_PAGES_SPECS, layout)}
-${VSM_PAGE_LOOKUP_WGSL}
-${VSM_PAGE_MARKS_GATHER_WGSL}
-${VSM_RENDER_PARAMS_WGSL}
-${frameWgsl(layout)}
+export const vsmTransmissionPagesWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
 @group(1) @binding(1) var<storage,read> cmds:array<vec4u>;
 @group(1) @binding(2) var<storage,read_write> counts:array<atomic<u32>>;
@@ -341,7 +356,17 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
   list[4u*frame.cmds+2u*at+1u]=vPage.x|(vPage.y<<8u);
  }
 }
-`
+`,
+    [
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      vsmBindingsWgsl(0, VSM_TRANSMISSION_PAGES_SPECS, layout),
+      VSM_PAGE_LOOKUP_WGSL,
+      VSM_PAGE_MARKS_GATHER_WGSL,
+      VSM_RENDER_PARAMS_WGSL,
+      frameWgsl(layout),
+    ],
+  )
 
 // ---- Shared geometry: the exact edge rule -------------------------------------------------------
 
@@ -354,7 +379,10 @@ fn vsmTRectPage(rect:vec4u,size:vec2u,i:u32)->vec2u{
  * triangle of a closed fan. A triangle of zero area seen from the light holds nothing. The side of
  * each edge is that of its third corner, evaluated by the same function.
  */
-const VSM_TRANSMISSION_EDGE_WGSL = /* wgsl */ `
+const VSM_TRANSMISSION_EDGE_WGSL = wgslBlock(
+  'VSM_TRANSMISSION_EDGE_WGSL',
+  [],
+  `
 fn vsmTEdge(a:vec2f,b:vec2f,p:vec2f)->f32{
  let swap=b.x<a.x||(b.x==a.x&&b.y<a.y);
  let lo=select(a,b,swap);let hi=select(b,a,swap);
@@ -372,7 +400,8 @@ fn vsmTInside(a:vec2f,b:vec2f,c:vec2f,p:vec2f)->bool{
  *  opposite corner. */
 fn vsmTWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f)->vec3f{
  return vec3f(vsmTEdge(b,c,p)/vsmTEdge(b,c,a),vsmTEdge(c,a,p)/vsmTEdge(c,a,b),vsmTEdge(a,b,p)/vsmTEdge(a,b,c));
-}`
+}`,
+)
 
 /**
  * Whether triangle (a, b, c) of orientation \`s\` (±1) may cover a point of the cell [lo, hi]: no
@@ -380,7 +409,10 @@ fn vsmTWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f)->vec3f{
  * comes in grown by 2⁻¹⁰ texel and each edge's value is allowed 2⁻²⁰ of its terms' magnitude, so no
  * point the read finds inside (\`vsmTInside\`) misses its cell to rounding.
  */
-const VSM_TRANSMISSION_COVER_WGSL = /* wgsl */ `
+const VSM_TRANSMISSION_COVER_WGSL = wgslBlock(
+  'VSM_TRANSMISSION_COVER_WGSL',
+  [],
+  `
 fn vsmTEdgeMeets(a:vec2f,b:vec2f,s:f32,lo:vec2f,hi:vec2f)->bool{
  let d=b-a;
  let px=select(lo.x,hi.x,-s*d.y>0.0);
@@ -403,7 +435,8 @@ fn vsmTCoversCell(a:vec2f,b:vec2f,c:vec2f,s:f32,cell:vec2f)->bool{
  let grow=${2 ** -10};
  let lo=cell*${VSM_TRANSMISSION_CELL}.0-grow;
  return vsmTCovers(a,b,c,s,lo,lo+${VSM_TRANSMISSION_CELL}.0+2.0*grow);
-}`
+}`,
+)
 
 // ---- Bin ----------------------------------------------------------------------------------------
 
@@ -426,27 +459,19 @@ fn vsmTCoversCell(a:vec2f,b:vec2f,c:vec2f,s:f32,cell:vec2f)->bool{
  * feedback reads what the frame wanted.
  *
  * Group 0 = the engine's shadow page group. Group 1: 0 the chunk's page list, 1 projection data,
- * 2 frame uniform, 3 build buffer.
+ * 2 frame uniform, 3 build buffer. The material reads are the shadow pool's (`maskAlpha` for
+ * `maskKeep` and the transmittance, `colorSample` for its tint).
  */
-export const vsmTransmissionBinWgsl = (layout: VsmLayout) => /* wgsl */ `
-${PAGE_INFO_WGSL}
+export const vsmTransmissionBinWgsl = (layout: VsmLayout) => {
+  const maskAlpha = maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL)
+  return wgslProgram(
+    /* wgsl */ `
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
 ${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
-${PAGE_GEOMETRY_WGSL}
-${tilePoolWgsl('0.0')}
-${COLOR_SAMPLE_WGSL}
-${maskAlphaWgsl(true)}
-${MASK_KEEP_WGSL}
-${BLEND_TRANSMITTANCE_WGSL}
-${VSM_CONSTANTS_WGSL}
-${VSM_HANDLE_WGSL}
-${VSM_PROJECTION_DATA_WGSL}
-${frameWgsl(layout)}
-${VSM_TRANSMISSION_COVER_WGSL}
 @group(1) @binding(0) var<storage,read> list:array<u32>;
 @group(1) @binding(1) var<storage,read> vsmProjectionData:array<VsmProjectionRecord>;
 @group(1) @binding(2) var<uniform> frame:VsmTransmissionFrame;
@@ -475,10 +500,9 @@ fn vsmTCut(i:VsmTCorner,o:VsmTCorner)->VsmTCorner{
 fn vsmTTexel(h:vec4f,scale:f32,corner:vec2f)->vec2f{return vec2f(h.x/h.w*scale,h.y/h.w*scale)-corner;}
 /** The uv at texel point \`p\` of the projected triangle, perspective-correct. */
 fn vsmTUvAt(x:array<vec2f,3>,c:array<VsmTCorner,3>,p:vec2f)->vec2f{
- let b=vec3f(vsmTArea(x[1],x[2],p),vsmTArea(x[2],x[0],p),vsmTArea(x[0],x[1],p))/vec3f(c[0].h.w,c[1].h.w,c[2].h.w);
+ let b=vec3f(edgeFunction(x[1],x[2],p),edgeFunction(x[2],x[0],p),edgeFunction(x[0],x[1],p))/vec3f(c[0].h.w,c[1].h.w,c[2].h.w);
  return (b.x*c[0].uv+b.y*c[1].uv+b.z*c[2].uv)/(b.x+b.y+b.z);
 }
-fn vsmTArea(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}
 /** A record's cells, for the resolve: the cell range a box [lo, hi] grown by 2⁻¹⁰ texel meets
  *  (\`vsmTCellRange\`), four bits a corner, and bit 16 when the triangle turns clockwise. */
 fn vsmTCellsWord(lo:vec2f,hi:vec2f,area:f32)->u32{
@@ -491,7 +515,7 @@ fn vsmTCellsWord(lo:vec2f,hi:vec2f,area:f32)->u32{
  * n w), \`q\` its quantised transmittance (textured: from its patch).
  */
 fn vsmTRecord(page:PageInfo,row:u32,key:u32,x:array<vec2f,3>,c:array<VsmTCorner,3>,shape:vec4f,q:u32,ray:vec3f){
- let area=vsmTArea(x[0],x[1],x[2]);
+ let area=edgeFunction(x[0],x[1],x[2]);
  if(area==0.0){return;}
  let lo=min(min(x[0],x[1]),x[2]);let hi=max(max(x[0],x[1]),x[2]);
  if(hi.x<0.0||hi.y<0.0||lo.x>=${VSM_PAGE_TEXELS}.0||lo.y>=${VSM_PAGE_TEXELS}.0){return;}
@@ -565,8 +589,8 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   corners[i]=VsmTCorner(m,select(vec2f(0.0),pageUv(page,h,tri[i]),mapped));
  }
  // Both faces; the volume rule needs the side facing the light.
- var n=cross(world[1]-world[0],world[2]-world[0]);
- if(determinant(mat3x3f(w[0].xyz,w[1].xyz,w[2].xyz))<0.0){n=-n;}
+ var n=faceNormal(world[0],world[1],world[2]);
+ if(matrixWindingCw(w)){n=-n;}
  let axis=vec3f(M[0].z,M[1].z,M[2].z);
  let front=dot(n,select(-shifted[0],axis,isOrtho))>0.0;
  if(!volumeBoundary(page,front)){return out;}
@@ -581,7 +605,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   let a=normalize(axis);
   out.shape=vec4f(dot(world[0],a),dot(world[1],a),dot(world[2],a),0.0);
  }else{
-  let nl=normalize(cross(shifted[1]-shifted[0],shifted[2]-shifted[0]));
+  let nl=normalize(faceNormal(shifted[0],shifted[1],shifted[2]));
   out.shape=vec4f(nl,dot(nl,shifted[0]));
  }
  // A local light's near plane: the polygon kept on w − z ≥ 0, 0 to 4 corners, fanned.
@@ -601,7 +625,7 @@ fn vsmTProject(page:PageInfo,h:ClusterHeader,t:u32,view:u32,raw:VsmProjectionRec
   }
  }
  let scale=f32(VSM_LEVEL0_TEXELS>>((view>>16u)&7u));
- var lo=vec2f(3.402823466e38);var hi=vec2f(-3.402823466e38);
+ var lo=vec2f(FLOAT32_MAX);var hi=vec2f(-FLOAT32_MAX);
  for(var i=0u;i<out.count;i++){let v=vsmTTexel(out.h[i],scale,vec2f(0.0));lo=min(lo,v);hi=max(hi,v);}
  out.box=vec4f(lo,hi);
  return out;
@@ -646,7 +670,23 @@ var<workgroup> wgCommand:array<u32,5>;
   workgroupBarrier();
  }
 }
-`
+`,
+    [
+      PAGE_INFO_WGSL,
+      maskKeepWgsl(maskAlpha),
+      VSM_CONSTANTS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      frameWgsl(layout),
+      VSM_TRANSMISSION_COVER_WGSL,
+      matrixWindingCw,
+      PAGE_GEOMETRY_WGSL,
+      blendTransmittanceWgsl(maskAlpha, colorSampleWgsl(SHADOW_TILE_POOL_WGSL)),
+      FLOAT32_MAX,
+      edgeFunction,
+      faceNormal,
+    ],
+  )
+}
 
 // ---- Number, place, resolve, headers -----------------------------------------------------------
 
@@ -657,12 +697,12 @@ var<workgroup> wgCommand:array<u32,5>;
  * (a group a numbered slice) and the headers (a thread a dirty slice). Group 0: 0 frame uniform,
  * 1 build buffer, 2 the dispatch arguments.
  */
-export const vsmTransmissionNumberWgsl = (layout: VsmLayout) => /* wgsl */ `
-${frameWgsl(layout)}
+export const vsmTransmissionNumberWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `
 @group(0) @binding(0) var<uniform> frame:VsmTransmissionFrame;
 @group(0) @binding(1) var<storage,read_write> build:array<atomic<u32>>;
 @group(0) @binding(2) var<storage,read_write> args:array<u32>;
-${ARGS_WGSL}
 var<workgroup> sums:array<vec2u,${VSM_TRANSMISSION_PAGE_GROUP}>;
 /** Records slice \`key\` holds this frame: none unless the clear stamped it. */
 fn vsmTRecordsOf(key:u32)->u32{
@@ -704,11 +744,14 @@ fn vsmTRecordsOf(key:u32)->u32{
   vsmTArgs(6u,(dirty+${VSM_TRANSMISSION_PAGE_GROUP - 1}u)/${VSM_TRANSMISSION_PAGE_GROUP}u);
  }
 }
-`
+`,
+    [frameWgsl(layout), ARGS_WGSL],
+  )
 /** `vsmTransmissionPlace`, a thread a record: its index in the order, at its slice's first place
  *  plus its own. Group 0: 0 frame uniform, 1 build buffer. */
-export const vsmTransmissionPlaceWgsl = (layout: VsmLayout) => /* wgsl */ `
-${frameWgsl(layout)}
+export const vsmTransmissionPlaceWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `
 @group(0) @binding(0) var<uniform> frame:VsmTransmissionFrame;
 @group(0) @binding(1) var<storage,read_write> build:array<u32>;
 @compute @workgroup_size(${VSM_TRANSMISSION_PAGE_GROUP}) fn vsmTransmissionPlace(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -717,7 +760,9 @@ ${frameWgsl(layout)}
  let r=frame.regionRecords+g*VSM_T_RECORD_WORDS;
  build[VSM_T_ORDER+build[VSM_T_FIRST+build[r+16u]]+build[r+17u]]=g;
 }
-`
+`,
+    [frameWgsl(layout)],
+  )
 
 /**
  * `vsmTransmissionResolve`, a group of 256 per slice numbered this frame, a thread per cell: its
@@ -732,13 +777,13 @@ ${frameWgsl(layout)}
  * \`vsmTransmissionHeaders\`, a thread per dirty slice: its page header texel from the table.
  * Group 0: 0 frame uniform, 1 build buffer, 2 table, 3 pool, 4 links, 5 the memory (storage).
  */
-export const vsmTransmissionResolveWgsl = (layout: VsmLayout) => /* wgsl */ `
-${frameWgsl(layout)}
-${VSM_TRANSMISSION_COVER_WGSL}
+export const vsmTransmissionResolveWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `
 @group(0) @binding(0) var<uniform> frame:VsmTransmissionFrame;
 @group(0) @binding(1) var<storage,read_write> build:array<atomic<u32>>;
 fn vsmTBuild(i:u32)->u32{return atomicLoad(&build[i]);}
-${TABLES_WGSL(0, 2)}
+${transmissionTables(0, 2)}
 @group(0) @binding(5) var memory:texture_storage_2d<${VSM_TRANSMISSION_FORMAT},write>;
 /** A record as the cells read it: its corners in page texels and its cells (\`vsmTCellsWord\`). */
 struct VsmTStaged{a:vec2f,b:vec2f,c:vec2f,cells:u32,}
@@ -804,7 +849,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
   workgroupBarrier();
  }
  count=min(count,0xFFFFu);
- let texels=(count+3u)/4u;
+ let texels=ceilDiv(count,4u);
  counts[lane]=count;
  sums[lane]=texels;
  workgroupBarrier();
@@ -817,8 +862,8 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  }
  let lists=VSM_T_RECORDS_TEXEL+4u*records;
  let patches=lists+sums[${CELL_COUNT - 1}u];
- let total=patches+(vsmTBuild(VSM_T_PATCH+key)+3u)/4u;
- let blocks=(total+VSM_T_BLOCK_TEXELS-1u)/VSM_T_BLOCK_TEXELS;
+ let total=patches+ceilDiv(vsmTBuild(VSM_T_PATCH+key),4u);
+ let blocks=ceilDiv(total,VSM_T_BLOCK_TEXELS);
  if(lane==0u){
   held[2]=0u;
   if(blocks>VSM_T_CHAIN){atomicAdd(&build[VSM_TC_FULL],1u);}
@@ -854,7 +899,7 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
   var h=vec4u(0u);
   for(var c=0u;c<4u;c++){
    let at=4u*lane+c;
-   h[c]=((lists+sums[at]-(counts[at]+3u)/4u)<<16u)|counts[at];
+   h[c]=((lists+sums[at]-ceilDiv(counts[at],4u))<<16u)|counts[at];
   }
   textureStore(memory,vsmTAt(lane),h);
  }else if(lane<${RECORDS_TEXEL}u){
@@ -886,7 +931,9 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  let w=vec4u(table[4u*t],table[4u*t+1u],table[4u*t+2u],table[4u*t+3u]);
  textureStore(memory,vec2u(t%${VSM_TRANSMISSION_WIDTH}u,t/${VSM_TRANSMISSION_WIDTH}u),w);
 }
-`
+`,
+    [frameWgsl(layout), VSM_TRANSMISSION_COVER_WGSL, ceilDiv],
+  )
 
 // ---- Consumer read ------------------------------------------------------------------------------
 
@@ -903,11 +950,15 @@ fn vsmTCopy(g:u32,i:u32,patches:u32){
  * moved off its surface by the normal bias: a surface's own triangle is never above it. Up to two
  * crossings multiply in any order to the same bits; three or more multiply in increasing distance
  * (then by their quantised value), so the result is the same whatever the list order.
- * Needs `VsmMapRead`, `vsmProjectionOf`, the VSM constants and uniforms (`vsm`).
+ * Lists `vsmProjectionOf` and the maths library's `bilinear3`; reads its host's `VsmMapRead` (the
+ * page sampling) and `vsm` uniform.
  */
-export const vsmTransmissionReadWgsl = (binding: number) => /* wgsl */ `
+export const vsmTransmissionReadWgsl = (binding: number) =>
+  wgslBlock(
+    `vsmTransmissionReadWgsl(${binding})`,
+    [VSM_TRANSMISSION_EDGE_WGSL, bilinear3, VSM_PROJECTION_DATA_READ_WGSL],
+    `
 @group(0) @binding(${binding}) var vsmTransmissionMemory:texture_2d_array<u32>;
-${VSM_TRANSMISSION_EDGE_WGSL}
 fn vsmTLoad(t:vec2u)->vec4u{return textureLoad(vsmTransmissionMemory,t,0,0);}
 /** The block of slice texel \`v\` from its first block \`b0\`, the chain read from the first block. */
 fn vsmTBlock(b0:u32,v:u32)->u32{
@@ -971,7 +1022,7 @@ fn vsmTHitOf(b0:u32,v:u32,r:VsmTReceiver)->VsmTHit{
   let j=min(i+1u,size-vec2u(1u));
   let ta=vsmTPatch(b0,d.x,size.x,i);let tb=vsmTPatch(b0,d.x,size.x,vec2u(j.x,i.y));
   let tc=vsmTPatch(b0,d.x,size.x,vec2u(i.x,j.y));let td=vsmTPatch(b0,d.x,size.x,j);
-  through=mix(mix(ta,tb,f.x),mix(tc,td,f.x),f.y);
+  through=bilinear3(ta,tb,tc,td,f);
   q=0u;
  }else{through=1.0-unpack4x8unorm(q).rgb;}
  return VsmTHit(distance,f32(q&0xFFFFFFu),through);
@@ -1034,4 +1085,5 @@ fn vsmTransmissionThrough(sm:VsmMapRead,fromMap:vec3f,fromEye:vec3f,eye:vec3f,di
 /** Whether sample \`sm\` lies in a page with a translucent slice. */
 fn vsmTransmissionPaned(sm:VsmMapRead)->bool{
  return sm.valid&&any(vsmTransmissionBlocks(sm.poolTexel>>vec2u(${floorLog2(VSM_PAGE_TEXELS)}u))!=vec2u(${VSM_TRANSMISSION_NONE}u));
-}`
+}`,
+  )
