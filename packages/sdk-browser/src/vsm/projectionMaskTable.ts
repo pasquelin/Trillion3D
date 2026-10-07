@@ -12,15 +12,23 @@
 
 import { preparedComputePipeline, started } from '../lighting/deferred/fullscreen.ts'
 import { VSM_MASK_TABLE_TEXELS, VSM_MASK_TABLE_WGSL } from './projectionWgsl.ts'
+import { loadOnlyTarget, loadOnlyUsage } from '../gpu/core/loadOnlyTarget.ts'
 
 /** The opaque resolve's binding of the table (`lighting/deferred/setup.ts`). */
 export const VSM_MASK_TABLE_BINDING = 21
 /** The opaque resolve's binding of the mask's tile words (`vsmMaskFactor`), past the receiver's. */
 export const VSM_MASK_TILES_BINDING = 29
-/** The resolve's read of the table, at `binding`. */
-export const vsmMaskTableReadWgsl = (binding: number) => /* wgsl */ `
-@group(0) @binding(${binding}) var vsmMaskTable:texture_2d<f32>;
-fn vsmMaskDecode(code:u32)->f32{return textureLoad(vsmMaskTable,vec2u(code>>2u,0u),0)[code&3u];}`
+/** The resolve's binding of the table, read by load alone: its load returns the stored halves as a
+ *  sampled one did. */
+export const VSM_MASK_TABLE_TARGET = loadOnlyTarget(
+  VSM_MASK_TABLE_BINDING,
+  'rgba16float',
+  'vsmMaskTable',
+)
+/** The table's binding and `vsmMaskDecode`: a lane's code to its factor, one load of the table. */
+export const VSM_MASK_TABLE_READ_WGSL = /* wgsl */ `
+${VSM_MASK_TABLE_TARGET.wgsl}
+fn vsmMaskDecode(code:u32)->f32{return textureLoad(vsmMaskTable,vec2u(code>>2u,0u))[code&3u];}`
 
 /** The decode table of `device`: its pipeline compiled off the frame from now (`started`), its
  *  fill encoded and submitted on its own, once (`fill`), by the first frame that binds a program
@@ -32,7 +40,7 @@ export function createVsmMaskTable(device: GPUDevice) {
     label,
     size: [VSM_MASK_TABLE_TEXELS, 1],
     format: 'rgba16float',
-    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    usage: loadOnlyUsage(),
   })
   const layout = device.createBindGroupLayout({
     label,

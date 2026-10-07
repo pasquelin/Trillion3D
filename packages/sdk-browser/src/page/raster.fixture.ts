@@ -1,28 +1,16 @@
 // The CPU raster the visibility tests measure the engine's buffer against: every drawn page's
 // triangles filled in the order the engine submits them (`rasterFill.fixture.ts`).
 import { invertMatrix4, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
-import type { HostAttribute, HostAttributes, HostColour, HostMaterials } from '../host/resources.ts'
-import { firstMaterial } from '../scene/materialSide.ts'
-import { isDrawnNode } from '../host/graph/kinds.ts'
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts'
-import type { RenderBackend } from '../backend/types.ts'
 import type { PageRec } from './selection/types.ts'
 import { locationOf, type PageLocations } from './selection/placements.ts'
 import type { PageSurface } from './surface.ts'
 import { rasterTriangle, type RasterTarget } from './rasterFill.fixture.ts'
 import { RASTER_BACKGROUND } from './raster.ts'
 import { resolveCameraWorld, type HostCamera } from '../camera/world.ts'
-import { drawWorld } from '../cluster/batchMesh.ts'
-import { drawnRanges, submittedDraws } from '../cluster/submissions.fixture.ts'
 
-const BACKGROUND = RASTER_BACKGROUND
-
-/** A mesh of the host graph as the oracle reads it: what it draws, and where it stands. */
-type HostRasterMesh = {
-  readonly geometry: { readonly index: HostAttribute | null; readonly attributes: HostAttributes }
-  readonly material: HostMaterials
-  readonly matrixWorld: MatrixElements
-}
+/** A host camera with the projection it composed itself, in its own depth convention. */
+type ProjectedCamera = HostCamera & { readonly projectionMatrix: MatrixElements }
 
 /** Opaque image used before the first WebGPU readback and after every resize. */
 export function opaqueBackgroundRgba(
@@ -44,88 +32,18 @@ export function opaqueBackgroundRgba(
 }
 
 const byteRgb = (r: number, g: number, b: number) => [(r * 255) | 0, (g * 255) | 0, (b * 255) | 0]
-const WHITE: HostColour = { r: 1, g: 1, b: 1 }
 
-/** The eight-bit colour a host material declares; a surface that declares none draws white. */
-function colorOf(declared: HostMaterials) {
-  const first = firstMaterial(declared) as
-    { color?: HostColour & { isColor?: boolean } } | undefined
-  const color = first?.color?.isColor ? first.color : WHITE
-  return byteRgb(color.r, color.g, color.b)
-}
-
-/** The same eight-bit colour, from a surface record the page already carries. */
+/** The eight-bit colour of a surface record the page carries. */
 function surfaceColorOf(surface: PageSurface) {
   const base = surface.baseColor
   return byteRgb(base[0], base[1], base[2])
 }
 
-/** CPU raster of what a backend draws: its owned draw records, then the plain meshes of its
- *  scene. Used as an oracle; not a GPU timestamp. */
-export function rasterPageRecords(
-  backend: Pick<RenderBackend, 'scene'>,
-  camera: HostCamera,
-  size: [number, number],
-) {
-  const [width, height] = size
-  const target: RasterTarget = {
-    pixels: opaqueBackgroundRgba(width, height, BACKGROUND),
-    width,
-    height,
-  }
-  const viewProj = cameraViewProjection(camera)
-  // A batch record submits only its ranges: the oracle follows the same cut, not the whole buffer.
-  for (const draw of submittedDraws(backend)) {
-    const index = draw.geometry.index,
-      position = draw.geometry.attributes.position,
-      world = drawWorld(draw),
-      rgb = colorOf(draw.material),
-      vertex = (i: number) => (index ? index.array[i] : i)
-    for (const [first, length] of drawnRanges(draw))
-      for (let i = first; i < first + length; i += 3)
-        rasterTriangle(
-          target,
-          world,
-          position,
-          viewProj,
-          vertex(i),
-          vertex(i + 1),
-          vertex(i + 2),
-          rgb,
-        )
-  }
-  const meshes: HostRasterMesh[] = []
-  backend.scene.traverse((node) => {
-    if (isDrawnNode(node)) meshes.push(node)
-  })
-  for (const mesh of meshes) {
-    const { index, attributes } = mesh.geometry,
-      position = attributes.position
-    if (!position) continue
-    const world = mesh.matrixWorld.elements,
-      rgb = colorOf(mesh.material),
-      count = index ? index.count : position.count,
-      vertex = (i: number) => (index ? index.getX(i) : i)
-    for (let i = 0; i < count; i += 3)
-      rasterTriangle(
-        target,
-        world,
-        position,
-        viewProj,
-        vertex(i),
-        vertex(i + 1),
-        vertex(i + 2),
-        rgb,
-      )
-  }
-  return target.pixels
-}
-
-/** CPU raster of cluster page records (the triangles the WebGPU path pulls). Same fill rule as rasterPageRecords. */
+/** CPU raster of cluster page records: the triangles the engine pulls, in its fill rule. */
 export function rasterPages(
   pages: Array<Pick<PageRec, 'array' | 'attributes' | 'material'>>,
   locations: PageLocations,
-  camera: HostCamera,
+  camera: ProjectedCamera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
 ) {
@@ -156,7 +74,7 @@ const projection = new Float64Array(16),
 /** Clip matrix of the drawn view, as the host composed it: its own projection, finite far plane
  *  included, times the inverse of the world pose the contract resolves. The inverse is taken
  *  here, in buffers the engine owns, rather than read off the camera the host handed over. */
-function cameraViewProjection(camera: HostCamera) {
+function cameraViewProjection(camera: ProjectedCamera) {
   // Callable function alone: it resolves its own pose (contract: `../camera/world.ts`).
   resolveCameraWorld(camera)
   copyElements(projection, camera.projectionMatrix.elements)

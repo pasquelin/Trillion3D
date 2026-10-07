@@ -27,6 +27,55 @@ export function createRasterResolves(
   work: GPUBuffer,
   targetBytes: number,
 ) {
+  const z: Resolves = {
+    ...{ device, work, targetBytes, ...resolvePipelines(device, code) },
+    group: undefined,
+    ...{ idsFor: undefined, depthFor: undefined, hizFor: undefined },
+    ...{ hizPass: undefined, finalPass: undefined },
+  }
+  return {
+    /** Compute occluder depth, in the level zero the pyramid reduces and in the depth
+     *  buffer; no identifier. */
+    encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
+      refresh(z, input)
+      const pass = encoder.beginRenderPass(z.hizPass!)
+      pass.setViewport(0, 0, width, height, 0, 1)
+      pass.setPipeline(z.hizOnly.get())
+      pass.setBindGroup(0, bound(z, input.uniform))
+      pass.draw(3)
+      pass.end()
+    },
+    /** Closed frame: identifiers, depth, and the pyramid reset to the whole cut. */
+    encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
+      refresh(z, input)
+      const pass = encoder.beginRenderPass(z.finalPass!)
+      pass.setViewport(0, 0, width, height, 0, 1)
+      pass.setPipeline((input.hizView ? z.two : z.one).get())
+      pass.setBindGroup(0, bound(z, input.uniform))
+      pass.draw(3)
+      pass.end()
+    },
+  }
+}
+
+type Resolves = ReturnType<typeof resolvePipelines> & {
+  device: GPUDevice
+  work: GPUBuffer
+  targetBytes: number
+  group: GPUBindGroup | undefined
+  /**
+   * The two pass descriptors, kept as-is until the next set of views. They depend only on the
+   * views, and the views change only on target resize — which releases this whole raster.
+   * Rebuilding them per frame allocated seven objects to rewrite the same fields.
+   */
+  idsFor: GPUTextureView | undefined
+  depthFor: GPUTextureView | undefined
+  hizFor: GPUTextureView | undefined
+  hizPass: GPURenderPassDescriptor | undefined
+  finalPass: GPURenderPassDescriptor | undefined
+}
+
+function resolvePipelines(device: GPUDevice, code: string) {
   const layout = device.createBindGroupLayout({
     entries: [
       { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
@@ -62,76 +111,47 @@ export function createRasterResolves(
     primitive,
     depthStencil: RESOLVE_DEPTH,
   }).ask()
-  let group: GPUBindGroup | undefined
-  const bound = (uniform: GPUBuffer) =>
-    (group ??= device.createBindGroup({
-      layout,
-      entries: [
-        { binding: 0, resource: { buffer: work, offset: 0, size: targetBytes } },
-        { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
-      ],
-    }))
-  /** A colour attachment kept as the hardware raster left it. */
-  const kept = (view: GPUTextureView) => ({
-    view,
-    loadOp: 'load' as const,
-    storeOp: 'store' as const,
-  })
-  const depthKept = (view: GPUTextureView) => ({
-    view,
-    depthLoadOp: 'load' as const,
-    depthStoreOp: 'store' as const,
-  })
-  /**
-   * The two pass descriptors, kept as-is until the next set of views. They depend only on the
-   * views, and the views change only on target resize — which releases this whole raster.
-   * Rebuilding them per frame allocated seven objects to rewrite the same fields.
-   */
-  let idsFor: GPUTextureView | undefined,
-    depthFor: GPUTextureView | undefined,
-    hizFor: GPUTextureView | undefined,
-    hizPass: GPURenderPassDescriptor | undefined,
-    finalPass: GPURenderPassDescriptor | undefined
-  /** Rebuilds both descriptors when, and only when, one of the three views has changed. */
-  const refresh = (input: GpuRasterInput) => {
-    if (idsFor === input.idsView && depthFor === input.depthView && hizFor === input.hizView) return
-    idsFor = input.idsView
-    depthFor = input.depthView
-    hizFor = input.hizView
-    hizPass = {
-      label: 'Trillion3D raster occluder hiz',
-      colorAttachments: [kept(input.hizView!)],
-      depthStencilAttachment: depthKept(input.depthView),
-    }
-    finalPass = {
-      label: 'Trillion3D raster resolve',
-      colorAttachments: input.hizView
-        ? [kept(input.idsView), kept(input.hizView)]
-        : [kept(input.idsView)],
-      depthStencilAttachment: depthKept(input.depthView),
-    }
+  return { layout, one, two, hizOnly }
+}
+
+const bound = (z: Resolves, uniform: GPUBuffer) =>
+  (z.group ??= z.device.createBindGroup({
+    layout: z.layout,
+    entries: [
+      { binding: 0, resource: { buffer: z.work, offset: 0, size: z.targetBytes } },
+      { binding: 1, resource: { buffer: uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
+    ],
+  }))
+
+/** A colour attachment kept as the hardware raster left it. */
+const kept = (view: GPUTextureView) => ({
+  view,
+  loadOp: 'load' as const,
+  storeOp: 'store' as const,
+})
+const depthKept = (view: GPUTextureView) => ({
+  view,
+  depthLoadOp: 'load' as const,
+  depthStoreOp: 'store' as const,
+})
+
+/** Rebuilds both descriptors when, and only when, one of the three views has changed. */
+function refresh(z: Resolves, input: GpuRasterInput) {
+  if (z.idsFor === input.idsView && z.depthFor === input.depthView && z.hizFor === input.hizView)
+    return
+  z.idsFor = input.idsView
+  z.depthFor = input.depthView
+  z.hizFor = input.hizView
+  z.hizPass = {
+    label: 'Trillion3D raster occluder hiz',
+    colorAttachments: [kept(input.hizView!)],
+    depthStencilAttachment: depthKept(input.depthView),
   }
-  return {
-    /** Compute occluder depth, in the level zero the pyramid reduces and in the depth
-     *  buffer; no identifier. */
-    encodeHiz(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
-      refresh(input)
-      const pass = encoder.beginRenderPass(hizPass!)
-      pass.setViewport(0, 0, width, height, 0, 1)
-      pass.setPipeline(hizOnly.get())
-      pass.setBindGroup(0, bound(input.uniform))
-      pass.draw(3)
-      pass.end()
-    },
-    /** Closed frame: identifiers, depth, and the pyramid reset to the whole cut. */
-    encodeFinal(encoder: GPUCommandEncoder, input: GpuRasterInput, width: number, height: number) {
-      refresh(input)
-      const pass = encoder.beginRenderPass(finalPass!)
-      pass.setViewport(0, 0, width, height, 0, 1)
-      pass.setPipeline((input.hizView ? two : one).get())
-      pass.setBindGroup(0, bound(input.uniform))
-      pass.draw(3)
-      pass.end()
-    },
+  z.finalPass = {
+    label: 'Trillion3D raster resolve',
+    colorAttachments: input.hizView
+      ? [kept(input.idsView), kept(input.hizView)]
+      : [kept(input.idsView)],
+    depthStencilAttachment: depthKept(input.depthView),
   }
 }

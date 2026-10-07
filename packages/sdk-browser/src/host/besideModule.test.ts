@@ -18,9 +18,9 @@ function stubbedWorkers(origin: string | undefined) {
 
 test("a worker of the page's own origin starts on its module", () => {
   const started = stubbedWorkers('https://site.test')
-  startModuleWorker(new URL('https://site.test/dist/pageDecodeWorker.js'))
+  startModuleWorker(new URL('https://site.test/dist/pageWorker.js'))
   assert.deepEqual(started, [
-    { url: 'https://site.test/dist/pageDecodeWorker.js', options: { type: 'module' } },
+    { url: 'https://site.test/dist/pageWorker.js', options: { type: 'module' } },
   ])
 })
 
@@ -47,7 +47,7 @@ test('without a page (Node) the worker starts on the very URL given, as a DOM Wo
       given.push(url)
     }
   }
-  const module = new URL('file:///engine/dist/pageDecodeWorker.js')
+  const module = new URL('file:///engine/dist/pageWorker.js')
   startModuleWorker(module)
   assert.equal(given[0], module)
 })

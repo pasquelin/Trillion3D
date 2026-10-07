@@ -32,6 +32,7 @@ const CREATES = [
   'createComputePipelineAsync',
   'createRenderPipelineAsync',
   'createCommandEncoder',
+  'createRenderBundleEncoder',
   'createQuerySet',
 ] as const
 

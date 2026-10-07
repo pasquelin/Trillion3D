@@ -1,6 +1,6 @@
 import { syncFeedbackTarget, type FeedbackPipelines } from '../prepare/feedbackVariant.ts'
 import { sha256Hex } from '../../../streaming/sha256Hex.ts'
-import { readGpuImage } from '../../../gpu/core/presentation.ts'
+import { readGpuImage } from '../../../gpu/core/readback.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/shadePipelines.ts'
 import { blendWritesShare } from '../prepare/asIsShareTarget.ts'

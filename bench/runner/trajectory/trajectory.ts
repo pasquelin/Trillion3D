@@ -9,7 +9,7 @@ import { fingerprintBuild } from '../../../scripts/write-build-provenance.ts'
 import { assetIdentity } from '../report/provenance.ts'
 import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from '../harness/options.ts'
 import { isDist } from '../harness/dists.ts'
-import { resolveCache, sideReport } from '../harness/sideOptions.ts'
+import { isEngine, resolveCache, sideReport } from '../harness/sideOptions.ts'
 import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from '../assets/scene.ts'
 import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts'
 import { readStreet } from '../street/street.ts'
@@ -52,7 +52,7 @@ async function main() {
     flags.set(`cache-${name}`, cache)
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings)
     side.manifestUrl = `/cache/${name}/native/full/manifest.json`
-    if (side.engine.id !== 'webgpu-page-raster' || side.variant || side.errorMetric)
+    if (!isEngine(side.engine) || side.variant || side.errorMetric)
       throw new Error('trajectory requires the standard WebGPU engine on both sides')
     if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`)
     return side

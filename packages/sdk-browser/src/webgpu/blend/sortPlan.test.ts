@@ -6,7 +6,9 @@ import { surfaceOf } from '../../page/surface.ts'
 import { orderBlendPasses } from './order.ts'
 import { buildBlendStatics, planItem, refreshBlendPlan } from './plan.ts'
 import { blendSceneOf, paintOutcome, referenceOrder } from './plan.fixture.ts'
-import { precedes, sortSeedsFarToNear } from './sortPlan.ts'
+import { cpuModel } from './expandCpu.fixture.ts'
+import { precedes } from './paintOrder.ts'
+import { sortSeedsFarToNear } from './sortPlan.ts'
 import type { BlendGpuItem } from './state.ts'
 
 type BlendState = ReturnType<typeof blendSceneOf>
@@ -18,7 +20,7 @@ function rankAndCheck(blendState: BlendState, eye: number[], what: string) {
   const { orders, ownSeeds } = paintOutcome(blendState)
   for (let pass = 0; pass < orders.length; pass++) {
     const seeds = blendState.seeds[pass]
-    const expected = referenceOrder(seeds, blendState.blendGpu)
+    const expected = referenceOrder(seeds, blendState.orderKeys)
     assert.deepEqual(orders[pass], seeds.length ? expected : [], `${what}, pass ${pass}`)
     const own = new Set(ownSeeds[pass].map((seed) => seeds[seed]))
     assert.deepEqual(
@@ -110,7 +112,7 @@ test('a NaN key ranks farthest, by rank among NaNs, whatever the previous frame 
     assert.deepEqual(nanHead(blendState), [3, 7, 250], 'the NaN keys first, in rank order')
   }
   // From any previous order: the order is the total one, not one the history decides.
-  blendState.paintOrders[0].reverse()
+  cpuModel(blendState).orders[0].reverse()
   blendState.ownSeeds[0].reverse()
   rankAndCheck(blendState, [-30, -30, -30], 'from reversed orders')
   assert.deepEqual(nanHead(blendState), [3, 7, 250])

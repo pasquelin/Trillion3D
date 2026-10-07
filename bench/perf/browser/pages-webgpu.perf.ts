@@ -1,19 +1,12 @@
-// winding of a cluster and view-camera comparison.
+// winding of a cluster.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts'
-import { sameHizView } from '../../../packages/sdk-browser/src/hiz/temporal.ts'
 import {
   setWindingEpoch,
   windingCw,
 } from '../../../packages/sdk-browser/src/webgpu/pages/render/winding.ts'
 import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
 import { referenceWindingCw } from '../../oracles/browser/pages-webgpu.ts'
-import {
-  createEngineCamera,
-  holdCameraWorld,
-  readCameraWorld,
-} from '../../../packages/sdk-browser/src/camera/world.ts'
-import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/engineCamera.ts'
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/types.ts'
 
 const alea = xorshiftRandom(67)
@@ -34,7 +27,6 @@ const pageOf = (matrix: G.Matrix4): Cluster => ({
   depthLayer: 0,
   attributes: DUMMY_ATTRIBUTES,
   material: surfaceOf([]),
-  declaration: [],
   matrix,
   roots: [{ world: matrix }],
   renderOrder: 0,
@@ -67,36 +59,6 @@ const imageDeSens = (sens: (rec: Cluster) => boolean, pose: boolean) => (recs: C
   return verdicts
 }
 
-const view = G.perspectiveCamera(55, 16 / 9, 0.1, 200)
-const courante = createEngineCamera()
-let gardeeReference: EngineCamera | undefined = undefined,
-  keptOptimised: EngineCamera | undefined = undefined
-const viewWalk = (garder: (camera: G.Camera) => boolean) => (images: number) => {
-  const verdicts = new Uint8Array(images),
-    elements = new Float64Array(16)
-  for (let image = 0; image < images; image++) {
-    view.position.set(Math.sin(image * 0.01) * 3, 0, 6 + image * 0.001)
-    view.updateMatrixWorld()
-    verdicts[image] = garder(view) ? 1 : 0
-  }
-  elements.set(view.matrixWorldInverse.elements)
-  return { verdicts, elements }
-}
-
-const referenceView = viewWalk((camera) => {
-  const lue = readCameraWorld(courante, camera)
-  const verdict = sameHizView(gardeeReference, lue)
-  gardeeReference = holdCameraWorld(createEngineCamera(), lue)
-  return verdict
-})
-
-const optimisedView = viewWalk((camera) => {
-  const lue = readCameraWorld(courante, camera)
-  const verdict = sameHizView(keptOptimised, lue)
-  keptOptimised = holdCameraWorld(keptOptimised ?? createEngineCamera(), lue)
-  return verdict
-})
-
 const resWinding = await measure({
   name: 'windingCw',
   fichier: 'packages/sdk-browser/src/webgpu/pages/render/winding.ts',
@@ -108,18 +70,6 @@ const resWinding = await measure({
   calculation: imageDeSens((c) => windingCw(c.roots, 0), true),
   expected: imageDeSens(referenceWindingCw, false),
   options: { tours: 100, budgetMs: 1500 },
-})
-
-const resSameView = await measure({
-  name: 'comparison camera',
-  fichier: 'packages/sdk-browser/src/webgpu/pages/render/render.ts',
-  cas: [
-    { name: '400 frames', input: 400, size: 400 },
-    { name: 'one frame', input: 1, size: 1 },
-  ],
-  calculation: optimisedView,
-  expected: referenceView,
-  options: { tours: 60, budgetMs: 1500 },
 })
 
 await stress({
@@ -134,4 +84,4 @@ await stress({
   ],
 })
 
-rapport('pages-webgpu', [resWinding, resSameView], 'A9 and A10 yield the exact same values')
+rapport('pages-webgpu', [resWinding], 'A9 yields the exact same values')

@@ -25,10 +25,10 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
 }
 
 /**
- * THE CUT CLAIMS ITS ROWS. The CPU cut selected `asked` rows — its clusters and the light
- * cuts' casters behind them —, or the blended casters found none left: past four fifths of the
- * rows the view holds, they rise a quarter above them and the table grows after them, in place, as a
- * larger pool grows it (`growWebgpuTables`). It is what the view selects that sizes the table,
+ * THE CUT CLAIMS ITS ROWS (#1232). The GPU cut asks `asked` rows — the rows the cache holds and
+ * the requests it denied (`../../row/slots.ts`, `rowsDenied`), or the blended casters' —: past four
+ * fifths of the rows the view holds, they rise a quarter above them and the table grows after
+ * them, in place, as a larger pool grows it (`growWebgpuTables`). It is what the view selects that sizes the table,
  * never the placements a scene repeats its pages on, as the visible-cluster list is what its
  * cut emits. Until the growth is granted, the image draws the rows the table holds.
  */
@@ -43,9 +43,9 @@ export function followCutRows(rt: WebgpuPagesRuntime, asked: number) {
 }
 
 /**
- * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE, when a pool of `slots` slots — a larger
- * geometry pool (`../io/memory.ts`), placements grown in place
- * (`../../../placement/webgpuGrowth.ts`) — asks more rows than they hold. Nothing is prepared
+ * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE (#216), when a pool of `slots` slots — a larger
+ * geometry pool (`../io/memory.ts`) — or the GPU cut's requests (`followCutRows`) ask more rows
+ * than they hold. Nothing is prepared
  * again: no shader, no pipeline, no pool, no texture tile. Every GPU buffer sized by row
  * (`growGpuTables.ts`) is made anew beside the one it replaces, under one out-of-memory scope,
  * while the image goes on drawing from the old ones. Only once the device granted them all are they
@@ -77,7 +77,7 @@ async function growTables(
   const device = run.lost ? undefined : gpu.device
   let made = pendingAll([])
   const granted = device
-    ? await deviceMade(device, () => (made = gpuGrowth(rt, device, drawSlots, casterSlots, slots)))
+    ? await deviceMade(device, () => (made = gpuGrowth(rt, device, drawSlots, casterSlots)))
     : made
   if (!granted || rt.signal.aborted) {
     granted?.destroy()

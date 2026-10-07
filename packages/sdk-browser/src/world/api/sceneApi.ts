@@ -1,95 +1,57 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
 import type {
   AssetScope,
   CameraPose,
   FrameMetrics,
-  Material,
   StablePreview,
 } from '../../../../sdk-core/src/index.ts'
-import type { RenderBackend } from '../../backend/types.ts'
-import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts'
-import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts'
+import type { Engine } from '../../engine/types.ts'
+import { DEFAULT_CLEAR_COLOR } from '../../engine/common.ts'
 import type { MemoryBudgets } from '../../residency/pools.ts'
 import type { PlacementRows } from '../../placement/rows.ts'
-import {
-  growsInPlaceOf,
-  type AlphaChange,
-  type PlacementMount,
-} from '../../placement/backendSceneUpdates.ts'
+import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 
 type Inputs = {
   check: () => void
-  active: () => RenderBackend
-  backends: RenderBackend[]
+  engine: Engine
   render: (pose?: CameraPose) => FrameMetrics
   flush: () => Promise<void>
-  capture: () => Uint8Array
+  capture: () => Promise<Uint8Array>
   scope: AssetScope
   canvas: HTMLCanvasElement
 }
 
-export function createExplorerSceneApi(inputs: Inputs) {
-  const { check, active: getActive, backends, render, flush, capture, scope, canvas } = inputs
+/** What the session draws of `poses`, one image each, at the canvas's size, bottom row first. */
+function viewRenderer(inputs: Inputs) {
+  const { check, engine, render, flush, capture, scope, canvas } = inputs
+  return async (poses: readonly CameraPose[]): Promise<StablePreview[]> => {
+    check()
+    const views: StablePreview[] = []
+    for (const pose of poses) {
+      render(pose)
+      await flush()
+      const rgba = await capture()
+      views.push({
+        scope,
+        origin: 'bottom-left',
+        rgba: rgba.slice(),
+        width: canvas.width,
+        height: canvas.height,
+        backend: engine.id,
+      })
+    }
+    return views
+  }
+}
+
+/** The rows, compositions and vertices a world rewrites in place, and the buffers it grows. */
+function placementUpdates(check: () => void, engine: Engine) {
   return {
-    /**
-     * Sets memory pools of the active engine during the session — what a settings slider
-     * calls. The engine keeps what fits in the new pool, and the report says what it really
-     * holds (`clamp` when the value was brought back) and what the setting cost.
-     */
-    async setMemoryBudgets(budgets: MemoryBudgets) {
-      check()
-      const active = getActive()
-      if (!active.setMemoryBudgets)
-        throw new EngineError(
-          'UNSUPPORTED_MEMORY_BUDGETS',
-          `${active.id} does not support memory budgets`,
-        )
-      return active.setMemoryBudgets(budgets)
-    },
-    addInstance(id: string, transform: Float64Array) {
-      check()
-      const active = getActive()
-      if (!active.addInstance)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not support instance insertion`,
-        )
-      active.addInstance(id, transform)
-    },
-    updateInstance(id: string, transform: Float64Array) {
-      check()
-      const active = getActive()
-      if (!active.updateInstance)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not support instance transforms`,
-        )
-      active.updateInstance(id, transform)
-    },
-    removeInstance(id: string) {
-      check()
-      const active = getActive()
-      if (!active.removeInstance)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not support instance removal`,
-        )
-      active.removeInstance(id)
-    },
     /** Rows `from` to `to` of an instance buffer the session holds were written. */
-    updatePlacements(rows: PlacementRows, from: number, to: number) {
-      check()
-      const active = getActive()
-      if (!active.updatePlacements)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not support instance-buffer rows`,
-        )
-      active.updatePlacements(rows, from, to)
-    },
-    /** POC: whether the active path composes rows under their parent on the GPU. */
-    composesPlacements: () => !!getActive().composePlacements,
-    /** POC: rows `links` follow `parent` (`BackendSceneUpdates.composePlacements`). */
+    updatePlacements: (rows: PlacementRows, from: number, to: number) => (
+      check(),
+      engine.updatePlacements(rows, from, to)
+    ),
+    /** Rows `links` follow `parent` (`Engine.composePlacements`). */
     composePlacements(
       parent: object,
       world: ArrayLike<number>,
@@ -97,103 +59,58 @@ export function createExplorerSceneApi(inputs: Inputs) {
       whole: boolean,
     ) {
       check()
-      return getActive().composePlacements?.(parent, world, links, whole) ?? false
+      return engine.composePlacements(parent, world, links, whole)
     },
-    /** Whether the active path grows an instance buffer in place (`growPlacements`). */
-    growsPlacements: () => !!getActive().growPlacements,
-    /** Whether it grows each of `from` to `capacity` rows (`BackendSceneUpdates.growsInPlace`). */
+    /** Whether it grows each of `from` to `capacity` rows (`Engine.growsInPlace`). */
     growsInPlace: (from: readonly PlacementRows[], capacity: number) =>
-      growsInPlaceOf(getActive(), from, capacity),
+      engine.growsInPlace(from, capacity),
     /** An instance buffer the session holds was replaced by a larger one (`placement/growth.ts`). */
-    growPlacements(from: PlacementRows, to: PlacementRows) {
-      check()
-      const active = getActive()
-      if (!active.growPlacements)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not grow instance buffers in place`,
-        )
-      active.growPlacements(from, to)
-    },
-    /** Whether the active path mounts and unmounts resources in the open session. */
-    mountsPlacements: () => !!getActive().mountPlacements,
-    mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
-    /** A dynamic geometry's lists were rewritten in place; false when the active path
-     *  cannot take it, and only a new session will draw them. */
-    updateVertices: (...change: Parameters<NonNullable<RenderBackend['updateVertices']>>) => (
+    growPlacements: (from: PlacementRows, to: PlacementRows) => (
       check(),
-      !!getActive().updateVertices?.(...change)
+      engine.growPlacements(from, to)
     ),
-    vertexBytes: (...change: Parameters<NonNullable<RenderBackend['vertexBytes']>>) =>
-      getActive().vertexBytes?.(...change),
-    unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
-    /** Bounced light on or off in the session; false when the active path cannot toggle it in
-     *  place, and only a session opened with the other setting will have it. */
+    /** A dynamic geometry's lists were rewritten in place (#573); false when the engine cannot
+     *  take it, and only a new session will draw them. */
+    updateVertices: (...change: Parameters<Engine['updateVertices']>) => (
+      check(),
+      engine.updateVertices(...change)
+    ),
+    vertexBytes: (...change: Parameters<Engine['vertexBytes']>) => engine.vertexBytes(...change),
+  }
+}
+
+/** The scene changes the engine takes in place, without preparing the session again. */
+export function createExplorerSceneApi(inputs: Inputs) {
+  const { check, engine } = inputs
+  return {
+    /**
+     * Sets the engine's memory pools during the session — what a settings slider calls. The
+     * engine keeps what fits in the new pool, and the report says what it really holds (`clamp`
+     * when the value was brought back) and what the setting cost.
+     */
+    async setMemoryBudgets(budgets: MemoryBudgets) {
+      check()
+      return engine.setMemoryBudgets(budgets)
+    },
+    ...placementUpdates(check, engine),
+    /** Bounced light on or off in the session, at the next frame. */
     setBounce(on: boolean) {
       check()
-      const active = getActive()
-      active.setBounce?.(on)
-      return !!active.setBounce
+      engine.setBounce(on)
     },
-    /** The clear colour behind the scene, `0xrrggbb` or the default, on every engine of the
-     *  session — each one a comparison shows, not the active one alone — at the next frame; false
-     *  when one of them cannot take it in place, and only a new session will. */
+    /** The clear colour behind the scene, `0xrrggbb` or the default, at the next frame. */
     setClearColor(hex = DEFAULT_CLEAR_COLOR) {
       check()
-      for (const backend of backends) backend.setClearColor?.(hex)
-      return backends.every((backend) => backend.setClearColor)
+      engine.setClearColor(hex)
     },
-    /** Host surfaces rewritten in place are read again; false when the active path cannot — or
-     *  cannot for this change, a picture that changed size —, and only a new session will draw
-     *  them. `values` false says only their textures moved, `alpha` that their alpha mode or
-     *  cutoff did (`BackendSceneUpdates`). */
-    refreshMaterials(values = true, alpha?: AlphaChange) {
-      check()
-      const active = getActive()
-      return !!active.refreshMaterials && active.refreshMaterials(values, alpha) !== false
-    },
-    updateMaterial(primitive: string, material: Material) {
-      check()
-      const active = getActive()
-      if (!active.updateMaterial)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not support material updates`,
-        )
-      active.updateMaterial(primitive, material)
-    },
-    replaceGeometryPage(url: string, data: DecodedGeometryPage) {
-      check()
-      const active = getActive()
-      if (!active.replaceGeometryPage)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          `${active.id} does not support geometry page updates`,
-        )
-      active.replaceGeometryPage(url, data)
-      active.syncResident?.()
-    },
-    async renderViews(poses: readonly CameraPose[]): Promise<StablePreview[]> {
-      check()
-      const views: StablePreview[] = []
-      for (const pose of poses) {
-        render(pose)
-        await flush()
-        const rgba = capture()
-        views.push({
-          scope,
-          origin: 'bottom-left',
-          rgba: rgba.slice(),
-          width: canvas.width,
-          height: canvas.height,
-          backend: getActive().id,
-        })
-      }
-      return views
-    },
-    refreshSceneLighting() {
-      check()
-      for (const backend of backends) backend.refreshSceneLighting?.()
-    },
+    /** Host surfaces rewritten in place are read again; false when the engine cannot for this
+     *  change — a picture that changed size —, and only a new session will draw them. `values`
+     *  false says only their textures moved, `alpha` that their alpha mode or cutoff did
+     *  (`Engine.refreshMaterials`). */
+    refreshMaterials: (values = true, alpha?: AlphaChange) => (
+      check(),
+      engine.refreshMaterials(values, alpha) !== false
+    ),
+    renderViews: viewRenderer(inputs),
   }
 }

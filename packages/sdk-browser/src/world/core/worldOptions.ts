@@ -1,5 +1,4 @@
 import type { MeasuredWorldOptions } from '../session/options.ts'
-import type { WorldRenderer } from '../capability/worldReady.ts'
 import type { WorldControls } from './worldCamera.ts'
 import type { WorldPhysicsOptions } from '../../physics/worldPhysicsOptions.ts'
 import type { RenderScale } from '../../frame/renderScaleOption.ts'
@@ -7,12 +6,6 @@ import type { WorldQualityOptions } from './worldQuality.ts'
 
 /** What a page may set when it creates a world; saying nothing is the normal case. */
 export interface WorldOptions {
-  /**
-   * How the world draws, `'webgpu'` or `'webgl2'`. Left out, the world takes the best the machine
-   * grants; a renderer the machine lacks is refused by its name, never swapped for the other.
-   * @defaultValue the best the machine grants
-   */
-  renderer?: WorldRenderer
   /**
    * Whether the world runs its own loop: it draws when something changes and rests after 120
    * frames with nothing new. `false` lets the page call `world.render()` itself.
@@ -30,16 +23,15 @@ export interface WorldOptions {
   /** Turns the physics on (`world.physics`): `true`, or gravity and budgets. Jolt is fetched only
    *  then. @defaultValue false */
   physics?: boolean | WorldPhysicsOptions
-  /** Temporal antialiasing, WebGPU only: sub-pixel jitter accumulated over frames. `false` draws
+  /** Temporal antialiasing: sub-pixel jitter accumulated over frames. `false` draws
    *  each pixel at its centre, with no history, what a pixel-exact capture asks; switched later
    *  by `world.temporalAntialiasing`. @defaultValue true */
   temporalAntialiasing?: boolean
   /** The fraction of the display per axis the image is drawn at, before temporal antialiasing
    *  rebuilds it to the display: `'auto'` lets the frame budget choose it between `min` and `max`
-   *  (`{ min, max }`, 0.5 and 1 by default; on WebGL2, which only resamples, `min` is 1 by
-   *  default), a number fixes it. On WebGPU a still image is drawn at that scale too, the budget's,
-   *  and held once whole cycles of its jitter phases are averaged; on WebGL2 it is drawn at the
-   *  maximum. Changed later by `world.renderScale`. @defaultValue 'auto' */
+   *  (`{ min, max }`, 0.5 and 1 by default), a number fixes it. A still image is drawn at that
+   *  scale too, the budget's, and held once whole cycles of its jitter phases are averaged.
+   *  Changed later by `world.renderScale`. @defaultValue 'auto' */
   renderScale?: RenderScale
   /** The quality: a preset, groups at levels of their own, the resolution (`world.quality`).
    *  @defaultValue every group at `'max'`, today's defaults; the native resolution, dynamic */
@@ -63,7 +55,6 @@ export const sessionOptions = (
 ): MeasuredWorldOptions => ({
   manifestUrl: '',
   interactive: options.interactive !== false,
-  renderer: options.renderer,
   // A world the page leads draws at the screen's density too: the session's own loop, which
   // follows the density as it changes, is the only one that may leave it unset.
   pixelRatio:

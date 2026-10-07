@@ -45,7 +45,7 @@ test('a missing compiler is reported by contract', async () => {
 })
 test('getSdkProvenance hashes files without embedding source text', async () => {
   const provenance = await getSdkProvenance()
-  assert.equal(provenance.sdkVersion, '0.2.0')
+  assert.equal(provenance.sdkVersion, '1.0.0')
   const sample = Object.values(provenance.files)[0] as FileProvenance
   assert.equal(typeof sample.sha256, 'string')
   assert.equal(sample.text, undefined)

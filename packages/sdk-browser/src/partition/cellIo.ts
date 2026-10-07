@@ -1,7 +1,7 @@
 /** What a partition's cells read and tell each frame and before the first (`cells.ts`), kept
  *  internal as the frame's budget is: the session's streamer, the decode pool, the catalogue, the
  *  engine's rows, the owner. */
-import type { PlacementGrowth } from '../placement/backendSceneUpdates.ts'
+import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import type { PlacementRows } from '../placement/rows.ts'
 import type { StreamPage } from '../streaming/types.ts'
 import type { CellRows } from './cellDecode.ts'

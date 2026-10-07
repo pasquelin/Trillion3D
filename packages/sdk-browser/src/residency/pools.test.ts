@@ -33,15 +33,6 @@ test('the pool shrinks to the scene or the page cap, and rises to root coverage'
     maxResidentPages: 64,
   })
   assert.deepEqual([capped.slots, capped.clamp], [64, 'page-cap'])
-  // Session ceiling, what the drawable-page tables have sized.
-  const ceiled = geometryPoolFor({
-    budgetBytes: 512 * MIB,
-    pageBytes: 1500,
-    uniquePages: 10_000,
-    rootPages: 2,
-    ceilingSlots: 300,
-  })
-  assert.deepEqual([ceiled.slots, ceiled.clamp], [300, 'ceiling'])
   // An 8 MiB budget on 1,500-byte pages makes 5,592 slots: under 6,000 roots it is
   // raised to them — roots are always resident, as they are outside the pool.
   const roots = geometryPoolFor({

@@ -62,24 +62,6 @@ export {
 } from '../../sdk-core/src/manifest/binaryFormat.ts'
 export type { ColumnKind } from '../../sdk-core/src/manifest/binaryFormat.ts'
 export {
-  PAGE_DECODE_FAILURES,
-  PAGE_DECODE_PROTOCOL,
-  pageDecodeFailureCode,
-  pageDecodeWorkerCount,
-} from '../../sdk-core/src/page/decodeContracts.ts'
-export type {
-  PageCutPage,
-  PageCutPayload,
-  PageDecodeAnswer,
-  PageDecodeCancel,
-  PageDecodeDone,
-  PageDecodeFailed,
-  PageDecodeFailureCode,
-  PageDecodeGeometryPayload,
-  PageDecodeOp,
-  PageDecodeRequest,
-} from '../../sdk-core/src/page/decodeContracts.ts'
-export {
   PAGE_INTEGRATION_FAILURES,
   PAGE_INTEGRATION_PROTOCOL,
   PAGE_SLICE_STRIDE,

@@ -23,12 +23,12 @@ const WGSL_OWN = new Set(
     'atomicMax atomicMin atomicOr atomicStore atomicSub ceil clamp cos countLeadingZeros countOneBits cross ' +
     'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit firstTrailingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
-    'pack2x16float pack2x16snorm pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
+    'pack2x16float pack2x16snorm pack2x16unorm pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
     'sign sin smoothstep sqrt step storageBarrier subgroupAny subgroupBallot subgroupBroadcastFirst ' +
     'subgroupElect subgroupMax subgroupMin tan tanh textureDimensions textureGather textureGatherCompare ' +
     'textureLoad textureNumLayers textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
-    'trunc unpack2x16float unpack2x16snorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
+    'trunc unpack2x16float unpack2x16snorm unpack2x16unorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
 )
 
@@ -89,30 +89,4 @@ export function reservedNames(source: string) {
     .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)/g, '')
   const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
   return [...names].filter((name) => WGSL_RESERVED.has(name)).sort()
-}
-
-/** The words GLSL ES 3.00 reserves for future use, which a WebGL2 shader may not name: a compiler
- *  refuses a shader that uses one. */
-const GLSL_ES_RESERVED = new Set(
-  (
-    'attribute varying coherent volatile restrict readonly writeonly resource atomic_uint ' +
-    'noperspective patch sample subroutine common partition active asm class union enum typedef ' +
-    'template this goto inline noinline public static extern external interface long short double ' +
-    'half fixed unsigned superp input output hvec2 hvec3 hvec4 dvec2 dvec3 dvec4 fvec2 fvec3 fvec4 ' +
-    'sampler3DRect filter image1D image2D image3D imageCube iimage1D iimage2D iimage3D iimageCube ' +
-    'uimage1D uimage2D uimage3D uimageCube image1DArray image2DArray iimage1DArray iimage2DArray ' +
-    'uimage1DArray uimage2DArray imageBuffer iimageBuffer uimageBuffer sampler1D sampler1DShadow ' +
-    'sampler1DArray sampler1DArrayShadow isampler1D isampler1DArray usampler1D usampler1DArray ' +
-    'sampler2DRect sampler2DRectShadow isampler2DRect usampler2DRect samplerBuffer isamplerBuffer ' +
-    'usamplerBuffer sampler2DMS isampler2DMS usampler2DMS sampler2DMSArray isampler2DMSArray ' +
-    'usampler2DMSArray sizeof cast namespace using'
-  ).split(/\s+/),
-)
-
-/** The reserved words (`GLSL_ES_RESERVED`) a GLSL text takes as names, sorted; comments and
- *  preprocessor lines are none. */
-export function glslReservedNames(source: string) {
-  const code = source.replace(/\/\*[\s\S]*?\*\/|\/\/.*$|^\s*#.*$/gm, '')
-  const names = new Set([...code.matchAll(/(?<!\w)([A-Za-z_]\w*)/g)].map((m) => m[1]))
-  return [...names].filter((name) => GLSL_ES_RESERVED.has(name)).sort()
 }

@@ -1,9 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
-import { createCellPages, withHoldings } from '../../partition/cellPages.ts'
+import { createCellHolds, withHolds } from '../../partition/cellHolds.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 
@@ -15,18 +15,15 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   let later = true,
     read = () => {},
     decodes: Promise<void>[] = []
-  const cells = withHoldings(
-    { meshes: new Map(), manifest: createCellPages(undefined, () => []) },
-    {
-      frame(_eye: number[], _reach: number, io: Io) {
-        io.request(['near.json'], false)
-        io.request(['ahead.json'], true)
-        return later
-      },
-      decodes: () => decodes.splice(0),
-      reads: () => [],
-    } as unknown as PartitionCells,
-  )
+  const cells = withHolds(createCellHolds(), {
+    frame(_eye: number[], _reach: number, io: Io) {
+      io.request(['near.json'], false)
+      io.request(['ahead.json'], true)
+      return later
+    },
+    decodes: () => decodes.splice(0),
+    reads: () => [],
+  } as unknown as PartitionCells)
   const streamer = {
     request: (urls: readonly string[]) =>
       new Promise<void>((resolve) => {
@@ -37,7 +34,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
     partitions: [cells],
     streamer,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    active: () => ({}) as RenderBackend,
+    engine: { worldCut: () => undefined } as unknown as Engine,
     budget: { admits: () => true, spend() {} },
   })!
   frame()
@@ -51,7 +48,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   frame()
   read()
   assert.equal(await frame.pending(), false, 'nothing is left to place')
-  // A cell handed to the decode pool asks for the frame that places it once it lands.
+  // A cell handed to the page worker pool asks for the frame that places it once it lands (#575).
   frame()
   read()
   decodes = [Promise.resolve()]
@@ -59,30 +56,30 @@ test('a still camera is drawn again until the cells it asked for within reach ar
 })
 
 /** The frame step of a still camera over one partition holding its cells on `holder`. */
-function stillFrame(holder: Parameters<typeof createCellPages>[2]) {
-  const manifest = createCellPages(undefined, () => [], holder)
-  const cells = withHoldings({ meshes: new Map(), manifest }, {
+function stillFrame(holder: Parameters<typeof createCellHolds>[0]) {
+  const holds = createCellHolds(holder)
+  const cells = withHolds(holds, {
     frame: () => false,
     decodes: () => [],
-    reads: manifest.reads,
+    reads: holds.reads,
   } as unknown as PartitionCells)
   const frame = createPartitionFrame({
     partitions: [cells],
     streamer: {} as ReturnType<typeof createPageStreamer>,
     camera: hostFramingCamera(60, 1, 0.1, 100),
-    active: () => ({}) as RenderBackend,
+    engine: { worldCut: () => undefined } as unknown as Engine,
     budget: { admits: () => true, spend() {} },
   })!
-  return { manifest, frame }
+  return { holds, frame }
 }
 
 test('a still camera is drawn again as each hold lands, never waiting for every placed cell', async () => {
   const lands: (() => void)[] = []
-  const { manifest, frame } = stillFrame({
+  const { holds, frame } = stillFrame({
     hold: () => new Promise<void>((resolve) => lands.push(resolve)),
     release() {},
   })
-  for (const cell of [0, 1, 2]) manifest.hold(cell)
+  for (const cell of [0, 1, 2]) holds.hold(cell)
   frame()
   const first = frame.pending()
   lands[1]()
@@ -105,8 +102,8 @@ test('a hold that fails for good asks one frame as it settles, then nothing is a
     },
     release() {},
   }
-  const { manifest, frame } = stillFrame(holder)
-  manifest.hold(0)
+  const { holds, frame } = stillFrame(holder)
+  holds.hold(0)
   frame()
   assert.equal(await frame.pending(), true, 'the hold failed: a frame is drawn')
   frame()

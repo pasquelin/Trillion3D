@@ -11,8 +11,9 @@ import { MATERIAL_SURFACES_PASS } from '../../../stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera, disposeQuadRun, quadScene } from '../testScenes.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
-import type { WebgpuPagesBackend, WebgpuPagesRuntime } from '../runtime.ts'
+import { webgpuPagesEngine } from '../pages.ts'
+import type { WebgpuPagesRuntime } from '../runtime.ts'
+import type { Engine } from '../../../engine/types.ts'
 import { followFeedback } from './feedbackVariant.ts'
 
 const FEEDBACK_TARGET = 'Trillion3D texture feedback target'
@@ -20,14 +21,14 @@ type Gpu = ReturnType<typeof mockGpu>
 
 async function opened(textured: boolean) {
   installGpuGlobals()
-  const gpu = mockGpu({ compute: true })
+  const gpu = mockGpu()
   const fixture = quadScene()
   // The pages read their material when the backend is made.
   if (textured)
     (fixture.source.children[0] as G.HostMesh).material = G.standardSurface({
       map: G.dataTexture(new Uint8Array(16).fill(255), 2, 2),
     })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -35,12 +36,12 @@ async function opened(textured: boolean) {
   })
   await backend.prepare()
   await drawn(backend)
-  return { gpu, fixture, backend: backend as WebgpuPagesBackend }
+  return { gpu, fixture, backend: backend as Engine }
 }
 
-async function drawn(backend: { render: WebgpuPagesBackend['render']; flush?: () => unknown }) {
+async function drawn(backend: Pick<Engine, 'render' | 'flush'>) {
   backend.render(camera())
-  await backend.flush?.()
+  await backend.flush()
 }
 
 /** The feedback each image's resolve wrote: the targets of its surfaces pass, its shade
@@ -128,7 +129,6 @@ test('a variant replaced before it was installed frees the water pass it made', 
     context: {},
     gpu: {},
     vis: {
-      visEnabled: true,
       mapLayer: new Map(),
       dataLayer: new Map(),
       writesFeedback: false,

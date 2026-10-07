@@ -36,11 +36,6 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       description:
         'Size of the GPU geometry pool in bytes (default 512 MiB = 536870912). Fixed memory allocated to cluster pages. Non-visible pages are evicted or streamed at coarser LOD without overflow.',
     },
-    geometryPoolCeilingBytes: {
-      type: 'integer',
-      description:
-        'Geometry pool ceiling for setMemoryBudgets: the WebGL2 engine never enlarges the pool past it; the WebGPU engine sizes its drawable-page tables to it and grows them in place past it.',
-    },
     texturePoolBytes: {
       type: 'integer',
       default: 536870912,
@@ -121,12 +116,6 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
       default: 'visible',
       description:
         "Preloading mode: 'visible' (streams detail for current camera) or 'all' (eager full cover download).",
-    },
-    autonomousGeometry: {
-      type: 'boolean',
-      default: /* @__PURE__ */ explorerSwitchDefault('autonomousGeometry'),
-      description:
-        'Static WebGL2 rendering of prepared pages without downloading full source geometry buffers.',
     },
     stageProfile: {
       type: 'boolean',

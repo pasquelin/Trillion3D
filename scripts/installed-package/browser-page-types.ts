@@ -7,7 +7,6 @@ export interface LooseWorld {
   scene: { load(url: string): Promise<{ bounds: unknown }> }
   camera: { set(pose: unknown): void }
   pixelError: number
-  renderer: string | null
   awaitPages(): Promise<void>
   diagnostic: { error: { message: string; details?: { cause?: unknown } } | null }
   render(): void
@@ -64,10 +63,8 @@ export interface EvaluatedInstalledPage {
     dpr: number
     pixelError: number
     camera: unknown
-    capabilities: unknown
     differentPixelsFromDirect?: number
   }
-  geometryUrl: string
   hierarchy: { world: number[]; parent: number }
   commonWorker: unknown
 }

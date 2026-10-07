@@ -1,6 +1,7 @@
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts'
 import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts'
 import { buildComputeStages } from '../../lighting/deferred/fullscreen.ts'
+import { DIFFERENCE_STAGES, KEEP_STAGES } from './shader/differenceWgsl.ts'
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
@@ -35,8 +36,9 @@ export async function createDagStages(
       'dagDrawScatter',
       'dagSortRequests',
       'dagListEvictions',
-      'dagCutDifference',
-      'dagCutKeep',
+      ...DIFFERENCE_STAGES,
+      ...KEEP_STAGES,
+      'dagRestoreJournal',
     ],
     constants,
   )
@@ -53,7 +55,10 @@ export async function createDagStages(
     drawScatterPipeline: stage.dagDrawScatter,
     requestSortPipeline: stage.dagSortRequests,
     evictPipeline: stage.dagListEvictions,
-    differencePipeline: stage.dagCutDifference,
-    keepPipeline: stage.dagCutKeep,
+    /** Each kept list's difference, then its keep (`shader/differenceWgsl.ts`). */
+    differencePipelines: DIFFERENCE_STAGES.map((name) => stage[name]),
+    keepPipelines: KEEP_STAGES.map((name) => stage[name]),
+    /** A view's saved journal written back with its draw flags (`shader/swapWgsl.ts`). */
+    restorePipeline: stage.dagRestoreJournal,
   }
 }

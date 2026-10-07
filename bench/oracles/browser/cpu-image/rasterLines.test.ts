@@ -1,14 +1,14 @@
-// The CPU software raster — the temporal Hi-Z depth and the oracles `rasterRgba` and
+// The CPU software raster — the oracles `rasterRgba` and
 // `visibilityIds` — draws a line quad as every GPU raster does, with the one formula
 // (`lineClip`, `visibility/shader/lineWgsl.ts`), `linewidth` in CSS pixels times the pixel ratio.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { triangleAt } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+import { triangleAt } from './projection.ts'
 import type { VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import { engineCamera } from '../../../../packages/sdk-browser/src/camera/camera.fixture.ts'
 import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
-import { lineDash } from '../../../../packages/sdk-browser/src/visibility/shader/lineWgsl.ts'
+import { lineDash } from './line.ts'
 import { identityRoots } from '../../../../packages/sdk-browser/src/page/selection/placements.fixture.ts'
 import { rasterVisibility } from './raster.ts'
 

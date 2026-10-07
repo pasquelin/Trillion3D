@@ -6,8 +6,6 @@ import { mockDagDevice } from './selection.fixture.ts'
 import { dagPageUrls } from './pack.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { gatedDag, kernelUniforms, packed } from './selectionHelpers.fixture.ts'
-import { primitiveWordAt } from './worlds.ts'
-import { SHADOWLESS_ROOT } from '../../visibility/shader/shadowlessRoot.ts'
 
 test("a shared command buffer is the caller's to submit, and abandoning it gives everything back", async () => {
   installGpuGlobals()
@@ -38,86 +36,32 @@ test("a shared command buffer is the caller's to submit, and abandoning it gives
   fixture.geometry.dispose()
 })
 
-test('unchanged uniforms skip a second GPU dispatch', async () => {
+/** The wide-camera DAG's GPU selection on a mock device with `faults`, and that device. */
+async function wideSelection(faults?: Parameters<typeof mockDagDevice>[1]) {
   installGpuGlobals()
   const fixture = dagFixture()
   const { dag, roots } = packed(fixture)
   const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const { device, uniformWrites } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
+  const gpu = mockDagDevice(dag, faults)
+  const selection = await createGpuDagSelection(gpu.device, dag)
   assert.ok(selection)
-  selection.dispatch(uniforms)
-  await selection.flush()
-  const afterFirst = uniformWrites()
-  selection.dispatch(uniforms)
-  await selection.flush()
-  assert.equal(uniformWrites(), afterFirst)
-  selection.dispose()
-  fixture.geometry.dispose()
-})
-
-/** A selection on the fixture, cut once under a wide camera: its four pages in hand. */
-async function cutOnce() {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag).device, dag)
-  assert.ok(selection)
-  selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4)
-  return { fixture, dag, uniforms, selection }
+  return { fixture, dag, uniforms, gpu, selection }
 }
 
-test('updating an instance world matrix leaves the old GPU cut one pose late', async () => {
-  const { fixture, dag, uniforms, selection } = await cutOnce()
-  const moved = dag.worlds.slice()
-  moved[12] = 1000
-  assert.equal(selection.updateWorlds(moved), true)
-  // Still what to stream, cut under the pose before: no image is held on it (`adoption.ts`).
-  assert.equal(selection.peek()?.result.pageIds.length, 4)
-  assert.notEqual(selection.peek()?.worldRevision, selection.worldRevision)
+test('unchanged uniforms skip a second GPU dispatch', async () => {
+  const { fixture, uniforms, gpu, selection } = await wideSelection()
   selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 0)
-  selection.dispose()
-  fixture.geometry.dispose()
-})
-
-test('a root mark written once per change reaches the frame word the cut reads', async () => {
-  // The mark a root changes reaches the kernel's `markOf` once, at the next cut.
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const { device, words } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag)
-  assert.ok(selection)
-  selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0))
   await selection.flush()
-  const at = primitiveWordAt(0) + 3
-  const earlier = words().length
-  for (const mark of [SHADOWLESS_ROOT, SHADOWLESS_ROOT, 0]) selection.markWorld(0, mark)
-  assert.deepEqual(words().slice(earlier), [], 'nothing sent before the next cut (CPU-15)')
-  assert.equal(dag.mark[0], 0)
-  assert.equal(selection.peek(), null, 'the cut in hand is void')
-  selection.markWorld(0, SHADOWLESS_ROOT)
-  selection.dispatch(kernelUniforms(dag, roots, wideCamera(), 0))
-  assert.deepEqual(
-    words().slice(earlier),
-    [[at, SHADOWLESS_ROOT]],
-    'the last word, once, at the next cut',
-  )
+  const afterFirst = gpu.uniformWrites()
+  selection.dispatch(uniforms)
+  await selection.flush()
+  assert.equal(gpu.uniformWrites(), afterFirst)
   selection.dispose()
   fixture.geometry.dispose()
 })
 
 test('the resident mask recomputes for residency changes with an unchanged camera', async () => {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const { device, uniformWrites } = mockDagDevice(dag)
-  const selection = await createGpuDagSelection(device, dag, { residentCut: true })
-  assert.ok(selection)
+  const { fixture, dag, uniforms, gpu, selection } = await wideSelection()
   const mask = () =>
     [
       ...new Uint32Array(
@@ -142,32 +86,30 @@ test('the resident mask recomputes for residency changes with an unchanged camer
     (await selection.flush())?.drawablePageIds?.map((id) => dag.pageUrlOf(id)).sort(),
     ['leaf0', 'leaf1', 'leaf2', 'leaf3'],
   )
-  assert.equal(uniformWrites(), 2)
+  assert.equal(gpu.uniformWrites(), 2)
   assert.deepEqual(mask(), ['leaf0', 'leaf1', 'leaf2', 'leaf3'])
   selection.dispose()
   fixture.geometry.dispose()
 })
 
-test('a failed readback marks GPU selection dead', async () => {
-  installGpuGlobals()
-  const fixture = dagFixture()
-  const { dag, roots } = packed(fixture)
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0)
-  const selection = await createGpuDagSelection(mockDagDevice(dag, { failMap: true }).device, dag)
-  assert.ok(selection)
+// #1483: a mapping the device refuses reads nothing, and the next dispatch copies the cut again; a
+// lost device says so on its own (`device.lost`), never a readback.
+test('a failed readback is read again at the next dispatch, the selection kept', async () => {
+  const { fixture, uniforms, gpu, selection } = await wideSelection({ failMap: true })
   selection.dispatch(uniforms)
   assert.equal(await selection.flush(), null)
-  assert.equal(selection.failed(), true)
-  assert.equal(selection.peek(), null)
+  assert.equal(selection.failed(), false, 'the selection stays')
+  assert.equal(selection.peek(), null, 'nothing read')
+  const copies = gpu.readbackCopies()
+  selection.dispatch(uniforms)
+  assert.equal(gpu.readbackCopies(), copies + 1, 'the same cut copied again')
   selection.dispose()
   fixture.geometry.dispose()
 })
 
 test('readback from an older resident cut cannot restore an invalidated drawable mask', async () => {
   const { release, fixture, dag, uniforms, device } = gatedDag()
-  const selection = await createGpuDagSelection(device, dag, {
-    residentCut: true,
-  })
+  const selection = await createGpuDagSelection(device, dag)
   assert.ok(selection)
   selection.updateResidency(
     Uint32Array.from(dagPageUrls(dag).map((url) => (url === 'root' ? 1 : 0))),
@@ -177,22 +119,6 @@ test('readback from an older resident cut cannot restore an invalidated drawable
   release()
   assert.equal(await selection.flush(), null)
   assert.equal(selection.peek(), null)
-  selection.dispose()
-  fixture.geometry.dispose()
-})
-
-test('worlds the GPU rewrote are cut again once announced, never under the last CPU write', async () => {
-  // A parent's turn composed on the GPU (`../../placement/gpuCompose.ts`) changes no CPU world.
-  const { fixture, dag, uniforms, selection } = await cutOnce()
-  const [range] = selection.worldRanges
-  const bytes = (range.buffer as unknown as { data: Uint8Array }).data
-  new Float32Array(bytes.buffer, bytes.byteOffset, range.count * 16)[12] = 1000
-  assert.equal(selection.updateWorlds(dag.worlds.slice()), false, 'no CPU world moved')
-  selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 4, 'unannounced: the stale cut')
-  selection.worldsMovedOnGpu()
-  selection.dispatch(uniforms)
-  assert.equal((await selection.flush())?.pageIds.length, 0, 'announced: the composed world')
   selection.dispose()
   fixture.geometry.dispose()
 })

@@ -10,13 +10,11 @@ export const reservoirs = ({
   maxPages,
   geometryPoolBytes,
   texturePoolBytes,
-  geometryPoolCeilingBytes,
   livePools,
 }: BenchSettings) => ({
   maxPages,
   geometryPoolBytes,
   texturePoolBytes,
-  geometryPoolCeilingBytes,
   livePools,
 })
 

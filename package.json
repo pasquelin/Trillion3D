@@ -1,11 +1,10 @@
 {
   "name": "trillion3d",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "Virtualized geometry and real-time rendering for the web: GPU-driven cluster culling, streaming under a fixed memory budget, temporal antialiasing and dynamic lighting.",
   "keywords": [
     "3d",
     "webgpu",
-    "webgl2",
     "rendering",
     "virtualized-geometry",
     "lod",
@@ -106,6 +105,7 @@
     "check:bundle-size": "node scripts/check-bundle-size.ts",
     "check:dts": "node scripts/rewrite-dts-extensions.ts --check",
     "check:no-js": "node scripts/check-no-js.ts",
+    "check:webgpu-only": "node scripts/check-webgpu-only.ts",
     "check:docs-bundles": "node scripts/docs/build.ts --untracked",
     "check:site-types": "tsc -p tsconfig.site.json --noEmit",
     "check:tools-types": "tsc -p tsconfig.tools.json --noEmit",

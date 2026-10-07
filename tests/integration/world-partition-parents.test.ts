@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts'
-import type { RenderBackend } from '../../packages/sdk-browser/src/backend/types.ts'
+import type { Engine } from '../../packages/sdk-browser/src/engine/types.ts'
 import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/graphObjects.ts'
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts'
 import { cellReach } from '../../packages/sdk-browser/src/partition/plan.ts'
@@ -24,7 +24,7 @@ import {
   primePartitions,
 } from '../../packages/sdk-browser/src/world/scene/partitionFrame.ts'
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts'
-import { cellRecords } from './world-partition-pages.fixture.ts'
+import { cellRecords } from './world-partition-follow.fixture.ts'
 
 const SHIFT = 5000
 
@@ -61,10 +61,10 @@ test(
       partitions: [cells],
       streamer,
       camera,
-      active: () =>
-        ({
-          updatePlacements: (rows) => void written.add(rows),
-        }) as Partial<RenderBackend> as RenderBackend,
+      engine: {
+        worldCut: () => undefined,
+        updatePlacements: (rows) => void written.add(rows),
+      } as Partial<Engine> as Engine,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
     })!
@@ -123,11 +123,12 @@ test(
       partitions: [cells],
       streamer,
       camera,
-      active: () =>
-        ({
-          updatePlacements() {},
-          growPlacements: () => void grown++,
-        }) as Partial<RenderBackend> as RenderBackend,
+      engine: {
+        worldCut: () => undefined,
+        updatePlacements() {},
+        growPlacements: () => void grown++,
+        growsInPlace: () => true,
+      } as Partial<Engine> as Engine,
       renew: () => void renewed++,
       budget: { admits: () => true, spend() {} },
     })!

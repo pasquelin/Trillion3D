@@ -5,8 +5,8 @@ import {
   type BoundSampler,
   type SampleInto,
 } from '../../../sdk-core/src/world/animation/mixer.ts'
-import type { SdkWasm } from '../page/decode/geometryPageWasm.ts'
-import { reserveArena, type Arena } from '../page/decode/wasmArena.ts'
+import type { SdkWasm } from './wasm/sdkWasm.ts'
+import { reserveArena, type Arena } from './wasm/wasmArena.ts'
 import { besideModule, startModuleWorker } from '../host/besideModule.ts'
 import {
   aheadFrame,
@@ -17,7 +17,7 @@ import {
   takeAhead,
   type AheadPort,
 } from './animationAhead.ts'
-import { joue } from './batchLot.ts'
+import { runTimed } from './batchLot.ts'
 import { loadMathBatch, mathBatchWasm } from './batchState.ts'
 
 /**
@@ -26,8 +26,8 @@ import { loadMathBatch, mathBatchWasm } from './batchState.ts'
  * search, line, spline and slerp of its clip at one time — into numbers its writes then read.
  * Its numbers are `sample`'s (`packages/sdk-core/src/world/animation/sample.ts`) bit for bit:
  * the same arithmetic in the same order, fdlibm's arc cosine and sine on both sides. The governor
- * picks the path by its timings (`joue`); the JavaScript one is the mixer's own `sample`, written
- * into the same numbers (`SampleInto`).
+ * picks the path by its timings (`runTimed`); the JavaScript one is the mixer's own `sample`,
+ * written into the same numbers (`SampleInto`).
  *
  * A clip's tracks are packed once into the module's memory, shared by the actions that play them:
  * per track `TRACK_WORDS` words — where its times start, its key count, where its values start,
@@ -92,7 +92,7 @@ function pack(wasm: SdkWasm, tracks: readonly Track[]): PackedClip | undefined {
       { type: 'f32', length: Math.max(1, dataLength) },
     ])
   if (!arena) return undefined
-  const [described, data] = arena.blocs().map((bloc) => bloc.view)
+  const [described, data] = arena.blocks().map((block) => block.view)
   const offsets = new Uint32Array(n)
   let at = 0,
     out = 0
@@ -133,15 +133,15 @@ function boundSampler(
     { type: 'f64', length: Math.max(1, outLength) },
   ])
   if (!state) return undefined
-  state.blocs()[1].view.fill(-1)
+  state.blocks()[1].view.fill(-1)
   const numbers = new Float64Array(Math.max(1, outLength))
   const handle = aheadHandle(clip, clip.tracks, outLength)
   let time = 0
-  const [tracks, data] = clip.arena.blocs().map((bloc) => bloc.offset),
-    [keys, arcs, out] = state.blocs().map((bloc) => bloc.offset)
+  const [tracks, data] = clip.arena.blocks().map((block) => block.offset),
+    [keys, arcs, out] = state.blocks().map((block) => block.offset)
   const wasmRun = () =>
       wasm.anim_sample_tracks(tracks, n, data, dataLength, keys, arcs, out, outLength, time),
-    jsRun = () => fallback(time, state.blocs()[2].view as Float64Array, offsets)
+    jsRun = () => fallback(time, state.blocks()[2].view as Float64Array, offsets)
   const bound = {
     offsets,
     at: 0,
@@ -150,10 +150,10 @@ function boundSampler(
       if (taken) return ((bound.at = handle.at), taken)
       bound.at = 0
       time = t
-      joue(ANIMATION_SAMPLE, n, wasmRun, jsRun)
+      runTimed(ANIMATION_SAMPLE, n, wasmRun, jsRun)
       // Copied out in one move: the writes then read an ordinary array, not the module's memory,
       // whose every read the engine checks against its growth.
-      return (numbers.set(state.blocs()[2].view as Float64Array), numbers)
+      return (numbers.set(state.blocks()[2].view as Float64Array), numbers)
     },
     ahead(t: number) {
       askAhead(handle, t)

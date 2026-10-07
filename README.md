@@ -2,12 +2,11 @@
 
 # Trillion3D
 
-### Virtualized geometry for the web — a native Rust compiler, a WebGPU/WebGL2 runtime in TypeScript, and a bench that proves every number.
+### Virtualized geometry for the web — a native Rust compiler, a WebGPU runtime in TypeScript, and a bench that proves every number.
 
 [![Rust](https://img.shields.io/badge/Rust-native%20compiler-2b2d30?logo=rust&logoColor=dea584)](packages/asset-compiler-rust)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-2b2d30?logo=typescript&logoColor=3178c6)](packages/sdk-core)
 [![WebGPU](https://img.shields.io/badge/WebGPU-page%20raster%20%2B%20compute-2b2d30?logo=webgpu&logoColor=6fa8dc)](#what-it-does)
-[![WebGL2](https://img.shields.io/badge/WebGL2-fallback-2b2d30?logo=webgl&logoColor=e06666)](#what-it-does)
 [![Node 22](https://img.shields.io/badge/Node-%E2%89%A522.18-2b2d30?logo=node.js&logoColor=6da95f)](#quick-start)
 [![pnpm](https://img.shields.io/badge/pnpm-workspace-2b2d30?logo=pnpm&logoColor=f69220)](#quick-start)
 [![Quality](https://github.com/pasquelin/Trillion3D/actions/workflows/quality.yml/badge.svg)](https://github.com/pasquelin/Trillion3D/actions/workflows/quality.yml)
@@ -29,25 +28,25 @@ tracing, bounded and unreadable GPU memory, one browser frame — from its own d
 measures itself against the numbers those engines publish. The geometry is the foundation; the
 lighting is what it is for.
 
-|   |   |
-|---|---|
-| **Fixed budgets** | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
-| **Residency by the frame** | what stays on the GPU is what the frame actually read, pages and texture tiles alike |
-| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them |
-| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed |
+|                              |                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| **Fixed budgets**            | memory in bytes and frame time in milliseconds are set, not discovered on the machine |
+| **Residency by the frame**   | what stays on the GPU is what the frame actually read, pages and texture tiles alike  |
+| **Compression at cook time** | the compiler pays once; the runtime decodes pages, it never recomputes them           |
+| **No work in a still scene** | a fixed camera redraws zero pages — measured, not assumed                             |
 
 ## What it does
 
-| Area | Scope |
-|---|---|
-| **Native compiler** | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes, a dozen image formats, read by its own drivers; a cluster DAG down to one root, each cluster carrying its screen error; streaming bundles; a bounded worker pool ([docs/COMPILER.md](docs/COMPILER.md)) |
-| **Cache** | SHA-addressed objects, validated before reuse; `formatVersion` separate from the compiler version ([docs/FORMAT.md](docs/FORMAT.md)) |
-| **WebGPU page raster** | the cut in compute, two-phase Hi-Z occlusion, a visibility buffer, deferred material shading, temporal antialiasing ([docs/ENGINE.md](docs/ENGINE.md)) |
-| **Textures** | virtual texturing: a bounded tile pool, residency driven by what the frame sampled |
-| **Lighting** | metallic-roughness microfacet shading, no fixed ambient term; sun and lamps through virtual shadow maps ([docs/SHADOWS.md](docs/SHADOWS.md)); per-tile light rejection |
-| **Memory** | fixed reservoirs for pages and tiles, adjustable in session without losing residency ([docs/RESIDENCY.md](docs/RESIDENCY.md)) |
-| **Fallbacks** | WebGPU pages when the machine grants a device, WebGL2 pages otherwise; a forced renderer the machine lacks is refused by name, never swapped |
-| **Physics** | Jolt in a worker, every body an ordinary mesh ([docs/PHYSICS.md](docs/PHYSICS.md)) |
+| Area                   | Scope                                                                                                                                                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Native compiler**    | glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII and Unity scenes, a dozen image formats, read by its own drivers; a cluster DAG down to one root, each cluster carrying its screen error; streaming bundles; a bounded worker pool ([docs/COMPILER.md](docs/COMPILER.md)) |
+| **Cache**              | SHA-addressed objects, validated before reuse; `formatVersion` separate from the compiler version ([docs/FORMAT.md](docs/FORMAT.md))                                                                                                                                                  |
+| **WebGPU page raster** | the cut in compute, two-phase Hi-Z occlusion, a visibility buffer, deferred material shading, temporal antialiasing ([docs/ENGINE.md](docs/ENGINE.md))                                                                                                                                |
+| **Textures**           | virtual texturing: a bounded tile pool, residency driven by what the frame sampled                                                                                                                                                                                                    |
+| **Lighting**           | metallic-roughness microfacet shading, no fixed ambient term; sun and lamps through virtual shadow maps ([docs/SHADOWS.md](docs/SHADOWS.md)); per-tile light rejection                                                                                                                |
+| **Memory**             | fixed reservoirs for pages and tiles, adjustable in session without losing residency ([docs/RESIDENCY.md](docs/RESIDENCY.md))                                                                                                                                                         |
+| **Device**             | WebGPU only: a machine that grants no device is refused by name (`WEBGPU_UNAVAILABLE`), never degraded                                                                                                                                                                                |
+| **Physics**            | Jolt in a worker, every body an ordinary mesh ([docs/PHYSICS.md](docs/PHYSICS.md))                                                                                                                                                                                                    |
 
 ## Quick start
 
@@ -67,20 +66,20 @@ the portal's [Install page](https://www.trillion3d.com/#/en/learn/install) shows
 supported platforms and the server headers.
 
 ```js
-import { createWorld, object, geometry, material, light } from 'trillion3d';
+import { createWorld, object, geometry, material, light } from 'trillion3d'
 
-const world = createWorld('viewer'); // a canvas element, or its id
+const world = createWorld('viewer') // a canvas element, or its id
 
-const ball = object.mesh(geometry.sphere(1), material.meshStandard({ color: 0x8899aa }));
-world.scene.add(ball);
-world.scene.add(light.directional({ intensity: 3, position: [5, 10, 2] }));
+const ball = object.mesh(geometry.sphere(1), material.meshStandard({ color: 0x8899aa }))
+world.scene.add(ball)
+world.scene.add(light.directional({ intensity: 3, position: [5, 10, 2] }))
 
-await world.scene.load('assets/city/manifest.json'); // a compiled model, added like anything else
+await world.scene.load('assets/city/manifest.json') // a compiled model, added like anything else
 
 world.onFrame(({ delta }) => {
-  ball.rotation.y += delta;
-  world.invalidate();
-});
+  ball.rotation.y += delta
+  world.invalidate()
+})
 ```
 
 The world owns the scene, the camera, the renderer and the loop, and pauses once the image is
@@ -99,8 +98,9 @@ Without a bundler, a page imports the browser entry built as one module, `trilli
 (`dist/trillion3d.module.js`), with its workers, WebAssembly modules and source map beside it. A
 CDN serving the package's files (jsDelivr, unpkg) needs one `importmap` line; the workers start
 across origins. Each optional family — physics, particles, WebGPU transmission and deformation, the
-effect chain, guides, diagnostic views — is a chunk of its own, fetched with the scene that uses it
-before any frame is drawn; a plain scene fetches none.
+effect chain, guides, diagnostic views, the CPU page decoder of `page.decode` — is a chunk of its
+own, fetched with the scene or the call that uses it before any frame is drawn; a plain scene
+fetches none.
 
 ```html
 <script type="importmap">
@@ -109,7 +109,7 @@ before any frame is drawn; a plain scene fetches none.
   }
 </script>
 <script type="module">
-  import { createWorld } from 'trillion3d';
+  import { createWorld } from 'trillion3d'
 </script>
 ```
 
@@ -125,7 +125,7 @@ Node adapter → Native Rust compiler
           Versioned manifest + cached pages
                       │
                       ▼
-              Browser adapter (WebGPU page raster · WebGL2 fallbacks)
+              Browser adapter (WebGPU page raster)
                       │
                       ▼
              Host-owned canvas
@@ -138,7 +138,7 @@ What each package owns: [packages/README.md](packages/README.md).
 ## Measuring
 
 Frame time is measured on the GPU bench, which draws a site page in Node on the machine's GPU
-through Dawn; a Chrome harness serves the WebGL2 proofs and pits the engine against two witnesses,
+through Dawn; a Chrome harness serves the material proof and pits the engine against two witnesses,
 bare Three.js and Three.js with a three-level `THREE.LOD`. Both, and the published reports:
 [bench/runner/README.md](bench/runner/README.md); the measurement rules:
 [CONTRIBUTING.md](CONTRIBUTING.md#measure-before-optimising).
@@ -162,8 +162,8 @@ documentation, the code and its identifiers are in English.
   it names; non-triangle primitives and non-standard glTF extensions are unsupported. A world built
   in code (`geometry`, `material`, `object`, `light`) does not go through the compiler.
 - Specular environment-map IBL is not implemented; a lost device is recovered without reloading the
-  page (`gpu-device-recovered`); a missing visibility-buffer format falls back to the untextured
-  page raster with Hi-Z off.
+  page (`gpu-device-recovered`); a device without the visibility buffer's formats or compute
+  stage refuses the scene by name (`WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE`).
 - Physics threads need a cross-origin isolated page (COOP/COEP); without it the physics runs on one
   worker, silently.
 - No N-API binding of the compiler, published package or signed native distribution yet; only

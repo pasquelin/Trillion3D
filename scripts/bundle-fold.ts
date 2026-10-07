@@ -6,16 +6,11 @@ import type { Plugin } from 'esbuild'
 /** The CDN bundle's chunks, each named after the module it holds: `trillion3d-<module>-<hash>.js`. */
 export const CHUNK_PREFIX = 'trillion3d-'
 
-/** The modules that stay chunks of their own in the CDN bundle, fetched on first use: the optional
- *  families, each one module (`sdk-browser/src/host/families.ts`) — a family of several would
- *  share code with the core in as many more chunks. Physics, whose session starts its worker and
- *  its WebAssembly; particles; WebGPU transmission, glass and water; WebGPU
- *  deformation; the effect chain; the guides; the diagnostic views; the measurement's build
- *  provenance and comparison compositor; the world pages' server; the impostor draw. A scene that uses none of them
- *  fetches none. */
+/** The optional families (`sdk-browser/src/host/families.ts`), each one module that stays a chunk
+ *  of its own in the CDN bundle, fetched on first use: a family of several modules would share code
+ *  with the core in as many more chunks. A scene that uses none of them fetches none. */
 export const FAMILY_MODULES = {
   webgpu: ['sdk-browser/src/webgpu/pages/webgpuCode.js'],
-  webgl2: ['sdk-browser/src/backend/autonomous/webglCode.js'],
   physics: ['sdk-browser/src/physics/session/session.js'],
   particles: ['sdk-browser/src/particles/particleCode.js'],
   transmission: ['sdk-browser/src/webgpu/water/transmissionCode.js'],
@@ -26,6 +21,7 @@ export const FAMILY_MODULES = {
   measurement: ['sdk-browser/src/measurement/measurementCode.js'],
   worldStream: ['sdk-browser/src/scene/worldPageServe.js'],
   impostors: ['sdk-browser/src/impostor/impostorCode.js'],
+  pageCodec: ['sdk-browser/src/page/codec/geometryPage.js'],
 }
 export type Family = keyof typeof FAMILY_MODULES
 

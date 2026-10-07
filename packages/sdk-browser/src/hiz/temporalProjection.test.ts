@@ -1,21 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
-import {
-  BOX_CORNER_VALUES,
-  pageCornersInto,
-  applyTemporalHiz,
-  type HizPage,
-  type TemporalHizState,
-} from './hiz.ts'
-import { splitOccludersInto } from './split.ts'
-import { rankByDepth } from './depthRank.ts'
+import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from './hiz.ts'
+import { splitOccludersInto } from './split.fixture.ts'
+import { rankByDepth } from './depthRank.fixture.ts'
 import { projectCornersInto, HIZ_BOUNDS_VALUES } from './corners.ts'
-import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts'
+import { projectBoxToScreen } from '../../../../tests/fixtures/hiz.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import { locatedBy } from '../page/selection/placements.fixture.ts'
-import type { Placements } from '../page/selection/placements.ts'
-import { projectBoxesFlat } from './projection.ts'
+import { projectBoxesFlat } from './projection.fixture.ts'
 
 test('flat projection and split reproduce the object forms to the bit, including depth ties', () => {
   let seed = 12345
@@ -86,34 +79,4 @@ test('flat projection and split reproduce the object forms to the bit, including
   // The pages split as the flat rectangles rank: the nearest half, then the rest in rank order.
   const split = [...referenceOccluders, ...referenceRest].map((page) => page.tag)
   assert.deepEqual(split.slice(0, inFront), ranked)
-})
-
-test('temporal Hi-Z keeps or rejects each placement of a shared record on its own', () => {
-  const wallMat = G.basicSurface({ color: 0xff0000 })
-  const propMat = G.basicSurface({ color: 0x00ff00 })
-  const wall = quad(wallMat, [-1, -1, 0], [1, 1, 0], 'wall')
-  const prop = quad(propMat, [-0.2, -0.2, 0], [0.2, 0.2, 0], 'prop')
-  const back = quad(propMat, [-0.3, -0.3, -3], [0.3, 0.3, -3], 'back')
-  // One record, two placements: one before the wall, one hidden behind it. A second page hidden
-  // behind the wall keeps the history's split from falling back to depth order.
-  const roots = [
-    { world: new G.Matrix4() },
-    { world: new G.Matrix4().makeTranslation(0, 0, 1) },
-    { world: new G.Matrix4().makeTranslation(0, 0, -2) },
-    { world: new G.Matrix4() },
-  ] as unknown as Placements
-  const selected = [wall.page, prop.page, prop.page, back.page],
-    locations = locatedBy(roots),
-    cam = engineCamera(cameraAt(5)),
-    size: [number, number] = [32, 32],
-    history: TemporalHizState = {}
-  const first = applyTemporalHiz(selected, locations, cam, size, history)
-  assert.deepEqual([...first.shownPacked].sort(), [0, 1])
-  // The same view again: the history keeps the front placement, never the hidden one with it.
-  const second = applyTemporalHiz(selected, locations, cam, size, history)
-  assert.deepEqual([...second.shownPacked].sort(), [0, 1], 'the hidden placement stays culled')
-  assert.equal(second.hizRejected, 2)
-  for (const made of [wall, prop, back]) made.geometry.dispose()
-  wallMat.dispose()
-  propMat.dispose()
 })

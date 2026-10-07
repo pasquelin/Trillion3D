@@ -57,7 +57,7 @@ test('the recording encoder and the mock GPU refuse it where they encode', () =>
   pass.setPipeline({ entryPoint: 'k' } as unknown as GPUComputePipeline)
   pass.setBindGroup(0, group(other, args) as unknown as GPUBindGroup)
   assert.throws(() => pass.dispatchWorkgroupsIndirect(args as GPUBuffer, 0), REFUSED)
-  const { device } = mockGpu({ compute: true })
+  const { device } = mockGpu()
   const buffer = device.createBuffer({ label: 'args', size: 64, usage: 0x180 })
   const bound = { layout, entries: [{ binding: 2, resource: { buffer } }] }
   const mock = device.createCommandEncoder().beginComputePass()
@@ -87,7 +87,7 @@ test('a group set with other dynamic offsets than its layout’s dynamic buffers
   // The recording encoder and the mock GPU check it where they encode.
   const pass = recordingEncoder().encoder.beginComputePass()
   assert.throws(() => pass.setBindGroup(0, { layout } as unknown as GPUBindGroup, [0]))
-  const mock = mockGpu({ compute: true }).device.createCommandEncoder().beginComputePass()
+  const mock = mockGpu().device.createCommandEncoder().beginComputePass()
   assert.throws(() => mock.setBindGroup(0, { layout } as unknown as GPUBindGroup, [0]))
 })
 

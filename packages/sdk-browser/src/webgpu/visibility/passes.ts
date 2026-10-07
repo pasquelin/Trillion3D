@@ -6,6 +6,7 @@ import type { ComputeRasterStages } from '../pages/render/encodeVisSetup.ts'
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts'
 import { HIZ_PASS } from '../../stage/passLabels.ts'
 import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
+import { prepared } from '../pages/state/prepared.ts'
 
 /** The occlusion step's compute pass, opened by the first of its kernels that dispatches. */
 const hizPass = new LazyComputePass(HIZ_PASS)
@@ -30,14 +31,14 @@ const hizPass = new LazyComputePass(HIZ_PASS)
 function encodeHizMidFrame(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: GPUCommandEncoder) {
   const { vis } = rt,
     { rows } = rt.layout,
-    { gpuHiz } = vis
-  if (!gpuHiz) return false
+    gpuHiz = prepared(vis, 'gpuHiz'),
+    gpuDraw = prepared(vis, 'gpuDraw')
   const pass = hizPass.begin(encoder)
   gpuHiz.encodePyramid(pass)
   rt.run.hizPyramidFresh = true
   // The test reads each row's Hi-Z slot in the page table: without one, no row was drawn.
   // Its rejects are counted on the partition's counting frame, into the partition's counters.
-  const counting = !!vis.gpuPartition?.counting
+  const counting = prepared(vis, 'gpuPartition').counting
   if (vis.pageTable) gpuHiz.encodeTest(device, pass, rows.packedCount, vis.pageTable, counting)
   // The verdict exists now: the rejected rows leave the tested half, the survivors keeping their
   // order, before the second pass launches their vertices. They placed no pixel: the image does
@@ -45,12 +46,11 @@ function encodeHizMidFrame(rt: WebgpuPagesRuntime, device: GPUDevice, encoder: G
   const compacted =
     !!vis.gpuRestCompact &&
     !!vis.pageTable &&
-    !!vis.gpuDraw &&
     vis.gpuRestCompact.encode(
       pass,
       restSlotCount(vis.drawLayerSlots),
       // A slot lists a row's batches, up to `perRow` instances each: every one is read.
-      rows.packedCount * vis.gpuDraw.perRow,
+      rows.packedCount * gpuDraw.perRow,
       vis.pageTable,
     )
   pass.end()
@@ -68,11 +68,10 @@ export function encodeWebgpuVisibilityPasses(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   twoPass: boolean,
-  useIndirect: boolean,
   compute: ComputeRasterStages,
 ) {
   const { vis, gpu } = rt,
-    { gpuHiz } = vis,
+    gpuHiz = prepared(vis, 'gpuHiz'),
     idsView = vis.visView!,
     depthTarget = gpu.depthView!,
     [width, height] = gpu.targetSize
@@ -83,14 +82,13 @@ export function encodeWebgpuVisibilityPasses(
       storeOp: 'store'
       clearValue?: GPUColor
     } = { view: idsView, loadOp, storeOp: 'store', clearValue: { r: 0, g: 0, b: 0, a: 1 } }
-    if (!gpuHiz) return [ids]
     return [
       ids,
       {
-        // Level 0 of the pyramid is a DEPTH: its clear is the far plane, not 1. In reversed Z,
-        // clearing it to 1 filled every uncovered texel with the near plane, and the min reduction
-        // then yielded 1 over a whole background block — enough to reject any page that projects
-        // there. Those are the holes, by the thousands of pixels.
+        // Level 0 of the pyramid is a DEPTH: its clear is the far plane, not 1. In reversed Z, a
+        // clear to 1 would fill every uncovered texel with the near plane, and the min reduction
+        // would yield 1 over a whole background block — enough to reject any page that projects
+        // there, holes by the thousands of pixels.
         view: gpuHiz.level0View,
         loadOp,
         storeOp: 'store' as const,
@@ -109,24 +107,23 @@ export function encodeWebgpuVisibilityPasses(
     },
   })
   visPass.setViewport(0, 0, width, height, 0, 1)
-  drawVis(rt, device, visPass, false, useIndirect)
+  drawVis(rt, device, visPass, false)
   // The impostor cards occlude as their meshes would: in the depth and the pyramid built next.
-  rt.gpu.impostorCode?.drawImpostorVisibility(rt, device, visPass, !!gpuHiz)
+  rt.gpu.impostorCode?.drawImpostorVisibility(rt, device, visPass, true)
   visPass.end()
   compute?.occluders(encoder)
   rt.run.hizPyramidFresh = false
-  const tested = twoPass && !!gpuHiz
-  const compacted = tested && encodeHizMidFrame(rt, device, encoder)
+  const compacted = twoPass && encodeHizMidFrame(rt, device, encoder)
   // The only diagnostic variant that touches encoded commands: it leaves the tested half out of
   // the image to weigh the occluders alone, and therefore yields an incomplete image.
-  if (tested && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
+  if (twoPass && !skipsSecondaryPass(rt.context?.diagnosticGpuVariant)) {
     const restPass = encoder.beginRenderPass({
       label: 'Trillion3D visibility secondary',
       colorAttachments: visColors('load'),
       depthStencilAttachment: { view: depthTarget, depthLoadOp: 'load', depthStoreOp: 'store' },
     })
     restPass.setViewport(0, 0, width, height, 0, 1)
-    drawVis(rt, device, restPass, true, useIndirect, compacted)
+    drawVis(rt, device, restPass, true, compacted)
     restPass.end()
     compute?.rest(encoder)
   }

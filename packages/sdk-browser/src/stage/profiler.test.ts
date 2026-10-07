@@ -79,7 +79,7 @@ test('setReason fills the reason only for the column that stayed unmeasured', ()
 })
 
 test('setCounts attaches counters to the stage, on top of the durations', () => {
-  const profiler = createStageProfiler({ backend: 'webgl2', stages: ['shadows'], gpuMethod: null })
+  const profiler = createStageProfiler({ backend: 'webgpu', stages: ['shadows'], gpuMethod: null })
   profiler.setCounts('shadows', { facesRedrawn: 12 })
   assert.deepEqual(profiler.profile().stages[0].counts, { facesRedrawn: 12 })
 })
@@ -93,8 +93,8 @@ test('setGpuMethod changes the method and reason the profile publishes', () => {
 })
 
 test('negative or non-finite durations are ignored, never deposited as a zero', () => {
-  const profiler = createStageProfiler({ backend: 'webgl2', stages: ['frame'], gpuMethod: null })
-  profiler.frameCpu((add) => add('frame', -1))
+  const profiler = createStageProfiler({ backend: 'webgpu', stages: ['geometry'], gpuMethod: null })
+  profiler.frameCpu((add) => add('geometry', -1))
   profiler.pushImageGpu(NaN)
   const profile = profiler.profile()
   assert.equal(profile.stages[0].cpuMs, null)

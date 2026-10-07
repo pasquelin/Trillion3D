@@ -3,7 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { refreshWebgpuMaterials } from './refreshMaterials.ts'
 import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts'
@@ -19,7 +19,7 @@ test('a blended surface rewritten in place reaches its item record at the values
   fixture.metadata.primitives[0].pass = 'shared-blend'
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -52,7 +52,7 @@ test('an opaque surface turned masked cuts every row of its material', async () 
   installGpuGlobals()
   const fixture = quadScene(),
     { device, buffers } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
@@ -76,7 +76,7 @@ test('an opaque surface turned masked cuts every row of its material', async () 
     backend.refreshMaterials?.(true, { surfaces: [fixture.material], from: 'opaque', to: 'mask' })
     // The masked class is asked at the next frame entry, the image held until it compiled.
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     assert.equal(masked(), true, 'every row of the material cuts at its cutoff')
   } finally {
     backend.dispose()

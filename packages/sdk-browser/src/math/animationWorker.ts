@@ -18,7 +18,7 @@ import { loadMathBatch, mathBatchWasm } from './batchState.ts'
  * for it, in order.
  *
  * A dedicated worker's scope is not typed by the repository's DOM library; the minimal shape
- * this file needs is declared here, as `pageDecodeWorker.ts` does.
+ * this file needs is declared here, as `pageWorker.ts` does.
  */
 type AnimationWorkerScope = {
   onmessage: ((event: { data: unknown }) => void) | null

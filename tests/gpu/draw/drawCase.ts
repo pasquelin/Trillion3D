@@ -63,6 +63,12 @@ export async function runCase(
     const render = encoder.beginRenderPass({
       colorAttachments: [
         { view: vis.views[slot], clearValue: [0, 0, 0, 0], loadOp: 'clear', storeOp: 'store' },
+        {
+          view: vis.levelViews[slot],
+          clearValue: [0, 0, 0, 0],
+          loadOp: 'clear',
+          storeOp: 'discard',
+        },
       ],
     })
     render.setPipeline(vis.pipelines[slot >= slots / 2 && slot < slots ? 1 : 0])

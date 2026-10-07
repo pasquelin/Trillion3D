@@ -5,13 +5,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import {
-  pipelinesCompiling,
-  pipelinesSettled,
   preparedComputePipeline,
   preparedPipeline,
   preparedPipelines,
   started,
 } from './fullscreen.ts'
+import { pipelinesCompiling, pipelinesSettled } from './compileLedger.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { gatedDevice } from './gatedDevice.fixture.ts'
 

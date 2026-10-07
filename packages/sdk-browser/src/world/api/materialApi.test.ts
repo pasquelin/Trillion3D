@@ -81,7 +81,4 @@ test('setMaterial refuses by name what it cannot apply to this material alone', 
   assert.throws(() => api.setMaterial('0', { tiling: [0, 1] }), refusal('INVALID_MATERIAL'))
   assert.throws(() => api.setMaterial('1', { tiling: [2, 2] }), refusal('INVALID_MATERIAL'))
   assert.throws(() => api.setMaterial('2', { tiling: [2, 2] }), refusal('MATERIAL_TEXTURE_SHARED'))
-  const { api: fixed } = await scene(false)
-  assert.throws(() => fixed.setMaterial('0', { roughness: 0 }), refusal('UNSUPPORTED_SCENE_UPDATE'))
-  assert.equal(fixed.material('0').roughness, 1)
 })

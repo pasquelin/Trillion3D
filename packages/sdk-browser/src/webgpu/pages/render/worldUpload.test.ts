@@ -1,5 +1,5 @@
-// A pose the host wrote rewrites the table whichever cut draws the image: without the GPU
-// cut — the CPU fallback — the rows take the new world.
+// A pose the host wrote rewrites the table: with a GPU selection, when its worlds changed; with
+// none — a scene with no selection roots — the rows take the new world.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { uploadWorlds } from './worldUpload.ts'
@@ -10,6 +10,8 @@ import type { EngineCamera } from '../../../camera/world.ts'
 function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) {
   return {
     setup: { worlds: {} },
+    // No deformation: a host walk has no staleness to forget (`deformation/frame.ts`).
+    vis: {},
     layout: { selectionRoots: [], worldUpdates: new Float32Array(16), rows: { tableEpoch: 1 } },
     timing: { worldCounts: { rootsRebased: 0 } },
     blendState: { blendGpu: [] },
@@ -20,18 +22,17 @@ function image(walked: boolean, gpuSelection?: { updateWorlds: () => boolean }) 
       worldUploadOrigin: new Float64Array(3),
       gpuSelection,
       noOccluderHistory: false,
-      temporalHizState: {},
     },
   } as unknown as WebgpuPagesRuntime
 }
 
 const cam = { eye: [0, 0, 0] } as unknown as EngineCamera
 
-test('a host pose rewrites every row on the CPU cut as on the GPU cut, and only a host pose', () => {
-  const cpu = image(true)
-  assert.equal(uploadWorlds(cpu, cam), true)
-  assert.equal(cpu.layout.rows.tableEpoch, 2, 'the CPU fallback rewrites the table')
-  assert.equal(cpu.run.noOccluderHistory, true)
+test('a host pose rewrites every row, with or without a GPU selection, and only a host pose', () => {
+  const bare = image(true)
+  assert.equal(uploadWorlds(bare, cam), true)
+  assert.equal(bare.layout.rows.tableEpoch, 2, 'a scene with no GPU selection rewrites the table')
+  assert.equal(bare.run.noOccluderHistory, true)
   const gpu = image(true, { updateWorlds: () => true })
   uploadWorlds(gpu, cam)
   assert.equal(gpu.layout.rows.tableEpoch, 2, 'the GPU cut too')
@@ -46,10 +47,10 @@ test('a host pose rewrites every row on the CPU cut as on the GPU cut, and only 
 // A light dimmed during a camera flight is a host write, and the worlds brought back to the
 // moving eye all differ from the last ones sent: the cut finds them changed though no pose moved.
 // Every row rewritten each image of the flight cost the page table and its row buffers whole.
-for (const cut of ['GPU', 'CPU'] as const)
-  test(`a host write while the eye moves keeps the table unless a pose moved — ${cut} cut`, () => {
+for (const kind of ['GPU selection', 'no selection'] as const)
+  test(`a host write while the eye moves keeps the table unless a pose moved — ${kind}`, () => {
     const world = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1])
-    const rt = image(true, cut === 'GPU' ? { updateWorlds: () => true } : undefined)
+    const rt = image(true, kind === 'GPU selection' ? { updateWorlds: () => true } : undefined)
     Object.assign(rt.layout, { selectionRoots: [{ world: { elements: world }, pages: [] }] })
     const { revisions } = rt.run.gate,
       rows = rt.layout.rows,

@@ -37,7 +37,7 @@ import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/cor
 import { vsmBufferEntry, vsmComputePipe } from './passKit.ts'
 import { ceilDiv, roundUpPow2, type VsmLayout } from './layout.ts'
 import { storageBufferCap } from '../residency/pools.ts'
-import { PORTABLE_TEXTURE_SIDE } from '../frame/referenceTilePlacement.ts'
+import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { createVsmReadbackRing } from './readbackRing.ts'
 import { vsmWriteChanged } from './writeChanged.ts'
 import { shadowPageEntries } from '../webgpu/shadow/pageGroup.ts'
@@ -157,7 +157,7 @@ export function vsmTransmissionMostCaps(
   layout: VsmLayout,
   limits?: Parameters<typeof storageBufferCap>[0] & { maxTextureDimension2D?: number },
 ) {
-  const side = limits?.maxTextureDimension2D ?? PORTABLE_TEXTURE_SIDE
+  const { side } = textureLimits(limits)
   return {
     blocks: (side - headerRows(layout.poolPages)) * VSM_TRANSMISSION_BLOCKS_A_ROW,
     buildWords: Math.floor(storageBufferCap(limits) / 4),
@@ -196,15 +196,9 @@ function vsmTransmissionWanted(
   return same ? undefined : next
 }
 
-/** The transmission of `caps` for `layout`; one `grownFrom` a smaller one of that layout keeps
- *  its draw context, which depends on the layout alone. */
-export function createVsmTransmission(
-  device: GPUDevice,
-  layout: VsmLayout,
-  caps = vsmTransmissionFirstCaps(layout.poolPages),
-  grownFrom?: VsmTransmission,
-): VsmTransmission {
-  const pages = layout.poolPages
+/** The transmission's buffers for `caps`: its slice table, every slice none; its block pool, every
+ *  block free; the links, the build, the indirect arguments and the frame's uniform. */
+function transmissionBuffers(device: GPUDevice, pages: number, caps: VsmTransmissionCaps) {
   const storage = (label: string, bytes: number, extra = 0) =>
     device.createBuffer({
       label: `vsm.transmission.${label}`,
@@ -235,21 +229,50 @@ export function createVsmTransmission(
     size: VSM_TRANSMISSION_UNIFORM_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
+  return { table, pool, links, build, args, uniform }
+}
+
+/** The transmission's memory of `blocks` blocks for `layout`, every page header none: a page no
+ *  slice was resolved for reads no block. */
+function transmissionMemory(device: GPUDevice, layout: VsmLayout, blocks: number) {
   const memory = device.createTexture(
     vsmTransmissionMemoryDescriptor(
       layout,
-      caps.blocks,
+      blocks,
       GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
     ),
   )
-  // Every page header none: a page no slice was resolved for reads no block.
-  const rows = headerRows(pages)
+  const rows = headerRows(layout.poolPages)
   device.queue.writeTexture(
     { texture: memory },
     new Uint32Array(4 * VSM_TRANSMISSION_WIDTH * rows).fill(VSM_TRANSMISSION_NONE),
     { bytesPerRow: 16 * VSM_TRANSMISSION_WIDTH, rowsPerImage: rows },
     [VSM_TRANSMISSION_WIDTH, rows],
   )
+  return memory
+}
+
+/** Takes the counters a frame read back into `trans`: the blocks it lacked, and the capacities
+ *  that would have held it, unless it is capped. */
+function takeCounters(trans: VsmTransmission, mapped: ArrayBuffer) {
+  const counters = new Uint32Array(mapped)
+  trans.full = counters[VSM_TRANSMISSION_COUNTERS.full]
+  if (trans.capped) return
+  const wanted = vsmTransmissionWanted(trans.wanted ?? trans.caps, counters)
+  if (wanted) trans.wanted = wanted
+}
+
+/** The transmission of `caps` for `layout`; one `grownFrom` a smaller one of that layout keeps
+ *  its draw context, which depends on the layout alone. */
+export function createVsmTransmission(
+  device: GPUDevice,
+  layout: VsmLayout,
+  caps = vsmTransmissionFirstCaps(layout.poolPages),
+  grownFrom?: VsmTransmission,
+): VsmTransmission {
+  const buffers = transmissionBuffers(device, layout.poolPages, caps),
+    { build } = buffers
+  const memory = transmissionMemory(device, layout, caps.blocks)
   // The counters, read back a few frames late.
   const feedback = createVsmReadbackRing(
     device,
@@ -259,23 +282,12 @@ export function createVsmTransmission(
       count: 2,
       eager: true,
     },
-    (mapped) => {
-      const counters = new Uint32Array(mapped)
-      trans.full = counters[VSM_TRANSMISSION_COUNTERS.full]
-      if (trans.capped) return
-      const wanted = vsmTransmissionWanted(trans.wanted ?? trans.caps, counters)
-      if (wanted) trans.wanted = wanted
-    },
+    (mapped) => takeCounters(trans, mapped),
   )
   const trans: VsmTransmission = {
     layout,
     caps,
-    table,
-    pool,
-    links,
-    build,
-    args,
-    uniform,
+    ...buffers,
     memory,
     view: memory.createView({ dimension: '2d-array' }),
     storageView: memory.createView({ dimension: '2d' }),
@@ -290,7 +302,7 @@ export function createVsmTransmission(
     bytes: vsmTransmissionBytes(layout, caps),
     destroy() {
       feedback.destroy()
-      for (const buffer of [table, pool, links, build, args, uniform]) buffer.destroy()
+      for (const buffer of Object.values(buffers)) buffer.destroy()
       memory.destroy()
     },
   }
@@ -352,19 +364,12 @@ export function releaseVsmTransmission(trans: VsmTransmission) {
   contexts.delete(trans)
 }
 
-/** The transmission's compute pipes of `layout` (`vsmComputePipe`: prepared, shared a device and
- *  text), with the group layouts their kernels bind. */
-function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
+/** The group layout entries the transmission's kernels bind over `layout`, one table a kernel —
+ *  the resolve's shared by its two entry points. */
+function transmissionGroupTables(layout: VsmLayout) {
   const C = GPUShaderStage.COMPUTE
   const buf = (binding: number, type: GPUBufferBindingType) => vsmBufferEntry(binding, C, type)
-  const pipe = (name: string, code: string, entry: string, groups: GPUBindGroupLayoutEntry[][]) =>
-    vsmComputePipe(device, `vsm.transmission.${name}`, code, entry, groups)
-  const clear = pipe('clear', vsmTransmissionClearWgsl(layout), 'vsmTransmissionClear', [
-    vsmBindGroupLayoutEntries(VSM_TRANSMISSION_CLEAR_SPECS, layout, C),
-    [buf(0, 'uniform'), buf(1, 'storage'), buf(2, 'storage'), buf(3, 'storage'), buf(4, 'storage')],
-  ])
-  const resolveCode = vsmTransmissionResolveWgsl(layout)
-  const resolveGroups = [
+  const resolve = [
     [
       buf(0, 'uniform'),
       ...[1, 2, 3, 4].map((b) => buf(b, 'storage')),
@@ -376,8 +381,17 @@ function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
     ],
   ]
   return {
-    clear,
-    candidates: pipe('candidates', vsmTransmissionCandidatesWgsl(), 'vsmTransmissionCandidates', [
+    clear: [
+      vsmBindGroupLayoutEntries(VSM_TRANSMISSION_CLEAR_SPECS, layout, C),
+      [
+        buf(0, 'uniform'),
+        buf(1, 'storage'),
+        buf(2, 'storage'),
+        buf(3, 'storage'),
+        buf(4, 'storage'),
+      ],
+    ],
+    candidates: [
       [
         vsmRenderParamsEntry(0),
         ...[1, 2, 3, 4].map((b) => buf(b, 'read-only-storage')),
@@ -385,8 +399,8 @@ function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
         buf(6, 'storage'),
         buf(7, 'uniform'),
       ],
-    ]),
-    pages: pipe('pages', vsmTransmissionPagesWgsl(layout), 'vsmTransmissionPages', [
+    ],
+    pages: [
       vsmBindGroupLayoutEntries(VSM_TRANSMISSION_PAGES_SPECS, layout, C),
       [
         vsmRenderParamsEntry(0),
@@ -396,8 +410,8 @@ function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
         buf(4, 'read-only-storage'),
         buf(5, 'uniform'),
       ],
-    ]),
-    bin: pipe('bin', vsmTransmissionBinWgsl(layout), 'vsmTransmissionBin', [
+    ],
+    bin: [
       shadowPageEntries(),
       [
         buf(0, 'read-only-storage'),
@@ -405,15 +419,39 @@ function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
         buf(2, 'uniform'),
         buf(3, 'storage'),
       ],
-    ]),
-    number: pipe('number', vsmTransmissionNumberWgsl(layout), 'vsmTransmissionNumber', [
-      [buf(0, 'uniform'), buf(1, 'storage'), buf(2, 'storage')],
-    ]),
-    place: pipe('place', vsmTransmissionPlaceWgsl(layout), 'vsmTransmissionPlace', [
-      [buf(0, 'uniform'), buf(1, 'storage')],
-    ]),
-    resolve: pipe('resolve', resolveCode, 'vsmTransmissionResolve', resolveGroups),
-    headers: pipe('resolve', resolveCode, 'vsmTransmissionHeaders', resolveGroups),
+    ],
+    number: [[buf(0, 'uniform'), buf(1, 'storage'), buf(2, 'storage')]],
+    place: [[buf(0, 'uniform'), buf(1, 'storage')]],
+    resolve,
+  } satisfies Record<string, GPUBindGroupLayoutEntry[][]>
+}
+
+/** The transmission's compute pipes of `layout` (`vsmComputePipe`: prepared, shared a device and
+ *  text — the resolve's two entry points one module), with the group layouts their kernels bind. */
+function vsmTransmissionPipes(device: GPUDevice, layout: VsmLayout) {
+  const groups = transmissionGroupTables(layout)
+  const pipe = (name: string, code: string, entry: string, tables: GPUBindGroupLayoutEntry[][]) =>
+    vsmComputePipe(device, `vsm.transmission.${name}`, code, entry, tables)
+  const resolveCode = vsmTransmissionResolveWgsl(layout)
+  return {
+    clear: pipe('clear', vsmTransmissionClearWgsl(layout), 'vsmTransmissionClear', groups.clear),
+    candidates: pipe(
+      'candidates',
+      vsmTransmissionCandidatesWgsl(),
+      'vsmTransmissionCandidates',
+      groups.candidates,
+    ),
+    pages: pipe('pages', vsmTransmissionPagesWgsl(layout), 'vsmTransmissionPages', groups.pages),
+    bin: pipe('bin', vsmTransmissionBinWgsl(layout), 'vsmTransmissionBin', groups.bin),
+    number: pipe(
+      'number',
+      vsmTransmissionNumberWgsl(layout),
+      'vsmTransmissionNumber',
+      groups.number,
+    ),
+    place: pipe('place', vsmTransmissionPlaceWgsl(layout), 'vsmTransmissionPlace', groups.place),
+    resolve: pipe('resolve', resolveCode, 'vsmTransmissionResolve', groups.resolve),
+    headers: pipe('resolve', resolveCode, 'vsmTransmissionHeaders', groups.resolve),
   }
 }
 

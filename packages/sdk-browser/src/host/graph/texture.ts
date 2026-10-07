@@ -51,8 +51,8 @@ export class GraphTexture extends Releasable {
   matrixAutoUpdate = true
   /** The coordinate transform as three rows. */
   readonly matrix = new Matrix3()
-  /** Whether smaller copies are asked for; the engine makes them whenever `minFilter` reads
-   *  them. */
+  /** Whether smaller copies are asked for; the engine builds every texture's chain on the GPU
+   *  whatever this says, each read taking its footprint's level. */
   generateMipmaps = true
   /** Whether colour is pre-multiplied by alpha. */
   premultiplyAlpha = false

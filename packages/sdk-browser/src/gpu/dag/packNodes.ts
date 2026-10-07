@@ -1,4 +1,5 @@
 import { BOUND_STRIDE, cullingBounds, OWN_FLOOR, OWN_SPHERE } from '../../page/cut/bounds.ts'
+import type { ClusterCut } from '../../page/selection/math.ts'
 import { CULL_STRIDE, DAG_NODE_FLOATS, type DagRoot } from './types.ts'
 import {
   NODE_MIN,
@@ -23,7 +24,7 @@ import {
  * therefore only drop a too-fine subtree, and walks down to pages a too-coarse
  * subtree the cut will take nothing from. The floor — the smallest own error of
  * the subtree, with the sphere that encloses those it summarises — is the other
- * half, which the CPU cut already sets (`../../page/cut/node.ts`). `cullingBounds`
+ * half, which the oracle sets too (`oracle/nodeVerdict.fixture.ts`). `cullingBounds`
  * derives it from the pages at prepare: nothing from the compiler, nothing from
  * the page format.
  *
@@ -44,7 +45,7 @@ type Culling = NonNullable<DagRoot['culling']>
  *  not the data — so the reduction is done once per array and recovered by identity. */
 export function cullingBoundsFor(
   culling: Culling,
-  pages: DagRoot['pages'],
+  pages: readonly ClusterCut[],
   cache: Map<Float64Array, Float64Array>,
 ) {
   if (culling.bounds) return culling.bounds
@@ -59,7 +60,7 @@ export function cullingBoundsFor(
 /**
  * Copies a primitive's nodes into the GPU array and returns, per cluster, the leaf
  * node that owns it. `owner` is filled in place; a cluster no leaf stores stays at
- * `SELECTION_NONE`, as for the CPU cut, and is never selected.
+ * `SELECTION_NONE`, as in the oracle (`oracle/*.fixture.ts`), and is never selected.
  */
 export function packCullingNodes(
   nodes: Float32Array,

@@ -25,7 +25,7 @@
 
       const say = words();
 
-      const world = createWorld('view', { controls: 'orbit', renderer: 'webgl2' });
+      const world = createWorld('view', { controls: 'orbit' });
       const model = await world.scene.load(
         '../assets/examples/hall/cache/native/full/manifest.json',
       );

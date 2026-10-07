@@ -13,8 +13,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 export function admitGpuCut(rt: WebgpuPagesRuntime) {
   const { run, services } = rt,
     { slots } = rt.setup
-  const sample = run.gpuSelection?.peek()
-  if (!sample) return
+  // Before the first readback the image asks for the root cover alone: nothing to count yet.
+  if (!run.gpuSelection?.peek()) return
   // What the image asks the cache, and what it holds — root cover, cut and drawn ancestors.
   const { requestedCount: requested, keepCount } = services.residencySets
   const wasLimited = run.coverageBudgetLimited
@@ -25,6 +25,6 @@ export function admitGpuCut(rt: WebgpuPagesRuntime) {
       requested,
       slots,
       rt.services.bootstrapState.ready,
-      sample.uniforms.pixelError,
+      run.selectionUniforms.pixelError,
     )
 }

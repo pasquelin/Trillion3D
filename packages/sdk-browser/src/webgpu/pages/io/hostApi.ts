@@ -1,4 +1,4 @@
-import { createSynchronousCanvasCapture } from '../../../gpu/core/presentation.ts'
+import { readGpuImage } from '../../../gpu/core/readback.ts'
 import type { VisPage } from '../../../visibility/types.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
@@ -44,33 +44,33 @@ export function syncResident(rt: WebgpuPagesRuntime) {
   renderWebgpuPages(rt, run.lastCamera)
 }
 
-/** The current image, read synchronously through the presenter's canvas when no flush settled it. */
-export function captureImage(rt: WebgpuPagesRuntime) {
-  const { run, gpu, capture, diag } = rt,
+/**
+ * The current image, bottom row first: the one the last flush read back when it is still current,
+ * else the display texture copied into a mapped buffer (`readGpuImage`) — awaited, never the
+ * canvas, never a present, and no frame waits for it: the copy is queued behind the image's own
+ * work and any later frame behind the copy.
+ */
+export async function captureImage(rt: WebgpuPagesRuntime) {
+  const { run, gpu, capture } = rt,
     gpuDevice = gpu.device
   if (run.lost) throw new Error('WEBGPU_LOST')
+  // A flush reading this image back already: its read serves the capture too.
+  if (capture.capturePending) await capture.capturePending.catch(() => undefined)
   if (capture.capturedPixels && capture.capturedRevision === run.imageRevision)
     return capture.capturedPixels
-  // Targets not granted hold no image: presenting them would blank the canvas.
+  // No frame drawn yet, or targets not granted: no image is held.
   const busy = capture.capturing || frameTargetsAwaited(rt)
-  if (!gpu.presenter || !gpuDevice || !gpu.displayTexture || busy)
-    throw new Error('CAPTURE_NOT_READY: render then await flush before capture')
-  // The canvas read below already holds the image when the last frame presented it whole.
-  if (!gpu.presenter.holds(gpu.displayTexture, ...gpu.displaySize)) {
-    const encoder = gpuDevice.createCommandEncoder()
-    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize)
-    gpuDevice.queue.submit([encoder.finish()])
+  if (!gpuDevice || !gpu.displayTexture || !run.lastCamera || busy)
+    throw new Error('CAPTURE_NOT_READY: render before capture')
+  const revision = run.imageRevision
+  const pixels = await readGpuImage(gpuDevice, gpu.displayTexture, ...gpu.displaySize, rt.signal)
+  if (run.lost) throw new Error('WEBGPU_LOST')
+  // A frame submitted meanwhile is queued after the copy: the pixels are this revision's still.
+  if (revision === run.imageRevision) {
+    capture.capturedPixels = pixels
+    capture.capturedRevision = revision
   }
-  if (!gpu.synchronousCapture) {
-    gpu.synchronousCapture = createSynchronousCanvasCapture()
-    diag.engineDiagnostic('capture-synchronous', 'Synchronous read requested by the host', {
-      outsideBeauty: true,
-      prefer: 'await flush(); capture()',
-    })
-  }
-  capture.capturedPixels = gpu.synchronousCapture.read(gpu.presenter.canvas)
-  capture.capturedRevision = run.imageRevision
-  return capture.capturedPixels
+  return pixels
 }
 
 /** The drawn opaque pages with their bytes, as the CPU raster oracle reads them, and the packed

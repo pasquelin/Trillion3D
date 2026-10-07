@@ -49,6 +49,7 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     previewBlockBytes: {
       bc7: slim.binary.texturePreviewBc7Bytes,
       astc: slim.binary.texturePreviewAstcBytes,
+      etc2: slim.binary.texturePreviewEtc2Bytes,
     },
   }
   for (const primitive of slim.primitives) {
@@ -142,7 +143,11 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
   )
   const bytes = (name: ColumnName) => column(name, (b, o, n) => new Uint8Array(b, o, n))
   const previewPixels = bytes('texturePreviewPixels')
-  const previewBlocks = { bc7: bytes('texturePreviewBc7'), astc: bytes('texturePreviewAstc') }
+  const previewBlocks = {
+    bc7: bytes('texturePreviewBc7'),
+    astc: bytes('texturePreviewAstc'),
+    etc2: bytes('texturePreviewEtc2'),
+  }
   const [pagePrefix, pageSuffix] = slim.binary.pageUrl.split('{sha}')
   const [geometryPrefix, geometrySuffix] = slim.binary.geometryUrl.split('{sha}')
   const [bundlePrefix, bundleSuffix] = slim.binary.bundleUrl.split('{sha}')

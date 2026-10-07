@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
 import { assertOccluderImage, occluderScene, preparedOccluderRun } from '../testOccluder.fixture.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
+import type { Engine } from '../../../engine/types.ts'
 import { DEFAULT_SCOPE, type ClusterManifest } from '../../../../../sdk-core/src/index.ts'
 
 test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', async () => {
@@ -31,28 +31,29 @@ test('webgpu Hi-Z remaining pages stay a subset of the CPU selection oracle', as
   const collected = collectClusterPages(source, metadata, indices, associations)
   const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport)
   const { cam, cpu } = run,
-    backend = run.backend as WebgpuPagesBackend
+    backend = run.backend as Engine
   backend.render(cam)
   await backend.flush()
   backend.render(cam)
   const selected = cpu.shown.map((page) => page.url).sort()
   assert.deepEqual(backend.selectedPageIds().sort(), selected)
   assert.deepEqual(selected, ['back', 'front'])
+  // Hi-Z drops the occluded page from the image: only the front page's identifiers survive.
   assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport)
-  assert.ok(
-    (backend.metrics().submittedTriangles ?? 0) < (backend.metrics().selectedTriangles ?? 0),
-  )
+  // The GPU counts its cut where the verdict is given, before occlusion (#1483): what Hi-Z drops
+  // is read from the image above, never from a CPU sum of the drawn triangles.
+  assert.equal(backend.metrics().submittedTriangles, backend.metrics().selectedTriangles)
   backend.dispose()
   geometry.dispose()
   material.dispose()
 })
 
-test('a visbuffer encode failure restores occlusion culling as unsupported', async () => {
+test("a visibility pass the device fails is the image's failure, said once: no other draw path", async () => {
   installGpuGlobals()
   const { device } = mockGpu({ failVisPass: true })
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const events: Array<{ phase: string; context: Record<string, unknown> }> = []
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -61,41 +62,24 @@ test('a visbuffer encode failure restores occlusion culling as unsupported', asy
     maxResidentPages: 2,
     viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
-  }) as WebgpuPagesBackend
+  }) as Engine
   await backend.prepare()
-  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), false)
-  const cam = camera()
-  backend.render(cam)
-  await backend.flush()
-  backend.render(cam)
-  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), true)
-  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true)
-  backend.render(cam)
+  assert.throws(() => backend.render(camera()), /VIS_FAIL/)
+  // A traced failure reaches the observer from the diagnostic queue, a task later.
+  await new Promise((resolve) => setTimeout(resolve, 0))
   const failures = events.filter((event) => event.phase === 'visibility-render-failed')
-  assert.equal(failures.length, 1, 'a repeated fallback must not flood diagnostic logs')
+  assert.equal(failures.length, 1)
   assert.equal(typeof failures[0].context.error, 'string')
   backend.dispose()
   geometry.dispose()
   material.dispose()
 })
 
-test('a missing r32uint vis target keeps the page raster and lists visibility buffer as unsupported', async () => {
+test('a device without an r32uint visibility target refuses the scene by name', async () => {
   installGpuGlobals()
-  const { device, draws } = mockGpu({ rejectR32: true })
-  const { fixture, backend: created } = quadBackend(device)
-  const backend = created as WebgpuPagesBackend
-  await backend.prepare()
-  assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true)
-  assert.equal(backend.capabilities.unsupported.includes('occlusion culling'), true)
-  backend.render(camera())
-  await backend.flush()
-  draws.length = 0
-  backend.render(camera())
-  assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
-  assert.equal(
-    draws.reduce((n, d) => n + d.vertexCount, 0),
-    6,
-  )
+  const { device } = mockGpu({ rejectR32: true })
+  const { fixture, backend } = quadBackend(device)
+  await assert.rejects(backend.prepare(), /WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE/)
   backend.dispose()
   fixture.geometry.dispose()
   fixture.material.dispose()

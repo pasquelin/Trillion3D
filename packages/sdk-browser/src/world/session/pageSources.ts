@@ -1,11 +1,11 @@
-import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../backend/common.ts'
-import { configurePageDecoders } from '../../page/decode/host.ts'
+import { DEFAULT_CACHED_PAGES, DEFAULT_PAGE_WORKERS } from '../../engine/common.ts'
+import { configurePageWorkers } from '../../page/work/host.ts'
 import type { ExplorerScene } from './prepare.ts'
 import { createPageStreamerWith } from '../../streaming/pageStreamer.ts'
 import type { PageQueue } from '../../streaming/types.ts'
 import { loadClusterPages } from '../../cluster/pages.ts'
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
-import type { RenderBackend, MeasuredWorldOptions } from '../../backend/types.ts'
+import type { Engine, MeasuredWorldOptions } from '../../engine/types.ts'
 import { indexManifestBundles, indexManifestPages } from '../../scene/manifestPageIndex.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 
@@ -26,36 +26,30 @@ export async function createExplorerPageSources(
   options: MeasuredWorldOptions,
   base: string,
   signal: AbortSignal | undefined,
-  autonomous: boolean,
-  backends: RenderBackend[],
+  /** The session's engine, once built: the one an evicted page is dropped from. */
+  engine: () => Engine | undefined,
   diagnosticChannel: ReturnType<typeof createDiagnosticChannel>,
   progress: Progress,
 ) {
-  const { pages, geometryPages, geometryUrls, pageIdByUrl } = indexManifestPages(metadata)
+  const { pages, geometryPages, pageIdByUrl } = indexManifestPages(metadata)
   const exactPages = pages.filter((page) => (page.role ?? 'exact') !== 'coarse')
   const preload = options.preload ?? 'visible'
-  // What host-memory engines keep resident without a host ceiling, and what the streamer
-  // keeps in cache; the WebGPU engine, for its part, holds its own pool in bytes. A
-  // cluster DAG cuts far below its exact page count, but the cut moves every frame: the resident
-  // set must be a superset of it or the cache thrashes. Twice the expected cut, floored at 32768.
+  // What the streamer keeps in cache; the WebGPU engine holds its own pool in bytes. A cluster DAG
+  // keeps twice its bundles; a flat cache the pages the view may read, within the default ceiling.
   const bundles = indexManifestBundles(metadata)
-  const dagPages = bundles.length > 0
-  const attachCap =
-    options.maxResidentPages ??
-    (dagPages
-      ? Math.max(32768, exactPages.length * 2 * (options.replicaCount ?? 1))
-      : Math.max(1024, exactPages.length * (options.replicaCount ?? 1)))
+  const flatPages =
+    options.maxResidentPages ?? Math.max(1024, exactPages.length * (options.replicaCount ?? 1))
   const cacheCap =
     options.maxCachedPages ??
-    (dagPages
+    (bundles.length > 0
       ? Math.max(8192, bundles.length * 2)
-      : Math.max(8192, Math.min(attachCap, DEFAULT_CACHED_PAGES)))
-  // The decode pool never exceeds the already-in-force transfer admission.
-  configurePageDecoders(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
+      : Math.max(8192, Math.min(flatPages, DEFAULT_CACHED_PAGES)))
+  // The page worker pool never exceeds the already-in-force transfer admission.
+  configurePageWorkers(options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS)
   let loaded = 0,
     pageBytesRead = 0
   const indices = new Map<string, Uint32Array>()
-  if (preload === 'all' && !autonomous) {
+  if (preload === 'all') {
     const all = await loadClusterPages(
       pages,
       base,
@@ -74,9 +68,7 @@ export async function createExplorerPageSources(
     signal,
     workerCount: options.pageFetchWorkers ?? DEFAULT_PAGE_WORKERS,
     maxPages: cacheCap,
-    onEvict: (url) => {
-      for (const b of backends) b.dropPage?.(url)
-    },
+    onEvict: (url) => engine()?.dropPage(url),
     maxTransferBytes: options.maxPageTransferBytes,
     onDiagnostic:
       diagnosticChannel.detail === 'trace' && diagnosticChannel.enabled
@@ -87,10 +79,8 @@ export async function createExplorerPageSources(
   return {
     pages,
     geometryPages,
-    geometryUrls,
     pageIdByUrl,
     preload,
-    attachCap,
     cacheCap,
     streamer,
     loaded,
@@ -108,8 +98,7 @@ export const ownedUntilReady = <T>(streamer: { dispose(): void }, prepare: () =>
   })
 
 /** The scene the session draws — `given`, else the one `load` reads —, read through `streamer`:
- *  its partitions' index pages catalogued, and its readers — world roots, a lazy manifest's mesh
- *  pages — bound to the queue. */
+ *  its partitions' index pages catalogued, and its readers — the world roots — bound to the queue. */
 export async function sceneThrough<T extends Pick<ExplorerScene, 'partitions' | 'readers'>>(
   streamer: PageQueue,
   given: T | undefined,

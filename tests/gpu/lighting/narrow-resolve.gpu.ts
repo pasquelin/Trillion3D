@@ -88,6 +88,8 @@ const SCENES: ResolveScene[] = [
       { ...record('unshadowed', false, small.reach), unshadowed: true },
       // The same list through the program with no rectangle code: the scene holds none.
       { ...record('rectless', false, small.reach), rectless: true },
+      // The same list, each light taking the pixel's surface again (`lobeSurface`, #1483).
+      { ...record('perLight', false, small.reach), perLight: true },
     ],
   },
   {
@@ -102,7 +104,7 @@ before(async () => {
   assert.ok(small.reach.length > 8 && small.reach.length <= LIST, `${small.reach.length} reach`)
   assert.ok(large.reach.length > LIST, `${large.reach.length} reach the large tile`)
   sums = Object.assign({}, ...(await runResolves(SCENES)))
-  assert.equal(Object.keys(sums).length, 8, 'every record summed')
+  assert.equal(Object.keys(sums).length, 9, 'every record summed')
 })
 
 test('the narrow list, the wide one, a pool slice and every light sum the same, bit for bit', () => {
@@ -123,4 +125,8 @@ test('the program with no shadow code sums what the full one does, bit for bit',
 
 test('the program with no rectangle code sums what the full one does, bit for bit', () => {
   assertSameBits(sums.rectless, sums.wide, 'no rectangle code')
+})
+
+test('the surface taken once a pixel sums what each light taking it again does, bit for bit', () => {
+  assertSameBits(sums.wide, sums.perLight, 'the surface hoisted out of the light loop')
 })

@@ -73,11 +73,3 @@ The `shadow*` fields are documented on the contract
 (`packages/sdk-core/src/contracts/shadowMetrics.ts`) and filled by
 `webgpu/pages/render/vsm/vsmStats.ts`. The page counters need the page-counter readback on
 (`countersOn`).
-
-## WebGL2 has none
-
-WebGL2 has no shadow path: its lights reach every surface (`webgl/cluster/lights.ts`).
-`CONTRACT_LIGHTS_LIGHTING` publishes `shadows: false`, and the lights of the set that lights (the
-contract's, else the source graph's) that ask to cast are handed to `ContractShadows` at each change
-of that set. The world, or a session opened without one, names each as `shadows-refused`
-(`noticeShadowRefusal`).

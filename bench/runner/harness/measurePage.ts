@@ -3,7 +3,7 @@
 // Served to the page under `/runner/` and imported by URL, with nothing from the SDK.
 import type { MeasuredWorld } from '../../witnesses/measurement.ts'
 import type { CameraPose, FrameMetrics } from '../../../packages/sdk-core/src/index.ts'
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type { MemoryBudgets } from '../../witnesses/measurement.ts'
 import type { LiveTuning, NetworkBytes } from '../report/types.ts'
 import type { LivePools } from './benchSettings.ts'
@@ -101,7 +101,7 @@ export async function reglerReservoirs(
  * open — stay apart, for the reading.
  */
 export function collecteDiagnostics(lost: string[]) {
-  const diagnostics: { warnings: unknown; onDiagnostic: (event: BackendDiagnostic) => void } = {
+  const diagnostics: { warnings: unknown; onDiagnostic: (event: EngineDiagnostic) => void } = {
     warnings: null,
     onDiagnostic(event) {
       // What the barrier did to hold the image, and what still prevents it: the cause of a

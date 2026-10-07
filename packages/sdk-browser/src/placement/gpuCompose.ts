@@ -27,14 +27,11 @@
  * linked row's world sphere, what the shadow cull drops a row by, from its composed world.
  *
  * Still derived at the last full write, not on the GPU yet: the primitive stretch, the corners and
- * world boxes (a linked row whose composed world left the one its corners were derived from takes
- * no Hi-Z verdict, the temporal pyramid is dropped when a parent moves), the shadow levels of
- * detail. A link made with the rows' own CPU write changes none of these: the CPU's row write
- * follows them.
+ * world boxes, the shadow levels of detail. A link made with the rows' own CPU write changes none
+ * of these: the CPU's row write follows them.
  */
 import { COMPOSE_ROOTS_WGSL, COMPOSE_ROWS_WGSL, MATRIX_DOUBLES, NONE } from './gpuComposeWgsl.ts'
 import { MOTION_SKIP, packDoubles } from './composedMotion.ts'
-import { invalidateTemporalPyramid } from '../webgpu/pages/io/drops.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { preparedComputePipeline } from '../lighting/deferred/fullscreen.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
@@ -192,8 +189,7 @@ export function composeWebgpuPlacements(
   }
   if (ranks.length) state.linksDirty = true
   if (ranks.length || whole) remakeSlotBox(state, slot)
-  // The temporal pyramid no longer describes roots whose parent moved on the GPU alone; a parent
-  // linked now, or sent at the world it held, moved none the CPU's row writes did not stale.
+  // Whether the parent moved: one linked now, or sent at the world it held, did not.
   const moved = p !== undefined && !sameElements(state.worlds, world, slot * 16)
   state.worlds.set(world, slot * 16)
   // A parent's move moves its roots: its first makes them moving casters (`mobility.moveLead`).
@@ -202,7 +198,6 @@ export function composeWebgpuPlacements(
     declareSlotMove(rt, state, slot, movingOnly)
   // Poses moved and no node entered or left: the frame hears it as any engine pose write.
   rt.run.gate.engineMovedInPlace()
-  if (moved) invalidateTemporalPyramid(rt.run)
   return true
 }
 

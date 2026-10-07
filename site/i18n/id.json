@@ -365,8 +365,6 @@
       "shadow-pages-off": "Halaman bayangan dimatikan",
       "shadow-budget-0-25": "Anggaran waktu bayangan: 0,25 ms",
       "budget-3000": "Anggaran geometri: 3000 halaman",
-      "webgl": "Perender WebGL",
-      "webgl2": "Perender WebGL 2",
       "moving-light": "Cahaya bergerak",
       "visible": "Jendela peramban terlihat"
     },
@@ -472,7 +470,7 @@
     "resolution": "Resolusi dan ambang galat",
     "lights": "Cahaya, bayangan dan pantulan",
     "execution": "Bingkai diam, antialiasing dan opsi eksekusi",
-    "memory": "Memori, instance dan perender lain"
+    "memory": "Memori, instance dan run lainnya"
   },
   "evidence": {
     "computeDrawing": "Gambar lewat compute",
@@ -656,8 +654,8 @@
     },
     "measurement-entry": {
       "title": "Titik masuk pengukuran",
-      "description": "Tempat satu-satunya sebuah saksi, backend paksaan atau sesi internal masih bisa disebut namanya — tidak pernah lewat titik masuk `trillion3d` yang diterbitkan.",
-      "html": "<p>Sebuah halaman meng-import <code>trillion3d</code> dan tidak pernah melihat sebuah backend, saksi atau sesi internal: <code>createWorld</code> menggambar dengan satu perender, dipilih dari mesinnya atau ditolak dengan menyebut namanya bila dipaksa dan tidak ada. Bench, bukti dan tampilan perbandingan masih perlu menyebut nama sebuah saksi — Three.js polos, <code>THREE.LOD</code>, sesi internal <code>openMeasuredWorld</code> — dan itulah satu-satunya tugas titik masuk pengukuran yang terpisah, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Ia meng-ekspor ulang semua yang diekspor titik masuk yang diterbitkan, ditambah apa yang tidak pernah dibutuhkan sebuah host: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (sesi internal yang dibuka sebuah dunia pada dirinya sendiri), pabrik backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), dan pembantu khusus pengukuran seperti <code>replicateInstances</code>. Tidak satu pun sampai ke dunia yang diterbitkan, dan tidak satu pun di-import oleh sebuah aplikasi.</p>"
+      "description": "Tempat sebuah saksi atau sesi internal masih bisa disebut namanya — tidak pernah lewat titik masuk `trillion3d` yang diterbitkan.",
+      "html": "<p>Sebuah halaman meng-import <code>trillion3d</code> dan tidak pernah melihat saksi atau sesi internal: <code>createWorld</code> menggambar dengan WebGPU, atau ditolak dengan menyebut namanya bila mesin tidak menyediakannya. Bench dan bukti masih perlu menyebut nama sebuah saksi — Three.js polos, <code>THREE.LOD</code>, sesi internal <code>openMeasuredWorld</code> — dan itulah satu-satunya tugas titik masuk pengukuran yang terpisah, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Titik masuk ini mengekspor ulang semua yang diekspor titik masuk yang diterbitkan, ditambah apa yang tidak pernah dibutuhkan sebuah host: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (sesi internal yang dibuka sebuah dunia pada dirinya sendiri), pabrik halaman <code>webgpuPagesEngine</code>, dan pembantu khusus pengukuran seperti <code>replicateInstances</code>. Tidak satu pun sampai ke dunia yang diterbitkan, dan tidak satu pun di-import oleh aplikasi.</p>"
     },
     "createWorldJob": {
       "title": "Pemuatan dunia sebagai pekerjaan yang bisa dibatalkan",
@@ -706,11 +704,11 @@
       "description": "Apa yang digambar sebuah bingkai. Ketersediaannya menjelaskan keluaran pipeline sungguhan, tidak pernah overlay buatan: `DIAGNOSTICS` memberikan, untuk tiap mode, apakah perender yang aktif bisa menghasilkannya dan kenapa tidak.",
       "values": [
         "Gambar berpencahayaan, dari material glTF.",
-        "Warna unik penuh untuk tiap segitiga yang dikirim — bukan GL_LINES, bukan `MeshBasicMaterial.wireframe`.",
-        "Identitas primitif/halaman yang stabil, satu warna per cluster; berlaku di WebGL2 maupun WebGPU.",
+        "Warna unik penuh untuk tiap segitiga yang dikirim.",
+        "Identitas primitif/halaman yang stabil, satu warna per cluster.",
         "Cluster level 0 dibandingkan reduksi DAG yang lebih kasar yang benar-benar terpilih bingkai ini.",
         "Galat per-cluster yang diproyeksikan lewat bola cluster, seperti dipakai potongannya.",
-        "Satu warna per kelas material: tahap kelas yang menyelesaikan piksel itu. Hanya lewat jalur visibility WebGPU.",
+        "Satu warna per kelas material: tahap kelas yang menyelesaikan piksel itu.",
         "Halaman terlihat yang terpilih; node hierarki yang ditolak dihitung, tidak digambar.",
         "Halaman indeks yang terpasang; halaman yang hilang tidak digambar. Bukan VRAM fisik.",
         "Tidak tersedia: residensi mip tekstur tidak diinstrumentasi.",
@@ -761,7 +759,7 @@
     },
     "GpuTimingMethod": {
       "description": "Bagaimana durasi GPU sebuah profil tahap diambil. Durasi per-tahap menunjukkan di mana, tidak pernah seberapa banyak: pada GPU berbasis ubin tahap-tahap saling tumpang tindih dan sebuah tahap menyerap tahap tetangganya. Total bingkainya adalah `gpuImageMs`, selangnya — durasi tahap tidak dijumlahkan ke dalamnya.",
-      "values": ["Kueri stempel waktu WebGPU asli.", "Ekstensi WebGL2, untuk jalur itu."]
+      "values": ["Kueri stempel waktu WebGPU asli."]
     },
     "ColumnKind": {
       "description": "Penyimpanan satu kolom manifest biner. `COLUMN_KIND` memetakan tiap nama kolom ke jenisnya, jadi sebuah pembaca tahu tampilan mana yang dipakai atas byte sidecar-nya.",
@@ -790,7 +788,7 @@
       "description": "Membungkus operasi apa pun yang tertunda dalam kontrak pekerjaan mesin: sebuah snapshot (`JobStatus`, progres, hasil, galat), langganan, dan sebuah pembatalan yang membuang apa yang dimiliki pekerjaan itu. Operasinya harus mendukung pembatalan lewat pemiliknya (RAF, readback, …)."
     },
     "detectCapabilities": {
-      "description": "Apa yang sungguh didukung mesin ini, sebelum sebuah dunia dibuat: `{ tier, renderer, adapter, extensions, reason }`. Alasannya selalu diberikan, jadi sebuah kemampuan yang tidak didukung dilaporkan, bukan diasumsikan. Pembungkus publik yang dibaca sebuah dunia adalah `capability.detect()` — `{ webgpu, webgl2, ... }`, bentuk yang lebih sederhana untuk pemeriksaan yang sama. Pemeriksaan WebGL2 disimpan dalam cache."
+      "description": "Apa yang sebenarnya diberikan WebGPU mesin ini, sebelum sebuah dunia dibuat: `{ tier, adapter, extensions, reason }`. Tier-nya `full` dengan kueri stempel waktu GPU, `degraded` tanpa kueri itu, dan `unavailable` tanpa adapter. Alasannya selalu diberikan, sehingga kemampuan yang tidak didukung dilaporkan, bukan diasumsikan. Pembungkus publik yang dibaca sebuah dunia adalah `capability.detect()` — `{ webgpu, tier, features, reason }`, bentuk yang lebih sederhana untuk pemeriksaan yang sama."
     },
     "perspectiveProjection": {
       "description": "Proyeksi perspektif sebuah kamera dengan `fov` vertikal dalam derajat, rasio `aspect`, bidang dekat `near`, zoom `zoom`. **Kedalaman terbalik, bidang jauh tak berhingga**: `near` diproyeksikan ke 1, tak berhingga ke 0. Tidak ada bidang jauh yang masuk di sini, karena itu tidak ada pembagian dengannya — dan itulah yang membeli presisi kedalaman."
@@ -1170,11 +1168,10 @@
       "an angle at or above π/2 never rejects": "sebuah sudut sebesar atau lebih dari π/2 tidak pernah menolak",
       "after updateNodeMatrixWorld(tree, root)": "setelah updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "tersedia — Halaman indeks terpasang; halaman yang hilang tidak digambar; bukan VRAM fisik",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "tersedia — Warna unik penuh per segitiga yang dikirim, bukan kerangka kawat GL_LINES",
+      "available — A filled unique colour per submitted triangle": "tersedia — Warna unik penuh per segitiga yang dikirim",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "tersedia — Cluster level-0 dibanding reduksi DAG lebih kasar yang benar-benar terpilih bingkai ini",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "tersedia — Galat layar per-cluster diproyeksikan lewat bola cluster, seperti dipakai potongannya",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "tersedia — Halaman terlihat terpilih; node hierarki yang ditolak dihitung, tidak digambar",
-      "available — Stable primitive/page ID, exact-cluster backend only": "tersedia — ID primitif/halaman yang stabil, hanya backend cluster pasti",
       "available — glTF materials": "tersedia — material glTF",
       "unavailable — No fragment counter": "tidak tersedia — tidak ada penghitung fragmen",
       "unavailable — Texture mip residency not instrumented": "tidak tersedia — residensi mip tekstur tidak diinstrumentasi",

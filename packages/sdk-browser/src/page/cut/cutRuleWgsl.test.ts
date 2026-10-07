@@ -33,7 +33,7 @@ test('a rule that forgets the missing finer group opens holes', () => {
 })
 
 test('a call site reading its own group for the finer one is caught', () => {
-  const own = edited('all||childResident(i)', 'all||isResident(i)')
+  const own = edited(',childResident(i))', ',isResident(i))')
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, own)), FAULT)
 })
 
@@ -43,11 +43,6 @@ test('a residency read one word off the uploaded bits is caught', () => {
     'coldAt(views[0u].clusterCount+(i>>5u)+1u)',
   )
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, shifted)), FAULT)
-})
-
-test('a call site that ignores the cut holding residency is caught', () => {
-  const unheld = edited('let all=views[0u].residentCut==0u;', 'let all=views[0u].residentCut!=0u;')
-  assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, unheld)), FAULT)
 })
 
 test('a call site reading the wrong comparison of the cone word is caught', () => {

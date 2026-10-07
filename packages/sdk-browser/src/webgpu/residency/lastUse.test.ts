@@ -12,6 +12,7 @@ import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts'
 import { LAST_USE_WINDOW as W } from './lastUseWindow.ts'
+import { readbackOf } from './sets.fixture.ts'
 
 const FULL = /ALL_PAGES_PINNED/
 
@@ -30,7 +31,7 @@ function residency(slots: number, spare: string[]) {
       { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
       packed,
     ),
-    budget = createRequestAdmission(sets, tracking, closure)
+    budget = createRequestAdmission(sets, tracking, closure, (id) => packed[id])
   const cache = lruCache(slots)
   const pins = createWebgpuPinUpdater({
     tracking,
@@ -53,7 +54,7 @@ function residency(slots: number, spare: string[]) {
     ask(cutUrls)
     drawn.apply(ids(drawnUrls))
     sets.applyDrawn(drawn)
-    budget.held(slots)
+    budget(slots, { cuts: [readbackOf(ids(cutUrls), packed, tracking.topLevel)], first: null })
     pins(cache as never, [], frame, () => {})
   }
   const load = async (...urls: string[]) => {

@@ -128,9 +128,8 @@ test('a placement posed where it already stands does not move', () => {
 test('a residency flag that drops and rises between two plans is no change for the shadows', () => {
   const residence = createShadowResidence()
   const flags = new Uint32Array(4),
-    words = new Int32Array(4).fill(-1),
     changed: number[] = []
-  const flush = () => residence.flush(flags, words, true, (page) => changed.push(page))
+  const flush = () => residence.flush(flags, (page) => changed.push(page))
   flags[2] = 1
   residence.noteRow(2, 4)
   flush()
@@ -144,29 +143,4 @@ test('a residency flag that drops and rises between two plans is no change for t
   residence.noteRow(2, 4)
   flush()
   assert.deepEqual(changed, [2, 2], 'a page that left')
-})
-
-test('under the CPU cut, a page the pool takes in or gives back is a change for the shadows', () => {
-  const residence = createShadowResidence()
-  const flags = new Uint32Array(4),
-    words = new Int32Array(4).fill(-1),
-    changed: number[] = []
-  const flush = (gpuCut: boolean) =>
-    residence.flush(flags, words, gpuCut, (page) => changed.push(page))
-  words[1] = 640
-  residence.notePool(1, 4)
-  flush(false)
-  assert.deepEqual(changed, [1], 'the CPU cut sees the page arrive, though no row flag rose')
-  words[1] = 1280
-  residence.notePool(1, 4)
-  flush(false)
-  assert.deepEqual(changed, [1], 'a slot that moves is the same page')
-  // A GPU frame keeps the pool current without declaring it: its own cut reads the row flags.
-  words[3] = 64
-  residence.notePool(3, 4)
-  flush(true)
-  words[1] = -1
-  residence.notePool(1, 4)
-  flush(false)
-  assert.deepEqual(changed, [1, 1], 'only the page that left since')
 })

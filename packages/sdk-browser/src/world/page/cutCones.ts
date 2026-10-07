@@ -1,6 +1,6 @@
 import type { NormalCone } from '../../page/cone/cone.ts'
-import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts'
-import { reserveArena } from '../../page/decode/wasmArena.ts'
+import { prepareSdkWasm } from '../../math/wasm/sdkWasm.ts'
+import { reserveArena } from '../../math/wasm/wasmArena.ts'
 
 /**
  * The normal cone of each cluster the run-time cut writes, built by the compiler's own builder
@@ -31,7 +31,7 @@ export async function clusterCones(
   }
   if (!arena) return null
   try {
-    const [p, i, r, out] = arena.blocs()
+    const [p, i, r, out] = arena.blocks()
     p.view.set(positions)
     i.view.set(indices)
     ranges.forEach(([start, end], k) => {
@@ -49,7 +49,7 @@ export async function clusterCones(
     )
     if (status !== 0) return null
     // The builder allocates: its memory may have grown and detached the views taken above.
-    const cones = arena.blocs()[3].view
+    const cones = arena.blocks()[3].view
     return ranges.map((_, k) => ({
       axis: [cones[k * 4], cones[k * 4 + 1], cones[k * 4 + 2]],
       angle: cones[k * 4 + 3],

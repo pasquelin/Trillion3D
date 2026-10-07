@@ -6,7 +6,7 @@ import { nextFrame } from '../../frame/scheduling.ts'
  * longer than the ceiling still goes through, then while the clock since `open`, stopped between
  * two stages (`pause`, `resume`), is within it —, and one counted.
  *
- * A session holds one integration budget per frame (`BackendContext.frameBudget`): its frame opens
+ * A session holds one integration budget per frame (`EngineContext.frameBudget`): its frame opens
  * it, the cells and the arrival drain spend from it (`./arrivalQueue.ts`), and it pauses while the
  * engine does its other work, then the WebGPU row records spend what is left
  * (`../../webgpu/row/claims.ts`). Texture tiles keep their own upload ceiling

@@ -106,7 +106,7 @@ fn a_texture_is_cut_at_its_lowest_cutoff_unless_a_reader_blends() {
         [128, 64, 1, 255]
     );
     // The engine's product, never the cutoff over the factor: 0.66 / 0.9 × 255 is 187 on the dot,
-    // which WebGL2 keeps and the quotient rounds to 188.
+    // which the `f32` product keeps (187 / 255 × 0.9 = 0.66) and the quotient rounds to 188.
     assert_eq!(cutoff_byte(0.66, 0.9), 187);
     let kind_of = |materials: Vec<Value>| {
         let primitives: Vec<Value> = (0..materials.len())

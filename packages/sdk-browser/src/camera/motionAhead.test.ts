@@ -11,10 +11,10 @@ import { aheadViewOf } from '../gpu/core/aheadView.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { engineCamera as engineCameraOf } from './camera.fixture.ts'
 import { random as reproducible } from '../page/cut/cutRuleChecks.fixture.ts'
-import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../backend/common.ts'
+import { PREFETCH_HORIZON_MS, prefetchHorizonMs } from '../engine/common.ts'
 import { restartCameraMotion } from './motion.fixture.ts'
 import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts'
-import { MAX_PREFETCH_HORIZON_MS } from '../backend/prefetchHorizon.ts'
+import { MAX_PREFETCH_HORIZON_MS } from '../engine/prefetchHorizon.ts'
 
 /** A bare engine camera: the eye and the way back are all the motion reads. */
 const pose = (eye: number[], back = [0, 0, 1]) => {

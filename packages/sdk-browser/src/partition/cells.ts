@@ -1,5 +1,5 @@
 /**
- * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE.
+ * THE CELLS OF A PARTITIONED SCENE, READ BY DISTANCE (#404).
  *
  * Before each frame (`frame`), the pages of the cell index and the cells the camera needs
  * (`plan.ts`, `cellIndex.ts`, boxed where their parents stand now: `boxes.ts`) are asked of the
@@ -8,17 +8,17 @@
  * placed within the frame's one integration budget (`FrameBudget`): a page lists its pages or
  * cells to the streamer's catalogue, a cell puts each node on a row of its mesh at the world matrix
  * the engine composes for a child of its core parent, casting as its host mesh says
- * (`placements.ts`, `follow.ts`), holding its manifest pages and the world bundles its roots need
- * (`cellPages.ts`). A cell past its reach parks its rows and releases its pages; a page past it
+ * (`placements.ts`, `follow.ts`), holding the world bundles its roots need (`cellHolds.ts`). A
+ * cell past its reach parks its rows and releases its bundles; a page past it
  * with no cell placed is closed and its files leave the catalogue; a moved parent, or a host mesh's
  * `castShadow` changed, rewrites its rows.
  * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
  * node when no owner can reopen the session), then reads the pages on its way and the cells it
- * reaches. A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
+ * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
  * place, else asks the owner to open the session again (`placement/growth.ts`).
  */
 import { RUNGS, type TablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts'
-import type { PlacementGrowth } from '../placement/backendSceneUpdates.ts'
+import type { PlacementGrowth } from '../placement/engineSceneUpdates.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { createCellBoxes } from './boxes.ts'
@@ -29,7 +29,7 @@ import { holdPriority, inCellFrame, planCells } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
-import { createCellPages, withHoldings } from './cellPages.ts'
+import { createCellHolds, withHolds } from './cellHolds.ts'
 import { createFarCells } from './farCells.ts'
 import type { CellFrameIo, CellPrimeIo } from './cellIo.ts'
 
@@ -43,8 +43,7 @@ type Inputs = {
   /** The prepared scene's root: where the tables hang a cell node. */ root: Object3D
   /** The host node of each core rank. */ parents: readonly Object3D[]
   /** The placed mesh of each mesh rank the cells place. */ meshes: ReadonlyMap<number, PlacedMesh>
-  /** The manifest's pages the view holds. */ pages?: Parameters<typeof createCellPages>[0]
-  /** The world bundles its roots need. */ world?: Parameters<typeof createFarCells>[0]
+  /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createFarCells>[0]
 }
 
 export function createPartitionCells(inputs: Inputs) {
@@ -53,7 +52,7 @@ export function createPartitionCells(inputs: Inputs) {
   const index = createCellIndex(partition.pages, base, boxes)
   const decodes = createDecodes<number, CellRows>(),
     pageDecodes = createDecodes<IndexPage, PageBody>()
-  const manifest = createCellPages(inputs.pages, (c) => index.cell(c).meshPages, world)
+  const holds = createCellHolds(world)
   const rows = createCellPlacements(root, parents, meshes)
   const { held, touched } = rows
   const far = createFarCells(world, held)
@@ -84,9 +83,9 @@ export function createPartitionCells(inputs: Inputs) {
    *  priority once its rows took it (`holdPriority`). */
   const place = (cell: number, decoded: CellRows, { local, ahead }: Seen) =>
     rows.place(cell, decoded, cellUrl(cell)) &&
-    (manifest.hold(cell, holdPriority(index, local, cell, ahead)), true)
+    (holds.hold(cell, holdPriority(index, local, cell, ahead)), true)
   /** A cell held far lets its super-roots go (`farCells.ts`), a placed one its rows and pages. */
-  const leave = (cell: number) => far.release(cell) || (rows.leave(cell), manifest.release(cell))
+  const leave = (cell: number) => far.release(cell) || (rows.leave(cell), holds.release(cell))
   const partitionCells = {
     /** The root's pages, the files the streamer's catalogue holds at open. */
     pages: index.slots,
@@ -99,7 +98,7 @@ export function createPartitionCells(inputs: Inputs) {
       rows: [...meshes.values()].reduce((sum, mesh) => sum + capacityOf(mesh), 0),
     }),
     /** Before a frame from `eye`: far cells leave and far pages close, rows past those sized grow,
-     *  near pages and cells are asked, those read handed to the decode pool, those decoded opened
+     *  near pages and cells are asked, those read handed to the page worker pool, those decoded opened
      *  or placed while the frame's `budget` admits them. True when a page or cell within reach is
      *  left for a later frame. */
     frame(
@@ -165,11 +164,11 @@ export function createPartitionCells(inputs: Inputs) {
       return bytes
     },
     /** What a frame waits on: the next hold, placed or far, to land or fail, while one reads. */
-    reads: () => [...manifest.reads(), ...far.reads()],
+    reads: () => [...holds.reads(), ...far.reads()],
     /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   }
-  return withHoldings({ meshes, manifest }, partitionCells)
+  return withHolds(holds, partitionCells)
 }
 
 export type PartitionCells = ReturnType<typeof createPartitionCells>

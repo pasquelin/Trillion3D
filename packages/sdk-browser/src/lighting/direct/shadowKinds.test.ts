@@ -66,7 +66,11 @@ test('the kinds a key names; a key that cuts none keeps both', () => {
 
 test('the resolve is compiled with the kinds its key names', () => {
   const resolve = (kinds = ALL_SHADOW_KINDS) =>
-    contractLightingShader(false, false, true, true, kinds)
+    contractLightingShader(false, {
+      sunless: !kinds.sun,
+      localless: !kinds.local,
+      lobeless: true,
+    })
   const clipmap = /vsmHandleFromIdDirectional\(id\)/,
     cube = /i32\(vsmCubeFace\(/
   assert.match(resolve(), clipmap)

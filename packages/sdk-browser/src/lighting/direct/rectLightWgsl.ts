@@ -81,8 +81,9 @@ fn rectView(light:DirectLight,P:vec3f)->RectView{
 }
 /** Direction of the vector form factor and the rectangle's irradiance per unit radiance at P
  *  for the normal N: π times its clipped form factor, range windowed. */
-fn rectIrradiance(light:DirectLight,P:vec3f,N:vec3f)->vec4f{
- let r=rectView(light,P);
+fn rectIrradiance(light:DirectLight,P:vec3f,N:vec3f)->vec4f{return rectIrradianceOf(rectView(light,P),N);}
+/** The same, of the rectangle's view \`r\` at P: what a caller that holds it reads again. */
+fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
  if(r.window<=0.0){return vec4f(0.0);}
  let f=polygonFormFactor(r.a,r.b,r.c,r.d,N);
  return vec4f(f.xyz,${PI}*f.w*r.window);
@@ -109,12 +110,24 @@ fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{
  let x=dot(q,T1);let z=dot(q,N);
  return vec3f(m.x*x+m.y*z,dot(q,T2),m.z*x+m.w*z);
 }
+/** The rectangle's fitted specular lobe at the normal \`N\`, of reflectance \`f0\`, per unit
+ *  radiance and before its range window: the polygon of its view \`r\` moved by M⁻¹ in the frame of
+ *  the normal and the view, integrated, weighed by the lobe's magnitude and Fresnel share. */
+fn rectLtc(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
+ let NdotV=clamp(dot(N,V),1e-4,1.0);
+ let side=V-N*dot(N,V);
+ let other=cross(N,select(vec3f(1.0,0.0,0.0),vec3f(0.0,1.0,0.0),abs(N.x)>0.9));
+ let T1=normalize(select(side,other,dot(side,side)<1e-10));let T2=cross(N,T1);
+ let m=ltcLookup(rough,NdotV,0u);let t=ltcLookup(rough,NdotV,1u);
+ let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
+ return (f0*t.x+(vec3f(1.0)-f0)*t.y)*lobe;
+}
 fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- let incident=rectIrradiance(light,P,N);
+ let r=rectView(light,P);
+ let incident=rectIrradianceOf(r,N);
  if(incident.w<=0.0){return vec3f(0.0);}
  let E=light.colorIntensity.w*incident.w;
  let tint=light.colorIntensity.rgb;
- let r=rectView(light,P);
  // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
  if(surfaceModel==${MODEL_FLAG.diffuse}u){return modelLight(rgb,metal,N,N,E,ao)*tint;}
  // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
@@ -123,13 +136,6 @@ fn rectLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:v
   let facing=light.colorIntensity.w*${PI}*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
   return modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint;
  }
- let NdotV=clamp(dot(N,V),1e-4,1.0);
- let side=V-N*dot(N,V);
- let other=cross(N,select(vec3f(1.0,0.0,0.0),vec3f(0.0,1.0,0.0),abs(N.x)>0.9));
- let T1=normalize(select(side,other,dot(side,side)<1e-10));let T2=cross(N,T1);
- let m=ltcLookup(rough,NdotV,0u);let t=ltcLookup(rough,NdotV,1u);
- let lobe=polygonFormFactor(ltcCorner(r.a,T1,T2,N,m),ltcCorner(r.b,T1,T2,N,m),ltcCorner(r.c,T1,T2,N,m),ltcCorner(r.d,T1,T2,N,m),vec3f(0.0,0.0,1.0)).w;
- let f0=mix(vec3f(0.04),rgb,metal);
- let specular=(f0*t.x+(vec3f(1.0)-f0)*t.y)*lobe*light.colorIntensity.w*r.window;
+ let specular=rectLtc(r,N,V,mix(DIELECTRIC_F0,rgb,metal),rough)*light.colorIntensity.w*r.window;
  return (rgb*(1.0-metal)*${INVERSE_PI}*E+specular)*tint;
 }`

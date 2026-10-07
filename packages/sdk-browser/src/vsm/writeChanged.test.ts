@@ -6,10 +6,17 @@ import assert from 'node:assert/strict'
 import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { vsmWriteChanged, vsmWriteChangedCopy, vsmWriteChangedRecords } from './writeChanged.ts'
 
+/** A buffer copied from and into, written by the queue. */
+const copies = () => GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+
 test('only the changed words go up, the buffer holding the image; the hole is never sent', () => {
   const { device, writes } = fakeDevice()
   const words = 8192 * 4 + 64
-  const buffer = device.createBuffer({ label: 'next', size: words * 4, usage: 0 })
+  const buffer = device.createBuffer({
+    label: 'next',
+    size: words * 4,
+    usage: GPUBufferUsage.COPY_DST,
+  })
   const held = new Uint32Array(words)
   const image = new Uint32Array(words)
   // 40 records far apart below 8192 words, then one past the 8192-id hole.
@@ -34,8 +41,8 @@ test('only the changed words go up, the buffer holding the image; the hole is ne
 
 test('a buffer copied from another holds its words: the next write sends what differs from them', () => {
   const { device, writes } = fakeDevice()
-  const source = device.createBuffer({ label: 'old', size: 64 * 4, usage: 0 })
-  const target = device.createBuffer({ label: 'grown', size: 128 * 4, usage: 0 })
+  const source = device.createBuffer({ label: 'old', size: 64 * 4, usage: copies() })
+  const target = device.createBuffer({ label: 'grown', size: 128 * 4, usage: copies() })
   const image = new Uint32Array(128)
   image.fill(3, 0, 64)
   vsmWriteChanged(device, source, image, 0, 64)
@@ -57,8 +64,9 @@ test('a sparse table compared on the records it may have changed sends what a wh
   const whole = fakeDevice(),
     records = fakeDevice()
   const words = (8192 + 64) * 4
-  const a = whole.device.createBuffer({ label: 'whole', size: words * 4, usage: 0 }),
-    b = records.device.createBuffer({ label: 'records', size: words * 4, usage: 0 })
+  const usage = GPUBufferUsage.COPY_DST,
+    a = whole.device.createBuffer({ label: 'whole', size: words * 4, usage }),
+    b = records.device.createBuffer({ label: 'records', size: words * 4, usage })
   const image = new Uint32Array(words),
     replayed = new Uint32Array(words),
     sent = new Uint32Array(words)

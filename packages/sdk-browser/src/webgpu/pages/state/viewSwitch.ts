@@ -43,8 +43,8 @@ export function onView<T>(rt: WebgpuPagesRuntime, view: WebgpuView, work: () => 
   }
 }
 
-/** Releases the targets of `view`, which is not the main one, its own pyramid, history and effect
- *  chain, and takes its cut out of what the residency holds; the view drawn before is drawn
+/** Releases the targets of `view`, which is not the main one, its own pyramid, history, effect
+ *  chain and cut, and takes its cut out of what the residency holds; the view drawn before is drawn
  *  again — the main one when it was `view` —, so a capture under way keeps its own. */
 export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   const back = rt.views.active === view ? rt.views.main : rt.views.active
@@ -56,5 +56,8 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.gpu.temporal?.dispose()
   view.gpu.effects?.dispose()
   view.gpu.temporal = view.gpu.effects = undefined
+  // Its cut's readback slots go with it (`../../../gpu/dag/aside.ts`).
+  view.run.asideCut?.dispose()
+  view.run.asideCut = undefined
   rt.services.releaseView(view)
 }

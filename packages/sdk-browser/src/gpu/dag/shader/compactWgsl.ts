@@ -52,7 +52,7 @@ fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
   cursor=cursor+n;
  }
  // The last lane's run ends the list, empty or not: its cursor is the total.
- if(lane==63u){out.pages[views[0u].listCap]=cursor;if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
+ if(lane==63u){out.pages[views[0u].listCap]=cursor;armList(1u,min(cursor,views[0u].listCap));if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
 @compute @workgroup_size(64)
 fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){

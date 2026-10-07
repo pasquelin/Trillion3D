@@ -9,7 +9,7 @@ import { writeParts, type DagParts } from './split.ts'
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
  * its own mirror — the comparison rereads the bit it is about to write, with no parallel array.
- * Only pages `changes` names are visited, all of them when it names none reliably.
+ * Only pages `changes` names are visited, all of them when there is none.
  * `touched` receives the word ranks touched, increasing and without repetition: those are what
  * the top writes, not the pages. Returns their count.
  */
@@ -34,7 +34,7 @@ export function updateResidencyBits(
     touched[count++] = word
     last = word
   }
-  if (changes?.sorted) for (let i = 0; i < changes.count; i++) apply(changes.pages[i])
+  if (changes) for (let i = 0; i < changes.count; i++) apply(changes.pages[i])
   else for (let j = 0; j < pageCount; j++) apply(j)
   return count
 }
@@ -64,7 +64,7 @@ export function createDagResidencyUpload(resources: {
   /** Words or nodes the last apply changed, and the ranges that cover them. */
   let touched = new Int32Array(8)
   const ranges = new Int32Array(RESIDENCY_RULE.cap * 2)
-  const changed = { pages: new Int32Array(8), count: 0, sorted: true }
+  const changed = { pages: new Int32Array(8), count: 0 }
   const sets = [
     { values: readiness.isReady, base: residentBase(pageCount) },
     { values: readiness.isChildReady, base: childBase(pageCount) },
@@ -142,9 +142,13 @@ export function createDagResidencyUpload(resources: {
     /** The cut rule's residency of a packed page (`readiness.ts`). */
     isReady: { value: readiness.isReady },
     isChildReady: { value: readiness.isChildReady },
+    /** The placements a growth appended join, nothing of theirs resident: their nodes' open
+     *  counts written into the packing, which the caller sends with the nodes (`runtime.ts`). */
+    append: { value: readiness.append },
   }) as typeof apply & {
     readonly hostBytes: number
     readonly isReady: (page: number) => boolean
     readonly isChildReady: (page: number) => boolean
+    readonly append: () => void
   }
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts'
 import { BASE_SLOTS } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts'
 import type { MockDraw } from './mockEncoder.ts'
+import { words } from './mockBuffers.ts'
 
 /** A storage binding's offset alignment every WebGPU device grants (`minStorageBufferOffsetAlignment`). */
 const STORAGE_OFFSET_ALIGN = 256
@@ -71,8 +72,8 @@ export function compactDrawnPages(
   nodeCount: number,
   pageCount: number,
 ) {
-  const marks = new Uint32Array(flagBytes.buffer, flagBytes.byteOffset, flagBytes.byteLength / 4)
-  const out = new Uint32Array(outBytes.buffer, outBytes.byteOffset, outBytes.byteLength / 4)
+  const marks = words(flagBytes),
+    out = words(outBytes)
   const head = SELECTION_HEADER_WORDS,
     base = head + pageCount
   let found = 0
@@ -93,11 +94,7 @@ export function drawnPageIds(
 ) {
   const buffer = buffers.find((entry) => entry.label === 'Trillion3D DAG flags')
   if (!buffer) throw new Error('Trillion3D DAG flags buffer absent')
-  const marks = new Uint32Array(
-    buffer.data.buffer,
-    buffer.data.byteOffset,
-    buffer.data.byteLength / 4,
-  )
+  const marks = words(buffer.data)
   const ids: number[] = []
   for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) ids.push(id)
   return ids

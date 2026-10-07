@@ -61,7 +61,7 @@ export function mixedNibbles() {
   const material = mixedMaterial()
   return MAPS.map(
     ({ slot }) =>
-      (samplingWords(importHostTexture(material[slot] as G.GraphTexture), false)[0] >>>
+      (samplingWords(importHostTexture(material[slot] as G.GraphTexture))[0] >>>
         SAMPLE_WRAP_SHIFT) &
       15,
   )

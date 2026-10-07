@@ -5,7 +5,7 @@ import { VERDICT_KEPT, VERDICT_REJECTED } from '../partition/contract.ts'
 import { HIZ_SHADER } from './shader.ts'
 import { packHizPyramid, evaluateHizReduce, evaluateHizTest } from './oracle.fixture.ts'
 import { hizBuildPyramid, hizReduceCeil } from '../../../../sdk-core/src/hiz/oracles.fixture.ts'
-import { buildHizPyramid } from '../../hiz/depth.ts'
+import { buildHizPyramid } from '../../../../../bench/oracles/browser/hizPyramid.ts'
 import { hizLevelSizes } from './levelSizes.ts'
 import { hizRejects, type HizBounds } from '../../../../../bench/oracles/browser/hizRejects.ts'
 

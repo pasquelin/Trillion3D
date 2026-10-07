@@ -1,8 +1,9 @@
 import { createEngineCamera, readCameraWorld } from '../../camera/world.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import { collectClusterPages, selectVisiblePages } from './selection.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { collectClusterPages } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 export function dagFixture() {
   const positions: number[] = []

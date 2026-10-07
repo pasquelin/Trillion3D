@@ -5,7 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../../sdk-core/src/world/effect/index.ts'
-import { holdWebgpuFrame, keepWebgpuFrame, unsettledMask } from '../../frame/hold.ts'
+import { holdWebgpuFrame, keepWebgpuFrame } from '../../frame/hold.ts'
+import { unsettledMask } from '../../frame/unsettled.ts'
 import { settledRt } from '../../frame/hold.fixture.ts'
 import { encodeEffects } from './encodeEffects.ts'
 import { pendingWebgpuFrame } from '../../frame/interactiveFrame.ts'
@@ -31,7 +32,8 @@ function drawing(chain: EffectChain) {
   const rt = settledRt()
   rt.context.effects = chain
   Object.assign(rt.run, { diagnostic: 'beauty' })
-  Object.assign(rt.gpu, { targetSize: [8, 4], displaySize: [8, 4] })
+  // Targets allocated at the size drawn: a frame that draws again keeps it, and its occluders.
+  Object.assign(rt.gpu, { targetSize: [8, 4], displaySize: [8, 4], allocatedSize: [8, 4] })
   return rt
 }
 

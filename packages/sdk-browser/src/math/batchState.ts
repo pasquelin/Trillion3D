@@ -1,7 +1,7 @@
 import type { MathPathMetrics, MathPathMode } from '../../../sdk-core/src/index.ts'
 import { createPathGovernor, type PathGovernor } from '../../../sdk-core/src/index.ts'
-import { prepareSdkWasm, type SdkWasm } from '../page/decode/geometryPageWasm.ts'
-import { WASM_ARENA_CONTRACT } from '../page/decode/wasmArena.ts'
+import { prepareSdkWasm, type SdkWasm } from './wasm/sdkWasm.ts'
+import { WASM_ARENA_CONTRACT } from './wasm/wasmArena.ts'
 
 /**
  * Session state for batch math: governor, WebAssembly module, availability decision.

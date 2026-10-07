@@ -8,7 +8,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { measureOutput } from '../../../bench/core/paths.ts'
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
 import { drag } from '../camera/cameraGestures.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
@@ -28,7 +28,7 @@ function countFrames() {
  *  400 ms after. A gesture's first frames may still be on their way when it is read. */
 async function stillAfter(world: MeasuredWorld, frames: { asked: number }) {
   for (const end = performance.now() + 30_000; performance.now() < end; await sleep(16)) {
-    if (!world.backends[0].metrics().frameHeld) continue
+    if (!world.engine.metrics().frameHeld) continue
     const before = frames.asked
     await sleep(400)
     if (frames.asked === before) return true
@@ -45,7 +45,7 @@ async function startInteractive() {
   const frames = countFrames()
   const ratio = globalThis.devicePixelRatio
   globalThis.devicePixelRatio = 2
-  const diagnostics: BackendDiagnostic[] = []
+  const diagnostics: EngineDiagnostic[] = []
   try {
     const world = await openMeasuredWorld('viewer', {
       manifestUrl,
@@ -56,9 +56,8 @@ async function startInteractive() {
     const opened = {
       box: [viewer.clientWidth, viewer.clientHeight],
       size: [world.canvas.width, world.canvas.height],
-      backend: world.backend,
       controlsReused: world.controls() === world.controls(),
-      coverageReady: world.backends[0].metrics().coverageReady,
+      coverageReady: world.engine.metrics().coverageReady,
     }
     const startedStill = await stillAfter(world, frames)
     const home = eye(world)
@@ -97,7 +96,6 @@ test(
     const { opened, dragged, resized, targets } = read
     assert.deepEqual(errors, [])
     assert.deepEqual(opened.size, [opened.box[0] * 2, opened.box[1] * 2], 'CSS box × pixel ratio')
-    assert.equal(opened.backend, 'webgpu-page-raster')
     assert.equal(opened.controlsReused, true)
     assert.equal(opened.coverageReady, true)
     assert.ok(read.startedStill, 'no scheduled work in a still scene')

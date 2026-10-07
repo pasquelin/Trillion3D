@@ -101,7 +101,7 @@ export async function proveCdnBrowser({
     root: fixture,
     html,
     moduleName: packageName,
-    decodeWorkerPath: `${CDN_PATH}/pageDecodeWorker.js`,
+    pageWorkerPath: `${CDN_PATH}/pageWorker.js`,
     integrationWorkerPath: `${CDN_PATH}/pageIntegrationWorker.js`,
     commonWorkerPath: '/common-worker.js',
     ...urls,

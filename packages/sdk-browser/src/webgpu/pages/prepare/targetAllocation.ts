@@ -1,4 +1,6 @@
-import { wantsSubsurface, subsurfaceBytes, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts'
+import { wantsSubsurface, SUBSURFACE_TARGET } from '../../../scene/subsurface.ts'
+import { PHYSICAL_LOBES_TARGET } from '../../../scene/physicalLobes.ts'
+import { wantsPhysicalLobes } from './lobesTarget.ts'
 import { reflectionPlan, REFLECTION_VIEW_BYTES } from '../../../reflections/gpu.ts'
 import { reflectionConeAllocation } from '../../../reflections/conePyramid.ts'
 import { reflectionHistoryBytes } from '../../../reflections/historyTargets.ts'
@@ -27,7 +29,7 @@ const DISPLAY_BYTES = 4
  * scene without water makes none, and one drawn at the display's size borrows the display itself
  * (`buildTargets`).
  */
-export const ownsDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
+export const makesDisplayColor = (rt: WebgpuPagesRuntime, size: FrameSize) =>
   !size.apart ||
   (rt.blendState.transmissive > 0 &&
     (size.renderWidth !== size.width || size.renderHeight !== size.height))
@@ -46,7 +48,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
   checkSurfaceSize(gpuDevice, size.width, size.height, 1)
   return (
     frameTargetBytes(width, height, hiz) -
-    (ownsDisplayColor(rt, size) ? 0 : width * height * DISPLAY_BYTES) -
+    (makesDisplayColor(rt, size) ? 0 : width * height * DISPLAY_BYTES) -
     // The feedback target, only while the pipelines write it (`feedbackVariant.ts`).
     (rt.vis.writesFeedback ? 0 : width * height * FEEDBACK_BYTES) +
     // The emission-and-occlusion layer, or its 1×1 stand-in (`emissiveAoLayer.ts`).
@@ -55,8 +57,11 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     (wantsAsIsShare(rt) ? width * height * AS_IS_SHARE_BYTES : 0) +
     additional +
     // frameTargetBytes already counts the 1×1 placeholder.
-    subsurfaceBytes(width, height, wantsSubsurface(rt)) -
-    SUBSURFACE_BYTES +
+    SUBSURFACE_TARGET.bytes(width, height, wantsSubsurface(rt)) -
+    SUBSURFACE_TARGET.texelBytes +
+    // The lobes target, or its 1×1 placeholder, which frameTargetBytes counts (`physicalLobes.ts`).
+    PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
+    PHYSICAL_LOBES_TARGET.texelBytes +
     (plan.pyramid
       ? reflectionConeAllocation(width, height, gpuDevice.limits, plan.cone).bytes
       : 0) +

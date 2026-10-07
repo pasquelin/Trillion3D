@@ -1,12 +1,12 @@
-// On the GPU-cut path, admission reads the readback's requests, never the CPU ranking.
-// Past the pool it keeps the coarsest levels whole, as the CPU cut's budget does, from a room the
-// image's arrivals never move, so a still view settles on one queue.
+// #836, #1483: admission reads the readback's requests (#478) in the order the GPU ranked them for
+// a short pool. Past the pool it keeps the coarsest levels whole, from a room the image's arrivals
+// never move, so a still view settles on one queue.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { createGroupClosure } from '../../page/cut/groupClosure.ts'
 import { createCutDelta } from '../cut/delta.ts'
-import { keysOf, world } from './sets.fixture.ts'
+import { readbackOf, world } from './sets.fixture.ts'
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts'
 import { createRequestAdmission } from './requestAdmission.ts'
 import { createWebgpuResidencyQueue } from './queue.ts'
@@ -28,25 +28,28 @@ function gpuCut() {
     [...pages, ...loose],
   )
   const w = world([...pages, ...loose], [pages[0]])
-  const admit = createRequestAdmission(w.sets, w.tracking, closure)
+  const admit = createRequestAdmission(w.sets, w.tracking, closure, (id) => w.packed[id])
   const id = (url: string) => w.packed.findIndex((page) => page.url === url)
   const drawn = createCutDelta(w.packed)
-  /** One GPU-cut image: the readback's requests in the GPU's order, then admission at `room`. */
-  const image = (room: number, urls: string, draws = '') => {
+  /** One image: the readback's requests, ranked by the GPU, then admission at `room`. */
+  const image = (room: number, urls: string, draws = '', ranked = true) => {
     const pageIds = urls.split(' ').map(id)
     w.delta.apply(pageIds)
     closure.apply(w.delta)
     w.sets.applyCut(closure.delta)
     drawn.apply(draws ? draws.split(' ').map(id) : [])
     w.sets.applyDrawn(drawn)
-    admit(room, { result: { pageIds, drawablePageIds: [] } } as never)
+    const readback = ranked
+      ? readbackOf(pageIds, w.packed, w.tracking.topLevel)
+      : { uniforms: { admitByLevel: false }, result: { pageIds } }
+    admit(room, { cuts: [readback], first: null })
   }
   const url = (key: number) => w.tracking.pageCatalog[key]
   const queue = () => Array.from(w.tracking.wanted.list.subarray(0, w.tracking.wanted.count), url)
   return { ...w, closure, admit, image, queue }
 }
 
-test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU rank', () => {
+test('past the pool, the queue keeps the coarsest levels whole, in the GPU’s order', () => {
   const cut = gpuCut()
   cut.image(3, 'f0 m0 f1 c0 m1')
   assert.deepEqual(cut.queue(), ['c0', 'm0', 'm1'], 'levels 2 and 1 whole, level 0 left out')
@@ -57,8 +60,35 @@ test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU
   assert.ok(cut.admit.hostBytes() > 0, 'its tables are counted in the host tables')
 })
 
-// A page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
+// #1237: a page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
 // pool it goes first, above every level, so the root the view refuses is replaced before any detail.
+// A readback cut while the pool still held the views' cuts is in the cut's order: the walk files
+// every request instead of stopping at the first finer one, so a coarser one behind is kept.
+test('a readback the GPU did not rank by level is walked whole', () => {
+  const cut = gpuCut()
+  cut.image(1, 'm0 f0 c0', '', false)
+  assert.deepEqual(cut.queue(), ['c0'], 'the coarsest level, though it came last')
+})
+
+// The pool turns short past the cuts and whole again a tenth below: no flip at its edge.
+test('the pool short of the cuts keeps its ranking until they fall a tenth below it', () => {
+  const cut = gpuCut()
+  cut.image(8, 'f0 m0 f1 c0 m1')
+  const desired = cut.sets.desiredCount
+  /** The verdict an image reads at `room`, then the admission that settles it. */
+  const settled = (room: number) => {
+    const verdict = cut.admit.short(room)
+    assert.equal(cut.admit.short(room), verdict, 'read alone, the verdict moves nothing')
+    cut.admit(room, { cuts: [], first: null })
+    return verdict
+  }
+  assert.equal(settled(desired), false, 'the cuts fit')
+  assert.equal(settled(desired - 1), true, 'past the pool: short')
+  assert.equal(settled(desired), true, 'back at the edge: still short')
+  assert.equal(settled(Math.ceil(desired / 0.9) + 1), false, 'a tenth below: whole')
+  assert.equal(settled(desired), false, 'and whole at the edge again')
+})
+
 test("past the pool, a page a root's group replaces goes first, whatever its level", () => {
   const cut = gpuCut()
   cut.packed.find((page) => page.url === 'f0')!.rootChild = true
@@ -105,17 +135,7 @@ test('what the image draws never moves the room: a cut the pool holds is queued 
   assert.deepEqual(cut.queue(), ['m0'], 'past the pool, the room is still the pool')
 })
 
-test('back on the CPU cut, the ranking weighs the cut the GPU cut left', () => {
-  const cut = gpuCut()
-  cut.image(8, 'f0 f1 m0')
-  cut.image(8, 'f1 a c0')
-  assert.equal(cut.admit.held(3), true, 'five pages past the cover weighed against three')
-  assert.deepEqual(cut.queue().slice(0, 2), ['c0', 'm'], 'coarsest first')
-  assert.equal(cut.admit.held(8), false, 'and the whole cut fits eight')
-  assert.equal(keysOf(cut.tracking.wanted).size, 5)
-})
-
-test('on the GPU cut, a page the image keeps is pinned once it arrives', () => {
+test('a page the image keeps is pinned once it arrives', () => {
   const cut = gpuCut()
   const cache = lruCache(8)
   const pins = createWebgpuPinUpdater({
@@ -131,6 +151,7 @@ test('on the GPU cut, a page the image keeps is pinned once it arrives', () => {
   const queue = createWebgpuResidencyQueue({
     tracking: cut.tracking,
     sets: cut.sets,
+    recordOf: (id) => cut.packed[id],
     room: () => 8,
     getCache: () => cache as never,
     getFrame: () => 0,
@@ -140,7 +161,7 @@ test('on the GPU cut, a page the image keeps is pinned once it arrives', () => {
       { baseOfRoot: new Int32Array(0), rootOfPacked: new Int32Array(0) },
       cut.packed,
     ),
-    ensureResident: async () => {},
+    ensureResident: Object.assign(async () => {}, { revision: () => 0, touchLower() {} }),
     markLost() {},
     traceEnabled: false,
     traceDiagnostic: () => {},
@@ -148,9 +169,9 @@ test('on the GPU cut, a page the image keeps is pinned once it arrives', () => {
   })
   // The image draws `c0` outside the queue before its bytes are in the pool.
   cut.image(8, 'f0', 'c0')
-  queue.queueGpuCutResidency(null)
+  queue.queueCuts({ cuts: [], first: null })
   assert.equal(cache.pins.has('c0'), false, 'nothing to pin yet')
   void cache.load('c0')
-  queue.queueGpuCutResidency(null)
+  queue.queueCuts({ cuts: [], first: null })
   assert.equal(cache.pins.has('c0'), true, 'pinned on the pin step after its arrival')
 })

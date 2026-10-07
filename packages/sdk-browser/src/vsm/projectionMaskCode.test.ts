@@ -10,7 +10,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { VSM_MASK_TABLE_WGSL, vsmProjectionWgsl } from './projectionWgsl.ts'
-import { createVsmMaskTable, vsmMaskTableReadWgsl } from './projectionMaskTable.ts'
+import { createVsmMaskTable, VSM_MASK_TABLE_READ_WGSL } from './projectionMaskTable.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { createDeferredPlaceholders } from '../lighting/deferred/setup.ts'
 import { VSM_TRACE_RAYS_SUN, VSM_TRACE_RAYS_LOCAL } from './constants.ts'
@@ -106,7 +106,7 @@ test('four lanes in a word: each light reads its own; a layer its tile did not s
   assert.ok(resolve.includes('textureLoad(vsmShadowMaskTiles,vsmMaskPixel>>vec2u(3u),0).r'))
   assert.doesNotMatch(resolve, /textureNumLayers\(vsmShadowMask\)/)
   assert.match(resolve, /var vsmShadowMask:texture_2d_array<u32>;/)
-  assert.ok(resolve.includes(vsmMaskTableReadWgsl(21)))
+  assert.ok(resolve.includes(VSM_MASK_TABLE_READ_WGSL))
 })
 
 test('the table compiles off the frame from its creation, then fills once, by one group, in its own submit', async () => {

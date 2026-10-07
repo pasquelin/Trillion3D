@@ -9,7 +9,7 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import { camera, disposeQuadRun, quadScene } from './testScenes.fixture.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { createGuideSet } from '../../guides/guideSet.ts'
 import { families } from '../../host/families.ts'
 import { MATERIAL_SURFACES_PASS } from '../../stage/passLabels.ts'
@@ -18,7 +18,7 @@ import { gateCompiles } from '../../lighting/deferred/gatedDevice.fixture.ts'
 /** The executing device, whose compiles land off the thread a task after they are asked, and which
  *  counts each synchronous compile made inside `frame`. */
 function offThreadGpu() {
-  const gpu = mockGpu({ compute: true })
+  const gpu = mockGpu()
   const { compiled } = gateCompiles(gpu.device, { auto: true })
   const counted = {
     inFrame: 0,
@@ -46,7 +46,7 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
   const material = G.standardSurface({ roughness: 0.5 })
   ;(fixture.source.children[0] as G.HostMesh).material = material
   const guides = createGuideSet()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -57,7 +57,7 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
   /** Renders, then waits for what the frame held on and draws the pose again. */
   const settle = async () => {
     frame(() => backend.render(camera()))
-    await backend.flush?.()
+    await backend.flush()
   }
   try {
     await backend.prepare()

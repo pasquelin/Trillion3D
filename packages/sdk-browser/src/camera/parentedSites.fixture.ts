@@ -1,25 +1,22 @@
 // The engine sites that read a camera pose, each called by its real code, for the parented-camera
 // test (`parented.test.ts`). A site is `{ name, create, measure }`: `create()` returns the state
-// of a frame sequence (Hi-Z history, cut, engine), `measure(state, camera)` returns, ready to be
+// of a frame sequence (cut, engine), `measure(state, camera)` returns, ready to be
 // JSON-stringified, what the site took from the camera for that frame.
 import { surfaceOf } from '../page/surface.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
-import { selectVisiblePages } from '../page/cut/cut.ts'
-import { boundsFor, projectBoxesFlat } from '../hiz/projection.ts'
-import { applyTemporalHiz, sameHizView } from '../hiz/temporal.ts'
-import type { TemporalHizState } from '../hiz/temporal.ts'
+import { selectVisiblePages } from '../page/cut/cut.fixture.ts'
+import { boundsFor, projectBoxesFlat } from '../hiz/projection.fixture.ts'
 import { visibilityDepth } from '../hiz/visibilityDepth.fixture.ts'
 import { shadeVisibility } from '../../../../bench/oracles/browser/cpu-image/shade.ts'
 import type { VisPage } from '../visibility/types.ts'
 import type { HizPage } from '../hiz/types.ts'
 import { projectedPageError } from '../page/selection/diagnostic.ts'
 import { resolvePixelError } from '../page/selection/requests.ts'
-import type { CameraMotion } from './world.ts'
 import { dagFixture } from '../page/selection/dag.fixture.ts'
 import { engineSites, type Site } from './parentedEngineSites.fixture.ts'
-import { createEngineCamera, readCameraWorld, type HostCamera } from './world.ts'
+import { createEngineCamera, readCameraWorld, type CameraMotion, type HostCamera } from './world.ts'
 import { identityRoots } from '../page/selection/placements.fixture.ts'
 import { rasterVisibility } from '../../../../bench/oracles/browser/cpu-image/raster.ts'
 
@@ -92,17 +89,6 @@ const pureSites: Site[] = [
       const bounds = boundsFor(vis.length)
       projectBoxesFlat(vis, identityRoots(), vis.length, engine(camera), VIEWPORT, bounds)
       return list(bounds)
-    },
-  },
-  {
-    // History held by the frame must describe this frame's view: reread at once, it is equal.
-    name: 'applyTemporalHiz + sameHizView (Hi-Z history)',
-    create: () => ({ ...dagPages(), history: {} as TemporalHizState }),
-    measure: (state, camera: HostCamera) => {
-      const { vis, history } = state as ReturnType<typeof dagPages> & { history: TemporalHizState }
-      const view = engine(camera)
-      const { shown } = applyTemporalHiz(vis, identityRoots(), view, RASTER, history)
-      return { shown: shown.length, sameHistory: sameHizView(history.camera, view) }
     },
   },
   {

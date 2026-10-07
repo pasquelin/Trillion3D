@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { hostSide } from '../scene/materialSide.ts'
 import * as G from '../host/graph/graph.fixture.ts'
 import { surfaceOf } from '../page/surface.ts'
-import { makeRec, recRoots } from '../backend/autonomous/pageRec.fixture.ts'
-import { createPageRowWriter } from '../webgpu/row/pageRow.ts'
+import { pageRecFixture } from '../../../../bench/perf/browser/support/pageRecFixture.ts'
+import { createPageRowWriter } from '../webgpu/row/pageRowWriter.ts'
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts'
 import {
   PAGE_INFO_STRIDE,
@@ -22,9 +22,11 @@ const material = () =>
   })
 
 test('paged deformation metadata cannot overwrite transmission or thin-surface color', () => {
-  const rec = makeRec(0, 1)
-  rec.material = surfaceOf(material())
-  rec.deformationOutput = { from: 10, count: 3 }
+  const rec = pageRecFixture({
+    triangles: 1,
+    material: surfaceOf(material()),
+    deformationOutput: { from: 10, count: 3 },
+  })
   const write = createPageRowWriter(
     {
       mapLayer: new Map(),
@@ -35,7 +37,7 @@ test('paged deformation metadata cannot overwrite transmission or thin-surface c
       deformation: { rowWord: () => 123 },
     },
     () => {},
-    recRoots(),
+    [{ world: new G.Matrix4() }],
     () => 0,
   )
   const floats = new Float32Array((PAGE_INFO_STRIDE / 4) * 2)
@@ -69,8 +71,6 @@ test('transparent deformation and subsurface records occupy distinct words', () 
       flags: 1,
       count: 3,
       sourceGeometry: new G.Geometry(),
-      orderKey: 0,
-      orderRank: 0,
       paged: true,
       deformInput: 456,
       deformOutput: 789,

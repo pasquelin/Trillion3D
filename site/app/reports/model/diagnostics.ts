@@ -31,7 +31,6 @@ export const DIAGNOSTICS = [
       ['trianglesSubmitted', 'totalSubmittedTriangles', ''],
       ['opaqueTrianglesSubmitted', 'submittedTriangles', ''],
       ['trianglesOccluded', 'metrics.hizRejectedTriangles', ''],
-      ['pagesDecodedWasm', 'metrics.pagesDecodedWasm', ''],
     ],
   },
 ] as const

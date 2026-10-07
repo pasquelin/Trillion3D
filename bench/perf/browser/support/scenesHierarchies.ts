@@ -3,7 +3,7 @@
 // what is verified here is that volumes stay exact under any realistic world
 // matrix. Depth chains 1 to 6 and a multi-child branch; negative scales on one or three
 // axes, non-uniform under a parent rotation (shear), zero, extremes; a perspective or
-// orthographic camera posed itself in the hierarchy, in both depth conventions.
+// orthographic camera posed itself in the hierarchy.
 import * as THREE from 'three'
 import { xorshiftRandom } from '../../../core/index.ts'
 import { dansDe } from './scenesCore.ts'
@@ -66,7 +66,7 @@ for (let i = 0; i < 16; i++) {
     i % 4 === 3
       ? new THREE.OrthographicCamera(-12, 12, 8, -8, 0.1, 400)
       : new THREE.PerspectiveCamera(30 + alea() * 70, 0.6 + alea() * 1.6, 0.05 + alea(), 600)
-  camera.coordinateSystem = i % 2 ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem
+  camera.coordinateSystem = THREE.WebGPUCoordinateSystem
   camera.updateProjectionMatrix()
   camera.position.set(dans(10), dans(10), dans(10))
   camera.rotation.set(dans(Math.PI), dans(Math.PI), dans(Math.PI))
@@ -92,11 +92,10 @@ export const hierarchicalViews = cameras.map((camera) => {
     vp: new THREE.Matrix4()
       .multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
       .toArray(),
-    webgpu: camera.coordinateSystem === THREE.WebGPUCoordinateSystem,
     eye: [eye.x, eye.y, eye.z],
   }
 })
-export const hierarchicalViewBoxes = hierarchicalViews.flatMap(({ vp, webgpu, eye }, v) => {
+export const hierarchicalViewBoxes = hierarchicalViews.flatMap(({ vp, eye }, v) => {
   const [x, y, z] = eye
   const world = new THREE.Box3()
   const choisies = hierarchicalBoxes.filter((_, j) => j % 23 === v % 23)
@@ -108,7 +107,7 @@ export const hierarchicalViewBoxes = hierarchicalViews.flatMap(({ vp, webgpu, ey
       world.applyMatrix4(new THREE.Matrix4().fromArray(m))
       return [...world.min.toArray(), ...world.max.toArray()]
     }),
-  ].map((box) => ({ vp, webgpu, box }))
+  ].map((box) => ({ vp, box }))
 })
 
 /** Cones under the hierarchy world matrices: Three's normal matrix, a camera's eye. */

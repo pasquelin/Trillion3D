@@ -73,9 +73,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
   )
   const [tint, add, mask] = textures.map((texture) => texture.createView())
   const views = [tint, add] as const
-  const { layout, sampler, mask: maskLayout, draw, present } = programOf(device)
-  // The raw layers, or either temporal history: one group each, kept as long as its tint view.
-  const groups = new WeakMap<GPUTextureView, GPUBindGroup>()
+  const program = programOf(device)
   // The share of the layers the image covers: a frame drawn below its targets fills their top-left.
   const drawn = device.createBuffer({
     size: 16,
@@ -89,7 +87,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
     height,
     bytes: width * height * DISPLAY_LAYER_BYTES_PER_PIXEL,
     maskGroup: device.createBindGroup({
-      layout: maskLayout,
+      layout: program.mask,
       entries: [{ binding: 0, resource: mask }],
     }),
     /** Set from `open` to the composition: the transparent passes attach the layers meanwhile. */
@@ -113,42 +111,55 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
       this.masked = true
       return clear(mask)
     },
-    /** Composes `target`, and the canvas `presentation`, with the layers `source`, of which the
-     *  image covers the top-left `x` by `y` share: the whole of the temporal ones. */
-    apply(
-      encoder: GPUCommandEncoder,
-      source: readonly [GPUTextureView, GPUTextureView],
-      target: GPUTextureView,
-      presentation?: GPUTextureView,
-      x = 1,
-      y = 1,
-    ) {
-      // Compared as stored, a 32-bit float: a ratio that holds is not written again.
-      if (share[0] !== Math.fround(x) || share[1] !== Math.fround(y)) {
-        ;[share[0], share[1]] = [x, y]
-        device.queue.writeBuffer(drawn, 0, share)
-      }
-      let group = groups.get(source[0])
-      if (!group) {
-        const resources = [...source, sampler, { buffer: drawn }]
-        const entries = resources.map((resource, binding) => ({ binding, resource }))
-        groups.set(source[0], (group = device.createBindGroup({ layout, entries })))
-      }
-      const pass = encoder.beginRenderPass({
-        label: 'Trillion3D display filter',
-        colorAttachments: presentation ? [load(target), load(presentation)] : [load(target)],
-      })
-      pass.setBindGroup(0, group)
-      for (const pipeline of presentation ? present : draw) {
-        pass.setPipeline(pipeline.get())
-        pass.draw(3)
-      }
-      pass.end()
-    },
+    /** Composes the target with the layers (`displayApply`). */
+    apply: displayApply(device, program, drawn, share),
     dispose() {
       for (const texture of textures) texture.destroy()
       drawn.destroy()
     },
+  }
+}
+
+/** The display filter's `apply`: composes `target`, and the canvas `presentation`, with the layers
+ *  `source`, of which the image covers the top-left `x` by `y` share, written into `drawn` through
+ *  `share`: the whole of the temporal ones. */
+function displayApply(
+  device: GPUDevice,
+  { layout, sampler, draw, present }: ReturnType<typeof programOf>,
+  drawn: GPUBuffer,
+  share: Float32Array<ArrayBuffer>,
+) {
+  // The raw layers, or either temporal history: one group each, kept as long as its tint view.
+  const groups = new WeakMap<GPUTextureView, GPUBindGroup>()
+  return (
+    encoder: GPUCommandEncoder,
+    source: readonly [GPUTextureView, GPUTextureView],
+    target: GPUTextureView,
+    presentation?: GPUTextureView,
+    x = 1,
+    y = 1,
+  ) => {
+    // Compared as stored, a 32-bit float: a ratio that holds is not written again.
+    if (share[0] !== Math.fround(x) || share[1] !== Math.fround(y)) {
+      ;[share[0], share[1]] = [x, y]
+      device.queue.writeBuffer(drawn, 0, share)
+    }
+    let group = groups.get(source[0])
+    if (!group) {
+      const resources = [...source, sampler, { buffer: drawn }]
+      const entries = resources.map((resource, binding) => ({ binding, resource }))
+      groups.set(source[0], (group = device.createBindGroup({ layout, entries })))
+    }
+    const pass = encoder.beginRenderPass({
+      label: 'Trillion3D display filter',
+      colorAttachments: presentation ? [load(target), load(presentation)] : [load(target)],
+    })
+    pass.setBindGroup(0, group)
+    for (const pipeline of presentation ? present : draw) {
+      pass.setPipeline(pipeline.get())
+      pass.draw(3)
+    }
+    pass.end()
   }
 }
 

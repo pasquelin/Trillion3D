@@ -217,14 +217,6 @@
       "action": "Lower the thread count, or free system resources, then compile again."
     },
     {
-      "id": "T3D-W001",
-      "code": "autonomous-scene-animated",
-      "level": "warn",
-      "message": "The standalone glTF scene was not written because the source is animated.",
-      "cause": "The source declares node animation, skinning or morph weights, which the autonomous glTF (accessors rebuilt from the cache's pages) cannot carry: the mode is refused for this cache (`autonomousScene: null`) rather than written frozen. Once per job; does not fail the job",
-      "action": "Load the cache through the engine, which plays the animation; the standalone scene serves static models only."
-    },
-    {
       "id": "T3D-W002",
       "code": "texture-level-write-failed",
       "level": "warn",
@@ -2573,7 +2565,7 @@
       "code": "FAMILY_LOAD_FAILED",
       "level": "error",
       "message": "An optional family of the browser engine did not load.",
-      "cause": "The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it, and a session whose renderer does not arrive does not open, refused with this error.",
+      "cause": "The chunk of a family the page uses (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, page decoder, WebGPU renderer) failed to import twice in a row, as the engine's HTTP loader asks a file twice: a network drop, a CDN that does not answer, or a chunk missing from the served folder. `details.family` names the family; the frames that draw with it wait for it, and a session whose renderer does not arrive does not open, refused with this error.",
       "action": "Check that every chunk of the bundle is served beside the entry module and reachable; the engine asks the family again on its next use."
     },
     {

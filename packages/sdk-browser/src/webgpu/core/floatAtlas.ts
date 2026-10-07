@@ -1,4 +1,4 @@
-import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts'
+import { GUARANTEED_SIDE, textureLimits } from '../../gpu/core/textureLimits.ts'
 
 /**
  * THE FLOAT ATLAS: a list of floats the passes read by index, kept in an `r32float`
@@ -7,48 +7,51 @@ import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts'
  * the eight storage buffers WebGPU guarantees per stage; and it is bounded by the texture limits,
  * not by `maxStorageBufferBindingSize`, so it holds at least what a buffer held. Float `i` sits
  * at column `i % width` of row `i / width`, `FLOAT_ATLAS_ROWS` rows a layer: the same bits the
- * buffer held, read one texel each. Its rows divide its floats whenever a width of at most
- * `FLOAT_ATLAS_WIDTH` allows it, so it weighs the very bytes the buffer did: the memory budgets
- * the engine funds from them see no change.
+ * buffer held, read one texel each. Its rows divide its floats whenever a width of at most the
+ * device's side allows it, so it weighs the very bytes the buffer did: the memory budgets the
+ * engine funds from them see no change.
  */
-const FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE
-const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE
-/** Layers every WebGPU device holds (`maxTextureArrayLayers`). */
-const FLOAT_ATLAS_LAYERS = 256
+/** Rows a layer: the side every device grants, a power of two, so the shader splits a row into its
+ *  layer and its row by a shift; a device-sized count would cost a division on every read. */
+const FLOAT_ATLAS_ROWS = GUARANTEED_SIDE
+type AtlasLimits = Parameters<typeof textureLimits>[0]
 
-/** Width, rows and layers of an atlas of `floats` floats: the fewest rows that divide them — a
- *  layer's rows, or whole layers —; rows of `FLOAT_ATLAS_WIDTH`, padded, when none does. */
-function floatAtlasExtent(floats: number): [number, number, number] {
+/** Width and height of a one-layer atlas of `texels` texels: the fewest rows of at most `side`
+ *  texels, filled evenly, so that under one texel per row is padding. Its readers take the width
+ *  from the texture itself. */
+export function atlasExtent(texels: number, side: number): [number, number] {
+  const count = Math.max(1, texels)
+  const height = Math.ceil(count / side)
+  return [Math.ceil(count / height), height]
+}
+
+/** Width, rows and layers of an atlas of `floats` floats on a device of `limits`: the fewest rows
+ *  that divide them — a layer's rows, or whole layers —; when none does, one layer filled evenly
+ *  (`atlasExtent`), or layers of rows of the device's side, padded. */
+function floatAtlasExtent(floats: number, limits?: AtlasLimits): [number, number, number] {
+  const { side, layers: most } = textureLimits(limits)
   const count = Math.max(1, floats),
-    least = Math.ceil(count / FLOAT_ATLAS_WIDTH)
+    least = Math.ceil(count / side)
   for (let rows = least; rows <= FLOAT_ATLAS_ROWS; rows++)
     if (count % rows === 0) return [count / rows, rows, 1]
   const perLayer = FLOAT_ATLAS_ROWS
-  for (
-    let layers = Math.max(2, Math.ceil(least / perLayer));
-    layers <= FLOAT_ATLAS_LAYERS;
-    layers++
-  )
+  for (let layers = Math.max(2, Math.ceil(least / perLayer)); layers <= most; layers++)
     if (count % (layers * perLayer) === 0) return [count / (layers * perLayer), perLayer, layers]
   const layers = Math.ceil(least / perLayer)
-  return [FLOAT_ATLAS_WIDTH, layers > 1 ? perLayer : least, layers]
+  return layers > 1 ? [side, perLayer, layers] : [...atlasExtent(count, side), 1]
 }
 
-/** Whether a device of `limits` makes an atlas of `floats` floats: WebGPU's guaranteed limits
- *  when it names none. */
-export function floatAtlasFits(
-  floats: number,
-  limits?: { maxTextureDimension2D?: number; maxTextureArrayLayers?: number },
-) {
-  const [width, rows, layers] = floatAtlasExtent(floats)
-  const side = limits?.maxTextureDimension2D ?? PORTABLE_TEXTURE_SIDE
-  const most = limits?.maxTextureArrayLayers ?? FLOAT_ATLAS_LAYERS
+/** Whether a device of `limits` makes an atlas of `floats` floats. */
+export function floatAtlasFits(floats: number, limits?: AtlasLimits) {
+  const [width, rows, layers] = floatAtlasExtent(floats, limits)
+  const { side, layers: most } = textureLimits(limits)
   return width <= side && rows <= side && layers <= most
 }
 
-/** A zeroed atlas of `floats` floats and its view, which the passes bind whole. */
+/** A zeroed atlas of `floats` floats on `device`, as wide as it grants, and its view, which the
+ *  passes bind whole. */
 export function createFloatAtlas(device: GPUDevice, label: string, floats: number) {
-  const extent = floatAtlasExtent(floats)
+  const extent = floatAtlasExtent(floats, device.limits)
   const texture = device.createTexture({
     label,
     size: extent,

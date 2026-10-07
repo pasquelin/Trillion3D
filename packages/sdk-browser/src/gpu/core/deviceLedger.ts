@@ -10,20 +10,17 @@
  * snapshot carries it, so that each allocation is counted once. A texture of a format unknown to the table counts zero
  * bytes and increments `unknownFormats`: a total that carries any is not a proof.
  */
-const LABEL_NONE = 'unlabeled'
+import {
+  checkAllocation,
+  ledgerSnapshot,
+  ledgerTransaction,
+  observeCreates,
+  type Admission,
+  type GpuDeviceLedgerSnapshot,
+  type LedgerBooks,
+  type LedgerDevice,
+} from './ledgerBooks.ts'
 
-import { textureBytesOf } from './textureBytes.ts'
-
-interface GpuDeviceLedgerSnapshot {
-  /** Live bytes, every allocation included. */
-  bytes: number
-  /** The same bytes by label, heaviest first. */
-  byLabel: Record<string, number>
-  /** Textures of a format outside the table, counted as zero bytes. */
-  unknownFormats: number
-  /** Live allocations. */
-  live: number
-}
 export interface GpuDeviceLedger {
   snapshot(): GpuDeviceLedgerSnapshot
   readonly bytes: number
@@ -44,12 +41,6 @@ export interface GpuDeviceLedger {
   transaction(): { commit(): void; rollback(): void }
 }
 
-/** A session budget's check of one allocation (`GpuDeviceLedger.observeAdmission`). */
-type Admission = (bytes: number, label: string, tentative: boolean) => void
-
-/** Device subset the ledger observes: what a fake test device provides. */
-type LedgerDevice = Pick<GPUDevice, 'createTexture' | 'createBuffer'>
-
 const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>()
 
 /** Installs the ledger on the device — a session's handle, above its tags: it counts by the labels
@@ -65,79 +56,38 @@ export function installGpuDeviceLedger(
 ): GpuDeviceLedger {
   const existing = ledgers.get(device)
   if (existing) return existing
-  const { counts, base, limit } = options
-  const live = new Map<object, { label: string; bytes: number }>()
-  let unknownFormats = 0,
-    liveBytes = 0
-  let refusal: Error | undefined,
-    tentative = 0
-  const admissions = new Set<Admission>()
-  const transactions = new Set<Set<{ destroy(): void }>>()
-  // The label is the descriptor's, as the engine wrote it: a shared allocation carries its own
-  // label to every session budget it crosses, and so does a tentative one its tentativeness — made
-  // under this ledger's `tentative`, or under its base's — so no budget it crosses is refused.
-  const check = (bytes: number, label: string, held = false) => {
-    const soft = held || tentative > 0
-    const total = liveBytes + (base?.bytes ?? 0) + bytes
-    const ceiling = limit?.()
-    if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
-      const error = new Error(
-        `GPU_BUDGET_EXCEEDED: requested=${bytes}, label=${label}, held=${total - bytes}, limit=${ceiling}`,
-      )
-      if (!soft) refusal = error
-      throw error
-    }
-    try {
-      for (const admission of admissions) admission(bytes, label, soft)
-    } catch (error) {
-      if (!soft) refusal = error as Error
-      throw error
-    }
+  const { base, limit } = options
+  const books: LedgerBooks = {
+    ...options,
+    live: new Map(),
+    unknownFormats: 0,
+    liveBytes: 0,
+    refusal: undefined,
+    tentative: 0,
+    admissions: new Set(),
+    transactions: new Set(),
+    held: undefined,
+    heldBase: undefined,
   }
+  const check = (bytes: number, label: string, held = false) =>
+    checkAllocation(books, bytes, label, held)
   const unobserve = limit ? base?.observeAdmission(check) : undefined
-  // The snapshot is read every host frame, held frame included: it is rebuilt only after an
-  // allocation or a destroy, its own or its base's, never in a still scene.
-  let held: GpuDeviceLedgerSnapshot | undefined, heldBase: GpuDeviceLedgerSnapshot | undefined
-  const track = <T extends { destroy(): void }>(resource: T, label: string, bytes: number) => {
-    live.set(resource, { label, bytes })
-    liveBytes += bytes
-    for (const transaction of transactions) transaction.add(resource)
-    held = undefined
-    const destroy = resource.destroy
-    resource.destroy = function (this: T) {
-      if (live.delete(resource)) {
-        liveBytes -= bytes
-        held = undefined
-      }
-      return destroy.call(this)
-    }
-    return resource
-  }
-  const createTexture = device.createTexture.bind(device)
-  const createBuffer = device.createBuffer.bind(device)
-  device.createTexture = (descriptor) => {
-    if (counts && !counts(descriptor.label)) return createTexture(descriptor)
-    const bytes = textureBytesOf(descriptor)
-    const label = descriptor.label ?? LABEL_NONE
-    if (bytes === null && (limit || admissions.size)) {
-      // Notify active session budgets too; no unknown shared allocation can bypass them.
-      check(Infinity, label)
-      refusal = new Error('GPU_BUDGET_UNKNOWN_FORMAT')
-      throw refusal
-    }
-    check(bytes ?? 0, label)
-    if (bytes === null) unknownFormats++
-    return track(createTexture(descriptor), label, bytes ?? 0)
-  }
-  device.createBuffer = (descriptor) => {
-    if (counts && !counts(descriptor.label)) return createBuffer(descriptor)
-    const label = descriptor.label ?? LABEL_NONE
-    check(descriptor.size, label)
-    return track(createBuffer(descriptor), label, descriptor.size)
-  }
+  observeCreates(device, books)
+  const ledger = ledgerOver(books, base, unobserve)
+  ledgers.set(device, ledger)
+  return ledger
+}
+
+/** The ledger's face over `books`, `base` its base and `unobserve` its release from it. */
+function ledgerOver(
+  books: LedgerBooks,
+  base: GpuDeviceLedger | undefined,
+  unobserve: (() => void) | undefined,
+): GpuDeviceLedger {
+  const { limit, admissions } = books
   const ledger: GpuDeviceLedger = {
     get bytes() {
-      return liveBytes + (base?.bytes ?? 0)
+      return books.liveBytes + (base?.bytes ?? 0)
     },
     get room() {
       const ceiling = limit?.()
@@ -145,65 +95,31 @@ export function installGpuDeviceLedger(
       return Number.isFinite(ceiling) ? ceiling - ledger.bytes : 0
     },
     get refusal() {
-      return refusal ?? base?.refusal
+      return books.refusal ?? base?.refusal
     },
     observeAdmission(admission) {
       admissions.add(admission)
       return () => {
         admissions.delete(admission)
-        if (!admissions.size && !limit) refusal = undefined
+        if (!admissions.size && !limit) books.refusal = undefined
       }
     },
     releaseAdmission() {
       unobserve?.()
     },
     tentative(build) {
-      tentative++
+      books.tentative++
       try {
         // The base's own admissions, other sessions' limits, are tentative too: the base hands its
         // tentativeness to every budget it checks a shared allocation against (`check`).
         return base ? base.tentative(build) : build()
       } finally {
-        tentative--
+        books.tentative--
       }
     },
-    transaction() {
-      const resources = new Set<{ destroy(): void }>()
-      let active = true
-      transactions.add(resources)
-      return {
-        commit() {
-          active = false
-          transactions.delete(resources)
-        },
-        rollback() {
-          if (!active) return
-          active = false
-          transactions.delete(resources)
-          for (const resource of resources) if (live.has(resource)) resource.destroy()
-        },
-      }
-    },
-    snapshot() {
-      const under = base?.snapshot()
-      if (held && heldBase === under) return held
-      heldBase = under
-      const sums = new Map<string, number>(under ? Object.entries(under.byLabel) : [])
-      let bytes = under?.bytes ?? 0
-      for (const entry of live.values()) {
-        bytes += entry.bytes
-        sums.set(entry.label, (sums.get(entry.label) ?? 0) + entry.bytes)
-      }
-      const byLabel = Object.fromEntries([...sums].sort((a, b) => b[1] - a[1]))
-      return (held = {
-        bytes,
-        byLabel,
-        unknownFormats: unknownFormats + (under?.unknownFormats ?? 0),
-        live: live.size + (under?.live ?? 0),
-      })
-    },
+    transaction: () => ledgerTransaction(books),
+    snapshot: () => ledgerSnapshot(books),
   }
-  ledgers.set(device, ledger)
   return ledger
 }
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Non-code package resources: `tsc` does not know them and does not copy them,
 // yet a host serving the built `dist/` as-is requests them by URL alongside the module loading
-// them. Without this step, `pageCodec.wasm` is missing from `dist/` and the WebAssembly decoder
-// silently falls back to JavaScript decoder. The committed file is authoritative: this step
+// them. Without this step, `kernels.wasm` is missing from `dist/` and the math batch kernels
+// silently fall back to their JavaScript twins. The committed file is authoritative: this step
 // compiles nothing, it copies (`pnpm run build:wasm` is what rebuilds it).
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..')
 const RESSOURCES: [string, string][] = [
-  ['sdk-browser/src/page/decode', 'pageCodec.wasm'],
+  ['sdk-browser/src/math/wasm', 'kernels.wasm'],
   ['sdk-browser/src/physics', 'joltPhysics.wasm'],
   ['sdk-browser/src/physics', 'joltPhysicsThreads.wasm'],
   ['sdk', 'package.json'],

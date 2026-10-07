@@ -2,85 +2,19 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { createExplorerViewportApi } from './viewportApi.ts'
-import { createWebglSurface } from '../../webgl/core/surface.ts'
-import type { MeasuredWorldOptions, RenderBackend } from '../../backend/types.ts'
+import type { MeasuredWorldOptions, Engine } from '../../engine/types.ts'
 import type { HostCamera } from '../../camera/world.ts'
-import { EngineError, type CameraPose } from '../../../../sdk-core/src/index.ts'
-import { ENGINE_ERROR_CODES } from '../../../../sdk-core/src/contracts/errorCodes.ts'
 
-test('public resize sizes the owned surface once, and the composition targets in its pixels', () => {
-  const context = {
-    isContextLost: () => false,
-    getExtension: () => null,
-  } as unknown as WebGL2RenderingContext
-  const sizes: number[][] = []
-  const canvas = {
-    get width() {
-      return sizes.at(-1)?.[0] ?? 0
-    },
-    set width(value: number) {
-      sizes.push([value, sizes.at(-1)?.[1] ?? 0])
-    },
-    get height() {
-      return sizes.at(-1)?.[1] ?? 0
-    },
-    set height(value: number) {
-      sizes.push([sizes.at(-1)?.[0] ?? 0, value])
-    },
-    getContext: () => context,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  } as unknown as HTMLCanvasElement
-  const surface = createWebglSurface(canvas)
-  const resized: number[][] = []
-  const target = { resize: (width: number, height: number) => resized.push([width, height]) }
-  const viewport: [number, number] = [0, 0]
-  const camera = { aspect: 0, updateProjectionMatrix: () => {} }
-  const api = createExplorerViewportApi({
-    check: () => {},
-    active: () => ({}) as never,
-    setCapturingSurface: () => {},
-    targets: () => [{ current: () => target } as never, undefined],
-    camera: camera as never,
-    canvas,
-    webglSurface: surface,
-    viewport,
-    options: { manifestUrl: '', pixelRatio: 2 },
-  })
-  api.resize(40, 30)
-  api.resize(40, 30)
-  assert.deepEqual(
-    sizes,
-    [
-      [80, 0],
-      [80, 60],
-    ],
-    'the drawing buffer is written once per axis',
-  )
-  assert.deepEqual(
-    resized,
-    [
-      [80, 60],
-      [80, 60],
-    ],
-    'targets follow the drawing buffer',
-  )
-  assert.deepEqual(viewport, [80, 60])
-  assert.equal(camera.aspect, 4 / 3)
-})
-
-test('public direct-WebGPU resize sizes the page canvas, having no WebGL surface', () => {
+test('public resize sizes the page canvas the engine presents into', () => {
   const canvas = { width: 0, height: 0 } as HTMLCanvasElement
   const viewport: [number, number] = [0, 0]
   let blanked = 0
   const api = createExplorerViewportApi({
     check: () => {},
-    active: () => ({ canvasResized: () => blanked++ }) as never,
+    engine: { canvasResized: () => blanked++ } as never,
     setCapturingSurface: () => {},
-    targets: () => [],
     camera: { aspect: 0, updateProjectionMatrix: () => {} } as never,
     canvas,
-    webglSurface: undefined,
     viewport,
     options: { manifestUrl: '', pixelRatio: 1.5 },
   })
@@ -91,8 +25,8 @@ test('public direct-WebGPU resize sizes the page canvas, having no WebGL surface
 
 // THE CAPTURE VIEW IS AIMED AT A REAL HOST POINT.
 //
-// `captureSurfaceView` clones the live camera and aims it at the pose's target. A host library
-// tells its own vector from a triple of numbers by a flag of its own: handed a plain
+// `captureSurfaceView` clones the live camera and aims it at the pose's target. A host's vector
+// class tells its own vector from a triple of numbers by a flag of its own: handed a plain
 // `{ x, y, z }` literal it reads the object as the first number and the other two as
 // `undefined`, and the world matrix comes out `[NaN, NaN, NaN, 0]`. The existing capture tests
 // call the backend directly and never go through this boundary, so the view is checked here,
@@ -102,7 +36,7 @@ test('captureSurfaceView hands the backend a finite view aimed at the pose targe
   camera.position.set(1, 2, 3)
   camera.updateMatrixWorld()
   let view: HostCamera | undefined
-  const backend = { id: 'webgpu-page-raster' } as RenderBackend
+  const backend = { id: 'webgpu-page-raster' } as Engine
   // What a real backend gives back needs a device; the view it was handed does not, so the
   // capture records it and stops there, and the boundary lowers its flag in its `finally`.
   backend.captureSurfaceView = async (given) => {
@@ -111,9 +45,8 @@ test('captureSurfaceView hands the backend a finite view aimed at the pose targe
   }
   const api = createExplorerViewportApi({
     check: () => {},
-    active: () => backend,
+    engine: backend,
     setCapturingSurface: () => {},
-    targets: () => [],
     camera,
     canvas: { width: 8, height: 8 } as HTMLCanvasElement,
     viewport: [8, 8],
@@ -137,26 +70,4 @@ test('captureSurfaceView hands the backend a finite view aimed at the pose targe
   // axis pointing BACK from the target — is `+x`, and the fourth column is the eye.
   assert.ok(Math.abs(elements[8] - 1) < 1e-12, `looks at the target, got ${elements[8]}`)
   assert.deepEqual([elements[12], elements[13], elements[14]], [4, 0, 0])
-})
-
-// The WebGL2 path draws no material surfaces, so it cannot draw a surface capture in a view
-// of its own; it refuses it by a documented name, never by a bare message.
-test('a surface capture the drawing path cannot draw is refused by name', async () => {
-  const api = createExplorerViewportApi({
-    check: () => {},
-    active: () => ({ id: 'autonomous-pages-webgl' }) as RenderBackend,
-    setCapturingSurface: () => assert.fail('nothing is captured'),
-    targets: () => [],
-    camera: G.perspectiveCamera(50, 1, 0.1, 100),
-    canvas: { width: 8, height: 8 } as HTMLCanvasElement,
-    viewport: [8, 8],
-    options: {} as MeasuredWorldOptions,
-  })
-  const pose: CameraPose = { position: [4, 0, 0], target: [0, 0, 0], fov: 60, near: 0.5, far: 200 }
-  await assert.rejects(api.captureSurfaceView(pose, { width: 4, height: 2 }), (error) => {
-    assert.ok(error instanceof EngineError)
-    assert.equal(error.code, 'SURFACE_CAPTURE_UNSUPPORTED')
-    assert.ok(ENGINE_ERROR_CODES.flat().includes(error.code), 'a documented code')
-    return true
-  })
 })

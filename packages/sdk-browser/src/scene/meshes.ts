@@ -26,18 +26,3 @@ export const loadHostVertices = (meshes: Iterable<{ geometry: Geometry }>) =>
 export function* materialTextures(material: HostGraphMaterial): Generator<HostGraphTexture> {
   for (const value of Object.values(material)) if (isGraphTexture(value)) yield value
 }
-export function geometryBytes(geometry: Geometry, seen: Set<ArrayBufferView>) {
-  let bytes = 0
-  const index = geometry.index
-  if (index && !seen.has(index.array)) {
-    seen.add(index.array)
-    bytes += index.array.byteLength
-  }
-  for (const name in geometry.attributes) {
-    const attr = geometry.attributes[name]
-    if (!attr || seen.has(attr.array)) continue
-    seen.add(attr.array)
-    bytes += attr.array.byteLength
-  }
-  return bytes
-}

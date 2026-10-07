@@ -1,6 +1,6 @@
 import type { HostAttribute } from '../host/resources.ts'
 import { barycentricAt } from '../../../../bench/oracles/browser/cpu-image/math.ts'
-import { signedArea } from '../visibility/projection.ts'
+import { signedArea } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
 
 /**
  * The oracle's projection and fill rule: one triangle at a time, from three vertex ranks to the

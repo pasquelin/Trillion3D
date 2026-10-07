@@ -1,3 +1,11 @@
+/** The 32-bit words of `bytes`, where they sit in their buffer. */
+export const words = (bytes: Uint8Array) =>
+  new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
+
+/** The 32-bit floats of `bytes`, where they sit in their buffer. */
+export const floats = (bytes: Uint8Array) =>
+  new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
+
 /** What a mock buffer's mapping meets: a refusal, or a gate the test opens when it chooses. */
 export type MapFaults = { failMap?: boolean; mapGate?: Promise<void> }
 

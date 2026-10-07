@@ -13,7 +13,7 @@ import { cullingBounds } from './bounds.ts'
 import { cullingLinks } from './links.ts'
 import { CULL_STRIDE } from '../../gpu/dag/types.ts'
 import { structureIndex } from '../selection/structure.ts'
-import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts'
+import { IDENTITY_WORLD } from '../../math/matrixElements.ts'
 
 export type RulePage = {
   url: string
@@ -127,7 +127,7 @@ export function ruleDag(leaves = 64, leafError = 0.002) {
     bounds: cullingBounds(hierarchy, pages),
     links: cullingLinks(hierarchy, pages.length),
   }
-  return { pages, structure, culling, world: { elements: IDENTITY_ELEMENTS }, leaves }
+  return { pages, structure, culling, world: IDENTITY_WORLD, leaves }
 }
 export type RuleDag = ReturnType<typeof ruleDag>
 

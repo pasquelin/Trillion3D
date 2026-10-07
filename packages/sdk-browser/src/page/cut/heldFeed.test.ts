@@ -1,12 +1,12 @@
 // The cut rule's readiness follows the pool's residency feed: a still
 // view reads no page's residency, a change reads the pages that moved and no other, and a placement
 // that leaves the view lets its readiness go, the running total exact. Counted, never timed: every
-// residency answer a cut asks for, on the CPU cut and the WebGL2 image's cut.
+// residency answer a cut asks for, on the CPU cut.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { AWAY, placements } from './cutRuleBackends.fixture.ts'
-import { cpuBackend, webgl2Backend } from './cutRuleHosts.fixture.ts'
+import { cpuBackend } from './cutRuleHosts.fixture.ts'
 import { random } from './cutRuleChecks.fixture.ts'
 import { createWebgpuPagesLayout } from '../../webgpu/pages/prepare/layout.ts'
 import type { WebgpuPagesSetup } from '../../webgpu/pages/prepare/setup.ts'
@@ -16,8 +16,7 @@ const dag = ruleDag(64),
   n = dag.pages.length
 
 const backends = {
-  'CPU cut': cpuBackend,
-  'WebGL2 cut': webgl2Backend,
+  'CPU oracle': cpuBackend,
 }
 /** `name`'s backend over `roots`, by default two placements of the DAG, both in view. */
 const mount = <K extends keyof typeof backends>(name: K, roots = placements(dag, 2)) =>
@@ -97,7 +96,7 @@ for (const name of Object.keys(backends) as (keyof typeof backends)[]) {
   })
 }
 
-test('both layouts let the feed route every move; a layout that does not is counted', () => {
+test('the layout lets the feed route every move; a layout that does not is counted', () => {
   const setup = { roots: placements(dag, 2), bootstrap: [], cap: 64, pageBytes: 64 }
   const webgpu = createWebgpuPagesLayout(setup as unknown as WebgpuPagesSetup).selectionRoots
   const routed = (cut: ReturnType<typeof cpuBackend>) => {
@@ -106,7 +105,6 @@ test('both layouts let the feed route every move; a layout that does not is coun
     return cut.held.unroutedReads
   }
   assert.equal(routed(cpuBackend(dag, THRESHOLD, webgpu)), 0, 'the WebGPU layout')
-  assert.equal(routed(webgl2Backend(dag, THRESHOLD, placements(dag, 2))), 0, 'the WebGL2 layout')
   // A layout that posts no base for one placement: the feed cannot route its moves, so its pages
   // are read whole at each later visit and counted.
   assert.equal(routed(cpuBackend(dag, THRESHOLD, placements(dag, 2), 1)), 3, 'read whole again')

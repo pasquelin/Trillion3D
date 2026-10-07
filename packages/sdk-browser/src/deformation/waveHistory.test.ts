@@ -4,16 +4,12 @@ import { createDeformationFrame } from './frame.ts'
 import { deformedOf } from './source.ts'
 import { recordLayout } from './layout.ts'
 import { DEFORM_WGSL } from './deformWgsl.ts'
-import { DEFORM_GLSL } from './deformGlsl.ts'
 import { waveShader } from './waves.fixture.ts'
 import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { transformAffinePoint } from '../../../sdk-core/src/index.ts'
-import { createWebglDeformation } from './webglFrame.ts'
-import type { ClusterRoot, PageRec } from '../page/selection/selection.ts'
-import type { EngineCamera } from '../camera/world.ts'
 
 const surface = () =>
   new WaterSurface({
@@ -100,30 +96,4 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
     )
   }
   assert.match(DEFORM_WGSL, /a\.world\+=select\(0u,32u,previous\)/)
-  assert.match(DEFORM_GLSL, /deformWaves\(world\+64,waves/)
-})
-
-test('WebGL wave records advance their upload version when only the world transform changes', () => {
-  const water = surface(),
-    world = { elements: new Matrix4().elements }
-  const roots = [
-    { world, pages: [{ sourceMesh: { waves: water } }] },
-  ] as unknown as ClusterRoot<PageRec>[]
-  const deformation = createWebglDeformation(roots)
-  const camera = { projection: new Matrix4().elements } as EngineCamera
-  deformation.update(camera, undefined, 0)
-  const first = deformation.source()!.version
-  deformation.update(camera, undefined, 0)
-  assert.equal(deformation.source()!.version, first)
-  world.elements[12] = 2
-  deformation.update(camera, undefined, 0)
-  assert.equal(deformation.source()!.version, first + 1)
-  const at = recordLayout({ joints: 0, targets: 0, waves: 1 }).world
-  assert.equal(deformation.source()!.block[at + 12], 2)
-  assert.equal(deformation.source()!.block[at + 32 + 12], 0)
-  deformation.update(camera, undefined, 0)
-  assert.equal(deformation.source()!.version, first + 2)
-  assert.equal(deformation.source()!.block[at + 32 + 12], 2)
-  deformation.update(camera, undefined, 0)
-  assert.equal(deformation.source()!.version, first + 2)
 })

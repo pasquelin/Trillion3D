@@ -1,8 +1,8 @@
-// The fluids bench scene, `--scene fluids` on `--engine webgpu|webgl2`: one ocean, 100
+// The fluids bench scene (#418), `--scene fluids` on `--engine webgpu`: one ocean, 100
 // floating bodies, 20 fires and 5 smoke volumes, declared here and built in the page through the
 // public API (`fluids/fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
-// `floatingBodies`); what the engine does not draw is a THROWAWAY STAND-IN: a flat
-// transmissive ocean (no waves), fires and smoke volumes. The engine has one
+// `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
+// transmissive ocean (#422 draws the waves), fires and smoke volumes (#423). The engine has one
 // refraction source, a copy of the lit image: the scene has no switch between two.
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -18,6 +18,7 @@ import { floatingBodies } from '../../../packages/sdk-browser/src/physics/water.
 import { encodePng } from '../../../packages/sdk-node/src/cutout/png.mts'
 import type { Capture } from '../../../tests/kit/server/staticServer.ts'
 import { distribution, machineLoad } from '../summary/summary.ts'
+import { isEngine } from '../harness/sideOptions.ts'
 import { passesGpu } from '../series/seriesPasses.ts'
 import { p50p95, passes } from '../summary/summaryPasses.ts'
 import { sdkEntryUrl } from '../harness/dists.ts'
@@ -69,12 +70,10 @@ export type FluidsScene = ReturnType<typeof fluidsScene>
 
 /** What one side sends into the page: the bench settings are plain data, sent whole. */
 function fluidsPayload(side: Side, settings: BenchSettings, scene: FluidsScene) {
-  const renderer = side.engine.renderer
-  if (!renderer) throw new Error('--scene fluids draws on --engine webgpu or webgl2 only')
+  if (!isEngine(side.engine)) throw new Error('--scene fluids draws on --engine webgpu only')
   return {
     side: side.name,
     sdkUrl: sdkEntryUrl(side),
-    renderer,
     settings,
     captureFile: `${side.name}-fluids.png`,
     scene,
@@ -101,7 +100,6 @@ async function fluidsRow(
     await writeFile(join(out, payload.captureFile), encodePng(capture.w, capture.h, capture.body))
   return {
     side: payload.side,
-    renderer: payload.renderer,
     bodiesSimulated: result.bodies,
     cpuFrameMs: distribution(result.cpuFrameMs),
     gpuFrameMs: distribution(result.gpuFrameMs),
@@ -141,12 +139,12 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
   return [
     '## Fluids scene',
     '',
-    '| side | renderer | canvas | bodies | CPU frame | GPU frame | rAF interval | physics step (worker) | physics (page) |',
-    '|---|---|---|---|---|---|---|---|---|',
+    '| side | canvas | bodies | CPU frame | GPU frame | rAF interval | physics step (worker) | physics (page) |',
+    '|---|---|---|---|---|---|---|---|',
     ...rows.map((r) => {
       const { width, height, dpr } = r.canvas
       const ms = [r.cpuFrameMs, r.gpuFrameMs, r.rafIntervalMs, r.physicsStepMs, r.physicsMainMs]
-      return `| ${[r.side, r.renderer, `${width}×${height} @${dpr}`, r.bodiesSimulated, ...ms.map(p50p95)].join(' | ')} |`
+      return `| ${[r.side, `${width}×${height} @${dpr}`, r.bodiesSimulated, ...ms.map(p50p95)].join(' | ')} |`
     }),
     '',
     ...rows.flatMap((r) => [

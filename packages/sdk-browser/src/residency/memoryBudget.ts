@@ -75,12 +75,12 @@ export const DEFAULT_CPU_BUDGET = DEFAULT_CACHED_BYTES
  *   root cover, the texture tails — leaves them at those floors, which the pools' own clamps name.
  * - CPU: the decoded-page cache takes it all (`pageCache.ts`), the session's manifest tables and
  *   transfer queue reserved off it.
- *   The cut's host tables — group closure, the rule's readiness, the residency sets and the cut's
- *   differences, sized by what the view asks for and the pool holds — are held in
- *   the cache's share too: the session reserves their bytes there (`hostTableBytes`, the
- *   streamer's `reserve`), read each time the cache weighs itself, and the decoded pages keep the
- *   rest. The decoded texture levels take at most `textureLevelShare` of it (`textureLevels`), and
- *   yield first to the pages a frame keeps.
+ *   The cut's host tables — the GPU cut publication's host mirrors: group closure, the rule's
+ *   readiness, the residency sets and the cut's differences, sized by what the view asks for and
+ *   the pool holds — are held in the cache's share too: the session reserves their bytes there
+ *   (`hostTableBytes`, the streamer's `reserve`), read each time the cache weighs itself, and the
+ *   decoded pages keep the rest. The decoded texture levels take at most `textureLevelShare` of it
+ *   (`textureLevels`), and yield first to the pages a frame keeps.
  * With a session's `active` memory, each share is what it holds — the frame's targets with what
  * else is live beside the pools (`frameTargets`) — and the two pools the rest, less the shadows
  * still to be made (`shadowReserve`), within their floors and ceilings (`admittedPools`). At a canvas's default total (`defaultGpuBudget`), which funds the

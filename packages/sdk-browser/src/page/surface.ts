@@ -3,9 +3,9 @@
  * engine's own words, and nothing of the host object it was read from.
  *
  * A page does not carry the host material declaration itself: every reader on the
- * way to the image — the cut's normal cones, the row writer, the software raster, the coplanar
- * layer batches, the frame audit, the transparent items — takes a side, a
- * transparency flag, a colour from this record. The record below is read ONCE per declaration, at
+ * way to the image — the cut's normal cones, the row writer, the coplanar layer batches, the
+ * frame audit, the transparent items — takes a side, a transparency flag, a colour from this
+ * record. The record below is read ONCE per declaration, at
  * the two boundaries that own that read (`../host/surfaceImport.ts` for the shaded fields,
  * `../scene/materialSide.ts` for the raster ones); downstream no file of the engine path names a
  * host material again.
@@ -15,14 +15,12 @@
  * is itself built from that table (`../host/prepared/materials.ts`).
  *
  * A record is held BY its declaration and refilled IN PLACE, so every page of every placement of
- * one surface shares a single record and comparing two surfaces is comparing two references. The
- * host declaration itself stays reachable where a host boundary needs to hand it back to the
- * library that owns it — `PageRec.declaration` — and the closed list of
- * `tests/integration/engine-without-three.test.ts` says who may read that field.
+ * one surface shares a single record and comparing two surfaces is comparing two references. A
+ * page keeps the record alone, never the host declaration it was read from.
  */
 import type { Side } from '../../../sdk-core/src/index.ts'
 import type { HostMaterials } from '../host/resources.ts'
-import { isAssignment, type AlphaChange } from '../placement/backendSceneUpdates.ts'
+import { isAssignment, type AlphaChange } from '../placement/engineSceneUpdates.ts'
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
 import { unreadMapRefusal } from '../scene/surfaceModel.ts'
 import {
@@ -64,7 +62,7 @@ const held = new WeakMap<object, PageSurface>()
 const declarations = new WeakMap<PageSurface, HostMaterials>()
 
 /** Fills a record from a declaration, reusing the object so every holder sees the new fields. A
- *  map its model never reads is refused by name, as the WebGL2 gate refuses it (`unreadMapRefusal`). */
+ *  map its model never reads is refused by name (`unreadMapRefusal`). */
 function fill(into: PageSurface, material: HostMaterials): PageSurface {
   const host = firstMaterial(material) as HostShadedMaterial | undefined,
     unread = host && unreadMapRefusal(host)
@@ -75,8 +73,8 @@ function fill(into: PageSurface, material: HostMaterials): PageSurface {
 /**
  * The engine record of a host declaration, built at its first page and reread when the host
  * rewrites the declaration in place. Called at the boundaries that hold a host material — the
- * collection, a witness that repaints its pages, the WebGL2 binder's frame, the WebGPU refresh of
- * surfaces a page changed the alpha of — and nowhere else.
+ * collection, a witness that repaints its pages, the refresh of surfaces a page changed the alpha
+ * of — and nowhere else.
  */
 export function surfaceOf(material: HostMaterials): PageSurface {
   const kept = held.get(material as object)
@@ -110,9 +108,9 @@ function refreshSide(surface: PageSurface): PageSurface {
  *
  * The raster facts are reread on every call: a host writes `side`, `alphaTest` or `opacity` on
  * the declaration it shares with its mesh without bumping any version, and the transparent plan
- * (`../webgpu/blend/plan.ts`) and the software raster (`../visibility/raster.ts`) have to see it between
- * two images. The shaded fields, which walk the six map slots, are reread only when the version
- * moved — the comparison the page row already made before writing.
+ * (`../webgpu/blend/plan.ts`) has to see it between two images. The shaded fields, which walk the
+ * six map slots, are reread only when the version moved — the comparison the page row already
+ * made before writing.
  */
 export function refreshSurface(surface: PageSurface): PageSurface {
   const material = declarations.get(surface)
@@ -128,21 +126,6 @@ export const recordsOfMeshes = <T extends { sourceMesh?: object }>(
   meshes: ReadonlyMap<object, unknown>,
 ) => records.filter((rec) => !!rec.sourceMesh && meshes.has(rec.sourceMesh))
 
-/** The records of each surface an assignment gives (`SurfaceAssignment`): each mesh's own. */
-export function recordsBySurface<T extends { sourceMesh?: object }>(
-  records: readonly T[],
-  meshes: ReadonlyMap<object, object>,
-) {
-  const by = new Map<object, T[]>()
-  for (const rec of recordsOfMeshes(records, meshes)) {
-    const surface = meshes.get(rec.sourceMesh!)!
-    let list = by.get(surface)
-    if (!list) by.set(surface, (list = []))
-    list.push(rec)
-  }
-  return by
-}
-
 /** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
  *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
 export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alpha: AlphaChange) {
@@ -152,11 +135,7 @@ export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alph
   if (unpaged.size) return 'the drawable is drawn as a forward copy laid out when the session opens'
 }
 
-/** A record wears `declaration` from now on, its surface record read at this boundary. */
-export function wearDeclaration(
-  rec: { declaration: HostMaterials; material: PageSurface },
-  declaration: HostMaterials,
-) {
-  rec.declaration = declaration
+/** A record wears `declaration` from now on: its surface record, read at this boundary. */
+export function wearDeclaration(rec: { material: PageSurface }, declaration: HostMaterials) {
   rec.material = surfaceOf(declaration)
 }

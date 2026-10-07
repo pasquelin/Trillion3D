@@ -39,8 +39,8 @@ export const HIZ_TEST_PAGES_ENTRIES: GPUBindGroupLayoutEntry[] = [
 ]
 
 /**
- * The Hi-Z kernels: the pyramid build and the test. The test receives no count or bytes
- * from the CPU: it reads the box count and writes its own reject counters into the state the GPU
+ * The Hi-Z kernels: the pyramid build and the test. The test receives no count or bytes from the
+ * CPU: it reads the box count and writes its own reject counters into the state the GPU
  * partition holds, and the boxes are those the partition packed in the same submission. No value
  * is inferred there: a verdict is written, or the row stays at zero.
  *

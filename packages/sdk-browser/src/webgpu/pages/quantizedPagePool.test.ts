@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
-import { frontCamera } from '../../backend/pagesBackendScenes.fixture.ts'
+import { frontCamera } from '../../engine/pagesEngineScenes.fixture.ts'
 import {
   disposePagedQuad,
   pagedQuad,
@@ -9,7 +9,7 @@ import {
   FIRST,
   SECOND,
 } from './pagedQuad.fixture.ts'
-import type { BackendDiagnostic } from '../../backend/types.ts'
+import type { EngineDiagnostic } from '../../engine/types.ts'
 
 /** The two clusters of the quad; the second without a page when `both` is false, so a cluster the
  *  cache left without one can be told apart. */
@@ -19,13 +19,13 @@ const quad = (both: boolean) => pagedQuad([{ corners: FIRST }, { corners: SECOND
 // `WGP3` object the compiler wrote, and it lands at the word offset the cache gave that cluster.
 test('an admitted cluster puts its quantized page bytes at its own pool slot', async () => {
   installGpuGlobals()
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const fixture = quad(true)
   const { gpu, backend } = pagedQuadBackend(fixture, events)
   try {
     await backend.prepare()
     backend.render(frontCamera())
-    await backend.flush?.()
+    await backend.flush()
     const pool = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D geometry page cache')
     assert.ok(pool, 'no geometry page pool')
     const declared = events.find((event) => event.phase === 'geometry-pages')
@@ -47,7 +47,7 @@ test('an admitted cluster puts its quantized page bytes at its own pool slot', a
 // source float buffers, and the engine says how many clusters are on each side.
 test('clusters without a geometry page are counted, not assumed', async () => {
   installGpuGlobals()
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const fixture = quad(false)
   const { backend } = pagedQuadBackend(fixture, events)
   try {

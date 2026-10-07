@@ -6,9 +6,9 @@
 // module of one hundred-line function both pass it, and only one of them is hard to change.
 //
 // What it deliberately does not measure is the number of declarations a module holds. The tree
-// decomposes by responsibility at a fine grain and on purpose — `backend/autonomous/` alone is a
-// dozen modules of one or two names each, read by `pages.ts` and `pool.ts` — and that is an
-// architecture, not a fragmentation. A gate on it would condemn the house style.
+// decomposes by responsibility at a fine grain and on purpose — `host/prepared/` alone is a dozen
+// modules, one step of the scene build each, read by `build.ts` — and that is an architecture, not
+// a fragmentation. A gate on it would condemn the house style.
 import ts from 'typescript'
 
 /** Each package is its own namespace. */

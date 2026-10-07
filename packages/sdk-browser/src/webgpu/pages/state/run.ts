@@ -1,8 +1,8 @@
-import type { CameraMotion, EngineCamera, HostCamera } from '../../../camera/world.ts'
+import type { CameraMotion, HostCamera } from '../../../camera/world.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/index.ts'
-import type { PageRec, SelectionResult } from '../../../page/selection/selection.ts'
+import type { PageRec } from '../../../page/selection/selection.ts'
 import type { GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts'
-import type { HizCounts, TemporalHizState } from '../../../hiz/hiz.ts'
+import type { AsideCut } from '../../../gpu/core/aside.ts'
 import type { FrameGateCore } from '../../../frame/gateCore.ts'
 import type { WebgpuBudgetState } from '../../residency/budgetState.ts'
 
@@ -29,7 +29,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   diagnosticPixelError: number
   lastCamera: HostCamera | undefined
   gpuSelection: GpuSelection | undefined
-  gpuFrameActive: boolean
   /** Hi-Z pyramid built this submission: the transparent test never strips another image's. */
   hizPyramidFresh: boolean
   gpuMetricsReady: boolean
@@ -52,20 +51,14 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   outputDiagnosticLogged: boolean
   noOccluderHistory: boolean
   /** The view moved since the last image: every row may leave the occluders again. */
-  hizViewMoved: boolean
-  previousHizView: EngineCamera | undefined
-  temporalHizState: TemporalHizState
-  /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
-  cpuHizCounts: HizCounts
-  cpuHizCounted: boolean
+  occluderViewMoved: boolean
   rowsSyncedFrame: number
-  cameraRows: number // rows the CPU cut draws on screen
   motion: CameraMotion
+  /** The drawn view's cut uniforms: each view writes its own (`./view.ts`). */
   selectionUniforms: SelectionUniforms
-  /** Result of the CPU cut, reused image after image so the cut allocates nothing. */
-  selectResult: SelectionResult<PageRec>
-  /** Time of the CPU cut alone; null on an image the GPU cut decided. */
-  cpuSelectMs: number | null
+  /** A view drawn beside the main one cuts there (`../../../gpu/dag/aside.ts`), from its first
+   *  image; the main view has none. */
+  asideCut: AsideCut | undefined
   shown: PageRec[]
   /** The packed rank of each shown page, rank by rank: one record serves many placements. */
   shownPacked: number[]
@@ -75,19 +68,12 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   drawn: PageRec[]
   /** The packed rank of each drawn page, rank by rank: what a per-instance reader of `drawn` reads. */
   drawnPacked: number[]
-  /** Packed-rank scratch of the CPU cut's opaque and transparent partitions. */
-  opaquePackedScratch: number[]
-  transparentPackedScratch: number[]
   /** True when `drawn` copies `shown` as-is; written only by the copies in `../helpers.ts`. */
   drawnMirrorsShown: boolean
   /** Pages the residency path had to touch this image; null before a GPU cut reported one. */
   pagesEntered: number | null
   pagesExited: number | null
-  // Reused by the cut every image; the cut changes, the arrays behind it do not.
-  opaqueScratch: PageRec[]
-  transparentScratch: PageRec[]
-  culledScratch: PageRec[]
-  readyScratch: PageRec[]
+  // Reused every image; the cut changes, the arrays behind it do not.
   pendingScratch: string[]
   /** Records whose bytes are still awaited, refilled before each pending-address walk. */
   awaitedScratch: PageRec[]
@@ -97,8 +83,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   urlScratch: string[]
   /** True when adoption reread the sample already held: `desired` and `shown` have not moved. */
   cutHeld: boolean
-  /** Age of the cut's lists: rises as soon as an adoption or the CPU cut rewrites them, rendered or
-   *  not. What a keeper of a list from one image to the next reads. */
+  /** Age of the cut's lists: rises as soon as an adoption rewrites them, rendered or not. What a
+   *  keeper of a list from one image to the next reads. */
   cutEpoch: number
   /** Rises every time a page receives or loses its bytes: what the waited-for list reads. */
   pageArrayEpoch: number
@@ -107,8 +93,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   pendingHeld: { epoch: number; cut: number; limited: boolean; ready: boolean }
   urlsHeld: { epoch: number; cut: number; limited: boolean }
   ranksHeld: { epoch: number; cut: number; limited: boolean }
-  /** URL sets of an image: filled then emptied, never reallocated. */
-  requestedScratch: Set<string>
   /** Image entry: revisions, view origin, reread of the source graph, walk of world matrices and
    *  held-image witness. See `../../../frame/gateCore.ts`. */
   gate: FrameGateCore

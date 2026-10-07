@@ -12,7 +12,7 @@ test('a refused probe snapshot releases the entire new probe bundle, preserving 
   })
   let ceiling = 1e9
   const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling })
-  const previous = gpu.device.createBuffer({ size: 64, usage: 0 })
+  const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
   const proxy = ownedProxy()
   const cascades = createBounceCascades(proxy.bounds)
   const originalCreate = gpu.device.createTexture.bind(gpu.device)

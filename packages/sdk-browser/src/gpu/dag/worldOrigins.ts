@@ -20,7 +20,9 @@ export function createWorldOrigins(
   buffers: readonly GPUBuffer[],
   sources: PackedDag['worldSources'],
 ) {
-  const words = new Float32Array((sources?.length ?? 0) * 8),
+  // Every placement the ranges hold: the live ones, and those a growth appends to `sources`.
+  const slots = ranges.reduce((sum, { count }) => sum + count, 0),
+    words = new Float32Array(Math.max(slots, sources?.length ?? 0) * 8),
     next = new Float32Array(8)
   return {
     hostBytes: words.byteLength + next.byteLength,

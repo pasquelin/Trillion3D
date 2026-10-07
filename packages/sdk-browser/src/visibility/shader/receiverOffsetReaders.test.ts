@@ -25,7 +25,7 @@ test('the lighting calls one shared offset function and binds no offset target',
       for (const shadowed of [false, true])
         readers.push([
           `lighting ${bounce} ${narrow} ${shadowed}`,
-          contractLightingShader(bounce, narrow, shadowed),
+          contractLightingShader(bounce, { narrow, unshadowed: !shadowed, lobeless: true }),
         ])
   for (const [name, text] of readers) {
     // The shared text, from the reader's first receiver binding: the visibility buffer's.

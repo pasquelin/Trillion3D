@@ -45,6 +45,7 @@ export const VALIDATE_GROUPS = {
     'lint:js',
     'check:unused',
     'check:no-js',
+    'check:webgpu-only',
     'check:links',
     'check:docs-three',
     'check:sdk-facade',

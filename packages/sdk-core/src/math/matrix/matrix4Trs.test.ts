@@ -60,7 +60,7 @@ test('decomposeMatrix4: negative scale on a single axis, carried by x, determina
   assert.equal(Math.sign(s[0] * s[1] * s[2]), Math.sign(determinantMatrix4(m)))
 })
 
-test('decomposeMatrix4: zero scale on one axis, quaternion NaN — like dividing by a zero column length (checked against the host library)', () => {
+test('decomposeMatrix4: zero scale on one axis, quaternion NaN — like dividing by a zero column length', () => {
   const m = composeMatrix4(new Float64Array(16), [1, 1, 1], [0, 0, 0, 1], [0, 2, 2])
   const p = new Float64Array(3),
     q = new Float64Array(4),

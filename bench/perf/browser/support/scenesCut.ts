@@ -6,4 +6,4 @@ import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts'
 /** The paint a fixture page wears, by rank, and the surface record the engine reads of it. */
 export const material = (index: number) =>
   G.standardSurface({ color: 0x808080 + index * 7, roughness: 0.5 })
-export const porte = (d: G.GraphSurface) => ({ material: surfaceOf(d), declaration: d })
+export const porte = (d: G.GraphSurface) => ({ material: surfaceOf(d) })

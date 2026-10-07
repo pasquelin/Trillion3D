@@ -17,10 +17,15 @@ const START = COLUMNS * LIGHT_SETTINGS.tileLights * 16,
   /** Where the pool starts: the cell records, each `TILE_STRIDE_WORDS` wide. */
   RECORDS = COLUMNS * LIGHT_SETTINGS.gridSlices * TILE_STRIDE_WORDS
 
+/** The scene's light list the grid reads: a storage buffer, as the pass binds it. */
+const lightList = (device: GPUDevice) =>
+  device.createBuffer({ label: 'lights', size: 256, usage: GPUBufferUsage.STORAGE })
+
 test('the frame metrics carry the sampled pool and count its growths', async () => {
   const fake = fakeDevice()
   Object.assign(fake.device, { features: new Set() })
   const tiles = await createGpuLightTiles(fake.device)
+  const lights = lightList(fake.device)
   const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} }
   const encoder = { ...fake.device.createCommandEncoder(), beginComputePass: () => pass }
   const readback = fake.buffers.find((buffer) => buffer.label?.includes('pool readback'))!
@@ -28,7 +33,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   const pools = () => fake.writes.filter((write) => write.buffer === (state as never))
   /** One frame of 160 × 160 pixels, the GPU's pool state `words`. */
   const frame = async (at: number, words?: number[]) => {
-    tiles.ensure(160, 160, fake.buffers[0] as never, LIGHT_SETTINGS.tileLights)
+    tiles.ensure(160, 160, lights, LIGHT_SETTINGS.tileLights)
     tiles.update(new Float64Array(16), [0, 0, 0], 160, 160)
     tiles.encode(encoder as unknown as GPUCommandEncoder, at)
     if (words) new Uint32Array(readback.getMappedRange()).set(words)
@@ -37,7 +42,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
     return tiles.poolMetrics()
   }
   // A view names nothing before a sample returns; the frame opens its pool, nothing reserved.
-  tiles.ensure(160, 160, fake.buffers[0] as never, LIGHT_SETTINGS.tileLights)
+  tiles.ensure(160, 160, lights, LIGHT_SETTINGS.tileLights)
   const opened = tiles.poolMetrics()
   assert.deepEqual(opened, { ...opened, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 })
   const asked = START + 1000,
@@ -60,7 +65,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
 async function poolOf(width: number, height: number, lights: number) {
   const fake = fakeDevice()
   const tiles = await createGpuLightTiles(fake.device)
-  tiles.ensure(width, height, fake.buffers[0] as never, lights)
+  tiles.ensure(width, height, lightList(fake.device), lights)
   const columns = Math.ceil(width / CELL) * Math.ceil(height / CELL)
   return tiles.buffer!.size / 4 - columns * SLICES * TILE_STRIDE_WORDS
 }

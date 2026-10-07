@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import * as THREE from 'three'
-import { prepareSdkWasm } from '../../../packages/sdk-browser/src/page/decode/geometryPageWasm.ts'
+import { prepareSdkWasm } from '../../../packages/sdk-browser/src/math/wasm/sdkWasm.ts'
 import { lendAnimationSampler } from '../../../packages/sdk-browser/src/math/batchAnimation.ts'
 import { advanceMixers } from '../../../packages/sdk-core/src/world/animation/mixer.ts'
 import { rapport } from '../../core/index.ts'
@@ -14,7 +14,7 @@ import { FRAME, NODES, animationRigs } from './support/animationRigs.ts'
 
 await prepareSdkWasm(
   readFileSync(
-    join(import.meta.dirname, '../../../packages/sdk-browser/src/page/decode/pageCodec.wasm'),
+    join(import.meta.dirname, '../../../packages/sdk-browser/src/math/wasm/kernels.wasm'),
   ),
 )
 await lendAnimationSampler()

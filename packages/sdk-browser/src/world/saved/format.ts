@@ -3,7 +3,8 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
 
 /** The name a saved scene carries, and the one version of its layout this runtime reads. Version
- *  1 wrote a mesh's `castShadow` as `false` by default, read by no renderer: it is refused. */
+ *  1 wrote a mesh's `castShadow` as `false` by default, which the engine never read: it is
+ *  refused. */
 export const SCENE_FORMAT = 'trillion3d-scene'
 export const SCENE_FORMAT_VERSION = 2
 

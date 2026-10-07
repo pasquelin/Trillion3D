@@ -6,6 +6,7 @@ import type { SideBase } from './dists.ts'
 import type { ScreenErrorVariant } from '../../../packages/sdk-core/src/index.ts'
 import type { TextureCompression } from '../../../packages/sdk-browser/src/texture/blockFormats.ts'
 import { MIN_RENDER_SCALE } from '../../../packages/sdk-browser/src/frame/renderScaleOption.ts'
+import { WEBGPU_ENGINE_ID } from '../../../packages/sdk-browser/src/engine/factory.ts'
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
@@ -21,13 +22,13 @@ export interface EngineDescriptor {
   backend: string | null
   id: string
   flags: string[]
-  three?: boolean
-  autonomous?: boolean
   page: string
   source: 'cache' | 'gltf'
-  /** The world renderer of an engine that draws a scene built through the public API. */
-  renderer?: 'webgpu' | 'webgl2'
 }
+
+/** Whether `engine` is the engine itself, which draws a scene built through the public API, and
+ *  not a witness. */
+export const isEngine = (engine: EngineDescriptor) => engine.id === WEBGPU_ENGINE_ID
 
 /**
  * A side ready to run: `equipSide` turns a `SideBase` into one of these by filling `engine`,
@@ -43,26 +44,15 @@ export interface Side extends SideBase {
   renderScale: number | null
 }
 
-// Standalone WebGL2 engine is the only one of the three decoding geometry pages itself.
-// `three` indicates the engine renders with Three.js.
 // `page` is the module served under `/runner/` whose `measureView` plays the series;
 // `source` indicates what the page loads: compiled cache (`cache`) or source glTF from assets (`gltf`).
 export const ENGINES: Record<string, EngineDescriptor> = {
-  webgl: {
-    backend: 'exactPagesBackend',
-    id: 'exact-cluster-pages',
-    flags: BASE_FLAGS,
-    three: true,
-    page: 'lighting/lightingPage.ts',
-    source: 'cache',
-  },
   webgpu: {
-    backend: 'webgpuPagesBackend',
-    id: 'webgpu-page-raster',
+    backend: 'webgpuPagesEngine',
+    id: WEBGPU_ENGINE_ID,
     flags: WEBGPU_FLAGS,
     page: 'lighting/lightingPage.ts',
     source: 'cache',
-    renderer: 'webgpu',
   },
   // Raw Three.js witness: no SDK, raw glTF rendered by Three alone (`witness/threeBarePage.ts`).
   'three-nu': {
@@ -79,16 +69,6 @@ export const ENGINES: Record<string, EngineDescriptor> = {
     flags: BASE_FLAGS,
     page: 'witness/threeLodPage.ts',
     source: 'gltf',
-  },
-  webgl2: {
-    backend: 'autonomousPagesBackend',
-    id: 'autonomous-pages-webgl',
-    flags: BASE_FLAGS,
-    autonomous: true,
-    three: true,
-    page: 'lighting/lightingPage.ts',
-    source: 'cache',
-    renderer: 'webgl2',
   },
 }
 
@@ -131,7 +111,7 @@ function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescrip
   const scale = Number(value)
   if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
     throw new Error(`--scale-${name} must be in [${MIN_RENDER_SCALE}, 1]`)
-  if (scale < 1 && (engine.renderer !== 'webgpu' || flags.get('antialiasing') === 'off'))
+  if (scale < 1 && (!isEngine(engine) || flags.get('antialiasing') === 'off'))
     throw new Error(`--scale-${name} below 1 needs the WebGPU engine and --antialiasing on`)
   return scale
 }

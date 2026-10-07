@@ -6,11 +6,10 @@
 // neighbourhood holds both coverage and background, where two fill rules can differ by one pixel.
 // The band is read on an image the compute raster never touched: a stray triangle on the
 // background or a crack inside a tile falls outside it, and counts.
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import type {
-  BackendContext,
-  BackendDiagnostic,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
+  EngineContext,
+  EngineDiagnostic,
+} from '../../../packages/sdk-browser/src/engine/types.ts'
 import type { DiagnosticGpuVariant } from '../../../packages/sdk-browser/src/diagnostic/gpuVariant.ts'
 import { runOnDevice } from '../kit/deviceProof.ts'
 import { VIEWPORT, cameraFace, release, engine } from '../kit/sharedSceneProof.ts'
@@ -57,11 +56,11 @@ function compare(hardware: Uint8Array, compute: Uint8Array, band: Uint8Array) {
  *  history, the second plays both halves. */
 async function render(
   device: GPUDevice,
-  onDiagnostic: (e: BackendDiagnostic) => void,
-  options: Partial<BackendContext>,
+  onDiagnostic: (e: EngineDiagnostic) => void,
+  options: Partial<EngineContext>,
 ) {
   const scene = tileScene()
-  const { backend, canvas } = engine(webgpuPagesBackend, scene, device, onDiagnostic, {
+  const { backend, canvas } = engine(scene, device, onDiagnostic, {
     maxResidentPages: 32,
     ...options,
   })
@@ -87,7 +86,7 @@ interface RasterReading {
 
 export function compareRasters() {
   return runOnDevice<RasterReading>(async (device, events, reading) => {
-    const onDiagnostic = (e: BackendDiagnostic) => void events.push(e)
+    const onDiagnostic = (e: EngineDiagnostic) => void events.push(e)
     const hardware = await render(device, onDiagnostic, {})
     const band = silhouetteBand(hardware.pixels)
     reading.variants = {}

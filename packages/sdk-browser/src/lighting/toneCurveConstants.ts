@@ -1,19 +1,19 @@
 /**
- * The display curves' constants (`toneMappingWgsl.ts`, `../webgl/core/outputGlsl.ts`), once for both
- * languages: the matrices as numbers, column after column, and the expressions whose text both
- * languages read alike as text. Each is the curve the display pass evaluates.
+ * The display curves' constants (`toneMappingWgsl.ts`): the matrices as numbers, column after
+ * column, written as WGSL matrices, and the curves' expressions as text. Each is the curve the
+ * display pass evaluates.
  */
-import { glslMatrix3, shaderFloat, wgslMatrix3 } from './shaderConstants.ts'
-
-const both = (m: readonly number[]) => ({ wgsl: wgslMatrix3(m), glsl: glslMatrix3(m) })
+import { shaderFloat, wgslMatrix3 } from './shaderConstants.ts'
 
 /** The filmic curve. declared: an exposure scale, two colour matrices around a rational fit of `c`,
  *  set together as one look. Sensitivity: each number shapes the tone and the colour of the whole
  *  image, so none is changed alone. */
 export const ACES = {
   exposure: shaderFloat(0.6),
-  input: both([0.59719, 0.076, 0.0284, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777]),
-  output: both([
+  input: wgslMatrix3([
+    0.59719, 0.076, 0.0284, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777,
+  ]),
+  output: wgslMatrix3([
     1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602,
   ]),
   numerator: 'c*(c+0.0245786)-0.000090537',
@@ -25,13 +25,15 @@ export const ACES = {
  *  `c4 = c⁴`, set together as one look. Sensitivity: each number shapes the tone and the colour of
  *  the whole image, so none is changed alone. */
 export const AGX = {
-  toWide: both([0.6274, 0.0691, 0.0164, 0.3293, 0.9195, 0.088, 0.0433, 0.0113, 0.8956]),
-  toNarrow: both([1.6605, -0.1246, -0.0182, -0.5876, 1.1329, -0.1006, -0.0728, -0.0083, 1.1187]),
-  inset: both([
+  toWide: wgslMatrix3([0.6274, 0.0691, 0.0164, 0.3293, 0.9195, 0.088, 0.0433, 0.0113, 0.8956]),
+  toNarrow: wgslMatrix3([
+    1.6605, -0.1246, -0.0182, -0.5876, 1.1329, -0.1006, -0.0728, -0.0083, 1.1187,
+  ]),
+  inset: wgslMatrix3([
     0.856627153315983, 0.137318972929847, 0.11189821299995, 0.0951212405381588, 0.761241990602591,
     0.0767994186031903, 0.0482516061458583, 0.101439036467562, 0.811302368396859,
   ]),
-  outset: both([
+  outset: wgslMatrix3([
     1.1271005818144368, -0.1413297634984383, -0.14132976349843826, -0.11060664309660323,
     1.157823702216272, -0.11060664309660294, -0.016493938717834573, -0.016493938717834257,
     1.2519364065950405,

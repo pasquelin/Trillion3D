@@ -5,13 +5,12 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts'
  * the machine — free memory changes every instant, a budget read at startup would be wrong five
  * minutes later. What a view asks beyond the pool renders coarser; nothing is refused, nothing
  * stops. A value that cannot be held as-is is brought back to what can, and the reason is published
- * (`clamp`). Both engines draw their geometry pool by this rule; the texture pools are the WebGPU
- * engine's (`../webgpu/residency/memoryBudgets.ts`).
+ * (`clamp`). The engine draws its geometry pool by this rule, its texture pools by
+ * `../webgpu/residency/memoryBudgets.ts`.
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024
-/** 512 MiB of textures: WebGPU splits it between its colour and data atlases
- *  (`../webgpu/residency/memoryBudgets.ts`), WebGL2 uploads maps ahead of its draws within it
- *  (`../webgl/cluster/textureQueue.ts`). */
+/** 512 MiB of textures, split between the colour and data atlases
+ *  (`../webgpu/residency/memoryBudgets.ts`). */
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024
 
 /** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
@@ -55,8 +54,7 @@ export const checkGeometryPoolBudget = (bytes: number) =>
  * Geometry page-pool slots for a budget in bytes, 512 MB by default. Root coverage always fits, its
  * resident root pages being outside the pool: a budget smaller than that cover is raised to it, by name.
  * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
- * one benches and tests use) also bounds it, as does the session ceiling (`ceilingSlots`, what the
- * drawable-page tables have sized) on an engine whose tables do not grow. A pool that holds the
+ * one benches and tests use) also bounds it. A pool that holds the
  * whole catalogue (`slots` at `uniquePages`) and knows its pages' own sizes (`homeBytes`,
  * `../gpu/page/homes.ts`) holds those bytes alone, not a slot of the widest page for each. The
  * DEVICE limit weighs the pool as it is held: past it, the pool keeps the slots the device holds;
@@ -73,10 +71,9 @@ export function geometryPoolFor(options: {
   homeBytes?: number
   rootPages: number
   maxResidentPages?: number
-  ceilingSlots?: number
   limits?: Parameters<typeof storageBufferCap>[0]
 }): GeometryPool {
-  const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options
+  const { budgetBytes, pageBytes, uniquePages, maxResidentPages, limits } = options
   checkGeometryPoolBudget(budgetBytes)
   const fixedBytes = options.fixedBytes ?? 0
   const floor = Math.max(1, options.rootPages)
@@ -89,10 +86,6 @@ export function geometryPoolFor(options: {
   if (uniquePages < slots) {
     slots = uniquePages
     clamp = 'scene'
-  }
-  if (ceilingSlots !== undefined && ceilingSlots < slots) {
-    slots = ceilingSlots
-    clamp = 'ceiling'
   }
   if (slots < floor) {
     slots = floor

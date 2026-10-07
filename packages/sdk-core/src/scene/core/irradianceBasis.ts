@@ -1,9 +1,10 @@
 /**
  * The order-2 real spherical-harmonics basis, written once for every shader that projects
- * radiance onto it or evaluates irradiance from it: the scene environment, the WebGL2 light
- * probe and the bounce probes. Nine terms per colour channel, in the engine's band order —
- * constant, `y`, `z`, `x`, `xy`, `yz`, `3z² − 1`, `xz`, `x² − y²` (bands `l = 0, 1, 2`, `m`
- * ascending).
+ * radiance onto it or evaluates irradiance from it: the scene environment the lighting resolve
+ * evaluates — its lights summed into the nine coefficients on the CPU, only when they change
+ * (`addLightIrradiance`) — and the bounce probes, projected and evaluated in compute passes.
+ * Nine terms per colour channel, in the engine's band order — constant, `y`, `z`, `x`, `xy`,
+ * `yz`, `3z² − 1`, `xz`, `x² − y²` (bands `l = 0, 1, 2`, `m` ascending).
  *
  * A radiance `L(ω)` projects to `L_k = ∫ L(ω) · basis_k · polynomial_k(ω) dω`; the irradiance
  * at a normal is `E(n) = Σ L_k · band_k · polynomial_k(n)`, the convolution with the clamped

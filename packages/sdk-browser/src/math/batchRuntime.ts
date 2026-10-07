@@ -4,7 +4,7 @@ import {
   boxTransformBatch,
   multiplyMatrix4Batch,
 } from '../../../sdk-core/src/index.ts'
-import { f64, joue, taille, tampon, f64Views, type MathLot } from './batchLot.ts'
+import { f64, runTimed, size, batchBuffer, f64Views, type MathLot } from './batchLot.ts'
 
 /**
  * Initial two batches: box transformation and 4×4 matrix product, both operations
@@ -42,12 +42,12 @@ export interface MultiplyLot extends MathLot {
 
 /** A batch of `n` boxes transformed by `n` matrices. */
 export async function createBoxTransformLot(n: number): Promise<BoxTransformLot> {
-  const { wasm, blocs, release } = await tampon([
+  const { wasm, blocks, release } = await batchBuffer([
     { type: 'f64', length: n * BOX_VALUES },
-    { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES },
+    { type: 'f64', length: n * MATRIX_VALUES, stride: MATRIX_VALUES },
     { type: 'f64', length: n * BOX_VALUES },
   ])
-  const [inputOffset, matrices, outputOffset] = blocs().map((bloc) => bloc.offset)
+  const [inputOffset, matrices, outputOffset] = blocks().map((block) => block.offset)
   const wasmRun = wasm
     ? () => wasm.math_box_transform_batch(outputOffset, inputOffset, matrices, n)
     : null
@@ -55,18 +55,18 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
     n,
     shared: wasm !== null,
     get boxes() {
-      return f64(blocs()[0])
+      return f64(blocks()[0])
     },
     get mats() {
-      return f64(blocs()[1])
+      return f64(blocks()[1])
     },
     get out() {
-      return f64(blocs()[2])
+      return f64(blocks()[2])
     },
-    holds: (count) => count > 0 && taille(blocs(), 0) === count * BOX_VALUES,
+    holds: (count) => count > 0 && size(blocks(), 0) === count * BOX_VALUES,
     run: () => {
-      const b = blocs()
-      return joue(BOX_TRANSFORM_BATCH, n, wasmRun, () =>
+      const b = blocks()
+      return runTimed(BOX_TRANSFORM_BATCH, n, wasmRun, () =>
         boxTransformBatch(f64(b[2]), f64(b[0]), f64Views(b[1]), n),
       )
     },
@@ -76,28 +76,26 @@ export async function createBoxTransformLot(n: number): Promise<BoxTransformLot>
 
 /** A batch of `n` products `out[i] = a[i] · b[i]`. */
 export async function createMultiplyLot(n: number): Promise<MultiplyLot> {
-  const request = { type: 'f64', length: n * MATRIX_VALUES, pas: MATRIX_VALUES } as const
-  const { wasm, blocs, release } = await tampon([request, request, request])
-  const [gauche, right, outputOffset] = blocs().map((bloc) => bloc.offset)
-  const wasmRun = wasm
-    ? () => wasm.math_multiply_matrix4_batch(outputOffset, gauche, right, n)
-    : null
+  const request = { type: 'f64', length: n * MATRIX_VALUES, stride: MATRIX_VALUES } as const
+  const { wasm, blocks, release } = await batchBuffer([request, request, request])
+  const [left, right, outputOffset] = blocks().map((block) => block.offset)
+  const wasmRun = wasm ? () => wasm.math_multiply_matrix4_batch(outputOffset, left, right, n) : null
   return {
     n,
     shared: wasm !== null,
     get a() {
-      return f64(blocs()[0])
+      return f64(blocks()[0])
     },
     get b() {
-      return f64(blocs()[1])
+      return f64(blocks()[1])
     },
     get out() {
-      return f64(blocs()[2])
+      return f64(blocks()[2])
     },
-    holds: (count) => count > 0 && taille(blocs(), 0) === count * MATRIX_VALUES,
+    holds: (count) => count > 0 && size(blocks(), 0) === count * MATRIX_VALUES,
     run: () => {
-      const b = blocs()
-      return joue(MULTIPLY_MATRIX4_BATCH, n, wasmRun, () =>
+      const b = blocks()
+      return runTimed(MULTIPLY_MATRIX4_BATCH, n, wasmRun, () =>
         multiplyMatrix4Batch(f64Views(b[2]), f64Views(b[0]), f64Views(b[1]), n),
       )
     },

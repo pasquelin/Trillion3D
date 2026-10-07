@@ -10,7 +10,7 @@ import { type VertexPool } from '../core/geometryPool.ts'
 import { createShadowMobility } from '../shadow/mobility.ts'
 import type { HostAttributes } from '../../host/resources.ts'
 import { webgpuVertexApi } from './dynamicVertices.ts'
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
+import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
@@ -80,7 +80,7 @@ const runtimeOf = (
 ) =>
   ({
     ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
-    ...{ run: { lost: false, gate, temporalHizState: {} } },
+    ...{ run: { lost: false, gate } },
     // No row resident: a root holding a reach finds none to rewrite (`moveRootRows`).
     layout: { selectionRoots, rows: { rowOfPage: [], blendRowOf: [] } },
   }) as unknown as WebgpuPagesRuntime

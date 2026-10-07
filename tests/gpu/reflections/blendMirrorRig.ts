@@ -2,9 +2,9 @@
 // pass's group and the screen reflection's.
 import { createScreenReflection } from '../../../packages/sdk-browser/src/reflections/gpu.ts'
 import { MODEL_SHIFT } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts'
-import { blendBindEntries } from '../../../packages/sdk-browser/src/webgpu/core/bindEntries.ts'
+import { blendBindEntries } from '../../../packages/sdk-browser/src/webgpu/core/blendBindEntries.ts'
 import { BLEND_BINDINGS } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts'
-import { BLEND_VIEW_SIZE } from '../../../packages/sdk-browser/src/webgpu/blend/uniforms.ts'
+import { BLEND_VIEW_SIZE, VIEW } from '../../../packages/sdk-browser/src/webgpu/blend/viewLayout.ts'
 import type { WebgpuTileStreamer } from '../../../packages/sdk-browser/src/webgpu/tile/streamer.ts'
 import { PAGE_HEADER_WORDS } from '../../../packages/sdk-browser/src/webgpu/tile/pageTable.ts'
 import { createDeferredPlaceholders } from '../../../packages/sdk-browser/src/lighting/deferred/setup.ts'
@@ -17,19 +17,21 @@ import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/siz
 import { BOUNCE_GRID_BYTES } from '../../../packages/sdk-browser/src/bounce/uniform.ts'
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts'
+import { createPhysicalTable } from '../../../packages/sdk-browser/src/webgpu/visibility/physicalTable.ts'
 import { mirrorProxy } from './mirrorProxy.ts'
 
 /** The proof's vertex for the blend fragment (`VSOut`, `webgpu/blend/vertexWgsl.ts`): a square
  *  facing the view, an untextured metal plane, or a diffuse/toon plane with roughness 1 and a
  *  zero-green map; no subsurface (`normal.w`). Flat model bits are the ones the production vertex
- *  takes from the item's spare lane. */
+ *  takes from the item's spare lane. Only the flags lane of `ids` is written: the lobed layout's
+ *  fourth lane, the physical word, stays zero — no lobe —, so the vertex fits either layout. */
 export const mirrorVertex = (rough: number, model: number) => `
 @vertex fn mirrorVertex(@builtin(vertex_index) i:u32)->VSOut{
  var out:VSOut;
  let p=vec2f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1));
  out.position=vec4f(p,0.5,1.0);out.view=vec3f(p,0.0);
  out.normal=vec4f(0.0,0.0,1.0,0.0);out.color=vec4f(1.0);
- out.ids=vec3u(0u,${17 | (model << MODEL_SHIFT)}u,0u);
+ out.ids.y=${17 | (model << MODEL_SHIFT)}u;
  out.pbr=vec4f(${model ? 1 : rough},${model ? 0 : 1},1.0,1.0);
  out.maps.x=${model ? 1 : 0}u;
  return out;
@@ -75,7 +77,7 @@ export function mirrorGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
   uploadSceneLights(device, lights)
   // The view point straight ahead; nothing else of the view is read past the proof's vertex.
   const view = new Float32Array(BLEND_VIEW_SIZE / 4)
-  view.set([0, 0, 1, 0], 16)
+  view.set([0, 0, 1, 0], VIEW.camPos)
   // `BounceGrid`: the reach, and the probe count — zero turns bounce, hence the proxy, off.
   const grid = new Uint32Array(BOUNCE_GRID_BYTES / 4)
   new Float32Array(grid.buffer)[0] = 10
@@ -139,6 +141,8 @@ export function mirrorGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
       tileLights: placeholders.tiles,
       proxy: proxy.buffer,
       surfaceCache: cache.createView(),
+      // No surface of the rig carries a lobe: the empty table, one row of zeros.
+      physical: createPhysicalTable().upload(device),
     }),
   })
   return {

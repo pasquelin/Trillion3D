@@ -98,11 +98,11 @@ const resBlock = await measure({
     },
   ],
   calculation: ({ target, packed, uniforms }: BlockCase) => {
-    writeDagUniforms(target, packed as unknown as PackedDag, uniforms, true, LIST_CAP)
+    writeDagUniforms(target, packed as unknown as PackedDag, uniforms, LIST_CAP)
     return target
   },
   expected: ({ target, packed, uniforms }: BlockCase) =>
-    referenceViewBlocks(packed, uniforms, true, LIST_CAP, target.length / VIEW_BLOCK_WORDS),
+    referenceViewBlocks(packed, uniforms, LIST_CAP, target.length / VIEW_BLOCK_WORDS),
   lecture: (e: BlockCase, t: unknown) =>
     t === e.target
       ? Array.from({ length: e.target.length / VIEW_BLOCK_WORDS }, (_, i) =>

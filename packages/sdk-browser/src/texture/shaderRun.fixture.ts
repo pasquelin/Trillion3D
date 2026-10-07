@@ -179,11 +179,10 @@ class Translator {
   }
 }
 
-/**
- * The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices as
- * `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in the functions call
- * (`bitcast<T>` as `bitcast_T`) by `shaderRunBuiltins.fixture.ts`, the module's bindings by `scope`.
- */
+/** The functions `names` of a shipped WGSL text, run in JavaScript: vectors as arrays, matrices
+ *  as `Mat`, arithmetic component-wise with scalars broadcast, every WGSL built-in they call
+ *  (`bitcast<T>` as `bitcast_T`) by `shaderRunBuiltins.fixture.ts`, the module's bindings by
+ *  `scope`, its constants they read and `scope` does not give from the text itself. */
 export function shaderRun<T>(source: string, names: string[], scope: object): T {
   const text = functionsOf(source, names).replace(/bitcast<(\w+)>/g, 'bitcast_$1')
   const js = [...text.matchAll(/(?:@\w+(?:\([^)]*\))?\s*)*fn \w+\(/g)]
@@ -192,5 +191,9 @@ export function shaderRun<T>(source: string, names: string[], scope: object): T 
     )
     .join('\n')
   const all: Record<string, unknown> = { ...builtins, $zero: structZero(source), ...scope }
-  return new Function(...Object.keys(all), `${js};return {${names}};`)(...Object.values(all))
+  const constants = [...source.matchAll(/^const (\w+)(?::[\w<>]+)?=([^;]+);/gm)]
+    .filter(([, name]) => !(name in all) && new RegExp(`\\b${name}\\b`).test(text))
+    .map(([, name, value]) => `const ${name}=${new Translator(tokens(value)).expression()};`)
+  const body = `${constants.join('')}${js};return {${names}};`
+  return new Function(...Object.keys(all), body)(...Object.values(all))
 }

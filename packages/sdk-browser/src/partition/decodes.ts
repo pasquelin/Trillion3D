@@ -1,8 +1,8 @@
 import type { CellFrameIo } from './cellIo.ts'
 
 /**
- * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM: a cell file, or a page of
- * the cell index. Its verified bytes are handed to the decode pool as soon as a frame needs them
+ * THE FILES READ AND DECODED, WAITING FOR A FRAME TO TAKE THEM (#575): a cell file, or a page of
+ * the cell index. Its verified bytes are handed to the page worker pool as soon as a frame needs them
  * (`cellDecode.ts`, `readCellPage`); a later frame places its rows, or opens the page, within the
  * one integration budget (`cells.ts`). Only what the last frame planned is kept: the map follows
  * the view, not the world.

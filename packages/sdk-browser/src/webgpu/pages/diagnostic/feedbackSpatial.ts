@@ -1,4 +1,4 @@
-import { readGpuImage } from '../../../gpu/core/presentation.ts'
+import { readGpuImage } from '../../../gpu/core/readback.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { type SpatialFeedback, textureKinds, spatialMipCounts } from './spatialCounts.ts'
 

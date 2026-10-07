@@ -51,7 +51,7 @@ export function syncFeedbackTarget(rt: WebgpuPagesRuntime, device: GPUDevice) {
  */
 export function followFeedback(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt
-  if (!rt.feedbackAB && vis.visEnabled) {
+  if (!rt.feedbackAB) {
     const want = wantsFeedback(rt),
       aside = vis.feedbackAside
     // A set built before the resolve came to write the emission layer is built again.

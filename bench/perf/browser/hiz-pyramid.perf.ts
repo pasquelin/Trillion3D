@@ -4,8 +4,8 @@ import {
   hizFootprintFar,
   hizOccluded,
 } from '../../../packages/sdk-core/src/hiz/oracles.fixture.ts'
-import { buildHizPyramid } from '../../../packages/sdk-browser/src/hiz/depth.ts'
-import { hizTestRect, HIZ_TEST_VALUES } from '../../../packages/sdk-browser/src/hiz/occlusion.ts'
+import { buildHizPyramid } from '../../oracles/browser/hizPyramid.ts'
+import { hizTestRect, HIZ_TEST_VALUES } from '../../oracles/browser/hizOcclusion.ts'
 import type { HizPyramid } from '../../../packages/sdk-browser/src/hiz/types.ts'
 import type { ScenePage } from './support/scenes.ts'
 import { xorshiftRandom, measure, stress, rapport } from '../../core/index.ts'
@@ -125,7 +125,7 @@ const plein = (input: Entree): Entree => ({ ...input, complet: true })
 
 const resHiz = await measure({
   name: 'Hi-Z pyramid',
-  fichier: 'packages/sdk-browser/src/hiz/depth.ts',
+  fichier: 'bench/oracles/browser/hizPyramid.ts',
   cas: [
     { name: '1280×720, every level', input: plein(image), size: 921600, measure: false },
     { name: '33×19, every level', input: plein(impaire), size: 627, measure: false },

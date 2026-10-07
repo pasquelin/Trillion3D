@@ -60,12 +60,6 @@ export type GpuFrameMs = number | null
   /** Draw calls of this frame, as the engine counted them. `null` when it has not counted
    *  them: a zero would read as a frame with no draw. */
   drawCalls: number | null
-  /** Paged cluster draws issued by the engine-owned WebGL2 program in this session. */
-  autonomousClusterDrawsTotal?: number | null
-  /** Scene copies — the transmissive surfaces — the engine-owned WebGL2 program drew this frame. */
-  autonomousCopyDraws?: number | null
-  /** Bytes the WebGL2 transmission backdrop holds since the first transmissive copy in view. */
-  transmissionBackdropBytes?: number | null
   /** Triangles submitted to this frame's draw, as `totalSubmittedTriangles` counts them.
    *  `null` when the engine has not counted them: a zero would read as an empty frame. */
   triangles: number | null
@@ -75,10 +69,10 @@ export type GpuFrameMs = number | null
   /** Submitted triangles: on the WebGPU-by-pages path, every drawable row — occlusion
    *  rejects after submit —, held by the table, hence exact and of this frame. */
   submittedTriangles?: number | null
-  /** All submitted triangles, including transparent passes. Null when a backend cannot count them. */
+  /** All submitted triangles, including transparent passes. Null while the image is pending. */
   totalSubmittedTriangles?: number | null
   /** Clusters that left the drawn cut this session. A moving camera detaches clusters every frame;
-   *  this is not a cache pressure signal. Null on a backend that does not track a cut. */
+   *  this is not a cache pressure signal. Null while the engine does not count it. */
   pagesDetached?: number | null
   /** Pages actually evicted from the cache that feeds the drawn geometry: the backend's own GPU page
    *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
@@ -100,7 +94,6 @@ export type GpuFrameMs = number | null
    * frustum, or whose replacement error ceiling already falls under the threshold — plus the
    * candidate pages that a per-page test then discards. A discarded node counts as one, whatever the
    * number of pages of its subtree: those pages are never visited, hence never counted.
-   * The CPU cut, for its part, counts its own tested nodes and its own rejects.
    */
   frustumRejected?: number | null
   /** Detail level of the cut. */ lodLevel?: number | null
@@ -115,7 +108,7 @@ export type GpuFrameMs = number | null
   /** See-through clusters outside the view. */ transparentFrustumRejected?: number | null
   /** See-through draw calls. */ transparentDrawCalls?: number | null
   /** See-through triangles sent. */ transparentSubmittedTriangles?: number | null
-  /** Complete initial GPU fallback is available; null on backends without this guarantee. */
+  /** The coarse cover the first frame draws is resident whole; null until it is known. */
   coverageReady?: boolean | null
   /** Requested detail needs more pages than the GPU page budget holds: the rest draws coarser. */
   coverageBudgetLimited?: boolean | null
@@ -127,8 +120,7 @@ export type GpuFrameMs = number | null
    * What the held frame DID is published as-is, never copied from the last complete render:
    * `drawCalls`, `triangles`, `submittedTriangles` and `totalSubmittedTriangles` count only
    * present, and per-stage CPU and GPU durations are zero when the stage did not
-   * run, `null` when nothing timed it. An engine whose image is a scene the witness adapter
-   * draws counts what that adapter submitted in this frame — nothing, on a held one.
+   * run, `null` when nothing timed it.
    *
    * What the held frame SHOWS remains described by the cut it redisplays: `clusters`,
    * `selectedTriangles`, `frustumRejected`, `lodLevel` and `residentPages` are those of the
@@ -144,8 +136,7 @@ export type GpuFrameMs = number | null
   gpuDeformationMs?: number | null
   /** GPU duration of the image `gpuPassMs.frame` describes, never added to a `cpu*` field. Sampled
    *  every few images, so a number may be a few images old. Null before the first sample, from a
-   *  held image until the next device sample, without `timestamp-query`, and on WebGL2 without
-   *  `EXT_disjoint_timer_query_webgl2`. */
+   *  held image until the next device sample, and without `timestamp-query`. */
   gpuFrameMs?: GpuFrameMs
   /** CPU time the same image spent between two of its own submissions, and zero when it submits once.
    *  It is host time, not GPU time, which is why `gpuFrameMs` excludes it. Null when unmeasured. */
@@ -169,13 +160,6 @@ export type GpuFrameMs = number | null
    * so it is never `null` for lack of time, unlike `submittedTriangles`.
    */
   drawnTriangles?: number | null
-  /** CPU time of this frame's cluster cut, measured around selection alone.
-   *  Null on an engine that does not choose its cut on the CPU. */
-  cpuSelectMs?: number | null
-  /** True when the engine had a GPU selection and dropped it: what is measured since is the
-   *  fallback CPU cut. A fallback also emits the `gpu-selection-fallback` diagnostic, once;
-   *  the host copies it as-is, and it is absent from an engine without GPU selection. */
-  gpuSelectionFallback?: boolean
   /** Hierarchy nodes on which this frame's cut posed a test — frustum or
    *  level-of-detail decision. A node already decided and fully visible receives none:
    *  it is traversed, not tested. This is the measure of the real work of a hierarchical cut; a
@@ -183,19 +167,13 @@ export type GpuFrameMs = number | null
    *  Null on an engine that does not choose its cut on the CPU, or that does not count it. */
   cpuSelectNodesTested?: number | null
   /**
-   * Off-main-thread page decode. `pagesDecodedOffThread` counts the tasks — SHA-256 integrity
-   * check or per-vertex attribute read — that a worker completed, never
-   * those the fallback ran on the main thread. `pageDecodeMs` is the cumulative time of those
-   * tasks, measured by the executor itself, whichever the thread: it is decode time, it
-   * is never added to a per-frame `cpu*` or `gpu*`. Both are `null` as long as
-   * no page has been decoded — unmeasured, not zero.
+   * Page integrity checks. `pagesChecked` counts the fetched pages whose SHA-256 digest was
+   * taken (`crypto.subtle`, off the main thread). `pageCheckMs` is the cumulative time from each
+   * check's start to its digest: it is never added to a per-frame `cpu*` or `gpu*`. Both are
+   * `null` as long as no page has been checked — unmeasured, not zero.
    */
-  pagesDecodedOffThread?: number | null
-  /** Pages whose attributes were read by the WebAssembly-compiled decoder rather than the
-   *  JavaScript decoder. Both yield the same bytes; this counter only says which one
-   *  ran, hence whether the `.wasm` resource was found and instantiated by this host. */
-  pagesDecodedWasm?: number | null
-  /** Time spent decoding pages. */ pageDecodeMs?: number | null
+  pagesChecked?: number | null
+  /** Time spent checking pages. */ pageCheckMs?: number | null
   /** State of the compute-path governor (`../math/path/governor.ts`): current path of each
    *  batch operation, medians of both paths, switches. `null` on a host that has not opened
    *  a batch — unmeasured, not "JavaScript path". */
@@ -211,13 +189,8 @@ export type GpuFrameMs = number | null
   pagesPlannedOffThread?: number | null
   /** Time spent planning arrivals. */ pagePlanMs?: number | null
 }
-/** What a renderer can do: materials, hierarchy, GPU-driven work. */
-export interface BackendCapabilities {
-  /** Its name. */ renderer: string
-  /** Which materials it draws. */ materials: string
-  /** Whether it reads the hierarchy. */ hierarchy: boolean
-  /** Whether the GPU picks what to draw. */ gpuDriven: boolean
-  /** Whether it simplifies. */ simplification: boolean
-  /** Whether it evicts pages. */ eviction: boolean
-  /** What it cannot do. */ unsupported: string[]
+/** What the engine withholds now, by name: a capability the device, a setting or a program still
+ *  compiling keeps from the image (`'temporal antialiasing'`, …); it leaves the list once served. */
+export interface EngineCapabilities {
+  /** The capabilities withheld. */ unsupported: string[]
 }

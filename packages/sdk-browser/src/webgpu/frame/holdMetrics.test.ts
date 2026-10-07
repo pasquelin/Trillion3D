@@ -15,7 +15,6 @@ test('a held frame counts only its present, not the last full render', () => {
   assert.equal(run.gpuDrawCalls, 1, 'the present is the only draw call')
   assert.equal(run.blendDrawCalls, 0)
   assert.deepEqual([run.submittedTriangles, run.blendSubmittedTriangles], [0, 0], 'no triangle')
-  assert.equal(run.cpuSelectMs, null, 'no CPU cut ran')
   assert.deepEqual([timing.lastGpuPassMs, timing.lastGpuFrameMs], [null, null], 'no pass timed')
   assert.equal(timing.lastGpuHostGapMs, null)
 })

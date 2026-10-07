@@ -21,8 +21,12 @@ export function encodePreviewColumns(previews: readonly TexturePreview[], view: 
   const words = view('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n))
   const sha = bytes('texturePreviewSha')
   const pixels = bytes('texturePreviewPixels')
-  const columns = { bc7: bytes('texturePreviewBc7'), astc: bytes('texturePreviewAstc') }
-  const blocksAt = { bc7: 0, astc: 0 }
+  const columns = {
+    bc7: bytes('texturePreviewBc7'),
+    astc: bytes('texturePreviewAstc'),
+    etc2: bytes('texturePreviewEtc2'),
+  }
+  const blocksAt = { bc7: 0, astc: 0, etc2: 0 }
   let previous = -1,
     offset = 0
   previews.forEach((preview, entry) => {

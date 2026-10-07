@@ -14,7 +14,7 @@ test('prepare fits the light lists and the shadow raster layout', async () => {
   const rt = {
     lights,
     context: {},
-    vis: { visEnabled: true, visBindGroupLayout: {} },
+    vis: { visBindGroupLayout: {} },
     capabilities: { unsupported: ['contract scene lights with shadow atlas'] },
     diag: {
       engineDiagnostic() {},

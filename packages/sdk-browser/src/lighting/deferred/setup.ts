@@ -1,4 +1,5 @@
-import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts'
+import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
+import { PHYSICAL_LOBES_TARGET } from '../../scene/physicalLobes.ts'
 import { LIGHTING_RECEIVER_BINDING } from './surfaceWgsl.ts'
 import { receiverLayoutEntries, receiverPlaceholders } from '../../webgpu/visibility/receiver.ts'
 import { arrayView } from '../../gpu/shadow/layers.ts'
@@ -12,7 +13,7 @@ import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../../vsm/constants.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import {
-  VSM_MASK_TABLE_BINDING,
+  VSM_MASK_TABLE_TARGET,
   VSM_MASK_TILES_BINDING,
   createVsmMaskTable,
 } from '../../vsm/projectionMaskTable.ts'
@@ -38,43 +39,7 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
     },
   }))
   entries.push({ binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } })
-  if (direct)
-    entries.push(
-      { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 7, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      // The virtual shadow maps a non-mask read samples: page table, projection data, uniforms,
-      // and the pool's dynamic slice at the translucent depth's number.
-      {
-        binding: CONTRACT_VSM_BINDINGS.pageTable,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
-      },
-      {
-        binding: CONTRACT_VSM_BINDINGS.projectionData,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
-      },
-      {
-        binding: CONTRACT_VSM_BINDINGS.uniforms,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'uniform' },
-      },
-      // The resident proxy the mirror reflection traces: a single read-only binding, which
-      // carries the columns a ray traverses and that ray's settings, so every lighting pass
-      // (opaque, blend, water) binds it alike.
-      {
-        binding: RESIDENT_PROXY_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        buffer: { type: 'read-only-storage' },
-      },
-      // The opaque resolve's compact shadow mask (`vsmMaskFactor`); the water composite's
-      // translucent casters' transmission on the same number: both words.
-      {
-        binding: CONTRACT_SHADOW_BINDINGS.transmittance,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'uint', viewDimension: '2d-array' },
-      },
-    )
+  if (direct) entries.push(...contractLayoutEntries())
   // The pool a non-mask read samples: the water composite's alone, the resolve reading the mask
   // (`directShadowWgsl`), so it holds the eight storage buffers with the receiver's three.
   if (direct && !resolve)
@@ -83,34 +48,7 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
       visibility: GPUShaderStage.FRAGMENT,
       buffer: { type: 'read-only-storage' },
     })
-  // The receiver offset's reads, subsurface, the mask's transmission, table and tiles: only the
-  // opaque resolve.
-  if (direct && resolve)
-    entries.push(
-      ...receiverLayoutEntries(LIGHTING_RECEIVER_BINDING, GPUShaderStage.FRAGMENT),
-      {
-        binding: SUBSURFACE_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-      // The translucent casters' transmission (the mask holds the transmittance's number).
-      {
-        binding: VSM_TRANSMISSION_RESOLVE_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'uint', viewDimension: '2d-array' },
-      },
-      // The mask's decode table (`projectionMaskTable.ts`) and its tile words.
-      {
-        binding: VSM_MASK_TABLE_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-      {
-        binding: VSM_MASK_TILES_BINDING,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'uint' },
-      },
-    )
+  if (direct && resolve) entries.push(...resolveLayoutEntries())
   // Probe grid, their coefficients and the surface cache a reflection reads: bound only by the
   // bounce program, so a session without bounce keeps exactly the previous layout. The two last
   // are atlases (`atlas.ts`): no storage buffer of the eight.
@@ -129,6 +67,76 @@ export function deferredLayoutEntries(direct: boolean, bounce = false, resolve =
       },
     )
   return entries
+}
+
+/** What a contract program adds to the deferred layout: the declared lights, their per-tile lists,
+ *  the virtual shadow maps they read, the resident proxy and the shadow mask. */
+function contractLayoutEntries(): GPUBindGroupLayoutEntry[] {
+  return [
+    { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+    { binding: 7, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
+    // The virtual shadow maps a non-mask read samples: page table, projection data, uniforms,
+    // and the pool's dynamic slice at the translucent depth's number.
+    {
+      binding: CONTRACT_VSM_BINDINGS.pageTable,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'read-only-storage' },
+    },
+    {
+      binding: CONTRACT_VSM_BINDINGS.projectionData,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'read-only-storage' },
+    },
+    {
+      binding: CONTRACT_VSM_BINDINGS.uniforms,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'uniform' },
+    },
+    // The resident proxy the mirror reflection traces: a single read-only binding, which
+    // carries the columns a ray traverses and that ray's settings, so every lighting pass
+    // (opaque, blend, water) binds it alike.
+    {
+      binding: RESIDENT_PROXY_BINDING,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'read-only-storage' },
+    },
+    // The opaque resolve's compact shadow mask (`vsmMaskFactor`); the water composite's
+    // translucent casters' transmission on the same number: both words.
+    {
+      binding: CONTRACT_SHADOW_BINDINGS.transmittance,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: { sampleType: 'uint', viewDimension: '2d-array' },
+    },
+  ]
+}
+
+/**
+ * The receiver offset's reads, subsurface, lobes, the mask's transmission, table and tiles: only
+ * the opaque resolve. The subsurface, the lobes and the mask's table, three targets read by load
+ * alone, are read-only storage textures: the widest program — with bounce, under the reflection
+ * group — holds the sixteen sampled textures WebGPU guarantees a stage, and its storage textures
+ * the four, the rough trace's record among them (`../../reflections/layout.ts`).
+ */
+function resolveLayoutEntries(): GPUBindGroupLayoutEntry[] {
+  return [
+    ...receiverLayoutEntries(LIGHTING_RECEIVER_BINDING, GPUShaderStage.FRAGMENT),
+    SUBSURFACE_TARGET.layoutEntry(),
+    // The anisotropic and clear-coat lobes (`../../scene/physicalLobes.ts`).
+    PHYSICAL_LOBES_TARGET.layoutEntry(),
+    // The translucent casters' transmission (the mask holds the transmittance's number).
+    {
+      binding: VSM_TRANSMISSION_RESOLVE_BINDING,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: { sampleType: 'uint', viewDimension: '2d-array' },
+    },
+    // The mask's decode table (`projectionMaskTable.ts`) and its tile words.
+    VSM_MASK_TABLE_TARGET.layoutEntry(),
+    {
+      binding: VSM_MASK_TILES_BINDING,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: { sampleType: 'uint' },
+    },
+  ]
 }
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
@@ -176,7 +184,35 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     usage: GPUBufferUsage.STORAGE,
   })
   const receiver = receiverPlaceholders(device)
-  // The virtual shadow maps' stand-ins: no light reads them (no light has a map without them).
+  const vsm = createVsmPlaceholders(device)
+  return {
+    ...vsm.views,
+    tiles,
+    transmittanceView: arrayView(transmittance),
+    bounceGrid,
+    probes: probes.createView({ dimension: '2d-array' }),
+    surfaceCache: surfaceCache.createView(),
+    proxy,
+    receiver: receiver.resources,
+    /** The empty normal atlas: what a transparent item without normals reads (zeros). */
+    emptyNormals: receiver.normals,
+    dispose() {
+      receiver.dispose()
+      vsm.destroy()
+      tiles.destroy()
+      transmittance.destroy()
+      bounceGrid.destroy()
+      probes.destroy()
+      surfaceCache.destroy()
+      proxy.destroy()
+    },
+  }
+}
+
+/** The virtual shadow maps' stand-ins: no light reads them (no light has a map without them). The
+ *  resolve's mask stand-in, one zero texel (every lane lit), its tile words, one zero texel (no
+ *  layer stored), and the mask's decode table. */
+function createVsmPlaceholders(device: GPUDevice) {
   const vsmPageTable = device.createBuffer({
     label: 'Trillion3D empty VSM page table',
     size: 16,
@@ -197,8 +233,6 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     size: 16,
     usage: GPUBufferUsage.STORAGE,
   })
-  // The resolve's mask stand-in, one zero texel (every lane lit), its tile words, one zero texel
-  // (no layer stored), and the mask's decode table.
   const vsmMask = device.createTexture({
     label: 'Trillion3D empty VSM mask',
     size: [1, 1, 1],
@@ -213,36 +247,22 @@ export function createDeferredPlaceholders(device: GPUDevice) {
   })
   const vsmMaskTable = createVsmMaskTable(device)
   return {
-    vsmPageTable,
-    vsmProjectionData,
-    vsmUniforms,
-    vsmPool,
-    vsmMask: arrayView(vsmMask),
-    vsmMaskTiles: vsmMaskTiles.createView(),
-    /** The mask's decode table (`projectionMaskTable.ts`): `fill` before the first frame that
-     *  reads a mask is submitted. */
-    vsmMaskTable,
-    tiles,
-    transmittanceView: arrayView(transmittance),
-    bounceGrid,
-    probes: probes.createView({ dimension: '2d-array' }),
-    surfaceCache: surfaceCache.createView(),
-    proxy,
-    receiver: receiver.resources,
-    /** The empty normal atlas: what a transparent item without normals reads (zeros). */
-    emptyNormals: receiver.normals,
-    dispose() {
-      receiver.dispose()
+    views: {
+      vsmPageTable,
+      vsmProjectionData,
+      vsmUniforms,
+      vsmPool,
+      vsmMask: arrayView(vsmMask),
+      vsmMaskTiles: vsmMaskTiles.createView(),
+      /** The mask's decode table (`projectionMaskTable.ts`): `fill` before the first frame that
+       *  reads a mask is submitted. */
+      vsmMaskTable,
+    },
+    destroy() {
       for (const buffer of [vsmPageTable, vsmProjectionData, vsmUniforms, vsmPool]) buffer.destroy()
-      tiles.destroy()
-      transmittance.destroy()
       vsmMask.destroy()
       vsmMaskTiles.destroy()
       vsmMaskTable.texture.destroy()
-      bounceGrid.destroy()
-      probes.destroy()
-      surfaceCache.destroy()
-      proxy.destroy()
     },
   }
 }

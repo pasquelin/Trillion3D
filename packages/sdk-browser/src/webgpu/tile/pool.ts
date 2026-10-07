@@ -2,6 +2,7 @@ import {
   placeOf,
   poolLayerBytes,
   POOL_LAYER_SIDE,
+  POOL_MAX_LAYERS,
   tileBytes,
   TILES_PER_LAYER,
   type TilePlace,
@@ -66,10 +67,12 @@ export type TilePoolOptions = {
 }
 
 /** The texture a pool of this shape holds: what the pool creates, and what a probe asks the device
- *  for before the pool is drawn (`../residency/poolGrants.ts`). */
+ *  for before the pool is drawn (`../residency/poolGrants.ts`). Never more layers than a table
+ *  entry addresses (`POOL_MAX_LAYERS`): a place past them would read another tile. */
 export function tilePoolTexture(options: TilePoolOptions) {
   const { layers, format, texelBytes } = options
-  if (!Number.isSafeInteger(layers) || layers < 1) throw new Error('TEXTURE_POOL_LAYERS')
+  if (!Number.isSafeInteger(layers) || layers < 1 || layers > POOL_MAX_LAYERS)
+    throw new Error('TEXTURE_POOL_LAYERS')
   // `copyExternalImageToTexture` also requires `RENDER_ATTACHMENT` of its destination; a block
   // format cannot be one, and no browser image is ever copied into it.
   const attachment = texelBytes === 1 ? 0 : GPUTextureUsage.RENDER_ATTACHMENT
@@ -85,6 +88,90 @@ export function tilePoolTexture(options: TilePoolOptions) {
   }
 }
 
+/** What a pool knows of its places: per place, the key it holds — -1 free —, the last image that
+ *  looked at it and whether it is pinned; the free places, and the image's eviction victims. */
+type Places = {
+  tiles: number
+  owner: Int32Array
+  lastUse: Uint32Array
+  pinned: Uint8Array
+  /** Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
+   *  rebuilt in one pass when an adopt has stale-dated it, at the next take. */
+  free: number[]
+  freeStale: boolean
+  resident: number
+  /** The image's eviction victims, ordered by last use then index, in one reused buffer. */
+  heap: ReturnType<typeof createVictimHeap>
+}
+
+const placesOf = (tiles: number): Places => ({
+  tiles,
+  owner: new Int32Array(tiles).fill(-1),
+  lastUse: new Uint32Array(tiles),
+  pinned: new Uint8Array(tiles),
+  free: [],
+  freeStale: true,
+  resident: 0,
+  heap: createVictimHeap(tiles),
+})
+
+function settle(places: Places) {
+  if (!places.freeStale) return
+  const { free, owner } = places
+  free.length = 0
+  for (let index = places.tiles - 1; index >= 0; index--) if (owner[index] === -1) free.push(index)
+  places.freeStale = false
+}
+
+/** `index`, held: a free place is refused. */
+function taken({ owner }: Places, index: number) {
+  if (owner[index] === -1) throw new Error('TEXTURE_TILE_FREE')
+  return index
+}
+
+function occupy(places: Places, index: number, key: number, frame: number, pin: boolean) {
+  places.owner[index] = key
+  places.lastUse[index] = frame
+  places.pinned[index] = pin ? 1 : 0
+  places.resident++
+}
+
+function acquire(places: Places, key: number, frame: number, pin: boolean) {
+  settle(places)
+  const index = places.free.pop()
+  if (index === undefined) return undefined
+  occupy(places, index, key, frame, pin)
+  return index
+}
+
+function adopt(places: Places, index: number, key: number, frame: number, pin: boolean) {
+  if (places.owner[index] !== -1) throw new Error('TEXTURE_TILE_OCCUPIED')
+  occupy(places, index, key, frame, pin)
+  places.freeStale = true
+}
+
+function release(places: Places, index: number) {
+  taken(places, index)
+  places.owner[index] = -1
+  places.pinned[index] = 0
+  places.resident--
+  if (!places.freeStale) places.free.push(index)
+}
+
+function victims({ tiles, owner, pinned, lastUse, heap }: Places, frame: number) {
+  heap.clear()
+  for (let index = 0; index < tiles; index++)
+    if (owner[index] !== -1 && !pinned[index] && lastUse[index] < frame - 1)
+      heap.add(lastUse[index], index)
+  return heap.order()
+}
+
+function occupied({ tiles, owner }: Places) {
+  const out: number[] = []
+  for (let index = 0; index < tiles; index++) if (owner[index] !== -1) out.push(index)
+  return out
+}
+
 export function createWebgpuTilePool(
   device: TilePoolDevice,
   options: TilePoolOptions,
@@ -95,31 +182,7 @@ export function createWebgpuTilePool(
   const perTile = tileBytes(texelBytes)
   const label = descriptor.label
   const texture = device.createTexture(descriptor)
-  const owner = new Int32Array(tiles).fill(-1),
-    lastUse = new Uint32Array(tiles),
-    pinned = new Uint8Array(tiles)
-  // Free places, the lowest on top of the stack: a half-empty pool stays compact. The stack is
-  // rebuilt in one pass when an adopt has stale-dated it, at the next take.
-  const free: number[] = []
-  // The image's eviction victims, ordered by last use then index, in one reused buffer.
-  const heap = createVictimHeap(tiles)
-  let freeStale = true,
-    resident = 0
-  const settle = () => {
-    if (!freeStale) return
-    free.length = 0
-    for (let index = tiles - 1; index >= 0; index--) if (owner[index] === -1) free.push(index)
-    freeStale = false
-  }
-  const check = (index: number) => {
-    if (owner[index] === -1) throw new Error('TEXTURE_TILE_FREE')
-  }
-  const occupy = (index: number, key: number, frame: number, pin: boolean) => {
-    owner[index] = key
-    lastUse[index] = frame
-    pinned[index] = pin ? 1 : 0
-    resident++
-  }
+  const places = placesOf(tiles)
   return {
     label,
     texture,
@@ -129,58 +192,22 @@ export function createWebgpuTilePool(
     bytes: layers * poolLayerBytes(texelBytes),
     tileBytes: perTile,
     get resident() {
-      return resident
+      return places.resident
     },
     get residentBytes() {
-      return resident * perTile
+      return places.resident * perTile
     },
-    acquire(key, frame, pin = false) {
-      settle()
-      const index = free.pop()
-      if (index === undefined) return undefined
-      occupy(index, key, frame, pin)
-      return index
-    },
-    adopt(index, key, frame, pin = false) {
-      if (owner[index] !== -1) throw new Error('TEXTURE_TILE_OCCUPIED')
-      occupy(index, key, frame, pin)
-      freeStale = true
-    },
-    release(index) {
-      check(index)
-      owner[index] = -1
-      pinned[index] = 0
-      resident--
-      if (!freeStale) free.push(index)
-    },
+    acquire: (key, frame, pin = false) => acquire(places, key, frame, pin),
+    adopt: (index, key, frame, pin = false) => adopt(places, index, key, frame, pin),
+    release: (index) => release(places, index),
     touch(index, frame) {
-      check(index)
-      lastUse[index] = frame
+      places.lastUse[taken(places, index)] = frame
     },
-    keyOf(index) {
-      check(index)
-      return owner[index]
-    },
-    lastUseOf(index) {
-      check(index)
-      return lastUse[index]
-    },
-    pinnedOf(index) {
-      check(index)
-      return pinned[index] === 1
-    },
-    victims(frame) {
-      heap.clear()
-      for (let index = 0; index < tiles; index++)
-        if (owner[index] !== -1 && !pinned[index] && lastUse[index] < frame - 1)
-          heap.add(lastUse[index], index)
-      return heap.order()
-    },
-    occupied() {
-      const out: number[] = []
-      for (let index = 0; index < tiles; index++) if (owner[index] !== -1) out.push(index)
-      return out
-    },
+    keyOf: (index) => places.owner[taken(places, index)],
+    lastUseOf: (index) => places.lastUse[taken(places, index)],
+    pinnedOf: (index) => places.pinned[taken(places, index)] === 1,
+    victims: (frame) => victims(places, frame),
+    occupied: () => occupied(places),
     placeOf,
     destroy() {
       texture.destroy()

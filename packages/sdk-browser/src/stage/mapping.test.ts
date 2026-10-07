@@ -84,7 +84,7 @@ test('direct lighting keeps its values even when another stage is invalidated', 
       { name: LIGHT_TILES_PASS, gpuMs: 3 },
       { name: DEFERRED_LIGHTING_PASS, gpuMs: 4 },
       { name: 'Trillion3D visibility primary', gpuMs: null },
-      { name: 'Trillion3D opaque fallback', gpuMs: 1 },
+      { name: 'Trillion3D empty surfaces', gpuMs: 1 },
     ]),
   )
   assert.deepEqual(timings, {

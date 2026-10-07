@@ -1,6 +1,6 @@
-import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts'
+import type { PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts'
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
+import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 
 /**
  * WHERE EACH PAGE OF A DYNAMIC CUT HAS ITS VERTICES, measured page by page as they are

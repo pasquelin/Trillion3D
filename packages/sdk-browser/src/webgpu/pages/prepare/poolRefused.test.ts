@@ -8,18 +8,18 @@ import { setWebgpuMemoryBudgets } from '../io/memory.ts'
 import { texturePoolFor } from '../../residency/memoryBudgets.ts'
 import { laneCounts, poolEncoding } from '../../../texture/blockFormats.ts'
 import { noTails } from '../../../texture/noTails.fixture.ts'
-import type { BackendDiagnostic } from '../../../backend/types.ts'
+import type { EngineDiagnostic } from '../../../engine/types.ts'
 import { refusing } from './refusing.fixture.ts'
 
 test('a texture pool refused even at its floor at prepare is refused by name, never allocated in full', async () => {
   installGpuGlobals()
   const { device, textures } = refusing('createTexture', 'texture pool')
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const { fixture, backend } = quadBackend(device, {
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+    onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   })
   try {
-    await backend.prepare()
+    await assert.rejects(backend.prepare(), /WEBGPU_TEXTURE_POOL_REFUSED/)
     const failure = events.find((event) => event.phase === 'material-pipeline-failed')
     assert.match(String(failure?.context.error), /WEBGPU_TEXTURE_POOL_REFUSED/)
     const pools = textures.filter((texture) => texture.label?.startsWith('Trillion3D texture pool'))
@@ -48,7 +48,7 @@ test('a geometry pool refused even at its root cover at prepare is refused by na
   }
 })
 
-test('a geometry concatenation that fails at prepare drops to the reduced mode, the pool still granted', async () => {
+test('a geometry concatenation that fails at prepare refuses the scene, said once, never another image', async () => {
   installGpuGlobals()
   const gpu = mockGpu()
   const device = gpu.device as unknown as Record<string, (d: { label?: string }) => unknown>
@@ -58,17 +58,20 @@ test('a geometry concatenation that fails at prepare drops to the reduced mode, 
       throw new RangeError('refused')
     return make.call(this, descriptor)
   }
-  const events: BackendDiagnostic[] = []
+  const events: EngineDiagnostic[] = []
   const { fixture, backend } = quadBackend(gpu.device, {
-    onDiagnostic: (event: BackendDiagnostic) => events.push(event),
+    onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   })
   try {
-    await backend.prepare()
-    const failure = events.find((event) => event.phase === 'material-pipeline-failed')
-    assert.match(String(failure?.context.error), /refused/)
-    assert.ok(backend.metrics().geometryPoolSlots! > 0, 'the page cache is granted')
-    const ready = events.find((event) => event.phase === 'render-capabilities')
-    assert.equal(ready?.context.visibilityBuffer, false, 'the visibility buffer is dropped')
+    await assert.rejects(backend.prepare(), /refused/)
+    const failures = events.filter((event) => event.phase === 'material-pipeline-failed')
+    assert.equal(failures.length, 1)
+    assert.match(String(failures[0].context.error), /refused/)
+    assert.equal(
+      events.some((event) => event.phase === 'render-capabilities'),
+      false,
+      'no image path is declared ready',
+    )
   } finally {
     backend.dispose()
     fixture.geometry.dispose()

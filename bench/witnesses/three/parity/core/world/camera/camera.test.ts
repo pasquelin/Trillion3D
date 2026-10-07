@@ -41,18 +41,18 @@ test('orthographic rays preserve off-centre boxes, fit aspect and zoom without p
   near(eye.rayThrough(-1, 1, 2).origin.toArray(), [9, 29, 30])
 })
 
-test('cached reference projections update and map the near and far planes to clip boundaries', () => {
+test('cached projections update, the near plane at reversed depth 1 and distance as near over it', () => {
   const eye = camera.perspective({ fov: 90, near: 2, far: 10, aspect: 2 })
   const matrix = eye.projectionMatrix
-  near(new Vector3(4, 2, -2).applyMatrix4(matrix).toArray(), [1, 1, -1])
-  near(new Vector3(0, 0, -10).applyMatrix4(matrix).toArray(), [0, 0, 1])
+  near(new Vector3(4, 2, -2).applyMatrix4(matrix).toArray(), [1, 1, 1])
+  near(new Vector3(0, 0, -10).applyMatrix4(matrix).toArray(), [0, 0, 0.2])
   eye.near = 1
   eye.far = 9
   eye.aspect = 1
   eye.zoom = 2
   assert.equal(eye.projectionMatrix, matrix)
-  near(new Vector3(0.5, 0.5, -1).applyMatrix4(matrix).toArray(), [1, 1, -1])
-  near(new Vector3(0, 0, -9).applyMatrix4(matrix).toArray(), [0, 0, 1])
+  near(new Vector3(0.5, 0.5, -1).applyMatrix4(matrix).toArray(), [1, 1, 1])
+  near(new Vector3(0, 0, -9).applyMatrix4(matrix).toArray(), [0, 0, 1 / 9])
   eye.position.set(3, 4, 5)
   eye.updateWorldMatrix(true, false)
   const inverse = eye.matrixWorldInverse
@@ -98,26 +98,26 @@ test('camera copies isolate optics, preserve projection kind and honor child rec
   assert.equal(target.fov, 70)
 })
 
-test('orthographic projection maps asymmetric view corners and updates each box side', () => {
+test('orthographic projection maps asymmetric view corners, near at depth 1 and far at 0', () => {
   const eye = camera.orthographic({ left: 1, right: 7, top: 8, bottom: 2, near: 3, far: 11 })
   const matrix = eye.projectionMatrix
-  near(new Vector3(1, 2, -3).applyMatrix4(matrix).toArray(), [-1, -1, -1])
-  near(new Vector3(7, 8, -11).applyMatrix4(matrix).toArray(), [1, 1, 1])
+  near(new Vector3(1, 2, -3).applyMatrix4(matrix).toArray(), [-1, -1, 1])
+  near(new Vector3(7, 8, -11).applyMatrix4(matrix).toArray(), [1, 1, 0])
   eye.left = -5
   eye.right = 9
   eye.top = 10
   eye.bottom = -2
   eye.near = 1
   eye.far = 5
-  near(new Vector3(-5, -2, -1).applyMatrix4(matrix).toArray(), [-1, -1, -1])
-  near(new Vector3(9, 10, -5).applyMatrix4(matrix).toArray(), [1, 1, 1])
+  near(new Vector3(-5, -2, -1).applyMatrix4(matrix).toArray(), [-1, -1, 1])
+  near(new Vector3(9, 10, -5).applyMatrix4(matrix).toArray(), [1, 1, 0])
   eye.zoom = 2
-  near(new Vector3(-1.5, 1, -1).applyMatrix4(matrix).toArray(), [-1, -1, -1])
-  near(new Vector3(5.5, 7, -5).applyMatrix4(matrix).toArray(), [1, 1, 1])
+  near(new Vector3(-1.5, 1, -1).applyMatrix4(matrix).toArray(), [-1, -1, 1])
+  near(new Vector3(5.5, 7, -5).applyMatrix4(matrix).toArray(), [1, 1, 0])
   eye.fitAspect = true
   eye.aspect = 2
-  near(new Vector3(-4, 1, -1).applyMatrix4(matrix).toArray(), [-1, -1, -1])
-  near(new Vector3(8, 7, -5).applyMatrix4(matrix).toArray(), [1, 1, 1])
+  near(new Vector3(-4, 1, -1).applyMatrix4(matrix).toArray(), [-1, -1, 1])
+  near(new Vector3(8, 7, -5).applyMatrix4(matrix).toArray(), [1, 1, 0])
 })
 
 test('a camera names its kind, and its default box is centred', () => {

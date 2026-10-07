@@ -1,7 +1,7 @@
 // The oracle's barycentric weights: nominal and edge behaviours.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { signedArea } from '../../../../packages/sdk-browser/src/visibility/projection.ts'
+import { signedArea } from './projection.ts'
 import { barycentricAt } from './math.ts'
 
 test('barycentricAt returns weights that sum to one and reconstruct the point at the centre', () => {

@@ -9,8 +9,7 @@ import { bytesOf } from '../../../../../tests/kit/gpu/globals.ts'
 import { createDagResources } from './resources.ts'
 import { createDagRuntime } from './runtime.ts'
 import { packDagSelection } from './selection.ts'
-import { packRequest } from './request.ts'
-import { keepSnapshot, writeDifference } from './difference.fixture.ts'
+import { mirrorDifferenceStage } from './difference.fixture.ts'
 import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS as HEAD } from './layout.ts'
 import { dagFixture } from '../../page/selection/dag.fixture.ts'
 import { packed } from './selectionHelpers.fixture.ts'
@@ -27,10 +26,7 @@ export function writeCut(out: Uint32Array, cap: number, cut: RigCut) {
   out.fill(0, 0, 2 * (HEAD + cap))
   out[OUT_COUNT] = cut.asked.length
   out[OUT_FLAGS] = cut.asked.length > cap || cut.drawn.length > cap ? 1 : 0
-  out.set(
-    asked.map((page) => packRequest(page, 1)),
-    HEAD,
-  )
+  out.set(asked, HEAD)
   out[HEAD + cap] = cut.drawn.length
   out.set(drawn, 2 * HEAD + cap)
 }
@@ -73,8 +69,9 @@ export async function differenceRig(cap: number, placements = 40) {
     for (const commands of buffers)
       for (const op of (commands as unknown as { ops: Op[] }).ops) op()
   }
-  /** The lists the next cut writes. */
+  /** The lists the next cut writes, and the kernels encoded since `encoded` was last read. */
   let next: RigCut = { asked: [], drawn: [] }
+  const encoded: string[] = []
   device.createCommandEncoder = () => {
     const ops: Op[] = []
     let entry = ''
@@ -82,11 +79,11 @@ export async function differenceRig(cap: number, placements = 40) {
     const kernel = (name: string) => {
       const out = resources.output,
         listCap = resources.listCap
+      encoded.push(name)
       if (name === 'dagPrepare') {
         const cut = next
         ops.push(() => writeCut(model(out), listCap, cut))
-      } else if (name === 'dagCutDifference') ops.push(() => writeDifference(model(out), listCap))
-      else if (name === 'dagCutKeep') ops.push(() => keepSnapshot(model(out), listCap))
+      } else ops.push(() => mirrorDifferenceStage(name, model(out), listCap))
     }
     const pass = new Proxy(
       {},
@@ -94,7 +91,7 @@ export async function differenceRig(cap: number, placements = 40) {
         get: (_, name) =>
           name === 'setPipeline'
             ? (pipeline: { entryPoint: string }) => (entry = pipeline.entryPoint)
-            : name === 'dispatchWorkgroups'
+            : name === 'dispatchWorkgroups' || name === 'dispatchWorkgroupsIndirect'
               ? () => kernel(entry)
               : () => {},
       },
@@ -111,7 +108,7 @@ export async function differenceRig(cap: number, placements = 40) {
       finish: () => ({ ops }),
     } as unknown as GPUCommandEncoder
   }
-  const resources = (await createDagResources(device, dag, true, null, cap))!
+  const resources = (await createDagResources(device, dag, null, cap))!
   const selection = createDagRuntime(resources)
   return {
     resources,
@@ -122,5 +119,7 @@ export async function differenceRig(cap: number, placements = 40) {
     cutNext: (cut: RigCut) => (next = cut),
     /** Snapshots copied into a readback slot so far. */
     copies: () => copies,
+    /** The kernels encoded since the last call, flat or indirect. */
+    encoded: () => encoded.splice(0),
   }
 }

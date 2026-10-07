@@ -13,19 +13,20 @@ import {
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
 import { FLAG_FOG_FREE } from '../types.ts'
+import { PHYSICAL_LOBES_CALL_WGSL, PHYSICAL_UV_WGSL } from './physicalWgsl.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
  * own feature overrides (`materialClass.ts`), kept on that class's pixels only (`classAdmits`).
- * `HAS_UV`, `HAS_MAP` and the other class constants stand for what would be
- * tested per pixel on `page.flags`; the arithmetic of a kept path is the same, operand for operand.
+ * `HAS_UV`, `HAS_MAP` and the other class constants are pipeline overrides, never tested per pixel
+ * on `page.flags`; a kept path runs the per-pixel test's arithmetic, operand for operand.
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
 ${NORMAL_VIEW_COLOR_WGSL}
 ${EMISSIVE_AO_FLAG_WGSL}
 /** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
  *  transmission, and its shadow receiver's offset and plane. Private, so zero at each pixel's start:
- *  a path that finds none leaves zero, as the write before the resolve used to. */
+ *  a path that finds none leaves zero, as a cleared texel holds. */
 var<private> thinOut:vec3f;
 var<private> rcvOffset:vec3f;
 var<private> rcvPlane:vec3f;
@@ -62,6 +63,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   uv=matcapUv(uniteOuZero(invTranspose3Apply(it,pageNormal(page,h,k.x))*bary.x+invTranspose3Apply(it,pageNormal(page,h,k.y))*bary.y+invTranspose3Apply(it,pageNormal(page,h,k.z))*bary.z));
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
+ // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
+ ${PHYSICAL_UV_WGSL}
  let request=shadeRequest(page,pos.xy,uv,ddx,ddy);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
@@ -122,6 +125,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
    N=uniteOuZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
   }
+  // The clear coat bends its own normal map from the normal before the base one (\`physicalWgsl.ts\`).
+  let coatBase=N;
   if(HAS_NORMAL_MAP){
    let nrm=nrmSample.xyz*2.0-vec3f(1.0);
    let mapN=vec3f(nrm.x*page.normalScale,nrm.y*page.normalScaleY,nrm.z);
@@ -154,7 +159,8 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
- // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`).
+ ${PHYSICAL_LOBES_CALL_WGSL}
+ // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
 @fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
@@ -162,7 +168,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  // The background, a page past the table and another class are rejected before any write.
  if(!classAdmits(id)){discard;}
  let surface=shadeSurface(pos,id);
- // Each storage texel written once, the last value it used to take: zero unless the resolve set it.
+ // Each storage texel written once, with its final value: zero unless the resolve set it.
  storeSubsurface(pos.xy,thinOut);
  storeReceiver(pos.xy,rcvOffset,rcvPlane);
  return surface;

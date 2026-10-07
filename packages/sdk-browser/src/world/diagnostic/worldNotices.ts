@@ -1,13 +1,12 @@
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts'
-import type { BackendDiagnostic } from '../../backend/types.ts'
+import type { EngineDiagnostic } from '../../engine/types.ts'
 import { effectTargetExcess, type BudgetCanvas } from '../../residency/memoryBudget.ts'
-import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 
 /** The page channels open now (`diagnostic.createChannel`): every world notice reaches each. */
-const listeners = new Set<(notice: BackendDiagnostic) => void>()
+const listeners = new Set<(notice: EngineDiagnostic) => void>()
 
 /** Hands every world notice to `listener` until the returned function is called. */
-export function listenWorldNotices(listener: (notice: BackendDiagnostic) => void) {
+export function listenWorldNotices(listener: (notice: EngineDiagnostic) => void) {
   listeners.add(listener)
   return () => {
     listeners.delete(listener)
@@ -95,52 +94,5 @@ export function noticeEffectBudget(
         `${canvas.width} × ${canvas.height} canvas, drawn at ${width} × ${height}`,
       { excess, width, height, declared: canvas },
     )
-  }
-}
-
-/**
- * The WebGL2 composer's word (`effectsRefused`) that a frame was drawn without the effect chain,
- * a transparent surface drawn blending in `blending`, which the chain's linear target
- * cannot hold (`linearRefusal`): said once per world, as `effects-refused-blending`. WebGPU draws
- * both and never says it. Heard on every refused frame: past the first, it builds nothing.
- */
-export function noticeEffectRefusal(notices: Pick<WorldNotices, 'once'>) {
-  let said = false
-  return (blending: Blending) => {
-    if (said) return
-    said = true
-    notices.once(
-      'effects-refused-blending',
-      `effect chain not drawn on WebGL2: a transparent surface blends in ${blending}, which ` +
-        `the chain cannot hold; the chain comes back once no such surface is drawn`,
-      { blending },
-    )
-  }
-}
-
-/**
- * The WebGL2 engine's word that a light asks to cast a shadow it draws none of: that path has no
- * shadow map (`CONTRACT_LIGHTS_LIGHTING`), so the light — sun, point or spot — is drawn
- * unshadowed, never silently: `shadows-refused` is said once per light, and again only once its
- * `castShadow` has been off (or the light gone or hidden, or the unlit view shown) and comes back. Heard
- * with the casting lights at each change of the session's lights, never per frame. WebGPU draws
- * those shadows and never says it.
- */
-export function noticeShadowRefusal(notices: Pick<WorldNotices, 'say'>) {
-  let said = new Set<string>()
-  let last: readonly string[] | undefined
-  return (casting: readonly string[]) => {
-    // Each light set keeps its list between its changes: the same list says nothing new.
-    if (casting === last) return
-    last = casting
-    for (const light of casting)
-      if (!said.has(light))
-        notices.say(
-          'shadows-refused',
-          `light ${light} casts no shadow on WebGL2, which draws no shadow map: it is drawn ` +
-            `unshadowed; WebGPU draws its shadow`,
-          { light },
-        )
-    said = new Set(casting)
   }
 }

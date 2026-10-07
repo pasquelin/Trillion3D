@@ -1,7 +1,7 @@
 // The transparent kernels a fake device replays: compaction of the paged items, the paint order,
 // then expansion of the sorted plan, each through the CPU oracle the shader implements.
 import { evaluateTransparentCompaction } from '../../../packages/sdk-browser/src/webgpu/transparent/compactCpu.fixture.ts'
-import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts'
+import { expandBlendPlan } from '../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
 import { RUN_WORDS } from '../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
 import { EXPAND_UNI } from '../../../packages/sdk-browser/src/webgpu/blend/expandUniform.ts'
 import { EXPAND_BINDING } from '../../../packages/sdk-browser/src/webgpu/blend/expandBindings.ts'
@@ -13,12 +13,10 @@ import {
   ORDER_UNI,
 } from '../../../packages/sdk-browser/src/webgpu/blend/orderWgsl.ts'
 import { PLAN_SHIFT } from '../../../packages/sdk-browser/src/webgpu/blend/planEntry.ts'
-import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.ts'
-import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/sortPlan.ts'
+import { placeBlendSlots } from '../../../packages/sdk-browser/src/webgpu/blend/runs.fixture.ts'
+import { precedes } from '../../../packages/sdk-browser/src/webgpu/blend/paintOrder.ts'
 import type { ComputeBind } from './mockCompute.ts'
-
-export const words = (bytes: Uint8Array) =>
-  new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)
+import { words } from './mockBuffers.ts'
 
 /** Replays the transparent compaction: the same oracle the shader implements. */
 function simulateTransparentCompaction(bind: ComputeBind) {
@@ -38,9 +36,9 @@ function simulateTransparentCompaction(bind: ComputeBind) {
 }
 
 /**
- * Replays expansion of the sorted plan: the same oracle as `BLEND_EXPAND_SHADER`, written once for
- * both paths (`webgpu/blend/expandCpu.ts`). The double replays it at the last of the four kernels,
- * when every input the GPU would read is there.
+ * Replays expansion of the sorted plan: the oracle of `BLEND_EXPAND_SHADER`
+ * (`webgpu/blend/expandCpu.fixture.ts`). The double replays it at the last of the four kernels, when
+ * every input the GPU would read is there.
  */
 function simulateBlendExpansion(bind: ComputeBind, offsets?: readonly number[]) {
   const byBinding = new Map(bind.entries.map((entry) => [entry.binding, entry.resource.buffer]))

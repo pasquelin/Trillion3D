@@ -40,7 +40,7 @@ test('the lost promise unpublishes the composed canvas and names WEBGPU_LOST', a
   const events: Array<{ phase: string; context: Record<string, unknown> }> = []
   const { fixture, backend } = quadBackend(device, {
     onDiagnostic: (e) => {
-      // Announced after the withdrawal: a host drawing on it already finds no canvas.
+      // Announced after the withdrawal: a host reading the canvas already finds none.
       if (e.phase === 'gpu-device-lost') assert.equal(backend.presentedSurface, undefined)
       events.push(e)
     },

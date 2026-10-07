@@ -13,14 +13,14 @@ const HEADER_WORDS: usize = 4;
 const TEXTURE_PREVIEW_U32: usize = 21;
 const TEXTURE_PREVIEW_SHA: usize = 22;
 const TEXTURE_PREVIEW_PIXELS: usize = 23;
-/// The tails block-compressed, the BC family then ASTC 4 × 4: no offset written,
-/// one contiguous range per entry the family kept, whose length follows from its
-/// dimensions; nothing for an entry whose layout word says lossless.
-const TEXTURE_PREVIEW_BLOCKS: [(&str, usize); 2] = [("bc7", 24), ("astc", 25)];
+/// The tails block-compressed, the BC family, ASTC 4 × 4 then ETC2: no offset
+/// written, one contiguous range per entry the family kept, whose length follows
+/// from its dimensions; nothing for an entry whose layout word says lossless.
+const TEXTURE_PREVIEW_BLOCKS: [(&str, usize); 3] = [("bc7", 24), ("astc", 25), ("etc2", 26)];
 /// Numbers per entry: texture, image, width, height, kind and provenance view,
 /// first level, level count, pixel start and length, atlas, levels baked to
 /// files, then the layout word of each family.
-const PREVIEW_WORDS: usize = 14;
+const PREVIEW_WORDS: usize = 15;
 const PREVIEW_LAYOUTS: usize = 12;
 /// `alphaCutoff` of the fixture's MASK material, as a byte: 0.25 × 255 rounded.
 /// Counting texels that reach it at each level says at a glance whether mask
@@ -92,6 +92,7 @@ pub(in crate::tests) fn previews_digest(run: &GoldenRun) -> Value {
         "texturePreviewBytes": run.slim["binary"]["texturePreviewBytes"],
         "texturePreviewBc7Bytes": run.slim["binary"]["texturePreviewBc7Bytes"],
         "texturePreviewAstcBytes": run.slim["binary"]["texturePreviewAstcBytes"],
+        "texturePreviewEtc2Bytes": run.slim["binary"]["texturePreviewEtc2Bytes"],
       },
       "previews": previews,
     })

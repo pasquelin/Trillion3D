@@ -1,59 +1,25 @@
-import {
-  measureWebgpuFrame,
-  pendingWebgpuFrame,
-  webgpuLandings,
-} from '../frame/interactiveFrame.ts'
-import { disabledStageProfile } from '../../../../sdk-core/src/index.ts'
-import { engineRenderer } from '../../backend/engines.ts'
-import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts'
-import { prepareWebgpuBackend } from './prepare/prepare.ts'
-import { setWebgpuBounce } from './prepare/bounce.ts'
-import { setWebgpuTemporalAntialiasing } from '../../taa/prepare.ts'
+import { WEBGPU_ENGINE_ID, type EngineFactory } from '../../engine/factory.ts'
+import { createWebgpuPagesRuntime } from './runtime.ts'
 import { renderWebgpuPages } from './render/render.ts'
-import { flushWebgpuPages } from './render/flush.ts'
-import { captureSurfaceView } from './io/surfaceCapture.ts'
-import { captureColorView } from './io/colorCapture.ts'
-import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts'
-import {
-  captureImage,
-  pageUrls,
-  pendingUrls,
-  rasterView,
-  refreshSceneLights,
-  retainedRanks,
-  syncResident,
-} from './io/hostApi.ts'
-import { acceptPage, dropPage } from './io/pageApi.ts'
-import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts'
-import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts'
-import { setWebgpuTransform, setWebgpuTransforms } from './render/transform.ts'
-import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts'
-import { composeWebgpuPlacements } from '../../placement/gpuCompose.ts'
-import { webgpuVertexApi } from './dynamicVertices.ts'
-import { growWebgpuPlacements, webgpuGrowsInPlace } from '../../placement/webgpuGrowth.ts'
-import { disposeWebgpuPages, metricsOf } from './io/metrics.ts'
-import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts'
-import { runtimeMaterialApi } from './io/runtimeMaterialApi.ts'
-import { setWebgpuClearColor } from './io/clearColor.ts'
-import * as materials from './io/refreshMaterials.ts'
-import { installGpuDeviceLedger, gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
-import { namesNoSession } from '../../gpu/core/sessionHandle.ts'
-import { families } from '../../host/families.ts'
-import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts'
+import { refreshSceneLights } from './io/hostApi.ts'
 import { webgpuAudits } from './io/audits.ts'
-import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
-const views = () => families.diagnostics.load()
-/** WebGPU raster of cluster pages. GPU frustum + per-cluster error band when compute is available;
- *  `selectVisiblePages` remains the CPU oracle and the silent fallback. The state lives in the
- *  runtime; each method hands it to the module that owns that responsibility. */
-export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
+import {
+  backendHostApi,
+  backendSetters,
+  backendTiming,
+  disposeSession,
+  prepareSession,
+  type PagesSession,
+} from './backendApi.ts'
+/** WebGPU raster of cluster pages, cut on the GPU — frustum and per-cluster error band —, its one
+ *  cut (#1483). The state lives in the runtime; each method hands it to the module that owns that
+ *  responsibility. */
+export const webgpuPagesEngine = ((context) => {
   const rt = createWebgpuPagesRuntime(context)
-  const { run, setup, diag } = rt
-  const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf)
-  // The device this session holds until disposed; `setup.preparing` is the running preparation.
-  let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined
-  const backend: WebgpuPagesBackend = {
-    id: 'webgpu-page-raster',
+  const { run, setup } = rt
+  const session: PagesSession = {}
+  const backend: ReturnType<EngineFactory> = {
+    id: WEBGPU_ENGINE_ID,
     capabilities: rt.capabilities,
     signal: rt.signal,
     scene: setup.scene,
@@ -76,128 +42,15 @@ export const webgpuPagesBackend = engineRenderer('webgpu', (context) => {
     },
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
-    setTransform: (nodeName, matrix) => setWebgpuTransform(rt, nodeName, matrix),
-    setTransforms: (nodes, matrices) => setWebgpuTransforms(rt, nodes, matrices),
-    setBounce: (on) => setWebgpuBounce(rt, on),
-    setTemporalAntialiasing: (on) => setWebgpuTemporalAntialiasing(rt, on),
-    setRenderScale: (scale) => void (rt.scale.set(scale), rt.run.gate.resourcesChanged()),
-    renderScale: () => rt.scale.drawn,
-    updatePlacements: (rows, from, to) => void updateWebgpuPlacements(rt, rows, from, to),
-    composePlacements: (parent, world, links, whole) =>
-      composeWebgpuPlacements(rt, parent, world, links, whole),
-    worldCut: () => (run.gpuSelection?.packsWorld ? run.selectionUniforms : undefined),
-    ...webgpuVertexApi(rt),
-    growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
-    growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
-    refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
-    materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
-    wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
-    setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
-    ...runtimeMaterialApi(rt),
-    setClearColor: (hex) => setWebgpuClearColor(rt, hex),
-    async prepare() {
-      rt.signal.throwIfAborted()
-      const { gpuDevice } = context
-      if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE')
-      // The session creates through its own handle, whose labels name it; the allocation ledger
-      // sits on it, above the tags, and carries the device's, which counts the shared caches.
-      claim = claimWebgpuDevice(rt, gpuDevice)
-      const base = installGpuDeviceLedger(gpuDevice, { counts: namesNoSession })
-      installGpuDeviceLedger(claim.device, { base, limit: context.admitGpuMemory?.limit })
-      const building = prepareWebgpuBackend(rt, claim.device)
-      setup.preparing = building.catch(() => {})
-      try {
-        await building
-      } catch (error) {
-        diag.diagnosticFailure('webgpu-prepare-failed', error)
-        throw error
-      } finally {
-        setup.preparing = undefined
-      }
-    },
+    ...backendSetters(rt),
+    prepare: () => prepareSession(rt, context, session),
     render(camera) {
       renderWebgpuPages(rt, camera)
     },
-    syncResident: () => syncResident(rt),
-    // The feedback A/B measurements, diagnostic views on demand (`../../host/families.ts`).
-    setFeedbackTargetAb: async (target) => (await views()).setFeedbackTargetAb(rt, target),
-    feedbackAbResidency: async () => (await views()).feedbackAbResidency(rt),
-    captureFeedbackAb: async () => (await views()).captureFeedbackAb(rt),
-    feedbackAbSpatial: async () => (await views()).feedbackAbSpatial(rt),
-    pendingFrame: () => pendingWebgpuFrame(rt),
-    measureFrame: () => measureWebgpuFrame(rt),
-    landings: () => webgpuLandings(rt),
-    flush(options?: { image?: boolean }) {
-      return flushWebgpuPages(rt, options)
-    },
-    captureSurfaceView(camera, options) {
-      return captureSurfaceView(rt, camera, options)
-    },
-    captureColorView(camera, size) {
-      return captureColorView(rt, camera, size)
-    },
-    async addView(rect) {
-      const view = await addWebgpuView(rt, rect)
-      return {
-        render: (camera) => renderWebgpuView(rt, view, camera),
-        release: () => removeWebgpuView(rt, view),
-      }
-    },
-    capture() {
-      return captureImage(rt)
-    },
-    selectedPageIds: () => run.shown.map((rec) => rec.url),
-    selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
-    rasterView: () => rasterView(rt),
-    pendingUrls: () => pendingUrls(rt),
-    pageUrls: () => pageUrls(rt),
-    retainedRanks() {
-      return retainedRanks(rt)
-    },
-    pageSpecs,
-    acceptPage(url, array, plan) {
-      acceptPage(rt, url, array, plan, rt.services.affectsImage)
-    },
-    hostTableBytes: () => hostTableBytesOf(rt),
-    dropPage(url) {
-      dropPage(rt, url)
-    },
-    metrics() {
-      return metricsOf(rt)
-    },
-    resetStageProfile() {
-      rt.timing.stages?.reset()
-      rt.timing.cpuWindow.reset()
-    },
-    cpuSteps() {
-      return rt.timing.cpuWindow.summary()
-    },
-    cpuStep(step, ms) {
-      hostCpuStep(rt, step, ms)
-    },
-    frameCpuMs(ms) {
-      rt.timing.logFrame?.(ms, rt.scale.frameIntervalMs)
-    },
-    cpuFrameEnd() {
-      endCpuFrame(rt)
-    },
-    stageProfile() {
-      return (
-        rt.timing.stages?.profile() ??
-        disabledStageProfile('webgpu-page-raster', 'per-step profile not requested by the host')
-      )
-    },
+    ...backendHostApi(rt),
+    ...backendTiming(rt),
     ...webgpuAudits(rt),
-    dispose() {
-      // Inert and read as lost at once; torn down once, after the preparation stopped.
-      rt.closer.abort()
-      gpuDeviceLedgerOf(claim?.device)?.releaseAdmission()
-      claim?.release()
-      markWebgpuLost(rt)
-      return (closing ??= setup.preparing
-        ? setup.preparing.then(() => disposeWebgpuPages(rt))
-        : disposeWebgpuPages(rt))
-    },
+    dispose: () => disposeSession(rt, session),
   }
   return backend
-})
+}) satisfies EngineFactory

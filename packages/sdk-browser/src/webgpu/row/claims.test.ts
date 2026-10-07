@@ -19,10 +19,7 @@ test('an image writes owed rows within its time budget and leaves the rest owed'
   const claims = owed(),
     budget = createFrameBudget(2, () => now)
   budget.open()
-  assert.equal(
-    serveClaims(claims, () => true, slowPlace, budget),
-    0,
-  )
+  serveClaims(claims, () => true, slowPlace, budget)
   assert.equal(claims.count, 3, 'one row goes through, three wait for the next image')
   assert.deepEqual(Array.from(claims.pages.subarray(0, claims.count)), [1, 2, 3])
 })
@@ -30,14 +27,34 @@ test('an image writes owed rows within its time budget and leaves the rest owed'
 test('a barrier image lifts the time budget and writes every owed row', () => {
   const claims = owed(),
     placed: number[] = []
-  const denied = serveClaims(
+  serveClaims(
     claims,
     () => true,
     (page) => (placed.push(page), slowPlace()),
   )
-  assert.equal(denied, 0)
   assert.equal(claims.count, 0)
   assert.deepEqual(placed, [0, 1, 2, 3])
+})
+
+test('a page no rank is left for leaves the queue, named, and the pages after it are served', () => {
+  const claims = owed(),
+    refused: number[] = [],
+    placed: number[] = []
+  serveClaims(
+    claims,
+    () => true,
+    (page) => page % 2 === 1 && placed.push(page) > 0,
+    undefined,
+    (page) => refused.push(page),
+  )
+  assert.equal(claims.count, 0, 'none waits: a full table is no time budget')
+  assert.deepEqual(
+    [refused, placed],
+    [
+      [0, 2],
+      [1, 3],
+    ],
+  )
 })
 
 test('the rows a frame writes spend what its arrivals left of its one integration budget', () => {

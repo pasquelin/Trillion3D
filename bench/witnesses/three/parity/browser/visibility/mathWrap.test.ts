@@ -1,5 +1,5 @@
 // Defect 4: `wrapTexel` (math.ts) must follow the GPU's integer rule for
-// the three addressing modes — the same as MIRRORED_REPEAT in OpenGL ES 3.0 / WebGPU: i = ⌊t·size⌋,
+// the three addressing modes — the same as the WebGPU sampler's: i = ⌊t·size⌋,
 // then clamp, modulo one period (Repeat), or modulo two periods whose second is read backwards
 // (MirroredRepeat). `nearestTexel` (tests/gpu/texture/addressingCases.ts) encodes that same rule
 // independently; it is the oracle already checked against the real WebGPU sampler by

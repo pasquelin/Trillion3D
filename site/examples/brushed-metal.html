@@ -23,7 +23,7 @@
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
-      const world = createWorld('view', { controls: 'orbit', renderer: 'webgl2' });
+      const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#161922');
       const steel = material.meshPhysical({
         color: '#b8c3cc',

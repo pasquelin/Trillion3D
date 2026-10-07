@@ -1,4 +1,4 @@
-import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts'
+import { readGeometryPageHeader } from '../../page/codec/geometryPageHeader.ts'
 import type { WebgpuPagesCore } from './runtime.ts'
 
 /**

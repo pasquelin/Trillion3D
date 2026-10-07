@@ -21,8 +21,13 @@ test('the rectless program is the full one less its two rectangle branches', () 
     [true, true, true],
     [false, false, false],
   ] as const) {
-    const full = contractLightingShader(bounce, narrow, shadowed)
-    const rectless = contractLightingShader(bounce, narrow, shadowed, false)
+    const full = contractLightingShader(bounce, { narrow, unshadowed: !shadowed, lobeless: true })
+    const rectless = contractLightingShader(bounce, {
+      narrow,
+      unshadowed: !shadowed,
+      rectless: true,
+      lobeless: true,
+    })
     assert.match(full, RECT_TERM)
     assert.match(full, RECT_WEIGHT)
     assert.equal(full.replace(RECT_TERM, '').replace(RECT_WEIGHT, ''), rectless)

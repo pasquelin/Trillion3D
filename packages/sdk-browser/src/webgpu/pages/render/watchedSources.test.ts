@@ -12,7 +12,7 @@ import { camera } from '../testScenes.fixture.ts'
 import { drawnQuad } from '../drawnQuad.fixture.ts'
 
 async function withRuntime(body: (rt: WebgpuPagesRuntime) => Promise<void> | void) {
-  const { rt } = await drawnQuad(false)
+  const { rt } = await drawnQuad()
   try {
     await body(rt)
   } finally {

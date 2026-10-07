@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { dagFixture } from './dag.fixture.ts'
 import { collectClusterPages } from './selection.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 export function assertOneRepresentationPerGroup(shown: readonly string[]) {
   const drawn = new Set(shown)

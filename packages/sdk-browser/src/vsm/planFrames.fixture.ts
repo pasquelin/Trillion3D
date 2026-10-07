@@ -93,7 +93,7 @@ export function planFrames() {
   const marking = createVsmMarking(device, res)
   // The engine's per-page entries, built as `vsmEncode.ts` builds them.
   const perPage = vsmPerPageFrame()
-  const rows = device.createBuffer({ size: 16, usage: 0 })
+  const rows = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   // The shadow page group the engine keeps (`shadowPageGroup`): the same every frame.
   const pageLayout = {} as GPUBindGroupLayout,
     pageGroup = {} as GPUBindGroup

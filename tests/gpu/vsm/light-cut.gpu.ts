@@ -42,10 +42,10 @@ async function sunBehindTheEye() {
       target: street.position.map((v, i) => v + SUN.direction![i] * 4) as typeof street.position,
     }
     const lit = cutOf(await settle(world, behind))
-    const shadowed = new Uint8Array(world.capture())
+    const shadowed = new Uint8Array(await world.capture())
     world.setLight(SUN.id, { castsShadow: false })
     const unlit = cutOf(await settle(world, behind))
-    const open = new Uint8Array(world.capture())
+    const open = new Uint8Array(await world.capture())
     world.setLight(SUN.id, { castsShadow: true })
     // What the sun's shadow darkens on screen: every caster of it stands behind the eye.
     let darkened = 0

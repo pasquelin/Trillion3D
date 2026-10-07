@@ -1,8 +1,9 @@
 import type { GpuCut, GpuSelection, SelectionUniforms } from '../../gpu/core/selection.ts'
-import { sameSelectionUniforms } from '../../gpu/core/selection.ts'
+import { sameSelectionUniforms } from '../../gpu/core/selectionCopy.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { copyPages, copyPacked } from '../pages/helpers.ts'
 import type { CutDelta } from './delta.ts'
+import { createHeadUnion } from './headUnion.ts'
 
 /**
  * Applies a completed readback without letting it decide the current-frame draw mask.
@@ -46,11 +47,6 @@ export function createWebgpuCutAdopter(options: {
      *  at render: a drain replays one after the fact, so every reader of these lists must know they
      *  moved under it, not only that the current frame held them. */
     listsRewritten: false,
-    /** True when the adopted shown list is TRUNCATED: the cut did not fit under the shown-list
-     *  ceiling. No difference is taken from it — a truncated list would exit pages that are still
-     *  in the cut — and the frame goes back through the CPU cut, the only one that knows how to
-     *  pick a representable subset. */
-    truncated: false,
     ready: false,
     visible: 0,
     selectedTriangles: 0,
@@ -60,7 +56,9 @@ export function createWebgpuCutAdopter(options: {
     frustumRejected: 0,
     lodLevel: 0,
   }
-  let lastCut: GpuCut | null = null
+  let lastCut: GpuCut | undefined
+  const askedUnion = createHeadUnion(),
+    drawnUnion = createHeadUnion()
   /** Shown list `shown` and `drawn` are made from, or `null` when they come from elsewhere. */
   let shownCut: GpuCut | null = null
   /** Age of the drawable id sequence: it advances every time a shown list publishes another one,
@@ -78,16 +76,12 @@ export function createWebgpuCutAdopter(options: {
   const adopt = () => {
     metrics.cutHeld = false
     metrics.listsRewritten = false
-    metrics.truncated = false
     const selection = options.selection(),
       cut = selection?.peek()
+    // A list the device could not grow (`../../gpu/dag/listCap.ts`) is read by its head: the
+    // requests the GPU ranked first, and the drawn pages it compacted first, plus what the lists
+    // held past it (`./headUnion.ts`): the frame's mask draws the whole cut, so nothing exits.
     if (!cut?.result.drawablePageIds) return false
-    // Before any difference: a truncated list describes less than the cut, and the difference taken
-    // from it would EXIT pages the cut still holds.
-    if (cut.result.truncated) {
-      metrics.truncated = true
-      return false
-    }
     const { desired, shown, drawn, delta, drawnDelta } = options
     // A new readback offers its requests ahead; a held one only empties them once the camera stops.
     const offer = cut !== lastCut || (!options.uniforms.ahead && !offeredStill)
@@ -97,10 +91,14 @@ export function createWebgpuCutAdopter(options: {
     } else {
       // Each list read off the ranks its readback claims in the list held, then held: the
       // readbacks after it claim theirs in it (`../../gpu/dag/differenceChain.ts`).
-      const { pageIds, drawablePageIds } = cut.result,
+      const { pageIds, drawablePageIds, truncated } = cut.result,
         claims = selection?.adopt(cut)
-      delta.apply(pageIds, pageIds.length, claims?.asked)
-      drawnDelta.apply(drawablePageIds, drawablePageIds.length, claims?.drawn)
+      const asked = truncated ? askedUnion(pageIds, delta.ids, delta.count) : pageIds,
+        drawnIds = truncated
+          ? drawnUnion(drawablePageIds, drawnDelta.ids, drawnDelta.count)
+          : drawablePageIds
+      delta.apply(asked, asked.length, claims?.asked)
+      drawnDelta.apply(drawnIds, drawnIds.length, claims?.drawn)
       lastCut = cut
     }
     // The packed ranks of the desired cut, rank by rank beside its records: held or applied,
@@ -123,7 +121,7 @@ export function createWebgpuCutAdopter(options: {
     // the SAME sequence `shown` is made from yields the same records, at the same ranks, and neither
     // `shown` nor its copy `drawn` is remade. The comparison is on the age of the adopted sequence,
     // not on the last applied difference: a shown list applied then rejected advanced the age
-    // without writing anything. A null `shownCut` means these lists come from elsewhere.
+    // without writing anything. A null `shownCut` means none was made yet.
     const held = cut === shownCut || (shownCut !== null && shownSeq === drawnSeq)
     if (!held) {
       // The difference has just written these records by reading the sequence once; rereading them a
@@ -138,8 +136,7 @@ export function createWebgpuCutAdopter(options: {
     }
     // The GPU counted the triangles where the verdict is given, in `dagMask`, and shipped them in
     // the shown-list header (`../../gpu/dag/shader/totalsWgsl.ts`): they describe the cut, not the
-    // list that reports it, and the CPU sums nothing. The CPU cut sets its own
-    // (`../pages/render/cpu.ts`).
+    // list that reports it, and the CPU sums nothing.
     metrics.ready = true
     metrics.selectedTriangles = cut.result.selectedTriangles
     metrics.drawnTriangles = cut.result.drawnTriangles
@@ -148,15 +145,12 @@ export function createWebgpuCutAdopter(options: {
     metrics.lodLevel = cut.result.lodLevel
     return true
   }
-  /**
-   * Forgets the held shown list: another cut wrote the arrays this adopter maintains. The
-   * differences themselves are not dropped — whoever wrote those arrays published them through
-   * them, and dropping them would re-request a cut the cache already holds.
-   */
-  const forgetReadback = () => {
-    lastCut = null
-    shownCut = null
-    shownSeq = -1
+  return {
+    adopt,
+    metrics,
+    /** The readback last applied, whose requests admission ranks; none before the first. */
+    get adopted() {
+      return lastCut
+    },
   }
-  return { adopt, metrics, forgetReadback }
 }

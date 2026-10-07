@@ -1,97 +1,61 @@
-import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
-import { EngineError } from '../../../../sdk-core/src/index.ts'
-import { detectCapabilities } from '../capability/capabilities.ts'
-import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
+import {
+  detectCapabilities,
+  deviceCapabilities,
+  gpuOf,
+  webgpuUnavailable,
+  wgslRefusal,
+  type GpuCapabilities,
+} from '../capability/capabilities.ts'
+import { grantedGpuFeatures } from './gpuDevice.ts'
+import { grantedDevice } from '../capability/worldReady.ts'
 import type { ExplorerSession } from './session.ts'
 
-/** What the machine offers, read before the scene: the backend choice depends on it, and the
- *  scene file the session loads depends on the choice. */
+/** What the machine offers, read before the scene. */
 export type ExplorerProbe = Awaited<ReturnType<typeof probeExplorerCapabilities>>
 
-/** True when a WebGPU device is worth asking for: the host did not pin the session to the
- *  autonomous path, and either named no backend or named the WebGPU page raster among them. */
-function wantsWebgpu(options: ExplorerSession['options']) {
-  if (explorerSwitch(options, 'autonomousGeometry') || options.renderer === 'webgl2') return false
-  return !options.backends || options.backends.some(({ renderer }) => renderer === 'webgpu')
-}
-
-/** WebGL2 is the floor: a machine without it renders nothing here, and says so by name. A
- *  WebGPU device is then requested when it could serve; its absence is a reported fallback,
- *  never a failure. */
+/** The device the session draws on: the host's when it handed one in, else one asked of the
+ *  machine's adapter. A machine that grants none, or whose WGSL lacks a language feature the
+ *  programs need (`wgslRefusal`), is a fatal, said by name (`WEBGPU_UNAVAILABLE`)
+ *  before anything is read for the scene: the engine draws with WebGPU only. */
 export async function probeExplorerCapabilities(session: ExplorerSession) {
-  const { canvas, options, scope, emit, diagnose } = session
-  const capabilities = await detectCapabilities('webgl', canvas)
-  if (!capabilities.renderer) {
+  const { options, scope, emit, diagnose } = session
+  const refuse = (reason: string): never => {
+    const error = webgpuUnavailable(reason)
     emit({
       eventVersion: 1,
       type: 'fatal',
       audience: 'blocking',
       recovered: false,
-      code: 'NO_WEBGL2',
-      detail: capabilities.reason,
+      code: 'WEBGPU_UNAVAILABLE',
+      detail: error.message,
     })
-    diagnose('error', 'WebGL2 capability check failed', {
+    diagnose('error', 'WebGPU unavailable', {
       kind: 'error',
-      code: 'NO_WEBGL2',
-      reason: capabilities.reason,
+      code: 'WEBGPU_UNAVAILABLE',
+      reason,
       scope,
     })
-    throw new EngineError('NO_WEBGL2', capabilities.reason)
+    throw error
   }
-  emit({
-    eventVersion: 1,
-    type: 'capability',
-    audience: 'diagnostic',
-    recovered: true,
-    code: 'WEBGL2_BASELINE',
-    detail: capabilities.reason,
-  })
-  diagnose('capability', 'WebGL2 capability detected', {
+  let capabilities: GpuCapabilities
+  let gpuDevice = options.gpuDevice
+  if (gpuDevice) {
+    // A handed-in device compiles the same programs: the browser's WGSL must offer their features.
+    const gpu = gpuOf(options)
+    const refusal = gpu && wgslRefusal(gpu)
+    if (refusal) return refuse(refusal)
+    capabilities = deviceCapabilities(gpuDevice)
+  } else {
+    capabilities = await detectCapabilities({ gpu: options.gpu })
+    const granted = await grantedDevice(capabilities)
+    if (typeof granted === 'string') return refuse(granted)
+    gpuDevice = granted
+  }
+  diagnose('capability', 'WebGPU device granted', {
     kind: 'capability',
-    backend: 'webgl',
-    reason: capabilities.reason,
+    tier: capabilities.tier,
+    features: grantedGpuFeatures(gpuDevice),
     scope,
   })
-  let gpuDevice: GPUDevice | undefined
-  try {
-    if (wantsWebgpu(options) && options.gpuDevice) gpuDevice = options.gpuDevice
-    else if (wantsWebgpu(options)) {
-      const gpu = options.gpu ?? (typeof navigator === 'undefined' ? undefined : navigator.gpu)
-      if (gpu) {
-        const gpuCaps = await detectCapabilities('webgpu', canvas, { gpu })
-        if (gpuCaps.renderer) {
-          emit({
-            eventVersion: 1,
-            type: 'capability',
-            audience: 'diagnostic',
-            recovered: true,
-            code: 'WEBGPU_AVAILABLE',
-            detail: gpuCaps.reason,
-          })
-          diagnose('capability', 'WebGPU capability detected', {
-            kind: 'capability',
-            backend: 'webgpu',
-            reason: gpuCaps.reason,
-            scope,
-          })
-        }
-        if (gpuCaps.adapter) gpuDevice = await requestExplorerDevice(gpuCaps.adapter)
-      }
-    }
-  } catch (error) {
-    diagnose('fallback', 'WebGPU setup unavailable; WebGL path retained', {
-      kind: 'fallback',
-      backend: 'webgpu',
-      error: String(error),
-      scope,
-    }) /* WebGPU stays optional; the autonomous WebGL2 path remains. */
-  }
-  if (gpuDevice)
-    diagnose('capability', 'WebGPU device granted', {
-      kind: 'capability',
-      backend: 'webgpu',
-      features: grantedGpuFeatures(gpuDevice),
-      scope,
-    })
   return { capabilities, gpuDevice }
 }

@@ -1,7 +1,7 @@
-// The Hi-Z test does not clear the verdicts before it runs: the partition's `classifyRows`
+// The Hi-Z test no longer clears the verdicts before it runs: the partition's `classifyRows`
 // already wrote every drawable row's this frame. The shipped row routines run over a frame whose
 // verdict buffer still holds a previous frame's words (and stale words past the drawable rows):
-// with a clear between the partition and the test, and without it, every word is the same.
+// with the old clear between the partition and the test, and without it, every word is the same.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
@@ -72,8 +72,8 @@ function verdicts(f: ReturnType<typeof frame>, clear: boolean) {
   const hiz = shaderRun<Record<string, Fn>>(HIZ_SHADER, ['testBox'], { ...scope, bounds, uni: {} })
   for (let i = 0; i < f.rows; i++) partition.projectRow(i)
   for (let i = 0; i < f.rows; i++) partition.classifyRow(i)
-  // What a clear between the partition and the test wipes: `min(cap, tableRows)` words, `tableRows`
-  // being the drawable count (`row/commit.ts`, `row/slots.ts` set both together).
+  // What `encodeTest` cleared before this change: `min(cap, tableRows)` words, `tableRows` being
+  // the drawable count (`row/slots.ts` sets it).
   if (clear) m.flags.fill(0, 0, Math.min(f.flags.length, f.rows))
   for (let k = 0; k < m.state[C.ST_TESTED]; k++) {
     const box = Object.fromEntries(

@@ -45,7 +45,6 @@ export async function runSeries(
   )
   const row = {
     cpuFrameMs: distribution(result.cpuFrameMs),
-    cpuSelectMs: distribution(result.cpuSelectMs),
     engine: ENGINE.id,
     // GPU envelope of a frame, when the page records it (WebGPU engine).
     gpuFrameMs: result.gpuFrameMs?.length ? distribution(result.gpuFrameMs) : null,
@@ -86,9 +85,6 @@ export async function runSeries(
     // Was the recorded frame held? A held frame re-encodes only a present: its submitted
     // triangles are zero because it drew nothing, not because nothing counted. `null` outside this engine.
     frameHeld: metrics.frameHeld ?? null,
-    // Selection fallback: true when this engine had a GPU-chosen cut and
-    // abandoned it for the CPU backup cut. `null` on an engine with no GPU cut.
-    gpuSelectionFallback: metrics.gpuSelectionFallback ?? null,
     // Contract occlusion counters, under their contract names. `image` names the frame they
     // describe — earlier on the GPU path. `null` = not counted.
     hiZ: {
@@ -138,7 +134,6 @@ export async function runSeries(
   }
   process.stdout.write(
     `${side.name} ${view} e${pixelError} : cpuFrame p50=${row.cpuFrameMs ? row.cpuFrameMs.p50.toFixed(2) : '—'} ` +
-      `cpuSelect p50=${row.cpuSelectMs ? row.cpuSelectMs.p50.toFixed(2) : '—'} ` +
       `gpuFrame p50=${row.gpuFrameMs ? row.gpuFrameMs.p50.toFixed(2) : '—'} ` +
       `gpuIdle p50=${row.gpuIdleMs ? row.gpuIdleMs.p50.toFixed(2) : '—'} ` +
       `coupe=${ids.length} (${row.selection.source}) png=${capture ? 'yes' : 'no'}\n`,

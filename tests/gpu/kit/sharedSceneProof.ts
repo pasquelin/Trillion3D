@@ -3,12 +3,13 @@
 // only sees passes and materials, as for any imported scene.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import type {
-  BackendContext,
-  BackendDiagnostic,
-  BackendFactory,
-  RenderBackend,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
-import { DAG } from '../../../packages/sdk-browser/src/backend/pagesBackend.fixture.ts'
+  EngineContext,
+  EngineDiagnostic,
+  EngineFactory,
+  Engine,
+} from '../../../packages/sdk-browser/src/engine/types.ts'
+import { DAG } from '../../../packages/sdk-browser/src/engine/pagesEngine.fixture.ts'
+import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import type {
   ClusterManifest,
   ClusterStructure,
@@ -84,7 +85,7 @@ export function batisseur() {
       source.updateMatrixWorld(true)
       // The identity fields (`schema`, `status`, `key`, `scope`, the triangle/node counts) are
       // not read by this rig; `DAG` and these placeholders are the same minimal manifest the
-      // engine's own scene fixtures use (`packages/sdk-browser/src/backend/pagesBackend.fixture.ts`).
+      // engine's own scene fixtures use (`packages/sdk-browser/src/engine/pagesEngine.fixture.ts`).
       const metadata: ClusterManifest = {
         ...DAG,
         schema: 1,
@@ -128,17 +129,18 @@ export function cameraFace(x = 0): G.Camera {
 /** The real WebGPU engine mounted on a built scene, with its own canvas. `options` completes
  *  the host context — `stageProfile: true` to read the public per-stage counters. Proofs
  *  here compare images pixel for pixel and wait for a held image in a few frames:
- *  temporal antialiasing is off, except for the proof that chooses it. */
+ *  temporal antialiasing is off, except for the proof that chooses it. `factory` is another
+ *  revision's engine, for a measure that compares two. */
 export function engine(
-  webgpuPagesBackend: BackendFactory,
   scene: ScenePreparee,
   device: GPUDevice,
-  onDiagnostic: (diagnostic: BackendDiagnostic) => void,
-  options: Partial<BackendContext> = {},
-): { backend: RenderBackend; canvas: HTMLCanvasElement } {
+  onDiagnostic: (diagnostic: EngineDiagnostic) => void,
+  options: Partial<EngineContext> = {},
+  factory: EngineFactory = webgpuPagesEngine,
+): { backend: Engine; canvas: HTMLCanvasElement } {
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
-  const backend = webgpuPagesBackend({
+  const backend = factory({
     source: scene.source,
     metadata: scene.metadata,
     indices: scene.indices,
@@ -158,7 +160,7 @@ export function engine(
 
 /** Public counters of a profile stage, or `null` when the host did not ask for it. */
 export function countsStep(
-  backend: RenderBackend,
+  backend: Engine,
   stage: string,
 ): Readonly<Record<string, number>> | null {
   const profile = backend.stageProfile?.()
@@ -166,11 +168,7 @@ export function countsStep(
 }
 
 /** Releases the engine of a proof and its scene: geometries, materials and their textures. */
-export function release(
-  backend: RenderBackend,
-  canvas: HTMLCanvasElement,
-  scene: ScenePreparee,
-): void {
+export function release(backend: Engine, canvas: HTMLCanvasElement, scene: ScenePreparee): void {
   backend.dispose()
   canvas.remove()
   releaseScene(scene)

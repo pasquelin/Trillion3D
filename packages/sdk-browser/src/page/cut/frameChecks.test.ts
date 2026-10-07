@@ -1,15 +1,16 @@
-// The CPU cut checks its frame's stretch, focal length, near plane and projection once
-// per root (`selectFlat`, `flatSound`), not in every cluster's projection; an unsound frame is
-// still refused, by name, at the first cluster that projects, and never by a root that projects none.
-import test, { mock } from 'node:test'
+// The oracle cut checks its frame's stretch, focal length, near plane and projection in each
+// projection (`clusterErrorAtDepth`): an unsound frame is refused, by name, at the first cluster or
+// node bound that projects, and never by a root that projects none.
+import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, selectVisiblePages } from '../selection/selection.ts'
+import { collectClusterPages } from '../selection/selection.ts'
+import { selectVisiblePages } from './cut.fixture.ts'
 import { dagFixture, wideCamera } from '../selection/dag.fixture.ts'
 import { dagCulling } from '../selection/helpers.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from './held.ts'
+import { createHeldResidency } from './held.fixture.ts'
 
-/** A near plane no other value of the cut shares: its `Number.isFinite` calls are the frame checks. */
+/** A sound near plane: the unsound frames below break one scalar at a time. */
 const NEAR = 0.1 + 2 ** -40
 const ASK = { pixelError: 5, viewport: [1280, 720] as [number, number] }
 
@@ -17,9 +18,14 @@ function rootsOf(culling: boolean, flat = false) {
   const fixture = dagFixture()
   const primitive = fixture.metadata.primitives[0]
   if (culling) primitive.culling = dagCulling()
-  // Nothing to project: every error zero, no replacement.
-  if (flat)
+  // Nothing to project: every error zero, no replacement — and a manifest that names none, so no
+  // node's replacement bound is projected either: the GPU cut projects one only where the manifest
+  // names it (`tooCoarse`, `../../gpu/dag/shader/levelWgsl.ts`).
+  if (flat) {
     for (const page of primitive.pages) Object.assign(page, { lodError: 0, parentError: null })
+    const tree = primitive.culling
+    if (tree) for (let at = 10; at < tree.nodes.length; at += tree.stride) tree.nodes[at] = -1
+  }
   const { roots } = collectClusterPages(
     fixture.source,
     fixture.metadata,
@@ -36,29 +42,6 @@ function cameraWith(near: number, perspective?: number) {
   if (perspective !== undefined) cam.perspective = perspective
   return cam
 }
-
-test('a cut checks its frame once per root, not in each cluster projection', () => {
-  for (const culling of [false, true]) {
-    const roots = rootsOf(culling),
-      cam = cameraWith(NEAR),
-      isFinite = mock.method(Number, 'isFinite')
-    let result
-    try {
-      result = selectVisiblePages(roots, cam, { ...ASK, held: createHeldResidency() })
-    } finally {
-      isFinite.mock.restore()
-    }
-    const calls = isFinite.mock.calls,
-      frameChecks = calls.filter((call) => call.arguments[0] === NEAR).length,
-      // The fixture's cluster errors: each is checked where it projects.
-      clusterChecks = calls.filter((call) =>
-        [0.02, 0.2].includes(call.arguments[0] as number),
-      ).length
-    assert.ok(result.shown.length > 0, 'the cut shows clusters')
-    assert.ok(clusterChecks >= 4, `culling ${culling}: ${clusterChecks} clusters projected`)
-    assert.equal(frameChecks, roots.length, `culling ${culling}: one frame check per root`)
-  }
-})
 
 test('an unsound frame is refused, by name, once a cluster projects', () => {
   for (const culling of [false, true])

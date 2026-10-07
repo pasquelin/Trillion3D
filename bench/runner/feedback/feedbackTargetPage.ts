@@ -8,23 +8,13 @@ import { poseAt } from '../trajectory/poses.ts'
 import { streetBounds } from '../street/street.ts'
 import { posterCapture } from '../harness/measurePage.ts'
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts'
-import { type SpatialFeedback } from '../../../packages/sdk-browser/src/webgpu/pages/diagnostic/spatialCounts.ts'
 
-type Probe = {
-  setFeedbackTargetAb(target: boolean): Promise<void>
-  feedbackAbResidency(): Promise<{
-    geometry: { count: number; sha256: string }
-    tiles: { count: number; sha256: string }
-  }>
-  captureFeedbackAb(): Promise<Uint8Array>
-  feedbackAbSpatial(): Promise<SpatialFeedback>
-}
 type Reading = {
   target: boolean
   gpuFrameMs: number[]
   gpuPassSamples: GpuPassTimings[]
   counters: Partial<FrameMetrics>
-  residency: Awaited<ReturnType<Probe['feedbackAbResidency']>>
+  residency: Awaited<ReturnType<Sdk.Engine['feedbackAbResidency']>>
   capture: string
 }
 
@@ -36,7 +26,8 @@ export type FeedbackTargetResult = {
   convergence: ConvergenceProof | null
 }
 
-/** One page, one device, one pose. The backend switch never reloads pages or the scene. */
+/** One page, one device, one pose. The feedback-target A/B switch never reloads pages or the
+ *  scene. */
 export async function runFeedbackTarget(options: {
   sdkUrl: string
   manifestUrl: string
@@ -69,8 +60,7 @@ export async function runFeedbackTarget(options: {
       pixelError: options.pixelError,
       lodAdaptive: false,
       preload: 'visible',
-      backends: [sdk.webgpuPagesBackend],
-      comparisonLayout: 'single',
+      engine: sdk.webgpuPagesEngine,
       clearColor: 0x2a303c,
       diagnosticDetail: 'summary',
       textureSource: 'cache',
@@ -78,22 +68,14 @@ export async function runFeedbackTarget(options: {
       stageProfile: true,
       feedbackTargetAB: true,
     })
-    const backend = explorer.backends.find((item) => item.id === 'webgpu-page-raster') as
-      (Sdk.RenderBackend & Partial<Probe>) | undefined
-    if (
-      !backend?.setFeedbackTargetAb ||
-      !backend.feedbackAbResidency ||
-      !backend.captureFeedbackAb ||
-      !backend.feedbackAbSpatial
-    )
-      return unsupported('FEEDBACK_AB_UNAVAILABLE')
+    const backend = explorer.engine as Sdk.Engine
     // The box and the street the bench's eye-level views walk (`street/street.ts`), read in this page.
     const bounds = await streetBounds(options)
     const pose = poseAt(bounds, options.view)
     explorer.setPose(pose)
     convergence = await captureConvergence(
       explorer,
-      backend as Probe,
+      backend,
       pose,
       `${options.scene}-${options.view}`,
       canvas,

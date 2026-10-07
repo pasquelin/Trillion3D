@@ -4,7 +4,7 @@ import {
   TEXTURES_PENDING,
   unsettledMask,
   unsettledReasons,
-} from '../frame/hold.ts'
+} from '../frame/unsettled.ts'
 import { convergeStillPhase, taaPhaseCount } from '../../taa/frame.ts'
 import { restartTaaAverage } from '../../taa/landing.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'

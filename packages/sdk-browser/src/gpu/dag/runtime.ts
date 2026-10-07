@@ -1,183 +1,101 @@
-import {
-  SELECTION_NONE as NONE,
-  sameSelectionUniforms,
-  type GpuCut,
-  type GpuSelection,
-  type SelectionUniforms,
-} from '../core/selection.ts'
-import { refreshWorldStretch, worldsChanged } from './worlds.ts'
+import type { GpuSelection } from '../core/selection.ts'
 import { createDagResidencyUpload } from './residencyUpload.ts'
 import { createDagPoolList } from './poolList.ts'
 import { createDagDispatch } from './dispatch.ts'
 import { createDifferenceChain } from './differenceChain.ts'
-import { DAG_READBACK_SLOTS } from './layout.ts'
+import { createDagRuntimeState, recutMain } from './runtimeState.ts'
 import { MASK_SECTION, flagLocation } from './split.ts'
-import type { createDagResources } from './resources.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
+import { createAsideCut } from './aside.ts'
+import {
+  appendRoots,
+  flushRuntime,
+  parkRoot,
+  updateRuntimeResidency,
+  updateRuntimeWorlds,
+  writeMark,
+  type DagResources,
+  type DagRun,
+} from './runtimeOps.ts'
 
-type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>
+export function createDagRuntime(
+  resources: DagResources,
+  /** The pages the pool already holds, when the cut is made beside it (`poolList.ts`). */
+  poolHeld?: (page: number) => boolean,
+): GpuSelection {
+  const { device, packed } = resources
+  const state = createDagRuntimeState()
+  const chain = createDifferenceChain()
+  const run: DagRun = {
+    resources,
+    state,
+    chain,
+    // The cut rule's residency, derived from the pool's and uploaded by difference.
+    uploadResidency: createDagResidencyUpload(resources),
+    ...createDagDispatch(resources, state, chain),
+    poolList: createDagPoolList(device, packed, resources.coldParts, poolHeld),
+    // A packed world DAG reads the scene's residency through its mirror (#1332); none packs it
+    // before #1333, and the rows' flags go up as they are.
+    mirror: packed.world && createWorldResidencyMirror({ ...packed, world: packed.world }),
+  }
+  return selectionOver(run)
+}
 
-export function createDagRuntime(resources: DagResources): GpuSelection {
-  const { device, packed, residentCut, pageCount, nodeCount, frameData, buffers, frames } =
-    resources
+/** The camera cut's face (`GpuSelection`) over `run`. */
+function selectionOver(run: DagRun): GpuSelection {
+  const { resources, state, uploadResidency, poolList, mirror, chain } = run
+  const { packed, pageCount, nodeCount, frames, buffers } = resources
   // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
   // bind one buffer at one offset, whatever the split.
   const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount)
-  const state = {
-    last: null as GpuCut | null,
-    lastSubmitted: undefined as SelectionUniforms | undefined,
-    lastReadback: undefined as SelectionUniforms | undefined,
-    pending: Promise.resolve() as Promise<unknown>,
-    disposed: false,
-    dead: false,
-    worldRevision: 0,
-    residencyRevision: 0,
-    submittedResidencyRevision: -1,
-    readbackResidencyRevision: -1,
-    submittedWorldRevision: -1,
-    readbackWorldRevision: -1,
-    mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
-    slot: 0,
-    grow: 0,
-    growing: false,
-    listFull: false,
-  }
-  /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
-  const voidCuts = () => {
-    state.residencyRevision++
-    state.last = null
-  }
-  // A dead selection dispatches and drains nothing more.
-  const fail = () => ((state.dead = true), voidCuts())
-  // The cut rule's residency, derived from the pool's and uploaded by difference.
-  const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined
-  const chain = createDifferenceChain()
-  const dispatch = createDagDispatch(resources, state, fail, chain)
-  const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined
-  // A packed world DAG reads the scene's residency through its mirror; without a packed
-  // world DAG the rows' flags go up as they are.
-  const mirror = packed.world && createWorldResidencyMirror({ ...packed, world: packed.world })
-  /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
-  const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1)
-  /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
-   *  the new word no longer lets through, or lacks some it does: another cut from here. */
-  const writeFrameWord = (w: number, slot: number, value: number) => {
-    frames.writeWord(w, slot, value)
-    voidCuts()
-  }
+  const live = () => !state.disposed && !state.dead
   const selection: GpuSelection = {
-    residentCut,
     get hostBytes() {
-      return (
-        frames.originBytes +
-        (uploadResidency?.hostBytes ?? 0) +
-        (poolList?.entries.byteLength ?? 0) +
-        (mirror?.hostBytes ?? 0)
-      )
+      const pool = poolList.entries.byteLength
+      return frames.originBytes + uploadResidency.hostBytes + pool + (mirror?.hostBytes ?? 0)
     },
     maskBuffer: resources.flagParts[mask.part],
     maskOffset: mask.word,
-    pageCount,
+    get pageCount() {
+      return packed.live?.pages ?? pageCount
+    },
+    worldCapacity: packed.worldCount,
     worldRanges: frames.ranges.map((range, r) => ({ ...range, buffer: frames.worldBuffers[r] })),
     packsWorld: !!mirror,
     get worldRevision() {
       return state.worldRevision
     },
-    updateWorlds(next, posesMoved = true, translationsOnly = false) {
-      if (state.disposed || state.dead) return false
-      if (next.byteLength !== packed.worlds.byteLength)
-        throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED')
-      const originChanged = posesMoved && frames.writeWorldOrigins()
-      // `packed.worlds` is what this selection last received, and only this method writes it:
-      // the worlds the next send is compared with, without a second copy of them beside it.
-      if (!worldsChanged(packed.worlds, next)) {
-        if (originChanged) state.worldRevision++
-        return originChanged
-      }
-      // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
-      // Only translations rewritten, the scan could find no linear part that moved: skipped.
-      const stretched = translationsOnly
-        ? 0
-        : refreshWorldStretch(packed.worlds, next, packed, frameData)
-      packed.worlds.set(next)
-      frames.writeWorlds(next)
-      if (stretched) frames.writeRows()
-      // Cuts in hand and in flight keep their revision and still name what to stream.
-      if (posesMoved) state.worldRevision++
-      return true
-    },
+    updateWorlds: (next, posesMoved = true, translationsOnly = false) =>
+      updateRuntimeWorlds(run, next, posesMoved, translationsOnly),
     worldsMovedOnGpu() {
-      if (!state.disposed && !state.dead) state.worldRevision++
+      if (live()) state.worldRevision++
     },
-    parkWorld(w, parked) {
-      if (state.disposed || state.dead) return
-      const node = parked ? NONE : packed.rootBases[w]
-      if (packed.rootNodes[w] === node) return
-      packed.rootNodes[w] = node
-      // The root travels behind the stretch in the frame buffer (`resources.ts`).
-      writeFrameWord(w, 1, node)
+    get growing() {
+      return state.growing
     },
-    markWorld(w, mark) {
-      if (state.disposed || state.dead || packed.mark[w] === mark) return
-      packed.mark[w] = mark
-      // The mark travels behind the record shift (`primitiveFrameWords`).
-      writeFrameWord(w, 3, mark)
-    },
-    updateResidency(next, changes, moved) {
-      if (state.disposed || state.dead || !uploadResidency) return false
-      if (mirror) ({ flags: next, changes } = mirror.update(next, changes))
-      if (next.length !== pageCount) throw new Error('GPU_SELECTION_RESIDENCY_COUNT_CHANGED')
-      if (!uploadResidency(next, changes, moved)) return false
-      voidCuts()
-      return true
-    },
-    isReady: (page) => !uploadResidency || uploadResidency.isReady(page),
-    isChildReady: (page) => !uploadResidency || uploadResidency.isChildReady(page),
+    appendRoots: (roots) => appendRoots(run, roots),
+    // The root travels behind the stretch in the frame buffer (`resources.ts`).
+    parkWorld: (w, parked) => live() && parkRoot(run, w, parked),
+    // The mark travels behind the record shift (`primitiveFrameWords`).
+    markWorld: (w, mark) => live() && writeMark(run, w, mark),
+    updateResidency: (next, changes, moved) => updateRuntimeResidency(run, next, changes, moved),
+    isReady: (page) => uploadResidency.isReady(page),
+    isChildReady: (page) => uploadResidency.isChildReady(page),
     notePool(page, held) {
-      if (state.disposed || state.dead || !poolList?.note(page, held)) return
-      recut()
+      // The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand
+      // stays.
+      if (live() && poolList.note(page, held)) recutMain(resources.swap, state)
     },
     // The root and mark words parked or marked since the last cut go up as one interval (CPU-15).
     dispatch(next, shared) {
-      if (!state.disposed && !state.dead) frames.flushWords()
-      return dispatch(next, shared)
+      if (live()) frames.flushWords()
+      return run.dispatch(next, shared)
     },
-    peek() {
-      return state.dead ? null : state.last
-    },
-    adopt(cut) {
-      return !state.dead && cut === state.last ? chain.adopt() : undefined
-    },
-    failed() {
-      return state.dead
-    },
-    async flush() {
-      await state.pending
-      // A cut past its list grows it (`listCap.ts`): the drain grows it, then cuts again on it,
-      // rather than hand back the cut before.
-      for (const asked = state.lastSubmitted; asked && state.grow && !state.dead;) {
-        selection.dispatch(asked)
-        await state.pending
-        selection.dispatch(asked)
-        await state.pending
-      }
-      if (
-        residentCut &&
-        !state.dead &&
-        state.lastSubmitted &&
-        state.submittedResidencyRevision === state.residencyRevision &&
-        (!state.lastReadback ||
-          !sameSelectionUniforms(state.lastReadback, state.lastSubmitted) ||
-          state.readbackResidencyRevision !== state.residencyRevision ||
-          state.readbackWorldRevision !== state.worldRevision)
-      ) {
-        // Cut again under the poses in place: a drain never hands back one they have left.
-        selection.dispatch(state.lastSubmitted)
-        await state.pending
-      }
-      const last = state.dead ? null : state.last
-      return last?.worldRevision === state.worldRevision ? last.result : null
-    },
+    peek: () => (state.dead ? null : state.last),
+    aside: () => createAsideCut(resources, state, run.copyOwed),
+    adopt: (cut) => (!state.dead && cut === state.last ? chain.adopt() : undefined),
+    failed: () => state.dead,
+    flush: () => flushRuntime(run, selection),
     dispose() {
       state.disposed = true
       state.dead = true

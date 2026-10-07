@@ -6,7 +6,7 @@ import { writeSpanDeformation } from '../../deformation/slotLayout.ts'
 export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset: number) {
   const { table, dirtySpans } = rt.blendState
   if (!table) return
-  // A page past the table joined in place (`../../placement/webgpuGrowth.ts`): never a blended one.
+  // A page the table does not name is never a blended one.
   const entry = table.entryOfPage[page] ?? -1
   if (entry < 0) return
   // The page back through the one catalogue accessor: its geometry page declares the corners, or

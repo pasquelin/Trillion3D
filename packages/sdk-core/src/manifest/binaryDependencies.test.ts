@@ -25,9 +25,9 @@ test('every bundle keeps its closed dependency list and the published bound thro
   assert.equal(streams.maxDependencies, 1)
 })
 
-test('a sidecar written before bundle dependencies, cooked cones or manifest pages is refused before it is read', () => {
-  assert.equal(MANIFEST_BINARY_VERSION, 10)
-  for (const version of [7, 8, 9]) {
+test('a sidecar written before bundle dependencies, cooked cones, manifest pages or ETC2 previews is refused before it is read', () => {
+  assert.equal(MANIFEST_BINARY_VERSION, 11)
+  for (const version of [7, 8, 9, 10]) {
     const { slim, buffer } = encoded()
     new Uint32Array(buffer, 4, 1)[0] = version
     assert.throws(

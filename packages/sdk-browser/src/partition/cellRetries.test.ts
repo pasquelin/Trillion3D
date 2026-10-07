@@ -5,8 +5,7 @@ import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
-import type { PageAsk } from '../../../sdk-core/src/manifest/paged.ts'
-import { cellHoldings } from './cellPages.ts'
+import { cellHolds } from './cellHolds.ts'
 import { createPartitionCells } from './cells.ts'
 import { io, noBudget, opened } from './cells.fixture.ts'
 import { paged } from './paged.fixture.ts'
@@ -27,8 +26,8 @@ function oneCell(world: Pick<WorldRootsHold, 'hold' | 'release'>) {
   const cell = { version: 2, nodes: [{ ...node, rotation: [0, 0, 0, 1], scale: [1, 1, 1] }] }
   const file = new TextEncoder().encode(JSON.stringify(cell))
   const bytes = (url: string) => files.get(url.split('/').at(-1)!) ?? file
-  const { manifest } = cellHoldings(cells)
-  return { cells, bytes, manifest, landed: () => Promise.all(manifest.reads()) }
+  const holds = cellHolds(cells)
+  return { cells, bytes, holds, landed: () => Promise.all(holds.reads()) }
 }
 
 /** One cell whose world hold throws `failure`, framed by a clock in the test's hands: the
@@ -38,13 +37,13 @@ async function failing(t: TestContext, failure: Error) {
   t.mock.method(performance, 'now', () => now)
   const priorities: number[] = []
   const world = {
-    async hold(_cell: number, asked?: PageAsk) {
+    async hold(_cell: number, asked?: { priority?: number }) {
       priorities.push(asked!.priority!)
       throw failure
     },
     release() {},
   }
-  const { cells, bytes, manifest, landed } = oneCell(world)
+  const { cells, bytes, holds, landed } = oneCell(world)
   await opened(cells, bytes, 100) // placed from the origin: its hold refused
   await landed()
   const { port } = io(bytes)
@@ -53,7 +52,7 @@ async function failing(t: TestContext, failure: Error) {
     cells.frame(eye, 100, port, noBudget)
     await landed()
   }
-  return { priorities, manifest, frame }
+  return { priorities, holds, frame }
 }
 
 for (const [cause, failure] of [
@@ -66,7 +65,7 @@ for (const [cause, failure] of [
   ],
 ] as const)
   test(`a hold failed for good — ${cause} — stays failed while its cell is placed: never asked again`, async (t) => {
-    const { priorities, manifest, frame } = await failing(t, failure)
+    const { priorities, holds, frame } = await failing(t, failure)
     for (let at = 0; at <= 20_000; at += 1000) await frame(at)
-    assert.deepEqual([priorities.length, manifest.held()], [1, 1])
+    assert.deepEqual([priorities.length, holds.held()], [1, 1])
   })

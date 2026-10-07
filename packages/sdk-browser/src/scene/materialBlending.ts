@@ -1,16 +1,12 @@
 /**
  * How a surface composes over what is behind it, read once at the boundary into the engine's own
- * names (`Blending`), and the one blend equation each name stands for on both GPU paths.
+ * names (`Blending`), and the one blend equation each name stands for.
  *
- * The equations are written once, in the WebGPU vocabulary; the WebGL2 cluster state maps the
- * same factors to its own enums (`../webgl/cluster/state.ts`), so the two paths cannot drift.
  * In linear light, with `s` the source colour, `a` its opacity, `d` what the target holds and `t`
  * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
  * `t + a·a`), subtractive `d·(1 − s)` (alpha `t`), multiply `d·s` (alpha `t·a`), and none writes
  * `s` as it is — what the witness, three@0.174, computes for the same material. A custom equation
- * is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
- * applies the same equations after its tone map and sRGB encoding: it blends display values, not
- * linear light.
+ * is not a mode the engine draws.
  */
 import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import {
@@ -49,16 +45,15 @@ export function blendingOf(host: number | undefined): Blending | undefined {
   return BLEND_MODES.find((mode) => HOST[mode] === host)
 }
 
-/** Why a surface's mode is drawn by no path, or `undefined`: the one refusal the admission gate
- *  and every draw share. A transmissive surface composes by the backdrop it reads, and a mode the
+/** Why a surface's mode is drawn by no path, or `undefined`: the one refusal every draw shares. A transmissive surface composes by the backdrop it reads, and a mode the
  *  engine has no name for is no mode at all: both are refused by name, never drawn as normal. */
-export function blendingRefusal(blending: Blending | undefined, transmissive: boolean) {
+function blendingRefusal(blending: Blending | undefined, transmissive: boolean) {
   if (!blending) return 'a surface declares a blending no path draws'
   if (transmissive && blending !== 'normal')
     return `a transmissive material cannot use ${blending} blending`
 }
 
-/** The mode a transparent surface is drawn in, on every GPU path; what `blendingRefusal` refuses
+/** The mode a transparent surface is drawn in; what `blendingRefusal` refuses
  *  is thrown by name. */
 export function drawnBlending(blending: Blending | undefined, transmissive: boolean): Blending {
   const refusal = blendingRefusal(blending, transmissive)

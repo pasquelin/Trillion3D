@@ -1,5 +1,5 @@
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
-import { anyMoving, refuseAll } from '../../particles/poolStates.ts'
+import { anyMoving } from '../../particles/poolStates.ts'
 import { viewProj } from '../pages/helpers.ts'
 import { routedFilter } from '../blend/displayFilter.ts'
 import { particleCode } from '../../particles/particleFamily.ts'
@@ -9,7 +9,8 @@ import { opensDisplayFilter } from '../pages/render/encodeDisplayFilter.ts'
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles)
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, which draws them, once a frame whatever the views drawn. */
+ *  transparent stage, which draws them on the lit image (#755, `drawParticles`), once a frame
+ *  whatever the views drawn. */
 export function encodeParticles(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -18,17 +19,6 @@ export function encodeParticles(
   const pools = rt.context.particles
   // Once made, the step runs with no pool left too: it gives a released pool's buffers back.
   if (!pools || (!pools.length && !rt.gpu.particles)) return
-  if (!rt.vis.visEnabled) {
-    // A capability refusal, told once like WebGL2's (`particlesRefused`); the session goes on.
-    if (refuseAll(pools))
-      rt.context.particlesRefused?.(
-        'PARTICLES_UNSUPPORTED: particles draw on the visibility buffer',
-      )
-    // A visibility buffer dropped mid-session: the step made before it gives its buffers back.
-    rt.gpu.particles?.dispose()
-    rt.gpu.particles = undefined
-    return
-  }
   // One step a frame, the main view's: a view drawn beside it draws the pools as they stand. The
   // step was made at the frame's entry (`askParticles`).
   if (rt.views.active !== rt.views.main || !rt.gpu.particles) return
@@ -40,8 +30,7 @@ export function encodeParticles(
  *  those routed through the display layers asked once the image can route a pool, the frame held
  *  until they land. */
 export function askParticles(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  if (!rt.context.particles?.length || !rt.vis.visEnabled || rt.views.active !== rt.views.main)
-    return
+  if (!rt.context.particles?.length || rt.views.active !== rt.views.main) return
   if (!rt.gpu.particles) {
     // The step's code, which the frame waited for (`../../host/families.ts`).
     const fail = (error: unknown) => rt.diag.diagnosticFailure('particles-unavailable', error)
@@ -49,7 +38,8 @@ export function askParticles(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (!code) return
     rt.gpu.particles = code.createWebgpuParticles(device, fail)
   }
-  if (drawsParticles(rt) && opensDisplayFilter(rt)) rt.gpu.particles.askRouted()
+  if (!drawsParticles(rt)) return
+  if (opensDisplayFilter(rt)) rt.gpu.particles.askRouted()
 }
 
 /** Whether this image draws the world's pools: it has some, and shows beauty. */
@@ -74,17 +64,16 @@ export function drawParticles(
   const drawn = particleDrawOf(rt),
     { run } = rt
   if (!drawn) return
-  run.gpuDrawCalls += drawn.particles.draw(
-    drawn.pools,
+  run.gpuDrawCalls += drawn.particles.draw(drawn.pools, {
     encoder,
-    drawn.hdrView,
-    drawn.reactive,
-    drawn.depthView,
-    rt.gpu.targetSize,
+    target: drawn.hdrView,
+    reactive: drawn.reactive,
+    depth: drawn.depthView,
+    size: rt.gpu.targetSize,
     viewProj,
-    run.gate.cam.eye,
-    routedFilter(rt.gpu.displayFilter),
+    eye: run.gate.cam.eye,
+    filter: routedFilter(rt.gpu.displayFilter),
     tone,
-    rt.lights.store.unlit,
-  )
+    unlit: rt.lights.store.unlit,
+  })
 }

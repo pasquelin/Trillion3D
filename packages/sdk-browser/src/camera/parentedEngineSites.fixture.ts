@@ -2,19 +2,19 @@
 // which what the camera decided is recorded. WebGPU runs on the tests' fake device: every buffer
 // write is recorded (view, blend, light and shadow uniforms included), with no GPU.
 import { createHash } from 'node:crypto'
-import { webgpuPagesBackend } from '../webgpu/pages/pages.ts'
-import { exactPagesBackend } from '../../../../bench/witnesses/exact/backend.ts'
+import { mock } from 'node:test'
+import { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
 import { camera as mainCamera, quadScene } from '../webgpu/pages/testScenes.fixture.ts'
-import { DAG, dagLevel } from '../backend/pagesBackend.fixture.ts'
-import { fanScene, quadCluster, quadRootsContext } from '../backend/pagesBackendScenes.fixture.ts'
+import { DAG, dagLevel } from '../engine/pagesEngine.fixture.ts'
+import { fanScene, quadCluster } from '../engine/pagesEngineScenes.fixture.ts'
 import type { HostCamera } from './world.ts'
-import type { BackendContext, RenderBackend } from '../backend/types.ts'
+import type { EngineContext, Engine } from '../engine/types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
- *  (`packages/sdk-browser/src/backend/pagesBackendScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
+ *  (`packages/sdk-browser/src/engine/pagesEngineScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
 const FAN_MANIFEST: Omit<ClusterManifest, 'primitives'> = {
   ...DAG,
   schema: 1,
@@ -40,7 +40,7 @@ const counts = (metrics: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(COUNTS.map((key) => [key, metrics[key] ?? null]))
 
 /** The transparent fan reduced by a coarse level: cut, LOD and blend pass exercise there. */
-function transparentFan(): BackendContext & { dispose: () => void } {
+function transparentFan(): EngineContext & { dispose: () => void } {
   const { geometry, material, mesh, source, indices } = fanScene()
   const primitive = dagLevel([quadCluster(0, 0), quadCluster(1, 3)], [quadCluster(3, 0)], 0.02, [
     quadCluster(2, 6),
@@ -58,25 +58,34 @@ function transparentFan(): BackendContext & { dispose: () => void } {
   }
 }
 
-/** WebGPU backend state: the fake device (records every write) and the prepared backend. */
-type EngineState = { gpu: ReturnType<typeof mockGpu>; backend: RenderBackend }
+/** WebGPU backend state: the fake device (records every write), the prepared backend, and the
+ *  release of the engine's clock. */
+type EngineState = { gpu: ReturnType<typeof mockGpu>; backend: Engine; dispose: () => void }
 
-async function webgpuEngine(scene: BackendContext): Promise<EngineState> {
+/** The engine's clock: still within a frame, one display frame further at each. The camera's
+ *  motion — the velocity the GPU cut's view ahead reads (`./motion.ts`) — is then a function of the
+ *  poses alone, never of how long a run took: the two runs compared write the same uniforms. */
+const clock = { ms: 0 }
+
+async function webgpuEngine(scene: EngineContext): Promise<EngineState> {
   installGpuGlobals()
+  clock.ms = 0
+  const held = mock.method(performance, 'now', () => clock.ms)
   const gpu = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 8,
     viewport: [32, 32],
   })
   await backend.prepare()
-  return { gpu, backend }
+  return { gpu, backend, dispose: () => held.mock.restore() }
 }
 
 /** One frame per pose, recorded as the host requests it; residency follows after. */
 async function webgpuImage({ gpu, backend }: EngineState, camera: HostCamera) {
   gpu.writes.length = 0
+  clock.ms += 1000 / 60
   backend.render(camera)
   const metrics = counts(backend.metrics())
   const byLabel = new Map<string, ReturnType<typeof createHash>>()
@@ -88,23 +97,23 @@ async function webgpuImage({ gpu, backend }: EngineState, camera: HostCamera) {
   const writes: Record<string, string> = {}
   for (const [label, hash] of [...byLabel].sort(([a], [b]) => (a < b ? -1 : 1)))
     writes[label] = hash.digest('hex').slice(0, 16)
-  await backend.flush?.()
+  await backend.flush()
   return { writes, ...metrics }
 }
 
 export const engineSites: Site[] = [
   {
-    name: 'webgpuPagesBackend opaque (encode, lights, shadows, Hi-Z)',
+    name: 'webgpuPagesEngine opaque (encode, lights, shadows, Hi-Z)',
     create: () => webgpuEngine(quadScene()),
     measure: (state, camera) => webgpuImage(state as EngineState, camera),
   },
   {
-    name: 'webgpuPagesBackend transparent (blend uniforms)',
+    name: 'webgpuPagesEngine transparent (blend uniforms)',
     create: () => webgpuEngine(transparentFan()),
     measure: (state, camera) => webgpuImage(state as EngineState, camera),
   },
   {
-    name: 'webgpuPagesBackend.captureSurfaceView (second view)',
+    name: 'webgpuPagesEngine.captureSurfaceView (second view)',
     // The main view is fixed and parentless: only the second view comes from the rig.
     create: async () => {
       const engine = await webgpuEngine(quadScene())
@@ -121,17 +130,8 @@ export const engineSites: Site[] = [
         selectedTriangles: surface.selectedTriangles,
       }
       surface.dispose()
-      await backend.flush?.()
+      await backend.flush()
       return reading
-    },
-  },
-  {
-    name: 'exactPagesBackend (cut, streaming priority)',
-    create: () => exactPagesBackend(quadRootsContext(false, { viewport: [320, 180] }).context),
-    measure: (state, camera) => {
-      const backend = state as RenderBackend
-      backend.render(camera)
-      return { ...counts(backend.metrics()), pending: backend.pendingUrls?.() ?? null }
     },
   },
 ]

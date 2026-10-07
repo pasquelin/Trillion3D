@@ -9,7 +9,9 @@ import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/s
  * Opens the engine's device, hooks collection of uncaptured errors, and returns what is needed to
  * compile and close cleanly; `null` when there is no WebGPU adapter. `features` and
  * `requiredLimits` name what the proof needs of it: those the adapter offers must be granted, or
- * the opening throws, naming them.
+ * the opening throws, naming them. `off` names optional features the device is opened without —
+ * the session's own switch (`trillion3dGpuFeaturesOff`) —, to prove the path the engine takes on an
+ * adapter that lacks them.
  *
  * - `compile(code)` returns `{ module, compilation }`; `compilation` keeps only messages of type
  *   `error`, WGSL compiler warnings not being correctness discrepancies.
@@ -20,10 +22,14 @@ import { requestExplorerDevice } from '../../../packages/sdk-browser/src/world/s
 export async function openGpuDevice(
   features: GPUFeatureName[] = [],
   requiredLimits: Record<string, number> = {},
+  off: GPUFeatureName[] = [],
 ) {
   const adapter = await navigator.gpu?.requestAdapter()
   if (!adapter) return null
-  const device = await requestExplorerDevice(adapter)
+  const device = await requestExplorerDevice(
+    adapter,
+    off.length ? `?trillion3dGpuFeaturesOff=${off.join(',')}` : undefined,
+  )
   const held = device.limits as unknown as Record<string, number>
   // A `min…` limit is an alignment: the device holds it when its own is no larger.
   const lacking = [

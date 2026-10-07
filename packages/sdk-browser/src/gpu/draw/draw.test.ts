@@ -125,13 +125,13 @@ test('a device without compute pipelines does not create GPU draw', async () => 
 
 test('a compact shader compilation error leaves GPU draw undefined', async () => {
   installGpuGlobals()
-  const { device } = mockGpu({ compute: true, failCompile: true })
+  const { device } = mockGpu({ failCompile: true })
   assert.equal(await createGpuDraw(device, 8, 1, 768), undefined)
 })
 
 test('GPU draw uploads each item once without a CPU compact and exposes GPU slot offsets', async () => {
   installGpuGlobals()
-  const { device, buffers, writes } = mockGpu({ compute: true })
+  const { device, buffers, writes } = mockGpu()
   const gpu = await createGpuDraw(device, 8, 1, 768)
   assert.ok(gpu)
   assert.equal(gpu.indirectBuffer.size, BASE_SLOTS * DRAW_INDIRECT_STRIDE)

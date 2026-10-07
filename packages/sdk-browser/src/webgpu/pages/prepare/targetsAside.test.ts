@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { SHADOW_LIMITS, camera, quadScene } from '../testScenes.fixture.ts'
-import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts'
+import { MANIFEST_IDENTITY } from '../../../engine/pagesEngine.fixture.ts'
 import { createWebgpuPagesRuntime } from '../runtime.ts'
 import { prepareWebgpuBackend } from './prepare.ts'
 import { renderWebgpuPages } from '../render/render.ts'
@@ -35,7 +35,7 @@ async function session(refusals = 0) {
     (raise, { size }) => {
       if (size?.width === ASKED && refusals-- > 0) raise('Out of memory')
     },
-    { limits: { ...SHADOW_LIMITS, maxTextureDimension2D: 16384 }, compute: true },
+    { limits: { ...SHADOW_LIMITS, maxTextureDimension2D: 16384 } },
   )
   const box = { limit: 1e12 },
     ledger = installGpuDeviceLedger(gpu.device, { limit: () => box.limit })

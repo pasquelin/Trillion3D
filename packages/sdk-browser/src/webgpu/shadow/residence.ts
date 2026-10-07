@@ -46,29 +46,17 @@ function createResidenceTracker(flagOf: (value: number) => number) {
  * every frame an object moved. What changes a light cut's casters is the flag as the next plan
  * sees it against the one the last plan saw: only those pages are declared (`noteResidenceChange`).
  *
- * Each cut reads its own residency: the GPU cut a page's row flag, the CPU cut the pool itself —
- * a page's slot, for which the CPU cut writes no flag. A GPU frame compares the row flags and
- * keeps the pool's current without declaring it; a CPU frame compares the pool, and leaves the row
- * flags, which it does not move, to the next GPU frame.
+ * The cut reads a page's row flag (#1483): a flag the row cache raised or lowered since the last
+ * plan is what changes a caster.
  */
 export function createShadowResidence() {
-  const rows = createResidenceTracker((flag) => flag),
-    pool = createResidenceTracker((words) => (words >= 0 ? 1 : 0))
+  const rows = createResidenceTracker((flag) => flag)
   return {
-    /** Page `page`'s row flag flipped: it is compared at the next GPU plan. */
+    /** Page `page`'s row flag flipped: it is compared at the next plan. */
     noteRow: rows.note,
-    /** Page `page`'s pool slot changed: it is compared at the next plan. */
-    notePool: pool.note,
-    /** Hands every noted page whose residency, as this frame's cut reads it, differs from what
-     *  the last plan of that cut saw to `changed`. */
-    flush(
-      rowFlags: ArrayLike<number>,
-      poolWords: ArrayLike<number>,
-      gpuCut: boolean,
-      changed: (page: number) => void,
-    ) {
-      if (gpuCut) rows.flush(rowFlags, changed)
-      pool.flush(poolWords, gpuCut ? undefined : changed)
+    /** Hands every noted page whose row flag differs from what the last plan saw to `changed`. */
+    flush(rowFlags: ArrayLike<number>, changed: (page: number) => void) {
+      rows.flush(rowFlags, changed)
     },
   }
 }

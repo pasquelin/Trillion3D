@@ -12,7 +12,7 @@ fn decoded(rgba: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8>
 
 /// A normal map whose X and Y vary in directions of their own: what one RGBA
 /// segment cannot hold and two ladders can.
-fn normals(width: u32, height: u32) -> Vec<u8> {
+pub(super) fn normals(width: u32, height: u32) -> Vec<u8> {
     let mut rgba = Vec::with_capacity((width * height * 4) as usize);
     for y in 0..height {
         for x in 0..width {

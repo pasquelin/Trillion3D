@@ -7,13 +7,13 @@
 // normal map with, against the same formula in JavaScript.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../packages/page-codec/src/geometryPage.ts'
 import type {
   PageAttribute,
   PageAttributes,
 } from '../../../packages/page-codec/src/pageAttributes.ts'
-import { ringMesh } from '../../../bench/perf/browser/support/pagesWasm.ts'
+import { ringMesh } from '../../../packages/sdk-browser/src/page/codec/ringMesh.fixture.ts'
 import { decodeOnGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './decodingKernel.ts'
 
 /** A ring page of `triangles` at `exponent`, flat-shaded or not, with the JavaScript decode. */

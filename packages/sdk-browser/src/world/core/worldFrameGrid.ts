@@ -42,27 +42,14 @@ const COARSE_MS = 1
  * place, never a new box a frame.
  */
 export function createFrameGrid() {
-  const s = {
-    /** The period the grid steps by, ms: NaN while no refresh is known. */
+  const s: GridState = {
     period: Number.NaN,
-    /** The display's refresh last published, ms: NaN when none is known. */
     refresh: Number.NaN,
-    /** Where the grid starts, ms, and the steps from there to the last frame's time. */
     start: Number.NaN,
     steps: 0,
-    /** The last frame's own timestamp, ms. */
     seen: Number.NaN,
-    /** Intervals in a row on the grid. */
     run: 0,
-    /** Whether a timestamp showed a fraction: the timer is not rounded to milliseconds. */
     fine: false,
-  }
-  /** The grid starts again at the frame's own `now`, at the last refresh published. */
-  const anchor = (now: number) => {
-    s.start = s.seen = grid.time = now
-    s.steps = 0
-    grid.snapped = false
-    if (s.refresh > 0) s.period = s.refresh
   }
   const grid = {
     /** The last frame's time, ms: on the grid while `snapped`, else its own timestamp. NaN
@@ -78,56 +65,92 @@ export function createFrameGrid() {
      *  past the tolerance is a new grid; a hair's change is taken when the grid next restarts,
      *  so the period, and with it the delta, stays the same number while the grid holds. */
     refreshed(ms: number | null | undefined) {
-      s.refresh = ms != null && ms > 0 ? ms : Number.NaN
-      if (!(s.refresh > 0)) {
-        s.period = Number.NaN
-        s.run = 0
-      } else if (!(s.period > 0) || Math.abs(s.refresh - s.period) > GRID_TOLERANCE * s.period) {
-        s.period = s.refresh
-        s.run = 0
-      }
+      refreshed(s, ms)
     },
     /** A frame began at `now`, ms: its time and delta are written in `time` and `delta`. */
     frame(now: number) {
-      if (now % 1 !== 0) s.fine = true
-      const last = grid.time,
-        period = s.period
-      if (Number.isNaN(last)) {
-        anchor(now)
-        grid.delta = 0
-        return
-      }
-      if (period > 0) {
-        const tolerance = Math.max(GRID_TOLERANCE * period, s.fine ? 0 : COARSE_MS),
-          gap = now - s.seen
-        // The display frame read again: no time elapsed.
-        if (Math.abs(gap) <= tolerance) {
-          grid.delta = 0
-          return
-        }
-        s.run = Math.abs(gap - Math.round(gap / period) * period) <= tolerance ? s.run + 1 : 0
-        s.seen = now
-        if (s.run >= RECENT) {
-          const k = Math.round((now - s.start) / period),
-            on = s.start + k * period
-          if (k > s.steps && Math.abs(now - on) <= tolerance) {
-            grid.delta = (k - s.steps) * period
-            s.steps = k
-            grid.time = on
-            grid.snapped = true
-            return
-          }
-        }
-      }
-      grid.delta = now - last
-      anchor(now)
+      frame(s, grid, now)
     },
     /** The loop was paused (a still scene it slept through, a hidden tab): the intervals before
      *  it are not recent, and the grid starts again at the last frame's own timestamp. */
     restart() {
       s.run = 0
-      if (!Number.isNaN(s.seen)) anchor(s.seen)
+      if (!Number.isNaN(s.seen)) anchor(s, grid, s.seen)
     },
   }
   return grid
+}
+
+/** What a grid keeps of the display between frames. */
+type GridState = {
+  /** The period the grid steps by, ms: NaN while no refresh is known. */
+  period: number
+  /** The display's refresh last published, ms: NaN when none is known. */
+  refresh: number
+  /** Where the grid starts, ms, and the steps from there to the last frame's time. */
+  start: number
+  steps: number
+  /** The last frame's own timestamp, ms. */
+  seen: number
+  /** Intervals in a row on the grid. */
+  run: number
+  /** Whether a timestamp showed a fraction: the timer is not rounded to milliseconds. */
+  fine: boolean
+}
+
+/** What a grid publishes of the last frame (`createFrameGrid`). */
+type GridTime = { time: number; delta: number; snapped: boolean }
+
+/** The grid starts again at the frame's own `now`, at the last refresh published. */
+function anchor(s: GridState, grid: GridTime, now: number) {
+  s.start = s.seen = grid.time = now
+  s.steps = 0
+  grid.snapped = false
+  if (s.refresh > 0) s.period = s.refresh
+}
+
+function refreshed(s: GridState, ms: number | null | undefined) {
+  s.refresh = ms != null && ms > 0 ? ms : Number.NaN
+  if (!(s.refresh > 0)) {
+    s.period = Number.NaN
+    s.run = 0
+  } else if (!(s.period > 0) || Math.abs(s.refresh - s.period) > GRID_TOLERANCE * s.period) {
+    s.period = s.refresh
+    s.run = 0
+  }
+}
+
+function frame(s: GridState, grid: GridTime, now: number) {
+  if (now % 1 !== 0) s.fine = true
+  const last = grid.time,
+    period = s.period
+  if (Number.isNaN(last)) {
+    anchor(s, grid, now)
+    grid.delta = 0
+    return
+  }
+  if (period > 0) {
+    const tolerance = Math.max(GRID_TOLERANCE * period, s.fine ? 0 : COARSE_MS),
+      gap = now - s.seen
+    // The display frame read again: no time elapsed.
+    if (Math.abs(gap) <= tolerance) {
+      grid.delta = 0
+      return
+    }
+    s.run = Math.abs(gap - Math.round(gap / period) * period) <= tolerance ? s.run + 1 : 0
+    s.seen = now
+    if (s.run >= RECENT) {
+      const k = Math.round((now - s.start) / period),
+        on = s.start + k * period
+      if (k > s.steps && Math.abs(now - on) <= tolerance) {
+        grid.delta = (k - s.steps) * period
+        s.steps = k
+        grid.time = on
+        grid.snapped = true
+        return
+      }
+    }
+  }
+  grid.delta = now - last
+  anchor(s, grid, now)
 }

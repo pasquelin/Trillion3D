@@ -69,11 +69,11 @@ export type {
   FrameMetrics,
   ClusterManifest,
 } from '../../sdk-core/src/index.ts'
-export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts'
+export type { EngineDiagnostic, PointOfInterest, DiagnosticDetail } from './engine/types.ts'
 /** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts'
 export type { CellRows } from './partition/cellDecode.ts'
-export type { PlacementGrowth } from './placement/backendSceneUpdates.ts'
+export type { PlacementGrowth } from './placement/engineSceneUpdates.ts'
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {
@@ -81,9 +81,6 @@ export type {
   HostAttributes,
   HostBox,
   HostColour,
-  HostDiagnosticFactory,
-  HostDiagnosticGeometry,
-  HostDiagnosticMaterial,
   HostDisposable,
   HostMaterial,
   HostMaterials,
@@ -108,8 +105,6 @@ export type {
   DiagnosticObserver,
 } from './diagnostic/channel.ts'
 export type { SurfaceBuffer, SurfaceCapture } from './scene/surfaceBuffer.ts'
-export type { HostDrawCamera } from './camera/world.ts'
-export type { FramePass, HostDrawOutput } from './webgl/core/renderTarget.ts'
 export type {
   GeometryPool,
   MemoryBudgets,
@@ -123,7 +118,7 @@ export type { PartitionAudit } from './webgpu/core/partitionAudit.ts'
 export type { TransparentOcclusionAudit } from './webgpu/transparent/occlusionAudit.ts'
 export type { CpuStepSummary } from './stage/cpuProfile.ts'
 export type { ArrivalPlan } from './page/integration/host.ts'
-export type { DecodedGeometryPage } from './page/decode/geometryPage.ts'
+export type { DecodedGeometryPage } from './page/codec/geometryPage.ts'
 export type {
   TextureLevel,
   TextureLevelReader,
@@ -135,15 +130,20 @@ export type { BatchRead } from './streaming/types.ts'
 export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts'
 export { framingFromBounds } from './camera/framing.ts'
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts'
-export { createGpuPageCache, httpPageSource, type ResidentPage } from './gpu/page/pages.ts'
+export {
+  createGpuPageCache,
+  httpPageSource,
+  type GpuPageCacheOptions,
+  type ResidentPage,
+} from './gpu/page/pages.ts'
+export type { PagePinTier } from './gpu/page/load.ts'
 export type { PageHome, PageHomes } from './gpu/page/homes.ts'
 export { createPageStreamer } from './streaming/pageStreamer.ts'
-export type { ComparisonLayout } from './measurement/comparison.ts'
 export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts'
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts'
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts'
-export { detectCapabilities } from './world/capability/capabilities.ts'
+export { detectCapabilities, type GpuCapabilities } from './world/capability/capabilities.ts'
 export {
   HIERARCHY_ROOT,
   MATRIX_VALUES,

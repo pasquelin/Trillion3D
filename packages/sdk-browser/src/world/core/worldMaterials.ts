@@ -6,7 +6,7 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { composesWithBackground } from '../../scene/materialBlending.ts'
 import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts'
-import { alphaMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts'
+import { alphaMoves, type AlphaChange } from '../../placement/engineSceneUpdates.ts'
 
 /** The parameters a session lays out when it opens, and so the only ones never written in place:
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
@@ -14,8 +14,8 @@ import { alphaMoves, type AlphaChange } from '../../placement/backendSceneUpdate
  *  its shadow pass, `sizeAttenuation` a sprite's root mark (`spriteMark`), and `wireframe`,
  *  `flatShading` and `size` the triangles its wearers draw (`worldCuts.ts`). Every other field
  *  but a texture is a VALUE — a colour, a factor, a physical extension, a cutoff —, which a
- * page-table row or a host surface reads again at the next frame; a texture's
- * pictures, sampling and placement move on their own. */
+ *  page-table row or a host surface reads again at the next frame (#335, #572); a texture's
+ *  pictures, sampling and placement move on their own (#362). */
 const LAYOUT = new Set([
   'kind',
   'transparent',
@@ -85,82 +85,25 @@ export type RepaintedEntry = { entry: MaterialEntry } & Repaint
  * The material table of a world. Materials of identical parameters are one entry, however many
  * objects the page made; an entry is a copy taken when it was made, so a material written after
  * it was placed moves its wearers to the entry of its new parameters and leaves the old one as it
- * is — copy on write. Two exceptions keep a live edit off the session's reopening: an opaque
- * entry that only one material object resolves to, written on its value fields alone, and
- * any entry whose textures' pictures alone moved, are REPAINTED — the entry keeps its
+ * was — copy on write. Two exceptions keep a live edit off the session's reopening: an opaque
+ * entry that only one material object resolves to, written on its value fields alone (#335), and
+ * any entry whose textures' pictures alone moved (#362), are REPAINTED — the entry keeps its
  * place under its new key and `takeRepainted` names it, for the session to rewrite what reads it. `counts.duplicates` says how often the table folded one
  * material onto an entry another material had made.
  */
 export function createWorldMaterials() {
-  const entries = new Map<string, MaterialEntry>()
-  /** The material objects each entry was last resolved from. */
-  const sources = new Map<MaterialEntry, Set<Material>>()
-  /** The entry each material object was last read into, at its version: a material read again
-   *  unchanged is neither a new entry nor a fold, and its key is not built again. */
-  const known = new WeakMap<Material, { version: number; entry: MaterialEntry }>()
-  /** The entries repainted since the last take, each with whether its values were written and,
-   *  when its cutoff moved, its alpha mode before the first repaint and after the last. */
-  const repainted = new Map<MaterialEntry, Repaint>()
-  const counts = { duplicates: 0 }
-  let ids = 0
-  /** Writes `material`'s values into its sole entry, when nothing but values changed. */
-  const repaintValues = (material: Material, entry: MaterialEntry) => {
-    const only = sources.get(entry)
-    if (only?.size !== 1 || !only.has(material)) return false
-    if (!opaque(material) || !opaque(entry.material)) return false
-    if (materialKey(material, false) !== materialKey(entry.material, false)) return false
-    // Only the fields the material holds: a kind never gains a field it does not declare.
-    for (const field of Object.keys(material)) {
-      if (!isValue(material, field)) continue
-      const value = material[field],
-        into = entry.material[field]
-      // A colour the entry does not hold yet — a specular written after it was made — is a copy.
-      if (value instanceof Color && into instanceof Color) into.copy(value)
-      else entry.material[field] = value instanceof Color ? value.clone() : value
-    }
-    return true
+  const state: MaterialsState = {
+    entries: new Map(),
+    sources: new Map(),
+    known: new WeakMap(),
+    repainted: new Map(),
+    counts: { duplicates: 0 },
+    ids: 0,
   }
-  /** Keeps `material` on its entry under its new key, when only values changed, or only the
-   *  pictures of its textures — which the entry's copy shares, so every wearer sees them, blended
-   * or shared: a video's frame, a canvas redrawn. */
-  const repaint = (material: Material, entry: MaterialEntry, key: string) => {
-    if (entries.has(key)) return false
-    const pictures = materialKey(material, true, false) === materialKey(entry.material, true, false)
-    const { alphaTest } = entry.material,
-      from = alphaModeOf(entry.material)
-    if (!pictures && !repaintValues(material, entry)) return false
-    entries.delete(entry.key)
-    entries.set((entry.key = key), entry)
-    const before = repainted.get(entry),
-      done: Repaint = { values: !pictures || !!before?.values }
-    const to = alphaModeOf(entry.material)
-    // Between opaque and masked, or a cutout's cutoff: what its shadow reads (`AlphaChange`).
-    if (before?.alpha || alphaMoves(from, to, entry.material.alphaTest !== alphaTest))
-      done.alpha = { from: before?.alpha?.from ?? from, to }
-    repainted.set(entry, done)
-    return true
-  }
+  const { entries, sources, repainted } = state
   return {
-    counts,
-    entryOf(material: Material): MaterialEntry {
-      const last = known.get(material)
-      // An entry `keep` dropped is no longer the table's: the material is read again.
-      const held = last && entries.get(last.entry.key) === last.entry ? last.entry : null
-      if (held && last!.version === material.version) return held
-      const key = materialKey(material)
-      if (held && held.key !== key && repaint(material, held, key)) {
-        known.set(material, { version: material.version, entry: held })
-        return held
-      }
-      let entry = entries.get(key)
-      if (!entry) entries.set(key, (entry = { id: ids++, key, material: material.clone() }))
-      else if (last?.entry !== entry) counts.duplicates++
-      if (last && last.entry !== entry) sources.get(last.entry)?.delete(material)
-      const from = sources.get(entry) ?? new Set<Material>()
-      sources.set(entry, from.add(material))
-      known.set(material, { version: material.version, entry })
-      return entry
-    },
+    counts: state.counts,
+    entryOf: (material: Material): MaterialEntry => entryOf(state, material),
     /** The entries repainted since the last call, handed over once; `values` false when only
      *  their textures moved — a picture, a sampling, a placement —, which no value reads;
      *  `alpha` when their alpha mode or cutoff moved. */
@@ -179,4 +122,82 @@ export function createWorldMaterials() {
         }
     },
   }
+}
+
+/** What a world's material table holds (`createWorldMaterials`). */
+type MaterialsState = {
+  entries: Map<string, MaterialEntry>
+  /** The material objects each entry was last resolved from. */
+  sources: Map<MaterialEntry, Set<Material>>
+  /** The entry each material object was last read into, at its version: a material read again
+   *  unchanged is neither a new entry nor a fold, and its key is not built again. */
+  known: WeakMap<Material, { version: number; entry: MaterialEntry }>
+  /** The entries repainted since the last take, each with whether its values were written and,
+   *  when its cutoff moved, its alpha mode before the first repaint and after the last. */
+  repainted: Map<MaterialEntry, Repaint>
+  counts: { duplicates: number }
+  ids: number
+}
+
+/** The entry `material` resolves to: its own, repainted in place when it can be, or the one of
+ *  its parameters, made when none is. */
+function entryOf(state: MaterialsState, material: Material): MaterialEntry {
+  const { entries, sources, known } = state
+  const last = known.get(material)
+  // An entry `keep` dropped is no longer the table's: the material is read again.
+  const held = last && entries.get(last.entry.key) === last.entry ? last.entry : null
+  if (held && last!.version === material.version) return held
+  const key = materialKey(material)
+  if (held && held.key !== key && repaint(state, material, held, key)) {
+    known.set(material, { version: material.version, entry: held })
+    return held
+  }
+  let entry = entries.get(key)
+  if (!entry) entries.set(key, (entry = { id: state.ids++, key, material: material.clone() }))
+  else if (last?.entry !== entry) state.counts.duplicates++
+  if (last && last.entry !== entry) sources.get(last.entry)?.delete(material)
+  const from = sources.get(entry) ?? new Set<Material>()
+  sources.set(entry, from.add(material))
+  known.set(material, { version: material.version, entry })
+  return entry
+}
+
+/** Writes `material`'s values into its sole entry, when nothing but values changed. */
+function repaintValues({ sources }: MaterialsState, material: Material, entry: MaterialEntry) {
+  const only = sources.get(entry)
+  if (only?.size !== 1 || !only.has(material)) return false
+  if (!opaque(material) || !opaque(entry.material)) return false
+  if (materialKey(material, false) !== materialKey(entry.material, false)) return false
+  // Only the fields the material holds: a kind never gains a field it does not declare.
+  for (const field of Object.keys(material)) {
+    if (!isValue(material, field)) continue
+    const value = material[field],
+      into = entry.material[field]
+    // A colour the entry does not hold yet — a specular written after it was made — is a copy.
+    if (value instanceof Color && into instanceof Color) into.copy(value)
+    else entry.material[field] = value instanceof Color ? value.clone() : value
+  }
+  return true
+}
+
+/** Keeps `material` on its entry under its new key, when only values changed, or only the
+ *  pictures of its textures — which the entry's copy shares, so every wearer sees them, blended
+ *  or shared: a video's frame, a canvas redrawn (#362). */
+function repaint(state: MaterialsState, material: Material, entry: MaterialEntry, key: string) {
+  const { entries, repainted } = state
+  if (entries.has(key)) return false
+  const pictures = materialKey(material, true, false) === materialKey(entry.material, true, false)
+  const { alphaTest } = entry.material,
+    from = alphaModeOf(entry.material)
+  if (!pictures && !repaintValues(state, material, entry)) return false
+  entries.delete(entry.key)
+  entries.set((entry.key = key), entry)
+  const before = repainted.get(entry),
+    done: Repaint = { values: !pictures || !!before?.values }
+  const to = alphaModeOf(entry.material)
+  // Between opaque and masked, or a cutout's cutoff: what its shadow reads (`AlphaChange`).
+  if (before?.alpha || alphaMoves(from, to, entry.material.alphaTest !== alphaTest))
+    done.alpha = { from: before?.alpha?.from ?? from, to }
+  repainted.set(entry, done)
+  return true
 }

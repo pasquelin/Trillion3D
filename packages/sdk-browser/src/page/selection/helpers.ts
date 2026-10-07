@@ -1,5 +1,3 @@
-import type { EngineCamera } from '../../camera/world.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
 import {
   clusterSphereValid,
   pageCarriesClusterError,
@@ -8,37 +6,6 @@ import {
   type Primitive,
   type StreamCatalogue,
 } from '../../../../sdk-core/src/index.ts'
-import {
-  OPEN_CONE,
-  coneContextFor,
-  coneCullsPageWith,
-  type ConeContext,
-  type NormalCone,
-} from '../cone/cone.ts'
-import { surfaceFrontOnly, type PageSurface } from '../surface.ts'
-
-/** The context is set at the root's first cone: a root without a cone never pays for it. */
-export function coneSkipsPage(
-  rec: {
-    cone?: NormalCone
-    min?: number[]
-    max?: number[]
-    material?: PageSurface
-  },
-  ctx: ConeContext,
-  world: MatrixElements,
-  cam: EngineCamera,
-  fallbackMin: number[],
-  fallbackMax: number[],
-) {
-  // The side is reread here, not taken off the record as it was last filled: `surfaceFrontOnly`
-  // asks the declaration, and only a front-only surface can be cone-rejected at all.
-  if (rec.material && !surfaceFrontOnly(rec.material)) return false
-  const min = rec.min ?? fallbackMin,
-    max = rec.max ?? fallbackMax
-  if (!ctx.ready) coneContextFor(ctx, world, cam.viewPoint)
-  return coneCullsPageWith(ctx, rec.cone ?? OPEN_CONE, world, min, max, rec.material)
-}
 
 /**
  * The largest distance the primitive's grid moved one of its source positions, in object units

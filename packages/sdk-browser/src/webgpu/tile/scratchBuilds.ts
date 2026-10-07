@@ -3,26 +3,32 @@ import { createTileScratch, type TileScratch } from './scratch.ts'
 import { generateMaterialMips } from '../../texture/mipBatch.ts'
 import type { TileCounters } from './counters.ts'
 
-/** The working texture of host texture `slot` of `atlas`, built now, its mips not yet. */
+/** The working texture of host texture `slot` of `atlas`, built now, its mips not yet; its picture
+ *  in `encoder` when given (`TileScratch.settle` once submitted). */
 export function buildHostScratch(
   device: GPUDevice,
   counters: TileCounters,
   atlas: WebgpuTileAtlas,
   slot: number,
+  encoder?: GPUCommandEncoder,
 ) {
   const { layout, source } = atlas.textures[slot]
   if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST')
-  const scratch = createTileScratch(device, {
-    map: source.map,
-    width: layout.width,
-    height: layout.height,
-    format: atlas.poolOf(slot).texture.format,
-    errorCode:
-      atlas.kind === 'color'
-        ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
-        : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
-    coverage: source.coverage,
-  })
+  const scratch = createTileScratch(
+    device,
+    {
+      map: source.map,
+      width: layout.width,
+      height: layout.height,
+      format: atlas.poolOf(slot).texture.format,
+      errorCode:
+        atlas.kind === 'color'
+          ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
+          : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
+      coverage: source.coverage,
+    },
+    encoder,
+  )
   counters.scratches++
   counters.uploadedBytes += layout.width * layout.height * 4
   return scratch
@@ -33,6 +39,45 @@ export function buildHostScratch(
  *  texture, which cannot be destroyed before. */
 const MAX_SCRATCHES = 2
 
+/** A working texture asked, with the feedback frame it was asked at. */
+type Asked = { atlas: WebgpuTileAtlas; slot: number; frame: number }
+/** Builds host texture `slot`'s working texture, its picture in `encoder` when given. */
+export type Build = (
+  atlas: WebgpuTileAtlas,
+  slot: number,
+  encoder?: GPUCommandEncoder,
+) => TileScratch
+
+/** Every picture `asked` and their mips in one encoder, one submit, each one built kept in `built`
+ *  with the frame it was asked at; `asked` emptied. */
+function buildAsked(
+  device: GPUDevice,
+  asked: Map<number, Asked>,
+  built: Map<number, { scratch: TileScratch; frame: number }>,
+  build: Build,
+  onFailure: (phase: string, error: unknown) => void,
+) {
+  const encoder = device.createCommandEncoder({ label: 'Trillion3D texture scratch' }),
+    made: TileScratch[] = []
+  for (const [id, { atlas, slot, frame }] of asked)
+    try {
+      const scratch = build(atlas, slot, encoder)
+      built.set(id, { scratch, frame })
+      made.push(scratch)
+    } catch (error) {
+      onFailure('texture-tile-failed', error)
+    }
+  asked.clear()
+  if (!made.length) return
+  generateMaterialMips(
+    device,
+    made.map((scratch) => scratch.chain()),
+    encoder,
+  )
+  device.queue.submit([encoder.finish()])
+  for (const scratch of made) scratch.settle()
+}
+
 /**
  * The working textures tiles asked for, built off the frame: built inside the pass,
  * the whole source uploaded and reduced is a spike its budget never counted. A task after the frame
@@ -42,28 +87,15 @@ const MAX_SCRATCHES = 2
  */
 export function createScratchBuilds(
   device: GPUDevice,
-  build: (atlas: WebgpuTileAtlas, slot: number) => TileScratch,
+  build: Build,
   onFailure: (phase: string, error: unknown) => void,
 ) {
   /** Working textures asked or built, each with the feedback frame it was asked at; and those a
    *  copy read this pass. */
-  const asked = new Map<number, { atlas: WebgpuTileAtlas; slot: number; frame: number }>(),
+  const asked = new Map<number, Asked>(),
     built = new Map<number, { scratch: TileScratch; frame: number }>(),
     copied = new Set<number>()
   let building: Promise<void> | undefined
-  const buildAsked = () => {
-    const chains = []
-    for (const [id, { atlas, slot, frame }] of asked)
-      try {
-        const scratch = build(atlas, slot)
-        built.set(id, { scratch, frame })
-        chains.push(scratch.chain())
-      } catch (error) {
-        onFailure('texture-tile-failed', error)
-      }
-    asked.clear()
-    generateMaterialMips(device, chains)
-  }
   return {
     release(id: number) {
       asked.delete(id)
@@ -83,7 +115,7 @@ export function createScratchBuilds(
         setTimeout(() => {
           building = undefined
           try {
-            buildAsked()
+            buildAsked(device, asked, built, build, onFailure)
           } catch (error) {
             onFailure('texture-tile-failed', error)
           } finally {

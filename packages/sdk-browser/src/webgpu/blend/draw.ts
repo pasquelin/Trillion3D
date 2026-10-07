@@ -4,9 +4,9 @@ import { createBlendOverdraw } from './overdraw.ts'
 import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts'
 import type { BlendGpuItem } from './state.ts'
 import type { BlendModePipelines, RankedPipelines } from './stagePipelines.ts'
-import type { ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { planItem, planPipeline } from './plan.ts'
-import { itemKept } from './expandCpu.ts'
+import { itemKept } from './hierarchyCull.ts'
 import { routedFilter, type DisplayFilter } from './displayFilter.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
@@ -38,8 +38,8 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  * order is the one a draw per item gives — without the draws.
  *
  * The loop does no matrix product, no material read, no frustum test: an own entry wholly out of
- * view is not encoded at all, as it was not per item; a main slot holds too many entries to query
- * one by one — the GPU zeros their instances, and a draw with no instance sets nothing.
+ * view is not encoded at all; a main slot holds too many entries to query one by one — the GPU
+ * zeros their instances, and a draw with no instance sets nothing.
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
  * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
@@ -127,8 +127,9 @@ export function drawBlendPass(
         : undefined
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false
-  // Lit with the code the frame's lights need, on the opaque resolve's key (`pipelines.ts`).
-  const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt))
+  // Lit with the code the frame's lights need, on the opaque resolve's key (`pipelines.ts`), and
+  // with lobe code while an item's surface carries a lobe (`physicalWgsl.ts`).
+  const pipelines = vis.blendPipelines!.lit(key ?? directLightResources(rt), blendState.lobed)
   if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter, pipelines.mask)
   const share = activeAsIsShare(rt)
   // A debug view or the temporal pass turning the share on starts its compile (`reach.ts`).
@@ -142,7 +143,7 @@ export function drawBlendPass(
     occlusionQuerySet: overdraw?.set,
     colorAttachments: [
       {
-        view: vis.visEnabled && gpu.hdrView ? gpu.hdrView : gpu.colorView!,
+        view: gpu.hdrView!,
         loadOp: 'load',
         storeOp: 'store',
       },

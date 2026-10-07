@@ -35,6 +35,8 @@ type DagCluster = {
    *  (`layout.ts`, snapshot header). */
   triangles?: number
   transparent?: boolean
+  /** In the group a root replaces: admitted first under a short pool (`request.ts`). */
+  rootChild?: boolean
 }
 export type DagRoot = {
   world: MatrixElements
@@ -64,6 +66,15 @@ export type DagCutLinks = {
   nodeBase: number
   nodeCount: number
 }
+/** What placing a root reads again for the next placement of its primitive (`pack.ts`): the
+ *  hierarchy packing gives a page array without one, per node array its level sizes and bounds, and
+ *  per page array its first placement's page base and record base. */
+export type DagPackShared = {
+  flats: Map<DagRoot['pages'], NonNullable<DagRoot['culling']>>
+  levelSizesOf: Map<Float64Array, readonly number[]>
+  boundsOf: Map<Float64Array, Float64Array>
+  firstOf: Map<DagRoot['pages'], { pageBase: number; recordBase: number }>
+}
 export type PackedDag = {
   kind: 'dag'
   /** Hot records, one per UNIQUE cluster: placements of one primitive share theirs (`layout.ts`). */
@@ -87,9 +98,17 @@ export type PackedDag = {
    *  LENGTH is the depth of the deepest hierarchy, hence the number of descent passes; a second
    *  field to restate it would only be state to keep in agreement. */
   levelSizes: Uint32Array
+  /** The packing's capacity — what every table is laid out for —: nodes, placements, pages. The
+   *  live ones (`live`) lead each; those past them are inert, no root naming them (`pack.ts`). */
   nodeCount: number
   worldCount: number
   pageCount: number
+  /** The pages, nodes and placements its roots fill, from the first of each; the whole capacity
+   *  when absent. */
+  live?: { pages: number; nodes: number; worlds: number }
+  /** What a later placement of a packed primitive reads to be appended in place
+   *  (`appendDagRoots`): absent for a packing without room past its roots. */
+  shared?: DagPackShared
   /** Unique records behind the `pageCount` pages. */
   recordCount: number
   /** Per placement, what its page index adds to reach its record, as a wrapping u32. */

@@ -26,7 +26,7 @@ export function orderStepCount(entries: number) {
 }
 
 /** What the order of one pass reads, where: its plan regions and its part of the frame data. */
-export type OrderPass = {
+type OrderPass = {
   entries: number
   ownCount: number
   main: boolean

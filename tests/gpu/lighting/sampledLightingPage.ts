@@ -7,7 +7,6 @@ import {
   createSceneLightStore,
   type SceneLightStore,
 } from '../../../packages/sdk-core/src/index.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   VIEWPORT,
   batisseur as sceneBuilder,
@@ -59,13 +58,13 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
   const prepared = scene(),
     store = createSceneLightStore()
   ring(store)
-  const { backend, canvas } = engine(webgpuPagesBackend, prepared, device, (e) => events.push(e), {
+  const { backend, canvas } = engine(prepared, device, (e) => events.push(e), {
     temporalAntialiasing: temporal,
     sceneLights: store,
   })
   try {
     await backend.prepare()
-    const { held, rendues: rendered } = await untilHeld(backend, facingCamera())
+    const { held, count } = await untilHeld(backend, facingCamera())
     // The shake: a hair to the left, then to the right, a hundredth of a pixel at this distance.
     // Every image moves, none is held, and the pose never leaves the still one.
     let first: number[] = [],
@@ -77,7 +76,7 @@ async function fullRun(device: GPUDevice, events: unknown[], temporal: boolean) 
       if (i === SHAKES) last = Array.from(frame.pixels)
       if (frame.metrics.frameHeld) heldWhileShaken++
     }
-    return { held, rendered, first, last, heldWhileShaken }
+    return { held, count, first, last, heldWhileShaken }
   } finally {
     release(backend, canvas, prepared)
   }

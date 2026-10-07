@@ -1,5 +1,6 @@
 import { framingFromBounds } from '../../camera/framing.ts'
 import { runCameraPath } from '../../camera/path.ts'
+export type { PathRun } from '../../camera/path.ts'
 import type { CameraPose as EnginePose } from '../../../../sdk-core/src/index.ts'
 import type { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
 import { Vector3, readVec3, type Vec3Input } from '../../../../sdk-core/src/world/math/vector3.ts'
@@ -46,7 +47,8 @@ export const pose = {
   pointOfInterest: (name: string, p: CameraPose) => ({ ...p, name }),
   /**
    * Replays the views `poses` through the world (`runCameraPath`), `images` frames spread evenly
-   * over them, eye and target moving in straight lines between two views.
+   * over them, eye and target moving in straight lines between two views, one display frame each:
+   * the frames drawn, their CPU time summarized, and the display cadence.
    * @param world - The world to move.
    * @param poses - The views to pass through.
    * @param p - How many frames the whole path takes.
@@ -71,6 +73,6 @@ export const pose = {
       }
     }
     const path = Array.from({ length: images }, (_, k) => at(images === 1 ? 0 : k / (images - 1)))
-    await runCameraPath(sessionOf(world), path)
+    return runCameraPath(sessionOf(world), path)
   },
 }

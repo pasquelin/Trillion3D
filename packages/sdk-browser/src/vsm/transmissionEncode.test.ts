@@ -16,10 +16,15 @@ test('a transmission frame encodes clear, bin and resolve under the device’s b
   const { device } = fake
   const res = createVsmResources(device, { fullMapCapacity: 127, poolPages: 256 })
   const trans = createVsmTransmission(device, res.layout)
-  const buffer = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
+  const buffer = device.createBuffer({
+    size: 16,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
+  })
   // The shadow page group, made as the engine makes it: one resource of its kind an entry.
   const pageLayout = device.createBindGroupLayout({ entries: shadowPageEntries() })
-  const view = device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: 0 }).createView()
+  const view = device
+    .createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING })
+    .createView()
   const pageGroup = device.createBindGroup({
     layout: pageLayout,
     entries: shadowPageEntries().map((e) => ({

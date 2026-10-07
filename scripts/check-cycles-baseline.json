@@ -1,6 +1,4 @@
 [
-  "packages/sdk-browser/src/webgl/cluster/geometry.ts -> packages/sdk-browser/src/webgl/cluster/pageArenas.ts",
-  "packages/sdk-browser/src/webgpu/blend/state.ts -> packages/sdk-browser/src/webgpu/blend/uniforms.ts -> packages/sdk-browser/src/webgpu/core/fallbackEntries.ts -> packages/sdk-browser/src/webgpu/pages/io/drops.ts -> packages/sdk-browser/src/webgpu/pages/prepare/bounce.ts -> packages/sdk-browser/src/webgpu/pages/prepare/layout.ts -> packages/sdk-browser/src/webgpu/pages/prepare/pipelineFor.ts -> packages/sdk-browser/src/webgpu/pages/render/encodeLights.ts -> packages/sdk-browser/src/webgpu/pages/runtime.ts -> packages/sdk-browser/src/webgpu/pages/state/gpu.ts -> packages/sdk-browser/src/webgpu/pages/state/view.ts -> packages/sdk-browser/src/webgpu/visibility/itemWords.ts",
   "packages/sdk-browser/src/webgpu/pages/render/encodeDraws.ts -> packages/sdk-browser/src/webgpu/pages/render/encodeVis.ts",
   "packages/sdk-browser/src/webgpu/pages/render/encodeVisSetup.ts -> packages/sdk-browser/src/webgpu/visibility/uniforms.ts"
 ]

@@ -1,24 +1,16 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
 import { interleavedGradientWgsl } from '../math/interleavedGradientWgsl.ts'
-import { REFLECTION_SEGMENT, screenTraceShader } from './traceShader.ts'
-import {
-  type ScreenLobe,
-  type ScreenRadiance,
-  screenRadianceShader,
-} from './screenRadianceShader.ts'
+import { REFLECTION_SEGMENT, SCREEN_TRACE_WGSL } from './traceShader.ts'
+import { type ScreenLobeFade, screenRadianceShader } from './screenRadianceShader.ts'
 import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'
-import { TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
+import {
+  PROBE_MIRROR_RADIANCE_WGSL,
+  SCREEN_MIRROR_RADIANCE_WGSL,
+  TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
+} from './modelShader.ts'
 
-/** The WebGPU resolve: its fallback is the program's own reflection model, the probes with bounce
- *  and the environment without. */
-const SCREEN_RADIANCE = {
-  name: 'resolvedRadiance',
-  disabled: 'reflectionView.enabled.x==0.0',
-  fallback: (rough: string) => `reflectedRadiance(P,N,R,${rough})`,
-} satisfies ScreenRadiance
-
-/** A program's lobe and fade (`ScreenRadiance`); a `mirror` of its own walks the depth bounds. */
-const screenReflectionWgsl = (lobe: ScreenLobe & Pick<ScreenRadiance, 'maxRoughness'> = {}) => `
+/** A program's lobe and fade (`ScreenLobeFade`); a `mirror` of its own walks the depth bounds. */
+const screenReflectionWgsl = (lobe: ScreenLobeFade = {}) => `
 // \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller, w the
 // rough trace's seed.
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
@@ -28,12 +20,11 @@ struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
 fn reflectionProject(p:vec4f)->vec4f{let c=reflectionView.matrix*p;return vec4f(c.x,-c.y,c.z,c.w);}
 fn reflectionSize()->vec2f{return reflectionView.enabled.yz;}
 fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(reflectionDepth,p,0);}
-fn reflectionClearDepth()->f32{return 0.0;}
 // The reprojected source (source.ts): alpha 0 where the last image did not see the point.
 fn reflectionHitAt(p:vec2i)->vec4f{return textureLoad(reflectionColor,p,0);}
-${screenTraceShader('wgsl')}
+${SCREEN_TRACE_WGSL}
 ${REFLECTION_CONE_WGSL}${lobe.mirror ? HIZ_TRACE_WGSL : ''}
-${screenRadianceShader('wgsl', { ...SCREEN_RADIANCE, ...lobe })}`
+${screenRadianceShader(lobe)}`
 
 export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl()
 
@@ -55,8 +46,8 @@ fn reflectionDepthClamped(p:vec2i)->f32{
  return reflectionDepthAt(clamp(p,vec2i(0),vec2i(reflectionSize())-vec2i(1)));
 }
 fn reflectionPlane(p:vec2i,z:f32)->vec3f{
- var left:f32=reflectionDepthClamped(p-vec2i(1,0));var right:f32=reflectionDepthClamped(p+vec2i(1,0));
- var down:f32=reflectionDepthClamped(p-vec2i(0,1));var up:f32=reflectionDepthClamped(p+vec2i(0,1));
+ let left:f32=reflectionDepthClamped(p-vec2i(1,0));let right:f32=reflectionDepthClamped(p+vec2i(1,0));
+ let down:f32=reflectionDepthClamped(p-vec2i(0,1));let up:f32=reflectionDepthClamped(p+vec2i(0,1));
  var plane:vec3f=vec3f(0.0,0.0,1.0);
  if(reflectionContinues(z,left,right)){plane.x=0.5*(right-left);}else{plane.x=reflectionSideSlope(z,left,right);plane.z=0.0;}
  if(reflectionContinues(z,down,up)){plane.y=0.5*(up-down);}else{plane.y=reflectionSideSlope(z,down,up);plane.z=0.0;}
@@ -66,7 +57,7 @@ fn reflectionOnPlane(p:vec2i,z:f32,plane:vec3f,at:vec2f)->f32{
  return z+dot(plane.xy,at-vec2f(p)-vec2f(0.5));
 }
 fn reflectionCarries(plane:vec3f,last:vec2i,lastDepth:f32,p:vec2i,z:f32,span:f32)->bool{
- return lastDepth!=reflectionClearDepth()&&plane.z==1.0&&abs(lastDepth+dot(plane.xy,vec2f(p-last))-z)<=max(span,abs(z)*exp2(-22.0));
+ return lastDepth!=REFLECTION_CLEAR_DEPTH&&plane.z==1.0&&abs(lastDepth+dot(plane.xy,vec2f(p-last))-z)<=max(span,abs(z)*exp2(-22.0));
 }`
 
 /** Coarse samples of a blended surface's ray: the translucent trace is coarse; each one that finds
@@ -118,13 +109,13 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
  var last=0.0;
  // The depths of the last two samples, the first a spacing before the first sample.
  var lastDepth=reflectionDepthClamped(vec2i(floor(start-delta*offset*spacing)));
- var priorDepth=reflectionClearDepth();
+ var priorDepth=REFLECTION_CLEAR_DEPTH;
  for(var k=1;k<=samples+1&&last<1.0;k++){
   let next=min((f32(k)-offset)*spacing,1.0);
   let at=start+delta*next;
   let z=reflectionDepthClamped(vec2i(floor(at)));
   let ray=mix(a.z,b.z,next);
-  var behind=z!=reflectionClearDepth()&&ray<=z;
+  var behind=z!=REFLECTION_CLEAR_DEPTH&&ray<=z;
   // The last sample's surface does not run on to this one — its step to it, brought to the
   // spacing (the last sample, at the ray's end, may be nearer), does not continue the step before:
   // the ray may have crossed it before its edge, a rim or a thin object a sample fell on. Its plane,
@@ -132,10 +123,10 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
   // background is walked. The walk below starts on that pixel and keeps a whole plane.
   let lastPixel=vec2i(floor(start+delta*last));
   var plane=vec3f(0.0);
-  let stepped=select(lastDepth+(z-lastDepth)*spacing/(next-last),z,z==reflectionClearDepth());
-  if(!behind&&k>1&&lastDepth!=reflectionClearDepth()&&!reflectionContinues(lastDepth,priorDepth,stepped)){
+  let stepped=select(lastDepth+(z-lastDepth)*spacing/(next-last),z,z==REFLECTION_CLEAR_DEPTH);
+  if(!behind&&k>1&&lastDepth!=REFLECTION_CLEAR_DEPTH&&!reflectionContinues(lastDepth,priorDepth,stepped)){
    plane=reflectionPlane(lastPixel,lastDepth);
-   behind=ray<=reflectionOnPlane(lastPixel,lastDepth,plane,at)||(z==reflectionClearDepth()&&plane.z==0.0);
+   behind=ray<=reflectionOnPlane(lastPixel,lastDepth,plane,at)||(z==REFLECTION_CLEAR_DEPTH&&plane.z==0.0);
   }
   priorDepth=lastDepth;lastDepth=z;
   // The walk, from the last sample. A ray already behind the first surface it meets there, by no
@@ -154,7 +145,7 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
     let pixel=vec2i(floor(start+delta*(entered+exited)*0.5));
     if(all(pixel==origin)){continue;}
     let depth=reflectionDepthClamped(pixel);
-    if(depth==reflectionClearDepth()){planeDepth=depth;continue;}
+    if(depth==REFLECTION_CLEAR_DEPTH){planeDepth=depth;continue;}
     let before=mix(a.z,b.z,entered);let after=mix(a.z,b.z,exited);
     if(!reflectionCarries(plane,planePixel,planeDepth,pixel,depth,abs(after-before))){
      plane=reflectionPlane(pixel,depth);
@@ -172,7 +163,7 @@ fn translucentReflectionMarch(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT}
     if(!met){met=true;behindFirst=inFront<0.0&&inFront>=-abs(plane.x)-abs(plane.y);}
    }
    behind=behindFirst&&walkFrom>0.0;
-   walkFrom=max(walkFrom-spacing,0.0);planeDepth=reflectionClearDepth();
+   walkFrom=max(walkFrom-spacing,0.0);planeDepth=REFLECTION_CLEAR_DEPTH;
   }
   last=next;
  }
@@ -198,16 +189,21 @@ fn heldReflection(P:vec3f)->vec4f{
  return vec4f(0.0,0.0,0.0,1.0);
 }`
 
-/** Install screen hits at the one reflection-model entry of either program, preserving its
- *  existing miss behavior: the probes with bounce, the environment without. */
+/** Install screen hits at the one reflection-model entry of a lit program: its mirror radiance
+ *  (`PROBE_MIRROR_RADIANCE_WGSL`, declared once in the opaque resolve's text, which its plain
+ *  pipeline compiles as it is) becomes the screen's resolved over it (`SCREEN_MIRROR_RADIANCE_WGSL`),
+ *  which keeps the existing miss behaviour: the probes with bounce, the environment without. */
 export function withScreenReflections(shader: string, history = false) {
+  const at = shader.indexOf(PROBE_MIRROR_RADIANCE_WGSL)
+  if (at < 0 || at !== shader.lastIndexOf(PROBE_MIRROR_RADIANCE_WGSL))
+    throw new Error('MIRROR_RADIANCE_UNMATCHED')
   const reflection = history
     ? screenReflectionWgsl({ filtered: 'heldReflection(P)' }) + HELD_REFLECTION_WGSL
     : SCREEN_REFLECTION_WGSL
   return (
-    shader.replace(
-      ')*reflectedRadiance(P,N,reflect(-V,N),',
-      ')*resolvedRadiance(P,N,reflect(-V,N),',
-    ) + reflection
+    shader.slice(0, at) +
+    SCREEN_MIRROR_RADIANCE_WGSL +
+    shader.slice(at + PROBE_MIRROR_RADIANCE_WGSL.length) +
+    reflection
   )
 }

@@ -1,10 +1,10 @@
 /**
- * Numbers the WGSL and GLSL texts both write, held once as numbers and interpolated where each
- * text reads them (as `LTC_SIZE` already is): two languages never carry two copies of a constant.
+ * Numbers the shader texts write, held once as numbers and interpolated where each text reads them
+ * (as `LTC_SIZE` already is): no two texts carry two copies of a constant.
  */
 
-/** A number as a float literal both languages read the same: every digit JavaScript keeps, and
- *  never an integer token, which WGSL would type as `i32`. */
+/** A number as a float literal: every digit JavaScript keeps, and never an integer token, which
+ *  WGSL would type as `i32`. */
 export const shaderFloat = (value: number) => {
   const text = String(value)
   return /[.e]/.test(text) ? text : `${text}.0`
@@ -34,6 +34,3 @@ export const wgslMatrix3 = (m: Matrix3) =>
           .join(',')})`,
     )
     .join(',')})`
-
-/** `m` as a GLSL `mat3`, column-major like the WGSL one. */
-export const glslMatrix3 = (m: Matrix3) => `mat3(${m.map(shaderFloat).join(',')})`

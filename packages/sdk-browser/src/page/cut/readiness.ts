@@ -5,7 +5,7 @@ import { baseOpen, type CullingLinks } from './links.ts'
 /**
  * THE RESIDENCY THE CUT RULE READS (`./rule.ts`), derived from the per-cluster residency of one
  * placement and its group links. One definition: the GPU kernel's host derives it
- * (`../../gpu/dag/readiness.ts`), the CPU cut reads it (`./held.ts`).
+ * (`../../gpu/dag/readiness.ts`), the CPU cut reads it (`./held.fixture.ts`).
  *
  * A group is READY when every cluster it replaces is resident and every group that replaces its
  * outputs is ready — a cluster nothing replaces standing for itself. Readiness is therefore closed

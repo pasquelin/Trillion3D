@@ -3,8 +3,8 @@
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { preparedMaterials } from '../../host/prepared/materials.ts'
-import type { RenderBackend } from '../../backend/types.ts'
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts'
+import type { Engine } from '../../engine/types.ts'
+import type { AlphaChange } from '../../placement/engineSceneUpdates.ts'
 import { createExplorerMaterialApi } from './materialApi.ts'
 import { webgpuMaterialClassRefusal } from '../../webgpu/pages/io/refreshMaterials.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -52,7 +52,6 @@ export const entry = (overrides: Partial<TableMaterial>): TableMaterial => ({
 /** Rank 0 opaque with its own map, worn in two geometry variants; rank 1 masked; ranks 2 and 3
  *  share one map; rank 4 blended. */
 export async function scene(
-  refresh = true,
   materialClassRefusal: typeof webgpuMaterialClassRefusal = webgpuMaterialClassRefusal,
 ) {
   const textures = [new G.GraphTexture(), new G.GraphTexture()]
@@ -88,18 +87,16 @@ export async function scene(
   })) as unknown as PageRec[]
   const backend = {
     id: 'webgpu-page-raster',
+    signal: new AbortController().signal,
     materialClassRefusal: (alpha: AlphaChange) => materialClassRefusal(alpha, pages),
-    ...(refresh && {
-      refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
-      wearSurface: () => {},
-    }),
-  } as unknown as RenderBackend
+    refreshMaterials: (_: boolean, alpha?: AlphaChange) => void refreshes.push(alpha),
+    wearSurface: () => {},
+  } as unknown as Engine
   const api = createExplorerMaterialApi({
     check: () => {},
     source,
     associations,
-    backends: [backend],
-    active: () => backend,
+    engine: backend,
   })
   return { api, associations, floor, textures, refreshes, source }
 }

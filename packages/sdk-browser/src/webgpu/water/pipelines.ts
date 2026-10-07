@@ -1,16 +1,22 @@
 import { reflectionLayout } from '../../reflections/layout.ts'
-import { waterSurfaceTargets } from './surfaceTargets.ts'
+import { waterSurfaceEntry, waterSurfaceTargets } from './surfaceTargets.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-import { readOnly } from '../core/bindLayout.ts'
-import { blendStagePipelines } from '../blend/stagePipelines.ts'
-import { WATER_BINDINGS, waterCompositeShader } from './compositeWgsl.ts'
+import { blendStagePipelines, stageDescriptors } from '../blend/stagePipelines.ts'
+import { waterCompositeShader } from './compositeWgsl.ts'
+import { waterCompositeLayoutEntries } from './compositeGroup.ts'
 import { waterRoutedShader } from './routedWgsl.ts'
 import { displayMaskLayout } from '../blend/displayFilter.ts'
 import { waterCompositeTargets } from './compositeTargets.ts'
 import { createReach, type Reach } from '../blend/reach.ts'
-import { variantLabel, type ContractKey } from '../../lighting/deferred/contractVariants.ts'
+import { variantLabel, type ContractKey } from '../../lighting/deferred/contractCuts.ts'
+
+/** The surface stage's fragment: its entry and targets, with the lobes or not (`surfaceWgsl.ts`). */
+const waterSurfaceFragment = (module: GPUShaderModule, feedback: boolean, lobes = false) => ({
+  module,
+  entryPoint: waterSurfaceEntry(feedback, lobes),
+  targets: waterSurfaceTargets(feedback, lobes),
+})
 
 /**
  * Surface stage: the blend module's vertex stage and `fsWater`, on the blend bind group layout —
@@ -23,38 +29,23 @@ export const createWaterSurfacePipelines = (
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   feedback = true,
-) =>
-  blendStagePipelines(
-    device,
-    module,
-    layout,
-    {
-      module,
-      entryPoint: feedback ? 'fsWater' : 'fsWaterWithoutFeedback',
-      targets: waterSurfaceTargets(feedback),
-    },
-    true,
-  )
+) => blendStagePipelines(device, module, layout, waterSurfaceFragment(module, feedback), true)
 
-/** Layout of the composite: the deferred bounce layout — the water word, a colour, in the flags'
- *  place —, then what `waterCompositeShader` alone declares. */
-export function createWaterCompositeLayout(device: GPUDevice) {
-  const b = WATER_BINDINGS,
-    fragment = GPUShaderStage.FRAGMENT,
-    word: GPUTextureBindingLayout = { sampleType: 'unfilterable-float' }
-  return device.createBindGroupLayout({
+/** The lobed surface stage's three descriptors, one per cull mode, as `createWaterSurfacePipelines`
+ *  builds the plain stage's: what `lobedStage.ts` prepares once a transmissive surface has a lobe. */
+export const lobedWaterSurfaceDescriptors = (
+  device: GPUDevice,
+  module: GPUShaderModule,
+  layout: GPUBindGroupLayout,
+  feedback: boolean,
+) => stageDescriptors(device, module, layout, waterSurfaceFragment(module, feedback, true), true)
+
+/** Layout of the composite, made of the bindings it holds (`waterCompositeLayoutEntries`). */
+export const createWaterCompositeLayout = (device: GPUDevice) =>
+  device.createBindGroupLayout({
     label: 'Trillion3D water composite',
-    entries: [
-      ...deferredLayoutEntries(true, true, false).map((entry) =>
-        entry.binding === b.word ? { ...entry, texture: word } : entry,
-      ),
-      { binding: b.backdrop, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
-      { binding: b.backdropDepth, visibility: fragment, texture: { sampleType: 'depth' } },
-      { binding: b.uniform, visibility: fragment, buffer: { type: 'uniform' } },
-      { binding: b.volumes, visibility: fragment, buffer: readOnly },
-    ],
+    entries: waterCompositeLayoutEntries(),
   })
-}
 
 /** Each composite's entry point, indexed as `createWaterComposites` caches them. */
 const COMPOSE_ENTRIES = [

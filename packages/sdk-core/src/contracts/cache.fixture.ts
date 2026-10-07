@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { assertCacheIdentity, EngineError } from './cache.ts'
 
 export const root = {
-  schema: 9,
-  formatVersion: 9,
+  schema: 11,
+  formatVersion: 11,
   status: 'ready',
   scope: 'full',
   primitives: [],
@@ -12,8 +12,8 @@ export const root = {
   selectedTriangles: 0,
 }
 export const identity = {
-  schema: 9,
-  formatVersion: 9,
+  schema: 11,
+  formatVersion: 11,
   errorModel: 'dag-group-qem-v3',
   primitives: [],
 }

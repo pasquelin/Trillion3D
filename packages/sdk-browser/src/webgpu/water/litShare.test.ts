@@ -47,7 +47,8 @@ function runner(text: string) {
   const textures = ['baseMetal', 'normalRough', 'emissiveAoTexture', 'depth']
   const { waterColor } = shaderRun<{ waterColor: Color }>(
     text.replace('textureLoad(emissiveAo,', 'textureLoad(emissiveAoTexture,'),
-    ['waterColor'],
+    // With the lobeless program's stand-ins (`WATER_LOBELESS_WGSL`, `lobeThrough`) and the marks.
+    ['waterColor', 'waterLobes', 'waterCoatMirror', 'lobeThrough', 'volumeMarked', 'fresnelScalar'],
     {
       ...Object.fromEntries(textures.map((name) => [name, { name }])),
       textureLoad: ({ name }: { name: keyof Pixel['textures'] }) => pixel.textures[name],
@@ -85,7 +86,8 @@ function runner(text: string) {
 
 test('a fully transmissive pixel composes the same numbers without lighting its colour', () => {
   const r = random(1468),
-    run = runner(waterCompositeShader())
+    // The program without lobe code: a lobed one adds terms under the same share (`waterLobesWgsl.ts`).
+    run = runner(waterCompositeShader(false, { lobeless: true }))
   for (let round = 0; round < 4000; round++) {
     const t = round % 2 ? 1 : r()
     const pixel = pixelOf(r, t)

@@ -10,7 +10,12 @@ import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
 import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from './pageWgsl.ts'
-import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
+import {
+  PAGE_GEOMETRY_WGSL,
+  PAGE_NORMAL_WGSL,
+  PAGE_SCREEN_WGSL,
+  PAGE_UV1_WGSL,
+} from './pageGeometryWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
   DATA_SAMPLE_WGSL,
@@ -26,6 +31,7 @@ import { SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts'
 import { SHADING_POINT_WGSL } from './shadingPoint.ts'
 import { receiverStoreWgsl } from './receiverTargetWgsl.ts'
 import { shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
+import { PHYSICAL_RESOLVE_WGSL } from './physicalWgsl.ts'
 
 /**
  * Screen gradients (per pixel in x, then y) of the perspective-correct coordinate at `p` in the
@@ -73,6 +79,7 @@ ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${PAGE_SCREEN_WGSL}
 ${PAGE_NORMAL_WGSL}
+${PAGE_UV1_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}
 ${PIXEL_BARY_WGSL}
@@ -88,6 +95,7 @@ ${VERTEX_NORMALS_WGSL}
 ${PIXEL_TRIANGLE_WGSL}
 ${COTANGENT_FRAME_WGSL}
 ${SURFACE_MODEL_SHADE_WGSL}
+${PHYSICAL_RESOLVE_WGSL}
 // The fifth output is the tile rank this pixel asks of virtual textures, placed in the
 // feedback target that transparents complete and that a compute pass reduces into counters.
 struct SurfaceOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@location(2) emissiveAo:vec4f,@location(3) flags:u32,@location(4) request:u32,}

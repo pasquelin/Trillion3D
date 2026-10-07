@@ -42,6 +42,10 @@ test('a full staging refuses and counts; the step clamps its time and consumes i
 test('a pool out of bounds is refused by name', () => {
   assert.throws(() => new ParticlePool({ capacity: 0 }), /^Error: PARTICLE_CAPACITY/)
   assert.equal(new ParticlePool({ capacity: 64 }).emitPerFrame, 64, 'the default, at most it')
+  assert.equal(new ParticlePool({ capacity: 1 << 14 }).emitPerFrame, 1024, 'a sixteenth')
+  // The device bounds a pool (the renderer's refusal), no texture size: past 2^20 it is made.
+  assert.equal(new ParticlePool({ capacity: 2 ** 21, emitPerFrame: 1 }).capacity, 2 ** 21)
+  assert.throws(() => new ParticlePool({ capacity: 2 ** 31 + 1 }), /^Error: PARTICLE_CAPACITY/)
   assert.throws(
     () => new ParticlePool({ capacity: 4, emitPerFrame: 5 }),
     /^Error: PARTICLE_EMISSION/,

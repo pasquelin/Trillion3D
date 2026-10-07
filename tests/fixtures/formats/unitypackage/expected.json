@@ -37,8 +37,8 @@
         "sha256": "8f2e840e969ddfdcb7c7db51d9580c60dae13f1ebaf2853d8faffd1657785696"
       }
     ],
-    "formatVersion": 9,
-    "manifestBinaryVersion": 10,
+    "formatVersion": 11,
+    "manifestBinaryVersion": 11,
     "notes": [],
     "plugin": {
       "name": "unity",
@@ -47,7 +47,7 @@
     "primitives": 1,
     "selectedNodes": 3,
     "selectedTriangles": 36,
-    "sidecarSha256": "30a19efd9cb89ed2cf50654c5f2b7a369b745d8189fa394e1eeb2d6705683f76",
+    "sidecarSha256": "ef1d83a7cd9a3f73770bb2ae45e3d4dff9e565f685b1cc381ad3937794d6e8ec",
     "sourceTriangles": 36,
     "totalNodes": 3,
     "unsupported": {}

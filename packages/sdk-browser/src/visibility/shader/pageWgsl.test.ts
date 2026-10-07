@@ -1,6 +1,6 @@
 // Common-formulas lot: each WGSL fragment factored out of `pageWgsl.ts` must stay the
 // unique write of its identifier, and each shader that assembles it must carry it only once —
-// two copies in the same text would be two chances of seeing it drift.
+// two copies in the same text would be two chances of seeing it drift, as before this lot.
 import { importWrapMode } from '../../host/wrapImport.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -74,12 +74,12 @@ test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in t
   assert.doesNotMatch(SMALL_SHADER, /baryWeights/)
 })
 
-// Under linear filtering with `Repeat`, a period's seam must mix the last texel and
+// Defect 7: under linear filtering with `Repeat`, a period's seam must mix the last texel and
 // the first. The oracle rule is in tests/gpu/texture/addressingCases.ts, written
 // independently of `wrapLinear` and already checked against the real WebGPU sampler by
 // `tests/gpu/texture/texture-addressing.gpu.ts`: the low rank comes from the coordinate shifted by
-// a half-texel, and each of the two ranks undergoes the mode for itself (OpenGL ES 3.0 § 3.8.10,
-// the same rule as WebGPU). Copying it here would make a third write of the same rule.
+// a half-texel, and each of the two ranks undergoes the mode for itself (WebGPU's sampler rule).
+// Copying it here used to make a third write of the same rule.
 const regle = linearTexels
 /** The value the two mixed texels yield: tap order is not imposed, colour is. */
 const valeur = ([i0, i1, weights]: [number, number, number]) => i0 * (1 - weights) + i1 * weights
@@ -122,7 +122,7 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
       /(color|data)Blend\(/,
       `${nom} must read through the level blend`,
     )
-    // The header is read once, then the default read — the footprint's level, no
+    // #360, #361: the header is read once, then the default read — the footprint's level, no
     // other test — unless the page's maps take their filter rule (`sampled`), blended and
     // shadow alike.
     assert.match(

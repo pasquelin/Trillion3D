@@ -7,7 +7,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { createFrameGateCore } from './gateCore.ts'
-import { createWebglFrameGate } from '../webgl/core/frameGate.ts'
 import type { CameraMotion } from '../camera/world.ts'
 import { engineCamera } from '../camera/camera.fixture.ts'
 import {
@@ -22,7 +21,7 @@ const VIEWPORT: [number, number] = [800, 600]
 const DEPLACE_ET_TOURNE = POSES_PARENT[2] as Pose
 
 test('enterFrame copies the pose before the view fingerprint: a rig moved alone, never walked by the host, replays the frame', () => {
-  const gate = createWebglFrameGate()
+  const gate = createFrameGateCore(1)
   const source = new G.Object3D()
   const rig = creeRig()
   const motion: CameraMotion = {}
@@ -31,7 +30,7 @@ test('enterFrame copies the pose before the view fingerprint: a rig moved alone,
     // prepared scene. If `enterFrame` read the local pose, or resolved it AFTER the view
     // fingerprint, this move would change nothing there and the frame would stay held wrongly.
     const held = gate.enterFrame({}, rig.camera, motion, VIEWPORT, source, [])
-    gate.keep(0, 0, [], 0, false)
+    gate.hold.keep(gate.revisions)
     return held
   }
   poseRig(rig, POSES_PARENT[0] as Pose, false)

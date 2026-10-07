@@ -281,8 +281,8 @@ fn vsmScreenRayCast(rayOrigin:vec3f,rayDirection:vec3f,rayLength:f32,dither:f32)
  let t2=t1+step;
  let rayTime=vec4f(t0,t1,t2,t2+step);
  let startDepth=vsmSampleSceneDepth(screenUvzStart.xy);
- var storedDepth:vec4f;
- for(var i=0;i<steps;i++){storedDepth[i]=vsmSampleSceneDepth((screenUvzStart+screenUvzStep*rayTime[i]).xy);}
+ let storedDepth=vec4f(vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t0).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t1).xy),
+  vsmSampleSceneDepth((screenUvzStart+screenUvzStep*t2).xy),vsmSampleSceneDepth((screenUvzStart+screenUvzStep*rayTime.w).xy));
  for(var i=0;i<steps;i++){
   let screenUvz=screenUvzStart+screenUvzStep*rayTime[i];
   if(storedDepth[i]!=startDepth){

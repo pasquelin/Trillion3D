@@ -46,7 +46,7 @@ test('a fog-free transmissive material reaches the water composite without chang
   const rt = { gpu, blendState } as unknown as WebgpuPagesRuntime
   writeVolumeRecords(rt, device)
   assert.equal(blendState.volumePacked[7], 1)
-  assert.match(WATER_COMPOSITE_SHADER, /vol\.attenuation\.w!=0\.0/)
+  assert.match(WATER_COMPOSITE_SHADER, /volumeMarked\(vol,1u\)\),a\);/)
   item.surface.fog = true
   writeVolumeRecords(rt, device)
   assert.equal(blendState.volumePacked[7], 0)

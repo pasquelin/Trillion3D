@@ -4,12 +4,12 @@
 // is destroyed, and what a host could still reach is read: the canvas the engine published must
 // be withdrawn and its context unconfigured — the drawing buffer then holds transparent black —,
 // the next render must raise `WEBGPU_LOST`, and the loss must have been announced under that name.
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
+import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   dagFixture,
   wideCamera,
 } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts'
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { openGpuDevice } from '../kit/webgpuDevice.ts'
 
 /** Colour channels that are not black, alpha aside. */
@@ -24,9 +24,9 @@ export async function run() {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device, errors } = gpu
-  const events: Pick<BackendDiagnostic, 'phase' | 'message' | 'context'>[] = []
+  const events: Pick<EngineDiagnostic, 'phase' | 'message' | 'context'>[] = []
   const fixture = dagFixture()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source: fixture.source,
     metadata: fixture.metadata,
     indices: fixture.indices,
@@ -44,12 +44,12 @@ export async function run() {
     await backend.prepare()
     for (let i = 0; i < 4; i++) {
       backend.render(camera)
-      await backend.flush!()
+      await backend.flush()
     }
     const surface = backend.presentedSurface
     if (!surface) throw new Error('no composed surface published')
     const before = {
-      litChannels: litChannels(backend.capture!()),
+      litChannels: litChannels(await backend.capture()),
       configured: configurationOf(surface) !== null,
     }
     device.destroy()

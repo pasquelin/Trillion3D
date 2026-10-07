@@ -35,7 +35,7 @@ function streamer(budgetMs: number) {
     const [w, h] = levelSize(256, 256, level)
     tail.push(new Uint8Array(w * h * 4))
   }
-  const blocks = { bc7: [], astc: [] }
+  const blocks = { bc7: [], astc: [], etc2: [] }
   const fill = {
     layout: tileLayout(1, 1),
     lane: 'lossless' as const,

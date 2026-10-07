@@ -88,72 +88,74 @@ function saveCamera(camera: Camera): SavedCamera {
 export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
   const background = scene.background as Color | null
   if (scene.environment) notSavable('a picture environment')
-  const geometries = new Map<Geometry, number>(),
-    materials = new Map<Material, number>()
-  const rank = <T>(table: Map<T, number>, item: T) => {
-    if (!table.has(item)) table.set(item, table.size)
-    return table.get(item)!
-  }
-  const node = (o: Object3D): SavedNode => {
-    const mesh = o as Mesh,
-      lamp = o as Light,
-      model = o as LoadedModel
-    const saved: SavedNode = {
-      kind: mesh.isMesh
-        ? 'mesh'
-        : lamp.isLight
-          ? 'light'
-          : model.isLoadedModel
-            ? 'model'
-            : 'object',
-      name: o.name,
-      position: o.position.toArray(),
-      quaternion: o.quaternion.toArray(),
-      scale: o.scale.toArray(),
-      visible: o.visible,
-      castShadow: o.castShadow,
-      receiveShadow: o.receiveShadow,
-      renderOrder: o.renderOrder,
-      userData: plain(o.userData),
-      // What a model's file carried comes back with the model; what the page placed under it
-      // is saved like any child.
-      children: o.children
-        .filter((c) => !isHelper(c) && !(model.isLoadedModel && model._fromFile(c)))
-        .map(node),
-    }
-    if ((o as { isGroup?: boolean }).isGroup) saved.kind = 'group'
-    if (mesh.isMesh) {
-      const worn = mesh.material
-      saved.mesh = {
-        geometry: rank(geometries, mesh.geometry),
-        material: Array.isArray(worn) ? worn.map((m) => rank(materials, m)) : rank(materials, worn),
-        primitive: mesh.primitive,
-      }
-      const center = mesh instanceof Sprite ? mesh.center : undefined
-      if (center) saved.mesh.center = [center.x, center.y]
-      if (mesh.physics) saved.physics = plain(savedPhysics(mesh.physics))
-    }
-    if (lamp.isLight)
-      saved.light = {
-        kind: lamp.kind,
-        color: rgb(lamp.color),
-        groundColor: rgb(lamp.groundColor),
-        values: { ...lamp._values },
-        target: lamp.target.position.toArray() as Triple,
-        sh: lamp.sh ? [...lamp.sh] : null,
-      }
-    if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
-    return saved
-  }
-  const children = scene.children.filter((c) => !isHelper(c)).map(node)
+  const tables: Tables = { geometries: new Map(), materials: new Map() }
+  const children = scene.children.filter((c) => !isHelper(c)).map((c) => saveNode(c, tables))
   return {
     format: SCENE_FORMAT,
     formatVersion: SCENE_FORMAT_VERSION,
     background: background && rgb(background),
     fog: sceneFogOf(scene.fog) ?? null,
     camera: camera ? saveCamera(camera) : null,
-    geometries: [...geometries.keys()].map(saveGeometry),
-    materials: [...materials.keys()].map(saveMaterial),
+    geometries: [...tables.geometries.keys()].map(saveGeometry),
+    materials: [...tables.materials.keys()].map(saveMaterial),
     children,
   }
+}
+
+/** The shapes and materials a save stores once, each at the rank it was first met at. */
+type Tables = { geometries: Map<Geometry, number>; materials: Map<Material, number> }
+
+const rank = <T>(table: Map<T, number>, item: T) => {
+  if (!table.has(item)) table.set(item, table.size)
+  return table.get(item)!
+}
+
+/** One node and its subtree, `helper` marks left out. */
+function saveNode(o: Object3D, tables: Tables): SavedNode {
+  const mesh = o as Mesh,
+    lamp = o as Light,
+    model = o as LoadedModel
+  const saved: SavedNode = {
+    kind: mesh.isMesh ? 'mesh' : lamp.isLight ? 'light' : model.isLoadedModel ? 'model' : 'object',
+    name: o.name,
+    position: o.position.toArray(),
+    quaternion: o.quaternion.toArray(),
+    scale: o.scale.toArray(),
+    visible: o.visible,
+    castShadow: o.castShadow,
+    receiveShadow: o.receiveShadow,
+    renderOrder: o.renderOrder,
+    userData: plain(o.userData),
+    // What a model's file carried comes back with the model; what the page placed under it
+    // is saved like any child.
+    children: o.children
+      .filter((c) => !isHelper(c) && !(model.isLoadedModel && model._fromFile(c)))
+      .map((c) => saveNode(c, tables)),
+  }
+  if ((o as { isGroup?: boolean }).isGroup) saved.kind = 'group'
+  if (mesh.isMesh) saveMesh(saved, mesh, tables)
+  if (lamp.isLight)
+    saved.light = {
+      kind: lamp.kind,
+      color: rgb(lamp.color),
+      groundColor: rgb(lamp.groundColor),
+      values: { ...lamp._values },
+      target: lamp.target.position.toArray() as Triple,
+      sh: lamp.sh ? [...lamp.sh] : null,
+    }
+  if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
+  return saved
+}
+
+/** A mesh's shape and materials by their ranks, its sprite centre and its physics. */
+function saveMesh(saved: SavedNode, mesh: Mesh, { geometries, materials }: Tables) {
+  const worn = mesh.material
+  saved.mesh = {
+    geometry: rank(geometries, mesh.geometry),
+    material: Array.isArray(worn) ? worn.map((m) => rank(materials, m)) : rank(materials, worn),
+    primitive: mesh.primitive,
+  }
+  const center = mesh instanceof Sprite ? mesh.center : undefined
+  if (center) saved.mesh.center = [center.x, center.y]
+  if (mesh.physics) saved.physics = plain(savedPhysics(mesh.physics))
 }

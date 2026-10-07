@@ -1,11 +1,11 @@
 import * as G from '../../host/graph/graph.fixture.ts'
 import assert from 'node:assert/strict'
-import { dagRoots } from '../../backend/pagesBackend.fixture.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { dagRoots } from '../../engine/pagesEngine.fixture.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import type { BackendContext, RenderBackend } from '../../backend/types.ts'
+import type { EngineContext, Engine } from '../../engine/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts'
 import {
   QUAD_MANIFEST,
@@ -13,7 +13,8 @@ import {
   quadIndices,
   quadScene as quadMesh,
   triangleGeometry,
-} from '../../backend/pagesBackendScenes.fixture.ts'
+} from '../../engine/pagesEngineScenes.fixture.ts'
+import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 
 /** The red quad with its two root clusters, as the WebGPU tests hand it to the backend. */
 export function quadScene() {
@@ -51,11 +52,11 @@ export function quadScene() {
  * viewport, and whatever the test adds. The fixture comes back for the test to dispose.
  */
 export function quadBackend(
-  gpuDevice: BackendContext['gpuDevice'],
-  options: Partial<Omit<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>> = {},
+  gpuDevice: EngineContext['gpuDevice'],
+  options: Partial<Omit<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>> = {},
 ) {
   const fixture = quadScene()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice,
     maxResidentPages: 2,
@@ -68,12 +69,12 @@ export function quadBackend(
 /** A pages backend over `scene` that reads its pages on demand: nothing resident at prepare,
  *  three resident slots, a 32 px viewport. */
 export function streamingQuadBackend(
-  scene: Pick<BackendContext, 'source' | 'metadata' | 'associations'> & {
+  scene: Pick<EngineContext, 'source' | 'metadata' | 'associations'> & {
     indices: Map<string, Uint32Array>
   },
-  gpuDevice: BackendContext['gpuDevice'],
+  gpuDevice: EngineContext['gpuDevice'],
 ) {
-  return webgpuPagesBackend({
+  return webgpuPagesEngine({
     ...scene,
     indices: new Map(),
     readPage: async (url) => scene.indices.get(url)!,
@@ -84,12 +85,13 @@ export function streamingQuadBackend(
 }
 
 /**
- * `scene` packed for the GPU cut, mounted on a mock GPU that runs it — two resident pages, a
- * 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
+ * `scene` packed for the GPU cut, mounted on a mock GPU of `limits` that runs it — two resident
+ * pages, a 32 px viewport and whatever `options` add — then prepared, rendered once and flushed.
  */
 export async function flushedGpuScene(
-  scene: Pick<BackendContext, 'source' | 'metadata' | 'indices' | 'associations'>,
-  options: Partial<BackendContext> = {},
+  scene: Pick<EngineContext, 'source' | 'metadata' | 'indices' | 'associations'>,
+  options: Partial<EngineContext> = {},
+  limits?: Record<string, number>,
 ) {
   const collected = collectClusterPages(
     scene.source,
@@ -98,8 +100,8 @@ export async function flushedGpuScene(
     scene.associations,
   )
   const packed = packDagSelection(collected.roots)
-  const gpu = mockGpu({ packed })
-  const backend = webgpuPagesBackend({
+  const gpu = mockGpu({ packed, limits })
+  const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -108,8 +110,8 @@ export async function flushedGpuScene(
   })
   await backend.prepare()
   backend.render(camera())
-  await backend.flush?.()
-  return { ...gpu, packed, backend }
+  await backend.flush()
+  return { ...gpu, packed, roots: collected.roots, backend }
 }
 /** A device roomy enough for the shadow tests' light cuts and pools, at the spec's alignment. */
 export const SHADOW_LIMITS = {
@@ -128,9 +130,16 @@ export function camera() {
   return cam
 }
 
+/** One image under the GPU cut, the engine's one cut (#1483): drawn, then flushed — the flush adopts
+ *  the readback cut under that pose, which the lists and counts read one image later. */
+export async function flushedImage(backend: Pick<Engine, 'render' | 'flush'>, cam = camera()) {
+  backend.render(cam)
+  await backend.flush()
+}
+
 /** Renders the front view: both quad clusters are drawn, two triangles in all. */
 export function assertBothQuadPagesDrawn(
-  backend: Pick<RenderBackend, 'render' | 'metrics'> & { selectedPageIds(): string[] },
+  backend: Pick<Engine, 'render' | 'metrics' | 'selectedPageIds'>,
 ) {
   backend.render(camera())
   assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
@@ -165,36 +174,4 @@ export function mixedBinScene() {
     source,
     ...twoPrimitives(meshA, meshB, box, { ...box, url: '1' }),
   }
-}
-
-/** One exact root cluster of three indices over the given box. */
-export function rootPage(url: string, min: number[], max: number[]) {
-  return { id: 0, url, count: 3, min, max, bytes: 12, sha256: 'x' }
-}
-
-/** Two primitives, one per mesh, each carrying its own root cluster over the first triangle. */
-export function twoPrimitives(
-  meshA: G.HostMesh,
-  meshB: G.HostMesh,
-  pageA: ReturnType<typeof rootPage>,
-  pageB: ReturnType<typeof rootPage>,
-) {
-  const structure = { version: 1, roots: [0], groups: [] }
-  const metadata = {
-    errorModel: 'dag-group-qem-v3',
-    clusterStrategy: 'dag-groups',
-    primitives: [
-      { mesh: 0, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageA]).pages, structure },
-      { mesh: 1, primitive: 0, pass: 'exact-clusters', pages: dagRoots([pageB]).pages, structure },
-    ],
-  }
-  const indices = new Map([
-    [pageA.url, new Uint32Array([0, 1, 2])],
-    [pageB.url, new Uint32Array([0, 1, 2])],
-  ])
-  const associations = new Map([
-    [meshA, { meshes: 0, primitives: 0 }],
-    [meshB, { meshes: 1, primitives: 0 }],
-  ])
-  return { metadata, indices, associations }
 }

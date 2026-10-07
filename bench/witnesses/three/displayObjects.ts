@@ -1,13 +1,9 @@
 /**
- * The host-library objects a witness hangs on the display graph it publishes: the background
- * colour and the lights copied from the source graph, each with the node it aims at.
+ * The host-library scene a witness draws with Three's WebGPU renderer: the background colour, the
+ * source graph's meshes copied into the library, and its lights, each with the node it aims at.
  *
- * What reaches this file is every witness whose image the REFERENCE RENDERER draws — the
- * reference and level-of-detail witnesses — through the scene adapter. The engine's own WebGL2
- * paths light a display graph of the engine's own objects
- * (`packages/sdk-browser/src/lighting/contractLightingApi.ts`), and the engine that presents its own surface
- * publishes a display-graph record (`packages/sdk-browser/src/cluster/blendSceneRecord.ts`): neither names a
- * library. A light of the engine's own graph is copied into the library by `fromGraphNodes.ts`.
+ * The engine itself lights a display graph of its own objects and names no library; a mesh or a
+ * light of the engine's graph is copied into the library by `fromGraphNodes.ts`.
  */
 import {
   installSceneLighting,
@@ -15,29 +11,55 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts'
 import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
-import { threeLight } from './fromGraphNodes.ts'
+import { meshes } from '../../../packages/sdk-browser/src/scene/meshes.ts'
+import { copyElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts'
+import { threeLight, threeMeshCopy } from './fromGraphNodes.ts'
 import * as THREE from 'three'
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts'
 
-/** The clear colour a host-rendered witness publishes: written in place once a colour is
- *  there, nothing allocated. */
+/** The clear colour a witness scene shows: written in place once a colour is there, nothing
+ *  allocated. */
 const paint = (scene: THREE.Scene, clearColor: number) => {
   if (scene.background instanceof THREE.Color) scene.background.setHex(clearColor)
   else scene.background = new THREE.Color(clearColor)
 }
 
-/** What sets that colour during the session, then tells `changed` the held frame is stale: the
- *  engine's resource revision, never its scene one — nothing else is walked again. */
-export const hostBackground = (scene: THREE.Scene, changed: () => void) => (hex: number) => {
-  paint(scene, hex)
-  changed()
-}
-
-/** The display graph a host-rendered engine publishes: its clear colour, then the source-graph
- *  lights placed on it. Building the host objects is the boundary's, the placement is not. */
+/** The witness scene's clear colour, then the source-graph lights placed on it. Building the host
+ *  objects is the boundary's, the placement is not. */
 export function lighting(scene: THREE.Scene, clearColor: number, source: Object3D) {
   paint(scene, clearColor)
   return installSceneLighting(scene, source, (light) =>
     asHostLibrary<HostLight>(threeLight(asHostLibrary<Light>(light))),
   )
+}
+
+/**
+ * The source graph as a witness draws it: each drawn mesh copied once, in source order, and its
+ * lights. `update()` poses the copies and the lights from the source's world matrices before a
+ * frame; `lit()` says whether a light is installed, the only signal of a lit view (ACES and
+ * exposure, identity otherwise).
+ */
+export function witnessScene(source: Object3D, clearColor: number) {
+  const scene = new THREE.Scene()
+  const lights = lighting(scene, clearColor, source)
+  const copies: Array<[THREE.Mesh, { matrixWorld: { elements: ArrayLike<number> } }]> = []
+  let order = 0
+  for (const mesh of meshes(source)) {
+    const copy = threeMeshCopy(mesh)
+    copy.matrixAutoUpdate = false
+    copy.renderOrder = order++
+    scene.add(copy)
+    copies.push([copy, mesh])
+  }
+  return {
+    scene,
+    lit: () => lights.lit,
+    update() {
+      source.updateMatrixWorld(true)
+      lights.update()
+      for (const [copy, mesh] of copies)
+        copyElements(copy.matrix.elements, mesh.matrixWorld.elements)
+    },
+    dispose: () => scene.clear(),
+  }
 }

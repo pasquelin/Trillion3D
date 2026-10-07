@@ -44,8 +44,8 @@ export const WEBGPU_STAGES = [
  * ran before it already covered (`ownMs`, `../gpu/timing/sample.ts`). A device that overlaps passes
  * — a tiled GPU starts a render pass's vertex stage ahead of the work submitted before it —
  * reports each one's whole span, so spans added up count an overlap once per pass and a stage
- * could pass the image itself; shares add up to the time the passes cover. A timer that times one
- * pass at a time (WebGL2) gives no share: there the span is the share.
+ * could pass the image itself; shares add up to the time the passes cover. A pass with no share
+ * measured counts its span.
  */
 export const passOwnMs = (pass: GpuPassTiming) =>
   pass.gpuMs === null ? null : (pass.ownMs ?? pass.gpuMs)

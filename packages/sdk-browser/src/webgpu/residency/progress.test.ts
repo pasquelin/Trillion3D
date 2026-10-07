@@ -31,18 +31,19 @@ test('the ensurer hears each camera page it lands, never a lower tier page', asy
   assert.equal(landed, 2, 'b and c: the resident page and the tier ahead are not heard')
 })
 
-const queueOf = (
-  ensureResident: Parameters<typeof createWebgpuResidencyQueue>[0]['ensureResident'],
-) =>
+type Ensure = Parameters<typeof createWebgpuResidencyQueue>[0]['ensureResident']
+/** A queue over `pass`, whose inputs never move: it never settles, every pass running. */
+const queueOf = (pass: (...args: Parameters<Ensure>) => ReturnType<Ensure>) =>
   createWebgpuResidencyQueue({
     tracking: createWebgpuPageTracking([]),
     sets: { desiredCount: 0, followDesired() {} } as never,
     closure: {} as never,
+    recordOf: () => undefined,
     room: () => 0,
     getCache: () => undefined,
     getFrame: () => 0,
     updatePins() {},
-    ensureResident,
+    ensureResident: Object.assign(pass, { revision: () => 0, touchLower() {} }),
     markLost() {},
     traceEnabled: false,
     traceDiagnostic() {},
@@ -58,7 +59,7 @@ test('progress resolves at each page landed, heard or not, while the job runs, a
     landed() // while no frame waits
     await gate
   })
-  queue.queueCutResidency()
+  queue.queueCuts({ cuts: [], first: null })
   const heard: string[] = []
   void queue.progress().then(() => heard.push('progress'))
   void queue.pending.then(() => heard.push('pending'))
@@ -80,7 +81,7 @@ test('progress resolves at each page landed, heard or not, while the job runs, a
 test('a failed job rejects the frame waiting on it with its error, and the wait after', async () => {
   let fail!: (error: Error) => void
   const queue = queueOf(() => new Promise<void>((_, reject) => (fail = reject)))
-  queue.queueCutResidency()
+  queue.queueCuts({ cuts: [], first: null })
   await new Promise(setImmediate)
   const woken = queue.progress()
   fail(new Error('PAGE_STREAM_FAILED'))

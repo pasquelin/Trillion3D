@@ -87,19 +87,13 @@
   "BOX_VALUES": {
     "summary": "Các số thực của một hộp, lưu dạng phẳng."
   },
-  "BackendCapabilities": {
-    "summary": "Những gì một bộ kết xuất có thể làm: vật liệu, phân cấp, công việc do GPU điều khiển.",
+  "EngineCapabilities": {
+    "summary": "Những gì engine đang giữ lại lúc này, theo tên: một khả năng mà thiết bị, một thiết lập hoặc một chương trình còn đang biên dịch giữ ngoài hình ảnh (`'temporal antialiasing'`, …); nó rời danh sách khi đã được phục vụ.",
     "members": {
-      "renderer": "Tên của nó.",
-      "materials": "Vật liệu nào nó vẽ được.",
-      "hierarchy": "Nó có đọc phân cấp hay không.",
-      "gpuDriven": "GPU có phải là bên chọn cái gì để vẽ hay không.",
-      "simplification": "Nó có đơn giản hóa hay không.",
-      "eviction": "Nó có loại bỏ trang hay không.",
-      "unsupported": "Những gì nó không làm được."
+      "unsupported": "Các khả năng bị giữ lại."
     }
   },
-  "BackendDiagnostic": {
+  "EngineDiagnostic": {
     "summary": "Một điều mà bộ kết xuất nhận thấy, được báo cáo trên một kênh chẩn đoán.",
     "members": {
       "phase": "Bước mà nó xảy ra.",
@@ -313,7 +307,7 @@
     "summary": "Khoảng thời gian gia hạn giữa một yêu cầu hủy hợp tác trên stdin và việc buộc dừng."
   },
   "CLUSTERED_BLEND_FORMAT_VERSION": {
-    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm (là 6 trước khi `selectedNodes` trở thành một số đếm); các tệp kê khai nguồn giữ định dạng riêng của chúng."
+    "summary": "Định dạng bộ nhớ đệm bên ngoài cần cho BLEND theo cụm (là 8 trước khi tệp kê khai được chia trang, 10 trước định dạng 11); các tệp kê khai nguồn giữ định dạng riêng của chúng."
   },
   "COLUMN_KIND": {
     "summary": "Cách mỗi cột của tệp kê khai nhị phân được lưu trữ: số thập phân, số nguyên hay byte.",
@@ -346,7 +340,8 @@
       "texturePreviewAstc": "Các khối ASTC của các bản xem trước đó.",
       "bundleDependencyCount": "Mỗi gói cần bao nhiêu gói khác.",
       "bundleDependency": "Các gói mà mỗi gói cần, cho đến tận gốc.",
-      "pageCone": "Hình nón pháp tuyến của mỗi trang: trục, rồi nửa góc."
+      "pageCone": "Hình nón pháp tuyến của mỗi trang: trục, rồi nửa góc.",
+      "texturePreviewEtc2": "Các khối ETC2 của các bản xem trước đó."
     }
   },
   "COMPILER_LINE_LIMIT": {
@@ -406,7 +401,7 @@
       "fitAspect": "Một hộp trực giao cao như đã khai báo và rộng theo hình dạng của ảnh.",
       "copy": "Lấy các giá trị nút của `source` và, từ một camera, quang học của nó; `projection` riêng vẫn giữ.",
       "updateProjectionMatrix": "Tạo lại `projectionMatrix`; mỗi lần ghi quang học đã làm vậy, và vẽ lại.",
-      "projectionMatrix": "Phép chiếu mà quang học tạo thành trên khối cắt, độ sâu từ −1 ở mặt phẳng gần đến 1 ở mặt phẳng xa hữu hạn, cho một trình kết xuất vẽ bằng nó; mỗi lần ghi quang học sẽ tạo lại nó. Thế giới vẽ bằng phép chiếu của riêng mình (`engineCamera.ts`).",
+      "projectionMatrix": "Phép chiếu mà quang học tạo thành, của chính động cơ: độ sâu đảo ngược trên [0, 1], bằng 1 ở mặt phẳng gần (`referenceProjection.ts`); mỗi lần ghi quang học sẽ tạo lại nó.",
       "matrixWorldInverse": "Nghịch đảo của ma trận thế giới như được tạo lần cuối: khung nhìn mà trình kết xuất đọc.",
       "rayThrough": "Tia trong thế giới đi qua một điểm của hình ảnh, theo đúng phép chiếu của bộ máy (`engineCamera.ts`): từ mắt dọc theo hướng nhìn với camera phối cảnh, thẳng theo hướng nhìn từ hộp với camera trực giao. Hướng của nó là một vectơ đơn vị.",
       "set": "Đặt con mắt tại `pose.position`, nhìn về `pose.target`, ở trường nhìn mà nó nêu tên."
@@ -530,13 +525,12 @@
       "selectedTriangles": "Số tam giác được giữ lại.",
       "selectedNodes": "Số node được giữ lại.",
       "totalNodes": "Tổng số node.",
-      "autonomousScene": "Cảnh tích hợp sẵn của nó.",
       "primitives": "Các nguyên thủy của nó.",
       "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
       "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
-      "impostors": "Tập bản đồ impostor được trình biên dịch nướng theo từng lưới; không có trong bộ nhớ đệm biên dịch trước impostor."
+      "impostors": "Tập bản đồ impostor được trình biên dịch nướng theo từng lưới (#817); không có trong bộ nhớ đệm biên dịch trước impostor."
     }
   },
   "ClusterStructure": {
@@ -581,9 +575,6 @@
   },
   "ColumnKind": {
     "summary": "Cách một cột của tệp kê khai nhị phân được lưu trữ."
-  },
-  "ComparisonLayout": {
-    "summary": "Cách hai kết quả kết xuất được hiển thị cạnh nhau để so sánh."
   },
   "CompilationJob": {
     "summary": "Một quá trình biên dịch đang chạy.",
@@ -754,7 +745,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Định danh bộ nhớ đệm cho sai số DAG theo từng cụm: sai số QEM tuyệt đối của nhóm trên vị trí, pháp tuyến và tọa độ texture, giới hạn trong phạm vi của nhóm, không bao giờ nhỏ hơn khoảng cách Hausdorff lấy mẫu giữa các con của một nhóm và đầu ra của nó; bộ nhớ đệm v1 và v2 bị từ chối."
+    "summary": "Định danh bộ nhớ đệm cho sai số DAG theo từng cụm: sai số QEM tuyệt đối của nhóm trên vị trí, pháp tuyến và tọa độ texture, giới hạn trong phạm vi của nhóm, không bao giờ nhỏ hơn khoảng cách Hausdorff lấy mẫu giữa các con của một nhóm và đầu ra của nó (#929); bộ nhớ đệm v1 và v2 bị từ chối."
   },
   "DEFAULT_SCOPE": {
     "summary": "Phạm vi mà một mô hình được biên dịch khi không có phạm vi nào được nêu tên: được truyền tải theo trang."
@@ -877,7 +868,7 @@
   },
   "DiagnosticDetail": {
     "summary": "Những gì một bộ máy báo cáo về chính nó khi có gì đó sai, hoặc khi một chế độ xem yêu cầu chi tiết: bản ghi mà bộ thu thập của ứng dụng chủ đưa vào hàng đợi, và bên gọi muốn bao nhiêu phần của nó.",
-    "description": "Tách biệt khỏi hợp đồng của bộ máy tại `../backend/types.ts` — đây là những gì trở lại, không phải những gì được cung cấp."
+    "description": "Tách biệt khỏi hợp đồng của bộ máy tại `../engine/types.ts` — đây là những gì trở lại, không phải những gì được cung cấp."
   },
   "DiagnosticMode": {
     "summary": "Tính khả dụng mô tả kết quả thật của đường ống xử lý, không bao giờ là lớp phủ giả lập."
@@ -891,7 +882,7 @@
   },
   "EffectChain": {
     "summary": "`world.effects`: các pass có thứ tự được vẽ lên ảnh sau khử răng cưa theo thời gian và trước khi ảnh tới canvas.",
-    "description": "Các pass trước tone mapping đọc độ rọi tuyến tính, theo thứ tự được thêm vào; các pass sau đọc ảnh hiển thị, theo thứ tự của chúng. Một chuỗi rỗng không tốn gì: không pass, không bản sao, không đích. Trên WebGL2, một khung hình vẽ bề mặt trong suốt hòa trộn `multiply` hoặc `subtractive` được vẽ trọn vẹn không có chuỗi, và kênh chẩn đoán của thế giới báo `effects-refused-blending` một lần; WebGPU vẽ cả hai.",
+    "description": "Các lượt chạy trước tone mapping đọc bức xạ tuyến tính, theo thứ tự chúng được thêm vào; các lượt chạy sau đọc ảnh hiển thị, theo thứ tự của chúng. Một chuỗi rỗng không tốn gì: không lượt, không bản sao, không đích. Một bề mặt trong suốt trộn bằng `multiply` hoặc `subtractive` được vẽ dưới chuỗi như mọi bề mặt khác.",
     "members": {
       "revision": "Đếm các thay đổi: ảnh được vẽ ở một phiên bản khác là đã cũ.",
       "passes": "Các pass, theo thứ tự chúng chạy.",
@@ -947,9 +938,6 @@
       "INVALID_VIEWPORT": "Canvas không có kích thước hay tỉ lệ điểm ảnh dùng được.",
       "INVALID_PIXEL_RATIO": "Canvas không có kích thước hay tỉ lệ điểm ảnh dùng được.",
       "WEBGPU_UNAVAILABLE": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
-      "WEBGL2_UNAVAILABLE": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
-      "NO_WEBGL2": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
-      "NO_ENGINE_BACKEND": "Máy không thể vẽ theo cách được yêu cầu, hoặc không thể vẽ được chút nào.",
       "RESOURCE_HTTP_ERROR": "Một tệp không thể lấy về được — được yêu cầu lại trước khi lỗi có thể qua đi — hoặc không đúng như nó phải là.",
       "INVALID_JSON_RESPONSE": "Một tệp không thể lấy về được — được yêu cầu lại trước khi lỗi có thể qua đi — hoặc không đúng như nó phải là.",
       "INVALID_POINTER": "Con trỏ của mô hình đã biên dịch bị hỏng, chưa xong, hoặc thuộc phạm vi khác.",
@@ -962,12 +950,7 @@
       "INVALID_SCENE_TABLES": "Các bảng node và vật liệu của mô hình bị thiếu, thuộc phiên bản khác, hoặc không khớp với cảnh của nó.",
       "UNSUPPORTED_SCENE_TABLES": "Các bảng node và vật liệu của mô hình bị thiếu, thuộc phiên bản khác, hoặc không khớp với cảnh của nó.",
       "PREPARED_SCENE_MISMATCH": "Các bảng node và vật liệu của mô hình bị thiếu, thuộc phiên bản khác, hoặc không khớp với cảnh của nó.",
-      "AUTONOMOUS_SCENE_UNAVAILABLE": "Đường xử lý WebGL2 riêng của bộ máy không thể vẽ mô hình này.",
-      "AUTONOMOUS_ASSOCIATION_MISSING": "Đường xử lý WebGL2 riêng của bộ máy không thể vẽ mô hình này.",
-      "AUTONOMOUS_COVERAGE_MISSING": "Đường xử lý WebGL2 riêng của bộ máy không thể vẽ mô hình này.",
-      "CLUSTER_MATERIAL_UNSUPPORTED": "Đường xử lý WebGL2 riêng của bộ máy không thể vẽ mô hình này.",
       "PAGE_BUDGET": "Các trang mà góc nhìn cần không vừa với ngân sách bộ nhớ, hoặc đường xử lý này không có ngân sách nào.",
-      "UNSUPPORTED_MEMORY_BUDGETS": "Các trang mà góc nhìn cần không vừa với ngân sách bộ nhớ, hoặc đường xử lý này không có ngân sách nào.",
       "INVALID_SCENE_LIGHT": "Một nguồn sáng bị dị dạng, trùng lặp, không xác định, hoặc không có nơi để đi.",
       "DUPLICATE_SCENE_LIGHT": "Một nguồn sáng bị dị dạng, trùng lặp, không xác định, hoặc không có nơi để đi.",
       "UNKNOWN_SCENE_LIGHT": "Một nguồn sáng bị dị dạng, trùng lặp, không xác định, hoặc không có nơi để đi.",
@@ -996,11 +979,10 @@
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
-      "SURFACE_CAPTURE_UNSUPPORTED": "Một ảnh chụp bề mặt (`captureSurfaceView`) được yêu cầu từ một đường vẽ không thể vẽ các bề mặt vật liệu trong một góc nhìn riêng: đường WebGL2 không có.",
       "VERTICES_NOT_LOADED": "Các đỉnh của một mô hình đã nạp bị đọc trước `await geometry.loadVertices()`: phiên đọc chúng khi cần lần đầu, không bao giờ đọc trước.",
       "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
       "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
-      "FAMILY_LOAD_FAILED": "Một họ tùy chọn của engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) không tải được, sau khi việc nhập của nó đã được thử lại trước (`T3D-E090`): `details.family` gọi tên nó, trên `world.diagnostic.error`. Các khung hình vẽ bằng nó sẽ chờ nó, và nó được yêu cầu lại ở lần dùng tiếp theo.",
+      "FAMILY_LOAD_FAILED": "Một họ tùy chọn của engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer) không tải được, sau khi việc nhập của nó đã được thử lại trước (`T3D-E090`): `details.family` gọi tên nó, trên `world.diagnostic.error`. Các khung hình vẽ bằng nó sẽ chờ nó, và nó được yêu cầu lại ở lần dùng tiếp theo.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "SCENE_NOT_SAVABLE": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
       "PHYSICS_BUDGET": "Vật lý bị yêu cầu vượt một giới hạn (`world.budget.physics`: vật thể, vật trang trí, bộ nhớ), hoặc một vật động không phải con trực tiếp của cảnh (`PHYSICS_NESTED`), hoặc mô-đun vật lý lỗi (`PHYSICS_FAILED`), hoặc tư thế hay các đỉnh của một vật trở thành không hữu hạn và vật rời khỏi mô phỏng (`PHYSICS_DIVERGED`): trên `world.physics.error`.",
@@ -1017,7 +999,7 @@
   },
   "EngineProfiler": {
     "summary": "Theo dõi từng khung hình một và cho biết bộ máy chạy mượt đến đâu, và điều gì làm nó chậm lại.",
-    "description": "Như một bản dựng phát hành loại bỏ các công cụ thống kê của nó, lõi chỉ giữ mặt tiền này: mã của nó là phần đo lường (`FrameProfile`, `../host/families.ts`), được tải ngay khi chế độ gỡ lỗi bật hoặc khi trình phân tích được dùng lần đầu. Trước khi nó đến, không khung hình nào được đếm và báo cáo nói rằng nó đang chờ (`docs/SDK.md`).",
+    "description": "Như một bản dựng phát hành loại bỏ các công cụ thống kê của nó (#1353), lõi chỉ giữ mặt tiền này: mã của nó là phần đo lường (`FrameProfile`, `../host/families.ts`), được tải ngay khi chế độ gỡ lỗi bật hoặc khi trình phân tích được dùng lần đầu. Trước khi nó đến, không khung hình nào được đếm và báo cáo nói rằng nó đang chờ (`docs/SDK.md`).",
     "members": {
       "orderedIntervals": "Các khoảng được giữ lại, từ cũ nhất đến mới nhất: những gì `frameStatistics` nhận được.",
       "setMetadata": "Cho nó biết mô hình nào đang được tải.",
@@ -1069,7 +1051,7 @@
   },
   "FORMAT_VERSION": {
     "summary": "Định dạng bộ nhớ đệm mà thời gian chạy này đọc.",
-    "description": "Định dạng 5 đã thêm `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 7 mang `selectedNodes` dưới dạng số đếm, không phải danh sách. Các định dạng cũ hơn bị từ chối theo số hiệu của chúng thay vì đọc dở dang."
+    "description": "Định dạng 5 đã thêm `scene-tables.json`, các bảng node và vật liệu mà cảnh đã chuẩn bị được đối chiếu với; định dạng 7 mang `selectedNodes` dưới dạng số đếm, không phải danh sách (#404). Các định dạng cũ hơn bị từ chối theo số hiệu của chúng thay vì đọc dở dang."
   },
   "FRUSTUM_PLANE_VALUES": {
     "summary": "Số lượng số thực cho sáu mặt phẳng của một khối nhìn."
@@ -1123,16 +1105,13 @@
       "cpuFrameMs": "Thời gian CPU của khung hình.",
       "cpuSubmitMs": "Thời gian CPU để gửi công việc.",
       "drawCalls": "Số lệnh gọi vẽ của khung hình này, theo cách bộ máy đếm chúng. `null` khi nó chưa đếm: số không sẽ bị đọc thành một khung hình không có gì được vẽ.",
-      "autonomousClusterDrawsTotal": "Số lệnh vẽ cụm theo trang do chương trình WebGL2 thuộc sở hữu của bộ máy phát ra trong phiên này.",
-      "autonomousCopyDraws": "Các bản sao cảnh — các bề mặt truyền sáng — mà chương trình WebGL2 thuộc sở hữu của bộ máy đã vẽ ở khung hình này.",
-      "transmissionBackdropBytes": "Số byte mà phông nền truyền sáng WebGL2 giữ kể từ bản sao truyền sáng đầu tiên trong tầm nhìn.",
       "triangles": "Số tam giác được gửi tới lệnh vẽ của khung hình này, theo cách `totalSubmittedTriangles` đếm chúng. `null` khi bộ máy chưa đếm chúng: số không sẽ bị đọc thành một khung hình trống.",
       "clusters": "Số cụm được vẽ.",
       "selectedTriangles": "Số tam giác mà lát cắt đã chọn.",
       "residentPages": "Số trang được giữ trong bộ nhớ.",
       "submittedTriangles": "Số tam giác đã gửi: trên đường xử lý WebGPU-theo-trang, mọi hàng có thể vẽ — việc từ chối do che khuất diễn ra sau khi gửi —, được bảng đó giữ, do đó chính xác và thuộc về khung hình này.",
-      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi một backend không thể đếm chúng.",
-      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng trên một backend không theo dõi một lát cắt.",
+      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi ảnh còn đang chờ.",
+      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng khi engine chưa đếm chúng.",
       "cacheEvictions": "Số trang thực sự bị loại khỏi bộ nhớ đệm nuôi hình học được vẽ: bộ nhớ đệm trang GPU riêng của backend khi nó sở hữu một cái, hoặc bộ truyền tải trang của ứng dụng chủ trong trường hợp khác. Đây là tín hiệu áp lực bộ nhớ đệm.",
       "geometryAllocationBytes": "Số byte bộ nhớ hình học.",
       "vramBytes": "Số byte bộ nhớ GPU.",
@@ -1142,7 +1121,7 @@
       "pagesLoading": "Số trang đang trên đường tới.",
       "cacheHits": "Số lượt đọc trang được phục vụ từ bộ nhớ đệm.",
       "cacheMisses": "Số lượt đọc trang bị trượt khỏi bộ nhớ đệm.",
-      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm. Về phần mình, lát cắt CPU đếm các node mà chính nó kiểm tra và các lượt từ chối của chính nó.",
+      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm.",
       "lodLevel": "Mức chi tiết của lát cắt.",
       "transparentMeshes": "Các bộ đếm trong suốt của WebGPU. `transparentDrawCalls` đếm mọi lệnh vẽ, kể cả cả hai nửa của một vật liệu hai chặng; `transparentSubmittedTriangles` đếm các tam giác của lát cắt trong suốt mỗi tam giác một lần, bất kể số chặng rasterise chúng — phép nhân theo từng chặng đó là của riêng GPU, vì số lượng instance được ghi bởi bước nén gọn và không bao giờ được đọc lại. Rỗng khi không có sẵn.",
       "transparentFrustumRejected": "Các cụm trong suốt nằm ngoài góc nhìn.",
@@ -1153,30 +1132,24 @@
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
-      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2 không có `EXT_disjoint_timer_query_webgl2`.",
+      "gpuFrameMs": "Thời lượng GPU của ảnh mà `gpuPassMs.frame` mô tả, không bao giờ cộng vào trường `cpu*`. Lấy mẫu mỗi vài ảnh, nên một con số có thể cũ vài ảnh. Là null trước mẫu đầu tiên, từ một ảnh được giữ đến mẫu thiết bị kế tiếp, và khi không có `timestamp-query`.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "gpuDeviceLost": "Lý do thiết bị GPU bị mất; null khi thiết bị vẫn còn.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
-      "cpuSelectMs": "Thời gian CPU của lát cắt cụm khung hình này, chỉ đo riêng quanh việc lựa chọn. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU.",
-      "gpuSelectionFallback": "Đúng khi bộ máy từng có một lựa chọn từ GPU và đã bỏ nó đi: những gì được đo từ lúc đó là lát cắt CPU dự phòng. Một lần dự phòng cũng phát ra chẩn đoán `gpu-selection-fallback`, một lần duy nhất; ứng dụng chủ sao chép nó nguyên trạng, và nó vắng mặt trên một bộ máy không có lựa chọn từ GPU.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
-      "pagesDecodedOffThread": "Việc giải mã trang ngoài luồng chính. `pagesDecodedOffThread` đếm các tác vụ — kiểm tra tính toàn vẹn SHA-256 hoặc đọc thuộc tính theo từng đỉnh — mà một worker đã hoàn thành, không bao giờ những tác vụ mà phương án dự phòng chạy trên luồng chính. `pageDecodeMs` là thời gian tích lũy của các tác vụ đó, do chính bộ thực thi đo, dù là luồng nào: đó là thời gian giải mã, không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có trang nào được giải mã — chưa được đo, không phải bằng không.",
-      "pagesDecodedWasm": "Các trang mà thuộc tính của chúng được đọc bởi bộ giải mã biên dịch bằng WebAssembly thay vì bộ giải mã JavaScript. Cả hai cho ra cùng các byte; bộ đếm này chỉ cho biết cái nào đã chạy, do đó liệu tài nguyên `.wasm` có được ứng dụng chủ này tìm thấy và khởi tạo hay không.",
-      "pageDecodeMs": "Thời gian dành cho việc giải mã các trang.",
       "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../math/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
       "pagesPlannedOffThread": "Việc tích hợp trang ngoài luồng chính. `pagesPlannedOffThread` đếm các lượt đến mà kế hoạch của chúng — vị trí của mỗi cụm trong gói và các thứ hạng trang mà nó di chuyển — đã được một worker tính toán, không bao giờ những kế hoạch mà phương án dự phòng lập trên luồng chính. `pagePlanMs` là thời gian tích lũy của các kế hoạch đó, do chính bộ thực thi đo, dù là luồng nào: nó không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có lượt đến nào được lập kế hoạch — chưa được đo, không phải bằng không.",
       "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
-      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này, trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
+      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
       "gpuDeformationMs": "Thời gian biến dạng GPU của khung hình `gpuPassMs`; null trước khi đo hoặc khi không hỗ trợ.",
       "displayRefreshMs": "Khoảng làm tươi của màn hình, tính bằng ms, như engine đo được trên dấu thời gian rAF của các khung của nó (đồng hồ của ngân sách tỉ lệ dựng hình); null cho đến khi tìm được một giá trị.",
-      "gpuIdleMs": "Thời gian thiết bị rảnh trước ảnh được lấy mẫu gần nhất, tính bằng ms: từ dấu thời gian cuối của ảnh trước nó đến dấu đầu tiên của chính nó, khoảng trống mà `gpuHostGapMs` không chứa được (một ảnh chỉ gửi một lần thì không mang phần nào của nó). Null khi ảnh trước nó, hoặc ảnh này, không được đo trọn vẹn (một pass không đo, hoặc pass mà dấu thời gian không đọc được; pass mà trình điều khiển bỏ qua thì không tính), sau một lần tạm dừng, và khi không có `timestamp-query`.",
+      "gpuIdleMs": "Thời gian thiết bị rảnh trước ảnh được lấy mẫu gần nhất, tính bằng ms: từ dấu thời gian cuối của ảnh trước nó đến dấu đầu tiên của chính nó, khoảng trống mà `gpuHostGapMs` không chứa được (một ảnh chỉ gửi một lần thì không mang phần nào của nó). Null khi ảnh trước nó, hoặc ảnh này, không được đo trọn vẹn (một pass không đo, hoặc pass mà dấu thời gian không đọc được; pass mà trình điều khiển bỏ qua thì không tính), sau một lần tạm dừng, và khi không có `timestamp-query` (#1451).",
       "renderHeight": "Chiều cao tính bằng pixel mà ảnh được vẽ, đi cùng `renderWidth`.",
-      "renderWidth": "Chiều rộng tính bằng pixel mà ảnh được vẽ, trước khi khử răng cưa theo thời gian hoặc việc lấy mẫu lại dựng nó về màn hình: bằng chiều rộng màn hình khi tỉ lệ dựng hình là 1. Null trước khi có ảnh."
+      "renderWidth": "Chiều rộng tính bằng pixel mà ảnh được vẽ, trước khi khử răng cưa theo thời gian hoặc việc lấy mẫu lại dựng nó về màn hình: bằng chiều rộng màn hình khi tỉ lệ dựng hình là 1. Null trước khi có ảnh.",
+      "pagesChecked": "Kiểm tra tính toàn vẹn của trang. `pagesChecked` đếm các trang đã tải mà bản băm SHA-256 đã được tính (`crypto.subtle`, ngoài luồng chính). `pageCheckMs` là thời gian cộng dồn từ lúc bắt đầu mỗi lần kiểm tra đến bản băm của nó: không bao giờ được cộng vào `cpu*` hay `gpu*` theo khung hình. Cả hai là `null` chừng nào chưa có trang nào được kiểm tra — chưa đo, không phải không.",
+      "pageCheckMs": "Thời gian dành cho việc kiểm tra các trang."
     }
-  },
-  "FramePass": {
-    "summary": "Đặt tên cho các lượt của khung hình đang được vẽ; mỗi lần gọi đóng lượt trước và mở lượt kế tiếp."
   },
   "Frustum": {
     "summary": "Sáu mặt phẳng, được đọc từ một view-projection bởi lõi (`math/frustum/frustum.ts`).",
@@ -1192,7 +1165,7 @@
     "summary": "Bộ mã hóa mà các trang hình học được ghi bằng."
   },
   "GEOMETRY_PAGE_FORMAT_VERSION": {
-    "summary": "Định dạng trang hình học mà một tệp phụ phiên bản 7 nêu tên, đúng như `geometryPages` của tệp kê khai khai báo nó một lần và mỗi tiêu đề trang mở đầu bằng."
+    "summary": "Định dạng trang hình học mà một tệp phụ phiên bản 11 nêu tên, đúng như `geometryPages` của tệp kê khai khai báo nó một lần và mỗi tiêu đề trang mở đầu bằng."
   },
   "GeminiFunctionDeclaration": {
     "summary": "Một công cụ theo dạng mà API của Gemini đọc được.",
@@ -1243,8 +1216,8 @@
       "released": "Được gọi khi hình học được trả lại: thứ mà bản sao riêng của bộ dựng hình lắng nghe.",
       "getIndex": "Danh sách tam giác, hoặc `null`.",
       "toNonIndexed": "Một hình học vẽ cùng các tam giác không có chỉ mục: mỗi góc là một đỉnh riêng.",
-      "usage": "`'dynamic'`: được tải lên tại chỗ, không bao giờ bị cắt lại; hình học thay đổi mỗi khung hình cũng vậy.",
-      "maxBounds": "Hộp mà một hình học động không bao giờ rời khỏi, khi được khai báo: hộp dùng để loại bỏ nó."
+      "usage": "`'dynamic'`: được tải lên tại chỗ, không bao giờ bị cắt lại (#573); hình học thay đổi mỗi khung hình cũng vậy.",
+      "maxBounds": "Hộp mà một hình học động không bao giờ rời khỏi, khi được khai báo: hộp dùng để loại bỏ nó (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -1298,7 +1271,7 @@
   },
   "GpuPassBlock": {
     "summary": "Hai khối của một khung hình có thể đối chiếu với một hồ sơ đã công bố, và không gì khác.",
-    "description": "`visibility` là việc xây dựng bộ đệm khả kiến: lựa chọn, phân vùng, Hi-Z và raster. `materials` là việc viết các bề mặt từ bộ đệm đó. Mọi thứ khác là `other`: bóng đổ, danh sách nguồn sáng, dội lại, trong suốt, chiếu sáng trì hoãn, hiển thị, và đường xử lý dự phòng không đi qua bộ đệm đó — đặt bất kỳ thứ nào trong số đó vào một khối sẽ làm phồng lên một phép so sánh thay vì phục vụ nó, nên chúng ở ngoài VÀ được đặt tên, mỗi chặng giữ nguyên thời lượng riêng của nó."
+    "description": "`visibility` là việc xây dựng bộ đệm khả kiến: lựa chọn, phân vùng, Hi-Z và raster. `materials` là việc viết các bề mặt từ bộ đệm đó. Mọi thứ khác là `other`: bóng đổ, danh sách nguồn sáng, dội lại, trong suốt, chiếu sáng trì hoãn và hiển thị — đặt bất kỳ thứ nào trong số đó vào một khối sẽ làm phồng lên một phép so sánh thay vì phục vụ nó, nên chúng ở ngoài VÀ được đặt tên, mỗi chặng giữ nguyên thời lượng riêng của nó."
   },
   "GpuPassBlockTotals": {
     "summary": "Thời gian GPU của một khung hình theo ba khối: khả kiến, vật liệu, phần còn lại.",
@@ -1330,7 +1303,7 @@
     }
   },
   "GpuTimingMethod": {
-    "summary": "Cách GPU được tính thời gian: dấu thời gian của WebGPU, hoặc truy vấn bộ đếm thời gian của WebGL2."
+    "summary": "Cách GPU được bấm giờ: dấu thời gian WebGPU."
   },
   "Group": {
     "summary": "Một node chỉ nhóm những cái khác lại.",
@@ -1430,8 +1403,6 @@
       "matrixAutoUpdate": "Sai khi ứng dụng chủ tự đặt tư thế camera bằng ma trận: `matrix` CHÍNH LÀ tư thế và không có gì dựng lại nó từ ba trường cục bộ.",
       "matrix": "Ma trận CỤC BỘ, mặt còn lại của tư thế: những gì một lần khôi phục đặt trở lại bên cạnh ba trường đó.",
       "matrixWorld": "Ma trận thế giới của nó.",
-      "projectionMatrix": "Phép chiếu theo quy ước độ sâu của ỨNG DỤNG CHỦ, bao gồm cả mặt phẳng xa hữu hạn. Bộ máy dựng phép chiếu riêng của nó (`engineCamera.ts`) và chỉ đọc cái này cho một lần vẽ mà bộ kết xuất chủ sở hữu.",
-      "projectionMatrixInverse": "Nghịch đảo của nó, mà bộ kết xuất chủ giữ bên cạnh và trao cho các shader riêng của nó.",
       "updateWorldMatrix": "Cập nhật ma trận thế giới của nó.",
       "updateMatrixWorld": "Cập nhật ma trận thế giới của nó, cả các con nữa.",
       "updateProjectionMatrix": "Dựng lại phép chiếu của nó.",
@@ -1448,60 +1419,11 @@
       "b": "Lam, tuyến tính."
     }
   },
-  "HostDiagnosticFactory": {
-    "summary": "Các đối tượng chủ mà một góc nhìn chẩn đoán hoán đổi vào, được tạo bởi ranh giới sở hữu đồ thị hiển thị và tiêm vào các góc nhìn đó; muối, màu sắc và mặt đều đến ở dạng đã tính sẵn.",
-    "members": {
-      "triangleGeometry": "Bản sao của một hình học chủ với mỗi tam giác có ba đỉnh riêng của nó.",
-      "vertexColors": "Ghi các màu theo từng đỉnh mà bộ máy đã tính lên một hình học chủ.",
-      "triangleMaterial": "Bề mặt không tô bóng hiển thị đúng các màu đỉnh đó.",
-      "clusterMaterial": "Bề mặt không tô bóng của màu một cụm, sắc độ mà lõi tính từ định danh của nó."
-    }
-  },
-  "HostDiagnosticGeometry": {
-    "summary": "Một hình học chủ mà một góc nhìn chẩn đoán có thể giải phóng.",
-    "members": {
-      "attributes": "Các thuộc tính đỉnh của nó.",
-      "dispose": "Giải phóng nó."
-    }
-  },
-  "HostDiagnosticMaterial": {
-    "summary": "Một bề mặt chủ mà một góc nhìn chẩn đoán hoán đổi lên một mesh, rồi giải phóng: những gì nó treo lên đến qua `HostDiagnosticFactory`, không bao giờ qua một import, nên không góc nhìn nào nêu tên một thư viện kết xuất.",
-    "members": {
-      "side": "Mặt nào, dưới dạng hằng số của ứng dụng chủ.",
-      "dispose": "Giải phóng nó.",
-      "clone": "Một bản sao của bề mặt đó."
-    },
-    "description": "Các khung chẩn đoán cũng phục vụ các nhân chứng, có lưới thuộc thư viện của chúng: thứ chúng treo lên đến qua `HostDiagnosticFactory`, và chúng chỉ được đọc qua hình dạng này."
-  },
   "HostDisposable": {
     "summary": "Một tài nguyên chủ mà bộ máy giải phóng khi đồ thị nó xuất phát từ đó được giải phóng: một hình học, một bề mặt, một kết cấu.",
     "description": "Bộ máy không bao giờ tự tạo ra nó, nên giải phóng nó chính là trả nó lại.",
     "members": {
       "dispose": "Giải phóng nó."
-    }
-  },
-  "HostDrawCamera": {
-    "summary": "Các ma trận và khoảng độ sâu mà một ứng dụng chủ dùng để vẽ một khung hình, đúng như bộ máy trao lại.",
-    "members": {
-      "projection": "Phép chiếu.",
-      "world": "Ma trận thế giới của camera.",
-      "view": "Ma trận view.",
-      "eye": "Vị trí của con mắt.",
-      "near": "Khoảng cách gần nhất.",
-      "far": "Khoảng cách xa nhất."
-    }
-  },
-  "HostDrawOutput": {
-    "summary": "Nơi một lần vẽ của ứng dụng chủ đáp xuống — bộ đệm vẽ của trang cho một framebuffer `null` — và liệu ánh sáng của cảnh có đòi hỏi ánh xạ tông màu hay không; `width` và `height` là của khung nhìn.",
-    "members": {
-      "toneMapped": "Đường cong hiển thị có được áp dụng hay không.",
-      "toneMapping": "Đường cong hiển thị mà cảnh đã chọn; ACES khi vắng mặt.",
-      "framebuffer": "Nơi để vẽ; `null` cho màn hình.",
-      "width": "Chiều rộng tính bằng điểm ảnh.",
-      "height": "Chiều cao tính bằng điểm ảnh.",
-      "displayWidth": "Chiều rộng mà ảnh được hiển thị khi nó được vẽ nhỏ hơn (`world.renderScale`): các mức texture và độ rộng đường theo tỉ lệ đó. `width` khi không có.",
-      "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ.",
-      "pass": "Đặt tên cho các lượt GPU của lần vẽ này cho bộ đếm khung hình, theo thứ tự, khi có thứ đang đọc (`../core/frameTimer.ts`); vắng mặt ở lần vẽ mà không gì đo nó."
     }
   },
   "HostMaterial": {
@@ -1530,7 +1452,7 @@
   },
   "HostRetentionDelta": {
     "summary": "Những gì một khung hình báo cho bộ nhớ đệm trang biết là cần giữ lại: một delta XẾP HẠNG YÊU CẦU, không phải một danh sách địa chỉ.",
-    "description": "Xếp hạng được đặt một lần duy nhất và mãi mãi bởi danh mục, `urls` dịch nó, và chỉ những lượt vào và ra mới được duyệt qua — một lát cắt mười lăm nghìn trang chỉ thay đổi mười trang do đó không tốn mười nghìn phép băm chuỗi mỗi khung hình. `held` mang theo toàn bộ tư cách thành viên: nó được dùng để tiếp quản khi một bộ máy khác đã ghi các ghim đó.",
+    "description": "Xếp hạng được đặt một lần duy nhất và mãi mãi bởi danh mục, `urls` dịch nó, và chỉ những lượt vào và ra mới được duyệt qua — một lát cắt mười lăm nghìn trang chỉ thay đổi mười trang do đó không còn tốn mười nghìn phép băm chuỗi mỗi khung hình nữa. `held` mang theo toàn bộ tư cách thành viên: nó được dùng để tiếp quản khi một bộ máy khác đã ghi các ghim đó.",
     "members": {
       "urls": "Xếp hạng yêu cầu → địa chỉ. Cùng một bảng suốt vòng đời của cảnh: định danh của nó nêu tên bên phát.",
       "entered": "Các trang đã vào.",
@@ -1781,10 +1703,7 @@
     "summary": "Những gì một bộ máy thực sự có thể làm với các nguồn sáng theo hợp đồng.",
     "description": "Một lệnh gọi được kho lưu trữ chấp nhận không phải là bằng chứng của việc chiếu sáng: một bộ máy không đọc lại kho lưu trữ sẽ để hình ảnh nguyên trạng, và ứng dụng chủ phải có thể biết điều đó trước khi tin vào hình ảnh của mình. Mỗi trường là những gì bộ máy ĐANG HOẠT ĐỘNG áp dụng, không bao giờ là những gì hợp đồng công bố.",
     "members": {
-      "sceneLights": "Các nguồn sáng đã khai báo thực sự chiếu sáng hình ảnh của bộ máy này.",
-      "lightingView": "`setLightingView` thực sự thay đổi hình ảnh của bộ máy này.",
       "shadows": "Các nguồn sáng của bộ máy này mang theo bóng đổ.",
-      "transforms": "`setTransform` thực sự di chuyển một node có tên trên bộ máy này.",
       "reason": "Những gì bộ máy không làm và vì sao, trong một câu; vắng mặt khi mọi thứ đều được áp dụng."
     }
   },
@@ -1826,7 +1745,7 @@
   },
   "MANIFEST_BINARY_VERSION": {
     "summary": "Phiên bản 4 biến các mục xem trước 16×16 cố định thành các mức lũy tiến có kích thước biến đổi: cột điểm ảnh không còn bước nhảy cố định nữa, mỗi mục tự nêu tên phạm vi byte của riêng nó.",
-    "description": "Một tệp thuộc phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiển thị các mức của một kết cấu này trên một kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ (word) — atlas mà nó phục vụ và có bao nhiêu mức được nướng sẵn dưới dạng tệp trong `textures/` — và các điểm ảnh của nó theo đúng quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước qua các mục sai cách, nên nó từ chối tệp này. Phiên bản 6 giữ nguyên mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` số thực, mà một trình đọc phiên bản 6 sẽ phải từ chối từng byte một khi giải mã; từ chối cả tệp nói lên điều đó một lần cho xong. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — cách bố trí mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại theo sau các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối."
+    "description": "Một tệp của phiên bản khác bị từ chối toàn bộ: một trình đọc cắt sai phạm vi sẽ hiện các mức của kết cấu này lên kết cấu khác. Phiên bản 5 mở rộng một mục xem trước từ mười lên mười hai từ — atlas mà nó phục vụ và bao nhiêu mức được nướng thành tệp dưới `textures/` — và điểm ảnh của nó theo quy tắc mip của card đồ họa; một trình đọc phiên bản 4 sẽ bước sai qua các mục, nên nó từ chối tệp này. Phiên bản 6 giữ mọi cột và nêu tên một trang hình học khác trong bộ mô tả hình học: trang `WGP3` đã lượng tử hóa (`geometryPage.ts`) thay cho trang `WGP2` dấu phẩy động, mà một trình đọc phiên bản 6 sẽ từ chối từng byte một khi giải mã; từ chối tệp nói điều đó một lần. Phiên bản 7 mở rộng một mục xem trước lên mười bốn từ — bố cục mà mỗi họ khối giữ chuỗi, hoặc không có — và thêm hai cột: các đuôi được nén khối, họ BC rồi đến ASTC, phạm vi của mỗi mục được giữ lại suy ra từ các kích thước của nó; một trình đọc phiên bản 6 sẽ không biết chúng, nên nó từ chối. Phiên bản 8 thêm các phụ thuộc trang của các gói streaming: một số đếm cho mỗi gói, rồi các danh sách phẳng, đóng đến lớp phủ gốc (`docs/FORMAT.md` §Cluster DAG), mà WebGPU yêu cầu và giữ cùng một gói. Một trình đọc phiên bản 7 không đọc được các danh sách, nên nó từ chối. Phiên bản 9 thêm nón pháp tuyến của mỗi trang, do trình biên dịch nấu sẵn (`Page.cone`), trong một cột mà trình đọc phiên bản 8 không có. Phiên bản 10 cắt tệp kê khai thành các trang (`paged.ts`): một tệp phụ giữ các cột của một trang, tệp của phần đầu chỉ giữ các bản xem trước kết cấu. Phiên bản 11 mở rộng một mục xem trước lên mười lăm từ và thêm một cột khối sau cột của ASTC: họ ETC2, họ thứ ba mà một thiết bị có thể lấy mẫu; một trình đọc phiên bản 10 sẽ bước sai."
   },
   "MATH_PATH_CONTRACT": {
     "summary": "Phiên bản hợp đồng của báo cáo này.",
@@ -1840,7 +1759,7 @@
     "summary": "Các lớp sống trong bốn bit của bộ nhớ đệm, nên ngăn xếp sâu nhất mà trình biên dịch có thể mô tả là 15."
   },
   "MAX_SHADOW_SLICES": {
-    "summary": "Các lát bóng đổ mà atlas định địa chỉ, theo quy tắc riêng của bảng trang — không bao giờ là giới hạn cho các nguồn sáng: một nguồn sáng đổ bóng vượt quá chúng vẫn chiếu sáng nhưng không có bóng, và khung hình đếm nó (`shadowCastersUnsliced`)."
+    "summary": "Các lát bóng đổ mà atlas định địa chỉ, theo quy tắc riêng của bảng trang (#818) — không bao giờ là giới hạn cho các nguồn sáng: một nguồn sáng đổ bóng vượt quá chúng vẫn chiếu sáng nhưng không có bóng, và khung hình đếm nó (`shadowCastersUnsliced`)."
   },
   "ManifestBinaryDescriptor": {
     "summary": "Nơi tệp nhị phân nằm và cách một cụm, một trang đã đóng gói và một gói nêu tên đối tượng của chúng.",
@@ -1855,7 +1774,8 @@
       "texturePreviews": "Các mục của phần mức lũy tiến; bằng không khi nguồn không có hình ảnh nào giải mã được.",
       "texturePreviewBytes": "Byte của cột điểm ảnh: các mục không có bước nhảy cố định, nên tổng của chúng được ghi ở đây.",
       "texturePreviewBc7Bytes": "Byte của mỗi cột khối — đuôi của các chuỗi được giữ lại, theo từng họ — cũng được ghi ở đây.",
-      "texturePreviewAstcBytes": "Byte của cột khối ASTC."
+      "texturePreviewAstcBytes": "Byte của cột khối ASTC.",
+      "texturePreviewEtc2Bytes": "Byte của cột khối ETC2."
     }
   },
   "Material": {
@@ -2068,7 +1988,7 @@
   },
   "MatrixElements": {
     "summary": "Ma trận 4×4 dạng column-major do ỨNG DỤNG CHỦ sở hữu — tư thế của một node trong cảnh của nó.",
-    "description": "Bộ máy chỉ đọc mười sáu số thực của nó: không có cấu trúc thư viện chủ nào vượt qua một chữ ký.",
+    "description": "Bộ máy chỉ đọc mười sáu số thực của nó: không cấu trúc nào của máy chủ đi qua một chữ ký.",
     "members": {
       "elements": "Mười sáu con số đó, cột theo cột."
     }
@@ -2111,7 +2031,7 @@
       "residentTiles": "Các ô kết cấu được giữ, trước và sau.",
       "durationMs": "Thời gian nó tốn.",
       "tables": "Các bảng theo trang vẽ được đã được mở rộng cho một bể lớn hơn chúng (WebGPU), hoặc `null` khi không có bảng nào được mở rộng.",
-      "transientBytes": "Số byte được giữ cùng lúc khi sao chép bể hình học: bể trước đó và bể mới bên cạnh, được thiết bị cấp cùng nhau trước khi bất kỳ trang nào di chuyển; 0 khi không có bể nào di chuyển."
+      "transientBytes": "Số byte được giữ cùng lúc khi sao chép bể hình học: bể cũ và bể mới bên cạnh, được thiết bị cấp cùng nhau trước khi bất kỳ trang nào di chuyển; 0 khi không có bể nào di chuyển."
     }
   },
   "TableGrowthReport": {
@@ -2131,8 +2051,8 @@
       "isMesh": "Luôn là `true`: phân biệt một mesh với bất kỳ vật thể nào khác.",
       "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
       "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
-      "skeleton": "Các xương mà nó uốn theo, khi hình học của nó mang `skinIndex` và `skinWeight`: GPU di chuyển từng đỉnh theo các khớp của nó ở mỗi khung hình.",
-      "waves": "Mặt nước mà sóng của nó mang mesh đi (`world.physics.waterSurface`): mỗi đỉnh, một điểm nghỉ của mặt phẳng ở mực của mặt nước, được GPU di chuyển tới nơi sóng mang điểm đó — chính những con số mà lực nổi đọc. Khi chưa đặt, một mesh nằm phẳng trên nước của thế giới ở đúng mực của nó sẽ được nước mang đi, và được đặt theo nó; `null` thì không bao giờ.",
+      "skeleton": "Các xương mà nó uốn theo, khi hình học của nó mang `skinIndex` và `skinWeight`: GPU di chuyển từng đỉnh theo các khớp của nó ở mỗi khung hình (#357).",
+      "waves": "Mặt nước mà sóng của nó mang mesh đi (`world.physics.waterSurface`): mỗi đỉnh, một điểm nghỉ của mặt phẳng ở mực của mặt nước, được GPU di chuyển tới nơi sóng mang điểm đó — chính những con số mà lực nổi đọc (#357, #422). Khi chưa đặt, một mesh nằm phẳng trên nước của thế giới ở đúng mực của nó sẽ được nước mang đi, và được đặt theo nó; `null` thì không bao giờ.",
       "primitive": "Cách các đỉnh của hình học được đọc: tam giác, điểm hoặc đường thẳng.",
       "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",
       "geometry": "Hình dạng của mesh; đặt một hình học khác để thay đổi nó.",
@@ -2160,7 +2080,7 @@
       "base": "Thư mục mà các tệp khác của mô hình được đọc dựa vào.",
       "metadata": "Chính tệp kê khai đã biên dịch: các nguyên thủy, các trang và kích thước của chúng.",
       "scene": "Đồ thị cảnh mà trình tải đã dựng từ tệp kê khai.",
-      "textureSource": "Nơi các hình ảnh của nó được đọc: `cache` để lại những cái đã nướng sẵn cho các mức mà phiên đọc."
+      "textureSource": "Nơi các hình ảnh của nó được đọc: `cache` để lại những cái đã nướng sẵn cho các mức mà phiên đọc, `host` đọc tất cả (`loadModel`)."
     }
   },
   "MultiplyLot": {
@@ -2327,14 +2247,6 @@
       "fitAspect": "Một hộp trực giao cao như đã khai báo và rộng theo hình dạng của ảnh."
     }
   },
-  "PAGE_DECODE_FAILURES": {
-    "summary": "Ngữ nghĩa thất bại, danh sách đóng.",
-    "description": "Sáu cái đầu tiên là các lượt từ chối giải mã trang, lấy nguyên văn từ `geometryPage.ts`: bên gọi phân biệt chúng. `PAGE_DECODE_FAILED` mang bất kỳ lượt từ chối nào khác từ thư viện giải nén. `PAGE_DECODE_CANCELLED` trả lời một lần hủy, `PAGE_DECODE_WORKER` một bộ thực thi đã biến mất — chỉ cái đó cho phép phương án dự phòng."
-  },
-  "PAGE_DECODE_PROTOCOL": {
-    "summary": "Hợp đồng giải mã trang ngoài luồng chính, phiên bản 7: hình học đã giải mã di chuyển như một khối duy nhất cùng sai số lượng tử hóa của nó; `cut` biến các tam giác đã vẽ thành các trang, trở lại dưới dạng byte cùng bộ mô tả của chúng, và từ phiên bản 6 kèm hình nón pháp tuyến của chúng, các tam giác đã đóng gói cho biết trang của chúng có giữ hình nón hay không; từ phiên bản 7, `cells` đọc tệp ô của một phân vùng thành các hàng mà nó đặt, và `cellPage` một trang của chỉ mục ô của nó.",
-    "description": "Luồng gọi gửi một `PageDecodeRequest`, bộ thực thi trả về một `PageDecodeAnswer` mang cùng `id`. Không có gì ở đây chạm vào nền tảng: không `Worker`, không fetch, không đồng hồ — bộ điều hợp trình duyệt mang tất cả những thứ đó, tệp này chỉ mang hình dạng thông điệp, danh sách đóng các lỗi và giới hạn của pool. Quyền sở hữu bộ đệm: `source` được **chuyển giao** cùng yêu cầu, nên bên gửi không còn sở hữu nó nữa. Một phản hồi `verify` trả nó lại, được chuyển giao ngược lại; một phản hồi `decode` trả về các bộ đệm đã giải mã thay vào đó, cũng được chuyển giao. Một bộ thực thi không chuyển giao gì cả (phương án dự phòng đồng bộ) trả về chính xác các giá trị giống nhau: hợp đồng không nói công việc di chuyển như thế nào, chỉ nói nó trả về gì."
-  },
   "PAGE_INTEGRATION_FAILURES": {
     "summary": "Danh sách đóng các lượt từ chối.",
     "description": "`PAGE_INTEGRATION_UNKNOWN` trả lời một lượt đến mà bộ thực thi của nó không có phiếu — một thông điệp bị mất, hoặc một bộ thực thi đã khởi động lại; `PAGE_INTEGRATION_WORKER` một bộ thực thi đã biến mất. Cả hai đều cho phép phương án dự phòng nội tuyến, thứ dựng lại đúng kế hoạch đó trên luồng chính."
@@ -2369,7 +2281,7 @@
     "description": "Cùng một kết cấu có thể có một mục cho mỗi loại."
   },
   "PREVIEW_ATLAS_COVERAGE": {
-    "summary": "Một chuỗi của atlas màu, dành cho texture mà mọi nơi đọc đều coi alpha của nó là độ phủ (chỉ màu nền của vật liệu MASK hoặc BLEND): chuỗi duy nhất có màu được lấy trọng số theo alpha, đặt tên riêng với chuỗi thường (`reduce.rs`, `AtlasKind::Coverage`)."
+    "summary": "Một chuỗi của atlas màu, dành cho texture mà mọi nơi đọc đều coi alpha của nó là độ phủ (chỉ màu nền của vật liệu MASK hoặc BLEND): chuỗi duy nhất có màu được lấy trọng số theo alpha, đặt tên riêng với chuỗi thường (`reduce.rs`, `AtlasKind::Coverage`, #42)."
   },
   "PREVIEW_ATLAS_DATA": {
     "summary": "Atlas dữ liệu: các bản đồ kim loại-độ nhám, pháp tuyến và occlusion."
@@ -2384,13 +2296,13 @@
     "summary": "Số byte của một khối."
   },
   "PREVIEW_BLOCK_FORMATS": {
-    "summary": "Các họ khối mà một chuỗi có thể được nướng vào đó, theo thứ tự các cột tệp phụ của chúng và các từ bố cục của một mục, mỗi họ được đặt tên theo codec RGBA của nó; `png` là tệp không mất dữ liệu bên cạnh chúng."
+    "summary": "Các họ khối mà một chuỗi có thể được nướng thành, theo thứ tự các cột của tệp phụ và các từ bố cục của một mục, mỗi họ được gọi theo bộ mã RGBA của nó: BC cho card máy tính để bàn, ASTC 4×4 và ETC2 cho card di động; `png` là tệp không mất dữ liệu bên cạnh chúng, thứ mà thiết bị không có họ nào trong số đó sẽ đọc."
   },
   "PREVIEW_BLOCK_SIDE": {
     "summary": "Số texel dọc theo cạnh của một khối, và số byte của một khối, trong mọi định dạng."
   },
   "PREVIEW_LAYOUT_NAMES": {
-    "summary": "Những gì một họ giữ của một chuỗi, theo từ bố cục: không có gì — chuỗi vẫn không mất dữ liệu ở đó —, các khối RGBA (BC7 chế độ 6, ASTC chế độ điểm màu 12), hoặc các khối hai kênh cho bản đồ pháp tuyến (BC5, độ chói ASTC + alpha trên hai mặt phẳng: X trong R, Y trong G hoặc A, Z được dựng lại bởi shader)."
+    "summary": "Một họ giữ gì của một chuỗi, theo từ bố cục: không gì cả — chuỗi ở đó vẫn không mất dữ liệu —, các khối RGBA (BC7 chế độ 6, ASTC chế độ điểm cuối màu 12, ETC2 RGBA8), hoặc các khối hai kênh cho bản đồ pháp tuyến (BC5, ASTC độ sáng + alpha trên hai mặt phẳng, EAC RG11: X ở R, Y ở G hoặc A, Z được shader dựng lại)."
   },
   "PREVIEW_LOSSLESS_FORMAT": {
     "summary": "Định dạng tệp không mất dữ liệu bên cạnh các họ khối."
@@ -2438,104 +2350,6 @@
       "streamOffset": "Độ lệch byte của nó trong gói đó.",
       "depthLayer": "Lớp độ sâu đồng phẳng, bằng 0 cho mọi cụm mà trình biên dịch để nguyên. Một cụm ở lớp n được vẽ với độ lệch chuẩn về độ sâu bằng n bước lớp đầy đủ, đó là thứ quyết định người thắng giữa hai bề mặt không trong suốt chia sẻ đúng một mặt phẳng. Vắng mặt và bằng 0 có nghĩa như nhau: bản vẽ không bị động chạm.",
       "cone": "Hình nón bao các pháp tuyến của các tam giác của nó: `axis` là một vectơ đơn vị, `angle` là nửa góc tính bằng radian, π cho một hình nón không loại bỏ gì. Trình biên dịch tính nó từ các tam giác; lát cắt WebGPU bỏ qua một cluster một mặt mà camera nhìn thấy từ phía sau hình nón của nó."
-    }
-  },
-  "PageCutPage": {
-    "summary": "Một trang mà một `cut` đã ghi: các byte chỉ số và hình học của nó, khối tóm tắt của chúng, và bộ mô tả của nó.",
-    "members": {
-      "index": "Các chỉ số tam giác.",
-      "geometry": "Các byte đỉnh.",
-      "indexSha256": "Dấu vân tay của các chỉ số.",
-      "geometrySha256": "Dấu vân tay của các đỉnh.",
-      "count": "Số tam giác trong trang.",
-      "start": "Tam giác nguồn đầu tiên của nó.",
-      "min": "Góc thấp nhất.",
-      "max": "Góc cao nhất.",
-      "sphere": "Hình cầu bao.",
-      "vertexCount": "Số đỉnh trong trang.",
-      "indexCount": "Số chỉ số trong trang.",
-      "flags": "Những thuộc tính nào nó mang theo.",
-      "uncompressedBytes": "Kích thước của nó sau khi giải nén.",
-      "cone": "Hình nón bao pháp tuyến các tam giác của nó, nếu đã được dựng."
-    }
-  },
-  "PageCutPayload": {
-    "summary": "Những gì một `cut` trả về: các trang của nó, và các lưới mà chúng được lượng tử hóa trên đó.",
-    "members": {
-      "pages": "Các trang đã ghi.",
-      "positionExponent": "Bước lưới của các vị trí, dưới dạng lũy thừa của hai.",
-      "uvExponent": "Bước lưới của các tọa độ kết cấu, dưới dạng lũy thừa của hai.",
-      "maxPositionError": "Sai số vị trí lớn nhất trên lưới đó."
-    }
-  },
-  "PageDecodeAnswer": {
-    "summary": "Câu trả lời của một worker cho một yêu cầu trang: đã xong hoặc thất bại."
-  },
-  "PageDecodeCancel": {
-    "summary": "Hủy một yêu cầu vẫn còn trong hàng đợi.",
-    "description": "Công việc đã bắt đầu chạy cho tới khi hoàn tất rồi mới trả lời `PAGE_DECODE_CANCELLED`: bộ thực thi không có điểm ngắt giữa chừng một lần giải mã.",
-    "members": {
-      "protocol": "Phiên bản định dạng thông điệp.",
-      "id": "Yêu cầu cần hủy.",
-      "op": "Luôn là `'cancel'`."
-    }
-  },
-  "PageDecodeDone": {
-    "summary": "Câu trả lời của một worker khi một yêu cầu trang thành công.",
-    "members": {
-      "protocol": "Phiên bản định dạng thông điệp.",
-      "id": "Yêu cầu được trả lời.",
-      "ok": "Luôn là `true`.",
-      "sha256": "`verify`: khối tóm tắt thập lục phân chữ thường. `decode`: `null`.",
-      "source": "`verify`: bộ đệm nguồn được trả về. `decode`: `null`, nguồn đã bị tiêu thụ.",
-      "decoded": "`decode`: trang đã giải nén.",
-      "cut": "`cut`: các trang, byte của chúng đã được chuyển giao. Vắng mặt trong trường hợp khác.",
-      "cells": "`cells`: theo từng nút, thứ hạng của cha lõi của nó (`-1`: gốc cảnh) và của lưới của nó trong `ranks`, hai số nguyên 32 bit, và ma trận cục bộ mà động cơ tạo cho tư thế của nó trong `locals`, mười sáu số double; cả hai đã được chuyển giao. Vắng mặt trong trường hợp khác.",
-      "cellPage": "`cellPage`: các khe của trang, hoặc các ô của nó (`readCellPage`). Vắng mặt trong trường hợp khác.",
-      "wasm": "Đúng khi bộ giải mã biên dịch bằng WebAssembly thực hiện công việc, sai đối với bộ giải mã JavaScript. Cả hai cho ra cùng byte; chỉ bộ đếm này phân biệt chúng.",
-      "taskMs": "Thời gian tác vụ, do chính bộ thực thi đo."
-    }
-  },
-  "PageDecodeFailed": {
-    "summary": "Câu trả lời của một worker khi một yêu cầu trang thất bại.",
-    "members": {
-      "protocol": "Phiên bản định dạng thông điệp.",
-      "id": "Yêu cầu được trả lời.",
-      "ok": "Luôn là `false`.",
-      "code": "Vì sao nó thất bại.",
-      "message": "Thông điệp gốc, nguyên trạng: bên gọi ném ra cùng `Error` như đường xử lý đồng bộ.",
-      "refusal": "Mã của lời từ chối có tên của engine mà tác vụ gặp phải (`EngineError`), mà bên gọi ném lại theo mã đó; vắng mặt với mọi lỗi khác."
-    }
-  },
-  "PageDecodeFailureCode": {
-    "summary": "Tên của một cách mà một yêu cầu trang có thể thất bại."
-  },
-  "PageDecodeGeometryPayload": {
-    "summary": "Một trang đã giải mã dưới dạng một bộ đệm `decodedBytes` duy nhất: các chỉ số 32-bit, rồi các số thực của mỗi thuộc tính mà `names` liệt kê, theo đúng thứ tự ghi khi giải mã — thứ tự đó là điều tạo ra một `Record` giống hệt từng trường một.",
-    "members": {
-      "block": "Chỉ số, rồi các thuộc tính.",
-      "names": "Các thuộc tính, theo thứ tự.",
-      "vertexCount": "Số đỉnh.",
-      "flags": "Những thuộc tính nào nó mang theo.",
-      "decodedBytes": "Kích thước của `block`.",
-      "quantizationError": "Độ dịch chuyển vị trí lớn nhất trong tiêu đề trang, tính theo đơn vị đối tượng.",
-      "skinInfluences": "Độ rộng chính xác của các ảnh hưởng xương nguồn trên mỗi đỉnh.",
-      "morphTargets": "Số đích trong `morph`: sáu số thực cho mỗi đích và đỉnh; không có khi không morphing."
-    }
-  },
-  "PageDecodeOp": {
-    "summary": "`verify`: khối tóm tắt SHA-256 của một trang.",
-    "description": "`decode`: các chỉ số và thuộc tính theo từng đỉnh của nó. `cut`: các tam giác đã vẽ, đóng gói thành năm độ dài, trang có giữ hình nón hay không, rồi năm mảng bốn-byte, cắt thành các trang. `cells`: tệp ô của một phân vùng, đọc thành cha, lưới và ma trận cục bộ của mỗi nút. `cellPage`: một trang của chỉ mục ô của nó, đọc thành các trang nó liệt kê hoặc các ô của nó."
-  },
-  "PageDecodeRequest": {
-    "summary": "Một thông điệp yêu cầu một worker kiểm tra, giải nén hoặc cắt một trang.",
-    "members": {
-      "protocol": "Phiên bản định dạng thông điệp.",
-      "id": "Số hiệu yêu cầu.",
-      "op": "Việc cần làm.",
-      "source": "Được chuyển giao cùng thông điệp: bên gửi không còn là chủ sở hữu nữa.",
-      "maxDecodedBytes": "Trần số byte đã giải mã của một trang hình học; bị `verify` bỏ qua.",
-      "name": "`cells`, `cellPage`: tệp mà nguồn được đọc từ đó, tệp mà một lời từ chối nêu tên."
     }
   },
   "PageHome": {
@@ -2696,7 +2510,7 @@
   "PlacementGrowth": {
     "summary": "Thứ mà chủ sở hữu giao cho một phiên mở rộng bộ đệm thực thể của nó tại chỗ (`growth.ts`).",
     "members": {
-      "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`). Nếu động cơ không có, chủ sở hữu mở lại phiên trên `to`.",
+      "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`).",
       "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn."
     }
   },
@@ -2779,7 +2593,7 @@
       "streams": "Các gói bó truyền tải của nó.",
       "quantization": "Null trên một nguyên thủy không có trang, thứ không được lượng tử hóa trên bất kỳ lưới nào.",
       "topology": "Các cạnh và góc của mesh trông như thế nào.",
-      "dynamic": "Hình học động của một thế giới: chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ.",
+      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ.",
       "deformation": "Cầu nghỉ của khớp `[x,y,z,radius]` và phạm vi morphing tối đa; không có hoặc null với hình học tĩnh."
     }
   },
@@ -2918,10 +2732,10 @@
     }
   },
   "RuntimeEvent": {
-    "summary": "Điều gì đó mà bộ máy tự báo về chính nó trong khi chạy: một thay đổi nó đã thực hiện, hoặc một sự thất bại."
+    "summary": "Điều mà engine cho biết về chính nó khi đang chạy: một lỗi mà khung nhìn đã vượt qua, vẽ trên những gì nó đã có (`degraded`), hoặc một lỗi nó không vượt qua được (`fatal`)."
   },
   "SCENE_ENVIRONMENT_FLOATS": {
-    "summary": "Các số thực của môi trường trong bộ đệm GPU."
+    "summary": "Các số thực của môi trường trong bộ đệm GPU: các hệ số, 9 × 4, rồi khối sương mù, 8."
   },
   "SCENE_LIGHT_FLOATS": {
     "summary": "Các số thực của một nguồn sáng trong bộ đệm GPU: năm `vec4f`."
@@ -2953,7 +2767,7 @@
   },
   "SINGULAR_DETERMINANT": {
     "summary": "Ngưỡng, trên định thức ĐÃ CHUẨN HÓA.",
-    "description": "Dưới 1e-12, lập phương của một tỉ lệ trở thành số phi chuẩn ở độ chính xác đơn: chỉ việc chuẩn hóa mới vượt qua sàn đó, nên ngưỡng này không đánh giá gì ngoài hình dạng của ma trận, không bao giờ là kích thước của nó."
+    "description": "Dưới 1e-12, lập phương của một tỉ lệ trở thành số phi chuẩn ở độ chính xác đơn: chỉ việc chuẩn hóa mới vượt qua sàn đó, nên ngưỡng này không còn đánh giá gì ngoài hình dạng của ma trận, không bao giờ là kích thước của nó."
   },
   "SINGULAR_DETERMINANT_WGSL": {
     "summary": "Ngưỡng như WGSL viết ra, được dựng từ hằng số đó: một con số, hai ngôn ngữ."
@@ -2962,7 +2776,7 @@
     "summary": "Từ đầu tiên của bản ghi trong gói đó."
   },
   "SLICE_PAGE_INDEX": {
-    "summary": "Thứ hạng trang, sao chép từ phiếu đó: luồng chính không tra cứu nó."
+    "summary": "Thứ hạng trang, sao chép từ phiếu đó: luồng chính không còn tra cứu nó nữa."
   },
   "SLICE_WORDS": {
     "summary": "Các từ chỉ số của bản ghi đó."
@@ -3071,9 +2885,9 @@
       "isScene": "Luôn là `true`: phân biệt gốc cảnh với bất kỳ vật thể nào khác.",
       "environment": "Một hình ảnh môi trường xung quanh mà các bề mặt bóng bẩy phản chiếu; `null` cho không có.",
       "background": "Thứ lấp đầy hình phía sau mọi vật thể: một màu, hoặc `null` cho màu mặc định. Thay đổi hiện ra ở khung hình kế tiếp, phiên được giữ nguyên: một màu mới gán ở đây, hoặc màu hiện tại được ghi bằng các phương thức của nó (`set`, `setRGB`, `setHex`, `setHSL`...). Ghi trực tiếp vào `.r`, `.g` hoặc `.b` không được nhận biết: hãy gán lại `background` sau đó. Một hình ảnh, hoặc bất kỳ giá trị nào không có `getHex`, đều bị từ chối (`UNSUPPORTED_SCENE_UPDATE`): không đường vẽ nào vẽ nó.",
-      "fog": "Sương mù trên mọi bề mặt, đục hay trong suốt, trên cả hai trình kết xuất; `null`, mặc định, là không sương, không tốn gì. `{ color, near, far }` làm mờ vật thể vào `color` từ `near` đến `far`, khoảng cách tính từ camera; `{ color, density }` dày thêm `density` trên mỗi đơn vị khoảng cách; thêm `heightFalloff` (và `baseHeight`, mặc định 0) thì nó nằm sát mặt đất, mỏng dần phía trên `baseHeight` — chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao. Thay đổi hiện ra ở khung hình kế tiếp: một sương mù mới đặt ở đây, hoặc màu của nó được ghi qua các phương thức của màu. Ghi trực tiếp `near`, `far`, `density`... không được nghe thấy: hãy đặt lại `fog` sau đó. Sương mù ngoài phạm vi — `far` không vượt quá `near`, mật độ âm — bị từ chối (`INVALID_SCENE_ENVIRONMENT`).",
-      "onBeforeRender": "Được trình kết xuất gọi trước khi vẽ cảnh; mặc định không có.",
-      "onAfterRender": "Được trình kết xuất gọi sau khi đã vẽ cảnh; mặc định không có.",
+      "fog": "Sương mù trên mọi bề mặt, đục hay trong suốt; `null`, mặc định, là không sương, không tốn gì. `{ color, near, far }` làm mờ vật thể vào `color` từ `near` đến `far`, khoảng cách tính từ camera; `{ color, density }` dày thêm `density` trên mỗi đơn vị khoảng cách; thêm `heightFalloff` (và `baseHeight`, mặc định 0) thì nó nằm sát mặt đất, mỏng dần phía trên `baseHeight` — chia cho e sau mỗi `1 / heightFalloff` đơn vị lên cao. Thay đổi hiện ra ở khung hình kế tiếp: một sương mù mới đặt ở đây, hoặc màu của nó được ghi qua các phương thức của màu. Ghi trực tiếp `near`, `far`, `density`... không được nghe thấy: hãy đặt lại `fog` sau đó. Sương mù ngoài phạm vi — `far` không vượt quá `near`, mật độ âm — bị từ chối (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Được gọi trước khi cảnh được vẽ; mặc định không có.",
+      "onAfterRender": "Được gọi khi cảnh đã được vẽ xong; mặc định không có.",
       "load": "Tải một mô hình đã biên dịch — URL tệp kê khai của nó — và thêm nó vào cảnh này.",
       "toJSON": "Cảnh dưới dạng JSON đơn giản có phiên bản: các vật thể, hình khối theo lệnh gọi đã tạo ra chúng, vật liệu, ánh sáng, thân vật lý của mỗi lưới như đã khai báo, và mô hình đã nạp theo địa chỉ; cả tư thế của `camera` khi có truyền vào.",
       "fromJSON": "Thay thế nội dung của cảnh bằng một cảnh do `toJSON` lưu, vẫn giữ các dấu `helper` của nó; hoàn tất khi các mô hình của nó đã nạp xong. Định dạng hoặc phiên bản khác bị từ chối (`UNSUPPORTED_SCENE_FORMAT`). Các lệnh gọi được thực hiện trong lúc đang đọc sẽ chạy lần lượt, theo thứ tự, mỗi lệnh trên kết quả mà lệnh trước để lại: hai cảnh đã lưu không bao giờ bị trộn vào nhau."
@@ -3281,7 +3095,7 @@
       "lightsActive": "Các nguồn sáng theo hợp đồng `SceneLight` mà khung hình này đã chiếu sáng. Rỗng trên một bộ máy bỏ qua chúng.",
       "lightsSampled": "Đúng khi việc chiếu sáng của khung hình này chạy ở chế độ lấy mẫu của nó — một hình ảnh chuyển động được tích lũy trên một lịch sử, nơi một điểm ảnh có nhiều nguồn sáng hơn `samplesPerPixel` tô bóng một tập con được vẽ —, sai khi mọi điểm ảnh tô bóng mọi nguồn sáng, như một hình ảnh đứng yên làm. Rỗng trên một bộ máy bỏ qua các nguồn sáng.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
-      "tileLightPoolReserved": "Số từ mà các ô vượt quá danh sách của chúng đã đặt trước trong vùng chỉ số nguồn sáng của khung nhìn, trên khung hình thiết bị lấy mẫu gần nhất khi cảnh có nhiều nguồn sáng hơn một danh sách; nếu không thì `null`.",
+      "tileLightPoolReserved": "Số từ mà các ô vượt quá danh sách của chúng đã đặt trước trong vùng chỉ số nguồn sáng của khung nhìn, trên khung hình thiết bị lấy mẫu gần nhất khi cảnh có nhiều nguồn sáng hơn một danh sách; nếu không thì `null` (#849).",
       "tileLightPoolCapacity": "Số từ vùng chỉ số nguồn sáng giữ trên khung hình được lấy mẫu đó; tương tự là `null`.",
       "tileLightPoolOverflowed": "Liệu có ô nào không tìm được chỗ trong vùng trên khung hình được lấy mẫu đó và đã duyệt mọi nguồn sáng.",
       "tileLightPoolGrowths": "Số lần vùng tăng lên đến mức một khung hình tràn yêu cầu, kể từ khi trình khám phá mở.",
@@ -3360,11 +3174,10 @@
       "selectedTriangles": "Số tam giác được giữ lại.",
       "selectedNodes": "Số node được giữ lại.",
       "totalNodes": "Tổng số node.",
-      "autonomousScene": "Cảnh tích hợp sẵn của nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
       "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
-      "impostors": "Tập bản đồ impostor được trình biên dịch nướng theo từng lưới; không có trong bộ nhớ đệm biên dịch trước impostor.",
+      "impostors": "Tập bản đồ impostor được trình biên dịch nướng theo từng lưới (#817); không có trong bộ nhớ đệm biên dịch trước impostor.",
       "binary": "Tệp nhị phân.",
       "primitives": "Các nguyên thủy của nó.",
       "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó."
@@ -3388,7 +3201,7 @@
       "quantization": "Null trên một nguyên thủy không có trang, thứ không được lượng tử hóa trên bất kỳ lưới nào.",
       "topology": "Các cạnh và góc của mesh trông như thế nào.",
       "binary": "Nơi tìm các danh sách của nó.",
-      "dynamic": "Hình học động của một thế giới: chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ.",
+      "dynamic": "Hình học động của một thế giới (#573): chỉ các trang chỉ mục, các đỉnh được đọc dưới dạng số thực từ hình học máy chủ mà engine ghi lại tại chỗ.",
       "deformation": "Cầu nghỉ của khớp `[x,y,z,radius]` và phạm vi morphing tối đa; không có hoặc null với hình học tĩnh."
     }
   },
@@ -3460,12 +3273,12 @@
       "rgba": "Các điểm ảnh, mỗi điểm bốn byte.",
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh.",
-      "backend": "Bộ kết xuất đã vẽ nó."
+      "backend": "Engine đã vẽ nó: `'webgpu-page-raster'` (`WEBGPU_ENGINE_ID`)."
     }
   },
   "StageProfile": {
     "summary": "Hồ sơ đầy đủ, trên một khoảng trượt của các khung hình.",
-    "description": "`gpuImageMs` là khoảng bao trùm GPU của khung hình: từ lúc bắt đầu chặng đầu tiên đến lúc kết thúc chặng cuối cùng của nó. Các thời lượng theo từng chặng KHÔNG được cộng vào đó — một thiết bị chồng lấn hai chặng sẽ đếm chúng hai lần trong một tổng, không bao giờ trong khoảng bao trùm. Đây cũng là phép đo duy nhất của một bộ máy WebGL2, thứ không thể chia một khung hình thành các chặng.",
+    "description": "`gpuImageMs` là đường bao GPU của khung hình: từ đầu lượt đầu tiên đến cuối lượt cuối cùng. Thời lượng theo từng giai đoạn KHÔNG cộng vào đó — một thiết bị chồng hai lượt sẽ đếm chúng hai lần trong một tổng, không bao giờ trong đường bao.",
     "members": {
       "version": "Phiên bản định dạng.",
       "enabled": "Việc lập hồ sơ có đang chạy hay không.",
@@ -3541,10 +3354,11 @@
       "dispose": "Giải phóng nó.",
       "subsurface": "Màu truyền sáng độc lập của bề mặt mỏng; dùng kết cấu 1×1 có giá trị bằng 0 khi tắt.",
       "subsurfaceView": "Khung nhìn kết cấu truyền sáng của bề mặt mỏng.",
-      "hasSubsurface": "Cho biết truyền sáng qua bề mặt mỏng có đích đầy đủ kích thước hay không.",
       "hasEmissiveAo": "Lớp phát sáng và che khuất có pixel của nó hay không; nếu không thì là một `(0, 0, 0, 1)` kích thước 1×1.",
       "receiver": "Vật nhận bóng của mỗi pixel (`../visibility/shader/receiverTargetWgsl.ts`).",
-      "receiverView": "Khung nhìn của `receiver` mà pass tô bóng ghi và ánh sáng đọc."
+      "receiverView": "Khung nhìn của `receiver` mà pass tô bóng ghi và ánh sáng đọc.",
+      "lobes": "Các thùy dị hướng và lớp phủ trong của mỗi điểm ảnh (`./physicalLobes.ts`); một texture 1×1 khi không bề mặt nào mang chúng.",
+      "lobesView": "View của `lobes` mà bước resolve ghi và phần chiếu sáng đọc."
     }
   },
   "SurfaceCapture": {
@@ -3570,7 +3384,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Các mức kết cấu lũy tiến, phản chiếu bởi `packages/asset-compiler-rust/src/texture_preview.rs`: đuôi chuỗi mip của một nguồn trong tệp phụ, RGBA8 theo mã hóa riêng của atlas, từ mức mịn nhất mà không cạnh nào vượt quá `PREVIEW_BASE` xuống tới 1×1 — và, phía trên nó, một tệp PNG không mất dữ liệu cho mỗi mức trong bộ nhớ đệm, tức `bakedLevels` tệp từ mức 0 trở lên.",
-    "description": "Mỗi mức tuân theo quy tắc mip mà card đã áp dụng khi tự tái tạo chuỗi đó (`packages/sdk-browser/src/texture/mips.ts`): trung bình tuyến tính của các màu, alpha trung vị, mức `k` từ mức đã lượng tử hóa `k - 1`. Kích thước của chúng không được ghi ra: chúng suy ra từ kích thước nguồn, thứ mà `previewLevels.ts` tính lại. Phiên bản 4 nướng mọi mức trên đuôi, và cả đuôi đó, vào các họ khối mà quá trình chế biến yêu cầu bên cạnh các tệp không mất dữ liệu — họ BC cho card để bàn, ASTC 4×4 cho card di động, một byte mỗi texel — cho các chuỗi mà một cổng chất lượng đã giữ lại; một chuỗi dưới ngưỡng vẫn không mất dữ liệu trong họ đó, và từ bố cục của mục đó nói lên điều này. Phiên bản 6 sắp xếp tệp mức dạng khối theo bản ghi ô, mỗi bản ghi một yêu cầu HTTP Range (`sdk-browser/src/texture/tileRecords.ts`)."
+    "description": "Mỗi mức tuân theo quy tắc mip mà card đã áp dụng khi tự tái tạo chuỗi đó (`packages/sdk-browser/src/texture/mips.ts`): trung bình tuyến tính của các màu, alpha trung vị, mức `k` từ mức đã lượng tử hóa `k - 1`. Kích thước của chúng không được ghi ra: chúng suy ra từ kích thước nguồn, thứ mà `previewLevels.ts` tính lại. Phiên bản 4 nướng mọi mức trên đuôi, và cả đuôi đó, vào các họ khối mà quá trình chế biến yêu cầu bên cạnh các tệp không mất dữ liệu — họ BC cho card để bàn, ASTC 4×4 cho card di động, một byte mỗi texel — cho các chuỗi mà một cổng chất lượng đã giữ lại; một chuỗi dưới ngưỡng vẫn không mất dữ liệu trong họ đó, và từ bố cục của mục đó nói lên điều này. Phiên bản 6 sắp xếp tệp mức dạng khối theo bản ghi ô, mỗi bản ghi một yêu cầu HTTP Range (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Các đường cong đưa độ chói của cảnh vào phạm vi hiển thị, theo thứ hạng mà các shader đọc.",
@@ -3586,7 +3400,7 @@
   },
   "TableMaterial": {
     "summary": "Một bề mặt đúng như bộ máy đọc nó.",
-    "description": "Một vật liệu glTF là một mục cho mỗi biến thể tiếp tuyến: một ứng dụng chủ phải dựng lại khung tiếp tuyến từ đạo hàm màn hình sẽ lật `normalScaleY`, nên bảng nêu tên một thứ hạng mà một node trỏ tới thay vì thứ hạng vật liệu glTF. `derivativeTangents` cho biết mục đó được viết cho biến thể nào — cảnh tự trị công bố các nguyên thủy của nó không có tiếp tuyến, nên một trình đọc lật dấu trở lại khi hình học nó giữ không đồng thuận.",
+    "description": "Một vật liệu glTF là một mục cho mỗi biến thể tiếp tuyến: một nguyên thủy không khai báo tiếp tuyến được đổ bóng trong một hệ quy chiếu dựng lại từ tam giác của nó, điều này lật `normalScaleY`, nên bảng nêu một thứ hạng mà một node trỏ tới thay vì thứ hạng vật liệu glTF. `derivativeTangents` cho biết mục được viết cho biến thể nào, để một trình đọc lật dấu trở lại khi hình học nó giữ không khớp.",
     "members": {
       "name": "Tên của vật liệu.",
       "derivativeTangents": "Nó có được viết cho các tiếp tuyến được dựng lại trên màn hình hay không.",
@@ -3627,7 +3441,7 @@
     }
   },
   "TableSlot": {
-    "summary": "Một trang của chỉ mục mà một ô nêu tên, hộp của nó ở các tư thế đã khai báo và các hạng lõi được liệt kê bên cạnh: với chỉ mục ô, các cha mà các ô của nó treo nút dưới đó.",
+    "summary": "Một trang của chỉ mục mà một ô nêu tên, hộp của nó ở các tư thế đã khai báo và các hạng lõi được liệt kê bên cạnh: với chỉ mục ô, các cha mà các ô của nó treo nút dưới đó (#575).",
     "members": {
       "page": "Trang mà khe đặt tên.",
       "bounds": "Hộp của nó ở các tư thế đã khai báo: góc nhỏ nhất, rồi góc lớn nhất.",
@@ -3755,7 +3569,7 @@
   },
   "TextureCompression": {
     "summary": "Họ khối nào mà các bể của một phiên chọn, và mọi thứ theo sau đó.",
-    "description": "Bộ nhớ đệm nướng một chuỗi vào các họ mà quá trình chế biến yêu cầu bên cạnh PNG không mất dữ liệu, và chỉ ở nơi một cổng chất lượng giữ lại nó; thiết bị nói rõ họ nào nó lấy mẫu — card để bàn dùng BC, card di động dùng ASTC, một số dùng cả hai, một bộ điều hợp phần mềm không dùng cái nào. Vậy nên một atlas có một bể cho mỗi LÀN, các cách bố trí mà tệp phụ nêu tên: `lossless` (RGBA8, bốn byte một texel — thứ mà một chuỗi dưới ngưỡng, một hình ảnh chủ hoặc một thiết bị không có tính năng này đọc), `rgba` (BC7 hoặc ASTC, một byte một texel) và `two-channel` (BC5 hoặc ASTC luminance-alpha, một byte một texel, X và Y của bản đồ pháp tuyến với Z được dựng lại bởi shader). Không có gì bị mất bởi bộ máy: một kết cấu lấy làn mà chuỗi của nó được giữ trong đó, và lựa chọn đó được công bố (`texturePoolFormat`)."
+    "description": "Bộ nhớ đệm nướng một chuỗi trong các họ mà bước nấu đã yêu cầu — mặc định là tất cả — bên cạnh PNG không mất dữ liệu, và chỉ ở nơi một cổng chất lượng đã giữ nó; thiết bị cho biết nó lấy mẫu họ nào — card máy tính để bàn BC, card di động ASTC hoặc ETC2, một số có nhiều họ, bộ điều hợp phần mềm thì không họ nào. Khi đó một atlas có một bể cho mỗi LANE, các bố cục mà tệp phụ nêu tên: `lossless` (RGBA8, bốn byte mỗi texel — thứ mà một chuỗi dưới ngưỡng, một ảnh của máy chủ hoặc một thiết bị không có tính năng nào đọc), `rgba` (BC7, ASTC hoặc ETC2 RGBA8, một byte mỗi texel) và `two-channel` (BC5, ASTC độ sáng-alpha hoặc EAC RG11, một byte mỗi texel, X và Y của bản đồ pháp tuyến với Z được shader dựng lại). Engine không làm mất gì: một kết cấu lấy lane mà chuỗi của nó được giữ lại, và lựa chọn được công bố (`texturePoolFormat`)."
   },
   "TextureFilter": {
     "summary": "Quy tắc lấy mẫu của một kết cấu: bộ lọc cơ bản, và quy tắc mip khi bộ lấy mẫu thu nhỏ."
@@ -3764,7 +3578,7 @@
     "summary": "Những gì các kết cấu ảo công bố trên một khung hình: bể, các ô, phản hồi hình ảnh.",
     "description": "Các trường này sống tách biệt với `FrameMetrics` vì chúng mô tả một hàng đợi khác với khung hình: các ô đến theo nhịp độ riêng của chúng, bị giới hạn bởi số byte và theo khung hình, và bể được định kích thước một lần. Tất cả đều tùy chọn: một bộ máy không có kết cấu để chúng vắng mặt, `null` nghĩa là \"chưa được đo\", không bao giờ là một ước lượng.",
     "members": {
-      "texturePoolBytes": "Các bể vật lý, cố định cho cả phiên: số byte của chúng — ĐƯỢC TÍNH từ kích thước và định dạng của chúng, WebGPU không công bố bộ nhớ đang chiếm dụng —, họ khối mà phiên lấy mẫu (`bc7`, `astc`, hoặc `rgba8` khi thiết bị không lấy mẫu cái nào hoặc ứng dụng chủ không yêu cầu cái nào), các lớp của mọi bể làn của cả hai atlas cộng lại, và những gì chúng chứa. `texturePoolBytes` phụ thuộc vào ngân sách và vào làn nào mà các chuỗi của cảnh sử dụng; `textureResidentBytes` là phần bị chiếm dụng, bao gồm cả các đuôi được ghim, ở chi phí texel riêng của mỗi làn.",
+      "texturePoolBytes": "Các bể vật lý, cố định suốt phiên: số byte của chúng — được TÍNH từ kích thước và định dạng của chúng, vì WebGPU không công bố bộ nhớ đang dùng —, họ khối mà phiên lấy mẫu (`bc7`, `astc`, `etc2`, hoặc `rgba8` khi thiết bị không lấy mẫu họ nào hoặc máy chủ không yêu cầu họ nào), số lớp của mọi bể lane của cả hai atlas cộng lại, và những gì chúng giữ. `texturePoolBytes` phụ thuộc vào ngân sách và vào những lane mà các chuỗi của cảnh dùng; `textureResidentBytes` là phần đang dùng, kể cả các đuôi được ghim, theo chi phí texel riêng của mỗi lane.",
       "texturePoolFormat": "Định dạng của bể kết cấu.",
       "texturePoolLayers": "Các lớp trong bể.",
       "textureTilesResident": "Các ô được giữ.",
@@ -3806,7 +3620,7 @@
       "atlas": "Atlas nào.",
       "level": "Mức nào.",
       "format": "Định dạng nào.",
-      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
+      "url": "Địa chỉ riêng của cấp độ, khi bộ nhớ đệm liệt kê một địa chỉ — một cấp độ tập bản đồ impostor (`maps.<name>.levels[k].url`, #1239). Được đọc qua chính trình đọc này, phân giải so với `base`, thay cho mẫu `textures.url`: một trình tải, một ngân sách.",
       "range": "Các byte của một mức dạng khối được đọc riêng — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range; máy chủ bỏ qua nó sẽ trả về toàn bộ tệp."
     }
   },
@@ -4107,16 +3921,13 @@
       "cpuFrameMs": "Thời gian CPU của khung hình.",
       "cpuSubmitMs": "Thời gian CPU để gửi công việc.",
       "drawCalls": "Số lệnh gọi vẽ của khung hình này, theo cách bộ máy đếm chúng. `null` khi nó chưa đếm: số không sẽ bị đọc thành một khung hình không có gì được vẽ.",
-      "autonomousClusterDrawsTotal": "Số lệnh vẽ cụm theo trang do chương trình WebGL2 thuộc sở hữu của bộ máy phát ra trong phiên này.",
-      "autonomousCopyDraws": "Các bản sao cảnh — các bề mặt truyền sáng — mà chương trình WebGL2 thuộc sở hữu của bộ máy đã vẽ ở khung hình này.",
-      "transmissionBackdropBytes": "Số byte mà phông nền truyền sáng WebGL2 giữ kể từ bản sao truyền sáng đầu tiên trong tầm nhìn.",
       "triangles": "Số tam giác được gửi tới lệnh vẽ của khung hình này, theo cách `totalSubmittedTriangles` đếm chúng. `null` khi bộ máy chưa đếm chúng: số không sẽ bị đọc thành một khung hình trống.",
       "clusters": "Số cụm được vẽ.",
       "selectedTriangles": "Số tam giác mà lát cắt đã chọn.",
       "residentPages": "Số trang được giữ trong bộ nhớ.",
       "submittedTriangles": "Số tam giác đã gửi: trên đường xử lý WebGPU-theo-trang, mọi hàng có thể vẽ — việc từ chối do che khuất diễn ra sau khi gửi —, được bảng đó giữ, do đó chính xác và thuộc về khung hình này.",
-      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi một backend không thể đếm chúng.",
-      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng trên một backend không theo dõi một lát cắt.",
+      "totalSubmittedTriangles": "Tổng số tam giác đã gửi, kể cả các chặng trong suốt. Rỗng khi ảnh còn đang chờ.",
+      "pagesDetached": "Số cụm đã rời khỏi lát cắt được vẽ trong phiên này. Một camera di chuyển làm tách cụm mỗi khung hình; đây không phải tín hiệu áp lực bộ nhớ đệm. Rỗng khi engine chưa đếm chúng.",
       "cacheEvictions": "Số trang thực sự bị loại khỏi bộ nhớ đệm nuôi hình học được vẽ: bộ nhớ đệm trang GPU riêng của backend khi nó sở hữu một cái, hoặc bộ truyền tải trang của ứng dụng chủ trong trường hợp khác. Đây là tín hiệu áp lực bộ nhớ đệm.",
       "geometryAllocationBytes": "Số byte bộ nhớ hình học.",
       "vramBytes": "Số byte bộ nhớ GPU.",
@@ -4126,7 +3937,7 @@
       "pagesLoading": "Số trang đang trên đường tới.",
       "cacheHits": "Số lượt đọc trang được phục vụ từ bộ nhớ đệm.",
       "cacheMisses": "Số lượt đọc trang bị trượt khỏi bộ nhớ đệm.",
-      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm. Về phần mình, lát cắt CPU đếm các node mà chính nó kiểm tra và các lượt từ chối của chính nó.",
+      "frustumRejected": "Những gì lát cắt đã loại bỏ mà không giữ lại. Trên lát cắt DAG của GPU, thứ duyệt qua phân cấp loại bỏ theo từng cấp, đây là các node bị loại bỏ trong quá trình đi xuống — nằm ngoài khối nhìn, hoặc mà trần sai số của bản thay thế của chúng đã rơi xuống dưới ngưỡng — cộng thêm các trang ứng viên mà sau đó một phép kiểm tra theo từng trang loại bỏ. Một node bị loại bỏ được tính là một, bất kể số trang trong cây con của nó là bao nhiêu: những trang đó không bao giờ được ghé thăm, do đó không bao giờ được đếm.",
       "lodLevel": "Mức chi tiết của lát cắt.",
       "transparentMeshes": "Các bộ đếm trong suốt của WebGPU. `transparentDrawCalls` đếm mọi lệnh vẽ, kể cả cả hai nửa của một vật liệu hai chặng; `transparentSubmittedTriangles` đếm các tam giác của lát cắt trong suốt mỗi tam giác một lần, bất kể số chặng rasterise chúng — phép nhân theo từng chặng đó là của riêng GPU, vì số lượng instance được ghi bởi bước nén gọn và không bao giờ được đọc lại. Rỗng khi không có sẵn.",
       "transparentFrustumRejected": "Các cụm trong suốt nằm ngoài góc nhìn.",
@@ -4137,24 +3948,19 @@
       "frameHeld": "Đúng khi khung hình được giữ nguyên: cả cảnh, góc nhìn, lẫn tài nguyên đều không di chuyển, không có công việc bất đồng bộ nào đang chờ, và không có chặng CPU nào chạy. Các điểm ảnh hiển thị chính là của khung hình gốc, giống hệt từng bit. Những gì khung hình được giữ đã LÀM được công bố nguyên trạng, không bao giờ được sao chép từ lần kết xuất hoàn chỉnh cuối cùng: `drawCalls`, `triangles`, `submittedTriangles` và `totalSubmittedTriangles` chỉ đếm những gì hiện diện, và thời lượng CPU và GPU theo từng chặng bằng 0 khi chặng đó không chạy, `null` khi không có gì đo nó. Một bộ máy mà hình ảnh của nó là một cảnh do bộ điều hợp mẫu đối chứng vẽ sẽ đếm những gì bộ điều hợp đó đã gửi trong khung hình này — không có gì, trên một khung hình được giữ. Những gì khung hình được giữ HIỂN THỊ vẫn được mô tả bởi lát cắt mà nó hiển thị lại: `clusters`, `selectedTriangles`, `frustumRejected`, `lodLevel` và `residentPages` là của khung hình gốc, vì đây là cùng một lát cắt. Vắng mặt trên một bộ máy không giữ các khung hình của nó.",
       "streamingError": "Lỗi tải dai dẳng; các URL thất bại cần tải lại explorer sau ba lần thử.",
       "gpuPassMs": "Mẫu chặng GPU gần nhất của backend này; rỗng khi thiết bị không hỗ trợ truy vấn dấu thời gian.",
-      "gpuFrameMs": "Thời lượng GPU của hình ảnh mà `gpuPassMs.frame` mô tả. Không bao giờ được cộng vào một trường `cpu*`. Thiết bị được lấy mẫu vài hình ảnh một lần, nên một con số có thể đã cũ vài hình ảnh. Là null trước mẫu đầu tiên, từ một hình ảnh được giữ đến mẫu tiếp theo của thiết bị, trên thiết bị không có `timestamp-query` và trên WebGL2 không có `EXT_disjoint_timer_query_webgl2`.",
+      "gpuFrameMs": "Thời lượng GPU của ảnh mà `gpuPassMs.frame` mô tả, không bao giờ cộng vào trường `cpu*`. Lấy mẫu mỗi vài ảnh, nên một con số có thể cũ vài ảnh. Là null trước mẫu đầu tiên, từ một ảnh được giữ đến mẫu thiết bị kế tiếp, và khi không có `timestamp-query`.",
       "gpuHostGapMs": "Thời gian CPU mà cùng một hình ảnh dùng giữa hai lần gửi của chính nó, và bằng 0 khi nó chỉ gửi một lần. Đây là thời gian của ứng dụng chủ, không phải thời gian GPU, đó là lý do `gpuFrameMs` loại trừ nó. Rỗng khi chưa được đo.",
       "gpuDeviceLost": "Lý do thiết bị GPU bị mất; null khi thiết bị vẫn còn.",
       "uncoveredTriangles": "Các tam giác của những cụm mà lát cắt đã công bố nêu tên nhưng khung hình không thể vẽ được — không có trang lưu trú và không có tổ tiên nào che phủ. Một lỗ hổng thật sự trong hình ảnh: số không là giá trị lành mạnh duy nhất. Rỗng khi một backend không thể biết được (nó vẽ đúng lát cắt mà nó đã chọn, nên không bao giờ gặp trường hợp này).",
       "drawnTriangles": "Các tam giác mà KHUNG HÌNH HIỆN TẠI giao cho lệnh vẽ: lát cắt cụm của nó, cả phần không trong suốt và trong suốt của phân cấp gộp lại. Các mesh trong suốt nằm ngoài phân cấp không nằm trong đó (`transparentSubmittedTriangles`), và việc từ chối do che khuất không bị trừ đi (`hizRejectedTriangles`). Được đếm tại thời điểm chấp nhận lát cắt: không có việc đọc lại bất đồng bộ nào từ GPU được chờ đợi, nên nó không bao giờ là `null` vì thiếu thời gian, khác với `submittedTriangles`.",
-      "cpuSelectMs": "Thời gian CPU của lát cắt cụm khung hình này, chỉ đo riêng quanh việc lựa chọn. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU.",
-      "gpuSelectionFallback": "Đúng khi bộ máy từng có một lựa chọn từ GPU và đã bỏ nó đi: những gì được đo từ lúc đó là lát cắt CPU dự phòng. Một lần dự phòng cũng phát ra chẩn đoán `gpu-selection-fallback`, một lần duy nhất; ứng dụng chủ sao chép nó nguyên trạng, và nó vắng mặt trên một bộ máy không có lựa chọn từ GPU.",
       "cpuSelectNodesTested": "Các node phân cấp mà lát cắt của khung hình này đặt ra một phép kiểm tra — quyết định về khối nhìn hoặc mức chi tiết. Một node đã được quyết định và hoàn toàn khả kiến không nhận phép kiểm tra nào: nó được duyệt qua, không được kiểm tra. Đây là thước đo công việc thật sự của một lát cắt phân cấp; một lát cắt phẳng kiểm tra bằng không trong số đó và duyệt qua mọi cụm. Rỗng trên một bộ máy không chọn lát cắt của nó bằng CPU, hoặc không đếm nó.",
-      "pagesDecodedOffThread": "Việc giải mã trang ngoài luồng chính. `pagesDecodedOffThread` đếm các tác vụ — kiểm tra tính toàn vẹn SHA-256 hoặc đọc thuộc tính theo từng đỉnh — mà một worker đã hoàn thành, không bao giờ những tác vụ mà phương án dự phòng chạy trên luồng chính. `pageDecodeMs` là thời gian tích lũy của các tác vụ đó, do chính bộ thực thi đo, dù là luồng nào: đó là thời gian giải mã, không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có trang nào được giải mã — chưa được đo, không phải bằng không.",
-      "pagesDecodedWasm": "Các trang mà thuộc tính của chúng được đọc bởi bộ giải mã biên dịch bằng WebAssembly thay vì bộ giải mã JavaScript. Cả hai cho ra cùng các byte; bộ đếm này chỉ cho biết cái nào đã chạy, do đó liệu tài nguyên `.wasm` có được ứng dụng chủ này tìm thấy và khởi tạo hay không.",
-      "pageDecodeMs": "Thời gian dành cho việc giải mã các trang.",
       "mathBatch": "Trạng thái của bộ điều phối đường tính toán (`../math/path/governor.ts`): đường hiện tại của mỗi phép toán theo lô, trung vị của cả hai đường, số lần chuyển đổi. `null` trên một ứng dụng chủ chưa mở một lô nào — chưa được đo, không phải \"đường JavaScript\".",
       "pagesPlannedOffThread": "Việc tích hợp trang ngoài luồng chính. `pagesPlannedOffThread` đếm các lượt đến mà kế hoạch của chúng — vị trí của mỗi cụm trong gói và các thứ hạng trang mà nó di chuyển — đã được một worker tính toán, không bao giờ những kế hoạch mà phương án dự phòng lập trên luồng chính. `pagePlanMs` là thời gian tích lũy của các kế hoạch đó, do chính bộ thực thi đo, dù là luồng nào: nó không bao giờ được cộng vào `cpu*` hay `gpu*` theo từng khung hình. Cả hai đều là `null` chừng nào chưa có lượt đến nào được lập kế hoạch — chưa được đo, không phải bằng không.",
       "pagePlanMs": "Thời gian dành cho việc lập kế hoạch các lượt đến.",
       "lightsActive": "Các nguồn sáng theo hợp đồng `SceneLight` mà khung hình này đã chiếu sáng. Rỗng trên một bộ máy bỏ qua chúng.",
       "lightsSampled": "Đúng khi việc chiếu sáng của khung hình này chạy ở chế độ lấy mẫu của nó — một hình ảnh chuyển động được tích lũy trên một lịch sử, nơi một điểm ảnh có nhiều nguồn sáng hơn `samplesPerPixel` tô bóng một tập con được vẽ —, sai khi mọi điểm ảnh tô bóng mọi nguồn sáng, như một hình ảnh đứng yên làm. Rỗng trên một bộ máy bỏ qua các nguồn sáng.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
-      "tileLightPoolReserved": "Số từ mà các ô vượt quá danh sách của chúng đã đặt trước trong vùng chỉ số nguồn sáng của khung nhìn, trên khung hình thiết bị lấy mẫu gần nhất khi cảnh có nhiều nguồn sáng hơn một danh sách; nếu không thì `null`.",
+      "tileLightPoolReserved": "Số từ mà các ô vượt quá danh sách của chúng đã đặt trước trong vùng chỉ số nguồn sáng của khung nhìn, trên khung hình thiết bị lấy mẫu gần nhất khi cảnh có nhiều nguồn sáng hơn một danh sách; nếu không thì `null` (#849).",
       "tileLightPoolCapacity": "Số từ vùng chỉ số nguồn sáng giữ trên khung hình được lấy mẫu đó; tương tự là `null`.",
       "tileLightPoolOverflowed": "Liệu có ô nào không tìm được chỗ trong vùng trên khung hình được lấy mẫu đó và đã duyệt mọi nguồn sáng.",
       "tileLightPoolGrowths": "Số lần vùng tăng lên đến mức một khung hình tràn yêu cầu, kể từ khi trình khám phá mở.",
@@ -4203,10 +4009,10 @@
       "hizCulled": "Các cụm mà phép kiểm tra che khuất phát hiện bị ẩn trong khung hình này; `null` ở nơi đường xử lý không đếm chúng.",
       "shadowPoolBytes": "Số byte GPU của pool bóng: các trang độ sâu, lớp tĩnh và lớp truyền qua khi đã tạo, và các bộ đệm bên cạnh. Null cho đến khi khung hình đầu tiên định cỡ pool.",
       "shadowResolutionBias": "Bóng đổ được vẽ thô hơn mức yêu cầu bao nhiêu do pool trang của chúng: số lần ngân sách GPU chia đôi pool đầy đủ, cộng với số mức mà độ đầy của pool đã nâng độ lệch độ phân giải của mỗi bản đồ (`shadowVsmLodBias`). Bình thường là 0; trên 0, chế độ tham chiếu từ chối ảnh chụp của nó (`REFERENCE_SHADOWS_REDUCED`). Null khi chưa có bản đồ bóng đổ nào chạy.",
-      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này, trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
+      "dynamicUploadBytes": "Số byte đỉnh của hình học động được tải lên tại chỗ trong khung hình này (#573), trong ngân sách mỗi khung hình của thế giới (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Không có khi không thế giới nào vẽ.",
       "gpuDeformationMs": "Thời gian biến dạng GPU của khung hình `gpuPassMs`; null trước khi đo hoặc khi không hỗ trợ.",
       "displayRefreshMs": "Khoảng làm tươi của màn hình, tính bằng ms, như engine đo được trên dấu thời gian rAF của các khung của nó (đồng hồ của ngân sách tỉ lệ dựng hình); null cho đến khi tìm được một giá trị.",
-      "gpuIdleMs": "Thời gian thiết bị rảnh trước ảnh được lấy mẫu gần nhất, tính bằng ms: từ dấu thời gian cuối của ảnh trước nó đến dấu đầu tiên của chính nó, khoảng trống mà `gpuHostGapMs` không chứa được (một ảnh chỉ gửi một lần thì không mang phần nào của nó). Null khi ảnh trước nó, hoặc ảnh này, không được đo trọn vẹn (một pass không đo, hoặc pass mà dấu thời gian không đọc được; pass mà trình điều khiển bỏ qua thì không tính), sau một lần tạm dừng, và khi không có `timestamp-query`.",
+      "gpuIdleMs": "Thời gian thiết bị rảnh trước ảnh được lấy mẫu gần nhất, tính bằng ms: từ dấu thời gian cuối của ảnh trước nó đến dấu đầu tiên của chính nó, khoảng trống mà `gpuHostGapMs` không chứa được (một ảnh chỉ gửi một lần thì không mang phần nào của nó). Null khi ảnh trước nó, hoặc ảnh này, không được đo trọn vẹn (một pass không đo, hoặc pass mà dấu thời gian không đọc được; pass mà trình điều khiển bỏ qua thì không tính), sau một lần tạm dừng, và khi không có `timestamp-query` (#1451).",
       "renderHeight": "Chiều cao tính bằng pixel mà ảnh được vẽ, đi cùng `renderWidth`.",
       "renderWidth": "Chiều rộng tính bằng pixel mà ảnh được vẽ, trước khi khử răng cưa theo thời gian hoặc việc lấy mẫu lại dựng nó về màn hình: bằng chiều rộng màn hình khi tỉ lệ dựng hình là 1. Null trước khi có ảnh.",
       "shadowVsmFreePages": "Số trang vật lý còn trống trong thông điệp trạng thái gần nhất của pool.",
@@ -4223,20 +4029,21 @@
       "shadowVsmProjectionMs": "Thời gian GPU của phép chiếu bóng, tính bằng ms, từ thời gian các pass.",
       "shadowVsmProjectionPasses": "Số pass chiếu trong khung này, mỗi pass bốn ánh sáng.",
       "shadowVsmRenderMs": "Thời gian GPU của việc dựng trang, tính bằng ms, từ thời gian các pass.",
-      "shadowVsmTransmissionMs": "Thời gian GPU của atlas truyền sáng của các vật đổ bóng trong mờ (xóa, vẽ, resolve), tính bằng ms."
+      "shadowVsmTransmissionMs": "Thời gian GPU của atlas truyền sáng của các vật đổ bóng trong mờ (xóa, vẽ, resolve), tính bằng ms.",
+      "pagesChecked": "Kiểm tra tính toàn vẹn của trang. `pagesChecked` đếm các trang đã tải mà bản băm SHA-256 đã được tính (`crypto.subtle`, ngoài luồng chính). `pageCheckMs` là thời gian cộng dồn từ lúc bắt đầu mỗi lần kiểm tra đến bản băm của nó: không bao giờ được cộng vào `cpu*` hay `gpu*` theo khung hình. Cả hai là `null` chừng nào chưa có trang nào được kiểm tra — chưa đo, không phải không.",
+      "pageCheckMs": "Thời gian dành cho việc kiểm tra các trang."
     }
   },
   "WorldOptions": {
     "summary": "Những gì một trang có thể đặt khi nó tạo ra một thế giới; không nói gì cả là trường hợp bình thường.",
     "members": {
-      "renderer": "Cách thế giới vẽ, `'webgpu'` hoặc `'webgl2'`. Nếu bỏ trống, thế giới sẽ lấy cái tốt nhất mà máy cho phép; một bộ kết xuất mà máy không có sẽ bị từ chối theo đúng tên của nó, không bao giờ bị hoán đổi cho cái kia.",
       "interactive": "Thế giới có chạy vòng lặp riêng của nó hay không: nó vẽ khi có gì đó thay đổi và nghỉ sau 120 khung hình không có gì mới. `false` để trang tự gọi `world.render()`.",
       "pixelRatio": "Bao nhiêu điểm ảnh hình ảnh cho mỗi điểm ảnh màn hình.",
       "controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
       "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`.",
+      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó ra màn hình: `'auto'` để ngân sách khung hình chọn giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1), một con số thì cố định nó. Một ảnh đứng yên cũng được vẽ ở tỉ lệ đó, của ngân sách, và được giữ khi đã lấy trung bình trọn các chu kỳ pha jitter của nó. Đổi sau đó bằng `world.renderScale`.",
       "debug": "Chế độ gỡ lỗi, công cụ của bản dựng phát triển so với bản dựng phát hành: các khung hình chỉ được ghi vào hồ sơ các bước CPU (`world.cpuSteps`) và báo cáo khung hình trong chế độ này. Nó thuộc về trang, như `?profile` trong địa chỉ của trang bật nó; `world.diagnostic.debug` đổi nó sau đó.",
       "quality": "Chất lượng: một preset, các nhóm với mức riêng, độ phân giải (`world.quality`)."
     }
@@ -4251,9 +4058,6 @@
       "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Một lần đọc khẩn hơn cho trang đang được đọc sẽ được yêu cầu lại để nâng nó lên: nguồn nhận `priority` sẽ gộp nó vào lần đọc đang chạy thay vì truyền trang hai lần.",
       "baseUrl": "Địa chỉ mà mọi trang được đọc dựa vào."
     }
-  },
-  "WorldRenderer": {
-    "summary": "Hai cách mà một thế giới có thể vẽ: WebGPU, hoặc WebGL2 khi thiếu WebGPU."
   },
   "WorldTarget": {
     "summary": "Một canvas, một phần tử để vẽ bên trong, hoặc ID tài liệu theo nghĩa đen của một trong hai (không có tiền tố bộ chọn)."
@@ -4398,7 +4202,7 @@
   },
   "assertCacheIdentity": {
     "summary": "Từ chối bất kỳ bộ nhớ đệm nào mà thời gian chạy này không thể vẽ.",
-    "description": "Thời gian chạy đọc một mô hình hình học duy nhất: một DAG các cụm nơi mỗi cụm mang theo dải sai số màn hình riêng của nó, hoặc toàn bộ một mesh mà trình biên dịch giữ bên ngoài DAG (`shared-blend`), thứ không mang theo cụm nào cả. Một bộ nhớ đệm mà các cụm của nó không mang dải nào bị từ chối theo tên ở đây thay vì bị đọc dở dang sau này."
+    "description": "Thời gian chạy đọc một mô hình hình học duy nhất: một DAG các cụm nơi mỗi cụm mang theo dải sai số màn hình riêng của nó, hoặc toàn bộ một mesh mà trình biên dịch giữ bên ngoài DAG (`shared-blend`), thứ không mang theo cụm nào cả. Một bộ nhớ đệm mà các cụm của nó không mang dải nào — cây trang cũ — bị từ chối theo tên ở đây thay vì bị đọc dở dang sau này."
   },
   "assertCachePointer": {
     "summary": "Những gì một ứng dụng chủ có thể kiểm tra trên một con trỏ chuẩn bị, trước khi biết bất cứ điều gì về các cụm: việc chuẩn bị đã hoàn tất, nó mang theo phạm vi đã được yêu cầu, và định dạng của nó là một định dạng mà SDK này đọc được.",
@@ -4658,10 +4462,10 @@
     "summary": "Họ `capability`: những gì máy cho phép, trước khi một hình ảnh được hứa hẹn."
   },
   "capability.detect": {
-    "summary": "Máy này cho phép những đường xử lý nào của bộ máy (`detectCapabilities`), và tại sao."
+    "summary": "Máy này có cung cấp WebGPU hay không (`detectCapabilities`), bậc của nó, và vì sao."
   },
   "capability.lighting": {
-    "summary": "Đường xử lý vẽ `world` làm gì với ánh sáng (`lightingCapabilities`).",
+    "summary": "Engine vẽ `world` làm gì với các nguồn sáng (`lightingCapabilities`).",
     "parameters": {
       "world": "Thế giới cần hỏi."
     }
@@ -4692,7 +4496,8 @@
     "description": "Những gì API công khai trao ra là một trong số này: một ứng dụng chủ ghi vào bản sao mà nó nhận được không thay đổi gì trong bộ máy, và một ứng dụng chủ làm biến đổi một nguồn sáng mà nó đã gửi cũng không thay đổi gì cả — kho lưu trữ đã xác thực bản sao của chính nó khi đi vào. Bản sao được tạo ở nơi ứng dụng chủ đọc, không bao giờ trên đường xử lý khung hình: các bộ máy đọc bản ghi đang giữ và bộ đệm đã đóng gói, và không sao chép gì cả."
   },
   "clusterErrorAtDepth": {
-    "summary": "Cùng một sai số chiếu khi khoảng cách từ tâm đến trục nhìn và độ sâu của nó (−z của khung nhìn) đã được biết: một node đặt sàn và trần trên cùng một hình cầu chia sẻ độ sâu của nó."
+    "summary": "Cùng một sai số chiếu khi khoảng cách từ tâm đến trục nhìn và độ sâu của nó (−z của khung nhìn) đã được biết: một node đặt sàn và trần trên cùng một hình cầu chia sẻ độ sâu của nó.",
+    "description": "Sai số bằng không cho 0 và sai số vô hạn cho vô hạn trước mọi kiểm tra; mọi tham số khác sau đó được kiểm tra cùng một lúc — sai số, độ kéo giãn và bán kính hữu hạn và không âm, tiêu cự và mặt phẳng gần hữu hạn và dương, khoảng cách tới trục hữu hạn và không âm, độ sâu hữu hạn, trọng số clip-w trong [0, 1] — trước khi chiếu. Bản phản chiếu bằng Rust, một chốt chặn, cùng phán quyết: `projected_error_at` trong `packages/page-codec-wasm/src/cut_error.rs`."
   },
   "clusterErrorPixels": {
     "summary": "`screenErrorBound` của một cụm mà tâm khung nhìn của nó được cho, các tham số đã được xác thực.",
@@ -4795,7 +4600,26 @@
   },
   "createGpuPageCache": {
     "summary": "Ranh giới cấp phát/hàng đợi WebGPU.",
-    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó."
+    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó.",
+    "parameters": {
+      "options.homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
+      "options": "Bộ nhớ đệm trang GPU được định cỡ ra sao và báo cáo về đâu (`createGpuPageCache`).",
+      "options.pageBytes": "Số byte của một ô: bội số của bốn.",
+      "options.slots": "Số ô mà hồ chứa giữ.",
+      "options.onDiagnostic": "Nghe những gì bộ đệm báo cáo: bố cục của nó, các lần tải bị hủy và các lần từ chối."
+    }
+  },
+  "GpuPageCacheOptions": {
+    "summary": "Cách một bộ nhớ đệm trang GPU được định cỡ và nơi nó báo cáo (`createGpuPageCache`).",
+    "members": {
+      "pageBytes": "Số byte của một ô: bội số của bốn.",
+      "slots": "Số ô mà vùng chứa giữ.",
+      "homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
+      "onDiagnostic": "Nghe những gì bộ nhớ đệm báo cáo: bố cục của nó, các lần tải bị hủy và các lần từ chối."
+    }
+  },
+  "PagePinTier": {
+    "summary": "Cách một trang đã tải được ghim: `'held'` đứng trước các ghim thường khi đổi kích thước, nếu không là `'pinned'`."
   },
   "createJob": {
     "summary": "Không có bộ đếm giờ, DOM, hệ thống tệp hay giao diện người dùng."
@@ -4856,14 +4680,13 @@
     "parameters": {
       "target": "Canvas để vẽ vào, một phần tử để vẽ bên trong, hoặc ID của một trong hai.",
       "options": "Cách thế giới vẽ và lắng nghe; không nói gì là trường hợp bình thường.",
-      "options.renderer": "Cách thế giới vẽ, `'webgpu'` hay `'webgl2'`. Nếu bỏ trống, thế giới lấy cái tốt nhất mà máy cho phép; một trình dựng hình mà máy không có bị từ chối theo tên của nó, không bao giờ bị hoán đổi sang cái kia.",
       "options.interactive": "Liệu thế giới có chạy vòng lặp riêng của nó hay không: nó vẽ khi có gì đó thay đổi và nghỉ sau 120 khung hình không có gì mới. `false` để trang tự gọi `world.render()`.",
       "options.pixelRatio": "Có bao nhiêu pixel hình ảnh cho mỗi pixel màn hình.",
       "options.controls": "Bộ điều khiển di chuyển camera từ canvas; `world.controls.kind` thay đổi nó sau này.",
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
       "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó. Trên WebGPU, ảnh đứng yên cũng được vẽ ở tỉ lệ đó và được dựng lại từ các pha jitter của nó; trên WebGL2, nó được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`.",
+      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó ra màn hình: `'auto'` để ngân sách khung hình chọn giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1), một con số thì cố định nó. Một ảnh đứng yên cũng được vẽ ở tỉ lệ đó, của ngân sách, và được giữ khi đã lấy trung bình trọn các chu kỳ pha jitter của nó. Đổi sau đó bằng `world.renderScale`.",
       "options.debug": "Chế độ gỡ lỗi, công cụ của bản dựng phát triển so với bản dựng phát hành: các khung hình chỉ được ghi vào hồ sơ các bước CPU (`world.cpuSteps`) và báo cáo khung hình trong chế độ này. Nó thuộc về trang, như `?profile` trong địa chỉ của trang bật nó; `world.diagnostic.debug` đổi nó sau đó.",
       "options.quality": "Chất lượng: một preset, các nhóm với mức riêng, độ phân giải (`world.quality`)."
     }
@@ -4896,7 +4719,16 @@
     "description": "Mọi đường xử lý đều đọc hàm duy nhất này và gán dấu cho nó theo phép kiểm tra độ sâu riêng của mình."
   },
   "detectCapabilities": {
-    "summary": "Kiểm tra máy này có thể vẽ bằng gì, và nói lý do khi không thể."
+    "summary": "Kiểm tra WebGPU của máy này cung cấp những gì, và nói lý do khi nó không cung cấp gì."
+  },
+  "GpuCapabilities": {
+    "summary": "Những gì WebGPU của máy này cấp, được đọc trước khi bất kỳ phiên nào mở.",
+    "members": {
+      "tier": "`'full'` khi có dấu thời gian GPU, `'degraded'` khi không có, `'unavailable'` khi không có adapter.",
+      "extensions": "Các tính năng tùy chọn mà adapter cung cấp.",
+      "reason": "Một câu nói điều gì đã được cấp, hoặc vì sao không có gì.",
+      "adapter": "Adapter được yêu cầu thiết bị; `null` khi không có cái nào được cấp hoặc một thiết bị đã được trao."
+    }
   },
   "determinantMatrix4": {
     "summary": "Định thức của một ma trận 4×4 theo cột, được khai triển dọc theo hàng cuối cùng theo một thứ tự cố định của các số hạng và dấu; 0 cho một ma trận suy biến."
@@ -5668,7 +5500,7 @@
     }
   },
   "material.meshDepth": {
-    "summary": "Tô bóng mỗi điểm theo khoảng cách của nó đến camera: trắng tại `camera.near`, đen tại `camera.far`, một dải chuyển thẳng ở giữa, giống nhau trên WebGPU và WebGL2.",
+    "summary": "Đổ bóng mỗi điểm theo khoảng cách tới camera: trắng ở `camera.near`, đen ở `camera.far`, một dải thẳng ở giữa.",
     "parameters": {
       "parameters": "Những gì một trang có thể truyền cho một thành viên vật liệu; mọi trường đều tùy chọn.",
       "parameters.color": "Màu cơ bản.",
@@ -6382,7 +6214,7 @@
   },
   "normalizeQuaternion": {
     "summary": "Co giãn lại một quaternion về độ dài đơn vị, để một chuỗi các phép xoay nhỏ không thể trôi dạt.",
-    "description": "Độ dài là căn bậc hai của bốn bình phương được cộng như `hypot4` cộng chúng (Kahan), không có việc co giãn theo độ lớn lớn nhất của nó: trong `SQUARED_MIN`..`SQUARED_MAX`, việc co giãn đó chỉ thêm các phép làm tròn — bốn phép chia vào và một phép nhân ra. So với `q / |q|` chính xác, không kém độ dài đã co giãn trên bất kỳ họ đầu vào nào đã đo và tốt hơn trên phần lớn (tối đa 2,7 → 2,3 ULP, trung bình 0,73 → 0,64 trên các quaternion gần đơn vị), và rẻ hơn bốn phép chia. Ngoài khoảng đó — không, NaN, vô cực, độ lớn gần giới hạn — độ dài là của `hypot4`."
+    "description": "Độ dài là căn bậc hai của bốn bình phương được cộng như `hypot4` cộng chúng (Kahan), không có việc co giãn theo độ lớn lớn nhất của nó: trong `SQUARED_MIN`..`SQUARED_MAX`, việc co giãn đó chỉ thêm các phép làm tròn — bốn phép chia vào và một phép nhân ra. So với `q / |q|` chính xác, không kém độ dài đã co giãn trên bất kỳ họ đầu vào nào đã đo và tốt hơn trên phần lớn (tối đa 2,7 → 2,3 ULP, trung bình 0,73 → 0,64 trên các quaternion gần đơn vị), và rẻ hơn bốn phép chia. Ngoài khoảng đó — không, NaN, vô cực, độ lớn gần giới hạn — độ dài là của `hypot4`, như trước."
   },
   "normalizeVector3": {
     "summary": "Chuẩn hóa vectơ tại `at` ngay tại chỗ: mỗi thành phần được nhân với `1 / (length || 1)`, nên một vectơ không vẫn giữ bằng không."
@@ -6451,14 +6283,18 @@
   },
   "page": {
     "summary": "Họ `page`: hình học được cắt thành các trang, vào và ra khỏi bộ nhớ theo những gì khung hình đọc.",
-    "description": "`createCache` là bể trang GPU (`createGpuPageCache`), `decode` là bộ giải mã trang cụm (`decodeGeometryPage`)."
+    "description": "`createCache` là bể trang GPU (`createGpuPageCache`), `decode` là bộ giải mã trang cụm (`decodeGeometryPage`), một chunk riêng mà lần gọi đầu tiên tải xuống: engine vẽ các trang trên GPU và không bao giờ giải mã trang nào trên CPU."
   },
   "page.createCache": {
     "summary": "Một bể trong bộ nhớ GPU giữ các trang mà khung hình đọc, được lấp đầy từ một nguồn trang.",
     "parameters": {
       "device": "Thiết bị GPU để cấp phát trên đó.",
       "source": "Nơi các trang được đọc.",
-      "options": "Số byte mỗi trang, và bao nhiêu khe."
+      "options": "Số byte mỗi trang, và bao nhiêu khe.",
+      "options.homes": "Chỗ riêng của mỗi trang, được lấy trong khi `slots` chứa toàn bộ danh mục (`homes.ts`).",
+      "options.pageBytes": "Số byte của một ô: bội số của bốn.",
+      "options.slots": "Số ô mà hồ chứa giữ.",
+      "options.onDiagnostic": "Nghe những gì bộ đệm báo cáo: bố cục của nó, các lần tải bị hủy và các lần từ chối."
     }
   },
   "page.createStreamer": {
@@ -6468,7 +6304,7 @@
     }
   },
   "page.decode": {
-    "summary": "Giải nén một trang hình học đã nén thành các tam giác và đỉnh.",
+    "summary": "Giải nén một trang hình học đã nén thành các tam giác và đỉnh, sau khi chunk của bộ giải mã đã đến (`FAMILY_LOAD_FAILED` khi không làm được).",
     "parameters": {
       "bytes": "Trang đã nén."
     }
@@ -6481,13 +6317,6 @@
   },
   "pageCarriesClusterError": {
     "summary": "Một cụm mang dải sai số màn hình của riêng nó không cần hệ thống phân cấp: việc chọn lựa là một phép kiểm tra phẳng theo từng trang."
-  },
-  "pageDecodeFailureCode": {
-    "summary": "Sự từ chối có tên khớp với một thông điệp, hoặc `PAGE_DECODE_FAILED` cho mọi thứ khác."
-  },
-  "pageDecodeWorkerCount": {
-    "summary": "Kích thước của bể giải mã: không bao giờ nhiều hơn số lõi mà máy báo cáo, không bao giờ nhiều hơn trần của gói, không bao giờ nhiều hơn giới hạn tiếp nhận đã có hiệu lực trên các lần truyền, và ít nhất là một.",
-    "description": "Một giá trị bị thiếu hoặc không phải số nguyên tương đương với một trình thực thi duy nhất: trên một nền tảng không báo cáo gì cả, chúng ta không bịa ra tính song song."
   },
   "perspectiveProjection": {
     "summary": "Phép chiếu phối cảnh của một camera với `fov` độ theo chiều dọc, tỉ lệ `aspect`, mặt phẳng gần `near`, độ phóng đại `zoom`."
@@ -6514,11 +6343,19 @@
     }
   },
   "pose.runPath": {
-    "summary": "Phát lại các khung nhìn `poses` qua thế giới (`runCameraPath`), `images` khung hình được trải đều qua chúng, mắt và mục tiêu di chuyển theo đường thẳng giữa hai khung nhìn.",
+    "summary": "Phát lại các khung nhìn `poses` qua thế giới (`runCameraPath`), `images` khung hình được trải đều qua chúng, mắt và mục tiêu di chuyển theo đường thẳng giữa hai khung nhìn, mỗi cái một khung hình hiển thị: các khung hình đã vẽ, thời gian CPU của chúng được tóm tắt, và nhịp hiển thị.",
     "parameters": {
       "world": "Thế giới cần di chuyển.",
       "poses": "Các khung nhìn cần đi qua.",
       "p": "Toàn bộ đường dẫn tốn bao nhiêu khung hình."
+    }
+  },
+  "PathRun": {
+    "summary": "Một lượt chạy đường đã đo: chỉ số của từng khung hình, tóm tắt CPU của chúng và nhịp hiển thị.",
+    "members": {
+      "frames": "Chỉ số của từng khung hình đã đo, theo thứ tự đường đi.",
+      "cpu": "Thời gian khung hình CPU của chúng, được tóm tắt.",
+      "cadence": "Nhịp của các khung hình hiển thị mà chúng đã chiếm."
     }
   },
   "prepare": {
@@ -6554,7 +6391,7 @@
     "returns": "Mỗi công việc đã kết thúc như thế nào: chỉ là các con trỏ, không có gì được đọc lại từ đĩa."
   },
   "presentationColorDiagnostic": {
-    "summary": "Một bản ghi bằng chứng có giới hạn cho sự tổng hợp WebGL cuối cùng được các lần chụp và báo cáo sử dụng."
+    "summary": "Một bản ghi bằng chứng có giới hạn cho một ảnh đã chụp (`capture()`, hàng dưới trước), đọc từ đích màu WebGPU của động cơ."
   },
   "previewBlockBytes": {
     "summary": "Các byte đã nén theo khối của mỗi cấp được mang theo, nối từ mịn nhất đến thô nhất."
@@ -6579,9 +6416,9 @@
   "primitiveUsesClusterErrors": {
     "summary": "Liệu mỗi trang của một đối tượng nguyên thủy có mang dải sai số của riêng nó hay không."
   },
-  "probeWorldRenderer": {
-    "summary": "Những gì máy cho phép trước khi bất kỳ cảnh nào được tải: đường xử lý mà một thế giới sẽ dùng để vẽ.",
-    "description": "Một đường xử lý bị ép buộc mà máy không có bị từ chối theo tên của nó; để mặc cho bộ máy, WebGPU khi một adapter được cấp — và thiết bị của nó, được yêu cầu một lần —, WebGL2 nếu không, và một máy không có cả hai bị từ chối. `chooseBackends` lặp lại cùng quyết định đó trên thiết bị đó khi một phiên mở ra."
+  "probeWorldDevice": {
+    "summary": "Thiết bị WebGPU mà một thế giới dùng để vẽ, được yêu cầu trước khi bất kỳ cảnh nào được tải và giữ suốt đời của thế giới: mọi phiên nó mở đều vẽ trên thiết bị đó.",
+    "description": "Một máy không cấp adapter nào, hoặc một adapter từ chối thiết bị của nó, bị từ chối theo tên (`WEBGPU_UNAVAILABLE`)."
   },
   "raycast": {
     "summary": "Mọi vật thể dưới `roots` mà `ray` gặp, gần nhất trước, một điểm chạm cho mỗi vật thể: điểm gần nhất của riêng nó.",
@@ -6853,7 +6690,7 @@
   },
   "world.temporalAntialiasing": {
     "summary": "Khử răng cưa theo thời gian: độ lệch dưới điểm ảnh được tích lũy qua các khung hình; bật theo mặc định.",
-    "description": "Khi ghi, có hiệu lực từ khung hình kế tiếp, bỏ lịch sử, không mở lại phiên. Khi đọc, là điều hình ảnh mang: false trên WebGL2, và trong lúc chương trình biên dịch sau khi bật."
+    "description": "Khi ghi, có hiệu lực ở khung hình kế, lịch sử bị bỏ, không mở lại phiên. Khi đọc, đó là những gì ảnh mang: false trong lúc chương trình biên dịch sau khi bật."
   },
   "world.renderScale": {
     "summary": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó (`WorldOptions.renderScale`), từ khung hình kế tiếp.",
@@ -6868,7 +6705,7 @@
       "geometryPoolCeiling": "Các bể lớn nhất mà một thế giới có thể yêu cầu: các ngân sách khởi đầu của bộ máy.",
       "texturePoolCeiling": "Bể kết cấu lớn nhất mà một thế giới có thể yêu cầu, tính bằng byte.",
       "geometryPool": "Số byte bộ nhớ GPU dành cho trang hình học; đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng, các probe ánh sáng dội và pool kết cấu.",
-      "texturePool": "Số byte bộ nhớ GPU dành cho trang kết cấu, `null` trên engine không có pool kết cấu (WebGL2); đặt để đổi giới hạn, trong phần `gpu` để lại bên cạnh bóng, các probe ánh sáng dội và pool hình học.",
+      "texturePool": "Số byte bộ nhớ GPU dành cho các trang texture; đặt nó để đổi đường bao, trong phần `gpu` để lại bên cạnh bóng đổ, các đầu dò nảy và hồ chứa hình học.",
       "physics": "Các giới hạn của vật lý (vật thể, vật trang trí, bộ nhớ), đọc một lần khi bắt đầu; vượt một giới hạn sẽ báo `PHYSICS_BUDGET`.",
       "raycastTrees": "Số byte bộ nhớ CPU mà `raycast` giữ cho các cây tam giác, dùng chung cho mọi thế giới trên trang; vượt quá thì cây được dùng lâu nhất bị bỏ. Đặt nó để đổi giới hạn.",
       "gpu": "Số byte bộ nhớ GPU mà thế giới được giữ, mọi pool cộng lại; đặt để vẽ lại từng pool theo quy tắc chia (`split`). Tổng nhỏ hơn ba phần cố định — pool bóng đổ, đầu dò ánh sáng dội và đích hiệu ứng — bị từ chối (`GPU_BUDGET_UNDER_SHADOW_POOL`). Không bao giờ đọc từ máy. Khi chưa đặt, tổng mặc định (`defaultGpuBudget`): các phần cố định, các đích của khung ở độ phân giải đầy đủ trên canvas được vẽ khi một phiên đã giữ chúng, rồi hai pool ở giá trị mặc định — khung lúc nghỉ không bao giờ bị vẽ thấp hơn màn hình vì thiếu bộ nhớ. Khi đã đặt, tổng của trang có hiệu lực: vượt quá nó, khung được vẽ thấp hơn một phần tám.",
@@ -6950,7 +6787,7 @@
       "mode": "Chế độ khung nhìn: `'beauty'` cho hình ảnh bình thường, hoặc một chế độ cho thấy bộ máy hoạt động như thế nào.",
       "sessions": "Các phiên mà thế giới đã mở cho đến giờ: một thay đổi làm mở lại một phiên sẽ hiện ở đây.",
       "error": "Vì sao phiên gần nhất không thể mở, dưới dạng một lỗi có tên của engine: `code` của nó là một trong các mã được mô tả trên `EngineError` (`WEBGPU_LOST` khi WebGPU mất thiết bị; `FAMILY_LOAD_FAILED` khi một họ tùy chọn không tải được, cả lúc đó), hoặc `SESSION_OPEN_FAILED` cho một lý do không có mã riêng. Một `EngineError` có mã được mô tả chính là lỗi đã ném; mọi lỗi khác được chuyển đổi, và khi đó lỗi đã ném nằm trong `details.cause`. `null` từ đầu mỗi lần mở, và khi không thử mở gì.",
-      "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp.",
+      "modes": "Mọi chế độ xem mà engine cung cấp.",
       "debug": "Chế độ gỡ lỗi của trang (`WorldOptions.debug`): các khung hình chỉ được ghi vào hồ sơ các bước CPU và báo cáo khung hình trong chế độ này, từ khung hình kế tiếp."
     }
   },
@@ -7009,14 +6846,11 @@
     "summary": "Sai số màn hình của lát cắt DAG, tính bằng pixel; giá trị của trang có hiệu lực hơn một preset chất lượng."
   },
   "world.ready": {
-    "summary": "Một promise hoàn tất ngay khi thế giới biết nó sẽ vẽ như thế nào."
+    "summary": "Một promise hoàn tất khi thế giới đã giữ thiết bị WebGPU của nó."
   },
   "world.render": {
     "summary": "Vẽ một khung hình, bất kể ai dẫn dắt vòng lặp: clip và vật lý tiến lên cùng nó.",
     "description": "Một khung hình mà thế giới chưa thể vẽ — phiên của nó đang mở, một phần của engine đang trên đường tới — được vẽ ngay khi có thể, một lần duy nhất, dù có bao nhiêu khung hình được yêu cầu trong lúc đó."
-  },
-  "world.renderer": {
-    "summary": "`'webgpu'` hoặc `'webgl2'`: cách thế giới vẽ; `null` trước `ready`."
   },
   "world.resize": {
     "summary": "Báo cho thế giới biết canvas đã đổi kích thước; nếu không đặt, nó đọc kích thước riêng của canvas.",
@@ -7185,11 +7019,11 @@
       "bodies": "Vật thể mọi loại cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
       "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá. Một nửa của nó giữ va chạm tĩnh cùng lúc: các ô của một mô hình đã biên dịch được truyền vào trong đó quanh mắt và các vật thể đang chuyển động, ô xa nhất rời đi trước; một lưới tam giác tĩnh vượt quá nó bị từ chối.",
-      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang. Một bước chia việc của nó cho ít luồng hơn khi đo được rằng nhiều hơn chỉ tranh chấp nhau, với cùng kết quả.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
-      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước. Bước của worker tăng theo chúng, tuyến tính (6,5–8,2 ms gốc ở mặc định, 2,4–2,8 ms ở 4096; kiểm toán PHY-18, #975). Một vật thể mềm vượt quá sẽ bị từ chối, kèm tên của nó."
     }
   },
   "GRAVITY_PRESETS": {
@@ -7267,11 +7101,11 @@
       "bodies": "Vật thể mọi loại cùng lúc.",
       "decorative": "Vật trang trí cùng lúc.",
       "memoryBytes": "Số byte bộ nhớ của mô-đun vật lý: trần cứng, mô-đun không thể vượt quá. Một nửa của nó giữ va chạm tĩnh cùng lúc: các ô của một mô hình đã biên dịch được truyền vào trong đó quanh mắt và các vật thể đang chuyển động, ô xa nhất rời đi trước; một lưới tam giác tĩnh vượt quá nó bị từ chối.",
-      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang.",
+      "threads": "Số luồng chạy mô phỏng, kể cả luồng của worker vật lý. Trên 1 cần trang được cô lập cross-origin (bộ nhớ dùng chung); nếu không, mô phỏng chạy trên một luồng. Không bao giờ vượt quá số lõi logic của máy trừ lõi của trang. Một bước chia việc của nó cho ít luồng hơn khi đo được rằng nhiều hơn chỉ tranh chấp nhau, với cùng kết quả.",
       "bodyPairs": "Các cặp vật thể có hộp bao chồng lên nhau trong một bước. Một đống dày có khoảng bốn cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactConstraints": "Các cặp chạm nhau được giải trong một bước. Một đống đã nằm yên có khoảng hai cặp mỗi vật; bước nào tìm thấy nhiều hơn sẽ bỏ sót tiếp xúc và báo `PHYSICS_BUDGET`.",
       "contactEvents": "Các sự kiện tiếp xúc (`enter`, `leave`) mà một bước báo về. Một `enter` vượt quá bị bỏ và được đếm (`world.physics.stats.droppedEvents`), `leave` của nó không bao giờ được gửi; một `leave` chỉ bị hoãn.",
-      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước."
+      "softVertices": "Đỉnh của mọi vật mềm cùng lúc (vải, dây, khối). Mỗi đỉnh được giải ở mỗi bước và được trang đọc lại, 12 byte mỗi bước. Bước của worker tăng theo chúng, tuyến tính (6,5–8,2 ms gốc ở mặc định, 2,4–2,8 ms ở 4096; kiểm toán PHY-18, #975). Một vật thể mềm vượt quá sẽ bị từ chối, kèm tên của nó."
     }
   },
   "PhysicsHost": {
@@ -7330,7 +7164,7 @@
       "height": "Độ cao mặt nước phía trên điểm thế giới `(x, z)`, tính bằng mét.",
       "point": "Điểm thế giới `[x, y, z]` mà điểm nghỉ `(x, level, z)` được mang tới, vào `out`: một lưới dời từng điểm chính là mặt nước, đỉnh sóng sắc như sóng.",
       "wavesNow": "Các sóng đã khai báo, mỗi pha được mang tới lúc này: đặt lại vào `world.physics.water` (sóng của nó bắt đầu lại từ 0 s), mặt nước tiếp tục từ chỗ đang ở thay vì nhảy.",
-      "waveModel": "Chính các sóng, tại thời điểm `time`: thứ mà tầng biến dạng GPU đọc để vẽ một mesh mà mặt nước mang đi (`mesh.waves`), chính những con số mà lực nổi đọc.",
+      "waveModel": "Chính các sóng, tại thời điểm `time`: thứ mà tầng biến dạng GPU đọc để vẽ một mesh mà mặt nước mang đi (`mesh.waves`, #357), chính những con số mà lực nổi đọc.",
       "normal": "Pháp tuyến đơn vị `[x, y, z]` của mặt nước tại điểm nghỉ `(x, z)`, vào `out`."
     }
   },
@@ -7427,9 +7261,6 @@
       "depthWrite": "Nó có ghi độ sâu hay không.",
       "depthFunc": "Phép so sánh của việc kiểm tra độ sâu.",
       "colorWrite": "Nó có ghi màu hay không.",
-      "polygonOffset": "Độ sâu có bị dịch chuyển hay không.",
-      "polygonOffsetFactor": "Phần độ dốc của độ dịch chuyển.",
-      "polygonOffsetUnits": "Phần hằng số của độ dịch chuyển.",
       "transparent": "Nó có pha trộn hay không.",
       "opacity": "Nó mờ đục đến mức nào.",
       "alphaTest": "Ngưỡng alpha mà dưới đó các điểm ảnh bị loại bỏ.",
@@ -7457,7 +7288,7 @@
       "offset": "Những gì `matrix` được ghép từ đó.",
       "matrixAutoUpdate": "Ứng dụng chủ có tự dựng lại `matrix` hay không.",
       "matrix": "Phép biến đổi UV của bộ lấy mẫu, `KHR_texture_transform` được dựng thành ba hàng; ứng dụng chủ tính lại nó từ độ lệch, độ lặp lại và góc xoay khi nó sở hữu việc cập nhật.",
-      "generateMipmaps": "Có yêu cầu các bản sao nhỏ hơn hay không; engine luôn tạo chúng khi `minFilter` đọc chúng.",
+      "generateMipmaps": "Có yêu cầu các bản sao nhỏ hơn hay không; dù giá trị này nói gì, engine vẫn dựng chuỗi của mọi kết cấu trên GPU, và mỗi lần đọc lấy mức theo dấu chân của nó.",
       "premultiplyAlpha": "Màu có được nhân trước với alpha hay không.",
       "flipY": "Các hàng có bị lật khi tải lên hay không.",
       "version": "Tăng lên bởi ứng dụng chủ ở mỗi thay đổi nội dung: điều mà một lần tải lên so sánh để bỏ qua việc sao chép lại.",
@@ -7750,7 +7581,7 @@
       "payload": "Tệp nhị phân nơi các gói nối tiếp nhau: địa chỉ, dấu băm và độ dài của nó.",
       "bundles": "Các gói, theo thứ tự của tệp nhị phân.",
       "pages": "Các trang: bao nhiêu, và của một trang thì gói, độ lệch trong gói, cấp và sai số, đọc từ bản ghi của nó.",
-      "cells": "Các ô của thế giới: bao nhiêu ô, các primitive đã đặt mà một ô chứa, đọc tại bản ghi của chúng, và ô chứa đối tượng `object` — `origin` của một gốc đối tượng."
+      "cells": "Các ô của thế giới: bao nhiêu ô, các primitive đã đặt mà một ô chứa, đọc tại bản ghi của chúng, và ô chứa đối tượng `object` — `origin` của một gốc đối tượng (#1332)."
     }
   },
   "WorldRootsBundle": {
@@ -7857,7 +7688,7 @@
   },
   "world.setTransform": {
     "summary": "Di chuyển nút `nodeName` để tư thế thế giới của nó là `matrix`: một nút mà trang không giữ tham chiếu được tiếp cận bằng tên (`object.name`), tra trong cảnh.",
-    "description": "Tư thế là tư thế thế giới — engine đưa nó trở lại không gian của nút cha — nên một tên dưới cha đã di chuyển vẫn đáp đúng nơi được yêu cầu. Cùng tuyến mà WebGPU và WebGL2 đi cho việc di chuyển theo tên của một trang, không phải tuyến thứ hai. Khung hình kế tiếp sẽ vẽ nó; một yêu cầu không đổi gì thì không đòi khung hình nào.",
+    "description": "Tư thế là tư thế thế giới — động cơ đưa nó về không gian của nút cha — nên một tên dưới nút cha đã dời vẫn đến đúng nơi được yêu cầu. Cùng đường mà động cơ đi để dời một trang theo tên, không phải đường thứ hai. Khung hình kế vẽ nó; một yêu cầu không đổi gì thì không đòi khung hình.",
     "parameters": {
       "nodeName": "`name` của nút cần di chuyển.",
       "matrix": "Tư thế thế giới của nó, mười sáu số thực theo thứ tự cột."
@@ -7867,7 +7698,7 @@
     "summary": "π, một hằng duy nhất, để mọi nơi đọc phép chuyển đều làm tròn cùng một số."
   },
   "IMPOSTOR_VERSION": {
-    "summary": "Định dạng của phần `impostors` mà runtime đọc, do trình biên dịch nướng."
+    "summary": "Định dạng của phần `impostors` mà runtime đọc (#817 phần 1, do trình biên dịch nướng)."
   },
   "ImpostorCard": {
     "summary": "Một thẻ hướng về camera mà runtime vẽ thay cho các cụm của một gốc đã chuyển đổi.",
@@ -7959,7 +7790,7 @@
     }
   },
   "ImpostorSwitchDepth": {
-    "summary": "Hai khoảng cách tham chiếu đã nướng, tính bằng mét tại `focalPixels` của tệp kê khai.",
+    "summary": "Hai khoảng cách tham chiếu đã nướng, tính bằng mét tại `focalPixels` của tệp kê khai (#817).",
     "members": {
       "texel": "`z_tex`: từ đây khung hình tối đa một texel mỗi pixel.",
       "triangles": "`z_tri`: từ đây gốc vượt quá số pixel mà nó bao phủ."
@@ -8009,7 +7840,7 @@
   },
   "validateImpostorSection": {
     "summary": "Một lý do ngắn khiến phần này không dùng được, hoặc `null`.",
-    "description": "Phần vắng mặt không phải lỗi: bộ nhớ đệm trước nó vẽ mọi mesh đầy đủ. Phần hiện diện bị từ chối toàn bộ khi phiên bản của nó chưa biết hoặc một mục `baked` thiếu các con số mà chuyển đổi và thẻ của nó cần."
+    "description": "Phần vắng mặt không phải lỗi: bộ nhớ đệm trước nó vẽ mọi mesh đầy đủ, như trước. Phần hiện diện bị từ chối toàn bộ khi phiên bản của nó chưa biết hoặc một mục `baked` thiếu các con số mà chuyển đổi và thẻ của nó cần."
   },
   "world.quality": {
     "members": {
@@ -8021,5 +7852,8 @@
       "set": "Đặt `group` thành `level` đè lên preset, mà không preset nào sau đó thay đổi; `'preset'` trả nhóm về cho preset."
     },
     "summary": "Chất lượng: một preset, mức của mỗi nhóm đè lên nó, và độ phân giải mà ảnh được vẽ."
+  },
+  "TRANSPARENT_DEPTH_LAYER": {
+    "summary": "Lớp mà các lượt vẽ trong suốt vẽ lên: một tấm kính, một decal hay một mặt nước nằm đúng trên một mặt đặc được vẽ đè lên nó — một bề mặt trong suốt không bao giờ vào giai đoạn của trình biên dịch, nên các trang của nó mang lớp 0 —, cao hơn một nấc lớp so với sai số làm tròn dấu phẩy động giữa raster đặc và raster của chính nó, không bao giờ đủ để chạm tới một bề mặt nằm phía trên."
   }
 }

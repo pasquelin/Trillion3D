@@ -1,5 +1,4 @@
 import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts'
-import { entriesReady } from '../core/bindIdentity.ts'
 import { liveResources } from '../core/liveEntries.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
@@ -30,20 +29,13 @@ function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
   identity.entries[1] ??= visibilityEntries(rt, true)
   identity.entries[2] ??= visibilityEntries(rt, false, 0)
   if (!identity.entriesMoved(vis.visBindGroupLayout)) return
-  vis.visBindGroup = undefined
-  vis.visHizBindGroup = undefined
   vis.visSlotGroups.fill(undefined)
+  vis.visGroupsRevision++
   vis.rasterGroups.fill(undefined)
 }
 
-/** Binds row visibility inputs once for untested and Hi-Z-tested passes, on `rt.vis`. */
-export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
+/** The image's visibility groups follow what their entries name: the slot and raster groups that
+ *  named a moved resource are voided, made again by the passes that bind them (`visGroup.ts`). */
+export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime) {
   voidStaleVisibilityGroups(rt)
-  const { vis } = rt,
-    layout = vis.visBindGroupLayout,
-    direct = vis.visIdentity.entries[0],
-    hiz = vis.visIdentity.entries[1]
-  if (!layout || !entriesReady(direct)) return
-  vis.visBindGroup ??= device.createBindGroup({ layout, entries: direct })
-  if (entriesReady(hiz)) vis.visHizBindGroup ??= device.createBindGroup({ layout, entries: hiz })
 }

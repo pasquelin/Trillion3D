@@ -1,16 +1,19 @@
-import { allocPyramid, encodeHizPyramid, pyramidLayout, type Pyramid } from './pyramid.ts'
-import {
-  HIZ_MAX_LEVELS,
-  HIZ_PASS_LEVELS,
-  HIZ_UNIFORM_BYTES as UNIFORM_BYTES,
-  hizTestSlot,
-} from './uniforms.ts'
-import { vsmWriteChanged } from '../../vsm/writeChanged.ts'
+import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
+import { HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, HIZ_UNIFORM_BYTES as UNIFORM_BYTES } from './uniforms.ts'
 import { cleanupFailedHiz, createHizPipelines, hizPagesGroup } from './pipelines.ts'
 import { TESTED_U32 } from '../partition/contract.ts'
 import type { GpuHiz } from './types.ts'
-import { pendingBuffers } from '../core/tableGrowth.ts'
-const TEST_WORKGROUP = 64
+import {
+  bindHiz,
+  hizExtent,
+  hizFlags,
+  hizGrowFlags,
+  hizResize,
+  hizTest,
+  installHiz,
+  type HizPipelines,
+  type HizState,
+} from './hizOps.ts'
 
 /** Frame Hi-Z: reverse-Z, reduce to the minimum. Without compute, returns `undefined`. */
 export async function createGpuHiz(
@@ -21,172 +24,111 @@ export async function createGpuHiz(
 ): Promise<GpuHiz | undefined> {
   if (typeof device.createComputePipeline !== 'function' || width < 1 || height < 1)
     return undefined
-  let cap = Math.max(1, maxBounds)
-  // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
-  const level0Usage =
-    GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC
   const buffers: GPUBuffer[] = []
-  let disposed = false,
-    // The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`).
-    at: Pyramid | undefined,
-    bindGroup: GPUBindGroup | undefined,
-    // Bumped when the partition's buffers change: a pyramid's cached bind group is then stale.
-    bindings = 0
+  let h: HizState | undefined
   try {
     const pipelines = await createHizPipelines(device)
     if (!pipelines) return undefined
-    const { layout, buildPipeline, testPipeline } = pipelines
-    const pagesGroup = hizPagesGroup(device, pipelines.pagesLayout)
-    const uniforms = device.createBuffer({
-      label: 'Trillion3D HiZ uniforms',
-      // The deepest pyramid's build passes, then the test's slot.
-      size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
-    // Every word the kernels read there: the drawn pyramid's build passes from word zero
-    // (`hizBuildWords`), the test's slot behind them (`hizTestSlot`). Only the words that changed
-    // go up: a frame of the same size and rows sends nothing.
-    const image = new Uint32Array(uniforms.size / 4)
-    // The test slot's dynamic offset, read by `setBindGroup` when it is called.
-    const testOffset = [0]
-    const sendBuild = (words: Uint32Array) => {
-      image.set(words, 0)
-      vsmWriteChanged(device, uniforms, image, 0, words.length)
-    }
-    // Tested boxes and the frame state belong to the GPU partition, which does not exist yet:
-    // until `attach`, the bind group points at this idle buffer, which nothing reads.
-    const idle = device.createBuffer({
-      label: 'Trillion3D HiZ idle bounds v1',
-      size: TESTED_U32 * 4,
-      usage: GPUBufferUsage.STORAGE,
-    })
-    let bounds = idle,
-      state = idle
-    const flagsFor = (rows: number) =>
-      device.createBuffer({
-        size: Math.max(4, rows * 4),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
-      })
-    let flags = flagsFor(cap)
-    buffers.push(uniforms, idle, flags)
-    /** The drawn pyramid's bind group, made once per pyramid and per `attach`, never per swap. */
-    const bind = () => {
-      if (!at) return void (bindGroup = undefined)
-      if (at.group && at.bindings === bindings) return void (bindGroup = at.group)
-      at.bindings = bindings
-      bindGroup = at.group = device.createBindGroup({
-        layout,
-        entries: [
-          { binding: 0, resource: { buffer: at.pyramid } },
-          { binding: 1, resource: at.level0View },
-          { binding: 2, resource: { buffer: uniforms, size: UNIFORM_BYTES } },
-          { binding: 3, resource: { buffer: bounds } },
-          { binding: 4, resource: { buffer: flags } },
-          { binding: 5, resource: { buffer: state } },
-        ],
-      })
-    }
-    /** Installs `next` as the drawn pyramid: bound, its build words written, its size published. */
-    const install = (next: Pyramid | undefined) => {
-      at = next
-      bind()
-      gpu.width = next?.width ?? 0
-      gpu.height = next?.height ?? 0
-      if (!next) return
-      sendBuild(next.drawn.words)
-      gpu.level0 = next.level0
-      gpu.level0View = next.level0View
-    }
-    const first = (at = allocPyramid(device, level0Usage, width, height))
-    const gpu: GpuHiz = {
-      width: 0,
-      height: 0,
-      level0: first.level0,
-      level0View: first.level0View,
-      flags,
-      // The whole pyramid, four mips per dispatch (`buildHiz`), in the frame's compute pass.
-      encodePyramid(open) {
-        if (disposed || !bindGroup || !at) return
-        encodeHizPyramid(open.pass, bindGroup, buildPipeline, at.drawn.passes, at.drawn.slots)
-      },
-      /** Tested boxes and the frame state come from the GPU partition, mounted after us. */
-      attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
-        bounds = nextBounds
-        state = nextState
-        bindings++
-        bind()
-      },
-      growFlags(rows) {
-        const next = flagsFor(rows)
-        return pendingBuffers([next], () => {
-          const old = flags
-          buffers[buffers.indexOf(old)] = gpu.flags = flags = next
-          cap = rows
-          // Every pyramid's group names the flags: each is made again at its next install.
-          bindings++
-          bind()
-          return [old]
-        })
-      },
-      /** Pyramid mips, with their offset and width: what the partition reads to express a
-       *  screen rectangle in texels of the mip that covers it exactly. */
-      levels: () => at?.drawn.levels ?? [],
-      extent(drawnWidth, drawnHeight) {
-        if (disposed || !at) return
-        // Never past level 0: a pyramid still at another view's size is resized before it draws.
-        const w = Math.min(at.width, drawnWidth),
-          h = Math.min(at.height, drawnHeight)
-        if (at.drawn.width === w && at.drawn.height === h) return
-        at.drawn = pyramidLayout(w, h)
-        sendBuild(at.drawn.words)
-      },
-      pyramidBuffer: () => (disposed ? undefined : at?.pyramid),
-      encodeTest(queueDevice, open, maxRows, pages, counting) {
-        if (disposed || !bindGroup || !at || bounds === idle) return 0
-        const rows = Math.min(maxRows, cap)
-        const { passes, width: w, height: h } = at.drawn,
-          slot = passes.length * UNIFORM_BYTES
-        const word = slot / 4
-        hizTestSlot(image, word, w, h, rows, counting)
-        vsmWriteChanged(queueDevice, uniforms, image, word, word + UNIFORM_BYTES / 4)
-        // The compacted box count lives in the state: the dispatch covers every drawable row
-        // and threads past the count leave at the first test.
-        const pass = open.pass
-        testOffset[0] = slot
-        pass.setPipeline(testPipeline)
-        pass.setBindGroup(0, bindGroup, testOffset)
-        pass.setBindGroup(1, pagesGroup(pages))
-        pass.dispatchWorkgroups(Math.max(1, Math.ceil(rows / TEST_WORKGROUP)))
-        return rows
-      },
-      resize(nextDevice, nextWidth, nextHeight) {
-        if (disposed || !nextDevice || nextWidth < 1 || nextHeight < 1) return false
-        if (nextWidth === gpu.width && nextHeight === gpu.height && at) return true
-        try {
-          // The drawn view's pyramid is replaced; another view's, held aside, is not touched.
-          at?.destroy()
-          install(allocPyramid(device, level0Usage, nextWidth, nextHeight))
-          return true
-        } catch {
-          return false
-        }
-      },
-      swap(next) {
-        const current = at
-        if (!disposed) install(next as Pyramid | undefined)
-        return current
-      },
-      dispose() {
-        disposed = true
-        for (const buffer of buffers) buffer.destroy()
-        at?.destroy()
-        at = bindGroup = undefined
-      },
-    }
-    install(first)
+    h = hizState(device, pipelines, buffers, Math.max(1, maxBounds))
+    const first = (h.at = allocPyramid(device, h.level0Usage, width, height))
+    const gpu = hizApi(h, first)
+    installHiz(h, gpu, first)
     return gpu
   } catch {
-    cleanupFailedHiz(buffers, at)
+    cleanupFailedHiz(buffers, h?.at)
     return undefined
   }
+}
+
+/** The Hi-Z's buffers, made before its first pyramid. */
+function hizState(
+  device: GPUDevice,
+  pipelines: HizPipelines,
+  buffers: GPUBuffer[],
+  cap: number,
+): HizState {
+  const uniforms = device.createBuffer({
+    label: 'Trillion3D HiZ uniforms',
+    // The deepest pyramid's build passes, then the test's slot.
+    size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  // Tested boxes and the frame state belong to the GPU partition, which does not exist yet.
+  const idle = device.createBuffer({
+    label: 'Trillion3D HiZ idle bounds v1',
+    size: TESTED_U32 * 4,
+    usage: GPUBufferUsage.STORAGE,
+  })
+  const flags = hizFlags(device, cap)
+  buffers.push(uniforms, idle, flags)
+  return {
+    ...pipelines,
+    device,
+    // `COPY_SRC` serves only the proof tools, which reread depth; no frame copies.
+    level0Usage:
+      GPUTextureUsage.RENDER_ATTACHMENT |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.COPY_SRC,
+    pagesGroup: hizPagesGroup(device, pipelines.pagesLayout),
+    uniforms,
+    // Only the words that changed go up: a frame of the same size and rows sends nothing.
+    image: new Uint32Array(uniforms.size / 4),
+    testOffset: [0],
+    idle,
+    buffers,
+    disposed: false,
+    at: undefined,
+    bindGroup: undefined,
+    bindings: 0,
+    bounds: idle,
+    state: idle,
+    flags,
+    cap,
+  }
+}
+
+/** The Hi-Z's face (`GpuHiz`), over `h`, its first pyramid `first` in place. */
+function hizApi(h: HizState, first: Pyramid): GpuHiz {
+  const gpu: GpuHiz = {
+    width: 0,
+    height: 0,
+    level0: first.level0,
+    level0View: first.level0View,
+    flags: h.flags,
+    // The whole pyramid, four mips per dispatch (`buildHiz`), in the frame's compute pass.
+    encodePyramid(open) {
+      const { at, bindGroup } = h
+      if (h.disposed || !bindGroup || !at) return
+      encodeHizPyramid(open.pass, bindGroup, h.buildPipeline, at.drawn.passes, at.drawn.slots)
+    },
+    /** Tested boxes and the frame state come from the GPU partition, mounted after us. */
+    attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
+      h.bounds = nextBounds
+      h.state = nextState
+      h.bindings++
+      bindHiz(h)
+    },
+    growFlags: (rows) => hizGrowFlags(h, gpu, rows),
+    /** Pyramid mips, with their offset and width: what the partition reads to express a
+     *  screen rectangle in texels of the mip that covers it exactly. */
+    levels: () => h.at?.drawn.levels ?? [],
+    extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),
+    pyramidBuffer: () => (h.disposed ? undefined : h.at?.pyramid),
+    encodeTest: (queueDevice, open, maxRows, pages, counting) =>
+      hizTest(h, queueDevice, open, maxRows, pages, counting),
+    resize: (nextDevice, nextWidth, nextHeight) =>
+      hizResize(h, gpu, nextDevice, nextWidth, nextHeight),
+    swap(next) {
+      const current = h.at
+      if (!h.disposed) installHiz(h, gpu, next as Pyramid | undefined)
+      return current
+    },
+    dispose() {
+      h.disposed = true
+      for (const buffer of h.buffers) buffer.destroy()
+      h.at?.destroy()
+      h.at = h.bindGroup = undefined
+    },
+  }
+  return gpu
 }

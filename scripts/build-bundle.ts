@@ -15,13 +15,13 @@ import { BUNDLE_SOURCES, bundleSources } from './core-sources.ts'
 export const BUNDLE_ENTRY = 'trillion3d.module.js'
 
 const WORKERS = [
-  'sdk-browser/src/page/decode/pageDecodeWorker.js',
+  'sdk-browser/src/page/work/pageWorker.js',
   'sdk-browser/src/page/integration/pageIntegrationWorker.js',
   'sdk-browser/src/physics/physicsWorker.js',
   'sdk-browser/src/math/animationWorker.js',
 ]
 const MODULES = [
-  'sdk-browser/src/page/decode/pageCodec.wasm',
+  'sdk-browser/src/math/wasm/kernels.wasm',
   'sdk-browser/src/physics/joltPhysics.wasm',
   'sdk-browser/src/physics/joltPhysicsThreads.wasm',
 ]
@@ -41,7 +41,7 @@ export function cleanBundle(dist: string) {
 }
 
 /**
- * `source`, a minified bundle file, without the comment lines of its shader texts (WGSL, GLSL),
+ * `source`, a minified bundle file, without the comment lines of its shader texts (WGSL),
  * the one place a line of minified code starts: the shader compiler never reads them, so the
  * device builds the very same program, and a page downloads none of them. A line holding a
  * backtick, a `$` or a backslash (an escape, which may be a line break), starting `//#` (the

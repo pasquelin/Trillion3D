@@ -1,24 +1,21 @@
 /**
- * THE MEASUREMENT SEAM. What the bench, the proofs and the comparison views name and a host
- * never does: the engine's own paths, and the session that takes an explicit list of backends —
- * beside everything the published entry exports. The published entry (`../index.ts`) draws with
- * one code and lets the engine choose the path; this one lets a caller hand the session any
- * `BackendFactory` it likes. The witnesses the engine is compared against are such factories, and
- * they live beside the bench, not here: `bench/witnesses/measurement.ts` re-exports this entry
- * with them added. Nothing reached from this file imports the host library.
+ * THE MEASUREMENT SEAM. What the bench and the proofs name and a host never does: the engine's
+ * own factory and the session it is handed to (`engine`), beside everything the published entry
+ * exports. The published entry (`../index.ts`) loads the engine's renderer as a family; this one
+ * hands the session the factory itself, or a stand-in. Nothing reached from this file imports the
+ * witness library.
  */
 export * from '../index.ts'
 import { openMeasuredWorld } from '../world/session/explorer.ts'
 import type { MeasuredWorldTarget } from '../world/session/target.ts'
-import type { MeasuredWorldOptions } from '../backend/types.ts'
+import type { MeasuredWorldOptions } from '../engine/types.ts'
 
 export { openMeasuredWorld } from '../world/session/explorer.ts'
 export type { MeasuredWorld } from '../world/session/explorer.ts'
 export type { MeasuredWorldTarget } from '../world/session/target.ts'
-export type { RenderBackend, BackendFactory, MeasuredWorldOptions } from '../backend/types.ts'
+export type { Engine, EngineFactory, MeasuredWorldOptions } from '../engine/types.ts'
 export { replicateInstances } from '../scene/replicateInstances.ts'
-export { autonomousPagesBackend } from '../backend/autonomous/pages.ts'
-export { webgpuPagesBackend } from '../webgpu/pages/pages.ts'
+export { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 export { attachParticles } from '../world/core/worldSession.ts'
 // The screen-error measure reads a drawn mesh's side the way the engine does (`bench/runner`).
 export { sideOf } from '../scene/materialSide.ts'

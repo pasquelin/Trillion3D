@@ -1,4 +1,4 @@
-// The radiance mip chain on the GPU (`texture/mipBatch.ts`, `createRadianceMipChain`): the
+// The radiance mip chain on the GPU (`texture/radianceMips.ts`, `createRadianceMipChain`): the
 // reduction the reflections read, run on HDR images whose last level is read back — even and odd
 // sizes, one corner texel brighter and transparent.
 //

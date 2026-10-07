@@ -79,6 +79,7 @@ function casterRows({ rt }: Session) {
       at = row * CLUSTER_SPHERE_FLOATS
     return {
       url: rec.url,
+      rank,
       min: [...rec.min],
       max: [...rec.max],
       world: Array.from(rootOf(selectionRoots, rank).world.elements),
@@ -119,7 +120,10 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
   assert.deepEqual(await steps(digest), [
     '4c9667c088a4d0da',
     '52cef678cafd5756',
-    'eea0d683aa3ccacb',
+    // Grown in place on the GPU cut (#1483): the table holds the GPU cut's readout, so every taken
+    // leaf draws — develop's five-row table left the two new placements out. Recorded on #1483's
+    // first run with the grown cut adopted: its seven rows are those the homes test below names.
+    '4f119f25497adc84',
   ])
 })
 
@@ -128,7 +132,8 @@ test('rows, draw items and cut of repeated and moved placements are those of dev
 test('each row names its page at the home the pool gave it, whatever the placement moved', async () => {
   const [at, moved, grown] = await steps(homes)
   assert.deepEqual(at, [0, 3, 3, 6, 6])
-  assert.deepEqual([moved, grown], [at, at])
+  // The grown rows' two new placements, one of each leaf, at their leaf's home.
+  assert.deepEqual([moved, grown], [at, [...at, 3, 6]])
 })
 
 test('the shadow raster reads each row at its own placement, moving once that placement moved', async () => {
@@ -142,12 +147,16 @@ test('the shadow raster reads each row at its own placement, moving once that pl
   const point = new Float64Array(3)
   const place = (world: number[], at: (axis: number) => number) =>
     Array.from(transformAffinePoint(point, world, at(0), at(1), at(2)))
+  // The placements the core node moved: those of the roots before the growth; a row placed after
+  // it, grown in place, never moved (`webgpuGrowth.ts` appends their roots).
+  const before = Math.max(...seen[1].map((row) => row.rank)) + 1
   for (const [step, rows] of seen.entries())
-    for (const [row, { url, min, max, world, word, centre, radius }] of rows.entries()) {
+    for (const [row, { url, rank, min, max, world, word, centre, radius }] of rows.entries()) {
       const where = `${['at open', 'moved', 'grown'][step]}, row ${row} (${url})`
       // The core node moved every placement under it, the ground's aside: those turn moving, the
       // raster draws them into the dynamic slice from then on.
-      assert.equal(word, step > 0 && url !== 'ground' ? still | MOBILITY_MOVING : still, where)
+      const moving = step > 0 && url !== 'ground' && rank < before
+      assert.equal(word, moving ? still | MOBILITY_MOVING : still, where)
       // The sphere of the row's own placement: centred on the box it places, holding its eight
       // corners, and never twice as wide as the farthest.
       const middle = place(world, (axis) => (min[axis] + max[axis]) / 2)

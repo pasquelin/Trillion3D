@@ -8,7 +8,7 @@ import {
 import {
   MIRROR_TRANSITION_END,
   TRANSLUCENT_SCREEN_REFLECTION_MAX_ROUGHNESS,
-  mirrorWeightShader,
+  MIRROR_WEIGHT_WGSL,
 } from './modelShader.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
@@ -42,7 +42,7 @@ test('the source reprojects the last lit image and lights nothing itself', () =>
 test('the final direct resolve adds screen reflections over the environment, with no proxy', () => {
   const shader = withScreenReflections(DIRECT_LIGHTING_SHADER, true)
   assert.match(functionText(shader, 'lightSurface'), /mirrorLighting/)
-  assert.match(functionText(shader, 'mirrorLighting'), /resolvedRadiance/)
+  assert.match(functionText(shader, 'mirrorRadiance'), /resolvedRadiance/)
   assert.match(functionText(shader, 'reflectedRadiance'), /return environmentReflection\(R,rough\)/)
   assert.doesNotMatch(shader, /rayRadiance/)
 })
@@ -74,7 +74,7 @@ test('the water mirror walks the depth bounds; a miss reads the filtered probes,
 
 test('a blended surface traces its mirror ray once: the full walk in the mirror transition, its march past it', () => {
   const { mirrorWeight } = shaderRun<{ mirrorWeight: (rough: number) => number }>(
-    mirrorWeightShader('wgsl'),
+    MIRROR_WEIGHT_WGSL,
     ['mirrorWeight'],
     {},
   )

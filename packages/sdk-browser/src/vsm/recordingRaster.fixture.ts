@@ -5,7 +5,7 @@ import { emptyRowSpheres } from './rowPageBound.fixture.ts'
 /** What a raster pass of `rowCount` rows under one sun is encoded with, on a recording device: the
  *  recording encoder, the scene on one tiny buffer, and the sun. */
 export function recordingRaster(device: GPUDevice, rowCount: number) {
-  const buffer = device.createBuffer({ size: 16, usage: 0 })
+  const buffer = device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   const scene: VsmRenderScene = {
     rowCount,
     ...{ pageTable: buffer, spheres: buffer, mobility: buffer, rowLods: buffer },

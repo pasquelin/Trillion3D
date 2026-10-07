@@ -4,11 +4,11 @@
 // precision and the matrices it drew them from; the reference is recomputed on those same inputs
 // (`partitionReference.ts`). The transparent clusters the occlusion test removed are refuted the
 // same way (`transparentOcclusionReference.ts`).
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { readBounds } from '../../../bench/runner/harness/page.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
 import { SDK_URL } from '../world/proofWorld.ts'
-import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { compareAudit, emptyTotals } from './partitionReference.ts'
 import { checkOcclusionAudit, emptyOcclusionTotals } from './transparentOcclusionReference.ts'
 
@@ -32,9 +32,8 @@ export async function auditPoses(options: AuditOptions) {
   const poses = Array.from({ length: options.poses }, (_, i) =>
     poseAt(bounds, Math.round((i * (TRAJECTORY_FRAMES - 1)) / (options.poses - 1))),
   )
-  const sdk = await measurementSdk()
-  const events: BackendDiagnostic[] = []
-  const world = await sdk.openMeasuredWorld(proofCanvas('partition-audit'), {
+  const events: EngineDiagnostic[] = []
+  const world = await openEngineWorld(proofCanvas('partition-audit'), {
     manifestUrl: options.manifestUrl,
     scope: 'full',
     width: options.width,
@@ -47,8 +46,6 @@ export async function auditPoses(options: AuditOptions) {
     maxResidentPages: options.maxPages,
     preload: 'visible',
     interactive: false,
-    backends: [sdk.webgpuPagesBackend],
-    comparisonLayout: 'single',
     clearColor: 0x2a303c,
     diagnosticDetail: 'summary',
     onDiagnostic: (event) => {
@@ -81,8 +78,6 @@ export async function auditPoses(options: AuditOptions) {
         rows: total.rows - rowsBefore,
         clipped: total.clipped - clippedBefore,
         transparentRejected: occlusion.rejected - rejectedBefore,
-        cpuSelectMs: metrics?.cpuSelectMs ?? null,
-        gpuSelectionFallback: metrics?.gpuSelectionFallback ?? null,
         hizTestedClusters: metrics?.hizTestedClusters ?? null,
         hizRejectedClusters: metrics?.hizRejectedClusters ?? null,
       })

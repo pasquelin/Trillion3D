@@ -1,5 +1,5 @@
 // "honest measurement harness counters" batch: `resume()` gains three columns (submitted
-// triangles, held image, GPU selection fallback) and never writes 0 for an absent measurement — only a
+// triangles, held image) and never writes 0 for an absent measurement — only a
 // dash does, as for columns already in place (`num`, `mo`). Each check reads the cell under its
 // header, never a pattern anywhere in the text.
 // Coverage-column tests live in `summary/summaryCoverage.test.ts`, to keep both files under the line budget.
@@ -10,7 +10,6 @@ import { baseSide, rapport, tableRow } from './summaryTestFixtures.ts'
 
 const SUBMITTED = 'submitted triangles opaque/total'
 const HELD = 'held image'
-const FALLBACK = 'GPU selection fallback'
 const HIZ = 'Hi-Z tested/rejected/>16 (image)'
 const readings = (side: Partial<typeof baseSide>) =>
   tableRow(resume(rapport({ ...baseSide, ...side })), 'Readings')
@@ -20,7 +19,6 @@ test('measured counters are displayed as is, each under its own header', () => {
     submittedTriangles: 1500,
     totalSubmittedTriangles: 1800,
     frameHeld: true,
-    gpuSelectionFallback: false,
     hiZ: {
       tested: 200,
       rejected: 40,
@@ -33,20 +31,17 @@ test('measured counters are displayed as is, each under its own header', () => {
   })
   assert.equal(row[SUBMITTED], '1500/1800', 'submitted triangles, opaque then total')
   assert.equal(row[HELD], 'yes')
-  assert.equal(row[FALLBACK], 'no')
   assert.equal(row[HIZ], '200/40/5 (42)', 'Hi-Z tested/rejected/>16, then the counted image')
 })
 
-test('an absent counter is a dash, never a zero: `frameHeld`, `gpuSelectionFallback`, submitted triangles, Hi-Z', () => {
+test('an absent counter is a dash, never a zero: `frameHeld`, submitted triangles, Hi-Z', () => {
   const row = readings({
     submittedTriangles: null,
     totalSubmittedTriangles: null,
     frameHeld: null,
-    gpuSelectionFallback: null,
   })
   assert.equal(row[SUBMITTED], '—/—', 'no submitted triangles counted: two dashes, not two zeros')
   assert.equal(row[HELD], '—')
-  assert.equal(row[FALLBACK], '—', 'the GPU fallback is not an inferred `no`')
   assert.equal(row[HIZ], '—/—/— (—)', 'nor Hi-Z an inferred zero')
 })
 

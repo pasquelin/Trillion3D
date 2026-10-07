@@ -48,36 +48,44 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  * other read and its lighting. Every derivative is taken before that return, so a helper lane's
  * neighbours read the same ones; every value a kept fragment computes is the one it computed
  * before, from the same operands.
+ *
+ * With `lobes`, a lobed program's (`vertexWgsl.ts`): its screen derivatives take the second UV
+ * set's too (`physicalWgsl.ts`). `geometric` is the normal before the map, which the coat bends
+ * its own map from.
  */
-export const BLEND_SURFACE_WGSL = `
+export const blendSurfaceWgsl = (lobes: boolean) => {
+  // The first UV set: the whole of a lobeless program's \`uv\`, a lobed one's first two lanes.
+  const uv = 'in.uv.xy'
+  return `
 ${COTANGENT_FRAME_WGSL}
 ${BLEND_SURFACE_NORMAL_WGSL}
-struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,}
-fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(in.uv),dpdy(in.uv),dpdx(in.view),dpdy(in.view));}
+struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,${lobes ? 'uv1X:vec2f,uv1Y:vec2f,' : ''}}
+fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view)${lobes ? ',dpdx(in.uv.zw),dpdy(in.uv.zw)' : ''});}
 fn blendSampled(in:VSOut)->bool{return (in.ids.y&${FLAG_SAMPLED}u)!=0u;}
 /** The base map's sample: the colour, and the alpha the coverage test reads. */
-fn blendBase(in:VSOut,g:BlendGrads)->vec4f{return colorSample(in.ids.x,in.uv,g.gradX,g.gradY,blendSampled(in));}
+fn blendBase(in:VSOut,g:BlendGrads)->vec4f{return colorSample(in.ids.x,${uv},g.gradX,g.gradY,blendSampled(in));}
 /** The fragment's opacity: what the alpha test compares and the stage writes. */
 fn blendAlpha(in:VSOut,base:vec4f)->f32{return base.w*in.color.w;}
 fn blendKeeps(in:VSOut,base:vec4f,front:bool)->bool{
  return !(blendAlpha(in,base)<in.alphaAo.x||facingDiscarded(in.water>>${FACING_SHIFT}u,front));
 }
-struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,}
+struct BlendSurface{rgb:vec3f,alpha:f32,N:vec3f,rough:f32,metal:f32,ao:f32,emissive:vec3f,request:u32,subsurface:vec3f,geometric:vec3f,}
 fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  let flags=in.ids.y;
  let sampled=blendSampled(in);
  let gradX=g.gradX;let gradY=g.gradY;
  let request=blendRequest(in,gradX,gradY);
- var N=blendGeometricNormal(in,front,g.q0,g.q1);
+ let geometric=blendGeometricNormal(in,front,g.q0,g.q1);
+ var N=geometric;
  let face=select(-1.0,1.0,front);
  let alpha=blendAlpha(in,base);
  let rgb=in.color.xyz*base.xyz;
  var rough=in.pbr.x;var metal=in.pbr.y;var ao=1.0;
- if(in.maps.x!=0u){rough*=dataSample(in.maps.x,in.uv,gradX,gradY,sampled).g;}
- if(in.maps.y!=0u){metal*=dataSample(in.maps.y,in.uv,gradX,gradY,sampled).b;}
- if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,in.uv,gradX,gradY,sampled).r-1.0);}
+ if(in.maps.x!=0u){rough*=dataSample(in.maps.x,${uv},gradX,gradY,sampled).g;}
+ if(in.maps.y!=0u){metal*=dataSample(in.maps.y,${uv},gradX,gradY,sampled).b;}
+ if(in.maps.w!=0u){ao+=in.alphaAo.y*(dataSample(in.maps.w,${uv},gradX,gradY,sampled).r-1.0);}
  if(in.maps.z!=0u){
-  let mapN=dataSample(in.maps.z,in.uv,gradX,gradY,sampled).xyz*2.0-vec3f(1.0);
+  let mapN=dataSample(in.maps.z,${uv},gradX,gradY,sampled).xyz*2.0-vec3f(1.0);
   // The frame of the opaque resolve, on screen derivatives: framebuffer y runs down, hence the
   // sign, as on the geometric normal above.
   let frame=cotangentFrame(N,g.q0,g.q1,gradX,gradY);
@@ -87,9 +95,10 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
   N=uniteOuZero(T*mapN.x*in.pbr.z+B*mapN.y*in.pbr.w+N*mapN.z);
  }
  var emissive=in.emissive.xyz;
- if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,in.uv,gradX,gradY,sampled).rgb;}
+ if(in.ids.z!=0u){emissive*=colorSample(in.ids.z,${uv},gradX,gradY,sampled).rgb;}
  var thin=clamp(vec3f(in.normal.w,in.tangent.w,in.bitangent.w),vec3f(0.0),vec3f(1.0));
- if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),in.uv,gradX,gradY,sampled).rgb;}
- return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin);
+ if(in.emissive.w!=0.0){thin*=colorSample(u32(in.emissive.w),${uv},gradX,gradY,sampled).rgb;}
+ return BlendSurface(rgb,alpha,N,rough,metal,ao,emissive,request,thin,geometric);
 }
 ${BLEND_SHADOW_FOOTPRINT_WGSL}`
+}

@@ -4,6 +4,7 @@ pub mod albedo;
 pub mod coplanar;
 pub mod cutout;
 mod dag;
+mod eac_modifiers;
 mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_deform;
@@ -30,7 +31,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     fmt::{Display, Formatter},
     fs::{self, File},
-    io::{BufWriter, Read, Seek, SeekFrom, Write},
+    io::{BufWriter, Read, Write},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -106,7 +107,7 @@ pub struct Options {
     pub threads: usize,
     pub ram_budget_mb: usize,
     pub simplification: String,
-    /// Texture block families (`--textures-format`), desktop family by default.
+    /// Texture block families (`--textures-format`), every family by default.
     pub texture_formats: Vec<texture_preview::BlockFormat>,
     pub cancelled: Arc<AtomicBool>,
 }
@@ -123,7 +124,6 @@ mod compiler_accessor_create;
 mod compiler_accessor_decode;
 mod compiler_accessor_types;
 mod compiler_args;
-mod compiler_autonomous;
 pub mod compiler_budget;
 mod compiler_buffers;
 mod compiler_build;

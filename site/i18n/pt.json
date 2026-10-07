@@ -818,8 +818,6 @@
       "shadow-pages-off": "Paginação de sombras desativada",
       "shadow-budget-0-25": "Orçamento de tempo de sombra: 0,25 ms",
       "budget-3000": "Orçamento de geometria: 3000 páginas",
-      "webgl": "Renderizador WebGL",
-      "webgl2": "Renderizador WebGL 2",
       "moving-light": "Luz em movimento",
       "visible": "Janela do navegador visível"
     },
@@ -925,7 +923,7 @@
     "resolution": "Resolução e limiar de erro",
     "lights": "Luzes, sombras e rebote",
     "execution": "Quadro parado, antisserrilhamento e opções de execução",
-    "memory": "Memória, instâncias e outros renderizadores"
+    "memory": "Memória, instâncias e outras execuções"
   },
   "evidence": {
     "computeDrawing": "Desenho por compute",
@@ -1109,8 +1107,8 @@
     },
     "measurement-entry": {
       "title": "O ponto de entrada de medição",
-      "description": "Onde uma testemunha, um backend forçado ou uma sessão interna ainda podem ser nomeados — nunca através do ponto de entrada publicado `trillion3d`.",
-      "html": "<p>Uma página importa <code>trillion3d</code> e nunca vê um backend, uma testemunha ou uma sessão interna: <code>createWorld</code> desenha com um renderizador, escolhido a partir da máquina ou recusado por nome se forçado e ausente. O benchmark, as provas e as visões de comparação ainda precisam nomear uma testemunha — Three.js puro, <code>THREE.LOD</code>, a sessão interna <code>openMeasuredWorld</code> — e essa é a única função do ponto de entrada de medição separado, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Ele reexporta tudo o que o ponto de entrada publicado reexporta, mais o que um host nunca precisa: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (a sessão interna que um mundo abre sobre si mesmo), as fábricas de backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), e auxiliares só de medição como <code>replicateInstances</code>. Nada disso chega a um mundo publicado, e nada disso é importado por uma aplicação.</p>"
+      "description": "Onde uma testemunha ou uma sessão interna ainda podem ser nomeadas — nunca através do ponto de entrada publicado `trillion3d`.",
+      "html": "<p>Uma página importa <code>trillion3d</code> e nunca vê uma testemunha ou uma sessão interna: <code>createWorld</code> desenha com WebGPU, ou é recusado por nome se a máquina não conceder nenhum. O benchmark e as provas ainda precisam nomear uma testemunha — Three.js puro, <code>THREE.LOD</code>, a sessão interna <code>openMeasuredWorld</code> — e essa é a única função do ponto de entrada de medição separado, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Ele reexporta tudo o que o ponto de entrada publicado exporta, mais o que um host nunca precisa: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (a sessão interna que um mundo abre sobre si mesmo), a fábrica de páginas <code>webgpuPagesEngine</code> e auxiliares só de medição como <code>replicateInstances</code>. Nada disso chega a um mundo publicado, e nenhuma aplicação o importa.</p>"
     },
     "createWorldJob": {
       "title": "Um carregamento de mundo como job cancelável",
@@ -1159,11 +1157,11 @@
       "description": "O que um quadro desenha. A disponibilidade descreve saídas reais do pipeline, nunca sobreposições sintéticas: `DIAGNOSTICS` informa, para cada modo, se o renderizador ativo pode produzi-lo e por que não.",
       "values": [
         "A imagem iluminada, a partir dos materiais glTF.",
-        "Uma cor única preenchida por triângulo enviado — não GL_LINES, não `MeshBasicMaterial.wireframe`.",
-        "Identidade estável de primitiva/página, uma cor por cluster; WebGL2 e WebGPU.",
+        "Uma cor única preenchida por triângulo enviado.",
+        "Identidade estável de primitiva/página, uma cor por cluster.",
         "Clusters de nível 0 contra as reduções mais grosseiras do DAG realmente selecionadas neste quadro.",
         "O erro por cluster projetado através da esfera do cluster, como o corte o usa.",
-        "Uma cor por classe de material: o passo de classe que resolveu o pixel. Apenas no caminho de visibilidade do WebGPU.",
+        "Uma cor por classe de material: o passo de classe que resolveu o pixel.",
         "Páginas visíveis selecionadas; nós de hierarquia rejeitados são contados, não desenhados.",
         "Páginas de índice anexadas; páginas ausentes não são desenhadas. Não é VRAM física.",
         "Indisponível: a residência de mips de textura não é instrumentada.",
@@ -1214,10 +1212,7 @@
     },
     "GpuTimingMethod": {
       "description": "Como as durações de GPU de um perfil de etapas foram obtidas. Uma duração por passo diz onde, nunca quanto: em uma GPU baseada em blocos (tile-based) os passos se sobrepõem e um passo absorve os vizinhos. O total do quadro é `gpuImageMs`, o envelope — as durações das etapas não somam nele.",
-      "values": [
-        "Consultas de timestamp nativas do WebGPU.",
-        "A extensão do WebGL2, para esse caminho."
-      ]
+      "values": ["Consultas de timestamp nativas do WebGPU."]
     },
     "ColumnKind": {
       "description": "Armazenamento de uma coluna do manifesto binário. `COLUMN_KIND` mapeia cada nome de coluna ao seu tipo, para que um leitor saiba qual visão adotar sobre os bytes auxiliares.",
@@ -1246,7 +1241,7 @@
       "description": "Envolve qualquer operação pendente no contrato de job do motor: um retrato (`JobStatus`, progresso, resultado, erro), inscrição, e um aborto que descarta o que o job possuía. A operação precisa suportar aborto através de seu dono (RAF, leitura de retorno, …)."
     },
     "detectCapabilities": {
-      "description": "O que esta máquina realmente suporta, antes de um mundo ser criado: `{ tier, renderer, adapter, extensions, reason }`. O motivo é sempre informado, para que um recurso não suportado seja relatado em vez de presumido. O invólucro público que um mundo lê é `capability.detect()` — `{ webgpu, webgl2, ... }`, uma forma mais simples para a mesma sondagem. A sondagem de WebGL2 é armazenada em cache."
+      "description": "O que o WebGPU desta máquina realmente concede, antes de um mundo ser criado: `{ tier, adapter, extensions, reason }`. O nível é `full` com consultas de timestamp da GPU, `degraded` sem elas e `unavailable` sem adaptador. O motivo é sempre indicado, de modo que uma capacidade não suportada é reportada em vez de presumida. O wrapper público que um mundo lê é `capability.detect()` — `{ webgpu, tier, features, reason }`, uma forma mais simples para a mesma sonda."
     },
     "perspectiveProjection": {
       "description": "Projeção em perspectiva de uma câmera com `fov` vertical em graus, proporção `aspect`, plano próximo `near`, zoom `zoom`. **Profundidade invertida, plano distante infinito**: `near` projeta para 1, o infinito para 0. Nenhum plano distante entra aqui, logo nenhuma divisão por ele — o que garante a precisão de profundidade."
@@ -1626,11 +1621,10 @@
       "an angle at or above π/2 never rejects": "um ângulo igual ou maior que π/2 nunca rejeita",
       "after updateNodeMatrixWorld(tree, root)": "depois de updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "disponível — páginas de índice anexadas; páginas ausentes não são desenhadas; não é VRAM física",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "disponível — cor única preenchida por triângulo enviado, não GL_LINES wireframe",
+      "available — A filled unique colour per submitted triangle": "disponível — cor única preenchida por triângulo enviado",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "disponível — clusters de nível 0 contra reduções mais grosseiras do DAG realmente selecionadas neste quadro",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "disponível — erro de tela por cluster projetado através da esfera do cluster, como o corte o usa",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "disponível — páginas visíveis selecionadas; nós de hierarquia rejeitados são contados, não desenhados",
-      "available — Stable primitive/page ID, exact-cluster backend only": "disponível — ID estável de primitiva/página, apenas no backend de cluster exato",
       "available — glTF materials": "disponível — materiais glTF",
       "unavailable — No fragment counter": "indisponível — sem contador de fragmentos",
       "unavailable — Texture mip residency not instrumented": "indisponível — residência de mips de textura não instrumentada",

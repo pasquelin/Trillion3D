@@ -6,15 +6,15 @@ import { createWebgpuPagesRuntime } from './runtime.ts'
 import { prepareWebgpuBackend } from './prepare/prepare.ts'
 import { renderWebgpuPages } from './render/render.ts'
 import { flushWebgpuPages } from './render/flush.ts'
-import type { BackendContext, BackendDiagnostic } from '../../backend/types.ts'
+import type { EngineContext, EngineDiagnostic } from '../../engine/types.ts'
 
 /** The red quad on a prepared runtime, its main view drawn twice from the front; `options` add
  *  to its context. */
-export async function drawnQuad(compute: boolean, options: Partial<BackendContext> = {}) {
+export async function drawnQuad(options: Partial<EngineContext> = {}) {
   installGpuGlobals()
-  const gpu = mockGpu({ compute })
+  const gpu = mockGpu()
   const fixture = quadScene(),
-    events: BackendDiagnostic[] = []
+    events: EngineDiagnostic[] = []
   const rt = createWebgpuPagesRuntime({
     ...fixture,
     gpuDevice: gpu.device,

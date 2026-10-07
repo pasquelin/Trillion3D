@@ -60,6 +60,10 @@ export const SHADE_BINDINGS = {
   receiver: 18,
   /** What the frame's compute passes composed for the resolve (`shadeCacheWgsl.ts`). */
   shadeCache: 19,
+  /** The surfaces' anisotropic and clear-coat records (`../visibility/physicalTable.ts`). */
+  physical: 20,
+  /** The lobes target the resolve writes and the lighting reads (`../../scene/physicalLobes.ts`). */
+  lobes: 21,
 }
 
 export const BLEND_BINDINGS = {
@@ -100,6 +104,9 @@ export const BLEND_BINDINGS = {
   shadowTranslucentDepth: 27,
   /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
   surfaceCache: 28,
+  /** The surfaces' anisotropic and clear-coat records, the opaque resolve's own table
+   *  (`../visibility/physicalTable.ts`), read by the lobed programs (`../blend/physicalWgsl.ts`). */
+  physical: 29,
 }
 
 /**

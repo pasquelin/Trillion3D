@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { clusterPixels } from '../page/selection/math.ts'
-import { drawsCluster } from '../page/cut/rule.ts'
+import { clusterPixels } from '../page/selection/frame.fixture.ts'
+import { drawsCluster } from '../page/cut/rule.fixture.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 
 const matrix = new Matrix4().elements
@@ -19,7 +19,6 @@ const pixels = (level: number, reach: number) =>
     0.1,
     1,
     new Float64Array(2),
-    true,
     reach,
   )
 

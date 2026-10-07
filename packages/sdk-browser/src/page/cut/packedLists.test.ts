@@ -4,8 +4,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ruleDag } from './cutRule.fixture.ts'
 import { AWAY, placements, stripCamera } from './cutRuleBackends.fixture.ts'
-import { createHeldResidency } from './held.ts'
-import { selectVisiblePages } from './cut.ts'
+import { createHeldResidency } from './held.fixture.ts'
+import { selectVisiblePages } from './cut.fixture.ts'
 import { postPackedBases } from '../selection/placements.ts'
 
 test('the packed lists widen to what the cut selects, not to every placement', () => {

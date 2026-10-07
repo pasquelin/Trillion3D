@@ -14,6 +14,6 @@ export function composeRuntime(roots: readonly object[], run: object = {}) {
     lights: { mobility: createShadowMobility(), changes: createShadowChanges(SHADOW_CHANGE_BOXES) },
     blendState: { blendGpu: [] },
     gpu: {},
-    run: { gate: { engineMovedInPlace() {} }, temporalHizState: {}, ...run },
+    run: { gate: { engineMovedInPlace() {} }, ...run },
   } as unknown as WebgpuPagesRuntime
 }

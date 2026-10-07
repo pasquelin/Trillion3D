@@ -4,7 +4,7 @@
 //   node bench/dawn/proofs.ts tests/gpu/visibility/shading-point.gpu.ts
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { computeOnDawn } from './computeRun.ts'
+import { computeOnDawn } from '../kit/computeRun.ts'
 import { SHADING_POINT_WGSL } from '../../../packages/sdk-browser/src/visibility/shader/shadingPoint.ts'
 
 // One triangle in the z = 0 plane, its normals tilted outward (a convex patch seen from +z).

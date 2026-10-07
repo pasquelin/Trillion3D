@@ -13,7 +13,7 @@ import {
  * — a field never spans more than two words, and a triangle is its block's record, read once, and
  * three fields. The arithmetic is the format's, operation for
  * operation — one multiply, one add, both correctly rounded in WGSL —, so a position decoded here
- * is the 32-bit float the shared Rust codec and `../page/decode/geometryPage.ts` decode; a normal, which goes
+ * is the 32-bit float the shared Rust codec and `../page/codec/geometryPage.ts` decode; a normal, which goes
  * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin.
  *
  * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
@@ -37,9 +37,9 @@ const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  * The tangent frame a page does not store, from the triangle: its normal `N`, two edges and the
  * texture deltas along them. A raster passes the triangle's own edges and deltas, a fragment
  * stage the screen derivatives of position and texture coordinate — the same frame either way,
- * the one every lighting pass of the engine bends its normal map with (`../webgl/cluster/shaders.ts`
- * spells the same routine in GLSL). `T` follows `u`, `B` follows `v`, both orthogonal to `N`,
- * the longer of the two unit; a triangle with no texture area yields zero vectors, not NaN.
+ * the one every lighting pass of the engine bends its normal map with. `T` follows `u`, `B`
+ * follows `v`, both orthogonal to `N`, the longer of the two unit; a triangle with no texture
+ * area yields zero vectors, not NaN.
  */
 export const COTANGENT_FRAME_WGSL = `struct CotangentFrame{T:vec3f,B:vec3f,}
 fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFrame{

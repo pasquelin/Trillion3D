@@ -2,10 +2,10 @@
  * The host's own surface constants, each named for what it means.
  *
  * A host material and a host texture declare their state as numbers, and the engine compares
- * against them at the two boundaries that read a surface (`surfaceImport.ts`,
- * `surfaceGate.ts`). Naming the rendering library to get those numbers would put the library
- * back on the engine path for a comparison that is not a computation, so they are named here
- * instead — the same move `../scene/materialSide.ts` already makes for the three face constants.
+ * against them at the boundary that reads a surface (`surfaceImport.ts`). Naming the rendering
+ * library to get those numbers would put the library back on the engine path for a comparison
+ * that is not a computation, so they are named here instead — the same move
+ * `../scene/materialSide.ts` already makes for the three face constants.
  *
  * WHAT EACH NUMBER STANDS FOR. Addressing and filtering are the glTF `sampler` states: the three
  * wrap modes in the order glTF lists them — repeat, clamp to edge, mirrored repeat — then the six
@@ -17,8 +17,9 @@
  * `BLEND` alpha mode defines; the other modes are the world API's. `HOST_NORMAL_MAP_TANGENT_SPACE` is glTF's normal texture, whose
  * vectors are expressed in the surface's tangent frame.
  *
- * `surfaceConstants.test.ts` holds them to the host library's own constants, value by value:
- * a test may name the library, the engine path may not.
+ * The witness (`bench/witnesses/three/parity/browser/host/surfaceConstants.test.ts`) holds them
+ * to the witness library's own constants, value by value: a witness may name the library, the
+ * engine path may not.
  */
 
 /** Addressing modes of a sampler, glTF's `wrapS`/`wrapT`. */

@@ -1,25 +1,24 @@
 import * as G from '../host/graph/graph.fixture.ts'
 import { createSceneLightStore, type SceneLight } from '../../../sdk-core/src/index.ts'
-import { MANIFEST_IDENTITY } from '../backend/pagesBackend.fixture.ts'
-import { dagRoots } from '../backend/pagesBackend.fixture.ts'
-import { QUAD_MANIFEST, triangleGeometry } from '../backend/pagesBackendScenes.fixture.ts'
-import { rootPage } from '../webgpu/pages/testScenes.fixture.ts'
+import { MANIFEST_IDENTITY } from '../engine/pagesEngine.fixture.ts'
+import { dagRoots } from '../engine/pagesEngine.fixture.ts'
+import { QUAD_MANIFEST, triangleGeometry } from '../engine/pagesEngineScenes.fixture.ts'
+import { rootPage } from '../webgpu/pages/rootPages.fixture.ts'
 import { cameraAt } from '../webgpu/pages/twoPlaces.fixture.ts'
 import { cellUrl, io, noBudget, opened, settled, world } from '../partition/cells.fixture.ts'
 import type { RowLink } from '../partition/rows.ts'
 import { collectClusterPages } from '../page/selection/selection.ts'
-import { packDagSelection } from '../gpu/dag/selection.ts'
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
 import { createWebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import { prepareWebgpuBackend } from '../webgpu/pages/prepare/prepare.ts'
 import { disposeWebgpuPages } from '../webgpu/pages/io/metrics.ts'
-import { fallbackToCpuCut } from '../webgpu/pages/io/drops.ts'
 import { renderWebgpuPages } from '../webgpu/pages/render/render.ts'
 import { flushWebgpuPages } from '../webgpu/pages/render/flush.ts'
 import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts'
+import { readoutRow } from '../gpu/dag/bufferTable.ts'
 import { updateWebgpuPlacements } from './webgpuPlacements.ts'
-import { growWebgpuPlacements, webgpuGrowsInPlace } from './webgpuGrowth.ts'
+import { growthOf, webgpuPlacementApi } from './webgpuGrowth.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 
 /** A ground triangle, and the two primitives of the mesh the partition places (`cells.fixture`),
@@ -55,11 +54,14 @@ function placedScene(links: readonly RowLink[]) {
   return { source, metadata, indices, associations, dispose }
 }
 
+/** Pages the scene packs, grown: the ground and four leaf rows of two pages. */
+const SCENE_PAGES = 9
+
 /**
  * The partition of `cells.fixture` — its near cell's two nodes on rows sized at open, its far one
  * five kilometres off under the same core node — drawn by a WebGPU session on a mocked device
- * whose storage binding holds `bindingRows` page-table rows, the CPU cut drawing: the GPU cut lays
- * its catalogue out at open.
+ * whose storage binding holds `bindingRows` page-table rows, the GPU cut drawing: rows that outgrow
+ * their buffer grow in place, a cut made over them (`webgpuGrowth.ts`).
  * The session is handed the partition's rows as a world hands them (`partitionFrame.ts`).
  */
 export async function placedSession(bindingRows: number, light?: SceneLight) {
@@ -74,9 +76,12 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
     scene.indices,
     scene.associations,
   )
-  const binding = bindingRows * PAGE_INFO_STRIDE
+  // A binding of `bindingRows` table rows, no smaller than the GPU cut's readout at the scene's list
+  // cap, grown or not: the cut is the engine's one cut, and a device that cannot hold it refuses
+  // the scene (#1483).
+  const binding = Math.max(bindingRows * PAGE_INFO_STRIDE, readoutRow(SCENE_PAGES).size)
+  // The double runs the cut on the DAG the session uploads, the grown one too (`mockDag.ts`).
   const gpu = mockGpu({
-    packed: packDagSelection(collected.roots),
     limits: { maxBufferSize: Math.max(1 << 20, binding), maxStorageBufferBindingSize: binding },
   })
   const sceneLights = createSceneLightStore()
@@ -91,10 +96,8 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   const { port, held, outgrown: reopened } = io(bytes)
   ;['near.json', 'far.json'].forEach((name) => held.add(cellUrl(name)))
   port.update = (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to)
-  port.grow = {
-    growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
-    growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
-  }
+  const { growsInPlace, growPlacements } = webgpuPlacementApi(rt)
+  port.grow = { growsInPlace, growPlacements }
   const view = cameraAt(0, 30)
   const draw = async () => {
     renderWebgpuPages(rt, view)
@@ -106,7 +109,6 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
   }
   try {
     await prepareWebgpuBackend(rt, gpu.device)
-    fallbackToCpuCut(rt, 'rows follow the camera')
     await settled(cells, [0, 0, 0], 100, port, noBudget)
     await draw()
   } catch (error) {
@@ -127,8 +129,14 @@ export async function placedSession(bindingRows: number, light?: SceneLight) {
 }
 
 /** Shrinks the core node a thousand times: the far cell comes within reach, one more node than
- *  the rows hold. The frames a world runs until the page and the cell it brings are decoded. */
-export async function scaleDown({ cells, core, io }: Awaited<ReturnType<typeof placedSession>>) {
+ *  the rows hold. The frames a world runs until the page and the cell it brings are decoded; the
+ *  image whose entry asks the cut over the grown rows (`startGrownCut`) — taken in place by the
+ *  running cut, or made beside it —, that cut made, and the image whose entry adopts it. */
+export async function scaleDown(session: Awaited<ReturnType<typeof placedSession>>) {
+  const { cells, core, io, rt, draw } = session
   core.scale.set(1e-3, 1e-3, 1e-3)
   await settled(cells, [0, 0, 0], 100, io, noBudget)
+  await draw()
+  await growthOf(rt)?.making
+  await draw()
 }

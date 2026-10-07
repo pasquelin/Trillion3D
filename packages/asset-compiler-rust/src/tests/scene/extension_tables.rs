@@ -100,7 +100,7 @@ fn morph_targets_and_their_weights_are_laid_out() {
         gltf["meshes"][0]["weights"] = json!([0.5]);
         gltf["nodes"][0]["weights"] = json!([0.25]);
     });
-    let source = &tables["documents"]["source.gltf"];
+    let source = &tables["document"];
     let targets = &source["meshes"][0]["primitives"][0]["targets"];
     assert_eq!(targets.as_array().map(Vec::len), Some(1), "{tables}");
     assert!(

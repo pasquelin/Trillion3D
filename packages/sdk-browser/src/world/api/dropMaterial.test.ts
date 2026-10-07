@@ -14,6 +14,9 @@ test('assigned materials refuse drop before mutation; reassignment allows releas
   assert.throws(() => api.dropMaterial(first.id), refusal('UNSUPPORTED_SCENE_UPDATE'))
   assert.equal(released, 0)
   api.assignMaterial('0/0', second.id)
+  // One mesh moved: the other still wears it, counted once per mesh, never once per assignment.
+  assert.throws(() => api.dropMaterial(first.id), refusal('UNSUPPORTED_SCENE_UPDATE'))
+  api.assignMaterial('0/0', second.id)
   api.assignMaterial('1/0', second.id)
   api.dropMaterial(first.id)
   assert.equal(released, new Set(variants).size)

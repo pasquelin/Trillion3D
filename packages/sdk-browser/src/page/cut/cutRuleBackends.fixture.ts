@@ -83,18 +83,17 @@ export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(
  * decide on that word.
  */
 export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECTION_SHADER) {
-  const all = /\blet all=([^;]+);/.exec(source),
-    camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
+  const camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
     word = /\bsetFlag\(coneCache\(i\),([^;]+)\);/.exec(source)
-  if (!all || !camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask')
+  if (!camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask')
   return kernelBackend(dag, threshold, (packed) => {
     const cold = new Uint32Array(
       packed.pageCones.buffer,
       packed.pageCones.byteOffset,
       packed.pageCones.length,
     )
-    // The view block the call site and the residency reads name: a cut that holds residency.
-    const views = [{ residentCut: 1, clusterCount: packed.pageCount, pixelError: threshold }]
+    // The view block the call site and the residency reads name.
+    const views = [{ clusterCount: packed.pageCount, pixelError: threshold }]
     const scope = wgslScope(source, {
       ...wgslConstants(source),
       views,
@@ -102,9 +101,8 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
       vi: 0,
       select: (no: unknown, yes: unknown, condition: unknown) => (condition ? yes : no),
     })
-    const held = scope.expression(all[1])
     const kept = scope.expression(word[1], ['rejected', 'pixels', 't']),
-      draw = scope.expression(camera[1], ['all', 'i', 'word'])
+      draw = scope.expression(camera[1], ['i', 'word'])
     return (_ready, parentPixels, ownPixels, _childReady, t, page) => {
       const f32 = Math.fround
       const bits = kept({
@@ -112,7 +110,7 @@ export function wgslBackend(dag: RuleDag, threshold: number, source = DAG_SELECT
         pixels: { x: f32(parentPixels), y: f32(ownPixels) },
         t: f32(t),
       })
-      return draw({ all: held(), i: page, word: bits }) === true
+      return draw({ i: page, word: bits }) === true
     }
   })
 }

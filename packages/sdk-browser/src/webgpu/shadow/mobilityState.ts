@@ -126,9 +126,8 @@ function resizePlacements(
 }
 
 /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still, at
- *  the poses `worldOf` gives. Placements that joined in place
- *  (`../../placement/webgpuGrowth.ts`) start still beside the others, which keep their state,
- *  and so do they all when the table grows (`../row/grow.ts`): its row words are written anew. */
+ *  the poses `worldOf` gives. The placements keep their state when the table grows
+ *  (`../row/grow.ts`): its row words are written anew. */
 export function ensureLayout(
   s: MobilityState,
   placements: number,

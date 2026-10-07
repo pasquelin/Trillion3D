@@ -1,7 +1,7 @@
 /**
  * The clear colour, unpacked in one place.
  *
- * Every backend receives it as a single packed integer of three sRGB bytes, and three different
+ * The engine receives it as a single packed integer of three sRGB bytes, and three different
  * readers need it as components: the render pass that clears the colour target, the lighting
  * view that composes over it, and the display graph the engine publishes, whose `background` a
  * host reads in linear. They differ in what they do with the channels, never in how the byte

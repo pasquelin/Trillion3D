@@ -818,8 +818,6 @@
       "shadow-pages-off": "关闭阴影分页",
       "shadow-budget-0-25": "阴影时间预算:0.25 毫秒",
       "budget-3000": "几何体预算:3000 页",
-      "webgl": "WebGL 渲染器",
-      "webgl2": "WebGL 2 渲染器",
       "moving-light": "移动光源",
       "visible": "可见的浏览器窗口"
     },
@@ -925,7 +923,7 @@
     "resolution": "分辨率与误差阈值",
     "lights": "光源、阴影与间接光照",
     "execution": "静止画面、抗锯齿与运行选项",
-    "memory": "内存、实例与其他渲染器"
+    "memory": "内存、实例与其他运行"
   },
   "evidence": {
     "computeDrawing": "计算着色器绘制",
@@ -1109,8 +1107,8 @@
     },
     "measurement-entry": {
       "title": "测量专用入口",
-      "description": "对照实现、被强制指定的后端或内部会话,唯一能通过名字访问到的地方——公开发布的 `trillion3d` 入口永远不会暴露它们。",
-      "html": "<p>一个页面导入 <code>trillion3d</code> 时,永远看不到后端、对照实现或内部会话:<code>createWorld</code> 会用根据机器选出的某一种渲染器进行绘制,如果被强制指定的渲染器缺失,就会指名拒绝。而基准测试、证明和对比视图仍然需要能指名一个对照实现——原生 Three.js、<code>THREE.LOD</code>、内部的 <code>openMeasuredWorld</code> 会话——这正是独立的测量入口 <code>packages/sdk-browser/src/measurement/measurement.ts</code> 唯一的职责。</p>\n<p>它重新导出了公开入口的一切,再加上宿主永远不需要的东西:<code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界对自己打开的内部会话)、各个后端工厂(<code>referenceBackend</code>、<code>exactPagesBackend</code>、<code>threeLodBackend</code>、<code>webgpuPagesBackend</code>、<code>autonomousPagesBackend</code>),以及像 <code>replicateInstances</code> 这样的测量专用辅助函数。这些内容都不会出现在公开发布的世界里,也不会被任何应用导入。</p>"
+      "description": "对照实现或内部会话,仍能通过名字访问到的地方——公开发布的 `trillion3d` 入口永远不会暴露它们。",
+      "html": "<p>一个页面导入 <code>trillion3d</code> 时,永远看不到对照实现或内部会话:<code>createWorld</code> 用 WebGPU 绘制,如果机器不提供 WebGPU,就会指名拒绝。而基准测试和证明仍然需要能指名一个对照实现——原生 Three.js、<code>THREE.LOD</code>、内部的 <code>openMeasuredWorld</code> 会话——这正是独立的测量入口 <code>packages/sdk-browser/src/measurement/measurement.ts</code> 唯一的职责。</p>\n<p>它会重新导出公开入口导出的全部内容,外加宿主永远用不到的东西:<code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code>(世界对自身打开的内部会话)、页面工厂 <code>webgpuPagesEngine</code>,以及 <code>replicateInstances</code> 这类仅用于测量的辅助函数。这些都不会进入已发布的世界,也没有任何应用会导入它们。</p>"
     },
     "createWorldJob": {
       "title": "把世界的加载当作一个可取消的任务",
@@ -1159,11 +1157,11 @@
       "description": "一帧画面绘制的是什么。可用性反映的是真实的渲染管线输出,而不是合成的叠加层:`DIAGNOSTICS` 会针对每种模式,说明当前渲染器能否生成它,以及不能的原因。",
       "values": [
         "根据 glTF 材质渲染出的、带光照的图像。",
-        "为每个提交的三角形填充一种独有颜色——既不是 GL_LINES,也不是 `MeshBasicMaterial.wireframe`。",
-        "稳定的图元/页面 ID,每个簇一种颜色;WebGL2 和 WebGPU 都支持。",
+        "为每个提交的三角形填充一种独有颜色。",
+        "稳定的图元/页面 ID,每个簇一种颜色。",
         "0 级簇与本帧实际选中的更粗糙 DAG 简化结果的对比。",
         "按裁切使用的方式,把每个簇的误差投影到簇的包围球上。",
-        "按材质类别显示一种颜色:即解析该像素的材质分类通道。仅限 WebGPU 可见性路径。",
+        "按材质类别显示一种颜色:即解析该像素的材质分类通道。",
         "被选中的可见页面;被剔除的层级节点只计数,不绘制。",
         "已挂载的索引页面;缺失的页面不会被绘制。这不是物理显存。",
         "不可用:纹理 mip 常驻情况未被检测。",
@@ -1211,7 +1209,7 @@
     },
     "GpuTimingMethod": {
       "description": "阶段性能剖析中的 GPU 耗时是如何获取的。每个通道的耗时只能说明“在哪里”,而不是“耗时多少”:在基于图块的 GPU 上,各通道会互相重叠,一个通道会把相邻通道的工作也算进自己的耗时里。整帧总时长是 `gpuImageMs`,即整体耗时——各阶段的耗时并不会累加成它。",
-      "values": ["原生 WebGPU 时间戳查询。", "针对该路径的 WebGL2 扩展。"]
+      "values": ["原生 WebGPU 时间戳查询。"]
     },
     "ColumnKind": {
       "description": "二进制清单(manifest)中每一列的存储方式。`COLUMN_KIND` 把每个列名映射到它的种类,让读取者知道该用哪种视图去解析那些附属字节。",
@@ -1240,7 +1238,7 @@
       "description": "把任意一个尚未完成的操作包装进引擎的任务契约里:一份快照(`JobStatus`、进度、结果、错误)、订阅机制,以及一个会释放任务所持有内容的中止操作。这个操作本身必须支持通过它自己的持有者(RAF、读回等)来中止。"
     },
     "detectCapabilities": {
-      "description": "在创建世界之前,探测这台机器实际支持什么:`{ tier, renderer, adapter, extensions, reason }`。原因始终会给出,因此不支持的能力是被报告出来的,而不是被假定的。世界读取的公开封装是 `capability.detect()`——同一次探测的一个更简单的形式,`{ webgpu, webgl2, ... }`。WebGL2 的探测结果会被缓存。"
+      "description": "在创建世界之前,这台机器的 WebGPU 实际提供了什么:`{ tier, adapter, extensions, reason }`。有 GPU 时间戳查询时 tier 为 `full`,没有时为 `degraded`,没有适配器时为 `unavailable`。原因总会给出,所以不受支持的能力会被报告,而不是被假定。世界读取的公开封装是 `capability.detect()`——对同一次探测的更简单形式:`{ webgpu, tier, features, reason }`。"
     },
     "perspectiveProjection": {
       "description": "垂直 `fov`(角度)、比例 `aspect`、近平面 `near`、缩放 `zoom` 决定的摄像机透视投影。**反转深度、无限远平面**:`near` 投影为 1,无穷远投影为 0。这里没有远平面参与计算,自然也就没有除以它的运算——这正是深度精度的来源。"
@@ -1620,11 +1618,10 @@
       "an angle at or above π/2 never rejects": "大于等于 π/2 的角度永远不会剔除",
       "after updateNodeMatrixWorld(tree, root)": "updateNodeMatrixWorld(tree, root) 之后",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "可用 —— 已挂载的索引页面;缺失的页面不会被绘制;这不是物理显存",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "可用 —— 为每个提交的三角形填充独有颜色,不是 GL_LINES 线框",
+      "available — A filled unique colour per submitted triangle": "可用 —— 为每个提交的三角形填充独有颜色",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "可用 —— 0 级簇与本帧实际选中的更粗糙 DAG 简化结果的对比",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "可用 —— 按裁切使用的方式,把每个簇的屏幕误差投影到簇的包围球上",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "可用 —— 被选中的可见页面;被剔除的层级节点只计数,不绘制",
-      "available — Stable primitive/page ID, exact-cluster backend only": "可用 —— 稳定的图元/页面 ID,仅限精确簇后端",
       "available — glTF materials": "可用 —— glTF 材质",
       "unavailable — No fragment counter": "不可用 —— 没有片元计数器",
       "unavailable — Texture mip residency not instrumented": "不可用 —— 纹理 mip 常驻情况未被检测",

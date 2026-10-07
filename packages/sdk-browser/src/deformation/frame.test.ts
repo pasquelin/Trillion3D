@@ -155,3 +155,13 @@ test('a reused owner uploads and dirties shadows with equal previous/current pos
   )
   assert.equal(frame.pending(), false)
 })
+
+// The stage reads the block float by float: each record starts where the last one ends, no pad.
+test('the records lie end to end in the block, none padded', () => {
+  const { placed } = scene()
+  const frame = createDeformationFrame(placed),
+    [body, , sea] = placed.map((entry) => entry && recordLayout(entry.shape).floats)
+  assert.equal(body! % 4, 2, 'a record whose length is no multiple of four')
+  assert.deepEqual([frame.bases[0], frame.bases[2]], [1, 1 + body!])
+  assert.equal(frame.block.length, body! + sea!)
+})

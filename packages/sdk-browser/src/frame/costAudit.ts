@@ -10,11 +10,11 @@ export const frameCostAuditEnabled = addressFlag(
 )
 
 /** Serialisation and the console stay outside the measured render call. */
-export function logFrameCostAudit(backend: string, context: Record<string, unknown>) {
+export function logFrameCostAudit(context: Record<string, unknown>) {
   if (!frameCostAuditEnabled()) return
   queueMicrotask(() => {
     try {
-      console.info('[Trillion3D frame audit]', JSON.stringify({ backend, ...context }))
+      console.info('[Trillion3D frame audit]', JSON.stringify(context))
     } catch {
       // An observer must never interrupt the render.
     }
@@ -51,7 +51,7 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
     outsideDraws += item.surface.doubleSided && !item.surface.forceSinglePass ? 2 : 1
   }
   return {
-    selection: run.gpuFrameActive ? 'gpu' : 'cpu',
+    selection: 'gpu',
     // The published pose is the engine camera’s, which frame entry has just copied:
     // no host camera is reread here, and nothing is read until a frame has been rendered.
     camera: run.lastCamera && viewPose(run.gate.cam),
@@ -81,21 +81,20 @@ export function gpuFrameCostSnapshot(rt: WebgpuPagesRuntime) {
  * Detailed CPU percentiles are published separately by the existing profiles. */
 export function createHostFrameCostAudit() {
   let last = -Infinity
-  return (backend: string, frame: number, metrics: FrameMetrics) => {
+  return (frame: number, metrics: FrameMetrics) => {
     if (!frameCostAuditEnabled()) return
     const now = performance.now()
     if (now - last < 2000) return
     last = now
     // The provenance, a family the session opened with when the audit is on (`familyUse.ts`).
     const build = families.measurement.get()?.SDK_BUILD_PROVENANCE
-    logFrameCostAudit(backend, {
+    logFrameCostAudit({
       kind: 'host',
       frame,
       build: { hash: build?.hash ?? null, generatedAt: build?.generatedAt ?? null },
       dpr: typeof devicePixelRatio === 'number' ? devicePixelRatio : null,
       cpuFrameMs: metrics.cpuFrameMs,
       cpuSubmitMs: metrics.cpuSubmitMs,
-      cpuSelectMs: metrics.cpuSelectMs,
       reportedDrawCalls: metrics.drawCalls,
       selectedTriangles: metrics.selectedTriangles,
       reportedSubmittedTriangles: metrics.totalSubmittedTriangles,

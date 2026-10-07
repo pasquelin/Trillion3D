@@ -11,7 +11,7 @@ const hasCode =
 
 /** Tables at the versions this runtime reads, every table empty. */
 const tables = () => ({
-  version: 6,
+  version: 7,
   nodeTableVersion: 5,
   materialTableVersion: 4,
   geometryTableVersion: 1,
@@ -24,7 +24,7 @@ const tables = () => ({
   animations: [],
   materials: [],
   textures: [],
-  documents: {},
+  document: { buffer: 'source.bin', views: [], accessors: [], meshes: [], images: [] },
   partition: null,
 })
 
@@ -53,6 +53,17 @@ test('tables of an unknown version are refused rather than half-read', () => {
     ),
   )
   assert.throws(() => assertSceneTables(null), hasCode('INVALID_SCENE_TABLES'))
+})
+
+test('tables that lay out no document are refused by name', () => {
+  const { document: _, ...without } = tables()
+  assert.throws(
+    () => assertSceneTables(without),
+    (error: unknown) =>
+      hasCode('INVALID_SCENE_TABLES')(error) &&
+      (error as { details?: { missing?: string[] } }).details?.missing?.includes('document') ===
+        true,
+  )
 })
 
 /** A slot naming the page whose digest ends in `digest`, boxed by `box`, as the compiler writes it. */

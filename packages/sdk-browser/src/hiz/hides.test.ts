@@ -4,7 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { hizBuildFlat } from '../../../sdk-core/src/index.ts'
 import { hizFootprintFarFlat, hizOccluded } from '../../../sdk-core/src/hiz/oracles.fixture.ts'
-import { hizHides } from './hides.ts'
+import { hizHides } from '../../../../bench/oracles/browser/hizHides.ts'
 
 const reference = (
   pyramid: ReturnType<typeof hizBuildFlat>,
