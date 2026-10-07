@@ -79,6 +79,11 @@ function climbsAboveRoot(file: string, specifier: string): boolean {
   return false
 }
 
+/** Whether a relative specifier names a folder: it ends in `/`, is `.` or `..`, or has no file
+ *  extension. */
+const isFolder = (specifier: string) =>
+  specifier.endsWith('/') || specifier === '.' || specifier === '..' || !/\.[^./]+$/.test(specifier)
+
 /** Every import of a module of `packages/math/src` that leaves it, as `file: specifier`. */
 export function mathLayeringBreaks(files: Map<string, string>): string[] {
   const breaks: string[] = []
@@ -92,9 +97,10 @@ export function mathLayeringBreaks(files: Map<string, string>): string[] {
         ? true
         : specifier.startsWith('.')
           ? climbsAboveRoot(file, specifier) ||
-            // A folder (`'../golden/'`) is judged by a file inside it: `normalized` names modules.
+            // A folder (`'../golden/'`, `'.'`, `'../golden'`) is judged by a file inside it:
+            // `normalized` names modules.
             !staysHome(
-              normalized(file, specifier.endsWith('/') ? specifier + 'x.json' : specifier),
+              normalized(file, isFolder(specifier) ? `${specifier}/x.json` : specifier),
               test,
             )
           : !(specifier.startsWith('node:') && test)

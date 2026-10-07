@@ -100,23 +100,23 @@ const LINKED_FOLDERS = ['.', '../page-codec-wasm', '../math/rust']
 
 /** The binary's answer by binary and build time: asked once per build, not on every launch nor
  *  in every process — in memory, then on disk beside the binary. A binary that could not answer
- *  (timeout, signal) is not recorded: `unable` is true for this launch only. */
-const listed = new Map<string, { builtAt: number; listing: Listing }>()
+ *  (timeout, signal) is not recorded: it is asked again at the next launch. */
+const listed = new Map<string, { builtAt: number; listing: Listing; lastGood: Listing }>()
 function listOf(
   binary: string,
   builtAt: number,
   ask: BuildInputs,
-): { listing: Listing; lastGood: Listing; unable: boolean } {
+): { listing: Listing; lastGood: Listing } {
   const known = listed.get(binary)
+  if (known?.builtAt === builtAt) return { listing: known.listing, lastGood: known.lastGood }
   const stored = readStored(binary)
   const lastGood = stored?.lastGood ?? stored?.listing ?? null
-  if (known?.builtAt === builtAt) return { listing: known.listing, lastGood, unable: false }
   if (stored?.builtAt === builtAt) {
-    listed.set(binary, { builtAt, listing: stored.listing })
-    return { listing: stored.listing, lastGood, unable: false }
+    listed.set(binary, { builtAt, listing: stored.listing, lastGood })
+    return { listing: stored.listing, lastGood }
   }
   const lines = ask(binary)
-  if (lines === undefined) return { listing: null, lastGood, unable: true }
+  if (lines === undefined) return { listing: null, lastGood }
   const answer = listing(lines)
   try {
     writeFileSync(
@@ -126,8 +126,8 @@ function listOf(
   } catch {
     // A read-only build folder: the next process asks again.
   }
-  listed.set(binary, { builtAt, listing: answer })
-  return { listing: answer, lastGood: answer ?? lastGood, unable: false }
+  listed.set(binary, { builtAt, listing: answer, lastGood: answer ?? lastGood })
+  return { listing: answer, lastGood: answer ?? lastGood }
 }
 
 /**

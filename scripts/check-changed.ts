@@ -52,7 +52,7 @@ async function main(): Promise<void> {
   // worktrees' heavy steps rather than wait for them (`scripts/heavy-lock.ts`).
   if (!withTests) process.env.TRILLION3D_HEAVY_LOCK = 'push'
   // A changed reference value runs the golden tests that read it, Rust and TypeScript.
-  const golden = goldenChecks(changed, paths)
+  const golden = withTests ? goldenChecks(changed, paths) : { crates: [], tests: [] }
   const testFiles = !withTests
     ? []
     : [
