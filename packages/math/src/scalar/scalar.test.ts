@@ -62,6 +62,14 @@ test('nextPow2 is 1 at least and exact on powers', () => {
   assert.ok(Number.isNaN(nextPow2(NaN)))
 })
 
+test('nextPow2 by clz32 agrees with the logarithm form on integers', () => {
+  const old = (v: number) => (v <= 1 ? 1 : 2 ** Math.ceil(Math.log2(v)))
+  for (let v = 1; v <= 2 ** 20; v++) assert.equal(nextPow2(v), old(v), `v = ${v}`)
+  for (let k = 0; k <= 31; k++)
+    for (const v of [2 ** k - 1, 2 ** k, 2 ** k + 1])
+      if (v >= 1) assert.equal(nextPow2(v), old(v), `v = ${v}`)
+})
+
 test('floorLog2 and isPow2', () => {
   assert.equal(floorLog2(1), 0)
   assert.equal(floorLog2(2), 1)

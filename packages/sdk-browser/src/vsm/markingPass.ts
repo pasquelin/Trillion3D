@@ -56,7 +56,7 @@ import {
   vsmMarkingClears,
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
-import { dispatchGrid, dispatchRows, rowWidth } from '../gpu/dispatch/grid.ts'
+import { dispatchGrid, dispatchRows } from '../gpu/dispatch/grid.ts'
 import type { VsmLayout } from './layout.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
 
@@ -168,10 +168,10 @@ export function vsmCachePerPageBins(cache: VsmCacheManager, frame: VsmPerPageFra
 }
 
 /** The thread-per-id bin's groups of 8 × 8, in rows past one dimension's (`dispatchRows`): its
- *  kernel's `y · gridWidth + x` already ranks the threads of every row (`vsmMapWalkOf`). */
+ *  kernel ranks its threads of every row with `flatIndex` (`vsmMapWalkOf`). */
 const threadPerIdGroups = (bin: VsmPerPageBin) => ceilDiv(bin.count, VSM_PER_PAGE_GROUP_XY ** 2)
 
-/** Bin `b`'s `VsmMapWalkParams` words — offset, count, row pitch, thread per id —
+/** Bin `b`'s `VsmMapWalkParams` words — offset, count, page-walk step (0 for the thread-per-id bin), thread per id —
  *  at `out[at]`. */
 export function vsmWritePerPageBinArgs(
   out: Uint32Array,
@@ -182,8 +182,7 @@ export function vsmWritePerPageBinArgs(
   const dim = VSM_PER_PAGE_BIN_GRID[b]
   out[at] = bin.offset
   out[at + 1] = bin.count
-  // Thread-per-id: the row pitch of its launch's rows (`threadPerIdGroups`).
-  out[at + 2] = (dim === 0 ? rowWidth(threadPerIdGroups(bin)) : dim) * VSM_PER_PAGE_GROUP_XY
+  out[at + 2] = dim * VSM_PER_PAGE_GROUP_XY
   out[at + 3] = dim === 0 ? 1 : 0
 }
 

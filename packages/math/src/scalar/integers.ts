@@ -12,8 +12,14 @@ export const alignUp = (x: number, n: number) => Math.ceil(x / n) * n
 /** The greatest multiple of `n > 0` not over `x`: `Math.floor(x / n) * n`. */
 export const alignDown = (x: number, n: number) => Math.floor(x / n) * n
 
-/** The least power of two not under `v`, 1 for every `v <= 1`. */
-export const nextPow2 = (v: number) => (v <= 1 ? 1 : 2 ** Math.ceil(Math.log2(v)))
+/** The least power of two not under `v`, 1 for every `v <= 1`: exact by `clz32` for an integer up
+ *  to 2 ** 31, by the logarithm for any other. */
+export const nextPow2 = (v: number) =>
+  v <= 1
+    ? 1
+    : Number.isInteger(v) && v <= 2 ** 31
+      ? 2 ** (32 - Math.clz32(v - 1))
+      : 2 ** Math.ceil(Math.log2(v))
 
 /** The exponent of the greatest power of two not over the integer `v`; 0 gives -1. */
 export const floorLog2 = (v: number) => 31 - Math.clz32(v)

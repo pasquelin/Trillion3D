@@ -27,7 +27,7 @@ function walks(b: number, count: number, xs: number) {
   const [idStartWord, idCount, gridWidth, threadPerId] = params
   const { vsmMapWalkOf } = shaderRun<{ vsmMapWalkOf: (id: number[], n: number[]) => Walk }>(
     VSM_PER_PAGE_DISPATCH_WGSL,
-    ['vsmMapWalkOf'],
+    ['vsmMapWalkOf', 'flatIndex'],
     {
       vsmPerPage: { idStart: idStartWord, idCount, gridWidth, threadPerId },
       vsmPerPageIds: Array.from({ length: idStart + count }, (_, i) => i - idStart),
@@ -89,4 +89,22 @@ test("past one row, every map's walk is visited once and a padding thread walks 
     'every map walked over its whole side',
   )
   assert.equal(padding, (2 * 65_535 - count) * gridWidth)
+})
+
+test('the thread-per-id bin ranks its threads by flatIndex', () => {
+  const b = 3
+  for (const count of [100, 64 * 3 + 1]) {
+    const n = grid(b, count),
+      { out } = walks(b, count, n[0] * XY),
+      seen = new Uint8Array(count)
+    for (const { id, walk } of out) {
+      const rank = id[0] + id[1] * n[0] * XY
+      assert.equal(walk.valid, rank < count)
+      if (walk.valid) {
+        assert.equal(walk.handle.id, rank)
+        seen[rank]++
+      }
+    }
+    assert.ok(seen.every((hit) => hit === 1))
+  }
 })

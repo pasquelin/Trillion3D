@@ -53,10 +53,16 @@ test('pools step their windows, then their records, then bound; each knows its w
 test('records past one dimension of a dispatch step in rows of 65,535 groups', async () => {
   const gpu = fakeDevice()
   const particles = createWebgpuParticles(gpu.device, (error) => assert.fail(String(error)))
+  // The host's split of the record workgroups only reads the step's count: a small pool told to
+  // have emitted that many records, nothing of its 4.19M slots allocated.
   const emitted = 65_535 * 64 + 1,
-    pool = new ParticlePool({ capacity: emitted, emitPerFrame: emitted })
-  for (let i = 0; i < emitted; i++) pool.emit(i, 1, 2, 3, 4, 5, 6)
+    pool = new ParticlePool({ capacity: 64, emitPerFrame: 1 })
+  pool.emit(0, 1, 2, 3, 4, 5, 6)
   pool.advance(0.01)
+  const step = pool.flush()
+  pool.flush = () => ({ ...step, count: emitted })
+  // The staged records' copy is out of this test: it would copy 4.19M records' words.
+  gpu.device.queue.writeBuffer = () => {}
   await tick()
   const { encoder, log } = recorder()
   particles.run([pool], encoder)

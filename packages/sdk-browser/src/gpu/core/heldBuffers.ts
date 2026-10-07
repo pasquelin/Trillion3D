@@ -65,7 +65,7 @@ export function heldBuffers(idleMs?: number) {
         kept = held.get(label)
       if (kept && kept.size >= size) return kept
       // The power of two at or above `size`, never 0 bytes (`2 **`, not `1 <<`: past 1 GiB a shift
-      // turns negative).
+      // turns negative; `nextPow2` is exact for an integer size).
       const pow2 = nextPow2(size)
       const buffer = device.createBuffer({ label, size: pow2, usage })
       held.set(label, buffer)

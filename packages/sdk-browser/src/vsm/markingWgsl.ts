@@ -113,7 +113,7 @@ export const VSM_CLEAR_SPECS: readonly VsmBindingSpec[] = [
  * The per-page dispatch setup. Needs `vsmPerPageIds`,
  * `vsmPerPage` (VsmMapWalkParams) and `vsmProjectionData`.
  */
-export const VSM_PER_PAGE_DISPATCH_WGSL = /* wgsl */ `
+export const VSM_PER_PAGE_DISPATCH_WGSL = /* wgsl */ `${FLAT_INDEX_WGSL}
 struct VsmMapWalkParams{idStart:u32,idCount:u32,gridWidth:u32,threadPerId:u32,}
 struct VsmMapWalk{
  valid:bool,
@@ -130,7 +130,7 @@ fn vsmMapWalkOf(dispatchThreadId:vec3u,numWorkgroups:vec3u)->VsmMapWalk{
  if(vsmPerPage.threadPerId!=0u){
   s.walkStart=vec2u(0u);
   s.walkStep=1u;
-  let threadIndex=dispatchThreadId.y*vsmPerPage.gridWidth+dispatchThreadId.x;
+  let threadIndex=flatIndex(dispatchThreadId,numWorkgroups,${VSM_PER_PAGE_GROUP_XY}u);
   if(threadIndex>=vsmPerPage.idCount){return s;}
   s.handle=vsmHandleFromId(vsmPerPageIds[vsmPerPage.idStart+threadIndex]);
  }else{

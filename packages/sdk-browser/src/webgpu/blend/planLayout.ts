@@ -1,3 +1,4 @@
+import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 /**
  * WHERE THE BLEND PLAN AND ITS RUNS SIT IN THE SCENE'S WORDS.
@@ -49,7 +50,7 @@ export const blendVertexShift = (maxVertexWords: number) => {
 /** Vertices an instance of an UNPAGED primitive draws: the largest multiple of three the
  *  addressing stride lets through, and never more than the primitive carries. */
 export const blendChunkWords = (shift: number, indexCount: number) =>
-  Math.max(3, Math.min(indexCount, 3 * Math.floor((1 << shift) / 3)))
+  clampLowWins(3 * Math.floor((1 << shift) / 3), 3, indexCount)
 
 /** What each pass occupies: its seeded entries, their sorted order and its runs in the plan, its
  *  indirect arguments. */

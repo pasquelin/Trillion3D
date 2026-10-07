@@ -2,6 +2,7 @@ import type { Object3D } from '../world/object/object3d.ts'
 import { GRAVITY_PRESETS } from './options.ts'
 import { MAX_GEARS, TORQUE_POINTS } from './vehicleLayout.ts'
 import { VEHICLE_SPECS, type VehicleSpec } from './vehicleSpec.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { TAU } from '../../../math/src/constants.ts'
 
 /**
@@ -87,8 +88,9 @@ function refuse({ kind, body, wheels, spec }: Vehicle, options: Partial<VehicleS
     )
 }
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, Number.isFinite(value) ? value : 0))
+/** `value` held to `[min, max]`, a non-finite one read as 0. */
+const clampFinite = (value: number, min: number, max: number) =>
+  clamp(Number.isFinite(value) ? value : 0, min, max)
 
 /**
  * A vehicle: a body carried on wheels by the module's vehicle constraint, with its engine, gearbox,
@@ -136,9 +138,9 @@ export class Vehicle implements VehicleDriver {
   }
   drive(input: Readonly<VehicleInput>) {
     const next = this._input
-    next.throttle = clamp(input.throttle, 0, 1)
-    next.brake = clamp(input.brake, 0, 1)
-    next.steer = clamp(input.steer, -1, 1)
+    next.throttle = clampFinite(input.throttle, 0, 1)
+    next.brake = clampFinite(input.brake, 0, 1)
+    next.steer = clampFinite(input.steer, -1, 1)
     next.handbrake = !!input.handbrake
     this._host?.drive(this)
   }

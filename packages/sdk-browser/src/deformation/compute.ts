@@ -29,6 +29,7 @@ function deformationImage(device: GPUDevice) {
       words[0] = frame
       words[1] = rows
       device.queue.writeBuffer(buffer, 0, words)
+      if (!wholeRows) return
       words[1] = wholeRows
       device.queue.writeBuffer(buffer, stride, words)
     },

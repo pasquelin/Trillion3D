@@ -15,6 +15,9 @@ import { floorProxy } from '../../../sdk-core/src/scene/core/proxy.fixture.ts'
 import { createGpuBounceProbes } from './probes.ts'
 import { BOUNCE_PASS } from '../stage/passLabels.ts'
 
+/** The lanes of a snapshot workgroup, read from the shader's `@workgroup_size`. */
+const LANES = Number(/@workgroup_size\((\d+)\)/.exec(BOUNCE_SNAPSHOT_SHADER)?.[1])
+
 type Atlas = { width: number; height: number; texels: number[][] }
 
 const atlas = (width: number, height: number, layers: number, fill: () => number): Atlas => ({
@@ -67,7 +70,7 @@ test('after the follow-up, the snapshot is the probes, word for word', () => {
         probes.texels[at(probes, [probe[0] + k, probe[1]], probe[2])] = [r(), r(), r(), r()]
     assert.notDeepEqual(snapshot.texels, probes.texels, 'the update wrote')
     // Every thread the host dispatches, a texel each, those past the queue included.
-    for (let id = 0; id < snapshotGroups(queueLength) * 64; id++) run.followSnapshot([id, 0, 0])
+    for (let id = 0; id < snapshotGroups(queueLength) * LANES; id++) run.followSnapshot([id, 0, 0])
     assert.deepEqual(snapshot.texels, probes.texels, `${queueLength} probes queued`)
   }
 })

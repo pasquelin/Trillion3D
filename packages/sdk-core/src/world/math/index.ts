@@ -125,7 +125,7 @@ export const math = {
    * @param min - The lowest allowed.
    * @param max - The highest allowed.
    */
-  clamp: (value: number, min: number, max: number) => clampCompare(value, min, max),
+  clamp: clampCompare,
   /**
    * The number `t` of the way from `a` to `b`.
    * @param a - The start.

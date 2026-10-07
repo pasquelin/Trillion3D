@@ -1,6 +1,5 @@
 import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
 import { HALF_PI, TAU } from '../../../math/src/constants.ts'
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wrap } from '../../../math/src/scalar/reals.ts'
 
 /**
@@ -43,7 +42,7 @@ function trigSpan(a: number, b: number, out: Float64Array) {
   out[1] = Math.max(ca, cb)
   out[2] = Math.min(sa, sb)
   out[3] = Math.max(sa, sb)
-  const first = ceilDiv(a, HALF_PI),
+  const first = Math.ceil(a / HALF_PI),
     last = Math.min(Math.floor(b / HALF_PI), first + 3)
   for (let j = first; j <= last; j++) {
     const turn = wrap(j, 4)
