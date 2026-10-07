@@ -36,53 +36,88 @@ type WorldHold = { signal?: AbortSignal; priority?: number }
 type Held = { cells: number; pages?: WorldRootsPage[]; reading?: Reading }
 type Reading = { landing: Promise<void>; stop: AbortController; priority: number }
 
-/** The bundles past the pinned top of `table`'s binary at `url` the placed cells hold, read
- *  through the queue the session binds (`bind`); `top` the pinned top's pages. */
-export function createWorldBundles(table: WorldRoots, url: string, top: WorldRootsPage[][]) {
+/** The read of `own`, bundle `bundle` of `table`'s binary at `url`, through `session` as a hold
+ *  `asked` it: its own, started once and landing its pages into it whoever waits — failed, the
+ *  next hold reads it again —, or the one on its way, which a more urgent hold lifts in the queue
+ *  by joining it till its `signal` lets it go. */
+function reading(
+  session: PageQueue,
+  table: WorldRoots,
+  url: string,
+  bundle: number,
+  own: Held,
+  asked: WorldHold,
+) {
+  const page = bundleUrl(url, bundle),
+    priority = asked.priority ?? PRIORITY_VISIBLE,
+    was = own.reading
+  if (was && !was.stop.signal.aborted) {
+    if (priority >= was.priority) return was
+    was.priority = priority
+    session.readBytes(page, asked.signal, priority).catch(() => {})
+    return was
+  }
+  const stop = new AbortController()
+  const landing = session.readBytes(page, stop.signal, priority).then((bytes) => {
+    own.pages = worldBundlePages(bytes, table.bundles[bundle].count, bundle)
+  })
+  landing.catch(() => stop.abort())
+  return (own.reading = { landing, stop, priority })
+}
+
+/** The bundles of `table` the cells hold, each counted once whatever the cells sharing it, its
+ *  bytes in `bytes`, its read stopped once none holds it; and each cell's bundles, listed on its
+ *  first hold. */
+function createBundleCounts(table: WorldRoots) {
   const held = new Map<number, Held>()
   /** Each cell held: its bundles, and its holds, each released once. */
   const cells = new Map<number, { bundles: readonly number[]; holds: number }>()
+  let bytes = 0
+  const counts = {
+    held,
+    bytes: () => bytes,
+    take(bundle: number) {
+      let own = held.get(bundle)
+      if (!own) {
+        held.set(bundle, (own = { cells: 0 }))
+        bytes += table.bundles[bundle].bytes
+      }
+      own.cells++
+      return own
+    },
+    letGo(bundle: number) {
+      const own = held.get(bundle)
+      if (!own || --own.cells > 0) return
+      held.delete(bundle)
+      bytes -= table.bundles[bundle].bytes
+      own.reading?.stop.abort()
+    },
+    /** `cell` left: its bundles are let go, once. */
+    release(cell: number) {
+      const own = cells.get(cell)
+      if (!own) return
+      own.bundles.forEach(counts.letGo)
+      if (--own.holds === 0) cells.delete(cell)
+    },
+    /** `cell`'s bundles, counted once more. */
+    listed(cell: number) {
+      let own = cells.get(cell)
+      if (own) own.holds++
+      else cells.set(cell, (own = { bundles: cellDependencies(table, cell), holds: 1 }))
+      return own.bundles
+    },
+  }
+  return counts
+}
+
+/** The bundles past the pinned top of `table`'s binary at `url` the placed cells hold, read
+ *  through the queue the session binds (`bind`); `top` the pinned top's pages. */
+export function createWorldBundles(table: WorldRoots, url: string, top: WorldRootsPage[][]) {
+  const counts = createBundleCounts(table),
+    { held, take, letGo, listed } = counts
   let queue: PageQueue | undefined, bind!: (session: PageQueue) => void
   /** The session's queue, once it binds it: a hold asked before waits for it. */
   const bound = new Promise<PageQueue>((resolve) => (bind = resolve))
-  let heldBytes = 0
-  const take = (bundle: number) => {
-    let own = held.get(bundle)
-    if (!own) {
-      held.set(bundle, (own = { cells: 0 }))
-      heldBytes += table.bundles[bundle].bytes
-    }
-    own.cells++
-    return own
-  }
-  const letGo = (bundle: number) => {
-    const own = held.get(bundle)
-    if (!own || --own.cells > 0) return
-    held.delete(bundle)
-    heldBytes -= table.bundles[bundle].bytes
-    own.reading?.stop.abort()
-  }
-  /** The read of `own`, bundle `bundle`, through `session` as a hold asks it at `priority`: its
-   *  own, started once and landing its pages into it whoever waits — failed, the next hold reads it
-   *  again —, or the one on its way, which a more urgent hold lifts in the queue by joining it till
-   *  its `signal` lets it go. */
-  const reading = (session: PageQueue, bundle: number, own: Held, asked: WorldHold) => {
-    const page = bundleUrl(url, bundle),
-      priority = asked.priority ?? PRIORITY_VISIBLE,
-      was = own.reading
-    if (was && !was.stop.signal.aborted) {
-      if (priority >= was.priority) return was
-      was.priority = priority
-      session.readBytes(page, asked.signal, priority).catch(() => {})
-      return was
-    }
-    const stop = new AbortController()
-    const landing = session.readBytes(page, stop.signal, priority).then((bytes) => {
-      own.pages = worldBundlePages(bytes, table.bundles[bundle].count, bundle)
-    })
-    landing.catch(() => stop.abort())
-    return (own.reading = { landing, stop, priority })
-  }
   /** The pages of `bundles`, held as `owns`, read as `asked`, each waited on till its signal
    *  lets the hold go. */
   const read = async (bundles: readonly number[], owns: readonly Held[], asked: WorldHold) => {
@@ -90,16 +125,9 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
     const reads = owns.map((own, at) =>
       own.pages
         ? undefined
-        : waited(reading(session, bundles[at], own, asked).landing, asked.signal),
+        : waited(reading(session, table, url, bundles[at], own, asked).landing, asked.signal),
     )
     await Promise.all(reads)
-  }
-  /** `cell`'s bundles, listed on its first hold, counted once more. */
-  const listed = (cell: number) => {
-    let own = cells.get(cell)
-    if (own) own.holds++
-    else cells.set(cell, (own = { bundles: cellDependencies(table, cell), holds: 1 }))
-    return own.bundles
   }
   return {
     /** `cell` is placed: the bundles its objects' roots need past the top are held, those neither
@@ -113,12 +141,7 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
       await read(bundles, owns, asked)
     },
     /** `cell` left: a bundle no placed cell needs any more is let go. */
-    release(cell: number) {
-      const own = cells.get(cell)
-      if (!own) return
-      own.bundles.forEach(letGo)
-      if (--own.holds === 0) cells.delete(cell)
-    },
+    release: counts.release,
     /** `cell`'s bundles read in their runs by `read` and held for the scene's life: what a scene
      *  not partitioned, one cell, holds from its open. */
     async keep(cell: number, read: SpanRead) {
@@ -141,7 +164,7 @@ export function createWorldBundles(table: WorldRoots, url: string, top: WorldRoo
     held: () => [...held.keys()].sort((a, b) => a - b),
     has: (bundle: number) => held.has(bundle),
     /** The bytes of the bundles held. */
-    bytes: () => heldBytes,
+    bytes: counts.bytes,
     /** The session's queue the bundles are read through: they join its catalogue, once. */
     bind(session: PageQueue) {
       session.admit(bundlePages(table, url))

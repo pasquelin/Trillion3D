@@ -35,17 +35,21 @@ type Reads = {
 const waitAfter = (tries: number) =>
   tries ? Math.min(LAST_WAIT_MS, FIRST_WAIT_MS * 2 ** (tries - 1)) : 0
 
-/** The failures of `reads`' pages, a job whose wait ended queued again by `requeue`. */
-export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
-  const failures = new Map<string, ReadFailure>()
+/** The error a read of `url` fails with, its `tries`-th failure in a row by `cause`. */
+function failedRead(url: string, tries: number, cause: unknown) {
+  const times = tries === 1 ? 'one attempt' : `${tries} attempts`
+  return new Error(`PAGE_STREAM_FAILED: ${url} after ${times}: ${String(cause)}`, { cause })
+}
+
+/** The waits of failed reads: one heap on their end and one timer, set for the first; `ended`
+ *  hears each wait over, taken out. */
+function createWaits(ended: (failure: ReadFailure) => void) {
   const waits = createHeap<ReadFailure>(
     (a, b) => a.due < b.due,
     (failure, at) => (failure.slot = at),
   )
   let timer: ReturnType<typeof setTimeout> | undefined,
-    armed = Infinity,
-    final = 0
-  /** The one timer, set for the first wait to end. */
+    armed = Infinity
   const arm = () => {
     const due = waits.items[0]?.due ?? Infinity
     if (due === armed) return
@@ -53,23 +57,50 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
     armed = due
     if (due < Infinity) timer = setTimeout(wake, Math.max(0, due - performance.now()))
   }
-  /** The waits over now end: a job waiting is queued again, a failure whose page left leaves. */
   const wake = () => {
     armed = Infinity
     const now = performance.now()
-    while (waits.size && waits.items[0].due <= now) {
-      const failure = waits.take()!,
-        { url } = failure
-      failure.slot = -1
-      const job = reads.jobs.get(url)
-      if (job?.state === 'waiting') requeue(job)
-      else if (!reads.catalog.has(url)) failures.delete(url)
-    }
+    while (waits.size && waits.items[0].due <= now) ended(take(waits.items[0]))
     arm()
   }
+  const take = (failure: ReadFailure) => {
+    waits.take(failure.slot)
+    failure.slot = -1
+    return failure
+  }
+  return {
+    /** `failure` waits till its `due`, or waits on to its new one. */
+    wait(failure: ReadFailure) {
+      if (failure.slot >= 0) waits.settle(failure.slot)
+      else waits.push(failure)
+      arm()
+    },
+    /** `failure` waits no more. */
+    leave: (failure: ReadFailure) => void (failure.slot >= 0 && take(failure)),
+    get size() {
+      return waits.size
+    },
+    clear() {
+      clearTimeout(timer)
+      armed = Infinity
+      waits.clear()
+    },
+  }
+}
+
+/** The failures of `reads`' pages, a job whose wait ended queued again by `requeue`. */
+export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
+  const failures = new Map<string, ReadFailure>()
+  let final = 0
+  /** A wait over: a job waiting is queued again, a failure whose page left leaves. */
+  const waits = createWaits(({ url }) => {
+    const job = reads.jobs.get(url)
+    if (job?.state === 'waiting') requeue(job)
+    else if (!reads.catalog.has(url)) failures.delete(url)
+  })
   /** `failure` leaves: out of the waits, or out of the count of those for good. */
   const remove = (failure: ReadFailure) => {
-    if (failure.slot >= 0) waits.take(failure.slot)
+    waits.leave(failure)
     if (failure.due === Infinity) final--
     failures.delete(failure.url)
   }
@@ -79,30 +110,22 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
     record(url: string, cause: unknown) {
       const failure = failures.get(url) ?? { url, error: new Error(), tries: 0, due: 0, slot: -1 }
       const tries = ++failure.tries,
-        times = tries === 1 ? 'one attempt' : `${tries} attempts`
-      const retried = retriableError(cause),
+        retried = retriableError(cause),
         wait = retried ? waitAfter(tries) : Infinity
-      failure.error = new Error(`PAGE_STREAM_FAILED: ${url} after ${times}: ${String(cause)}`, {
-        cause,
-      })
+      failure.error = failedRead(url, tries, cause)
       failure.due = performance.now() + wait
       failures.set(url, failure)
-      if (!retried) {
+      if (retried) waits.wait(failure)
+      else {
         final++
-        if (failure.slot >= 0) waits.take(failure.slot)
-        failure.slot = -1
-      } else if (failure.slot >= 0) waits.settle(failure.slot)
-      else waits.push(failure)
-      arm()
+        waits.leave(failure)
+      }
       if (wait >= LAST_WAIT_MS && waitAfter(tries - 1) < LAST_WAIT_MS)
         reads.onStalled?.({ url, cause })
       return { error: failure.error, waits: retried }
     },
     /** `url` was read: its failures in a row are over. */
-    passed(url: string) {
-      const failure = failures.get(url)
-      if (failure) remove(failure)
-    },
+    passed: (url: string) => void (failures.has(url) && remove(failures.get(url)!)),
     /** The error a read of `url` is refused with for good, if it is. */
     refusal(url: string) {
       const failure = failures.get(url)
@@ -110,7 +133,7 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
     },
     /** Whether `url` waits its turn now: a job made for it waits too. */
     waiting: (url: string) => (failures.get(url)?.slot ?? -1) >= 0,
-    /** `url` left the catalogue: its failure leaves, unless its wait runs (`wake`). */
+    /** `url` left the catalogue: its failure leaves, unless its wait runs. */
     leaves(url: string) {
       const failure = failures.get(url)
       if (failure && failure.slot < 0) remove(failure)
@@ -118,10 +141,8 @@ export function createReadFailures(reads: Reads, requeue: (job: Job) => void) {
     /** Reads that failed and do not pass now: waiting their turn, or refused for good. */
     count: () => waits.size + final,
     clear() {
-      clearTimeout(timer)
-      armed = Infinity
-      failures.clear()
       waits.clear()
+      failures.clear()
       final = 0
     },
   }

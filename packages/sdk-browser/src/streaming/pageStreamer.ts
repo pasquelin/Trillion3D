@@ -41,6 +41,14 @@ export function createPageStreamerWith(
     if (signal.aborted) abort.abort(signal.reason)
     else signal.addEventListener('abort', () => abort.abort(signal.reason), { once: true })
   }
+  // Closed, every job ends at once, its askers told: one listener, whatever the jobs.
+  abort.signal.addEventListener(
+    'abort',
+    () => {
+      for (const job of jobs.values()) job.reject(abort.signal.reason)
+    },
+    { once: true },
+  )
   const limit = Number.isSafeInteger(workerCount) ? Math.max(1, workerCount) : 1
   if (!Number.isSafeInteger(maxTransferBytes) || maxTransferBytes < 1)
     throw new Error('INVALID_PAGE_TRANSFER_BUDGET')

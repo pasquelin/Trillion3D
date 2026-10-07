@@ -33,6 +33,31 @@ function unput(ends: Ends, file: string, at: number, job: Job) {
   if (!own.size) ends.delete(file)
 }
 
+/** The queued ranges end to end with `job`'s in its file, by `starts` and `ends`, while `room`
+ *  bytes are left: those before it, nearest first, then those after. */
+function around(starts: Ends, ends: Ends, job: Job, room: number) {
+  const { file, offset } = job.range!,
+    before: Job[] = [],
+    after: Job[] = []
+  const left = ends.get(file),
+    right = starts.get(file)
+  for (let at = offset, next = left?.get(at); next && next.bytes <= room; next = left?.get(at)) {
+    before.push(next)
+    room -= next.bytes
+    at = next.range!.offset
+  }
+  for (
+    let at = endOf(job), next = right?.get(at);
+    next && next.bytes <= room;
+    next = right?.get(at)
+  ) {
+    after.push(next)
+    room -= next.bytes
+    at = endOf(next)
+  }
+  return { before, after }
+}
+
 export function createTransferQueue() {
   const heap = createJobHeap<Job>()
   const starts: Ends = new Map(),
@@ -43,30 +68,6 @@ export function createTransferQueue() {
     unput(ends, job.range.file, endOf(job), job)
   }
   const remove = (job: Job) => heap.remove(job) && (unindex(job), true)
-  /** The queued ranges end to end with `job`'s in its file while `room` bytes are left: those
-   *  before it, nearest first, then those after. */
-  const around = (job: Job, room: number) => {
-    const { file, offset } = job.range!,
-      before: Job[] = [],
-      after: Job[] = []
-    const left = ends.get(file),
-      right = starts.get(file)
-    for (let at = offset, next = left?.get(at); next && next.bytes <= room; next = left?.get(at)) {
-      before.push(next)
-      room -= next.bytes
-      at = next.range!.offset
-    }
-    for (
-      let at = endOf(job), next = right?.get(at);
-      next && next.bytes <= room;
-      next = right?.get(at)
-    ) {
-      after.push(next)
-      room -= next.bytes
-      at = endOf(next)
-    }
-    return { before, after }
-  }
   return {
     get size() {
       return heap.size
@@ -87,7 +88,7 @@ export function createTransferQueue() {
       if (!job?.range) return job && [job]
       unindex(job)
       const room = Math.max(job.bytes, maxTransferBytes - activeBytes) - job.bytes
-      const { before, after } = around(job, room)
+      const { before, after } = around(starts, ends, job, room)
       const run = [...before.reverse(), job, ...after]
       for (const each of run) if (each !== job) remove(each)
       return run

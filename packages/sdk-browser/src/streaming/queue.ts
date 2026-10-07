@@ -45,8 +45,9 @@ export function createStreamingQueue(
     const cached = answerFromCache(context, touch, url)
     if (cached) return Promise.resolve(cached)
     const job = jobFor(context, sync, url, priority)
-    const combined = requestSignal ? AbortSignal.any([abort.signal, requestSignal]) : abort.signal
-    const result = waitShared(job, combined, () => dropQueued(context, url, job, end))
+    // Its own signal alone: the streamer's ends every job at once (`pageStreamer.ts`), never a
+    // listener an asker, which a signal heard by a hundred thousand would pay for each.
+    const result = waitShared(job, requestSignal, () => dropQueued(context, url, job, end))
     later()
     return result
   }
