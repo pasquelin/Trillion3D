@@ -10,7 +10,7 @@ import { worldRootDag } from './worldSuperRoots.ts'
 import { worldRootPages } from './worldPageServe.ts'
 import { worldSelectionRoot, worldWearers } from './worldRecords.ts'
 import { meshSurface } from '../page/surface.ts'
-import { rootCoverOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
+import { rootCoverOf } from '../webgpu/pages/prepare/rootCover.ts'
 import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */

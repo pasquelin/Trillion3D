@@ -77,7 +77,7 @@ export type PlacementTree = {
 
 /** Whether `members` member slots take a tree: not when one group would hold them all, a cell of
  *  one group saving the descent nothing. */
-export const groupsPlacements = (members: number) => members > TREE_SPAN
+const groupsPlacements = (members: number) => members > TREE_SPAN
 
 /** The levels of a tree of `capacity` members, top first: groups of `TREE_SPAN` members, cells of
  *  `TREE_SPAN` nodes of the level below, `ceil(log64 capacity)` levels in all, so its top is one
