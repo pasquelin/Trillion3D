@@ -25,7 +25,7 @@
  */
 import { pathToFileURL } from 'node:url'
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts'
-import { unit as normalize } from '../packages/sdk-core/src/math/primitives/vectorTuple.ts'
+import { unit as normalize } from '../packages/math/src/vector/vectorTuple.ts'
 import { minimise } from './ltc-minimise.ts'
 
 type V3 = [number, number, number]

@@ -166,7 +166,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   const proposed = await bundle('./packages/sdk/index.ts')
   const browserProposed = await bundle('./packages/sdk/browser.ts')
   const inputs = Object.keys(proposed.metafile.inputs)
-  assert.ok(inputs.some((path) => path.endsWith('/math/batch/batch.ts')))
+  assert.ok(inputs.some((path) => path.endsWith('/math/src/batch/batch.ts')))
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')))
   // The engine entry shrank with the retired exports (4 396 to 3 819); the two others grew with the
   // machine-independent quaternion normalisation and arc trigonometry (determinism).

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { Light } from './light.ts'
 import { lampCastsShadow, lampRecord, lightFromRecord } from './lightRecord.ts'
 import type { SceneLight } from '../../scene/light/contracts.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 test('only a lamp giving light is recorded', () => {
   for (const kind of ['ambient', 'hemisphere', 'probe'])

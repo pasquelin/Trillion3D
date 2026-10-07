@@ -6,14 +6,14 @@ import {
   updateCameraFrame,
   type CameraFrame,
 } from '../../../sdk-core/src/index.ts'
-import { drawnView } from '../../../sdk-core/src/math/primitives/camera.ts'
+import { drawnView } from '../../../math/src/projection/camera.ts'
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,
   updateRenderOriginFrame,
   type RenderOriginFrame,
 } from './renderOrigin.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 
 /**
  * The engine camera: the numbers of a frame, in owned buffers rewritten in place.

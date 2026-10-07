@@ -288,7 +288,8 @@ function fitsRoom(packed: PackedDag, roots: readonly DagRoot[], shared: PackShar
 
 /** The loop itself: each root, sixteen floats, rebased to `origin` in `worlds`, and its translation
  *  kept in `translations` as it was read, three doubles per root: what
- *  `rootTranslationsToRenderOrigin` subtracts the next eye from. */
+ *  `rootTranslationsToRenderOrigin` subtracts the next eye from, by the same subtraction as
+ *  `matrixAtRenderOrigin` of `packages/math/src/projection/renderOrigin.ts`. */
 export function rootWorldsToRenderOrigin(
   worlds: Float32Array,
   roots: readonly DagRoot[],

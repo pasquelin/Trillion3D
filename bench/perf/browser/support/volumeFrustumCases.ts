@@ -59,7 +59,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calculation: 'normalized frustum planes of a view-projection',
     motif: TIME_ONLY,
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     cas: two(
       'views, and hostile ones',
       projectionViews,
@@ -72,7 +72,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calculation: 'raw planes of a clip matrix',
     motif: TIME_ONLY,
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     cas: two(
       'views, and hostile ones',
       projectionViews,
@@ -89,7 +89,7 @@ export const casTronc: CasVolume[] = [
   casVolume({
     calculation: 'box outside the frustum',
     motif: TIME_ONLY,
-    fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+    fichier: 'packages/math/src/geometry/frustum/box.ts',
     cas: two(
       'boxes per view, near plane crossed',
       viewBoxes,
@@ -103,7 +103,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'box against the frustum in three states',
-    fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+    fichier: 'packages/math/src/geometry/frustum/box.ts',
     cas: two(
       'boxes per view, raw and normalized planes',
       viewBoxes,
@@ -131,7 +131,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'frustum planes in local space',
-    fichier: 'packages/sdk-core/src/math/frustum/frustum.ts',
+    fichier: 'packages/math/src/geometry/frustum/frustum.ts',
     cas: two(
       'plans × placements hostiles',
       locaux(projectionViews, matrices, 11),
@@ -149,7 +149,7 @@ export const casTronc: CasVolume[] = [
   }),
   casVolume({
     calculation: 'rejection of a box by its normal cone',
-    fichier: 'packages/sdk-core/src/math/primitives/cone.ts',
+    fichier: 'packages/math/src/geometry/cone.ts',
     cas: two(
       'cones, conformal placements, eye in the sphere',
       casCones,

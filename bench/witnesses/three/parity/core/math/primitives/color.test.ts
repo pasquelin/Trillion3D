@@ -5,7 +5,7 @@ import {
   hslToLinearRgb,
   linearToSrgb,
   srgbToLinear,
-} from '../../../../../../../packages/sdk-core/src/math/primitives/color.ts'
+} from '../../../../../../../packages/math/src/color/color.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 
 /** Reference `Color.setHSL`, in its default working space (`srgb-linear`): no

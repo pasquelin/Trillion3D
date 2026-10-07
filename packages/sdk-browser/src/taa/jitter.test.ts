@@ -10,7 +10,7 @@ import {
   upscalePhases,
 } from './jitter.ts'
 import { renderExtent } from '../frame/renderScaleOption.ts'
-import { halton } from '../../../sdk-core/src/math/primitives/halton.ts'
+import { halton } from '../../../math/src/sequence/halton.ts'
 
 test('the Halton sequence starts with the known terms and stays in [0, 1)', () => {
   assert.deepEqual(

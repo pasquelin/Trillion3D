@@ -12,7 +12,7 @@ import { DEPTH_RAMP_WORD, SHADE_UNIFORM_WORDS } from '../visibility/shader/reque
 import {
   orthographicProjection,
   perspectiveProjection,
-} from '../../../sdk-core/src/math/primitives/camera.ts'
+} from '../../../math/src/projection/camera.ts'
 
 const NEAR = 0.1,
   FAR = 100,

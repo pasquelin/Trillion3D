@@ -5,7 +5,7 @@
  * without softening. They depend only on the jitter, which takes only `TAA_SAMPLES` values: the
  * table is computed once, and never per frame nor per pixel.
  */
-import { hypot2 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot2 } from '../../../math/src/float/hypot.ts'
 import { PI, shaderFloat } from '../lighting/shaderConstants.ts'
 
 /** Nine weights, stored neighbour by neighbour (dy then dx, from −1 to 1), three `vec4f` in the uniform. */

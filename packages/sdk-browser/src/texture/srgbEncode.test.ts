@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { linearToSrgb } from '../../../sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb } from '../../../math/src/color/color.ts'
 import { shaderRun } from './shaderRun.fixture.ts'
 import { SRGB_ENCODE_WGSL } from './srgbEncode.ts'
 import { MATERIAL_MIP_WGSL } from './mipsWgsl.ts'

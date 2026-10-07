@@ -7,7 +7,7 @@ import { writeDrive, writeUnvehicle, writeVehicle } from './vehicleCommands.ts'
 import { MAX_GEARS, TORQUE_POINTS, VEHICLE, WHEEL_ROLE } from './vehicleLayout.ts'
 import { DRIVE_WORDS, VEHICLE_WORDS, WHEEL_WORDS } from './wire.fixture.ts'
 import { BIKE, FOUR, HULL, rig } from './vehicle.fixture.ts'
-import { near } from '../math/near.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 
 /** Each option's spec word after the VEHICLE header, as `vehicles.cpp` reads it (`s + n`). */
 const SPEC_WORD = {

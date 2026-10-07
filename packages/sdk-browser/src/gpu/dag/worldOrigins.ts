@@ -1,4 +1,4 @@
-import { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import type { PackedDag } from './types.ts'
 
 /** Two vec4s per primitive, behind its range's unchanged 64-byte camera matrices. */

@@ -1,6 +1,6 @@
 import { GeometryBuilder, normalize } from './builder.ts'
 import { flatGeometry } from './drawnFlat.ts'
-import { hypot2 } from '../../math/primitives/hypot.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 type V3 = [number, number, number]
 

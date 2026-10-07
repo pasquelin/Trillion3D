@@ -1,4 +1,4 @@
-import type { MathPathMetrics } from '../math/path/contracts.ts'
+import type { MathPathMetrics } from '../runtime/path/contracts.ts'
 import type { TextureFrameMetrics } from '../texture/metricsContracts.ts'
 import type { ShadowFrameMetrics } from './shadowMetrics.ts'
 import type { OcclusionFrameMetrics } from './occlusionMetrics.ts'
@@ -174,7 +174,7 @@ export type GpuFrameMs = number | null
    */
   pagesChecked?: number | null
   /** Time spent checking pages. */ pageCheckMs?: number | null
-  /** State of the compute-path governor (`../math/path/governor.ts`): current path of each
+  /** State of the compute-path governor (`../runtime/path/governor.ts`): current path of each
    *  batch operation, medians of both paths, switches. `null` on a host that has not opened
    *  a batch — unmeasured, not "JavaScript path". */
   mathBatch?: MathPathMetrics | null

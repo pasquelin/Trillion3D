@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Geometry } from './geometry.ts'
 import { BufferAttribute, pendingAttribute } from '../buffer/attribute.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 const points = (values: number[]) => new BufferAttribute(new Float32Array(values), 3)
 const positionsOf = (g: Geometry) => Array.from(g.getAttribute('position')!.array)

@@ -8,9 +8,9 @@ import { cloneObject } from './clone.ts'
 import { Matrix4 } from '../math/matrix4.ts'
 import { mismatch } from '../../scene/core/nodeAttach.fixture.ts'
 import { Quaternion } from '../math/quaternion.ts'
-import { multiplyMatrix4 } from '../../math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts'
+import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { Vector3 } from '../math/vector3.ts'
 
 const near = (actual: Vector3, expected: number[]) => {

@@ -2,7 +2,7 @@ import {
   axisAngleQuaternion,
   multiplyQuaternion,
   rotateByQuaternion,
-} from '../../math/matrix/quaternion.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
 import type { Object3D } from '../object/object3d.ts'
 import type { Clip, Track } from './clip.ts'
 

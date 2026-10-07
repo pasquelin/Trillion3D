@@ -27,7 +27,7 @@ import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.
 import { PCF_TAPS } from './pcfTaps.ts'
 import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
-import { interleavedGradientWgsl } from '../../math/interleavedGradientWgsl.ts'
+import { interleavedGradientWgsl } from '../../gpu/shader/interleavedGradientWgsl.ts'
 import { ALL_SHADOW_KINDS, byShadowKind, type ShadowKinds } from './shadowKinds.ts'
 
 /** Where a pass binds the virtual shadow maps a consumer samples (`vsmShadowFactor`): the page

@@ -1,4 +1,4 @@
-import { hypot2, hypot3 } from '../math/primitives/hypot.ts'
+import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
 
 /**
  * The one wave model of the engine: a sum of trochoidal waves. Buoyancy reads it on the CPU (the

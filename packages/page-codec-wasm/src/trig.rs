@@ -2,7 +2,7 @@
 //! from musl and FreeBSD msun) writes it, its constants written by their bits, for every argument
 //! below 2^20 · π/2 — the reduction past it (Payne–Hanek) is not carried: the animation sampler's
 //! angles stay within [0, π/2]. The TypeScript twin is `fdlibmSin` of
-//! `packages/sdk-core/src/math/primitives/trig.ts`: the same bits on that range.
+//! `packages/math/src/float/trig.ts`: the same bits on that range.
 //!
 //! The original notice, which fdlibm asks to keep:
 //!

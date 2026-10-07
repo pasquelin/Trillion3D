@@ -13,7 +13,7 @@ import {
   taaHistoryBlend,
 } from './historyWgsl.ts'
 import { YCOCG_WGSL } from './ycocgWgsl.ts'
-import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
 import {
   GEOMETRY_HISTORY_WGSL,

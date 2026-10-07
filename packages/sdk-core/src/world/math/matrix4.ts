@@ -1,10 +1,14 @@
-import { copyMatrix4, determinantMatrix4, multiplyMatrix4 } from '../../math/matrix/matrix4.ts'
-import { composeMatrix4 } from '../../math/matrix/matrix4Compose.ts'
-import { decomposeMatrix4 } from '../../math/matrix/matrix4Trs.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
-import { axisAngleQuaternion } from '../../math/matrix/quaternion.ts'
+import {
+  copyMatrix4,
+  determinantMatrix4,
+  multiplyMatrix4,
+} from '../../../../math/src/matrix/matrix4.ts'
+import { composeMatrix4 } from '../../../../math/src/matrix/matrix4Compose.ts'
+import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
+import { axisAngleQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import type { XYZSink as V, XYZWLike as Q, XYZWSink as QOut } from './likes.ts'
-import { hypot3 } from '../../math/primitives/hypot.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
 
 const t = new Float64Array(3),
   r = new Float64Array(4),

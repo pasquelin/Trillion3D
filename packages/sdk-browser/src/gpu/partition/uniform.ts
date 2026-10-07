@@ -9,7 +9,7 @@ import {
   UNI_VIEW_PROJ,
 } from './contract.ts'
 import { matrixAtRenderOrigin } from '../../../../sdk-core/src/index.ts'
-import { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 
 /** What a frame tells the partition, and nothing more: two matrices, an anchor, eight integers. */
 export type PartitionFrame = {

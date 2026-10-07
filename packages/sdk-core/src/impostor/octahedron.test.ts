@@ -3,7 +3,7 @@
 // folds, and a view blends the three frames of its triangle with weights that rebuild its position.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { near } from '../math/near.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 import { cellWeights, octDecode, octEncode } from './octahedron.fixture.ts'
 
 test('the world axes land on their places of the plane and decode back from the grid', () => {

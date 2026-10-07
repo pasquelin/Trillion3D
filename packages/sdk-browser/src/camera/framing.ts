@@ -1,4 +1,4 @@
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 
 /** Perspective framing from a bounding-sphere radius. `near` scales with the asset; there is no absolute centimetre floor. */
 export function framingFromBounds(radius: number, aspect: number) {

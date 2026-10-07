@@ -6,7 +6,7 @@ import { test } from 'node:test'
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { cameraFace } from '../kit/sharedSceneProof.ts'
 import { backgroundRgb } from '../../../bench/oracles/browser/cpu-image/math.ts'
-import { linearToSrgb8 } from '../../../packages/sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
 import { groundTruth, truthGap, truthVerdict, type TruthView } from './groundTruth.ts'
 
 const SIZE = 24

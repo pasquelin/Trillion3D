@@ -26,7 +26,7 @@ fn viewPoint()->vec4f{
  let back=vec3f(views[vi].view[0].z,views[vi].view[1].z,views[vi].view[2].z);
  return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
 }
-/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/sdk-core/src/math/primitives/cone.ts), same operands.
+/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/math/src/geometry/cone.ts), same operands.
  *  \`worlds[w]\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
  *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
  *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space.

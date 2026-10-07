@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { drawnView } from '../../../../sdk-core/src/math/primitives/camera.ts'
+import { drawnView } from '../../../../math/src/projection/camera.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import { followPageCamera } from './worldCamera.ts'
 import { canvasRay } from './worldRaycast.ts'

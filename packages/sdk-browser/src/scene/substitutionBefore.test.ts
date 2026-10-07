@@ -15,12 +15,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from '../gpu/dag/shader/shader.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../gpu/shader/inverseTransposeWgsl.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../lighting/standardLighting.ts'
 import { substitutePreviousForm } from '../../../../tests/gpu/math/substitutionBefore.ts'
-import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../math/inverseTransposeBefore.fixture.ts'
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../gpu/shader/inverseTransposeBefore.fixture.ts'
 
-const ORIGIN = 'packages/sdk-browser/src/math/inverseTransposeWgsl.ts'
+const ORIGIN = 'packages/sdk-browser/src/gpu/shader/inverseTransposeWgsl.ts'
 const ABSOLUTE_THRESHOLD = 'abs(det)<1e-20'
 const real = (text: string, name: string) => ({
   text,

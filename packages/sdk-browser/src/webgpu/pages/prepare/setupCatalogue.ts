@@ -1,4 +1,4 @@
-import type { MatrixElements } from '../../../math/matrixElements.ts'
+import type { MatrixElements } from '../../../host/matrixElements.ts'
 import type { BlendCopy } from '../../../cluster/blendCopyContract.ts'
 import { createBlendCopyRecord } from '../../../cluster/blendCopyRecord.ts'
 import { pageAddress } from '../../row/pageSlots.ts'

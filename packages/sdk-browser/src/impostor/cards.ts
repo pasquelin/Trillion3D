@@ -17,8 +17,8 @@ import {
   type ImpostorPlan,
   type ImpostorSection,
 } from '../../../sdk-core/src/index.ts'
-import { transformAffinePoint } from '../../../sdk-core/src/math/primitives/vector.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 import { impostorCardCorners } from './card.ts'
 import { core } from './borrowed.ts'
 import type { EngineCamera } from '../camera/world.ts'

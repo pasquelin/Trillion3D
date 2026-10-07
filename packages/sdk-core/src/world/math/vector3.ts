@@ -10,10 +10,10 @@ import {
   subVector3,
   transformDirectionVector3,
   transformHomogeneousPoint,
-} from '../../math/primitives/vector.ts'
-import { rotateByQuaternion } from '../../math/matrix/quaternion.ts'
+} from '../../../../math/src/vector/vector.ts'
+import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { fromSpherical } from './spherical.ts'
-import { ObservedComponents } from './observed.ts'
+import { ObservedComponents } from '../observed.ts'
 import type { Matrix4, Matrix3 } from './matrix4.ts'
 import type { XYZLike as XYZ, XYZWLike as Q } from './likes.ts'
 
@@ -31,7 +31,7 @@ const load = (into: Float64Array, v: XYZ) => {
 
 /**
  * A point or a direction in three dimensions, chainable. The numbers live in `elements`, which
- * the core functions of `math/primitives/vector.ts` read and write; every write tells the owner.
+ * the core functions of `packages/math/src/vector/vector.ts` read and write; every write tells the owner.
  */
 export class Vector3 extends ObservedComponents {
   /** Always `true`: tells a 3D vector apart. */ readonly isVector3 = true as const

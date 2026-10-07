@@ -1,4 +1,4 @@
-import { rotateByQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
 import { fixtureCamera, fixtureSurface, type FixtureCamera } from './controls.fixture.ts'
 import type { SteeredCameraControls } from './types.ts'
 

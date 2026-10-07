@@ -1,7 +1,7 @@
 // A page record carries no placement value of its own: its world, its instance-buffer
 // row and its winding are those of its root. One record serves every placement of its primitive, so
 // an instance — a (placement, page) pair — is named by its packed rank, never by the record alone.
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { MatrixElements } from '../../host/matrixElements.ts'
 
 /** What a reader takes of the roots, by rank: their worlds. */
 export type Placements = readonly { readonly world: MatrixElements; readonly reach?: number }[]

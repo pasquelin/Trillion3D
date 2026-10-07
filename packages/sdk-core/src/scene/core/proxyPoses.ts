@@ -1,5 +1,5 @@
 import type { SceneProxy } from '../../contracts/proxy.ts'
-import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts'
+import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { proxyAffineDelta } from './proxyDelta.ts'
 
 /** The poses a motion session keeps for the proxy's source nodes: each node's bind world, its

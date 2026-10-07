@@ -2,7 +2,7 @@
 // commands each row can make: the shipped cull (`vsmRenderCullWgsl`, run by `shaderRun`) on the
 // projection data's clip matrix — the orthographic box, the screen rect — then the pages of the rect;
 // for a local light's maps, its range first, the perspective box, and every mip's rect.
-import { ceilFloat32, writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { ceilFloat32, writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
 import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
 import { Mat, shaderRun } from '../texture/shaderRun.fixture.ts'

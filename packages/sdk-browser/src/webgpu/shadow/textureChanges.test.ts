@@ -3,7 +3,7 @@
 // The textures a pump changed are declared together: one scan of the page table, one box.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { ceilFloat32 } from '../../../../sdk-core/src/math/primitives/splitDouble.ts'
+import { ceilFloat32 } from '../../../../math/src/float/splitDouble.ts'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../row/pageRow.ts'

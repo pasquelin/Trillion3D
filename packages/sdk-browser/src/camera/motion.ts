@@ -1,5 +1,5 @@
 import type { EngineCamera } from './engineCamera.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 import { AHEAD_SMOOTHING_MS } from './motionSmoothing.ts'
 
 /** Last eye position and way back, kept from frame to frame to derive the eye's velocity (world

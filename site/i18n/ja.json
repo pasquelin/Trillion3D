@@ -1382,25 +1382,25 @@
       "description": "`n`個の行列で変換された`n`個のボックス: `out[i] = boxTransform(boxes[i], mats[i])`。`out`と`boxes`は要素あたり6個の数値、`mats`は16個のサブビューを持つ。"
     },
     "hierarchyUpdateBatch": {
-      "description": "階層全体を一度のパスで更新する: `n`個のノードを親が子より先になるよう並べ、それぞれがローカル行列を合成してから親のワールド行列と掛け合わせる — これは`packages/sdk-core/src/math/transform-tree/update.ts`の走査と同じ、平坦なバッファ上での同じ2つの式・同じ順序だ。`parents[i]`は**必ず**すでに更新済みのノードを指さねばならず、つまり厳密に`i`より小さくなければならない; それ以外の値(`HIERARCHY_ROOT`の番人値を含む)は、そのノードをルートにし、そのワールド行列はローカル行列と同じになる。このルールはどちらの経路でも同一だ: どんな入力であっても、両者を食い違わせることはできない。`local`は1つの作業用行列で、すべての要素で使い回される。"
+      "description": "階層全体を一度のパスで更新する: `n`個のノードを親が子より先になるよう並べ、それぞれがローカル行列を合成してから親のワールド行列と掛け合わせる — これは`packages/sdk-core/src/world/transform-tree/update.ts`の走査と同じ、平坦なバッファ上での同じ2つの式・同じ順序だ。`parents[i]`は**必ず**すでに更新済みのノードを指さねばならず、つまり厳密に`i`より小さくなければならない; それ以外の値(`HIERARCHY_ROOT`の番人値を含む)は、そのノードをルートにし、そのワールド行列はローカル行列と同じになる。このルールはどちらの経路でも同一だ: どんな入力であっても、両者を食い違わせることはできない。`local`は1つの作業用行列で、すべての要素で使い回される。"
     },
     "createPathGovernor": {
       "description": "名前つきの演算ごとに、JSとWebAssemblyのどちらを裁定するか: 要素あたりのナノ秒の移動中央値、その優位が5回連続の実行の後にのみ切りかわるという規則、そして50回に1回、もう一方のパスを再実行して中央値を更新する。5サンプル未満では何も決まらない — 単一の値が中央値になってしまうからだ。`metrics()`は演算ごとに`path`、`jsNsPerElement`、`wasmNsPerElement`、切りかえの回数、そして計測の基礎になる時計の分解能を公開する。"
     },
     "frustumKeepsBoxBatch": {
-      "description": "6個の数値(最小値、最大値)からなる`n`個のボックスを、フラスタムの24個の浮動小数点数と比較する: `kept[i]`は、ボックスが交差するか内側にある場合に1になり、保持された件数が返される — `frustumExcludesBox`を反転したもので、参照実装が答える極性と同じだ。球のバッチは、ボックスごとに`SPHERE_VALUES`個の数値(中心、そして頂点までの半径)を、`sphereFromBounds`と同じように書き込む。どちらのループも`packages/sdk-core/src/math/batch/culling.ts`にある。"
+      "description": "6個の数値(最小値、最大値)からなる`n`個のボックスを、フラスタムの24個の浮動小数点数と比較する: `kept[i]`は、ボックスが交差するか内側にある場合に1になり、保持された件数が返される — `frustumExcludesBox`を反転したもので、参照実装が答える極性と同じだ。球のバッチは、ボックスごとに`SPHERE_VALUES`個の数値(中心、そして頂点までの半径)を、`sphereFromBounds`と同じように書き込む。どちらのループも`packages/math/src/batch/culling.ts`にある。"
     },
     "boxUnionBatch": {
       "description": "`into`を`n`個のボックスで拡張するか、あるいは`n`個のボックスをそれぞれ自分の行列で変換してから拡張する — どちらも1回のパス、1つの作業用ボックス、確保なしで行う。両方とも`boxUnion`を繰り返し、後者はその前に`boxTransform`を行う: シーン全体のワールド境界を1回の呼び出しで得られる。"
     },
     "invertMatrix4Batch": {
-      "description": "`n`個の逆行列、`NORMAL_MATRIX_VALUES`個の数値からなる`n`個の法線行列、`n`個の`T · R · S`合成、`n`個の分解。行列式がゼロの行列は単位行列に反転され、`singular[i]`にフラグが立つ — バッチの途中で例外が投げられることはない。`composeMatrix4Batch`は、すべてを平坦な配列として渡すか、すべてをサブビューとして渡すかのどちらかを取り、ループの前にその形式を確定する。この4つのループは`packages/sdk-core/src/math/batch/transforms.ts`にある。"
+      "description": "`n`個の逆行列、`NORMAL_MATRIX_VALUES`個の数値からなる`n`個の法線行列、`n`個の`T · R · S`合成、`n`個の分解。行列式がゼロの行列は単位行列に反転され、`singular[i]`にフラグが立つ — バッチの途中で例外が投げられることはない。`composeMatrix4Batch`は、すべてを平坦な配列として渡すか、すべてをサブビューとして渡すかのどちらかを取り、ループの前にその形式を確定する。この4つのループは`packages/math/src/batch/transforms.ts`にある。"
     },
     "transformPointsBatch": {
       "description": "3個の数値からなる`n`個の点を、1つのアフィン行列で、あるいは点ごとに1つの行列で変換する; `n`個の方向を上位3×3行列で変換してから正規化する。平行移動は無視される。これらは`transformAffinePoint`と`transformDirectionVector3`を繰り返したものだ。"
     },
     "srgbToLinearBatch": {
-      "description": "要素ごとに1チャンネル、`packages/sdk-core/src/math/primitives/color.ts`の正確な曲線を使う: 参照実装は丸められた定数を掛けており、その差(8ビットでは見えない)は、それと競わせるベンチの中で一度だけ境界づけられている。"
+      "description": "要素ごとに1チャンネル、`packages/math/src/color/color.ts`の正確な曲線を使う: 参照実装は丸められた定数を掛けており、その差(8ビットでは見えない)は、それと競わせるベンチの中で一度だけ境界づけられている。"
     },
     "scene-editor": {
       "title": "エディターでシーンを組み立てる",

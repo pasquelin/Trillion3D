@@ -1,9 +1,10 @@
-import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts'
+import { frustumExcludesBox, maxStretch } from '../../../../sdk-core/src/index.ts'
 import { drawsCard, selectFlat } from './select.fixture.ts'
 import { openMark } from './openRoot.fixture.ts'
 import { worldStretch } from './logic.ts'
 import { selectionScratch, selectionState, type PageRecord } from './state.fixture.ts'
-import { IDENTITY_WORLD, copyElements } from '../../math/matrixElements.ts'
+import { copyMatrix4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
+import { IDENTITY_WORLD } from '../../host/matrixElements.ts'
 import type { ClusterRoot } from '../selection/types.ts'
 import { pixelScaleOf } from '../../streaming/priority.ts'
 import type { EngineCamera } from '../../camera/world.ts'
@@ -37,7 +38,7 @@ export interface SelectionResult<T> {
 
 /**
  * World pose of a root copied into an owned buffer, once per root: the base product
- * only reads and writes `Float64Array`s (`packages/sdk-core/src/math/matrix/matrix4.ts`), and host-library matrices are ordinary
+ * only reads and writes `Float64Array`s (`packages/math/src/matrix/matrix4.ts`), and host-library matrices are ordinary
  * arrays.
  */
 const rootWorld = new Float64Array(16)
@@ -119,7 +120,7 @@ export function selectVisiblePages<T extends PageRecord>(
       state.frustumRejected++
       continue
     }
-    copyElements(rootWorld, root.world.elements)
+    copyMatrix4(rootWorld, root.world.elements)
     multiplyMatrix4(viewMatrix, cam.view, rootWorld)
     selectFlat(state, root)
   }

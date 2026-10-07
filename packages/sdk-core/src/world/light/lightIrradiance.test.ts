@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { Light } from './light.ts'
 import { addLightIrradiance } from './lightRecord.ts'
 import { IRRADIANCE_BAND, emptyIrradiance } from '../../scene/core/environment.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 /** The irradiance of `sh` at unit normal `n`, colour channel `c`. */
 const irradiance = (sh: number[], n: number[], c: number) =>

@@ -15,7 +15,7 @@
  * (`growth.ts`), and is opened again with otherwise.
  */
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {

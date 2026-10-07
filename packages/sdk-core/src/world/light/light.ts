@@ -2,7 +2,7 @@ import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
 import { Object3D } from '../object/object3d.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
-import { listen, unlisten } from '../math/observed.ts'
+import { listen, unlisten } from '../observed.ts'
 import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 
 /** What a page may pass to a light member. */

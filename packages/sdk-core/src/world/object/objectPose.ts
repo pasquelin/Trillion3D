@@ -1,5 +1,5 @@
-import { listen } from '../math/observed.ts'
-import type { TransformTree } from '../../math/transform-tree/transformTree.ts'
+import { listen } from '../observed.ts'
+import type { TransformTree } from '../transform-tree/transformTree.ts'
 import type { Object3D } from './object3d.ts'
 
 /** The nodes whose pose values are views of their tree's slots, by slot: pointed at the new stores

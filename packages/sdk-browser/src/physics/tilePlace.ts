@@ -4,7 +4,7 @@ import type {
   CookedTile,
 } from '../../../sdk-core/src/physics/index.ts'
 import { readCookedPhysics } from '../../../sdk-core/src/physics/index.ts'
-import { boxPointDistance, boxTransform } from '../../../sdk-core/src/math/primitives/box.ts'
+import { boxPointDistance, boxTransform } from '../../../math/src/geometry/box.ts'
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts'
@@ -15,7 +15,7 @@ import type { NodeMove } from './cookedBodies.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import { worldPoseOf } from './bodyFrame.ts'
 import { checked, optionalFile } from '../cluster/checked.ts'
-import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
  *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */

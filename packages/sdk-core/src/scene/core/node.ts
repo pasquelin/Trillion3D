@@ -3,7 +3,7 @@ import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../math/transform-tree/transformTree.ts'
+} from '../../world/transform-tree/transformTree.ts'
 import {
   noteNodeWrite,
   removeTransformNode,
@@ -11,7 +11,7 @@ import {
   setNodeAutoUpdate,
   setNodeLocalMatrix,
 } from './nodeEdits.ts'
-import { updateNodeWorldMatrix } from '../../math/transform-tree/update.ts'
+import { updateNodeWorldMatrix } from '../../world/transform-tree/update.ts'
 import { attachSceneNode } from './nodeAttach.ts'
 import { copySceneNodeState } from './nodeCopy.ts'
 import { refuseSceneRoot, sceneNodeFail, sceneNodeVisibility } from './nodeError.ts'

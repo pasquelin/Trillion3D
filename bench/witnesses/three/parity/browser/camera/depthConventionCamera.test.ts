@@ -23,7 +23,7 @@ import {
   depthNearer,
 } from '../../../../../../packages/sdk-browser/src/camera/depthConvention.ts'
 import { projectVisibilityVertex } from '../../../../../oracles/browser/cpu-image/projection.ts'
-import { IDENTITY_WORLD } from '../../../../../../packages/sdk-browser/src/math/matrixElements.ts'
+import { IDENTITY_WORLD } from '../../../../../../packages/sdk-browser/src/host/matrixElements.ts'
 import { perspectiveProjection } from '../../../../../../packages/sdk-core/src/index.ts'
 
 const WIDTH = 800,

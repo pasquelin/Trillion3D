@@ -4,7 +4,7 @@ import { camera, Camera } from '../../../../../../../packages/sdk-core/src/world
 import { Object3D } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
 import { Vector3 } from '../../../../../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Ray } from '../../../../../../../packages/sdk-core/src/world/math/volumes.ts'
-import { near as within } from '../../../../../../../packages/sdk-core/src/math/near.fixture.ts'
+import { near as within } from '../../../../../../../packages/math/src/float/near.fixture.ts'
 import * as THREE from 'three'
 
 const near = (actual: ArrayLike<number>, expected: readonly number[]) =>

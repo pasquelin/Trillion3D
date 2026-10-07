@@ -1,4 +1,4 @@
-import { poseHoldsBox, sameElements } from '../../math/matrixElements.ts'
+import { poseHoldsBox, sameElements } from '../../../../math/src/matrix/matrixElements.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../../gpu/shadow/mobilityBits.ts'
 
 /**

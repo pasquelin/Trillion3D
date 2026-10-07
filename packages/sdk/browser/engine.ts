@@ -11,7 +11,10 @@ export type {
   PageStreamerOptions,
   StreamPage,
 } from '../../sdk-browser/src/streaming/types.ts'
-export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts'
+export type {
+  BoxTransformLot,
+  MultiplyLot,
+} from '../../sdk-browser/src/page/decode/batch/batchRuntime.ts'
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts'
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts'
 export type { CellRows } from '../../sdk-browser/src/partition/cellDecode.ts'
@@ -105,7 +108,7 @@ export type {
   HostScene,
   HostTexture,
 } from '../../sdk-browser/src/host/resources.ts'
-export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts'
+export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/host/matrixElements.ts'
 export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts'
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts'
 export type {

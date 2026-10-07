@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts'
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts'
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts'
-import { linearToSrgb8 } from '../../../packages/sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8 } from '../../../packages/math/src/color/color.ts'
 import { perspectiveBary } from '../../../packages/sdk-browser/src/visibility/math.ts'
 import { triangleAt } from './cpu-image/projection.ts'
 import { attr2, backgroundRgb, barycentric, sampleLinear, sampleMap } from './cpu-image/math.ts'
@@ -16,7 +16,7 @@ import {
   type EngineCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts'
 import type { DepthCamera } from '../../../packages/sdk-browser/src/camera/depthConvention.ts'
-import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts'
+import type { MatrixElements } from '../../../packages/sdk-browser/src/host/matrixElements.ts'
 import { unpackVisibilityId } from './cpu-image/ids.ts'
 
 /** A page with the world of its root, which the oracle reads on the page. */

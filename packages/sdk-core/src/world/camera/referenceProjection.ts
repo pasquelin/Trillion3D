@@ -4,7 +4,7 @@ import {
   drawnView,
   orthographicProjection,
   perspectiveProjection,
-} from '../../math/primitives/camera.ts'
+} from '../../../../math/src/projection/camera.ts'
 
 const view = new Float64Array(4)
 

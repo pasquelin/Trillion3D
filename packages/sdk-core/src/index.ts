@@ -79,8 +79,10 @@ export {
   sortPages,
 } from './page/integrationPlan.ts'
 export type { PageIntegrationPlan } from './page/integrationPlan.ts'
-export * from './math/oracles.ts'
-export * from './math/index.ts'
+export * from './lod/oracles.ts'
+export * from '../../math/src/index.ts'
+export * from './runtime/path/index.ts'
+export * from './world/transform-tree/index.ts'
 export { SceneNode, type SceneNodeOptions } from './scene/core/node.ts'
 export { SCENE_MODEL_VERSION } from './scene/core/nodeContracts.ts'
 export type { SceneState } from './scene/core/nodeContracts.ts'
@@ -135,7 +137,6 @@ export { validateSceneEnvironment, validateSceneLight } from './scene/light/vali
 export { LIGHT_FIELD, createSceneLightStore } from './scene/light/store.ts'
 export type { SceneLightStore } from './scene/light/store.ts'
 export { SHADOW_PAGE } from './scene/light-shadow/sunEntries.ts'
-export type { NumberSink } from './math/matrix/matrix4.ts'
 export type { Counts } from './manifest/binaryLayout.ts'
 export type { SlimCulling, SlimStreams, SlimStructure } from './manifest/binaryTypes.ts'
 export type {

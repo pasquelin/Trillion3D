@@ -1,5 +1,5 @@
 import type { ControlBase } from './base.ts'
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 /**
  * The input every camera controller reads: pointers, wheel, keys. Written once here so the

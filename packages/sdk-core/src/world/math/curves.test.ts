@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Path, Shape, SplineCurve } from './curves.ts'
 import { Vector3 } from './vector3.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 const near = (actual: number[], expected: number[], label: string, eps = 1e-12) =>
   within(actual, expected, label, eps)

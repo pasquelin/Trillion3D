@@ -1,5 +1,5 @@
 import { BOUNCE_SETTINGS } from './contracts.ts'
-import { hypot3 } from '../math/primitives/hypot.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.

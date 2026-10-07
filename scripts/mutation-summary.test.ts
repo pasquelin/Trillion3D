@@ -41,13 +41,21 @@ test('a narrowed run mutates the sources it names, never their tests or fixtures
   const mutated = (globs: string[], file: string) =>
     globs.some((glob) => !glob.startsWith('!') && matchesGlob(file, glob)) &&
     !globs.some((glob) => glob.startsWith('!') && matchesGlob(file, glob.slice(1)))
-  const contracts = mutationTargets('packages/sdk-core/src/', [
-    'packages/sdk-core/src/contracts/**/*.ts',
-  ])
-  for (const globs of [mutationTargets('packages/sdk-core/src/'), contracts]) {
+  const contracts = mutationTargets(
+    ['packages/sdk-core/src/'],
+    ['packages/sdk-core/src/contracts/**/*.ts'],
+  )
+  for (const globs of [
+    mutationTargets(['packages/math/src/', 'packages/sdk-core/src/']),
+    contracts,
+  ]) {
     assert.equal(mutated(globs, 'packages/sdk-core/src/contracts/cache.ts'), true)
     assert.equal(mutated(globs, 'packages/sdk-core/src/contracts/cache.test.ts'), false)
     assert.equal(mutated(globs, 'packages/sdk-core/src/scene/core/proxy.fixture.ts'), false)
   }
+  assert.equal(
+    mutated(mutationTargets(['packages/math/src/']), 'packages/math/src/float/hypot.ts'),
+    true,
+  )
   assert.equal(mutated(contracts, 'packages/sdk-core/src/scene/core/proxy.ts'), false)
 })

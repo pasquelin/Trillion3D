@@ -1,5 +1,5 @@
 import { REFLECTION_CONE_WGSL } from './coneWgsl.ts'
-import { interleavedGradientWgsl } from '../math/interleavedGradientWgsl.ts'
+import { interleavedGradientWgsl } from '../gpu/shader/interleavedGradientWgsl.ts'
 import { REFLECTION_SEGMENT, SCREEN_TRACE_WGSL } from './traceShader.ts'
 import { type ScreenLobeFade, screenRadianceShader } from './screenRadianceShader.ts'
 import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'

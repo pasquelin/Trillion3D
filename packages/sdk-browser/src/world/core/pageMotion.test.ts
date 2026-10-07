@@ -14,7 +14,7 @@ import { packClusterSpheres } from '../../webgpu/shadow/spheres.ts'
 import { CLUSTER_SPHERE_FLOATS } from '../../webgpu/shadow/rowBuffers.ts'
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/corners.ts'
 import { createPageMotion } from './pageMotion.ts'
-import { BOX_VALUES } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { PageRec } from '../../page/selection/types.ts'
 
 /** The same pseudo-random numbers in [0, 1) every run. */

@@ -12,7 +12,7 @@
 
 import type { Primitive } from '../../../sdk-core/src/index.ts'
 import type { HostAttribute, HostMesh } from '../host/resources.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { PlacementOf } from '../placement/rows.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'

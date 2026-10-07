@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { Matrix3, Matrix4 } from './matrix4.ts'
 import { Vector3 } from './vector3.ts'
 import { Quaternion } from './quaternion.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 const close = (actual: ArrayLike<number>, expected: ArrayLike<number>) =>
   within(actual, Array.from(expected), 'matrix', 1e-10)

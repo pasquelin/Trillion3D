@@ -1,5 +1,5 @@
 import * as G from '../../host/graph/graph.fixture.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { PageLocations, PlacementIndex, Placements } from './placements.ts'
 
 /** Every index of an empty list reads 0: a page of the single identity root. */

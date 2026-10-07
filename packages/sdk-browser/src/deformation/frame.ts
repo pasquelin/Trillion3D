@@ -4,7 +4,7 @@ import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts'
 import { wavesChanged, writeWaves, WAVE_STRETCH_FLOATS } from './waveFrame.ts'
 import { writeSoftSource, type SoftSource } from './softSource.ts'
 import { createSkinPalettes, differs } from './skinPalettes.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 import {
   KIND_MORPH,
   KIND_SKIN,

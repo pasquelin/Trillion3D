@@ -21,7 +21,7 @@ export const VECTORS: EntryNote[] = [
   {
     id: 'normalizeVector3',
     replaces: 'Vector3.normalize',
-    proof: 'packages/sdk-core/src/math/primitives/vector.test.ts',
+    proof: 'bench/witnesses/three/parity/core/math/primitives/vector.test.ts',
   },
   {
     id: 'scaleVector3',

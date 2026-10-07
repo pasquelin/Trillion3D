@@ -4,7 +4,7 @@ import { Box3 } from '../../../sdk-core/src/world/math/box3.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import { FLOAT32_STEP } from '../math/matrixElements.ts'
+import { FLOAT32_STEP } from '../../../math/src/matrix/matrixElements.ts'
 
 const box = new Box3()
 

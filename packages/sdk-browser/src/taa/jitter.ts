@@ -9,7 +9,7 @@
  * space: it only reaches the matrix the raster, shading and blend read, never the engine camera —
  * selection, its planes and its screen-error threshold see none of this jitter.
  */
-import { halton } from '../../../sdk-core/src/math/primitives/halton.ts'
+import { halton } from '../../../math/src/sequence/halton.ts'
 
 /** The jitter positions of a frame drawn at the display's size, before the prime: eight. */
 const NATIVE_POSITIONS = 8

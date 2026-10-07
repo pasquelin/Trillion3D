@@ -1,6 +1,6 @@
 import { throwIfStopped } from '../io/lost.ts'
 import { prepareGpuTiming } from './timing.ts'
-import { reserveRootBoxes } from '../../../math/batchBoxes.ts'
+import { reserveRootBoxes } from '../../../page/selection/batchBoxes.ts'
 import { type WebgpuPagesRuntime } from '../runtime.ts'
 import { prepareWebgpuPages } from './preparePages.ts'
 

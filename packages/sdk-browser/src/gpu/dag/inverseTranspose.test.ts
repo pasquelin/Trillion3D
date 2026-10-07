@@ -11,8 +11,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { DAG_SELECTION_SHADER } from './shader/shader.ts'
 import { SINGULAR_DETERMINANT_WGSL } from '../../../../sdk-core/src/index.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
-import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../../math/inverseTransposeBefore.fixture.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../shader/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_BEFORE_WGSL } from '../shader/inverseTransposeBefore.fixture.ts'
 import {
   angleBetween,
   inverseTransposeShipped,
@@ -96,7 +96,7 @@ test('the shipped shader no longer carries an absolute threshold on the raw dete
   assert.match(corps, /let a=m\[0\]\/t;let b=m\[1\]\/t;let c=m\[2\]\/t;/, 'normalisation absente')
   assert.match(corps, /finite&&abs\(det\)>1e-20/, 'garde relative absente')
   // And this number is not written in the shader: it comes from the constant shared with
-  // the CPU (`packages/sdk-core/src/math/matrix/singular.ts`), rendered as text. A threshold changed on one side only is
+  // the CPU (`packages/math/src/matrix/singular.ts`), rendered as text. A threshold changed on one side only is
   // impossible.
   assert.equal(
     SINGULAR_DETERMINANT_WGSL,

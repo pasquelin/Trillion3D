@@ -56,7 +56,7 @@ matrices.push(new Float64Array(16), new Float64Array(16).fill(-0))
 /**
  * The same, ROUNDED to single precision but held in double: that is how a render buffer
  * enters the foundation from this batch. The product only reads and writes one buffer type
- * (`packages/sdk-core/src/math/matrix/matrix4.ts`), and conversion to single precision happens at SEND, on the result. The
+ * (`packages/math/src/matrix/matrix4.ts`), and conversion to single precision happens at SEND, on the result. The
  * values themselves are exactly those of a `Float32Array`, hence the same bits.
  */
 const matrices32 = matrices.map((m) => Float64Array.from(Float32Array.from(m)))

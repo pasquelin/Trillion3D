@@ -3,6 +3,27 @@
 The maths the engine computes with, exported by `trillion3d`, `packages/sdk-core` and
 `packages/sdk-browser` alike; the rest of the public API is [SDK.md](SDK.md).
 
+## The maths package
+
+`packages/math` (`@trillion3d/math`) holds the engine's primitive maths, and every other package
+imports it. Its contract:
+
+- Pure functions: no state that outlives a call (module scratch buffers are reused within a call and never read across calls), no DOM, GPU API, clock or worker.
+- Outputs go through an `out` argument or a flat array, never a fresh object per call.
+- One function per formula: a second copy of a formula elsewhere in the tree is a defect.
+- It imports nothing outside itself; `pnpm run check:cycles` fails when a module does.
+- "No GPU" means no GPU API call: the WGSL text twins of a primitive (string constants such as
+  `SINGULAR_DETERMINANT_WGSL`, `HALF_PI_WGSL`) belong to the package, beside the function they mirror.
+- `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which only
+  call the package.
+
+Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`), `vector/`,
+`quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
+spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
+`color/`, `sequence/` (`halton.ts`) and `batch/`; `index.ts` is the barrel `packages/sdk-core`
+re-exports. The path governor, the transform tree and the shader programs are not primitives and live in
+`sdk-core` and `sdk-browser`.
+
 ## Batch math for hosts
 
 A host moving ten thousand instances or culling ten thousand boxes would otherwise loop, one object
@@ -20,16 +41,16 @@ or batch, follows these conventions:
 - **Layout.** One element occupies a fixed number of consecutive values, each declared once:
   `MATRIX_VALUES` 16, `POSITION_VALUES` 3, `QUATERNION_VALUES` 4 (`x, y, z, w`), `SPHERE_VALUES` 4
   (centre then radius) and `NORMAL_MATRIX_VALUES` 9 in
-  `packages/sdk-core/src/math/batch/strides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z) in
-  `packages/sdk-core/src/math/primitives/box.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes
+  `packages/math/src/batch/strides.ts`; `BOX_VALUES` 6 (min x, y, z then max x, y, z) in
+  `packages/math/src/geometry/box.ts`; `FRUSTUM_PLANE_VALUES` 24 (six planes
   `a, b, c, d`, facing inward, in the order of `frustumPlanesFromMatrix`) in
-  `packages/sdk-core/src/math/frustum/frustum.ts`. Matrices read one at a time travel as
+  `packages/math/src/geometry/frustum/frustum.ts`. Matrices read one at a time travel as
   **sub-views** of sixteen numbers (`buffer.subarray(i * 16, (i + 1) * 16)`), built once at load,
   never per frame: `multiplyMatrix4` reads its operands at constant indices.
 
 **Allocate once, reuse every frame.** Culling ten thousand boxes and bringing the survivors' centres
 into view space is two calls (the batches' tests are `batch.test.ts` and `transforms.test.ts` in
-`packages/sdk-core/src/math/batch/`):
+`packages/math/src/batch/`):
 
 ```javascript
 import {
@@ -72,8 +93,8 @@ transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 
 **Which path ran.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
 (`math.rs` and `math_matrix.rs` in `packages/page-codec-wasm/src/`), bit-identical to the JavaScript
-loop; a governor (`packages/sdk-core/src/math/path/governor.ts`, wired in
-`packages/sdk-browser/src/math/batchRuntime.ts`) plays the faster measured, per operation.
+loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
+`packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) plays the faster measured, per operation.
 `hierarchyUpdateBatch` has a kernel too (`math_hierarchy.rs`, proven by its Rust tests), outside
 the governor.
 `metric.frame(world).mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):
@@ -100,8 +121,8 @@ the witness calls are the migration table.
 Each unit function's page in the portal's [API reference](https://www.trillion3d.com/#/en/api) gives
 what it computes, the witness call it replaces, its proof and ratio, written once in
 `site/content/entries/` (`matrix.ts`, `vector.ts`, `camera.ts`). The functions live in
-`packages/sdk-core/src/math/matrix/` (matrices), `packages/sdk-core/src/math/primitives/` (vectors,
-colours, camera frame) and `packages/sdk-browser/src/camera/` (the engine camera).
+`packages/math/src/matrix/` (matrices), `packages/math/src/vector/` and
+`packages/math/src/color/` (vectors, colours), `packages/math/src/projection/` (camera frame) and `packages/sdk-browser/src/camera/` (the engine camera).
 
 The engine does not read the host's clip-depth convention. It composes its own projection from the
 declared optics — field, aspect, near plane, zoom — in **reversed depth with an infinite far
@@ -121,7 +142,7 @@ far plane, the adaptive threshold and the shadow range.
 
 ### Batch functions
 
-`packages/sdk-core/src/math/batch/`: `batch.ts`, with `culling.ts`, `points.ts`, `transforms.ts`
+`packages/math/src/batch/`: `batch.ts`, with `culling.ts`, `points.ts`, `transforms.ts`
 and `color.ts` beside it. The proof is `pnpm run perf:core` (`three-vs-core-batch-*.perf.ts`).
 Ratios are the batch's speed-up over the witness's loop, rounded from the range of the per-run
 medians over three runs; the three exceptions are declared on their line.
@@ -131,15 +152,15 @@ medians over three runs; the three exceptions are declared on their line.
 | `frustumKeepsBoxBatch(kept, planes, boxes, n)` | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept | `for … frustum.intersectsBox(box)` | bench `Frustum.intersectsBox batch` (×1.1) |
 | `sphereFromBoundsBatch(out, boxes, n)` | four values per box, `sphereFromBounds` | `for … box.getBoundingSphere(s)` | bench `Box3.getBoundingSphere batch` (×2.2) |
 | `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` | `for … box.union(b)` | bench `Box3.union batch` (×1.9) |
-| `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/sdk-core/src/math/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `boxTransformBatch(out, boxes, mats[], n)` | `out[i] = boxTransform(boxes[i], mats[i])` | `for … box.applyMatrix4(m)` | `packages/math/src/batch/batch.test.ts` against `boxTransform`; WebAssembly kernel bit-identical (`math.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `boxTransformUnionBatch(into, boxes, mats[], n)` | transform then union, one pass, one scratch box | `Box3.setFromObject` | bench `Box3 transform and union batch` (×1.8) |
-| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/sdk-core/src/math/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math_matrix.rs`, `packages/sdk-browser/src/math/batchRuntime.test.ts`) |
+| `multiplyMatrix4Batch(out[], a[], b[], n)` | `out[i] = a[i] · b[i]`, sub-views | `for … m.multiplyMatrices(a, b)` | `packages/math/src/batch/transforms.test.ts`; WebAssembly kernel bit-identical (`math_matrix.rs`, `packages/sdk-browser/src/page/decode/batch/batchRuntime.test.ts`) |
 | `invertMatrix4Batch(out[], mats[], n, singular?)` | `out[i] = mats[i]⁻¹`; a zero determinant writes the identity and sets `singular[i]` | `for … m.invert()` | bench `Matrix4.invert batch` (×0.9) — **declared exception**: the batch reads the determinant to flag singularity, the witness does less; ceiling 1.2 |
-| `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/sdk-core/src/math/matrix/singular.ts`) is kept; ceiling 2.2 |
+| `normalMatrix3Batch(out, mats[], n)` | nine values per matrix, `normalMatrix3` | `for … n.getNormalMatrix(m)` | bench `NormalMatrix3 batch` (×0.5) — **declared exception**: the engine's singularity policy (`packages/math/src/matrix/singular.ts`) is kept; ceiling 2.2 |
 | `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views | `for … m.compose(p, q, s)` | bench `Matrix4.compose batch` (×1.5) |
 | `decomposeMatrix4Batch(positions[], quaternions[], scales[], mats[], n)` | the reverse, `decomposeMatrix4` | `for … m.decompose(p, q, s)` | bench `Matrix4.decompose batch` (×1.1) |
 | `transformPointsBatch(out, m, points, n)` | `n` points by one affine matrix, `transformAffinePoint` | `for … v.applyMatrix4(m)` | bench `Vector3.applyMatrix4 batch` (×1.4) |
 | `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each | `for … v[i].applyMatrix4(mats[i])` | bench `Vector3.applyMatrix4 per-instance batch` (×1.9) |
 | `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` | `for … v.transformDirection(m)` | bench `Vector3.transformDirection batch` (×1.3) |
-| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/sdk-core/src/math/primitives/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
+| `srgbToLinearBatch(out, values, n)`, `linearToSrgbBatch(out, values, n)` | one channel per element, the exact curves of `packages/math/src/color/color.ts` | `for … color.convertSRGBToLinear()` | bench `Color.convertSRGBToLinear batch`, `convertLinearToSRGB batch` (×1.0) — **declared exception**: the curve, gap ≤ 1.1e-11 forward, ≤ 6.3e-6 back; ceiling 1.1 |
 | `hierarchyUpdateBatch(worldViews[], positions[], rotations[], scales[], parents, n, local)` | a whole hierarchy, parents before children, `composeMatrix4` then `multiplyMatrix4` | `Object3D.updateMatrixWorld` over a scene | the Rust tests of `packages/page-codec-wasm/src/math_hierarchy.rs` |

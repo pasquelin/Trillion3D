@@ -9,9 +9,12 @@ const CATEGORY_RULES: [string, RegExp][] = [
   ['llm', /\/llm\//],
   [
     'diagnostics',
-    /\/math\/oracles\.ts$|\/runtime\/(?:diagnostics|stats|stageProfile|compareImages|paths)\.ts$|\/contracts\/metrics\.ts$/,
+    /\/lod\/oracles\.ts$|\/runtime\/(?:diagnostics|stats|stageProfile|compareImages|paths)\.ts$|\/contracts\/metrics\.ts$/,
   ],
-  ['math', /\/src\/(?:math|hiz|world\/math)\//],
+  [
+    'math',
+    /^packages\/math\/src\/|\/src\/(?:hiz|world\/(?:math|transform-tree)|runtime\/path)\/|\/world\/observed\.ts$/,
+  ],
   ['lighting', /\/src\/(?:lighting|bounce|scene\/light(?:-shadow)?)\/|\/contracts\/proxy\.ts$/],
   [
     'streaming',

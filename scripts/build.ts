@@ -17,7 +17,7 @@ const steps: string[][] = [
 ]
 
 heavyStep('build', () => {
-  for (const pkg of ['sdk', 'sdk-core', 'sdk-browser', 'sdk-node', 'witnesses'])
+  for (const pkg of ['sdk', 'math', 'sdk-core', 'sdk-browser', 'sdk-node', 'witnesses'])
     rmSync(`dist/${pkg}`, { recursive: true, force: true })
   cleanBundle('dist')
   for (const args of steps) run(process.execPath, args)
