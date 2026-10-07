@@ -12,7 +12,7 @@ import { verifyPageBytes } from '../page/work/host.ts'
 type Announced = { bytes: number; sha256: string }
 
 /** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
-export const corruptObject = (
+const corruptObject = (
   url: string,
   announced: Announced,
   bytes: number,

@@ -14,15 +14,6 @@ import { PRIORITY_VISIBLE } from '../streaming/priority.ts'
 /** What a placed cell holds, counted per cell. */
 type Holder = Pick<WorldRootsHold, 'hold' | 'release'>
 
-const holdings = new WeakMap<object, CellHolds>()
-/** `cells`, with their `holds` kept beside them: a model's public record carries the cells. */
-export function withHolds<T extends object>(holds: CellHolds, cells: T): T {
-  holdings.set(cells, holds)
-  return cells
-}
-/** What the cells `withHolds` returned hold. */
-export const cellHolds = (cells: object) => holdings.get(cells)!
-
 /** The holds on their way, and what a frame waits on: the next to land or fail, asked as a list of
  *  one made when first asked, or nothing while none reads. */
 function createLandings() {
@@ -85,5 +76,3 @@ export function createCellHolds(world?: Holder) {
     held: () => holding.size,
   }
 }
-
-export type CellHolds = ReturnType<typeof createCellHolds>

@@ -53,7 +53,7 @@ export interface StreamPage {
 }
 /** The pages a resource mounted in the open session brings: `admit`-ted before they are
  *  read, `forget`-ten with their bytes once it is unmounted. */
-export type PageCatalogue = {
+type PageCatalogue = {
   admit(pages: readonly StreamPage[]): void
   forget(urls: readonly string[]): void
 }

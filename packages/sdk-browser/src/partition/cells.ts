@@ -29,7 +29,7 @@ import { holdPriority, inCellFrame, planCells } from './plan.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { heldSide, rowsAt, rungOf } from './sizing.ts'
 import { createCellPlacements } from './placements.ts'
-import { createCellHolds, withHolds } from './cellHolds.ts'
+import { createCellHolds } from './cellHolds.ts'
 import { createFarCells } from './farCells.ts'
 import type { CellFrameIo, CellPrimeIo } from './cellIo.ts'
 
@@ -168,7 +168,7 @@ export function createPartitionCells(inputs: Inputs) {
     /** The decodes asked since the last call: a still camera is drawn again once one lands. */
     decodes: () => [...pageDecodes.asked(), ...decodes.asked()],
   }
-  return withHolds(holds, partitionCells)
+  return partitionCells
 }
 
 export type PartitionCells = ReturnType<typeof createPartitionCells>

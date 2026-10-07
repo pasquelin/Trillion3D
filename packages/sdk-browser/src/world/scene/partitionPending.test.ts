@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import type { PartitionCells } from '../../partition/cells.ts'
-import { createCellHolds, withHolds } from '../../partition/cellHolds.ts'
+import { createCellHolds } from '../../partition/cellHolds.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import { createPartitionFrame } from './partitionFrame.ts'
 
@@ -15,7 +15,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   let later = true,
     read = () => {},
     decodes: Promise<void>[] = []
-  const cells = withHolds(createCellHolds(), {
+  const cells = {
     frame(_eye: number[], _reach: number, io: Io) {
       io.request(['near.json'], false)
       io.request(['ahead.json'], true)
@@ -23,7 +23,7 @@ test('a still camera is drawn again until the cells it asked for within reach ar
     },
     decodes: () => decodes.splice(0),
     reads: () => [],
-  } as unknown as PartitionCells)
+  } as unknown as PartitionCells
   const streamer = {
     request: (urls: readonly string[]) =>
       new Promise<void>((resolve) => {
@@ -58,11 +58,11 @@ test('a still camera is drawn again until the cells it asked for within reach ar
 /** The frame step of a still camera over one partition holding its cells on `holder`. */
 function stillFrame(holder: Parameters<typeof createCellHolds>[0]) {
   const holds = createCellHolds(holder)
-  const cells = withHolds(holds, {
+  const cells = {
     frame: () => false,
     decodes: () => [],
     reads: holds.reads,
-  } as unknown as PartitionCells)
+  } as unknown as PartitionCells
   const frame = createPartitionFrame({
     partitions: [cells],
     streamer: {} as ReturnType<typeof createPageStreamer>,

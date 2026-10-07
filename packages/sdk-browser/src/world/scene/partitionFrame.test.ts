@@ -7,7 +7,6 @@ import { createPartitionCells, type PartitionCells } from '../../partition/cells
 import { cellReach } from '../../partition/plan.ts'
 import { lensSlope } from '../../partition/superRoots.ts'
 import { createSelectionUniforms } from '../../gpu/core/selection.ts'
-import { createCellHolds, withHolds } from '../../partition/cellHolds.ts'
 import { placedMesh } from '../../partition/rows.ts'
 import { paged } from '../../partition/paged.fixture.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts'
@@ -23,7 +22,7 @@ const packsNoWorld = () => ({ worldCut: () => undefined }) as unknown as Engine
 /** Cells that record what a frame hands them, and ask for one cell visible and one ahead. */
 function recording() {
   const seen: { eye: number[]; reach: number; io: Io }[] = []
-  const cells = withHolds(createCellHolds(), {
+  const cells = {
     frame(eye: number[], reach: number, io: Io) {
       seen.push({ eye: [...eye], reach, io })
       io.request(['near.json'], false)
@@ -31,7 +30,7 @@ function recording() {
     },
     decodes: () => [],
     reads: () => [],
-  } as unknown as PartitionCells)
+  } as unknown as PartitionCells
   return { cells, seen }
 }
 
