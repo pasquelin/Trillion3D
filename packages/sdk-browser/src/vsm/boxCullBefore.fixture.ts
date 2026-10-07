@@ -1,7 +1,5 @@
-// The box culls of the cache invalidation and of the render cull before they shared one
-// (`boxCullWgsl.ts`), word for word but for comments and the greatest f32, written with its exact
-// value: the GPU rounds `3.4028234663852886e38` to that f32, the double run of `boxCull.test.ts` reads what
-// the GPU reads. What `boxCull.test.ts` holds the shipped to.
+// The box culls before they shared one (`boxCullWgsl.ts`), word for word but for comments and the
+// greatest f32's exact digits (what the GPU reads): what `boxCull.test.ts` holds the shipped to.
 
 /** The invalidation's frustum box cull and screen rect (`invalidationWgsl.ts`). */
 export const INVALIDATION_BOX_CULL = /* wgsl */ `
