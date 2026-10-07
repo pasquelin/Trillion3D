@@ -69,6 +69,8 @@ export function createWebgpuCutAdopter(options: {
     shownSeq = -1
   /** Whether the last list offered ahead was the one of a still camera: empty. */
   let offeredStill = false
+  /** The lists held are no snapshot the GPU kept — a truncated one's union —: the next is read whole. */
+  let wholeNext = false
   const offerAhead = (cut: GpuCut) => {
     offeredStill = !options.uniforms.ahead
     options.onAhead(offeredStill ? [] : (cut.result.aheadPageIds ?? []))
@@ -89,16 +91,23 @@ export function createWebgpuCutAdopter(options: {
       delta.hold()
       drawnDelta.hold()
     } else {
-      // Each list read off the ranks its readback claims in the list held, then held: the
-      // readbacks after it claim theirs in it (`../../gpu/dag/differenceChain.ts`).
+      // Each list follows the changes the GPU took against the list held
+      // (`../../gpu/dag/differenceChain.ts`): what changed alone is read. A list the GPU could not
+      // hold the changes of, a truncated one — read by its head and what the list held past it —
+      // and the one after it are read whole.
       const { pageIds, drawablePageIds, truncated } = cut.result,
-        claims = selection?.adopt(cut)
-      const asked = truncated ? askedUnion(pageIds, delta.ids, delta.count) : pageIds,
-        drawnIds = truncated
-          ? drawnUnion(drawablePageIds, drawnDelta.ids, drawnDelta.count)
-          : drawablePageIds
-      delta.apply(asked, asked.length, claims?.asked)
-      drawnDelta.apply(drawnIds, drawnIds.length, claims?.drawn)
+        changes = selection?.adopt(cut),
+        whole = truncated || wholeNext
+      if (changes?.asked && !whole) delta.applyNet(changes.asked)
+      else delta.apply(truncated ? askedUnion(pageIds, delta.ids, delta.count) : pageIds)
+      if (changes?.drawn && !whole) drawnDelta.applyNet(changes.drawn)
+      else
+        drawnDelta.apply(
+          truncated
+            ? drawnUnion(drawablePageIds, drawnDelta.ids, drawnDelta.count)
+            : drawablePageIds,
+        )
+      wholeNext = !!truncated
       lastCut = cut
     }
     // The packed ranks of the desired cut, rank by rank beside its records: held or applied,

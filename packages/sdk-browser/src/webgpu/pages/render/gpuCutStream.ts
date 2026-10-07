@@ -28,8 +28,8 @@ export function streamCutResidency(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice)
   if (selection && views.active === views.main) services.followEvictions(selection)
   marks.queueEnd = performance.now()
   ensurePageTable(rt, gpuDevice)
-  // The readback the drawn view adopts.
-  services.followCut(cutOf(rt)?.peek())
+  // The readback the drawn view adopts, followed by the differences its adoption published.
+  services.followCut(cutOf(rt)?.peek(), views.active.cut)
   const passed = services.syncRows(!run.textureConverging)
   run.rowsSyncedFrame = run.frame
   marks.rowsEnd = performance.now()
