@@ -7,12 +7,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../texture/shaderRule.fixture.ts'
-import {
-  BOUNCE_PROBE_SHADER,
-  BOUNCE_SNAPSHOT_SHADER,
-  BOUNCE_WORKGROUP,
-  snapshotGroups,
-} from './probeWgsl.ts'
+import { BOUNCE_PROBE_SHADER, BOUNCE_SNAPSHOT_SHADER, snapshotGroups } from './probeWgsl.ts'
 import { PROBE_TEXELS } from './atlas.ts'
 import { random } from '../page/cut/cutRuleChecks.fixture.ts'
 import { fakeDevice } from '../../../../tests/kit/gpu/fakeDevice.ts'
@@ -72,8 +67,7 @@ test('after the follow-up, the snapshot is the probes, word for word', () => {
         probes.texels[at(probes, [probe[0] + k, probe[1]], probe[2])] = [r(), r(), r(), r()]
     assert.notDeepEqual(snapshot.texels, probes.texels, 'the update wrote')
     // Every thread the host dispatches, a texel each, those past the queue included.
-    for (let id = 0; id < snapshotGroups(queueLength) * BOUNCE_WORKGROUP; id++)
-      run.followSnapshot([id, 0, 0])
+    for (let id = 0; id < snapshotGroups(queueLength) * 64; id++) run.followSnapshot([id, 0, 0])
     assert.deepEqual(snapshot.texels, probes.texels, `${queueLength} probes queued`)
   }
 })

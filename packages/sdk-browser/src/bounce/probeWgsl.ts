@@ -10,7 +10,7 @@ import { PROBE_TEXELS } from './atlas.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 
 /** Threads of a probe-pass workgroup: one group per probe, one thread per ray. */
-export const BOUNCE_WORKGROUP = 64
+const BOUNCE_WORKGROUP = 64
 
 /**
  * Queue entry `entry`, as both the update and the snapshot's follow-up read it: its level, its
