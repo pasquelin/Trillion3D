@@ -68,29 +68,40 @@ const ring = (count: number): ImpostorRoot[] =>
     }
   })
 
-test('a camera turning in place hands the cut no card bit, as the plan of every root does', () => {
+test('a camera turning in place hands the cut the card bits the plan of every root does', () => {
   // A still eye turning: no tree comes nearer or goes farther, so no verdict moves. The ranks read
   // are those of a quarter turn about the heading (what a placement tree keeps); each image counts
   // the card bits it hands the GPU cut — each one voids the cut in hand, which then publishes in
-  // full —: none, frame after frame, whichever ranks the view leaves or enters.
-  const trees = ring(200),
-    plan = planImpostors(trees, section, VIEW, FOCAL)
-  let bits = [...plan.switched],
-    handed = 0
-  for (let frame = 0; frame < 40; frame++) {
-    const heading = (frame * 2 * Math.PI) / 40
-    const inView = (visit: (rank: number) => void) =>
-      trees.forEach((_, k) => {
-        const off = Math.abs(
-          (((2 * Math.PI * k) / 200 - heading + 3 * Math.PI) % (2 * Math.PI)) - Math.PI,
-        )
-        if (off < Math.PI / 4) visit(k)
-      })
-    planImpostors(trees, section, VIEW, FOCAL, plan, inView)
-    for (const rank of plan.visited ?? []) if (plan.switched[rank] !== bits[rank]) handed++
-    bits = [...plan.switched]
+  // full. A fresh plan reads every root first, as the plan of every root does: each tree takes its
+  // card at the first image, never one by one as the view first reaches it.
+  const trees = ring(200)
+  const handedBy = (some: boolean) => {
+    const bits = new Uint8Array(trees.length)
+    let plan: ReturnType<typeof planImpostors> | undefined,
+      handed = 0,
+      voiding = 0
+    for (let frame = 0; frame < 40; frame++) {
+      const heading = (frame * 2 * Math.PI) / 40
+      const inView = (visit: (rank: number) => void) =>
+        trees.forEach((_, k) => {
+          const off = Math.abs(
+            (((2 * Math.PI * k) / 200 - heading + 3 * Math.PI) % (2 * Math.PI)) - Math.PI,
+          )
+          if (off < Math.PI / 4) visit(k)
+        })
+      plan = planImpostors(trees, section, VIEW, FOCAL, plan, some ? inView : undefined)
+      const read = plan.visited ?? trees.map((_, rank) => rank)
+      const before = handed
+      for (const rank of read) if (plan.switched[rank] !== bits[rank]) handed++
+      for (const rank of read) bits[rank] = plan.switched[rank]
+      if (handed > before) voiding++
+    }
+    return { handed, voiding }
   }
-  assert.equal(handed, 0, `${handed} card bits handed over 40 frames`)
+  const every = handedBy(false)
+  assert.ok(every.handed > 0, 'the trees in front carded at the first image')
+  assert.deepEqual(handedBy(true), every, 'the same bits, at the same image: one cut voided')
+  assert.equal(every.voiding, 1)
 })
 
 test('a new focal length retakes the depths of the ranks read, as the plan of every root does', () => {

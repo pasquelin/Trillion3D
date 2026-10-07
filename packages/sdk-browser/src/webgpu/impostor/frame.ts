@@ -69,21 +69,17 @@ export function planWebgpuImpostors(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // A tier the visibility buffer's drop turned off suppresses nothing and draws nothing.
   if (!state) return dropImpostorCards(rt.gpu.impostors, roots, rt.gpu.impostors?.moved)
   const viewport = rt.setup.viewport ?? rt.gpu.targetSize
-  // The roots the camera's frustum may hold, through the cut's placement tree, when it has one: the
-  // plan reads them alone, never every root every image, and one it leaves keeps its card bit. A
-  // root linked to the world DAG is its super-roots' far away (`../../gpu/dag/worldLinks.ts`): read
-  // with no card, which would draw it twice; one the world does not hold — a host mesh, an object
-  // outside its table — keeps its card.
-  // The views it may hold: the camera's, and the view ahead the cut also reads card bits in, so a
-  // root entering it is planned before the cut asks its pages.
+  // The roots the cut's views may hold — the camera's, and the view ahead the cut also reads card
+  // bits in, so a root entering it is planned before the cut asks its pages —, through the cut's
+  // placement tree, when it has one: the plan reads them alone, never every root every image, and
+  // one it leaves keeps its card bit. A root linked to the world DAG is its super-roots' far away
+  // (`../../gpu/dag/worldLinks.ts`): it takes no card, which would draw it twice; one the world
+  // does not hold — a host mesh, an object outside its table — keeps its card.
   const selection = rt.run.gpuSelection,
     visible = selection?.visiblePlacements,
     linked = selection?.worldStandsIn
-  type Visit = (rank: number, card?: boolean) => void
-  const every = (visit: Visit) => roots.forEach((_, rank) => visit(rank))
   const planes = visible && cutViewPlanes(cam, cutMotion(rt), viewPlanes)
-  const read = planes ? (visit: Visit) => visible(planes, visit) : every
-  const ranks =
-    linked || visible ? (visit: Visit) => read((rank) => visit(rank, !linked?.(rank))) : undefined
-  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, ranks)
+  const ranks = planes ? (visit: (rank: number) => void) => visible(planes, visit) : undefined
+  const carded = linked ? (rank: number) => !linked(rank) : undefined
+  planImpostorCards(state, roots, cam, viewport, state.atlasOf, state.moved, ranks, carded)
 }

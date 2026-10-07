@@ -138,6 +138,9 @@ type SwitchTable = {
   triangleDepth: Float64Array
   /** The focal length each root's depths were taken at: a new one retakes a root's as it is read. */
   depthFocal: Float64Array
+  /** Whether a plan read every root since the table was made: until one did, a root out of view
+   *  would hold no verdict, and take its card only as it enters — each taken bit voiding the cut. */
+  everyRead: boolean
 }
 const tables = new WeakMap<ImpostorPlan, SwitchTable>()
 const LINEAR = [0, 1, 2, 4, 5, 6, 8, 9, 10]
@@ -170,6 +173,7 @@ function switchTable(
       texelDepth: new Float64Array(n),
       triangleDepth: new Float64Array(n),
       depthFocal: new Float64Array(n).fill(NaN),
+      everyRead: false,
     }
     tables.set(plan, table)
   }
@@ -238,10 +242,13 @@ export function planImpostors(
   /** Hands each rank to read to `visit`, when only some can change what the image draws (the
    *  roots in view, a placement tree's, `gpu/dag/placementTree.ts`); a rank it does not read keeps
    *  its verdict — out of view, it draws nothing either way, and its card bit never moves by the
-   *  view leaving it: each move would void the cut in hand. A rank read with `card` false takes
-   *  none, whatever its distance (one another structure draws far away). Absent, every root,
-   *  every image. */
-  ranks?: (visit: (rank: number, card?: boolean) => void) => void,
+   *  view leaving it: each move would void the cut in hand. The first plan over a table reads every
+   *  root, as the plan of every root does, so each holds its verdict before the view reaches it.
+   *  Absent, every root, every image. */
+  ranks?: (visit: (rank: number) => void) => void,
+  /** Whether a root may take a card: one another structure draws far away takes none, whatever
+   *  its distance. Absent, every root may. */
+  carded?: (rank: number) => boolean,
 ): ImpostorPlan {
   const plan = into ?? { cards: [], switched: new Uint8Array(roots.length) }
   if (plan.switched.length !== roots.length) plan.switched = new Uint8Array(roots.length)
@@ -253,15 +260,17 @@ export function planImpostors(
     table: switchTable(plan, roots, section, focalPixels),
     count: 0,
   }
-  if (ranks) {
+  const read = (rank: number) => planRoot(reading, rank, carded?.(rank) !== false)
+  if (ranks && reading.table.everyRead) {
     const visited: number[] = (plan.visited = [])
-    ranks((rank, card) => {
+    ranks((rank) => {
       visited.push(rank)
-      planRoot(reading, rank, card !== false)
+      read(rank)
     })
   } else {
     if (plan.visited) delete plan.visited
-    for (let rank = 0; rank < roots.length; rank++) planRoot(reading, rank)
+    for (let rank = 0; rank < roots.length; rank++) read(rank)
+    reading.table.everyRead = true
   }
   plan.cards.length = reading.count
   return plan

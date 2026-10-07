@@ -159,6 +159,8 @@ export function planImpostorCards<G>(
   /** The roots in view, when the cut knows them (`GpuSelection.visiblePlacements`): the plan reads
    *  them alone, the others keep their verdict — the image draws no card of theirs. */
   ranks?: Parameters<typeof planImpostors>[5],
+  /** Whether a root may take a card (`planImpostors`, `carded`). */
+  carded?: Parameters<typeof planImpostors>[6],
 ) {
   core.pixelScaleOf(cam.projection, viewport, pixelScale)
   const focal = Math.max(pixelScale[0], pixelScale[1])
@@ -169,6 +171,7 @@ export function planImpostorCards<G>(
     focal,
     state.plan,
     ranks,
+    carded,
   ))
   plan.cards.sort(byMesh)
   state.count = state.runCount = 0
