@@ -1,12 +1,53 @@
-//! Axis-aligned boxes, as a low and a high corner, grown by points and by boxes with `f64::min`
-//! and `f64::max`: every compiler stage that bounds geometry grows its boxes here.
+//! Axis-aligned boxes, as a low and a high corner, grown by points and by boxes: every compiler
+//! stage that bounds geometry grows its boxes here, with the same bits on every machine.
 
-/// Extends bounding box by another box, axis by axis in axis order.
-///
-/// `f64::min` and `f64::max` keep semantics: NaN in read box leaves bound
-/// as is, NaN in bound replaced by coordinate. Min corner compared
-/// only to min corner and max to max corner: no extra comparison deciding
-/// differently between `+0.0` and `−0.0`.
+/// The lower of a bound and a coordinate: `f64::min`, a NaN coordinate leaving the bound and a NaN
+/// bound taking the coordinate, but `−0.0` below `+0.0` whichever comes first, as JavaScript's
+/// `Math.min` and WebAssembly's `f64.min` order them. `f64::min` leaves that pair unspecified: x86
+/// returns its second operand, ARM `−0.0`, and a page minimum would change sign between hosts.
+/// Equal operands differ only by that sign, so the OR of their bits is the negative one.
+#[inline]
+fn lower(bound: f64, coordinate: f64) -> f64 {
+    if bound == coordinate {
+        f64::from_bits(bound.to_bits() | coordinate.to_bits())
+    } else {
+        bound.min(coordinate)
+    }
+}
+
+/// `lower`'s twin: `f64::max`, `+0.0` above `−0.0` (the AND of their bits).
+#[inline]
+fn upper(bound: f64, coordinate: f64) -> f64 {
+    if bound == coordinate {
+        f64::from_bits(bound.to_bits() & coordinate.to_bits())
+    } else {
+        bound.max(coordinate)
+    }
+}
+
+/// `lower` in single precision.
+#[inline]
+fn lower_f32(bound: f32, coordinate: f32) -> f32 {
+    if bound == coordinate {
+        f32::from_bits(bound.to_bits() | coordinate.to_bits())
+    } else {
+        bound.min(coordinate)
+    }
+}
+
+/// `upper` in single precision.
+#[inline]
+fn upper_f32(bound: f32, coordinate: f32) -> f32 {
+    if bound == coordinate {
+        f32::from_bits(bound.to_bits() & coordinate.to_bits())
+    } else {
+        bound.max(coordinate)
+    }
+}
+
+/// Extends bounding box by another box, axis by axis in axis order, by `lower` and `upper`: NaN
+/// in the read box leaves the bound as is, NaN in the bound is replaced by the coordinate. Min
+/// corner compared only to min corner and max to max corner.
 #[inline]
 pub fn merge_aabb<const N: usize>(
     low: &mut [f64; N],
@@ -15,8 +56,8 @@ pub fn merge_aabb<const N: usize>(
     other_high: [f64; N],
 ) {
     for axis in 0..N {
-        low[axis] = low[axis].min(other_low[axis]);
-        high[axis] = high[axis].max(other_high[axis]);
+        low[axis] = lower(low[axis], other_low[axis]);
+        high[axis] = upper(high[axis], other_high[axis]);
     }
 }
 
@@ -30,8 +71,8 @@ pub fn extend_aabb<const N: usize>(low: &mut [f64; N], high: &mut [f64; N], poin
 #[inline]
 pub fn extend_aabb_f32<const N: usize>(low: &mut [f32; N], high: &mut [f32; N], point: [f32; N]) {
     for axis in 0..N {
-        low[axis] = low[axis].min(point[axis]);
-        high[axis] = high[axis].max(point[axis]);
+        low[axis] = lower_f32(low[axis], point[axis]);
+        high[axis] = upper_f32(high[axis], point[axis]);
     }
 }
 
@@ -85,8 +126,8 @@ pub const EMPTY_FLAT: [f64; 6] = [
 #[inline]
 pub fn grow_flat(into: &mut [f64; 6], other: &[f64; 6]) {
     for axis in 0..3 {
-        into[axis] = into[axis].min(other[axis]);
-        into[axis + 3] = into[axis + 3].max(other[axis + 3]);
+        into[axis] = lower(into[axis], other[axis]);
+        into[axis + 3] = upper(into[axis + 3], other[axis + 3]);
     }
 }
 
@@ -98,61 +139,5 @@ pub fn extend_flat(into: &mut [f64; 6], point: [f64; 3]) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn extend_aabb_starts_from_an_empty_box() {
-        let mut low = [f64::INFINITY; 3];
-        let mut high = [f64::NEG_INFINITY; 3];
-        extend_aabb(&mut low, &mut high, [2.0, -3.0, 4.0]);
-        assert_eq!(low, [2.0, -3.0, 4.0]);
-        assert_eq!(high, [2.0, -3.0, 4.0]);
-    }
-
-    #[test]
-    fn extend_aabb_nan_in_the_point_leaves_the_bound_unchanged() {
-        let mut low = [5.0, 5.0, 5.0];
-        let mut high = [5.0, 5.0, 5.0];
-        extend_aabb(&mut low, &mut high, [f64::NAN, 5.0, 5.0]);
-        assert_eq!(low[0].to_bits(), 5.0_f64.to_bits());
-        assert_eq!(high[0].to_bits(), 5.0_f64.to_bits());
-    }
-
-    #[test]
-    fn extend_aabb_nan_in_the_bound_is_replaced_by_the_coordinate() {
-        let mut low = [f64::NAN, 0.0, 0.0];
-        let mut high = [f64::NAN, 0.0, 0.0];
-        extend_aabb(&mut low, &mut high, [3.0, 0.0, 0.0]);
-        assert_eq!(low[0].to_bits(), 3.0_f64.to_bits());
-        assert_eq!(high[0].to_bits(), 3.0_f64.to_bits());
-    }
-
-    #[test]
-    fn extend_aabb_keeps_the_sign_of_negative_zero() {
-        let mut low = [f64::INFINITY; 3];
-        let mut high = [f64::NEG_INFINITY; 3];
-        extend_aabb(&mut low, &mut high, [-0.0, -0.0, -0.0]);
-        assert_eq!(low[0].to_bits(), (-0.0_f64).to_bits());
-        assert_ne!(low[0].to_bits(), (0.0_f64).to_bits());
-        assert_eq!(high[0].to_bits(), (-0.0_f64).to_bits());
-    }
-
-    #[test]
-    fn merge_aabb_combines_two_disjoint_boxes() {
-        let mut low = [0.0, 0.0, 0.0];
-        let mut high = [1.0, 1.0, 1.0];
-        merge_aabb(&mut low, &mut high, [5.0, 5.0, 5.0], [6.0, 6.0, 6.0]);
-        assert_eq!(low, [0.0, 0.0, 0.0]);
-        assert_eq!(high, [6.0, 6.0, 6.0]);
-    }
-
-    #[test]
-    fn extend_aabb_f32_starts_from_an_empty_box() {
-        let mut low = [f32::INFINITY; 3];
-        let mut high = [f32::NEG_INFINITY; 3];
-        extend_aabb_f32(&mut low, &mut high, [1.5, -2.5, 0.5]);
-        assert_eq!(low, [1.5, -2.5, 0.5]);
-        assert_eq!(high, [1.5, -2.5, 0.5]);
-    }
-}
+#[path = "aabb_tests.rs"]
+mod tests;
