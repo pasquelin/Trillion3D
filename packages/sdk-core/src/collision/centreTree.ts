@@ -1,4 +1,4 @@
-import { selectByKey } from './select.ts'
+import { selectByKey } from '../../../math/src/select.ts'
 
 /**
  * THE SHAPE OF A BOUNDING-VOLUME HIERARCHY over points — the centres of whatever it bounds —,

@@ -1,7 +1,7 @@
 import type { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import type { createPhysicsBodies } from './bodies.ts'
 import type { createModelBodies } from './modelBodies.ts'
-import { partitionBy } from '../../../sdk-core/src/math/select.ts'
+import { partitionBy } from '../../../math/src/select.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import { createTileKeeps } from './tileKeeps.ts'
 import { createTileReads } from './tileReads.ts'
