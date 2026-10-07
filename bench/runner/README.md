@@ -6,8 +6,8 @@ Two benches, one per question:
   this machine's GPU through Dawn, the WebGPU implementation Chrome runs, with no browser, playing a
   scenario identical frame for frame. It is the timing bench.
 - **Images and witnesses: the Chrome harness** (`bench/runner/`, this folder). Playwright drives
-  the system Chrome: the WebGL2 backend, the engine against the witness libraries, image proofs,
-  the screen error of what is drawn, and the published reports.
+  the system Chrome: the engine against the witness libraries, image proofs, the screen error of
+  what is drawn, and the published reports.
 
 How the acceptance session uses them, batch by batch:
 [the recette skill](../../skills/t3d-recette/SKILL.md). The measurement rules (same input and
@@ -58,13 +58,13 @@ with two engines they are the union of both sides' needs.
 
 | Flag | Default | Effect |
 |---|---|---|
-| `--engine` | `webgl` | `webgpu` (webgpu-page-raster, the engine), `webgl2` (autonomous-pages-webgl¹), or a witness: `webgl` (exact-cluster-pages), `three-nu`, `three-lod` ([The witnesses](#the-witnesses)) |
+| `--engine` | `webgpu` | `webgpu` (webgpu-page-raster, the engine), or a witness: `three-nu`, `three-lod` ([The witnesses](#the-witnesses)) |
 | `--engine-<side>` | `--engine` | per-side engine: the engine against a witness in one run, same poses, lights, caches and server |
 | `--before` / `--after` | none / `dist/` | a built `dist/` or a git ref; without `--before` one side is measured |
 | `--scene <name>` | from the cache, else `sponza` | any compiled folder of `.mesure/assets/`; sets each side's cache. `fluids`: no cache, an ocean, 100 floating bodies, 20 fires, 5 smoke volumes built through the public API (`fluids/fluids.ts`) |
 | `--cache-<side>` | the scene's cache | a compiled cache (`native/full`), to compare two compilers on one scene |
 | `--resources <dir>` | none | glTF resources mounted under `/assets/`; without it, un-based caches yield 404 textures |
-| `--views` | `overview,ground,street` | among `overview`, `ground`, `street`, `detail` (`trajectory/poses.ts`)² |
+| `--views` | `overview,ground,street` | among `overview`, `ground`, `street`, `detail` (`trajectory/poses.ts`)¹ |
 | `--images` / `--warmup` | 60 / 8 | measured and warmup frames |
 | `--pixelError` | `0` | a list of screen-error thresholds |
 | `--width` / `--height` / `--dpr` | 1280 / 720 / 1 | CSS viewport; `--dpr 2` renders twice the pixels per axis |
@@ -72,17 +72,17 @@ with two engines they are the union of both sides' needs.
 | `--bounce on\|off` | `off` | bounce lighting |
 | `--textures cache\|host` | `host` | `cache` skips every source image whose chain the cache carries; `host` decodes them all, as the Three witnesses need. The engine reads the baked levels either way |
 | `--texture-budget <ms>` | engine's 1.0 ms | CPU ms a frame may copy texture tiles; read on a cold traversal (`--warmup 0 --moving-camera --textures cache`) |
-| `--compression[-<side>] auto\|bc7\|astc\|none` | `auto` | block family of the WebGPU texture pools under `--textures cache`³ |
+| `--compression[-<side>] auto\|bc7\|astc\|none` | `auto` | block family of the WebGPU texture pools under `--textures cache`² |
 | `--antialiasing on\|off` | `on` | TAA jitter and accumulation |
 | `--scale[-<side>] <s>` | display | WebGPU frame drawn at `s` per axis, reconstructed by the temporal resolve; below 1 needs `webgpu` and TAA |
-| `--reference` | off | class-2 image proof against the [reference image](#reference-images)⁴ |
+| `--reference` | off | class-2 image proof against the [reference image](#reference-images)³ |
 | `--profile on\|off` / `--profile-frames` | `on` / 120 | per-stage timing over the trailing measured frames; `off` for the beauty verdict |
 | `--lights N` | 0 | contract point lights (`lighting/lamps.ts`); without `--lights` or `--sun` the engine renders unlit albedo |
 | `--shadows on\|off` / `--moving-light` / `--intensity N` / `--range F` | `on` / off / 40 / 0.75 | shadow casting; the first light circles; light intensity; each light's range in grid cells |
 | `--sun` | off | directional sun with its virtual shadow maps |
 | `--file-lights on\|off` | `on` | the source file's own lights |
 | `--moving-node <node>` / `--moving-node-radius` | none / 1 | a named node circles each frame |
-| `--moving-camera` | off | the pose advances one trajectory step per measured frame⁵ |
+| `--moving-camera` | off | the pose advances one trajectory step per measured frame⁴ |
 | `--instances N` | 1 | 1, 4, 9 or 12 grid copies; "geometry (MB)" = page cache plus vertex buffers |
 | `--math-path auto\|js\|wasm` | `auto` | batch maths path; `auto` lets the governor measure. "Batch Math Path" table per side and operation |
 | `--isolation on\|off` | `off` | COOP/COEP on the harness server: a cross-origin isolated page |
@@ -91,87 +91,71 @@ with two engines they are the union of both sides' needs.
 | `--visible` | off | a real window; headless caps display at 60 Hz on macOS |
 | `--geometry-pool` / `--texture-pool <MiB>` | 512 MiB each | [Measuring another scene](#measuring-another-scene) |
 
-1. The autonomous engine decodes geometry pages itself, hence the only one incrementing
-   `pagesDecodedWasm`; it needs a cache of exact clusters, else the explorer rejects the run with
-   `AUTONOMOUS_SCENE_UNAVAILABLE`.
-2. Eye-level views walk the model's street, read off its cooked `physics.json` column by column
+1. Eye-level views walk the model's street, read off its cooked `physics.json` column by column
    (ground, nearest wall at eye height, open sky): the roomiest open-sky column is the street
    (`street/street.ts`). Without `physics.json` or a street, `bounds.noStreet` is reported and the
    walk takes the box centre (`boxStreet`). Other views fly one eye above the top.
-3. `auto` takes the first family the device samples (BC before ASTC 4×4) that the cache holds;
+2. `auto` takes the first family the device samples (BC before ASTC 4×4) that the cache holds;
    `none` keeps RGBA8 (a lossless "before"); `bc7`/`astc` fall back to RGBA8 by name without device
    support. `--compression-before none --compression-after bc7` on one `dist/` measures the family
    alone; the summary names the family held (`texturePoolFormat`).
-4. `references/imageDiff.ts::referenceDiff`: mean and 99.9th-percentile channel error and mean
+3. `references/imageDiff.ts::referenceDiff`: mean and 99.9th-percentile channel error and mean
    LDR-FLIP, under `series[].referenceDiff` and in `resume.md`. The run stops by name on a missing
    reference, another pose or image setting, a moving camera or light, a reference drawn from
    uncommitted changes, or an image other than its `reference.json` names.
-5. Separates a still scene from a moving camera and is the only way to see selection cost: on a
+4. Separates a still scene from a moving camera and is the only way to see selection cost: on a
    fixed pose what is retained is free. The cut hash may differ between sides with no image change
    (asynchronous readback, one frame late).
 
-Every run first probes browser limits (`harness/limits.ts`): WebGL2 half-float and float targets,
-`EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the adapter's limits past the
-defaults (`limits` in `measure.json`). Shadow pages report `pagesPending`, `maxWaitMs` and
+Every run first probes browser limits (`harness/limits.ts`): WebGPU `timestamp-query` and the
+adapter's limits past the defaults (`limits` in `measure.json`). Shadow pages report `pagesPending`, `maxWaitMs` and
 `occludersKept` in the profile; how the maps are drawn is [docs/SHADOWS.md](../../docs/SHADOWS.md).
 
 ## The witnesses
 
 A witness is a comparison backend pitted against the engine on one side
-(`--engine-before three-nu|three-lod|webgl`). The SDK never mounts one: they come from the witness
-entry point (`bench/witnesses/measurement.ts`, bundled by `pnpm run build` into
-`dist/witnesses/measurement.js`, left out of the package) as `referenceBackend`, `threeLodBackend`
-and `exactPagesBackend`, opt-in through the session's `backends` option.
+(`--engine-before three-nu|three-lod`). The SDK never mounts one. The Three.js witnesses are pages of their own, on Three's WebGPU
+renderer (`witness/threeRenderer.ts`): GPU time per frame from its timestamp queries, the capture
+read back from the GPU.
 
 - `three-nu`: Three.js alone, every mesh every frame (`witness/threeBarePage.ts`).
 - `three-lod`: Three.js with a three-level `THREE.LOD` per mesh simplified by meshoptimizer at load
   (`witness/threeLodPage.ts`).
-- `webgl` (`exact-cluster-pages`): the cache's clusters over Three.js scene data through an
-  engine-owned WebGL2 program — glTF metallic-roughness, Lambert diffuse with GGX specular,
-  correlated Smith visibility, Schlick Fresnel, geometric specular antialiasing. Transmissive meshes
-  compose after the clusters over a frozen backdrop. A material it cannot preserve fails preparation
-  with `CLUSTER_MATERIAL_UNSUPPORTED`; a physical extension beyond transmission volume (clearcoat,
-  sheen…) is drawn without, and `materialDegraded` says so once per surface and feature.
 
-**Lights.** `three-nu` and `three-lod` copy lights from the source graph, so the harness creates in
-Three the store's lights through the `sceneLighting` option of `openMeasuredWorld`
-(`witness/witnessPage.ts`), from the measured world's `lights()`. `exact-cluster-pages` translates
-the store itself (`packages/sdk-browser/src/lighting/contractLights.ts`). The mapping is exact in
-Three units — linear colour, radiometric intensity, `distance` = range, `decay` = 2, spot edge
-matched by penumbra; the surface model differs. Each side's `witnessLights` records what it
-received. With no light anywhere, the witnesses draw the unlit view, never a black frame.
+**Lights.** Both witnesses place the contract lights the harness hands them, converted to Three
+units (`witness/threeLights.ts`): linear colour, radiometric intensity, `distance` = range,
+`decay` = 2, spot edge matched by penumbra; the surface model differs. The witness's
+`witnessLights` records what it received. With no light anywhere, the witnesses draw the unlit
+view, never a black frame.
 
 Witnesses cast **no shadows** and `bounce` renders the lit view: run fidelity campaigns
-`--shadows off` on both sides. `unlit` on `exact-cluster-pages` is one white ambient of irradiance π
-over zeroed `metalness`, `aoMapIntensity`, `lightMapIntensity` and `transmission`; own emission is
-still added. The camera path advances once per `requestAnimationFrame` on both sides:
+`--shadows off` on both sides. The camera path advances once per `requestAnimationFrame` on both sides:
 `rafIntervalMs` is the moving-frame envelope, `cpuFrameMs` the engine's synchronous submission; the
 two are never added.
 
 ## Outputs
 
 In `--out` (gitignored): `measure.json`, `resume.md`, and per view, threshold and side `.png`,
-`.coupe.txt` and a metrics line — `rafIntervalMs`, `cpuFrameMs`, `cpuSelectMs` p50/p95, `gpuFrameMs`
+`.coupe.txt` and a metrics line — `rafIntervalMs`, `cpuFrameMs` p50/p95, `gpuFrameMs`
 p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system
 load — plus the A/A check (a side run twice) and the before/after delta per channel. A capture whose
 every pixel is RGB 0 is refused by name (`black-capture`, exit code 1): its deltas read "black
 capture", never 0 px. `null` means unmeasured, never inferred.
 
-### Triangle and fallback counters
+### Triangle counters
 
 All read on **one frame**, the measured loop's last (`series[].sides[].recordedFrame`).
 
 | Counter | Meaning |
 |---|---|
 | `selectedTriangles` | the frame's cluster cut before frustum and occlusion rejection; `null` without a cut |
-| `drawnTriangles` | the published cut, opaque and transparent, minus clusters with no resident page; on WebGL2 the nearest resident ancestors stand in. Counted at cut commit, no GPU readback; occlusion not subtracted |
-| `coverage` (`resume.md`) | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected; on WebGL2 non-zero while ancestors stand in |
+| `drawnTriangles` | the published cut, opaque and transparent, minus clusters with no resident page. Counted at cut commit, no GPU readback; occlusion not subtracted |
+| `coverage` (`resume.md`) | `selectedTriangles − drawnTriangles − uncoveredTriangles`: zero expected |
 | `submittedTriangles` | GPU count of the opaque raster pass; `null` while a GPU cut's readback is pending |
 | `totalSubmittedTriangles` | the same with transparent passes; `null` under `--moving-camera`, where the readback never returns |
 | `frameHeld` | the frame was held (scene unchanged): zero clusters drawn is a record, not a missing reading |
 | `uncoveredTriangles` | cut triangles with no resident page and no covering ancestor, a hole: zero is the only valid value |
 | `hiZ` | occlusion input, rejected, downsampled; on the GPU path an earlier frame, `null` before the first count |
-| `gpuSelectionFallback` | GPU cut selection fell back to the CPU cut; `null` without GPU selection |
 
 **Per-stage cost** (`series[].sides[].stageProfile`): per stage CPU and GPU p50/p95 (never summed),
 shadow metrics, device timing method, profiling overhead. **CPU bounds**
@@ -227,9 +211,9 @@ equal keys.
 The image a rendering technique is held to
 ([CONTRIBUTING.md](../../CONTRIBUTING.md#image-and-fidelity), class 2) is drawn by the engine in
 its reference mode (`packages/sdk-browser/src/frame/referenceMode.ts`,
-`openMeasuredWorld(canvas, { reference: true })`), never by a second renderer: render scale 1, no temporal reuse, bounce traced at its per-frame
-ceiling and converged, shadows at the level they ask (a shrunk or coarsened page pool refuses the
-capture), and the frame supersampled in tiles, 8 samples per output pixel and axis, box-filtered in
+`openMeasuredWorld(canvas, { reference: true })`): render scale 1, no temporal reuse, bounce traced
+at its per-frame ceiling and converged, shadows at the level they ask (a shrunk or coarsened page
+pool refuses the capture), and the frame supersampled in tiles, 8 samples per output pixel and axis, box-filtered in
 linear light.
 
     pnpm run build && node bench/runner/references/reference.ts [--scene sponza,facade-7] [--references <dir>]
@@ -281,7 +265,7 @@ response (`series[].sides[].liveTuning`) and the frames to recover the held pose
 (`recoveryFrames`); `--warmup 60` fills pools first. `--texture-pool-live <n>%` derives the budget
 from the scene (`harness/poolFill.ts`): twice n % of the texture bytes the settled pose holds; the
 engine raises a smaller budget to one layer per lane. Compare sides at the absolute MiB the summary
-printed. `--geometry-pool-ceiling <MiB>` caps an in-session growth.
+printed. The drawable-page tables grow in place for a larger geometry pool.
 
 ## Single measures
 
@@ -291,9 +275,9 @@ The positions and normals of decoded pages ([docs/FORMAT.md](../../docs/FORMAT.m
 `source.bin` floats, corner by corner: largest and mean position gap, normal angle.
 
     TRILLION3D_ASSETS=<assets> node bench/runner/screenError/screenError.ts --scene sponza \
-      --poses bench|orbit|terrain [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out <dir>]
+      --poses bench|orbit|terrain [--pixel-errors 0,1] [--out <dir>]
 
-The screen error of what WebGPU and WebGL2 draw against the source glTF, both directions, counting
+The screen error of what the engine draws against the source glTF, both directions, counting
 only in-frustum points no drawn surface hides, at 1728×1117, DPR 2, through the engine's triangle
 tree. A row passes when the cut held, no browser error, both directions sampled and both maxima
 ≤ `pixelError + 0.1 px`; a failed or empty run exits nonzero. Run it with scenes cooked by the same

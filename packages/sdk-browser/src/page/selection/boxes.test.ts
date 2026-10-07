@@ -3,7 +3,8 @@
 // declaration is a contract; these three tests hold both ends — who writes it, who reads it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, selectVisiblePages, type PageRec } from './selection.ts'
+import { collectClusterPages, type PageRec } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { wideCamera } from './dag.fixture.ts'
 import { culledDagRoots, HELD_EXACT_ASK } from './helpers.fixture.ts'
 import { blendFixture } from './blend.fixture.ts'

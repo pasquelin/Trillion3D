@@ -1,4 +1,4 @@
-import { createRadianceMipChain } from '../texture/mipBatch.ts'
+import { createRadianceMipChain } from '../texture/radianceMips.ts'
 import { createReflectionBoundsPyramid, type ReflectionBoundsPipelines } from './boundsPyramid.ts'
 import { mipTailBytes, textureBytesOf } from '../gpu/core/textureBytes.ts'
 import { uniformStride } from '../residency/pools.ts'

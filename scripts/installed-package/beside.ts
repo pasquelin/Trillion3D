@@ -19,10 +19,10 @@ export const PHYSICS_RULE: BesideRule = {
   beside: ['physicsWorker.js', 'joltPhysics.wasm', 'joltPhysicsThreads.wasm'],
 }
 
-/** The engine's modules, each fetched beside the chunk that names it: the page decoder's, the
+/** The engine's modules, each fetched beside the chunk that names it: the math kernels', the
  *  physics', and the animation worker the sampler starts (`besideModule('animationWorker', …)`). */
 const BESIDE_RULES: BesideRule[] = [
-  { marker: 'pageCodec.wasm', beside: ['pageCodec.wasm'] },
+  { marker: 'kernels.wasm', beside: ['kernels.wasm'] },
   PHYSICS_RULE,
   { marker: 'animationWorker', beside: ['animationWorker.js'] },
 ]

@@ -7,10 +7,10 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 const viewWords = new Float32Array(CARD_VIEW_FLOATS)
 
-/** The image's cards (`frame.ts`), when it has any and the visibility buffer draws. */
+/** The image's cards (`frame.ts`), when it has any. */
 const cardsOf = (rt: WebgpuPagesRuntime) => {
   const state = rt.gpu.impostors
-  return state?.count && rt.vis.visEnabled ? state : undefined
+  return state?.count ? state : undefined
 }
 
 /** One instanced draw per mesh atlas, with `pipeline`, on `pass`. */

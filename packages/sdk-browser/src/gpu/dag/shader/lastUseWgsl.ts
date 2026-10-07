@@ -17,6 +17,11 @@ export const dagFlagsWords = (queueCap: number, pageCount: number, lastUse = tru
   queueCap * LEVEL_QUEUES + pageCount * (lastUse ? 5 : 4)
 
 export const DAG_LAST_USE_WGSL = `fn frameWord()->u32{return drawnGroupsMax()+1u;}
+/** Kept list \`l\`'s group count in \`work\`, x then y (0, 1), then the restored journal's (2):
+ *  what the arming kernel copies (\`armWgsl.ts\`). */
+fn listGroups(l:u32)->u32{return frameWord()+1u+2u*l;}
+/** The groups of a list of \`n\`, at least one, written for \`listGroups(l)\`. */
+fn armList(l:u32,n:u32){let slice=(max(n,1u)-1u)>>6u;atomicStore(&work[listGroups(l)],gridX(slice));atomicStore(&work[listGroups(l)+1u],gridY(slice));}
 fn lastUseAt(i:u32)->u32{return queueBase(${LEVEL_QUEUES}u)+i;}
 /** One camera cut more: the clock the pages it uses are stamped with. */
 fn countFrame(){atomicAdd(&work[frameWord()],1u);}

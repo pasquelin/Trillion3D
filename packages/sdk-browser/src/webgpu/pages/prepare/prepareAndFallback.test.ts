@@ -1,16 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
-import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
+import { assertBothQuadPagesDrawn, camera, quadBackend, quadScene } from '../testScenes.fixture.ts'
 
 /** The quad prepared with no resident bytes, its first frame rendered. */
 async function firstFrameWithoutBytes() {
   installGpuGlobals()
   const { device, draws } = mockGpu()
   const { source, metadata, associations, geometry, material } = quadScene()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices: new Map(),
@@ -30,16 +30,17 @@ test('webgpu pages never publish an incomplete initial cover', async () => {
     draws.filter((draw) => draw.entryPoint === 'vis_vs' || draw.entryPoint === 'vs').length,
     0,
   )
-  backend.acceptPage?.('0', new Uint32Array([0, 1, 2]))
+  backend.acceptPage('0', new Uint32Array([0, 1, 2]))
   backend.render(camera())
-  await backend.flush?.()
+  await backend.flush()
   backend.render(camera())
-  assert.equal(backend.metrics().clusters, 2)
+  // The cover still waits for its bytes: the GPU cut counts nothing the image could draw yet.
+  assert.equal(backend.metrics().clusters, null)
   assert.equal(backend.metrics().residentPages, 0)
   assert.equal(backend.metrics().coverageReady, false)
   assert.equal(draws.length, 0)
-  backend.acceptPage?.('1', new Uint32Array([0, 2, 3]))
-  await backend.flush?.()
+  backend.acceptPage('1', new Uint32Array([0, 2, 3]))
+  await backend.flush()
   backend.render(camera())
   assert.equal(backend.metrics().coverageReady, true)
   assert.equal(backend.metrics().residentPages, 2)
@@ -55,16 +56,15 @@ test('webgpu pages prepare without resident bytes and stream the visible set', a
     draws.filter((draw) => draw.entryPoint === 'vis_vs' || draw.entryPoint === 'vs').length,
     0,
   )
-  backend.acceptPage?.('0', new Uint32Array([0, 1, 2]))
-  backend.acceptPage?.('1', new Uint32Array([0, 2, 3]))
+  backend.acceptPage('0', new Uint32Array([0, 1, 2]))
+  backend.acceptPage('1', new Uint32Array([0, 2, 3]))
   backend.render(camera())
-  await backend.flush?.()
+  await backend.flush()
   backend.render(camera())
   assert.equal(backend.metrics().residentPages, 2)
-  assert.equal(
-    draws.filter((draw) => draw.entryPoint === 'vis_vs').reduce((n, d) => n + d.vertexCount, 0),
-    6,
-  )
+  // The visible set drawn by the indirect slots: its two triangles, instanced from the GPU's counts.
+  await backend.flush()
+  assertBothQuadPagesDrawn(backend)
   backend.dispose()
   geometry.dispose()
   material.dispose()
@@ -72,7 +72,7 @@ test('webgpu pages prepare without resident bytes and stream the visible set', a
 
 test('webgpu pages without a device fail prepare so the explorer can keep the host-library path', async () => {
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -86,25 +86,6 @@ test('webgpu pages without a device fail prepare so the explorer can keep the ho
   material.dispose()
 })
 
-test('the direct WebGPU fallback uses the scene background supplied by its host', async () => {
-  installGpuGlobals()
-  const { device, passes } = mockGpu({ rejectR32: true })
-  const { fixture, backend } = quadBackend(device, {
-    clearColor: 0x2d4059,
-  })
-  await backend.prepare()
-  backend.render(camera())
-  await backend.flush?.()
-  backend.render(camera())
-  const clear = passes.findLast(
-    (pass) => pass.colorLoad === 'clear' && pass.formats[0] === 'rgba8unorm',
-  )?.colorClear
-  assert.deepEqual(clear, { r: 0x2d / 255, g: 0x40 / 255, b: 0x59 / 255, a: 1 })
-  backend.dispose()
-  fixture.geometry.dispose()
-  fixture.material.dispose()
-})
-
 test('the visibility-buffer path also clears with the host scene background', async () => {
   installGpuGlobals()
   const { device, passes } = mockGpu()
@@ -113,7 +94,7 @@ test('the visibility-buffer path also clears with the host scene background', as
   })
   await backend.prepare()
   backend.render(camera())
-  await backend.flush?.()
+  await backend.flush()
   backend.render(camera())
   const clears = passes
     .filter((pass) => pass.colorLoad === 'clear' && pass.formats[0] === 'rgba8unorm')

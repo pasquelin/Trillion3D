@@ -3,16 +3,17 @@ import assert from 'node:assert/strict'
 import { runtimeMaterials } from './runtimeMaterials.ts'
 import { bitmapFixture } from './bitmap.fixture.ts'
 import { refusal } from './materialApi.fixture.ts'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { GraphSurface } from '../../host/graph/surface.ts'
 import { RUNTIME_MAP_BYTES_CEILING } from './runtimeMapCeiling.ts'
 
 function engine(admit: (surface: GraphSurface) => Promise<void> = async () => {}) {
   const released: GraphSurface[] = []
   const backend = {
+    signal: new AbortController().signal,
     admitMaterial: admit,
     releaseMaterial: (surface: GraphSurface) => released.push(surface),
-  } as unknown as RenderBackend
+  } as unknown as Engine
   return { backend, released }
 }
 
@@ -27,7 +28,7 @@ function pendingEngine() {
 test('map admission reserves bytes before allocation, publishes only after readiness and drops them', async (t) => {
   const bitmap = bitmapFixture(t),
     { backend, released, resume } = pendingEngine()
-  const api = runtimeMaterials(() => {}, [backend])
+  const api = runtimeMaterials(() => {}, backend)
   const image = bitmap(4096, 4096)
   const pending = api.createMaterial({ map: image })
   assert.equal(api.mapBytes(), RUNTIME_MAP_BYTES_CEILING)
@@ -47,24 +48,22 @@ test('map admission reserves bytes before allocation, publishes only after readi
   assert.equal(api.mapBytes(), 0)
 })
 
-test('a failed second backend rolls back every admission, bytes and surfaces', async (t) => {
+test("a failed admission rolls back whole: its bytes, its surface and the engine's admission", async (t) => {
   const bitmap = bitmapFixture(t),
-    first = engine(),
-    second = engine(async () => {
+    failing = engine(async () => {
       throw new Error('upload failed')
     })
-  const api = runtimeMaterials(() => {}, [first.backend, second.backend])
+  const api = runtimeMaterials(() => {}, failing.backend)
   await assert.rejects(api.createMaterial({ map: bitmap() }), /upload failed/)
   assert.equal(api.created.size, 0)
   assert.equal(api.mapBytes(), 0)
-  assert.equal(first.released.length, 1)
-  assert.equal(second.released.length, 1)
+  assert.equal(failing.released.length, 1)
 })
 
 test('disposal during admission never publishes a late surface and releases its borrowed map', async (t) => {
   const bitmap = bitmapFixture(t),
     { backend, released, resume } = pendingEngine()
-  const api = runtimeMaterials(() => {}, [backend])
+  const api = runtimeMaterials(() => {}, backend)
   const image = bitmap(),
     pending = api.createMaterial({ map: image })
   api.dispose()
@@ -79,7 +78,7 @@ test('disposal during admission never publishes a late surface and releases its 
 test('two materials borrowing one bitmap have separate texture ownership and release independently', async (t) => {
   const bitmap = bitmapFixture(t),
     { backend, released } = engine()
-  const api = runtimeMaterials(() => {}, [backend]),
+  const api = runtimeMaterials(() => {}, backend),
     image = bitmap()
   const first = await api.createMaterial({ map: image }),
     second = await api.createMaterial({ map: image })

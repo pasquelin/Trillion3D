@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { ClusterManifest } from '../../../../../sdk-core/src/index.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { indirectDraws, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
@@ -29,17 +29,16 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   const collected = collectClusterPages(source, metadata, indices, associations)
   const { device, passes, computes, textures, draws } = mockGpu({
     packed: packDagSelection(collected.roots),
-    compute: true,
   })
   const run = await preparedOccluderRun(scene, metadata, collected.roots, device, viewport)
   const { cam, cpu } = run,
-    backend = run.backend as ReturnType<typeof webgpuPagesBackend> & {
+    backend = run.backend as ReturnType<typeof webgpuPagesEngine> & {
       selectedPageIds(): string[]
       rasterView(): RasterView
     }
   assert.ok(textures.some((texture) => texture.format === 'r32float'))
   backend.render(cam)
-  await backend.flush?.()
+  await backend.flush()
   draws.length = 0
   computes.length = 0
   backend.render(cam)
@@ -66,12 +65,12 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   material.dispose()
 })
 
-test('a successful vis+compact pipeline drops indirect draw from unsupported', async () => {
+test('a device that refuses the draw compaction refuses the scene by name', async () => {
   installGpuGlobals()
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const collected = collectClusterPages(source, metadata, indices, associations)
-  const { device } = mockGpu({ packed: packDagSelection(collected.roots), compute: true })
-  const backend = webgpuPagesBackend({
+  const { device } = mockGpu({ packed: packDagSelection(collected.roots), failCompact: true })
+  const backend = webgpuPagesEngine({
     source,
     metadata,
     indices,
@@ -80,38 +79,8 @@ test('a successful vis+compact pipeline drops indirect draw from unsupported', a
     maxResidentPages: 2,
     viewport: [32, 32],
   })
-  await backend.prepare()
-  assert.equal(backend.capabilities.unsupported.includes('indirect draw'), false)
-  assert.equal(backend.capabilities.gpuDriven, true)
-  backend.dispose()
-  geometry.dispose()
-  material.dispose()
-})
-
-test('a compact pipeline failure keeps the per-page draw loop', async () => {
-  installGpuGlobals()
-  const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const collected = collectClusterPages(source, metadata, indices, associations)
-  const { device, draws } = mockGpu({
-    packed: packDagSelection(collected.roots),
-    compute: true,
-    failCompact: true,
-  })
-  const backend = webgpuPagesBackend({
-    source,
-    metadata,
-    indices,
-    associations,
-    gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-  })
-  await backend.prepare()
-  assert.equal(backend.capabilities.unsupported.includes('indirect draw'), true)
-  backend.render(camera())
-  await backend.flush?.()
-  backend.render(camera())
-  assert.equal(draws.filter((draw) => draw.indirect).length, 0)
+  // The GPU cut draws through the compaction alone (#1483): no per-page loop stands in for it.
+  await assert.rejects(backend.prepare(), /WEBGPU_DRAW_UNAVAILABLE/)
   backend.dispose()
   geometry.dispose()
   material.dispose()
@@ -124,7 +93,7 @@ test('normal GPU rendering never copies the image to CPU staging buffers', async
   try {
     await backend.prepare()
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     imageCopies.length = 0
     for (let i = 0; i < 3; i++) backend.render(camera())
     assert.equal(imageCopies.length, 0, 'beauty must not enqueue image readback')

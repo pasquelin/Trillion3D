@@ -1,3 +1,5 @@
+import { octDecodeWgsl, octEncodeWgsl } from '../../math/octahedralWgsl.ts'
+
 /**
  * THE SHADOW RECEIVER TARGET: the resolve, which has the pixel's triangle decoded already, writes
  * its receiver once (`shadowReceiver`, `receiverOffsetWgsl.ts`: the Phong offset and the
@@ -13,18 +15,10 @@
 export const RECEIVER_TARGET_FORMAT: GPUTextureFormat = 'rg32uint'
 export const RECEIVER_TARGET_BYTES = 8
 
-/** The plane's octahedral form: the resolve encodes (`receiverOct`), the reader decodes
- *  (`receiverUnoct`); each side holds only its own half. */
-const OCT_ENCODE_WGSL = `fn receiverOct(n:vec3f)->vec2f{
- let p=n.xy/(abs(n.x)+abs(n.y)+abs(n.z));
- return select(p,(1.0-abs(p.yx))*select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0)),n.z<0.0);
-}`
-const OCT_DECODE_WGSL = `fn receiverUnoct(p:vec2f)->vec3f{
- var n=vec3f(p,1.0-abs(p.x)-abs(p.y));
- let k=saturate(-n.z);
- n=vec3f(n.xy+select(vec2f(k),vec2f(-k),n.xy>=vec2f(0.0)),n.z);
- return normalize(n);
-}`
+/** The plane's octahedral form (`octahedralWgsl.ts`): the resolve encodes (`receiverOct`), the
+ *  reader decodes (`receiverUnoct`); each side holds only its own half. */
+const OCT_ENCODE_WGSL = octEncodeWgsl('receiverOct')
+const OCT_DECODE_WGSL = octDecodeWgsl('receiverUnoct')
 
 /** The resolve's write: `storeReceiver` with the offset and the (unnormalised) plane; a zero plane
  *  is no receiver. */

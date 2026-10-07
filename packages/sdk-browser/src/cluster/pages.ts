@@ -1,5 +1,5 @@
 import { EngineError } from '../../../sdk-core/src/index.ts'
-import { verifyPageBytes } from '../page/decode/host.ts'
+import { verifyPageBytes } from '../page/work/host.ts'
 import { unmetered, type ByteMeter } from './byteMeter.ts'
 import { checked } from './checked.ts'
 /** A cache object that is not what its manifest announced: its code and facts, whichever it is. */
@@ -26,8 +26,7 @@ export const corruptObject = (
 /**
  * Reads the cache object at `url` (`checked`) and hands its bytes back only when they are the ones
  * its manifest `announced`, size then fingerprint; `corruptObject` otherwise. The size is taken
- * before the fingerprint, which transfers the buffer to a decode worker and back. `meter` counts
- * its bytes as they arrive.
+ * before the fingerprint, the cheaper refusal first. `meter` counts its bytes as they arrive.
  */
 export async function fetchVerified(
   url: string,
@@ -39,10 +38,9 @@ export async function fetchVerified(
   const bytes = buffer.byteLength
   signal?.throwIfAborted()
   if (bytes !== announced.bytes) throw corruptObject(url, announced, bytes, undefined)
-  const verified = await verifyPageBytes(buffer)
-  if (verified.sha256 !== announced.sha256)
-    throw corruptObject(url, announced, bytes, verified.sha256)
-  return verified.source
+  const sha256 = await verifyPageBytes(buffer)
+  if (sha256 !== announced.sha256) throw corruptObject(url, announced, bytes, sha256)
+  return buffer
 }
 export async function loadClusterPages(
   pages: Array<{ url: string; bytes: number; sha256: string }>,

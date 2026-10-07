@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { stageQuantiles, stageLabel, disabledStageProfile, STAGE_LABELS } from './stageProfile.ts'
 import { WEBGPU_STAGES } from '../../../sdk-browser/src/stage/mapping.ts'
-import { WEBGL_STAGES } from '../../../../bench/witnesses/exact/cpu.ts'
 
 test('stageQuantiles returns null for an empty series: unmeasured, not zero', () => {
   assert.equal(stageQuantiles([]), null)
@@ -18,8 +17,8 @@ test('stageQuantiles computes p50 and p95 from the series', () => {
   assert.deepEqual(stageQuantiles([10, 20, 30, 40, 60]), { p50: 30, p95: 60 })
 })
 
-test('every stage an engine records reads as its own words, and every label names such a stage', () => {
-  const recorded = new Set<string>([...WEBGPU_STAGES, ...WEBGL_STAGES])
+test('every stage the engine records reads as its own words, and every label names such a stage', () => {
+  const recorded = new Set<string>(WEBGPU_STAGES)
   for (const stage of recorded) {
     assert.notEqual(stageLabel(stage).trim(), '', `${stage} has words`)
     assert.notEqual(stageLabel(stage), stage, `${stage} is not shown as its key`)
@@ -35,11 +34,11 @@ test('a stage no engine names is shown as it is', () => {
 })
 
 test('disabledStageProfile measures nothing: counters at zero, quantiles and method at null', () => {
-  const profile = disabledStageProfile('webgl2', 'per-stage profile not requested by the host')
+  const profile = disabledStageProfile('webgpu', 'per-stage profile not requested by the host')
   assert.deepEqual(profile, {
     version: 1,
     enabled: false,
-    backend: 'webgl2',
+    backend: 'webgpu',
     cpuFrames: 0,
     gpuSamples: 0,
     windowFrames: 0,

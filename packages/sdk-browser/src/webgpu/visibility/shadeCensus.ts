@@ -48,7 +48,7 @@ function wornSurfaces(
 
 /** The resolve classes the worn surfaces draw under, sorted into `keys`, which `seen` dedupes:
  *  from the same material fields, geometry and atlas slots the rows will carry
- *  (`../row/pageRow.ts`), one surface and geometry at a time. Both are refilled in place. */
+ *  (`../row/pageRowWriter.ts`), one surface and geometry at a time. Both are refilled in place. */
 function classKeys(
   worn: ReadonlyMap<PageSurface, number>,
   layers: MaterialLayers,

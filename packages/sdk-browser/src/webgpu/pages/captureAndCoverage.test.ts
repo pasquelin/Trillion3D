@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
 import {
@@ -8,10 +8,12 @@ import {
   camera,
   assertBothQuadPagesDrawn,
   disposeQuadRun,
+  flushedImage,
 } from './testScenes.fixture.ts'
+import { settledImage } from './settledImage.fixture.ts'
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
-import type { WebgpuPagesBackend } from './runtime.ts'
+import type { Engine } from '../../engine/types.ts'
 import {
   DEFAULT_SCOPE,
   type ClusterManifest,
@@ -25,7 +27,7 @@ test('a surface capture blocks external renders while its own view is drawn, and
   const main = camera()
   let capturing = false,
     blocked: unknown
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -44,7 +46,7 @@ test('a surface capture blocks external renders while its own view is drawn, and
   try {
     await backend.prepare()
     backend.render(main)
-    await backend.flush?.()
+    await backend.flush()
     capturing = true
     const surface = await backend.captureSurfaceView!(camera(), { width: 16, height: 16 })
     capturing = false
@@ -58,7 +60,7 @@ test('a surface capture blocks external renders while its own view is drawn, and
   }
 })
 
-test('a failed transparent material pipeline cannot leave an HDR pass with an rgba8 fallback pipeline', async () => {
+test('a failed transparent material pipeline refuses the scene by name, never drawing another image', async () => {
   installGpuGlobals()
   const { device } = mockGpu()
   const fixture = quadScene()
@@ -72,17 +74,17 @@ test('a failed transparent material pipeline cannot leave an HDR pass with an rg
       throw new Error('NO_FORWARD_MATERIAL')
     return create(descriptor)
   }
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
   })
   try {
-    await backend.prepare()
-    assert.equal(backend.capabilities.unsupported.includes('visibility buffer'), true)
-    backend.render(camera())
-    assert.equal(backend.metrics().submittedTriangles, 2)
+    await assert.rejects(
+      backend.prepare(),
+      /WEBGPU_BLEND_PIPELINE_UNAVAILABLE|WEBGPU_MATERIAL_PIPELINE_UNAVAILABLE|NO_FORWARD_MATERIAL/,
+    )
   } finally {
     disposeQuadRun(backend, fixture)
   }
@@ -107,40 +109,45 @@ test('camera jumps and obsolete uploads preserve coverage while detail slots are
     totalNodes: 0,
     primitives: fixture.metadata.primitives as Primitive[],
   }
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     metadata,
     gpuDevice: device,
     maxResidentPages: 6,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
-  const cam = camera(),
-    move = (x: number) => {
-      cam.position.set(x, 0, 5)
-      cam.lookAt(x, 0, 0)
-      cam.updateMatrixWorld()
-      backend.render(cam)
-      assert.equal(backend.metrics().submittedTriangles, 2)
-    }
+  }) as Engine
+  const cam = camera()
+  const aim = (x: number) => {
+    cam.position.set(x, 0, 5)
+    cam.lookAt(x, 0, 0)
+    cam.updateMatrixWorld()
+  }
+  /** The camera at `x`, drawn and drained until an image counts the readback cut under that pose
+   *  on the residency in place (#1483): it covers the quad whole — its two triangles, coarse or
+   *  fine —, whatever is still on its way. */
+  const settle = async (x: number) => {
+    aim(x)
+    await settledImage(backend, cam, { arrived: false })
+    assert.equal(backend.metrics().submittedTriangles, 2)
+    return backend.selectedPageIds().sort()
+  }
+  /** Settles at `x` until the detail cut `expected` is drawn; every pose on the way covers. */
+  const converge = async (x: number, expected: string[]) => {
+    for (let step = 0; step < 8; step++) if ((await settle(x)).join() === expected.join()) return
+    assert.deepEqual(backend.selectedPageIds().sort(), expected, 'the detail cut converges')
+  }
   try {
     await backend.prepare()
-    move(0)
-    await backend.flush()
-    move(0)
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
-    move(100)
-    assert.deepEqual(backend.selectedPageIds(), ['b3'], 'the root cover stands in on arrival')
-    await backend.flush()
-    move(100)
-    assert.deepEqual(backend.selectedPageIds().sort(), ['b0', 'b1'])
+    await converge(0, ['0', '1'])
+    assert.deepEqual(await settle(100), ['b3'], 'the root cover stands in on arrival')
+    await converge(100, ['b0', 'b1'])
+    // Jumps faster than the uploads: each pose's requests go obsolete before they land.
     for (let i = 0; i < 12; i++) {
-      move(i % 2 ? 100 : 0)
+      aim(i % 2 ? 100 : 0)
+      backend.render(cam)
       await Promise.resolve()
     }
-    move(0)
-    await backend.flush()
-    move(0)
-    assert.deepEqual(backend.selectedPageIds().sort(), ['0', '1'])
+    await converge(0, ['0', '1'])
     assert.ok(backend.metrics().cacheEvictions! > 0)
   } finally {
     backend.dispose()
@@ -152,15 +159,16 @@ test('a visible opaque primitive without a hierarchy still has complete exact-pa
   installGpuGlobals()
   const fixture = quadScene(),
     { device } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     metadata: { ...fixture.metadata, primitives: [{ ...fixture.metadata.primitives[0] }] },
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
+    await flushedImage(backend)
     assertBothQuadPagesDrawn(backend)
   } finally {
     disposeQuadRun(backend, fixture)

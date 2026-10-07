@@ -4,6 +4,10 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { compileFullCache } from '../../../scripts/native-compiler.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
+import type {
+  MeasuredWorldOptions,
+  MeasuredWorldTarget,
+} from '../../../packages/sdk-browser/src/measurement/measurement.ts'
 import { manifestUrlOf } from '../../kit/scenes/caches.ts'
 import { installProofGpu } from './onDawn.ts'
 
@@ -14,6 +18,15 @@ const ROOT = resolve(import.meta.dirname, '../../..')
 export async function measurementSdk() {
   installProofGpu()
   return import('../../../bench/witnesses/measurement.ts')
+}
+
+/** A measured world opened on `canvas` with `options`, drawn by the engine's WebGPU page raster. */
+export async function openEngineWorld(
+  canvas: MeasuredWorldTarget,
+  options: Omit<MeasuredWorldOptions, 'engine'>,
+): Promise<MeasuredWorld> {
+  const { openMeasuredWorld, webgpuPagesEngine } = await measurementSdk()
+  return openMeasuredWorld(canvas, { ...options, engine: webgpuPagesEngine })
 }
 
 /** A canvas of the page's document, `width` × `height` CSS pixels, under `id`. */
@@ -27,8 +40,12 @@ export function proofCanvas(id: string) {
 
 /** Compiles the `three-stack` coplanar golden into `<out>/cache` with the native compiler, and
  *  returns the addresses of its full manifest and of its objects folder. */
-export function threeStackCache(out: string) {
-  const fixture = resolve(ROOT, 'tests/fixtures/formats/coplanar/three-stack')
+export const threeStackCache = (out: string) => coplanarCache(out, 'three-stack')
+
+/** Compiles the coplanar golden `name` (`tests/fixtures/formats/coplanar/`) into `<out>/cache`
+ *  with the native compiler, and returns the addresses of its full manifest and objects folder. */
+export function coplanarCache(out: string, name: string) {
+  const fixture = resolve(ROOT, 'tests/fixtures/formats/coplanar', name)
   compileFullCache({
     cwd: ROOT,
     source: fixture,
@@ -57,20 +74,17 @@ export interface GalleryScene {
 }
 
 export async function openGalleryScene(scene: GalleryScene): Promise<MeasuredWorld> {
-  const { openMeasuredWorld, webgpuPagesBackend } = await measurementSdk()
   proofCanvas(scene.id)
-  const world: MeasuredWorld = await openMeasuredWorld(scene.id, {
+  const world = await openEngineWorld(scene.id, {
     manifestUrl: pathToFileURL(resolve(ROOT, manifestUrlOf(scene.folder).slice(1))).href,
     scope: 'full',
     importedLights: true,
     interactive: false,
-    backends: [webgpuPagesBackend],
     width: scene.width,
     height: scene.height,
     pixelRatio: scene.pixelRatio,
     temporalAntialiasing: false,
     geometryPoolBytes: 16 * 1024 * 1024,
-    geometryPoolCeilingBytes: 64 * 1024 * 1024,
     texturePoolBytes: scene.texturePoolBytes,
   })
   await world.awaitPages()

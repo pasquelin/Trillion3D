@@ -7,7 +7,6 @@ import { BOUNCE_APPLY_WGSL } from './applyWgsl.ts'
 import { BOUNCE_SURFACE_SHADER } from './surfaceWgsl.ts'
 import { BOUNCE_PROBE_SHADER } from './probeWgsl.ts'
 import { directLightingWgsl } from '../lighting/direct/lightingWgsl.ts'
-import { PROBE_IRRADIANCE_GLSL } from '../webgl/cluster/probe.ts'
 import {
   irradianceShader,
   radianceProjectionShader,
@@ -27,8 +26,8 @@ test('INVERSE_PI_WGSL appears once in the application and once in the surface ca
 
 test('every probe shader projects and evaluates the one order-2 basis', () => {
   // The bounce probes store their nine coefficients in the environment's band order: the pass
-  // that fills them and the lookup that reads them compile the shared text, as do the scene
-  // environment on WebGPU and the host light probe on WebGL2.
+  // that fills them and the lookup that reads them compile the shared text, as does the scene
+  // environment.
   const probeEvaluation = irradianceShader((k) => `probeAt(probe,${k}u).xyz`, 'n')
   assert.ok(BOUNCE_APPLY_WGSL.includes(probeEvaluation))
   assert.ok(BOUNCE_SURFACE_SHADER.includes(probeEvaluation))
@@ -36,7 +35,6 @@ test('every probe shader projects and evaluates the one order-2 basis', () => {
     BOUNCE_PROBE_SHADER.includes(radianceProjectionShader((k) => `sums[${k}]`, 'sample.rgb', 'd')),
   )
   assert.ok(DIRECT_LIGHTING_WGSL.includes(irradianceShader((k) => `e[${k}].rgb`, 'N')))
-  assert.ok(PROBE_IRRADIANCE_GLSL.includes(irradianceShader((k) => `probeSh[${k}]`, 'N')))
 })
 
 type Vector = { x: number; y: number; z: number }
@@ -48,7 +46,7 @@ const channel = (body: string, coefficient: RegExp, vector: string) =>
     vector,
     body
       .replace(coefficient, (_, k: string | undefined) => `c[${k ?? 0}]`)
-      .replace(/\b(var|let|vec3) (\w+)=/g, 'let $2=')
+      .replace(/\b(var|let) (\w+)=/g, 'let $2=')
       .replace(/max\(vec3f?\(0\.0\),/g, 'Math.max(0,') +
       (/\breturn\b/.test(body) ? '' : 'return E;'),
   ) as (c: number[], v: Vector) => number
@@ -58,10 +56,10 @@ const between = (text: string, from: string, to: string) => {
   return text.slice(start, text.indexOf(to, start))
 }
 
-test('a bounce probe is read in the band order the environment and the light probe use', () => {
+test('a bounce probe is read in the band order the environment uses', () => {
   // Run on the shader text itself, not on the shared basis: the coefficients the probe pass
-  // writes for one ray, then the bounce lookup, the WebGPU environment and the WebGL2 light
-  // probe reading them must agree on every normal.
+  // writes for one ray, then the bounce lookup and the environment reading them must agree on
+  // every normal.
   const terms = [...BOUNCE_PROBE_SHADER.matchAll(/sums\[(\d)\]\+=sample\.rgb\*(.+);/g)]
   assert.equal(terms.length, 9)
   const project = (d: Vector) => {
@@ -79,11 +77,6 @@ test('a bounce probe is read in the band order the environment and the light pro
     /e\[(\d)\]\.rgb/g,
     'N',
   )
-  const lightProbe = channel(
-    between(PROBE_IRRADIANCE_GLSL, 'vec3 N=viewNormal*viewRotation;', 'return'),
-    /probeSh\[(\d)\]/g,
-    'N',
-  )
   const unit = (x: number, y: number, z: number) => {
     const length = Math.hypot(x, y, z)
     return { x: x / length, y: y / length, z: z / length }
@@ -92,9 +85,9 @@ test('a bounce probe is read in the band order the environment and the light pro
   for (const source of directions) {
     const sh = project(source)
     for (const n of [...directions, unit(1, 2, -3)]) {
-      const expected = bounce(sh, n)
-      for (const read of [environment(sh, n), lightProbe(sh, n)])
-        assert.ok(Math.abs(Math.max(0, read) - expected) < 1e-5, `${expected} vs ${read}`)
+      const expected = bounce(sh, n),
+        read = environment(sh, n)
+      assert.ok(Math.abs(Math.max(0, read) - expected) < 1e-5, `${expected} vs ${read}`)
     }
   }
 })

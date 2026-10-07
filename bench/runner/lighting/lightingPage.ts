@@ -1,39 +1,28 @@
 import type * as SdkBrowser from '../../witnesses/measurement.ts'
 import type { MeasureViewOptions, MeasureViewResult } from '../harness/measureOptions.ts'
 import type * as PageCoupe from '../series/cutPage.ts'
-import type * as WitnessPage from '../witness/witnessPage.ts'
 import type * as PageExplorateur from '../harness/explorerPage.ts'
 import type * as PageMeasure from '../harness/measurePage.ts'
 import type { GpuPassTimings } from '../../../packages/sdk-core/src/index.ts'
 import type { MovingNode } from '../report/types.ts'
 
-/** One view, one side, one threshold: durations of each frame, the selected cut, the capture. */
-// Named by its backend export at build time (`exactPagesBackend`, `webgpuPagesBackend`,
-// `autonomousPagesBackend`), by whatever name a test double exports otherwise: the lookup below
-// is a plain dynamic index by design, so the namespace type carries the same index signature.
-type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.BackendFactory | undefined>
+// Named by its backend export at build time (`webgpuPagesEngine`), by whatever name a test double
+// exports otherwise: the lookup below is a plain dynamic index by design, so the namespace type
+// carries the same index signature.
+type SdkNamespace = typeof SdkBrowser & Record<string, SdkBrowser.EngineFactory | undefined>
 
+/** One view, one side, one threshold: durations of each frame, the selected cut, the capture. */
 export async function measureView(options: MeasureViewOptions): Promise<MeasureViewResult> {
   const sdk = (await import(options.sdkUrl)) as SdkNamespace
   const coupe = (await import(`${options.modulesUrl}series/cutPage.ts`)) as typeof PageCoupe
-  // The Three witness does not read the contract's light store: the harness, a host like any
-  // other, itself places in Three the lights that store declares (`witness/witnessPage.ts`).
-  // A dist whose witness entry exports no light group `Group` gives its witness none.
-  const lighting =
-    options.witness && sdk.Group
-      ? (
-          (await import(`${options.modulesUrl}witness/witnessPage.ts`)) as typeof WitnessPage
-        ).createWitnessLighting(sdk)
-      : null
   const factory = options.backend ? sdk[options.backend] : undefined
   if (!factory) return { error: `engine missing from dist: ${options.backend}` }
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
-  // What the GPU reported — lost WebGL context, uncaptured error, lost device — published on
-  // the page as it happens: a failing frame carries its call stack, never the cause, and the
-  // bench comes looking for it there.
+  // What the GPU reported — uncaptured error, lost device — published on the page as it
+  // happens: a failing frame carries its call stack, never the cause, and the bench comes
+  // looking for it there.
   const lost: string[] = (globalThis.gpuIncidents = [])
-  canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false)
   const reglages = (await import(
     `${options.modulesUrl}harness/explorerPage.ts`
   )) as typeof PageExplorateur
@@ -50,7 +39,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const diagnostics = measure.collecteDiagnostics(lost)
   const explorer = await sdk.openMeasuredWorld(canvas, {
     onDiagnostic: diagnostics.onDiagnostic,
-    ...reglages.explorerOptions(options, factory, lighting),
+    ...reglages.explorerOptions(options, factory),
   })
   const preparationMs = performance.now() - preparationStart
   // What the file brought, before any bench addition. A dist older than the light-import
@@ -62,14 +51,11 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // Contract lights, placed by the harness's generic rule and passed here as data: the
   // page computes no position and invents no scene.
   for (const light of options.lights ?? []) explorer.addLight(light)
-  // The same lights, in Three, for the witness: read from the store, never placed by hand.
-  const witnessLights = lighting ? lighting.suivre(explorer) : null
   const moving = options.moving
   // A moving light: a small circle, applied before each measured frame.
   const moveLight = (frame: number) => {
     if (!moving) return
     explorer.setLight(moving.id, { position: measure.movableLampPosition(moving, frame) })
-    lighting?.suivre(explorer)
   }
   const pose = options.pose
   // A moving object: the node named by the host walks a small circle. The first call places
@@ -111,7 +97,6 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // In-session reservoir tuning, if requested, is measured on the already-resident cut.
   const liveTuning = await measure.reglerReservoirs(explorer, pose, options.livePools)
   const cpuFrameMs: number[] = [],
-    cpuSelectMs: number[] = [],
     rafIntervalMs: number[] = []
   const gpu = measure.gpuReadings()
   const gpuPassSamples: GpuPassTimings[] = []
@@ -127,24 +112,23 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     moveNode(i)
     last = explorer.render(poseAt(i))
     if (typeof last.cpuFrameMs === 'number') cpuFrameMs.push(last.cpuFrameMs)
-    if (typeof last.cpuSelectMs === 'number') cpuSelectMs.push(last.cpuSelectMs)
     const sample = last.gpuPassMs
     gpu.push(last)
     if (i >= profileStart && sample && sample.frame !== gpuPassSamples.at(-1)?.frame)
       gpuPassSamples.push(sample)
   }
-  // A moving capture waits for its pose's pages as the still warmup does (WebGL2 held without).
+  // A moving capture waits for its pose's pages as the still warmup does (#1016).
   if (poses) {
     explorer.setPose(current)
     await explorer.awaitPages()
   }
   await explorer.flush()
   // Capture freezes the last measured pose. Restarting at poseAt(0) would average a second
-  // journey into the A/A witness (still camera 0 px, moving camera leftover on `sol`).
+  // journey into the A/A witness (#25: still camera 0 px, moving camera leftover on `sol`).
   const capturePose = current
   const stageProfile = options.stageProfile ? explorer.stageProfile() : null
   // The engine's CPU bounds over the same window as the stage profile, read once, before the
-  // drain and the calm below file images of their own. A dist without `cpuSteps` is skipped.
+  // drain and the calm below file images of their own. A dist older than #80 has no such function.
   const cpuBounds =
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null
   // The capture is that of a HELD pose (`harness/measurePage.ts`): `settleFrames` says how many frames
@@ -152,7 +136,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const settleFrames = await measure.calmPose(explorer, capturePose)
   const response = await measure.posterCapture(
     options.captureFile,
-    explorer.capture(),
+    await explorer.capture(),
     canvas.width,
     canvas.height,
   )
@@ -166,12 +150,12 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   canvas.remove()
   return {
     cpuFrameMs,
-    cpuSelectMs,
     gpuFrameMs: gpu.gpuFrameMs,
     gpuIdleMs: gpu.gpuIdleMs,
     rafIntervalMs,
     importedLights,
-    witnessLights,
+    // The engine draws its own light store: no host places a copy of its lights.
+    witnessLights: null,
     movingNode,
     stageProfile,
     gpuPassSamples,

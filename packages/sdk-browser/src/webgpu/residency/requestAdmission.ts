@@ -1,189 +1,136 @@
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
-import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
 import type { WebgpuResidencySets } from './sets.ts'
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
-import type { GpuCut } from '../../gpu/core/selection.ts'
 import { admissionLevel } from '../../residency/minimumCapacity.ts'
+import { createReadbackMerge, type ViewReadbacks } from './readbackMerge.ts'
+import { ADMISSION_LEVEL_MAX } from '../../gpu/dag/request.ts'
+import {
+  createLevelFiling,
+  filePage,
+  filingBytes,
+  filingFull,
+  openFiling,
+  rankFiling,
+  type LevelFiling,
+} from './levelFiling.ts'
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>
-/** What admission reads of a GPU cut: its requests (`../../gpu/dag/request.ts`). */
-type Requests = Pick<GpuCut, 'result'>
-
-/** The source of the CPU cut's ranking: the pages its cut closes over now. */
-const HELD = {}
-
+/** The pool turns short once the views' cuts pass it, and whole again only once they fall a tenth
+ *  below it: a cut at the pool's edge does not flip the GPU's ranking — and the queue — image after
+ *  image. */
+const SHORT_LEAVE = 0.9
 /**
- * Admission of both cuts, one ranking. The GPU cut's queue is read off the readback's requests,
- * closed over their groups (`../../page/cut/groupClosure.ts`); the CPU cut's off the pages
- * its cut closes over (`closure.forEachHeld`), so the GPU cut feeds no tracking of its own and the
- * CPU cut that takes the image back ranks what the GPU cut left.
- *
- * A cut the pool holds whole is the queue itself, followed by difference. One it does not hold
- * keeps its coarsest levels whole and the finest it straddles in part, as the documented budget
- * says (docs/RESIDENCY.md): a complete cover plus as much detail as the slots carry, paid one
- * level at a time. A page is filed at the coarsest level a placement brings it at, a page of the
- * group a root replaces above every level: the minimum capacity holds it first
- * (`../../residency/minimumCapacity.ts`).
- *
- * The room is the pool's, fixed: never what the image draws, which moves with every arrival — a
- * room that followed it admitted another set at each arrival and never settled. And at the level
- * it straddles, what the queue already holds goes first, in the queue's order: the GPU orders equal
- * requests by the race of its threads and the held pages come in hash order, and a queue re-ranked
- * to either would trade slots at every readback.
- *
- * While a capture is drawn, the CPU cut ranks its own pages first, each lifted above every level
- * of the union (`sets.drawnFirst`): the capture keeps what its cut alone kept under the one budget,
- * and the other views' pages take what room is left.
- *
- * Only a new readback (or a moved CPU cut), a new room or a queue changed elsewhere is ranked
- * again: one walk of the closed requests or the held pages, bounded by the view, never the
- * catalogue.
+ * Admission of the views' cuts under the one pool, in the order the GPU ranked them (#1483). A cut
+ * the pool holds whole is the queue itself, followed by difference. One it does not hold has the GPU
+ * rank the camera's requests by ADMISSION (`SelectionUniforms.admitByLevel`,
+ * `../../gpu/dag/request.ts`) — the minimum capacity's pages (`../../residency/minimumCapacity.ts`),
+ * the coarsest level, the larger error —: a complete cover plus as much detail as the slots carry,
+ * one level at a time (docs/RESIDENCY.md). The host sorts no request list: it walks the views'
+ * lists merged level by level — a drawn capture's first, so it keeps what its cut alone kept
+ * (#268) —, closes each request over its groups (`../../page/cut/groupClosure.ts`), and stops at
+ * the first request finer than the one the room ran out at. Of what it filed — each page at its
+ * own level, a request bringing the coarser groups its rule needs — it takes the coarsest levels
+ * whole and the straddled one in part, what the queue holds of it first, in the queue's order: a
+ * queue re-ranked to the race of the GPU's threads would trade slots at every readback. The room
+ * is the pool's; only a new readback, room or queue is walked again (#483 rule 6).
  */
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
   { keyOf, wanted, topLevel }: Pick<Tracking, 'keyOf' | 'wanted' | 'topLevel'>,
-  closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>,
+  closure: Pick<GroupClosure, 'closeOver'>,
+  recordOf: (id: number) => PageRec | undefined,
 ) {
-  /** Per key the walk reached, one plus the visit that filed it: the first at its coarsest level.
-   *  A visit a coarser one superseded has its level set to -1. */
-  const filedBy = createSparseInts()
-  let keys = new Int32Array(0),
-    levels = new Int32Array(0),
-    /** Keys filed per level, and the queue written from them. */
-    perLevel = new Int32Array(8),
-    queue = new Int32Array(0),
-    /** The filing visits sorted by level, coarsest first, in walk order within a level. */
-    order = new Int32Array(0)
-  const pages: PageRec[] = [],
-    queued: PageRec[] = []
-  let visits = 0,
-    top = 0,
-    /** Added to a page's level: a capture's own are filed above the union's (`rankFrom`). */
-    lift = 0,
-    last: object | null = null,
-    lastRoom = -1,
+  let lastRoom = -1,
     lastRevision = -1,
-    lastCut = -1,
-    /** The capture's own packed ranks (`sets.drawnFirst`), or null. */
-    lastFirst: ArrayLike<number> | null = null
-  const visit = (_id: number, rec: PageRec) => {
-    const key = keyOf(rec)
-    if (sets.covers(key)) return
-    const level = admissionLevel(rec, topLevel) + lift,
-      filed = filedBy.get(key)
-    if (filed && levels[filed - 1] >= level) return
-    if (filed) {
-      perLevel[levels[filed - 1]]--
-      levels[filed - 1] = -1
-    }
-    if (level >= perLevel.length) perLevel = grown(perLevel, level + 1, perLevel.length)
-    perLevel[level]++
-    top = Math.max(top, level)
-    if (visits === keys.length) {
-      keys = grown(keys, visits + 1, visits)
-      levels = grown(levels, visits + 1, visits)
-    }
-    keys[visits] = key
-    levels[visits] = level
-    pages[visits++] = rec
-    filedBy.set(key, visits)
+    /** The pool was short at the last admission (`settleShort`). */
+    wasShort = false
+  /** The readbacks the last admission walked: a capture's, then the views'. */
+  let lastFirst: unknown = null
+  const lastCuts: unknown[] = []
+  const { merge, merged } = admissionMerge(recordOf, topLevel)
+  const filing = createLevelFiling(keyOf, (key) => sets.covers(key), topLevel, merged)
+  const walk: Walk = {
+    merge,
+    closure,
+    wanted,
+    visit: (_id: number, rec: PageRec) => filePage(filing, rec),
+    full: () => filingFull(filing),
   }
-  const put = (at: number, i: number) => {
-    queue[at] = keys[i]
-    queued[at] = pages[i]
-  }
-  /** The coarsest levels whole, then the one that straddles `room`, what the queue holds first. */
-  const rank = (room: number) => {
-    let floor = top,
-      taken = 0
-    while (floor > 0 && taken + perLevel[floor] < room) taken += perLevel[floor--]
-    const end = Math.min(room, taken + perLevel[floor])
-    if (queue.length < end) queue = grown(queue, end)
-    if (order.length < visits) order = grown(order, visits)
-    // A counting sort: each level from `floor` up gets its slice of `order`, and `perLevel[level]`
-    // ends as where that slice ends. A superseded visit (-1) takes none.
-    for (let level = top, start = 0; level >= floor; level--) {
-      const count = perLevel[level]
-      perLevel[level] = start
-      start += count
-    }
-    for (let i = 0; i < visits; i++) if (levels[i] >= floor) order[perLevel[levels[i]]++] = i
-    for (let at = 0; at < taken; at++) put(at, order[at])
-    // The straddled level's queued pages keep the queue's own order, whatever the walk's.
-    let at = taken
-    for (let i = 0; i < wanted.count && at < end; i++) {
-      const filed = filedBy.get(wanted.list[i])
-      if (filed && levels[filed - 1] === floor) put(at++, filed - 1)
-    }
-    for (let s = taken; s < perLevel[floor] && at < end; s++)
-      if (!wanted.has(keys[order[s]])) put(at++, order[s])
-    queued.length = end
-    return end
-  }
-  /** Bytes of its tables, sized by the view's closed requests and the room: the CPU budget holds
-   *  them with the cut's other host tables (`../cut/publication.ts`, `hostTableBytes`). */
-  const hostBytes = () =>
-    filedBy.byteLength +
-    keys.byteLength +
-    levels.byteLength +
-    perLevel.byteLength +
-    queue.byteLength +
-    order.byteLength
-  /** Ranks at `room` what `ids` close over, or the held cut when `ids` is null, into the queue:
-   *  unless the source, the room, the queue and the held cut are all as last ranked. */
-  const rankFrom = (room: number, source: object, ids: ArrayLike<number> | null) => {
-    const cutNow = ids ? -1 : sets.cutRevision,
-      first = ids ? null : sets.drawnFirst
-    if (
-      source === last &&
-      room === lastRoom &&
-      sets.acceptedRevision === lastRevision &&
-      cutNow === lastCut &&
-      first === lastFirst
-    )
-      return
-    // No room: an empty queue, without walking what it would rank.
-    let count = 0
-    if (room > 0) {
-      visits = top = 0
-      perLevel.fill(0)
-      filedBy.clear()
-      if (ids) closure.closeOver(ids, visit)
-      else closure.forEachHeld(visit)
-      // A capture's pages again, above the union's coarsest: a coarser filing supersedes.
-      if (first) {
-        lift = top + 1
-        closure.closeOver(first, visit)
-        lift = 0
-      }
-      pages.length = visits
-      count = rank(room)
-    } else queued.length = 0
-    sets.admit(queue, queued, count)
-    last = source
-    lastRoom = room
-    lastRevision = sets.acceptedRevision
-    lastCut = cutNow
-    lastFirst = first
-  }
-  /** The GPU cut's: its readback's requests. */
-  const admit = (room: number, cut: Requests | null) => {
-    // The queue follows the cut whole: no capture's cut is held for a ranking that may not come.
-    if (sets.desiredCount <= room) return ((lastFirst = null), sets.followDesired())
-    // A readback the adopter refused, or none yet: the queue the image holds stands.
-    if (!cut || cut.result.truncated || !cut.result.drawablePageIds) return
-    rankFrom(room, cut, cut.result.pageIds)
-  }
-  /** The CPU cut's, whose difference is already applied: true when it overruns `room`. */
-  const held = (room: number) => {
-    if (sets.desiredCount <= room) {
+  /** Whether the pool cannot hold the views' cuts whole, with its margin (`SHORT_LEAVE`) once it
+   *  was short: read alone, it moves nothing — the image asks it before it cuts (`gpuCut.ts`). */
+  const short = (slots: number) => sets.desiredCount > (wasShort ? SHORT_LEAVE * slots : slots)
+  /** The verdict an admission settles on, once an image: the margin follows it. */
+  const settleShort = (slots: number) => (wasShort = short(slots))
+  /** Whether `readbacks` are the ones the last admission walked, in the same room. */
+  const walked = (slots: number, { cuts, first }: ViewReadbacks) =>
+    slots === lastRoom &&
+    sets.acceptedRevision === lastRevision &&
+    first === lastFirst &&
+    cuts.length === lastCuts.length &&
+    cuts.every((cut, i) => cut === lastCuts[i])
+  const admit = (slots: number, readbacks: ViewReadbacks) => {
+    // The queue follows the cuts whole: no ranking is kept for a pool that holds them.
+    if (!settleShort(slots)) {
+      lastCuts.length = 0
       lastFirst = null
-      sets.followDesired()
-      return false
+      return sets.followDesired()
     }
-    rankFrom(room, HELD, null)
-    return true
+    const { cuts, first } = readbacks
+    // No readback yet, or the ones already walked: the queue the image holds stands.
+    if (walked(slots, readbacks) || (!cuts.length && !first)) return
+    lastFirst = first
+    lastCuts.length = 0
+    lastCuts.push(...cuts)
+    // Ranked first: `rankFiling` may grow the queue the sets read.
+    const taken = fileReadbacks(filing, slots, readbacks, walk)
+    sets.admit(filing.queue, filing.queued, taken)
+    lastRoom = slots
+    lastRevision = sets.acceptedRevision
   }
-  return Object.assign(admit, { held, hostBytes })
+  /** Bytes of its tables, sized by the views' requests and the room: the CPU budget holds them with
+   *  the cut's other host tables (`../cut/publication.ts`, `hostTableBytes`). */
+  const hostBytes = () => filingBytes(filing) + merged.ids.byteLength + merged.levels.byteLength
+  return Object.assign(admit, { short, hostBytes })
+}
+
+/** The views' requests merged, and the admission level of each. */
+function admissionMerge(recordOf: (id: number) => PageRec | undefined, topLevel: number) {
+  const levelOf = (id: number) => {
+    const rec = recordOf(id)
+    return rec ? admissionLevel(rec, topLevel) : 0
+  }
+  /** An admission bucket's level (`../../gpu/dag/readoutWords.ts`, `levelCountsWord`): its level,
+   *  raised past `topLevel` with the minimum capacity's bit, as `admissionLevel` raises it. */
+  const bucketLevel = (bucket: number) =>
+    (bucket & ADMISSION_LEVEL_MAX) + (bucket > ADMISSION_LEVEL_MAX ? topLevel + 1 : 0)
+  return createReadbackMerge(levelOf, bucketLevel)
+}
+
+/** What a walk reads besides the filing: the merge, the closure, the queue, the closure's visit
+ *  and its stop. */
+type Walk = {
+  merge: ReturnType<typeof createReadbackMerge>['merge']
+  closure: Pick<GroupClosure, 'closeOver'>
+  wanted: Tracking['wanted']
+  visit: (id: number, rec: PageRec) => void
+  full: () => boolean
+}
+
+/** The views' readbacks walked in `slots` and ranked: how many the queue takes. */
+function fileReadbacks(filing: LevelFiling, slots: number, readbacks: ViewReadbacks, walk: Walk) {
+  const { cuts, first } = readbacks
+  // A list cut before the pool turned short is in the cut's order, not admission's: the walk
+  // cannot stop at the first finer request, it files every one.
+  const ranked =
+    cuts.every((cut) => !!cut.uniforms.admitByLevel) && (!first || !!first.uniforms.admitByLevel)
+  openFiling(filing, slots, ranked)
+  // No room: an empty queue, without walking what it would rank.
+  if (slots <= 0) {
+    filing.queued.length = 0
+    return 0
+  }
+  const { ids, count } = walk.merge(readbacks, filing.lift)
+  walk.closure.closeOver(ids.subarray(0, count), walk.visit, walk.full)
+  return rankFiling(filing, walk.wanted)
 }

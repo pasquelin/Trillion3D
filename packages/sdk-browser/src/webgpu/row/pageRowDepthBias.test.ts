@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from '../pages/pages.ts'
+import { webgpuPagesEngine } from '../pages/pages.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
@@ -16,7 +16,7 @@ test('writePageRow writes the layer bias in positive units at the table row dept
   // stays at layer 0 (a missing field equals 0, as decoding leaves it).
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 5
   const { device, buffers } = mockGpu()
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,

@@ -70,11 +70,10 @@ function recordStages(rt: WebgpuPagesRuntime) {
 }
 
 /**
- * Publishes where the image's CPU time went, on the cadence of the progress diagnostic. It is called
- * by both render paths: a measured loop renders without ever flushing, and the profile is exactly what
- * such a loop needs.
+ * Publishes where the image's CPU time went, on the cadence of the progress diagnostic: a measured
+ * loop renders without ever flushing, and the profile is exactly what such a loop needs.
  */
-export function publishCpuProfile(rt: WebgpuPagesRuntime) {
+function publishCpuProfile(rt: WebgpuPagesRuntime) {
   const { timing, run, diag } = rt
   if (
     (diag.traceEnabled && !frameCostAuditEnabled()) ||
@@ -92,7 +91,7 @@ export function publishCpuProfile(rt: WebgpuPagesRuntime) {
     audit: gpuFrameCostSnapshot(rt),
   }
   diag.engineDiagnostic('cpu-timing', 'CPU timings measured in the engine', details)
-  logFrameCostAudit('webgpu-page-raster', { kind: 'cpu-profile', ...details })
+  logFrameCostAudit({ kind: 'cpu-profile', ...details })
 }
 
 /** Deposits the duration of a host-sampled step: arrivals, wait, retain, submit. */
@@ -102,7 +101,7 @@ export function hostCpuStep(rt: WebgpuPagesRuntime, step: HostCpuStep, ms: numbe
 
 /**
  * Closes the image on the host side: bounds the host samples after the render belong to the image
- * that just drew, so the row is filed only here. An image that has not filled a row — CPU cut, image
+ * that just drew, so the row is filed only here. An image that has not filled a row — an image
  * waiting for coverage — deposits nothing rather than a row of zeros. Nor does an image no one
  * profiles: the windows are filed in debug mode, for the stage profile, or for a listened
  * channel or the frame audit, which publish them.

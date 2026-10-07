@@ -365,8 +365,6 @@
       "shadow-pages-off": "تقسيم صفحات الظلال معطَّل",
       "shadow-budget-0-25": "ميزانية وقت الظلال: 0.25 ms",
       "budget-3000": "ميزانية الهندسة: 3000 صفحة",
-      "webgl": "محرّك عرض WebGL",
-      "webgl2": "محرّك عرض WebGL 2",
       "moving-light": "إضاءة متحرّكة",
       "visible": "نافذة متصفح ظاهرة"
     },
@@ -472,7 +470,7 @@
     "resolution": "الدقة وعتبة الخطأ",
     "lights": "الإضاءات والظلال والانعكاس",
     "execution": "إطار ثابت، وتنعيم الحواف، وخيارات التنفيذ",
-    "memory": "الذاكرة، والنسخ، ومحركات عرض أخرى"
+    "memory": "الذاكرة، والنسخ، وتشغيلات أخرى"
   },
   "evidence": {
     "computeDrawing": "رسم عبر compute",
@@ -656,8 +654,8 @@
     },
     "measurement-entry": {
       "title": "نقطة دخول القياس",
-      "description": "المكان الوحيد الذي لا يزال فيه يمكن تسمية عيّنة، أو خلفيّة مفروضة، أو جلسة داخلية — أبدًا عبر نقطة الدخول المنشورة `trillion3d`.",
-      "html": "<p>تستورد الصفحة <code>trillion3d</code> ولا ترى أبدًا خلفيّة، أو عيّنة، أو جلسة داخلية: يرسم <code>createWorld</code> بمحرّك عرض واحد، يُختار وفق الجهاز أو يُرفض باسمه إن فُرض ولم يكن موجودًا. لا يزال المقياس والبراهين وعروض المقارنة بحاجة لتسمية عيّنة — Three.js الأصلية، أو <code>THREE.LOD</code>، أو جلسة <code>openMeasuredWorld</code> الداخلية — وذلك هو المهمة الوحيدة لنقطة دخول القياس المنفصلة، <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>تعيد تصدير كل ما تصدّره نقطة الدخول المنشورة، بالإضافة إلى ما لا يحتاجه أي مضيف أبدًا: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (الجلسة الداخلية التي يفتحها العالم على نفسه)، ومصانع الخلفيات (<code>referenceBackend</code>، و<code>exactPagesBackend</code>، و<code>threeLodBackend</code>، و<code>webgpuPagesBackend</code>، و<code>autonomousPagesBackend</code>)، وأدوات مساعدة خاصة بالقياس فقط مثل <code>replicateInstances</code>. لا شيء من هذا يصل إلى عالم منشور، ولا شيء منه يستورده أي تطبيق.</p>"
+      "description": "المكان الذي لا تزال فيه يمكن تسمية عيّنة أو جلسة داخلية — أبدًا عبر نقطة الدخول المنشورة `trillion3d`.",
+      "html": "<p>تستورد الصفحة <code>trillion3d</code> ولا ترى أبدًا عيّنة أو جلسة داخلية: يرسم <code>createWorld</code> بواسطة WebGPU، أو يُرفض باسمه إن لم يمنحه الجهاز. لا يزال المقياس والبراهين بحاجة لتسمية عيّنة — Three.js الأصلية، أو <code>THREE.LOD</code>، أو جلسة <code>openMeasuredWorld</code> الداخلية — وتلك هي المهمة الوحيدة لنقطة دخول القياس المنفصلة، <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>تعيد تصدير كل ما تصدّره نقطة الدخول المنشورة، إضافةً إلى ما لا يحتاجه المضيف أبدًا: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (الجلسة الداخلية التي يفتحها العالم على نفسه)، ومصنع الصفحات <code>webgpuPagesEngine</code>، ومساعدات خاصة بالقياس فقط مثل <code>replicateInstances</code>. لا شيء منها يصل إلى عالم منشور، ولا يستوردها أي تطبيق.</p>"
     },
     "createWorldJob": {
       "title": "تحميل عالم كعمل قابل للإلغاء",
@@ -706,11 +704,11 @@
       "description": "ما يرسمه إطار. تصف الإتاحة نواتج خط الأنابيب الفعلية، لا طبقات وهمية أبدًا: يعطي `DIAGNOSTICS`، لكل نمط، ما إذا كان محرّك العرض النشط قادرًا على إنتاجه ولماذا لا.",
       "values": [
         "الصورة المضاءة، من مواد glTF.",
-        "لون واحد مصمت لكل مثلث مُرسَل — ليس GL_LINES، وليس `MeshBasicMaterial.wireframe`.",
-        "هوية مستقرة للعنصر البدائي/الصفحة، لون واحد لكل عنقود؛ في WebGL2 وWebGPU معًا.",
+        "لون واحد مصمت لكل مثلث مُرسَل.",
+        "هوية مستقرة للعنصر البدائي/الصفحة، لون واحد لكل عنقود.",
         "عناقيد المستوى صفر مقابل اختزالات DAG الأخشن المختارة فعليًا في هذا الإطار.",
         "خطأ كل عنقود مُسقطًا عبر كرة العنقود، كما تستخدمه القَطعة.",
-        "لون واحد لكل صنف مواد: مرحلة الصنف التي حسمت البكسل. مسار الرؤية في WebGPU فقط.",
+        "لون واحد لكل صنف مواد: مرحلة الصنف التي حسمت البكسل.",
         "الصفحات المرئية المختارة؛ تُحصى عقد التسلسل الهرمي المرفوضة، ولا تُرسم.",
         "صفحات الفهرس المرفقة؛ لا تُرسم الصفحات الناقصة. ليست ذاكرة VRAM فعلية.",
         "غير متاح: إقامة مستويات دقّة الخامة (mip) غير مقيسة.",
@@ -761,7 +759,7 @@
     },
     "GpuTimingMethod": {
       "description": "كيف أُخذت مدد بطاقة الرسوميات لملف مرحلة ما. تحدّد المدة لكل مرحلة أين، لا أبدًا كم: على بطاقة رسوميات قائمة على البلاطات تتداخل المراحل وتمتص مرحلة ما جارتها. إجمالي الإطار هو `gpuImageMs`، أي النطاق — لا تُجمَع مدد المراحل فيه.",
-      "values": ["استعلامات الطابع الزمني الأصلية لـ WebGPU.", "امتداد WebGL2، لذلك المسار."]
+      "values": ["استعلامات الطابع الزمني الأصلية لـ WebGPU."]
     },
     "ColumnKind": {
       "description": "تخزين عمود واحد من البيان الثنائي (binary manifest). يربط `COLUMN_KIND` كل اسم عمود بنوعه، فيعرف القارئ الرؤية التي يتخذها فوق بايتات الملحق (sidecar).",
@@ -790,7 +788,7 @@
       "description": "يُغلّف أي عملية معلَّقة في عقد عمل المحرك: لقطة (`JobStatus`، وتقدّم، ونتيجة، وخطأ)، واشتراك، وإلغاء يتخلّص مما كان يملكه العمل. يجب أن تدعم العملية الإلغاء عبر مالكها (RAF، أو إعادة القراءة، …)."
     },
     "detectCapabilities": {
-      "description": "ما يدعمه هذا الجهاز فعلًا، قبل إنشاء عالم: `{ tier, renderer, adapter, extensions, reason }`. يُعطى السبب دائمًا، فتُبلَّغ إمكانية غير مدعومة بدلًا من افتراضها. الغلاف العلني الذي يقرؤه عالم ما هو `capability.detect()` — `{ webgpu, webgl2, ... }`، شكل أبسط للفحص نفسه. يُخزَّن فحص WebGL2 مؤقتًا."
+      "description": "ما يمنحه WebGPU في هذا الجهاز فعلًا، قبل إنشاء العالم: `{ tier, adapter, extensions, reason }`. المستوى `full` مع استعلامات الطوابع الزمنية لبطاقة الرسوميات، و`degraded` بدونها، و`unavailable` عند غياب المحوّل. يُذكر السبب دائمًا، فتُبلَّغ القدرة غير المدعومة بدل أن تُفترض. الغلاف العام الذي يقرؤه العالم هو `capability.detect()` — `{ webgpu, tier, features, reason }`، صيغة أبسط للفحص نفسه."
     },
     "perspectiveProjection": {
       "description": "الإسقاط المنظوري لكاميرا بزاوية رؤية عمودية `fov` بالدرجات، ونسبة أبعاد `aspect`، ومستوى قريب `near`، وتكبير `zoom`. **عمق معكوس، ومستوى بعيد لا نهائي**: يُسقَط `near` إلى 1، واللانهاية إلى 0. لا يدخل هنا أي مستوى بعيد، ولذلك لا قسمة عليه — وهذا هو ما يشتري دقّة العمق."
@@ -1170,11 +1168,10 @@
       "an angle at or above π/2 never rejects": "زاوية تساوي π/2 أو أكبر منها لا ترفض أبدًا",
       "after updateNodeMatrixWorld(tree, root)": "بعد updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "متاح — صفحات فهرس مرفقة؛ لا تُرسم الصفحات الناقصة؛ ليست ذاكرة VRAM فعلية",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "متاح — لون مصمت لكل مثلث مُرسَل، وليس إطارًا سلكيًا GL_LINES",
+      "available — A filled unique colour per submitted triangle": "متاح — لون مصمت لكل مثلث مُرسَل",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "متاح — عناقيد المستوى صفر مقابل اختزالات DAG الأخشن المختارة فعليًا في هذا الإطار",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "متاح — خطأ الشاشة لكل عنقود مُسقطًا عبر كرة العنقود، كما تستخدمه القَطعة",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "متاح — الصفحات المرئية المختارة؛ تُحصى عقد التسلسل الهرمي المرفوضة، ولا تُرسم",
-      "available — Stable primitive/page ID, exact-cluster backend only": "متاح — هوية مستقرة للعنصر البدائي/الصفحة، خلفيّة العنقود الدقيق فقط",
       "available — glTF materials": "متاح — مواد glTF",
       "unavailable — No fragment counter": "غير متاح — لا يوجد عدّاد شظايا",
       "unavailable — Texture mip residency not instrumented": "غير متاح — إقامة مستويات دقّة الخامة غير مقيسة",

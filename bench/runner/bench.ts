@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Measurement benchmark common to all batches. One command, no server to start manually:
-//   node bench/runner/bench.ts --engine webgl --before <ref-git|dist> --after <ref-git|dist> \
+//   node bench/runner/bench.ts --engine webgpu --before <ref-git|dist> --after <ref-git|dist> \
 //        --views overview,ground,street --images 60 --pixelError 0,1 --max-pages 100000
 // All options in `README.md`. Writes `measure.json`, `resume.md` and one PNG per view, threshold and
 // side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
@@ -12,6 +12,7 @@ import { dirname, resolve } from 'node:path'
 import type { Page } from 'playwright'
 import { onFreshPage } from './harness/chrome.ts'
 import * as options from './harness/options.ts'
+import { isEngine } from './harness/sideOptions.ts'
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts'
 import { readStreet } from './street/street.ts'
 import { imageDiff } from './references/imageDiff.ts'
@@ -53,7 +54,7 @@ async function main() {
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))]
   if (settings.gazeNetwork && !readsCache(scene))
     throw new Error('--gaze-network requires a compiled cache scene')
-  if (settings.gazeNetwork && sides.some((side) => side.engine.id !== 'webgpu-page-raster'))
+  if (settings.gazeNetwork && sides.some((side) => !isEngine(side.engine)))
     throw new Error('--gaze-network requires the WebGPU page engine on every side')
   const MANIFEST = options.assetsManifest(
     scene,
@@ -96,7 +97,7 @@ async function main() {
   })
   report.settings = { ...settings, port }
   // Fresh browser per series, closed immediately after (`onFreshPage`): the GPU process a large
-  // scene fills is freed between series, or the 3rd one fails ("WebGL2 unavailable").
+  // scene fills is freed between series, or the 3rd one fails to open its GPU device.
   const { width, height, dpr } = settings
   const target = { url: `http://127.0.0.1:${port}/`, width, height, dpr }
   const onPage = <T>(run: (page: Page) => Promise<T>): Promise<T> =>

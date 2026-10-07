@@ -1,9 +1,8 @@
-// What the shadow proofs share: a bench scene opened the way they read it, the image its canvas
-// holds read back on the GPU, and how a frame shades otherwise than another away from every edge.
+// What the shadow proofs share: a bench scene opened the way they read it, and how a frame shades
+// otherwise than another away from every edge (its canvas read back with `kit/patternImage.ts`).
 import type { FakeCanvas } from '../../../bench/dawn/canvas.ts'
-import { readGpuImage } from '../../../packages/sdk-browser/src/gpu/core/presentation.ts'
 import type { MeasuredWorldOptions } from '../../../packages/sdk-browser/src/world/session/options.ts'
-import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
 
 /**
@@ -14,17 +13,15 @@ import { benchManifest } from '../world/proofWorld.ts'
 export async function openBenchWorld(
   scene: string,
   [width, height]: [number, number],
-  options: Partial<MeasuredWorldOptions> = {},
+  options: Partial<Omit<MeasuredWorldOptions, 'engine'>> = {},
 ) {
-  const { openMeasuredWorld, webgpuPagesBackend } = await measurementSdk()
   const canvas = proofCanvas(scene) as unknown as FakeCanvas
   // Before the engine configures it: a texture the bench reads back carries COPY_SRC from the start.
   canvas.readable = true
-  return openMeasuredWorld(canvas as unknown as HTMLCanvasElement, {
+  return openEngineWorld(canvas as unknown as HTMLCanvasElement, {
     manifestUrl: benchManifest(scene),
     scope: 'full',
     interactive: false,
-    backends: [webgpuPagesBackend],
     width,
     height,
     pixelRatio: 1,
@@ -34,24 +31,6 @@ export async function openBenchWorld(
     temporalAntialiasing: false,
     ...options,
   })
-}
-
-/**
- * The image the canvas of `world` holds — the last frame presented, a frame the engine drew without
- * any flush included — read back on the GPU as RGBA, bottom row first like `capture()`.
- */
-export async function canvasImage(world: { canvas: HTMLCanvasElement }) {
-  const context = world.canvas.getContext('webgpu') as GPUCanvasContext & {
-    current: GPUTexture | null
-  }
-  const texture = context.current
-  if (!texture) throw new Error('the canvas holds no image yet')
-  const { device } = context.getConfiguration()!
-  const pixels = await readGpuImage(device, texture, texture.width, texture.height)
-  if (texture.format.startsWith('bgra'))
-    for (let i = 0; i < pixels.length; i += 4)
-      [pixels[i], pixels[i + 2]] = [pixels[i + 2], pixels[i]]
-  return pixels
 }
 
 /** The luminance of pixel `i` of an RGBA image. */

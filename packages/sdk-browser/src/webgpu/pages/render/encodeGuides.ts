@@ -21,8 +21,8 @@ export const guidesMoved = (rt: WebgpuPagesRuntime) =>
 const NO_JITTER = [0, 0] as const
 
 /** The guide pass, made by the frame entry that first finds a guide shown, its code arrived — a
- *  world that shows none fetches none, as WebGL2's composer (`compose.ts`) — and its pipeline asked
- *  there, the frame held on it (`../../frame/framePipelines.ts`). */
+ *  world that shows none fetches none — and its pipeline asked there, the frame held on it
+ *  (`../../frame/framePipelines.ts`). */
 export function askGuidePass(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, context } = rt
   if (gpu.guides || !context.guides?.visibleInstances()) return

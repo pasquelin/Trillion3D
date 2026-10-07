@@ -1,4 +1,4 @@
-import { EXPAND_GROUP, RUN_WORDS } from './planLayout.ts'
+import { EXPAND_GROUP } from './planLayout.ts'
 import { PLAN_SHIFT } from './planEntry.ts'
 import { EXPAND_UNI } from './expandUniform.ts'
 
@@ -25,19 +25,17 @@ import { EXPAND_UNI } from './expandUniform.ts'
  *   key and follow each other in seed order: nothing can paint between them, and no gap does.
  * A gap may hold no entry: a draw of no instance. A pass without a main class has only its own
  * slots; a pass of one class has a single slot, one draw, and nothing ordered on the CPU. Once the
- * order is known, the GPU gives each slot its run (`placeBlendSlots`) and the expansion kernel its
- * indirect argument.
+ * order is known, the GPU gives each slot its run (CPU model: `runs.fixture.ts`) and the expansion
+ * kernel its indirect argument.
  */
 
 /**
  * First word of an expanded instance: its item rank, and above it the cull mode the vertex stage
  * applies (`planVertexCull`, zero when the pipeline culls). The expansion kernel, its CPU model
- * and the vertex stage read the split here.
+ * (`runs.fixture.ts`) and the vertex stage read the split here.
  */
 export const INSTANCE_CULL_SHIFT = 30
 export const INSTANCE_ITEM_MASK = (1 << INSTANCE_CULL_SHIFT) - 1
-export const instanceWord = (item: number, vertexCull: number) =>
-  (item | (vertexCull << INSTANCE_CULL_SHIFT)) >>> 0
 
 /** Slots of a pass: one per own entry, plus a gap before each own item and after the last one
  *  when the pass has a main class. Fixed by the plan: an item's entries stay together. */
@@ -66,39 +64,6 @@ export function assignOwnSlots(
   }
   if (main) slotOwns[slot++] = -1
   return slot
-}
-
-/** Writes the run of slot `slot`. */
-const runAt = (out: Uint32Array, slot: number, first: number, entries: number) => {
-  out[slot * RUN_WORDS] = first
-  out[slot * RUN_WORDS + 1] = entries
-}
-
-/**
- * The run of each slot, from where the paint order put each seed (`placed`) and the own entries'
- * seeds and slots in paint order: the CPU model of `placeBlendSlots`, word for word. Each own entry
- * writes its own slot and the gap before it, the last one the gap after it too.
- */
-export function placeBlendSlots(
-  out: Uint32Array,
-  placed: Uint32Array,
-  own: { seeds: Uint32Array; slots: Uint32Array },
-  entries: number,
-  main: boolean,
-) {
-  const count = own.seeds.length
-  if (!count && main) runAt(out, 0, 0, entries)
-  for (let k = 0; k < count; k++) {
-    const slot = own.slots[k],
-      at = placed[own.seeds[k]]
-    runAt(out, slot, at, 1)
-    if (!main) continue
-    if (!k || slot - own.slots[k - 1] > 1) {
-      const first = k ? placed[own.seeds[k - 1]] + 1 : 0
-      runAt(out, slot - 1, first, Math.max(0, at - first))
-    }
-    if (k === count - 1) runAt(out, slot + 1, at + 1, entries - at - 1)
-  }
 }
 
 /** Writes the expansion kernel's uniform words (`expandUniform.ts`) into `out`, at the rank each

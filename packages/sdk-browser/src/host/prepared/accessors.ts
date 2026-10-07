@@ -86,12 +86,35 @@ export type PreparedBinary =
  *  (`Geometry.loadVertices`): `binary` reads the buffer, once, on that first need, or each view
  *  alone by its `range`. */
 export function preparedAccessors(document: TableDocument, binary: PreparedBinary) {
-  const views = new Map<number, () => Promise<ArrayBuffer>>()
   const attributes = new Map<number, Attribute>()
-  const interleaved = new Map<string, InterleavedBuffer>()
+  const viewOf = viewReader(document, binary)
+  const build = attributeBuilder(document, viewOf)
+  const attributeOf = (rank: number) => {
+    let held = attributes.get(rank)
+    if (!held) {
+      const accessor = document.accessors[rank]
+      const base = build(accessor)
+      held = accessor.sparse
+        ? pendingAttribute(
+            later(COMPONENTS[accessor.componentType], base.count * base.itemSize, () =>
+              substitute(base, accessor, viewOf),
+            ),
+            base.itemSize,
+            accessor.normalized,
+          )
+        : base
+      attributes.set(rank, held)
+    }
+    return held
+  }
 
-  /** A copy of one view, as the host loader held it: attributes view into it, never beyond. */
-  const viewOf = (rank: number) => {
+  return attributeOf
+}
+
+/** A copy of one view, as the host loader held it: attributes view into it, never beyond. */
+function viewReader(document: TableDocument, binary: PreparedBinary) {
+  const views = new Map<number, () => Promise<ArrayBuffer>>()
+  return (rank: number) => {
     let held = views.get(rank)
     if (!held) {
       const view = document.views[rank]
@@ -115,8 +138,12 @@ export function preparedAccessors(document: TableDocument, binary: PreparedBinar
     }
     return held()
   }
+}
 
-  const build = (accessor: TableAccessor): Attribute => {
+/** The host attribute of one accessor, its numbers read from its view on first need. */
+function attributeBuilder(document: TableDocument, viewOf: (rank: number) => Promise<ArrayBuffer>) {
+  const interleaved = new Map<string, InterleavedBuffer>()
+  return (accessor: TableAccessor): Attribute => {
     const Storage = COMPONENTS[accessor.componentType]
     const width = WIDTHS[accessor.type]
     const { view: rank, normalized } = accessor
@@ -143,25 +170,4 @@ export function preparedAccessors(document: TableDocument, binary: PreparedBinar
     const offset = (accessor.offset % stride) / Storage.BYTES_PER_ELEMENT
     return new InterleavedBufferAttribute(buffer, width, offset, normalized)
   }
-
-  const attributeOf = (rank: number) => {
-    let held = attributes.get(rank)
-    if (!held) {
-      const accessor = document.accessors[rank]
-      const base = build(accessor)
-      held = accessor.sparse
-        ? pendingAttribute(
-            later(COMPONENTS[accessor.componentType], base.count * base.itemSize, () =>
-              substitute(base, accessor, viewOf),
-            ),
-            base.itemSize,
-            accessor.normalized,
-          )
-        : base
-      attributes.set(rank, held)
-    }
-    return held
-  }
-
-  return attributeOf
 }

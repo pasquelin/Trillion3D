@@ -1,22 +1,17 @@
-// The card's two chains pick `t` and scale as the compiler does. The shipped WGSL and
-// GLSL are run here (`shaderRule.fixture.ts`), on the table the compiler's test reads too
+// #748: the card's chains pick `t` and scale as the compiler does. The shipped WGSL is run here
+// (`shaderRule.fixture.ts`), on the table the compiler's test reads too
 // (`texture_preview/tests/coverage_alpha.rs`): one expected answer for every builder.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import {
-  COVERAGE_PICK_GLSL,
-  COVERAGE_PICK_WGSL,
-  COVERAGE_SCALE_GLSL,
-  COVERAGE_SCALE_WGSL,
-} from './coverageRule.ts'
+import { COVERAGE_PICK_WGSL, COVERAGE_SCALE_WGSL } from './coverageRule.ts'
 import { CoverageReaders } from './coverage.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import { shaderFunctions, vec } from './shaderRule.fixture.ts'
 import { cutoffByte } from './cutoffByte.ts'
 
-const NAMES = ['scaled', 'wide', 'pick', 'below', 'apart']
+const NAMES = ['scaled', 'wide', 'pickKey', 'below', 'apart']
 
 const table = JSON.parse(
   readFileSync(
@@ -25,50 +20,60 @@ const table = JSON.parse(
   ),
 ) as { cases: string[] }
 
+type Vec = ReturnType<typeof vec>
 type Rule = {
   scaled(a: number, c: number, t: number): number
-  wide(a: number, b: number): { x: number; y: number }
-  pick(c: number, covered: number, texels: ReturnType<typeof vec>): number
+  wide(a: number, b: number): Vec
+  pickKey(c: number, t: number, above: number, texels: Vec, goal: Vec): Vec
+  below(a: Vec, b: Vec): boolean
 }
 
-const languages = {
-  WGSL: COVERAGE_SCALE_WGSL + COVERAGE_PICK_WGSL,
-  GLSL: COVERAGE_SCALE_GLSL + COVERAGE_PICK_GLSL,
+/** The pick of `t` over `histogram`: the least key of the bytes 255 to 1, the one the choose
+ *  kernel's lanes reduce to (`COVERAGE_CHOOSE_WGSL`). */
+function pickOf(rule: Rule, histogram: number[], c: number, covered: number, texels: Vec) {
+  const goal = rule.wide(covered, texels.y)
+  let above = 0,
+    best: Vec | undefined
+  for (let t = 255; t > 0; t--) {
+    above = (above + histogram[t]) >>> 0
+    const key = rule.pickKey(c, t, above, texels, goal)
+    if (!best || rule.below(key, best)) best = key
+  }
+  return best!.w
 }
 
-for (const [language, source] of Object.entries(languages))
-  test(`the ${language} pick of t and scale are the compiler's, on its table`, () => {
-    let histogram: number[] = []
-    const rule = shaderFunctions<Rule>(source, NAMES, {
-      binOf: (t: number) => histogram[t],
-    })
-    for (const row of table.cases) {
-      const [[cutoff], level0, level, [t], scaled] = row
-        .split('|')
-        .map((part) => part.trim().split(' ').map(Number))
-      histogram = Array.from({ length: 256 }, (_, byte) => level.filter((a) => a === byte).length)
-      const covered = level0.filter((a) => a >= cutoff).length
-      const picked = rule.pick(cutoff, covered, vec(level0.length, level.length))
-      assert.equal(picked, t, row)
-      assert.deepEqual(
-        level.map((a) => rule.scaled(a, cutoff, t)),
-        scaled,
-        row,
-      )
-    }
-    // Products past 32 bits: a 16384² level 0 against its level 1.
-    for (const [a, b] of [
-      [16384 ** 2, 8192 ** 2 - 3],
-      [0xffffffff, 0xffffffff],
-      [65536, 65535],
-    ]) {
-      const { x, y } = rule.wide(a, b)
-      assert.equal((BigInt(x) << 32n) | BigInt(y), BigInt(a) * BigInt(b), `${a} × ${b}`)
-    }
-  })
+test("the WGSL pick of t and scale are the compiler's, on its table", () => {
+  const rule = shaderFunctions<Rule>(COVERAGE_SCALE_WGSL + COVERAGE_PICK_WGSL, NAMES)
+  for (const row of table.cases) {
+    const [[cutoff], level0, level, [t], scaled] = row
+      .split('|')
+      .map((part) => part.trim().split(' ').map(Number))
+    const histogram = Array.from(
+      { length: 256 },
+      (_, byte) => level.filter((a) => a === byte).length,
+    )
+    const covered = level0.filter((a) => a >= cutoff).length
+    const picked = pickOf(rule, histogram, cutoff, covered, vec(level0.length, level.length))
+    assert.equal(picked, t, row)
+    assert.deepEqual(
+      level.map((a) => rule.scaled(a, cutoff, t)),
+      scaled,
+      row,
+    )
+  }
+  // Products past 32 bits: a 16384² level 0 against its level 1.
+  for (const [a, b] of [
+    [16384 ** 2, 8192 ** 2 - 3],
+    [0xffffffff, 0xffffffff],
+    [65536, 65535],
+  ]) {
+    const { x, y } = rule.wide(a, b)
+    assert.equal((BigInt(x) << 32n) | BigInt(y), BigInt(a) * BigInt(b), `${a} × ${b}`)
+  }
+})
 
-// The compiler's `cutoff_byte`, the product the engine cuts, and a texture cut at the lowest cutoff
-// of its masked readers, not at all once one of them blends or its chain does not weigh by alpha.
+// #44's `cutoff_byte`, the product the engine cuts, and a texture cut at the lowest cutoff of its
+// masked readers, not at all once one of them blends or its chain does not weigh by alpha.
 test('a chain is cut at its readers’ lowest cutoff byte, 0 once one blends', () => {
   assert.deepEqual(
     [0.5, 0.25, 1 / 255, 1].map((cutoff) => cutoffByte(cutoff, 1)),

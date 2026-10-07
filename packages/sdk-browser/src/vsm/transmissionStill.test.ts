@@ -47,7 +47,7 @@ test('a new stamp writes the frame words alone, a moved scene buffer only the gr
   frame(1)
   const stamped = frame(2)
   assert.deepEqual([stamped.groups, stamped.writes], [0, 1])
-  const other = fake.device.createBuffer({ size: 16, usage: 0 })
+  const other = fake.device.createBuffer({ size: 16, usage: GPUBufferUsage.STORAGE })
   scene.spheres = other
   assert.ok(frame(2).groups > 0, 'the groups over the moved buffer are made again')
 })

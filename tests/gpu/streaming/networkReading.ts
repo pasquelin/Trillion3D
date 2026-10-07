@@ -6,10 +6,10 @@ import { createServer } from 'node:http'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { ASSETS } from '../../../bench/runner/assets/scene.ts'
 import { poseAt } from '../../../bench/runner/trajectory/poses.ts'
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { isCacheObject } from '../../../scripts/compress-cache-objects.ts'
 import { listen, staticServer } from '../../../scripts/static-server.ts'
-import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 
 /** One cache object's transfer as the server saw it, on its clock: asked, and answered. */
 type Transfer = { sent: number; done: number }
@@ -45,12 +45,11 @@ export const sentAlongside = (transfers: readonly Transfer[]) =>
  *  giving up after `holdMs` of wall time, then walks the trajectory up to pose `poses`, one pose a
  *  frame. */
 export async function readOverNetwork(manifestUrl: string, poses: number, holdMs: number) {
-  const { openMeasuredWorld, webgpuPagesBackend } = await measurementSdk()
   const admitted: string[] = [],
     horizons: number[] = [],
     failures: string[] = []
   let moving = false
-  const onDiagnostic = ({ phase, context }: BackendDiagnostic) => {
+  const onDiagnostic = ({ phase, context }: EngineDiagnostic) => {
     // The pool's own record of a page written into a slot: the admission, in its order.
     if (phase === 'cache-gpu-page-upload') {
       if (!moving) admitted.push(String(context?.key))
@@ -65,14 +64,13 @@ export async function readOverNetwork(manifestUrl: string, poses: number, holdMs
     else if (/failed|lost|loss/.test(phase)) failures.push(phase)
   }
   const canvas = proofCanvas('network')
-  const world = await openMeasuredWorld(canvas, {
+  const world = await openEngineWorld(canvas, {
     manifestUrl,
     scope: 'full',
     width: 1280,
     height: 800,
     pixelRatio: 1,
     pixelError: 1,
-    backends: [webgpuPagesBackend],
     textureSource: 'cache',
     temporalAntialiasing: false,
     diagnosticDetail: 'trace',

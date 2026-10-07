@@ -4,12 +4,8 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
 
 type Roots = readonly ClusterRoot<PageRec>[]
 
-/** Selection-root ranks by source mesh, built once per root list, again once it grew in place. */
+/** Selection-root ranks by source mesh, built once per root list. */
 const rootsByMeshOf = new WeakMap<Roots, Map<Object3D, number[]>>()
-
-/** `roots` grew in place (`../../../placement/webgpuGrowth.ts`): its index is built at the next
- *  move. */
-export const forgetRootsByMesh = (roots: Roots) => void rootsByMeshOf.delete(roots)
 
 function rootsByMesh(roots: Roots) {
   let map = rootsByMeshOf.get(roots)

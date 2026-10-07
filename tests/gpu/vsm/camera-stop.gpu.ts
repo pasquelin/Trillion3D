@@ -11,7 +11,8 @@ import { SUN } from '../../../bench/runner/lighting/lamps.ts'
 import { poseAt, VIEWS } from '../../../bench/runner/trajectory/poses.ts'
 import { animationFrame, runOnDawn } from '../kit/onDawn.ts'
 import { settle } from '../world/proofWorld.ts'
-import { canvasImage, openBenchWorld, shadingGap } from './shadowScene.ts'
+import { canvasImage } from '../kit/patternImage.ts'
+import { openBenchWorld, shadingGap } from './shadowScene.ts'
 
 const WIDTH = 1248,
   HEIGHT = 702

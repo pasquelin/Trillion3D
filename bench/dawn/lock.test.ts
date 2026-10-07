@@ -89,7 +89,7 @@ test('a lock left unreadable is taken over, and taking it leaves no file of its 
 test('a GPU proof run on its own is a live bench', () => {
   const proof = spawn(
     process.execPath,
-    ['-e', 'setTimeout(() => {}, 20000)', 'tests/gpu/frame/fallback-blend.gpu.ts'],
+    ['-e', 'setTimeout(() => {}, 20000)', 'tests/gpu/frame/held-frame-colour.gpu.ts'],
     { stdio: 'ignore' },
   )
   try {

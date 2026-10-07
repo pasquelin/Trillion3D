@@ -1,9 +1,9 @@
 /**
- * THE IMAGE'S IMPOSTOR CARDS, one plan for both GPU paths: `planImpostors` over the
- * cut's roots at the engine's focal length, planned again in place, then each card the image draws
- * written as one record, grouped by mesh into runs that share an atlas. WebGPU binds a run's atlas
- * as a bind group (`webgpu/impostor/`), WebGL2 as three textures (`webgl/impostor/`): `G` is that
- * binding, and `atlasOf` answers it once the mesh's atlas is resident — asking it otherwise.
+ * THE IMAGE'S IMPOSTOR CARDS (#1335, #1336): `planImpostors` over the cut's roots at the engine's
+ * focal length, planned again in place, then each card the image draws written as one record,
+ * grouped by mesh into runs that share an atlas. A run's atlas is bound as a bind group
+ * (`webgpu/impostor/`): `G` is that binding, and `atlasOf` answers it once the mesh's atlas is
+ * resident — asking it otherwise.
  */
 import {
   frustumExcludesBox,
@@ -95,7 +95,7 @@ const composed = new Float64Array(16)
 
 /**
  * Writes into the first `count` records of `out` each card's `toDraw · world`, composed in double
- * and rounded once to single: `toDraw` is the draw's view-projection (WebGPU) or view (WebGL2). Its
+ * and rounded once to single: `toDraw` is the draw's view-projection. Its
  * shader then carries the card's surface point by that one matrix. Composed per pixel in single
  * instead, the two matrices' large translations cancel after rounding: at 1e5 m from the origin the
  * card's depth was off by up to ~6.5e3 ULP, where the composed matrix keeps it within 2 ULP of the

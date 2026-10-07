@@ -5,7 +5,8 @@
 export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   CANVAS_NOT_FOUND: 'The world has no canvas to draw into: none found, or no page around it.',
   INVALID_CANVAS_LAYOUT: 'The canvas has no usable size or pixel ratio.',
-  WEBGPU_UNAVAILABLE: 'The machine cannot draw the way asked, or cannot draw at all.',
+  WEBGPU_UNAVAILABLE:
+    'The browser grants no WebGPU adapter or device: the engine draws with WebGPU only, so it cannot draw here.',
   RESOURCE_HTTP_ERROR:
     'A file could not be fetched — asked again first when the failure may pass — or was not what it should be.',
   INVALID_POINTER: "The compiled model's pointer is broken, unfinished, or of another scope.",
@@ -13,9 +14,7 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
     'The compiled model is damaged, too old, too new or of a format not read yet: compile it again.',
   INVALID_SCENE_TABLES:
     "The model's scene tables are missing, of another version, or do not lay out the scene it draws.",
-  AUTONOMOUS_SCENE_UNAVAILABLE: "The engine's own WebGL2 path cannot draw this model.",
-  PAGE_BUDGET:
-    'The pages the view needs do not fit the memory budget, or this path has no budgets.',
+  PAGE_BUDGET: 'The pages the view needs do not fit the memory budget.',
   INVALID_SCENE_LIGHT: 'A light is malformed, doubled, unknown, or has nowhere to go.',
   INVALID_MATERIAL:
     'A material change is unknown, out of range, would move it to a draw class an engine lays out when the scene opens, or would tile a map it shares.',
@@ -30,11 +29,9 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
     'A scene node is unknown, gone, badly named, or given a visibility that is not yes or no.',
   SCENE_ROOT_PARENT:
     'Something the scene root forbids: a parent for it, destroying it, mixing two roots, copying a node into itself.',
-  UNSUPPORTED_SCENE_UPDATE: 'This drawing path cannot make that change to the scene.',
+  UNSUPPORTED_SCENE_UPDATE: 'The session cannot make that change to the scene in place.',
   RAYCAST_NO_VIEW:
     'A picture point was asked of a canvas with no size: there is no picture to aim through.',
-  SURFACE_CAPTURE_UNSUPPORTED:
-    'A surface capture (`captureSurfaceView`) was asked of a drawing path that cannot draw the material surfaces in a view of its own: the WebGL2 path has none.',
   VERTICES_NOT_LOADED:
     "A loaded model's vertices were read before `await geometry.loadVertices()`: a session reads them on first need, never up front.",
   WEBGPU_LOST:
@@ -42,7 +39,7 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   SESSION_OPEN_FAILED:
     "The world's session could not open, for a reason with no code of its own (`world.diagnostic.error`): the error thrown is in `details.cause`.",
   FAMILY_LOAD_FAILED:
-    'An optional family of the engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, WebGPU renderer, WebGL2 renderer) did not load, its import tried again first (`T3D-E090`): `details.family` names it, on `world.diagnostic.error`. The frames that draw with it wait, and it is asked again on the next use.',
+    'An optional family of the engine (physics, particles, transmission, deformation, effects, guides, diagnostics, measurement, world stream, impostors, page decoder, WebGPU renderer) did not load, its import tried again first (`T3D-E090`): `details.family` names it, on `world.diagnostic.error`. The frames that draw with it wait, and it is asked again on the next use.',
   UNSUPPORTED_SCENE_FORMAT:
     'A saved scene is of another format or version, or holds what a saved scene cannot store.',
   PHYSICS_BUDGET:

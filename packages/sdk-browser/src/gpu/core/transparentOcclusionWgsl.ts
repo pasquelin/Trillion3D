@@ -1,6 +1,7 @@
 import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from './boxProjectWgsl.ts'
 import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
 import { PARTITION_WORKGROUP } from '../partition/contract.ts'
+import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
 
 /**
  * Occlusion test of transparent clusters, one table entry per thread.
@@ -10,9 +11,10 @@ import { PARTITION_WORKGROUP } from '../partition/contract.ts'
  * mip choice (`hizLevelFor`) and the same pyramid walk (`pyramidHides`), on the Hi-Z pyramid the
  * frame just built. Nothing is proper to transparents except what fidelity requires:
  *
- *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry. A
- *    cluster does not announce its own here, and the bias only BRINGS the depth bound closer:
- *    taking it maximal rejects less, never more;
+ *  - the coplanar-layer bias is that of the HIGHEST layer the frame names, for every entry, and at
+ *    least the layer the transparent passes draw on (`TRANSPARENT_DEPTH_LAYER`). A cluster does
+ *    not announce its own here, and the bias only BRINGS the depth bound closer: taking it
+ *    maximal rejects less, never more;
  *  - a box that clips the near plane, an empty off-screen rectangle, a frame without a pyramid
  *    (`uni.levels == 0`), a footprint no mip covers and an entry never culled (its bit in
  *    `unculled`, `neverCulled`) reject nothing at all;
@@ -33,9 +35,10 @@ ${BOX_PROJECT_WGSL}
 ${HIZ_HIDDEN_WGSL}@compute @workgroup_size(${PARTITION_WORKGROUP})
 fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;if(i>=${Math.max(1, entryCount)}u){return;}
- let box=projectBox(i,uni.layerTop);
+ let box=projectBox(i,max(uni.layerTop,${TRANSPARENT_DEPTH_LAYER}u));
  // Same rectangle clipping, same mip, same pyramid walk as the opaque main-pass cull
- // (\`hiddenByPyramid\`); only the layer bias is that of the highest layer the frame names.
+ // (\`hiddenByPyramid\`); only the layer bias is the highest the frame names, at least the
+ // transparent passes' own.
  let open=((unculled[i>>5u]>>(i&31u))&1u)!=0u;
  let reject=!open&&box.clips==0u&&uni.levels>0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);

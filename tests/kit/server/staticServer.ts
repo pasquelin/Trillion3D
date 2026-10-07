@@ -16,9 +16,11 @@ const TYPESCRIPT = /\.m?ts$/
 /** One RGBA capture the page posted, or `null` when its byte count did not match `w × h × 4`. */
 export type Capture = { body: Buffer; w: number; h: number } | null
 
-/** The bare specifiers every harness page resolves. */
+/** The bare specifiers every harness page resolves. `three` and `three/webgpu` are one build, the
+ *  library's WebGPU one, so that its loaders and its renderer share one copy of the library. */
 const LIBRARIES = {
-  three: '/vendor/three/build/three.module.js',
+  three: '/vendor/three/build/three.webgpu.js',
+  'three/webgpu': '/vendor/three/build/three.webgpu.js',
   'three/addons/': '/vendor/three/examples/jsm/',
   meshoptimizer: '/vendor/meshoptimizer/index.module.js',
 }

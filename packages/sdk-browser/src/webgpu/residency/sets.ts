@@ -14,11 +14,11 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>
  * The sets an image decides residency with, carried from one image to the next instead of rebuilt.
  *
  * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
- * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA,
- * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
+ * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA of
+ * each view's GPU readback, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
  * walks: the desired set itself, unless the page budget forces the coarser subset the admission
- * ranks (`requestAdmission.ts`), for either cut.
+ * ranks (`requestAdmission.ts`).
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking
@@ -36,9 +36,6 @@ export function createWebgpuResidencySets(options: {
   const enteringPages: (PageRec | undefined)[] = []
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet()
-  /** Bumped by every difference that moves what the cut closes over: the admission ranks the held
-   *  cut again only then (`requestAdmission.ts`). */
-  let cutRevision = 0
   const desiredPages: PageRec[] = []
   const desired = createDenseKeySet(desiredPages)
   let followsDesired = true
@@ -113,20 +110,12 @@ export function createWebgpuResidencySets(options: {
     followsDesired = true
   }
   return {
-    /** A capture's cut while it is drawn, null otherwise: the budget ranks it before the rest of
-     *  the union, so a capture keeps the pages it kept when its cut replaced the main view's
-     *  (`requestAdmission.ts`, `../cut/publication.ts`). */
-    drawnFirst: null as ArrayLike<number> | null,
     entering,
     enteringPages,
     leaving,
     /** Keys the cut asks for beyond the pinned cover. */
     get desiredCount() {
       return desired.count
-    },
-    /** Changes whenever a difference moved what the cut closes over. */
-    get cutRevision() {
-      return cutRevision
     },
     followDesired,
     admit,
@@ -169,7 +158,6 @@ export function createWebgpuResidencySets(options: {
     /** Applies one difference of what the cut asks for — its pages and the groups they close over
      *  (`../../page/cut/groupClosure.ts`): only the pages that entered and left are touched. */
     applyCut(delta: IdDelta) {
-      if (delta.enteredCount || delta.exitedCount) cutRevision++
       askedKeys.apply(delta)
     },
     /** Applies one difference of the drawable cut, which is what the image must not lose. */

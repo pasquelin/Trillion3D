@@ -1,7 +1,7 @@
 // Texel addressing cases (defects 4 and 7) and the sampler rule they are held to.
 //
 // A host hands a map's wrap mode to the GPU sampler: repeat, clamp to edge, mirrored repeat. The
-// reference is the sampler's own rule, the same in OpenGL ES 3.0 (§ 3.8.10) and WebGPU:
+// reference is the WebGPU sampler's own rule:
 // i = ⌊u·size⌋, then clamp, modulo, or modulo over two periods whose second is read backwards.
 // `texture-addressing.gpu.ts` checks that rule against the real samplers, case by case, and the
 // engine's wrap WGSL against both.

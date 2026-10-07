@@ -22,7 +22,7 @@ test('flags past one binding: parts, all bound, the mask in one', async () => {
       maxStorageBuffersPerShaderStage: 64,
     },
   })
-  const resources = (await createDagResources(fake.device, dag, true))!
+  const resources = (await createDagResources(fake.device, dag))!
   assert.ok(resources.flagParts.length > 1, 'flags in parts')
   for (const part of resources.flagParts) assert.ok(part.size <= limit, 'each within a binding')
   const extra = dagPartBindings(dagPartCounts(resources.split)).map(({ binding }) => binding)

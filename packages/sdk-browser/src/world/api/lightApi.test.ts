@@ -11,7 +11,7 @@ import {
 } from '../../../../sdk-core/src/index.ts'
 import { LIGHT_FIELD } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { createExplorerLightApi } from './lightApi.ts'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 
 const LAMP: SceneLight = {
   id: 'l0',
@@ -31,8 +31,7 @@ function session(imported: readonly string[] = []) {
     check: () => {},
     store,
     imported,
-    backends: [],
-    active: () => ({ id: 'none' }) as unknown as RenderBackend,
+    engine: { id: 'engine', refreshSceneLights() {} } as unknown as Engine,
   })
   return { store, api }
 }

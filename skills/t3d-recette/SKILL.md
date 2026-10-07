@@ -22,7 +22,7 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
    meanwhile) on the **GPU bench**: the engine draws a site page in Node on this machine's GPU
    through Dawn (Chrome's WebGPU), no browser, playing a scenario identical frame for frame.
    - One run: `node bench/dawn/run.ts <page> --scenario <orbit|drive|still|file.json>
-     --engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
+--engine .worktrees/recette-<side>`; it plays `--repeat 3` fresh processes and refuses a dirty
      checkout. The other options are in `bench/dawn/run.ts`: `--profile desktop` (the default, the
      boss's screen) or `mobile` (a phone, the WebGPU baseline limits), `--scale page` for the page's
      own render scale, `--switch <flag>=1`, `--cpu-profile`.
@@ -40,7 +40,7 @@ merge or block a pull request; a thumbnail pull request is the one you open. Lab
      in the issue's comment; the issue keeps `to measure`, loses `measuring`, and goes first next
      batch.
 3. **Image** next, on the after side: `pnpm run test:gpu` (the GPU proofs on Dawn) and
-   `pnpm run test:chrome` (the WebGL2 proofs, the system Chrome; `docs/TESTS.md`), one at a time
+   `pnpm run test:chrome` (the material proof, the system Chrome; `docs/TESTS.md`), one at a time
    under the same lock: a failure is an image ko. The plays of a run on a still scenario must draw
    identical images (A/A 0 px); a scene that does not proves nothing until frozen or replaced. Each
    pull request is proved in the class its `Image proof class:` line declares (CONTRIBUTING.md

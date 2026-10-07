@@ -48,7 +48,7 @@ export function referenceDevicePixels(
   return Math.floor(logical * (pixelRatio ?? fallback))
 }
 
-/** `packages/sdk-browser/src/gpu/timing/sample.ts` and `packages/sdk-browser/src/webgl/core/frameTimer.ts` from before: nanoseconds to milliseconds. */
+/** `packages/sdk-browser/src/gpu/timing/sample.ts` from before: nanoseconds to milliseconds. */
 export function referenceNsToMs(nanoseconds: number) {
   return nanoseconds / 1e6
 }

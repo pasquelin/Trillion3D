@@ -8,6 +8,7 @@ import { pendingWebgpuFrame } from './interactiveFrame.ts'
 import { deviceAnswering } from './deviceAnswer.ts'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts'
+import { directLightResources } from '../pages/prepare/contractLight.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts'
 
@@ -19,6 +20,8 @@ async function lightTurnedOn() {
   const rt = settledRt()
   const store = {
     count: 0,
+    // Bumped by every light added, as the engine's store does (`lightKinds` reads it per epoch).
+    epoch: 1,
     unlit: true,
     packed: new Float32Array(64),
     sliceOf: () => -1,
@@ -33,13 +36,14 @@ async function lightTurnedOn() {
   const render = () => {
     if (holdWebgpuFrame(rt, h.device)) return false
     const lit = wantsContractLighting(rt)
-    lighting.bind(surface, view(), view(), lit, { lights: {} as GPUBuffer }, () => {})
+    // The resources the engine binds: the program the frame binds is the one the hold awaits.
+    lighting.bind(surface, view(), view(), lit, directLightResources(rt), () => {})
     drawn++
     keepWebgpuFrame(rt)
     return true
   }
   assert.equal(render(), true, 'the unlit view draws at once')
-  Object.assign(store, { count: 1, unlit: false })
+  Object.assign(store, { count: 1, unlit: false, epoch: 2 })
   rt.run.gate.sceneChanged()
   for (let frame = 0; frame < 4; frame++) assert.equal(render(), false, 'held while compiling')
   assert.equal(drawn, 1, 'no frame is drawn with the unlit stand-in while the lit view is wanted')
@@ -61,6 +65,10 @@ test('a lit program that fails to compile lets the unlit view by, never holds fo
   const { h, rt, lighting, render, answer } = await lightTurnedOn()
   h.failCompilation()
   assert.equal(await answer, true, 'the failed compile asks one frame')
+  // Its stand-ins compile in its place and fail the same way, each failure asking one frame
+  // (`contractVariants.ts`, `standIn`): the wait ends with the last of them.
+  for (let turn = 0; turn < 4 && deviceAnswering(rt); turn++)
+    assert.equal(await pendingWebgpuFrame(rt), true)
   assert.equal(deviceAnswering(rt), false, 'nothing is awaited any more')
   assert.equal(render(), true)
   assert.equal(lighting.usesContract, false, 'the failure is said and the unlit view drawn')

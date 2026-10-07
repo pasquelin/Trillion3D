@@ -1,9 +1,8 @@
-import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../backend/common.ts'
+import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../engine/common.ts'
 import { createFrameBudget, createSharePace } from '../../page/integration/frameBudget.ts'
 import { pageAddress } from '../row/pageSlots.ts'
-import { PRIORITY_PREFETCH } from '../../streaming/priority.ts'
 import { createAdmissionReads, createPageAdmission } from './admission.ts'
-import { createLowerMerge, type LowerList } from './lowerTier.ts'
+import { createLowerPass, type LowerList, type LowerPassOptions } from './lowerTier.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import type { createGpuPageCache } from '../../gpu/page/pages.ts'
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts'
@@ -27,168 +26,175 @@ type EnsureOptions = {
   lowerTiers: () => readonly LowerList[]
   /** Starts a page's bytes read ahead of its admission, at PRIORITY_PREFETCH for the lower tiers. */
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void
+  /** Advanced whenever a page's bytes arrive or leave (`../row/journal.ts`, `touchRevision`). */
+  bytesRevision: () => number
+}
+
+type EnsureState = EnsureOptions & LowerPassOptions & { lower: ReturnType<typeof createLowerPass> }
+/** One pass of `ensure`: its trace, the pool it reads, and what it left. */
+type EnsureRun = {
+  frame: number
+  jobId: number
+  started: number
+  urls: string[]
+  cache: Cache
+  /** Wanted pages this pass left out of the pool. */
+  missing: number
+  /** The pool is full of pages the image holds: the burst stopped there. */
+  full: boolean
 }
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
-export function createWebgpuResidentEnsurer({
-  getCache,
-  tracking,
-  bootstrapKey,
-  signal,
-  hasBytes,
-  parentsOf,
-  isLost,
-  traceEnabled,
-  traceDiagnostic,
-  lowerTiers,
-  prefetch,
-}: EnsureOptions) {
+export function createWebgpuResidentEnsurer(options: EnsureOptions) {
+  const { getCache, hasBytes, parentsOf, prefetch, lowerTiers, bytesRevision } = options
   /** The published share of the main thread (`STREAMING_FRAME_MS`): past it a job yields a task,
    *  past `STREAMING_SHARES_PER_FRAME` of a visible page a frame, and opens a new share. */
   const budget = createFrameBudget(STREAMING_FRAME_MS)
   const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME)
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
-  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch }),
-    mergeLower = createLowerMerge(tracking.keyOf)
+  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch })
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
-  const admit = createPageAdmission({
-    getCache,
-    tracking,
-    bootstrapKey,
-    signal,
-    isLost,
-    hasBytes,
-    parentsOf,
-  })
+  const admit = createPageAdmission(options)
+  const parts = { ...options, budget, nextShare, readAhead, admit }
+  const state: EnsureState = { ...parts, lower: createLowerPass(parts) }
   /**
-   * What the camera left: the lower tiers' pages — the pages ahead of the camera —, loaded only
-   * into slots nobody holds — free, or taken by a page no tier wants. They are never pinned: a
-   * camera page evicts them, they never evict a camera page, and an object on screen is never
-   * coarsened for a view to come. A tier keeps every page its list still names, so a wanted page is
-   * never evicted and reloaded each frame.
+   * `cameraWaiting` says a camera cut queued behind this job: the caster tier gives way to it.
+   * Resolves true when the pass left nothing to do — every wanted page resident, every lower tier
+   * page held —: until what it reads moves (`revision`), another pass would only touch the lower
+   * tiers' pages (`touchLower`).
    */
-  const loadLowerTiers = async (
-    lower: readonly PageRec[],
-    cache: Cache,
-    signal: AbortSignal | undefined,
-    cameraWaiting: () => boolean,
-    reads: AbortSignal,
-  ) => {
-    const skip = (rec: PageRec) => {
-      const key = tracking.keyOf(rec)
-      return tracking.wanted.has(key) || bootstrapKey[key] || !hasBytes(rec)
-    }
-    let spare = cache.unpinnedSlots()
-    for (let i = 0; i < lower.length; i++)
-      if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) spare--
-    readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH)
-    // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
-    // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
-    // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted.
-    for (let i = 0; i < lower.length && spare > 0; i++) {
-      if (!budget.admits()) {
-        await nextShare()
-        if (cameraWaiting()) return
-      }
-      const rec = lower[i],
-        address = pageAddress(rec)
-      if (skip(rec) || cache.get(address)) continue
-      signal?.throwIfAborted()
-      if (isLost() || getCache() !== cache) return
-      try {
-        spare -= Math.max(0, await admit(rec, PRIORITY_PREFETCH))
-        budget.spend()
-      } catch (error) {
-        // The camera's own burst took the last slot meanwhile: the tier waits, as it does.
-        if (String(error).includes('ALL_PAGES_PINNED')) return
-        throw error
-      }
-    }
-  }
-  /** `cameraWaiting` says a camera cut queued behind this job: the caster tier gives way to it. */
-  return async (
+  const ensure = (
     wanted: readonly PageRec[],
     jobFrame: number,
     jobId: number,
     cameraWaiting: () => boolean = () => false,
     landed: () => void = () => {},
-  ) => {
-    let cache = getCache()
-    if (!cache) return
-    const started = performance.now(),
-      urls = traceEnabled ? wanted.map(pageAddress) : []
-    const loaded = () =>
-      tracking.traceSet(
-        'ensure.loaded',
-        urls.filter((url) => !!cache!.get(url)),
-      )
-    const payload = <T extends object>(extra: T) => ({
-      frame: jobFrame,
-      jobId,
-      scope: 'async-residency-ensure',
-      pages: tracking.traceSet('ensure', urls),
-      ...extra,
-      cpuWorkIncluded: true,
-      gpuQueueWaitIncluded: false,
-    })
-    traceDiagnostic('residency-ensure-start', 'GPU residency check requested', () =>
-      payload({
-        wanted: tracking.traceSet('ensure.wanted', urls),
-        loaded: loaded(),
-        queueWaitMs: null,
-        elapsedMs: null,
-      }),
-    )
-    // The reads the job starts and no load joins — pages it does not reach — leave the queue.
-    const reads = new AbortController(),
-      wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
-    try {
-      readAhead?.(wanted, cache.unpinnedSlots(), wants, cache, reads.signal)
-      let full = false
-      for (let i = 0; i < wanted.length; i++) {
-        const rec = wanted[i],
-          key = tracking.keyOf(rec),
-          address = pageAddress(rec)
-        if (!tracking.wanted.has(key)) continue
-        signal?.throwIfAborted()
-        if (isLost()) throw new Error('WEBGPU_LOST')
-        if (!hasBytes(rec) || cache.get(address)) continue
-        // The share: past it the burst resumes after a task, nothing dropped — the page read again
-        // against `wanted` and the pool, which a camera that moved in between may have changed.
-        if (!budget.admits()) {
-          await nextShare()
-          cache = getCache()
-          if (isLost() || !cache) throw new Error('WEBGPU_LOST')
-          if (!tracking.wanted.has(key) || cache.get(address)) continue
-        }
-        try {
-          // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
-          if ((await admit(rec)) > 0) landed()
-          budget.spend()
-        } catch (error) {
-          if (!String(error).includes('ALL_PAGES_PINNED')) throw error
-          // Pool full of pages the image holds: the burst stops there, without dropping anything.
-          // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
-          // only reports that the image asks for more than the slots hold.
-          full = true
-          break
-        }
-        cache = getCache()
-        if (isLost() || !cache) throw new Error('WEBGPU_LOST')
+  ) => ensurePass(state, wanted, jobFrame, jobId, cameraWaiting, landed)
+  return Object.assign(ensure, {
+    /** Advanced whenever what a pass reads may have moved: the pool's pages, a page's bytes, a
+     *  lower tier's report. The upload queue's own revision is the caller's (`queue.ts`). */
+    revision: () =>
+      (getCache()?.residencyRevision ?? 0) +
+      bytesRevision() +
+      lowerTiers().reduce((sum, tier) => sum + tier.revision, 0),
+    touchLower: state.lower.touch,
+  })
+}
+
+async function ensurePass(
+  s: EnsureState,
+  wanted: readonly PageRec[],
+  frame: number,
+  jobId: number,
+  cameraWaiting: () => boolean,
+  landed: () => void,
+) {
+  const cache = s.getCache()
+  if (!cache) return
+  const started = performance.now(),
+    urls = s.traceEnabled ? wanted.map(pageAddress) : []
+  const run: EnsureRun = { frame, jobId, started, urls, cache, missing: 0, full: false }
+  s.traceDiagnostic('residency-ensure-start', 'GPU residency check requested', () =>
+    tracePayload(s, run, {
+      wanted: s.tracking.traceSet('ensure.wanted', urls),
+      loaded: loadedSet(s, run),
+      queueWaitMs: null,
+      elapsedMs: null,
+    }),
+  )
+  // The reads the job starts and no load joins — pages it does not reach — leave the queue.
+  const reads = new AbortController()
+  try {
+    await admitWanted(s, run, wanted, landed, reads.signal)
+    const lower = run.full ? [] : s.lower.list()
+    if (lower.length) await s.lower.load(lower, run.cache, cameraWaiting, reads.signal)
+  } finally {
+    reads.abort()
+  }
+  s.traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
+    ...tracePayload(s, run, {
+      loaded: loadedSet(s, run),
+      durationMs: performance.now() - started,
+      elapsedMs: performance.now() - started,
+    }),
+    // Bounded probe of the pinned set: it has the size of the cut, not of the queue.
+    pinned: s.tracking.traceKeys('pins', s.tracking.pinned),
+  }))
+  return run.missing === 0 && s.getCache() === run.cache && s.lower.held(run.cache)
+}
+
+/** The camera's burst: every wanted page not in the pool admitted, pinned, in order. */
+async function admitWanted(
+  s: EnsureState,
+  run: EnsureRun,
+  wanted: readonly PageRec[],
+  landed: () => void,
+  reads: AbortSignal,
+) {
+  const { tracking, budget } = s
+  const wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec))
+  s.readAhead?.(wanted, run.cache.unpinnedSlots(), wants, run.cache, reads)
+  for (let i = 0; i < wanted.length; i++) {
+    const rec = wanted[i],
+      key = tracking.keyOf(rec),
+      address = pageAddress(rec)
+    if (!tracking.wanted.has(key)) continue
+    s.signal?.throwIfAborted()
+    if (s.isLost()) throw new Error('WEBGPU_LOST')
+    if (run.cache.get(address)) continue
+    run.missing++
+    if (!s.hasBytes(rec)) continue
+    // The share: past it the burst resumes after a task, nothing dropped — the page read again
+    // against `wanted` and the pool, which a camera that moved in between may have changed.
+    if (!budget.admits()) {
+      await s.nextShare()
+      run.cache = currentCache(s)
+      if (!tracking.wanted.has(key) || run.cache.get(address)) {
+        run.missing--
+        continue
       }
-      const lower = full ? [] : mergeLower(lowerTiers())
-      if (lower.length) await loadLowerTiers(lower, cache, signal, cameraWaiting, reads.signal)
-    } finally {
-      reads.abort()
     }
-    traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
-      ...payload({
-        loaded: loaded(),
-        durationMs: performance.now() - started,
-        elapsedMs: performance.now() - started,
-      }),
-      // Bounded probe of the pinned set: it has the size of the cut, not of the queue.
-      pinned: tracking.traceKeys('pins', tracking.pinned),
-    }))
+    try {
+      // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+      if ((await s.admit(rec)) > 0) {
+        landed()
+        run.missing--
+      }
+      budget.spend()
+    } catch (error) {
+      if (!String(error).includes('ALL_PAGES_PINNED')) throw error
+      // Pool full of pages the image holds: the burst stops there, without dropping anything.
+      // What stays wanted displays through its resident ancestor; cut admission (`admitGpuCut`)
+      // only reports that the image asks for more than the slots hold.
+      run.full = true
+      return
+    }
+    run.cache = currentCache(s)
+  }
+}
+
+/** The pool after an await: lost with the device. */
+function currentCache(s: EnsureState) {
+  const cache = s.getCache()
+  if (s.isLost() || !cache) throw new Error('WEBGPU_LOST')
+  return cache
+}
+
+function loadedSet(s: EnsureState, run: EnsureRun) {
+  return s.tracking.traceSet(
+    'ensure.loaded',
+    run.urls.filter((url) => !!run.cache.get(url)),
+  )
+}
+
+function tracePayload<T extends object>(s: EnsureState, run: EnsureRun, extra: T) {
+  return {
+    frame: run.frame,
+    jobId: run.jobId,
+    scope: 'async-residency-ensure',
+    pages: s.tracking.traceSet('ensure', run.urls),
+    ...extra,
+    cpuWorkIncluded: true,
+    gpuQueueWaitIncluded: false,
   }
 }

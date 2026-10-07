@@ -69,41 +69,6 @@ export type HostScene = {
   /** Visits itself, then the subtree. */ traverse(visit: (node: object) => void): void
 }
 
-/** A surface a diagnostic view swaps onto a mesh, then frees. The diagnostic views also serve the
- *  witnesses, whose meshes are their library's: what they hang arrives through
- *  `HostDiagnosticFactory`, and they are read by this shape alone. */
-export type HostDiagnosticMaterial = HostDisposable & {
-  /** Which faces, as the engine's constant (`../scene/materialSide.ts`). */ readonly side: number
-  /** A copy of the surface. */ clone(): HostDiagnosticMaterial
-}
-/** A geometry a diagnostic view reads the vertex count of, and may free. */
-export type HostDiagnosticGeometry = HostDisposable & {
-  /** Its vertex attributes, of which a view reads the count. */
-  readonly attributes: { readonly [name: string]: { readonly count: number } }
-}
-/** A mesh a diagnostic view repaints: its surface and geometry swapped, its identity a seed. */
-export type HostDiagnosticMesh = {
-  /** The colour seed of a mesh with no cluster the engine did not number (`serialOf`); a
-   *  witness's mesh numbers itself here. */
-  readonly id: number | string
-  material: HostDiagnosticMaterial | HostDiagnosticMaterial[]
-  geometry: HostDiagnosticGeometry
-  userData: Record<string, unknown>
-}
-
-/** The host objects a diagnostic view swaps in, made by the boundary that owns the display graph
- *  and injected into the views; the salt, the colours and the side all arrive computed. */
-export type HostDiagnosticFactory = {
-  /** Copy of a host geometry with every triangle on its own three vertices. */
-  triangleGeometry(source: HostDiagnosticGeometry): HostDiagnosticGeometry
-  /** Writes the per-vertex colours the engine computed onto a host geometry. */
-  vertexColors(geometry: HostDiagnosticGeometry, colors: Float32Array): void
-  /** Unshaded surface showing those vertex colours as they are. */
-  triangleMaterial(side: number): HostDiagnosticMaterial
-  /** Unshaded surface of one cluster's colour, the hue the core computed from its identifier. */
-  clusterMaterial(id: string, side: number): HostDiagnosticMaterial
-}
-
 /** The crossing back: a host resource handed to the library its owner wrote it with. Only a
  *  boundary file (`tests/integration/engine-without-three.test.ts`) may call it, to give the
  *  resource back. */

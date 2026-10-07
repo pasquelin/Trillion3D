@@ -110,7 +110,7 @@ test('the GGX sample weighs by its PDF, the f16 history holds, the opaque progra
   ]
   for (const bounce of [false, true])
     for (const narrow of [false, true]) {
-      const shader = contractLightingShader(bounce, narrow)
+      const shader = contractLightingShader(bounce, { narrow, lobeless: true })
       programs.push({ code: stochasticReflectionShader(shader), entry: 'traceRoughReflection' })
       programs.push({ code: withScreenReflections(shader, true), entry: 'lightSurface' })
     }

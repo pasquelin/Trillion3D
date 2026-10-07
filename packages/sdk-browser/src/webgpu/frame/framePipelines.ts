@@ -7,6 +7,7 @@ import { wantsAsIsShare } from '../pages/prepare/asIsShareTarget.ts'
 import { ensureGpuRaster } from '../pages/render/encodeVisSetup.ts'
 import { requestsComputeRaster } from '../../diagnostic/gpuGeometry.ts'
 import { askComposedPlacements } from '../../placement/gpuCompose.ts'
+import { askLobedPrograms } from '../pages/prepare/contractLight.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The class set each census last asked its classes of. */
@@ -50,7 +51,8 @@ function askShadeClasses(rt: WebgpuPagesRuntime) {
  * since needs — a resolve class a material changed into, the classes writing the emission layer,
  * the guide pass once a guide is shown, the particles' routed draw, the seed of the share the
  * transparents and particles write, the kernels composing placements once a parent links rows, the
- * compute raster a variant asks for on a visibility path —,
+ * lobe code of a lobed surface (`askLobedPrograms`), the compute raster a variant asks for on a
+ * visibility path —,
  * each compiled off the thread (`PreparedPipeline.ask`): the frame is held while one compiles
  * (`deviceAnswering`), showing the previous image, never compiling one itself. Prepare asks them
  * the same way before the first frame. A session lost, or not prepared, asks nothing.
@@ -63,8 +65,8 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
   askParticles(rt, device)
   if (wantsAsIsShare(rt)) askAsIsSeed(device)
   askComposedPlacements(rt, device)
+  askLobedPrograms(rt, device)
   if (
-    rt.vis.visEnabled &&
     requestsComputeRaster(rt.context?.diagnosticGpuVariant) &&
     typeof device.createComputePipeline === 'function'
   )

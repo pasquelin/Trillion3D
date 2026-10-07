@@ -5,10 +5,7 @@
 // per pose — the one after the move and the one that does not move —, each compared byte for
 // byte to a fresh engine placed at once at the same world pose.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type {
-  BackendDiagnostic,
-  RenderBackend,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic, Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { cameraFace, countsStep } from '../kit/sharedSceneProof.ts'
 import { image } from '../kit/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
@@ -24,13 +21,13 @@ const differingBytes = (a: Uint8Array, b: Uint8Array) => {
 }
 
 /** Rows the frame's partition processed: every drawable row, each frame. */
-const rows = (backend: RenderBackend) => countsStep(backend, 'partition')?.rows ?? null
+const rows = (backend: Engine) => countsStep(backend, 'partition')?.rows ?? null
 
 /** A pose rendered by an engine that never saw another, its camera parentless: the witness. */
 async function freshPose(
   device: GPUDevice,
   x: number,
-  onDiagnostic: (e: BackendDiagnostic) => void,
+  onDiagnostic: (e: EngineDiagnostic) => void,
 ) {
   const { backend, release } = occluderEngine(device, onDiagnostic)
   try {

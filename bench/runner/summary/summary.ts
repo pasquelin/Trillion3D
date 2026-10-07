@@ -53,8 +53,8 @@ const couverture = (r: Row) =>
 /** The series table: one row per view, per threshold and per side. */
 function rows(report: Report) {
   const lines = [
-    '| view | pixelError | side | cpuFrameMs p50/p95 | cpuSelectMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | GPU selection fallback | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
+    '| view | pixelError | side | cpuFrameMs p50/p95 | gpuFrameMs p50 | selectedTriangles | drawnTriangles | coverage | submitted triangles opaque/total | held image | uncoveredTriangles | Hi-Z tested/rejected/>16 (image) | cut hash | page budget | geometry (MB) |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ]
   for (const series of report.series)
     for (const [side, r] of Object.entries(series.sides)) {
@@ -62,10 +62,10 @@ function rows(report: Report) {
       lines.push(
         `| ${series.view} | ${series.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
           `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
-          `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
+          `| ${ms(r.gpuFrameMs, 'p50')} ` +
           `| ${num(r.selectedTriangles)} | ${num(r.drawnTriangles)} | ${couverture(r)} ` +
           `| ${num(r.submittedTriangles)}/${num(r.totalSubmittedTriangles)} | ${oui(r.frameHeld)} ` +
-          `| ${num(r.uncoveredTriangles)} | ${oui(r.gpuSelectionFallback)} ` +
+          `| ${num(r.uncoveredTriangles)} ` +
           `| ${num(hiz.tested)}/${num(hiz.rejected)}/${num(hiz.beyond16Texels)} (${num(hiz.image)}) ` +
           `| ${r.selection.sha256 ? r.selection.sha256.slice(0, 12) : '—'} (${num(r.selection.source)}) ` +
           `| ${num(r.pageBudget.requested)} requested, ${num(r.pageBudget.resident)} resident ` +

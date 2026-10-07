@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts'
+import { prepareSdkWasm } from '../../math/wasm/sdkWasm.ts'
 import { coneHolds } from '../../../../../tests/kit/reference/cone.ts'
 import { cutRuntimePrimitive } from './runtimePrimitive.ts'
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts'
@@ -12,7 +12,7 @@ import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts'
 // A page the world cuts at run time carries the cone of its triangles' normals, built by
 // the compiler's `triangle_cone` in the SDK module. Node cannot fetch the module by its URL: the
 // test hands it the bytes, as the page decoder's tests do.
-await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../page/decode/pageCodec.wasm')))
+await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../math/wasm/kernels.wasm')))
 
 test('every cut page carries the cone triangle_cone builds on its own triangles', async () => {
   const drawn = drawnTriangles(geometry.sphere(1, 32, 16), 'triangles')!

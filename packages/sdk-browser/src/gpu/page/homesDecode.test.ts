@@ -7,9 +7,9 @@ import assert from 'node:assert/strict'
 import { clusterDecodeWgsl } from '../../cluster/decodeWgsl.ts'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
-import { decodeGeometryPage } from '../../page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
-import { randomPage } from '../../page/decode/randomPages.fixture.ts'
+import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 
 type Fn = (...args: unknown[]) => unknown
 const ROUTINES = ['clusterPow2', 'clusterBitsFor', 'clusterField', 'clusterWidths', 'clusterStep']

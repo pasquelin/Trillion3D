@@ -9,7 +9,7 @@ import { createExplorerLightApi } from '../api/lightApi.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 import { hostWorldPlacements, type HostWorldPlacements } from '../../host/world/placements.ts'
 import { setWebgpuTransform } from '../../webgpu/pages/render/transform.ts'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
 
 /** A simulated engine that submits to the GPU as soon as a frame is asked of it. */
@@ -24,7 +24,7 @@ function engine() {
     render() {
       device.queue.submit()
     },
-  } as unknown as RenderBackend
+  } as unknown as Engine
   return {
     backend,
     get submissions() {
@@ -33,13 +33,12 @@ function engine() {
   }
 }
 
-function api(backend: RenderBackend) {
+function api(backend: Engine) {
   return createExplorerLightApi({
     check: () => {},
     store: undefined,
     imported: [],
-    backends: [backend],
-    active: () => backend,
+    engine: backend,
   })
 }
 
@@ -53,14 +52,6 @@ test('ten transforms then one frame: one render submit, not eleven', () => {
   assert.equal(m.submissions, 0, 'no frame submitted during the poses')
   m.backend.render!(G.perspectiveCamera())
   assert.equal(m.submissions, 1, 'the host’s explicit render submits once, and only once')
-})
-
-test('an engine that cannot move a node refuses with a named error', () => {
-  const explorer = api({} as RenderBackend)
-  assert.throws(
-    () => explorer.setTransform('n0', pose(0, 0)),
-    /no engine of this session moves a named node/,
-  )
 })
 
 /** The strict minimum `setWebgpuTransform` reads: a scene, a frame gate, a scheduler. */

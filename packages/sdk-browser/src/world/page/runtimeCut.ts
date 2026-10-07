@@ -1,9 +1,9 @@
 /**
  * THE RUNTIME CUTTER: drawn triangles cut into engine pages, off the main thread.
  *
- * What runs here touches no platform object — no URL, no DOM, no host library — but the SDK
- * module, which builds each cluster's normal cone (`cutCones.ts`); so the page worker runs it
- * (`page/decode/task.ts`, op `cut`) and the main thread runs the same function when no worker
+ * What runs here touches no platform object — no URL, no DOM, no rendering library — but the
+ * SDK module, which builds each cluster's normal cone (`cutCones.ts`); so the page worker runs
+ * it (`page/work/task.ts`, op `cut`) and the main thread runs the same function when no worker
  * lives. The triangles travel as one buffer (`packDrawn`), and the pages come back as
  * bytes with their descriptors and digests: serving them at an address is the caller's.
  */
@@ -12,7 +12,7 @@ import { gridExponentFor } from '../../../../page-codec/src/pageGrids.ts'
 import type { PageAttributes } from '../../../../page-codec/src/pageAttributes.ts'
 import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
 import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts'
-import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts'
+import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/taskContracts.ts'
 export { packDrawn, unpackDrawn } from './runtimePack.ts'
 import type { CutWay } from './runtimePack.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'

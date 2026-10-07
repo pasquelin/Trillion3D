@@ -1,13 +1,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { collectClusterPages } from '../../../page/selection/selection.ts'
 import { packDagSelection } from '../../../gpu/dag/selection.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, streamingQuadBackend } from '../testScenes.fixture.ts'
 import { coarseQuadScene } from '../testOccluder.fixture.ts'
-import type { WebgpuPagesBackend } from '../runtime.ts'
+import type { Engine } from '../../../engine/types.ts'
 
 test('a GPU-driven image reaches the queue as one command buffer', async () => {
   installGpuGlobals()
@@ -19,12 +19,12 @@ test('a GPU-driven image reaches the queue as one command buffer', async () => {
     fixture.associations,
   )
   const { device, submits } = mockGpu({ packed: packDagSelection(collected.roots) })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
-  }) as WebgpuPagesBackend
+  }) as Engine
   try {
     await backend.prepare()
     const cam = camera()
@@ -61,7 +61,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = mockGpu({ packed })
-  const backend = streamingQuadBackend(fixture, device) as WebgpuPagesBackend
+  const backend = streamingQuadBackend(fixture, device) as Engine
   const render = () => {
     draws.length = 0
     backend.render(camera())
@@ -82,10 +82,10 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     )
     assert.deepEqual(backend.selectedPageIds(), ['2'])
     // The published cut is the coarse fallback, and that is what `selectedTriangles` reports: the cut
-    // after the fallback, like the WebGL backend. Nothing of it is missing, so there is no hole.
+    // after the fallback. Nothing of it is missing, so there is no hole.
     assert.equal(backend.metrics().selectedTriangles, 1)
     assert.equal(backend.metrics().submittedTriangles, 1)
-    backend.acceptPage!('0', fixture.indices.get('0')!)
+    backend.acceptPage('0', fixture.indices.get('0')!)
     render()
     await backend.flush()
     render()
@@ -94,7 +94,7 @@ test('GPU streaming exposes wanted pages after readback and draws an atomic resi
     // The coarse fallback is the only drawable page: the frame mask says so, even before the
     // indirect command turns it into its instance count.
     assert.equal(drawnPageIds(buffers, packed.nodeCount, packed.pageCount).length, 1)
-    backend.acceptPage!('1', fixture.indices.get('1')!)
+    backend.acceptPage('1', fixture.indices.get('1')!)
     render()
     await backend.flush()
     render()

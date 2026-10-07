@@ -1,33 +1,29 @@
 // Rendering one material fixture on each renderer: the witness renderer, the prepared scene, and
 // the images compared point by point. Split from `materialPixelsPage.ts` (fixture run and
 // comparison) to keep each file under the line gate.
-import * as THREE from 'three'
+import * as THREE from 'three/webgpu'
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts'
 import { threeCamera } from '../../../bench/witnesses/three/fromGraphNodes.ts'
+import { witnessScene } from '../../../bench/witnesses/three/displayObjects.ts'
+import {
+  createWitnessRenderer,
+  readWitnessImage,
+} from '../../../bench/runner/witness/threeRenderer.ts'
 import { batisseur, engine, release, type ScenePreparee } from '../kit/sharedSceneProof.ts'
-import { untilHeld, PLAFOND } from '../kit/sceneImageProof.ts'
+import { untilHeld } from '../kit/sceneImageProof.ts'
 import { SIZE, type Fixture } from './materialFixtureShape.ts'
-import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts'
-import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts'
-import type {
-  BackendFactory,
-  BackendDiagnostic,
-} from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import type * as SdkCore from '../../../packages/sdk-core/src/index.ts'
 
 /** Background the page and both engines clear to, so an uncovered pixel is one colour. */
 export const CLEAR_COLOR = 0x2a303c
 
-/** The witness renderer, configured as the explorer configures its own. */
-export function witnessRenderer(): { renderer: THREE.WebGLRenderer; canvas: HTMLCanvasElement } {
+/** The witness renderer — Three's WebGPU renderer, sRGB output at exposure 1 — on a canvas of the
+ *  fixtures' side. */
+export async function witnessRenderer() {
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false })
-  renderer.setPixelRatio(1)
-  renderer.setSize(SIZE, SIZE, false)
-  renderer.outputColorSpace = G.HOST_COLOUR_SPACE_SRGB
-  renderer.toneMappingExposure = 1
+  const renderer = await createWitnessRenderer(canvas, { width: SIZE, height: SIZE })
   return { renderer, canvas }
 }
 
@@ -72,107 +68,42 @@ export function sceneOf(fixture: Fixture, sun: G.Object3D): ScenePreparee {
 export const rgbAt = (pixels: ArrayLike<number>, [x, y]: number[]): number[] =>
   [0, 1, 2].map((k) => pixels[(y * SIZE + x) * 4 + k])
 
-/** The witness image of a prepared scene, drawn by the display chain of the witness engine; the
- *  witness copies the source's meshes and lights, so the scene is left for the engine. */
-export function witnessImage(
-  referenceBackend: BackendFactory,
+/** The witness image of a prepared scene, bottom-left rows: the source's meshes and lights copied
+ *  into the library, drawn the way the explorer draws a witness — the filmic curve once a light
+ *  exists, identity without one —; the scene is left for the engine. */
+export async function witnessImage(
   scene: ScenePreparee,
-  renderer: THREE.WebGLRenderer,
+  renderer: THREE.WebGPURenderer,
   camera: G.Camera,
-): Uint8Array {
-  const backend = referenceBackend({
-    source: scene.source,
-    metadata: scene.metadata,
-    indices: scene.indices,
-    associations: scene.associations,
-    clearColor: CLEAR_COLOR,
-  })
-  renderer.toneMapping = backend.sceneLit!() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping
-  backend.render(camera)
-  renderer.render(asHostLibrary<THREE.Scene>(backend.scene), threeCamera(camera))
-  const pixels = new Uint8Array(SIZE * SIZE * 4)
-  const gl = renderer.getContext()
-  gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-  backend.dispose()
-  return pixels
+): Promise<Uint8Array> {
+  const witness = witnessScene(scene.source, CLEAR_COLOR)
+  try {
+    renderer.toneMapping = witness.lit() ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping
+    witness.update()
+    return await readWitnessImage(renderer, witness.scene, threeCamera(camera))
+  } finally {
+    witness.dispose()
+  }
 }
 
 /** The engine image of a prepared scene, held when the engine holds it, the last rendered one
  *  otherwise; releases the scene. */
 export async function engineImage(
-  webgpuPagesBackend: BackendFactory,
   scene: ScenePreparee,
   device: GPUDevice,
   sceneLights: SdkCore.SceneLightStore,
   camera: G.Camera,
-  events: BackendDiagnostic[],
+  events: EngineDiagnostic[],
 ): Promise<{ pixels: number[] | undefined; held: boolean }> {
-  const { backend, canvas } = engine(
-    webgpuPagesBackend,
-    scene,
-    device,
-    (e: BackendDiagnostic) => events.push(e),
-    {
-      clearColor: CLEAR_COLOR,
-      sceneLights,
-    },
-  )
+  const { backend, canvas } = engine(scene, device, (e: EngineDiagnostic) => events.push(e), {
+    clearColor: CLEAR_COLOR,
+    sceneLights,
+  })
   try {
     await backend.prepare()
     const { held, rendered } = await untilHeld(backend, camera)
     return { pixels: held ?? rendered, held: held !== null }
   } finally {
-    release(backend, canvas, scene)
-  }
-}
-
-/** The WebGL2 engine image of a prepared scene: the shipping autonomous backend reading each page
- *  encoded from the scene's geometry, composed on its own canvas the way a world composes it.
- *  Rendered until the engine holds its frame, as `untilHeld` waits on WebGPU; releases the
- *  scene. */
-export async function webgl2Image(
-  autonomousPagesBackend: BackendFactory,
-  scene: ScenePreparee,
-  sceneLights: SdkCore.SceneLightStore,
-  camera: G.Camera,
-): Promise<{ pixels: Uint8Array; held: boolean }> {
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = SIZE
-  document.body.append(canvas)
-  const gl = canvas.getContext('webgl2')
-  if (!gl) throw new Error('WebGL2 unavailable')
-  const { metadata, readGeometryPage } = pagedManifest(scene.metadata, scene.geometries)
-  const backend = autonomousPagesBackend({
-    source: scene.source,
-    metadata,
-    indices: new Map(),
-    associations: scene.associations,
-    readGeometryPage,
-    viewport: [SIZE, SIZE],
-    webglContext: gl,
-    clearColor: CLEAR_COLOR,
-    sceneLights,
-  })
-  const draw = createFrameComposer(gl, camera)
-  const frame = () => {
-    backend.render(camera)
-    draw(backend, null)
-    const pixels = new Uint8Array(SIZE * SIZE * 4)
-    gl.readPixels(0, 0, SIZE, SIZE, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-    return pixels
-  }
-  try {
-    await backend.prepare()
-    let pixels = frame(),
-      held = backend.frameHeld === true
-    for (let i = 1; i < PLAFOND && !held; i++) {
-      await backend.flush?.()
-      pixels = frame()
-      held = backend.frameHeld === true
-    }
-    return { pixels, held }
-  } finally {
-    draw.dispose()
     release(backend, canvas, scene)
   }
 }

@@ -10,6 +10,7 @@ import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import type { GpuRasterInput } from '../../../gpu/raster/types.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { DEPTH_CLEAR } from '../../../camera/depthConvention.ts'
+import { prepared } from '../state/prepared.ts'
 
 /** An image with no drawable row still clears the surfaces, lights them and presents the result. */
 export function encodeEmptySurfaces(
@@ -36,7 +37,7 @@ export function encodeEmptySurfaces(
     },
   })
   pass.end()
-  const presented = encodeSurfaceLighting(rt, device, encoder, cam, 0)
+  const presented = encodeSurfaceLighting(rt, device, encoder, cam)
   submitColorCopy(rt, device, encoder, height, width, presented)
   return run.blendSubmittedTriangles
 }
@@ -72,7 +73,7 @@ export function ensureVisBindings(rt: WebgpuPagesRuntime, device: GPUDevice, tab
   const [width, height] = rt.gpu.targetSize
   rt.vis.shadeCache?.layFor(tableRows, rt.setup.maxCorners, width, height)
   ensureWebgpuShadeBindings(rt, device)
-  ensureWebgpuVisibilityBindings(rt, device)
+  ensureWebgpuVisibilityBindings(rt)
 }
 
 /**
@@ -124,10 +125,12 @@ export function computeRasterStages(
   const ready = computeRasterReady(rt)
   if (!ready) return null
   const { raster } = ready
-  // The occluder/tested split travels in the verdict word the partition wrote: without a partition,
-  // or without a pyramid, the image reads zeros and rasters the whole cut in one go.
-  const hizFlags = twoPass && vis.gpuHiz ? vis.gpuHiz.flags : ready.zeroFlags
-  const key = (hizFlags === ready.zeroFlags ? 0 : 1) + (run.gpuFrameActive ? 2 : 0)
+  // The occluder/tested split travels in the verdict word the partition wrote: an image in one
+  // pass reads zeros and rasters the whole cut in one go. A scene without a cluster binds no
+  // selection mask (`../../../gpu/raster/bindings.ts`): its groups are keyed apart.
+  const gpuHiz = prepared(vis, 'gpuHiz'),
+    hizFlags = twoPass ? gpuHiz.flags : ready.zeroFlags
+  const key = (twoPass ? 1 : 0) + (run.gpuSelection ? 2 : 0)
   const input = rasterInput
   input.indices = ready.indices
   input.positions = ready.concatPos
@@ -138,14 +141,13 @@ export function computeRasterStages(
   input.uvs = ready.concatUv
   input.textures = ready.textures
   input.sampler = ready.mapsSampler
-  // Under the CPU cut the rows behind the camera's are light casters, never drawn on screen.
-  input.pageRows = run.gpuFrameActive ? tableRows : Math.min(tableRows, run.cameraRows)
+  input.pageRows = tableRows
   input.maxTriangles = Math.ceil(maxVertexCount / 3)
   input.idsView = idsView
   input.depthView = depthTarget
-  input.hizView = vis.gpuHiz?.level0View
-  input.tested = twoPass && !!vis.gpuHiz
-  input.selection = run.gpuFrameActive ? run.gpuSelection : undefined
+  input.hizView = gpuHiz.level0View
+  input.tested = twoPass
+  input.selection = run.gpuSelection
   input.groups = vis.rasterGroups
   input.groupKey = key
   // Full-screen resolve triangles are draw calls like the others: the one that closes the image,

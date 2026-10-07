@@ -1,60 +1,59 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts'
 import { createExplorerFrameScheduler } from '../render/frameScheduler.ts'
-import { interactiveSize } from './interactiveOptions.ts'
 import type { MeasuredWorldOptions } from './options.ts'
 import type { createExplorerApi } from '../api/api.ts'
-import type { ExplorerRuntimeSurface } from '../render/hostRuntime.ts'
+import type { SessionRuntime } from '../render/sessionRuntime.ts'
 import type { ExplorerEmitters } from './session.ts'
+import { interactiveResize, type ResizeWiring } from './interactiveResize.ts'
 
-/** Opt-in browser lifecycle. Manual sessions never install listeners or schedule a frame. */
-export function startInteractiveExplorer(
-  explorer: ReturnType<typeof createExplorerApi>,
-  runtime: ExplorerRuntimeSurface,
-  original: MeasuredWorldOptions,
-  events: ExplorerEmitters,
-) {
-  const { canvas, options, hostedControls, state } = runtime
-  const view = canvas.ownerDocument.defaultView!
-  const controls = original.ownControls === false ? undefined : explorer.controls()
-  // The loop stops for good: said on the console too, or the canvas would freeze without a word,
-  // and reported to the page as an uncaught error is, so its own error watcher can name it.
-  const reportFailure = (error: unknown) => {
-    console.error('[trillion3d] Automatic rendering stopped', error)
-    view.reportError?.(error)
-    events.emit({
-      eventVersion: 1,
-      type: 'fatal',
-      audience: 'blocking',
-      recovered: false,
-      code: 'INTERACTIVE_RENDER_FAILED',
-      detail: String(error),
-    })
-    events.diagnose('interactive-render-failed', 'Automatic rendering stopped', {
-      error: String(error),
-    })
-  }
-  // Captures in flight: an image drawn meanwhile is refused (`SURFACE_CAPTURE_BUSY`), so the loop
-  // draws nothing and goes idle until the last one asks the view back.
-  let capturing = 0,
-    pageLoads = 0
-  const scheduler = createExplorerFrameScheduler({
+type Explorer = ReturnType<typeof createExplorerApi>
+
+/** What the loop reads: the session, its explorer and window, the host's options, the failure. */
+type LoopWiring = Omit<ResizeWiring, 'scheduler'>
+
+/** Captures in flight: an image drawn meanwhile is refused (`SURFACE_CAPTURE_BUSY`), so the loop
+ *  draws nothing and goes idle until the last one asks the view back. */
+type Captures = { count: number }
+
+/** The loop stops for good: said on the console too, or the canvas would freeze without a word,
+ *  and reported to the page as an uncaught error is, so its own error watcher can name it. */
+function reportFailure(view: Window, events: ExplorerEmitters, error: unknown) {
+  console.error('[trillion3d] Automatic rendering stopped', error)
+  view.reportError?.(error)
+  events.emit({
+    eventVersion: 1,
+    type: 'fatal',
+    audience: 'blocking',
+    recovered: false,
+    code: 'INTERACTIVE_RENDER_FAILED',
+    detail: String(error),
+  })
+  events.diagnose('interactive-render-failed', 'Automatic rendering stopped', {
+    error: String(error),
+  })
+}
+
+/** The loop's frame scheduler on `view`: a frame draws the explorer unless a capture or a family
+ *  is on its way, or the engine holds it to measure the display. */
+function loopScheduler(loop: LoopWiring, captures: Captures, events: ExplorerEmitters) {
+  const { view, runtime, explorer, original, fail } = loop
+  return createExplorerFrameScheduler({
     request: view.requestAnimationFrame.bind(view),
     cancel: view.cancelAnimationFrame.bind(view),
     render: () => {
       // A frame that waits for a family on its way (`familyUse.ts`) is not drawn, nor stepped.
-      if (capturing || runtime.familiesPending()) return
+      if (captures.count || runtime.familiesPending()) return
       // Before its first image, a frame the engine holds to measure the display draws nothing.
-      if (runtime.measureFrame()) return
+      if (runtime.engine.measureFrame()) return
       original.beforeFrame?.()
+      // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
       const metrics = explorer.render()
-      pageLoads = metrics.pageLoads
       original.onFrame?.(metrics)
     },
     // A page landing, or a still image an unfinished average takes, is the image still arriving:
-    // those frames spend none of the settle limit. The engine's own count, else the pages fetched.
-    progress: () => runtime.landings() ?? pageLoads,
-    pending: () => (capturing ? Promise.resolve(false) : runtime.pendingFrame()),
-    error: reportFailure,
+    // those frames spend none of the settle limit: the engine's own count.
+    progress: () => runtime.engine.landings(),
+    pending: () => (captures.count ? Promise.resolve(false) : runtime.pendingFrame()),
+    error: fail,
     limited: () =>
       events.diagnose(
         'interactive-settle-limit',
@@ -62,95 +61,60 @@ export function startInteractiveExplorer(
         { frames: 120 },
       ),
   })
-  const invalidate = scheduler.invalidate
-  let observer: ResizeObserver | undefined, media: MediaQueryList | undefined
-  const resize = () => {
-    if (state.disposed) return
-    // A hidden canvas keeps its last image until its CSS box becomes visible again.
-    if (
-      (!original.width && canvas.clientWidth < 1) ||
-      (!original.height && canvas.clientHeight < 1)
-    )
-      return
-    const size = interactiveSize(canvas, original)
-    if (
-      size.width === options.width &&
-      size.height === options.height &&
-      size.pixelRatio === options.pixelRatio
-    )
-      return
-    Object.assign(options, size)
-    explorer.resize(size.width, size.height)
-    if (
-      (original.width === undefined && Math.floor(canvas.clientWidth) !== size.width) ||
-      (original.height === undefined && Math.floor(canvas.clientHeight) !== size.height)
-    )
-      throw new EngineError(
-        'INVALID_CANVAS_LAYOUT',
-        'Set canvas CSS width and height independently of its drawing buffer',
-      )
-    invalidate()
-  }
-  const resizeSafely = () => {
-    try {
-      resize()
-    } catch (error) {
-      scheduler.dispose()
-      reportFailure(error)
-    }
-  }
-  const watchDpr = () => {
-    media?.removeEventListener('change', dprChanged)
-    if (original.pixelRatio !== undefined) return
-    media = view.matchMedia(`(resolution: ${view.devicePixelRatio}dppx)`)
-    media.addEventListener('change', dprChanged)
-  }
-  function dprChanged() {
-    resizeSafely()
-    watchDpr()
-  }
-  const abort = () => explorer.dispose()
-  hostedControls.push({
-    dispose() {
-      scheduler.dispose()
-      observer?.disconnect()
-      media?.removeEventListener('change', dprChanged)
-      view.removeEventListener('resize', resizeSafely)
-      controls?.removeEventListener('change', invalidate)
-      options.signal?.removeEventListener('abort', abort)
-    },
-  })
-  controls?.addEventListener('change', invalidate)
-  if (
-    typeof ResizeObserver !== 'undefined' &&
-    (original.width === undefined || original.height === undefined)
-  ) {
-    observer = new ResizeObserver(resizeSafely)
-    observer.observe(canvas)
-  }
-  view.addEventListener('resize', resizeSafely)
-  watchDpr()
-  options.signal?.addEventListener('abort', abort, { once: true })
-  options.signal?.throwIfAborted()
-  resize()
-  // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
-  if (!runtime.familiesPending()) {
-    original.beforeFrame?.()
-    const first = explorer.render()
-    original.onFrame?.(first)
-  }
-  // A capture puts the view back without what frames build up (the effect chain, the temporal
-  // accumulation, the water): the loop draws it again once it is over, gone idle or not.
+}
+
+/** A capture puts the view back without what frames build up (the effect chain, the temporal
+ *  accumulation, the water): the loop draws it again once it is over, gone idle or not. */
+function wrapCaptures(explorer: Explorer, captures: Captures, invalidate: () => void) {
   const aside = <T>(take: () => Promise<T>) => {
-    capturing++
+    captures.count++
     return new Promise<T>((taken) => taken(take())).finally(() => {
-      capturing--
+      captures.count--
       invalidate()
     })
   }
   const { captureView, captureSurfaceView } = explorer
   explorer.captureView = (width, height) => aside(() => captureView(width, height))
   explorer.captureSurfaceView = (pose, size) => aside(() => captureSurfaceView(pose, size))
+}
+
+/** Opt-in browser lifecycle. Manual sessions never install listeners or schedule a frame. */
+export function startInteractiveExplorer(
+  explorer: Explorer,
+  runtime: SessionRuntime,
+  original: MeasuredWorldOptions,
+  events: ExplorerEmitters,
+) {
+  const { canvas, options, ownedControls } = runtime
+  const view = canvas.ownerDocument.defaultView!
+  const controls = original.ownControls === false ? undefined : explorer.controls()
+  const fail = (error: unknown) => reportFailure(view, events, error)
+  const captures: Captures = { count: 0 }
+  const loop: LoopWiring = { original, runtime, explorer, view, fail }
+  const scheduler = loopScheduler(loop, captures, events)
+  const invalidate = scheduler.invalidate
+  const resizing = interactiveResize({ ...loop, scheduler })
+  const abort = () => explorer.dispose()
+  ownedControls.push({
+    dispose() {
+      scheduler.dispose()
+      resizing.dispose()
+      controls?.removeEventListener('change', invalidate)
+      options.signal?.removeEventListener('abort', abort)
+    },
+  })
+  controls?.addEventListener('change', invalidate)
+  resizing.watch()
+  options.signal?.addEventListener('abort', abort, { once: true })
+  options.signal?.throwIfAborted()
+  resizing.resize()
+  // Drawn whether or not the host listens: `onFrame?.(render())` would skip the render itself.
+  if (!runtime.familiesPending()) {
+    original.beforeFrame?.()
+    const first = explorer.render()
+    original.onFrame?.(first)
+  }
+  wrapCaptures(explorer, captures, invalidate)
   invalidate()
   return invalidate
 }

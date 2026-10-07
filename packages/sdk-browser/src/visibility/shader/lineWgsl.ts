@@ -18,9 +18,8 @@ import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
  * behind slides both ends onto one point and draws nothing. Seen end-on, a segment has no screen
  * direction and its quad keeps no width: nothing is drawn, as a line seen end-on shows nothing.
  *
- * The WebGPU paths draw reversed depth (near plane `z = w`), the WebGL2 path forward depth (near
- * plane `z = −w`): the only difference between the two texts, statement for statement. The CPU
- * software raster runs `lineClip` below, the WGSL text's twin.
+ * Every path draws reversed depth: the near plane is `z = w`. The CPU software raster runs
+ * `lineClip` below, the WGSL text's twin.
  */
 export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
  let f=clip.w-clip.z;let g=along.w-along.z;
@@ -29,16 +28,6 @@ export const LINE_CLIP_WGSL = `fn lineClip(clip:vec4f,along:vec4f,width:f32,view
  let n=length(t);
  if(n==0.0){return c;}
  return vec4f(c.xy+vec2f(-t.y,t.x)*(width*pixelRatio/n)/viewport*c.w,c.z,c.w);
-}`
-
-/** The same corner in the WebGL2 program's forward depth (`../../webgl/cluster/shaders.ts`). */
-export const LINE_CLIP_GLSL = `vec4 lineClip(vec4 clip,vec4 along,float width,vec2 viewport,float pixelRatio){
- float f=clip.w+clip.z,g=along.w+along.z;
- vec4 c=clip-along*(f<0.0&&g!=0.0?f/g:0.0);
- vec2 t=(along.xy*c.w-c.xy*along.w)*viewport;
- float n=length(t);
- if(n==0.0)return c;
- return vec4(c.xy+vec2(-t.y,t.x)*(width*pixelRatio/n)/viewport*c.w,c.z,c.w);
 }`
 
 /** `LINE_CLIP_WGSL` on the CPU, statement for statement, in the engine's reversed depth: the
@@ -73,16 +62,10 @@ export function lineClip(
  * `(dashSize, gapSize)`. The line repeats a dash then a gap from its first vertex: a pixel whose distance modulo `dashSize + gapSize` passes
  * `dashSize` is in a gap, and every raster discards it. A dash of zero keeps every pixel: that is
  * a line that is not dashed. The rasters read it through the cutout (`maskKeep`, `pageWgsl.ts`),
- * the transparent pass and the opaque fallback in their fragment stage, the CPU raster by `lineDash`.
+ * the transparent pass in its fragment stage, the CPU raster by `lineDash`.
  */
 export const LINE_DASH_WGSL = `fn lineDash(at:f32,dash:vec2f)->bool{
  let period=dash.x+dash.y;
- return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
-}`
-
-/** The same dash in the WebGL2 program (`../../webgl/cluster/shaders.ts`). */
-export const LINE_DASH_GLSL = `bool lineDash(float at,vec2 dash){
- float period=dash.x+dash.y;
  return dash.x<=0.0||at-period*floor(at/period)<=dash.x;
 }`
 

@@ -1,7 +1,7 @@
-import type { BackendDiagnostic, DiagnosticDetail } from '../backend/types.ts'
+import type { EngineDiagnostic, DiagnosticDetail } from '../engine/types.ts'
 
 /** A function that hears each thing a diagnostic channel reports. */
-export type DiagnosticObserver = (diagnostic: BackendDiagnostic) => void
+export type DiagnosticObserver = (diagnostic: EngineDiagnostic) => void
 
 /** How much a diagnostic channel says. */
 export interface DiagnosticChannelOptions {
@@ -26,7 +26,7 @@ export interface DiagnosticChannel {
   /** The session it belongs to. */
   readonly sessionId: string
   /** Reports one finding. */
-  emit(diagnostic: BackendDiagnostic): void
+  emit(diagnostic: EngineDiagnostic): void
   /** Delivers what waits. */
   flush(): Promise<void>
   /** Drain outside a measured/render call when a synchronous teardown needs delivery. */
@@ -43,7 +43,7 @@ let sessionCounter = 0
 const defaultNow = () => Date.now()
 const newSessionId = () =>
   `diagnostics-${Date.now().toString(36)}-${(++sessionCounter).toString(36)}`
-const isFrameDiagnostic = (diagnostic: BackendDiagnostic) =>
+const isFrameDiagnostic = (diagnostic: EngineDiagnostic) =>
   diagnostic.phase === 'frame' || diagnostic.context?.kind === 'frame'
 
 /**
@@ -64,7 +64,7 @@ export function createDiagnosticChannel(
     Number.isSafeInteger(options.maxBuffer) && options.maxBuffer! > 0 ? options.maxBuffer! : 65536
   const now = options.now ?? defaultNow
   const sessionId = options.sessionId ?? newSessionId()
-  const queue: BackendDiagnostic[] = []
+  const queue: EngineDiagnostic[] = []
   let nextSequence = 0
   let droppedCount = 0
   let droppedTotal = 0
@@ -75,10 +75,10 @@ export function createDiagnosticChannel(
   let flushing: Promise<void> | undefined
 
   const stamp = (
-    input: BackendDiagnostic,
+    input: EngineDiagnostic,
     sequence: number,
     queuedAt: number,
-  ): BackendDiagnostic => ({
+  ): EngineDiagnostic => ({
     ...input,
     sequence,
     sessionId,
@@ -87,11 +87,11 @@ export function createDiagnosticChannel(
       input.createdAt ??
       (typeof input.context.createdAt === 'number' ? input.context.createdAt : queuedAt),
   })
-  const lossRecord = (): BackendDiagnostic | undefined => {
+  const lossRecord = (): EngineDiagnostic | undefined => {
     if (!droppedCount || firstDroppedSequence === undefined || lastDroppedSequence === undefined)
       return undefined
     const queuedAt = now()
-    const record: BackendDiagnostic = {
+    const record: EngineDiagnostic = {
       phase: 'diagnostic-loss',
       message: 'Diagnostics were dropped because the bounded buffer was full',
       context: {
@@ -112,7 +112,7 @@ export function createDiagnosticChannel(
     lastDroppedSequence = undefined
     return record
   }
-  const deliver = (record: BackendDiagnostic) => {
+  const deliver = (record: EngineDiagnostic) => {
     try {
       observer?.(record)
     } catch {

@@ -3,6 +3,7 @@ import type { ViewHold } from '../../../frame/viewRevision.ts'
 import type { HizPyramid } from '../../../gpu/hiz/types.ts'
 import type { PresentRect } from '../../../gpu/core/presentAt.ts'
 import type { CutDelta } from '../../cut/delta.ts'
+import type { GpuCut } from '../../../gpu/core/selection.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { createWebgpuGpuState, type WebgpuGpuState } from './gpu.ts'
 import { createWebgpuRunState, type WebgpuRunState } from './run.ts'
@@ -12,7 +13,8 @@ import { createWebgpuVisState, type WebgpuVisState } from './vis.ts'
  * What one camera owns in the runtime groups: the cut it draws and what its image made of it, its
  * motion, its occlusion history, its frame targets, their temporal history and effect chain.
  * Everything else is the scene's and every view shares it: the gate's scene and resource revisions
- * (so an invalidation reaches every view), the GPU cut (the main view's alone), the residency sets,
+ * (so an invalidation reaches every view), the GPU cut's tables (each view cuts there with uniforms
+ * and lists of its own, `../../../gpu/dag/aside.ts`), the row cache, the residency sets,
  * which ask for the union of the views' cuts under the one page budget
  * (`../../cut/publication.ts`), the pools, the pipelines and the Hi-Z programs, whose pyramid is
  * each view's own (`WebgpuView.hiz`).
@@ -28,16 +30,12 @@ export const VIEW_RUN_KEYS = [
   'shownPacked',
   'drawnPacked',
   'drawnMirrorsShown',
-  'selectResult',
   'noOccluderHistory',
   'hizViewMoved',
   'previousHizView',
   'temporalHizState',
-  'cpuHizCounts',
-  'cpuHizCounted',
   'occluderSignature',
   'cutHeld',
-  'gpuFrameActive',
   'gpuMetricsReady',
   'overBudget',
   'visible',
@@ -46,6 +44,8 @@ export const VIEW_RUN_KEYS = [
   'drawnTriangles',
   'frustumRejected',
   'lodLevel',
+  'selectionUniforms',
+  'asideCut',
 ] as const satisfies readonly (keyof WebgpuRunState)[]
 export const VIEW_GPU_KEYS = [
   'colorTexture',
@@ -104,10 +104,12 @@ export interface WebgpuView {
   cut?: ViewCut
 }
 
-/** The cut a view asks for and the one it draws, published by differences into the shared sets. */
+/** The cut a view asks for and the one it draws, published by differences into the shared sets,
+ *  and the readback it last adopted, whose requests admission ranks. */
 export interface ViewCut {
   asked: CutDelta
   drawn: CutDelta
+  adopted?: GpuCut
 }
 
 /** The runtime's views: the one it opened on, the one its groups hold now, and those drawn beside

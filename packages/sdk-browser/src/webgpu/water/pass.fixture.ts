@@ -7,7 +7,7 @@ import { createWebgpuBlendState } from '../blend/state.ts'
 import { VOLUME_WORDS } from '../transparent/transmission.ts'
 import { buildBlendStatics, refreshBlendPlan } from '../blend/plan.ts'
 import { orderBlendPasses } from '../blend/order.ts'
-import { triangleGeometry } from '../../backend/pagesBackendScenes.fixture.ts'
+import { triangleGeometry } from '../../engine/pagesEngineScenes.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import type { WebgpuGpuState } from '../pages/state/gpu.ts'
@@ -112,7 +112,7 @@ export function targets(gpu: WebgpuGpuState) {
     depthTexture: {},
     feedbackView: {},
     asIsShare: { view: {} },
-    surfaces: { views: () => views },
+    surfaces: { views: () => views, lobesView: {}, width: 8, height: 8, lobes: { width: 1 } },
     backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
     deferred: {
       uniform: {},
@@ -172,10 +172,10 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   } as unknown as GPUCommandEncoder
   const rt = {
     // A textured scene: its pipelines write the feedback.
-    vis: { visEnabled: true, blendPipelines: anyPipelines(), writesFeedback: true },
+    vis: { blendPipelines: anyPipelines(), writesFeedback: true, physicalTable: {} },
     gpu,
     capture: { capturing: false },
-    lights: { buffer: {}, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.
     blendState,

@@ -37,10 +37,8 @@ export type IrradianceResult =
 export async function measureIrradiance(options: IrradianceOptions): Promise<IrradianceResult> {
   const sdk = (await import(options.sdkUrl)) as typeof SdkBrowser
   // Known by literal name, not by a dynamic index: the SDK namespace carries no index signature.
-  const backends: Record<string, SdkBrowser.BackendFactory> = {
-    exactPagesBackend: sdk.exactPagesBackend,
-    webgpuPagesBackend: sdk.webgpuPagesBackend,
-    autonomousPagesBackend: sdk.autonomousPagesBackend,
+  const backends: Record<string, SdkBrowser.EngineFactory> = {
+    webgpuPagesEngine: sdk.webgpuPagesEngine,
   }
   const factory = options.backend ? backends[options.backend] : undefined
   if (!factory) return { error: `engine missing from dist: ${options.backend}` }
@@ -65,8 +63,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     lodAdaptive: false,
     maxResidentPages: options.maxPages,
     preload: 'visible',
-    backends: [factory],
-    comparisonLayout: 'single',
+    engine: factory,
     clearColor: 0x000000,
     diagnosticDetail: 'summary',
   })
@@ -82,10 +79,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
   }
   const moveTo = (position: [number, number, number]) =>
     explorer.setLight(options.movingLight, { position })
-  const shot = () => {
-    const rgba = explorer.capture()
-    return new Uint8Array(rgba)
-  }
+  const shot = async () => new Uint8Array(await explorer.capture())
   // Average relative difference per channel between two images.
   const gap = (image: Uint8Array, reference: Uint8Array, mean: number) => {
     let sum = 0
@@ -103,13 +97,13 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
   }
   explorer.setLightingView('bounce')
   await settle(options.converge)
-  const settled = shot()
+  const settled = await shot()
   // Delay: light moves to second position, grid reconverges, then step is replayed tracking gaps per frame.
   const gaps: number[] = []
   if (options.movingLight) {
     moveTo(options.movedPosition)
     await settle(options.converge)
-    const moved = shot()
+    const moved = await shot()
     const movedMean = average(moved)
     moveTo(options.originalPosition)
     await settle(options.converge)
@@ -117,7 +111,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     for (let frame = 0; frame < options.delayFrames; frame++) {
       explorer.render(options.pose)
       await explorer.flush()
-      gaps.push(gap(shot(), moved, movedMean))
+      gaps.push(gap(await shot(), moved, movedMean))
     }
     moveTo(options.originalPosition)
     await settle(options.converge)

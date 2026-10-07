@@ -8,8 +8,8 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { createGpuDagSelection } from './selection.ts'
 import { requestScene } from './requestScene.fixture.ts'
 import { SELECTION_HEADER_WORDS } from './layout.ts'
-import { REQUEST_STEP_MAX, packRequest } from './request.ts'
-import { sortRequestWords, requestWordRank } from './request.fixture.ts'
+import { REQUEST_STEP_MAX } from './request.ts'
+import { sortStaged, stagedPage, stagedRank, stagedRequest } from './request.fixture.ts'
 import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 
 test('the requests reach the host in requestRank order, sorted by the GPU', async () => {
@@ -23,18 +23,15 @@ test('the requests reach the host in requestRank order, sorted by the GPU', asyn
   const oracle = evaluateDagSelectionKernel(packed, uniforms)
   // The threads' order is not the rank's: the sort has work to do.
   const staged = oracle.requestWords
-  assert.ok(
-    staged.some((word, i) => i > 0 && requestWordRank(word) > requestWordRank(staged[i - 1])),
-  )
-  // What the frame copies is the sorted list, rank never rising.
+  assert.ok(staged.some((word, i) => i > 0 && stagedRank(word) > stagedRank(staged[i - 1])))
+  // What the frame copies is the pages of the sorted list, one whole word each, rank never rising.
   const out = gpu.buffers.find((buffer) => buffer.label === 'Trillion3D DAG readback')!
   const words = new Uint32Array(out.data.buffer).subarray(
     SELECTION_HEADER_WORDS,
     SELECTION_HEADER_WORDS + staged.length,
   )
   assert.ok(words.length > 100, 'the cut must keep enough to rank')
-  for (let i = 1; i < words.length; i++)
-    assert.ok(requestWordRank(words[i]) <= requestWordRank(words[i - 1]), `rank ${i} rises`)
+  assert.deepEqual([...words], sortStaged(staged).map(stagedPage))
   // And the host reads it as it came: the kernel mirror's order, page for page.
   assert.deepEqual(result?.pageIds, oracle.pageIds)
   selection.dispose()
@@ -44,13 +41,13 @@ test('the sort mirror keeps every word through massive ties at both ends of the 
   // A counting sort breaks where a comparison sort does not: at both ends of the range, and when
   // almost every word falls in one rank. This list pushes both at once.
   const STEPS = [0, 1, REQUEST_STEP_MAX - 1, REQUEST_STEP_MAX]
-  const words = Array.from({ length: 4000 }, (_, i) => packRequest(i, STEPS[i % STEPS.length]))
-  const sorted = sortRequestWords(words)
+  const words = Array.from({ length: 4000 }, (_, i) => stagedRequest(i, STEPS[i % STEPS.length]))
+  const sorted = sortStaged(words)
   assert.deepEqual([...sorted].sort(), [...words].sort(), 'every word once')
   for (let i = 1; i < sorted.length; i++) {
-    assert.ok(requestWordRank(sorted[i]) <= requestWordRank(sorted[i - 1]), `rank ${i} rises`)
+    assert.ok(stagedRank(sorted[i]) <= stagedRank(sorted[i - 1]), `rank ${i} rises`)
     // Within a rank, the order the words came in.
-    if (requestWordRank(sorted[i]) === requestWordRank(sorted[i - 1]))
-      assert.ok(sorted[i] > sorted[i - 1])
+    if (stagedRank(sorted[i]) === stagedRank(sorted[i - 1]))
+      assert.ok(stagedPage(sorted[i]) > stagedPage(sorted[i - 1]))
   }
 })

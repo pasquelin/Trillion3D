@@ -7,7 +7,8 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { surfaceOf } from '../../page/surface.ts'
 import { BLEND_ORDER_SHADER } from './orderWgsl.ts'
-import { orderBlendPasses, refreshEyeKeys } from './order.ts'
+import { orderBlendPasses } from './order.ts'
+import { refreshEyeKeys } from './expandCpu.fixture.ts'
 import { blendSceneOf } from './plan.fixture.ts'
 import type { BlendGpuItem } from './state.ts'
 import { checkKernel, gpuOf, transparentScene } from './orderKernel.fixture.ts'
@@ -68,8 +69,8 @@ test('the kernel keys an item as the CPU does, to the bit, far from the origin a
     orderBlendPasses(blendState, eye)
     refreshEyeKeys(blendState, eye)
     const { kernel } = gpuOf(blendState)
-    items.forEach((item, rank) => {
-      cell[0] = item.orderKey
+    items.forEach((_, rank) => {
+      cell[0] = blendState.orderKeys[rank]
       const [high, low] = kernel.itemKey(rank).map((word) => word >>> 0)
       assert.deepEqual([high, low], [bits[1], bits[0]], `item ${rank}, frame ${frame}`)
     })

@@ -1,12 +1,12 @@
 import type { MathPath } from '../../../sdk-core/src/index.ts'
-import type { SdkWasm } from '../page/decode/geometryPageWasm.ts'
+import type { SdkWasm } from './wasm/sdkWasm.ts'
 import { mathClock, mathBatchWasm, mathGovernor, loadMathBatch } from './batchState.ts'
 import {
-  blocsJavaScript,
+  javaScriptBlocks,
   reserveArena,
-  type ArenaBloc,
+  type ArenaBlock,
   type ArenaRequest,
-} from '../page/decode/wasmArena.ts'
+} from './wasm/wasmArena.ts'
 
 /**
  * What all math batches share: buffer, timed execution, and interface shape.
@@ -17,8 +17,8 @@ import {
  * Nothing is copied between JavaScript and WebAssembly — same memory when module present,
  * plain typed arrays when absent. Executed path is named by governor, and `run()` reports cost.
  *
- * Views are re-queried on each use via `blocs()`: module allocation anywhere might grow
- * its memory and detach previous views. `../page/decode/wasmArena.ts` rebuilds them on same bytes and offsets.
+ * Views are re-queried on each use via `blocks()`: module allocation anywhere might grow
+ * its memory and detach previous views. `./wasm/wasmArena.ts` rebuilds them on same bytes and offsets.
  */
 
 export interface MathLot {
@@ -32,45 +32,46 @@ export interface MathLot {
   release(): void
 }
 
-export interface Tampon {
+export interface BatchBuffer {
   /** Module when blocks live in its memory, `null` when in JavaScript heap. */
   readonly wasm: SdkWasm | null
-  blocs(): readonly ArenaBloc[]
+  blocks(): readonly ArenaBlock[]
   release(): void
 }
 
 /** Batch blocks in module memory if available, otherwise in JavaScript heap. */
-export async function tampon(requests: readonly ArenaRequest[]): Promise<Tampon> {
+export async function batchBuffer(requests: readonly ArenaRequest[]): Promise<BatchBuffer> {
   await loadMathBatch()
   const wasm = mathBatchWasm()
   const arena = wasm ? reserveArena(wasm, requests) : null
-  if (wasm && arena) return { wasm, blocs: arena.blocs, release: arena.freed }
-  const blocs = blocsJavaScript(requests)
-  return { wasm: null, blocs: () => blocs, release: () => {} }
+  if (wasm && arena) return { wasm, blocks: arena.blocks, release: arena.freed }
+  const blocks = javaScriptBlocks(requests)
+  return { wasm: null, blocks: () => blocks, release: () => {} }
 }
 
 /**
  * Execution helper: governor chooses, clock bounds, governor records. Requested WebAssembly
  * path unequipped falls back to JavaScript, reporting that actual path.
  */
-export function joue(
+export function runTimed(
   operation: string,
   n: number,
   wasmRun: (() => void) | null,
   jsRun: () => void,
 ) {
-  const gouverneur = mathGovernor()
-  const path: MathPath = gouverneur.choose(operation) === 'wasm' && wasmRun ? 'wasm' : 'js'
-  const debut = mathClock()
+  const governor = mathGovernor()
+  const path: MathPath = governor.choose(operation) === 'wasm' && wasmRun ? 'wasm' : 'js'
+  const start = mathClock()
   if (path === 'wasm' && wasmRun) wasmRun()
   else jsRun()
-  const duree = mathClock() - debut
-  gouverneur.observe(operation, path, Number.isFinite(duree) ? duree : null, n)
+  const duration = mathClock() - start
+  governor.observe(operation, path, Number.isFinite(duration) ? duration : null, n)
   return path
 }
 
-export const f64 = (bloc: ArenaBloc) => bloc.view as Float64Array
-export const f64Views = (bloc: ArenaBloc) => (bloc.views ?? []) as readonly Float64Array[]
+export const f64 = (block: ArenaBlock) => block.view as Float64Array
+export const f64Views = (block: ArenaBlock) => (block.views ?? []) as readonly Float64Array[]
 
 /** The `length` elements of block `index`, or zero when buffer released. */
-export const taille = (blocs: readonly ArenaBloc[], index: number) => blocs[index]?.view.length ?? 0
+export const size = (blocks: readonly ArenaBlock[], index: number) =>
+  blocks[index]?.view.length ?? 0

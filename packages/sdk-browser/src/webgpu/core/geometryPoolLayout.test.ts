@@ -11,14 +11,14 @@ import * as G from '../../host/graph/graph.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { shaderRun, type Vec } from '../../texture/shaderRun.fixture.ts'
 import { normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
-import { PORTABLE_TEXTURE_SIDE } from '../../frame/referenceTilePlacement.ts'
+import { GUARANTEED_SIDE } from '../../gpu/core/textureLimits.ts'
 import { createVertexPool } from './geometryPool.ts'
 import { poolFits, poolFloats } from './geometryPoolLayout.ts'
 import { createFloatAtlas, type FloatAtlas } from './floatAtlas.ts'
 
 /** The atlas's row width bound and rows a layer: the portable texture side. */
-const FLOAT_ATLAS_ROWS = PORTABLE_TEXTURE_SIDE,
-  FLOAT_ATLAS_WIDTH = PORTABLE_TEXTURE_SIDE
+const FLOAT_ATLAS_ROWS = GUARANTEED_SIDE,
+  FLOAT_ATLAS_WIDTH = GUARANTEED_SIDE
 /** Width, rows and layers of the atlas the pool makes for `floats` floats. */
 const floatAtlasExtent = (floats: number) =>
   createFloatAtlas(fakeDevice().device, 'extent', floats).extent
@@ -105,6 +105,24 @@ test('the normal atlas weighs the bytes the normal buffer did: the budgets it fu
     assert.equal(width * rows * layers, vertices * 7, `${vertices} vertices: no padding`)
     assert.ok(width <= FLOAT_ATLAS_WIDTH && rows <= FLOAT_ATLAS_ROWS, `${vertices}: within 2D`)
   }
+})
+
+// Behaviour: the row width is the device's granted side, WebGPU's guaranteed one when it names none;
+// a count no row count divides fills its rows evenly, under one float of padding a row.
+test('a device that grants a wider side holds the floats in fewer rows, never padded', () => {
+  const prime = 16_381
+  const extent = (maxTextureDimension2D?: number) =>
+    createFloatAtlas(
+      fakeDevice(maxTextureDimension2D ? { limits: { maxTextureDimension2D } } : {}).device,
+      'extent',
+      prime,
+    ).extent
+  assert.deepEqual(
+    extent(),
+    [(prime + 1) / 2, 2, 1],
+    'the guaranteed side: two rows, one float pad',
+  )
+  assert.deepEqual(extent(2 * FLOAT_ATLAS_WIDTH), [prime, 1, 1], 'the granted side holds it whole')
 })
 
 test('under the same maxStorageBufferBindingSize, the pool holds at least the vertices develop held', () => {

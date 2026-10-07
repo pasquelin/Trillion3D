@@ -9,10 +9,8 @@ import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 import { normalMatrix3 } from '../../../../../../../packages/sdk-core/src/index.ts'
-import {
-  coneContextFor,
-  createConeContext,
-} from '../../../../../../../packages/sdk-browser/src/page/cone/cone.ts'
+import { coneContextFor } from '../../../../../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
+import { createConeContext } from '../../../../../../../packages/sdk-browser/src/page/cone/cone.fixture.ts'
 import {
   createEngineCamera,
   readCameraWorld,

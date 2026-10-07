@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { markDrawnDiverged, mirrorDrawnFromShown } from '../pages/helpers.ts'
+import { mirrorDrawnFromShown } from '../pages/helpers.ts'
 import { fixturePages, fixtureUniforms, mountCutAdopter, peekOnly } from './adopter.fixture.ts'
 import type { GpuCut } from '../../gpu/core/selection.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
@@ -29,15 +29,6 @@ test('the copy happens only when the flag is down, and raises it', () => {
   run.drawn.push(intrus)
   assert.equal(mirrorDrawnFromShown(run), false, 'flag up: nothing is redone')
   assert.equal(run.drawn.at(-1), intrus)
-
-  // The CPU cut lowers the flag; the next frame copies the current `shown`.
-  markDrawnDiverged(run)
-  run.shown = [page(7)]
-  assert.equal(mirrorDrawnFromShown(run), true)
-  assert.deepEqual(
-    run.drawn.map((rec) => rec.url),
-    ['p7'],
-  )
 })
 
 test('adoption announces the copy on a new shown list, never on the one it already holds', () => {

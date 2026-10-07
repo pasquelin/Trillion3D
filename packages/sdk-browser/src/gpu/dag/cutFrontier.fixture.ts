@@ -14,7 +14,7 @@
  * replacement error CEILING from the manifest — enough to reject a too-fine subtree — and, since
  * this batch, the own-error FLOOR, which `cullingBounds` derives from the pages at prepare time
  * and `packCullingNodes` stores in the node: enough to reject the too-coarse as well, as the
- * CPU cut already does (`../../page/cut/node.ts`). Nothing from the compiler, nothing from the
+ * CPU cut already does (`../../page/cut/node.fixture.ts`). Nothing from the compiler, nothing from the
  * format. Both descents are launched from here so the difference is measured, not deduced.
  */
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts'

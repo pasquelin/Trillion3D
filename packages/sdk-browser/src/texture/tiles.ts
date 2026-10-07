@@ -3,6 +3,7 @@ import {
   previewLastLevel,
   previewLevelSize,
 } from '../../../sdk-core/src/index.ts'
+import { textureLimits } from '../gpu/core/textureLimits.ts'
 
 /**
  * Virtual-texture tile geometry: what the physical pool, the page table and the shader
@@ -12,9 +13,12 @@ import {
  *
  * A tile carries 128×128 useful texels and a 4-texel gutter on each side, copied from
  * neighbours of the same level: linear filtering at a tile edge thus reads neighbouring
- * texels, not those of the next tile in the pool. A pool layer stores 30×30 tiles in a
- * 4096 side, the rest unused. Every measure is a multiple of four: a block-compressed pool
- * (`blockFormats.ts`) copies whole 4×4 blocks, and its tiles land on block boundaries.
+ * texels, not those of the next tile in the pool — which may be resident at another level, or not
+ * at all: a hand-made bilinear without the gutter would pay four loads a tap and still seam there.
+ * A pool layer stores 30×30 tiles in a 4096 side, the rest unused: a larger side reads no faster
+ * and only coarsens the budget's grain, a layer being what the budget allocates. Every measure is
+ * a multiple of four: a block-compressed pool (`blockFormats.ts`) copies whole 4×4 blocks, and
+ * its tiles land on block boundaries.
  *
  * A texture's levels split in two: STREAMED levels, from 0 through the last that exceeds
  * 64 texels, cut into resident tiles on demand; and the TAIL, from the first level whose
@@ -98,6 +102,20 @@ export function tileLayout(width: number, height: number): TileLayout {
 /** A pool slot: tile column, row and layer. */
 export type TilePlace = { x: number; y: number; layer: number }
 
+/** Bits of a place's column and row, then of its layer, in the 24 low bits of a table word. */
+export const PLACE_AXIS_BITS = 6
+export const PLACE_LAYER_BITS = 12
+/** Most layers a pool holds: what a place's layer field addresses. */
+export const POOL_MAX_LAYERS = 1 << PLACE_LAYER_BITS
+/** The layers a lane pool may take on a device of `limits`: its granted array layers —
+ *  WebGPU's guaranteed ones when it names none (`textureLimits`) —, within what a place
+ *  addresses. */
+export const poolLayerLimit = (limits?: { maxTextureArrayLayers?: number }) =>
+  Math.min(textureLimits(limits).layers, POOL_MAX_LAYERS)
+/** A place in 24 bits — column, row, layer —, as the shader reads it (`placeOrigin`). */
+export const packPlace = (place: TilePlace) =>
+  place.x | (place.y << PLACE_AXIS_BITS) | (place.layer << (2 * PLACE_AXIS_BITS))
+
 export function placeOf(index: number): TilePlace {
   const layer = Math.floor(index / TILES_PER_LAYER),
     rest = index - layer * TILES_PER_LAYER
@@ -111,5 +129,5 @@ export function placeOf(index: number): TilePlace {
  */
 const ENTRY_SERVED = 0x80000000
 export const packEntry = (place: TilePlace, level: number) =>
-  (ENTRY_SERVED | place.x | (place.y << 8) | (place.layer << 16) | (level << 24)) >>> 0
+  (ENTRY_SERVED | packPlace(place) | (level << 24)) >>> 0
 export const entryLevel = (word: number) => (word >>> 24) & 0x7f

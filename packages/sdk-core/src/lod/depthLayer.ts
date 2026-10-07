@@ -3,22 +3,20 @@
  *
  * The compiler stacks the opaque surfaces that share a plane and writes one layer per cluster. Here
  * that layer becomes a depth offset in whole hardware units — units of the depth buffer's own last
- * bit — applied identically on every path: the WebGPU pipeline's `depthBias`, the software raster's
- * integer offset on the packed depth key, and WebGL2's `polygonOffset` units. This file publishes
- * the MAGNITUDE only; each path applies the sign its own depth test needs, because the engine draws
- * in reversed depth (nearer = larger, `depthConvention.ts`) while the WebGL2 host path draws in
- * direct depth (nearer = smaller). Nothing is computed per pixel, no vertex moves, and a cluster of
+ * bit — applied identically on every path: the WebGPU pipeline's `depthBias` and the software
+ * raster's integer offset on the packed depth key. This file publishes the MAGNITUDE only; each
+ * path applies the sign its own depth test needs, the engine drawing in reversed depth (nearer =
+ * larger, `depthConvention.ts`). Nothing is computed per pixel, no vertex moves, and a cluster of
  * layer 0 draws exactly as it did before.
  *
  * Calibration. Two triangulations of one plane interpolate the same geometric depth, so the only
  * thing that separates them is float32 rounding. Measured on the `full-overlap` fixture — the two
  * quads with opposite diagonals — at 1280×720 over three camera angles (15°, 45° and 80° to the
- * surface), three near/far ranges (0.1/100, 0.1/1000, 0.01/1000) and both depth conventions, the
- * two meshes disagree by at most **5 units** on any covered pixel, and by 2 or fewer on more than
- * 99.9 % of them. One layer step is 16 units: a margin of more than three times the worst case,
- * still a relative shift of 16 / 2²³ of the depth value itself, which is far below the distance
- * between any two distinct surfaces (under a tenth of a millimetre at a hundred metres on a
- * 0.1–1000 range).
+ * surface) and three near/far ranges (0.1/100, 0.1/1000, 0.01/1000), the two meshes disagree by
+ * at most **5 units** on any covered pixel, and by 2 or fewer on more than 99.9 % of them. One
+ * layer step is 16 units: a margin of more than three times the worst case, still a relative shift
+ * of 16 / 2²³ of the depth value itself, which is far below the distance between any two distinct
+ * surfaces (under a tenth of a millimetre at a hundred metres on a 0.1–1000 range).
  *
  * The step was then checked on the scene itself, on the city floor of Emerald Square through the
  * WebGPU path: 8, 16, 32 and 64 units give the same image from 16 upwards on the ground the stage
@@ -34,6 +32,11 @@ export const DEPTH_LAYER_BIAS_UNITS = 16
  *  a shape), and one layer step lifts them over those faces — a step the calibration above set to
  *  dominate float rounding, never enough to reach a surface that sits above. */
 export const LINE_DEPTH_LAYER = 1
+/** The layer the transparent passes draw on: a glass, a decal or a water sheet lying exactly on an
+ *  opaque face is drawn over it — a transparent surface never enters the compiler's stage, so its
+ *  pages carry layer 0 —, one layer step over float rounding between the opaque raster and its
+ *  own, never enough to reach a surface that sits above. */
+export const TRANSPARENT_DEPTH_LAYER = 1
 /** Layers live in four bits of the cache, so the deepest stack the compiler can describe is 15. */
 export const MAX_DEPTH_LAYER = 15
 

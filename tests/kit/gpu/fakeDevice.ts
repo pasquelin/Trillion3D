@@ -9,20 +9,18 @@ import {
   type FakeWrite,
   type LostInfo,
 } from './fakeRecords.ts'
-
-import { checkGroup, checkLayout, checkPipelineLayout } from './bindRules.ts'
+import { validating } from './validation.ts'
+import { bundleMaker } from './fakeBundles.ts'
 
 export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts'
 
 /**
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
- * GPU. Every creation, write, encoded copy and destroy succeeds and is recorded in call order; a
- * test reads the list it observes and ignores the others. The usage and stage constants are
- * installed on each call; a pipeline layout past the device's binding limits is refused
- * (`bindRules.ts`). Options inject what a test needs of the device: `limits`, `features`,
- * allocations that fail (`refuse`), no compute pipelines (`compute: false`), and readback mappings
- * that settle when the test says (`mapping`). A test that runs a whole pages backend, or reads back what a
- * compute pass wrote, uses `mockGpu()`, which executes its encoders.
+ * GPU. Every creation, write, encoded copy, render bundle and destroy succeeds and is recorded in
+ * call order; a test reads the list it observes. The usage and stage constants are installed on
+ * each call; a call WebGPU refuses is refused, by the kit's one validation (`validation.ts`).
+ * Options: `limits`, `features`, allocations that fail (`refuse`), no compute (`compute: false`),
+ * mappings settled when the test says (`mapping`). A whole backend runs on `mockGpu()`.
  */
 export function fakeDevice({
   limits,
@@ -37,6 +35,7 @@ export function fakeDevice({
     bindGroupLayouts: GPUBindGroupLayoutDescriptor[] = [],
     bindGroups: GPUBindGroupDescriptor[] = [],
     renderPipelines: GPURenderPipelineDescriptor[] = [],
+    bundles = bundleMaker(),
     writes: FakeWrite[] = [],
     copies: FakeCopy[] = [],
     textureCopies: FakeTextureCopy[] = [],
@@ -116,11 +115,10 @@ export function fakeDevice({
       getCompilationInfo: async () => ({ messages: [] }),
     }),
     createBindGroupLayout: (descriptor: GPUBindGroupLayoutDescriptor) => (
-      checkLayout(descriptor),
       bindGroupLayouts.push(descriptor),
       descriptor
     ),
-    createPipelineLayout: (d: GPUPipelineLayoutDescriptor) => (checkPipelineLayout(d, limits), d),
+    createPipelineLayout: (d: GPUPipelineLayoutDescriptor) => d,
     createRenderPipeline: renderPipeline,
     createRenderPipelineAsync: async (descriptor: GPURenderPipelineDescriptor) =>
       renderPipeline(descriptor),
@@ -129,7 +127,8 @@ export function fakeDevice({
       createComputePipelineAsync: async (descriptor: GPUComputePipelineDescriptor) =>
         computePipeline(descriptor),
     }),
-    createBindGroup: (d: GPUBindGroupDescriptor) => (checkGroup(d), bindGroups.push(d), d),
+    createBindGroup: (d: GPUBindGroupDescriptor) => (bindGroups.push(d), d),
+    createRenderBundleEncoder: bundles.make,
     pushErrorScope: () => void scopes.push(null),
     popErrorScope: async () => {
       if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
@@ -176,6 +175,7 @@ export function fakeDevice({
       onSubmittedWorkDone: async () => void fences++,
     },
   }
+  validating(device)
   return {
     device: device as unknown as GPUDevice,
     buffers,
@@ -183,6 +183,7 @@ export function fakeDevice({
     bindGroupLayouts,
     bindGroups,
     renderPipelines,
+    bundles: bundles.made,
     writes,
     copies,
     textureCopies,

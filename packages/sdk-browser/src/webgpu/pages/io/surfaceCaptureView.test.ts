@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../pages.ts'
+import { webgpuPagesEngine } from '../pages.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts'
 import { quadScene, camera, quadBackend } from '../testScenes.fixture.ts'
@@ -13,7 +13,7 @@ test('opaque materials are rendered before lighting into reusable GPU surface te
   try {
     await backend.prepare()
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     backend.render(camera())
     // The four surfaces, the flags in `r8uint` last: the quad wears no texture, so no feedback
     // target follows them (`feedbackVariant.ts`).
@@ -38,7 +38,7 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
   const { device, imageCopies } = mockGpu()
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
@@ -48,10 +48,10 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
     await backend.prepare()
     const main = camera()
     backend.render(main)
-    await backend.flush?.()
+    await backend.flush()
     backend.render(main)
-    await backend.flush?.()
-    const before = backend.capture!()
+    await backend.flush()
+    const before = await backend.capture()
     const other = camera()
     other.position.x = 1
     other.lookAt(0, 0, 0)
@@ -71,8 +71,8 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
       /SURFACE_CAPTURE_BUSY/,
     )
     surface.dispose()
-    await backend.flush?.()
-    assert.deepEqual(backend.capture!(), before)
+    await backend.flush()
+    assert.deepEqual(await backend.capture(), before)
   } finally {
     backend.dispose()
     fixture.geometry.dispose()
@@ -80,17 +80,18 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
   }
 })
 
-test('explicit captures reject stale images and aborted surface captures leave the main view intact', async () => {
+test('an explicit capture reads an unflushed image back, and an aborted surface capture leaves the main view intact', async () => {
   installGpuGlobals()
   const { device } = mockGpu()
   const { fixture, backend } = quadBackend(device)
   try {
     await backend.prepare()
     backend.render(camera())
-    await backend.flush?.()
-    assert.equal(backend.capture!().length, 4096)
+    await backend.flush()
+    assert.equal((await backend.capture()).length, 4096)
     backend.render(camera())
-    assert.throws(() => backend.capture!(), /CAPTURE_NOT_READY/)
+    // No flush: the capture reads the image of this render back itself.
+    assert.equal((await backend.capture()).length, 4096)
     assert.equal(typeof backend.captureSurfaceView, 'function')
     const controller = new AbortController()
     controller.abort()
@@ -99,8 +100,8 @@ test('explicit captures reject stale images and aborted surface captures leave t
         backend.captureSurfaceView!(camera(), { width: 16, height: 16, signal: controller.signal }),
       /abort/i,
     )
-    await backend.flush?.()
-    assert.equal(backend.capture!().length, 4096)
+    await backend.flush()
+    assert.equal((await backend.capture()).length, 4096)
   } finally {
     backend.dispose()
     fixture.geometry.dispose()
@@ -113,7 +114,7 @@ test('surface capture rejects missing pages and a device-limit failure keeps the
   const { device } = mockGpu()
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     indices: new Map(),
     gpuDevice: device,
@@ -133,8 +134,10 @@ test('surface capture rejects missing pages and a device-limit failure keeps the
       /SURFACE_DEVICE_LIMIT/,
     )
     assert.deepEqual(viewport, [32, 32])
+    // The main view draws on, waiting for a cover no page brings: no cut was read back, so its
+    // counts are unknown, never a measured zero (#1483).
     backend.render(camera())
-    assert.equal(backend.metrics().submittedTriangles, 0)
+    assert.equal(backend.metrics().submittedTriangles, null)
   } finally {
     backend.dispose()
     fixture.geometry.dispose()

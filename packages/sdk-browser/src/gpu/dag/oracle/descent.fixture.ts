@@ -1,7 +1,7 @@
 import { DAG_NODE_FLOATS } from '../types.ts'
 import { dagNodeFloor, dagNodeVerdict } from './nodeVerdict.fixture.ts'
 import { NODE_FIRST_CHILD } from '../nodeLayout.ts'
-import { drawsCard } from '../../../page/cut/select.ts'
+import { drawsCard } from '../../../page/cut/select.fixture.ts'
 import type { DagViewFrames } from './math.fixture.ts'
 
 /** A kept leaf reached only by the view ahead (`../shader/aheadWgsl.ts`): its pages are requested

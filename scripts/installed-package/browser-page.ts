@@ -86,7 +86,7 @@ export async function evaluateInstalledPage({
   const replay = await open('replay', replayUrl)
   const samples = [primer, replay].map((item) => item.metrics)
   const value: Record<string, number> = { ...samples[1] }
-  for (const key of ['pagesDecodedOffThread', 'pagesDecodedWasm', 'pagesPlannedOffThread'])
+  for (const key of ['pagesChecked', 'pagesPlannedOffThread'])
     value[key] = Math.max(...samples.map((sample) => sample?.[key] ?? 0))
   const pointerUrl = new URL(manifestUrl, location.href)
   const pointer = (await (await fetch(pointerUrl)).json()) as { url: string }
@@ -128,16 +128,12 @@ export async function evaluateInstalledPage({
     dpr: devicePixelRatio,
     pixelError: 0,
     camera: replay.view,
-    capabilities: { renderer: replay.world.renderer },
   }
-  // An engine that publishes no drawn cut (WebGL2) draws what it submits.
-  value.drawnTriangles ??= value.submittedTriangles
   replay.world.dispose()
   primer.world.dispose()
   return {
     metrics: value,
     capture: captureEvidence,
-    geometryUrl: new URL(geometry.url, metadataUrl).href,
     hierarchy,
     commonWorker,
   }

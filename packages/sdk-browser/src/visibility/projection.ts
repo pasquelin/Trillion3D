@@ -8,7 +8,7 @@ import type { MatrixElements } from '../math/matrixElements.ts'
 import { lineClip } from './shader/lineWgsl.ts'
 import { spriteAt } from './shader/spriteWgsl.ts'
 import type { VisMaterial, VisPage } from './types.ts'
-import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../engine/common.ts'
 
 /** World vertex of the last projected point, and its clip-space point: re-read at once, never
  *  kept. A world matrix is affine, fourth row `(0, 0, 0, 1)`: the base's affine transform is then

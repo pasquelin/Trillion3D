@@ -1,4 +1,4 @@
-import { withEmissiveAo } from '../../../scene/surfaceBuffer.ts'
+import { withEmissiveAo } from '../../../scene/surfaceAllocation.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
 /** A diagnostic GPU variant, or the feedback A/B's session: their stages have no twin without an

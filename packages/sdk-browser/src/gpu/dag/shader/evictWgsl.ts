@@ -15,7 +15,7 @@ fn evictAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
 fn evictRank(i:u32,now:u32)->u32{
  let key=coldAt(keyBase()+i);let used=flagAt(lastUseAt(i));
  if(used==now){return RANKS;}
- let level=min(key>>${KEY_PAGE_BITS}u,${EVICT_LEVELS - 1}u);
+ let level=key>>${KEY_PAGE_BITS}u;
  let age=min(32u-countLeadingZeros(now-used),${EVICT_AGES - 1}u);
  return ((${EVICT_LEVELS - 1}u-level)*${EVICT_AGES}u)|age;
 }

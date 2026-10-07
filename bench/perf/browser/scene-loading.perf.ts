@@ -116,7 +116,6 @@ const passeIndex =
       pages: index.pages.map((page) => page.url),
       identifiants: index.pages.map((page) => page.id),
       geometryPages: index.geometryPages.map((page) => page.url),
-      geometryUrls: index.geometryUrls,
       pageIdByUrl: index.pageIdByUrl,
       bundles: bundles(metadata).map((bundle) => bundle.url),
     }

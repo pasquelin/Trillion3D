@@ -1,10 +1,9 @@
-// The world stream's own code, a family on demand (`../host/families.ts`): the world pages
+// The world stream's own code, a family on demand (`../host/families.ts`, #1238): the world pages
 // named at their address in the cook's rank, and the server that reads each bundle once for every
-// caller and both WebGPU views of each page. Nothing draws from the world pages, so a scene opens
-// without it; it imports no engine code, so the CDN bundle makes one chunk of it alone
-// (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's (`worldRootsPage.ts`,
-// `worldSuperRoots.ts`).
-import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts'
+// caller and both WebGPU views of each page. Nothing draws from the world pages yet (#1332,
+// #1333), so a scene opens without it; it imports no engine code, so the CDN bundle makes one
+// chunk of it alone (`scripts/bundle-fold.ts`), and the engine's shapes stay the core's
+// (`worldRootsPage.ts`, `worldSuperRoots.ts`).
 import type {
   WorldRoots,
   WorldRootsCluster,
@@ -101,7 +100,7 @@ export function worldPageServer(
   // kept while a caller is on it or a page owes its other GPU view, so the two views of a page come
   // from one read whatever their order; what stays resident is the holder's and the GPU pool's.
   // A page whose other half aborts, or a bundle pushed past the pending budget (a view never asked:
-  // a WebGL2 run, an evicted slot), owes nothing more, so the retention is bounded.
+  // an evicted slot), owes nothing more, so the retention is bounded.
   const serve = async (address: string, view: View, signal?: AbortSignal) => {
     const { bundle, offset } = worldRootsPageLocation(address)
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
@@ -156,29 +155,11 @@ export function worldPageServer(
     /** Its world-space positions, the page's other WebGPU view. */
     positions: async (address: string, signal?: AbortSignal) =>
       (await serve(address, 'attributes', signal)).positions,
-    /** Its decoded shape, the one WebGL2 draws. */
-    decoded: async (address: string, signal?: AbortSignal) =>
-      decodedWorldRootsPage(await serve(address, 'whole', signal)),
   }
 }
 
-/** The `u32` indices of a world page: the `u16` local list widened one-to-one, the width both the
- *  WebGPU `array<u32>` and WebGL2's `UNSIGNED_INT` draw read. */
+/** The `u32` indices of a world page: the `u16` local list widened one-to-one, the width the
+ *  WebGPU `array<u32>` reads. */
 const worldRootsIndices = (page: WorldRootsPage) => new Uint32Array(page.indices)
-
-/** The engine's decoded shape of a world page: `u32` indices, a world-space position list, and no
- *  other attribute — the world page carries no normal, UV or colour. */
-function decodedWorldRootsPage(page: WorldRootsPage): DecodedGeometryPage {
-  const indices = worldRootsIndices(page),
-    positions = page.positions as Float32Array<ArrayBuffer>
-  return {
-    indices,
-    attributes: { position: positions },
-    vertexCount: positions.length / 3,
-    flags: 0,
-    decodedBytes: positions.byteLength + indices.byteLength,
-    quantizationError: 0,
-  }
-}
 
 export type WorldPageServer = ReturnType<typeof worldPageServer>

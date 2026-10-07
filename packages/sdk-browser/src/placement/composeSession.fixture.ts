@@ -30,7 +30,16 @@ export function session() {
   }))
   let revision = 0
   const selection = {
-    worldRanges: [{ first: 0, count: 2, buffer: device.createBuffer({ size: 128, usage: 0 }) }],
+    worldRanges: [
+      {
+        first: 0,
+        count: 2,
+        buffer: device.createBuffer({
+          size: 128,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        }),
+      },
+    ],
     worldsMovedOnGpu: () => void revision++,
   }
   const rt = composeRuntime(roots, {

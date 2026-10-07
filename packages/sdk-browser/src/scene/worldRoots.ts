@@ -32,7 +32,7 @@ import {
 import type { ClusterManifest } from '../../../sdk-core/src/index.ts'
 import { rangedReader } from '../cluster/ranged.ts'
 import { corruptObject, fetchVerified } from '../cluster/pages.ts'
-import { verifyPageBytes } from '../page/decode/host.ts'
+import { verifyPageBytes } from '../page/work/host.ts'
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts'
 import { families } from '../host/families.ts'
 import { worldRootsPageSource } from './worldRootsPage.ts'
@@ -86,10 +86,11 @@ async function readBundles(
   return Promise.all(
     table.bundles.slice(first, end).map(async (bundle, i) => {
       const start = bundle.offset - from
-      const verified = await verifyPageBytes(bytes.slice(start, start + bundle.bytes).buffer)
-      if (verified.sha256 !== bundle.sha256)
-        throw corruptObject(`${url}#${first + i}`, bundle, bundle.bytes, verified.sha256)
-      return worldBundlePages(new Uint8Array(verified.source), bundle.count, first + i)
+      const view = bytes.subarray(start, start + bundle.bytes)
+      const sha256 = await verifyPageBytes(view)
+      if (sha256 !== bundle.sha256)
+        throw corruptObject(`${url}#${first + i}`, bundle, bundle.bytes, sha256)
+      return worldBundlePages(view, bundle.count, first + i)
     }),
   )
 }

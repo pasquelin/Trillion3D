@@ -1,6 +1,6 @@
 /**
  * THE SURFACE TEXTURES OF A WORLD'S MATERIALS: each engine texture built once as the engine's own
- * graph texture, and written again in place when a repaint moves it. The texture
+ * graph texture, and written again in place when a repaint moves it (#335, #360, #361). The texture
  * counts three things apart (`Texture.version`, `sampling`, `placement`): the picture is sent again
  * for a version only, the sampler and the placement are written as fields, read by the import at
  * the next image (`../../host/surfaceImport.ts`).
@@ -110,7 +110,8 @@ export function hostTexture(texture: Texture, colour: boolean, built: HostTextur
   if (!host) {
     host = new GraphTexture(texture.image)
     if (texture.layout === 'data') {
-      // Raw texels: read as they are stored, with the chain their filter reads (`mipFiltered`).
+      // Raw texels: read as they are stored, through the chain the GPU builds for every texture
+      // (#443, #732).
       host.kind = 'texels'
       host.format = FORMAT[texture.format] ?? HOST_FORMAT_RGBA
     }

@@ -6,6 +6,7 @@ import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
 import { DAG_DIFFERENCE_WGSL } from './differenceWgsl.ts'
+import { DAG_SWAP_WGSL } from './swapWgsl.ts'
 import { DAG_REQUEST_WGSL } from '../requestWgsl.ts'
 import { DAG_WANTED_WGSL } from './wantedWgsl.ts'
 import { DAG_LIVE_WGSL } from './liveWgsl.ts'
@@ -37,7 +38,7 @@ struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>
 struct FrameRange{first:u32,count:u32,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
- *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
+ *  every comparison below behaves exactly as the oracle's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
 /** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
 const FRAME:u32=${FRAME_VEC4}u;
@@ -58,8 +59,8 @@ fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7ffffff
 /** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
  *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
 fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(grownPlane(m*views[v].planes[i]),vec4f(0.0,0.0,0.0,1.0),open);}}
-/** A plane moved out by the primitive's deformation reach along every axis: a box clears it
- *  only if the box grown by that reach would — the CPU cut's \`growPlanes\`. */
+/** A plane moved out by the primitive's deformation reach along every axis (#357): a box clears it
+ *  only if the box grown by that reach would — the oracle's \`growPlanes\`. */
 fn grownPlane(p:vec4f)->vec4f{return vec4f(p.xyz,p.w+deformReach*(abs(p.x)+abs(p.y)+abs(p.z)));}
 /** How far the current primitive's GPU deformation moves a vertex this frame, in its units
  *  (\`reachOf\`), set once the kernel knows which primitive it reads: every box and sphere grows by it. */
@@ -121,14 +122,12 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   vi=entryView(entry);let r=recordOf(i,w);
   let clusterFlags=clusterAt(r).flags;
   var draw=false;
-  // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
-  // cut without residency holds every cluster and every finer group.
+  // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives.
   let word=flagAt(coneCache(i));
   if((word&CONE_REJECTED)==0u){
-   let all=views[0u].residentCut==0u;
    // The rule on the two comparisons \`dagWanted\` made this frame, on the same projections — no
    // matrix product, no projection, no sphere read again.
-   draw=drawsCompared(all||isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,all||childResident(i));
+   draw=drawsCompared(isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,childResident(i));
   }
   noteImage(r,clusterFlags,draw);
   let drawn=select(0u,1u,draw);
@@ -144,7 +143,7 @@ ${DAG_WORLD_POSE_WGSL}
 ${DAG_ERROR_WGSL}
 ${CUT_RULE_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_READING_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_WANTED_WGSL}
+${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_READING_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_SWAP_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}

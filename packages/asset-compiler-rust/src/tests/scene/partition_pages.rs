@@ -70,7 +70,7 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
     let slots = 1_391; // FORMAT.md, and the index-page root below
     for (options, tables, directory) in &worlds {
         let manifest = fs::read(directory.join(MANIFEST_FILE)).expect("clusters.json");
-        assert_eq!(manifest.len(), 1_717, "the manifest's root, FORMAT.md");
+        assert_eq!(manifest.len(), 1_719, "the manifest's root, FORMAT.md");
         let root = &tables["partition"];
         let paged = json!({"version": root["version"], "pages": root["pages"]});
         assert_eq!(size(&paged), slots, "the root's slots, whatever the world");

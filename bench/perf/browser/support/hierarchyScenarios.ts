@@ -7,7 +7,7 @@ import type { CameraOptics } from '../../../../packages/sdk-browser/src/camera/e
 
 export type Vec3 = [number, number, number]
 export type Quat = [number, number, number, number]
-export type CameraSpec = CameraOptics & { webgpu: boolean }
+export type CameraSpec = CameraOptics
 export type Pose = [Vec3, Quat, Vec3]
 
 /**
@@ -32,7 +32,7 @@ export type HierarchyOp =
   | ['vise', number, Vec3, Vec3]
   | ['objectif', number, CameraSpec]
   | ['lis', number]
-  | ['image', number, boolean]
+  | ['image', number]
   | ['instantane', number]
 
 const alea = xorshiftRandom(0x3a3a)
@@ -95,7 +95,6 @@ export const cameraAuHasard = (): CameraSpec => ({
   near: 0.01 + alea(),
   far: 100 + alea() * 1000,
   zoom: alea() < 0.5 ? 1 : 0.5 + alea() * 3,
-  webgpu: alea() < 0.5,
 })
 
 /** Live descendants of `id`, itself included, from the parents held by the generator. */
@@ -158,7 +157,7 @@ export function chainesFigees(nonFinies: boolean): HierarchyOp[] {
   for (const r of roots) ops.push(['maj', r, true])
   ops.push(['instantane', 0])
   for (let n = 0; n < id; n++) ops.push(['lis', n])
-  for (const c of cameras) ops.push(['image', c, false], ['image', c, true])
+  for (const c of cameras) ops.push(['image', c])
   return ops
 }
 

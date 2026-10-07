@@ -4,12 +4,12 @@ import {
   LIGHT_SETTINGS,
   type SceneEnvironment,
   type SceneLight,
+  type LightingCapabilities,
   type SceneLightStore,
   type SceneLightingView,
   cloneSceneLight,
 } from '../../../../sdk-core/src/index.ts'
-import type { BackendDiagnostic, RenderBackend } from '../../backend/types.ts'
-import { lightingCapabilitiesOf } from '../../lighting/capabilities.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 
 type Inputs = {
@@ -17,54 +17,78 @@ type Inputs = {
   store: SceneLightStore | undefined
   /** Identifiers of the lights that came from the source file, in cache order. */
   imported: readonly string[]
-  backends: RenderBackend[]
-  /** A world's own move by name (`ExplorerSource.moveNamed`), taken before any engine's. */
+  engine: Engine
+  /** A world's own move by name (`ExplorerSource.moveNamed`), taken before the engine's. */
   moveNamed?: (nodeName: string, matrix: Float32Array) => void
-  /** Active engine: it is its lighting capability that is published, not the session's. */
-  active: () => RenderBackend
-  onDiagnostic?: (diagnostic: BackendDiagnostic) => void
+}
+
+/** What the engine does with the contract's lights: it rereads the store at the next frame, so
+ *  the lights and the view apply; its shadows and their limits it declares itself. */
+function lightingOf(engine: Engine): LightingCapabilities {
+  const { shadows, reason } = engine.lighting
+  return reason ? { shadows, reason } : { shadows }
+}
+
+/** The writes of lights, view, environment and node poses: each one the engine takes at the
+ *  next frame. */
+function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
+  const { check, engine } = inputs
+  const notify = () => engine.refreshSceneLights()
+  return {
+    setLightingView(view: SceneLightingView) {
+      check()
+      required().setView(view)
+      notify()
+    },
+    addLight(light: SceneLight) {
+      check()
+      required().add(light)
+      notify()
+    },
+    setLight(id: string, patch: Partial<Omit<SceneLight, 'id'>>) {
+      check()
+      required().set(id, patch)
+      notify()
+    },
+    removeLight(id: string) {
+      check()
+      required().remove(id)
+      notify()
+    },
+    setEnvironment(environment: SceneEnvironment) {
+      check()
+      required().setEnvironment(environment)
+      notify()
+    },
+    setTransform(nodeName: string, matrix: Float32Array) {
+      check()
+      if (inputs.moveNamed) return inputs.moveNamed(nodeName, matrix)
+      engine.setTransform(nodeName, matrix)
+    },
+    /** `setTransform` on many nodes the host resolved once: sixteen floats per node, in order. */
+    setTransforms(nodes: readonly Object3D[], matrices: Float32Array) {
+      check()
+      engine.setTransforms(nodes, matrices)
+    },
+  }
 }
 
 /**
- * Public API of lights and environment. The store is the session's: every engine shares it,
- * and an engine that does not know direct lighting ignores it without crashing —
- * `refreshSceneLights` is missing, its missing capability is declared in its diagnostic.
+ * Public API of lights and environment. The store is the session's: the engine rereads it at the
+ * next frame (`refreshSceneLights`).
  *
- * `setTransform` goes to the active engine if it can move a node; otherwise the call is
- * refused by a named `EngineError`, never by an anonymous exception. It draws nothing: it
- * marks the scene modified, and the next render — the host's `render()`, or the already
+ * `setTransform` goes to the engine, which moves the node by its name. It draws
+ * nothing: it marks the scene modified, and the next render — the host's `render()`, or the already
  * scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
  * eleven: the frame gate refuses to hold the previous frame from the first pose, so the
  * screen never keeps a stale pose. `setTransforms` does the same for many nodes at once.
  */
 export function createExplorerLightApi(inputs: Inputs) {
-  const { check, store, imported, backends, active, onDiagnostic } = inputs
-  // Once per session, not once per call: a host that sets its lights every frame would drown
-  // its own diagnostic report under the same repeated finding.
-  let warned = false
-  /**
-   * The store accepts the light — it is the one that holds the contract, and the engine can
-   * change afterwards — but the active engine will not apply it: the host learns it here,
-   * by name, instead of inferring it from a black image.
-   */
-  const warnUnsupported = () => {
-    if (warned) return
-    const capabilities = lightingCapabilitiesOf(active())
-    if (capabilities.sceneLights) return
-    warned = true
-    onDiagnostic?.({
-      phase: 'scene-lights-unsupported',
-      message: capabilities.reason ?? 'the active engine does not apply the contract lights',
-      context: { backend: active().id, capabilities },
-    })
-  }
+  const { check, store, imported, engine } = inputs
   const required = () => {
     if (!store)
       throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {})
     return store
-  }
-  const notify = () => {
-    for (const backend of backends) backend.refreshSceneLights?.()
   }
   return {
     /** Published bounds of direct lighting, as the runtime applies them. */
@@ -108,74 +132,12 @@ export function createExplorerLightApi(inputs: Inputs) {
     get lightingView(): SceneLightingView {
       return store?.lightingView ?? 'auto'
     },
-    /**
-     * What the ACTIVE engine actually does with lights: a call accepted by the store is not
-     * proof of lighting. A host that wants to know whether its image changes reads it here,
-     * before believing it; the answer follows the selected engine, not the session.
-     */
+    /** What the engine actually does with lights: a call accepted by the store is not proof of
+     *  lighting, and its shadows and their limits are the engine's to declare. */
     lightingCapabilities() {
       check()
-      return lightingCapabilitiesOf(active())
+      return lightingOf(engine)
     },
-    setLightingView(view: SceneLightingView) {
-      check()
-      required().setView(view)
-      warnUnsupported()
-      notify()
-    },
-    addLight(light: SceneLight) {
-      check()
-      required().add(light)
-      warnUnsupported()
-      notify()
-    },
-    setLight(id: string, patch: Partial<Omit<SceneLight, 'id'>>) {
-      check()
-      required().set(id, patch)
-      warnUnsupported()
-      notify()
-    },
-    removeLight(id: string) {
-      check()
-      required().remove(id)
-      notify()
-    },
-    setEnvironment(environment: SceneEnvironment) {
-      check()
-      required().setEnvironment(environment)
-      notify()
-    },
-    setTransform(nodeName: string, matrix: Float32Array) {
-      check()
-      if (inputs.moveNamed) return inputs.moveNamed(nodeName, matrix)
-      let applied = 0
-      for (const backend of backends)
-        if (backend.setTransform) {
-          backend.setTransform(nodeName, matrix)
-          applied++
-        }
-      if (!applied)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          'no engine of this session moves a named node',
-          { nodeName },
-        )
-    },
-    /** `setTransform` on many nodes the host resolved once: sixteen floats per node, in order. */
-    setTransforms(nodes: readonly Object3D[], matrices: Float32Array) {
-      check()
-      let applied = 0
-      for (const backend of backends)
-        if (backend.setTransforms) {
-          backend.setTransforms(nodes, matrices)
-          applied++
-        }
-      if (!applied)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          'no engine of this session moves a named node',
-          { nodeName: nodes[0]?.name },
-        )
-    },
+    ...lightWrites(inputs, required),
   }
 }

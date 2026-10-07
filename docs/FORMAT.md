@@ -17,7 +17,7 @@ pages and the products below. Shared objects are `native/objects/<sha256>.bin`, 
 
 `manifest.json`: status, format, key, scope (`slice` or `full`) and the URL of `clusters.json`.
 
-- Versions: `FORMAT_VERSION`, `CLUSTERED_BLEND_FORMAT_VERSION` (`rust/compiler_format.rs:cache_format`
+- Versions: `FORMAT_VERSION` 11, `CLUSTERED_BLEND_FORMAT_VERSION` 12 (`rust/compiler_format.rs:cache_format`
   picks; `core/contracts/base.ts`).
 - Writes `rust/compiler_publish.rs:write_pointer`; reads `core/contracts/cache.ts:assertCachePointer`.
 
@@ -36,7 +36,8 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`).
+- Version: `MANIFEST_BINARY_VERSION` 11, with the `texturePreviewBc7`, `texturePreviewAstc` and
+  `texturePreviewEtc2` block columns (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`).
 - Writes `rust/manifest_binary.rs:columns`; reads `core/manifest/binaryRead.ts:readManifestColumns`,
   `core/manifest/binaryDecode.ts:decodeManifestBinary`.
 
@@ -59,16 +60,20 @@ shader reads in place, decoded alike by Rust, JavaScript and WGSL.
   (`core/manifest/binaryFormat.ts`), declared by the manifest's `geometryPages`.
 - Writes `rust/compiler_primitive_bundle.rs:bundle_dag_pages`, `rust/compiler_page_object.rs:store_page`,
   `rust/geometry_page.rs:encode_deformed`; grid `codec/bits/grid.rs:grid_exponent`.
-- Reads `browser/cluster/pages.ts:fetchVerified`, `browser/page/decode/geometryPage.ts:decodeGeometryPage`,
+- Reads `browser/cluster/pages.ts:fetchVerified`, `browser/page/codec/geometryPage.ts:decodeGeometryPage`,
   `codec/unpack.rs:decode`, `browser/cluster/decodeWgsl.ts`.
 
 ## Textures
 
 Every atlas texture's mip chain: the tail in the head's column file, one lossless PNG per level
-above it, and BC or ASTC tile-record files where the quality gate passes. Coverage-preserving alpha:
-`rust/texture_preview/coverage.rs`, mirrored by `browser/texture/coverageRule.ts`.
+above it, and block tile-record files where the quality gate passes: BC (`bc7`, `bc5` for two
+channels), ASTC and ETC2/EAC (`etc2`, `eac-rg`). All three families are cooked by default
+(`--textures-format`, default `all`); the runtime takes the first family the device's features
+allow (`browser/texture/blockFormats.ts:chooseBlockFormat`), PNG the last fallback.
+Coverage-preserving alpha: `rust/texture_preview/coverage.rs`, mirrored by
+`browser/texture/coverageRule.ts`.
 
-- Version: `TEXTURE_PREVIEW_VERSION` (`rust/texture_preview.rs`, `core/texture/previewFormat.ts`).
+- Version: `TEXTURE_PREVIEW_VERSION` 7 (`rust/texture_preview.rs`, `core/texture/previewFormat.ts`).
 - Writes `rust/texture_preview/bake_write.rs:write_levels`, `rust/texture_preview/levels.rs:tile_records`,
   `rust/manifest_binary/preview.rs:encode_previews`; gate `rust/texture_preview/blocks/quality.rs`.
 - Reads `core/manifest/binaryPreview.ts:decodeTexturePreviews`,
@@ -77,9 +82,10 @@ above it, and BC or ASTC tile-record files where the quality gate passes. Covera
 ## Prepared scene tables
 
 `scene-tables.json`: nodes, lights, cameras, skins, clips, materials, textures and geometry layout;
-the runtime builds its scene from them, parsing no glTF.
+the runtime builds its scene from them, parsing no glTF. One `document` holds the published scene;
+there is no second scene.
 
-- Versions: `SCENE_TABLES_VERSION`, `NODE_TABLE_VERSION`, `MATERIAL_TABLE_VERSION`,
+- Versions: `SCENE_TABLES_VERSION` 7, `NODE_TABLE_VERSION`, `MATERIAL_TABLE_VERSION`,
   `GEOMETRY_TABLE_VERSION` (`rust/compiler_tables.rs`, `core/scene/core/tableContracts.ts`).
 - Writes `rust/compiler_tables.rs:stage_scene_tables`; reads
   `core/scene/core/tableContracts.ts:assertSceneTables`, `browser/host/prepared/build.ts:buildPreparedScene`.
@@ -134,9 +140,8 @@ Cloth, rope and volume as Jolt settings at the node's scale: `rust/physics_cook/
 
 ## Source glTF
 
-`source.gltf`/`source.bin`, the compacted selection, and `scene.gltf`/`scene.bin` for the autonomous
-backend: `rust/compiler_scene.rs:write_source_scene`, `rust/compiler_autonomous.rs:write_autonomous_scene`;
-read through the [prepared scene tables](#prepared-scene-tables).
+`source.gltf`/`source.bin`, the compacted selection: `rust/compiler_scene.rs:write_source_scene`;
+read through the [prepared scene tables](#prepared-scene-tables), which lay out this one document.
 
 ## Source files
 
@@ -166,4 +171,4 @@ Joints, weights, morph deltas and simulation-source IDs behind a geometry page's
 
 - Flags: `FLAG_SKIN`, `FLAG_MORPH` (`codec/deform.rs`), `FLAG_SOFT_SOURCE` (`codec/lib.rs`).
 - Writes `rust/geometry_page_deform.rs:page_deformation`; reads
-  `browser/page/decode/geometryPageDeform.ts:readDeformation`, `browser/deformation/softSource.ts:cookedSoftSource`.
+  `browser/page/codec/geometryPageDeform.ts:readDeformation`, `browser/deformation/softSource.ts:cookedSoftSource`.

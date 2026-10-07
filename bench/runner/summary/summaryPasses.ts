@@ -19,7 +19,7 @@ interface PasseGpu {
   bloc: string | null
   gpuMs: Distribution
   /** Its own share of the image, an overlap counted once on the pass submitted first; null where
-   *  the device reports none (WebGL2). */
+   *  the device reports none. */
   ownMs: Distribution
 }
 

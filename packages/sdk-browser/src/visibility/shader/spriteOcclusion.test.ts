@@ -1,5 +1,5 @@
-// A sprite that keeps its size on screen (`neverCulled`) is never rejected by an occlusion
-// test, a blend item's box or a WebGL2 copy's frustum test, while its quad may be on screen.
+// #364: a sprite that keeps its size on screen (`neverCulled`) is never rejected by an occlusion
+// test or a blend item's box, while its quad may be on screen.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
@@ -9,7 +9,7 @@ import { engineCamera } from '../../camera/camera.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts'
-import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts'
+import { webgpuPagesEngine } from '../../webgpu/pages/pages.ts'
 import { quadScene, camera } from '../../webgpu/pages/testScenes.fixture.ts'
 import { PAGE_INFO_STRIDE } from '../buffer.ts'
 import { HIZ_REJECTED_WGSL, ST_REJECTED } from '../../gpu/partition/contract.ts'
@@ -21,10 +21,10 @@ import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
 import { createWebgpuGpuState } from '../../webgpu/pages/state/gpu.ts'
 import { createWebgpuBlendState } from '../../webgpu/blend/state.ts'
 import { prepareWebgpuBlend } from '../../webgpu/blend/prepare.ts'
-import { selectWebgpuBlend } from '../../webgpu/blend/selection.ts'
+import { buildBlendStatics, refreshBlendPlan } from '../../webgpu/blend/plan.ts'
+import { orderBlendPasses } from '../../webgpu/blend/order.ts'
+import { itemKept } from '../../webgpu/blend/hierarchyCull.ts'
 import { surfaceOf } from '../../page/surface.ts'
-import { createHostDrawCamera, readHostDrawCamera } from '../../camera/world.ts'
-import { WebglClusterCopies } from '../../webgl/cluster/copyCulling.ts'
 import { identityRoots } from '../../page/selection/placements.fixture.ts'
 import { buildHizPyramid } from '../../hiz/depth.ts'
 import { countUnoccluded } from '../../hiz/unoccluded.ts'
@@ -61,11 +61,11 @@ async function rowHizSlots(sizeAttenuation?: boolean) {
   if (sizeAttenuation !== undefined)
     Object.assign(scene.material, { sprite: true, rotation: 0, sizeAttenuation })
   const { device, buffers } = mockGpu()
-  const backend = webgpuPagesBackend({ ...scene, gpuDevice: device, maxResidentPages: 4 })
+  const backend = webgpuPagesEngine({ ...scene, gpuDevice: device, maxResidentPages: 4 })
   try {
     await backend.prepare()
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     const table = buffers.find((buffer) => buffer.label === 'Trillion3D page table')!
     const words = PAGE_INFO_STRIDE / 4
     const ints = new Uint32Array(table.data.buffer, table.data.byteOffset, table.size / 4)
@@ -163,24 +163,11 @@ test('a constant-size sprite blend item has no box, and the frustum keeps it', (
   )
   // Planes no box passes: the attenuated sprite leaves, the constant-size one stays.
   blendState.blendPlanes.set(Float64Array.from({ length: 24 }, (_, i) => (i % 4 === 3 ? -1 : 0)))
-  assert.equal(selectWebgpuBlend(blendState), 1)
-  assert.deepEqual(blendState.visibleBlend, [blendState.blendGpu[0]])
-})
-
-test('a WebGL2 scene copy of a constant-size sprite is drawn with its box out of view', () => {
-  const copies = new WebglClusterCopies<G.HostMesh>()
-  const away = (sizeAttenuation: boolean) => {
-    const geometry = new G.Geometry()
-    geometry.setAttribute('position', G.floatAttribute([-1, -1, -3, 1, -1, -3, 0, 1, -3], 3))
-    const copy = G.mesh(geometry, spriteSurface(sizeAttenuation))
-    copy.position.set(100, 0, 0)
-    copy.updateMatrixWorld()
-    return copy
-  }
-  const constant = away(false)
-  copies.cull(
-    [constant, away(true)],
-    readHostDrawCamera(createHostDrawCamera(), G.perspectiveCamera(60, 1, 0.1, 10)),
+  buildBlendStatics(blendState)
+  refreshBlendPlan(blendState)
+  assert.equal(orderBlendPasses(blendState, [0, 0, 0]), 1)
+  assert.deepEqual(
+    [0, 1].map((item) => itemKept(blendState.keepPacked, item)),
+    [true, false],
   )
-  assert.deepEqual(copies.plain, [constant])
 })

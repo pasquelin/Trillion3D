@@ -15,7 +15,7 @@ pub(crate) const PROBE_SIDE: usize = 16;
 /// Largest atlas side: WebGPU's guaranteed `maxTextureDimension2D`, the texture any card holds.
 pub(crate) const ATLAS_LIMIT: usize = 8192;
 
-/// The engine's default vertical field (`DEFAULT_FOV`, 55°, `backend/common.ts`) on the target
+/// The engine's default vertical field (`DEFAULT_FOV`, 55°, `engine/common.ts`) on the target
 /// screen, 1117 CSS lines at DPR 2 — 2234 device lines, half of them above the axis —: the focal
 /// length in device pixels (2146) the compiler judges distances with. A narrower
 /// field or a taller screen moves the switch at run time, never the bake.

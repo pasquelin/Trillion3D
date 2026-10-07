@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTilePool } from './pool.ts'
-import { poolLayerBytes, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
+import { poolLayerBytes, POOL_MAX_LAYERS, tileBytes, TILES_PER_LAYER } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 
 const rgba = { kind: 'data', lane: 'lossless', format: 'rgba8unorm', texelBytes: 4 } as const
@@ -23,6 +23,9 @@ test('the pool allocates its layers once, at the fixed size, and counts its tile
   assert.ok((created[0].usage & GPUTextureUsage.RENDER_ATTACHMENT) !== 0)
   assert.equal(pool.resident, 0)
   assert.throws(() => createWebgpuTilePool(device, { ...rgba, layers: 0 }), /TEXTURE_POOL_LAYERS/)
+  // Past the layers a table entry addresses, a place would name another tile: refused.
+  const past = { ...rgba, layers: POOL_MAX_LAYERS + 1 }
+  assert.throws(() => createWebgpuTilePool(device, past), /TEXTURE_POOL_LAYERS/)
 })
 
 // Behaviour: a block pool counts one byte per texel and is never a render attachment — WebGPU

@@ -19,7 +19,7 @@ const pose: CameraPose = {
   target: [0, 0, 0],
   fov: 60,
 }
-const options: WorldOptions = { renderer: 'webgl2', interactive: false }
+const options: WorldOptions = { interactive: false }
 const budgets: MemoryBudgets = { geometryPoolBytes: 64 * 1024 * 1024 }
 const clamp: PoolClamp = 'root-cover'
 const profiler = new EngineProfiler(60)

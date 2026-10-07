@@ -1,4 +1,4 @@
-// Oracles of the WebGL2 cut: the general path, the one that projects.
+// Oracles of the cut from before batch 4c: the general path, the one that projects.
 // Unit tests import them to check that the zero-threshold paths yield the exact same
 // decision, and that the shared distance does not change a bit.
 import { clusterErrorPixels } from '../../../packages/sdk-core/src/index.ts'
@@ -12,7 +12,7 @@ interface BoundSlots {
   parentSphere: number
 }
 
-/** `packages/sdk-browser/src/page/selection/math.ts`: the centre projected into a shared buffer. */
+/** `packages/sdk-browser/src/page/selection/math.ts` before batch 4c: the centre projected into a shared buffer. */
 const centre = new Float64Array(3)
 export function referenceProjectCentre(
   sphere: ArrayLike<number>,
@@ -28,7 +28,7 @@ export function referenceProjectCentre(
   return centre
 }
 
-/** `projectedClusterError`: one square root per bound, in `clusterErrorPixels`. */
+/** `projectedClusterError` from before batch 4c: one square root per bound, in `clusterErrorPixels`. */
 export function referenceProjectedClusterError(
   error: number | null | undefined,
   sphere: ArrayLike<number> | null | undefined,
@@ -45,8 +45,8 @@ export function referenceProjectedClusterError(
   return clusterErrorPixels(error, stretch, c[0], c[1], c[2], sphere[offset + 3], focal, near)
 }
 
-/** `errorFloorPixels` on the depth that the corrected bound uses (`−view(C).z`) rather than
- *  the distance to the eye: the floor stays the
+/** `errorFloorPixels` from before batch 4c, on the depth that defect-3's corrected bound
+ *  uses (`−view(C).z`) where the old one took the distance to the eye: the floor stays the
  *  lower bound of a subtree; the proof is at the `errorFloorAt` site. */
 export function referenceErrorFloorPixels(
   error: number | null | undefined,
@@ -64,7 +64,7 @@ export function referenceErrorFloorPixels(
   return (error * stretch * focal) / far
 }
 
-/** `nodeDecision`, bounds read at the same offsets. */
+/** `nodeDecision` from before batch 4c, bounds read at the same offsets. */
 export function referenceNodeDecision(
   values: ArrayLike<number>,
   at: number,

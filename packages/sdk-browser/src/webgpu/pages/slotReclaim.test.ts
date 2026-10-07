@@ -1,7 +1,7 @@
 import test from 'node:test'
-import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts'
+import { MANIFEST_IDENTITY } from '../../engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { PAGE_INFO_STRIDE } from '../../visibility/buffer.ts'
@@ -11,13 +11,6 @@ import { camera } from './testScenes.fixture.ts'
 import { twoCoarseQuadsScene } from './testOccluder.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import { type ClusterManifest, type Primitive } from '../../../../sdk-core/src/index.ts'
-
-/** The mock GPU always builds the full backend; these tests reach the WebGPU-only members the
- *  general `RenderBackend` contract leaves optional or omits. */
-type PagesBackend = ReturnType<typeof webgpuPagesBackend> & {
-  flush(): Promise<void>
-  selectedPageIds(): string[]
-}
 
 /** `twoCoarseQuadsScene`, its manifest completed with the cache-identity fields the fixture
  *  omits — unread by the backends under test. Its second primitive's `pages` carry every `Page`
@@ -44,12 +37,12 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = mockGpu({ packed })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 6,
     viewport: [32, 32],
-  }) as PagesBackend
+  })
   const cam = camera()
   try {
     await backend.prepare()
@@ -87,12 +80,12 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
   const { device, writes, buffers, submits } = mockGpu(),
     fixture = scene()
   // Eight clusters share six rows, four of them the floor, so every jump between the two primitives recycles rows on eviction.
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 6,
     viewport: [32, 32],
-  }) as PagesBackend
+  })
   const view = camera(),
     words = PAGE_INFO_STRIDE / 4
   const look = (x: number) => {
@@ -140,10 +133,10 @@ test('a recycled page-table row describes its new cluster and reaches the GPU be
       seen.add(rows[base + 47])
       slots.add(rows[base + 24])
     }
-    // A leaked row would show up as a live row beyond the four the table holds, and a lost row as fewer
-    // live rows than the image drew.
+    // The rows are a cache of the resident instances the cut draws or asks (`../row/slots.ts`): a
+    // leaked row would show up as a live row past the resident pages, and none at all as a lost one.
     assert.ok(
-      seen.size <= 4 && seen.size >= backend.metrics().residentPages!,
+      seen.size > 0 && seen.size <= backend.metrics().residentPages!,
       `live rows ${seen.size}`,
     )
     const lastRowWrite = writes.filter((write) => write.label === 'Trillion3D page table').at(-1)

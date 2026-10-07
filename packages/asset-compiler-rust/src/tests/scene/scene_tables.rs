@@ -77,9 +77,9 @@ fn the_node_table_carries_every_node_and_its_local_pose() {
 }
 
 #[test]
-fn the_documents_lay_out_every_primitive_in_its_binary() {
+fn the_document_lays_out_every_primitive_in_its_binary() {
     let (_root, tables) = published(|_| {});
-    let source = &tables["documents"]["source.gltf"];
+    let source = &tables["document"];
     assert_eq!(source["buffer"], json!("source.bin"));
     let primitive = &source["meshes"][0]["primitives"][0];
     let position = &source["accessors"][primitive["attributes"]["POSITION"]
@@ -107,14 +107,6 @@ fn the_documents_lay_out_every_primitive_in_its_binary() {
         json!(1.0),
         "the glTF default"
     );
-    // The autonomous copy is laid out beside it, one degenerate triangle per primitive, and wears
-    // the variant without tangents it publishes.
-    let autonomous = &tables["documents"]["scene.gltf"];
-    assert_eq!(autonomous["buffer"], json!("scene.bin"));
-    assert_eq!(
-        autonomous["meshes"][0]["primitives"][0]["attributes"],
-        json!({"POSITION":0})
-    );
 }
 
 #[test]
@@ -137,9 +129,7 @@ fn the_tables_describe_the_published_scene_and_not_the_input() {
     );
     assert_eq!(tables["nodes"][1]["mesh"], Value::Null, "{tables}");
     assert_eq!(
-        tables["documents"]["source.gltf"]["meshes"]
-            .as_array()
-            .map(Vec::len),
+        tables["document"]["meshes"].as_array().map(Vec::len),
         Some(1),
         "one mesh fits the slice"
     );
@@ -151,8 +141,8 @@ fn the_format_number_is_raised_and_an_earlier_cache_is_refused_by_it() {
     let (first, _) = compile_with_events(&options);
     assert_eq!(first["formatVersion"], json!(FORMAT_VERSION));
     assert_eq!(
-        FORMAT_VERSION, 9,
-        "the batch that pages the manifest raises it"
+        FORMAT_VERSION, 11,
+        "the batch that drops the second, self-contained scene raises it"
     );
     let path = options
         .key_directory(first["key"].as_str().expect("key"))

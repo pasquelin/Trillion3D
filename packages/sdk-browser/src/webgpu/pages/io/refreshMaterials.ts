@@ -7,7 +7,7 @@ import {
   isAssignment,
   type AlphaChange,
   type SurfaceAssignment,
-} from '../../../placement/backendSceneUpdates.ts'
+} from '../../../placement/engineSceneUpdates.ts'
 import type { HostMaterials } from '../../../host/resources.ts'
 import {
   recordsOfMeshes,

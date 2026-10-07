@@ -30,7 +30,7 @@ pub(super) fn psnr(a: &[u8], b: &[u8]) -> f64 {
 /// three colours, a faint grain over it, an alpha ramp. Channels that vary
 /// independently — one gradient per channel — describe a plane a single segment
 /// cannot hold, and a block of them costs ten decibels more in every codec.
-fn photo(width: u32, height: u32) -> Vec<u8> {
+pub(super) fn photo(width: u32, height: u32) -> Vec<u8> {
     let mut rgba = Vec::with_capacity((width * height * 4) as usize);
     for y in 0..height {
         for x in 0..width {

@@ -126,6 +126,7 @@ test('the prepared values change no request, drawn page, counter or total', asyn
   const sorted = (reading: (typeof shipped.readings)[number]) => ({
     ...reading,
     requests: reading.requests.toSorted((a, b) => a - b),
+    priorities: reading.priorities.toSorted((a, b) => a - b),
   })
   const rows = cases.map(({ name }, k) => {
     const [a, b] = [shipped.readings[k], computed.readings[k]]

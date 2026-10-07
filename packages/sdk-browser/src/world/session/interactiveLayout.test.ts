@@ -32,7 +32,7 @@ function startOn(
   options: { width: number; height: number; pixelRatio: number },
 ) {
   const resized: number[][] = []
-  const hostedControls: { dispose(): void }[] = []
+  const ownedControls: { dispose(): void }[] = []
   const explorer = {
     render: () => ({}),
     resize(width: number, height: number) {
@@ -44,17 +44,16 @@ function startOn(
   const runtime = {
     canvas: Object.assign(canvas, { ownerDocument: { defaultView: view } }),
     options: { ...options },
-    hostedControls,
+    ownedControls,
     state: { disposed: false },
     pendingFrame: async () => false,
-    landings: () => undefined,
     familiesPending: () => undefined,
-    measureFrame: () => false,
+    engine: { measureFrame: () => false, landings: () => 0 },
   }
   const events = { emit() {}, diagnose() {} }
   const config = { ownControls: false, interactive: true }
   startInteractiveExplorer(explorer as never, runtime as never, config as never, events as never)
-  return { resized, dispose: () => hostedControls.forEach((one) => one.dispose()) }
+  return { resized, dispose: () => ownedControls.forEach((one) => one.dispose()) }
 }
 
 test('a hidden canvas keeps its drawing buffer until its box shows again', () => {

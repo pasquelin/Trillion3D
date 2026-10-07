@@ -818,8 +818,6 @@
       "shadow-pages-off": "Shadow paging disabled",
       "shadow-budget-0-25": "Shadow time budget: 0.25 ms",
       "budget-3000": "Geometry budget: 3000 pages",
-      "webgl": "WebGL renderer",
-      "webgl2": "WebGL 2 renderer",
       "moving-light": "Moving light",
       "visible": "Visible browser window"
     },
@@ -925,7 +923,7 @@
     "resolution": "Resolution and error threshold",
     "lights": "Lights, shadows and bounce",
     "execution": "Still frame, antialiasing and execution options",
-    "memory": "Memory, instances and other renderers"
+    "memory": "Memory, instances and other runs"
   },
   "evidence": {
     "computeDrawing": "Compute drawing",
@@ -1109,8 +1107,8 @@
     },
     "measurement-entry": {
       "title": "The measurement entry point",
-      "description": "Where a witness, a forced backend or an internal session is still nameable — never through the published `trillion3d` entry.",
-      "html": "<p>A page imports <code>trillion3d</code> and never sees a backend, a witness or an internal session: <code>createWorld</code> draws with one renderer, chosen from the machine or refused by name if forced and missing. The bench, the proofs and the comparison views still need to name a witness — bare Three.js, <code>THREE.LOD</code>, the internal <code>openMeasuredWorld</code> session — and that is the one job of the separate measurement entry point, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>It re-exports everything the published entry does, plus what a host never needs: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (the internal session a world opens on itself), the backend factories (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), and measurement-only helpers such as <code>replicateInstances</code>. None of it reaches a published world, and none of it is imported by an application.</p>"
+      "description": "Where a witness or an internal session is still nameable — never through the published `trillion3d` entry.",
+      "html": "<p>A page imports <code>trillion3d</code> and never sees a witness or an internal session: <code>createWorld</code> draws with WebGPU, or is refused by name if the machine grants none. The bench and the proofs still need to name a witness — bare Three.js, <code>THREE.LOD</code>, the internal <code>openMeasuredWorld</code> session — and that is the one job of the separate measurement entry point, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>It re-exports everything the published entry does, plus what a host never needs: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (the internal session a world opens on itself), the pages factory <code>webgpuPagesEngine</code>, and measurement-only helpers such as <code>replicateInstances</code>. None of it reaches a published world, and none of it is imported by an application.</p>"
     },
     "createWorldJob": {
       "title": "A world load as a cancellable job",
@@ -1159,11 +1157,11 @@
       "description": "What a frame draws. Availability describes real pipeline outputs, never synthetic overlays: `DIAGNOSTICS` gives, per mode, whether the active renderer can produce it and why not.",
       "values": [
         "The lit image, from the glTF materials.",
-        "A filled unique colour per submitted triangle — not GL_LINES, not `MeshBasicMaterial.wireframe`.",
-        "Stable primitive/page identity, one colour per cluster; WebGL2 and WebGPU both.",
+        "A filled unique colour per submitted triangle.",
+        "Stable primitive/page identity, one colour per cluster.",
         "Level-0 clusters against the coarser DAG reductions actually selected this frame.",
         "The per-cluster error projected through the cluster sphere, as the cut uses it.",
-        "One colour per material class: the class pass that resolved the pixel. WebGPU visibility path only.",
+        "One colour per material class: the class pass that resolved the pixel.",
         "Selected visible pages; rejected hierarchy nodes are counted, not drawn.",
         "Attached index pages; missing pages are not drawn. Not physical VRAM.",
         "Unavailable: texture mip residency is not instrumented.",
@@ -1214,7 +1212,7 @@
     },
     "GpuTimingMethod": {
       "description": "How the GPU durations of a stage profile were taken. A per-pass duration says where, never how much: on a tile-based GPU passes overlap and a pass absorbs its neighbours. The frame total is `gpuImageMs`, the envelope — stage durations do not add into it.",
-      "values": ["Native WebGPU timestamp queries.", "The WebGL2 extension, for that path."]
+      "values": ["Native WebGPU timestamp queries."]
     },
     "ColumnKind": {
       "description": "Storage of one column of the binary manifest. `COLUMN_KIND` maps each column name to its kind, so a reader knows the view to take over the sidecar bytes.",
@@ -1243,7 +1241,7 @@
       "description": "Wraps any pending operation in the engine job contract: a snapshot (`JobStatus`, progress, result, error), subscription, and an abort that disposes what the job owned. The operation must support abort through its owner (RAF, readback, …)."
     },
     "detectCapabilities": {
-      "description": "What this machine actually supports, before a world is created: `{ tier, renderer, adapter, extensions, reason }`. The reason is always given, so an unsupported capability is reported rather than assumed. The public wrapper a world reads is `capability.detect()` — `{ webgpu, webgl2, ... }`, a simpler shape for the same probe. The WebGL2 probe is cached."
+      "description": "What this machine's WebGPU actually grants, before a world is created: `{ tier, adapter, extensions, reason }`. The tier is `full` with GPU timestamp queries, `degraded` without them and `unavailable` with no adapter. The reason is always given, so an unsupported capability is reported rather than assumed. The public wrapper a world reads is `capability.detect()` — `{ webgpu, tier, features, reason }`, a simpler shape for the same probe."
     },
     "perspectiveProjection": {
       "description": "Perspective projection of a camera with vertical `fov` in degrees, ratio `aspect`, near plane `near`, zoom `zoom`. **Reversed depth, infinite far plane**: `near` projects to 1, infinity to 0. No far plane enters here, hence no division by it — which is what buys the depth precision."
@@ -1623,11 +1621,10 @@
       "an angle at or above π/2 never rejects": "an angle at or above π/2 never rejects",
       "after updateNodeMatrixWorld(tree, root)": "after updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "available — Attached index pages; missing pages are not drawn; not physical VRAM",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "available — Filled unique colour per submitted triangle, not GL_LINES wireframe",
+      "available — A filled unique colour per submitted triangle": "available — A filled unique colour per submitted triangle",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "available — Level-0 clusters vs coarser DAG reductions actually selected this frame",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn",
-      "available — Stable primitive/page ID, exact-cluster backend only": "available — Stable primitive/page ID, exact-cluster backend only",
       "available — glTF materials": "available — glTF materials",
       "unavailable — No fragment counter": "unavailable — No fragment counter",
       "unavailable — Texture mip residency not instrumented": "unavailable — Texture mip residency not instrumented",

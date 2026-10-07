@@ -127,18 +127,14 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
         .collect()
 }
 
-/// The cut's lens at `pixel_error`, the camera at the origin looking down `−z`, nothing culled.
-fn lens(pixel_error: f64) -> Lens {
-    // Six planes `0·x + 0·y + 0·z + 1` hold every point; the view is the identity.
+/// The cut's lens, the camera at the origin looking down `−z`: the view is the identity.
+fn lens() -> Lens {
     Lens {
-        planes: std::array::from_fn(|i| f64::from(u8::from(i % 4 == 3))),
         view: std::array::from_fn(|i| f64::from(u8::from(i % 5 == 0))),
         stretch: 1.0,
         focal: FOCAL,
         near: 1e-3,
         perspective: 1.0,
-        pixel_error,
-        exact: false,
     }
 }
 
@@ -149,7 +145,7 @@ fn pixels(error: f64, depth: f64, lens: &Lens) -> f64 {
 
 /// The worst screen error of a drawn page, the camera `distance` metres away or further.
 fn worst(pages: &[Page], distance: f64, pixel_error: f64) -> f64 {
-    let lens = lens(pixel_error);
+    let lens = lens();
     pages
         .iter()
         .filter_map(|page| {
@@ -170,7 +166,7 @@ fn exact_pixels(pages: &[Page], distance: f64) -> f64 {
         .filter(|p| p.level == 0)
         .map(|p| p.shift)
         .fold(0.0, f64::max);
-    pixels(shift, distance, &lens(1.0))
+    pixels(shift, distance, &lens())
 }
 
 /// Prints `name`'s numbers and asserts the criterion at every distance and threshold.

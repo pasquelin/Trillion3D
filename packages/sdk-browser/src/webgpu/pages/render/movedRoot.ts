@@ -19,7 +19,7 @@ export type MovedRootTarget = {
 
 /**
  * The world of one placement moved: only what reads it follows. Its resident rows get their world
- * matrix — the only words of a row a pose writes (`../../row/pageRow.ts`) — and are declared dirty,
+ * matrix — the only words of a row a pose writes (`../../row/pageRowWriter.ts`) — and are declared dirty,
  * so the table, the corners, the draw items and the shadow spheres travel for them alone, and the
  * partition forgets their occlusion verdict (`../../visibility/corners.ts`) while the rest of the
  * scene keeps its own. Its windings are computed again. The temporal pyramid, one
@@ -86,7 +86,7 @@ export function markRootRows(
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
     const row = transparent ? rows.blendRowOf[index] : rows.rowOfPage[index]
     if (!floats || row < 0) continue
-    // A rank the CPU cut left behind may name another page since: only a row that is this page's.
+    // A row the cache gave back may name another page since: only a row that is this page's.
     if (!transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index)) continue
     if (world) floats.set(world, row * ROW_WORDS)
     rows.markRowWords(row)

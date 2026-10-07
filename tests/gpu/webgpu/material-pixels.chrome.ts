@@ -1,12 +1,12 @@
 // What a material is worth on screen, in Chrome: every fixture of `materialFixtures.ts` — base
 // colour and its map, MASK at its cutoff, BLEND over the background and over a surface, a map
 // repeated and turned, nearest, anisotropic stripes, foliage at grazing angles, double- and
-// single-sided back faces, rough and metal, emissive, normal-mapped, glass — drawn by its pair of
-// renderers, the witness and the WebGPU engine, or WebGPU and the WebGL2 engine where it names them
-// (glass built through the world API), and read at the points that exercise its feature: every gap
-// within the fixture's declared window, the engine's frame held with its render diagnostics, no hole
-// where the witness shows a surface, anisotropy 16 gaining contrast over 1 on each renderer, and no
-// grazing fixture farther from its ground truth than the witness, give or take its tolerance.
+// single-sided back faces, rough and metal, emissive, normal-mapped — drawn by the witness, Three's
+// WebGPU renderer, and by the WebGPU engine, and read at the points that exercise its feature:
+// every gap within the fixture's declared window, the engine's frame held with its render
+// diagnostics, no hole where the witness shows a surface, anisotropy 16 gaining contrast over 1 on
+// each renderer, and no grazing fixture farther from its ground truth than the witness, give or
+// take its tolerance.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
@@ -37,19 +37,13 @@ test(
     assert.equal(results.length, fixtures.length, 'one reading per fixture')
     for (const fixture of results) {
       const phases = fixture.events.map((event) => event.phase)
+      // `render-capabilities` is said only by a prepare that made the visibility buffer, the
+      // engine's one draw path: one that cannot refuses by name.
       for (const phase of ['material-textures', 'render-capabilities', 'first-readback'])
         assert.ok(phases.includes(phase), `${fixture.name}: missing render diagnostic ${phase}`)
       assert.ok(
         !phases.some((phase) => /failed|gpu-device-lost/.test(phase)),
         `${fixture.name}: GPU failure diagnostic`,
-      )
-      assert.ok(
-        fixture.events.some(
-          (event) =>
-            event.phase === 'render-capabilities' &&
-            (event.context as { visibilityBuffer?: boolean }).visibilityBuffer,
-        ),
-        `${fixture.name}: real visibility buffer required`,
       )
       assert.equal(fixture.held, true, `${fixture.name}: the engine image never settled`)
       if (fixture.holes !== undefined)

@@ -1,8 +1,8 @@
-// Page of the transparent-transform proof: the real WebGPU engine (`webgpuPagesBackend`), a real
+// Page of the transparent-transform proof: the real WebGPU engine (`webgpuPagesEngine`), a real
 // device, a real reread image. No internal state is inspected — the public `setTransform` call on
 // one side, pixels and public counters on the other.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import type { RenderBackend } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { Engine } from '../../../packages/sdk-browser/src/engine/types.ts'
 import { release, versApi } from '../kit/sharedSceneProof.ts'
 import { colorAt, estRouge, image } from '../kit/sceneImageProof.ts'
 import { runPasses } from '../kit/deviceProof.ts'
@@ -26,7 +26,7 @@ function reading(
   name: string,
   camera: G.Camera,
   pixels: Uint8Array,
-  metrics: ReturnType<RenderBackend['metrics']>,
+  metrics: ReturnType<Engine['metrics']>,
 ) {
   return {
     name,

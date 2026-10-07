@@ -3,16 +3,15 @@
 // Each scene has its own: a lap shared between two scenes is a polymorphic call site, and
 // the timer pays for it. Likewise, each loop is in the function where the engine holds it —
 // a loop written inline in the lap slows the others, at strictly identical work.
-import {
-  orderBlendPasses,
-  orderEye,
-  refreshEyeKeys,
-} from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts'
+import { orderBlendPasses } from '../../../../packages/sdk-browser/src/webgpu/blend/order.ts'
+import { itemKept } from '../../../../packages/sdk-browser/src/webgpu/blend/hierarchyCull.ts'
 import {
   expandBlendPlan,
-  itemKept,
+  cpuModel,
   orderBlendPlanCpu,
-} from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.ts'
+  orderEye,
+  refreshEyeKeys,
+} from '../../../../packages/sdk-browser/src/webgpu/blend/expandCpu.fixture.ts'
 import { planItem } from '../../../../packages/sdk-browser/src/webgpu/blend/plan.ts'
 import { instanceItem } from '../../../oracles/browser/instanceItem.ts'
 import { slotCapacity } from '../../../../packages/sdk-browser/src/webgpu/blend/planLayout.ts'
@@ -62,21 +61,22 @@ function callCount(blendState: BenchSide['blendState']) {
 /** The CPU model of the order and its expansion, reread as index ranges: what the rasterizer would
  *  see. */
 function etale(
-  blendState: BenchSide['blendState'],
+  side: BenchSide,
   mirror: { expanded: Uint32Array; args: Uint32Array },
   output: Uint32Array,
 ) {
+  const { blendState, scene } = side
   // Reduced fixture, matching the pattern already used by `packages/sdk-browser/src/webgpu/blend/plan.test.ts`.
   const items = blendState.blendGpu as unknown as BenchItem[]
   refreshEyeKeys(blendState, orderEye(blendState))
   const instances = expandBlendPlan({
     order: orderBlendPlanCpu(blendState, 0),
-    runs: blendState.runs[0],
+    runs: cpuModel(blendState).runs[0],
     runCount: blendState.runCount[0],
     draws: blendState.drawsPacked,
     keep: blendState.keepPacked,
-    itemCounts: blendState.cpuItemCounts,
-    instances: blendState.cpuInstances,
+    itemCounts: scene.itemCounts!,
+    instances: scene.instances!,
     maxVertexWords: blendState.maxVertexWords,
     vertexShift: blendState.vertexShift,
     instanceBase: 0,
@@ -95,7 +95,7 @@ function etale(
   return at
 }
 
-/** The four laps of a scene, and the CPU-fallback mirrors allocated outside the lap. */
+/** The four laps of a scene, and the CPU model's mirrors allocated outside the lap. */
 function tours(before: BenchSide, after: BenchSide) {
   const blendState = after.blendState
   const mirror = {
@@ -121,7 +121,7 @@ function tours(before: BenchSide, after: BenchSide) {
       pose(after, image)
       const rejections = orderBlendPasses(blendState, image.eye)
       if (sequence) {
-        output.push(after.output.subarray(0, etale(blendState, mirror, after.output)))
+        output.push(after.output.subarray(0, etale(after, mirror, after.output)))
         continue
       }
       counts = callCount(blendState)

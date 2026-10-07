@@ -19,7 +19,7 @@ const evaluate = new Function(`
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), vec3f=x=>x;
  const smoothstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
  const mix=(a,b,t)=>a*(1-t)+b*t, dot=()=>1, reflect=x=>x;
- const ltcLookup=()=>({x:1,y:0}), INVERSE_PI=1/Math.PI;
+ const ltcLookup=()=>({x:1,y:0}), INVERSE_PI=1/Math.PI, DIELECTRIC_F0=0.04;
  const proxy={offsetMetres:0,startMetres:0};
  function mirrorWeight(rough){${scalarBody('mirrorWeight')}}
  return (rough,surfaceModel=0,enabled=true,hit=true)=>{
@@ -33,7 +33,9 @@ const evaluate = new Function(`
   const environmentReflection=()=>0.5;
   function proxyReflectionRay(P,N,R){${scalarBody('proxyReflectionRay')}}
   function reflectedRadiance(P,N,R,rough){${scalarBody('reflectedRadiance')}}
-  function mirrorLighting(rgb,metal,rough,N,V,P){${scalarBody('mirrorLighting')}}
+  function mirrorRadiance(P,N,R,rough){${scalarBody('mirrorRadiance')}}
+  // The surface's term: on a pixel without lobes, the program's whole mirror term.
+  function mirrorLighting(rgb,metal,rough,N,V,P){${scalarBody('surfaceMirrorLighting')}}
   const mirror=mirrorLighting(1,1,rough,1,1,0), mirrorRays=rays;
   const water=reflectedRadiance(0,1,1,rough);
   return {mirror,water,mirrorRays,waterRays:rays-mirrorRays};

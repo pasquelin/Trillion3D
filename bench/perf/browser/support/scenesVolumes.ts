@@ -1,7 +1,7 @@
 // Inputs of the volume-equivalence bench: drawn from a seed, and deliberately
 // hostile. Empty, inverted, point, infinite boxes, NaN or signed-zero bounds; placement
 // matrices with negative or non-uniform scale, singular, projective, full of NaN;
-// perspective and orthographic views in both depth conventions; boxes that contain
+// perspective and orthographic views; boxes that contain
 // the eye, hence clip the near plane.
 import * as THREE from 'three'
 import { xorshiftRandom } from '../../../core/index.ts'
@@ -67,21 +67,20 @@ for (let i = 0; i < 40; i++) {
   matrices.push(hostile)
 }
 
-/** One view: a WebGL/WebGPU view-projection, and the eye it was built from. */
+/** One view: a `[0, 1]` view-projection, and the eye it was built from. */
 export interface ViewProjectionCase {
   vp: number[]
-  webgpu: boolean
   eye: number[]
 }
 
-/** View-projections: perspective and orthographic, WebGL then WebGPU depth, and hostile. */
+/** View-projections: perspective and orthographic, in WebGPU's `[0, 1]` depth, and hostile. */
 export const projectionViews: ViewProjectionCase[] = []
 for (let i = 0; i < 60; i++) {
   const camera =
     i % 4 === 3
       ? new THREE.OrthographicCamera(-10, 10, 6, -6, 0.1, 300)
       : new THREE.PerspectiveCamera(20 + alea() * 90, 0.5 + alea() * 2, 0.01 + alea(), 500)
-  camera.coordinateSystem = i % 2 ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem
+  camera.coordinateSystem = THREE.WebGPUCoordinateSystem
   camera.updateProjectionMatrix()
   camera.position.set(dans(30), dans(30), dans(30))
   camera.lookAt(dans(5), dans(5), dans(5))
@@ -91,27 +90,22 @@ for (let i = 0; i < 60; i++) {
     .toArray()
   if (i % 9 === 8) vp[Math.floor(alea() * 16)] = count()
   const eye = camera.position
-  projectionViews.push({ vp, webgpu: i % 2 === 1, eye: [eye.x, eye.y, eye.z] })
+  projectionViews.push({ vp, eye: [eye.x, eye.y, eye.z] })
 }
-projectionViews.push({ vp: new Array(16).fill(0), webgpu: false, eye: [0, 0, 0] })
-projectionViews.push({ vp: new Array(16).fill(NaN), webgpu: true, eye: [0, 0, 0] })
+projectionViews.push({ vp: new Array(16).fill(0), eye: [0, 0, 0] })
+projectionViews.push({ vp: new Array(16).fill(NaN), eye: [0, 0, 0] })
 
 /** One view against one box: the shared ones, and a box around the eye that clips the near plane. */
 export interface ViewBoxCase {
   vp: number[]
-  webgpu: boolean
   box: number[]
 }
 
 /** Each view against boxes: the shared ones, and a box around the eye that clips the near plane. */
-export const viewBoxes: ViewBoxCase[] = projectionViews.flatMap(({ vp, webgpu, eye }, v) => {
+export const viewBoxes: ViewBoxCase[] = projectionViews.flatMap(({ vp, eye }, v) => {
   const [x, y, z] = eye
   const autour = [x - 1, y - 1, z - 1, x + 1, y + 1, z + 1]
-  return [autour, ...boxes.filter((_, i) => i % 7 === v % 7)].map((box) => ({
-    vp,
-    webgpu,
-    box,
-  }))
+  return [autour, ...boxes.filter((_, i) => i % 7 === v % 7)].map((box) => ({ vp, box }))
 })
 
 /** One cone-rejection case: conformal placement, cone, box, eye. */

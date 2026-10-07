@@ -5,7 +5,7 @@ import { FAMILY_MODULES, foldDynamicImports } from './bundle-fold.ts'
 
 test('an engine dynamic import folds into its module, a family one stays a chunk', () => {
   const source = [
-    'const codec = await import("./geometryPageWasm.js");',
+    'const codec = await import("./sdkWasm.js");',
     "loading ??= import('./session.js');",
     'const other = import(variable);',
   ].join('\n')
@@ -16,7 +16,7 @@ test('an engine dynamic import folds into its module, a family one stays a chunk
     "loading ??= import('./session.js');",
     'const other = import(variable);',
   ])
-  assert.match(folded, /\nimport \* as __folded0 from "\.\/geometryPageWasm\.js";\n$/)
+  assert.match(folded, /\nimport \* as __folded0 from "\.\/sdkWasm\.js";\n$/)
 })
 
 test('a module without a dynamic import is left as it is', () => {

@@ -1,54 +1,45 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { detectCapabilities } from './capabilities.ts'
+import { detectCapabilities, webgpuUnavailable } from './capabilities.ts'
+import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
 
-test('WebGL probing matches production attributes, loses the probe context, and does not touch WebGPU', async () => {
-  let gpuCalls = 0,
-    hostCalls = 0,
-    probeCalls = 0,
-    lost = 0
-  const host = {
-    getContext: () => {
-      hostCalls++
-      throw new Error('host canvas was bound')
-    },
+/** The WGSL language features of a browser that compiles every engine program. */
+const WGSL = new Set<string>(WEBGPU_REQUIRED_WGSL_FEATURES)
+
+test('a browser without WebGPU, or without an adapter, is unavailable and says why', async () => {
+  const none = await detectCapabilities({ gpu: undefined })
+  assert.equal(none.tier, 'unavailable')
+  assert.equal(none.adapter, null)
+  const refused = await detectCapabilities({
+    gpu: { wgslLanguageFeatures: WGSL, requestAdapter: async () => null } as unknown as GPU,
+  })
+  assert.deepEqual([refused.tier, refused.reason], ['unavailable', 'no WebGPU adapter'])
+  const error = webgpuUnavailable(refused.reason)
+  assert.equal(error.code, 'WEBGPU_UNAVAILABLE')
+  assert.match(error.message, /WebGPU only.*no WebGPU adapter.*WebGPU enabled/)
+})
+
+test('an adapter with GPU timestamps is the full tier, one without is degraded', async () => {
+  const adapter = (features: string[]) =>
+    ({
+      wgslLanguageFeatures: WGSL,
+      requestAdapter: async () => ({ features: new Set(features) }),
+    }) as unknown as GPU
+  const full = await detectCapabilities({ gpu: adapter(['timestamp-query', 'subgroups']) })
+  assert.deepEqual([full.tier, full.extensions], ['full', ['timestamp-query', 'subgroups']])
+  assert.equal((await detectCapabilities({ gpu: adapter([]) })).tier, 'degraded')
+})
+
+test('a browser whose WGSL lacks read-only storage textures is refused by name, no adapter asked', async () => {
+  for (const wgslLanguageFeatures of [undefined, new Set<string>()]) {
+    const gpu = {
+      wgslLanguageFeatures,
+      requestAdapter: () => assert.fail('no adapter is asked'),
+    } as unknown as GPU
+    const refused = await detectCapabilities({ gpu })
+    assert.deepEqual(
+      [refused.tier, refused.adapter, refused.reason],
+      ['unavailable', null, 'its WGSL lacks readonly_and_readwrite_storage_textures'],
+    )
   }
-  const probe = {
-    getContext: (kind: string, attributes?: WebGLContextAttributes) => {
-      probeCalls++
-      assert.equal(kind, 'webgl2')
-      assert.equal(attributes?.alpha, false)
-      assert.equal(attributes?.antialias, false)
-      return {
-        getSupportedExtensions: () => ['EXT_test'],
-        getExtension: (name: string) => {
-          assert.equal(name, 'WEBGL_lose_context')
-          return {
-            loseContext() {
-              lost++
-            },
-          }
-        },
-      }
-    },
-  }
-  const environment = {
-    get gpu(): GPU {
-      gpuCalls++
-      throw new Error('WebGPU touched')
-    },
-    createWebglCanvas: () => probe as unknown as HTMLCanvasElement,
-  }
-  const result = await detectCapabilities(
-    'webgl',
-    host as unknown as HTMLCanvasElement,
-    environment,
-  )
-  assert.equal(result.renderer, 'webgl2')
-  assert.equal(hostCalls, 0)
-  assert.equal(probeCalls, 1)
-  assert.equal(lost, 1)
-  assert.equal(gpuCalls, 0)
-  await detectCapabilities('webgl', host as unknown as HTMLCanvasElement, environment)
-  assert.equal(probeCalls, 2)
 })

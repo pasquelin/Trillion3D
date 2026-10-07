@@ -38,16 +38,15 @@ export type CutDelta = {
   readonly ids: ArrayLike<number>
   /** Reports no difference: the cut is the one already held, records included. */
   hold(): void
-  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. The
-   *  packed cut passes its reused `Int32Array` whole (`webgpu/pages/render/cpu.ts`): `count` is the
-   *  record list's length, so only the live ranks are read and no stale tail is walked. The GPU
-   *  cut passes the ranks its readback claims for them in the last list it applied (`claims`,
-   *  `./claimedDifference.ts`); a list without them is marked id by id (`./hashedDifference.ts`).
-   *  The same difference either way. */
+  /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. A
+   *  reused list is passed whole with its `count`, so only the live ranks are read and no stale
+   *  tail is walked. The main cut passes the ranks its readback claims for them in the last list it
+   *  applied (`claims`, `./claimedDifference.ts`); a list without them — the first readback, a view
+   *  drawn aside — is marked id by id (`./hashedDifference.ts`). The same difference either way. */
   apply(ids: ArrayLike<number>, count?: number, claims?: Uint32Array): void
   /**
-   * The same difference, published by a cut that names its records instead of their ranks — the
-   * CPU cut. `rankOf` resolves each record's first packed rank; a record it does not hold yields
+   * The same difference, published by a list that names its records instead of their ranks — the
+   * bootstrap cover before the first readback. `rankOf` resolves each record's first packed rank; a record it does not hold yields
    * nothing. Nothing is allocated past the first cut.
    */
   adoptRecords(records: readonly PageRec[], rankOf: (rec: PageRec) => number): void
@@ -71,55 +70,16 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * loses its mark, and the lists grow to the longest cut seen, then are rewritten in place. A frame
  * that adopts the shown list it already holds writes nothing at all.
  *
- * The GPU cut arrives there by its ids and the ranks its readback claims for them (`apply` with
- * claims), the CPU cut by its ids or records alone (`apply`, `adoptRecords`): one contract, and
- * readers do not know which one decides.
+ * The main cut arrives there by its ids and the ranks its readback claims for them (`apply` with
+ * claims), a view drawn aside by its ids alone (`apply`), the bootstrap cover by its records
+ * (`adoptRecords`): one contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDelta {
-  /**
-   * True when `ids` is exactly the sequence the last applied shown list published. One integer
-   * pass, without a single write: it is what allows doing nothing at all — neither the marks, nor
-   * the held list, nor the records — when a new shown list republishes the same cut.
-   */
-  const samePublished = (ids: ArrayLike<number>, count: number) => {
-    if (count !== delta.publishedCount) return false
-    const published = delta.published
-    for (let i = 0; i < count; i++) if (published[i] !== ids[i]) return false
-    return true
-  }
-  /** Every list long enough for a cut of `count` after the one held: either difference grows them
-   *  alike, so the bytes they weigh do not depend on which one ran. */
-  const growFor = (count: number) => {
-    if (delta.published.length < count) delta.published = grown(delta.published, count)
-    if (delta.next.length < count) delta.next = grown(delta.next, count)
-    if (delta.entered.length < count) delta.entered = grown(delta.entered, count)
-    if (delta.exited.length < delta.count) delta.exited = grown(delta.exited, delta.count)
-  }
   /** Page ranks of a record list. Emptied then filled by push, never grown by its length: an array
    *  grown that way stays holed for life, and the engine's hottest loop pays for it. Measured:
    *  1.611 ms against 1.737 ms for an equivalent typed buffer. */
   const recordIds: number[] = []
-  /** Held shown list: no difference is published, and the list is already the one it describes. */
-  const hold = () => {
-    delta.changed = false
-    delta.enteredCount = 0
-    delta.exitedCount = 0
-  }
-  const apply = (ids: ArrayLike<number>, count = ids.length, claims?: Uint32Array) => {
-    // A new shown list that republishes the same sequence describes the cut already held: it is
-    // held, and not one of the fifteen thousand records is rewritten.
-    if (samePublished(ids, count)) return hold()
-    growFor(count)
-    const next = claims ? applyClaimed(delta, ids, count, claims) : applyHashed(delta, ids, count)
-    delta.publishedCount = count
-    // The next list becomes the held one.
-    const swap = delta.ids
-    delta.ids = delta.next
-    delta.next = swap
-    delta.count = next
-    delta.changed = true
-  }
-  const delta: HeldList & CutDelta = {
+  const delta: HeldDelta = {
     recordOf: createPageCatalogue(packedPages).recordOf,
     mark: createSparseInts(),
     pages,
@@ -142,26 +102,81 @@ export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDel
     has: (id: number) => delta.mark.get(id) === delta.epoch,
     /** Bytes of the marks and the lists, all sized by the longest cut seen. */
     get hostBytes() {
-      return (
-        delta.mark.byteLength +
-        delta.ids.byteLength +
-        delta.next.byteLength +
-        delta.published.byteLength +
-        delta.rawRank.byteLength +
-        delta.entered.byteLength +
-        delta.exited.byteLength
-      )
+      return heldBytes(delta)
     },
-    hold,
-    apply,
+    hold: () => holdDelta(delta),
+    apply: (ids: ArrayLike<number>, count = ids.length, claims?: Uint32Array) =>
+      applyDelta(delta, ids, count, claims),
     adoptRecords(records: readonly PageRec[], rankOf: (rec: PageRec) => number) {
       recordIds.length = 0
       for (let i = 0; i < records.length; i++) {
         const id = rankOf(records[i])
         if (id >= 0) recordIds.push(id)
       }
-      apply(recordIds)
+      applyDelta(delta, recordIds, recordIds.length, undefined)
     },
   }
   return delta
+}
+
+type HeldDelta = HeldList & CutDelta
+
+function heldBytes(delta: HeldDelta) {
+  return (
+    delta.mark.byteLength +
+    delta.ids.byteLength +
+    delta.next.byteLength +
+    delta.published.byteLength +
+    delta.rawRank.byteLength +
+    delta.entered.byteLength +
+    delta.exited.byteLength
+  )
+}
+
+/**
+ * True when `ids` is exactly the sequence the last applied shown list published. One integer
+ * pass, without a single write: it is what allows doing nothing at all — neither the marks, nor
+ * the held list, nor the records — when a new shown list republishes the same cut.
+ */
+function samePublished(delta: HeldDelta, ids: ArrayLike<number>, count: number) {
+  if (count !== delta.publishedCount) return false
+  const published = delta.published
+  for (let i = 0; i < count; i++) if (published[i] !== ids[i]) return false
+  return true
+}
+
+/** Every list long enough for a cut of `count` after the one held: either difference grows them
+ *  alike, so the bytes they weigh do not depend on which one ran. */
+function growFor(delta: HeldDelta, count: number) {
+  if (delta.published.length < count) delta.published = grown(delta.published, count)
+  if (delta.next.length < count) delta.next = grown(delta.next, count)
+  if (delta.entered.length < count) delta.entered = grown(delta.entered, count)
+  if (delta.exited.length < delta.count) delta.exited = grown(delta.exited, delta.count)
+}
+
+/** Held shown list: no difference is published, and the list is already the one it describes. */
+function holdDelta(delta: HeldDelta) {
+  delta.changed = false
+  delta.enteredCount = 0
+  delta.exitedCount = 0
+}
+
+function applyDelta(
+  delta: HeldDelta,
+  ids: ArrayLike<number>,
+  count: number,
+  claims: Uint32Array | undefined,
+) {
+  // A new shown list that republishes the same sequence describes the cut already held: it is
+  // held, and not one of the fifteen thousand records is rewritten.
+  if (samePublished(delta, ids, count)) return holdDelta(delta)
+  growFor(delta, count)
+  const next = claims ? applyClaimed(delta, ids, count, claims) : applyHashed(delta, ids, count)
+  delta.publishedCount = count
+  // The next list becomes the held one.
+  const swap = delta.ids
+  delta.ids = delta.next
+  delta.next = swap
+  delta.count = next
+  delta.changed = true
 }

@@ -1,6 +1,6 @@
 import type { Texture } from '../../../sdk-core/src/index.ts'
 
-/** The anisotropy and clear-coat maps, in the order both backends bind them. */
+/** The anisotropy and clear-coat maps, in the order their record names them (`physicalTable.ts`). */
 export const PHYSICAL_MAP_FIELDS = [
   'anisotropyMap',
   'clearcoatMap',

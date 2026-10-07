@@ -1,28 +1,39 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
 import { INVERSE_PI } from '../shaderConstants.ts'
+import { LOBELESS_KEY, type ContractKey } from '../deferred/contractCuts.ts'
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
  * lighting formula. A light out of range, or fully in shadow, yields exactly zero.
  *
- * Without `shadowed`, the program of a scene no light of which holds a shadow slot: every
+ * What `key` (`ContractKey`, `LOBELESS_KEY` unless given) leaves out is not compiled. With
+ * `unshadowed` (#1249), the program of a scene no light of which holds a shadow slot: every
  * light's `shadowFactor` answers exactly one and a transmission of exactly one, so the same terms
  * without them are the same product, bit for bit (`tests/gpu/lighting/narrow-resolve.gpu.ts`),
  * with none of the shadow code compiled in. That code costs an unshadowed light 40 % of its
  * evaluation although it runs none of it — the registers it holds lower the pixels in flight —,
  * timed on the resolve of 64 lamps; the program is chosen per frame (`contractVariants.ts`).
  *
- * Without `rects`, the program of a scene that holds no rectangle light: \`isRect\` answers
+ * With `rectless` (#1369), the program of a scene that holds no rectangle light: \`isRect\` answers
  * false for every light, so the branch it guards never runs and its absence changes no term. The
  * rectangle's shading — its clipped polygon and fitted lobe (\`rectLightWgsl.ts\`) — is the largest
  * code of the loop: left out, every punctual light of the loop runs without the registers it holds.
+ *
+ * Without `lobeless`, the program of an image that holds an anisotropic or clear-coat surface
+ * (`lobesWgsl.ts`): a light goes through `lobeLight` and `lobeRectLight`, which run the very same
+ * terms on a pixel without lobes.
+ *
+ * `shading` is what the pixel's lights share of its surface (`lobeSurface`), taken once before the
+ * loop (`sliceLighting`); with `pair`, `dielectric` the null albedo's.
  */
 export const declaredLightWgsl = (
-  shadowed: boolean,
-  rects = true,
-  pair = false,
-) => `${pair ? LIGHT_PAIR_WGSL : ''}
-fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->${pair ? 'LightPair' : 'vec3f'}{${rects ? rectBranchWgsl(pair) : ''}
+  key: Partial<ContractKey> = LOBELESS_KEY,
+  { pair = false } = {},
+) => {
+  const shadowed = !key.unshadowed,
+    lobes = !key.lobeless
+  return `${pair ? LIGHT_PAIR_WGSL : ''}
+fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranchWgsl(pair, lobes)}
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return ${zero(pair)};}${shadowed ? shadeWgsl(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
@@ -32,28 +43,32 @@ fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,roug
  var transmitted=vec3f(0.0);
  if(any(thinSubsurface!=vec3f(0.0))){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${term(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
- return ${term(pair, (rgb, metal) => `(standardLighting(${rgb},${metal},rough,N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
+ return ${term(pair, (_rgb, _metal, shading) => `(${lobes ? 'lobeLight' : 'surfaceLight'}(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
 }`
+}
 
 /**
  * With `pair`, the light's two terms from one walk (`declaredLightPair`): on the surface, and on a
  * null albedo — the water's lit colour and its reflection's specular (`../../webgpu/water/compositeWgsl.ts`).
- * Each is the expression `declaredLight` returns, with `rgb`, `metal` or `vec3f(0.0)`, `0.0` where
- * it passes its arguments; what they share — the incidence, the shadow read, the transmission —
+ * Each is the expression `declaredLight` returns, with `rgb`, `metal`, `shading` or `vec3f(0.0)`,
+ * `0.0`, `dielectric` — a dielectric's reflectance and no diffuse — where it passes its arguments;
+ * what they share — the incidence, the shadow read, the transmission —
  * reads no albedo, so it is read once and both terms are those of two walks, bit for bit.
  */
 const LIGHT_PAIR_WGSL = `
 struct LightPair{lit:vec3f,specular:vec3f,}`
 const zero = (pair: boolean) => (pair ? 'LightPair(vec3f(0.0),vec3f(0.0))' : 'vec3f(0.0)')
-const term = (pair: boolean, of: (rgb: string, metal: string) => string) =>
-  pair ? `LightPair(${of('rgb', 'metal')},${of('vec3f(0.0)', '0.0')})` : of('rgb', 'metal')
+const term = (pair: boolean, of: (rgb: string, metal: string, shading: string) => string) =>
+  pair
+    ? `LightPair(${of('rgb', 'metal', 'shading')},${of('vec3f(0.0)', '0.0', 'dielectric')})`
+    : of('rgb', 'metal', 'shading')
 
-/** A rectangle light's term, before any punctual one's: \`declaredLight\` with \`rects\`. */
-const rectBranchWgsl = (pair: boolean) => `
+/** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. */
+const rectBranchWgsl = (pair: boolean, lobes: boolean) => `
  if(isRect(light)){
   var transmitted=vec3f(0.0);
   if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*${INVERSE_PI}*light.colorIntensity.rgb*light.colorIntensity.w;}
-  return ${term(pair, (rgb, metal) => `rectLight(light,${rgb},${metal},rough,N,V,P,ao)+transmitted`)};
+  return ${term(pair, (rgb, metal, shading) => `${lobes ? 'lobeRectLight' : 'rectLight'}(light,${rgb},${metal},rough,N,V,P,ao${lobes ? `,${shading}.f0` : ''})+transmitted`)};
  }`
 
 const shadeWgsl = (pair: boolean) => `
@@ -69,7 +84,7 @@ const shadeWgsl = (pair: boolean) => `
  * The one loop that shades a pixel's lights in full: the lights of a cell's list (`cellSlice`) — or,
  * from `TILE_NO_SLICE`, every light of the scene — in increasing rank.
  *
- * With `reject` — the program with no shadow code — a light is first rejected on its
+ * With `reject` — the program with no shadow code (#1249) — a light is first rejected on its
  * sphere alone, before its record is read in full, where it lies past its range by a
  * ten-thousandth of its squared range (`RANGE_REJECT`): there `directIncidence` would have returned
  * zero before any shading, so the sum loses an exact zero only. The kind is read alone
@@ -81,15 +96,16 @@ const shadeWgsl = (pair: boolean) => `
 export const sliceLightingWgsl = (reject: boolean, pair = false) => `
 fn sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}{
  var result=${zero(pair)};
+ let shading=lobeSurface(rgb,metal,rough,N,V);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}
  for(var index=0u;index<slice.y;index++){
   var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}${reject ? RANGE_REJECT_WGSL : ''}
-  ${pair ? PAIR_SUM_WGSL : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);'}
+  ${pair ? PAIR_SUM_WGSL : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading);'}
  }
  return result;
 }`
 
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
-const PAIR_SUM_WGSL = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao);
+const PAIR_SUM_WGSL = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
   result.lit+=term.lit;result.specular+=term.specular;`
 
 const RANGE_REJECT_WGSL = `

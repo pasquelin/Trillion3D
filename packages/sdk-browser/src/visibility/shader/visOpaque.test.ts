@@ -1,5 +1,5 @@
-// A draw that holds no cutout row (`FLAG_MASK`) draws with `vis_opaque_fs` or
-// `vis_hiz_opaque_fs`, which neither read the page nor discard: on Apple's tile GPUs, a fragment
+// #831: a draw that holds no cutout row (`FLAG_MASK`) draws with `vis_hiz_opaque_fs`, which
+// neither reads the page nor discards: on Apple's tile GPUs, a fragment
 // stage that discards makes the hidden-surface removal flush and shade every layer it covers. The
 // shipped stages run in `shaderRun` over the quantized pages of `pointHeader.fixture.ts`, far from
 // the origin — every row kind, plus a double-sided opaque copy of each cutout row on its very
@@ -23,10 +23,7 @@ test('the opaque stages are the cut ones without their page read and their disca
   const bare = (name: string) => functionsOf(VIS_SHADER, [name]).replace(/\s+/g, '')
   const cut = 'letgx=dpdx(in.tc.xy);letgy=dpdy(in.tc.xy);'
   const keep = 'if(!maskKeep(pages[in.instance],in.tc.xy,in.tc.z,gx,gy)){discard;}'
-  for (const [stage, opaque] of [
-    ['vis_fs', 'vis_opaque_fs'],
-    ['vis_hiz_fs', 'vis_hiz_opaque_fs'],
-  ]) {
+  for (const [stage, opaque] of [['vis_hiz_fs', 'vis_hiz_opaque_fs']]) {
     const kept = bare(stage)
       .replace(cut + keep, '')
       .replace(`fn${stage}(`, `fn${opaque}(`)
@@ -64,10 +61,7 @@ const uni = { viewProj: cameraViewProj(1), viewport: [1280, 720] }
 Object.assign(uni, { pixelRatio: 1, computeSpan: 0, indirect: 0, drawSlot: 0 })
 const run = stages(
   CODE,
-  VIS_VS_NAMES.concat(
-    ['lineDash', 'maskKeep', 'vis_fs', 'vis_hiz_fs', 'vis_opaque_fs'],
-    ['vis_hiz_opaque_fs'],
-  ),
+  VIS_VS_NAMES.concat(['lineDash', 'maskKeep', 'vis_hiz_fs'], ['vis_hiz_opaque_fs']),
   {
     ...{ uni, instances: [], slotOffsets: [0], pages: table, DISCARD, ...VIS_VS_SCOPE },
     ...{ dpdx: () => [0, 0], dpdy: () => [0, 0] },
@@ -83,12 +77,12 @@ const corners = table.map((row, at) =>
 const [W, H] = [96, 54]
 /** The image of every slot, each drawn with the cut stage or, `opaqueSlots`, with the opaque one
  *  when it holds no cutout row. */
-function raster(hiz: boolean, opaqueSlots: boolean) {
+function raster(opaqueSlots: boolean) {
   const ids = new Uint32Array(W * H),
     depth = new Float32Array(W * H),
     hizDepth = new Float32Array(W * H)
   const seen = { ties: 0, discards: 0, opaque: 0, written: 0 }
-  const [cutFs, opaqueFs] = hiz ? ['vis_hiz_fs', 'vis_hiz_opaque_fs'] : ['vis_fs', 'vis_opaque_fs']
+  const [cutFs, opaqueFs] = ['vis_hiz_fs', 'vis_hiz_opaque_fs']
   for (const bin of [0, 1, 2]) {
     const rows = table.flatMap((row, at) => (binOf(row) === bin ? [at] : []))
     const opaque = opaqueSlots && rows.every((at) => !(table[at].flags & F.FLAG_MASK))
@@ -130,24 +124,23 @@ function raster(hiz: boolean, opaqueSlots: boolean) {
             if (!(z > depth[pixel])) continue
             seen.written++
             depth[pixel] = z
-            ids[pixel] = hiz ? (out as { id: number }).id : (out as number)
-            if (hiz) hizDepth[pixel] = (out as { depth: number }).depth
+            ids[pixel] = (out as { id: number }).id
+            hizDepth[pixel] = (out as { depth: number }).depth
           }
       }
   }
   return { image: { ids, depth, hizDepth }, seen }
 }
 
-for (const hiz of [false, true])
-  test(`the opaque stage on slots without a cutout row draws the same image, hiz ${hiz}`, () => {
-    const cut = raster(hiz, false),
-      opaque = raster(hiz, true)
-    assert.deepStrictEqual(opaque.image, cut.image)
-    assert.deepStrictEqual(opaque.seen.written, cut.seen.written)
-    assert.equal(cut.seen.opaque, 0)
-    // The scene exercises what the proof is about: opaque slots, cutouts, ties, overdraw.
-    assert.ok(opaque.seen.opaque > 1000, `${opaque.seen.opaque} opaque fragments`)
-    assert.ok(cut.seen.discards > 100, `${cut.seen.discards} discards`)
-    assert.ok(cut.seen.ties > 100, `${cut.seen.ties} ties`)
-    assert.ok(cut.seen.written > 1000, `${cut.seen.written} writes`)
-  })
+test('the opaque stage on slots without a cutout row draws the same image', () => {
+  const cut = raster(false),
+    opaque = raster(true)
+  assert.deepStrictEqual(opaque.image, cut.image)
+  assert.deepStrictEqual(opaque.seen.written, cut.seen.written)
+  assert.equal(cut.seen.opaque, 0)
+  // The scene exercises what the proof is about: opaque slots, cutouts, ties, overdraw.
+  assert.ok(opaque.seen.opaque > 1000, `${opaque.seen.opaque} opaque fragments`)
+  assert.ok(cut.seen.discards > 100, `${cut.seen.discards} discards`)
+  assert.ok(cut.seen.ties > 100, `${cut.seen.ties} ties`)
+  assert.ok(cut.seen.written > 1000, `${cut.seen.written} writes`)
+})

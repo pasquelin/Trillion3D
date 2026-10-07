@@ -1,7 +1,7 @@
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from './pages.ts'
+import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
 import { packDagSelection } from '../../gpu/dag/selection.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts'
@@ -40,7 +40,7 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
       ...collected.roots.filter((root) => root.pages[0].transparent),
     ]),
   })
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     indices: new Map(),
     gpuDevice: device,
@@ -49,18 +49,17 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
   })
   try {
     await backend.prepare()
-    assert.equal(backend.capabilities.gpuDriven, true)
     assert.doesNotThrow(() => backend.render(camera()))
     assert.equal(backend.metrics().coverageReady, false)
     assert.deepEqual(backend.pendingUrls?.().sort(), ['0', '1', 'blend-0', 'blend-1'])
-    for (const [url, array] of fixture.indices) backend.acceptPage!(url, array)
-    await backend.flush?.()
+    for (const [url, array] of fixture.indices) backend.acceptPage(url, array)
+    await backend.flush()
     backend.render(camera())
-    await backend.flush?.()
+    await backend.flush()
     assert.equal(backend.metrics().coverageReady, true)
     // The interactive barrier adopts the complete GPU cut before the frame that measures it. A
     // plain image flush only settles the work submitted by the preceding render.
-    assert.equal(await backend.pendingFrame?.(), true)
+    assert.equal(await backend.pendingFrame(), true)
     backend.render(camera())
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2)
     assert.equal(backend.metrics().submittedTriangles, 4)
@@ -106,7 +105,7 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.metadata.primitives.push(otherPrimitive)
   fixture.associations.set(otherMesh, { meshes: 2, primitives: 0 })
   for (const [url, array] of other.indices) fixture.indices.set(`other-${url}`, array)
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 6,
@@ -120,18 +119,25 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
       .splice(0, draws.length)
       .filter((draw) => draw.entryPoint === 'vs')
       .reduce((sum, draw) => sum + (draw.vertexCount * (draw.instanceCount ?? 0)) / 3, 0)
-  try {
-    await backend.prepare()
-    const cam = camera()
+  const cam = camera()
+  /** One pose under the GPU cut (#1483): drawn and flushed — its readback, cut under the poses in
+   *  place, adopted —, then drawn again, the draws of that image alone counted. */
+  const image = async () => {
+    backend.render(cam)
+    await backend.flush()
     draws.length = 0
     backend.render(cam)
+  }
+  try {
+    await backend.prepare()
+    await image()
     // Two paged meshes of two triangles, counted once each, and one whole mesh outside the DAG
     // drawn by both face passes.
     assert.equal(backend.metrics().transparentSubmittedTriangles, 8)
     assert.equal(dessines(), 12, 'three meshes, two faces each')
     const uploads = writes.length
     otherMesh.position.x = 100
-    backend.render(cam)
+    await image()
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
       6,
@@ -141,15 +147,15 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     // The frustum of a NON-paged item goes through the GPU: its call stays encoded, with a zero
     // instance count. The submitted count, itself, no longer describes anything but what encoding set.
     legacyMesh.position.x = 100
-    backend.render(cam)
+    await image()
     assert.equal(backend.metrics().transparentSubmittedTriangles, 6)
     assert.equal(dessines(), 4, 'legacy bounds update while the paged cut stays unchanged')
     mesh.position.x = 100
-    backend.render(cam)
+    await image()
     assert.equal(backend.metrics().transparentSubmittedTriangles, 4)
     assert.equal(dessines(), 0)
     mesh.position.x = 0
-    backend.render(cam)
+    await image()
     assert.equal(
       backend.metrics().transparentSubmittedTriangles,
       6,
@@ -157,18 +163,29 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
     )
     assert.equal(dessines(), 4)
     legacyMesh.position.x = 0
-    backend.render(cam)
+    await image()
     assert.equal(backend.metrics().transparentSubmittedTriangles, 6)
     assert.equal(dessines(), 8)
     otherMesh.position.x = 0
-    backend.render(cam)
+    await image()
     assert.equal(backend.metrics().transparentSubmittedTriangles, 8)
     assert.equal(dessines(), 12)
-    assert.equal(
-      writes.slice(uploads).filter((write) => write.bytes.byteLength === 24).length,
-      0,
-      'existing index buffers survive visibility changes',
-    )
+    // Read by content, not by size: the GPU cut, which draws every image (#1483), writes other
+    // 24-byte words when a placement moves, none of them an index.
+    const meshIndices = Uint32Array.from(legacy.geometry.index!.array),
+      indexData = [...fixture.indices.values(), meshIndices]
+    const reuploads = writes
+      .slice(uploads)
+      .filter(({ bytes }) =>
+        indexData.some(
+          (data) =>
+            data.byteLength === bytes.byteLength &&
+            new Uint8Array(data.buffer, data.byteOffset, data.byteLength).every(
+              (byte, k) => byte === bytes[k],
+            ),
+        ),
+      )
+    assert.equal(reuploads.length, 0, 'existing index buffers survive visibility changes')
   } finally {
     await backend.dispose()
     fixture.geometry.dispose()

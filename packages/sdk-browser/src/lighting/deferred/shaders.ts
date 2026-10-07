@@ -1,18 +1,18 @@
 import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts'
 import { contractSurfaceBody, LIGHT_SURFACE_ENTRY, MIRROR_TERM_WGSL } from './surfaceWgsl.ts'
-import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts'
+import { SUBSURFACE_TARGET } from '../../scene/subsurface.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from '../direct/lightingWgsl.ts'
-import { ALL_SHADOW_KINDS, type ShadowKinds } from '../direct/shadowKinds.ts'
+import type { ContractKey } from './contractCuts.ts'
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts'
 import {
   BOUNCE_SURFACE_BINDING,
   BOUNCE_SURFACE_FIELDS_WGSL,
   DIRECT_REFLECTION_WGSL,
-  MIRROR_LIGHTING_WGSL,
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts'
+import { MIRROR_LIGHTING_WGSL, PROBE_MIRROR_RADIANCE_WGSL } from '../../reflections/modelShader.ts'
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts'
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts'
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts'
@@ -44,7 +44,7 @@ export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 @group(0) @binding(5) var<uniform> view:View;`
 /**
  * Unlit view: material albedo as-is, with no light and no ambient; what a surface emits is kept, as
- * in the lit image. This is not a light, it is a diagnostic view — the one geometry benches
+ * in the lit image (#1362). This is not a light, it is a diagnostic view — the one geometry benches
  * that compare images pixel for pixel ask for, and the one the engine renders by default as long as
  * no light is declared, because a scene with no source has nothing to light.
  */
@@ -69,47 +69,43 @@ const contractSurface = (bounce: string, diagnostic = '') =>
   `${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
 ${contractSurfaceBody(bounce, diagnostic)}`
-/** The bounce program's surface: bounced light and what a mirror reflects, added to the direct. */
-const BOUNCE_SURFACE_WGSL = `${BOUNCE_APPLY_WGSL}
+/** The bounce program's surface: bounced light, under the coat, and what a mirror reflects. */
+const bounceSurfaceWgsl = () => `${BOUNCE_APPLY_WGSL}
 ${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
 ${BOUNCE_SURFACE_FIELDS_WGSL}
 ${MIRROR_LIGHTING_WGSL}
+${PROBE_MIRROR_RADIANCE_WGSL}
 fn thinBounce(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!any(thinSubsurface>vec3f(0.0))){return vec3f(0.0);}
  return bounceLighting(thinSubsurface,0.0,-N,P,ao);
 }
 ${contractSurface(
-  `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)+thinBounce(N,P,emissive.a)${MIRROR_TERM_WGSL}`,
+  `+bounceSurfaceLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a)*lobeThrough()+thinBounce(N,P,emissive.a)${MIRROR_TERM_WGSL}`,
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`
-/** The direct program's surface: what a specular lobe reflects of the environment. */
-const DIRECT_SURFACE_WGSL = `${DIRECT_REFLECTION_WGSL}
-${contractSurface(MIRROR_TERM_WGSL)}`
+/** The direct program's surface: what a specular lobe reflects of the environment (#1341). */
+const directSurfaceWgsl = () => `${DIRECT_REFLECTION_WGSL}\n${contractSurface(MIRROR_TERM_WGSL)}`
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added. An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
- * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects,
- * added to the direct; without, a specular lobe reflects the environment alone. It is a
+ * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
+ * added to the direct; without, a specular lobe reflects the environment alone (#1341). It is a
  * separate program, not a branch, so a session without bounce never pays for the probes — and so
- * is the `narrow` one, the resolve of a scene of at most `TILE_LIGHTS` lights
- * (`directLightingWgsl`), the one without `shadowed`, of a scene no light of which holds
- * a shadow slot, and the one without `rects`, of a scene that holds no rectangle light.
+ * is each program of a `key` (`contractCuts.ts`): `narrow` (#849), `unshadowed` (#1249),
+ * `rectless` (#1369), without `lobeless` the lobes' (`../direct/lobesWgsl.ts`).
  */
 export const contractLightingShader = (
   bounce: boolean,
-  narrow: boolean,
-  shadowed = true,
-  rects = true,
-  kinds: ShadowKinds = ALL_SHADOW_KINDS,
+  key: Partial<ContractKey> = { lobeless: true },
 ) => `
 ${VIEW_WGSL}
 ${surfaceBindingsWgsl()}
-@group(0) @binding(${SUBSURFACE_BINDING}) var subsurfaceColor:texture_2d<f32>;
+${SUBSURFACE_TARGET.wgsl}
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
-${directLightingWgsl(narrow, shadowed, rects, kinds)}
-${bounce ? BOUNCE_SURFACE_WGSL : DIRECT_SURFACE_WGSL}`
+${directLightingWgsl(key)}
+${bounce ? bounceSurfaceWgsl() : directSurfaceWgsl()}`
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface
@@ -125,7 +121,7 @@ const AS_IS_READ = {
   },
   accumulated: { texture: 'texture_2d<f32>', share: 'textureLoad(asIs,coord,0).r' },
 } as const
-/** The share read, or none in a frame with no as-is pixel: `asIsMix` at a share of 0. */
+/** The share read, or none in a frame with no as-is pixel (OMB-11): `asIsMix` at a share of 0. */
 export type ComposeInput = keyof typeof AS_IS_READ | 'flagless'
 
 /** The curved chain and the pixel as-is, weighed by its share: written out rather than `mix`, so a
@@ -176,7 +172,7 @@ const composeSources = (curve: string, chain: string, bloom = false) => ({
   accumulated: composeSource(curve, chain, 'accumulated', bloom),
   flagless: composeSource(curve, chain, 'flagless', bloom),
 })
-/** A program's compositions: plain, and blending in the chain's last bloom. */
+/** A program's compositions: plain, and blending in the chain's last bloom (#963). */
 const compositionsOf = (curve: string, chain: string) => ({
   plain: composeSources(curve, chain),
   bloom: composeSources(curve, chain, true),

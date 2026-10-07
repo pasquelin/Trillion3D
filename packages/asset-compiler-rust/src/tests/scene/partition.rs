@@ -1,4 +1,4 @@
-//! The world partition of the node table: a scene whose placed nodes outgrow one stream
+//! The world partition of the node table (#404): a scene whose placed nodes outgrow one stream
 //! unit keeps them out of `scene-tables.json`, in cells under the unit's budget, each boxed around
 //! what it holds in the frame of the core parent it hangs it under — and the core the runtime reads
 //! before its first frame does not grow with the world.
@@ -70,8 +70,8 @@ pub(super) fn cells(directory: &Path) -> Vec<Value> {
 #[test]
 fn a_scene_whose_placements_fit_one_unit_keeps_its_node_table_whole() {
     let (_root, tables, dir) = compiled(grid(4, 4.0, 1.0), false);
-    assert_eq!(tables["version"], json!(6));
-    // Every node is in the core: the tables name the pages of every mesh they draw.
+    assert_eq!(tables["version"], json!(7));
+    // Every node is in the core: the tables name the pages of every mesh they draw (#751).
     super::mesh_pages::assert_mesh_pages(&dir, &tables);
     assert_eq!(
         tables["partition"],
@@ -172,7 +172,7 @@ fn a_placement_under_an_animated_node_stays_in_the_core() {
 
 #[test]
 fn a_hidden_placement_and_one_under_a_hidden_node_stay_in_the_core_that_says_so() {
-    // A cell's row carries no visibility: a node a hidden node hides is read with the core.
+    // A cell's row carries no visibility: a node a hidden node hides is read with the core (#519).
     let side = 48;
     let mut nodes = grid(side, 4.0, 1.0);
     nodes[0]["extensions"] = json!({"KHR_node_visibility": {"visible": false}});

@@ -10,7 +10,8 @@
 
 import { PROBE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts'
 import { PROXY_HEADER_BYTES, surfaceCacheTexels } from './sizes.ts'
-import { atlasExtent } from './atlas.ts'
+import { atlasExtent } from '../webgpu/core/floatAtlas.ts'
+import { textureLimits } from '../gpu/core/textureLimits.ts'
 import { BOUNCE_GRID_BYTES } from './uniform.ts'
 
 /** Bytes of one copy of `probes` probes on the GPU: never an empty binding. */
@@ -28,7 +29,7 @@ type BounceAtlas = { name: string; extent: readonly number[] }
 
 /** The first atlas this device cannot make, written in the clear, or `null`. */
 function atlasLimitFailure(device: GPUDevice, atlases: readonly BounceAtlas[]) {
-  const { maxTextureDimension2D: side, maxTextureArrayLayers: layers } = device.limits
+  const { side, layers } = textureLimits(device.limits)
   for (const { name, extent } of atlases) {
     const [width, height, count = 1] = extent
     if (width > side || height > side)
@@ -101,7 +102,10 @@ export function ensureBounceFits(
     bounceLimitFailure(device, plannedBindings(proxy, queueBytes)) ??
     atlasLimitFailure(device, [
       { name: 'probes', extent: probeExtent },
-      { name: 'surface cache', extent: atlasExtent(surfaceCacheTexels(proxy.triangles)) },
+      {
+        name: 'surface cache',
+        extent: atlasExtent(surfaceCacheTexels(proxy.triangles), textureLimits(device.limits).side),
+      },
     ])
   if (failure) throw new Error(failure)
 }

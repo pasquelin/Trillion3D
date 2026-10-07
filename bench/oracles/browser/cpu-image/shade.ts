@@ -4,7 +4,7 @@ import { createVisibilityFrame } from './frame.ts'
 import { shadePixel } from './shadePixel.ts'
 import { type VisPage } from '../../../../packages/sdk-browser/src/visibility/types.ts'
 import type { EngineCamera } from '../../../../packages/sdk-browser/src/camera/world.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/backend/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
 import { type PageLocations } from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
 
 /** Documented visbuffer beauty: MeshBasicMaterial = source color × map (same 8-bit path as rasterPages). MeshStandardMaterial = Cook-Torrance GGX microfacet BRDF with the explorer hemisphere/directional lights. */

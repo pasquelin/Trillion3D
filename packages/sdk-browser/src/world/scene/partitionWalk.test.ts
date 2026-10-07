@@ -3,7 +3,7 @@
 // follow the camera through the index on an engine that grows no buffer.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts'
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -82,7 +82,13 @@ test('on an engine that grows no buffer, a walk never leaves a cell waiting for 
     partitions: [partitioned],
     streamer: port,
     camera,
-    active: () => ({}) as RenderBackend,
+    // Every engine is handed the rows; this one refuses to grow any in place.
+    engine: {
+      worldCut: () => undefined,
+      updatePlacements() {},
+      growPlacements() {},
+      growsInPlace: () => false,
+    } as unknown as Engine,
     budget,
   })!
   for (let step = 0; step <= 46; step++) {

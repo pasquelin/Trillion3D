@@ -1,3 +1,5 @@
+import { octFoldWgsl } from '../../math/octahedralWgsl.ts'
+
 /**
  * The octahedral mapping and the three-frame blend, object space, pivot at the bounding-sphere
  * centre, +Y up: the WGSL mirror of the compiler's `octahedron.rs`, whose CPU twin
@@ -8,11 +10,12 @@
 const IMPOSTOR_MATH_WGSL = `
 /** ±1, never 0: the fold of the lower half needs a side even on an axis (\`side\` of \`octahedron.rs\`). */
 fn impSide(x:f32)->f32{return select(1.0,-1.0,x<0.0);}
-/** Direction \`d\` to the plane [-1,1]²: the full octahedron, or the upper hemi-octahedron. */
+/** Direction \`d\` to the plane [-1,1]²: the full octahedron, its lower half folded as every
+ *  octahedral map folds it (\`octahedralWgsl.ts\`, \`y\` the pole), or the upper hemi-octahedron. */
 fn impOctEncode(d:vec3f,hemi:f32)->vec2f{
  let o=d/(abs(d.x)+abs(d.y)+abs(d.z));
- let folded=vec2f(impSide(o.x)*(1.0-abs(o.z)),impSide(o.z)*(1.0-abs(o.x)));
- let full=select(o.xz,folded,o.y<0.0);
+ let q=o.xz;
+ let full=select(q,${octFoldWgsl('q')},o.y<0.0);
  let hd=vec3f(d.x,max(d.y,0.0),d.z);
  let ho=hd/(abs(hd.x)+max(hd.y,0.0)+abs(hd.z));
  return select(full,vec2f(ho.x+ho.z,ho.z-ho.x),hemi==1.0);

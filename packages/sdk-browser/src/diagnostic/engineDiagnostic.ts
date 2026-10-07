@@ -1,9 +1,9 @@
-import type { BackendDiagnostic } from '../backend/types.ts'
+import type { EngineDiagnostic } from '../engine/types.ts'
 
 /** One engine diagnostic to the host's observer, versioned: an error the observer throws is its
  *  own, never the frame's. */
 export function sendEngineDiagnostic(
-  onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
+  onDiagnostic: ((diagnostic: EngineDiagnostic) => void) | undefined,
   phase: string,
   message: string,
   details: Record<string, unknown>,
@@ -17,7 +17,7 @@ export function sendEngineDiagnostic(
 
 /** The page budget's verdict just changed: the cut sampled at `pixelError` asked for
  *  `requiredSlots` against `slots` — `null` when the engine does not know it without a pass it
- *  did not run. Both engines build it here and publish it under one phase, from their flush. */
+ *  did not run. The engine builds it here and publishes it under one phase, from its flush. */
 export const coverageBudgetEvent = (
   limited: boolean,
   requiredSlots: number | null,
@@ -27,7 +27,7 @@ export const coverageBudgetEvent = (
 ) => ({ version: 1, limited, requiredSlots, slots, fallbackRetained, pixelError })
 
 export const sendCoverageBudget = (
-  onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
+  onDiagnostic: ((diagnostic: EngineDiagnostic) => void) | undefined,
   event: Record<string, unknown>,
 ) => sendEngineDiagnostic(onDiagnostic, 'coverage-budget', 'Admission of the requested cut', event)
 
@@ -42,7 +42,7 @@ export type LazyDiagnostic = (
  *  arguments, so neither the detail nor the closure that builds it is ever allocated — a request
  *  pays nothing for diagnostics that are off. An error the observer throws is its own. */
 export const lazyDiagnostic = (
-  report: ((diagnostic: BackendDiagnostic) => void) | undefined,
+  report: ((diagnostic: EngineDiagnostic) => void) | undefined,
 ): LazyDiagnostic | undefined =>
   report &&
   ((phase, message, detail) => {

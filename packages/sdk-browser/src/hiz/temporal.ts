@@ -8,7 +8,7 @@ import { keepStaleRegions } from './staleRegions.ts'
 import { copyRanks, depthOf, listsOf, unoccludedOf } from './cutLists.ts'
 import type { CutLists } from './cutLists.ts'
 import type { HizPage, HizPyramid } from './types.ts'
-import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../engine/common.ts'
 import type { PageLocations } from '../page/selection/placements.ts'
 
 export type TemporalHizState = {

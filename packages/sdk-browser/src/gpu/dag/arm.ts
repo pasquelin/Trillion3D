@@ -13,7 +13,7 @@ export async function createDagArm(
   device: GPUDevice,
   work: GPUBuffer,
   args: GPUBuffer,
-  words: { drawnGroups: number; candGroups: number; liveGroups: number },
+  words: { drawnGroups: number; candGroups: number; liveGroups: number; listGroups: number },
 ) {
   const module = device.createShaderModule({ code: DAG_ARM_SHADER })
   if (await shaderFailed(module)) return undefined
@@ -27,6 +27,7 @@ export async function createDagArm(
         DRAWN_GROUPS: words.drawnGroups,
         CAND_GROUPS: words.candGroups,
         LIVE_GROUPS: words.liveGroups,
+        LIST_GROUPS: words.listGroups,
       },
     },
   })

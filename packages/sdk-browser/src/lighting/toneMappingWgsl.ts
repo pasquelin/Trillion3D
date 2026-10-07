@@ -3,12 +3,12 @@ import { shaderFloat } from './shaderConstants.ts'
 import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts'
 
 /** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
-export const ACES_WGSL = `
+const ACES_WGSL = `
 fn aces(color:vec3f)->vec3f{
  var c=color/${ACES.exposure};
- c=${ACES.input.wgsl}*c;
+ c=${ACES.input}*c;
  let a=${ACES.numerator};let b=${ACES.denominator};c=a/b;
- c=${ACES.output.wgsl}*c;
+ c=${ACES.output}*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
 }`
 
@@ -30,10 +30,10 @@ fn cineonCurve(color:vec3f)->vec3f{
  return pow(${CINEON.curve},vec3f(2.2));
 }
 fn agxCurve(color:vec3f)->vec3f{
- let toWide=${AGX.toWide.wgsl};
- let toNarrow=${AGX.toNarrow.wgsl};
- let inset=${AGX.inset.wgsl};
- let outset=${AGX.outset.wgsl};
+ let toWide=${AGX.toWide};
+ let toNarrow=${AGX.toNarrow};
+ let inset=${AGX.inset};
+ let outset=${AGX.outset};
  let low=${shaderFloat(AGX.low)};let high=${shaderFloat(AGX.high)};
  var c=inset*(toWide*color);
  c=clamp((log2(max(c,vec3f(1e-10)))-low)/(high-low),vec3f(0.0),vec3f(1.0));

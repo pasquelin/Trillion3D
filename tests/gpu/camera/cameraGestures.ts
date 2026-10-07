@@ -6,7 +6,7 @@
 // the pose a gesture starts from kept, what differs once the gesture is undone counted.
 import { pixelDifference } from '../../../bench/dawn/capture.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/world/session/explorer.ts'
-import { measurementSdk, proofCanvas } from '../kit/renderHarness.ts'
+import { openEngineWorld, proofCanvas } from '../kit/renderHarness.ts'
 import { settle } from '../world/proofWorld.ts'
 
 /** One pointer event of the mouse at `(x, y)` CSS pixels of the canvas, `buttons` held. */
@@ -68,12 +68,10 @@ type Controls = {
  * integrates it as a host's frame loop would, `end()` counts the pixels that differ from that image.
  */
 export async function openCameraProbe(manifestUrl: string) {
-  const { openMeasuredWorld, webgpuPagesBackend } = await measurementSdk()
   const canvas = proofCanvas('viewer')
-  const world: MeasuredWorld = await openMeasuredWorld(canvas, {
+  const world: MeasuredWorld = await openEngineWorld(canvas, {
     manifestUrl,
     scope: 'full',
-    backends: [webgpuPagesBackend],
     width: 240,
     height: 160,
     pixelRatio: 1,
@@ -94,7 +92,7 @@ export async function openCameraProbe(manifestUrl: string) {
   }
   const draw = async () => {
     await settle(world)
-    return new Uint8Array(world.capture())
+    return new Uint8Array(await world.capture())
   }
   return {
     world,

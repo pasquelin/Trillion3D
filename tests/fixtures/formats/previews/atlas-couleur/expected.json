@@ -3,11 +3,12 @@
     "texturePreviewAstcBytes": 0,
     "texturePreviewBc7Bytes": 0,
     "texturePreviewBytes": 12268,
+    "texturePreviewEtc2Bytes": 0,
     "texturePreviews": 3
   },
   "case": "Four quads, four materials that share three colour textures: an OPAQUE with a 40×24 PNG baseColorTexture linked by uri, a MASK at alphaCutoff 0.25 on a 24×16 PNG with binary alpha embedded in a bufferView, and a BLEND whose 80×48 JPEG baseColorTexture also serves as emissiveTexture to a fourth material.",
-  "formatVersion": 10,
-  "manifestBinaryVersion": 10,
+  "formatVersion": 12,
+  "manifestBinaryVersion": 11,
   "previews": [
     {
       "atlas": 0,
@@ -22,6 +23,12 @@
         {
           "bytes": 0,
           "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "etc2",
           "layout": 0,
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
@@ -133,6 +140,12 @@
           "format": "astc",
           "layout": 0,
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "etc2",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
       ],
       "firstLevel": 0,
@@ -227,6 +240,12 @@
         {
           "bytes": 0,
           "format": "astc",
+          "layout": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "bytes": 0,
+          "format": "etc2",
           "layout": 0,
           "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
@@ -379,11 +398,11 @@
       "psnrDb": 48.0
     },
     "skipped": {},
-    "version": 6
+    "version": 7
   },
   "rule": "Each colour texture carries the lossless tail of its mip chain, from the first level whose neither side exceeds 64 through 1×1, in RGBA8 sRGB with straight alpha. Only the texture whose every binding is a MASK base colour has its alpha rescaled to preserve source coverage at the material threshold; the other two keep their alpha intact.",
   "textures": {
-    "url": "../../textures/v6/{sha}/{kind}-{level}.{format}",
-    "version": 6
+    "url": "../../textures/v7/{sha}/{kind}-{level}.{format}",
+    "version": 7
   }
 }

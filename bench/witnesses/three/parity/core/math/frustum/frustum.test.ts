@@ -2,9 +2,9 @@
 // compared against an independent plane extraction built from the host library's matrix and
 // vector primitives, down to the bit.
 //
-// Engine depth is reversed: the plane bounding the NEAR is what standard depth called FAR,
-// and vice versa. The six planes of the same matrix are therefore exactly those of the `[0, 1]` extraction,
-// with the last two swapped — and this swap, and nothing else, is what `swapNearFar` describes.
+// Engine depth is reversed: the plane bounding the NEAR is Three's `[0, 1]` FAR plane, and vice
+// versa. The engine's six planes are therefore Three's `[0, 1]` planes with the last two swapped —
+// and this swap, and nothing else, is what `swapNearFar` describes.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
@@ -14,9 +14,9 @@ import {
 } from '../../../../../../../packages/sdk-core/src/index.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 
-/** The six planes of the independent extraction copied flat, normal then constant. It is always read
- *  in `[0, 1]` clipping: that is the engine's range, and only depth DIRECTION is reversed —
- *  which swaps the last two planes, and nothing else. */
+/** The six planes of the independent extraction copied flat, normal then constant, read in
+ *  `[0, 1]` clipping, the engine's range; the engine's reversed depth swaps the last two planes,
+ *  and nothing else. */
 function planesFromThreeFrustum(
   m: THREE.Matrix4,
   Type: Float64ArrayConstructor | Float32ArrayConstructor,
@@ -37,11 +37,12 @@ function swapNearFar(planes: Float64Array | Float32Array) {
   return output
 }
 
-function camera(webgpu: boolean, orthographic: boolean) {
+/** The view-projection of a host camera in WebGPU's `[0, 1]` clip convention. */
+function camera(orthographic: boolean) {
   const cam = orthographic
     ? new THREE.OrthographicCamera(-8, 8, 5, -5, 0.2, 250)
     : new THREE.PerspectiveCamera(55, 1.4, 0.15, 400)
-  cam.coordinateSystem = webgpu ? THREE.WebGPUCoordinateSystem : THREE.WebGLCoordinateSystem
+  cam.coordinateSystem = THREE.WebGPUCoordinateSystem
   cam.updateProjectionMatrix()
   cam.position.set(3, -2, 5)
   cam.lookAt(0, 0, 0)
@@ -49,26 +50,24 @@ function camera(webgpu: boolean, orthographic: boolean) {
   return new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse)
 }
 
-for (const webgpu of [false, true]) {
-  for (const orthographic of [false, true]) {
-    test(`frustumPlanesFromMatrix matches the independent plane extraction (webgpu=${webgpu}, ortho=${orthographic})`, () => {
-      const m = camera(webgpu, orthographic)
-      const actual = new Float64Array(24)
-      frustumPlanesFromMatrix(actual, m.elements)
-      assertBits(actual, swapNearFar(planesFromThreeFrustum(m, Float64Array)))
-    })
-  }
+for (const orthographic of [false, true]) {
+  test(`frustumPlanesFromMatrix matches the independent plane extraction (ortho=${orthographic})`, () => {
+    const m = camera(orthographic)
+    const actual = new Float64Array(24)
+    frustumPlanesFromMatrix(actual, m.elements)
+    assertBits(actual, swapNearFar(planesFromThreeFrustum(m, Float64Array)))
+  })
 }
 
 test('frustumPlanesFromMatrix in single precision rounds once, like a Float32 uniform', () => {
-  const m = camera(true, false)
+  const m = camera(false)
   const actual = new Float32Array(24)
   frustumPlanesFromMatrix(actual, m.elements)
   assertBits(actual, swapNearFar(planesFromThreeFrustum(m, Float32Array)))
 })
 
 test('clipPlanesFromMatrix yields raw sums and differences of matrix rows', () => {
-  const m = camera(false, false)
+  const m = camera(false)
   const actual = new Float64Array(24)
   clipPlanesFromMatrix(actual, m.elements)
   assertBits(actual, expectedClipPlanes(m))
@@ -110,8 +109,8 @@ function expectedClipPlanes(m: THREE.Matrix4) {
 // very different frustums whose writes are manually interleaved, each compared against
 // the independent extraction.
 test('frustumPlanesFromMatrix and clipPlanesFromMatrix: no shared buffer, two interleaved frustums remain independent', () => {
-  const m1 = camera(false, false)
-  const m2 = camera(true, true)
+  const m1 = camera(false)
+  const m2 = camera(true)
   const actual1 = new Float64Array(24)
   const actual2 = new Float64Array(24)
   const clip1 = new Float64Array(24)

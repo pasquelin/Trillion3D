@@ -40,7 +40,7 @@ async function bench() {
   let landed = 0
   const rt = {
     context: { metadata: { impostors: section }, readTextureLevel: reader },
-    vis: { visEnabled: true },
+    vis: {},
     setup: { viewport: VIEWPORT, texturePoolBudget: 1 << 20 },
     layout: { selectionRoots: roots },
     diag: { diagnosticFailure: () => undefined },

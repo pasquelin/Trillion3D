@@ -10,7 +10,13 @@ import {
 import { SAMPLE_MAG_NEAREST, SAMPLE_TRANSFORMED } from '../../texture/sampling.ts'
 import type { Texture } from '../../../../sdk-core/src/index.ts'
 import { slotSampled } from './samplingHeaders.ts'
-import { entryLevel, MAX_LEVELS, packEntry, tileLayout } from '../../texture/tiles.ts'
+import {
+  entryLevel,
+  MAX_LEVELS,
+  packEntry,
+  POOL_MAX_LAYERS,
+  tileLayout,
+} from '../../texture/tiles.ts'
 import { fakeDevice, type FakeWrite } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { entryPlace } from '../../texture/tiles.fixture.ts'
 
@@ -119,20 +125,21 @@ test('an orphan edge tile leaves to its finest existing ancestor', () => {
   assert.equal(at(0, 6), 0, 'its ancestor gone, the queue')
 })
 
+// A place past layer 255 — a device grants the adapter's array layers — keeps its layer, its
+// queue's lane and its entry's level: no field spills into the next.
 test("a texture's queue is posted in its header with its lane, and sent alone", () => {
   const { device, writes } = fakeDevice()
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 })
   writes.length = 0
-  table.setTail(1, { x: 4, y: 2, layer: 1 }, 2)
+  const place = { x: 29, y: 2, layer: POOL_MAX_LAYERS - 1 }
+  table.setTail(1, place, 2)
   table.flush(device)
   assert.deepEqual(words(writes), [[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3, 1]])
-  assert.equal(
-    table.words[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3],
-    4 | (2 << 8) | (1 << 16) | (2 << 24),
-  )
-  const word = packEntry({ x: 4, y: 2, layer: 1 }, 3)
+  const tail = table.words[PAGE_HEADER_WORDS + PAGE_SLOT_WORDS + 3]
+  assert.deepEqual([entryPlace(tail), tail >>> 24], [place, 2])
+  const word = packEntry(place, 3)
   assert.equal(entryLevel(word), 3)
-  assert.deepEqual(entryPlace(word), { x: 4, y: 2, layer: 1 })
+  assert.deepEqual(entryPlace(word), place)
 })
 
 // The filter word shares the last-level word the shader already reads, so a texture
@@ -151,17 +158,17 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   const header = PAGE_HEADER_WORDS + 2 * PAGE_SLOT_WORDS,
     last = layouts()[2].last,
     transform = header + PAGE_TRANSFORM_WORD
-  table.setSampling(2, map, false)
+  table.setSampling(2, map)
   table.flush(device)
   assert.equal(table.words[header + 2], last, 'the defaults leave the last-level word as it was')
   assert.equal(slotSampled(table, 2), false, 'the default read')
   writes.length = 0
-  assert.equal(table.setSampling(2, map, false), false, 'nothing moved')
+  assert.equal(table.setSampling(2, map), false, 'nothing moved')
   table.flush(device)
   assert.deepEqual(words(writes), [], 'nothing moved, nothing sent')
   map.magFilter = 'nearest'
   map.transform[0] = map.transform[4] = 4
-  assert.equal(table.setSampling(2, map, false), true)
+  assert.equal(table.setSampling(2, map), true)
   table.flush(device)
   assert.deepEqual(
     words(writes),
@@ -176,7 +183,7 @@ test("a texture's sampling rides in its header, and only the words that moved ar
   assert.equal(slotSampled(table, 2), true, 'read through its filter rule')
   writes.length = 0
   map.transform[6] = 0.5
-  table.setSampling(2, map, false)
+  table.setSampling(2, map)
   table.flush(device)
   assert.deepEqual(words(writes), [[transform + 4, 1]], 'an offset alone sends its word')
 })

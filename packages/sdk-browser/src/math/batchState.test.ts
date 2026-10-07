@@ -1,6 +1,6 @@
 // Batch math capabilities (`batchState.ts`): when WebAssembly module is not playable,
 // JavaScript path is announced with a reason — never a silent fallback. Node cannot
-// follow file URLs with `fetch` (`../page/decode/geometryPageWasm.ts::ressource`): without manually supplied
+// follow file URLs with `fetch` (`./wasm/sdkWasm.ts::ressource`): without manually supplied
 // bytes, `prepareMathBatch` naturally falls back to this case, without simulation.
 import test from 'node:test'
 import assert from 'node:assert/strict'

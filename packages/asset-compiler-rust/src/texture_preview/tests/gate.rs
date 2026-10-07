@@ -53,7 +53,7 @@ fn a_normal_map_is_cooked_on_two_channels() {
     assert_eq!(previews.len(), 1);
     let entry = &previews[0];
     assert_eq!(entry.kind, AtlasKind::Data);
-    assert_eq!(entry.layouts, [Some(Layout::TwoChannel), None]);
+    assert_eq!(entry.layouts, [Some(Layout::TwoChannel), None, None]);
     assert_eq!(entry.blocks[0].len(), preview_block_bytes(128, 128));
     assert!(entry.blocks[1].is_empty());
     let native = dir.join("cache").join("native");
@@ -85,7 +85,7 @@ fn a_texture_under_the_bar_stays_lossless_and_is_named() {
         &scene(json!({"pbrMetallicRoughness": {"baseColorTexture": {"index": 0}}})),
     );
     let entry = &previews[0];
-    assert_eq!(entry.layouts, [None; 2]);
+    assert_eq!(entry.layouts, [None; 3]);
     assert!(entry.blocks.iter().all(Vec::is_empty));
     let native = dir.join("cache").join("native");
     let file = |format: &str| native.join(level_path(&entry.sha256, AtlasKind::Color, 0, format));
@@ -147,7 +147,7 @@ fn no_block_family_leaves_every_chain_lossless() {
         &scene(json!({"normalTexture": {"index": 0}})),
         Vec::new(),
     );
-    assert_eq!(previews[0].layouts, [None; 2]);
+    assert_eq!(previews[0].layouts, [None; 3]);
     assert_eq!(report["blockFormats"], json!([]));
     assert_eq!(report["encoded"], json!({}));
     assert_eq!(report["lossless"], json!([]));
@@ -178,7 +178,7 @@ fn a_kept_chain_whose_level_will_not_write_is_counted_lossless() {
     let (previews, report) = stage_scene(&dir, &scene(material));
     lock(0o755).expect("folder given back");
     assert_eq!(previews[0].baked_levels, 2, "the PNG levels were there");
-    assert_eq!(previews[0].layouts, [None; 2]);
+    assert_eq!(previews[0].layouts, [None; 3]);
     assert!(previews[0].blocks[0].is_empty());
     assert_eq!(report["encoded"]["bc7"]["rgba"], json!(0));
     assert_eq!(report["encoded"]["bc7"]["lossless"], json!(1));

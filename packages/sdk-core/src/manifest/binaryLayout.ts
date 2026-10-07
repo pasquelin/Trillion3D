@@ -1,4 +1,4 @@
-import { type ColumnName, type TextureBlockFormat } from './binaryFormat.ts'
+import { PREVIEW_BLOCK_FORMATS, type ColumnName, type TextureBlockFormat } from './binaryFormat.ts'
 
 /** How many rows each part of a binary manifest holds. */
 export interface Counts {
@@ -59,10 +59,15 @@ const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   texturePreviewPixels: 'previewBytes',
   texturePreviewBc7: 'bc7',
   texturePreviewAstc: 'astc',
+  texturePreviewEtc2: 'etc2',
 }
+
+/** Whether a row count is a block family's bytes. */
+const isFamily = (rows: RowCount): rows is TextureBlockFormat =>
+  (PREVIEW_BLOCK_FORMATS as readonly string[]).includes(rows)
 
 /** The element count of column `name`: its row count's part of `counts`. */
 export function columnElements(name: ColumnName, counts: Counts) {
   const rows = COLUMN_ROWS[name]
-  return rows === 'bc7' || rows === 'astc' ? counts.previewBlockBytes[rows] : counts[rows]
+  return isFamily(rows) ? counts.previewBlockBytes[rows] : counts[rows]
 }

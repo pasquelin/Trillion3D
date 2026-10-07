@@ -47,13 +47,12 @@ fn foldLine(r:TileRead,wrap:u32,size:vec2f,seam:vec2f)->FoldedLine{
 }`
 
 /** The footprint read of atlas `k` through the texture's filter rule, and through its UV
- *  transform when it has one, whose words the transform flag alone fetches. */
+ *  transform when it has one, whose words the transform flag alone fetches: `${k}Footprint`, the
+ *  filter rule through the affine 2 × 3 matrix (`Texture.transform`), on the coordinate and on its
+ *  derivatives — a zero filter word reads as the default read does —, then the taps. */
 export const samplingReadWgsl = (
   k: string,
-) => `/** How a footprint reads: the texture's filter rule through its UV transform — the affine
- *  2 × 3 matrix the WebGL2 path applies, on the coordinate and on its derivatives. A zero filter
- *  word reads as the default read does. */
-fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
+) => `fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->TileRead{
  if((s.sampling&${SAMPLE_TRANSFORMED}u)==0u){return tileRead(s,uv,ddx,ddy,aniso);}
  let h=PAGE_HEADER+slot*PAGE_SLOT+PAGE_TRANSFORM;
  let m=mat2x2f(bitcast<f32>(${k}Pages[h]),bitcast<f32>(${k}Pages[h+1u]),bitcast<f32>(${k}Pages[h+2u]),bitcast<f32>(${k}Pages[h+3u]));

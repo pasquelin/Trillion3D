@@ -8,11 +8,7 @@ const SOFT_VERTICES = 65536
 
 /** Throws `PHYSICS_FORMAT` unless `ids` names one simulated vertex below `softVertices` for each
  *  of `count` vertices. */
-export function checkSoftSourceIds(
-  count: number,
-  ids: readonly number[],
-  softVertices = SOFT_VERTICES,
-) {
+function checkSoftSourceIds(count: number, ids: readonly number[], softVertices = SOFT_VERTICES) {
   if (
     ids.length !== count ||
     ids.some((id) => !Number.isInteger(id) || id < 0 || id >= softVertices)
@@ -69,18 +65,4 @@ export function wholeDeformationInputs(
     }
   }
   return data
-}
-
-/** The same morph deltas in the WebGL vertex texture's per-vertex order. */
-export function wholeMorphDeltas(geometry: Geometry) {
-  const data = wholeDeformationInputs(geometry),
-    count = data[2],
-    targets = data[1]
-  const result = new Float32Array(count * targets * 6),
-    skip = data[3] - targets * 6
-  for (let vertex = 0; vertex < count; vertex++) {
-    const at = 4 + vertex * data[3] + skip
-    result.set(data.subarray(at, at + targets * 6), vertex * targets * 6)
-  }
-  return result
 }

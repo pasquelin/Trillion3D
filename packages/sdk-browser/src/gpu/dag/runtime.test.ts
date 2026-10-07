@@ -80,7 +80,7 @@ test('the sorted rank journal sets the same bits as the full sweep', () => {
     balaye = new Uint32Array(residentWords(count))
   // The journal only names pages whose residency moved, in increasing order.
   const pages = Int32Array.from({ length: count }, (_, j) => j).filter((j) => j % 7 === 0)
-  const changes = { pages: Int32Array.from(pages), count: pages.length, sorted: true }
+  const changes = { pages: Int32Array.from(pages), count: pages.length }
   const touched = new Int32Array(residentWords(count))
   const retenus = updateResidencyBits((j) => !!next[j], next.length, journal, 0, changes, touched)
   assert.equal(retenus, residentWords(count), 'one word kept per word the journal touches')

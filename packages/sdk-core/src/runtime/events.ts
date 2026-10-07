@@ -1,8 +1,9 @@
-/** Something the engine tells about itself while it runs: a change it made, or a failure. */
+/** Something the engine tells about itself while it runs: a failure the view survived, drawn on
+ *  what it already holds (`degraded`), or one it did not (`fatal`). */
 export type RuntimeEvent =
   | {
       eventVersion: 1
-      type: 'capability' | 'optimization' | 'fallback'
+      type: 'degraded'
       audience: 'diagnostic'
       recovered: true
       code: string

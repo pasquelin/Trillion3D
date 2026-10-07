@@ -3,8 +3,8 @@
 //! its positions declare, the surface each primitive wears, and where each image comes from.
 //!
 //! The runtime views the binary through these numbers and nothing else: it neither parses the
-//! document nor decodes anything the compiler has not already laid out. The compiler writes one
-//! buffer per document (`source.bin`, `scene.bin`), so every view offset is an offset into it.
+//! document nor decodes anything the compiler has not already laid out. The compiler writes the
+//! document's one buffer (`source.bin`), so every view offset is an offset into it.
 use super::sparse::sparse;
 use super::*;
 

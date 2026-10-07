@@ -11,12 +11,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { readCacheManifest } from '../../bench/runner/assets/cacheManifest.ts'
 import { coneHolds } from '../kit/reference/cone.ts'
 import { preparedGeometries } from '../../packages/sdk-browser/src/host/prepared/geometry.ts'
-import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/codec/geometryPage.ts'
 import { sceneDocument } from '../../packages/sdk-browser/src/scene/tables.ts'
-import {
-  joinedCorners,
-  withPlaced,
-} from '../../packages/sdk-browser/src/world/page/placedVertices.ts'
+import { joinedCorners, withPlaced } from '../kit/reference/placedVertices.ts'
 import type { PreparedSceneTables } from '../../packages/sdk-core/src/scene/core/tableContracts.ts'
 import { sceneCacheFiles } from '../kit/scenes/caches.ts'
 
@@ -31,12 +28,8 @@ async function checkScene(pointer: string) {
   const tables = JSON.parse(
     readFileSync(join(dir, 'scene-tables.json'), 'utf8'),
   ) as PreparedSceneTables
-  // The document the WebGPU session draws: `source.gltf`, never the autonomous scene.
-  const { document, bufferUrl } = sceneDocument(
-    tables,
-    'source.gltf',
-    pathToFileURL(`${dir}/`).href,
-  )
+  // The document the session draws (`SCENE_FILE`).
+  const { document, bufferUrl } = sceneDocument(tables, pathToFileURL(`${dir}/`).href)
   const geometryOf = preparedGeometries(document, async () => bytesOf(fileURLToPath(bufferUrl!)))
   // A streaming bundle holds dozens of index pages: each is read once, and a page viewed in it.
   const bundles = new Map<string, ArrayBuffer>()

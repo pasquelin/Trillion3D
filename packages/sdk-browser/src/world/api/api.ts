@@ -1,7 +1,7 @@
 import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts'
 import type { ExplorerProbe } from '../session/capabilityProbe.ts'
 import type { ExplorerSource } from '../session/prepare.ts'
-import type { ExplorerRuntimeSurface } from '../render/hostRuntime.ts'
+import type { SessionRuntime } from '../render/sessionRuntime.ts'
 import { createExplorerCameraApi } from './cameraApi.ts'
 import { createExplorerDiagnosticApi } from './diagnosticApi.ts'
 import { createExplorerSceneApi } from './sceneApi.ts'
@@ -12,158 +12,65 @@ import { createExplorerTelemetryApi } from './telemetryApi.ts'
 import { createExplorerLightApi } from './lightApi.ts'
 import { createExplorerMaterialApi } from './materialApi.ts'
 
-type Inputs = ExplorerRuntimeSurface & {
+type Inputs = SessionRuntime & {
   capabilities: ExplorerProbe['capabilities']
   preparationMs: number
   moveNamed?: ExplorerSource['moveNamed']
 }
 
+/** The engine's own surfaces of the session: its scene changes, its switches, its views, its
+ *  lights and materials, its profile. */
+function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
+  const { check, engine, render, flush, capture, scope, canvas, camera, context } = inputs
+  return {
+    ...createExplorerSceneApi({ check, engine, render, flush, capture, scope, canvas }),
+    ...createExplorerRenderApi({ check, engine }),
+    ...createExplorerViewportApi({
+      ...{ check, engine, camera, canvas, viewport: inputs.viewport, options: inputs.options },
+      setCapturingSurface: inputs.setCapturingSurface,
+    }),
+    ...createExplorerSelectionApi({ check, context }),
+    ...createExplorerDiagnosticApi({ check, engine, setMode: inputs.setDiagnostic }),
+    ...createExplorerLightApi({
+      ...{ check, engine, moveNamed: inputs.moveNamed },
+      store: context.sceneLights,
+      imported: context.importedLightIds ?? [],
+    }),
+    ...createExplorerMaterialApi({
+      ...{ check, engine, onDispose },
+      source: context.source,
+      associations: context.associations,
+    }),
+    ...createExplorerTelemetryApi(inputs.profiler, engine),
+  }
+}
+
 export function createExplorerApi(inputs: Inputs) {
-  const {
-    options,
-    capabilities,
-    preparationMs,
-    camera,
-    center,
-    bounds,
-    metadata,
-    backends,
-    canvas,
-    render,
-    capture,
-    captureView,
-    gpuDevice,
-    dispose,
-    setPose,
-    awaitPages,
-    flush,
-    check,
-    scope,
-    directGpu,
-    viewport,
-    context,
-    lookAtTarget,
-    radius,
-    hostedControls,
-    beautyMaterials,
-    overlays,
-    profiler,
-    state,
-    setActive,
-    setDiagnostic,
-    setCapturingSurface,
-    setMeasuring,
-    setComparison,
-  } = inputs
+  const { options, camera, center, radius, canvas, check, state, ownedControls } = inputs
   const materialReleases: (() => void)[] = []
   return {
-    capabilities,
-    get fallbackReason() {
-      return state.fallbackReason
-    },
-    preparationMs,
-    camera,
-    center,
-    bounds,
-    metadata,
-    backends,
-    canvas,
-    render,
+    ...{ capabilities: inputs.capabilities, preparationMs: inputs.preparationMs },
+    ...{ camera, center, bounds: inputs.bounds, metadata: inputs.metadata, canvas },
+    /** The session's one engine, the WebGPU page raster. */
+    engine: inputs.engine,
+    render: inputs.render,
     /** The families the next frame draws with still on their way (`../session/familyUse.ts`). */
     familiesPending: inputs.familiesPending,
-    capture,
+    capture: inputs.capture,
     /** The composed image at a size of its own, drawn offscreen, bottom row first. */
-    captureView,
-    /** The WebGPU device the session draws on, when it has one: a world reopening keeps it. */
-    gpuDevice,
+    captureView: inputs.captureView,
+    /** The WebGPU device the session draws on: a world reopening keeps it. */
+    gpuDevice: inputs.gpuDevice,
     dispose() {
       materialReleases.splice(0).forEach((release) => release())
-      dispose()
+      inputs.dispose()
     },
-    setPose,
-    awaitPages,
-    flush,
-    ...createExplorerSceneApi({
-      check,
-      active: () => state.active,
-      backends,
-      render,
-      flush,
-      capture,
-      scope,
-      canvas,
-    }),
-    ...createExplorerRenderApi({ check, active: () => state.active }),
-    ...createExplorerViewportApi({
-      check,
-      active: () => state.active,
-      setCapturingSurface,
-      targets: () => [state.measurementTarget, state.pairTargetA, state.pairTargetB],
-      camera,
-      canvas,
-      webglSurface: inputs.webglSurface,
-      viewport,
-      options,
-    }),
-    ...createExplorerSelectionApi({
-      check,
-      backends,
-      diagnostic: () => state.diagnostic,
-      selectBackend: setActive,
-      setComparison,
-      directGpu,
-      context,
-    }),
-    get comparison() {
-      const { comparisonLayout, comparisonPair, wipe, toggle } = state
-      return { layout: comparisonLayout, pair: comparisonPair, wipe, toggle }
-    },
-    ...createExplorerCameraApi({
-      check,
-      options,
-      camera,
-      center,
-      lookAtTarget,
-      radius,
-      canvas,
-      backends,
-      disposed: () => state.disposed,
-      setMeasuring,
-      setActive,
-      hostedControls,
-    }),
-    get backend() {
-      return state.active.id
-    },
+    ...{ setPose: inputs.setPose, awaitPages: inputs.awaitPages, flush: inputs.flush },
+    ...engineApis(inputs, (release) => materialReleases.push(release)),
+    ...createExplorerCameraApi({ check, options, camera, center, radius, canvas, ownedControls }),
     get diagnostic() {
       return state.diagnostic
     },
     diagnostics: DIAGNOSTICS,
-    ...createExplorerDiagnosticApi({
-      check,
-      active: () => state.active,
-      backends,
-      beautyMaterials,
-      overlays,
-      setMode: setDiagnostic,
-    }),
-    ...createExplorerLightApi({
-      check,
-      store: context.sceneLights,
-      imported: context.importedLightIds ?? [],
-      backends,
-      active: () => state.active,
-      onDiagnostic: context.onDiagnostic,
-      moveNamed: inputs.moveNamed,
-    }),
-    ...createExplorerMaterialApi({
-      onDispose: (release) => materialReleases.push(release),
-      check,
-      source: context.source,
-      associations: context.associations,
-      backends,
-      active: () => state.active,
-    }),
-    ...createExplorerTelemetryApi(profiler, () => state.active),
   }
 }

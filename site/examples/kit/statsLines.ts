@@ -51,8 +51,8 @@ export interface StatsSample extends FrameCounters {
   /** Frames a second over the last second; `null` before the first rate and while `held`. */
   fps: number | null
   held: boolean
-  /** True before the first sample, from a held image until the next device sample, without
-   *  `timestamp-query`, or on WebGL2: `gpuFrameMs` is the last one measured. */
+  /** True before the first sample, from a held image until the next device sample, or without
+   *  `timestamp-query`: `gpuFrameMs` is the last one measured. */
   gpuFrameLast?: boolean
   sceneTriangles: number | null
   /** The CPU side of the half second: the frame's median and each stage (`statUnit.ts`). */

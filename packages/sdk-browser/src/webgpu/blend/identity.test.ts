@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { voidStaleBlendGroups } from './identity.ts'
 import { createWebgpuBlendState } from './state.ts'
-import type { BlendLighting } from '../core/bindEntries.ts'
+import type { BlendLighting } from '../core/blendBindEntries.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 
 /** The paged group of the identity the last `voidStaleBlendGroups` named. */
@@ -11,7 +11,7 @@ const pagedGroup = ({ identity, pagedGroups }: ReturnType<typeof createWebgpuBle
 
 test('blend identity follows translucent depth independently of transmittance', () => {
   const blendState = createWebgpuBlendState()
-  const rt = { gpu: {}, vis: {}, blendState } as unknown as WebgpuPagesRuntime
+  const rt = { gpu: {}, vis: { physicalTable: {} }, blendState } as unknown as WebgpuPagesRuntime
   const lighting = { shadowTransmittance: {}, shadowTranslucentDepth: {} } as BlendLighting
   voidStaleBlendGroups(rt, lighting)
   const group = {} as GPUBindGroup
@@ -27,7 +27,7 @@ test("the groups over each of the shadow maps' double-buffered tables are kept w
   const blendState = createWebgpuBlendState()
   const item = {} as (typeof blendState.blendGpu)[number]
   blendState.blendGpu.push(item)
-  const rt = { gpu: {}, vis: {}, blendState } as unknown as WebgpuPagesRuntime
+  const rt = { gpu: {}, vis: { physicalTable: {} }, blendState } as unknown as WebgpuPagesRuntime
   const tables = [{}, {}] as GPUBuffer[]
   const frame = (k: number) => {
     voidStaleBlendGroups(rt, { shadowData: tables[k % 2] } as BlendLighting)
@@ -52,4 +52,19 @@ test("the groups over each of the shadow maps' double-buffered tables are kept w
   assert.equal(item.groups![blendState.identity.slot], undefined)
   frame(7)
   assert.equal(pagedGroup(blendState), groups[1], 'the table named last keeps its groups')
+})
+
+test('a grown physical table, a new texture, voids the blend groups', () => {
+  const blendState = createWebgpuBlendState()
+  const physicalTable = { view: {} as GPUTextureView }
+  const rt = { gpu: {}, vis: { physicalTable }, blendState } as unknown as WebgpuPagesRuntime
+  const lighting = {} as BlendLighting
+  voidStaleBlendGroups(rt, lighting)
+  const group = {} as GPUBindGroup
+  blendState.pagedGroups[blendState.identity.slot] = group
+  voidStaleBlendGroups(rt, lighting)
+  assert.equal(pagedGroup(blendState), group)
+  physicalTable.view = {} as GPUTextureView
+  voidStaleBlendGroups(rt, lighting)
+  assert.equal(pagedGroup(blendState), undefined)
 })

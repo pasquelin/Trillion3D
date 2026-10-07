@@ -75,14 +75,21 @@ test('the asymmetric real tail floor is admitted exactly or refused, never silen
   )
 })
 
+// The default effect reserve holds no extra scene target (#1483, `effectChainBytesAt`): the
+// 4K reservations now fall short with or without the frame's history, by the bytes named.
 test('full 4K reservations expose the concrete tail-fixture shortfall instead of overcommitting', () => {
-  assert.throws(
-    () => splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, full),
-    /UNDER_MINIMUM/,
-  )
-  const withoutHistory = { ...full, frameTargets: full.frameTargets - 265420800 }
-  const prior = splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, withoutHistory)
-  assert.ok(prior.texturePool >= textureMinimum)
+  const required = geometryMinimum + textureMinimum
+  for (const frameTargets of [full.frameTargets, full.frameTargets - 265420800]) {
+    const fixed = frameTargets + full.shadowPool + full.bounceProbes + full.effectTargets
+    assert.throws(
+      () =>
+        splitMemoryBudget(DEFAULT_GPU_BUDGET, DEFAULT_CPU_BUDGET, undefined, {
+          ...full,
+          frameTargets,
+        }),
+      new RegExp(`UNDER_MINIMUM: available=${DEFAULT_GPU_BUDGET - fixed}, required=${required}$`),
+    )
+  }
 })
 
 test('the default total of those 4K reservations funds them, each pool at its default', () => {

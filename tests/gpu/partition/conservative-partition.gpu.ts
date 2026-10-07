@@ -51,11 +51,6 @@ test('the GPU partition is conservative on every row of every pose', async () =>
   assert.equal(total.containmentViolations, 0, 'GPU rectangles narrower than the reference')
   assert.equal(total.clipViolations, 0, 'boxes the near plane clips without the clip flag')
   assert.equal(total.depthViolations, 0, 'GPU depths past the reference')
-  // The cut runs on the GPU throughout; holes are `dag/held-gpu-cut.gpu.ts`'s to prove.
-  for (const { cpuSelectMs, gpuSelectionFallback } of frames) {
-    assert.equal(cpuSelectMs, null, 'the cut fell back to the CPU')
-    assert.equal(gpuSelectionFallback, false, 'GPU selection was abandoned')
-  }
   // Without an occlusion reject, conservativeness proves nothing.
   assert.ok(
     frames.some(({ hizRejectedClusters }) => (hizRejectedClusters ?? 0) > 0),

@@ -818,8 +818,6 @@
       "shadow-pages-off": "Ombres sans découpage en pages",
       "shadow-budget-0-25": "Temps réservé aux ombres : 0,25 ms",
       "budget-3000": "Budget de géométrie : 3 000 pages",
-      "webgl": "Rendu WebGL",
-      "webgl2": "Rendu WebGL 2",
       "moving-light": "Lumière mobile",
       "visible": "Fenêtre du navigateur visible"
     },
@@ -925,7 +923,7 @@
     "resolution": "Résolution et seuil d’erreur",
     "lights": "Lumières, ombres et rebond",
     "execution": "Image fixe, anticrénelage et options d’exécution",
-    "memory": "Mémoire, instances et autres moteurs"
+    "memory": "Mémoire, instances et autres essais"
   },
   "evidence": {
     "computeDrawing": "Dessin par calcul",
@@ -1109,8 +1107,8 @@
     },
     "measurement-entry": {
       "title": "Le point d’entrée de mesure",
-      "description": "Là où un témoin, un moteur de rendu forcé ou une session interne restent nommables — jamais par le point d’entrée publié `trillion3d`.",
-      "html": "<p>Une page importe <code>trillion3d</code> et ne voit jamais de moteur de rendu interne, de témoin ni de session interne : <code>createWorld</code> dessine avec un seul moteur de rendu, choisi sur la machine ou refusé nommément s’il est forcé et absent. Le banc, les preuves et les vues de comparaison ont encore besoin de nommer un témoin — Three.js nu, <code>THREE.LOD</code>, la session interne <code>openMeasuredWorld</code> — et c’est le seul rôle du point d’entrée de mesure séparé, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Il réexporte tout ce que le point d’entrée publié expose, plus ce qu’un hôte n’a jamais besoin de voir : <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (la session interne qu’un monde ouvre sur lui-même), les fabriques de moteurs (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), et des aides réservées à la mesure comme <code>replicateInstances</code>. Rien de tout cela n’atteint un monde publié, et rien n’est importé par une application.</p>"
+      "description": "Là où un témoin ou une session interne restent nommables — jamais par le point d’entrée publié `trillion3d`.",
+      "html": "<p>Une page importe <code>trillion3d</code> et ne voit jamais de témoin ni de session interne : <code>createWorld</code> dessine avec WebGPU, ou est refusé nommément si la machine n’en accorde aucun. Le banc et les preuves ont encore besoin de nommer un témoin — Three.js nu, <code>THREE.LOD</code>, la session interne <code>openMeasuredWorld</code> — et c’est le seul rôle du point d’entrée de mesure séparé, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Il réexporte tout ce que le point d’entrée publié expose, plus ce qu’un hôte n’a jamais besoin de voir : <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (la session interne qu’un monde ouvre sur lui-même), la fabrique de pages <code>webgpuPagesEngine</code>, et des aides réservées à la mesure comme <code>replicateInstances</code>. Rien de tout cela n’atteint un monde publié, et rien n’est importé par une application.</p>"
     },
     "createWorldJob": {
       "title": "Charger un monde comme une tâche annulable",
@@ -1159,11 +1157,11 @@
       "description": "Ce que dessine une image. La disponibilité décrit les sorties réelles du pipeline, jamais des surcouches artificielles.",
       "values": [
         "Image éclairée issue des matériaux glTF.",
-        "Une couleur pleine unique par triangle soumis, sans lignes.",
-        "Identité stable primitive/page, une couleur par cluster ; WebGL2 et WebGPU tous les deux.",
+        "Une couleur pleine unique par triangle soumis.",
+        "Identité stable primitive/page, une couleur par cluster.",
         "Grappes de niveau 0 face aux réductions plus grossières réellement choisies dans cette image.",
         "Erreur de chaque cluster projetée par sa sphère, telle que la coupe l’emploie.",
-        "Une couleur par classe de matériau : la passe de classe qui a résolu le pixel. Chemin de visibilité WebGPU seulement.",
+        "Une couleur par classe de matériau : la passe de classe qui a résolu le pixel.",
         "Pages visibles sélectionnées ; les nœuds hiérarchiques rejetés sont comptés, pas dessinés.",
         "Pages d’indices attachées ; les pages absentes ne sont pas dessinées. Ce n’est pas la VRAM physique.",
         "Indisponible : la résidence des mips de texture n’est pas instrumentée.",
@@ -1214,10 +1212,7 @@
     },
     "GpuTimingMethod": {
       "description": "Méthode de mesure des durées GPU. Une durée par passe localise le coût sans le quantifier : sur un GPU en tuiles, les passes se chevauchent. Le total de l’image est l’enveloppe `gpuImageMs` et les étapes ne s’additionnent pas.",
-      "values": [
-        "Requêtes d’horodatage WebGPU natives.",
-        "Extension WebGL2 utilisée sur ce chemin."
-      ]
+      "values": ["Requêtes d’horodatage WebGPU natives."]
     },
     "ColumnKind": {
       "description": "Stockage d’une colonne du manifeste binaire. `COLUMN_KIND` associe chaque nom de colonne à son type afin de choisir la vue sur les octets annexes.",
@@ -1246,7 +1241,7 @@
       "description": "Encapsule une opération en attente dans le contrat de tâche du moteur : instantané, abonnement et annulation qui libère ce que la tâche possédait. L’opération doit permettre l’interruption par son propriétaire."
     },
     "detectCapabilities": {
-      "description": "Décrit ce que cette machine prend réellement en charge avant la création d’un monde : `{ tier, renderer, adapter, extensions, reason }`. L’enveloppe publique qu’un monde relit est `capability.detect()` — `{ webgpu, webgl2, ... }`, une forme plus simple pour la même sonde. La raison est toujours fournie ; une capacité absente est signalée, jamais supposée."
+      "description": "Ce que le WebGPU de cette machine accorde réellement, avant la création d’un monde : `{ tier, adapter, extensions, reason }`. Le niveau est `full` avec les requêtes d’horodatage GPU, `degraded` sans elles et `unavailable` sans adaptateur. La raison est toujours fournie ; une capacité absente est signalée, jamais supposée. L’enveloppe publique qu’un monde relit est `capability.detect()` — `{ webgpu, tier, features, reason }`, une forme plus simple pour la même sonde."
     },
     "perspectiveProjection": {
       "description": "Projection perspective d’une caméra : `fov` vertical en degrés, ratio `aspect`, plan proche `near` et zoom. **Profondeur inversée, plan lointain infini** : `near` se projette à 1 et l’infini à 0. Aucun plan lointain n’intervient, ce qui préserve la précision en profondeur."
@@ -1276,7 +1271,7 @@
       "description": "Caméra à l’origine, fov 50, aspect 1, proche 0,1, lointain 2000 et zoom 1 : le repli des oracles appelés avant la première image."
     },
     "readCameraWorld": {
-      "description": "Résout les ancêtres de la caméra hôte, copie sa matrice monde puis applique `writeEngineCamera`. C’est l’unique traduction depuis la caméra hôte, une fois par image. Les profondeurs de clip `[-1, 1]` et `[0, 1]` sont respectées."
+      "description": "Résout les ancêtres de la caméra hôte, copie sa matrice monde puis applique `writeEngineCamera`. C’est l’unique traduction depuis une caméra hôte, une fois par image ; `HostCamera` est une forme — pose, optique, matrice monde, la projection propre de l’hôte — et non un type de la bibliothèque de rendu de l’hôte. `aspect` est le rapport auquel la vue est dessinée quand ce n’est pas celui que déclare la caméra : une capture de surface rend la même caméra à part, à la forme de la surface où elle écrit. La convention de profondeur de clip est celle du moteur, composée à partir de l’optique déclarée en profondeur inversée avec un plan lointain à l’infini ; rien de l’hôte n’est lu ici."
     },
     "holdCameraWorld": {
       "description": "Copie bit pour bit une caméra moteur, sans rien recalculer."
@@ -1626,11 +1621,10 @@
       "an angle at or above π/2 never rejects": "un angle supérieur ou égal à π/2 ne rejette jamais",
       "after updateNodeMatrixWorld(tree, root)": "après updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "disponible — pages d’indices attachées ; les pages absentes ne sont pas dessinées ; ce n’est pas la VRAM physique",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "disponible — couleur pleine unique par triangle soumis, sans fil de fer GL_LINES",
+      "available — A filled unique colour per submitted triangle": "disponible — couleur pleine unique par triangle soumis",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "disponible — clusters de niveau 0 face aux réductions du DAG choisies pour cette image",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "disponible — erreur écran par cluster projetée par sa sphère, telle que la coupe l’emploie",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "disponible — pages visibles sélectionnées ; les nœuds rejetés sont comptés, pas dessinés",
-      "available — Stable primitive/page ID, exact-cluster backend only": "disponible — identité primitive/page stable, chemin WebGL2 de clusters exacts uniquement",
       "available — glTF materials": "disponible — matériaux glTF",
       "unavailable — No fragment counter": "indisponible — aucun compteur de fragments",
       "unavailable — Texture mip residency not instrumented": "indisponible — résidence des mips de texture non instrumentée",

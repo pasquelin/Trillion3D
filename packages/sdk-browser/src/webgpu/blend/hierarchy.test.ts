@@ -140,5 +140,6 @@ test('a box moved into view is kept once the tree is refit', () => {
   item.bounds = new Float64Array([200, 0, 0, 201, 1, 1])
   refreshBlendBoxes(blendState)
   orderBlendPasses(blendState, [0, 0, 1])
-  assert.ok(blendState.keepPacked[item.orderRank >>> 5] & (1 << (item.orderRank & 31)))
+  const rank = items.indexOf(item)
+  assert.ok(blendState.keepPacked[rank >>> 5] & (1 << (rank & 31)))
 })

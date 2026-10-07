@@ -1,8 +1,7 @@
-// Page of the water-pass proof: the real WebGPU engine (`webgpuPagesBackend`), a real device, a
+// Page of the water-pass proof: the real WebGPU engine (`webgpuPagesEngine`), a real device, a
 // real reread image. A transmissive tile in front of an opaque ground, or of nothing, rendered
 // through the water pass and read at its centre; the encoded pass labels prove the intended path.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts'
 import {
   VIEWPORT,
   batisseur,
@@ -22,7 +21,7 @@ import {
   waterSurface,
   type WaterCase,
 } from './waterPassCases.ts'
-import type { BackendDiagnostic } from '../../../packages/sdk-browser/src/backend/types.ts'
+import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/engine/types.ts'
 import {
   WATER_COMPOSITE_PASS,
   WATER_SURFACE_PASS,
@@ -71,7 +70,7 @@ async function waterCase(
   device: GPUDevice,
   paged: boolean,
   kase: WaterCase,
-  events: BackendDiagnostic[],
+  events: EngineDiagnostic[],
 ): Promise<CaseResult> {
   const labels = new Set<string>()
   const create = device.createCommandEncoder.bind(device)
@@ -85,13 +84,9 @@ async function waterCase(
     return encoder
   }
   const s = scene(paged, kase)
-  const { backend, canvas } = engine(
-    webgpuPagesBackend,
-    s,
-    device,
-    (e: BackendDiagnostic) => events.push(e),
-    { clearColor: BACKGROUND },
-  )
+  const { backend, canvas } = engine(s, device, (e: EngineDiagnostic) => events.push(e), {
+    clearColor: BACKGROUND,
+  })
   try {
     await backend.prepare()
     const camera = cameraFace()
@@ -141,7 +136,7 @@ export function run() {
       const cases: CaseResult[] = (result.cases = [])
       for (const paged of [false, true])
         for (const kase of CASES)
-          cases.push(await waterCase(device, paged, kase, events as BackendDiagnostic[]))
+          cases.push(await waterCase(device, paged, kase, events as EngineDiagnostic[]))
     },
     { maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES },
   )

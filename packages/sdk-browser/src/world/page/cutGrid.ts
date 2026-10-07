@@ -1,4 +1,4 @@
-import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts'
+import { prepareSdkWasm } from '../../math/wasm/sdkWasm.ts'
 
 /** What the compiler knew of a primitive beside its vertices, which sets its grids: the finest
  *  error its DAG published and the largest world scale that places it. A world's drawn triangles

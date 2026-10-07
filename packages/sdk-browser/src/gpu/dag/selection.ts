@@ -23,13 +23,14 @@ export async function createGpuDagSelection(
   device: GPUDevice,
   packed: PackedDag,
   options: {
-    residentCut?: boolean
     diagnosticGpuVariant?: DiagnosticGpuVariant
-    /** Told why a scene that has a cut gets no GPU cut: the host says so (`gpuSelectionFallback`). */
+    /** Told why a scene that has a cut gets no GPU cut: the host refuses the scene by name. */
     onRefused?: (reason: string, details?: Record<string, unknown>) => void
+    /** The pages the pool already holds: a cut made beside a running one (a growth in place). */
+    poolHeld?: (page: number) => boolean
   } = {},
 ): Promise<GpuSelection | undefined> {
-  if (typeof device.createComputePipeline !== 'function' || packed.pageCount < 1) return undefined
+  if (packed.pageCount < 1) return undefined
   const refusal = dagDeviceRefusal(device.limits, packed)
   if (refusal) {
     options.onRefused?.('camera cut past the device limits', refusal)
@@ -38,12 +39,11 @@ export async function createGpuDagSelection(
   const resources = await createDagResources(
     device,
     packed,
-    !!options.residentCut,
     selectionRepeat(options.diagnosticGpuVariant),
   )
   if (!resources) {
     options.onRefused?.('camera cut creation failed')
     return undefined
   }
-  return createDagRuntime(resources)
+  return createDagRuntime(resources, options.poolHeld)
 }

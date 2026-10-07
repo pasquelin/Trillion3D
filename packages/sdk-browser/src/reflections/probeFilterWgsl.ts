@@ -1,8 +1,8 @@
 import { environmentReflectionShader } from './environmentShader.ts'
 
 /** The scene environment's order-2 radiance (\`directLights.environment\`) through the GGX lobe
- *  (\`environmentShader.ts\`): the WebGPU programs' last fallback, never black. */
-export const ENVIRONMENT_REFLECTION_WGSL = environmentReflectionShader('wgsl', {
+ *  (\`environmentShader.ts\`): the WebGPU programs' last fallback, never black (#1341). */
+export const ENVIRONMENT_REFLECTION_WGSL = environmentReflectionShader({
   prelude: 'let e=directLights.environment;',
   direction: 'R',
   coefficient: (k) => `e[${k}].rgb`,

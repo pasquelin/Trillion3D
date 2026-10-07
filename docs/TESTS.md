@@ -28,15 +28,15 @@ published).
 
 ## 2. The Commands
 
-| Command | What it runs |
-|---|---|
-| `pnpm test` | every `*.test.ts` under `packages/`, `tests/`, `bench/`, `scripts/` and `site/examples/kit/` |
-| `pnpm run check:changed` | the local gate: the gates of `validate` and the unit tests the changed files reach |
-| `pnpm run validate` | every gate, as the CI runs it |
-| `pnpm run test:gpu` | the GPU proofs on Dawn |
-| `pnpm run test:chrome` | the Chrome proofs |
-| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src` |
-| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report |
+| Command                  | What it runs                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| `pnpm test`              | every `*.test.ts` under `packages/`, `tests/`, `bench/`, `scripts/` and `site/examples/kit/` |
+| `pnpm run check:changed` | the local gate: the gates of `validate` and the unit tests the changed files reach           |
+| `pnpm run validate`      | every gate, as the CI runs it                                                                |
+| `pnpm run test:gpu`      | the GPU proofs on Dawn                                                                       |
+| `pnpm run test:chrome`   | the Chrome proofs                                                                            |
+| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src`                                          |
+| `pnpm run perf:all`      | every benchmark of `bench/perf/`, then the aggregated report                                 |
 
 `check:changed` (`scripts/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
 overriding) and runs the unit tests a change can affect (`scripts/affected-tests.ts`). A change of
@@ -113,16 +113,16 @@ What a proof needs beyond that is in its file's header.
 
 ### Chrome Proofs
 
-What Dawn does not have is proved in the system Chrome: the WebGL2 backend (`tests/gpu/webgl/`, the
-WebGL2 halves of `particles/`, `reflections/` and `backend/`) and the per-material comparison with
-the witness renderer (`webgpu/material-pixels`). Each is a `tests/gpu/<area>/<name>.chrome.ts`,
-found by the same rule and declared in the same `EXCLUDED`; its page module is served from the
-sources and called in a fresh headless Chrome (`tests/gpu/kit/onChrome.ts`), under the bench lock.
-Their scenes are built by the proofs, never a page of the site.
+What Dawn does not have is proved in the system Chrome: the absence of WebGPU (`world/no-webgpu`)
+and the per-material comparison with the witness library (`webgpu/material-pixels`). Each is a
+`tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`;
+its page module is served from the sources and called in a fresh headless Chrome
+(`tests/gpu/kit/onChrome.ts`), under the bench lock. Their scenes are built by the proofs, never a
+page of the site.
 
 ```bash
 pnpm run test:chrome                                                       # run all
-node bench/dawn/proofs.ts --chrome tests/gpu/webgl/blend-passes.chrome.ts  # run one
+node bench/dawn/proofs.ts --chrome tests/gpu/webgpu/material-pixels.chrome.ts  # run one
 ```
 
 The site has no browser proof. `node scripts/site-first-load.ts <siteDir> [route …]` measures a
@@ -177,4 +177,5 @@ that shape every file: a maintained JS, TS or Rust file holds at most 200 lines 
 except the runtime modules of `sdk-core`, `sdk-browser`, `sdk-node` and `page-codec`, which answer
 to `check:cohesion` instead (functions of at most 60 lines and a complexity of at most 20, on the
 modules a branch touches). The translations gate is described in
-[LEARNING_PORTAL.md](LEARNING_PORTAL.md#languages).
+[LEARNING_PORTAL.md](LEARNING_PORTAL.md#languages). The engine is WebGPU only: `check:webgpu-only`
+fails on any trace of the GL family of APIs in a tracked file or file name, with no allowlist.

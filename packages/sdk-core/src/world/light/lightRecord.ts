@@ -19,16 +19,12 @@ const WIDEST_CONE = Math.PI / 2 - 1e-9
 const eye = new Vector3(),
   aim = new Vector3(),
   right = new Vector3()
-// Stryker disable next-line ArrayDeclaration: written by index before any read
-const tint = [0, 0, 0]
-/** `colour` times `scale`, in one reused triple: the WebGL2 probe adds every frame, allocating
- *  nothing. */
-const scaled = (colour: { r: number; g: number; b: number }, scale: number) => {
-  tint[0] = colour.r * scale
-  tint[1] = colour.g * scale
-  tint[2] = colour.b * scale
-  return tint
-}
+/** `colour` times `scale`: read when the lights change, never per frame. */
+const scaled = (colour: { r: number; g: number; b: number }, scale: number) => [
+  colour.r * scale,
+  colour.g * scale,
+  colour.b * scale,
+]
 
 /**
  * A lamp as the engine's store holds it (`scene/light/contracts.ts`), placed by its world matrix,

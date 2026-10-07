@@ -7,18 +7,15 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
  * the temporal resolve reconstructs it — its pass rigged, in the beauty view, on the visibility
  * buffer, its upscaling resolves compiled —, and the page asked a scale below 1. A capture — drawn
  * in a view of its own, which holds no pass —, a diagnostic view, which renders at the pixel
- * centre, a diagnostic GPU variant, which sizes its own targets, and the fallback draw stay at the
- * display's size: `undefined`. The pass switched off keeps the bounds, and the display colour apart
+ * centre, and a diagnostic GPU variant, which sizes its own targets, stay at the display's size:
+ * `undefined`. The pass switched off keeps the bounds, and the display colour apart
  * (`frameSizeOf`): a switch at the display's scale remakes no target.
  */
 function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
-  const { gpu, run, vis } = rt,
+  const { gpu, run } = rt,
     { bounds } = rt.scale
   const reconstructed =
-    !!gpu.temporal &&
-    run.diagnostic === 'beauty' &&
-    !rt.context.diagnosticGpuVariant &&
-    vis.visEnabled
+    !!gpu.temporal && run.diagnostic === 'beauty' && !rt.context.diagnosticGpuVariant
   return reconstructed && bounds.min < 1 && gpu.temporal!.upscales() ? bounds : undefined
 }
 

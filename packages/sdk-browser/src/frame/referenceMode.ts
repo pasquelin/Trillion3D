@@ -1,6 +1,6 @@
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { EngineError } from '../../../sdk-core/src/index.ts'
-import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../backend/common.ts'
+import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../engine/common.ts'
 import {
   assertFullShadowPool,
   referenceTilePlan,
@@ -10,9 +10,9 @@ import type { MeasuredWorldOptions } from '../world/session/options.ts'
 import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_BUDGET_MS } from './referenceApproximations.ts'
 
 /**
- * THE ENGINE'S REFERENCE MODE: the image a rendering technique is held to (CONTRIBUTING.md,
- * "Image and fidelity", class 2), drawn by this very renderer with every approximation it names
- * switched off — never a second renderer:
+ * THE ENGINE'S REFERENCE MODE (#1281): the image a rendering technique is held to (CONTRIBUTING.md,
+ * "Image and fidelity", class 2), drawn by the engine itself with every approximation it names
+ * switched off:
  * - `renderScale`: the frame drawn at the display, 1, never reconstructed from fewer pixels;
  * - `temporalReuse`: no temporal antialiasing, no jitter, no history — one frame is the image;
  * - `probeBudget`: bounced light traces every probe at its per-frame ceiling, and the held frame a
@@ -77,12 +77,12 @@ export function referenceOptions(options: MeasuredWorldOptions): {
  * `capture` itself.
  */
 export function referenceCapture(
-  capture: () => Uint8Array,
+  capture: () => Promise<Uint8Array>,
   reference: ReferenceMode | null,
   shadowBias: () => number | null | undefined,
 ) {
   if (!reference) return capture
-  return () => {
+  return async () => {
     assertFullShadowPool(shadowBias())
     return capture()
   }

@@ -1,6 +1,6 @@
 // Second scenario for batch math capabilities: module instantiates but its compute
 // contract is not as expected. Separated from `batchState.test.ts` because `prepareSdkWasm`
-// caches its decision process-wide — single load scenario per file, like `../page/decode/geometryPageWasm.test.ts`
+// caches its decision process-wide — single load scenario per file, like `./wasm/sdkWasm.test.ts`
 // already does for the decoder.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 test('unknown compute contract leaves everything on JavaScript with published reason', async () => {
   const instantiateOriginal = WebAssembly.instantiate
   const fetchOriginal = globalThis.fetch
-  // `ressource()` (`../page/decode/geometryPageWasm.ts`) fetches bytes via `fetch`: without simulated response, call
+  // `ressource()` (`./wasm/sdkWasm.ts`) fetches bytes via `fetch`: without simulated response, call
   // fails before reaching `WebAssembly.instantiate`, as shown in `batchState.test.ts`.
   // @ts-expect-error: minimal response, sufficient to pass `reponse.ok` then `arrayBuffer()`.
   globalThis.fetch = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) })

@@ -62,7 +62,6 @@ function joue(items: ReturnType<typeof item>[]) {
   orderBlendPasses(blendState, [0, 0, 0])
   const rt = {
     vis: {
-      visEnabled: true,
       blendPipelines: Object.assign([TEXTURED, FRONT, BACK], {
         lit() {
           return this
@@ -86,13 +85,12 @@ function joue(items: ReturnType<typeof item>[]) {
       volumeBuffer: {},
       backdrop: { colorView: {}, depthView: {}, active: false },
       cache: { buffer: {} },
-      uniformBuffer: {},
       zeroUv: {},
       deferred: {
         placeholders: { slices: {}, atlasView: {}, sampler: {}, bounceGrid: {}, probes: {} },
       },
     },
-    lights: { buffer: {}, shadows: undefined, store: { count: 0, unlit: false } },
+    lights: { buffer: {}, shadows: undefined, store: { count: 0, epoch: 0, unlit: false } },
     bounce: { probes: undefined },
     // `lit` view with no light: the contract lights, so the pass binds its default resources.
     blendState,

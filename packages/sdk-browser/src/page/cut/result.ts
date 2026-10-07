@@ -18,28 +18,8 @@ export interface SelectionResult<T> {
   lodLevel: number
   complete: boolean
   /** Triangles of the root-cover clusters in view the rule would draw but that are not resident:
-   *  nothing coarser stands in for them, so their surface is a hole (`./take.ts`). Zero when the
-   *  cut holds no residency. */
+   *  nothing coarser stands in for them, so their surface is a hole (`./take.fixture.ts`). Zero
+   *  when the cut holds no residency. */
   uncoveredTriangles: number
   pixelError: number
-}
-
-/** An empty cut result, to set once per hot caller then reuse from image to image:
- *  `selectVisiblePages` rewrites every field, only the object's identity matters. */
-export function createSelectionResult<T>(): SelectionResult<T> {
-  return {
-    shown: [],
-    wanted: [],
-    shownPacked: new Int32Array(0),
-    wantedPacked: new Int32Array(0),
-    visible: 0,
-    selectedTriangles: 0,
-    displayedTriangles: 0,
-    frustumRejected: 0,
-    nodesTested: 0,
-    lodLevel: 0,
-    complete: true,
-    uncoveredTriangles: 0,
-    pixelError: 0,
-  }
 }

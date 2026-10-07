@@ -181,7 +181,6 @@ export interface ClusterManifest {
   /** Triangles kept. */ selectedTriangles: number
   /** Nodes kept. */ selectedNodes: number
   /** Nodes in all. */ totalNodes: number
-  /** Its built-in scene. */ autonomousScene?: string | null
   /** Its primitives. */ primitives: Primitive[]
   /** The compiler's stall table: at most ten primitives with a stalled group that kept level-0
    *  roots, worst first. Absent from a cache compiled before it. */

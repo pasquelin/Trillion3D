@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { askComposedPlacements, composeWebgpuPlacements, encodeComposedRows } from './gpuCompose.ts'
-import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/fullscreen.ts'
+import { pipelinesCompiling, pipelinesSettled } from '../lighting/deferred/compileLedger.ts'
 import { decideComposedMotion, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { NONE } from './gpuComposeWgsl.ts'
 import { session, turn } from './composeSession.fixture.ts'
@@ -52,7 +52,14 @@ test('the compose kernels are asked once a parent links rows, the frames held un
   await pipelinesSettled(device, true)
   assert.equal(pipelinesCompiling(device), false)
   frame()
-  Object.assign(rt, { vis: { pageTable: device.createBuffer({ size: 64, usage: 0 }) } })
+  Object.assign(rt, {
+    vis: {
+      pageTable: device.createBuffer({
+        size: 64,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      }),
+    },
+  })
   Object.assign(rt.layout, { rows: { rowCount: 2 } })
   encodeComposedRows(rt, device, encoder)
   assert.deepEqual(compiled, { sync: 0, async: 2 }, 'both kernels compiled off the frame, once')
@@ -63,7 +70,14 @@ test('the compose passes make their groups once, then only when a buffer one nam
   const parent = {},
     links = [0, 1].map((index) => ({ rows, index, local: turn(0) }))
   composeWebgpuPlacements(rt, parent, turn(0), links, true)
-  Object.assign(rt, { vis: { pageTable: device.createBuffer({ size: 64, usage: 0 }) } })
+  Object.assign(rt, {
+    vis: {
+      pageTable: device.createBuffer({
+        size: 64,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      }),
+    },
+  })
   Object.assign(rt.layout, { rows: { rowCount: 2 } })
   const image = () => {
     frame()
@@ -74,14 +88,20 @@ test('the compose passes make their groups once, then only when a buffer one nam
   assert.equal(image(), made, 'a still frame makes no group')
   composeWebgpuPlacements(rt, parent, turn(0.5), [], false)
   assert.equal(image(), made, 'nor does a turning parent: its worlds go up in the same buffer')
-  rt.vis.pageTable = device.createBuffer({ size: 128, usage: 0 })
+  rt.vis.pageTable = device.createBuffer({
+    size: 128,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
   assert.equal(image(), made + 1, 'a page table made again: the rows pass binds it, once')
   assert.equal(image(), made + 1)
 })
 
 test("the linked roots' motion waits for the temporal pass's decision, written before the image leaves", () => {
   const { rt, rows, frame, device, writes } = session()
-  const motionBuffer = device.createBuffer({ size: 128, usage: 0 })
+  const motionBuffer = device.createBuffer({
+    size: 128,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
   const held = new Float64Array(turn(0.25))
   ;(rt.gpu as { temporal?: unknown }).temporal = {
     frame: { active: true },

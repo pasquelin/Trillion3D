@@ -3,7 +3,7 @@ import test from 'node:test'
 import { DIAGNOSTICS, type DiagnosticMode } from './diagnostics.ts'
 import { SHADE_MODE } from '../../../sdk-browser/src/visibility/shader/shadeMode.ts'
 import { createExplorerDiagnosticApi } from '../../../sdk-browser/src/world/api/diagnosticApi.ts'
-import type { RenderBackend } from '../../../sdk-browser/src/backend/types.ts'
+import type { Engine } from '../../../sdk-browser/src/engine/types.ts'
 
 const modes = Object.keys(DIAGNOSTICS) as DiagnosticMode[]
 
@@ -20,13 +20,10 @@ test('the explorer shows each available view and refuses the others with their r
   const backend = {
     id: 'webgpu-page-raster',
     setDiagnostic: (mode: string) => shown.push(mode),
-  } as unknown as RenderBackend
+  } as unknown as Engine
   const api = createExplorerDiagnosticApi({
     check() {},
-    active: () => backend,
-    backends: [backend],
-    beautyMaterials: new Map(),
-    overlays: [],
+    engine: backend,
     setMode() {},
   })
   for (const mode of modes) {

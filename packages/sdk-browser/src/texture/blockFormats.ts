@@ -10,13 +10,14 @@ import {
 /**
  * Which block family a session's pools take, and everything that follows from it.
  *
- * The cache bakes a chain in the families the cook asked for beside the lossless PNG, and only
- * where a quality gate kept it; the device says which family it samples — desktop cards BC,
- * mobile ones ASTC, some both, a software adapter neither. An atlas then has one pool per
- * LANE, the layouts the sidecar names: `lossless` (RGBA8, four bytes a texel — what a chain
- * under the bar, a host image or a device without the feature reads), `rgba` (BC7 or ASTC, one
- * byte a texel) and `two-channel` (BC5 or ASTC luminance-alpha, one byte a texel, the normal
- * map's X and Y with Z rebuilt by the shader). Nothing is lost by the engine: a texture takes
+ * The cache bakes a chain in the families the cook asked for — every one by default — beside the
+ * lossless PNG, and only where a quality gate kept it; the device says which family it samples —
+ * desktop cards BC, mobile ones ASTC or ETC2, some several, a software adapter none. An atlas then
+ * has one pool per LANE, the layouts the sidecar names: `lossless` (RGBA8, four bytes a texel —
+ * what a chain under the bar, a host image or a device without any of the features reads),
+ * `rgba` (BC7, ASTC or ETC2 RGBA8, one byte a texel) and `two-channel` (BC5, ASTC
+ * luminance-alpha or EAC RG11, one byte a texel, the normal map's X and Y with Z rebuilt by the
+ * shader). Nothing is lost by the engine: a texture takes
  * the lane its chain was kept in, and the choice is published (`texturePoolFormat`).
  */
 export type TextureCompression = 'auto' | TextureBlockFormat | 'none'
@@ -25,6 +26,7 @@ export type TextureCompression = 'auto' | TextureBlockFormat | 'none'
 export const BLOCK_FEATURES: Record<TextureBlockFormat, GPUFeatureName> = {
   bc7: 'texture-compression-bc',
   astc: 'texture-compression-astc',
+  etc2: 'texture-compression-etc2',
 }
 
 /** What a session decided, and why — what the diagnostic publishes. */
@@ -32,10 +34,11 @@ export type BlockChoice = { block: TextureBlockFormat | undefined; reason: strin
 
 /**
  * The family the session samples: among those the host allows, the first the device has AND
- * some chain of the cache was kept in. `'auto'` tries BC before ASTC — a device with both is a
- * desktop one, and BC is the family its drivers optimise —, but a cache cooked in ASTC alone
- * takes ASTC on such a device: a family without a kept chain would open no block lane and save
- * nothing. `'none'` keeps RGBA8 — the "before" of a measurement. The reason names what settled it.
+ * some chain of the cache was kept in. `'auto'` tries BC, then ASTC, then ETC2 — a device with
+ * BC is a desktop one, and BC is the family its drivers optimise; ASTC 4×4 holds more of a chain
+ * than ETC2 at the same byte a texel —, but a cache cooked in ASTC alone takes ASTC on such a
+ * device: a family without a kept chain would open no block lane and save nothing. `'none'` keeps
+ * RGBA8 — the "before" of a measurement. The reason names what settled it.
  */
 export function chooseBlockFormat(
   features: { has(name: GPUFeatureName): boolean },
@@ -87,6 +90,7 @@ export type TailBytes = Pick<TexturePreview, 'levels' | 'blocks'>
 const LANE_FORMATS: Record<TextureBlockFormat, Record<PoolLane, GPUTextureFormat>> = {
   bc7: { lossless: 'rgba8unorm', rgba: 'bc7-rgba-unorm', 'two-channel': 'bc5-rg-unorm' },
   astc: { lossless: 'rgba8unorm', rgba: 'astc-4x4-unorm', 'two-channel': 'astc-4x4-unorm' },
+  etc2: { lossless: 'rgba8unorm', rgba: 'etc2-rgba8unorm', 'two-channel': 'eac-rg11unorm' },
 }
 
 /**
@@ -97,7 +101,7 @@ const LANE_FORMATS: Record<TextureBlockFormat, Record<PoolLane, GPUTextureFormat
  */
 export type PoolEncoding = {
   block: TextureBlockFormat | undefined
-  /** The family held, as the metrics publish it: `bc7`, `astc` or `rgba8`. */
+  /** The family held, as the metrics publish it: `bc7`, `astc`, `etc2` or `rgba8`. */
   name: TextureBlockFormat | 'rgba8'
   laneOf(chain: Pick<TexturePreview, 'layouts'>): PoolLane
   formatOf(kind: 'color' | 'data', lane: PoolLane): GPUTextureFormat
@@ -106,8 +110,8 @@ export type PoolEncoding = {
   levelFormat(lane: PoolLane): ReturnType<typeof textureLevelFormat>
   tailOf(tail: TailBytes, lane: PoolLane): readonly Uint8Array[]
   /** What the shader reads of a lane's texture (`../webgpu/tile/wgsl.ts`): 0 the raw pool, 1 the RGBA
-   *  block pool, 2 the two-channel pool with Y in its second channel (BC5), 3 the same with Y in
-   *  its alpha (the ASTC luminance-alpha block). */
+   *  block pool, 2 the two-channel pool with Y in its second channel (BC5, EAC RG11), 3 the same
+   *  with Y in its alpha (the ASTC luminance-alpha block). */
   tapOf(lane: PoolLane): number
   /** The lane the white fill texel prefers: a block lane when the session has one, so a scene
    *  whose every chain is kept opens no RGBA8 layer for a single texel. The catalogue keeps it
@@ -138,8 +142,9 @@ export function poolEncoding(block: TextureBlockFormat | undefined): PoolEncodin
 /**
  * One opaque-white texel in every encoding — what slot 0 of a pool pins, the texel a material
  * without a map reads. BC7: mode 6, every endpoint at its maximum; ASTC: a void-extent block of
- * 16-bit ones. Both proved on an independent decoder in
- * `packages/asset-compiler-rust/src/texture_preview/blocks/tests.rs`.
+ * 16-bit ones; ETC2 RGBA8: an EAC alpha at 255, then an individual-mode colour at 15 on every
+ * channel. Proved on an independent decoder in
+ * `packages/asset-compiler-rust/src/texture_preview/blocks/tests.rs` and `tests_etc2.rs`.
  */
 export const WHITE_TAIL: TailBytes = {
   levels: [new Uint8Array([255, 255, 255, 255]) as Uint8Array<ArrayBuffer>],
@@ -151,6 +156,11 @@ export const WHITE_TAIL: TailBytes = {
     ],
     astc: [
       new Uint8Array([0xfc, 0xfd, ...new Array<number>(14).fill(0xff)]) as Uint8Array<ArrayBuffer>,
+    ],
+    etc2: [
+      new Uint8Array([
+        0xff, 0x1d, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0, 0, 0, 0,
+      ]) as Uint8Array<ArrayBuffer>,
     ],
   },
 }

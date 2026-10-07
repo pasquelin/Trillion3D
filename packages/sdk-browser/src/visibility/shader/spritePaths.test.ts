@@ -5,15 +5,13 @@
 // before: its expressions stay, character for character, what they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SPRITE_GLSL, SPRITE_WGSL, writeSpriteWords } from './spriteWgsl.ts'
+import { SPRITE_WGSL, writeSpriteWords } from './spriteWgsl.ts'
 import { PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
 import { PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
-import { CLUSTER_VERTEX } from '../../webgl/cluster/shaders.ts'
-import { SHADER as FALLBACK_SHADER } from '../../webgpu/pages/prepare/shaders.ts'
 import { ROW_SPRITE_WORD } from '../../webgpu/row/pageRow.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
@@ -27,17 +25,7 @@ test('a surface writes its sprite words: its turn and its size rule, zeros when 
   assert.deepEqual(words, [9, 0, 0, 9])
 })
 
-test('the WGSL and GLSL texts are statement for statement the same formula', () => {
-  const body = (text: string) =>
-    text
-      .slice(text.indexOf('{'))
-      .replace(/\b(let|var|float|vec[234]) /g, '')
-      .replace(/(vec[234])f\(/g, '$1(')
-      .replace(/[{};\s]/g, '')
-  assert.equal(body(SPRITE_WGSL), body(SPRITE_GLSL))
-})
-
-test('every WebGPU raster turns a sprite page, the shadow vertex stage is as before', () => {
+test('every raster turns a sprite page, the shadow vertex stage is as before', () => {
   assert.match(PAGE_INFO_STRUCT_WGSL, /normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32/)
   assert.equal(ROW_SPRITE_WORD, 36, 'the row words of PageInfo.sprite')
   assert.ok(PAGE_SCREEN_WGSL.includes(SPRITE_WGSL))
@@ -63,10 +51,10 @@ test('every WebGPU raster turns a sprite page, the shadow vertex stage is as bef
   )
 })
 
-test('the transparent pass, the fallback and WebGL2 turn a sprite with the same text', () => {
+test('the transparent pass turns a sprite with the shared text', () => {
   assert.match(
     BLEND_ITEM_WGSL,
-    /dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,pad2:u32,\}/,
+    /dash:vec2f,sprite:vec2f,subsurface:vec4f,deform:u32,deformInput:u32,deformOutput:u32,physical:u32,\}/,
   )
   assert.ok(BLEND_SHADER.includes(SPRITE_WGSL))
   assert.ok(
@@ -77,20 +65,6 @@ test('the transparent pass, the fallback and WebGL2 turn a sprite with the same 
   assert.ok(
     BLEND_SHADER.includes(
       ' if(it.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,it.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}',
-    ),
-  )
-  assert.ok(FALLBACK_SHADER.includes(SPRITE_WGSL))
-  assert.ok(FALLBACK_SHADER.includes('dash:vec2f,sprite:vec2f,}'))
-  assert.ok(
-    FALLBACK_SHADER.includes(
-      ' if(uni.sprite.y!=0.0){let s=spriteAt(uni.viewProj,uni.world,local.xy,uni.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}',
-    ),
-  )
-  assert.ok(CLUSTER_VERTEX.includes(SPRITE_GLSL))
-  assert.ok(CLUSTER_VERTEX.includes('uniform vec2 viewport,sprite;'))
-  assert.ok(
-    CLUSTER_VERTEX.includes(
-      'if(sprite.y!=0.0){view=spriteAt(projectionMatrix,instanced?modelViewMatrix*instanceMatrix:modelViewMatrix,position.xy,sprite);\ntoEye=-view.xyz;gl_Position=projectionMatrix*view;}}',
     ),
   )
 })

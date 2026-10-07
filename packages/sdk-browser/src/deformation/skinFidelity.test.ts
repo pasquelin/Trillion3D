@@ -4,7 +4,6 @@ import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts'
 import { drawnTriangles } from '../../../sdk-core/src/world/geometry/drawn.ts'
 import { wholeDeformationInputs } from './wholeInputs.ts'
-import { deformationTexels } from './vertexTexture.ts'
 import { packDrawn, unpackDrawn } from '../world/page/runtimePack.ts'
 import { runtimeDeformation } from '../world/page/runtimeDeformation.ts'
 
@@ -30,18 +29,12 @@ function geometry() {
   return g
 }
 
-test('whole GPU inputs and the WebGL texture retain every source influence', () => {
-  const g = geometry(),
-    whole = wholeDeformationInputs(g),
-    gl = deformationTexels(g, 0)
+test('whole GPU inputs retain every source influence', () => {
+  const whole = wholeDeformationInputs(geometry())
   assert.equal(whole[3], 16)
   assert.deepEqual([...whole.slice(4, 12)], [0, 1, 2, 3, 4, 5, 6, 7])
   let x = 0
-  for (let k = 0; k < 8; k++) {
-    assert.equal(gl[k * 4], whole[4 + k])
-    assert.equal(gl[k * 4 + 1], whole[12 + k])
-    x += gl[k * 4 + 1] * (gl[k * 4] >= 4 ? 8 : 0)
-  }
+  for (let k = 0; k < 8; k++) x += whole[12 + k] * (whole[4 + k] >= 4 ? 8 : 0)
   assert.equal(x, 4)
 })
 

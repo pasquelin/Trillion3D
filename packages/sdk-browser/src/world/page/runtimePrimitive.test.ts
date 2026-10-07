@@ -5,9 +5,9 @@ import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts'
 import { cutRuntimePrimitive } from './runtimePrimitive.ts'
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts'
-import { decodeGeometryPage } from '../../page/decode/geometryPage.ts'
+import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import { LINE_DASH_GLSL, LINE_DASH_WGSL, lineDash } from '../../visibility/shader/lineWgsl.ts'
+import { LINE_DASH_WGSL, lineDash } from '../../visibility/shader/lineWgsl.ts'
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts'
 
 /** The depth layer of every page the world cuts from `drawn`. */
@@ -77,7 +77,6 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
   assert.deepEqual(along, [0, 1500, 3000])
   const runs = [
     runShaderText<boolean>(LINE_DASH_WGSL),
-    runShaderText<boolean>(LINE_DASH_GLSL),
     (at: number, [dashSize, gapSize]: number[]) => lineDash(at, dashSize, gapSize),
   ]
   // Across the second segment, as a raster interpolates its corners: dash 0.3, gap 0.2.

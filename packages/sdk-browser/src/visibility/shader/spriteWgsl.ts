@@ -6,9 +6,8 @@ import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
  * THE SPRITE: where a corner of a sprite's quad (`drawnSprite`, sdk-core `drawnSprite.ts`) stands
  * once turned to face the camera.
  *
- * `place` takes the sprite's local space to the space `toClip` projects: the sprite's world matrix
- * under the WebGPU paths and the CPU raster, which project world space; its model-view matrix
- * under the WebGL2 path, which projects view space. The corner's `x` and `y` — already moved by the
+ * `place` takes the sprite's local space to the world space `toClip` projects: the sprite's world
+ * matrix, under every raster and the CPU one. The corner's `x` and `y` — already moved by the
  * sprite's centre — are scaled by the lengths of `place`'s first two axes, the sprite's own scale;
  * a sprite that keeps its size on screen (`sprite.y` below zero) scales them again by the clip `w`
  * of its origin, the view depth under a perspective camera and one under an orthographic one, as
@@ -19,7 +18,7 @@ import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
  *
  * `sprite` is `(rotation, mode)`: mode 1 for a sprite that shrinks with distance, −1 for one that
  * keeps its size on screen, 0 for every surface that is no sprite — which no raster moves.
- * The WGSL and GLSL texts and `spriteAt` below are the same arithmetic, in the same order.
+ * The WGSL text and `spriteAt` below are the same arithmetic, in the same order.
  */
 export const SPRITE_WGSL = `fn spriteAt(toClip:mat4x4f,place:mat4x4f,corner:vec2f,sprite:vec2f)->vec4f{
  let center=place[3];
@@ -29,17 +28,6 @@ export const SPRITE_WGSL = `fn spriteAt(toClip:mat4x4f,place:mat4x4f,corner:vec2
  let r=normalize(vec3f(toClip[0].x,toClip[1].x,toClip[2].x));
  let u=normalize(vec3f(toClip[0].y,toClip[1].y,toClip[2].y));
  return vec4f(center.xyz+(c*a.x-s*a.y)*r+(s*a.x+c*a.y)*u,1.0);
-}`
-
-/** The same corner in the WebGL2 program (`../../webgl/cluster/shaders.ts`). */
-export const SPRITE_GLSL = `vec4 spriteAt(mat4 toClip,mat4 place,vec2 corner,vec2 sprite){
- vec4 center=place[3];
- vec2 a=corner*vec2(length(place[0].xyz),length(place[1].xyz));
- if(sprite.y<0.0)a*=(toClip*center).w;
- float c=cos(sprite.x);float s=sin(sprite.x);
- vec3 r=normalize(vec3(toClip[0].x,toClip[1].x,toClip[2].x));
- vec3 u=normalize(vec3(toClip[0].y,toClip[1].y,toClip[2].y));
- return vec4(center.xyz+(c*a.x-s*a.y)*r+(s*a.x+c*a.y)*u,1.0);
 }`
 
 /** Writes the two words every raster reads of a surface (`sprite`, above) into `out` at `at`:
@@ -57,7 +45,7 @@ export function writeSpriteWords(
  * THE NEVER-CULLED MARK: true on a sprite that keeps its size on screen (mode −1). Its quad grows
  * with its view depth, so no fixed world bound holds it, and every cut and occlusion test lets it
  * through while it is placed — the CPU and GPU camera cuts (`SPRITE_UNCULLED`), the Hi-Z verdict
- * of its row and of its transparent entries, a blend item's box, a WebGL2 scene copy —. The one
+ * of its row and of its transparent entries, a blend item's box —. The one
  * test each of them reads.
  */
 export const neverCulled = (surface: Pick<VisMaterial, 'sprite'> | undefined) =>

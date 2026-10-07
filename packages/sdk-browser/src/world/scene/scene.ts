@@ -1,13 +1,11 @@
 import { meshes as objects } from '../../scene/meshes.ts'
 import { assertFiniteTransform } from '../../host/world/matrices.ts'
-import { pagesBounds, sceneBoundsLot } from './pagesBounds.ts'
 import { replicateInstances } from '../../scene/replicateInstances.ts'
-import { hostWorldBounds } from '../../host/world/bounds.ts'
+import { hostBoundsLot, hostWorldBounds } from '../../host/world/bounds.ts'
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts'
-import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts'
 import { createMultiplyLot } from '../../math/batchRuntime.ts'
 import { prepareMathBatch } from '../../math/batchState.ts'
-import type { MeasuredWorldOptions } from '../../backend/types.ts'
+import type { MeasuredWorldOptions } from '../../engine/types.ts'
 import type { ExplorerEmitters } from '../session/session.ts'
 import { resourceProgress } from './resourceProgress.ts'
 import { openWorldRoots } from '../../scene/worldRoots.ts'
@@ -19,47 +17,25 @@ import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/ta
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
 
-/** A mesh of the prepared scene with no geometry pages, and no rows whose box bounds it before
- * its pages are read: the autonomous scene is incomplete. */
-function missingPages(): never {
-  throw new EngineError(
-    'AUTONOMOUS_ASSOCIATION_MISSING',
-    'Prepared scene primitive has no geometry pages',
-  )
-}
-
-/** What a load that counts bytes adds: the meter of each read, who hears the tables read, and the
- * mesh pages of a manifest the view holds. */
+/** What a load that counts bytes adds: the meter of each read, and who hears the tables read. */
 type Metered = {
   meter?: ByteMeter
   onTables?: (tables: PreparedSceneTables) => void
-  pages?: ManifestPages
 }
 
-/** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
- *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
- *  `onPreparation` hears the tables read, then each resource. With `pages`, the mesh pages the
- * node table needs are held for good, and each cell holds its own while placed. */
-export async function loadPreparedScene(
-  options: MeasuredWorldOptions & Metered,
-  metadata: ClusterManifest,
-  sceneFile: string,
-  base: string,
-  scope: string,
-  autonomous: boolean,
-  signal: AbortSignal | undefined,
-  diagnose: ExplorerEmitters['diagnose'],
-  registerSource: (source: Object3D) => void,
-) {
-  // The compute path the host asked for holds FROM LOAD: the governor receives it before the
-  // first lot, and `configureExplorer` will tell it again without changing anything. Module
-  // load starts here and overlaps with the scene's, which lasts much longer.
-  const mathBatch = prepareMathBatch(options.mathPath ?? 'auto')
-  // The scene is built from the cache alone: its tables, the binary of the document it draws and
-  // the images they locate. Images whose chain is baked are not read: a white pixel stands in
-  // their place, and the engine reads their levels from the cache — which it does either way.
-  // `textureSource` arrives resolved against the paths that will draw (`resolveTextureSource`):
-  // it reads `'host'` wherever one of them samples the images themselves.
+/** What one prepared scene's load reads and reports through. */
+type SceneLoad = {
+  options: MeasuredWorldOptions & Metered
+  metadata: ClusterManifest
+  base: string
+  scope: string
+  signal: AbortSignal | undefined
+  diagnose: ExplorerEmitters['diagnose']
+}
+
+/** The scene tables, heard as soon as read (`onTables`, `onPreparation`), and when the read began
+ *  and ended. */
+async function readTables({ options, base, signal }: SceneLoad) {
   const readAt = performance.now()
   const { tables, bytes } = await loadPreparedSceneTables(base, signal, options.meter)
   const buildAt = performance.now()
@@ -71,24 +47,26 @@ export async function loadPreparedScene(
     total: 1,
     message: 'Read the scene tables',
   })
+  return { tables, bytes, readAt, buildAt }
+}
+
+/** The scene the tables build and the world roots it opens, the top pinned when no partition
+ *  places it. Images whose chain is baked are not read under `textureSource: 'cache'`: a white
+ *  pixel stands in their place, and the engine reads their levels from the cache. */
+async function buildScene(load: SceneLoad, tables: PreparedSceneTables) {
+  const { options, metadata, base, scope, signal, diagnose } = load
   const skipBaked = options.textureSource !== 'host'
-  // The manifest pages the node table needs are read while the scene builds, which reads none
-  // until its surfaces pick their variants: a cloth's primitive is drawn on both faces.
-  const listed = options.pages?.hold(tables.meshPages)
   const [built, worldRoots] = await Promise.all([
     buildPreparedScene({
       tables,
       metadata,
-      sceneFile,
       base,
       skipBaked,
       signal,
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
-      listed,
     }),
     openWorldRoots(metadata, base, signal, options.meter),
-    listed,
   ])
   // The world top is pinned; a scene not partitioned is one cell, placed for its whole life.
   if (!tables.partition) await worldRoots?.hold(0)
@@ -99,74 +77,129 @@ export async function loadPreparedScene(
       bakedImages: built.bakedImages,
       scope,
     })
-  const { associations, textureIndices } = built
-  let source = built.source
-  const replicas = options.replicaCount ?? 1
-  // The cells a partition reads by distance place rows the replicas would share.
+  return { built, worldRoots }
+}
+
+type Built = Awaited<ReturnType<typeof buildScene>>
+
+/** The cells a partition reads by distance; they place rows replicas would share, so a
+ *  partitioned scene is not replicated. */
+function partitionsOf(
+  tables: PreparedSceneTables,
+  { built, worldRoots }: Built,
+  base: string,
+  replicas: number,
+) {
   if (tables.partition && replicas > 1)
     throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'a partitioned scene is not replicated', {
       replicas,
     })
-  const partitions = tables.partition
+  return tables.partition
     ? [
         createPartitionCells({
           partition: tables.partition,
           base,
-          root: source,
+          root: built.source,
           parents: built.nodes,
           meshes: built.placed,
-          pages: options.pages,
           world: worldRoots,
         }),
       ]
     : []
+}
+
+/** Says the scene built: its counts, the bytes of its tables and how long reading and building
+ *  took. */
+function reportPrepared(
+  { diagnose, scope }: SceneLoad,
+  read: Awaited<ReturnType<typeof readTables>>,
+  textures: number,
+) {
+  const { tables, bytes, readAt, buildAt } = read
   diagnose('prepared-scene', 'Scene built from the cache tables', {
     kind: 'preparation',
     scope,
     nodes: tables.nodes.length,
     placements: [...(tables.partition?.totals.values() ?? [])].reduce((sum, n) => sum + n, 0),
     materials: tables.materials.length,
-    textures: textureIndices.size,
+    textures,
     bytes,
     readMs: buildAt - readAt,
     buildMs: performance.now() - buildAt,
   })
-  registerSource(source)
-  // No non-finite pose enters the engine: each mesh world matrix is read from the transform tree
-  // after one frame pass. Without this refusal, a host NaN would come out as a darkened surface
-  // at the bottom of the lighting shader, far from its cause.
+}
+
+/** No non-finite pose enters the engine: each mesh world matrix is read from the transform tree
+ *  after one frame pass. Without this refusal, a host NaN would come out as a darkened surface at
+ *  the bottom of the lighting shader, far from its cause. */
+function assertFinitePoses(source: Object3D) {
   const worlds = hostWorldPlacements(source)
   for (const mesh of objects(source)) assertFiniteTransform(worlds.of(mesh).elements, mesh.name)
-  const sceneLightingSource = options.sceneLighting ?? source
-  signal?.throwIfAborted()
-  await mathBatch
-  // Load buffers, reserved before they are written and returned as soon as they are read:
-  // scene bounds — exact pages of an autonomous scene, host boxes otherwise, and only when
-  // replication asks for them — then replica matrices. Reserve by lot, never per frame.
-  const boundsLot =
-    autonomous || replicas > 1
-      ? await sceneBoundsLot(source, associations, metadata, autonomous)
-      : null
-  const preparedBounds = autonomous
-    ? pagesBounds(source, associations, metadata, missingPages, undefined, boundsLot)
-    : replicas > 1
-      ? hostWorldBounds(source, undefined, boundsLot)
-      : undefined
+}
+
+/** `source` copied `replicas` times (`replicateInstances`). Load buffers, reserved before they are
+ *  written and returned as soon as they are read: the host boxes of the scene, only when
+ *  replication asks for them, then replica matrices. Reserve by lot, never per frame. */
+async function replicated(
+  source: Object3D,
+  associations: Built['built']['associations'],
+  replicas: NonNullable<MeasuredWorldOptions['replicaCount']>,
+) {
+  const boundsLot = replicas > 1 ? await hostBoundsLot(source) : null
+  const preparedBounds = replicas > 1 ? hostWorldBounds(source, undefined, boundsLot) : undefined
   const instances = replicas > 1 ? await createMultiplyLot(replicas * objects(source).length) : null
-  source = replicateInstances(source, associations, replicas, preparedBounds, instances)
+  const copied = replicateInstances(source, associations, replicas, preparedBounds, instances)
   instances?.release()
   boundsLot?.release()
+  return copied
+}
+
+/** Builds the scene a cache prepared: its tables, then the files they name. `options.meter` counts
+ *  the bytes of each as they arrive, `onTables` hears the tables before those files are read;
+ *  `onPreparation` hears the tables read, then each resource. */
+export async function loadPreparedScene(
+  options: MeasuredWorldOptions & Metered,
+  metadata: ClusterManifest,
+  base: string,
+  scope: string,
+  signal: AbortSignal | undefined,
+  diagnose: ExplorerEmitters['diagnose'],
+  registerSource: (source: Object3D) => void,
+) {
+  const load: SceneLoad = { options, metadata, base, scope, signal, diagnose }
+  // The compute path the host asked for holds FROM LOAD: the governor receives it before the
+  // first lot, and `configureExplorer` will tell it again without changing anything. Module
+  // load starts here and overlaps with the scene's, which lasts much longer.
+  const mathBatch = prepareMathBatch(options.mathPath ?? 'auto')
+  // The scene is built from the cache alone: its tables, the binary of the document it draws and
+  // the images they locate. `textureSource` reads `'host'` for a model after a world's first
+  // (`worldLoader.ts`), or where the platform cannot read the baked levels
+  // (`resolveTextureSource`).
+  const read = await readTables(load)
+  const { tables } = read
+  const scene = await buildScene(load, tables)
+  const { built, worldRoots } = scene
+  const { associations, textureIndices } = built
+  const replicas = options.replicaCount ?? 1
+  const partitions = partitionsOf(tables, scene, base, replicas)
+  reportPrepared(load, read, textureIndices.size)
+  registerSource(built.source)
+  assertFinitePoses(built.source)
+  const sceneLightingSource = options.sceneLighting ?? built.source
+  signal?.throwIfAborted()
+  await mathBatch
+  const source = await replicated(built.source, associations, replicas)
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
-  const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous)
-  // The world roots each model holds, which the session counts in its CPU budget: only
+  const framingLot = await hostBoundsLot(source)
+  // The world roots each model holds, which the session counts in its CPU budget (#1237): only
   // that count leaves the scene, its page source and DAG stay the engine's (`ExplorerScene`).
   const counted: { pinned: { bundles: number; bytes: number }; bytes(): number }[] = worldRoots
     ? [worldRoots]
     : []
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
-    /** The clips the file plays. */
+    /** The clips the file plays (#357). */
     clips: built.clips,
     worldRoots: counted,
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.

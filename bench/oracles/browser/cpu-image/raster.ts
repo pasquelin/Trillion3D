@@ -27,7 +27,7 @@ import {
   locationOf,
   type PageLocations,
 } from '../../../../packages/sdk-browser/src/page/selection/placements.ts'
-import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/backend/common.ts'
+import { DEFAULT_PIXEL_RATIO } from '../../../../packages/sdk-browser/src/engine/common.ts'
 
 /**
  * A pixel leaves the triangle where an edge's numerator and the area differ in sign: that is
@@ -117,7 +117,7 @@ export function rasterVisibility(
     const mat = refreshSurface(page.material),
       side = surfaceSide(mat)
     // A reflection reverses the walk direction on screen: the face to drop is the other one, as
-    // `visBin` does for WebGPU pipelines and Three for WebGL (`frontFaceCW`). Without this
+    // `visBin` does for WebGPU pipelines and the witness library (`frontFaceCW`). Without this
     // flip, this rasterizer drew under reflection exactly the faces that cone rejection
     // drops — and its own shading (`visibilityLighting`) already flipped the sign.
     const world = locationOf(locations, pageIndex).world,

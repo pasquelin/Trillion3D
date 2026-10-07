@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { VertexRange } from '../../placement/backendSceneUpdates.ts'
+import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { ExplorerSource } from '../session/prepare.ts'
 import type { MeasuredWorldOptions } from '../session/options.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
@@ -58,8 +58,8 @@ export function dynamicWorld() {
   return { scene, runtime, rewrites, reaches, boxes, sources, served, placed, frame, loop, end }
 }
 
-/** The roots and records a session opened on `source` collects, as the WebGL2 path collects them
- *  (`collectClusterPages`), each record holding its page's corners. */
+/** The roots and records a session opened on `source` collects (`collectClusterPages`), each
+ *  record holding its page's corners. */
 export async function collectedPages(source: ExplorerSource) {
   const { roots, allPages } = collectClusterPages(
     source.scene.source,

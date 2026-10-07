@@ -7,16 +7,18 @@ import { noticeEffectBudget } from '../diagnostic/worldNotices.ts'
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts'
 import { DEFAULT_BUDGET_CANVAS } from '../../residency/memoryBudget.ts'
 import { effectChainBytesAt } from '../../effects/targets.ts'
-import { createWebglEffects } from '../../webgl/effects/webglEffects.ts'
-import { createTestContext } from '../../webgl/core/testContext.fixture.ts'
-import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { DEFAULT_PHYSICS_BUDGET } from '../../../../sdk-core/src/physics/index.ts'
 import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../../residency/budget.fixture.ts'
 
 const budget = (pools = worldPools()) =>
-  worldBudget(pools, { explorer: null }, { last: null }, () => 'webgpu', {
-    ...DEFAULT_PHYSICS_BUDGET,
-  })
+  worldBudget(
+    pools,
+    { explorer: null },
+    { last: null },
+    {
+      ...DEFAULT_PHYSICS_BUDGET,
+    },
+  )
 const uhd = { width: 7680, height: 4320 }
 
 test('world.budget.canvas is 3840 × 2160 by default and sizes the effect reserve', () => {
@@ -66,8 +68,4 @@ test('a canvas past the declared one renders whole and says the byte excess once
   chain.size = 0
   frame()
   assert.equal(said.length, 1, 'an empty chain holds no target')
-  // The chain on that canvas holds its targets at the full image size: nothing is shrunk.
-  const webgl = createWebglEffects(createTestContext().gl)
-  webgl.begin([effect.bloom(), effect.bloom()], uhd.width, uhd.height)
-  assert.equal(webgl.bytes, effectChainBytesAt(uhd.width, uhd.height))
 })

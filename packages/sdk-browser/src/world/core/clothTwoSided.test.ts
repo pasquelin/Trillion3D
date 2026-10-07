@@ -24,7 +24,7 @@ import type { MaterialEntry } from './worldMaterials.ts'
 /**
  * What every pass reads of the faces a host surface draws: the side the WebGPU pipelines cull by
  * and the cut's cones open on, the row flag the material pass flips a back face's normal by and the
- * shadow raster culls nothing on, and the record the WebGL2 binder culls and turns normals by.
+ * shadow raster culls nothing on, and the material record's own two-sided mark.
  */
 function faces(surface: HostMaterials) {
   const record = surfaceOf(surface)
@@ -32,11 +32,11 @@ function faces(surface: HostMaterials) {
   return {
     side: surfaceSide(record),
     rowDouble: (rowMaterial(record, emptyGeometryBlock(), layers).flags & FLAG_DOUBLE) !== 0,
-    webgl: visMaterial(surface).doubleSided,
+    record: visMaterial(surface).doubleSided,
   }
 }
-const BOTH = { side: 'double', rowDouble: true, webgl: true }
-const FRONT = { side: 'front', rowDouble: false, webgl: false }
+const BOTH = { side: 'double', rowDouble: true, record: true }
+const FRONT = { side: 'front', rowDouble: false, record: false }
 
 /** A world resource of one triangle, its pages none. */
 const cut = (): Cut =>
@@ -145,7 +145,7 @@ async function cookedScene() {
     meshes,
     geometryOf,
     materialOf: preparedMaterials(tables.materials, () => Promise.resolve(null)),
-    clothOf: clothPrimitives(metadata, Promise.resolve()),
+    clothOf: clothPrimitives(metadata),
   })
   const parts: HostMesh[] = []
   scene.traverse((part) => part instanceof Mesh && parts.push(part as HostMesh))

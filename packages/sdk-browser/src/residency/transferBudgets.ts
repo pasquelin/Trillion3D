@@ -1,7 +1,5 @@
 /**
- * THE MAPS' UPLOAD BUDGETS OF A FRAME, both engines': WebGPU's tile pass
- * (`../webgpu/pages/prepare/setup.ts`) and WebGL2's maps uploaded ahead of the draws
- * (`../webgl/cluster/textureQueue.ts`).
+ * THE MAPS' UPLOAD BUDGETS OF A FRAME: the tile pass's (`../webgpu/pages/prepare/setup.ts`).
  */
 
 import {

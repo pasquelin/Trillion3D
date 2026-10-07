@@ -10,10 +10,11 @@ export interface TextureFrameMetrics {
   /**
    * The physical pools, fixed for the session: their bytes — COMPUTED from their dimensions and
    * formats, WebGPU not publishing occupied memory —, the block family the session samples
-   * (`bc7`, `astc`, or `rgba8` when the device samples neither or the host asked for none), the
-   * layers of every lane pool of both atlases added up, and what they hold. `texturePoolBytes`
-   * depends on the budget and on which lanes the scene's chains take; `textureResidentBytes` is
-   * the occupied share, pinned tails included, at each lane's own texel cost.
+   * (`bc7`, `astc`, `etc2`, or `rgba8` when the device samples none of them or the host asked for
+   * none), the layers of every lane pool of both atlases added up, and what they hold.
+   * `texturePoolBytes` depends on the budget and on which lanes the scene's chains take;
+   * `textureResidentBytes` is the occupied share, pinned tails included, at each lane's own texel
+   * cost.
    */
   texturePoolBytes?: number | null
   /** Format of the texture pool. */

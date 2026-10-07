@@ -1,17 +1,18 @@
+import { installGpuGlobals } from './globals.ts'
+import { validating } from './validation.ts'
+
 /** First query of an image's second part: each part starts at a 32-timestamp boundary after the
  *  last, where its resolve may land. */
 export const PART = 32
 
 export function fixture(supported = true) {
-  Object.assign(globalThis, {
-    GPUBufferUsage: { QUERY_RESOLVE: 1, COPY_SRC: 2, COPY_DST: 4, MAP_READ: 8 },
-    GPUMapMode: { READ: 1 },
-  })
+  installGpuGlobals()
   const descriptors: any[] = [],
     ops: string[] = [],
     buffers: any[] = []
   let destroys = 0
-  const device = {
+  // Validated as every kit device (`validation.ts`): its resolve and readback buffers too.
+  const device = validating({
     features: new Set(supported ? ['timestamp-query'] : []),
     createQuerySet: () => ({
       destroy() {
@@ -53,6 +54,6 @@ export function fixture(supported = true) {
         return {}
       },
     }),
-  } as unknown as GPUDevice
+  }) as unknown as GPUDevice
   return { device, descriptors, ops, buffers, destroys: () => destroys }
 }

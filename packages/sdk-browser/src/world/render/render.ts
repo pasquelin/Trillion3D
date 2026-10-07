@@ -1,21 +1,15 @@
 import { type CameraPose, type FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import { emitExplorerFrameDiagnostic } from '../diagnostic/frameDiagnostic.ts'
-import { handleExplorerRenderError } from './fallback.ts'
 import { createHostFrameCostAudit } from '../../frame/costAudit.ts'
 import { debugMode } from '../../host/debugMode.ts'
-import type { RenderBackend } from '../../backend/types.ts'
-import type { HostCpuProfile } from '../../host/cpuProfile.ts'
-import type { BoundTarget, ExplorerHostState } from './hostState.ts'
-import type { WebglRenderTarget } from '../../webgl/core/renderTarget.ts'
+import type { Engine } from '../../engine/types.ts'
+import type { SessionState } from './sessionState.ts'
 import type { ExplorerSession } from '../session/session.ts'
 import type { createExplorerStreaming } from '../scene/streaming.ts'
 import type { FrameClock } from '../../page/integration/frameBudget.ts'
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
-import type { ComparisonLayout } from '../../measurement/comparison.ts'
-import type { createFrameComposer } from './compose.ts'
 import type { HostCamera } from '../../camera/world.ts'
-import type { WebglSurface } from '../../webgl/core/surface.ts'
 
 type Inputs = {
   check: () => void
@@ -23,80 +17,34 @@ type Inputs = {
   followCells: (() => void) | null
   /** The page's guides: those that follow a node are moved to it, before the frame draws. */
   guides?: { follow(): void }
-  state: ExplorerHostState
+  state: SessionState
+  engine: Engine
   camera: HostCamera
   lookAtTarget: { x: number; y: number; z: number }
   setPose: (pose: CameraPose) => void
   streaming: ReturnType<typeof createExplorerStreaming>
   /** The frame's one integration budget, opened before the cells and the arrivals spend it. */
   frameBudget: FrameClock
-  drawBackend: (backend: RenderBackend, target: WebglRenderTarget | null) => void
-  ensureTarget: (target?: BoundTarget) => BoundTarget
-  directGpu: boolean
-  webglSurface?: WebglSurface
-  backends: RenderBackend[]
-  baseline: RenderBackend
-  compositor?: {
-    render: (
-      a: WebglRenderTarget,
-      b: WebglRenderTarget,
-      layout: ComparisonLayout,
-      wipe: number,
-      toggle: 0 | 1,
-    ) => void
-  }
-  fillMetrics: (backend: RenderBackend) => void
+  drawFrame: () => void
+  fillMetrics: () => void
   metricsScratch: FrameMetrics
   profiler: EngineProfiler
   pageIdByUrl: Map<string, number>
   streamer: ReturnType<typeof createPageStreamer>
-  compose: ReturnType<typeof createFrameComposer>
 }
 
 /** The `ExplorerSession` fields the frame render actually reads — narrower than the full
  *  session so a caller can supply a session slice instead of every field it never touches. */
-export type ExplorerRenderSession = Pick<
-  ExplorerSession,
-  'scope' | 'diagnosticChannel' | 'emit' | 'diagnose'
->
+type ExplorerRenderSession = Pick<ExplorerSession, 'scope' | 'diagnosticChannel' | 'diagnose'>
 
 export function createExplorerRender(session: ExplorerRenderSession, inputs: Inputs) {
-  const { scope, diagnosticChannel, emit, diagnose } = session
-  const {
-    check,
-    followCells,
-    guides,
-    state,
-    camera,
-    lookAtTarget,
-    setPose,
-    streaming,
-    frameBudget,
-    drawBackend,
-    ensureTarget,
-    directGpu,
-    webglSurface,
-    backends,
-    baseline,
-    compositor,
-    fillMetrics,
-    metricsScratch,
-    profiler,
-    pageIdByUrl,
-    streamer,
-    compose,
-  } = inputs
+  const { scope, diagnosticChannel, diagnose } = session
+  const { check, followCells, guides, state, engine, camera, lookAtTarget, setPose } = inputs
+  const { streaming, frameBudget, drawFrame, fillMetrics, metricsScratch, profiler } = inputs
   const auditFrame = createHostFrameCostAudit()
-  /** The live target, or the loss the frame will report: a dead one has no framebuffer. */
-  const live = (target: BoundTarget) => {
-    const current = target.current()
-    if (!current) throw new Error('CONTEXT_LOST')
-    return current
-  }
   const render = (pose?: CameraPose): FrameMetrics => {
-    const { measuring, diagnostic, comparisonLayout, comparisonPair, wipe, toggle } = state
     check()
-    const frameNumber = ++state.hostFrame
+    const frameNumber = ++state.frame
     const start = performance.now()
     if (pose) setPose(pose)
     guides?.follow() // no integration: it spends none of the budget
@@ -111,55 +59,28 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     } finally {
       frameBudget.pause() // balanced on every path: the engine's own work spends none of it
     }
-    ;(state.active as HostCpuProfile).cpuStep?.('arrivalsMs', performance.now() - arrivalStart)
-    try {
-      if (comparisonLayout === 'single' || measuring) {
-        let target: WebglRenderTarget | null = null
-        if (measuring && !directGpu)
-          target = live((state.measurementTarget = ensureTarget(state.measurementTarget)))
-        drawBackend(state.active, target)
-      } else {
-        const left = backends.find((b) => b.id === comparisonPair[0]) ?? state.active,
-          right = backends.find((b) => b.id === comparisonPair[1]) ?? state.active
-        const pairTargetA = live((state.pairTargetA = ensureTarget(state.pairTargetA))),
-          pairTargetB = live((state.pairTargetB = ensureTarget(state.pairTargetB)))
-        drawBackend(left, pairTargetA)
-        drawBackend(right, pairTargetB)
-        compositor!.render(pairTargetA, pairTargetB, comparisonLayout, wipe, toggle)
-      }
-    } catch (error) {
-      handleExplorerRenderError(error, {
-        measuring,
-        diagnostic,
-        webglSurface,
-        camera,
-        baseline,
-        state,
-        scope,
-        emit,
-        diagnose,
-        compose,
-      })
-    }
-    fillMetrics(state.active)
+    engine.cpuStep('arrivalsMs', performance.now() - arrivalStart)
+    // The engine draws and presents its own surface; an error is the caller's, never hidden.
+    drawFrame()
+    fillMetrics()
     const frameEnd = performance.now()
     metricsScratch.cpuFrameMs = frameEnd - start
-    ;(state.active as HostCpuProfile).frameCpuMs?.(metricsScratch.cpuFrameMs)
+    engine.frameCpuMs(metricsScratch.cpuFrameMs)
     // Submitted triangles of this frame: those the engine counted, and only those. `null` when
     // it has not counted them — a zero published here would read as an empty frame, and that is
     // what the contract forbids. Draw calls follow the same rule, in `fillMetrics`.
     metricsScratch.triangles = metricsScratch.totalSubmittedTriangles ?? null
-    auditFrame(state.active.id, frameNumber, metricsScratch)
+    auditFrame(frameNumber, metricsScratch)
     if (debugMode()) profiler.record(metricsScratch) // the frame report is a debug tool
+    const { pageIdByUrl, streamer } = inputs
     emitExplorerFrameDiagnostic({
       diagnosticChannel,
-      active: state.active,
+      engine,
       camera,
       lookAtTarget,
       metricsScratch,
       pageIdByUrl,
       streamer,
-      measuring,
       scope,
       frameNumber,
       diagnose,

@@ -3,6 +3,8 @@ import type { BlendCopy } from '../../cluster/blendCopyContract.ts'
 import type { PageSurface } from '../../page/surface.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { CoverageReaders } from '../../texture/coverage.ts'
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
+import { hasPhysicalLobes } from '../../scene/physicalLobes.ts'
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
@@ -37,6 +39,8 @@ export function collectWebgpuMaterialTextures(
     addData(mat.metalnessMap)
     addData(mat.normalMap)
     addData(mat.aoMap)
+    // The anisotropic and clear-coat maps of a surface that carries a lobe (`physicalWgsl.ts`).
+    if (hasPhysicalLobes(mat)) for (const field of PHYSICAL_MAP_FIELDS) addData(mat[field])
   }
   for (const rec of allPages) collect(rec.material)
   for (const copy of blendCopies) collect(copy.surface)

@@ -9,24 +9,18 @@ import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import * as G from '../../../../../../../packages/sdk-browser/src/host/graph/graph.fixture.ts'
 import { meshes } from '../../../../../../../packages/sdk-browser/src/scene/meshes.ts'
-import {
-  wholeMeshTriangles,
-  type WholeMesh,
-} from '../../../../../../../packages/sdk-browser/src/cluster/batchMesh.ts'
 import { hookHostNode } from '../../../../../../../packages/sdk-browser/src/host/scene/hooks.ts'
 import { hostMeshCopy } from '../../../../../../../packages/sdk-browser/src/host/scene/graphObjects.ts'
 
 const placed = () => new G.InstancedMesh(G.boxGeometry(), G.basicSurface(), 4)
 
-test('a walk of the graph draws the core mesh and instanced mesh, placements counted', () => {
+test('a walk of the graph draws the core mesh and instanced mesh', () => {
   const root = new G.Group(),
     single = G.mesh(G.boxGeometry()),
     several = placed()
   several.count = 3
   root.add(single, new G.Group().add(several), new G.Object3D())
   assert.deepEqual(meshes(root), [single, several], 'both drawn, in preorder, nothing else')
-  assert.equal(wholeMeshTriangles(single as unknown as WholeMesh), 12)
-  assert.equal(wholeMeshTriangles(several as unknown as WholeMesh), 36, 'once per placement')
 })
 
 test('the guards pick the core meshes, never a node that only looks like one', () => {

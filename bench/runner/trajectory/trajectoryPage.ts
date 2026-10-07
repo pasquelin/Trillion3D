@@ -14,10 +14,9 @@ export async function captureTrajectory(
   const canvas = document.createElement('canvas')
   document.body.append(canvas)
   const incidents: string[] = (globalThis.gpuIncidents = [])
-  canvas.addEventListener('webglcontextlost', () => incidents.push('webglcontextlost'))
   const diagnostics = collecteDiagnostics(incidents)
   const explorer = await sdk.openMeasuredWorld(canvas, {
-    ...explorerOptions(options, sdk.webgpuPagesBackend, null),
+    ...explorerOptions(options, sdk.webgpuPagesEngine),
     onDiagnostic: diagnostics.onDiagnostic,
   })
   // Canvas readback samples the presented frame. The measurement seam's capture() requires

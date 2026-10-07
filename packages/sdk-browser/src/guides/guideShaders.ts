@@ -1,13 +1,13 @@
-import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
-import { GUIDE_CORNER_WGSL, GUIDE_CORNER_GLSL } from './guideCorner.ts'
+import { LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
+import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 
 /**
- * The guide program, in WGSL and in GLSL, one rule for both: every instance is a segment `a → b`
- * (a point is a segment of zero length) drawn as a quad `width` CSS pixels wide on the screen —
- * `width × pixelRatio` of the image's pixels, as every line of the engine counts it — capped half
- * a width past each end, so a dot is a square of that side. Its corners are the engine's line
+ * The guide program: every instance is a segment `a → b` (a point is a segment of zero length)
+ * drawn as a quad `width` CSS pixels wide on the screen — `width × pixelRatio` of the image's
+ * pixels, as every line of the engine counts it — capped half a width past each end, so a dot is a
+ * square of that side. Its corners are the engine's line
  * corners (`lineClip`, `../visibility/shader/lineWgsl.ts`): a corner behind the near plane slides
- * onto it along the segment, in each engine's depth convention. Depth is the ends', interpolated:
+ * onto it along the segment, in the engine's reversed depth. Depth is the ends', interpolated:
  * the scene in front hides a guide, and the guide writes no depth of its own.
  */
 
@@ -82,28 +82,3 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   return in.color;
 }
 `
-
-export const GUIDE_GLSL_VERTEX = /* glsl */ `#version 300 es
-uniform mat4 matrix;
-uniform vec4 viewport;
-uniform float pixelRatio;
-layout(location = 0) in vec3 a;
-layout(location = 1) in vec3 b;
-layout(location = 2) in vec4 color;
-layout(location = 3) in float width;
-out vec4 tint;
-const vec2 CORNERS[6] = vec2[6](vec2(0.0, -1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
-  vec2(0.0, -1.0), vec2(1.0, 1.0), vec2(0.0, 1.0));
-${LINE_CLIP_GLSL}
-${GUIDE_CORNER_GLSL}
-void main() {
-  tint = color;
-  gl_Position = guideCorner(matrix * vec4(a, 1.0), matrix * vec4(b, 1.0), CORNERS[gl_VertexID % 6],
-    width, viewport.xy, pixelRatio);
-}`
-
-export const GUIDE_GLSL_FRAGMENT = /* glsl */ `#version 300 es
-precision mediump float;
-in vec4 tint;
-out vec4 colour;
-void main() { colour = tint; }`

@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
 import { emitExplorerFrameDiagnostic } from './frameDiagnostic.ts'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import { createHostRankDelta } from '../../streaming/hostRanks.ts'
 
@@ -19,20 +19,22 @@ test('emitExplorerFrameDiagnostic: the published camera is the world pose, under
   assert.notDeepEqual(expected, G.xyz(camera.position), 'witness: the rig does move the eye')
 
   const events: Array<{ phase: string; context: Record<string, unknown> }> = []
+  // Every engine publishes its pending pages and retained ranks: none here.
   const active = {
     id: 'test-backend',
-    metrics: () => ({}) as ReturnType<RenderBackend['metrics']>,
-  } as unknown as RenderBackend
+    metrics: () => ({}) as ReturnType<Engine['metrics']>,
+    pendingUrls: () => [],
+    retainedRanks: () => createHostRankDelta(0, []).finish(),
+  } as unknown as Engine
 
   emitExplorerFrameDiagnostic({
     diagnosticChannel: { enabled: true, detail: 'trace' } as never,
-    active,
+    engine: active,
     camera,
     lookAtTarget: { x: 1, y: 2, z: 3 },
     metricsScratch: {} as FrameMetrics,
     pageIdByUrl: new Map(),
-    streamer: { stats: () => ({ resident: 0, evictions: 0 }) } as never,
-    measuring: false,
+    streamer: { stats: () => ({ resident: 0, evictions: 0 }), retainRanks: () => {} } as never,
     scope: 'default' as never,
     frameNumber: 1,
     diagnose: (phase, _message, context) => events.push({ phase, context: context as never }),
@@ -54,13 +56,13 @@ test('frame diagnostic includes retained rank pages beside pending pages', () =>
   let retained = 0
   const active = {
     id: 'test-backend',
-    metrics: () => ({}) as ReturnType<RenderBackend['metrics']>,
+    metrics: () => ({}) as ReturnType<Engine['metrics']>,
     pendingUrls: () => ['detail'],
     retainedRanks: () => delta,
-  } as unknown as RenderBackend
+  } as unknown as Engine
   emitExplorerFrameDiagnostic({
     diagnosticChannel: { enabled: true, detail: 'trace' } as never,
-    active,
+    engine: active,
     camera: G.perspectiveCamera(),
     lookAtTarget: { x: 0, y: 0, z: 0 },
     metricsScratch: {} as FrameMetrics,
@@ -72,7 +74,6 @@ test('frame diagnostic includes retained rank pages beside pending pages', () =>
       stats: () => ({ resident: 0, evictions: 0 }),
       retainRanks: () => void retained++,
     } as never,
-    measuring: false,
     scope: 'default' as never,
     frameNumber: 1,
     diagnose: (_phase, _message, context) => events.push(context as never),

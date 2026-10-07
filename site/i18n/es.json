@@ -818,8 +818,6 @@
       "shadow-pages-off": "Paginación de sombras desactivada",
       "shadow-budget-0-25": "Presupuesto de tiempo de sombras: 0,25 ms",
       "budget-3000": "Presupuesto de geometría: 3000 páginas",
-      "webgl": "Renderizador WebGL",
-      "webgl2": "Renderizador WebGL 2",
       "moving-light": "Luz en movimiento",
       "visible": "Ventana del navegador visible"
     },
@@ -925,7 +923,7 @@
     "resolution": "Resolución y umbral de error",
     "lights": "Luces, sombras y rebote",
     "execution": "Fotograma fijo, antialiasing y opciones de ejecución",
-    "memory": "Memoria, instancias y otros renderizadores"
+    "memory": "Memoria, instancias y otras ejecuciones"
   },
   "evidence": {
     "computeDrawing": "Dibujo por cómputo",
@@ -1109,8 +1107,8 @@
     },
     "measurement-entry": {
       "title": "El punto de entrada de medición",
-      "description": "Dónde un testigo, un backend forzado o una sesión interna todavía se pueden nombrar — nunca a través del punto de entrada publicado `trillion3d`.",
-      "html": "<p>Una página importa <code>trillion3d</code> y nunca ve un backend, un testigo o una sesión interna: <code>createWorld</code> dibuja con un motor de renderizado, elegido por la máquina o rechazado por su nombre si se fuerza uno que falta. El banco, las pruebas y las vistas de comparación aún necesitan nombrar un testigo — Three.js puro, <code>THREE.LOD</code>, la sesión interna <code>openMeasuredWorld</code> — y ese es el único trabajo del punto de entrada de medición aparte, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Vuelve a exportar todo lo que hace el punto de entrada publicado, más lo que un host nunca necesita: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (la sesión interna que un mundo abre sobre sí mismo), las fábricas de backend (<code>referenceBackend</code>, <code>exactPagesBackend</code>, <code>threeLodBackend</code>, <code>webgpuPagesBackend</code>, <code>autonomousPagesBackend</code>), y ayudantes solo de medición como <code>replicateInstances</code>. Nada de esto llega a un mundo publicado, y nada de esto lo importa una aplicación.</p>"
+      "description": "Dónde un testigo o una sesión interna todavía se pueden nombrar — nunca a través del punto de entrada publicado `trillion3d`.",
+      "html": "<p>Una página importa <code>trillion3d</code> y nunca ve un testigo ni una sesión interna: <code>createWorld</code> dibuja con WebGPU, o se rechaza por su nombre si la máquina no ofrece ninguno. El banco y las pruebas aún necesitan nombrar un testigo — Three.js puro, <code>THREE.LOD</code>, la sesión interna <code>openMeasuredWorld</code> — y ese es el único trabajo del punto de entrada de medición aparte, <code>packages/sdk-browser/src/measurement/measurement.ts</code>.</p>\n<p>Reexporta todo lo que exporta el punto de entrada publicado, más lo que un host nunca necesita: <code>openMeasuredWorld</code>/<code>createMeasuredWorldJob</code> (la sesión interna que un mundo abre sobre sí mismo), la fábrica de páginas <code>webgpuPagesEngine</code> y ayudas solo de medición como <code>replicateInstances</code>. Nada de eso llega a un mundo publicado, y ninguna aplicación lo importa.</p>"
     },
     "createWorldJob": {
       "title": "Una carga de mundo como tarea cancelable",
@@ -1159,11 +1157,11 @@
       "description": "Lo que dibuja un fotograma. La disponibilidad describe salidas reales del renderizado, nunca superposiciones inventadas: `DIAGNOSTICS` da, por modo, si el renderizador activo puede producirlo y por qué no.",
       "values": [
         "La imagen iluminada, a partir de los materiales glTF.",
-        "Un color único y sólido por triángulo enviado — no GL_LINES, no `MeshBasicMaterial.wireframe`.",
-        "Identidad estable de primitiva/página, un color por clúster; WebGL2 y WebGPU por igual.",
+        "Un color único y sólido por triángulo enviado.",
+        "Identidad estable de primitiva/página, un color por clúster.",
         "Clústeres de nivel 0 frente a las reducciones del DAG más gruesas realmente seleccionadas en este fotograma.",
         "El error por clúster proyectado a través de la esfera del clúster, tal como lo usa el corte.",
-        "Un color por clase de material: el pase de clase que resolvió el píxel. Solo el camino de visibilidad de WebGPU.",
+        "Un color por clase de material: el pase de clase que resolvió el píxel.",
         "Páginas visibles seleccionadas; los nodos de jerarquía rechazados se cuentan, no se dibujan.",
         "Páginas de índice adjuntas; las páginas faltantes no se dibujan. No es VRAM física.",
         "No disponible: la residencia de mip de texturas no está instrumentada.",
@@ -1214,7 +1212,7 @@
     },
     "GpuTimingMethod": {
       "description": "Cómo se tomaron las duraciones de GPU de un perfil de etapas. Una duración por pase dice dónde, nunca cuánto: en una GPU basada en teselas los pases se solapan y un pase absorbe a sus vecinos. El total del fotograma es `gpuImageMs`, el margen — las duraciones de etapa no se suman a él.",
-      "values": ["Marcas de tiempo nativas de WebGPU.", "La extensión de WebGL2, para ese camino."]
+      "values": ["Marcas de tiempo nativas de WebGPU."]
     },
     "ColumnKind": {
       "description": "Almacenamiento de una columna del manifiesto binario. `COLUMN_KIND` asigna a cada nombre de columna su tipo, para que un lector sepa qué vista tomar sobre los bytes acompañantes.",
@@ -1243,7 +1241,7 @@
       "description": "Envuelve cualquier operación pendiente en el contrato de tarea del motor: una instantánea (`JobStatus`, progreso, resultado, error), una suscripción, y una cancelación que libera lo que poseía la tarea. La operación debe admitir cancelación mediante su propietario (RAF, relectura, …)."
     },
     "detectCapabilities": {
-      "description": "Lo que esta máquina realmente admite, antes de crear un mundo: `{ tier, renderer, adapter, extensions, reason }`. La razón siempre se da, así que una capacidad no admitida se informa en lugar de suponerse. El envoltorio público que lee un mundo es `capability.detect()` — `{ webgpu, webgl2, ... }`, una forma más simple de la misma prueba. La prueba de WebGL2 se cachea."
+      "description": "Lo que el WebGPU de esta máquina concede realmente, antes de crear un mundo: `{ tier, adapter, extensions, reason }`. El nivel es `full` con consultas de marca de tiempo de la GPU, `degraded` sin ellas y `unavailable` sin adaptador. El motivo siempre se indica, de modo que una capacidad no admitida se informa en lugar de suponerse. La envoltura pública que lee un mundo es `capability.detect()` — `{ webgpu, tier, features, reason }`, una forma más simple para la misma sonda."
     },
     "perspectiveProjection": {
       "description": "Proyección en perspectiva de una cámara con `fov` vertical en grados, relación `aspect`, plano cercano `near`, zoom `zoom`. **Profundidad invertida, plano lejano infinito**: `near` se proyecta en 1, el infinito en 0. Aquí no entra ningún plano lejano, de ahí que no haya división por él — que es lo que compra la precisión de profundidad."
@@ -1623,11 +1621,10 @@
       "an angle at or above π/2 never rejects": "un ángulo igual o superior a π/2 nunca rechaza",
       "after updateNodeMatrixWorld(tree, root)": "después de updateNodeMatrixWorld(tree, root)",
       "available — Attached index pages; missing pages are not drawn; not physical VRAM": "disponible — páginas de índice adjuntas; las páginas faltantes no se dibujan; no es VRAM física",
-      "available — Filled unique color per submitted triangle, not GL_LINES wireframe": "disponible — color único y sólido por triángulo enviado, no wireframe GL_LINES",
+      "available — A filled unique colour per submitted triangle": "disponible — color único y sólido por triángulo enviado",
       "available — Level-0 clusters vs coarser DAG reductions actually selected this frame": "disponible — clústeres de nivel 0 frente a las reducciones del DAG más gruesas realmente seleccionadas en este fotograma",
       "available — Per-cluster screen error projected through the cluster sphere, as the cut uses it": "disponible — error en pantalla por clúster proyectado a través de la esfera del clúster, tal como lo usa el corte",
       "available — Selected visible pages; rejected hierarchy nodes are counted, not drawn": "disponible — páginas visibles seleccionadas; los nodos de jerarquía rechazados se cuentan, no se dibujan",
-      "available — Stable primitive/page ID, exact-cluster backend only": "disponible — ID estable de primitiva/página, solo backend de clúster exacto",
       "available — glTF materials": "disponible — materiales glTF",
       "unavailable — No fragment counter": "no disponible — sin contador de fragmentos",
       "unavailable — Texture mip residency not instrumented": "no disponible — residencia de mip de texturas no instrumentada",

@@ -3,6 +3,8 @@ import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, SURFACE_MODEL_MASK } from '../../sce
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../scene/surfaceEmission.ts'
 import { receiverOffsetWgsl } from '../../visibility/shader/receiverOffsetWgsl.ts'
+import { PHYSICAL_SURFACE_FLAG } from '../../scene/physicalLobes.ts'
+import { readLobesWgsl } from '../direct/lobesWgsl.ts'
 
 /** First binding of what the resolve's receiver offset reads (`RECEIVER_BINDINGS`). */
 export const LIGHTING_RECEIVER_BINDING = 23
@@ -35,6 +37,10 @@ const SHADOW_SETUP_WGSL = `fn shadowSetup(coord:vec2i,pixel:vec4f,z:f32,P:vec3f)
  }
 }`
 
+/** The surface of the contract programs: it reads its lobes where its flag says so, and the
+ *  environment goes under their coat (`../direct/lobesWgsl.ts`) — in a lobeless program, or on a
+ *  pixel without lobes, a call that reads nothing and a multiplication by one, which changes no
+ *  bit. */
 export const contractSurfaceBody = (bounce: string, diagnostic = '') => `${PIXEL_FOOTPRINT_WGSL}
 ${SURFACE_EMISSIVE_AO_WGSL}
 ${receiverOffsetWgsl(LIGHTING_RECEIVER_BINDING)}
@@ -55,10 +61,11 @@ ${LIGHT_SURFACE_ENTRY}
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
  surfaceModel=flag;
  thinSubsurface=vec3f(0.0);
- if((surfaceFlag&${SUBSURFACE_FLAG}u)!=0u){thinSubsurface=textureLoad(subsurfaceColor,coord,0).rgb;}
+ if((surfaceFlag&${SUBSURFACE_FLAG}u)!=0u){thinSubsurface=textureLoad(subsurfaceColor,coord).rgb;}
+ ${readLobesWgsl(PHYSICAL_SURFACE_FLAG)}
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy,cell,shadowed);
- var ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
+ var ambient=environmentLighting(base.rgb,base.a,N,emissive.a)*lobeThrough();
  if(any(thinSubsurface>vec3f(0.0))){ambient+=environmentLighting(thinSubsurface,0.0,-N,emissive.a);}
  var rgb=lit+ambient+emissive.rgb${bounce};${CAMERA_FOG_WGSL}
  return vec4f(rgb,1.0);

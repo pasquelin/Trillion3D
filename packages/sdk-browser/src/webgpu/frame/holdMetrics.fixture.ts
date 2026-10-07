@@ -19,7 +19,6 @@ export function heldFrame() {
     lost: false,
     desired: [],
     drawn: [],
-    gpuFrameActive: true,
     gpuMetricsReady: true,
     cutHeld: true,
     overBudget: false,
@@ -31,14 +30,12 @@ export function heldFrame() {
     blendDrawCalls: 7,
     submittedTriangles: 123456,
     blendSubmittedTriangles: 99,
-    cpuSelectMs: 3.5,
     // What the frame SHOWS: the cut, which does not move.
     visible: 800,
     selectedTriangles: 123456,
     frustumRejected: 29987,
     lodLevel: 2,
     blendFrustumRejected: 11,
-    cpuHizCounted: false,
   }
   const timing = {
     frameEncoder: undefined,
@@ -72,7 +69,7 @@ export function heldFrame() {
       vertexBytes: 0,
       positionBuffers: new Map(),
     },
-    vis: { visEnabled: true, gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
+    vis: { gpuDraw: {}, textureJobs: [], gpuHiz: undefined },
     capture: { capturing: false, capturePending: undefined },
     setup: { geometryPool: { slots: 0 }, texturePool: {} },
     services: {
@@ -89,7 +86,7 @@ export function heldFrame() {
         dirtyTo: -1,
         rowsEpoch: 1,
         tableEpoch: 1,
-        candidateOverflow: false,
+        rowsDenied: 0,
       },
     },
     lights: {
@@ -98,6 +95,8 @@ export function heldFrame() {
     },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
+    // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
+    diag: { traceEnabled: false },
   } as unknown as WebgpuPagesRuntime
   const { device } = fakeDevice()
   return { rt, run, timing, device }

@@ -93,6 +93,7 @@ test('after a stop, the pending set drains to full detail', async () => {
     getFrame: () => 0,
     updatePins() {},
     closure: {} as never,
+    recordOf: () => undefined,
     ensureResident: b.ensure,
     markLost() {},
     traceEnabled: false,
@@ -102,14 +103,14 @@ test('after a stop, the pending set drains to full detail', async () => {
   // Moving: one page on screen, six ahead, all admitted.
   b.offerAhead(6)
   b.want(b.camera.slice(0, 1))
-  queue.queueCutResidency()
+  queue.queueCuts({ cuts: [], first: null })
   await queue.pending
   assert.equal(b.cache.resident.size, 7)
   // Stopped: the readback asks for nothing ahead, and the full-detail cut for both pages.
   const moving = b.order.length
   b.offerAhead(0)
   b.want(b.camera)
-  queue.queueCutResidency()
+  queue.queueCuts({ cuts: [], first: null })
   await queue.pending
   assert.equal(queue.busy, false, 'nothing left queued')
   for (const page of b.camera) assert.ok(b.cache.pins.has(page.url), `${page.url} resident`)

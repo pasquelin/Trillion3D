@@ -1,4 +1,4 @@
-import { readGpuImage } from '../../../gpu/core/presentation.ts'
+import { readGpuImage } from '../../../gpu/core/readback.ts'
 import type { HostCamera } from '../../../camera/world.ts'
 import { captureAside, drawResidentCut, renderForCapture } from './captureAside.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -19,8 +19,9 @@ export async function captureColorView(
     throw new Error('SURFACE_CAPTURE_BUSY: dispose the previous capture first')
   if (run.lost || !gpuDevice || !run.lastCamera) throw new Error('CAPTURE_NOT_READY')
   return captureAside(rt, size, async () => {
-    await renderForCapture(rt, camera, size.width / size.height)
-    await drawResidentCut(rt, gpuDevice)
+    const aspect = size.width / size.height
+    await renderForCapture(rt, camera, aspect)
+    await drawResidentCut(rt, camera, aspect)
     if (!gpu.displayTexture) throw new Error('CAPTURE_NOT_READY')
     return readGpuImage(gpuDevice, gpu.displayTexture, size.width, size.height, context.signal)
   })

@@ -12,7 +12,7 @@ import { enginePose, holdCameraWorld, resolveCameraWorld } from './world.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { resolvePixelError } from '../page/selection/requests.ts'
 import { sameHizView } from '../hiz/temporal.ts'
-import { createWebglFrameGate } from '../webgl/core/frameGate.ts'
+import { createFrameGateCore } from '../frame/gateCore.ts'
 import {
   POSES_PARENT,
   flattenedCamera,
@@ -84,7 +84,7 @@ test('contract: the published pose is the world pose, never the local pose', () 
 })
 
 test('boundary: the held-frame gate sees a rig move that the host has not walked', () => {
-  const gate = createWebglFrameGate()
+  const gate = createFrameGateCore(1)
   const source = new G.Object3D()
   const rig = creeRig()
   const viewport: [number, number] = [800, 600]
@@ -94,7 +94,7 @@ test('boundary: the held-frame gate sees a rig move that the host has not walked
     gate.viewChanged(engineCamera(rig.camera), viewport, 1)
     gate.readScene(source, [])
     const held = gate.held()
-    gate.keep(0, 0, [], 0, false)
+    gate.hold.keep(gate.revisions)
     return held
   }
   poseRig(rig, POSES_PARENT[0] as Pose, false)

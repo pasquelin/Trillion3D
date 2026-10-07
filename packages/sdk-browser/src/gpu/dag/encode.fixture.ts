@@ -78,9 +78,8 @@ export function witnessEncoder() {
  *  by name, and writing them here makes them searchable from it. */
 const step = (entryPoint: string) => ({ entryPoint })
 
-export function cutResources(residentCut: boolean, levelCount = 3, pageCount = 4096) {
+export function cutResources(levelCount = 3, pageCount = 4096) {
   return {
-    residentCut,
     pageCount,
     nodeCount: 64,
     worldCount: 2,

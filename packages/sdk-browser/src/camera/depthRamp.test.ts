@@ -1,8 +1,7 @@
-// The depth material's ramp: planes at the near plane, mid-way and the far plane read 1,
-// 0.5 and 0 on both GPU paths, whatever the depth buffer holds. The WebGPU resolve applies the
-// weights to a pixel's clip coordinates (`../visibility/shader/shadeWgsl.ts`); the WebGL2
-// fragment to its view distance (`../webgl/cluster/shaders.ts`). Both expressions are read out
-// of the shipped shader text and evaluated here, so a shader edit is what the test sees.
+// The depth material's ramp (#365): planes at the near plane, mid-way and the far plane read 1,
+// 0.5 and 0, whatever the depth buffer holds. The resolve applies the weights to a pixel's clip
+// coordinates (`../visibility/shader/shadeWgsl.ts`). The expression is read out of the shipped
+// shader text and evaluated here, so a shader edit is what the test sees.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { writeDepthRamp } from './depthConvention.ts'
@@ -10,7 +9,6 @@ import { SURFACE_MODEL } from '../scene/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { SHADE_DECL_WGSL } from '../visibility/shader/shadeDeclWgsl.ts'
 import { DEPTH_RAMP_WORD, SHADE_UNIFORM_WORDS } from '../visibility/shader/request.ts'
-import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts'
 import {
   orthographicProjection,
   perspectiveProjection,
@@ -52,22 +50,6 @@ function resolveRamp(weights: Float32Array, clip: { z: number; w: number }) {
   return Math.min(1, Math.max(0, resolveOf({ x, y, z }, clip.w, clip.z)))
 }
 
-const glsl = rampExpression(
-  CLUSTER_FRAGMENT,
-  new RegExp(
-    `if\\(surfaceModel==${SURFACE_MODEL.depth}\\)rgb=vec3\\(clamp\\((.*?),0\\.0,1\\.0\\)\\);`,
-  ),
-)
-/** The WebGL2 fragment's line, on its view distance `toEye.z`. */
-const fragmentOf = new Function('depthRamp', 'toEye', `return ${glsl};`) as (
-  depthRamp: { x: number; y: number },
-  toEye: { z: number },
-) => number
-function fragmentRamp(weights: Float32Array, distance: number) {
-  const value = fragmentOf({ x: weights[0], y: weights[1] }, { z: distance })
-  return Math.min(1, Math.max(0, value))
-}
-
 const close = (actual: number[], label: string) =>
   actual.forEach((value, i) =>
     assert.ok(Math.abs(value - EXPECTED[i]) < 1e-5, `${label}: ${value}`),
@@ -88,14 +70,6 @@ test('WebGPU, orthographic: the same ramp from the affine depth', () => {
   close(
     DISTANCES.map((d) => resolveRamp(weights, clipOf(projection, d))),
     'orthographic',
-  )
-})
-
-test('WebGL2: the view distance under the perspective weights gives the same ramp', () => {
-  const weights = writeDepthRamp(new Float32Array(3), 0, NEAR, FAR, 1)
-  close(
-    DISTANCES.map((d) => fragmentRamp(weights, d)),
-    'webgl2',
   )
 })
 

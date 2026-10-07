@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import * as G from '../host/graph/graph.fixture.ts'
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts'
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts'
-import { webgpuPagesBackend } from '../webgpu/pages/pages.ts'
+import { webgpuPagesEngine } from '../webgpu/pages/pages.ts'
 import { quadScene, camera } from '../webgpu/pages/testScenes.fixture.ts'
 
 // A capture may be the first view to select a mirror: initial targets have no source yet.
@@ -15,7 +15,7 @@ test('first mirror capture waits for its late target grant and draws before retu
   const mesh = fixture.associations.keys().next().value
   assert.ok(mesh)
   mesh.material = mirror
-  const backend = webgpuPagesBackend({
+  const backend = webgpuPagesEngine({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
@@ -24,7 +24,7 @@ test('first mirror capture waits for its late target grant and draws before retu
   try {
     await backend.prepare()
     backend.render(camera())
-    await backend.flush!()
+    await backend.flush()
     const drawsBeforeCapture = gpu.draws.length
     const createTexture = gpu.device.createTexture.bind(gpu.device)
     let changed = false

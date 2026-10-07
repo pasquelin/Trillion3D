@@ -122,10 +122,15 @@ test('the composite reads the per-volume terms and the shadow its law', () => {
   )
   assert.match(composite, /refract\(-V,N,vol\.eta\)/)
   assert.match(composite, /sample\.rgb\*volumeTransmittance\(vol\.attenuation\.rgb,path\)/)
+  // Fresnel on the volume's reflectance through the engine's one fifth-power term.
   assert.match(
     functionText(composite, 'waterColor'),
-    /let grazing2=grazing\*grazing;\s*let F=vol\.f0\+\(1\.0-vol\.f0\)\*\(grazing2\*grazing2\*grazing\);/,
+    /let F=fresnelScalar\(vol\.f0,max\(dot\(Nv,V\),0\.0\)\);/,
   )
-  for (const name of ['waterColor', 'transmittedBackdrop'])
+  assert.match(
+    functionText(composite, 'fresnelScalar'),
+    /let x=clamp\(1\.0-cosine,0\.0,1\.0\);let x2=x\*x;return f0\+\(1\.0-f0\)\*\(x2\*x2\*x\);/,
+  )
+  for (const name of ['waterColor', 'transmittedBackdrop', 'fresnelScalar'])
     assert.doesNotMatch(functionText(composite, name), /pow\(|log\(|exp\(|\/max\(vol/)
 })

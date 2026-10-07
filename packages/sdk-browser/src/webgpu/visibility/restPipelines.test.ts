@@ -14,6 +14,8 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
 import { createWebgpuVisibilityRasterPipelines } from './pipelines.ts'
 import { encodeWebgpuVisibilityPasses } from './passes.ts'
 import { createDrawItemWordsHold } from './itemWords.ts'
+import { createWebgpuVisState } from '../pages/state/vis.ts'
+import { replayBundles } from '../../../../../tests/kit/gpu/fakeBundles.ts'
 
 test('the tested vertex stage is the occluder one and its verdict read, nothing else', () => {
   const [plain, tested] = ['vis_vs', 'vis_hiz_vs'].map((name) => functionsOf(VIS_SHADER, [name]))
@@ -29,7 +31,6 @@ test('a tested pipeline is its occluder twin but for the vertex stage', async ()
     device,
     {} as GPUShaderModule,
     {} as GPUBindGroupLayout,
-    true,
   )) as unknown as Record<string, GPURenderPipelineDescriptor>
   for (const face of ['Back', 'None', 'Front']) {
     const twin = made[`visPipeline${face}`],
@@ -42,7 +43,10 @@ test('a tested pipeline is its occluder twin but for the vertex stage', async ()
 
 test('the compaction says whether it ran: no rows, no slots or disposed, the verdict is read', async () => {
   const fake = fakeDevice()
-  const buffer = fake.device.createBuffer({ size: 64, usage: 0 })
+  const buffer = fake.device.createBuffer({
+    size: 64,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+  })
   const compact = (await createGpuRestCompact(fake.device, {
     instances: buffer,
     indirect: buffer,
@@ -66,7 +70,7 @@ test('the compaction says whether it ran: no rows, no slots or disposed, the ver
   assert.equal(compact.encode(open, 3, 5, buffer), false)
 })
 
-/** Each pipeline as a name: layer 0's own, then each coplanar layer's five culls, occluders first. */
+/** Each pipeline as a name: layer 0's own, then each coplanar layer's three culls, occluders first. */
 const PIPELINES = {
   visPipelineBack: 'back',
   visPipelineNone: 'none',
@@ -74,7 +78,7 @@ const PIPELINES = {
   visHizRestBack: 'tested back',
   visHizRestNone: 'tested none',
   visHizRestFront: 'tested front',
-  visLayerPipelines: Array.from({ length: 10 }, (_, i) => `layer ${i}`),
+  visLayerPipelines: Array.from({ length: 6 }, (_, i) => `layer ${i}`),
 }
 
 test('the secondary pass draws with the occluder twins exactly when the compaction ran', () => {
@@ -83,8 +87,12 @@ test('the secondary pass draws with the occluder twins exactly when the compacti
     const encoder = {
       beginRenderPass: ({ label }: GPURenderPassDescriptor) => {
         const set = (pipelines[label!] = [] as unknown[])
-        const pass = { setViewport() {}, setBindGroup() {}, drawIndirect() {}, end() {} }
-        return { ...pass, setPipeline: (pipeline: unknown) => void set.push(pipeline) }
+        const pass = {
+          ...{ setViewport() {}, setBindGroup() {}, drawIndirect() {}, end() {} },
+          setPipeline: (pipeline: unknown) => void set.push(pipeline),
+          executeBundles: (bundles: GPURenderBundle[]): void => replayBundles(pass, bundles),
+        }
+        return pass
       },
       beginComputePass: () => ({ end() {} }),
     } as unknown as GPUCommandEncoder
@@ -98,7 +106,9 @@ test('the secondary pass draws with the occluder twins exactly when the compacti
         visSlotGroups: new Array(4 * BASE_SLOTS).fill({}),
         gpuDraw: { indirectBuffer: {} },
         gpuHiz: { level0View: {}, flags: {}, encodePyramid() {}, encodeTest() {} },
+        gpuPartition: { counting: false },
         gpuRestCompact: { encode: () => compacted },
+        visBundles: createWebgpuVisState().visBundles,
         ...PIPELINES,
       },
       gpu: { depthView: {}, targetSize: [8, 8] },
@@ -106,7 +116,7 @@ test('the secondary pass draws with the occluder twins exactly when the compacti
       layout: { rows: { packedCount: 4 }, itemWordsHold: createDrawItemWordsHold(4) },
       context: {},
     } as unknown as WebgpuPagesRuntime
-    encodeWebgpuVisibilityPasses(rt, {} as GPUDevice, encoder, true, true, null)
+    encodeWebgpuVisibilityPasses(rt, fakeDevice().device, encoder, true, null)
     return pipelines
   }
   // Layer 0, then a coplanar layer: its occluder set, the same cull ranks; each its opaque slots,
@@ -121,7 +131,7 @@ test('the secondary pass draws with the occluder twins exactly when the compacti
   assert.deepEqual(twins['Trillion3D visibility secondary'], occluders)
   const tested = [
     ...twice(['tested back', 'tested none', 'tested front']),
-    ...twice(['layer 5', 'layer 6', 'layer 7']),
+    ...twice(['layer 3', 'layer 4', 'layer 5']),
   ]
   assert.deepEqual(drawn(false)['Trillion3D visibility secondary'], tested)
 })

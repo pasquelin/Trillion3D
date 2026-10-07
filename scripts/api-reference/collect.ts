@@ -8,7 +8,7 @@ const FORMAT =
   ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseSingleQuotesForStringLiteralType
 /** The length a shortened type is cut at, the one TypeScript's own truncation aims for. */
 const SHORT = 160
-/** An options object a function takes is listed field by field: `options.renderer`, … */
+/** An options object a function takes is listed field by field: `options.renderScale`, … */
 const OPTIONS_TYPE = /(?:Options|Parameters)$/
 
 /** Whether a member is part of the public shape: declared in the packages, not private. */

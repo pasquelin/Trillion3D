@@ -1,6 +1,6 @@
 {
   "name": "@trillion3d/compiler-darwin-arm64",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "The Trillion3D compiler built for macOS on Apple silicon; installed by trillion3d, which picks it by platform.",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",

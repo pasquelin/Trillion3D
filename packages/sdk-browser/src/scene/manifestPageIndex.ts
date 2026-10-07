@@ -30,7 +30,6 @@ export function indexManifestPages(metadata: ClusterManifest) {
   return {
     pages,
     geometryPages: [...geometryByUrl.values()],
-    geometryUrls: new Set(geometryByUrl.keys()),
     pageIdByUrl,
   }
 }

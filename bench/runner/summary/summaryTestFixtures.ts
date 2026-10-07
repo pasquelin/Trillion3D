@@ -46,7 +46,6 @@ export function rapport(side: Partial<Row>): Report {
 export const baseSide: Partial<Row> = {
   engine: undefined,
   cpuFrameMs: null,
-  cpuSelectMs: null,
   gpuFrameMs: null,
   stageProfile: null,
   selectedTriangles: null,
@@ -55,7 +54,6 @@ export const baseSide: Partial<Row> = {
   submittedTriangles: null,
   totalSubmittedTriangles: null,
   frameHeld: null,
-  gpuSelectionFallback: null,
   hiZ: {
     tested: null,
     rejected: null,

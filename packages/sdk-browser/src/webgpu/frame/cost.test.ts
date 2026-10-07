@@ -1,8 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import { webgpuPagesBackend } from '../pages/pages.ts'
-import { exactPagesBackend } from '../../../../../bench/witnesses/exact/backend.ts'
+import { webgpuPagesEngine } from '../pages/pages.ts'
 import { createArrivalQueue } from '../../page/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../page/integration/frameBudget.ts'
 import { collectClusterPages } from '../../page/selection/selection.ts'
@@ -28,7 +27,7 @@ test('paged transparent commands disappear outside the view and return with both
       fixture.associations,
     ).roots
     const mock = mockGpu({ packed: gpuCut ? packDagSelection(roots) : undefined })
-    const backend = webgpuPagesBackend({
+    const backend = webgpuPagesEngine({
       ...fixture,
       gpuDevice: mock.device,
       maxResidentPages: 4,
@@ -43,7 +42,7 @@ test('paged transparent commands disappear outside the view and return with both
         view.updateMatrixWorld()
         for (let i = 0; i < 3; i++) {
           backend.render(view)
-          await backend.flush?.()
+          await backend.flush()
         }
         mock.draws.length = 0
         mock.writes.length = 0
@@ -70,35 +69,34 @@ test('paged transparent commands disappear outside the view and return with both
   }
 })
 
-test('queued page arrivals are integrated by the next render without a second GPU submission, on GL and GPU backends', async () => {
+test('queued page arrivals are integrated by the next render without a second GPU submission', async () => {
   installGpuGlobals()
-  for (const gpu of [false, true]) {
-    const fixture = quadScene(),
-      mock = mockGpu()
-    const context = {
-      ...fixture,
-      gpuDevice: mock.device,
-      maxResidentPages: 4,
-      viewport: [32, 32] as [number, number],
-    }
-    const backend = gpu ? webgpuPagesBackend(context) : exactPagesBackend(context)
-    try {
-      await backend.prepare()
-      const view = camera()
-      backend.render(view)
-      mock.submits.length = 0
-      const arrivals = createArrivalQueue(512 * 1024, 64, createFrameBudget(2))
-      arrivals.queue(backend, '0', fixture.indices.get('0')!)
-      assert.equal(arrivals.drain(), 1)
-      assert.equal(mock.submits.length, 0, 'accepting bytes must not render an image')
-      backend.render(view)
-      assert.equal(mock.submits.length, gpu ? 1 : 0)
-      assert.equal(backend.metrics().selectedTriangles, 2)
-      assert.equal(backend.metrics().submittedTriangles, 2)
-    } finally {
-      await backend.dispose()
-      fixture.geometry.dispose()
-      fixture.material.dispose()
-    }
+  const fixture = quadScene(),
+    mock = mockGpu()
+  const backend = webgpuPagesEngine({
+    ...fixture,
+    gpuDevice: mock.device,
+    maxResidentPages: 4,
+    viewport: [32, 32],
+  })
+  try {
+    await backend.prepare()
+    const view = camera()
+    backend.render(view)
+    mock.submits.length = 0
+    const arrivals = createArrivalQueue(512 * 1024, 64, createFrameBudget(2))
+    arrivals.queue(backend, '0', fixture.indices.get('0')!)
+    assert.equal(arrivals.drain(), 1)
+    assert.equal(mock.submits.length, 0, 'accepting bytes must not render an image')
+    backend.render(view)
+    assert.equal(mock.submits.length, 1)
+    // The image's counts come back with its readback, adopted by the drain (#1483).
+    await backend.flush()
+    assert.equal(backend.metrics().selectedTriangles, 2)
+    assert.equal(backend.metrics().submittedTriangles, 2)
+  } finally {
+    await backend.dispose()
+    fixture.geometry.dispose()
+    fixture.material.dispose()
   }
 })

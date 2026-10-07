@@ -2,10 +2,11 @@
 // a page is resident when it holds its index array; held with one, the host's answer decides.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { collectClusterPages, selectVisiblePages } from './selection.ts'
+import { collectClusterPages } from './selection.ts'
+import { selectVisiblePages } from '../cut/cut.fixture.ts'
 import { blendFixture, camera } from './blend.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
-import { createHeldResidency } from '../cut/held.ts'
+import { createHeldResidency } from '../cut/held.fixture.ts'
 
 test('the cut follows its residency rule: without an index array, the page is requested but not shown', () => {
   const fixture = blendFixture()

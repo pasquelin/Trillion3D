@@ -13,7 +13,7 @@ import { createExplorerLightApi } from '../api/lightApi.ts'
 import { setWebgpuTransform } from '../../webgpu/pages/render/transform.ts'
 import { createWebgpuRunState } from '../../webgpu/pages/state/run.ts'
 import { hostWorldPlacements } from '../../host/world/placements.ts'
-import type { RenderBackend } from '../../backend/types.ts'
+import type { Engine } from '../../engine/types.ts'
 import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts'
 
 function near(actual: ArrayLike<number>, expected: ArrayLike<number>, tolerance: number) {
@@ -50,13 +50,12 @@ function banc() {
     setTransform(nodeName: string, matrix: Float32Array) {
       setWebgpuTransform(rt, nodeName, matrix)
     },
-  } as unknown as RenderBackend
+  } as unknown as Engine
   const explorer = createExplorerLightApi({
     check: () => {},
     store: undefined,
     imported: [],
-    backends: [backend],
-    active: () => backend,
+    engine: backend,
   })
   return { rt, source, parent, mesh, explorer, worlds, world }
 }

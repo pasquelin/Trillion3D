@@ -113,9 +113,8 @@ test('a small CPU total: no page a frame keeps is refused for a texture level, t
 // applied at once, the least recently read leaving first.
 test('the texture levels cap follows world.budget.cpu live', async () => {
   const pools = worldPools()
-  const handle = worldBudget(pools, { explorer: null }, { last: null }, () => 'webgpu', {
-    ...DEFAULT_PHYSICS_BUDGET,
-  })
+  const physics = { ...DEFAULT_PHYSICS_BUDGET }
+  const handle = worldBudget(pools, { explorer: null }, { last: null }, physics)
   const { levels, ask } = session(pools.pageCache)
   await ask(0)
   await ask(1)

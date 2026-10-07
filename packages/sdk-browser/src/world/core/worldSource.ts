@@ -11,7 +11,6 @@ import type { Batch } from './worldBatches.ts'
 import { buildWorldMirror } from './worldMirror.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { ExplorerScene } from '../session/prepare.ts'
-import type { PlacementMount } from '../../placement/backendSceneUpdates.ts'
 import { absolutePrimitive } from '../../scene/absolutePrimitive.ts'
 
 /** Each primitive with absolute addresses, made once however often a session reopens: a model
@@ -48,6 +47,64 @@ export type WorldPlan = {
  */
 export function buildWorldSource(plan: WorldPlan) {
   const { batches, models } = plan
+  const merged = mergeModels(models)
+  const { primitives, associations } = merged
+  // One primitive per geometry resource, however many batches wear it and rows place it.
+  const ranked = new Map<Cut, Primitive>()
+  const rankOf = (cut: Cut) => {
+    let primitive = ranked.get(cut)
+    if (!primitive) {
+      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: merged.offset++ }))
+      primitives.push(primitive)
+    }
+    return primitive.mesh
+  }
+  if (!primitives.length && !associations.size && !batches.length) return null
+  const placedOf = (batch: Batch) => ({
+    cut: batch.cut,
+    material: batch.entry.material,
+    rows: batch.rows!,
+    name: batch.entry.material.name as string,
+    twoSided: batch.twoSided,
+  })
+  const mirror = buildWorldMirror({
+    placed: batches.map(placedOf),
+    models: models.map((node) => ({ node, graph: modelGraph(node) })),
+    rankOf,
+  })
+  for (const [twin, link] of mirror.associations) associations.set(twin, link)
+  const { first, metadata, base } = worldManifest(models, primitives)
+  const graph = mirror.root
+  return {
+    root: mirror.root,
+    twins: mirror.twins,
+    repaint: mirror.repaint,
+    geometryOf: mirror.geometryOf,
+    source: {
+      manifestUrl: first?.manifestUrl ?? base,
+      metadataUrl: first?.metadataUrl ?? base,
+      base,
+      metadata,
+      scene: {
+        source: graph,
+        sceneLightingSource: graph,
+        associations,
+        textureIndices: first?.scene.textureIndices ?? new Map(),
+        framingLot: null,
+        nodes: null,
+        // A world plays its models' clips through their own mixers, never through its session.
+        clips: [],
+        // Each model's cells follow the session's camera; their rows hang under the model's twin.
+        partitions: models.flatMap((model) => model.record.scene.partitions),
+        worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
+      },
+    },
+  }
+}
+
+/** The loaded models' primitives and associations merged, their mesh ranks moved past each
+ *  other's; `offset` the first rank none of them takes. */
+function mergeModels(models: readonly LoadedModel[]) {
   const primitives: Primitive[] = []
   const associations: ExplorerScene['associations'] = new Map()
   let offset = 0
@@ -72,31 +129,12 @@ export function buildWorldSource(plan: WorldPlan) {
     for (const link of graph.associations.values()) last = Math.max(last, link.meshes ?? -1)
     offset += last + 1
   }
-  // One primitive per geometry resource, however many batches wear it and rows place it.
-  const ranked = new Map<Cut, Primitive>()
-  const rankOf = (cut: Cut) => {
-    let primitive = ranked.get(cut)
-    if (!primitive) {
-      ranked.set(cut, (primitive = { ...cut.runtime.primitive, mesh: offset++ }))
-      primitives.push(primitive)
-    }
-    return primitive.mesh
-  }
-  if (!primitives.length && !associations.size && !batches.length) return null
-  const placedOf = (batch: Batch) => ({
-    cut: batch.cut,
-    material: batch.entry.material,
-    rows: batch.rows!,
-    name: batch.entry.material.name as string,
-    twoSided: batch.twoSided,
-  })
-  const mirror = buildWorldMirror({
-    placed: batches.map(placedOf),
-    models: models.map((node) => ({ node, graph: modelGraph(node) })),
-    rankOf,
-  })
-  const nodes = new Map(batches.map((batch, i) => [batch, mirror.placed[i].node]))
-  for (const [twin, link] of mirror.associations) associations.set(twin, link)
+  return { primitives, associations, offset }
+}
+
+/** The one manifest a world's session reads, lent its base by the model whose images were left
+ *  to the cache, else the first; and the address its pages resolve against. */
+function worldManifest(models: readonly LoadedModel[], primitives: Primitive[]) {
   const first = (models.find((model) => model.record.textureSource === 'cache') ?? models[0])
     ?.record
   const triangles = primitives.reduce(
@@ -116,53 +154,9 @@ export function buildWorldSource(plan: WorldPlan) {
     selectedTriangles: triangles,
     selectedNodes: 0,
     totalNodes: 0,
-    autonomousScene: null,
     primitives,
   }
   const base =
     first?.base ?? (typeof document === 'undefined' ? 'http://localhost/' : document.baseURI)
-  const graph = mirror.root
-  return {
-    root: mirror.root,
-    twins: mirror.twins,
-    repaint: mirror.repaint,
-    geometryOf: mirror.geometryOf,
-    /** A batch the session was not opened with, as it mounts it (`PlacementMount`): its host
-     *  mesh hung in the graph, its primitive listed in the manifest. */
-    mount(batch: Batch): PlacementMount {
-      const { node, association } = mirror.place(placedOf(batch))
-      nodes.set(batch, node)
-      return { node, association, primitive: ranked.get(batch.cut)! }
-    },
-    /** A batch the session no longer draws: its host mesh, and its resource's primitive and
-     *  geometry once no other batch wears it. True when the resource left. */
-    unmount(batch: Batch) {
-      const node = nodes.get(batch)!
-      nodes.delete(batch)
-      const worn = [...nodes.keys()].some((other) => other.cut === batch.cut)
-      mirror.unplace(node, worn ? undefined : batch.cut)
-      if (worn) return false
-      primitives.splice(primitives.indexOf(ranked.get(batch.cut)!), 1)
-      return ranked.delete(batch.cut)
-    },
-    source: {
-      manifestUrl: first?.manifestUrl ?? base,
-      metadataUrl: first?.metadataUrl ?? base,
-      base,
-      metadata,
-      scene: {
-        source: graph,
-        sceneLightingSource: graph,
-        associations,
-        textureIndices: first?.scene.textureIndices ?? new Map(),
-        framingLot: null,
-        nodes: null,
-        // A world plays its models' clips through their own mixers, never through its session.
-        clips: [],
-        // Each model's cells follow the session's camera; their rows hang under the model's twin.
-        partitions: models.flatMap((model) => model.record.scene.partitions),
-        worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
-      },
-    },
-  }
+  return { first, metadata, base }
 }

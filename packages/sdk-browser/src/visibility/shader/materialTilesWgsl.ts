@@ -3,17 +3,17 @@ import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_UNI_WGSL } from './pixelTriangleWgsl.ts'
 
 /**
- * Material tiles: the material classification. A full-screen triangle per class pass
- * whose fragments kept its pixels only would rasterise an image of `K` classes at every
- * pixel `K` times. A compute pass reads the visibility buffer once, marks in each screen tile
- * the classes its pixels hold (`materialClassOf`), and appends the tile to the list of each; a
- * class then draws, through one indirect draw, a quad per tile of its list only. The fragments
- * its stage keeps (`classAdmits`) are the same, shaded by the same code: only the pixels of tiles
+ * Material tiles: the material classification (#1369). A class pass drawing a full-screen
+ * triangle whose fragments keep its pixels only would rasterise every pixel `K` times on an image
+ * of `K` classes. A compute pass reads the visibility buffer once, marks in each screen tile the
+ * classes its pixels hold (`materialClassOf`), and appends the tile to the list of each; a class
+ * then draws, through one indirect draw, a quad per tile of its list only. The fragments its stage
+ * keeps (`classAdmits`) are those of the full screen, shaded by the same code: the pixels of tiles
  * a class has none of are not rasterised for it.
  *
  * A class with no list — past the first `MATERIAL_TILE_SLOTS` held, or not held at all — has
- * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and it draws the full-screen triangle, as
- * before (`classTriangle`, `shadeDeclWgsl.ts`).
+ * the slot `MATERIAL_TILE_SLOTS`: no pixel marks it, and it draws the full-screen triangle
+ * (`classTriangle`, `shadeDeclWgsl.ts`).
  */
 const MATERIAL_TILE_SIZE = 32
 /** Tiles on one axis of `pixels`: `materialTilesX`'s count. */

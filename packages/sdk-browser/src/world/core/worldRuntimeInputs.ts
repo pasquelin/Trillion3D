@@ -11,7 +11,7 @@ export type WorldRuntimeInputs = {
   canvas: HTMLCanvasElement
   scene: Scene
   camera: () => Camera
-  /** The session options of the moment: renderer, pools, loop and hooks. */
+  /** The session options of the moment: pools, loop and hooks. */
   options: () => MeasuredWorldOptions
   /** Runs on every new session, before its first frame: diagnostic mode, pools. */
   opened: (explorer: MeasuredWorld) => void
@@ -20,7 +20,7 @@ export type WorldRuntimeInputs = {
   display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog }
   /** Whether the world has drawn a frame yet. */
   drawn: () => boolean
-  /** Settles once the world's renderer — and its device — is granted, a lost one asked again. */
+  /** Settles once the world's device is granted, a lost one asked again. */
   ready: () => Promise<unknown>
   /** The world's notices; each opening, tried or not; a session or a scene that failed, kept. */
   diagnostic: Pick<ReturnType<typeof worldDiagnostic>, 'notices' | 'failed' | 'opening'>

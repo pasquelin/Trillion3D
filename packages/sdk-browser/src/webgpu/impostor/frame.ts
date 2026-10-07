@@ -36,7 +36,6 @@ function impostorsOf(rt: WebgpuPagesRuntime): WebgpuImpostors | undefined {
   const section = rt.context.metadata.impostors,
     reader = rt.context.readTextureLevel,
     device = rt.gpu.device
-  if (!rt.vis.visEnabled) return undefined
   if (rt.gpu.impostors) return rt.gpu.impostors
   if (!section?.baked || !reader || !device) return undefined
   const { setup, vis, diag } = rt

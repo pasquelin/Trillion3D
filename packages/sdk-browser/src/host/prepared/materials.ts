@@ -83,8 +83,8 @@ function extensionParams(
     else if (COLOURS.has(name)) params[name] = linearColour(value as number[])
     else params[name] = Array.isArray(value) ? [...value] : value
   }
-  // The host rebuilds the tangent frame from screen derivatives on geometry without tangents, and
-  // turns the second clear-coat normal factor the way it turns the first.
+  // A frame rebuilt from the triangle, on geometry without tangents, turns the second clear-coat
+  // normal factor the way it turns the first.
   if (entry.kind === 'physical' && entry.derivativeTangents) {
     const scale = (params.clearcoatNormalScale as Vector2 | undefined) ?? new Vector2(1, 1)
     params.clearcoatNormalScale = scale.set(scale.x, -scale.y)

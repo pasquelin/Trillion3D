@@ -16,21 +16,29 @@ test('every object a session creates names it; the device names none', () => {
   assert.equal(handle.limits, gpu.device.limits)
   // Detached, a creation still runs on the device, which refuses any other `this`.
   const { createTexture } = handle
-  createTexture({ size: [1, 1], format: 'r8unorm', usage: 0, label: 'hdr' })
+  createTexture({
+    size: [1, 1],
+    format: 'r8unorm',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+    label: 'hdr',
+  })
   const [label] = gpu.labels
   assert.equal(label, `hdr ${tag}`)
   assert.equal(untag(label), 'hdr')
   assert.deepEqual(tagsIn(`[TextureView of Texture "${label}"]`), tagsIn(tag))
   handle.createCommandEncoder()
-  gpu.device.createBuffer({ size: 4, usage: 0, label: 'raw' })
+  gpu.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE, label: 'raw' })
   assert.deepEqual(gpu.labels.slice(1), [tag, 'raw'])
+  // The render bundles a frame records (`renderBundles.ts`) are the session's too.
+  handle.createRenderBundleEncoder({ label: 'slots', colorFormats: ['r32uint'] })
+  assert.equal(gpu.labels.at(-1), `slots ${tag}`)
 })
 
 test("the tagged label rides on the caller's own descriptor for the call only", () => {
   const gpu = mockGpu()
   const { device: handle, tag } = claimGpuDevice(gpu.device, deviceOwner())
   const mine = { label: 'frame' },
-    unlabelled = { size: 4, usage: 0 }
+    unlabelled = { size: 4, usage: GPUBufferUsage.STORAGE }
   handle.createCommandEncoder(mine)
   handle.createBuffer(unlabelled)
   assert.deepEqual(gpu.given, [mine, unlabelled], 'no copy')
@@ -42,10 +50,12 @@ test('a released handle is inert: its creations abort, its queue writes nothing'
   const gpu = mockGpu()
   const claim = claimGpuDevice(gpu.device, deviceOwner())
   const { queue } = claim.device
-  const buffer = claim.device.createBuffer({ size: 4, usage: 0 })
+  const buffer = claim.device.createBuffer({ size: 4, usage: GPUBufferUsage.COPY_DST })
   queue.writeBuffer(buffer, 0, new Uint8Array(4))
   claim.release()
-  assert.throws(() => claim.device.createBuffer({ size: 4, usage: 0 }), { name: 'AbortError' })
+  assert.throws(() => claim.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE }), {
+    name: 'AbortError',
+  })
   assert.throws(() => claim.device.createCommandEncoder(), { name: 'AbortError' })
   queue.writeBuffer(buffer, 0, new Uint8Array(4))
   queue.writeTexture({ texture: buffer as never }, new Uint8Array(4), {}, [1])
@@ -61,7 +71,7 @@ test("a session released inside a validation scope closes it: the next one's err
   const first = claimGpuDevice(gpu.device, deviceOwner())
   const building = validated(first.device, async () => {
     await Promise.resolve()
-    return first.device.createBuffer({ size: 4, usage: 0 })
+    return first.device.createBuffer({ size: 4, usage: GPUBufferUsage.STORAGE })
   })
   first.release()
   await assert.rejects(building, { name: 'AbortError' })
@@ -82,8 +92,14 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   const { device: handle } = claimGpuDevice(gpu.device, deviceOwner())
   const caches = installGpuDeviceLedger(gpu.device, { counts: namesNoSession })
   const ledger = installGpuDeviceLedger(handle, { base: caches })
-  handle.createBuffer({ size: 8, usage: 0, label: 'page table' })
-  const texture = handle.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 })
+  handle.createBuffer({ size: 8, usage: GPUBufferUsage.STORAGE, label: 'page table' })
+  // A working texture's whole chain, read and stored by the reduction (`webgpu/tile/scratch.ts`).
+  const texture = handle.createTexture({
+    size: [4, 4],
+    format: 'rgba8unorm',
+    mipLevelCount: 3,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+  })
   // What the device keeps for every session is created on it, untagged, and counted by its ledger.
   generateMaterialMips(handle, [
     { texture, format: 'rgba8unorm', width: 4, height: 4, weighted: false },
@@ -93,8 +109,12 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   assert.equal(byLabel['page table'], 8)
   assert.equal(
     byLabel['Trillion3D texture mips uniforms'],
-    3 * 256,
-    'one aligned uniform per level',
+    // Three aligned blocks, held grown to the next power of two (`heldBuffers.grow`).
+    1024,
+    'one aligned uniform per level, held at a power of two',
   )
-  assert.deepEqual(Object.keys(caches.snapshot().byLabel), ['Trillion3D texture mips uniforms'])
+  assert.deepEqual(Object.keys(caches.snapshot().byLabel), [
+    'Trillion3D texture mips uniforms',
+    'Trillion3D coverage bins',
+  ])
 })

@@ -7,7 +7,7 @@ import {
   matrixAtRenderOrigin,
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts'
-import { PREFETCH_HORIZON_MS } from '../../backend/common.ts'
+import { PREFETCH_HORIZON_MS } from '../../engine/common.ts'
 import type { CameraMotion } from '../../camera/world.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 

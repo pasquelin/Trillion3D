@@ -25,6 +25,8 @@ export interface ManifestBinaryDescriptor {
   texturePreviewBc7Bytes: number
   /** Bytes of the ASTC block column. */
   texturePreviewAstcBytes: number
+  /** Bytes of the ETC2 block column. */
+  texturePreviewEtc2Bytes: number
 }
 /** A primitive's culling tree, counted instead of listed. */
 export interface SlimCulling {
@@ -87,6 +89,7 @@ const COUNT_KEYS = {
   texturePreviewBytes: 'texture preview byte length',
   texturePreviewBc7Bytes: 'texture preview BC block byte length',
   texturePreviewAstcBytes: 'texture preview ASTC block byte length',
+  texturePreviewEtc2Bytes: 'texture preview ETC2 block byte length',
   bytes: 'byte length',
 } as const
 type CountKey = keyof typeof COUNT_KEYS

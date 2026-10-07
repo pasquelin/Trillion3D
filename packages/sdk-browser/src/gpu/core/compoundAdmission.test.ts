@@ -10,7 +10,7 @@ for (const kind of ['draw', 'partition'] as const) {
     const gpu = fakeDevice()
     const firstBytes = kind === 'draw' ? 20 : 192
     const ledger = installGpuDeviceLedger(gpu.device, { limit: () => 64 + firstBytes })
-    const previous = gpu.device.createBuffer({ size: 64, usage: 0 })
+    const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
     const sources = {
       items: previous,
       flags: previous,
@@ -31,7 +31,7 @@ for (const kind of ['draw', 'partition'] as const) {
     const gpu = fakeDevice()
     let ceiling = 1e9
     const ledger = installGpuDeviceLedger(gpu.device, { limit: () => ceiling })
-    const previous = gpu.device.createBuffer({ size: 64, usage: 0 })
+    const previous = gpu.device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
     const sources = {
       items: previous,
       flags: previous,

@@ -7,7 +7,8 @@ import { guardMaps } from './mapGuard.ts'
 import { createPassTimer } from './passTimer.ts'
 import { profiledAdapter } from './profiles.ts'
 
-/** What one frame asked of the GPU: passes (timed or not), copies, bytes written, objects made. */
+/** What one frame asked of the GPU: passes (timed or not), copies, bytes written, objects made
+ *  (render bundles recorded included). */
 export const COUNTS = [
   'submits',
   'renderPasses',
@@ -23,6 +24,7 @@ export const COUNTS = [
   'texturesMade',
   'bindGroupsMade',
   'pipelinesMade',
+  'bundlesMade',
 ] as const
 export type Counts = Record<(typeof COUNTS)[number], number>
 const zero = () => Object.fromEntries(COUNTS.map((key) => [key, 0])) as Counts
@@ -146,6 +148,8 @@ export function installGpu(profile: {
   )
   counted(device, 'createTexture', () => add('texturesMade'))
   counted(device, 'createBindGroup', () => add('bindGroupsMade'))
+  // A render bundle is recorded on the frame its inputs moved, replayed by the others.
+  counted(device, 'createRenderBundleEncoder', () => add('bundlesMade'))
   for (const make of [
     'createRenderPipeline',
     'createComputePipeline',

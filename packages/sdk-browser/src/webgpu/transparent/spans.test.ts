@@ -1,5 +1,5 @@
 import test from 'node:test'
-import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts'
+import { MANIFEST_IDENTITY } from '../../engine/pagesEngine.fixture.ts'
 import assert from 'node:assert/strict'
 import { createWebgpuPagesRuntime } from '../pages/runtime.ts'
 import { ensurePageTable } from '../pages/render/pageTable.ts'

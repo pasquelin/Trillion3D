@@ -1,33 +1,37 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { probeWorldRenderer } from '../capability/worldReady.ts'
+import { probeWorldDevice } from '../capability/worldReady.ts'
 import { holdWorldDevice, worldRecovered } from './worldDevice.ts'
 import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts'
 import { createPageCache } from '../../streaming/pageCache.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../engine/common.ts'
 
-const canvas = {} as HTMLCanvasElement
-
-test('an adapter that refuses its device leaves the world on WebGL2', async () => {
+test('an adapter that refuses its device refuses the world by name', async () => {
   const adapter = {
     features: new Set<string>(),
     limits: {},
     requestDevice: () => Promise.reject(new Error('device refused')),
   }
-  const gl = { getSupportedExtensions: () => [], getExtension: () => null }
-  const saved = { navigator: globalThis.navigator, document: Reflect.get(globalThis, 'document') }
+  const saved = globalThis.navigator
   Object.defineProperty(globalThis, 'navigator', {
     configurable: true,
-    value: { gpu: { requestAdapter: async () => adapter } },
+    value: {
+      gpu: {
+        wgslLanguageFeatures: new Set<string>(WEBGPU_REQUIRED_WGSL_FEATURES),
+        requestAdapter: async () => adapter,
+      },
+    },
   })
-  Reflect.set(globalThis, 'document', { createElement: () => ({ getContext: () => gl }) })
   try {
-    assert.deepEqual(await probeWorldRenderer(canvas, undefined), { renderer: 'webgl2' })
-    // Forced, the refusal is said by name.
-    await assert.rejects(probeWorldRenderer(canvas, 'webgpu'), /refused a device: .*refused/)
+    await assert.rejects(
+      probeWorldDevice(),
+      (error: unknown) =>
+        (error as { code?: string }).code === 'WEBGPU_UNAVAILABLE' &&
+        /refused a device \(Error: device refused\)/.test((error as Error).message),
+    )
   } finally {
-    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: saved.navigator })
-    Reflect.set(globalThis, 'document', saved.document)
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: saved })
   }
 })
 
@@ -36,19 +40,11 @@ test('a lost device is asked for again, and the session reopened on the new one'
   let asked = 0,
     reopened = 0,
     lostAt = NaN
-  const probe = async () => ({
-    renderer: 'webgpu' as const,
-    gpuDevice: devices[asked++].device,
-  })
-  const held = holdWorldDevice(
-    canvas,
-    undefined,
-    (at) => {
-      reopened++
-      lostAt = at
-    },
-    probe,
-  )
+  const probe = async () => devices[asked++].device as unknown as GPUDevice
+  const held = holdWorldDevice((at) => {
+    reopened++
+    lostAt = at
+  }, probe)
   await held.ready
   assert.equal(held.gpuDevice, devices[0].device)
   const warn = console.warn
@@ -68,23 +64,23 @@ test('a lost device is asked for again, and the session reopened on the new one'
   assert.equal(asked, 2)
 })
 
-test('a session opened while a device is asked again waits on it, and a WebGL2 grant fails', async () => {
+test('a session opened while a device is asked again waits on it, and a refused grant fails', async () => {
   const first = fakeDevice()
-  let answer!: (granted: { renderer: 'webgpu' | 'webgl2'; gpuDevice?: GPUDevice }) => void
+  let refuse!: (error: Error) => void
   let asked = 0,
     reopened = 0
   const probe = () =>
     asked++ === 0
-      ? Promise.resolve({ renderer: 'webgpu' as const, gpuDevice: first.device as never })
-      : new Promise<{ renderer: 'webgpu' | 'webgl2'; gpuDevice?: GPUDevice }>((r) => (answer = r))
-  const held = holdWorldDevice(canvas, undefined, () => reopened++, probe)
+      ? Promise.resolve(first.device as unknown as GPUDevice)
+      : new Promise<GPUDevice>((_, reject) => (refuse = reject))
+  const held = holdWorldDevice(() => reopened++, probe)
   await held.ready
   const warn = console.warn
   console.warn = () => {}
   first.lose({ reason: 'unknown', message: 'driver reset' })
   for (let turn = 0; turn < 10 && asked < 2; turn++) await new Promise(setImmediate)
   console.warn = warn
-  // In the window, no device is held: an opening waits on the grant instead of taking WebGL2.
+  // In the window, no device is held: an opening waits on the grant.
   assert.equal(held.gpuDevice, undefined)
   assert.notEqual(held.pending, held.ready)
   let settled = false
@@ -94,9 +90,9 @@ test('a session opened while a device is asked again waits on it, and a WebGL2 g
   )
   await new Promise(setImmediate)
   assert.equal(settled, false)
-  // The machine now grants WebGL2 alone: the canvas holds a WebGPU context, the grant fails by name.
-  answer({ renderer: 'webgl2' })
-  assert.match(String(await opening), /WebGPU device was lost, none granted again/)
+  // The machine now grants no device: the grant fails by name.
+  refuse(new Error('WEBGPU_UNAVAILABLE: none granted again'))
+  assert.match(String(await opening), /none granted again/)
   for (let turn = 0; turn < 10 && !reopened; turn++) await new Promise(setImmediate)
   assert.equal(reopened, 1, 'the session reopens, and reports the refusal')
   held.dispose()

@@ -7,11 +7,18 @@ import { SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts'
 import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
 import { directLightSamplingWgsl } from './lightSamplingWgsl.ts'
 import { CONTRACT_VSM_BINDINGS, directShadowWgsl, type VsmConsumerBindings } from './shadowWgsl.ts'
-import { ALL_SHADOW_KINDS, type ShadowKinds } from './shadowKinds.ts'
+import { shadowKindsOf } from './shadowKinds.ts'
+import { LOBELESS_KEY, type ContractKey } from '../deferred/contractCuts.ts'
 import { BOUNCE_TRACE_WGSL } from '../../bounce/traceWgsl.ts'
 import { VSM_TRANSMISSION_RESOLVE_BINDING } from '../../vsm/transmissionWgsl.ts'
 import { INVERSE_PI } from '../shaderConstants.ts'
 import { FOG_WGSL } from '../fogShader.ts'
+import {
+  LOBELESS_LIGHTING_WGSL,
+  LOBELESS_TARGET_WGSL,
+  LOBES_LIGHTING_WGSL,
+  LOBES_TARGET_WGSL,
+} from './lobesWgsl.ts'
 
 /** Shadow bindings past the virtual shadow maps' own (`CONTRACT_VSM_BINDINGS`), on the numbers the
  *  water composite reads them at too: the opaque resolve's mask — a forward pass's transmission
@@ -25,14 +32,14 @@ export const CONTRACT_SHADOW_BINDINGS = {
  *  pass (`../../vsm/markingWgsl.ts`). */
 export const TILE_SLICE_WGSL = `
 /** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
- *  many. \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+ *  many (#1369). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
 fn cellSlice(base:u32)->vec2u{
  let first=tileLights[base+1u];
  return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
 }`
 /**
  * A pixel's cell of the light grid, read by the opaque resolve (`surfaceWgsl.ts`) and the virtual shadow maps'
- * marking pass (`../../vsm/markingWgsl.ts`), both on the deferred view. Without
+ * marking pass (`../../vsm/markingWgsl.ts`), both on the deferred view (#1369). Without
  * `shadowed`, the program with no shadow code: no cell reads a shadow.
  */
 export const pixelCellWgsl = (shadowed = true) => `
@@ -46,40 +53,47 @@ fn pixelCell(pixel:vec2f,z:f32)->u32{
  *  of its count. */
 fn cellShadowed(cell:u32)->bool{${shadowed ? 'return cell!=TILE_NO_SLICE&&(tileLights[cell]&TILE_SHADOWED)!=0u;' : 'return false;'}}`
 /**
+ * The **ranks** of the bindings a lighting program reads, which the layouts number differently:
+ * the resident proxy, which the mirror reflection traces (`bounce/reflectWgsl.ts`), the translucent
+ * casters' transmittance and the virtual shadow maps' (`CONTRACT_VSM_BINDINGS` unless given). The
+ * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
+ * transmission; the blend and water passes, without it, read the transmission alone
+ * (`directShadowWgsl`).
+ */
+export type LightingBindings = {
+  proxy: number
+  transmittance: number
+  vsm?: VsmConsumerBindings
+  resolveTransmission?: number
+}
+
+/**
  * Base of the two lighting passes: contract types, shadow reads, and the contribution of a
  * single declared light at the point, its shadow included — the engine's only lighting
  * formula. The two loops below differ only by the light list they walk, never by the
  * physics or the surface type. A light out of range, or fully in shadow, yields exactly zero.
- *
- * Both passes bind the resident proxy, which the mirror reflection traces (`bounce/reflectWgsl.ts`).
- * The parameters are the **ranks** of the bindings, which the layouts number differently: the
- * opaque resolve reads its mask and, at `resolveTransmission`, the translucent casters'
- * transmission; the blend and water passes, null there, read the transmission alone
- * (`directShadowWgsl`).
+ * What `key` leaves out is not compiled (`ContractKey`); `narrow`, the opaque resolve's alone.
  */
 const lightingBase = (
-  proxyBinding: number,
-  resolveTransmission: number | null,
-  transmittanceBinding: number,
-  narrow = false,
-  shadowed = true,
-  rects = true,
-  vsmBindings: VsmConsumerBindings = CONTRACT_VSM_BINDINGS,
-  pair = false,
-  kinds: ShadowKinds = ALL_SHADOW_KINDS,
-) => `
+  bindings: LightingBindings,
+  key: Partial<ContractKey>,
+  { narrow = false, pair = false } = {},
+) => {
+  const shadowed = !key.unshadowed
+  return `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
-${residentProxyWgsl(proxyBinding)}
+${residentProxyWgsl(bindings.proxy)}
 ${BOUNCE_TRACE_WGSL}
-${directShadowWgsl(resolveTransmission, transmittanceBinding, vsmBindings, undefined, kinds)}
+${directShadowWgsl(bindings.resolveTransmission ?? null, bindings.transmittance, bindings.vsm ?? CONTRACT_VSM_BINDINGS, undefined, shadowKindsOf(key))}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
+${key.lobeless ? LOBELESS_LIGHTING_WGSL : LOBES_LIGHTING_WGSL}
 ${FOG_WGSL}
 var<private> thinSubsurface:vec3f=vec3f(0.0);
 /** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
  * A Lambert lobe on the back side: the light that reaches the surface from behind, as the two-sided foliage contract asks. */
 fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*${INVERSE_PI};}
-${declaredLightWgsl(shadowed, rects, pair)}
+${declaredLightWgsl(key, { pair })}
 /** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
@@ -88,6 +102,14 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 ${TILE_SLICE_WGSL}${sliceLightingWgsl(!shadowed, pair)}`
+}
+
+/** The opaque resolve's bindings (`lightingBase`). */
+const DIRECT_BINDINGS: LightingBindings = {
+  proxy: RESIDENT_PROXY_BINDING,
+  transmittance: CONTRACT_SHADOW_BINDINGS.transmittance,
+  resolveTransmission: VSM_TRANSMISSION_RESOLVE_BINDING,
+}
 
 /**
  * Resolve of the direct-lighting contract in the visibility buffer. The pixel loop is bounded
@@ -103,23 +125,21 @@ ${TILE_SLICE_WGSL}${sliceLightingWgsl(!shadowed, pair)}`
  * accumulates — and zero for every other: a still image, which converges to the exact sum,
  * and an image that does not accumulate, which is never noisy. At zero the loop is the one
  * over every light of the cell, character for character; so is it on a sampled image whose cell
- * lists no shadowed light, a flag the grid pass writes once in the cell's count.
+ * lists no shadowed light (#1249), a flag the grid pass writes once in the cell's count.
  *
- * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights: its light array is
- * that long. Without `shadowed`, the resolve of a scene no light of which holds a shadow slot: the
- * same sums with no shadow code compiled in (`declaredLightWgsl`) and the range reject in
- * its loop (`sliceLightingWgsl`). Without `rects`, the resolve of a scene that holds no rectangle
- * light: the same sums with no rectangle code in the light loop (`declaredLightWgsl`).
+ * The program `key` names (`ContractKey`, `LOBELESS_KEY` unless given). `narrow`, the resolve of a
+ * scene of at most `TILE_LIGHTS` lights (#849): its light array is that long. `unshadowed`, the
+ * resolve of a scene no light of which holds a shadow slot: the same sums with no shadow code
+ * compiled in (`declaredLightWgsl`, #1249) and the range reject in its loop (`sliceLightingWgsl`).
+ * `rectless`, the resolve of a scene that holds no rectangle light: the same sums with no rectangle
+ * code in the light loop (`declaredLightWgsl`, #1369). Without `lobeless`, the resolve of an image
+ * that holds an anisotropic or clear-coat surface (`lobesWgsl.ts`).
  */
-export const directLightingWgsl = (
-  narrow = false,
-  shadowed = true,
-  rects = true,
-  kinds: ShadowKinds = ALL_SHADOW_KINDS,
-) => `
-${lightingBase(RESIDENT_PROXY_BINDING, VSM_TRANSMISSION_RESOLVE_BINDING, CONTRACT_SHADOW_BINDINGS.transmittance, narrow, shadowed, rects, undefined, undefined, kinds)}
-${directLightSamplingWgsl(rects)}
-${pixelCellWgsl(shadowed)}
+export const directLightingWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) => `
+${lightingBase(DIRECT_BINDINGS, key, { narrow: !!key.narrow })}
+${key.lobeless ? LOBELESS_TARGET_WGSL : LOBES_TARGET_WGSL}
+${directLightSamplingWgsl(!key.rectless)}
+${pixelCellWgsl(!key.unshadowed)}
 /** Contribution of the contract lights to the pixel, light by light of its cell's list;
  *  \`shadowed\` is \`cellShadowed(cell)\`. The full sum has this one call site: a list the draw
  *  refuses — short, long, or with no room in the pool — takes it, as a still image does. */
@@ -133,7 +153,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 
 /**
  * Declared lights that light a blend surface, taken from the list of the cell its own depth `z`
- * falls in: a blend surface drawn in front of its pixel's opaque, or against the sky,
+ * falls in (#1369): a blend surface drawn in front of its pixel's opaque, or against the sky,
  * finds the lights of the cell it stands in, never those of the opaque behind it.
  *
  * The loop stays **exact**, and its sum is that of the loop over every light, bit for bit:
@@ -148,20 +168,19 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * albedo (`declaredLightWgsl`), each that of its own walk bit for bit — the water lights its pixel
  * once for its colour and its reflection's specular.
  *
- * Without `shadowed`, the loop of a scene no light of which holds a shadow slot; without `rects`,
- * of a scene that holds no rectangle light: the opaque resolve's same two programs
- * (`declaredLightWgsl`), picked on the same key (`createLitVariants`).
+ * `key` (`LOBELESS_KEY` unless given) as the opaque resolve's, its `narrow` aside: `unshadowed`,
+ * the loop of a scene no light of which holds a shadow slot; `rectless`, of a scene that holds no
+ * rectangle light (`declaredLightWgsl`, #1249, #1369), picked on the same key
+ * (`createLitVariants`). Without `lobeless`, the forward pass's program of a scene that holds an
+ * anisotropic or clear-coat surface: its lights go through the lobes (`lobesWgsl.ts`), which the
+ * fragment sets itself.
  */
 export const declaredLightingWgsl = (
-  proxyBinding: number,
-  transmittanceBinding: number,
-  vsmBindings: VsmConsumerBindings = CONTRACT_VSM_BINDINGS,
-  pair = false,
-  shadowed = true,
-  rects = true,
-  kinds: ShadowKinds = ALL_SHADOW_KINDS,
+  bindings: LightingBindings,
+  key: Partial<ContractKey> = LOBELESS_KEY,
+  { pair = false } = {},
 ) => `
-${lightingBase(proxyBinding, null, transmittanceBinding, false, shadowed, rects, vsmBindings, pair, kinds)}
+${lightingBase(bindings, key, { pair })}
 fn declaredLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->${pair ? 'LightPair' : 'vec3f'}{
  let cell=gridCell(pixel,z,vec2u(uni.lightTiles));
  var slice=vec2u(TILE_NO_SLICE,directLights.count);
