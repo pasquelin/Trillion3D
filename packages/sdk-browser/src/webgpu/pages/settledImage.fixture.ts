@@ -7,25 +7,23 @@ import assert from 'node:assert/strict'
 import type { Engine } from '../../engine/types.ts'
 import { camera, flushedImage } from './testScenes.fixture.ts'
 
-type Settling = Pick<
-  Engine,
-  'render' | 'flush' | 'metrics' | 'pendingUrls' | 'pageUrls' | 'landings'
->
+type Settling = Pick<Engine, 'render' | 'flush' | 'metrics' | 'pendingUrls' | 'pageUrls'>
 
 /** What an image leaves the host: the pages it pins — the cut it asks and what it draws — and
- *  the pages landed so far. */
+ *  the pages resident. Not `landings`: it also counts the still average's quiet images, which a
+ *  still pose keeps drawing long after its pages have landed (`taaArrivals`). */
 const hostState = (backend: Settling) =>
-  `${[...backend.pageUrls()].sort().join()}|${backend.landings()}`
+  `${[...backend.pageUrls()].sort().join()}|${backend.metrics().residentPages}`
 
 /**
  * Images drawn at `cam`, each drained then drawn again, until one counts its cut on the residency
  * in place and — `arrived`, the default — the pose is served: nothing for the host to fetch
  * (`pendingUrls`, the pages the session holds no bytes of), and since the image before, no page
- * landed and the pinned pages did not move. A page the cut asks whose bytes the session already
- * holds is never pending for the host: the engine queues its upload itself at the image after
- * the adoption, and it lands in the next drain — a landing, or a cut that moved, is that image
- * still on its way. It ends on a drawn image: its lists and counts are the settled cut's. At most
- * `images`.
+ * became resident and the pinned pages did not move. A page the cut asks whose bytes the session
+ * already holds is never pending for the host: the engine queues its upload itself at the image
+ * after the adoption, and it lands in the next drain — a page made resident, or a cut that moved,
+ * is that image still on its way. It ends on a drawn image: its lists and counts are the settled
+ * cut's. At most `images`.
  */
 export async function settledImage(
   backend: Settling,

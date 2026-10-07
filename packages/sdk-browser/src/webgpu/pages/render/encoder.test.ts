@@ -60,20 +60,24 @@ test('encoding-submit: drawnTriangles publishes run.drawnTriangles, never null o
     const submissions = () => events.filter((event) => event.phase === 'encoding-submit')
     /** An image drawn: its submit traces the count the run held as it went out — 0 before the GPU
      *  cut's first readback lands (#1483), its count after —, never null. An image that waits for
-     *  its root cover submits no draw and traces none. Returns the submits it traced. */
-    const image = () => {
+     *  its root cover submits no draw and traces none. Returns the submits it traced. The count is
+     *  read as the image leaves; the trace channel hands its events over one microtask later
+     *  (`../io/diagnostics.ts`), so they are read once it has. */
+    const image = async () => {
       const before = submissions().length
       backend.render(cam)
+      const held = backend.metrics().drawnTriangles
+      await Promise.resolve()
       const traced = submissions().slice(before)
       for (const { context } of traced) {
         assert.equal(typeof context.drawnTriangles, 'number')
-        assert.equal(context.drawnTriangles, backend.metrics().drawnTriangles)
+        assert.equal(context.drawnTriangles, held)
       }
       return traced.length
     }
-    let traced = image()
+    let traced = await image()
     await backend.flush()
-    traced += image()
+    traced += await image()
     assert.ok(traced > 0, 'an image traced its submit')
 
     assert.ok(

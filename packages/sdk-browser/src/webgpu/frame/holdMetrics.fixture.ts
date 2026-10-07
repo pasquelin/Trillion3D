@@ -95,6 +95,8 @@ export function heldFrame() {
     },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },
+    // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
+    diag: { traceEnabled: false },
   } as unknown as WebgpuPagesRuntime
   const { device } = fakeDevice()
   return { rt, run, timing, device }

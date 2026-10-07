@@ -58,11 +58,13 @@ test('a still view of blend clusters alone holds its frame, and a moved one redr
 test('a still view with no cluster DAG — unpaged surfaces alone — holds its frame', async () => {
   installGpuGlobals()
   const scene = quadScene()
-  scene.metadata.primitives = []
+  // The quad's one primitive drawn from its own geometry, unpaged: the scene packs no root.
+  scene.metadata.primitives[0].pass = 'shared-blend'
   scene.material.transparent = true
   scene.material.opacity = 0.5
-  const { backend } = await flushedGpuScene(scene)
+  const { backend, roots } = await flushedGpuScene(scene)
   try {
+    assert.equal(roots.length, 0, 'witness: no cluster DAG is packed')
     assert.notEqual(await firstHeld(backend), -1, 'no cut to move: the still view is held')
   } finally {
     backend.dispose()

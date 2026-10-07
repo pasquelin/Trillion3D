@@ -64,6 +64,9 @@ export function settledRt() {
     lights: {
       changes: { deferred: () => false },
       store: { count: 0, epoch: 1 },
+      // The declared-light buffer prepare makes before any frame (`preparePages.ts`): the one the
+      // lit program binds (`directLightResources`).
+      buffer: {} as GPUBuffer,
     },
     bounce: { probes: undefined as unknown },
     capture: { capturing: false, capturePending: false },
@@ -103,6 +106,8 @@ export function settledRt() {
     context: {} as { effects?: EffectChain; guides?: GuideSet },
     // No transparent: the frame entry asks no share seed (`askFramePipelines`).
     blendState: { blendGpu: [] as unknown[] },
+    // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
+    diag: { traceEnabled: false },
   }
   return rt as unknown as WebgpuPagesRuntime & typeof rt
 }
