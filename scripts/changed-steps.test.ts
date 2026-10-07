@@ -42,6 +42,20 @@ test('a changed reference value runs the golden tests that read it', () => {
   })
 })
 
+// Behaviour: a tracked file deleted in the working tree is skipped, not read.
+test('a candidate deleted in the working tree is no crash', () => {
+  const sources: Record<string, string> = {
+    'packages/math/rust/src/golden_tests.rs': 'Twin { file: "grid",',
+    'packages/math/src/gone.golden.test.ts': "assertGolden('grid', 'tile'",
+  }
+  assert.deepEqual(
+    goldenChecks(['packages/math/golden/grid.json'], Object.keys(sources), (path) =>
+      path === 'packages/math/src/gone.golden.test.ts' ? null : sources[path],
+    ),
+    { crates: ['packages/math/rust'], tests: [] },
+  )
+})
+
 // Behaviour: a reference file is found whatever its name holds — a dash, a dot —, the name matched
 // as written, never as a pattern.
 test('a reference file of any name runs the golden tests that read it', () => {

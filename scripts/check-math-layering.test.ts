@@ -125,6 +125,15 @@ test('a test of the package reads its reference values beside the sources, a mod
   const folder = "new URL('../golden/', import.meta.url)"
   assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', asset]])), [])
   assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', folder]])), [])
+  const bare = "new URL('../golden', import.meta.url)"
+  assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', bare]])), [])
+  assert.equal(mathLayeringBreaks(new Map([['packages/math/src/a.ts', bare]])).length, 1)
+  // The module's own folder is inside the unit.
+  const here = "new URL('.', import.meta.url)"
+  assert.deepEqual(mathLayeringBreaks(new Map([['packages/math/src/float/a.ts', here]])), [])
+  // The unit's parent folder is not.
+  const up = "new URL('..', import.meta.url)"
+  assert.equal(mathLayeringBreaks(new Map([['packages/math/src/a.fixture.ts', up]])).length, 1)
   assert.equal(mathLayeringBreaks(new Map([['packages/math/src/a.ts', asset]])).length, 1)
   for (const other of [
     "new URL('../../sdk-core/src/x.json', import.meta.url)",

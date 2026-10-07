@@ -5,6 +5,7 @@
 // hold the writers; here the readers decode those very words.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { PROXY_LEAF_OWNED } from '../../../sdk-core/src/scene/core/proxyLeaves.ts'
 import { eachGolden } from '../../../math/src/golden.fixture.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { BOUNCE_NODE_WGSL, PROXY_ALBEDO_WGSL } from './nodeWgsl.ts'
@@ -45,6 +46,10 @@ test('proxyChild decodes the words of the compiler into a box that holds the chi
     assert.equal(child.offset, v[13], line)
     assert.equal(child.count, v[12] & 255, line)
     assert.equal(child.present, true, line)
+    // The writer ORs the count into word 1 above bit 16: it sets the owned bit only by a count
+    // that reaches it.
+    assert.equal(child.owned, (words[1] & PROXY_LEAF_OWNED) !== 0, line)
+    assert.equal(child.owned, (((v[12] << 16) >>> 0) & PROXY_LEAF_OWNED) !== 0, line)
     const bytes = [words[0] & 255, (words[0] >> 8) & 255, (words[0] >> 16) & 255]
     const top = [(words[0] >>> 24) & 255, words[1] & 255, (words[1] >> 8) & 255]
     for (let axis = 0; axis < 3; axis++) {

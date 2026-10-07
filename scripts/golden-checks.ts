@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { NATIVE_CRATES } from './native-crates.ts'
 
 // The golden checks a change of reference values runs (`check-changed.ts`): the values of
@@ -16,11 +16,12 @@ export interface GoldenChecks {
   tests: string[]
 }
 
-/** The golden checks of the `changed` files among the repository's `paths`, read by `read`. */
+/** The golden checks of the `changed` files among the repository's `paths`, read by `read` (null
+ *  for a file the working tree no longer holds). */
 export function goldenChecks(
   changed: Iterable<string>,
   paths: readonly string[],
-  read = (file: string) => readFileSync(file, 'utf8'),
+  read = (file: string) => (existsSync(file) ? readFileSync(file, 'utf8') : null),
 ): GoldenChecks {
   // A name is matched as written: a `.` or a `+` in it is no pattern.
   const names = [...changed]
@@ -31,11 +32,12 @@ export function goldenChecks(
   const anyName = names.join('|')
   const twin = new RegExp(`file:\\s*"(?:${anyName})"`)
   const golden = new RegExp(`(?:assertGolden|eachGolden)\\(\\s*'(?:${anyName})'`)
-  const texts = new Map<string, string>()
+  const texts = new Map<string, string | null>()
+  // A tracked file deleted in the working tree is no candidate.
   const reads = (file: string, pattern: RegExp) => {
-    const text = texts.get(file) ?? read(file)
-    texts.set(file, text)
-    return pattern.test(text)
+    const text = texts.has(file) ? texts.get(file) : read(file)
+    texts.set(file, text ?? null)
+    return text != null && pattern.test(text)
   }
   return {
     crates: NATIVE_CRATES.map((crate) => crate.path).filter((crate) =>
