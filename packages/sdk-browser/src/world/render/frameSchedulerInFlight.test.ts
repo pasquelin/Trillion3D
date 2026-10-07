@@ -3,8 +3,11 @@
 // and a still view still pauses at its settle limit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createExplorerFrameScheduler, FRAMES_IN_FLIGHT } from './frameScheduler.ts'
+import { createExplorerFrameScheduler } from './frameScheduler.ts'
 import { frameQueue } from './frameQueue.fixture.ts'
+
+/** The scheduler's `FRAMES_IN_FLIGHT`. */
+const FRAMES_IN_FLIGHT = 2
 
 /** Every microtask a settled feedback runs is done: the loop's decision is made. */
 const decided = () => new Promise(setImmediate)

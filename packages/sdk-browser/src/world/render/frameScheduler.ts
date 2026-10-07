@@ -9,7 +9,7 @@ const SETTLE_LIMIT = 120
  * third would hide nothing more and only age the input and every feedback by one frame; the rings
  * the feedback comes back through hold as many buffers (`DAG_READBACK_SLOTS`).
  */
-export const FRAMES_IN_FLIGHT = 2
+const FRAMES_IN_FLIGHT = 2
 
 /**
  * One coalesced frame, with asynchronous work waited outside the rendering callback.
