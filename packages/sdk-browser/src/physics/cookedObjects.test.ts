@@ -6,21 +6,20 @@ import {
   cooked,
   declared,
   fixture,
+  hull,
   landed,
   modelStreamer,
+  owners,
   stubFetch,
 } from './tiles.fixture.ts'
 
 /** The engine ids of the declared bodies among the first eight slots of `bodies`. */
 const crateIds = (bodies: Awaited<ReturnType<typeof opened>>['bodies']) =>
-  Array.from({ length: 8 }, (_, slot) => bodies.slots.at(slot)).flatMap((owner) =>
-    owner && 'body' in owner ? [owner.body.id] : [],
-  )
+  owners(bodies, 8).flatMap((owner) => ('body' in owner ? [owner.body.id] : []))
 
 test('a hull three declared bodies share is read and restored once, each body built on it', async () => {
-  const hull = { type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 1 }
   const crates = [0, 1, 2].map((node) =>
-    declared(node, [node * 3, 0, 0], { isKinematic: true }, hull),
+    declared(node, [node * 3, 0, 0], { isKinematic: true }, hull()),
   )
   const fetched = stubFetch({ ...cooked([], []), bodies: crates }, await fixture('cube-hull.bin'))
   const { tiles, scene, writer, bodies } = modelStreamer({}, 1, crates)
@@ -96,9 +95,8 @@ test('a second load of an asset makes its cloth from the settings the first one 
 })
 
 test('declared bodies on a cooked hull count no static bytes, each or shared, as before the registry', async () => {
-  const hull = { type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 500 }
   const crates = [1, 2, 3].map((node) =>
-    declared(node, [node * 3, 0, 0], { isKinematic: true }, hull),
+    declared(node, [node * 3, 0, 0], { isKinematic: true }, hull('hull.bin', 500)),
   )
   stubFetch({ ...cooked([], []), bodies: crates }, new Uint8Array(4))
   const { tiles, scene, bodies } = modelStreamer({}, 1, crates)

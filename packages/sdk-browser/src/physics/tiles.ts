@@ -11,15 +11,8 @@ import { createModelBodies } from './modelBodies.ts'
 import { SharedShapes } from './sharedShapes.ts'
 import { createResidentTiles } from './tileResident.ts'
 import { TileSchedule } from './tileSchedule.ts'
-import {
-  cookedPhysics,
-  isModel,
-  locate,
-  placedOf,
-  tilePose,
-  type Model,
-  type Placed,
-} from './tilePlace.ts'
+import { cookedPhysics } from './cookedReads.ts'
+import { isModel, locate, placedOf, tilePose, type Model, type Placed } from './tilePlace.ts'
 
 /** An open model's opening: its tiles, empty until its file lands, and the abort its leaving lets
  *  go of its file's read by — one back while it was on its way lands once, the later. */
@@ -56,7 +49,7 @@ export function createTileStreamer(
   const declared = createModelBodies(writer, bodies, shapes, invalidate, failed)
   const resident = createResidentTiles(writer, bodies, shapes)
   const schedule = new TileSchedule({ bodies, declared, shapes, resident, invalidate, failed })
-  bodies.onFull(() => schedule.evictFarthest())
+  bodies.onFull({ held: resident.held, evictFarthest: () => schedule.evictFarthest() })
   function open(model: Model) {
     const opening: TileOpening = { placed: [], abort: new AbortController() }
     const { signal } = opening.abort
@@ -71,16 +64,6 @@ export function createTileStreamer(
       })
       // A read its model let go of by leaving is no failure.
       .catch((error) => signal.aborted || failed(error as EngineError))
-  }
-  /** Placement `p` out of its opening for good, until its model opens again. */
-  const leave = (p: Placed) => {
-    const placed = models.get(p.model)?.placed
-    // Out already: left, or its model gone.
-    if (placed?.[p.at] !== p) return
-    resident.remove(p)
-    // Its place taken by the last one: O(1).
-    const last = placed.pop()!
-    if (last !== p) placed[(last.at = p.at)] = last
   }
   /** Everything `model` holds out: its tiles, their shapes let go of, and its declared bodies. */
   const drop = (model: Model, { placed, abort }: TileOpening) => {
@@ -114,7 +97,7 @@ export function createTileStreamer(
       const count = bodies.count,
         held = resident.held.bodies
       schedule.admit(
-        share - count.collisionBytes + bodies.shared.bytes,
+        share - count.collisionBytes + shapes.bytes,
         budget.bodies - count.bodies + held,
       )
       schedule.start()
@@ -125,7 +108,7 @@ export function createTileStreamer(
      *  until its model opens again — a tile leaves whole only by a 4xx on its read. */
     refused(id: number) {
       const owner = bodies.slots.of(id)
-      if (owner && 'tile' in owner) leave(owner.tile)
+      if (owner && 'tile' in owner) resident.remove(owner.tile)
       else if (owner) declared.refused(owner)
       shapes.settle()
     },

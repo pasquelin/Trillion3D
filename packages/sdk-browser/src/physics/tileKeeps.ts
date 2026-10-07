@@ -1,70 +1,51 @@
+import { partitionBy, selectByKey } from '../../../sdk-core/src/math/select.ts'
 import type { SharedShapes } from './sharedShapes.ts'
 import type { Placed, TileShape } from './tilePlace.ts'
 
-const farFirst = (a: { near: number }, b: { near: number }) => b.near - a.near
+const nearOf = (p: Placed) => p.near
+const hasBody = (p: Placed) => p.id >= 0
 
 /**
  * What the tiles hold from one update to the next: each tile a placement of which an update lets
- * in, kept restored by one use (`SharedShapes.use`) taken before the last update's are let go of;
- * the bytes landed for the others, kept while the room left allows, the farthest let go first;
- * and the bodies of the placements let in, farthest first, for a body that needs a slot.
+ * in, kept restored by one use (`SharedShapes.use`) taken before the last update's are let go of,
+ * with the placements let in that wait for its restore (`TileShape.waiting`); and the bodies of
+ * the placements let in, the farthest leaving first for a body that needs a slot.
  */
 export function createTileKeeps(shapes: SharedShapes, evict: (p: Placed) => void) {
   let keeping: TileShape[] = [],
     kept: TileShape[] = [],
-    ordered = false,
-    next = 0
-  const landed: TileShape[] = [],
-    order: Placed[] = []
+    count = 0
   return {
-    /** Keeps the tiles of `placed[0, n)`, let in by update `pass`; lets go of the last update's. */
+    /** Keeps the tiles of `placed[0, n)`, let in by update `pass`, each unrestored one with the
+     *  placements of it waiting; lets go of the last update's. */
     keep(placed: readonly Placed[], n: number, pass: number) {
+      let next = 0
       for (let i = 0; i < n; i++) {
-        const shape = placed[i].shape
-        if (shape.kept === pass) continue
-        shape.kept = pass
-        shapes.use(shape)
-        keeping.push(shape)
+        const p = placed[i],
+          shape = p.shape
+        if (shape.kept !== pass) {
+          shape.kept = pass
+          shape.waits = 0
+          shapes.use(shape)
+          keeping[next++] = shape
+        }
+        if (shape.handle < 0) shape.waiting[shape.waits++] = p
       }
-      for (let i = 0; i < kept.length; i++) shapes.done(kept[i])
-      kept.length = 0
+      for (let i = 0; i < count; i++) shapes.done(kept[i])
       const last = kept
       kept = keeping
       keeping = last
-      ordered = false
+      count = next
     },
-    /** Lets go of the bytes landed for tiles update `pass` keeps none of, farthest first — one
-     *  it did not see at all first —, past `room`. */
-    trim(room: number, pass: number) {
-      landed.length = 0
-      let total = 0
-      for (const shape of shapes.landedShapes as TileShape[])
-        if (shape.kind === 'tile' && shape.kept !== pass) {
-          if (shape.seen !== pass) shape.near = Infinity
-          landed.push(shape)
-          total += shape.bytes
-        }
-      if (total <= room) return
-      landed.sort(farFirst)
-      for (let i = 0; i < landed.length && total > room; i++) {
-        total -= landed[i].bytes
-        shapes.drop(landed[i])
-      }
-    },
-    /** Evicts the farthest body of `placed[0, n)`, the placements the last update let in: their
-     *  order taken once an update, at its first eviction, each next one O(1) amortised. */
-    evictFarthest(placed: readonly Placed[], n: number) {
-      if (!ordered) {
-        order.length = 0
-        for (let i = 0; i < n; i++) order.push(placed[i])
-        order.sort(farFirst)
-        ordered = true
-        next = 0
-      }
-      while (next < order.length) {
-        const p = order[next++]
-        if (p.id >= 0) return evict(p)
-      }
+    /** Evicts the farthest body of `placed[0, n)`, the placements update `pass` let in, marked
+     *  so that none is built for it again before the next update: O(n), nothing kept between. */
+    evictFarthest(placed: Placed[], n: number, pass: number) {
+      const bodied = partitionBy(placed, n, hasBody)
+      if (!bodied) return
+      selectByKey(placed, nearOf, 0, bodied, bodied - 1)
+      const p = placed[bodied - 1]
+      evict(p)
+      p.left = pass
     },
   }
 }

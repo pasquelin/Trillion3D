@@ -4,7 +4,18 @@ import type {
   CookedSoftBody,
 } from '../../../sdk-core/src/physics/index.ts'
 import type { createPhysicsBodies } from './bodies.ts'
-import { cooked, declared, landed, modelStreamer, place, stubFetch, tile } from './tiles.fixture.ts'
+import {
+  cooked,
+  declared,
+  hull,
+  landed,
+  modelStreamer,
+  owners,
+  place,
+  settle,
+  stubFetch,
+  tile,
+} from './tiles.fixture.ts'
 
 /** A model placing one two-byte tile, `t0.bin`, `count` times, ten metres apart along x from the
  *  origin: the `i`-th spans x `10 i` to `10 i + 2`. */
@@ -30,41 +41,15 @@ export function recorded(writer: CommandWriter) {
   return { restored, released, builtOn }
 }
 
-/** A streamer's updates at `eye` within `range`, each one's reads landed, until one neither adds
- *  a body nor asks a file: the bodies each added. */
-export async function settle(
-  streamer: {
-    tiles: { update(eye: ArrayLike<number>, range: number): void }
-    bodies: ReturnType<typeof createPhysicsBodies>
-    fetched: string[]
-  },
-  eye: number[],
-  range: number,
-) {
-  const { tiles, bodies, fetched } = streamer,
-    added: number[] = []
-  for (let round = 0; round < 100; round++) {
-    const [held, asked] = [bodies.count.bodies, fetched.length]
-    tiles.update(eye, range)
-    await landed()
-    added.push(bodies.count.bodies - held)
-    if (bodies.count.bodies === held && fetched.length === asked) return added
-  }
-  throw new Error('the tiles never settle')
-}
-
 /** The least x of each resident tile's box, among the first `slots` body slots. */
 export const residentAt = (bodies: ReturnType<typeof createPhysicsBodies>, slots: number) =>
-  Array.from({ length: slots }, (_, i) => bodies.slots.at(i)).flatMap((owner) =>
-    owner && 'tile' in owner ? [owner.tile.box[0]] : [],
-  )
+  owners(bodies, slots).flatMap((owner) => ('tile' in owner ? [owner.tile.box[0]] : []))
 
 /** A model's `physics.json`: one tile of `tile.bin`, two bytes, placed at the origin, and kinematic
  *  bodies on nodes 1 to `count`, 3 m apart from x = 3, each built on the hull `url` of `bytes`. */
 export function hulled(count: number, url: string, bytes: number) {
-  const hull = { type: 'cooked', url, sha256: 'h'.repeat(64), bytes }
   const crates = Array.from({ length: count }, (_, i) =>
-    declared(i + 1, [i * 3 + 3, 0, 0], { isKinematic: true }, hull),
+    declared(i + 1, [i * 3 + 3, 0, 0], { isKinematic: true }, hull(url, bytes)),
   )
   const file = cooked([{ kind: 'mesh', tiles: [{ ...tile(), url: 'tile.bin' }] }], [place(0)])
   return { file: { ...file, bodies: crates }, crates }

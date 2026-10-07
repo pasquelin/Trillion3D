@@ -51,17 +51,37 @@ export const sharedShapes = (
  *  next turn of the event loop comes once every answer has been read. */
 export const landed = () => new Promise(setImmediate)
 
-/** An update at `eye` within `range`, the reads it starts landed, and the next update, which
- *  builds the bodies of the tiles they restored. */
-export async function settled(
-  tiles: { update(eye: ArrayLike<number>, range: number): void },
+/** A streamer's updates at `eye` within `range`, each one's reads landed, until one neither adds
+ *  a body nor asks a file: the bodies each added. */
+export async function settle(
+  streamer: {
+    tiles: { update(eye: ArrayLike<number>, range: number): void }
+    bodies: ReturnType<typeof createPhysicsBodies>
+    fetched: string[]
+  },
   eye: number[],
   range: number,
 ) {
-  tiles.update(eye, range)
-  await landed()
-  tiles.update(eye, range)
+  const { tiles, bodies, fetched } = streamer,
+    added: number[] = []
+  for (let round = 0; round < 100; round++) {
+    const [held, asked] = [bodies.count.bodies, fetched.length]
+    tiles.update(eye, range)
+    await landed()
+    added.push(bodies.count.bodies - held)
+    if (bodies.count.bodies === held && fetched.length === asked) return added
+  }
+  throw new Error('the tiles never settle')
 }
+
+/** Who holds each of the first `slots` body slots of `bodies`, the empty ones left out. */
+export const owners = (bodies: ReturnType<typeof createPhysicsBodies>, slots: number) =>
+  Array.from({ length: slots }, (_, i) => bodies.slots.at(i)).filter((owner) => !!owner)
+
+/** A cooked hull of `bytes` at `url`, as a declared body's shape names it. */
+export const hull = (url = 'hull.bin', bytes = 1) => ({
+  ...{ type: 'cooked', url, sha256: 'h'.repeat(64), bytes },
+})
 
 /** A two-triangle tile at `x` along its collider. */
 export const tile = (x = 0) => ({

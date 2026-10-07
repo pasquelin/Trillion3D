@@ -4,8 +4,8 @@ import type { PhysicsBudget } from '../../../sdk-core/src/physics/index.ts'
 import { box } from '../../../sdk-core/src/world/geometry/basic.ts'
 import { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
-import { recorded, repeated, residentAt, settle } from './tileShapes.fixture.ts'
-import { landed, streamedModel } from './tiles.fixture.ts'
+import { recorded, repeated, residentAt } from './tileShapes.fixture.ts'
+import { landed, settle, streamedModel } from './tiles.fixture.ts'
 
 /** `repeated(count)` opened by a tile streamer within `budget` (twice `count` bodies), what its
  *  writer writes recorded, and the reads of the tile's object. */
@@ -160,15 +160,14 @@ test('a refused body takes its placement out alone, whatever else the tile holds
   assert.deepEqual([bodies.count.bodies, shape.holders, reads()], [1, 99, 1], 'the next one built')
 })
 
-test('a tile landing while no update wants it keeps its bytes for the next that does', async () => {
+test('a tile landing while no update lets it in drops its bytes: let in again, it is read again', async () => {
   const { tiles, bodies, reads } = await streamed(1)
   tiles.update([0, 0, 0], 5)
   // Out of range before its bytes land, then back.
   tiles.update([100, 0, 0], 5)
   await landed()
-  // Back: restored from the bytes it kept, then built.
+  assert.deepEqual([bodies.count.collisionBytes, reads()], [0, 1], 'nothing kept')
   tiles.update([0, 0, 0], 5)
   await landed()
-  tiles.update([0, 0, 0], 5)
-  assert.deepEqual([bodies.count.bodies, reads()], [1, 1], 'restored with no read again')
+  assert.deepEqual([bodies.count.bodies, reads()], [1, 2], 'read, restored and built')
 })

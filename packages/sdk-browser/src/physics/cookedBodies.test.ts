@@ -15,11 +15,12 @@ import {
   cooked,
   declared,
   fixture,
+  hull as hullEntry,
   landed,
   modelStreamer,
   place,
   stubFetch,
-  settled,
+  settle,
   sharedShapes,
   streamedModel,
   tile,
@@ -32,7 +33,7 @@ const hull = async () => new Uint8Array(await fixture('cube-hull.bin'))
 const diagonal = (d: number) => [d, 0, 0, 0, d, 0, 0, 0, d]
 /** A shapeless body's cooked hull, weighed as the unit cube but about `centre`. */
 const cube = (centre = [0.5, 0.5, 0.5]) => ({
-  ...{ type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 1 },
+  ...hullEntry(),
   mass: { mass: 1000, centerOfMass: centre, inertia: diagonal(1000 / 6) },
 })
 /** The ADD records among `words` — ADDs, RESTOREs and RELEASEs —: each one's words and floats. */
@@ -66,8 +67,9 @@ test('a dynamic box its model places no node for is held kinematic where drawn, 
   const collider = { tiles: [tile()], material: null }
   const file = { ...cooked([collider, collider], [place(0), place(1)]), bodies: [box] }
   const ramp = await fixture('ramp-tile.bin')
-  const { tiles, writer, bodies, errors } = await streamedModel(file, ramp)
-  await settled(tiles, [0, 0, 0], 1000)
+  const streamer = await streamedModel(file, ramp)
+  const { tiles, writer, bodies, errors } = streamer
+  await settle(streamer, [0, 0, 0], 1000)
   const words = writer.take()
   const [held, ground, ...more] = adds(words)
   assert.deepEqual([errors, more], [[], []])
@@ -88,7 +90,7 @@ test('a dynamic box its model places no node for is held kinematic where drawn, 
   assert.ok(Math.abs(rest.get(60)![1] - 2.75) < 0.02, `a crate rests on it: ${rest.get(60)![1]}`)
   assert.equal(castDown(jolt, -0.5)[0], held.w[1], 'a ray meets the body, where it is drawn')
   tiles.refused(held.w[1])
-  await settled(tiles, [0, 0, 0], 1000)
+  await settle(streamer, [0, 0, 0], 1000)
   const [back, ...others] = adds(writer.take())
   assert.deepEqual([back.w[4], back.f[6], others], [SHAPE.cooked, 0, []], 'refused, its tile back')
   assert.equal(bodies.count.bodies, 2, 'its slot given back, node 0’s tile ground again')

@@ -18,6 +18,12 @@ import {
 } from './tiles.fixture.ts'
 import { poseRecord } from './worker.fixture.ts'
 
+/** Where the moving bodies of `bodies` want ground (`moversOf`), over a list it reused: its
+ *  front alone. */
+const moversIn = (bodies: ReturnType<typeof modelStreamer>['bodies']) => {
+  const out = [9, 9, 9, 9, 9, 9, 9, 9]
+  return out.slice(0, moversOf(bodies.meshes, bodies.nested, bodies.state.velocity, out))
+}
 /** Node 0's dynamic crate, two metres up, and node 1 kinematic, each placed by its own tile. */
 const crate = {
   ...{ node: 0, motion: { mass: 5 }, shape: { type: 'box', box: { size: [1, 1, 1] } } },
@@ -63,8 +69,7 @@ test('a declared dynamic body simulates, and its compiled node is drawn where it
   assert.ok(close(node.matrixWorld.elements.slice(12), [1, 0.5, 0]), 'drawn where simulated')
   assert.ok(close(still.position.elements, [10, 0, 0]), 'the kinematic node left alone')
   // It wants ground around it as any mover: its radius, at its drawn place.
-  const movers = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity)
-  assert.deepEqual(movers, [1, 0.5, 0, 1])
+  assert.deepEqual(moversIn(bodies), [1, 0.5, 0, 1])
 })
 
 test('a model with no dynamic body moves no node and wants no ground for one', async () => {
@@ -75,7 +80,7 @@ test('a model with no dynamic body moves no node and wants no ground for one', a
   const words = writer.take()
   assert.deepEqual([words[0], words[2]], [OP.add, MOTION.kinematic])
   assert.equal(bodies.nested.size, 0, 'no node moved by the physics')
-  assert.deepEqual(moversOf(bodies.meshes, bodies.nested, bodies.state.velocity), [])
+  assert.deepEqual(moversIn(bodies), [])
 })
 
 test('a model moved before its body’s tick is drawn carries its node, never back where it was', async () => {

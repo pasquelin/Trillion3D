@@ -15,7 +15,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import { castDown, startModule } from './module.fixture.ts'
 import { physicsRaycast } from './raycast.ts'
 import type { PhysicsSession } from './session/session.ts'
-import { cooked, place, settled, streamedModel, tile } from './tiles.fixture.ts'
+import { cooked, place, settle, streamedModel, tile } from './tiles.fixture.ts'
 import { body } from './records.fixture.ts'
 
 /** The golden tile the compiler's cook writes (`physics_cook/tests.rs`): a 2 × 2 m quad rising
@@ -80,7 +80,7 @@ async function streamed(file: object, memoryBytes = DEFAULT_PHYSICS_BUDGET.memor
     added.push({ ...record, position: Array.from(record.position) }),
     add(record)
   )
-  await settled(tiles, [0, 0, 0], 1000)
+  await settle({ tiles, bodies, fetched }, [0, 0, 0], 1000)
   const hit = new Uint32Array(HIT_WORDS)
   const session = { cast: async () => hit, objectOf: tiles.modelOf, materialOf: tiles.materialOf }
   return {
@@ -114,11 +114,11 @@ test('tiles past the collision share wait, never refused: the nearest in, the fa
   assert.equal(found?.distance, 2)
   await assert.rejects(physicsRaycast(null, down, { exact: true }, 8), { code: 'PHYSICS_OFF' })
   // The eye at the far end: the tile left behind leaves for the one that waited.
-  await settled(tiles, [22, 0, 0], 1000)
+  await settle({ tiles, bodies, fetched }, [22, 0, 0], 1000)
   assert.deepEqual(fetched.slice(1).sort(), ['t0.bin', 't10.bin', 't20.bin'])
   assert.deepEqual([bodies.count.collisionBytes, errors], [4, []])
   // Back at the origin, the tile asked again is the one that left: the farthest.
-  await settled(tiles, [0, 0, 0], 1000)
+  await settle({ tiles, bodies, fetched }, [0, 0, 0], 1000)
   assert.deepEqual(fetched.slice(4), ['t0.bin'])
 })
 

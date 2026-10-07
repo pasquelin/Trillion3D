@@ -68,12 +68,12 @@ export function createPhysicsBodies(
         'A dynamic or soft body must be a direct child of the scene: the simulation owns its world pose.',
         { name: mesh.name },
       )
-    ledger.checkSlot()
-    if (p.decorative) check('decorative', 1)
+    const owner: SlotOwner = { mesh, physics: p }
+    // Refused before its shape is built, no tile body leaving for it yet.
+    admit(0, 0, owner)
     // The world pose as the transform tree composes it.
     const pose = worldPoseOf(mesh),
       size = worldScaleOf(mesh)
-    const owner: SlotOwner = { mesh, physics: p }
     if (isSoftType(p.type)) {
       owner.scale = [size.x, size.y, size.z]
       const take = (bytes: number, vertices: number) => claim(bytes, vertices, owner)
@@ -83,23 +83,13 @@ export function createPhysicsBodies(
     const shape = resolveShape(mesh.geometry, size, p.type, p.shape, mesh.name)
     const id = claim(shape.triangles * TRIANGLE_BYTES, 0, owner)
     writer.add({
-      id,
-      motion: MOTION[p.type],
+      ...{ id, motion: MOTION[p.type], shape: shape.shape, flags: flagsOf(mesh) },
       layer: p.type === 'static' ? LAYER.static : p.decorative ? LAYER.decorative : LAYER.moving,
-      shape: shape.shape,
-      flags: flagsOf(mesh),
-      position: pose.position,
-      quaternion: pose.quaternion,
-      size: shape.size,
-      mass: p.mass ?? 0,
-      density: matter.density,
-      friction: p.friction ?? matter.friction,
-      restitution: p.restitution ?? matter.restitution,
-      gravityScale: p.gravityScale,
+      ...{ position: pose.position, quaternion: pose.quaternion, size: shape.size },
+      ...{ mass: p.mass ?? 0, density: matter.density, friction: p.friction ?? matter.friction },
+      ...{ restitution: p.restitution ?? matter.restitution, gravityScale: p.gravityScale },
       damping: [p.damping.linear, p.damping.angular],
-      vertices: shape.vertices,
-      indices: shape.indices,
-      parts: shape.parts,
+      ...{ vertices: shape.vertices, indices: shape.indices, parts: shape.parts },
     })
     hold(mesh, id & BODY_INDEX)
   }
@@ -109,13 +99,22 @@ export function createPhysicsBodies(
     if (p.decorative) count.decorative++
     p._attach(host, index, state)
   }
-  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. A
-   *  body no tile holds takes a tile body's slot when none is left, once all else fits. */
-  const claim = (bytes: number, softVertices: number, owner: SlotOwner) => {
+  /** Refuses the body `owner` would hold past the budget — `bytes` of collision, `softVertices`,
+   *  a decorative one's count, its slot, a tile body's counted free for a body no tile holds —,
+   *  nothing evicted. */
+  const admit = (bytes: number, softVertices: number, owner: SlotOwner) => {
     check('collisionBytes', bytes)
     check('softVertices', softVertices)
+    if ('mesh' in owner && owner.physics.decorative) check('decorative', 1)
     if ('tile' in owner) check('bodies', 1)
-    else ledger.checkSlot()
+    else ledger.fitsSlot()
+  }
+  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. A
+   *  body no tile holds takes the farthest tile body's slot when none is left, once all else
+   *  fits (`admit`). */
+  const claim = (bytes: number, softVertices: number, owner: SlotOwner) => {
+    admit(bytes, softVertices, owner)
+    if (!('tile' in owner)) ledger.takeSlot()
     const id = slots.take(owner)
     count.bodies++
     ledger.hold(id & BODY_INDEX, bytes, softVertices)
@@ -141,7 +140,7 @@ export function createPhysicsBodies(
     /** By slot: the compiled nodes bodies move (`createBodySlots`), their last step (`state`). */
     ...{ nested: slots.nested, state },
     generation: slots.generation,
-    ...{ count, shared: ledger.shared },
+    count,
     add,
     removeAt,
     /** The mesh an engine id names, or `null` once that body left its slot. */
