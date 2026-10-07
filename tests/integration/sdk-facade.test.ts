@@ -171,10 +171,11 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // The minified bytes of a bundle of `hierarchyUpdateBatch` alone, through each entry: the engine
   // core; the package, with the machine-independent quaternion normalisation and arc trigonometry;
   // its browser condition. The aim's scratch buffers are marked pure, so a bundle that never aims a
-  // node drops them; the length rule's range (hypot outside the normal band) is kept.
+  // node drops them; the length rule's range (hypot outside the normal band) is kept. The browser
+  // entry's camera projections read `length2` from the vector module, whose lazy init it starts.
   assert.equal(baseline.outputFiles[0].contents.length, 3_706)
   assert.equal(proposed.outputFiles[0].contents.length, 2_007)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_817)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_821)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )
