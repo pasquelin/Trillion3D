@@ -3,14 +3,20 @@ import { worldBundlePages, type WorldRoots } from '../../../sdk-core/src/manifes
 import { worldRootsPageSource } from './worldRootsPage.ts'
 import { worldPageServer } from './worldPageServe.ts'
 
-/** The page source of `table` over `bin`, the cook's world binary, and the bundles it reads. */
-export function worldRootsBinSource(table: WorldRoots, bin: Uint8Array) {
+/** The page source of `table` over `bin`, the cook's world binary, and the bundles it reads;
+ *  `landed` is told the other pages each bundle read lands. */
+export function worldRootsBinSource(
+  table: WorldRoots,
+  bin: Uint8Array,
+  landed?: (addresses: readonly string[]) => void,
+) {
   const reads: number[] = []
-  const server = worldPageServer(table, async (bundle) => {
+  const read = async (bundle: number) => {
     reads.push(bundle)
     const { offset, bytes } = table.bundles[bundle]
     return worldBundlePages(table, bundle, bin.slice(offset, offset + bytes))
-  })
+  }
+  const server = worldPageServer(table, read, landed)
   const source = worldRootsPageSource(server)
   return { source, reads }
 }

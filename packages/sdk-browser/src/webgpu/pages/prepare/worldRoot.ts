@@ -18,6 +18,7 @@ import { worldRootsOf } from '../../../scene/worldRoots.ts'
 import { worldSelectionRoot, worldWearers, type WorldHeld } from '../../../scene/worldRecords.ts'
 import { WORLD_ROOTS_BIN } from '../../../../../sdk-core/src/manifest/worldRoots.ts'
 import { KEY_PAGE_MAX } from '../../../gpu/dag/evict.ts'
+import { PRIORITY_PREFETCH } from '../../../streaming/priority.ts'
 import { rowCell } from '../../../partition/rowCells.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import type { WebgpuPagesCore } from '../runtime.ts'
@@ -144,4 +145,30 @@ export function coverHeldRoots(
     world.cover.room = undefined
   }
   rt.signal.addEventListener('abort', end, { once: true })
+}
+
+/**
+ * The pages a world bundle read lands beside the one the pool asked (`worldPageServer`, `landed`),
+ * taken by the pool while that read is shared: each page of the catalogue into a free slot,
+ * unpinned — the pool, the one cache, evicts it as any page no tier holds —, so a page the cut asks
+ * in a later frame is resident and its bundle is not read, hashed and split again. None past the
+ * free slots: a landed page never evicts another.
+ */
+export function takeLandedPages(rt: Pick<WebgpuPagesCore, 'context' | 'gpu' | 'signal' | 'setup'>) {
+  const stream = worldRootsOf(rt.context.metadata)?.drawn
+  if (!stream) return
+  const take = (addresses: readonly string[]) => {
+    const cache = rt.gpu.cache
+    if (!cache) return
+    const stats = cache.stats()
+    let free = stats.slots - stats.residentPages
+    for (let i = 0; i < addresses.length && free > 0; i++) {
+      const address = addresses[i]
+      if (cache.get(address) || !rt.setup.geometryUrls.has(address)) continue
+      cache.load(address, rt.signal, undefined, PRIORITY_PREFETCH).catch(() => {})
+      free--
+    }
+  }
+  stream.landed.add(take)
+  rt.signal.addEventListener('abort', () => stream.landed.delete(take), { once: true })
 }

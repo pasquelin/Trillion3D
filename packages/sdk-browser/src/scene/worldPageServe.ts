@@ -73,9 +73,15 @@ type BundlePages = (bundle: number) => Promise<WorldRootsPage[]>
  * The page server of `table`, its bundles read through `bundlePages`: a page is resolved at its
  * world address by the pages of its bundle and the rank of its offset among those the table lists
  * for that bundle. A bundle the table does not list, or an offset it does not name, is
- * `WORLD_PAGE_MISSING`.
+ * `WORLD_PAGE_MISSING`. A bundle read lands its other pages too: `landed` is told their
+ * addresses while the read is still shared, so a reader that asks them then joins it — the GPU
+ * pool takes them there (`../webgpu/pages/prepare/worldRoot.ts`) — and none is read again.
  */
-export function worldPageServer(table: WorldRoots, bundlePages: BundlePages) {
+export function worldPageServer(
+  table: WorldRoots,
+  bundlePages: BundlePages,
+  landed?: (addresses: readonly string[]) => void,
+) {
   // Each bundle's page offsets in binary order: a page's rank among them is its place in it,
   // resolved once here rather than searched per request.
   const ranks = new Map<number, Map<number, number>>()
@@ -85,8 +91,8 @@ export function worldPageServer(table: WorldRoots, bundlePages: BundlePages) {
     known.set(offset, known.size)
     ranks.set(bundle, known)
   }
-  /** A bundle read once, and the callers still on it. */
-  type Streamed = { pages: Promise<WorldRootsPage[]>; users: number }
+  /** A bundle read once, the callers still on it, and whether its pages were told. */
+  type Streamed = { pages: Promise<WorldRootsPage[]>; users: number; told: boolean }
   const streamed = new Map<number, Streamed>()
   // A bundle's read is shared by every caller in flight, so it carries no caller's signal: one
   // caller aborting must not fail another's page (`serve` checks its own signal after the read).
@@ -96,7 +102,7 @@ export function worldPageServer(table: WorldRoots, bundlePages: BundlePages) {
     if (!table.bundles[bundle]) throw new Error(`WORLD_PAGE_MISSING: bundle ${bundle}`)
     let own = streamed.get(bundle)
     if (!own) {
-      const fresh: Streamed = { pages: bundlePages(bundle), users: 0 }
+      const fresh: Streamed = { pages: bundlePages(bundle), users: 0, told: false }
       fresh.pages.catch(() => void (streamed.get(bundle) === fresh && streamed.delete(bundle)))
       streamed.set(bundle, (own = fresh))
     }
@@ -104,6 +110,12 @@ export function worldPageServer(table: WorldRoots, bundlePages: BundlePages) {
     try {
       const pages = await own.pages,
         index = ranks.get(bundle)?.get(offset) ?? -1
+      if (!own.told) {
+        own.told = true
+        const at = address.slice(0, address.lastIndexOf('#'))
+        const others = [...(ranks.get(bundle)?.keys() ?? [])].filter((other) => other !== offset)
+        if (others.length) landed?.(others.map((other) => worldRootsPageAddress(at, bundle, other)))
+      }
       signal?.throwIfAborted()
       if (index < 0 || index >= pages.length) throw new Error(`WORLD_PAGE_MISSING: ${address}`)
       return pages[index]

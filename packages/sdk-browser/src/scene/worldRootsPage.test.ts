@@ -71,3 +71,27 @@ test('a shared bundle read serves every caller, one aborting; no bundle, no page
   await source.read(address)
   assert.deepEqual(reads, [1, 1], 'a later request streams the bundle again')
 })
+
+test('a bundle read lands its other pages, which a reader then joins: the bundle is read once', async () => {
+  const [low, high] = [worldPage(0).bytes, worldPage(2).bytes],
+    bin = new Uint8Array([...low, ...high])
+  const pages = [
+    { bundle: 0, offset: 0, bytes: low.byteLength, level: 1, lodError: 1 },
+    { bundle: 0, offset: low.byteLength, bytes: high.byteLength, level: 0, lodError: 0 },
+  ]
+  const table = {
+    bundles: [{ offset: 0, bytes: bin.byteLength, sha256: '0', count: 2, dependencies: [] }],
+    pages: { count: pages.length, at: (page: number) => pages[page] },
+  } as unknown as WorldRoots
+  const told: string[] = [],
+    joined: Promise<Uint8Array>[] = []
+  const { source, reads } = worldRootsBinSource(table, bin, (addresses) => {
+    told.push(...addresses)
+    // The pool takes them now, while the read is shared (`takeLandedPages`).
+    for (const address of addresses) joined.push(source.read(address))
+  })
+  await source.read(worldRootsPageAddress('world-roots.bin', 0, 0))
+  assert.deepEqual(told, [worldRootsPageAddress('world-roots.bin', 0, low.byteLength)])
+  assert.deepEqual([...(await joined[0])], [...high])
+  assert.deepEqual(reads, [0], 'one read of the bundle for both pages')
+})

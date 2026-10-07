@@ -10,7 +10,13 @@ import { openWorldRoots } from '../../../scene/worldRoots.ts'
 import * as G from '../../../host/graph/graph.fixture.ts'
 import { createPlacementRows } from '../../../placement/rows.ts'
 import { setRowCell } from '../../../partition/rowCells.ts'
-import { coverHeldRoots, linkWorldObject, readWorldOrGeometry, withWorldRoot } from './worldRoot.ts'
+import {
+  coverHeldRoots,
+  linkWorldObject,
+  readWorldOrGeometry,
+  takeLandedPages,
+  withWorldRoot,
+} from './worldRoot.ts'
 import { standAlone } from '../../../scene/worldSuperRoots.fixture.ts'
 import { createWebgpuPagesLayout } from './layout.ts'
 import type { EngineContext } from '../../../engine/types.ts'
@@ -152,4 +158,30 @@ test("a held cell's roots gain a holder while it holds them, until the backend e
   hold.release(0)
   await hold.hold(0)
   assert.equal(told.length, 4, 'nothing followed past the end')
+})
+
+test('the pages a bundle read lands go to the free slots of the pool, unpinned, never past them', async (t) => {
+  const { context, hold } = await scene(t)
+  const loads: [string, unknown][] = [],
+    resident = new Set(['held'])
+  const cache = {
+    stats: () => ({ slots: 3, residentPages: resident.size }),
+    get: (address: string) => resident.has(address),
+    load: (address: string, _signal: unknown, tier: unknown) => (
+      loads.push([address, tier]),
+      Promise.resolve()
+    ),
+  }
+  const rt = {
+    context,
+    gpu: { cache },
+    signal: new AbortController().signal,
+    setup: { geometryUrls: new Map(['held', 'a', 'b', 'c'].map((url) => [url, url])) },
+  }
+  takeLandedPages(rt as unknown as Parameters<typeof takeLandedPages>[0])
+  for (const tell of hold.drawn!.landed) tell(['held', 'unknown', 'a', 'b', 'c'])
+  assert.deepEqual(loads, [
+    ['a', undefined],
+    ['b', undefined],
+  ])
 })

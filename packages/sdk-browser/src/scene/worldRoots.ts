@@ -48,6 +48,8 @@ type WorldStream = {
   source: ReturnType<typeof worldRootsPageSource>
   dag: ReturnType<typeof worldRootDag>
   superRoots: Float64Array | undefined
+  /** Who is told the pages a bundle read landed beside the one asked (`worldPageServer`). */
+  landed: Set<(addresses: readonly string[]) => void>
 }
 
 type Announced = { bytes: number; sha256: string }
@@ -116,7 +118,10 @@ function worldStreamOf(
     const { url, announced } = dagFile
     const records =
       announced && readWorldRootsDag(new Uint8Array(await fetchVerified(url, announced, signal)))
+    const landed = new Set<(addresses: readonly string[]) => void>()
+    const tell = (addresses: readonly string[]) => landed.forEach((watcher) => watcher(addresses))
     return (stream ??= {
+      landed,
       dag: worldRootDag(
         { ...records, payload: table.payload, pinned: table.pinned },
         worldRootPages,
@@ -124,7 +129,7 @@ function worldStreamOf(
       // An object root's cell is its object's (`origin`, the table's rank).
       superRoots:
         records && cellSuperRoots(records.clusters, table.cells.cellOf, table.cells.count),
-      source: worldRootsPageSource(worldPageServer(table, bundlePages)),
+      source: worldRootsPageSource(worldPageServer(table, bundlePages, tell)),
     })
   }
 }
