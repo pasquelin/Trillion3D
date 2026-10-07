@@ -11,13 +11,15 @@
  */
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts'
-import { PROJECTED_BOUND_WGSL } from './projectedBoundWgsl.ts'
+import { projectedBoundWgsl } from './projectedBoundWgsl.ts'
 import { REFERENCE_ERROR } from './referenceErrorDecl.ts'
+import { DAG_INF } from './infDecl.ts'
+import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 export const DAG_ERROR_WGSL = wgslBlock(
   'DAG_ERROR_WGSL',
-  [REFERENCE_ERROR, PROJECTED_BOUND_WGSL],
+  [REFERENCE_ERROR, DAG_INF, projectedBoundWgsl(DAG_INF), CUT_RULE_WGSL],
   `
 /** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
  *  deformation reach (\`deformReach\`), moved by at most \`error\`:

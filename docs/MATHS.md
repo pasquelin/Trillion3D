@@ -50,12 +50,16 @@ when the module is read. A program others extend — the lit program at the scre
 (`withScreenReflections`), the blend module with the water's stage (`blendShader`) — takes what it
 gains as a parameter and is assembled with it.
 
-A function a fragment calls but its host provides — `mipRead` of a cell reduction,
+A function or constant a fragment calls but its host provides — `mipRead` of a cell reduction,
 `reflectionDepthAt` and `reflectionSize` of the screen walks, `vsmPoolLoad` of the shadow-map
-sampling, `mirrorRadiance` of the mirror term — is a declaration under that function's name, which
-the fragment takes as a parameter and lists: a missing provider fails when the program is written,
-and two providers of one name are refused, never left to the shader compiler: the error names
-the path through the dependents by which each came and the first line where the two texts differ.
+sampling, `mirrorRadiance` of the mirror term, `INF` of the projected bound — is a declaration
+under that name, which the fragment takes as a parameter and lists: a missing provider fails when
+the program is written, and two providers of one name are refused, never left to the shader
+compiler: the error names the path through the dependents by which each came and the first line
+where the two texts differ.
+The parts of one program — the DAG selection's `DAG_*_WGSL` fragments, which call one another and
+the structures of the program's own text — list the shared declarations they call, and the program
+lists every part.
 
 A name written twice with two texts, or a dependency cycle, throws when the pipeline is described:
 the text is built once a pipeline, never in a frame. Two operation orders of one formula round

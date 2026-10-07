@@ -11,9 +11,9 @@ import { floorLog2 as floorLog2Decl } from '../../../../math/src/wgsl/integer.ts
  * half bounds, the opaque main-pass cull and the transparent-cluster occlusion test — and two
  * writings of the same rule would eventually diverge. It reads no pyramid: only the level and
  * whether it exists come out, and a rectangle no mip covers is never rejected. It travels with
- * `hiddenByPyramid` below, the only reader outside this module.
+ * `hiddenByPyramid` below, and with the partition's classify (`hizLevelFor`).
  */
-const HIZ_LEVEL_WGSL = wgslBlock(
+export const HIZ_LEVEL_WGSL = wgslBlock(
   'HIZ_LEVEL_WGSL',
   [floorLog2Decl],
   `

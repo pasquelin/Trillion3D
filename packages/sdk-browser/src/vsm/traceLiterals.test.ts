@@ -7,9 +7,23 @@ import assert from 'node:assert/strict'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
 import { VSM_F32_BELOW_ONE } from './constants.ts'
 import { VSM_TRACE_COMMON_WGSL, vsmTraceWgsl } from './traceWgsl.ts'
+import { vsmBlueNoiseTwo } from './blueNoise.ts'
+import { vsmPoolLoadOf } from './resources.ts'
+import { VSM_PROJECTION_VSM_SPECS } from './projectionWgsl.ts'
+import { vsmLayout } from './layout.ts'
 import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 const f32 = Math.fround
+/** The projection's trace: its pool and its blue noise's pair. */
+const TRACE = vsmTraceWgsl(
+  true,
+  vsmPoolLoadOf(
+    0,
+    VSM_PROJECTION_VSM_SPECS,
+    vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
+  ),
+  vsmBlueNoiseTwo(1, 0),
+)
 /** The literal of `text` that `pattern` captures, as the f32 a shader makes of it. */
 const literal = (text: string, pattern: RegExp) => {
   const found = pattern.exec(text)
@@ -42,7 +56,7 @@ test('the square-to-disk map reads 1 - 2^-24 and the smallest normal f32 as thei
 })
 
 test('the jitter step turns the top 24 bits into a fraction exactly: its factor is 2^-24', () => {
-  const step = literal(vsmTraceWgsl(true).text, />>8u\)\*([0-9.e-]+);/)
+  const step = literal(TRACE.text, />>8u\)\*([0-9.e-]+);/)
   assert.equal(step, 2 ** -24)
   for (const k of [0, 1, 2 ** 23 + 1, 2 ** 24 - 1]) assert.equal(f32(f32(k) * step), k / 2 ** 24)
 })

@@ -9,36 +9,7 @@ import {
   TRIANGLE_BLOCK,
   WIDTH_BITS,
 } from './format.ts'
-
-/**
- * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
- * (`docs/FORMAT.md`): the header once per cluster, then any vertex or corner by rank, in O(1)
- * — a field never spans more than two words, and a triangle is its block's record, read once, and
- * three fields. The arithmetic is the format's, operation for
- * operation — one multiply, one add, both correctly rounded in WGSL —, so a position decoded here
- * is the 32-bit float the shared Rust codec and `../page/codec/geometryPage.ts` decode; a normal, which goes
- * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin.
- *
- * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
- * to `pageWords:array<u32>`.
- */
-const CLUSTER_HEADER_WGSL = wgslBlock(
-  'CLUSTER_HEADER_WGSL',
-  [],
-  `struct ClusterHeader{
- vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,prefixBits:u32,recordBits:u32,
- positionCount:u32,linkBits:u32,
- posBits:vec3u,posStep:f32,posMin:vec3f,
- uvBits:vec2u,uvStep:f32,uvMin:vec2f,uv1Bits:vec2u,uv1Step:f32,uv1Min:vec2f,
- colorBits:vec4u,colorStep:f32,colorMin:vec4f,
- quantizationError:f32,
- // Word offset of each stream from the page's first word: block table, corners, x, y, z, links, normal, u, v, u1, v1, r, g, b, a.
- blocks:u32,corners:u32,pos:vec3u,links:u32,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
- // The skin (\`deform.rs\`): its joints' base and width, and its first stream; the morph targets'
- // count and the word their streams are counted from, each target's record after the header.
- skinBase:u32,skinBits:u32,skin:u32,influences:u32,morphCount:u32,streams:u32,
-}`,
-)
+import { CLUSTER_HEADER_WGSL } from './headerWgsl.ts'
 
 /**
  * The tangent frame a page does not store, from the triangle: its normal `N`, two edges and the
@@ -60,6 +31,18 @@ fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFra
 }`,
 )
 
+/**
+ * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
+ * (`docs/FORMAT.md`): the header once per cluster, then any vertex or corner by rank, in O(1)
+ * — a field never spans more than two words, and a triangle is its block's record, read once, and
+ * three fields. The arithmetic is the format's, operation for
+ * operation — one multiply, one add, both correctly rounded in WGSL —, so a position decoded here
+ * is the 32-bit float the shared Rust codec and `../page/codec/geometryPage.ts` decode; a normal, which goes
+ * through `normalize`, agrees to the ULP tolerance WGSL grants that builtin.
+ *
+ * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
+ * to `pageWords:array<u32>`.
+ */
 export function clusterDecodeWgsl(buffer: string) {
   return wgslBlock(
     `clusterDecodeWgsl(${buffer})`,

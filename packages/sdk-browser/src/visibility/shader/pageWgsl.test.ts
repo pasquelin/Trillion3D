@@ -5,20 +5,21 @@ import { importWrapMode } from '../../host/wrapImport.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../host/graph/graph.fixture.ts'
-import {
-  PAGE_INFO_STRUCT_WGSL,
-  PAGE_VERTEX_WGSL,
-  PAGE_UV_WGSL,
-  MASK_KEEP_WGSL,
-} from './pageWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, PAGE_VERTEX_WGSL, PAGE_UV_WGSL, maskKeepWgsl } from './pageWgsl.ts'
 import { WRAP_COORD_WGSL } from '../wrapModes.ts'
 import { linearTexels } from '../../../../../tests/gpu/texture/addressingCases.ts'
-import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL, maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
+import {
+  COLOR_SAMPLE_WGSL,
+  DATA_SAMPLE_WGSL,
+  SHADOW_TILE_POOL_WGSL,
+  maskAlphaWgsl,
+} from '../../webgpu/tile/wgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { TAA_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
@@ -59,14 +60,25 @@ test('PAGE_UV_WGSL declares fn vertUv only once in the raster and shading', () =
   eachOnce(PAGE_UV_WGSL.text, { SHADE_SHADER, VIS_SHADER })
 })
 
-test('WRAP_COORD_WGSL declares fn wrapCoord only once, directly as via MASK_KEEP_WGSL', () => {
+test('WRAP_COORD_WGSL declares fn wrapCoord only once, directly as via maskKeepWgsl', () => {
   assert.match(wgslSource(WRAP_COORD_WGSL), /fn wrapCoord\(/)
   eachOnce(WRAP_COORD_WGSL.text, { SMALL_SHADER, SHADE_SHADER, VIS_SHADER })
 })
 
-test('MASK_KEEP_WGSL declares fn maskKeep only once in the raster', () => {
-  assert.match(wgslSource(MASK_KEEP_WGSL), /fn maskKeep\(/)
-  eachOnce(MASK_KEEP_WGSL.text, { SMALL_SHADER, VIS_SHADER })
+test('maskKeepWgsl declares fn maskKeep only once in the rasters, camera and shadow', () => {
+  const cameraAlpha = maskAlphaWgsl(false)
+  const shadowAlpha = maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL)
+  const camera = maskKeepWgsl(cameraAlpha)
+  const shadow = maskKeepWgsl(shadowAlpha)
+  assert.match(wgslSource(camera), /fn maskKeep\(/)
+  const { VSM_RENDER_RASTER, VSM_TRANSMISSION_BIN } = ENGINE_SHADERS
+  eachOnce(camera.text, { SMALL_SHADER, VIS_SHADER, VSM_RENDER_RASTER, VSM_TRANSMISSION_BIN })
+  // One text, its read of the map provided: each variant lists its own and is named after it, so
+  // two variants never share a name.
+  assert.equal(shadow.text, camera.text)
+  assert.ok(camera.deps.includes(cameraAlpha) && shadow.deps.includes(shadowAlpha))
+  assert.equal(camera.name, 'maskKeepWgsl(maskAlphaWgsl(false))')
+  assert.equal(shadow.name, 'maskKeepWgsl(maskAlphaWgsl(true))')
 })
 
 test('affineBarycentric declares fn affineBarycentric only once in shading, never in the raster', () => {

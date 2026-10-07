@@ -50,16 +50,16 @@ import { ceilDiv } from '../../../math/src/wgsl/integer.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { bilinear3 } from '../../../math/src/wgsl/sampling.ts'
 import { PAGE_GEOMETRY_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BLEND_CASTER, FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_MASK } from '../visibility/types.ts'
 import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
-  COLOR_SAMPLE_WGSL,
+  colorSampleWgsl,
   maskAlphaWgsl,
+  SHADOW_TILE_POOL_WGSL,
   tileDeclarations,
-  tilePoolWgsl,
 } from '../webgpu/tile/wgsl.ts'
-import { BLEND_TRANSMITTANCE_WGSL } from '../gpu/shadow/transmittanceWgsl.ts'
+import { blendTransmittanceWgsl } from '../gpu/shadow/transmittanceWgsl.ts'
 import { MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE, VSM_PAGE_TEXELS } from './constants.ts'
 import {
@@ -459,10 +459,12 @@ fn vsmTCoversCell(a:vec2f,b:vec2f,c:vec2f,s:f32,cell:vec2f)->bool{
  * feedback reads what the frame wanted.
  *
  * Group 0 = the engine's shadow page group. Group 1: 0 the chunk's page list, 1 projection data,
- * 2 frame uniform, 3 build buffer.
+ * 2 frame uniform, 3 build buffer. The material reads are the shadow pool's (`maskAlpha` for
+ * `maskKeep` and the transmittance, `colorSample` for its tint).
  */
-export const vsmTransmissionBinWgsl = (layout: VsmLayout) =>
-  wgslProgram(
+export const vsmTransmissionBinWgsl = (layout: VsmLayout) => {
+  const maskAlpha = maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL)
+  return wgslProgram(
     /* wgsl */ `
 ${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
@@ -671,22 +673,20 @@ var<workgroup> wgCommand:array<u32,5>;
 `,
     [
       PAGE_INFO_WGSL,
-      tilePoolWgsl('0.0'),
-      COLOR_SAMPLE_WGSL,
-      maskAlphaWgsl(true),
-      MASK_KEEP_WGSL,
+      maskKeepWgsl(maskAlpha),
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       frameWgsl(layout),
       VSM_TRANSMISSION_COVER_WGSL,
       matrixWindingCw,
       PAGE_GEOMETRY_WGSL,
-      BLEND_TRANSMITTANCE_WGSL,
+      blendTransmittanceWgsl(maskAlpha, colorSampleWgsl(SHADOW_TILE_POOL_WGSL)),
       FLOAT32_MAX,
       edgeFunction,
       faceNormal,
     ],
   )
+}
 
 // ---- Number, place, resolve, headers -----------------------------------------------------------
 

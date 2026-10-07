@@ -27,7 +27,16 @@ import { windingKept, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
  */
 const RECEIVER_OFFSET_FN_WGSL = wgslBlock(
   'RECEIVER_OFFSET_FN_WGSL',
-  [worldMatrix3, windingKept],
+  [
+    FRAMEBUFFER_WGSL,
+    edgeFunction,
+    PIXEL_BARY_WGSL,
+    worldMatrix3,
+    windingKept,
+    VERTEX_NORMALS_WGSL,
+    faceNormal,
+    SHADING_POINT_WGSL,
+  ],
   `struct ShadowReceiver{offset:vec3f,plane:vec3f,}
 fn shadowReceiver(pixel:vec2f)->ShadowReceiver{
  let none=ShadowReceiver(vec3f(0.0),vec3f(0.0));
@@ -82,16 +91,10 @@ export const receiverOffsetWgsl = (first: number) => {
     `receiverOffsetWgsl(${first})`,
     [
       PAGE_POINTS_WGSL,
-      VERTEX_NORMALS_WGSL,
-      FRAMEBUFFER_WGSL,
       PAGE_INFO_STRUCT_WGSL,
       SHADE_UNI_WGSL,
       normalAtlasWgsl(first + RECEIVER_BINDINGS.indexOf('normals')),
       PAGE_NORMAL_WGSL,
-      edgeFunction,
-      faceNormal,
-      PIXEL_BARY_WGSL,
-      SHADING_POINT_WGSL,
       RECEIVER_OFFSET_FN_WGSL,
     ],
     `${at('vis')} var vis:texture_2d<u32>;

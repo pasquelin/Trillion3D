@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { WORLD_AT_WGSL } from './worldAtWgsl.ts'
 
 /**
  * WHERE A PIXEL'S SHADOW LEVEL COMES FROM: its centre WITHOUT the TAA jitter — the world
@@ -6,7 +7,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * depth. The one reading of them the resolve (`surfaceWgsl.ts`) and the per-pixel demand
  * (`../../vsm/markingWgsl.ts`) share, so the level a pixel reads is the level it asked
  * for, and the same every jitter phase: the virtual shadow maps pick a receiver's level from
- * where it lies, never from the sample the jitter drew. Requires `depth`, `view` and `worldAt`
+ * where it lies, never from the sample the jitter drew. Requires `depth` and `view`; lists `worldAt`
  * (`WORLD_AT_WGSL`).
  *
  * The jitter moves the image by `view.jitter.xy` pixels (`shadowJitterWords`): the pixel's
@@ -23,7 +24,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const PIXEL_FOOTPRINT_WGSL = wgslBlock(
   'PIXEL_FOOTPRINT_WGSL',
-  [],
+  [WORLD_AT_WGSL],
   `
 /** The depth held at \`coord + k·axis\`, clamped to the image. */
 fn footprintDepth(coord:vec2i,axis:vec2i,k:i32)->f32{

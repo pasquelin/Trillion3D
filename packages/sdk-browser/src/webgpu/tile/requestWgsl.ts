@@ -1,6 +1,10 @@
 import { WRAP_MAP } from '../../visibility/wrapModes.ts'
 import { FEEDBACK_EVERY, FEEDBACK_STRIDE, PICK_SHIFT } from './feedback.ts'
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './pickCounts.ts'
+import { TILE_READ_WGSL } from '../../texture/samplingFootprint.ts'
+import { TILE_POOL_WGSL } from './wgsl.ts'
+import { tileKindWgsl } from './kindWgsl.ts'
+import { samplingReadWgsl } from './atlasReadWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 const STRIDE_MASK = FEEDBACK_STRIDE - 1
@@ -9,20 +13,25 @@ const STRIDE_MASK = FEEDBACK_STRIDE - 1
  * Virtual-texture image feedback: the rank of the tile a pixel ASKS for, posted in the image's
  * feedback target and reduced to counters by a compute pass (`reduce.ts`) for one pixel in
  * sixteen. Level and address are those of the read — the default one, or `${k}Footprint` when
- * `sampled` (`samplingWgsl.ts`) —, the texture's transform and addressing included: what a pixel
+ * `sampled` (`atlasReadWgsl.ts`) —, the texture's transform and addressing included: what a pixel
  * asks is what it reads. An anisotropic read
  * spreads its taps along the footprint, into tiles the centre does not touch: `along` (0, 1, 2)
  * names the first tap, the middle one or the last (`tapOffset`), so the pixels of a footprint ask
  * for all three. `aniso` is the read's: false for a pass that reads the isotropic level — an alpha
  * cutout (`maskAlpha`) —, which is then the level asked. `missing` names the tile only when the
  * table does not hold it at that level — the pool's own word, whose level is the finest resident
- * ancestor's —: what a convergence looks for (`everyPick`). Its host lists `TILE_POOL_WGSL` and
- * the atlas reads (`COLOR_SAMPLE_WGSL`, `DATA_SAMPLE_WGSL`).
+ * ancestor's —: what a convergence looks for (`everyPick`). On the camera's pool
+ * (`TILE_POOL_WGSL`), whose level offset the request shares with the read.
  */
 const tileRequestIndexWgsl = (k: string) =>
   wgslBlock(
     `tileRequestIndexWgsl(${k})`,
-    [],
+    [
+      TILE_POOL_WGSL,
+      TILE_READ_WGSL,
+      tileKindWgsl(k, TILE_POOL_WGSL),
+      samplingReadWgsl(k, TILE_POOL_WGSL),
+    ],
     `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{
  let s=${k}Slot(slot);
  if(s.tail==0u){return 0u;}
@@ -48,7 +57,7 @@ const tileRequestIndexWgsl = (k: string) =>
  * every tile the pose reads, a sliver's included, so what a settled pose reads is what it asked,
  * never what the pool kept of an earlier pose.
  */
-const FEEDBACK_RULE_WGSL = wgslBlock(
+export const FEEDBACK_RULE_WGSL = wgslBlock(
   'FEEDBACK_RULE_WGSL',
   [],
   `const PICK_TURNS:u32=${PICK_BLENDS * PICK_TAPS}u;

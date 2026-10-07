@@ -13,7 +13,8 @@ import { ROW_HIZ_SLOT_WORD } from '../webgpu/row/pageRow.ts'
 import { NO_HIZ_SLOT } from '../webgpu/row/noHizSlot.ts'
 import { DOUBLE_WGSL } from '../webgpu/blend/doubleWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
-import { FROM_F32_WGSL, MOTION_WGSL } from './gpuMotionWgsl.ts'
+import { MOTION_WGSL } from './gpuMotionWgsl.ts'
+import { FROM_F32_WGSL, TO_F32_WGSL } from './f32Wgsl.ts'
 import { MOTION_RESET, MOTION_SCAN, MOTION_SKIP } from './composedMotion.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
@@ -23,40 +24,12 @@ export const NONE = 0xffffffff
 /** Doubles of one matrix, each two words. */
 export const MATRIX_DOUBLES = 16
 
-/**
- * The single-precision bits of double `a`, rounded to nearest, ties to even, as storing it in a
- * `Float32Array` rounds it: subnormal results, overflow to infinity, a NaN as the quiet one. The
- * 53-bit significand is shifted to the result's 24 bits (fewer below the normal range), two bits
- * kept below it — the half and a sticky one folding everything lower (`wideShiftRight`).
- */
-const TO_F32_WGSL = wgslBlock(
-  'TO_F32_WGSL',
-  [],
-  `
-fn toF32(a:vec2u)->u32{
- let sign=(a.x>>31u)<<31u;
- let e=i32(dExponent(a));
- if(e==0x7ff){return select(sign|0x7f800000u,0x7fc00000u,dIsNan(a));}
- if(e==0){return sign;}
- let biased=e-1023+127;
- let shift=select(29,30-biased,biased<1);
- let r=wideShiftRight(dSignificand(a),u32(min(shift-2,64)));
- var m=(r.y>>2u)|(r.x<<30u);
- if((r.y&2u)!=0u&&((r.y&1u)!=0u||(m&1u)!=0u)){m=m+1u;}
- if(biased<1){return sign|m;}
- var field=u32(biased);
- if(m==0x1000000u){m=0x800000u;field=field+1u;}
- if(field>=255u){return sign|0x7f800000u;}
- return sign|(field<<23u)|(m&0x7fffffu);
-}`,
-)
-
 /** Element `k` (column-major) of `parent · local`, both read as doubles from their first word:
  *  column `k >> 2`, row `k & 3`, the shift and mask being the division and remainder by four of
  *  an unsigned integer, and integer work a JavaScript run of the text reads as written. */
 const PRODUCT_WGSL = wgslBlock(
   'PRODUCT_WGSL',
-  [],
+  [DOUBLE_WGSL],
   `
 fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
  let c=k>>2u;let r=k&3u;
@@ -66,8 +39,8 @@ fn composed(parentAt:u32,localAt:u32,k:u32)->vec2u{
 }`,
 )
 
-/** What both passes use: double arithmetic, its conversions, the product and the grid index. */
-const SHARED = [DOUBLE_WGSL, TO_F32_WGSL, FROM_F32_WGSL, PRODUCT_WGSL, FLAT_INDEX_WGSL]
+/** What both passes call: the product, its rounding to single precision and the grid index. */
+const SHARED = [PRODUCT_WGSL, TO_F32_WGSL, FLAT_INDEX_WGSL]
 
 /**
  * True when two single-precision words are equal as the CPU compares them (`!==` on the numbers
@@ -132,7 +105,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  }
  for(var k=0u;k<16u;k++){motion[rank*16u+k]=words[k];}
 }`,
-  [...SHARED, SAME_WORD_WGSL, MOTION_WGSL],
+  [...SHARED, DOUBLE_WGSL, SAME_WORD_WGSL, MOTION_WGSL],
 )
 
 /**
@@ -149,7 +122,7 @@ struct MotionMode{mode:u32,pad:u32,eyeX:vec2u,eyeY:vec2u,eyeZ:vec2u,}
  */
 const SPHERE_WGSL = wgslBlock(
   'SPHERE_WGSL',
-  [],
+  [DOUBLE_WGSL, FROM_F32_WGSL, TO_F32_WGSL],
   `
 const SPHERE_GROWTH:f32=1.00000095367431640625;
 const CENTRE_ERROR:f32=5.684341886080802e-14;

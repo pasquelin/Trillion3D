@@ -1,18 +1,9 @@
-import { BLEND_BINDINGS } from '../core/bindLayout.ts'
-import { BLEND_ITEM_WGSL } from './items.ts'
-import { BLEND_VIEW_WGSL } from './viewLayout.ts'
+import { VERTEX_LISTS_WGSL, VERTEX_READS_WGSL, vsOutWgsl } from './vertexReadsWgsl.ts'
 import * as itemFlags from '../../visibility/buffer.ts'
 import * as surfaceModel from '../../scene/surfaceModel.ts'
 import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts'
-import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../../visibility/shader/pageWgsl.ts'
-import {
-  PAGE_GEOMETRY_WGSL,
-  PAGE_NORMAL_WGSL,
-  PAGE_UV1_WGSL,
-} from '../../visibility/shader/pageGeometryWgsl.ts'
-import { LINE_CLIP_WGSL } from '../../visibility/shader/lineWgsl.ts'
-import { SPRITE_WGSL } from '../../visibility/shader/spriteWgsl.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_UV1_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/rank.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts'
@@ -75,47 +66,6 @@ export const blendVertexWgsl = (lobes: boolean) => {
     blendVertexStage(layout),
   )
 }
-
-/** What every vertex stage of the runs binds and reads before its layout's own reads. */
-const VERTEX_READS_WGSL = wgslBlock(
-  'VERTEX_READS_WGSL',
-  [
-    BLEND_VIEW_WGSL,
-    BLEND_ITEM_WGSL,
-    normalAtlasWgsl(BLEND_BINDINGS.normals),
-    PAGE_INFO_STRUCT_WGSL,
-    PAGE_NORMAL_WGSL,
-  ],
-  `@group(0) @binding(${BLEND_BINDINGS.indices}) var<storage, read> indices:array<u32>;
-@group(0) @binding(${BLEND_BINDINGS.positions}) var<storage, read> positions:array<f32>;
-@group(0) @binding(${BLEND_BINDINGS.uvs}) var<storage, read> uvs:array<f32>;
-@group(0) @binding(${BLEND_BINDINGS.uniform}) var<uniform> uni:BlendView;
-@group(0) @binding(${BLEND_BINDINGS.items}) var<storage,read> items:array<BlendItem>;
-`,
-)
-
-/** The instances, cluster spans and diagnostics the stage reads, and its line and sprite rules. */
-const VERTEX_LISTS_WGSL = wgslBlock(
-  'VERTEX_LISTS_WGSL',
-  [LINE_CLIP_WGSL, SPRITE_WGSL],
-  `@group(0) @binding(${BLEND_BINDINGS.clusterDiagnostic}) var<storage,read> clusterDiagnostic:array<u32>;
-@group(0) @binding(${BLEND_BINDINGS.planInstances}) var<storage,read> planInstances:array<vec2u>;
-@group(0) @binding(${BLEND_BINDINGS.clusterSpans}) var<storage,read> clusterSpans:array<vec4u>;
-`,
-)
-
-/** The stage's output, its UV and ids lanes those of the layout (`LAYOUTS`). */
-const vsOutWgsl = (uv: string, ids: string) =>
-  wgslBlock(
-    `vsOutWgsl(${uv}, ${ids})`,
-    [],
-    `// What the vertex stage reads on the item record and the fragment stage re-reads as-is: the six
-// maps, their factors and the flags, constant over the call, therefore FLAT (no per-call binding).
-// \`water\` is the item's one-based transmissive rank, carried above its flags, zero for a blend;
-// above it, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
-// \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
-struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) uv:${uv},@location(2) view:vec3f,@location(3) normal:vec4f,@location(4) tangent:vec4f,@location(5) bitangent:vec4f,@location(6) @interpolate(flat) tri:u32,@location(7) bary:vec3f,@location(8) @interpolate(flat) diagId:u32,@location(9) @interpolate(flat) ids:${ids},@location(10) @interpolate(flat) maps:vec4u,@location(11) @interpolate(flat) alphaAo:vec4f,@location(12) @interpolate(flat) pbr:vec4f,@location(13) @interpolate(flat) emissive:vec4f,@location(14) @interpolate(flat) water:u32,}`,
-  )
 
 /** The paged cluster's span, the corners of its triangle and its facing; a padding lane reads none. */
 const VERTEX_PAGE = ` var count=it.indexCount-slot.y;

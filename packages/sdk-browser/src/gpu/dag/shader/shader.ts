@@ -3,7 +3,6 @@ import { DAG_ACCESS_WGSL, DAG_BINDINGS_WGSL } from './bindings.ts'
 import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { FINITE_SENTINEL } from '../../../../../math/src/wgsl/constants.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
@@ -17,7 +16,7 @@ import { DAG_LEVEL_WGSL } from './levelWgsl.ts'
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts'
 import { DAG_EVICT_WGSL } from './evictWgsl.ts'
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts'
-import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 import { CARD_ROOT, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts'
 import { DAG_VIEWS_WGSL } from './viewsWgsl.ts'
 import { DAG_RECORD_WGSL } from './recordWgsl.ts'
@@ -29,7 +28,9 @@ import { FRAME_VEC4 } from '../types.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
 /** The selection kernel over the tables `access` reads (`DAG_ACCESS_WGSL`, or a split's,
- *  `splitWgsl.ts`): the accessors are a declaration the program lists, never text replaced. */
+ *  `splitWgsl.ts`): the accessors are a declaration the program lists, never text replaced.
+ *  The `DAG_*_WGSL` fragments are this program's parts, which it lists all (`docs/MATHS.md`,
+ *  "The WGSL library"). */
 export const dagSelectionWgsl = (access: WgslDecl = DAG_ACCESS_WGSL) =>
   wgslProgram(
     `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
@@ -43,9 +44,6 @@ ${VIEW_UNIFORM_STRUCT}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,ahead:atomic<u32>,aheadPlaced:u32,pages:array<u32>,}
 // The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a camera or light cut's range.
 struct FrameRange{first:u32,count:u32,}
-/** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
- *  every comparison below behaves exactly as the oracle's Infinity for any finite threshold. */
-const INF:f32=FINITE_SENTINEL;
 /** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
 const FRAME:u32=${FRAME_VEC4}u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
@@ -160,12 +158,10 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
       DAG_EVICT_WGSL,
       DAG_FLOOR_WGSL,
       FLAT_INDEX_WGSL,
-      OPEN_SLICE_WGSL,
       DAG_VIEWS_WGSL,
       DAG_RECORD_WGSL,
       DAG_AHEAD_WGSL,
       boxBehindPlane,
-      FINITE_SENTINEL,
     ],
   )
 

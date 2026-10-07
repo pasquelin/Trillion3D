@@ -4,6 +4,10 @@ import { DEFORM_IN_POOL } from '../visibility/types.ts'
 import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS } from './layout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
+import { CLUSTER_HEADER_WGSL } from '../cluster/headerWgsl.ts'
+import { clusterDecodeWgsl } from '../cluster/decodeWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { PAGE_POINTS_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 
 /**
  * THE GPU DEFORMATION STAGE, in WGSL: a page vertex moved by its placement's record
@@ -20,7 +24,13 @@ import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
  */
 export const DEFORM_WGSL = wgslBlock(
   'DEFORM_WGSL',
-  [worldMatrix3],
+  [
+    worldMatrix3,
+    PAGE_INFO_STRUCT_WGSL,
+    CLUSTER_HEADER_WGSL,
+    clusterDecodeWgsl('indices'),
+    PAGE_POINTS_WGSL,
+  ],
   `
 fn wholeVertex(page:PageInfo,vertex:u32)->u32{
  let start=page.packedBase-1u;return start+4u+vertex*u32(positions[start+3u]);

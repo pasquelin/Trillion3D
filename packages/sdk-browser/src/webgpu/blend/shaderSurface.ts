@@ -1,6 +1,8 @@
 import { FLAG_DOUBLE, FLAG_HAS_NORMAL, FLAG_SAMPLED } from '../../visibility/types.ts'
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts'
-import { FACING_SHIFT } from './facing.ts'
+import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
+import { blendRequestWgsl } from './requestWgsl.ts'
+import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../tile/wgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 
@@ -14,7 +16,7 @@ const BLEND_SHADOW_FOOTPRINT_WGSL = wgslBlock(
 
 const BLEND_SURFACE_NORMAL_WGSL = wgslBlock(
   'BLEND_SURFACE_NORMAL_WGSL',
-  [],
+  [uniteOuZero],
   `/** The normal before any normal map: the vertex attribute, turned on the back of a two-sided
  *  material, or the face's own from screen derivatives \`q0\`, \`q1\` of the point: what the blend
  *  stage bends by its map (\`blendSurface\`). */
@@ -48,7 +50,7 @@ fn blendGeometricNormal(in:VSOut,front:bool,q0:vec3f,q1:vec3f)->vec3f{
  * Two fragment stages consume it, and it is the only place the material is read: the blend
  * stage, which lights it in place (`shader.ts`), and the water surface stage, which
  * stores it for the fullscreen composite (`../water/surfaceWgsl.ts`). The host shader
- * declares `VSOut`, the atlas samplers and `blendRequest` before this block.
+ * declares `VSOut` and the atlas bindings.
  *
  * Each stage reads it in three steps: the screen derivatives (`blendGrads`), in uniform control
  * flow; the base sample and the coverage test (`blendKeeps`) — the alpha test, and the side a
@@ -68,7 +70,16 @@ export const blendSurfaceWgsl = (lobes: boolean) => {
   const uv = 'in.uv.xy'
   return wgslBlock(
     `blendSurfaceWgsl(${lobes})`,
-    [uniteOuZero, COTANGENT_FRAME_WGSL, BLEND_SURFACE_NORMAL_WGSL, BLEND_SHADOW_FOOTPRINT_WGSL],
+    [
+      uniteOuZero,
+      COTANGENT_FRAME_WGSL,
+      BLEND_SURFACE_NORMAL_WGSL,
+      BLEND_SHADOW_FOOTPRINT_WGSL,
+      COLOR_SAMPLE_WGSL,
+      DATA_SAMPLE_WGSL,
+      FACING_WGSL,
+      blendRequestWgsl(lobes),
+    ],
     `
 struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,${lobes ? 'uv1X:vec2f,uv1Y:vec2f,' : ''}}
 fn blendGrads(in:VSOut)->BlendGrads{return BlendGrads(dpdx(${uv}),dpdy(${uv}),dpdx(in.view),dpdy(in.view)${lobes ? ',dpdx(in.uv.zw),dpdy(in.uv.zw)' : ''});}

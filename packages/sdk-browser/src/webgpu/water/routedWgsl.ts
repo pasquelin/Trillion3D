@@ -1,6 +1,7 @@
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from '../blend/displayFilter.ts'
 import { waterCompositeShader } from './compositeWgsl.ts'
+import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
@@ -9,7 +10,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  *  composite's light code is the one `key` leaves in. */
 const WATER_ROUTE_WGSL = wgslBlock(
   'WATER_ROUTE_WGSL',
-  [DISPLAY_ROUTE_WGSL, displayMaskWgsl(2)],
+  [DISPLAY_ROUTE_WGSL, displayMaskWgsl(2), WATER_COLOR_WGSL],
   `struct Routed{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,}
 struct RoutedReactive{@location(0) color:vec4f,@location(1) tint:vec4f,@location(2) add:vec4f,@location(3) reactive:vec4f,}
 fn waterRoute(pixel:vec4f,c:vec4f)->Route{

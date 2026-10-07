@@ -3,6 +3,8 @@
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PHYSICAL_TEXEL_WGSL } from '../../visibility/shader/physicalWgsl.ts'
+import { blendSurfaceWgsl } from '../blend/shaderSurface.ts'
+import { BLEND_PHYSICAL_WGSL } from '../blend/physicalWgsl.ts'
 
 /** The values of the surface stage, in their targets' order: the surface buffer, then, with
  *  `lobed`, the lobes target. The virtual-texture feedback follows them (`waterSurfaceTargets`). */
@@ -44,19 +46,28 @@ function waterEntry(lobed: boolean) {
 export const waterSurfaceWgsl = (lobes: boolean) =>
   wgslBlock(
     'waterSurfaceWgsl',
-    lobes ? [WATER_LOBED_WGSL] : [],
+    [blendSurfaceWgsl(lobes), waterSurfaceWordWgsl(lobes), ...(lobes ? [WATER_LOBED_WGSL] : [])],
+    `
+${waterEntry(false)}`,
+  )
+
+/** The fourth word of the surface buffer: the item's rank and the opacity of a fragment of the
+ *  blend surface of `lobes`. */
+const waterSurfaceWordWgsl = (lobes: boolean) =>
+  wgslBlock(
+    'waterSurfaceWordWgsl',
+    [blendSurfaceWgsl(lobes)],
     `
 fn waterSurfaceWord(in:VSOut,s:BlendSurface)->vec4f{
  let opacity=u32(round(clamp(s.alpha,0.0,1.0)*65535.0));
  return unpack4x8unorm((in.water&${WATER_MAX_ITEMS}u)|(opacity<<${WATER_RANK_SHIFT}u));
-}
-${waterEntry(false)}`,
+}`,
   )
 
 /** The lobed entry and what it stores: the fragment's lobes as the lobes target holds them. */
 const WATER_LOBED_WGSL = wgslBlock(
   'WATER_LOBED_WGSL',
-  [PHYSICAL_TEXEL_WGSL],
+  [PHYSICAL_TEXEL_WGSL, blendSurfaceWgsl(true), BLEND_PHYSICAL_WGSL, waterSurfaceWordWgsl(true)],
   `
 /** The fragment's lobes as the lobes target holds them, zero without either. */
 fn waterLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->vec4u{

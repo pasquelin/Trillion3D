@@ -5,7 +5,8 @@ import assert from 'node:assert/strict'
 import { LINE_DASH_WGSL } from './lineWgsl.ts'
 import { lineDash } from '../../../../../bench/oracles/browser/cpu-image/line.ts'
 import { runShaderText } from './shaderText.fixture.ts'
-import { MASK_KEEP_WGSL, PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, maskKeepWgsl } from './pageWgsl.ts'
+import { maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
@@ -62,7 +63,7 @@ test('every path that draws a line reads the dash, and a solid surface keeps eve
   assert.ok(wgslModule(PAGE_GEOMETRY_WGSL).includes(LINE_DASH_WGSL.text))
   assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /packedBase:u32,dash:vec2f,clusterHash/)
   assert.equal(ROW_DASH_WORD, 28, 'the row words of PageInfo.dash')
-  const keep = wgslSource(MASK_KEEP_WGSL).replace(/\s+\/\/[^\n]*/g, '')
+  const keep = maskKeepWgsl(maskAlphaWgsl(false)).text.replace(/\s+\/\/[^\n]*/g, '')
   assert.ok(
     keep.includes(
       ' if((page.flags&128u)==0u){return true;}\n if(!lineDash(uv.x,page.dash)){return false;}\n if(page.baseColor.w<=0.0){return true;}',

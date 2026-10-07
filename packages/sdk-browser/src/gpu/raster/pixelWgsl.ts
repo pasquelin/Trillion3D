@@ -2,6 +2,10 @@ import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
+import { maskKeepWgsl } from '../../visibility/shader/pageWgsl.ts'
+import { maskAlphaWgsl } from '../../webgpu/tile/wgsl.ts'
+import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
+import { RASTER_TRI_WGSL } from './triWgsl.ts'
 
 /**
  * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
@@ -39,7 +43,7 @@ import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
  */
 export const RASTER_PIXEL_WGSL = wgslBlock(
   'RASTER_PIXEL_WGSL',
-  [edgeFunction],
+  [edgeFunction, RASTER_TRI_WGSL, UV_GRADIENTS_WGSL, maskKeepWgsl(maskAlphaWgsl(false))],
   `
 /** Canonical order of two screen vertices: highest first, then leftmost. */
 fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}

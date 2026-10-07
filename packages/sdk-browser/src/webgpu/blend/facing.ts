@@ -1,5 +1,8 @@
 import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
+import { PAGE_INFO_STRUCT_WGSL } from '../../visibility/shader/pageWgsl.ts'
+import { PAGE_POINTS_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
+import { CLUSTER_HEADER_WGSL } from '../../cluster/headerWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 
@@ -35,12 +38,12 @@ export const FACING_DROP = 3
 /** The mode the fragment applies rides above the water rank, in the same flat word. */
 export const FACING_SHIFT = WATER_RANK_SHIFT
 
-/** The two functions in WGSL; the host shader declares the page geometry
- *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `corners` are the
+/** The two functions in WGSL, on the page geometry's points
+ *  (`../../visibility/shader/pageGeometryWgsl.ts`); the host declares `uni`. `corners` are the
  *  triangle's local vertex indices (`pageTriangle`). */
 export const FACING_WGSL = wgslBlock(
   'FACING_WGSL',
-  [perspectiveDivide],
+  [perspectiveDivide, PAGE_INFO_STRUCT_WGSL, CLUSTER_HEADER_WGSL, PAGE_POINTS_WGSL],
   `
 fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec3u)->u32{
  var c:array<vec3f,3>;

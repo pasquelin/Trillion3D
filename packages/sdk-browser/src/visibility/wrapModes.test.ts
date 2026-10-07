@@ -16,10 +16,10 @@ import {
   wrapNibble,
 } from './wrapModes.ts'
 import { SHADE_SHADER } from './shader/shadeWgsl.ts'
-import { MASK_KEEP_WGSL } from './shader/pageWgsl.ts'
+import { maskKeepWgsl } from './shader/pageWgsl.ts'
+import { maskAlphaWgsl } from '../webgpu/tile/wgsl.ts'
 import { MAPS, mixedNibbles } from '../../../../tests/gpu/texture/addressingMaps.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
-import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 const carte = (wrapS: number, wrapT: number) =>
   ({ wrapS: importWrapMode(wrapS), wrapT: importWrapMode(wrapT) }) as Texture
@@ -71,6 +71,8 @@ for (const [nom, text] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
 
 test('alpha cut-out addresses the base map by its header, never by the flags', () => {
   assert.ok(
-    wgslSource(MASK_KEEP_WGSL).includes('maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&64u)!=0u)'),
+    maskKeepWgsl(maskAlphaWgsl(false)).text.includes(
+      'maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&64u)!=0u)',
+    ),
   )
 })

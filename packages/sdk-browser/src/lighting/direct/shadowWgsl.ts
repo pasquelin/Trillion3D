@@ -15,15 +15,8 @@ import {
   vsmProjectionSampleWgsl,
 } from '../../vsm/projectionDataWgsl.ts'
 import { vsmTransmissionReadWgsl } from '../../vsm/transmissionWgsl.ts'
-import {
-  VSM_TRACE_RESULT_WGSL,
-  VSM_TRACE_COMMON_WGSL,
-  VSM_TRACE_DIRECTIONAL_WGSL,
-  VSM_TRACE_LIGHT_WGSL,
-  VSM_TRACE_LOCAL_WGSL,
-  vsmTraceWgsl,
-} from '../../vsm/traceWgsl.ts'
-import { VSM_BLUE_NOISE_SIZE, VSM_BLUE_NOISE_SLICES } from '../../vsm/blueNoise.ts'
+import { VSM_TRACE_RESULT_WGSL, VSM_TRACE_LIGHT_WGSL, vsmTraceWgsl } from '../../vsm/traceWgsl.ts'
+import { VSM_NOISE_TILE } from '../../vsm/blueNoise.ts'
 import { PCF_TAPS } from './pcfTaps.ts'
 import { VSM_MASK_TILES_BINDING, VSM_MASK_TABLE_READ_WGSL } from '../../vsm/projectionMaskTable.ts'
 import { VSM_PROJECTION_GROUP_SHIFT } from '../../vsm/projectionWgsl.ts'
@@ -361,6 +354,20 @@ const tracedKindStatement = (kinds: ShadowKinds) =>
     ? `if(isSun(light)){\n${TRACED_SUN}\n }else{\n${TRACED_LOCAL}\n }`
     : `{\n${kinds.sun ? TRACED_SUN : TRACED_LOCAL}\n }`
 
+/** The rays' random pairs at a pixel and frame, offset per ray over the projection's noise tile:
+ *  the traces' noise provider (\`vsmNoiseTwo\`) in a stage with no blue-noise binding. Declared,
+ *  without derivation, here and in \`vsmShadowTraced\`: the per-frame shift of the pixel noise
+ *  (32.665, 11.815) and the shifts that set the pair's second value (47, 17) and the dither's noise
+ *  (13, 71) apart from the first; moving any moves this read's noise pattern. */
+const PIXEL_NOISE_TWO = wgslFn(
+  'vsmNoiseTwo',
+  [interleavedGradient, VSM_NOISE_TILE],
+  `fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{
+ let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*vec2f(32.665,11.815);
+ return vec2f(interleavedGradient(p),interleavedGradient(p+vec2f(47.0,17.0)));
+}`,
+)
+
 /**
  * Mode 2 of the same read: the opaque projection's rays (`vsmTraceWgsl`, every ray traced: a
  * fragment has no wave to stop them early) at its ray counts, from the receiver itself — no normal
@@ -372,32 +379,20 @@ const tracedKindStatement = (kinds: ShadowKinds) =>
  * blue-noise texture, which the blend stage has no binding for. The translucent casters'
  * transmission is the point read's, as the opaque resolve takes it beside its traced mask.
  */
-const tracedReadWgsl = (kinds: ShadowKinds) =>
+const tracedReadWgsl = (b: VsmConsumerBindings, kinds: ShadowKinds) =>
   wgslBlock(
-    `tracedReadWgsl(${shadowKindsLabel(kinds)})`,
+    `tracedReadWgsl(${vsmBindingsLabel(b)}, ${shadowKindsLabel(kinds)})`,
     [
       interleavedGradient,
+      VSM_NOISE_TILE,
       VSM_TRACE_LIGHT_WGSL,
-      VSM_TRACE_COMMON_WGSL,
-      VSM_TRACE_DIRECTIONAL_WGSL,
-      VSM_TRACE_LOCAL_WGSL,
       VSM_TRACE_RESULT_WGSL,
-      vsmTraceWgsl(false),
+      vsmTraceWgsl(false, vsmPoolRead(b.pool), PIXEL_NOISE_TWO),
     ],
     `
 /** The view fields the traces read (\`vsmView\`), filled from the pixel by \`vsmShadowTraced\`. */
 struct VsmPixelView{shiftedToView:mat4x4f,viewToClip:mat4x4f,originShiftHigh:vec3f,frameIndex:u32,originShiftLow:vec3f,viewPixels:vec4f,}
 var<private> vsmView:VsmPixelView;
-/** The tile the rays' noise repeats over: the blue noise's size and slices. */
-const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);
-/** The rays' random pairs at a pixel and frame, offset per ray over the projection's noise tile.
- *  Declared, without derivation, here and in \`vsmShadowTraced\`: the per-frame shift of the pixel
- *  noise (32.665, 11.815) and the shifts that set the pair's second value (47, 17) and the dither's
- *  noise (13, 71) apart from the first; moving any moves this read's noise pattern. */
-fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{
- let p=vec2f(pixelAt)+f32(frameIndex%VSM_NOISE_TILE.z)*vec2f(32.665,11.815);
- return vec2f(interleavedGradient(p),interleavedGradient(p+vec2f(47.0,17.0)));
-}
 fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  let N=normalize(Nin);
  let angular=max(shadowAngularPixel,1e-20);
@@ -433,10 +428,10 @@ fn vsmShadowTraced(id:u32,light:DirectLight,P:vec3f,Nin:vec3f)->f32{
  * compiled into every blend and water program, their code alone slowed the full-screen water by 0.3 ms with the word at 0
  * (a-world-of-blocks, 3456 × 2234). Needs the consumer read (`vsmConsumerWgsl`) and the light code.
  */
-const vsmTranslucentReadWgsl = (traced: boolean, kinds: ShadowKinds) =>
+const vsmTranslucentReadWgsl = (b: VsmConsumerBindings, traced: boolean, kinds: ShadowKinds) =>
   wgslBlock(
-    `vsmTranslucentReadWgsl(${traced}, ${shadowKindsLabel(kinds)})`,
-    [filteredReadWgsl(kinds), ...(traced ? [tracedReadWgsl(kinds)] : [])],
+    `vsmTranslucentReadWgsl(${vsmBindingsLabel(b)}, ${traced}, ${shadowKindsLabel(kinds)})`,
+    [filteredReadWgsl(kinds), ...(traced ? [tracedReadWgsl(b, kinds)] : [])],
     `fn vsmShadowRead(id:u32,light:DirectLight,P:vec3f,N:vec3f)->f32{
  let mode=vsm.translucentShadowFilter;
  if(mode==0u){return vsmShadowFactor(id,isSun(light),P,N);}${
@@ -493,7 +488,7 @@ export const directShadowWgsl = (
         kinds,
       }),
       resolveTransmission === null
-        ? vsmTranslucentReadWgsl(traced, kinds)
+        ? vsmTranslucentReadWgsl(vsm, traced, kinds)
         : vsmMaskWgsl(maskBinding, kinds),
     ],
     `

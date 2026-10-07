@@ -1,4 +1,4 @@
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL } from './pageWgsl.ts'
+import { PAGE_BINDING, PAGE_INFO_WGSL, PAGE_LOOKUP_WGSL, maskKeepWgsl } from './pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, UV_READ } from './pageGeometryWgsl.ts'
 import {
   COLOR_SAMPLE_WGSL,
@@ -105,10 +105,9 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
       HIZ_REJECTED_WGSL,
       TILE_POOL_WGSL,
       COLOR_SAMPLE_WGSL,
-      maskAlphaWgsl(false),
       PAGE_LOOKUP_WGSL,
       PAGE_SCREEN_WGSL,
-      MASK_KEEP_WGSL,
+      maskKeepWgsl(maskAlphaWgsl(false)),
       PAGE_GEOMETRY_WGSL,
       COMPUTE_TAKES_WGSL,
       ...(diagnostic ? [diagnostic] : []),

@@ -46,9 +46,9 @@ import { receiverTargetReadWgsl } from '../visibility/shader/receiverTargetWgsl.
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { ceilDiv as ceilDivWgsl } from '../../../math/src/wgsl/integer.ts'
 import { perspectiveDivide, unprojectPoint, uvToNdc } from '../../../math/src/wgsl/projection.ts'
-import { vsmBlueNoiseWgsl } from './blueNoise.ts'
+import { vsmBlueNoiseTwo, vsmBlueNoiseWgsl } from './blueNoise.ts'
 import { VSM_CONSTANTS_WGSL, VSM_LIGHT_KIND_RECT } from './constants.ts'
-import { VSM_PROJECTION_DATA_WGSL, vsmProjectionSampleWgsl } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec, vsmPoolLoadOf } from './resources.ts'
 import {
   VSM_TRACE_RESULT_WGSL,
@@ -617,13 +617,16 @@ export function vsmProjectionWgsl(
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
-      // The page sampling the traces read, on this pass's pool.
-      vsmProjectionSampleWgsl(vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout)),
       VSM_TRACE_LIGHT_WGSL,
       vsmBlueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
       VSM_TRACE_COMMON_WGSL,
       VSM_TRACE_RESULT_WGSL,
-      vsmTraceWgsl(true),
+      // The traces sample this pass's pool and take the blue noise's pair.
+      vsmTraceWgsl(
+        true,
+        vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
+        vsmBlueNoiseTwo(1, VSM_PROJECTION_BINDING.blueNoise),
+      ),
       uvToNdc,
       unprojectPoint,
       perspectiveDivide,

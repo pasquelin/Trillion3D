@@ -1,6 +1,12 @@
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstantsWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts'
-import { VOLUME_FOG_FREE } from '../transparent/transmission.ts'
+import { VOLUME_FOG_FREE, VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
+import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
+import { SHADOW_VIEW_WGSL } from '../../lighting/direct/shadowViewWgsl.ts'
+import { FOG_WGSL } from '../../lighting/fogShader.ts'
+import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
+import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
+import { WATER_TRANSMITTED_WGSL } from './transmittedWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
 
@@ -9,7 +15,17 @@ import { fresnelScalar } from '../../../../math/src/wgsl/lighting.ts'
  *  reads only constants: one text for every program of the composite. */
 export const WATER_COLOR_WGSL = wgslBlock(
   'WATER_COLOR_WGSL',
-  [fresnelScalar, ROUGHNESS_FLOOR],
+  [
+    fresnelScalar,
+    ROUGHNESS_FLOOR,
+    WATER_UNPACK_WGSL,
+    WORLD_AT_WGSL,
+    WATER_SHADOW_READ_WGSL,
+    SHADOW_VIEW_WGSL,
+    WATER_TRANSMITTED_WGSL,
+    FOG_WGSL,
+    VOLUME_MARKED_WGSL,
+  ],
   `fn waterColor(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
  let packed=waterWordAt(coord);

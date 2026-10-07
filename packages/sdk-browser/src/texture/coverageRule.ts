@@ -63,7 +63,7 @@ fn pickKey(c:u32,t:u32,above:u32,texels:vec2u,goal:vec2u)->vec4u{
 
 export const COVERAGE_CUT_WGSL = wgslBlock(
   'COVERAGE_CUT_WGSL',
-  [],
+  [COVERAGE_SCALE_WGSL],
   `
 fn filtered(a:vec4u,s:u32)->u32{
  let x=3u-2u*(s&1u);let y=3u-2u*(s>>1u);

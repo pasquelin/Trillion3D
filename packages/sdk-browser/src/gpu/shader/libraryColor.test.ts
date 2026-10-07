@@ -32,11 +32,23 @@ test('the luminance weighs the linear primaries, white to one', () => {
   weights.forEach((w, i) => assert.ok(Math.abs(w - [0.2126, 0.7152, 0.0722][i]) < 1e-8))
 })
 
+/** The exponent the encode's text writes. */
+const EXPONENT = Number(/vec3f\(([\d.]+)\)\)-0\.055/.exec(linearToSrgb.text)?.[1])
+
+test('the exponent literal is the f32 nearest 1/2.4', () => {
+  assert.equal(Math.fround(EXPONENT), Math.fround(1 / 2.4))
+})
+
 test('the sRGB encode is the processor one, both branches, a negative linear', () => {
-  for (const c of [-0.5, 0, 0.001, 0.0031308, 0.0032, 0.01, 0.18, 0.5, 0.9, 1, 4]) {
+  for (const c of [-0.5, 0, 0.001, 0.0031308, 0.0031309, 0.0032, 0.01, 0.18, 0.5, 0.9, 1, 4]) {
     const [r] = run.linearToSrgb([c, c, c])
-    // The exponent is the f32 nearest 1/2.4: 2.7e-7 apart on [0, 1] at most.
-    assert.ok(Math.abs(r - linearToSrgbTs(c)) <= 3e-7 * Math.max(1, Math.abs(r)), `${c}: ${r}`)
+    // Run in double precision, the text strays from the definition by its exponent alone: the f32
+    // literal moves 1.055·C^(1/2.4) by itself times |ln C| times its distance to 1/2.4 (9.7e-9),
+    // 2.5e-8 at C = 4 and nothing on the linear branch. Past that, the 2e-9 the encode met before
+    // its exponent was the f32: a coefficient or the threshold off in its last digit fails.
+    const exponentGap =
+      c > 0.0031308 ? 1.055 * c ** (1 / 2.4) * Math.abs(Math.log(c) * (1 / 2.4 - EXPONENT)) : 0
+    assert.ok(Math.abs(r - linearToSrgbTs(c)) <= exponentGap + 2e-9, `${c}: ${r}`)
   }
 })
 

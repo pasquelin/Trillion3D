@@ -63,10 +63,11 @@ export const WORK_BLOCK_WORDS = 2 + SELECTION_WORKGROUP / 32
 import { VIEW_WORD_ROWS } from './viewsWgsl.ts'
 import { SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { DAG_INF } from './infDecl.ts'
 
 export const DAG_FLOOR_WGSL = wgslBlock(
   'DAG_FLOOR_WGSL',
-  [],
+  [DAG_INF],
   `fn extraBase()->u32{return liveCounter()+${FRAME_COUNTERS}u;}
 /** GPU mirror of \`errorFloorAt\` (../../../page/selection/projection.ts): same guards, same operands, same
  *  order. The smallest subtree error seen at the farthest depth its bounding sphere allows —

@@ -6,13 +6,7 @@ import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts'
 import { FORWARD_MIRROR_WGSL } from '../../reflections/modelShader.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
-import {
-  COLOR_SAMPLE_WGSL,
-  DATA_SAMPLE_WGSL,
-  TILE_POOL_WGSL,
-  tileDeclarations,
-} from '../tile/wgsl.ts'
-import { TILE_REQUEST_WGSL } from '../tile/requestWgsl.ts'
+import { tileDeclarations } from '../tile/wgsl.ts'
 import { BLEND_BINDINGS, BLEND_VSM_BINDINGS } from '../core/bindLayout.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import * as itemFlags from '../../visibility/buffer.ts'
@@ -48,10 +42,6 @@ const blendProgram = (key: Partial<ContractKey>) => {
       TRANSLUCENT_SCREEN_REFLECTION_WGSL,
       blendSurfaceWgsl(lobes),
       ...(lobes ? [BLEND_PHYSICAL_WGSL] : []),
-      TILE_POOL_WGSL,
-      COLOR_SAMPLE_WGSL,
-      DATA_SAMPLE_WGSL,
-      TILE_REQUEST_WGSL,
       blendFragmentWgsl(lobes),
     ],
     `${tileDeclarations(BLEND_BINDINGS.color, 'color')}

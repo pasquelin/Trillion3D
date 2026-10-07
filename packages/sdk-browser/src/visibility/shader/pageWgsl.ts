@@ -2,7 +2,8 @@ import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
 import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { LINE_DASH_WGSL } from './lineWgsl.ts'
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -125,13 +126,16 @@ export const normalAtlasWgsl = (binding: number) =>
  * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does (#748).
  * Shadows pass one: a depth pass reads no vertex colour.
  *
- * The host shader declares `uvs`, the colour pool and its page table, and lists `TILE_POOL_WGSL`
- * (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and `maskAlphaWgsl(...)`.
+ * `maskAlpha` provides the base map's alpha at the pass's footprint (`maskAlphaWgsl(...)`, on the
+ * pass's pool): the camera's colour read or the shadow's finest tap. The fragment is named after
+ * it, so two variants never share a name. The host shader declares `uvs`, the colour pool and its
+ * page table.
  */
-export const MASK_KEEP_WGSL = wgslBlock(
-  'MASK_KEEP_WGSL',
-  [],
-  `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
+export const maskKeepWgsl = (maskAlpha: WgslDecl) =>
+  wgslBlock(
+    `maskKeepWgsl(${maskAlpha.name})`,
+    [maskAlpha, LINE_DASH_WGSL],
+    `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  // Without an alpha test, its threshold is zero and the gaps are all it cuts.
@@ -149,4 +153,4 @@ export const MASK_KEEP_WGSL = wgslBlock(
  if(coloured){alpha*=vertexAlpha;}
  return alpha>=page.baseColor.w;
 }`,
-)
+  )

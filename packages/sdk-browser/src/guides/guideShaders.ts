@@ -1,4 +1,3 @@
-import { LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
 import { GUIDE_CORNER_WGSL } from './guideCorner.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 
@@ -82,5 +81,5 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
   return in.color;
 }
 `,
-  [LINE_CLIP_WGSL, GUIDE_CORNER_WGSL],
+  [GUIDE_CORNER_WGSL],
 )

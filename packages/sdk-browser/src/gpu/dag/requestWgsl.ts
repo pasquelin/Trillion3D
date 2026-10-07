@@ -14,6 +14,7 @@ import {
 } from './request.ts'
 import { CLUSTER_LEVEL_SHIFT, CLUSTER_ROOT_CHILD } from './clusterFlags.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { DAG_INF } from './shader/infDecl.ts'
 
 /**
  * The quantization of `request.ts` in WGSL, mirrored bit for bit by `request.fixture.ts`. WGSL `log2` and JavaScript `Math.log2` need not return the same
@@ -23,7 +24,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_REQUEST_WGSL = wgslBlock(
   'DAG_REQUEST_WGSL',
-  [],
+  [DAG_INF],
   `const REQUEST_AHEAD:u32=${REQUEST_AHEAD}u;
 fn errorStep(pixels:f32,scale:f32,top:i32)->u32{
  if(!(pixels>0.0)){return 0u;}

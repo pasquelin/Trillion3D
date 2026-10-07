@@ -3,6 +3,7 @@ import { ADMISSION_BUCKETS } from '../request.ts'
 import { KEPT_HEADER_WORDS } from '../layout.ts'
 import { SELECTION_NONE, SELECTION_WORKGROUP } from '../../core/selection.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * THE CUT AS A DIFFERENCE, taken where the cut is: for each rank of a copied snapshot's two lists,
@@ -33,7 +34,7 @@ export const DIFFERENCE_STAGES = ['dagCutDifference0', 'dagCutDifference1'] as c
 
 export const DAG_DIFFERENCE_WGSL = wgslBlock(
   'DAG_DIFFERENCE_WGSL',
-  [],
+  [FLAT_INDEX_WGSL],
   `const RANK_NONE:u32=${SELECTION_NONE}u;
 /** Admission bucket \`b\`'s count of the camera's requests in \`out.pages\`, behind the eviction
  *  burst (\`levelCountsWord\`). */

@@ -8,10 +8,8 @@
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { wgslModule, wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import {
-  CONTRACT_BINDINGS_WGSL,
-  VIEW_WGSL,
-} from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { CONTRACT_BINDINGS_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
+import { VIEW_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
 
 /** Floats of a sample: albedo and metal, normal and roughness, point and occlusion, eye
  *  direction and surface flag. */

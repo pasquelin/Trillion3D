@@ -37,14 +37,14 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { faceNormal } from '../../../math/src/wgsl/geometry.ts'
 import { matrixWindingCw } from '../../../math/src/wgsl/matrix.ts'
 import { PAGE_GEOMETRY_WGSL, UV_READ } from '../visibility/shader/pageGeometryWgsl.ts'
-import { MASK_KEEP_WGSL, PAGE_BINDING, PAGE_INFO_WGSL } from '../visibility/shader/pageWgsl.ts'
+import { PAGE_BINDING, PAGE_INFO_WGSL, maskKeepWgsl } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BACK, FLAG_DOUBLE, FLAG_MASK } from '../visibility/types.ts'
 import { VIS_BINDINGS } from '../webgpu/core/bindLayout.ts'
 import {
-  COLOR_SAMPLE_WGSL,
+  colorSampleWgsl,
   maskAlphaWgsl,
+  SHADOW_TILE_POOL_WGSL,
   tileDeclarations,
-  tilePoolWgsl,
 } from '../webgpu/tile/wgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_F32_BELOW_ONE } from './constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
@@ -156,10 +156,9 @@ fn vsmRenderFaceKept(page:PageInfo,raw:VsmProjectionRecord,a:vec3f,b:vec3f,c:vec
 `,
     [
       PAGE_INFO_WGSL,
-      tilePoolWgsl('0.0'),
-      COLOR_SAMPLE_WGSL,
-      maskAlphaWgsl(true),
-      MASK_KEEP_WGSL,
+      SHADOW_TILE_POOL_WGSL,
+      colorSampleWgsl(SHADOW_TILE_POOL_WGSL),
+      maskKeepWgsl(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL)),
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),

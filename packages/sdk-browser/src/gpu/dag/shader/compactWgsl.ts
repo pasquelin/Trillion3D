@@ -1,6 +1,7 @@
 import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
 
 /**
@@ -28,7 +29,7 @@ import { ceilDiv } from '../../../../../math/src/wgsl/integer.ts'
  */
 export const DAG_COMPACT_WGSL = wgslBlock(
   'DAG_COMPACT_WGSL',
-  [LANE_SCAN_WGSL, ceilDiv],
+  [LANE_SCAN_WGSL, ceilDiv, FLAT_INDEX_WGSL],
   `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}

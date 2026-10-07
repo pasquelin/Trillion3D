@@ -1,13 +1,15 @@
+import { WORLD_AT_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
+import { VOLUME_LAW_WGSL } from '../transparent/volumeLaw.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ndcToPixel, perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 /**
  * What the water composite reads through its surface (`compositeWgsl.ts`): the frozen backdrop at
  * the exit of the refracted ray, attenuated over the path the ray travels in the volume. The host
- * declares the views, the backdrop and its depth, `worldAt` and `volumeTransmittance`.
+ * declares the views, the backdrop and its depth.
  */
 export const WATER_TRANSMITTED_WGSL = wgslBlock(
   'WATER_TRANSMITTED_WGSL',
-  [ndcToPixel, perspectiveDivide],
+  [ndcToPixel, perspectiveDivide, WORLD_AT_WGSL, VOLUME_LAW_WGSL],
   `// Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
 // leaves the frustum.
 fn exitPixel(P:vec3f,dir:vec3f,dist:f32,straight:vec2i,size:vec2f)->vec2i{

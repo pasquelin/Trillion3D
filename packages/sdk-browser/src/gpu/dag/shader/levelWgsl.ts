@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL, OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
@@ -55,7 +56,7 @@ export const LEVEL_QUEUES = 3
 
 export const DAG_LEVEL_WGSL = wgslBlock(
   'DAG_LEVEL_WGSL',
-  [],
+  [FLAT_INDEX_WGSL, OPEN_SLICE_WGSL],
   `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
 fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
 fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}

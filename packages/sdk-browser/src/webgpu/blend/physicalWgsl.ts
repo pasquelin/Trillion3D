@@ -6,6 +6,7 @@ import {
   PHYSICAL_RECORD_MASK,
 } from '../../visibility/types.ts'
 import { physicalCoreWgsl, physicalTableWgsl } from '../../visibility/shader/physicalWgsl.ts'
+import { LOBES_LIGHTING_WGSL } from '../../lighting/direct/lobesWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -21,7 +22,11 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const BLEND_PHYSICAL_WGSL = wgslBlock(
   'BLEND_PHYSICAL_WGSL',
-  [physicalCoreWgsl('physicalSampled'), physicalTableWgsl(BLEND_BINDINGS.physical)],
+  [
+    physicalCoreWgsl('physicalSampled'),
+    physicalTableWgsl(BLEND_BINDINGS.physical),
+    LOBES_LIGHTING_WGSL,
+  ],
   `var<private> physicalSampled:bool;
 var<private> physicalOn:bool;
 /** The item's record and the fragment's two UV sets, before its tile request (\`blendRequest\`). */

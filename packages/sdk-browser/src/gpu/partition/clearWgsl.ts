@@ -1,6 +1,7 @@
 import { PARTITION_WORKGROUP, STATE_WORDS } from './contract.ts'
 import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 
 /**
@@ -12,7 +13,7 @@ import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
  */
 export const PARTITION_CLEAR_WGSL = wgslBlock(
   'PARTITION_CLEAR_WGSL',
-  [ceilDiv],
+  [ceilDiv, FLAT_INDEX_WGSL],
   `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn clearRows(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){

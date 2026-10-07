@@ -7,7 +7,12 @@ import {
   ndcToUvUnflipped,
   perspectiveDivide,
 } from '../../../math/src/wgsl/projection.ts'
-import { type ReflectionDepthRead, REFLECTION_SEGMENT, screenTraceWgsl } from './traceShader.ts'
+import {
+  type ReflectionDepthRead,
+  REFLECTION_SEGMENT,
+  reflectionPlaneWgsl,
+  screenTraceWgsl,
+} from './traceShader.ts'
 import { type ScreenLobeFade, screenRadianceShader } from './screenRadianceShader.ts'
 import { HIZ_TRACE_WGSL } from './hizTraceWgsl.ts'
 import {
@@ -76,7 +81,11 @@ export const SCREEN_REFLECTION_WGSL = screenReflectionWgsl()
  *    The march reads a surface's plane once, not at each of its pixels. */
 const BLENDED_PLANE_WGSL = wgslBlock(
   'BLENDED_PLANE_WGSL',
-  [SCREEN_REFLECTION_DEPTH.depthAt, SCREEN_REFLECTION_DEPTH.size],
+  [
+    reflectionPlaneWgsl(SCREEN_REFLECTION_DEPTH),
+    SCREEN_REFLECTION_DEPTH.depthAt,
+    SCREEN_REFLECTION_DEPTH.size,
+  ],
   `
 fn reflectionDepthClamped(p:vec2i)->f32{
  return reflectionDepthAt(clamp(p,vec2i(0),vec2i(reflectionSize())-vec2i(1)));

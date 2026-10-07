@@ -1,6 +1,6 @@
 import { GOLDEN_FRACTION } from '../../../math/src/constants.ts'
 import { floorLog2 } from '../../../math/src/scalar/integers.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslConst, wgslFn } from '../../../math/src/wgsl/decl.ts'
 /**
  * Spatio-temporal blue noise for the projection: one noise value and a pair per pixel and frame,
  * the frames' slices stacked down one texture, a pixel's texel at (x mod 64, 64·(frame mod 64) +
@@ -220,23 +220,37 @@ export function createVsmBlueNoiseTexture(device: GPUDevice): GPUTexture {
   return t
 }
 
+/** The tile the rays' noise repeats over: the blue noise's size and slices. */
+export const VSM_NOISE_TILE = wgslConst(
+  'VSM_NOISE_TILE',
+  [],
+  `const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);`,
+)
+
 /**
- * The noise value and pair reads over
+ * The noise value read over
  * `vsmBlueNoise` declared at (`group`, `binding`).
  */
 export const vsmBlueNoiseWgsl = (group: number, binding: number) =>
   wgslBlock(
     `vsmBlueNoiseWgsl(${group}, ${binding})`,
-    [],
+    [VSM_NOISE_TILE],
     `
 @group(${group}) @binding(${binding}) var vsmBlueNoise:texture_2d<f32>;
-const VSM_NOISE_TILE=vec3u(${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SIZE}u,${VSM_BLUE_NOISE_SLICES}u);
 const VSM_NOISE_WRAP=vec3u(${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SIZE - 1}u,${VSM_BLUE_NOISE_SLICES - 1}u);
 fn vsmNoiseTexel(pixelAt:vec2u,frameIndex:u32)->vec4f{
  let w=vec3u(pixelAt,frameIndex)&VSM_NOISE_WRAP;
  return textureLoad(vsmBlueNoise,vec2u(w.x,w.z*VSM_NOISE_TILE.y+w.y),0);
 }
 fn vsmNoiseOne(pixelAt:vec2u,frameIndex:u32)->f32{return vsmNoiseTexel(pixelAt,frameIndex).r;}
-fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}
 `,
+  )
+
+/** The rays' random pair at a pixel and frame (`vsmNoiseTwo`, the traces' noise provider), over
+ *  the same texture. */
+export const vsmBlueNoiseTwo = (group: number, binding: number) =>
+  wgslFn(
+    'vsmNoiseTwo',
+    [vsmBlueNoiseWgsl(group, binding)],
+    'fn vsmNoiseTwo(pixelAt:vec2u,frameIndex:u32)->vec2f{return vsmNoiseTexel(pixelAt,frameIndex).gb;}',
   )

@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
 /**
  * A corner of a guide's quad, `corner` naming its end (`x`: 0 at `a`, 1 at `b`) and its side
  * (`y`: ±1), in clip space. `lineClip` moves it off the segment by half the width; a second
@@ -9,7 +10,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
  */
 export const GUIDE_CORNER_WGSL = wgslBlock(
   'GUIDE_CORNER_WGSL',
-  [],
+  [LINE_CLIP_WGSL],
   `fn guideCorner(ca:vec4f,cb:vec4f,corner:vec2f,width:f32,viewport:vec2f,pixelRatio:f32)->vec4f{
  let run=select(cb-ca,vec4f(1.0,0.0,0.0,0.0),length(cb-ca)==0.0);
  let na=lineClip(ca,run,0.0,viewport,pixelRatio);

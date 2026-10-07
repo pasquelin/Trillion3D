@@ -1,4 +1,5 @@
-import { FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
+import { COMPUTE_TAKES_WGSL, FINE_SPAN, LARGE_SPAN, TILE } from './contract.ts'
+import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
 
@@ -26,7 +27,7 @@ import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
  */
 export const RASTER_TRI_WGSL = wgslBlock(
   'RASTER_TRI_WGSL',
-  [edgeFunction],
+  [edgeFunction, PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL, COMPUTE_TAKES_WGSL],
   `
 struct Clip{n:u32,p:array<vec4f,4>,u:array<vec3f,4>,}
 fn clipNear(pa:vec4f,pb:vec4f,pc:vec4f,ua:vec3f,ub:vec3f,uc:vec3f)->Clip{

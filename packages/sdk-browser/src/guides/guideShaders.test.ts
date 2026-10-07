@@ -71,7 +71,7 @@ test('the shader applies the rule of jitterDepthSlack: slack on the test, gentle
 
 // The guides draw with the engine's line corner (`lineClip`), not a second program,
 // and count their width as every line does — CSS pixels times the host's pixel ratio.
-const run = runShaderText(wgslSource(GUIDE_CORNER_WGSL), {
+const run = runShaderText(GUIDE_CORNER_WGSL.text, {
   lineClip: runShaderText(wgslSource(LINE_CLIP_WGSL)),
 })
 const QUAD = [

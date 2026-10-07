@@ -35,6 +35,29 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
 }`,
 )
 
+/** The nearest of the 3×3 depths `above`, `middle` and `below`, the identifier of its texel among
+ *  `aboveIds`, `middleIds` and `belowIds`, and the surface's depth step (`CLOSEST_SURFACE_WGSL`). */
+const NEAREST_OF_WGSL = wgslBlock(
+  'NEAREST_OF_WGSL',
+  [],
+  `
+struct TaaNearest{depth:f32,slope:f32,id:u32}
+fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u,belowIds:vec3u)->TaaNearest{
+ let centre=middle.y;
+ var nearDepth=centre;var nearId=middleIds.y;
+ for(var dy=-1;dy<=1;dy++){
+  var row=middle;var rowIds=middleIds;if(dy<0){row=above;rowIds=aboveIds;}if(dy>0){row=below;rowIds=belowIds;}
+  for(var dx=-1;dx<=1;dx++){
+   let z=row[dx+1];
+   if(z>nearDepth){nearDepth=z;nearId=rowIds[dx+1];}
+  }
+ }
+ let west=middle.x;let east=middle.z;let north=above.y;let south=below.y;
+ let slope=max(min(abs(west-centre),abs(east-centre)),min(abs(north-centre),abs(south-centre)));
+ return TaaNearest(nearDepth,slope,nearId);
+}`,
+)
+
 /** Same closest-surface selection for native and reconstructed display pixels. Reversed depth
  * makes the largest depth the foreground; its identity and motion travel together: the identifier
  * of its texel, which the pixel's page record and motion are read by. `slope` is the surface's
@@ -53,7 +76,7 @@ fn geometryUncovered(uv:vec2f,expected:f32,identity:u32,slack:f32)->bool{
  * with itself, never passes it (`nearestOf`). */
 export const CLOSEST_SURFACE_WGSL = wgslBlock(
   'CLOSEST_SURFACE_WGSL',
-  [],
+  [NEAREST_OF_WGSL],
   `
 fn closestSurface(coord:vec2i,last:vec2i)->TaaNearest{
  let size=vec2f(textureDimensions(depth));
@@ -74,28 +97,5 @@ fn closestSurface(coord:vec2i,last:vec2i)->TaaNearest{
  let aboveIds=vec3u(idUpLeft.w,idUpLeft.z,idUpRight.z);let middleIds=vec3u(idUpLeft.x,idUpLeft.y,idUpRight.y);
  let belowIds=vec3u(idDownLeft.x,idDownLeft.y,idDownRight.y);
  return nearestOf(above,middle,below,aboveIds,middleIds,belowIds);
-}`,
-)
-
-/** The nearest of the 3×3 depths `above`, `middle` and `below`, the identifier of its texel among
- *  `aboveIds`, `middleIds` and `belowIds`, and the surface's depth step (`CLOSEST_SURFACE_WGSL`). */
-export const NEAREST_OF_WGSL = wgslBlock(
-  'NEAREST_OF_WGSL',
-  [],
-  `
-struct TaaNearest{depth:f32,slope:f32,id:u32}
-fn nearestOf(above:vec3f,middle:vec3f,below:vec3f,aboveIds:vec3u,middleIds:vec3u,belowIds:vec3u)->TaaNearest{
- let centre=middle.y;
- var nearDepth=centre;var nearId=middleIds.y;
- for(var dy=-1;dy<=1;dy++){
-  var row=middle;var rowIds=middleIds;if(dy<0){row=above;rowIds=aboveIds;}if(dy>0){row=below;rowIds=belowIds;}
-  for(var dx=-1;dx<=1;dx++){
-   let z=row[dx+1];
-   if(z>nearDepth){nearDepth=z;nearId=rowIds[dx+1];}
-  }
- }
- let west=middle.x;let east=middle.z;let north=above.y;let south=below.y;
- let slope=max(min(abs(west-centre),abs(east-centre)),min(abs(north-centre),abs(south-centre)));
- return TaaNearest(nearDepth,slope,nearId);
 }`,
 )

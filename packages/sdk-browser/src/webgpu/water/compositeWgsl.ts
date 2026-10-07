@@ -6,9 +6,8 @@ import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
   surfaceBindingsWgsl,
-  VIEW_WGSL,
-  WORLD_AT_WGSL,
 } from '../../lighting/deferred/shaders.ts'
+import { VIEW_WGSL } from '../../lighting/deferred/worldAtWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../lighting/standardLighting.ts'
 import {
   CONTRACT_SHADOW_BINDINGS,
@@ -18,11 +17,6 @@ import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts'
 import { BOUNCE_SURFACE_BINDING, bounceReflectionWgsl } from '../../bounce/reflectWgsl.ts'
 import { RESIDENT_PROXY_BINDING } from '../../bounce/nodeWgsl.ts'
 import { BLEND_VIEW_WGSL } from '../blend/viewLayout.ts'
-import { WATER_UNPACK_WGSL } from './surfaceWgsl.ts'
-import { WATER_SHADOW_READ_WGSL } from './shadowReadWgsl.ts'
-import { VOLUME_LAW_WGSL } from '../transparent/volumeLaw.ts'
-import { VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
-import { WATER_TRANSMITTED_WGSL } from './transmittedWgsl.ts'
 import { WATER_LOBELESS_WGSL, WATER_LOBES_WGSL } from './waterLobesWgsl.ts'
 import { WATER_COLOR_WGSL } from './waterColorWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
@@ -119,8 +113,6 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       declaredLightingWgsl(bindings, key, { pair: true }),
       bounceApplyWgsl(WATER_BINDINGS.bounceGrid, WATER_BINDINGS.probes),
       bounceReflectionWgsl(WATER_BINDINGS.surface),
-      WORLD_AT_WGSL,
-      WATER_TRANSMITTED_WGSL,
       ...(lobes ? [WATER_LOBES_WGSL] : []),
       WATER_COLOR_WGSL,
       unbounded ? SCREEN_REFLECTION_WGSL : BOUNDED_SCREEN_REFLECTION_WGSL,
@@ -128,11 +120,7 @@ struct Composed{@location(0) color:vec4f,@location(1) reactive:vec4f,}
       BLEND_VIEW_WGSL,
       surfaceBindingsWgsl('waterWord:texture_2d<f32>'),
       CONTRACT_BINDINGS_WGSL,
-      WATER_UNPACK_WGSL,
-      VOLUME_LAW_WGSL,
       FULLSCREEN_VERTEX,
-      WATER_SHADOW_READ_WGSL,
-      VOLUME_MARKED_WGSL,
       ...(lobes ? [] : [WATER_LOBELESS_WGSL]),
       ...(route ? [route] : []),
     ],

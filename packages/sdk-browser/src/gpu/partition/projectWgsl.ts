@@ -11,8 +11,12 @@ import {
   ST_HISTORY_OCCLUDERS,
   ST_WITHDRAWN,
   VERDICT_REJECTED,
+  STATE_TALLY_WGSL,
 } from './contract.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { BOX_PROJECT_WGSL } from '../core/boxProjectWgsl.ts'
+import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
 
 /**
  * Projection of a resident row, and what the frame keeps of it: the occluder history, the row's
@@ -48,7 +52,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const PARTITION_PROJECT_WGSL = wgslBlock(
   'PARTITION_PROJECT_WGSL',
-  [],
+  [STATE_TALLY_WGSL, FLAT_INDEX_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL],
   `
 @compute @workgroup_size(${PARTITION_WORKGROUP})
 fn projectRows(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){

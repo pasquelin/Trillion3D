@@ -17,6 +17,7 @@ import {
   sunWorld,
 } from './vsmFilteredSample.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { perspectiveDivide } from '../../../../math/src/wgsl/projection.ts'
 
 test('each texel takes its own receiver-plane bias: a tilted receiver never shadows itself', () => {
   const p = [700.37, 900.81],
@@ -70,13 +71,19 @@ test('the transmission is the receiver’s own, read once wherever a texel lets 
 })
 
 test('mode 0 is the point read as it stood, byte for byte, and the word picks the mode', () => {
+  // The perspective divide is the library's, the body the one before it took that name: the call
+  // written back as its expression hashes as it stood.
+  assert.equal(perspectiveDivide.text, 'fn perspectiveDivide(h:vec4f)->vec3f{return h.xyz/h.w;}')
+  const call = 'uvz=vec4f(perspectiveDivide(uvz),uvz.w);'
   const point = functionText(SOURCE, 'vsmShadowFactor')
+  assert.equal(point.split(call).length, 2)
   // Retaken when the record's fields, the normal offset's floor and the map reads took their names
-  // here, when the light direction no read took left the signature and when the perspective divide
-  // took its library name: the same body.
+  // here, and when the light direction no read took left the signature: the same body.
   assert.equal(
-    createHash('sha256').update(point).digest('hex'),
-    '50273ccefefc44394a152f9d6581d8bd71ef52d275fdc68c4887244c080d5a04',
+    createHash('sha256')
+      .update(point.replace(call, 'uvz=vec4f(uvz.xyz/uvz.w,uvz.w);'))
+      .digest('hex'),
+    'a1b9223b2a68debe817ff7bc734b101172c1ce41eaa20332fe5242e45b9906c1',
   )
   const pick = (source: string) => {
     const called: string[] = []

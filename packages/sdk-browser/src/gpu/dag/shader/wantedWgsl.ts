@@ -1,5 +1,6 @@
 import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FLAT_INDEX_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * The kernel that follows the descent, and that visits only what it kept.
@@ -15,7 +16,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_WANTED_WGSL = wgslBlock(
   'DAG_WANTED_WGSL',
-  [],
+  [FLAT_INDEX_WGSL],
   `@compute @workgroup_size(64)
 fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let s=flatIndex(id,n,64u);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}

@@ -59,7 +59,7 @@ export function screenRadianceShader({
       }
   return wgslBlock(
     `screenRadianceShader(${filtered}, ${march}, ${mirror}, ${maxRoughness})`,
-    mirror ? [] : [ROUGHNESS_FLOOR],
+    march || !mirror ? [ROUGHNESS_FLOOR] : [],
     `
 fn screenReflectionFade(rough:f32)->f32{
  return clamp(2.0-2.0*rough/${wgslF32(maxRoughness)},0.0,1.0);

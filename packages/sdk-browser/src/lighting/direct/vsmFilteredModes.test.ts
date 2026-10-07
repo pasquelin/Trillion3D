@@ -4,7 +4,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { VSM_UNIFORMS_WGSL, writeVsmUniforms } from '../../vsm/uniforms.ts'
-import { vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
+import { VSM_PROJECTION_VSM_SPECS, vsmProjectionWgsl } from '../../vsm/projectionWgsl.ts'
+import { vsmPoolLoadOf } from '../../vsm/resources.ts'
+import { vsmBlueNoiseTwo } from '../../vsm/blueNoise.ts'
 import { vsmTraceWgsl } from '../../vsm/traceWgsl.ts'
 import { wgslStructLayout } from '../../vsm/wgslStructLayout.fixture.ts'
 import { directShadowWgsl } from './shadowWgsl.ts'
@@ -87,14 +89,19 @@ test('the mode and the view tangent have their words in the uniforms, the defaul
 })
 
 test('the traced read runs the projection’s traces without its wave votes', () => {
-  const projection = vsmProjectionWgsl(
-    vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27),
-    { subgroups: false },
-  )
-  assert.ok(projection.includes(vsmTraceWgsl(true).text), 'the compute projection votes')
-  assert.equal(wgslSource(vsmTraceWgsl(true)).match(/vsmVoteAllTrue\(/g)?.length, 5)
-  assert.equal(wgslSource(vsmTraceWgsl(false)).match(/vsmVoteAllTrue\(/g), null)
+  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }, 2 ** 27)
+  const projection = vsmProjectionWgsl(layout, { subgroups: false })
+  // The projection's providers: its pool and its blue noise's pair.
+  const trace = (waveVotes: boolean) =>
+    vsmTraceWgsl(
+      waveVotes,
+      vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
+      vsmBlueNoiseTwo(1, 0),
+    )
+  assert.ok(projection.includes(trace(true).text), 'the compute projection votes')
+  assert.equal(wgslSource(trace(true)).match(/vsmVoteAllTrue\(/g)?.length, 5)
+  assert.equal(wgslSource(trace(false)).match(/vsmVoteAllTrue\(/g), null)
   const blend = wgslModule(directShadowWgsl(18, { traced: true }))
-  assert.ok(blend.includes(vsmTraceWgsl(false).text), 'a fragment traces every ray')
+  assert.ok(blend.includes(trace(false).text), 'a fragment traces every ray')
   assert.match(blend, /anyCrossing=running&&startFace\.id!=endFace\.id;/)
 })

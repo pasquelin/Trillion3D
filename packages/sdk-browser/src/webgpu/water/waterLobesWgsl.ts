@@ -1,6 +1,6 @@
 import { LOBES_TARGET_WGSL } from '../../lighting/direct/lobesWgsl.ts'
 import { FORWARD_MIRROR_WGSL } from '../../reflections/modelShader.ts'
-import { VOLUME_LOBED } from '../transparent/transmission.ts'
+import { VOLUME_LOBED, VOLUME_MARKED_WGSL } from '../transparent/transmission.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -20,7 +20,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  */
 export const WATER_LOBES_WGSL = wgslBlock(
   'WATER_LOBES_WGSL',
-  [LOBES_TARGET_WGSL, FORWARD_MIRROR_WGSL],
+  [LOBES_TARGET_WGSL, FORWARD_MIRROR_WGSL, VOLUME_MARKED_WGSL],
   `/** The lobes of the water pixel at \`coord\`, set for its lights (\`lobesAt\`, the opaque resolve's
  *  decode); \`side\` is -1 where the composite turned the stored normal to face the eye. */
 fn waterLobes(vol:Volume,coord:vec2i,N:vec3f,V:vec3f,rough:f32,side:f32){

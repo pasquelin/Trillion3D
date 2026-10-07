@@ -36,7 +36,7 @@
 import { CUT_RULE_WGSL } from '../page/cut/rule.ts'
 import { FLOAT32_MAX } from '../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
-import { PROJECTED_BOUND_WGSL } from '../gpu/dag/shader/projectedBoundWgsl.ts'
+import { projectedBoundWgsl } from '../gpu/dag/shader/projectedBoundWgsl.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../gpu/shadow/mobilityBits.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts'
 import { FLAG_BLEND_CASTER } from '../visibility/types.ts'
@@ -53,7 +53,7 @@ import { VSM_PROJECTION_DATA_READ_WGSL } from './projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslConst } from '../../../math/src/wgsl/decl.ts'
 
 /** Threads per group of every render-cull kernel. */
 export const VSM_RENDER_GROUP = 64
@@ -99,6 +99,10 @@ fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chu
 
 // ---- Candidates (per row) ----------------------------------------------------------------------
 
+/** The render cull's `INF`, the bound `projectedBound` returns past the near plane: the greatest
+ *  finite f32. */
+const VSM_INF = wgslConst('INF', [FLOAT32_MAX], 'const INF:f32=FLOAT32_MAX;')
+
 /**
  * What a candidates kernel reads of the caster rows — group 0: 0 params (uniform, dynamic), 1 page
  * table rows (`pages`), 2 row spheres, 3 row mobility words, 4 row levels of detail, 5
@@ -107,10 +111,8 @@ fn vsmRenderChunkCounter(chunk:u32,k:u32)->u32{return VSM_RENDER_COUNTS_HEAD+chu
  */
 export const VSM_RENDER_ROWS_WGSL = wgslBlock(
   'VSM_RENDER_ROWS_WGSL',
-  [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, PROJECTED_BOUND_WGSL, CUT_RULE_WGSL, FLOAT32_MAX],
+  [PAGE_INFO_STRUCT_WGSL, VSM_RENDER_PARAMS_WGSL, projectedBoundWgsl(VSM_INF), CUT_RULE_WGSL],
   `
-/** The bound \`projectedBound\` returns past the near plane, its host's to name. */
-const INF:f32=FLOAT32_MAX;
 struct VsmRenderSphere{c:vec4f,l:vec4f,}
 struct VsmRenderRowLod{own:vec4f,parent:vec4f,ownLow:vec4f,parentLow:vec4f,radii:vec4f,}
 @group(0) @binding(0) var<uniform> params:VsmRenderParams;

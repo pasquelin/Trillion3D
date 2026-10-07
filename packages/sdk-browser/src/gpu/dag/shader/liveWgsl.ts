@@ -1,5 +1,6 @@
 import { WORK_BLOCK_WORDS } from './floorWgsl.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { OPEN_SLICE_WGSL } from '../../dispatch/grid.ts'
 
 /**
  * The list of live clusters of a frame, and the dispatch argument that sizes it.
@@ -39,7 +40,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
  */
 export const DAG_LIVE_WGSL = wgslBlock(
   'DAG_LIVE_WGSL',
-  [],
+  [OPEN_SLICE_WGSL],
   `fn liveBase()->u32{return views[0u].queueCap+views[0u].clusterCount*2u;}
 fn liveCounter()->u32{return blockCount()*${WORK_BLOCK_WORDS}u;}
 /** The live list's dispatch argument, x then y. */

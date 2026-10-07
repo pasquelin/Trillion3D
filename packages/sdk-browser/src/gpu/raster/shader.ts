@@ -2,22 +2,10 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { ceilDiv } from '../../../../math/src/wgsl/integer.ts'
 import { FULLSCREEN_XY } from '../shader/fullscreenTriangle.ts'
-import {
-  COLOR_SAMPLE_WGSL,
-  TILE_POOL_WGSL,
-  maskAlphaWgsl,
-  tileDeclarations,
-} from '../../webgpu/tile/wgsl.ts'
-import {
-  MASK_KEEP_WGSL,
-  PAGE_INFO_STRUCT_WGSL,
-  VIS_UNIFORMS_WGSL,
-} from '../../visibility/shader/pageWgsl.ts'
-import { PAGE_GEOMETRY_WGSL, PAGE_SCREEN_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
-import { UV_GRADIENTS_WGSL } from '../../visibility/shader/shadeDeclWgsl.ts'
+import { COLOR_SAMPLE_WGSL, TILE_POOL_WGSL, tileDeclarations } from '../../webgpu/tile/wgsl.ts'
+import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts'
 import { SMALL_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { RASTER_TRI_WGSL } from './triWgsl.ts'
-import { COMPUTE_TAKES_WGSL } from './contract.ts'
 import { RASTER_PIXEL_WGSL } from './pixelWgsl.ts'
 import { rasterKernels } from './kernelsWgsl.ts'
 import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL } from '../dispatch/grid.ts'
@@ -63,15 +51,9 @@ ${rasterKernels(capacity)}`,
       VIS_UNIFORMS_WGSL,
       TILE_POOL_WGSL,
       COLOR_SAMPLE_WGSL,
-      maskAlphaWgsl(false),
-      PAGE_SCREEN_WGSL,
-      UV_GRADIENTS_WGSL,
-      MASK_KEEP_WGSL,
       RASTER_TRI_WGSL,
       RASTER_PIXEL_WGSL,
       worldMatrix3,
-      PAGE_GEOMETRY_WGSL,
-      COMPUTE_TAKES_WGSL,
       FLAT_INDEX_WGSL,
       GROUP_GRID_WGSL,
       ceilDiv,

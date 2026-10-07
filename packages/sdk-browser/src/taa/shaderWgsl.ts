@@ -20,11 +20,7 @@ import {
   transformHomogeneousPoint,
 } from '../../../math/src/wgsl/projection.ts'
 import { SHADING_HISTORY_WGSL } from './shadingHistoryWgsl.ts'
-import {
-  GEOMETRY_HISTORY_WGSL,
-  NEAREST_OF_WGSL,
-  CLOSEST_SURFACE_WGSL,
-} from './geometryHistoryWgsl.ts'
+import { GEOMETRY_HISTORY_WGSL, CLOSEST_SURFACE_WGSL } from './geometryHistoryWgsl.ts'
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts'
 
 /** One neighbour's luma into the 3×3 blur (1, ½, ¼ for centre, sides and corners, over sixteen) and
@@ -59,7 +55,7 @@ export const texelReads = (blended: boolean): TexelReads => ({
 export const taaReprojectWgsl = (deformation = true) =>
   wgslBlock(
     `taaReprojectWgsl(${deformation})`,
-    [pixelToNdcInv, clipToUv, transformHomogeneousPoint],
+    [...(deformation ? [TAA_DEFORM_WGSL] : []), pixelToNdcInv, clipToUv, transformHomogeneousPoint],
     `
 fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
 fn pixelPoint(coord:vec2i,depthValue:f32)->vec4f{
@@ -159,7 +155,6 @@ export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) =>
   return wgslBlock(
     `taaPrelude(${asIs}, ${blended}, ${filtered})`,
     [
-      TAA_DEFORM_WGSL,
       TAA_REPROJECT_WGSL,
       BINDINGS_WGSL,
       ...(asIs ? [shareBindingsWgsl(blended)] : []),
@@ -171,7 +166,6 @@ export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) =>
       HISTORY_CAP_WGSL,
       GEOMETRY_HISTORY_WGSL,
       SHADING_HISTORY_WGSL,
-      NEAREST_OF_WGSL,
       CLOSEST_SURFACE_WGSL,
       CURRENT_SHARE_WGSL,
     ],

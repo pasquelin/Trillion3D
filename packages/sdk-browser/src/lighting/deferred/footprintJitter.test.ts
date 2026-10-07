@@ -11,7 +11,6 @@ import { perspectiveProjection } from '../../../../math/src/projection/camera.ts
 import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { TAA_SAMPLES, jitterViewProjection, taaJitter } from '../../taa/jitter.ts'
 import { PIXEL_FOOTPRINT_WGSL } from './footprintWgsl.ts'
-import { WORLD_AT_WGSL } from './shaders.ts'
 import { shadowJitterWords } from './jitterWords.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
@@ -30,7 +29,7 @@ const run = shaderRun<{
   pixelFootprint: (coord: V, pixel: V, z: number, P: V) => number
   worldAt: (pixel: V, z: number) => V
 }>(
-  wgslModule(PIXEL_FOOTPRINT_WGSL, WORLD_AT_WGSL),
+  wgslModule(PIXEL_FOOTPRINT_WGSL),
   [
     'pixelFootprint',
     'unjitteredDepth',

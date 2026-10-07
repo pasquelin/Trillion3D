@@ -1,9 +1,12 @@
 // The footprint rule on Dawn: the texture pools' `tileRead` (`texture/samplingFootprint.ts`) run
-// as the pools run it — their header struct and level of detail from the pool's own text
-// (`webgpu/tile/wgsl.ts`) — on footprints given by their gradients; the level, the taps and the
+// as the pools run it — their header struct (`TileSlot`) and level of detail (`atlasLod`), the
+// shadow pool's at no bias — on footprints given by their gradients; the level, the taps and the
 // texel pick read back.
-import { SAMPLING_FOOTPRINT_WGSL } from '../../../packages/sdk-browser/src/texture/samplingFootprint.ts'
-import { tilePoolWgsl } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
+import {
+  TILE_SLOT_WGSL,
+  atlasLodWgsl,
+  samplingFootprintWgsl,
+} from '../../../packages/sdk-browser/src/texture/samplingFootprint.ts'
 import { runCompute } from '../kit/computeRun.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 
@@ -16,16 +19,10 @@ export interface FootprintCase {
   ddy: [number, number]
 }
 
-/** The pools' header and level of detail, at no bias, then the rule, then one read a thread. */
+/** The rule at the pools' level of detail with no bias, then one read a thread. */
 function footprintWgsl() {
-  const pool = tilePoolWgsl('0.0').text
-  const slot = pool.match(/struct TileSlot\{[^}]*\}/)?.[0],
-    lod = pool.match(/fn atlasLod\([^\n]*/)?.[0]
-  if (!slot || !lod) throw new Error('the pool no longer declares TileSlot and atlasLod')
   return wgslProgram(
-    `${slot}
-${lod}
-struct Case{sampling:u32,last:u32,size:vec2f,ddx:vec2f,ddy:vec2f,}
+    `struct Case{sampling:u32,last:u32,size:vec2f,ddx:vec2f,ddy:vec2f,}
 @group(0) @binding(0) var<storage,read> cases:array<Case>;
 @group(0) @binding(1) var<storage,read_write> reads:array<vec4f>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
@@ -35,7 +32,7 @@ struct Case{sampling:u32,last:u32,size:vec2f,ddx:vec2f,ddy:vec2f,}
  let r=tileRead(s,vec2f(0.5),c.ddx,c.ddy,true);
  reads[id.x]=vec4f(r.lod,f32(r.taps),select(0.0,1.0,r.nearest),0.0);
 }`,
-    [SAMPLING_FOOTPRINT_WGSL],
+    [TILE_SLOT_WGSL, samplingFootprintWgsl(atlasLodWgsl('0.0'))],
   )
 }
 

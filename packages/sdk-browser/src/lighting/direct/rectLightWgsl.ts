@@ -122,7 +122,17 @@ fn ltcLookup(rough:f32,NdotV:f32,k:u32)->vec4f{
  *  its exact irradiance, the specular of its fitted lobe. */
 export const RECT_SHADING_WGSL = wgslBlock(
   'RECT_SHADING_WGSL',
-  [PI, f0Of, lambertAlbedoMul, ndotvClamped, splitSumTerm, tangentSide, vectorRejection, LTC_WGSL],
+  [
+    RECT_LIGHT_WGSL,
+    PI,
+    f0Of,
+    lambertAlbedoMul,
+    ndotvClamped,
+    splitSumTerm,
+    tangentSide,
+    vectorRejection,
+    LTC_WGSL,
+  ],
   `
 /** A corner in the frame (T1, T2, N) moved by M⁻¹ = [[m.x, 0, m.y], [0, 1, 0], [m.z, 0, m.w]]. */
 fn ltcCorner(q:vec3f,T1:vec3f,T2:vec3f,N:vec3f,m:vec4f)->vec3f{

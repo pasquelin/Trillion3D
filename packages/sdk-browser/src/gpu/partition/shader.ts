@@ -1,11 +1,9 @@
 import { DRAW_ITEM_WGSL } from '../draw/contract.ts'
-import { BOX_PROJECT_WGSL, PARTITION_UNI_WGSL } from '../core/boxProjectWgsl.ts'
-import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
+import { PARTITION_UNI_WGSL } from '../core/boxProjectWgsl.ts'
 import { PARTITION_CLASSIFY_WGSL } from './classifyWgsl.ts'
 import { PARTITION_CLEAR_WGSL } from './clearWgsl.ts'
 import { PARTITION_PROJECT_WGSL } from './projectWgsl.ts'
-import { PARTITION_BINDING as B, STATE_TALLY_WGSL } from './contract.ts'
-import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
+import { PARTITION_BINDING as B } from './contract.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
@@ -40,10 +38,6 @@ export const PARTITION_SHADER = wgslProgram(
   [
     DRAW_ITEM_WGSL,
     PARTITION_UNI_WGSL,
-    STATE_TALLY_WGSL,
-    FLAT_INDEX_WGSL,
-    BOX_PROJECT_WGSL,
-    HIZ_HIDDEN_WGSL,
     PARTITION_CLEAR_WGSL,
     PARTITION_PROJECT_WGSL,
     PARTITION_CLASSIFY_WGSL,
