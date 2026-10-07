@@ -8,7 +8,7 @@ use super::PROXY_TRIANGLE_FLOATS;
 use crate::compiler_world::{cofactor_direction, Mat4};
 use crate::shared_math::linear_columns;
 use std::collections::BTreeMap;
-use trillion3d_math::vec3::{cross, dot};
+use trillion3d_math::linear::determinant;
 
 /// Numbers per stored map: three rows of a 3×4 affine matrix, row-major.
 pub const PROXY_TRANSFORM_FLOATS: usize = 12;
@@ -47,8 +47,7 @@ pub fn apply(m: &[f32; PROXY_TRANSFORM_FLOATS], p: &[f32]) -> [f32; 3] {
 /// Map from `a`'s run to `b`'s: linear part `B·A⁻¹` rounded to whole numbers, since snapping to
 /// the world grid commutes with signed axis permutations only; translation from the first vertices.
 fn map(a: &Mat4, b: &Mat4, a0: &[f32], b0: &[f32]) -> Option<[f32; 12]> {
-    let [c0, c1, c2] = linear_columns(a);
-    let det = dot(c0, cross(c1, c2));
+    let det = determinant(a);
     if !(det.is_finite() && det != 0.0) {
         return None;
     }

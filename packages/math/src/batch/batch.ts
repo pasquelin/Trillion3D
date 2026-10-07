@@ -6,8 +6,8 @@ import { composeMatrix4 } from '../matrix/matrix4Trs.ts'
 /**
  * Math foundation operations executed IN BATCHES: `n` flat elements, a single function
  * entry, no allocation. This is the JavaScript path, the baseline and the fallback:
- * WebAssembly kernels in `packages/page-codec-wasm/src/math.rs` replicate these loops term by
- * term.
+ * WebAssembly kernels in `packages/page-codec-wasm/src/math.rs` (over `packages/math/rust`'s
+ * `matrix.rs` and `box_transform.rs`) replicate these loops term by term.
  *
  * Matrices are passed as SUB-VIEWS of sixteen numbers, not offsets: `multiplyMatrix4` and
  * `boxCornersInto` read their inputs at constant indices, and a parameter offset would

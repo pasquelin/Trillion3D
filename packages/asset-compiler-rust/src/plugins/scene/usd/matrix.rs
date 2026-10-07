@@ -3,8 +3,8 @@
 //! same matrix transposed twice: the sixteen numbers of a USD `matrix4d` are therefore copied
 //! as-is, and composing a list of operations is left to right.
 
-/// Identity, translation, scale and the rotations come from `compiler_world`, which owns them for
-/// every driver, and composition from the maths crate: repeating them here would let them diverge.
+/// Identity, translation, scale, the rotations and composition come from the maths crate
+/// (through `compiler_world`, for every driver): repeating them here would let them diverge.
 pub(super) use crate::compiler_world::{
     quaternion_wxyz, scaling, translation, turn, Mat4, IDENTITY,
 };

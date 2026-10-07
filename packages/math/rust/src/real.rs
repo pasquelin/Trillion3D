@@ -17,6 +17,8 @@ pub trait Real:
     const ONE: Self;
     const TWO: Self;
     fn sin_cos(self) -> (Self, Self);
+    fn sin(self) -> Self;
+    fn cos(self) -> Self;
     fn sqrt(self) -> Self;
 }
 
@@ -30,6 +32,14 @@ macro_rules! real {
             #[inline]
             fn sin_cos(self) -> (Self, Self) {
                 <$float>::sin_cos(self)
+            }
+            #[inline]
+            fn sin(self) -> Self {
+                <$float>::sin(self)
+            }
+            #[inline]
+            fn cos(self) -> Self {
+                <$float>::cos(self)
             }
             #[inline]
             fn sqrt(self) -> Self {

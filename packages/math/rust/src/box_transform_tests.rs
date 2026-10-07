@@ -1,10 +1,17 @@
 use super::*;
-use crate::min_ball::xorshift;
-use trillion3d_math::golden::HOSTILE_F64 as HOSTILE;
+use crate::golden::HOSTILE_F64 as HOSTILE;
+
+/// Marsaglia's xorshift, the draws of the codec's tests.
+fn xorshift(state: &mut u64) -> u64 {
+    *state ^= *state << 13;
+    *state ^= *state >> 7;
+    *state ^= *state << 17;
+    *state
+}
 
 #[test]
 fn the_affine_sums_are_the_corner_walk_s_bits() {
-    let mut state = trillion3d_math::GOLDEN;
+    let mut state = crate::GOLDEN;
     let mut draw = || xorshift(&mut state);
     let value = |draw: &mut dyn FnMut() -> u64| match draw() % 4 {
         0 => HOSTILE[(draw() % 16) as usize],
@@ -41,4 +48,15 @@ fn the_affine_sums_are_the_corner_walk_s_bits() {
     }
     // Both paths are exercised, signed zeros among the results.
     assert!(affine > 150_000 && zeros > 10_000, "{affine} {zeros}");
+}
+
+#[test]
+fn an_empty_box_is_copied_and_a_full_one_moved() {
+    let empty = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    let mut out = [9.0f64; BOX_VALUES];
+    box_transform(&mut out, &empty, &crate::matrix::IDENTITY);
+    assert_eq!(out, empty);
+    let shifted = crate::matrix::translation([1.0, 2.0, 3.0]);
+    box_transform(&mut out, &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0], &shifted);
+    assert_eq!(out, [1.0, 2.0, 3.0, 2.0, 3.0, 4.0]);
 }

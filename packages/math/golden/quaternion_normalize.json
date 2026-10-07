@@ -2,7 +2,7 @@
   "layout": "one case per line, read line by line: never reformatted",
   "regenerate": "pnpm run golden:write",
   "quaternion_normalize": {
-    "about": "normalizeQuaternion (sdk-core quaternion.ts), normalize (page-codec-wasm anim.rs): the compensated squares between 2^-900 and 2^900, Math.hypot outside, a zero or NaN length taken as 1",
+    "about": "normalizeQuaternion (sdk-core quaternion.ts), normalize (math/rust quaternion.rs): the compensated squares between 2^-900 and 2^900, Math.hypot outside, a zero or NaN length taken as 1",
     "inputs": "q: 4 f64 (x, y, z, w)",
     "outputs": "4 f64",
     "cases": [

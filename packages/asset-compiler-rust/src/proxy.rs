@@ -90,16 +90,7 @@ pub struct ProxyInputs<'a> {
 
 /// World matrix scale factor: longest of three linear columns.
 /// Object error multiplier when becoming world error, up to upper bound.
-pub fn world_scale(matrix: &Mat4) -> f64 {
-    (0..3)
-        .map(|column| {
-            (matrix[column * 4].powi(2)
-                + matrix[column * 4 + 1].powi(2)
-                + matrix[column * 4 + 2].powi(2))
-            .sqrt()
-        })
-        .fold(0.0f64, f64::max)
-}
+pub use trillion3d_math::linear::longest_column as world_scale;
 
 /// A length of `metres` in the object units of a primitive: the rule the tile grid shares.
 pub use trillion3d_page_codec::bits::grid::object_units;

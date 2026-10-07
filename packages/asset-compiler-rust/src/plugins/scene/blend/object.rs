@@ -14,6 +14,7 @@
 use super::*;
 use crate::compiler_world::{identity, quaternion_wxyz, turn};
 use trillion3d_math::matrix::multiply_matrix4;
+use trillion3d_math::rotation::half_angle_wxyz;
 
 /// The object type that holds a mesh.
 pub(super) const OB_MESH: i64 = 1;
@@ -113,15 +114,14 @@ fn quaternion(value: [f32; 4]) -> Matrix {
     quaternion_wxyz(value, |length| length.is_finite() && length != 0.0)
 }
 
-/// Rotation of an angle around an arbitrary axis, by the quaternion of its half angle. Blender's
-/// own formula, apart from `compiler_world::axis_angle` (Rodrigues) on purpose: it rounds apart.
+/// Rotation of an angle around an arbitrary axis, by the quaternion of its half angle
+/// (`half_angle_wxyz`). Blender's own formula, apart from `axis_angle` (Rodrigues) on purpose: it
+/// rounds apart.
 fn axis_angle(axis: &[f32; 3], angle: f32) -> Matrix {
-    let Some([x, y, z]) = normals::unit(*axis) else {
+    let Some(unit) = normals::unit(*axis) else {
         return identity();
     };
-    let half = angle / 2.0;
-    let sin = half.sin();
-    quaternion([half.cos(), x * sin, y * sin, z * sin])
+    quaternion(half_angle_wxyz(unit, angle))
 }
 
 fn scaling(scale: &[f32; 3], delta: &[f32; 3]) -> Matrix {

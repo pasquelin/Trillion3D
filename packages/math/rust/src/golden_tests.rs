@@ -1,10 +1,10 @@
 //! The reference values of this crate's mirrored primitives (`golden.rs`): the 4×4 product, `hypot`,
-//! the arc cosine and the sine, on hostile and ordinary inputs.
+//! the arc cosine, the sine and the quaternion normalisation, on hostile and ordinary inputs.
 
 use crate::golden::{f64s, ordinary, run, Twin, Value, HOSTILE_F64};
 use crate::matrix::{multiply_matrix4_one, MATRIX_VALUES};
 
-fn twins() -> [Twin; 4] {
+fn twins() -> [Twin; 5] {
     [
         Twin {
             file: "matrix4_product",
@@ -55,7 +55,31 @@ fn twins() -> [Twin; 4] {
             cases: sin_cases,
             compute: |v| f64s(&[crate::trig::sin(v[0].f64())]),
         },
+        Twin {
+            file: "quaternion_normalize",
+            name: "quaternion_normalize",
+            about: "normalizeQuaternion (sdk-core quaternion.ts), normalize (math/rust quaternion.rs): the compensated squares between 2^-900 and 2^900, Math.hypot outside, a zero or NaN length taken as 1",
+            inputs: "q: 4 f64 (x, y, z, w)",
+            outputs: "4 f64",
+            cases: normalize_cases,
+            compute: |v| {
+                let mut q: Vec<f64> = v.iter().map(|x| x.f64()).collect();
+                crate::quaternion::normalize(&mut q);
+                f64s(&q)
+            },
+        },
     ]
+}
+
+/// Hostile quaternions: each a rotation of the hostile values, the zero, the huge and the tiny.
+fn normalize_cases() -> Vec<Vec<Value>> {
+    let mut cases: Vec<Vec<Value>> = (0..64)
+        .map(|i| f64s(&[0, 5, 9, 14].map(|k| HOSTILE_F64[(i + k * (i / 16 + 1)) % 16])))
+        .collect();
+    for scale in [0.0, 1e-160, 2f64.powi(-450), 2f64.powi(450), 1e160, 5e-324] {
+        cases.push(f64s(&[0.5, -0.5, 0.5, 0.5].map(|c| c * scale)));
+    }
+    cases
 }
 
 /// Hostile matrices against each other, a column of negative zeros, then ordinary ones.

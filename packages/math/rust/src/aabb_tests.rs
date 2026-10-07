@@ -66,3 +66,9 @@ fn extend_aabb_f32_starts_from_an_empty_box() {
     assert_eq!(low, [1.5, -2.5, 0.5]);
     assert_eq!(high, [1.5, -2.5, 0.5]);
 }
+
+#[test]
+fn centre_is_the_half_sum_of_the_corners() {
+    assert_eq!(centre([0.0, -2.0, 1.0], [4.0, 2.0, 2.0]), [2.0, 0.0, 1.5]);
+    assert_eq!(centre([f64::MAX; 2], [f64::MAX; 2]), [f64::INFINITY; 2]);
+}

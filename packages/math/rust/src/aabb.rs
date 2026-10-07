@@ -138,6 +138,12 @@ pub fn extend_flat(into: &mut [f64; 6], point: [f64; 3]) {
     grow_flat(into, &[x, y, z, x, y, z]);
 }
 
+/// The centre of the box, `(low + high) · 0.5` axis by axis.
+#[inline]
+pub fn centre<const N: usize>(low: [f64; N], high: [f64; N]) -> [f64; N] {
+    core::array::from_fn(|axis| (low[axis] + high[axis]) * 0.5)
+}
+
 #[cfg(test)]
 #[path = "aabb_tests.rs"]
 mod tests;

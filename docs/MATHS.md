@@ -94,7 +94,7 @@ transformPointsBatch(viewCentres, frame.view, centres, m); // m === visible
 ```
 
 **Which path ran.** `boxTransformBatch` and `multiplyMatrix4Batch` have WebAssembly kernels
-(`packages/page-codec-wasm/src/math.rs` and `packages/math/rust/src/matrix.rs`), bit-identical to the
+(`packages/page-codec-wasm/src/math.rs` over `packages/math/rust/src/matrix.rs` and `box_transform.rs`), bit-identical to the
 JavaScript loop; a governor (`packages/sdk-core/src/runtime/path/governor.ts`, wired in
 `packages/sdk-browser/src/page/decode/batch/batchRuntime.ts`) plays the faster measured, per operation.
 `metric.frame(world).mathBatch` publishes `MathPathMetrics` (`MATH_PATH_CONTRACT` 1):

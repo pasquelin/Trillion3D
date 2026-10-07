@@ -13,6 +13,7 @@
 //! sphere. Those are the two defects this computation replaces.
 use super::cancel;
 use std::sync::atomic::AtomicBool;
+use trillion3d_math::vec3::{divide_f32, length_f32};
 
 mod weld;
 
@@ -130,7 +131,6 @@ impl Surface<'_> {
 /// purpose: the drivers write these normals and Blender's axes as they always have, and
 /// `shared_math`'s double precision unit vectors round differently.
 pub(super) fn unit(vector: [f32; 3]) -> Option<[f32; 3]> {
-    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
-    (length.is_finite() && length != 0.0)
-        .then(|| [vector[0] / length, vector[1] / length, vector[2] / length])
+    let length = length_f32(vector);
+    (length.is_finite() && length != 0.0).then(|| divide_f32(vector, length))
 }

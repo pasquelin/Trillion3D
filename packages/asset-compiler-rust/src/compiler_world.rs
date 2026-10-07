@@ -1,18 +1,15 @@
 use super::*;
-use crate::shared_math::linear_columns;
-use trillion3d_math::vec3::cross;
 
-mod rotation;
-pub(super) use rotation::{
+// The matrices and rotations every scene driver composes with, from the maths crate.
+pub(super) use trillion3d_math::linear::cofactor_direction;
+use trillion3d_math::matrix::{compose_trs, multiply_matrix4_from_zero};
+pub(super) use trillion3d_math::matrix::{scaling, translation, IDENTITY};
+pub(super) use trillion3d_math::rotation::{
     axis_angle, axis_rotation, identity, quaternion_wxyz, rotation_matrix, turn,
 };
-use trillion3d_math::matrix::multiply_matrix4_from_zero;
 
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];
-pub(super) const IDENTITY: Mat4 = [
-    1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
-];
 /// A scene graph deeper than this is refused rather than followed: a cycle would never end.
 const MAX_DEPTH: usize = 256;
 
@@ -37,22 +34,6 @@ fn numbers(value: Option<&Value>, length: usize, what: &str) -> Result<Option<Ve
         .map(Some)
 }
 
-/// Translation by `by`. Shared with scene drivers composing matrices.
-pub(super) fn translation(by: [f64; 3]) -> Mat4 {
-    let mut out = IDENTITY;
-    out[12..15].copy_from_slice(&by);
-    out
-}
-
-/// Scaling by `by`, axis by axis.
-pub(super) fn scaling(by: [f64; 3]) -> Mat4 {
-    let mut out = IDENTITY;
-    for axis in 0..3 {
-        out[axis * 4 + axis] = by[axis];
-    }
-    out
-}
-
 /// `matrix` when the node carries one, otherwise translation · rotation · scale, as glTF defines it.
 pub(super) fn local_matrix(node: &Value) -> Result<Mat4> {
     if let Some(values) = numbers(node.get("matrix"), 16, "matrix")? {
@@ -63,16 +44,11 @@ pub(super) fn local_matrix(node: &Value) -> Result<Mat4> {
     let t = numbers(node.get("translation"), 3, "translation")?.unwrap_or(vec![0., 0., 0.]);
     let r = numbers(node.get("rotation"), 4, "rotation")?.unwrap_or(vec![0., 0., 0., 1.]);
     let s = numbers(node.get("scale"), 3, "scale")?.unwrap_or(vec![1., 1., 1.]);
-    let mut matrix = rotation_matrix([r[0], r[1], r[2], r[3]]);
-    for column in 0..3 {
-        for row in 0..3 {
-            matrix[column * 4 + row] *= s[column];
-        }
-    }
-    matrix[12] = t[0];
-    matrix[13] = t[1];
-    matrix[14] = t[2];
-    Ok(matrix)
+    Ok(compose_trs(
+        [t[0], t[1], t[2]],
+        [r[0], r[1], r[2], r[3]],
+        [s[0], s[1], s[2]],
+    ))
 }
 
 /// World transform of every node, by node index. A node glTF never reaches keeps the identity, and
@@ -104,17 +80,4 @@ pub(super) fn world_matrices(g: &Value) -> Result<Vec<Mat4>> {
         }
     }
     Ok(world)
-}
-
-/// Cofactor of the linear part applied to a direction: `cof(A)·n` is `det(A) · A⁻ᵀn`, so it points
-/// the transformed plane normal without ever dividing, and its length is the factor an area of that
-/// plane is multiplied by.
-pub(super) fn cofactor_direction(matrix: &Mat4, normal: [f64; 3]) -> [f64; 3] {
-    let [a0, a1, a2] = linear_columns(matrix);
-    let (c0, c1, c2) = (cross(a1, a2), cross(a2, a0), cross(a0, a1));
-    [
-        normal[0] * c0[0] + normal[1] * c1[0] + normal[2] * c2[0],
-        normal[0] * c0[1] + normal[1] * c1[1] + normal[2] * c2[1],
-        normal[0] * c0[2] + normal[1] * c1[2] + normal[2] * c2[2],
-    ]
 }

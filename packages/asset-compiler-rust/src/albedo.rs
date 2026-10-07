@@ -31,20 +31,11 @@ pub fn pack(colour: [f64; 3]) -> u32 {
     byte(colour[0]) | (byte(colour[1]) << 8) | (byte(colour[2]) << 16) | (255 << 24)
 }
 
-/// An sRGB byte brought back to linear, the same curve as the rest of the chain (P1).
-///
-/// Two other copies of this curve exist, and neither is this one: the table in
-/// `texture_preview/curves.rs::srgb_table` computes it in `f32` — 214 of the 256
-/// entries differ from rounded `f64`, so the table is not built from here — and
-/// `packages/sdk-browser/src/lighting/deferred/shaders.ts` carries it on the engine side. Three precisions,
-/// three locations, no sharing.
+/// An sRGB byte brought back to linear in `f64`, the curve of the rest of the chain (P1):
+/// `trillion3d_math::color::srgb_to_linear`. The preview table (`texture_preview/curves.rs`) takes
+/// its `f32` form, which rounds apart on 214 of the 256 bytes.
 pub fn srgb_to_linear(byte: u8) -> f64 {
-    let value = byte as f64 / 255.0;
-    if value <= 0.04045 {
-        value / 12.92
-    } else {
-        ((value + 0.055) / 1.055).powf(2.4)
-    }
+    trillion3d_math::color::srgb_to_linear(byte as f64 / 255.0)
 }
 
 fn factor(material: &Value) -> [f64; 3] {

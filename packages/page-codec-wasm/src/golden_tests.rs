@@ -1,30 +1,17 @@
 //! The reference values of the codec's mirrored primitives (`trillion3d_math::golden`): the
-//! quaternion normalisation and slerp of the animation sampler here, the octahedral normal
+//! rotation track of the animation sampler here, the octahedral normal
 //! (`oct.rs`) and the quantization (`quant.rs`) each with its inverse, and a primitive's grids
 //! (`grid.rs`).
 
-use crate::anim::{normalize, sample_tracks, ARC_VALUES, QUATERNION};
-use trillion3d_math::golden::{f32s, f64s, run, Twin, Value, HOSTILE_F64};
+use crate::anim::{sample_tracks, ARC_VALUES, QUATERNION};
+use trillion3d_math::golden::{f32s, f64s, run, Twin, Value};
 
 pub(crate) mod grid;
 mod oct;
 mod quant;
 
-fn twins() -> [Twin; 2] {
+fn twins() -> [Twin; 1] {
     [
-        Twin {
-            file: "quaternion_normalize",
-            name: "quaternion_normalize",
-            about: "normalizeQuaternion (sdk-core quaternion.ts), normalize (page-codec-wasm anim.rs): the compensated squares between 2^-900 and 2^900, Math.hypot outside, a zero or NaN length taken as 1",
-            inputs: "q: 4 f64 (x, y, z, w)",
-            outputs: "4 f64",
-            cases: normalize_cases,
-            compute: |v| {
-                let mut q: Vec<f64> = v.iter().map(|x| x.f64()).collect();
-                normalize(&mut q);
-                f64s(&q)
-            },
-        },
         Twin {
             file: "quaternion_slerp",
             name: "quaternion_slerp",
@@ -42,17 +29,6 @@ fn twins() -> [Twin; 2] {
             },
         },
     ]
-}
-
-/// Hostile quaternions: each a rotation of the hostile values, the zero, the huge and the tiny.
-fn normalize_cases() -> Vec<Vec<Value>> {
-    let mut cases: Vec<Vec<Value>> = (0..64)
-        .map(|i| f64s(&[0, 5, 9, 14].map(|k| HOSTILE_F64[(i + k * (i / 16 + 1)) % 16])))
-        .collect();
-    for scale in [0.0, 1e-160, 2f64.powi(-450), 2f64.powi(450), 1e160, 5e-324] {
-        cases.push(f64s(&[0.5, -0.5, 0.5, 0.5].map(|c| c * scale)));
-    }
-    cases
 }
 
 /// Pairs of rotations, the shorter arc and the longer, equal and opposite keys, at five times.

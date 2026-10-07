@@ -1,12 +1,18 @@
 //! `multiplyMatrix4` in f64, to the bits of `packages/math/src/matrix/matrix4.ts` (why
 //! the bits are JavaScript's: `packages/page-codec-wasm/src/math.rs`). Column `j` of the product is
 //! `((A₀·b₀ + A₁·b₁) + A₂·b₂) + A₃·b₃`, `Aₖ` the k-th column of `a` and `bₖ` the k-th float of
-//! column `j` of `b`. The same product in `f32` or `f64` (`multiply_matrix4`) is the compiler's.
+//! column `j` of `b`. The same product in `f32` or `f64` (`multiply_matrix4`) is the compiler's,
+//! with the translation, scaling and glTF node composition its scene drivers build matrices from.
 
 use crate::real::Real;
 
 /// Floats of a column-major 4×4 matrix.
 pub const MATRIX_VALUES: usize = 16;
+
+/// The identity in `f64`; `rotation::identity` gives it in either precision.
+pub const IDENTITY: [f64; MATRIX_VALUES] = [
+    1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.,
+];
 
 /// `multiplyMatrix4` of a pair: the thirty-two inputs are read before the first write, and each
 /// term is the sum of four products with no initial zero — a sum started at `0` would change the
@@ -94,3 +100,36 @@ pub fn transform_point(matrix: &[f64; MATRIX_VALUES], point: [f64; 3]) -> [f64; 
     }
     out
 }
+
+/// Translation by `by`.
+pub fn translation(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
+    let mut out = IDENTITY;
+    out[12..15].copy_from_slice(&by);
+    out
+}
+
+/// Scaling by `by`, axis by axis.
+pub fn scaling(by: [f64; 3]) -> [f64; MATRIX_VALUES] {
+    let mut out = IDENTITY;
+    for axis in 0..3 {
+        out[axis * 4 + axis] = by[axis];
+    }
+    out
+}
+
+/// Translation · rotation · scale, as glTF composes a node: the rotation of the unit quaternion
+/// `r` (`rotation::rotation_matrix`), each of its columns times its scale, then `t` written in.
+pub fn compose_trs(t: [f64; 3], r: [f64; 4], s: [f64; 3]) -> [f64; MATRIX_VALUES] {
+    let mut matrix = crate::rotation::rotation_matrix(r);
+    for column in 0..3 {
+        for row in 0..3 {
+            matrix[column * 4 + row] *= s[column];
+        }
+    }
+    matrix[12..15].copy_from_slice(&t);
+    matrix
+}
+
+#[cfg(test)]
+#[path = "matrix_tests.rs"]
+mod tests;

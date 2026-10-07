@@ -7,7 +7,8 @@
 pub(crate) mod wide;
 
 use trillion3d_math::aabb::aabb_of;
-use trillion3d_math::vec3::{cross, divide, dot, length, scale};
+pub(crate) use trillion3d_math::linear::{linear_columns, uniform_scale};
+use trillion3d_math::vec3::{divide, length, scale};
 
 /// Axis along which box widest. On tie, first axis wins:
 /// strict `>` comparison, NaN extent never alters choice.
@@ -114,19 +115,4 @@ pub(crate) fn splitmix_unit(x: u64) -> f64 {
 /// milliseconds only, converting in one place prevents seconds leak.
 pub fn elapsed_ms(since: std::time::Instant) -> f64 {
     since.elapsed().as_secs_f64() * 1000.0
-}
-
-/// Equivalent uniform scale of 4x4 column matrix: cube root of
-/// volume linear part multiplies. Needed to transform length — light
-/// radius — from local space to world. Non-uniform matrix yields geometric
-/// mean of three scales, mirror yields same scale as reflection, degenerate
-/// matrix yields zero: zero length discarded by caller.
-pub(crate) fn uniform_scale(m: &[f64; 16]) -> f64 {
-    let [x, y, z] = linear_columns(m);
-    dot(x, cross(y, z)).abs().cbrt()
-}
-
-/// The three columns of the linear part of a column-major 4x4 matrix.
-pub(crate) fn linear_columns(m: &[f64; 16]) -> [[f64; 3]; 3] {
-    [0, 1, 2].map(|c| [m[c * 4], m[c * 4 + 1], m[c * 4 + 2]])
 }

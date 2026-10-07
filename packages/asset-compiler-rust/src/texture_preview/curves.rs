@@ -2,6 +2,8 @@
 //! table of a linear byte, and the one that turns a linear value into an sRGB
 //! byte. Split from reduction because they depend only on the atlas format, never
 //! on the geometry of the levels.
+use trillion3d_math::color::{linear_to_srgb_f32, srgb_to_linear_f32};
+
 /// The 256 linear-byte values, at their scale: the neutral table.
 pub(super) fn linear_table() -> &'static [f32; 256] {
     static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
@@ -14,33 +16,20 @@ pub(super) fn linear_table() -> &'static [f32; 256] {
     })
 }
 
-/// The 256 sRGB-byte values in linear, built once for the whole compilation.
-///
-/// The same curve as `albedo.rs::srgb_to_linear`, but in `f32`: 214 of the 256
-/// entries differ from the rounded `f64` version, and the box average accumulates
-/// in `f32` then in `f64`. Replacing the table with a call would change the
-/// preview bytes; both copies stay.
+/// The 256 sRGB-byte values in linear, built once for the whole compilation: the `f32` curve
+/// (`srgb_to_linear_f32`), whose rounding the box average accumulates in `f32` then in `f64`.
 pub(super) fn srgb_table() -> &'static [f32; 256] {
     static TABLE: std::sync::OnceLock<[f32; 256]> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| {
         let mut table = [0f32; 256];
         for (value, slot) in table.iter_mut().enumerate() {
-            let encoded = value as f32 / 255.0;
-            *slot = if encoded <= 0.04045 {
-                encoded / 12.92
-            } else {
-                ((encoded + 0.055) / 1.055).powf(2.4)
-            };
+            *slot = srgb_to_linear_f32(value as f32 / 255.0);
         }
         table
     })
 }
 
+/// A linear value as an sRGB byte: the `f32` curve, clamped to `[0, 1]`, times 255, rounded.
 pub(crate) fn linear_to_srgb(value: f32) -> u8 {
-    let encoded = if value <= 0.0031308 {
-        value * 12.92
-    } else {
-        1.055 * value.powf(1.0 / 2.4) - 0.055
-    };
-    (encoded.clamp(0.0, 1.0) * 255.0).round() as u8
+    (linear_to_srgb_f32(value).clamp(0.0, 1.0) * 255.0).round() as u8
 }
