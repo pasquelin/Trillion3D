@@ -3,7 +3,7 @@
 // A single different value and the line fails: the attachment changes no bit.
 import * as THREE from 'three'
 import { srgbToLinear } from '../../../../packages/sdk-core/src/index.ts'
-import { linearToSrgb8 } from '../../../../packages/sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8 } from '../../../../packages/math/src/color/color.ts'
 import { projectVisibilityVertex } from '../../../oracles/browser/cpu-image/projection.ts'
 import {
   setWindingEpoch,
@@ -119,7 +119,7 @@ export async function lignesConsommateursBrowser() {
     ),
     await ligne(
       'sRGB: byte table and 8-bit encoding',
-      'packages/sdk-core/src/math/primitives/color.ts',
+      'packages/math/src/color/color.ts',
       '256 bytes and hostile values',
       octets,
       (l) =>

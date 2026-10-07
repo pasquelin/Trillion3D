@@ -2,7 +2,7 @@
 // the reference display value, an ACES filmic fit then sRGB, kept independent of the
 // engine's shader on purpose.
 import assert from 'node:assert/strict'
-import { linearToSrgb } from '../../../../sdk-core/src/math/index.ts'
+import { linearToSrgb } from '../../../../math/src/color/color.ts'
 
 export type Rgba = readonly [number, number, number, number]
 

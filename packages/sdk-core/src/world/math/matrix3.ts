@@ -1,4 +1,4 @@
-import { normalMatrix3 } from '../../math/matrix/matrix3.ts'
+import { normalMatrix3 } from '../../../../math/src/matrix/matrix3.ts'
 import type { Matrix4 } from './matrix4.ts'
 
 /** A 3×3 matrix, column-major: a normal transform, a texture transform. */

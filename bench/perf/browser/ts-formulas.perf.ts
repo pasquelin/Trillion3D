@@ -29,7 +29,7 @@ type Triangle = (typeof triangles)[number]
 
 const resPlanes = await measure({
   name: 'box outside the six planes',
-  fichier: 'packages/sdk-core/src/math/frustum/box.ts',
+  fichier: 'packages/math/src/geometry/frustum/box.ts',
   cas: single('400 plane sets × 400 hostile boxes', casPlans, casPlans.length),
   calculation: parElement((c: (typeof casPlans)[number]) =>
     frustumExcludesBox(c.planes, c.box[0], c.box[1], c.box[2], c.box[3], c.box[4], c.box[5]),

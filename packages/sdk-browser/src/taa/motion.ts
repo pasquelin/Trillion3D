@@ -6,7 +6,8 @@ import {
   transformAffinePoint,
   worldToRenderOrigin,
 } from '../../../sdk-core/src/index.ts'
-import { sameElements, type MatrixElements } from '../math/matrixElements.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { type MatrixElements } from '../host/matrixElements.ts'
 
 /** What a placement's motion asks of a root: its host world matrix. */
 export type MotionRoot = { world: MatrixElements }

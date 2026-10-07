@@ -1,4 +1,4 @@
-import { crossVector3, normalizeVector3 } from '../../math/primitives/vector.ts'
+import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { BufferAttribute } from '../buffer/index.ts'
 import { Geometry } from './geometry.ts'
 import { pointAt } from './bounds.ts'

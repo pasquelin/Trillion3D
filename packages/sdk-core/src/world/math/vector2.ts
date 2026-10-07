@@ -1,7 +1,7 @@
 import { toSpherical } from './spherical.ts'
-import { Observed } from './observed.ts'
+import { Observed } from '../observed.ts'
 import type { XYLike as XY } from './likes.ts'
-import { hypot2 } from '../../math/primitives/hypot.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 /** A point in the plane: texture repeat and offset, lathe profiles, shape outlines. */
 export class Vector2 extends Observed {

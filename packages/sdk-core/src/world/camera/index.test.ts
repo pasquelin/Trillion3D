@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { camera } from './index.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 import { Vector3 } from '../math/vector3.ts'
 
 // The cube map face table a WebGPU cube texture is sampled by: per major axis, the axes texture s

@@ -1,5 +1,5 @@
-import { boxEmpty, boxIsEmpty, boxUnion } from '../../math/primitives/box.ts'
-import { keepNumbers } from '../../math/primitives/vector.ts'
+import { boxEmpty, boxIsEmpty, boxUnion } from '../../../../math/src/geometry/box.ts'
+import { keepNumbers } from '../../../../math/src/vector/vector.ts'
 import { VIEW_NUMBERS, writeView, type ShadowViewpoint } from '../light/contracts.ts'
 
 /** The tested point, allocated once: `touches` is called per light and per box, every frame. */

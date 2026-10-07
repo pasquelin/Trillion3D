@@ -15,7 +15,7 @@ import {
   REFLECTION_PLACEMENT_VERSIONS,
   type ReflectionHistoryFrame,
 } from './historyFrame.ts'
-import { sameElements, sameValues } from '../math/matrixElements.ts'
+import { sameElements, sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../webgpu/core/bindIdentity.ts'
 import { reflectionOwnerLayout } from './layout.ts'
 

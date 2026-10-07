@@ -1382,25 +1382,25 @@
       "description": "`n` cajas transformadas por `n` matrices: `out[i] = boxTransform(boxes[i], mats[i])`. `out` y `boxes` llevan seis números por elemento, `mats` una subvista de dieciséis."
     },
     "hierarchyUpdateBatch": {
-      "description": "Una jerarquía completa actualizada en un solo paso: `n` nodos ordenados padres antes que hijos, cada uno componiendo su matriz local y luego multiplicándola por la matriz del mundo de su padre — el recorrido de `packages/sdk-core/src/math/transform-tree/update.ts`, las mismas dos fórmulas en el mismo orden, sobre búferes planos. `parents[i]` **debe** indexar un nodo ya actualizado, así que estrictamente menor que `i`; cualquier otro valor — el centinela `HIERARCHY_ROOT` incluido — convierte al nodo en una raíz cuya matriz del mundo es su matriz local. La regla es idéntica en ambos caminos: ninguna entrada, por hostil que sea, puede hacer que diverjan. `local` es una única matriz de trabajo, reutilizada por cada elemento."
+      "description": "Una jerarquía completa actualizada en un solo paso: `n` nodos ordenados padres antes que hijos, cada uno componiendo su matriz local y luego multiplicándola por la matriz del mundo de su padre — el recorrido de `packages/sdk-core/src/world/transform-tree/update.ts`, las mismas dos fórmulas en el mismo orden, sobre búferes planos. `parents[i]` **debe** indexar un nodo ya actualizado, así que estrictamente menor que `i`; cualquier otro valor — el centinela `HIERARCHY_ROOT` incluido — convierte al nodo en una raíz cuya matriz del mundo es su matriz local. La regla es idéntica en ambos caminos: ninguna entrada, por hostil que sea, puede hacer que diverjan. `local` es una única matriz de trabajo, reutilizada por cada elemento."
     },
     "createPathGovernor": {
       "description": "Lo que decide entre JS y WebAssembly, por operación nombrada: medianas móviles de nanosegundos por elemento, un cambio solo tras cinco ejecuciones consecutivas con esa ventaja, y una ejecución de cada cincuenta que repite el otro camino para refrescar su mediana. Por debajo de cinco muestras no se decide nada — un solo valor formaría la mediana. `metrics()` publica, por operación, `path`, `jsNsPerElement`, `wasmNsPerElement`, el recuento de cambios y la resolución del reloj sobre la que descansa la medición."
     },
     "frustumKeepsBoxBatch": {
-      "description": "`n` cajas de seis números (min luego max) contra los veinticuatro flotantes de un frustum: `kept[i]` es 1 donde la caja corta el frustum o está dentro, y se devuelve el recuento conservado — `frustumExcludesBox` negado, la polaridad con la que responde la referencia. El lote de esferas escribe `SPHERE_VALUES` números por caja, centro luego radio hasta la esquina, como hace `sphereFromBounds`. Ambos bucles viven en `packages/sdk-core/src/math/batch/culling.ts`."
+      "description": "`n` cajas de seis números (min luego max) contra los veinticuatro flotantes de un frustum: `kept[i]` es 1 donde la caja corta el frustum o está dentro, y se devuelve el recuento conservado — `frustumExcludesBox` negado, la polaridad con la que responde la referencia. El lote de esferas escribe `SPHERE_VALUES` números por caja, centro luego radio hasta la esquina, como hace `sphereFromBounds`. Ambos bucles viven en `packages/math/src/batch/culling.ts`."
     },
     "boxUnionBatch": {
       "description": "`into` ampliado con `n` cajas, o con `n` cajas cada una transformada primero por su propia matriz — un solo paso, una caja de trabajo, sin asignación. Ambos repiten `boxUnion`, el segundo `boxTransform` antes: los límites del mundo de una escena entera en una sola llamada."
     },
     "invertMatrix4Batch": {
-      "description": "`n` inversas, `n` matrices de normales de `NORMAL_MATRIX_VALUES` números, `n` composiciones `T · R · S`, `n` descomposiciones. Una matriz con determinante nulo se invierte a la identidad y se marca en `singular[i]` — nunca un error a mitad de un lote. `composeMatrix4Batch` toma todo plano o todo como subvistas y fija la forma antes del bucle. Los cuatro bucles viven en `packages/sdk-core/src/math/batch/transforms.ts`."
+      "description": "`n` inversas, `n` matrices de normales de `NORMAL_MATRIX_VALUES` números, `n` composiciones `T · R · S`, `n` descomposiciones. Una matriz con determinante nulo se invierte a la identidad y se marca en `singular[i]` — nunca un error a mitad de un lote. `composeMatrix4Batch` toma todo plano o todo como subvistas y fija la forma antes del bucle. Los cuatro bucles viven en `packages/math/src/batch/transforms.ts`."
     },
     "transformPointsBatch": {
       "description": "`n` puntos de tres números mediante una matriz afín, o una matriz por punto; `n` direcciones mediante el bloque 3×3 superior, luego normalizadas, traslación ignorada. Repiten `transformAffinePoint` y `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
-      "description": "Un canal por elemento, las curvas exactas de `packages/sdk-core/src/math/primitives/color.ts`: la referencia multiplica por constantes redondeadas, y la brecha — invisible a 8 bits — se acota una vez, en el banco que los enfrenta."
+      "description": "Un canal por elemento, las curvas exactas de `packages/math/src/color/color.ts`: la referencia multiplica por constantes redondeadas, y la brecha — invisible a 8 bits — se acota una vez, en el banco que los enfrenta."
     },
     "scene-editor": {
       "title": "Construir una escena con el editor",

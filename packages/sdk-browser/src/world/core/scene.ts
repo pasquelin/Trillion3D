@@ -1,7 +1,7 @@
 import { Object3D, type SceneLink } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import { listen, unlisten } from '../../../../sdk-core/src/world/math/observed.ts'
+import { listen, unlisten } from '../../../../sdk-core/src/world/observed.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import type { LoadedModel } from './loadedModel.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'

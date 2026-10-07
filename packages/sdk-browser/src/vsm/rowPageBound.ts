@@ -45,7 +45,7 @@
 import { CLUSTER_SPHERE_FLOATS as STRIDE } from '../gpu/shadow/sphereContract.ts'
 import type { VsmClipmap } from './clipmap.ts'
 import { VSM_LEVEL0_PAGES, VSM_MIPS } from './constants.ts'
-import { sameValues } from '../math/matrixElements.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import type { VsmLightAllocation } from './frameSetup.ts'
 import { ceilDiv } from './layout.ts'
 

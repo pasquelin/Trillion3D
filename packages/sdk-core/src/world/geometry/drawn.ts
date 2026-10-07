@@ -1,4 +1,4 @@
-import { lengthSqVector3, normalizeVector3 } from '../../math/primitives/vector.ts'
+import { lengthSqVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { computeNormals } from './normals.ts'
 import { GeometryBuilder } from './builder.ts'
 import type { Geometry } from './geometry.ts'

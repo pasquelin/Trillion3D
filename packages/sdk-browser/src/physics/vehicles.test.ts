@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { VEHICLE_SPECS } from '../../../sdk-core/src/physics/vehicleSpec.ts'
-import { listen } from '../../../sdk-core/src/world/math/observed.ts'
+import { listen } from '../../../sdk-core/src/world/observed.ts'
 import { vehicleRig } from './vehicles.fixture.ts'
 
 /** Per kind, the gear and the speed (m/s) ten seconds of full throttle reach at least: the car

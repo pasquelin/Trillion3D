@@ -1,7 +1,7 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts'
 import type { HostAttributes, HostMesh } from '../../host/resources.ts'
 import type { PageSurface } from '../surface.ts'
-import type { MatrixElements } from '../../math/matrixElements.ts'
+import type { MatrixElements } from '../../host/matrixElements.ts'
 import type { NormalCone } from '../cone/cone.ts'
 import type { CullingLinks } from '../cut/links.ts'
 import type { PlacementOf } from '../../placement/rows.ts'
@@ -127,7 +127,7 @@ export type ClusterRoot<T> = {
     bounds: Float64Array
     links?: CullingLinks
   }
-  /** Root world box, six bounds flat (`packages/sdk-core/src/math/primitives/box.ts`). */
+  /** Root world box, six bounds flat (`packages/math/src/geometry/box.ts`). */
   worldBox?: Float64Array
   /** The local box of which `worldBox` is the image: what a node move reprojects (R8). Shared by
    *  every placement of the primitive, so it is read, never written. */

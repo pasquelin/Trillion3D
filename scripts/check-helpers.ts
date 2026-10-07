@@ -8,14 +8,11 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { cfgTestModules, rsHelpers } from './check-helpers-rust.ts'
-import { sourceFilesOf } from './repository-files.ts'
+import { SOURCE_UNITS, isTestModule, sourceFilesOf } from './repository-files.ts'
 
 /** Each package or crate is its own namespace: a helper is owned once per unit. */
 export const UNITS = [
-  'packages/sdk-core/src',
-  'packages/sdk-browser/src',
-  'packages/sdk-node/src',
-  'packages/page-codec',
+  ...SOURCE_UNITS,
   'packages/asset-compiler-rust/src',
   'packages/page-codec-wasm/src',
 ]
@@ -26,13 +23,6 @@ export interface Helper {
   body: string
   file: string
 }
-
-const TEST_TS = /\.(?:test|fixture|perf|gpu)\.m?ts$/
-const TEST_RS = /(?:^|\/)(?:tests?|\w+_tests?)(?:\.rs$|\/)/
-
-/** Whether `file` is a test module, which may keep its own small copies. */
-export const isTestModule = (file: string) =>
-  file.endsWith('.rs') ? TEST_RS.test(file) : TEST_TS.test(file)
 
 /** The helpers a TypeScript module defines at its top level, read by the compiler: a function
  *  declaration, or a `const` bound to an arrow or a function expression. */
@@ -69,7 +59,12 @@ function tsHelpers(file: string, text: string): Helper[] {
   return out
 }
 
-/** Every helper of `files` (path -> text) defined twice, signature and body alike, in one unit. */
+const MATH_UNIT = 'packages/math/src'
+
+/** Every helper of `files` (path -> text) defined twice, signature and body alike, in one unit.
+ *  The maths unit is the one home the other TypeScript packages read, so its helpers are also
+ *  compared with those of every other TypeScript unit, and a copy is reported with the maths as
+ *  its owner. */
 export function duplicateHelpers(files: Map<string, string>): Helper[][] {
   const seen = new Map<string, Helper[]>()
   const testOnly = cfgTestModules(files)
@@ -83,9 +78,26 @@ export function duplicateHelpers(files: Map<string, string>): Helper[][] {
       if (helper.name === 'main' || helper.name === 'default') continue
       const key = `${unit}\0${helper.name}\0${helper.signature}\0${helper.body}`
       seen.set(key, [...(seen.get(key) ?? []), helper])
+      if (file.endsWith('.rs')) continue
+      const shape = `${helper.name}\0${helper.signature}\0${helper.body}`
+      for (const other of UNITS)
+        if (unit === MATH_UNIT && other !== MATH_UNIT) {
+          const cross = `${MATH_UNIT}>${other}\0${shape}`
+          seen.set(cross, [helper, ...(seen.get(cross) ?? [])])
+        } else if (unit === other && unit !== MATH_UNIT) {
+          const cross = `${MATH_UNIT}>${unit}\0${shape}`
+          seen.set(cross, [...(seen.get(cross) ?? []), helper])
+        }
     }
   }
-  return [...seen.values()].filter((group) => new Set(group.map((h) => h.file)).size > 1)
+  const inMath = (h: Helper) => h.file.startsWith(MATH_UNIT + '/')
+  return [...seen]
+    .filter(
+      ([key, group]) =>
+        new Set(group.map((h) => h.file)).size > 1 &&
+        (!key.startsWith(MATH_UNIT + '>') || (group.some(inMath) && !group.every(inMath))),
+    )
+    .map(([, group]) => group)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

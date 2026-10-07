@@ -15,8 +15,8 @@ import {
   vsmMovingBias,
 } from './constants.ts'
 import { vsmShadowUvMatrix, vsmShadowUvNormalMatrix } from './projectionData.ts'
-import { cross } from '../../../sdk-core/src/math/primitives/vectorTuple.ts'
-import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { cross } from '../../../math/src/vector/vectorTuple.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import {
   VSM_FACE_MATRIX,

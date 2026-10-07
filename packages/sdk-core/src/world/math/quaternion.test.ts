@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { Quaternion } from './quaternion.ts'
 import { Vector3 } from './vector3.ts'
 import { Matrix4 } from './matrix4.ts'
-import { listen } from './observed.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { listen } from '../observed.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 const close = (a: number[], b: number[]) => within(a, b, 'rotation', 1e-7)
 

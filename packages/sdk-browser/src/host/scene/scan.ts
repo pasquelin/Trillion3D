@@ -1,4 +1,5 @@
-import { copyElements, sameElements } from '../../math/matrixElements.ts'
+import { sameElements } from '../../../../math/src/matrix/matrixElements.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { isLightNode } from '../graph/kinds.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
@@ -101,7 +102,7 @@ export function scan(state: NodeState): WatchVerdict {
   } else if (state.matrix && !sameElements(state.matrix, node._matrixElements)) {
     // Read without counting as a write; numbers written through the getter, or announced after
     // a write behind it, are taken into the tree here.
-    copyElements(state.matrix, node._matrixElements)
+    copyMatrix4(state.matrix, node._matrixElements)
     node._matrixMoved()
     moved = true
   }

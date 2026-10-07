@@ -6,7 +6,7 @@
  */
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { keepNumbers } from '../../../sdk-core/src/math/primitives/vector.ts'
+import { keepNumbers } from '../../../math/src/vector/vector.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
 import type { PlacedMesh, createTouchedRows } from './rows.ts'
 

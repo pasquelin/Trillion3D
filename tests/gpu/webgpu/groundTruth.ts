@@ -11,10 +11,7 @@
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts'
 import { Vector3 } from '../../../packages/sdk-core/src/world/math/vector3.ts'
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
-import {
-  linearToSrgb8,
-  srgbToLinear,
-} from '../../../packages/sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8, srgbToLinear } from '../../../packages/math/src/color/color.ts'
 import { wrapLinear } from '../../../packages/sdk-browser/src/visibility/wrapModes.fixture.ts'
 
 /** Reads along the minified axis of a pixel: converged to within one level on the foliage. */

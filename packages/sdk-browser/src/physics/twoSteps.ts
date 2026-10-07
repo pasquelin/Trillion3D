@@ -1,4 +1,4 @@
-import { sameValues } from '../math/matrixElements.ts'
+import { sameValues } from '../../../math/src/matrix/matrixElements.ts'
 import { keptBefore, type TickRecords } from './protocol.ts'
 
 /** Where a thing's state a step before its newest comes from, as a tick brings it (`take`). */

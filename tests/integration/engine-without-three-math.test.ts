@@ -142,7 +142,7 @@ const HOST_GRAPH = /^host\/graph\//
  *  second capture view became the host camera itself, read at the aspect ratio of the surface
  *  written into (`readCameraWorld`): no engine file composes into a host matrix any more. The
  *  boundary that gives a campaign its camera back writes the sixteen floats it was handed
- *  (`copyElements`), which is a copy and not a composition. */
+ *  (`copyMatrix4`), which is a copy and not a composition. */
 const ECRIT_L_HOST: Record<string, Record<string, string>> = {}
 
 test('engine reads the host matrix, it does not compute with it', async () => {

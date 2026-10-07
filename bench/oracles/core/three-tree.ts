@@ -9,7 +9,7 @@ import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../../packages/sdk-core/src/math/transform-tree/transformTree.ts'
+} from '../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
 import { N, alea, flatOf, quaternion, rnd } from './three-duel.ts'
 
 export function buildTrees(n = N) {

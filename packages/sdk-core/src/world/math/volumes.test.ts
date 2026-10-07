@@ -5,7 +5,7 @@ import { Sphere, Plane, Ray, Triangle, Frustum } from './volumes.ts'
 import { Vector3 } from './vector3.ts'
 import { Matrix4 } from './matrix4.ts'
 import { camera } from '../camera/index.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z)
 

@@ -15,9 +15,9 @@
  * `switched`, so the cut skips its clusters in the same breath. A card without the skip would draw
  * the object twice; the skip without the card would be a hole (CONTRIBUTING, Streaming rule 1).
  */
-import { hypot3 } from '../math/primitives/hypot.ts'
-import { transformAffinePoint } from '../math/primitives/vector.ts'
-import { maxStretch } from '../math/projectionOracles.ts'
+import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
+import { maxStretch } from '../../../math/src/projection/projectionOracles.ts'
 import {
   impostorMeshBaked,
   type ImpostorMap,

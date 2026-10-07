@@ -1,7 +1,7 @@
 // What ties `xformNormal`'s f32 model to the shader the GPU runs, and what keeps its criterion
 // honest.
 //
-// `packages/sdk-browser/src/math/normalTransform.test.ts` checks the lighting normal's arithmetic on
+// `packages/sdk-browser/src/gpu/shader/normalTransform.test.ts` checks the lighting normal's arithmetic on
 // an f32 MODEL (`inverseTransposeF32.ts`), with no GPU: a regression shows in the unit tests, but a
 // model is a second implementation, free to drift from the shipped text unseen. Here the engine's
 // `NORMAL_TRANSFORM_WGSL` runs on Dawn on EXACTLY the same cases (`normalTransformCases.ts`), and

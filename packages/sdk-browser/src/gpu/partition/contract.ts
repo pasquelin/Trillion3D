@@ -139,4 +139,4 @@ export const UNI_VIEW = 0,
 export const MAX_HIZ_LEVELS = 16
 export const UNIFORM_U32 = UNI_LEVELS + MAX_HIZ_LEVELS * 2
 
-export { writeSplitDouble } from '../../../../sdk-core/src/math/primitives/splitDouble.ts'
+export { writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'

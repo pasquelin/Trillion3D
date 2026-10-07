@@ -1,4 +1,4 @@
-import { addTransformNode, createTransformTree } from '../../math/transform-tree/transformTree.ts'
+import { addTransformNode, createTransformTree } from '../../world/transform-tree/transformTree.ts'
 import { SceneNode } from './node.ts'
 import { SCENE_MODEL_VERSION, type SceneNodeOptions, type SceneState } from './nodeContracts.ts'
 import { sceneNodeFail, sceneNodeVisibility } from './nodeError.ts'

@@ -11,9 +11,9 @@
  * same split double the projection data carries.
  */
 import { hasSubgroups } from '../gpu/core/subgroups.ts'
-import { writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts'
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts'
-import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   preparedComputePipeline,
   preparedPipelines,

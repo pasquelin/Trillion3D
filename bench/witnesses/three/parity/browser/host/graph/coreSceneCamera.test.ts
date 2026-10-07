@@ -9,7 +9,7 @@ import { Camera } from '../../../../../../../packages/sdk-core/src/world/camera/
 import {
   orthographicProjection,
   perspectiveProjection,
-} from '../../../../../../../packages/sdk-core/src/math/primitives/camera.ts'
+} from '../../../../../../../packages/math/src/projection/camera.ts'
 import { Object3D } from '../../../../../../../packages/sdk-core/src/world/object/object3d.ts'
 import { Scene } from '../../../../../../../packages/sdk-browser/src/world/core/scene.ts'
 

@@ -3,9 +3,9 @@ import type { Matrix4 } from '../math/matrix4.ts'
 import type { Geometry } from './geometry.ts'
 import { plainPoints, pointAt, readComponent, readsStored } from './bounds.ts'
 import { Vector3 } from '../math/vector3.ts'
-import { transformPointsBatch } from '../../math/batch/points.ts'
-import { normalMatrix3 } from '../../math/matrix/matrix3.ts'
-import { applyMatrix3Vector3, normalizeVector3 } from '../../math/primitives/vector.ts'
+import { transformPointsBatch } from '../../../../math/src/batch/points.ts'
+import { normalMatrix3 } from '../../../../math/src/matrix/matrix3.ts'
+import { applyMatrix3Vector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 
 /** Moves every position of `geometry` by `m` and turns every normal by its normal matrix, in
  *  place. A position is moved at its value (`pointAt`): a list of plain numbers three at a

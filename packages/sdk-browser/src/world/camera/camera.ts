@@ -1,4 +1,4 @@
-import type { BoxTransformLot } from '../../math/batchRuntime.ts'
+import type { BoxTransformLot } from '../../page/decode/batch/batchRuntime.ts'
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts'
 import { framingFromBounds } from '../../camera/framing.ts'
 import { DEFAULT_FOV } from '../../engine/common.ts'

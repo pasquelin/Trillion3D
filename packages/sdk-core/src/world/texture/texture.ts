@@ -1,5 +1,5 @@
 import { Vector2 } from '../math/vector2.ts'
-import { listen, unlisten } from '../math/observed.ts'
+import { listen, unlisten } from '../observed.ts'
 import type { ColorSpace, Filter, Wrap } from '../constants/index.ts'
 
 let nextTexture = 1

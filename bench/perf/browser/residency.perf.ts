@@ -89,7 +89,7 @@ const etirements = (lecture: (w: number) => ArrayLike<number>) => () => {
 
 const resEtirement = await measure({
   name: 'maximum world stretch',
-  fichier: 'packages/sdk-core/src/math/projectionOracles.ts',
+  fichier: 'packages/math/src/projection/projectionOracles.ts',
   cas: [{ name: '64 worlds', input: null, size: 64 }],
   calculation: etirements((w) => worlds.subarray(w * 16, w * 16 + 16)),
   expected: etirements((w) => Array.from(worlds.subarray(w * 16, w * 16 + 16))),

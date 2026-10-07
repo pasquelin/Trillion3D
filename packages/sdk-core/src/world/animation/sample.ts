@@ -3,7 +3,7 @@ import {
   normalizeQuaternion,
   slerpArc,
   slerpOnArc,
-} from '../../math/matrix/quaternion.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
 import type { Track, TrackBinding } from './clip.ts'
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —

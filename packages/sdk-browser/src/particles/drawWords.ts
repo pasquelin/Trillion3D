@@ -1,4 +1,5 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/math/index.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { matrixAtRenderOrigin } from '../../../math/src/projection/renderOrigin.ts'
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts'
 import { usedSlots } from './poolStates.ts'
 

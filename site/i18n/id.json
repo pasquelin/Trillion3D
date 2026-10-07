@@ -929,25 +929,25 @@
       "description": "`n` kotak ditransformasi oleh `n` matriks: `out[i] = boxTransform(boxes[i], mats[i])`. `out` dan `boxes` membawa enam angka per elemen, `mats` sebuah sub-view enam belas angka."
     },
     "hierarchyUpdateBatch": {
-      "description": "Sebuah hierarki penuh diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya — penjelajahan `packages/sdk-core/src/math/transform-tree/update.ts`, kedua rumus yang sama dalam urutan yang sama, pada buffer datar. `parents[i]` **harus** menunjuk sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua jalur: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda. `local` adalah satu matriks sementara, dipakai ulang tiap elemen."
+      "description": "Sebuah hierarki penuh diperbarui dalam satu tahap: `n` node diurutkan induk sebelum anak, masing-masing menyusun matriks lokalnya lalu mengalikannya dengan matriks dunia induknya — penjelajahan `packages/sdk-core/src/world/transform-tree/update.ts`, kedua rumus yang sama dalam urutan yang sama, pada buffer datar. `parents[i]` **harus** menunjuk sebuah node yang sudah diperbarui, karena itu harus lebih kecil ketat dari `i`; nilai lain apa pun — termasuk sentinel `HIERARCHY_ROOT` — menjadikan node itu sebuah root yang matriks dunianya adalah matriks lokalnya. Aturannya identik di kedua jalur: tidak ada masukan, sekeras apa pun, yang bisa membuat keduanya berbeda. `local` adalah satu matriks sementara, dipakai ulang tiap elemen."
     },
     "createPathGovernor": {
       "description": "Apa yang memutuskan antara JS dan WebAssembly, per operasi bernama: median bergerak nanodetik per elemen, sebuah perpindahan hanya setelah lima eksekusi berturut-turut dengan keunggulan itu, dan satu dari lima puluh eksekusi memutar ulang jalur yang lain untuk menyegarkan mediannya. Di bawah lima sampel tidak ada yang diputuskan — satu nilai saja akan membuat mediannya. `metrics()` menerbitkan, untuk tiap operasi, `path`, `jsNsPerElement`, `wasmNsPerElement`, jumlah perpindahannya, dan resolusi jam yang jadi dasar pengukurannya."
     },
     "frustumKeepsBoxBatch": {
-      "description": "`n` kotak enam angka (min lalu max) terhadap dua puluh empat float sebuah frustum: `kept[i]` adalah 1 saat kotaknya berpotongan atau berada di dalam, dan jumlah yang disimpan dikembalikan — `frustumExcludesBox` dibalik, polaritas yang dijawab acuannya. Batch bolanya menulis `SPHERE_VALUES` angka per kotak, pusat lalu radius ke sudutnya, seperti dilakukan `sphereFromBounds`. Kedua loop-nya ada di `packages/sdk-core/src/math/batch/culling.ts`."
+      "description": "`n` kotak enam angka (min lalu max) terhadap dua puluh empat float sebuah frustum: `kept[i]` adalah 1 saat kotaknya berpotongan atau berada di dalam, dan jumlah yang disimpan dikembalikan — `frustumExcludesBox` dibalik, polaritas yang dijawab acuannya. Batch bolanya menulis `SPHERE_VALUES` angka per kotak, pusat lalu radius ke sudutnya, seperti dilakukan `sphereFromBounds`. Kedua loop-nya ada di `packages/math/src/batch/culling.ts`."
     },
     "boxUnionBatch": {
       "description": "`into` diperbesar oleh `n` kotak, atau oleh `n` kotak yang masing-masing ditransformasi dulu oleh matriksnya sendiri — satu tahap, satu kotak sementara, tanpa alokasi. Keduanya mengulang `boxUnion`, yang kedua ditambah `boxTransform` sebelumnya: batas dunia seluruh adegan dalam satu panggilan."
     },
     "invertMatrix4Batch": {
-      "description": "`n` invers, `n` matriks normal berjumlah `NORMAL_MATRIX_VALUES` angka, `n` penyusunan `T · R · S`, `n` penguraian. Sebuah matriks dengan determinan nol diinvers menjadi identitas dan ditandai di `singular[i]` — tidak pernah melempar galat di tengah sebuah batch. `composeMatrix4Batch` menerima semuanya datar atau semuanya sebagai sub-view, dan menetapkan bentuknya sebelum loop-nya. Keempat loop-nya ada di `packages/sdk-core/src/math/batch/transforms.ts`."
+      "description": "`n` invers, `n` matriks normal berjumlah `NORMAL_MATRIX_VALUES` angka, `n` penyusunan `T · R · S`, `n` penguraian. Sebuah matriks dengan determinan nol diinvers menjadi identitas dan ditandai di `singular[i]` — tidak pernah melempar galat di tengah sebuah batch. `composeMatrix4Batch` menerima semuanya datar atau semuanya sebagai sub-view, dan menetapkan bentuknya sebelum loop-nya. Keempat loop-nya ada di `packages/math/src/batch/transforms.ts`."
     },
     "transformPointsBatch": {
       "description": "`n` titik tiga angka oleh satu matriks afin, atau satu matriks per titik; `n` arah oleh blok 3×3 atas lalu dinormalisasi, translasi diabaikan. Keduanya mengulang `transformAffinePoint` dan `transformDirectionVector3`."
     },
     "srgbToLinearBatch": {
-      "description": "Satu kanal per elemen, kurva pasti dari `packages/sdk-core/src/math/primitives/color.ts`: acuannya mengalikan dengan konstanta yang dibulatkan, dan celahnya — tak terlihat pada 8 bit — dibatasi sekali, dalam bench yang mengadunya."
+      "description": "Satu kanal per elemen, kurva pasti dari `packages/math/src/color/color.ts`: acuannya mengalikan dengan konstanta yang dibulatkan, dan celahnya — tak terlihat pada 8 bit — dibatasi sekali, dalam bench yang mengadunya."
     },
     "scene-editor": {
       "title": "Membangun scene dengan editor",

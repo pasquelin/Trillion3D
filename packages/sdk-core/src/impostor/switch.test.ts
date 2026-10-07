@@ -2,7 +2,7 @@
 // is the later of the two, and a manifest entry yields the switch input only when it is drawable.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { near } from '../math/near.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 import { bakedMesh } from './bakedMesh.fixture.ts'
 import {
   IMPOSTOR_PI,

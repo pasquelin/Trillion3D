@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Color } from './color.ts'
-import { listen } from './observed.ts'
+import { listen } from '../observed.ts'
 
 test('CSS and packed sRGB colors retain channel identity through linear storage and display', () => {
   for (const [style, hex] of [

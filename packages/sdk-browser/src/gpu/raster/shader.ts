@@ -1,4 +1,4 @@
-import { FULLSCREEN_XY_WGSL } from '../../math/fullscreenTriangle.ts'
+import { FULLSCREEN_XY_WGSL } from '../shader/fullscreenTriangle.ts'
 import {
   COLOR_SAMPLE_WGSL,
   TILE_POOL_WGSL,

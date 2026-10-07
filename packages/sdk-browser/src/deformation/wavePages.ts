@@ -1,5 +1,5 @@
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts'
-import { BOX_VALUES, boxUnion } from '../../../sdk-core/src/math/primitives/box.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
+import { BOX_VALUES, boxUnion } from '../../../math/src/geometry/box.ts'
 import { encloseTransform, ROUND, widenBox } from '../webgpu/water/precision.ts'
 import type { Waves } from '../../../sdk-core/src/fluids/waves.ts'
 import type { PageRec } from '../page/selection/types.ts'

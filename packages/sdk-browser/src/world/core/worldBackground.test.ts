@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
-import { listen } from '../../../../sdk-core/src/world/math/observed.ts'
+import { listen } from '../../../../sdk-core/src/world/observed.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { createFrameGateCore } from '../../frame/gateCore.ts'
 import { createBlendScene } from '../../cluster/blendSceneRecord.ts'

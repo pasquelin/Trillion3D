@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../visibility/materialType.ts'
-import { octDecodeWgsl, octEncodeWgsl } from '../math/octahedralWgsl.ts'
+import { octDecodeWgsl, octEncodeWgsl } from '../gpu/shader/octahedralWgsl.ts'
 import { loadOnlyTarget } from '../gpu/core/loadOnlyTarget.ts'
 
 /**

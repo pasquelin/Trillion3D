@@ -1,4 +1,4 @@
-import { crossVector3, normalizeVector3 } from '../../math/primitives/vector.ts'
+import { crossVector3, normalizeVector3 } from '../../../../math/src/vector/vector.ts'
 import { GeometryBuilder } from './builder.ts'
 
 type V3 = [number, number, number]

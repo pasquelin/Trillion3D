@@ -1,5 +1,9 @@
-import { addScaledVector3, copyScaledVector3, dotVector3 } from '../../math/primitives/vector.ts'
-import { subtract as sub, cross } from '../../math/primitives/vectorTuple.ts'
+import {
+  addScaledVector3,
+  copyScaledVector3,
+  dotVector3,
+} from '../../../../math/src/vector/vector.ts'
+import { subtract as sub, cross } from '../../../../math/src/vector/vectorTuple.ts'
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts'
 import type { Curve } from '../math/curves.ts'
 

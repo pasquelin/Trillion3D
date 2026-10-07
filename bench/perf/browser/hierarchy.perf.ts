@@ -32,7 +32,7 @@ const ligne = (name: string, file: string, list: MeasureCase<HierarchyOp[]>[]) =
 const lignes = [
   ligne(
     'frozen hierarchy: update, world reads, frames',
-    'packages/sdk-core/src/math/transform-tree/update.ts',
+    'packages/sdk-core/src/world/transform-tree/update.ts',
     [
       cas('finite hostile hierarchy chains', chainesFigees(false)),
       cas('hostile hierarchy chains with NaN and infinities', chainesFigees(true)),
@@ -40,7 +40,7 @@ const lignes = [
   ),
   ligne(
     'live hierarchy: poses, reparenting, removals, partial updates',
-    'packages/sdk-core/src/math/transform-tree/structure.ts',
+    'packages/sdk-core/src/world/transform-tree/structure.ts',
     [
       cas('ordinary live hierarchy scene', liveScenario(160, 240, 1e9)),
       cas('hostile live hierarchy scene', liveScenario(90, 160, 12)),
@@ -49,10 +49,10 @@ const lignes = [
   ),
   ligne(
     'camera and object lookAt, hierarchies included',
-    'packages/sdk-core/src/math/transform-tree/lookAt.ts',
+    'packages/sdk-core/src/world/transform-tree/lookAt.ts',
     [cas('hierarchical aims', visees())],
   ),
-  ligne('camera projections and frames', 'packages/sdk-core/src/math/primitives/camera.ts', [
+  ligne('camera projections and frames', 'packages/math/src/projection/camera.ts', [
     cas('lenses', objectifs()),
   ]),
 ]

@@ -11,7 +11,7 @@ import { stochasticReflectionShader } from '../../../packages/sdk-browser/src/re
 import { GGX_REFLECTION_SAMPLE_WGSL } from '../../../packages/sdk-browser/src/reflections/ggxSampleWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { REFLECTION_RESOLVE_WGSL } from '../../../packages/sdk-browser/src/reflections/resolveWgsl.ts'
-import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../../../packages/sdk-browser/src/gpu/shader/hashUnitWgsl.ts'
 import { contractLightingShader } from '../../../packages/sdk-browser/src/lighting/deferred/shaders.ts'
 import { withScreenReflections } from '../../../packages/sdk-browser/src/reflections/screenWgsl.ts'
 import { shaderErrors } from '../../../packages/sdk-browser/src/gpu/core/shaderModule.ts'

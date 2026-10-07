@@ -1,4 +1,4 @@
-import { octFoldWgsl } from '../../math/octahedralWgsl.ts'
+import { octFoldWgsl } from '../../gpu/shader/octahedralWgsl.ts'
 
 /**
  * The octahedral mapping and the three-frame blend, object space, pivot at the bounding-sphere

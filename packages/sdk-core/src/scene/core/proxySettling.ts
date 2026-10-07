@@ -1,4 +1,4 @@
-import { transformAffinePoint } from '../../math/primitives/vector.ts'
+import { transformAffinePoint } from '../../../../math/src/vector/vector.ts'
 import type { SceneProxy } from '../../contracts/proxy.ts'
 import type { createProxyLeaves } from './proxyLeaves.ts'
 

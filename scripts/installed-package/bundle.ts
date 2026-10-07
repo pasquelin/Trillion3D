@@ -55,7 +55,8 @@ export function emitInstalledBrowserBundle({
   const workRoot = join(packageRoot, 'dist/sdk-browser/src/page/work')
   const integrationRoot = join(packageRoot, 'dist/sdk-browser/src/page/integration')
   const physicsRoot = join(packageRoot, 'dist/sdk-browser/src/physics')
-  const mathRoot = join(packageRoot, 'dist/sdk-browser/src/math')
+  const animationRoot = join(packageRoot, 'dist/sdk-browser/src/animation')
+  const wasmRoot = join(packageRoot, 'dist/sdk-browser/src/wasm')
   const explorer = join(fixture, 'explorer.ts')
   const metafile = join(outputRoot, 'metafile.json')
   mkdirSync(outputRoot, { recursive: true })
@@ -71,7 +72,7 @@ export function emitInstalledBrowserBundle({
       join(workRoot, 'pageWorker.js'),
       join(integrationRoot, 'pageIntegrationWorker.js'),
       join(physicsRoot, 'physicsWorker.js'),
-      join(mathRoot, 'animationWorker.js'),
+      join(animationRoot, 'animationWorker.js'),
       '--bundle',
       '--format=esm',
       '--platform=browser',
@@ -87,7 +88,7 @@ export function emitInstalledBrowserBundle({
   )
   // Each WebAssembly module beside the chunk that fetches it by its own URL.
   const modules = [
-    join(mathRoot, 'wasm/kernels.wasm'),
+    join(wasmRoot, 'kernels.wasm'),
     join(physicsRoot, 'joltPhysics.wasm'),
     join(physicsRoot, 'joltPhysicsThreads.wasm'),
   ]

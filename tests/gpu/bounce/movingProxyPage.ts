@@ -9,7 +9,7 @@
  *   bound the tree derives, with no bound at all and with the built tree's bound; then once the
  *   owners stop, on the still path.
  */
-import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts'
+import { IDENTITY_MATRIX4 } from '../../../packages/math/src/matrix/matrix4.ts'
 import {
   floorProxy,
   mixedProxy,

@@ -82,7 +82,7 @@ export interface BoundSampler {
   release(): void
 }
 /** A sampler of whole actions on packed tracks, which a host with a faster one lends — the
- *  browser's WebAssembly sampler (`packages/sdk-browser/src/math/batchAnimation.ts`). */
+ *  browser's WebAssembly sampler (`packages/sdk-browser/src/animation/batchAnimation.ts`). */
 export interface ActionSampler {
   /** A sampler of `tracks` in their order, `fallback` its JavaScript path; `undefined` when one
    *  of them does not pack. */

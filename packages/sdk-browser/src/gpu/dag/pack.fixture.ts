@@ -3,7 +3,7 @@ import type { PackedDag, DagRoot } from './types.ts'
 
 /**
  * Brings packed world matrices into the RENDER FRAME whose origin is `origin` —
- * the frame's eye (`../../../../sdk-core/src/math/primitives/renderOrigin.ts`). `packDagSelection` returns them
+ * the frame's eye (`../../../../math/src/projection/renderOrigin.ts`). `packDagSelection` returns them
  * in absolute world: the engine rebases them per frame before sending them to the
  * GPU, and this is how a kernel caller without the engine — oracle, bench, test
  * mount — enters the frame of the uniforms it builds. Root matrices, in double,

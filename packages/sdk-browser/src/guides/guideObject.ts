@@ -5,7 +5,8 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts'
 import type { Material } from '../../../sdk-core/src/world/material/material.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import { copyElements, sameElements } from '../math/matrixElements.ts'
+import { sameElements } from '../../../math/src/matrix/matrixElements.ts'
+import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { GuideEntry } from './guidePack.ts'
 
 /** Segments of one colour and width, two ends of three numbers each; a point is a segment whose
@@ -67,7 +68,7 @@ export interface FollowedEntry extends GuideEntry {
 /** Puts `entry` at `next`; false when it stood there already, so a held frame stays. */
 export function placeGuide(entry: GuideEntry, next: ArrayLike<number>) {
   if (sameElements(entry.matrix, next)) return false
-  copyElements(entry.matrix, next)
+  copyMatrix4(entry.matrix, next)
   return true
 }
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import type { CookedBody, CookedMass, ImplicitShape } from './cooked.ts'
 import { declaredMass, declaredShape } from './declared.ts'
 import { SHAPE } from './layout.ts'
-import { near } from '../math/near.fixture.ts'
+import { near } from '../../../math/src/float/near.fixture.ts'
 
 const one = { x: 1, y: 1, z: 1 }
 const body = (

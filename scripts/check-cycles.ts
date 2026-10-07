@@ -22,23 +22,12 @@
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
-import { sourceFilesOf } from './repository-files.ts'
+import { isTestModule, sourceFilesOf, unitOf } from './repository-files.ts'
 import { normalized } from './check-calls-normalize.ts'
 import { readBaseline, report } from './check-cycles-baseline.ts'
+import { MATH_UNIT, mathLayeringBreaks } from './check-math-layering.ts'
 
 const EXTS = /\.m?ts$/
-
-/** The packages whose modules are read: the ones whose load order a session depends on. */
-export const CYCLE_UNITS = [
-  'packages/sdk-core/src',
-  'packages/sdk-browser/src',
-  'packages/sdk-node/src',
-  'packages/page-codec/src',
-] as const
-
-const TEST = /\.(?:test|fixture|perf|gpu)\.m?ts$/
-
-const unitOf = (file: string) => CYCLE_UNITS.find((unit) => file.startsWith(unit + '/')) ?? null
 
 /** Whether an import clause binds a value the emitted JavaScript keeps. `import type { T }` binds
  *  none, and neither does a clause whose every binding is marked `type` — one real name beside them
@@ -167,12 +156,21 @@ export function newRings(rings: string[][], baseline: readonly string[]): string
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const root = resolve(import.meta.dirname, '..')
-  const files = sourceFilesOf(EXTS, root, (file) => !!unitOf(file) && !TEST.test(file))
+  const maintained = (file: string) => !!unitOf(file) && !isTestModule(file)
+  const inMath = (file: string) => file.startsWith(MATH_UNIT + '/')
+  // One read of the tree: the maintained modules for the rings, the maths with its tests for layering.
+  const sources = [...sourceFilesOf(EXTS, root, (file) => maintained(file) || inMath(file))]
+  const files = new Map(sources.filter(([file]) => maintained(file)))
   const rings = cyclesOf(runtimeImportsOf(files))
+  const layering = mathLayeringBreaks(new Map(sources.filter(([file]) => inMath(file))))
 
+  for (const line of layering) console.error(`${line} leaves ${MATH_UNIT}`)
+  if (layering.length) {
+    console.error(`${layering.length} import(s) leave ${MATH_UNIT}, which imports nothing outside.`)
+    process.exitCode = 1
+  }
   if (process.argv.includes('--write-baseline')) {
     for (const key of [...new Set(rings.map(ringKey))].sort()) console.log(`  ${key}`)
-    process.exitCode = 0
   } else {
     const { fresh, stale, held } = report(rings, readBaseline(root))
     for (const ring of fresh)
@@ -189,7 +187,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
           `group(s) in ${files.size} maintained modules.`,
       )
       process.exitCode = 1
-    } else {
+    } else if (!layering.length) {
       console.log(
         `No module of the ${files.size} maintained ones reaches another in a ring beyond the ` +
           `${held} the baseline names.`,

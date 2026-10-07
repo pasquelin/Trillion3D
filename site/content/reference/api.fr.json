@@ -206,7 +206,7 @@
     "summary": "`out = [u | v | n | origin]` : les trois colonnes d’une base, puis son origine — `makeBasis` suivi de `setPosition`."
   },
   "batch": {
-    "summary": "La famille `batch` : mille matrices d’un coup au lieu d’une boucle, au-dessus des noyaux par lots du cœur (`packages/sdk-core/src/math/batch/batch.ts`, `packages/sdk-core/src/math/batch/points.ts`, `packages/sdk-core/src/math/matrix/matrix4Compose.ts`, `packages/sdk-core/src/math/batch/culling.ts`)."
+    "summary": "La famille `batch` : mille matrices d’un coup au lieu d’une boucle, au-dessus des noyaux par lots du cœur (`packages/math/src/batch/batch.ts`, `packages/math/src/batch/points.ts`, `packages/math/src/matrix/matrix4Compose.ts`, `packages/math/src/batch/culling.ts`)."
   },
   "batch.transformPoints": {
     "summary": "`out[i] = m · points[i]` pour `count` points rangés trois nombres par point.",
@@ -1048,7 +1048,7 @@
     "description": "Deux formes, et deux seulement : tout à plat, ou tout en `n` sous-vues — `../batch/batch.ts` explique pourquoi une matrice voyage en sous-vue. La forme est fixée AVANT la boucle, jamais dedans : un ternaire par élément coûte 6 % sur deux cent mille compositions, mesuré par le banc des matrices de lot. Répète `composeMatrix4`, sur `n` matrices."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Tolérances du rejet par cône, partagées par le reflet côté processeur (`packages/sdk-browser/src/page/cone/cone.ts`) et le shader (`packages/sdk-browser/src/gpu/dag/shader/shader.ts`) : une transformation est conforme quand ses colonnes ont la même longueur à `CONE_LENGTH_RATIO` près et sont orthogonales à `CONE_ORTHO_EPS` près, en relatif ; un cône d’angle ≥ `HALF_PI` ne rejette jamais.",
+    "summary": "Tolérances du rejet par cône, partagées par le reflet côté processeur et le shader : une transformation est conforme quand ses colonnes ont la même longueur à `CONE_LENGTH_RATIO` près et sont orthogonales à `CONE_ORTHO_EPS` près, en relatif ; un cône d’angle ≥ `HALF_PI` ne rejette jamais.",
     "description": "Les variantes `_WGSL` sont le texte inséré dans le shader, comme `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
   },
   "CONE_LENGTH_RATIO_WGSL": {
@@ -1815,7 +1815,7 @@
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
       "cpuSelectNodesTested": "Nœuds de la hiérarchie sur lesquels la coupe de cette image a fait un test — décision de frustum ou de niveau de détail. Un nœud déjà décidé et entièrement visible n’en reçoit aucun : il est parcouru, pas testé. C’est la mesure du vrai travail d’une coupe hiérarchique ; une coupe à plat en teste zéro et parcourt chaque cluster. Null pour un moteur qui ne choisit pas sa coupe sur le CPU, ou qui ne la compte pas.",
-      "mathBatch": "État du régulateur des voies de calcul (`../math/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
+      "mathBatch": "État du régulateur des voies de calcul (`../runtime/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
       "pagesPlannedOffThread": "Intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont le plan — la place de chaque cluster dans le paquet et les rangs de pages qu’il déplace — a été calculé par un travailleur, jamais celles que le repli a planifiées sur le fil principal. `pagePlanMs` est le temps cumulé de ces plans, mesuré par l’exécutant lui-même, quel que soit le fil : il n’est jamais ajouté à un `cpu*` ou `gpu*` par image. Les deux valent `null` tant qu’aucune arrivée n’a été planifiée — non mesuré, pas zéro.",
       "pagePlanMs": "Temps passé à planifier les arrivées.",
       "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine.",
@@ -1836,7 +1836,7 @@
     "description": "`near` suit la taille de l’objet ; il n’y a pas de plancher absolu d’un centimètre."
   },
   "Frustum": {
-    "summary": "Six plans, lus dans une vue-projection par le cœur (`math/frustum/frustum.ts`).",
+    "summary": "Six plans, lus dans une vue-projection par le cœur (`packages/math/src/geometry/frustum/frustum.ts`).",
     "members": {
       "isFrustum": "Toujours `true` : distingue un frustum de tout le reste.",
       "planes": "Six plans normalisés, quatre nombres chacun : la disposition du cœur.",
@@ -2341,14 +2341,14 @@
   },
   "HIERARCHY_ROOT": {
     "summary": "HIÉRARCHIE COMPLÈTE mise à jour en un passage : `n` nœuds rangés parents avant enfants, chacun composant sa matrice locale puis la multipliant par la matrice du monde de son parent.",
-    "description": "C’est le parcours de `../transform-tree/update.ts`, avec exactement les deux mêmes formules dans le même ordre, sur des tampons à plat : le noyau WebAssembly le reproduit terme à terme. `parents[i]` DOIT être l’indice d’un nœud déjà mis à jour, donc strictement plus petit que `i` ; toute autre valeur — la sentinelle `HIERARCHY_ROOT` comprise — fait du nœud une racine dont la matrice du monde est sa matrice locale. La règle est la même des deux côtés : aucune entrée, même hostile, ne peut les faire diverger."
+    "description": "Les deux formules s’exécutent sur des tampons à plat, et le noyau WebAssembly les reproduit terme à terme. `parents[i]` DOIT être l’indice d’un nœud déjà mis à jour, donc strictement plus petit que `i` ; toute autre valeur — la sentinelle `HIERARCHY_ROOT` comprise — fait du nœud une racine dont la matrice du monde est sa matrice locale. La règle est la même des deux côtés : aucune entrée, même hostile, ne peut les faire diverger."
   },
   "hierarchyUpdateBatch": {
     "summary": "Calcule les matrices dans le monde de toute une hiérarchie en un passage, parents d’abord."
   },
   "HIZ_NOTHING": {
     "summary": "Valeur renvoyée quand aucun texel n’est lu : ne peut rien cacher.",
-    "description": "La profondeur du moteur est INVERSÉE — le proche vaut 1, le lointain 0 (`../math/primitives/camera.ts`). Une boîte englobante n’est cachée que si sa limite de profondeur la plus proche est PLUS LOIN (plus petite valeur) que la profondeur de l’obstacle."
+    "description": "La profondeur du moteur est INVERSÉE — le proche vaut 1, le lointain 0 (`../../../math/src/projection/camera.ts`). Une boîte englobante n’est cachée que si sa limite de profondeur la plus proche est PLUS LOIN (plus petite valeur) que la profondeur de l’obstacle."
   },
   "hizBuildFlat": {
     "summary": "Pyramide complète depuis la profondeur du visbuffer.",
@@ -2439,7 +2439,7 @@
   },
   "HostNodeMatrix": {
     "summary": "Les mêmes seize flottants, MODIFIABLES terme à terme : la pose qu’une frontière remet sur un nœud de l’hôte ou sur une caméra de l’hôte qu’elle restaure.",
-    "description": "C’est la face modifiable de `MatrixElements` et elle vit à côté ; rien ne demande à l’hôte de les composer — `copyElements` les écrit telles qu’elles sont.",
+    "description": "C’est la face modifiable de `MatrixElements` et elle vit à côté ; rien ne demande à l’hôte de les composer — `copyMatrix4` les écrit telles qu’elles sont.",
     "members": {
       "elements": "Les seize nombres, par indice."
     }
@@ -4937,7 +4937,7 @@
     "summary": "Nombres par triangle du proxy : trois sommets dans le monde, pas de normale — elle se déduit du triangle."
   },
   "Quaternion": {
-    "summary": "Une rotation en quaternion unité, au-dessus de `math/matrix/quaternion.ts`.",
+    "summary": "Une rotation en quaternion unité, au-dessus de `packages/math/src/quaternion/quaternion.ts`.",
     "description": "Les composantes écrites préviennent leur propriétaire.",
     "members": {
       "isQuaternion": "Toujours `true` : distingue un quaternion de tout le reste.",
@@ -6252,7 +6252,7 @@
   },
   "Vector3": {
     "summary": "Un point ou une direction en trois dimensions, en chaîne.",
-    "description": "Les nombres vivent dans `elements`, que lisent et écrivent les fonctions du cœur de `math/primitives/vector.ts` ; chaque écriture prévient le propriétaire.",
+    "description": "Les nombres vivent dans `elements`, que lisent et écrivent les fonctions du cœur de `packages/math/src/vector/vector.ts` ; chaque écriture prévient le propriétaire.",
     "members": {
       "isVector3": "Toujours `true` : distingue un vecteur 3D.",
       "set": "Écrit les trois nombres ; une écriture qui n’en change aucun ne prévient personne.",
@@ -6568,7 +6568,7 @@
       "uncoveredTriangles": "Triangles des clusters que nomme la coupe publiée mais que l’image ne peut pas dessiner — pas de page résidente et pas d’ancêtre qui couvre. Un vrai trou dans l’image : zéro est la seule valeur saine. Null quand un moteur ne peut pas le dire (il dessine la coupe qu’il a choisie, donc il n’en a jamais).",
       "drawnTriangles": "Triangles que l’IMAGE ACTUELLE donne au dessin : sa coupe de clusters, opaques et transparents de la hiérarchie réunis. Les maillages transparents hors de la hiérarchie n’y sont pas (`transparentSubmittedTriangles`), et le rejet par occultation n’est pas retiré (`hizRejectedTriangles`). Compté à l’adoption de la coupe : aucune relecture GPU asynchrone n’est attendue, donc il ne vaut jamais `null` faute de temps, contrairement à `submittedTriangles`.",
       "cpuSelectNodesTested": "Nœuds de la hiérarchie sur lesquels la coupe de cette image a fait un test — décision de frustum ou de niveau de détail. Un nœud déjà décidé et entièrement visible n’en reçoit aucun : il est parcouru, pas testé. C’est la mesure du vrai travail d’une coupe hiérarchique ; une coupe à plat en teste zéro et parcourt chaque cluster. Null pour un moteur qui ne choisit pas sa coupe sur le CPU, ou qui ne la compte pas.",
-      "mathBatch": "État du régulateur des voies de calcul (`../math/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
+      "mathBatch": "État du régulateur des voies de calcul (`../runtime/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
       "pagesPlannedOffThread": "Intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont le plan — la place de chaque cluster dans le paquet et les rangs de pages qu’il déplace — a été calculé par un travailleur, jamais celles que le repli a planifiées sur le fil principal. `pagePlanMs` est le temps cumulé de ces plans, mesuré par l’exécutant lui-même, quel que soit le fil : il n’est jamais ajouté à un `cpu*` ou `gpu*` par image. Les deux valent `null` tant qu’aucune arrivée n’a été planifiée — non mesuré, pas zéro.",
       "pagePlanMs": "Temps passé à planifier les arrivées.",
       "lightsActive": "Lumières du contrat `SceneLight` que l’image a éclairées. Null pour un moteur qui les ignore.",

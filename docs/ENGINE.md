@@ -57,7 +57,7 @@ One WebGPU image is one command buffer, encoded in this order:
 ## Scene and camera
 
 Every node is a slot of one transform tree, walked once a frame over what changed
-(`sdk-core/math/transform-tree/pass.ts`). A host resource crosses into the engine's own records in one place,
+(`sdk-core/world/transform-tree/pass.ts`). A host resource crosses into the engine's own records in one place,
 `host/surfaceImport.ts`. The engine composes its own projection, reversed depth with an infinite far
 plane, one convention for every pass (`camera/depthConvention.ts`).
 

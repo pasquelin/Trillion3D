@@ -10,7 +10,7 @@ import { Light, light } from './light.ts'
 import { Group, Object3D } from '../object/object3d.ts'
 import { countingLink } from '../object/sceneLink.fixture.ts'
 import { nodeWrites, noteNodeWrite } from '../../scene/core/nodeEdits.ts'
-import { near } from '../../math/near.fixture.ts'
+import { near } from '../../../../math/src/float/near.fixture.ts'
 
 test('a light holds its kind, colours, target, coefficients and numbers, nothing more', () => {
   const light = new Light('spot')

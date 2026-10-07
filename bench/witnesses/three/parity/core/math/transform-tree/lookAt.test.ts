@@ -14,10 +14,10 @@ import {
   setNodePosition,
   setNodeQuaternion,
   setNodeScale,
-} from '../../../../../../../packages/sdk-core/src/math/transform-tree/transformTree.ts'
-import { lookAtNode } from '../../../../../../../packages/sdk-core/src/math/transform-tree/lookAt.ts'
-import { nodeWorldDirection } from '../../../../../../../packages/sdk-core/src/math/transform-tree/read.ts'
-import { updateNodeMatrixWorld } from '../../../../../../../packages/sdk-core/src/math/transform-tree/update.ts'
+} from '../../../../../../../packages/sdk-core/src/world/transform-tree/transformTree.ts'
+import { lookAtNode } from '../../../../../../../packages/sdk-core/src/world/transform-tree/lookAt.ts'
+import { nodeWorldDirection } from '../../../../../../../packages/sdk-core/src/world/transform-tree/read.ts'
+import { updateNodeMatrixWorld } from '../../../../../../../packages/sdk-core/src/world/transform-tree/update.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 
 const UP = [0, 1, 0]

@@ -1,7 +1,7 @@
 // The cases `xformNormal` (`NORMAL_TRANSFORM_WGSL`, `standardLighting.ts`) is probed on: ordinary
 // ones — a world pose, a local normal, the true world normal in f64 —, then singular ones,
 // flattened and collapsed. The same list feeds the arithmetic unit test with no GPU
-// (`packages/sdk-browser/src/math/normalTransform.test.ts`) and the shipped shader on Dawn
+// (`packages/sdk-browser/src/gpu/shader/normalTransform.test.ts`) and the shipped shader on Dawn
 // (`tests/gpu/math/normal-transform.gpu.ts`): the f32 model and the real shader answer on the SAME
 // inputs, or their agreement would mean nothing.
 import { LIT_MATERIAL as MATERIAL, lightingCase } from './lightingNormalCases.ts'

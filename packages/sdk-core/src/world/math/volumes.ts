@@ -1,6 +1,6 @@
-import { frustumExcludesBox } from '../../math/frustum/box.ts'
-import { frustumPlanesFromMatrix } from '../../math/frustum/frustum.ts'
-import { slabCut } from '../../math/primitives/slab.ts'
+import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
+import { frustumPlanesFromMatrix } from '../../../../math/src/geometry/frustum/frustum.ts'
+import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import { Vector3 } from './vector3.ts'
 import type { Box3 } from './box3.ts'
 import type { Matrix4 } from './matrix4.ts'
@@ -168,7 +168,7 @@ export class Triangle {
   }
 }
 
-/** Six planes, read from a view-projection by the core (`math/frustum/frustum.ts`). */
+/** Six planes, read from a view-projection by the core (`packages/math/src/geometry/frustum/frustum.ts`). */
 export class Frustum {
   /** Always `true`: tells a frustum apart from anything else. */
   readonly isFrustum = true as const

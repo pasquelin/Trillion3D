@@ -6,7 +6,7 @@ import {
   crossVector3,
   dotVector3,
   lengthSqVector3,
-} from '../../../../../../../packages/sdk-core/src/math/primitives/vector.ts'
+} from '../../../../../../../packages/math/src/vector/vector.ts'
 import { assertBits } from '../../../../../../../tests/kit/assert/bits.ts'
 
 /** Four vectors flat in one buffer, read at an offset: the form the engine's batches use. */

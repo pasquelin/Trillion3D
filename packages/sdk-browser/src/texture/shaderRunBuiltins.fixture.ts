@@ -1,6 +1,6 @@
 // The WGSL built-ins and operators `shaderRun` (`shaderRun.fixture.ts`) runs a shader with, in
 // JavaScript double precision.
-import { cross } from '../../../sdk-core/src/math/primitives/vectorTuple.ts'
+import { cross } from '../../../math/src/vector/vectorTuple.ts'
 
 /** A vector: its components. A boolean vector holds booleans. */
 export type Vec = Array<number | boolean>

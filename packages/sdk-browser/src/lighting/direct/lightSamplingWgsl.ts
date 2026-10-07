@@ -1,5 +1,5 @@
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
-import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts'
+import { HASH_UNIT_WGSL } from '../../gpu/shader/hashUnitWgsl.ts'
 
 /** Ranks a sampled image cycles through: past that many, the offset walks the same path again. */
 export const SAMPLED_RANKS = 1024

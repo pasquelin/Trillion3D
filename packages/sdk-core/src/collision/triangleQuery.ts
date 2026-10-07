@@ -1,4 +1,4 @@
-import { slabCut } from '../math/primitives/slab.ts'
+import { slabCut } from '../../../math/src/geometry/slab.ts'
 import { insideTriangle, triangleNormal } from './closest.ts'
 import type { TriangleTree } from './triangleTree.ts'
 

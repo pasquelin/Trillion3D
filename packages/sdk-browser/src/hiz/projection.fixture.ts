@@ -3,7 +3,7 @@ import { BOX_CORNER_VALUES, HIZ_BOUNDS_VALUES, projectCornersInto, rowBox } from
 import type { HizPage } from './types.ts'
 import type { EngineCamera } from '../camera/world.ts'
 import { locationOf, type PageLocations } from '../page/selection/placements.ts'
-import type { MatrixElements } from '../math/matrixElements.ts'
+import type { MatrixElements } from '../host/matrixElements.ts'
 
 const cornerScratch = new Float64Array(BOX_CORNER_VALUES)
 /**

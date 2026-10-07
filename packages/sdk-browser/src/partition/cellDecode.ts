@@ -10,7 +10,7 @@ import type { PageTaskDone } from '../../../sdk-core/src/page/taskContracts.ts'
 import { assertCellNodes, type CellNode } from '../../../sdk-core/src/scene/core/tableCell.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { pose } from '../host/prepared/nodes.ts'
-import { composeMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Compose.ts'
+import { composeMatrix4 } from '../../../math/src/matrix/matrix4Compose.ts'
 
 const scratch = new Object3D()
 

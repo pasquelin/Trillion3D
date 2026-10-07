@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { math, Vector3 } from './index.ts'
-import { near as within } from '../../math/near.fixture.ts'
+import { near as within } from '../../../../math/src/float/near.fixture.ts'
 
 test('math factories preserve inputs and return useful independently owned values', () => {
   assert.deepEqual(math.vector2(2, 3).toArray(), [2, 3])

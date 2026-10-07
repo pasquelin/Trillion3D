@@ -1,4 +1,4 @@
-import { linearToSrgb8 } from '../../../../packages/sdk-core/src/math/primitives/color.ts'
+import { linearToSrgb8 } from '../../../../packages/math/src/color/color.ts'
 import { perspectiveBary } from '../../../../packages/sdk-browser/src/visibility/math.ts'
 import { attr2, barycentric, sampleLinear, sampleMap } from './math.ts'
 import { shadeLit } from './lighting.ts'

@@ -11,7 +11,7 @@ import {
   boxTransform,
   boxUnion,
 } from '../../../sdk-core/src/index.ts'
-import { boxEquals, boxGrow } from '../../../sdk-core/src/math/primitives/box.ts'
+import { boxEquals, boxGrow } from '../../../math/src/geometry/box.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
 import type { ComposeState } from './gpuCompose.ts'
 

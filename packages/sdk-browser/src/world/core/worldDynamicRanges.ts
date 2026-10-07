@@ -1,5 +1,5 @@
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
-import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts'
+import { boxEmpty, boxExpandByPoint } from '../../../../math/src/geometry/box.ts'
 import type { VertexRange } from '../../placement/engineSceneUpdates.ts'
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import type { Cut } from './worldCuts.ts'

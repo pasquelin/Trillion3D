@@ -1,7 +1,7 @@
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { advanceMixers } from '../../../../sdk-core/src/world/animation/mixer.ts'
-import { lendAnimationSampler } from '../../math/batchAnimation.ts'
+import { lendAnimationSampler } from '../../animation/batchAnimation.ts'
 import { frameStart } from '../../frame/scheduling.ts'
 import { createFrameGrid } from './worldFrameGrid.ts'
 

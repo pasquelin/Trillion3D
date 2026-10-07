@@ -6,7 +6,7 @@ import {
   multiplyQuaternion,
   normalizeQuaternion,
   localTurnQuaternion,
-} from '../../../../sdk-core/src/math/matrix/quaternion.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
 import { clampNumber } from '../../../../sdk-core/src/world/math/spherical.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 

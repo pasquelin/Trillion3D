@@ -9,7 +9,7 @@ import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts'
 import { builtins } from '../../texture/shaderRunBuiltins.fixture.ts'
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../../lighting/shaderRunF32.fixture.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts'
+import { INVERSE_TRANSPOSE_WGSL } from '../../gpu/shader/inverseTransposeWgsl.ts'
 import { SHADE_CACHE_SHADER, shadeCacheReadWgsl } from './shadeCacheWgsl.ts'
 
 type V = number[]

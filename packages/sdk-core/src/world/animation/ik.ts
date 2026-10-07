@@ -2,9 +2,9 @@ import {
   axisAngleQuaternion,
   multiplyQuaternion,
   normalizeQuaternion,
-} from '../../math/matrix/quaternion.ts'
-import { hypot3 } from '../../math/primitives/hypot.ts'
-import { crossVector3, dotVector3, subVector3 } from '../../math/primitives/vector.ts'
+} from '../../../../math/src/quaternion/quaternion.ts'
+import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { crossVector3, dotVector3, subVector3 } from '../../../../math/src/vector/vector.ts'
 import { Quaternion } from '../math/quaternion.ts'
 import { Vector3 } from '../math/vector3.ts'
 import type { Object3D } from '../object/object3d.ts'

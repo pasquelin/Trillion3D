@@ -14,7 +14,7 @@ import {
 } from '../../../../sdk-core/src/collision/characterSettings.ts'
 import type { CharacterCollision } from '../../../../sdk-core/src/collision/characterCollision.ts'
 import type { CameraControlBase, ControlCamera } from './types.ts'
-import { hypot2 } from '../../../../sdk-core/src/math/primitives/hypot.ts'
+import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 /**
  * A CHARACTER, seen through its eyes: a body with mass that walks, runs, jumps and falls,

@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MAX_COMPLEXITY, MAX_FUNCTION_LINES, overBound } from './check-cohesion.ts'
-import { functionsOf, isTestModule, unitOf } from './check-cohesion-measure.ts'
+import { functionsOf } from './check-cohesion-measure.ts'
+import { isTestModule, unitOf } from './repository-files.ts'
 
 const bound = { lines: MAX_FUNCTION_LINES, complexity: MAX_COMPLEXITY }
 const inPackage = (name: string, text: string) => new Map([[`packages/sdk-core/src/${name}`, text]])

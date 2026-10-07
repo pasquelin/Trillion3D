@@ -14,9 +14,9 @@
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
  */
-import { writeSplitDouble } from '../../../sdk-core/src/math/primitives/splitDouble.ts'
-import { multiplyMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4.ts'
-import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts'
+import { writeSplitDouble } from '../../../math/src/float/splitDouble.ts'
+import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { VSM_LIGHT_KIND_DIRECTIONAL, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 
 /** Each field's byte offset in a record (`VsmProjectionRecord`). */
