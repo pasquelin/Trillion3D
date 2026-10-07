@@ -1,134 +1,93 @@
-import type { CutDifference, CutDifferences } from '../core/selection.ts'
-import { DIFFERENCE_HEADER_WORDS, differenceWord } from './readoutWords.ts'
-import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
+import { SELECTION_NONE as NONE, type CutClaims } from '../core/selection.ts'
+import { differenceWord } from './layout.ts'
+import { grown } from '../../page/cut/sparseInts.ts'
 
-/** A page's change against the list the host holds: it entered, or it left. */
-const ENTERED = 1,
-  EXITED = 2
-
-/**
- * One list's changes composed over several snapshots, against the list held before the first: per
- * page, whether it entered or left — a page that entered then left, or left then came back, is
- * unchanged —, and `whole` when some snapshot's difference did not fit its words, or nothing was
- * held to take one against: the host then reads that list whole.
- */
-type Composed = {
-  readonly changes: ReturnType<typeof createSparseInts>
-  whole: boolean
-  note(id: number, entered: boolean): void
-  take(other: Composed): void
-  clear(): void
-}
-
-function createComposed(): Composed {
-  const changes = createSparseInts()
-  const composed: Composed = {
-    changes,
-    whole: false,
-    /** `id` entered (`entered`) or left the list, after what is composed already. */
-    note(id: number, entered: boolean) {
-      const was = changes.get(id)
-      if (was === (entered ? EXITED : ENTERED)) changes.set(id, 0)
-      else changes.set(id, entered ? ENTERED : EXITED)
-    },
-    /** `other`'s changes after these, `other` emptied. */
-    take(other: Composed) {
-      composed.whole ||= other.whole
-      other.changes.forEach((id, change) => composed.note(id, change === ENTERED))
-      other.clear()
-    },
-    clear() {
-      changes.clear()
-      composed.whole = false
-    },
-  }
-  return composed
-}
-
-/** The composed changes as a difference the host applies (`CutDifference`), in `into`. */
-function differenceOf(composed: Composed, into: CutDifference) {
-  const size = composed.changes.size
-  if (into.entered.length < size) into.entered = grown(into.entered, size)
-  if (into.exited.length < size) into.exited = grown(into.exited, size)
-  let entered = 0,
-    exited = 0
-  composed.changes.forEach((id, change) => {
-    if (change === ENTERED) into.entered[entered++] = id
-    else into.exited[exited++] = id
-  })
-  into.enteredCount = entered
-  into.exitedCount = exited
-  return into
-}
+/** What the host holds of the readbacks the chain follows: no GPU list, the readback in hand, or
+ *  an older one the claims name ranks in. */
+const HOLDS_NONE = 0,
+  HOLDS_LAST = 1,
+  HOLDS_CLAIMED = 2
 
 /**
  * EVERY COPIED SNAPSHOT, followed to the list the host holds.
  *
  * The GPU takes each copy's difference against the copy before it (`shader/differenceWgsl.ts`):
- * for each list, the pages that entered and those that left. The host adopts only some copies —
- * another lands before it adopts one, a residency that moved voids one in flight, a truncated one
- * grows the list — and it holds the list of the last it adopted, not of the last copied. Each
- * readback lands here in the order it was copied, and its changes are composed at once through the
- * snapshots since the one the host holds:
+ * for each rank, the rank its page held there. The host adopts only some copies — another lands
+ * before it adopts one, a residency that moved voids one in flight, a truncated one grows the list
+ * — and it holds the list of the last it adopted, not of the last copied. Each readback lands here
+ * in the order it was copied, and its ranks are carried at once through the snapshots since the one
+ * the host holds, so the readback in hand always names its pages by the ranks of that list:
  *
- * - a readback the host may not adopt is composed into `since`;
- * - an adoptable one takes `since`, then its own changes, into what the readback in hand changed
- *   against the list held (`held`);
- * - before the host adopts a readback, it holds no GPU snapshot — the bootstrap's list —: it reads
- *   the first whole.
+ * - an adoptable readback's claims are its ranks carried through the voided ones since the last
+ *   adoptable (`since`), then through that one's claims — or kept as they are when the host adopted
+ *   that one;
+ * - a readback the host may not adopt only extends `since`;
+ * - before the host adopts a readback there is nothing to claim in: the lists it holds — the
+ *   bootstrap's — were never a GPU snapshot.
  *
- * Each landing costs its differences alone, its counts and entries read, never its lists: per
- * readback adopted, O(changes of the snapshots since), zero when nothing changed.
+ * A page that left a snapshot in between and came back is claimed by none, and the host finds it by
+ * its mark as it finds an entry (`../../webgpu/cut/claimedDifference.ts`); a claim is proven there
+ * before it is believed, so a list the host wrote itself since costs lookups, never a wrong page.
+ * Each landing costs one pass over each list — a plain copy while the host adopts every readback —,
+ * in buffers grown to the longest list seen: two a list for the claims, two for `since`.
  */
 export function createDifferenceChain() {
-  const since = [createComposed(), createComposed()],
-    held = [createComposed(), createComposed()]
-  const out: Required<CutDifferences> = {
-    asked: {
-      entered: new Int32Array(0),
-      exited: new Int32Array(0),
-      enteredCount: 0,
-      exitedCount: 0,
-    },
-    drawn: {
-      entered: new Int32Array(0),
-      exited: new Int32Array(0),
-      enteredCount: 0,
-      exitedCount: 0,
-    },
-  }
-  /** Whether the host holds a GPU snapshot the changes are taken against. */
-  let holds = false
-  /** Readback `ints`'s list `l`'s changes composed into `into`, its words at `at`. */
-  const compose = (into: Composed, ints: Uint32Array, at: number, l: number, listCap: number) => {
-    const entered = ints[at + 2 * l],
-      exited = ints[at + 2 * l + 1],
-      base = at + DIFFERENCE_HEADER_WORDS + l * listCap
-    if (entered + exited > listCap) return void (into.whole = true)
-    for (let k = 0; k < entered; k++) into.note(ints[base + k], true)
-    for (let k = 0; k < exited; k++) into.note(ints[base + listCap - 1 - k], false)
+  const claims: CutClaims = { asked: new Uint32Array(0), drawn: new Uint32Array(0) }
+  /** Buffers the next claims and the next `since` of each list are written into, then swapped. */
+  const spare: Uint32Array[] = [new Uint32Array(0), new Uint32Array(0)]
+  let since: Uint32Array[] = [new Uint32Array(0), new Uint32Array(0)],
+    sinceSpare: Uint32Array[] = [new Uint32Array(0), new Uint32Array(0)]
+  /** Whether the last readback landed was not adoptable, and what the host holds. */
+  let sinceLast = false,
+    holds = HOLDS_NONE
+  /** List `l`'s `count` ranks at word `at` of `ints` into `out`, carried through `since` when a
+   *  readback the host may not adopt came between, then through `through` unless it is absent. */
+  const carry = (
+    out: Uint32Array,
+    ints: Uint32Array,
+    at: number,
+    count: number,
+    l: number,
+    through: Uint32Array | null,
+  ) => {
+    if (!sinceLast && !through) return out.set(ints.subarray(at, at + count))
+    const via = since[l]
+    for (let s = 0; s < count; s++) {
+      let r = ints[at + s]
+      if (r !== NONE && sinceLast) r = via[r]
+      out[s] = r === NONE || !through ? r : through[r]
+    }
   }
   return {
-    /** Lands a readback, `ints` its mapped words, cut on a list of `listCap` ranks; `adoptable`
-     *  when it becomes the readback in hand. */
-    land(ints: Uint32Array, listCap: number, adoptable: boolean) {
+    /** Lands a readback, `ints` its mapped words, cut on a list of `listCap` ranks with `asked` and
+     *  `drawn` ranks in its lists; `adoptable` when it becomes the readback in hand. */
+    land(ints: Uint32Array, listCap: number, asked: number, drawn: number, adoptable: boolean) {
       const at = differenceWord(listCap)
       for (let l = 0; l < 2; l++) {
-        compose(since[l], ints, at, l, listCap)
-        if (adoptable) held[l].take(since[l])
+        const count = Math.min(l ? drawn : asked, listCap),
+          from = at + l * listCap
+        if (!adoptable) {
+          if (sinceSpare[l].length < count) sinceSpare[l] = grown(sinceSpare[l], count)
+          carry(sinceSpare[l], ints, from, count, l, null)
+        } else if (holds !== HOLDS_NONE) {
+          if (spare[l].length < count) spare[l] = grown(spare[l], count)
+          const last = l ? claims.drawn : claims.asked
+          carry(spare[l], ints, from, count, l, holds === HOLDS_CLAIMED ? last : null)
+          if (l) claims.drawn = spare[l]
+          else claims.asked = spare[l]
+          spare[l] = last
+        }
       }
+      if (!adoptable) [since, sinceSpare] = [sinceSpare, since]
+      if (adoptable && holds === HOLDS_LAST) holds = HOLDS_CLAIMED
+      sinceLast = !adoptable
     },
-    /** The host adopts the readback in hand: what each list changed against the list it held, valid
-     *  until the next landing — `undefined` for a list it reads whole. */
+    /** The host adopts the readback in hand: its claims, valid until the next landing, or none
+     *  when the host held no GPU list. */
     adopt() {
-      const had = holds
-      holds = true
-      const differences = {
-        asked: had && !held[0].whole ? differenceOf(held[0], out.asked) : undefined,
-        drawn: had && !held[1].whole ? differenceOf(held[1], out.drawn) : undefined,
-      }
-      held.forEach((list) => list.clear())
-      return differences
+      const held = holds
+      holds = HOLDS_LAST
+      return held === HOLDS_NONE ? undefined : claims
     },
   }
 }

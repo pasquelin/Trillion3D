@@ -4,7 +4,7 @@ import type { RowUse } from './rowUse.ts'
 import { serveInOrder } from './claims.ts'
 import { createListDifference } from './listDifference.ts'
 import type { GroupClosure } from '../../page/cut/groupClosure.ts'
-import type { CutDelta, IdDelta } from '../cut/delta.ts'
+import type { IdDelta } from '../cut/delta.ts'
 
 /** What a readback names, as packed instances: those its cut drew, and those it asks for — the
  *  camera's, then the view ahead's — in the order the GPU ranked them (`../../gpu/dag/request.ts`). */
@@ -13,10 +13,6 @@ export type CutLists = {
   readonly pageIds: ArrayLike<number>
   readonly aheadPageIds?: ArrayLike<number>
 }
-
-/** The differences a view's adoption publishes (`../cut/publication.ts`): the drawn row cache
- *  follows every one as it is applied, and reads a view's lists whole as it starts following it. */
-export type ViewDifferences = { readonly asked: CutDelta; readonly drawn: CutDelta }
 
 /** A counted closure of differences, each placement's own packed ranks (`../../page/cut/groupClosure.ts`,
  *  `instances`): the pages a difference brings or lets go, groups and the groups above included. */
@@ -38,17 +34,15 @@ const STOP = () => true
  * full. One still waiting for its bytes stays marked and takes its row when they land.
  *
  * Nothing is closed over again per readback: each list — drawn, asked, asked ahead — reaches the
- * demand as its difference: the view's own, which the GPU took, as each is applied
- * (`ViewDifferences`, `watch`) — a view's lists whole as the cache starts following it —, and the
- * requests ahead by their marks (`listDifference.ts`). Two counted closures follow the differences
+ * demand as its difference (`listDifference.ts`), and two counted closures follow the differences
  * alone: the closure of every list holds the rows in use (a group-mate outside the view keeps a
  * drawn page ready), the closure of the requests the instances wanted. A page whose bytes land or
  * leave while wanted is read again as the row journal names it (`touched`).
  *
- * Cost per readback adopted, for H requests ahead and differences of ΔD, ΔA and ΔH: O(ΔD + ΔA) set
- * moves and O(H) marks, no record; O((ΔD + ΔA + ΔH)·g) closure, g the pages a group holds;
- * O(touched) per sync for landings; O(wanted) served. A still camera adopts no readback and lands
- * nothing: zero. A view the cache starts following reads its lists once: O(D + A).
+ * Cost per readback adopted, for lists of D drawn, A asked and H ahead ids, and differences of ΔD,
+ * ΔA and ΔH: O(D + A + H) marks read, no record; O((ΔD + ΔA + ΔH)·g) closure, g the pages a group
+ * holds; O(touched) per sync for landings; O(wanted) served. A still camera adopts no readback and
+ * lands nothing: zero.
  */
 export function createRowDemand(
   /** The row table, its arrays read at each readback: they are replaced as pages are added. */
@@ -67,7 +61,6 @@ export function createRowDemand(
       asked: createListDifference(),
       ahead: createListDifference(),
     },
-    following: { view: undefined, stop: () => {} },
     held: closure(),
     asking: closure(),
     marks: new Uint8Array(Math.max(1, pageCount)),
@@ -78,9 +71,8 @@ export function createRowDemand(
     flags: new Uint32Array(0),
   }
   return {
-    /** The readback just adopted, by `view`'s differences when it published them: its differences
-     *  followed, its new demand behind the last. */
-    follow: (cut: CutLists, view?: ViewDifferences) => follow(d, cut, view),
+    /** The readback just adopted: its differences followed, its new demand behind the last. */
+    follow: (cut: CutLists) => follow(d, cut),
     /** Pages whose bytes or slot moved (the row journal): a wanted page not ready asks again. */
     touched(pages: ArrayLike<number>, count: number) {
       d.rows = d.table.rowOfPage
@@ -138,8 +130,6 @@ type DemandState = {
   drawsRow: (page: number) => boolean
   /** Each list's difference from the readback followed before. */
   lists: Record<'drawn' | 'asked' | 'ahead', ReturnType<typeof createListDifference>>
-  /** The view whose differences it follows as they are applied, and what stops it. */
-  following: { view: ViewDifferences | undefined; stop: () => void }
   /** The closure of every list: the rows in use. */
   held: InstanceClosure
   /** The closure of the requests: the instances wanted. */
@@ -200,51 +190,19 @@ function followAsks(d: DemandState, delta: IdDelta) {
 
 const NONE: readonly number[] = []
 
-/** The table's arrays read now: they are replaced as pages are added. */
-function readTable(d: DemandState) {
+function follow(d: DemandState, cut: CutLists) {
   d.rows = d.table.rowOfPage
   d.flags = d.table.residentFlags
-}
-
-/** List `set`'s last difference into the closures: every list holds rows, the requests also want. */
-function followList(d: DemandState, set: DemandState['lists']['drawn'], asks: boolean) {
-  followUse(d, set.delta)
-  if (asks) followAsks(d, set.delta)
-}
-
-/** `view`'s two lists followed from now on: read whole once, then each difference as applied. */
-function attach(d: DemandState, view: ViewDifferences) {
-  const { drawn, asked } = d.lists
-  d.following.stop()
-  drawn.apply(view.drawn.ids, view.drawn.count)
-  asked.apply(view.asked.ids, view.asked.count)
-  followList(d, drawn, false)
-  followList(d, asked, true)
-  const watch = (list: CutDelta, set: typeof drawn, asks: boolean) =>
-    list.watch((changes) => {
-      readTable(d)
-      set.applyChanges(changes)
-      followList(d, set, asks)
-    })
-  const stops = [watch(view.drawn, drawn, false), watch(view.asked, asked, true)]
-  d.following = { view, stop: () => stops.forEach((stop) => stop()) }
-}
-
-function follow(d: DemandState, cut: CutLists, view: ViewDifferences | undefined) {
-  readTable(d)
   d.use.tick()
   const { drawn, asked, ahead } = d.lists
-  if (view && d.following.view !== view) attach(d, view)
-  else if (!view) {
-    d.following.stop()
-    d.following = { view: undefined, stop: () => {} }
-    drawn.apply(cut.drawablePageIds ?? NONE)
-    asked.apply(cut.pageIds)
-    followList(d, drawn, false)
-    followList(d, asked, true)
-  }
+  drawn.apply(cut.drawablePageIds ?? NONE)
+  asked.apply(cut.pageIds)
   ahead.apply(cut.aheadPageIds ?? NONE)
-  followList(d, ahead, true)
+  followUse(d, drawn.delta)
+  followUse(d, asked.delta)
+  followUse(d, ahead.delta)
+  followAsks(d, asked.delta)
+  followAsks(d, ahead.delta)
 }
 
 function serve(

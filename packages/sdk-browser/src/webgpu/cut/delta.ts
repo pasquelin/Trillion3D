@@ -3,8 +3,7 @@ import { createSparseInts, grown } from '../../page/cut/sparseInts.ts'
 import { createPageCatalogue, type PageList } from '../pages/prepare/catalogue.ts'
 import type { HeldList } from './heldList.ts'
 import { applyHashed } from './hashedDifference.ts'
-import { applyNet } from './netDifference.ts'
-import type { CutDifference } from '../../gpu/core/selection.ts'
+import { applyClaimed } from './claimedDifference.ts'
 
 /**
  * Published difference, and what can be asked of it.
@@ -25,9 +24,6 @@ export type CutDelta = {
   readonly exitedCount: number
   /** Ids the cut holds. */
   readonly count: number
-  /** Hands `listener` every difference applied from now on, at once — a held one is none —: a
-   *  reader that follows them all misses none, whoever adopts. Returns what stops it. */
-  watch(listener: (delta: IdDelta) => void): () => void
   /**
    * False when the applied shown list carries exactly the same id sequence as the previous one,
    * in the same order: `pages` was rewritten with the same records, at the same ranks. This is
@@ -44,13 +40,10 @@ export type CutDelta = {
   hold(): void
   /** Difference between `ids` and the cut held, and `pages` rewritten in the order of `ids`. A
    *  reused list is passed whole with its `count`, so only the live ranks are read and no stale
-   *  tail is walked: marked id by id (`./hashedDifference.ts`) — a view drawn aside, the first
-   *  readback, one whose changes the GPU could not hold. */
-  apply(ids: ArrayLike<number>, count?: number): void
-  /** The main cut's changes as the GPU took them (`../../gpu/dag/differenceChain.ts`): the held
-   *  list, its records beside it, follows them alone — an exit's rank taken by the list's last, an
-   *  entry behind it —, so the list is the cut as a set, in no order the GPU gave. */
-  applyNet(difference: CutDifference): void
+   *  tail is walked. The main cut passes the ranks its readback claims for them in the last list it
+   *  applied (`claims`, `./claimedDifference.ts`); a list without them — the first readback, a view
+   *  drawn aside — is marked id by id (`./hashedDifference.ts`). The same difference either way. */
+  apply(ids: ArrayLike<number>, count?: number, claims?: Uint32Array): void
   /**
    * The same difference, published by a list that names its records instead of their ranks — the
    * bootstrap cover before the first readback. `rankOf` resolves each record's first packed rank; a record it does not hold yields
@@ -77,8 +70,8 @@ export type IdDelta = Pick<CutDelta, 'entered' | 'exited' | 'enteredCount' | 'ex
  * loses its mark, and the lists grow to the longest cut seen, then are rewritten in place. A frame
  * that adopts the shown list it already holds writes nothing at all.
  *
- * The main cut arrives there by the changes the GPU took (`applyNet`), a view drawn aside — and the
- * main cut's first readback — by its ids alone (`apply`), the bootstrap cover by its records
+ * The main cut arrives there by its ids and the ranks its readback claims for them (`apply` with
+ * claims), a view drawn aside by its ids alone (`apply`), the bootstrap cover by its records
  * (`adoptRecords`): one contract, and readers do not know which one decides.
  */
 export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDelta {
@@ -86,8 +79,6 @@ export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDel
    *  grown that way stays holed for life, and the engine's hottest loop pays for it. Measured:
    *  1.611 ms against 1.737 ms for an equivalent typed buffer. */
   const recordIds: number[] = []
-  const listeners = new Set<(delta: IdDelta) => void>()
-  const tell = () => listeners.forEach((listener) => listener(delta))
   const delta: HeldDelta = {
     recordOf: createPageCatalogue(packedPages).recordOf,
     mark: createSparseInts(),
@@ -106,34 +97,23 @@ export function createCutDelta(packedPages: PageList, pages?: PageRec[]): CutDel
     exited: new Int32Array(8),
     exitedCount: 0,
     changed: true,
-    slotOf: createSparseInts(),
-    slotsStale: true,
+    named: new Uint32Array(8),
+    before: [],
     has: (id: number) => delta.mark.get(id) === delta.epoch,
     /** Bytes of the marks and the lists, all sized by the longest cut seen. */
     get hostBytes() {
       return heldBytes(delta)
     },
     hold: () => holdDelta(delta),
-    apply: (ids: ArrayLike<number>, count = ids.length) => {
-      applyDelta(delta, ids, count)
-      tell()
-    },
-    applyNet: (difference: CutDifference) => {
-      applyNet(delta, difference)
-      tell()
-    },
-    watch(listener: (delta: IdDelta) => void) {
-      listeners.add(listener)
-      return () => void listeners.delete(listener)
-    },
+    apply: (ids: ArrayLike<number>, count = ids.length, claims?: Uint32Array) =>
+      applyDelta(delta, ids, count, claims),
     adoptRecords(records: readonly PageRec[], rankOf: (rec: PageRec) => number) {
       recordIds.length = 0
       for (let i = 0; i < records.length; i++) {
         const id = rankOf(records[i])
         if (id >= 0) recordIds.push(id)
       }
-      applyDelta(delta, recordIds, recordIds.length)
-      tell()
+      applyDelta(delta, recordIds, recordIds.length, undefined)
     },
   }
   return delta
@@ -148,7 +128,6 @@ function heldBytes(delta: HeldDelta) {
     delta.next.byteLength +
     delta.published.byteLength +
     delta.rawRank.byteLength +
-    delta.slotOf.byteLength +
     delta.entered.byteLength +
     delta.exited.byteLength
   )
@@ -182,13 +161,17 @@ function holdDelta(delta: HeldDelta) {
   delta.exitedCount = 0
 }
 
-function applyDelta(delta: HeldDelta, ids: ArrayLike<number>, count: number) {
+function applyDelta(
+  delta: HeldDelta,
+  ids: ArrayLike<number>,
+  count: number,
+  claims: Uint32Array | undefined,
+) {
   // A new shown list that republishes the same sequence describes the cut already held: it is
   // held, and not one of the fifteen thousand records is rewritten.
   if (samePublished(delta, ids, count)) return holdDelta(delta)
   growFor(delta, count)
-  const next = applyHashed(delta, ids, count)
-  delta.slotsStale = true
+  const next = claims ? applyClaimed(delta, ids, count, claims) : applyHashed(delta, ids, count)
   delta.publishedCount = count
   // The next list becomes the held one.
   const swap = delta.ids

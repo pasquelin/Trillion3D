@@ -61,6 +61,8 @@ async function adoptMain(
       chain.land(
         new Uint32Array(words, 0, copied >>> 2),
         listCap,
+        parsed.pageIds.length,
+        parsed.drawablePageIds.length,
         !grown && read.residency === state.residencyRevision,
       ),
   )

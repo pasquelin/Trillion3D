@@ -37,18 +37,13 @@ export type SelectionUniforms = {
    *  capacity's pages then the coarsest level first (`../dag/request.ts`). */
   admitByLevel?: boolean
 }
-/** What one list of the readback in hand changed against the list the host held: the pages that
- *  entered and those that left (`../dag/differenceChain.ts`). */
-export type CutDifference = {
-  entered: Int32Array
-  exited: Int32Array
-  enteredCount: number
-  exitedCount: number
-}
-/** The two lists' changes — the camera's requests, the drawn pages —, each `undefined` when the
- *  host reads that list whole. */
-export type CutDifferences = { asked?: CutDifference; drawn?: CutDifference }
-
+/**
+ * A resident cut's two lists — the camera's requests, the drawn pages — as the ranks the readback
+ * in hand claims for them in the GPU list the host adopted last (`../dag/differenceChain.ts`): for
+ * rank `s`, the rank its page holds there, `SELECTION_NONE` for a page one of the snapshots since
+ * did not hold. Claims, checked against the list held before they are believed.
+ */
+export type CutClaims = { asked: Uint32Array; drawn: Uint32Array }
 export type SelectionResult = {
   pageIds: number[]
   /** Requests of the view ahead, ranked as `pageIds` and after all of them (`../dag/request.ts`). */
@@ -155,10 +150,10 @@ export type GpuSelection = {
   peek(): GpuCut | null
   /** A cut for a view drawn beside the main one, on these tables (`../dag/aside.ts`). */
   aside(): AsideCut
-  /** The host adopts `cut`, the readback in hand: what its lists changed against the lists the
-   *  host held, valid until the next readback lands; a list the host held no GPU snapshot of, or whose
-   *  changes did not fit their words, is read whole. Nothing for any other cut. */
-  adopt(cut: GpuCut): CutDifferences | undefined
+  /** The host adopts `cut`, the readback in hand: the ranks it claims in the list the host held,
+   *  valid until the next readback lands — none when the host held no GPU list —; the readbacks
+   *  after it claim theirs in its lists. Nothing for any other cut. */
+  adopt(cut: GpuCut): CutClaims | undefined
   /** True once released: a released selection dispatches and drains nothing more. */
   failed(): boolean
   flush(): Promise<SelectionResult | null>

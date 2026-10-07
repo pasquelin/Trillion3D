@@ -2,7 +2,7 @@ import { storageBufferCap } from '../../residency/pools.ts'
 import { SELECTION_WORKGROUP } from '../core/selection.ts'
 import { dagWorkLayout } from './shader/floorWgsl.ts'
 import { dagFlagsWords } from './shader/lastUseWgsl.ts'
-import { selectionListCap, stagedOutputBytes } from './layout.ts'
+import { stagedOutputBytes } from './layout.ts'
 import { type PackedDag } from './types.ts'
 import { ELEMENT_BYTES, dagSplit, flagPartWords } from './split.ts'
 import { type TableSplit } from './splitFlags.ts'
@@ -110,11 +110,10 @@ export function cameraCutBuffers(
   }
 }
 
-/** Kept list `l`'s rank of each of `pageCount` pages, then its difference's two counters and a
- *  claim bit per rank of the longest list (`shader/differenceWgsl.ts`). */
+/** Kept list `l`'s rank of each of `pageCount` pages. */
 const ranksRow = (l: number, pageCount: number): DagBufferRow => ({
   label: `Trillion3D DAG kept ranks ${l}`,
-  size: Math.max(16, (pageCount + 2 + Math.ceil(selectionListCap(pageCount) / 32)) * 4),
+  size: Math.max(16, pageCount * 4),
 })
 
 /** The rows of a `flags` of `words` cut at `cuts` (`split.ts`); a camera's are copy sources. */

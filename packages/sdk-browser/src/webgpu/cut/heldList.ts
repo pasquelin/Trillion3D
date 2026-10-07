@@ -23,7 +23,7 @@ export type HeldList = {
   published: Int32Array
   publishedCount: number
   /** When the held list skipped ids of its raw sequence, the held rank of each raw rank — none for
-   *  a skipped one — and `rawToHeld` true. */
+   *  a skipped one — and `rawToHeld` true; the GPU's claims name raw ranks. */
   rawRank: Uint32Array
   rawToHeld: boolean
   entered: Int32Array
@@ -31,10 +31,11 @@ export type HeldList = {
   exited: Int32Array
   exitedCount: number
   changed: boolean
-  /** The held rank of each held id plus one (`./netDifference.ts`), and whether it was not kept
-   *  since a list was applied whole. */
-  readonly slotOf: ReturnType<typeof createSparseInts>
-  slotsStale: boolean
+  /** The claimed difference's scratch (`./claimedDifference.ts`), held by its delta so that no
+   *  record outlives it: one bit per held rank a claim names, and the records `pages` held before
+   *  it is rewritten. */
+  named: Uint32Array
+  readonly before: PageRec[]
 }
 
 /** The held rank of each raw rank of a list of `count` that skipped ids, written from rank `from`

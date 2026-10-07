@@ -29,15 +29,10 @@ export const levelCountsWord = (listCap: number) =>
   evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST
 
 /** Word of `out` where the cut's difference starts, behind the level counts and in what the frame
- *  copies (`shader/differenceWgsl.ts`): each list's entered and exited counts, then for the
- *  camera's requests then the drawn pages `listCap` words each, entries from the start and exits
- *  from the end. */
+ *  copies (`shader/differenceWgsl.ts`): for each rank of the camera's requests then of the drawn
+ *  pages, a list of `listCap` each, the rank its page held in the kept list. */
 export const differenceWord = (listCap: number) => levelCountsWord(listCap) + ADMISSION_BUCKETS
-
-/** Words in front of the differences: each list's entered then exited count. */
-export const DIFFERENCE_HEADER_WORDS = 4
 
 /** Word of `out` where the camera's requests wait for their sort, behind the difference, outside
  *  what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
-export const stagedRequestsWord = (listCap: number) =>
-  differenceWord(listCap) + DIFFERENCE_HEADER_WORDS + 2 * listCap
+export const stagedRequestsWord = (listCap: number) => differenceWord(listCap) + 2 * listCap
