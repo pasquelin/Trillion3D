@@ -1,4 +1,8 @@
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts'
+import { invTranspose3Apply, uniteOuZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
+import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { SHADE_MODE } from './shadeMode.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import { lecture, lectureDonnee, siCarte } from './maps.ts'
@@ -13,7 +17,8 @@ import {
 import { SUBSURFACE_FLAG } from '../../scene/subsurface.ts'
 import { EMISSIVE_AO_FLAG_WGSL } from '../../scene/surfaceEmission.ts'
 import { FLAG_FOG_FREE } from '../types.ts'
-import { PHYSICAL_LOBES_CALL_WGSL, PHYSICAL_UV_WGSL } from './physicalWgsl.ts'
+import { PHYSICAL_LOBES_CALL, PHYSICAL_UV_READ } from './physicalWgsl.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -21,10 +26,9 @@ import { PHYSICAL_LOBES_CALL_WGSL, PHYSICAL_UV_WGSL } from './physicalWgsl.ts'
  * `HAS_UV`, `HAS_MAP` and the other class constants are pipeline overrides, never tested per pixel
  * on `page.flags`; a kept path runs the per-pixel test's arithmetic, operand for operand.
  */
-export const SHADE_SHADER = `${SHADE_DECL_WGSL}
-${NORMAL_VIEW_COLOR_WGSL}
-${EMISSIVE_AO_FLAG_WGSL}
-/** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
+export const shadeShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
+  wgslProgram(
+    `/** What the resolve of a pixel leaves for its two storage writes (\`shade_fs\`): its thin
  *  transmission, and its shadow receiver's offset and plane. Private, so zero at each pixel's start:
  *  a path that finds none leaves zero, as a cleared texel holds. */
 var<private> thinOut:vec3f;
@@ -64,7 +68,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   ddx=vec2f(0.0);ddy=vec2f(0.0);
  }
  // The anisotropic and clear-coat record and its UV sets, which the tile request reads too.
- ${PHYSICAL_UV_WGSL}
+ ${PHYSICAL_UV_READ}
  let request=shadeRequest(page,pos.xy,uv,ddx,ddy);
  var roughSample=vec4f(1.0);
  ${siCarte('rough', `roughSample=${lecture('dataSample', 'rough')};`)}
@@ -99,10 +103,10 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  if(uni.mode==${SHADE_MODE.visibility}u){return diagnosticSurface(vec3f(0.204,0.827,0.6),request);}
  if(uni.mode==${SHADE_MODE['screen-error']}u){let ratio=clamp(page.screenError,0.0,1.0);return diagnosticSurface(vec3f(ratio,1.0-ratio,0.12),request);}
  if(uni.mode==${SHADE_MODE.materials}u){return diagnosticSurface(hashColor(CLASS_KEY),request);}
- var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,${ROUGHNESS_FLOOR},1.0);
+ var metal=clamp(page.metalness*metalSample.z,0.0,1.0);var rough=clamp(page.roughness*roughSample.y,${wgslF32(ROUGHNESS_FLOOR)},1.0);
  // Original vertices may straddle the near plane; recover the clipped winding.
   let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
-  let world3=mat3x3f(page.world[0].xyz,page.world[1].xyz,page.world[2].xyz);
+  let world3=worldMatrix3(page.world);
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
   // face, the adjugate already put the normal on the side of the transformed-edge cross product,
   // and only the side the screen sees it from remains. The determinant test of the row's frame
@@ -159,7 +163,7 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
   if(HAS_UV&&page.subsurfaceMap!=0u){thin*=colorSample(page.subsurfaceMap,uv,ddx,ddy,HAS_SAMPLING).rgb;}
   if(any(thin>vec3f(0.0))){thinOut=thin;flag|=${SUBSURFACE_FLAG}u;}
  }
- ${PHYSICAL_LOBES_CALL_WGSL}
+ ${PHYSICAL_LOBES_CALL}
  // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
@@ -173,4 +177,17 @@ fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  storeReceiver(pos.xy,rcvOffset,rcvPlane);
  return surface;
 }
-`
+`,
+    [
+      NORMAL_VIEW_COLOR_WGSL,
+      EMISSIVE_AO_FLAG_WGSL,
+      SHADE_DECL_WGSL,
+      worldMatrix3,
+      invTranspose3Apply,
+      uniteOuZero,
+      ...(diagnostic ? [diagnostic] : []),
+    ],
+  )
+
+/** The resolve's module without a diagnostic stage: what production compiles. */
+export const SHADE_SHADER = shadeShader()

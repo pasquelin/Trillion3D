@@ -1,15 +1,15 @@
 // The engine "singular matrix" rule (`singular.ts`), the one `normalMatrix3` applies
-// on the CPU and the WGSL kernel of `inverseTransposeWgsl.ts` applies on the GPU. This file
+// on the CPU and the WGSL kernel of `../wgsl/inverseTranspose.ts` applies on the GPU. This file
 // tests the RULE alone; what a singular matrix becomes is tested in `matrix3.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   SINGULAR_DETERMINANT,
-  SINGULAR_DETERMINANT_WGSL,
   adjugateFactor,
   linearPartScale,
   normalizedLinearDeterminant,
 } from './singular.ts'
+import { SINGULAR_DETERMINANT as SINGULAR_DETERMINANT_DECL } from '../wgsl/constants.ts'
 
 /** A column-major 4×4 from its three linear-part columns. */
 const linear = (a: number[], b: number[], c: number[]) =>
@@ -79,7 +79,8 @@ test('scale is the sum of the nine absolute values of the 3×3 block, translatio
   assert.equal(linearPartScale(m), 45)
 })
 
-test('the WGSL threshold is the constant rendered as text, not a second number', () => {
-  assert.equal(Number(SINGULAR_DETERMINANT_WGSL), SINGULAR_DETERMINANT)
-  assert.match(SINGULAR_DETERMINANT_WGSL, /^\d(\.\d+)?e[+-]\d+$/)
+test('the WGSL threshold is the constant written by the number writer, not a second number', () => {
+  const literal = /^const SINGULAR_DETERMINANT:f32=([^;]+);$/.exec(SINGULAR_DETERMINANT_DECL.text)
+  assert.ok(literal)
+  assert.equal(Math.fround(Number(literal[1])), Math.fround(SINGULAR_DETERMINANT))
 })

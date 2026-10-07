@@ -1,4 +1,5 @@
 import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * Addressing mode of a texture, a nibble of bits carried in its header of the page table
@@ -55,7 +56,10 @@ export function wrapNibble(map: Texture | undefined) {
  * With no repeat bit, no period wraps and the seam cannot be true: `wrapReplie` then yields the
  * coordinate alone, and the caller is spared counting texels.
  */
-export const WRAP_COORD_WGSL = `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
+export const WRAP_COORD_WGSL = wgslBlock(
+  'WRAP_COORD_WGSL',
+  [],
+  `fn wrapCoord(t:f32,repeat:bool,mirror:bool)->f32{
  let p=t-2.0*floor(t*0.5);
  return select(select(clamp(t,0.0,1.0),fract(t),repeat),select(p,2.0-p,p>1.0),mirror);
 }
@@ -78,4 +82,5 @@ fn wrapUv(uv:vec2f,wrap:u32,texels:vec2f)->WrapTaps{
  let x=wrapAxis(uv.x,(wrap&${WRAP_S_REPEAT}u)!=0u,(wrap&${WRAP_S_MIRROR}u)!=0u,texels.x);
  let y=wrapAxis(uv.y,(wrap&${WRAP_T_REPEAT}u)!=0u,(wrap&${WRAP_T_MIRROR}u)!=0u,texels.y);
  return WrapTaps(vec2f(x.x,y.x),vec2f(x.y,y.y),vec2f(x.z,y.z),x.w+y.w>0.0);
-}`
+}`,
+)

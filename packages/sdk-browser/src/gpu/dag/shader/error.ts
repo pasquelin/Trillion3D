@@ -13,10 +13,13 @@ import { CLUSTER_LEVEL_SHIFT } from '../clusterFlags.ts'
 import type { ScreenErrorVariant } from '../../../../../sdk-core/src/index.ts'
 import { PROJECTED_BOUND_WGSL } from './projectedBoundWgsl.ts'
 import { REFERENCE_ERROR_DECL } from './referenceErrorDecl.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
-export const DAG_ERROR_WGSL = `
+export const DAG_ERROR_WGSL = wgslBlock(
+  'DAG_ERROR_WGSL',
+  [PROJECTED_BOUND_WGSL],
+  `
 ${REFERENCE_ERROR_DECL}
-${PROJECTED_BOUND_WGSL}
 /** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
  *  deformation reach (\`deformReach\`), moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
@@ -39,7 +42,8 @@ fn clusterPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->vec2f{
 /** The cluster the cut wants at \`threshold\`, on its \`clusterPixels\`: the rule with everything resident. */
 fn selects(pixels:vec2f,threshold:f32)->bool{return drawsCluster(true,pixels.x,pixels.y,true,threshold);}
 fn focalPixels()->f32{return max(views[vi].pixelScale.x,views[vi].pixelScale.y);}
-`
+`,
+)
 
 /**
  * Shader text for a given variant: returned as-is for ours, a single declaration returned for

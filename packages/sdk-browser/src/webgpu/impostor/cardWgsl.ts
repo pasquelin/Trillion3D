@@ -1,6 +1,8 @@
 import { IMPOSTOR_CARD_WGSL } from '../../visibility/shader/impostorWgsl.ts'
 import { core } from '../../impostor/borrowed.ts'
 import { CARD_COVERAGE_CUT } from '../../impostor/cards.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { tangentImpostor } from '../../../../math/src/wgsl/basis.ts'
 
 /** Floats of the pass's view uniform: the image's render view-projection and the eye. */
 export const CARD_VIEW_FLOATS = 20
@@ -25,7 +27,9 @@ const SURFACE_DEPTH_NUDGE = 1 + 2 ** -20
  * `card_fs` writes its surface where its depth is the one kept, so the lighting, the shadows and
  * every later pass read it as they read a cluster.
  */
-export const cardPassWgsl = () => `
+export const cardPassWgsl = () =>
+  wgslProgram(
+    `
 struct CardView{viewProj:mat4x4f,eye:vec4f}
 /** \`toClip\`: the view-projection times the world, composed in double on the CPU
  *  (\`composeCardWorlds\`). \`shape\`: object radius, frames a side, hemi (0 or 1), the mip level.
@@ -37,7 +41,6 @@ struct Card{corners:array<vec4f,4>,toClip:mat4x4f,inverse:mat4x4f,shape:vec4f,pi
 @group(1) @binding(1) var impostorNormalDepth:texture_2d<f32>;
 @group(1) @binding(2) var impostorOrm:texture_2d<f32>;
 @group(1) @binding(3) var impostorSampler:sampler;
-${IMPOSTOR_CARD_WGSL}
 /** \`point\`: the corner in object space, pivot-relative; the rest is the card's, flat. */
 struct CardVary{
  @builtin(position) clip:vec4f,@location(0) point:vec3f,@location(1) @interpolate(flat) card:u32,
@@ -59,7 +62,7 @@ struct CardVary{
  // The normal matrix, transpose(inverse), by its rows read as columns.
  let m=c.inverse;
  return CardVary(view.viewProj*vec4f(p,1.0),(m*vec4f(p,1.0)).xyz-pivot,i,vec4f(eye,c.shape.x),
-  vec4f(k.w,c.shape.w),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),impFrameX(na),impFrameX(nb),impFrameX(nc),
+  vec4f(k.w,c.shape.w),vec4f(k.a,k.b),vec4f(k.c,1.0/frames,0.0),tangentImpostor(na),tangentImpostor(nb),tangentImpostor(nc),
   na,nb,nc,vec3f(m[0].x,m[1].x,m[2].x),vec3f(m[0].y,m[1].y,m[2].y),vec3f(m[0].z,m[1].z,m[2].z));
 }
 /** The card's surface at this pixel, and its depth: the blended surface point projected. A texel
@@ -92,4 +95,6 @@ struct CardOut{@location(0) baseMetal:vec4f,@location(1) normalRough:vec4f,@loca
  let ao=b.orm.x;
  let flag=${LIT_SURFACE_FLAG}u|select(0u,${core.EMISSIVE_AO_SURFACE_FLAG}u,ao!=1.0);
  return CardOut(vec4f(b.colour.rgb,b.orm.z),vec4f(n,b.orm.y),vec4f(0.0,0.0,0.0,ao),flag,px.depth*${SURFACE_DEPTH_NUDGE});
-}`
+}`,
+    [IMPOSTOR_CARD_WGSL, tangentImpostor],
+  )

@@ -5,8 +5,10 @@ import { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts'
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
 import { functionText } from './wgslBody.fixture.ts'
 import { BOUNCE_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
-// Execute the generated shader, component-wise with unit Fresnel. Vector-only operations
+// Execute the generated shader, component-wise with unit Fresnel, at the numbers its text reads
+// (`wgslF32`). Vector-only operations
 // have controlled inputs; the roughness branches and interpolation are the production text.
 const scalarBody = (name: string) => {
   const text = functionText(BOUNCE_LIGHTING_SHADER, name)
@@ -19,9 +21,13 @@ const evaluate = new Function(`
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), vec3f=x=>x;
  const smoothstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
  const mix=(a,b,t)=>a*(1-t)+b*t, dot=()=>1, reflect=x=>x;
- const ltcLookup=()=>({x:1,y:0}), INVERSE_PI=1/Math.PI, DIELECTRIC_F0=0.04;
+ const ltcLookup=()=>({x:1,y:0}), INVERSE_PI_BOUNCE=1/Math.PI, DIELECTRIC_F0=0.04;
  const proxy={offsetMetres:0,startMetres:0};
  function mirrorWeight(rough){${scalarBody('mirrorWeight')}}
+ // The maths library's terms the surface's mirror calls (\`mirrorLightingWgsl\`).
+ function ndotvClamped(N,V){${scalarBody('ndotvClamped')}}
+ function f0Of(rgb,metal){${scalarBody('f0Of')}}
+ function splitSumTerm(f0,t){${scalarBody('splitSumTerm')}}
  return (rough,surfaceModel=0,enabled=true,hit=true)=>{
   let rays=0;
   const bounce={counts:{w:enabled?1:0},reach:{x:10}};
@@ -47,8 +53,8 @@ const evaluate = new Function(`
 ) => { mirror: number; water: number; mirrorRays: number; waterRays: number }
 
 test('mirror and water retain floor energy and cross the threshold continuously', () => {
-  const floor = Number(ROUGHNESS_FLOOR),
-    end = Number(MIRROR_TRANSITION_END)
+  const floor = Number(wgslF32(ROUGHNESS_FLOOR)),
+    end = Number(wgslF32(MIRROR_TRANSITION_END))
   assert.equal(evaluate(floor).mirror, 1)
   assert.equal(evaluate(floor).water, 1)
   assert.deepEqual(evaluate(floor - 1e-4), evaluate(floor))
@@ -81,8 +87,8 @@ test('mirror and water retain floor energy and cross the threshold continuously'
 })
 
 test('diffuse/toon, disabled bounce and proxy misses retain their reflection contracts', () => {
-  const floor = Number(ROUGHNESS_FLOOR),
-    end = Number(MIRROR_TRANSITION_END)
+  const floor = Number(wgslF32(ROUGHNESS_FLOOR)),
+    end = Number(wgslF32(MIRROR_TRANSITION_END))
   for (const rough of [floor, floor + 1e-4, (floor + end) / 2, end, 1]) {
     for (const model of [4, 5]) {
       assert.equal(evaluate(rough, model).mirror, 0)

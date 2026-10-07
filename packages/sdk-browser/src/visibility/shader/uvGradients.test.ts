@@ -7,9 +7,9 @@ import { SHADE_SHADER } from './shadeWgsl.ts'
 import { uvDerivatives } from '../uvDerivatives.fixture.ts'
 
 test('the resolve reads the one gradient formula and keeps no copy', () => {
-  assert.equal(SHADE_SHADER.split(UV_GRADIENTS_WGSL).length - 1, 1)
+  assert.equal(SHADE_SHADER.split(UV_GRADIENTS_WGSL.text).length - 1, 1)
   assert.match(SHADE_SHADER, /=uvGradients\(/)
-  assert.doesNotMatch(SHADE_SHADER.replace(UV_GRADIENTS_WGSL, ''), /dUdx|dsdx/)
+  assert.doesNotMatch(SHADE_SHADER.replace(UV_GRADIENTS_WGSL.text, ''), /dUdx|dsdx/)
 })
 
 test('its CPU mirror matches central differences of perspective-correct interpolation', () => {

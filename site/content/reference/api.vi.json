@@ -351,17 +351,10 @@
     "summary": "Lược đồ JSON ghi lại tài liệu các tùy chọn cho việc biên dịch tài nguyên gốc (prepare / CLI)."
   },
   "CONE_LENGTH_RATIO": {
-    "summary": "Các dung sai loại bỏ hình nón, được chia sẻ giữa bản sao bộ xử lý và shader: một phép biến đổi mang tính bảo giác khi các cột của nó dài bằng nhau trong khoảng `CONE_LENGTH_RATIO` và vuông góc trong khoảng `CONE_ORTHO_EPS`, một cách tương đối; một hình nón có góc ≥ `HALF_PI` không bao giờ loại bỏ.",
-    "description": "Các biến thể `_WGSL` là đoạn văn bản được chèn vào shader, như `SINGULAR_DETERMINANT_WGSL` (`../matrix/singular.ts`)."
-  },
-  "CONE_LENGTH_RATIO_WGSL": {
-    "summary": "`CONE_LENGTH_RATIO` dưới dạng văn bản shader."
+    "summary": "Các dung sai loại bỏ hình nón, được chia sẻ giữa bản sao bộ xử lý và shader: một phép biến đổi mang tính bảo giác khi các cột của nó dài bằng nhau trong khoảng `CONE_LENGTH_RATIO` và vuông góc trong khoảng `CONE_ORTHO_EPS`, một cách tương đối; một hình nón có góc ≥ `HALF_PI` không bao giờ loại bỏ."
   },
   "CONE_ORTHO_EPS": {
     "summary": "Hai cột có thể lệch khỏi vuông góc bao xa mà vẫn được tính là vuông góc."
-  },
-  "CONE_ORTHO_EPS_WGSL": {
-    "summary": "`CONE_ORTHO_EPS` dưới dạng văn bản shader."
   },
   "CUTOUT_SHEET_FILE": {
     "summary": "Bảng trả lời cắt bỏ, phản chiếu `packages/asset-compiler-rust/src/cutout.rs`.",
@@ -1350,9 +1343,6 @@
   },
   "HALF_PI": {
     "summary": "Một phần tư vòng quay, tính bằng radian."
-  },
-  "HALF_PI_WGSL": {
-    "summary": "`HALF_PI` dưới dạng văn bản shader."
   },
   "HIERARCHY_ROOT": {
     "summary": "TOÀN BỘ PHÂN CẤP được cập nhật trong một chặng: `n` node được sắp xếp cha trước con, mỗi node dựng ma trận cục bộ của mình rồi nhân với ma trận thế giới của cha nó.",
@@ -2769,9 +2759,6 @@
   "SINGULAR_DETERMINANT": {
     "summary": "Ngưỡng, trên định thức ĐÃ CHUẨN HÓA.",
     "description": "Dưới 1e-12, lập phương của một tỉ lệ trở thành số phi chuẩn ở độ chính xác đơn: chỉ việc chuẩn hóa mới vượt qua sàn đó, nên ngưỡng này không còn đánh giá gì ngoài hình dạng của ma trận, không bao giờ là kích thước của nó."
-  },
-  "SINGULAR_DETERMINANT_WGSL": {
-    "summary": "Ngưỡng như WGSL viết ra, được dựng từ hằng số đó: một con số, hai ngôn ngữ."
   },
   "SLICE_OFFSET_WORDS": {
     "summary": "Từ đầu tiên của bản ghi trong gói đó."

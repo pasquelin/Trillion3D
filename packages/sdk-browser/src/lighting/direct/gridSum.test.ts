@@ -24,13 +24,16 @@ import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { NEAR, camera, pixelPoint, type Vec3 } from '../tiles/tileCamera.fixture.ts'
 import { directLightingWgsl } from './lightingWgsl.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Lamp = { centre: Vec3; radius: number; spot: boolean }
 type Sum = (...args: unknown[]) => number[]
 const PROGRAMS = [false, true].flatMap((shadowed) =>
-  [false, true].map(
-    (rects) =>
-      `${directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true })}${STANDARD_LIGHTING_WGSL}`,
+  [false, true].map((rects) =>
+    wgslModule(
+      directLightingWgsl({ unshadowed: !shadowed, rectless: !rects, lobeless: true }),
+      STANDARD_LIGHTING_WGSL,
+    ),
   ),
 )
 const NAMES = [
@@ -85,6 +88,11 @@ function sums(view: TileView, lamps: Lamp[], px: number, py: number, z: number) 
       'ggxDistribution',
       'modelLight',
       'thinTransmission',
+      // The maths library's, which the lobe and the lamp's diffuse call.
+      'ndotvFloor',
+      'f0Of',
+      'lambertAlbedo',
+      'lambertAlbedoMul',
     ]
     const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, names, scope)
     const at = (slice: number[]) => sliceLighting([0.8, 0.7, 0.6], 0.2, 0.5, N, V, P, 1, slice)

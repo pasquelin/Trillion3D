@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { clipToPixel } from '../../../../math/src/wgsl/projection.ts'
 /**
  * Compute-raster contract: one writing of the numbers that both the WGSL and the encoder read.
  * The raster takes the share of the opaque and masked cut that the split gives it, up to the
@@ -36,8 +38,11 @@ export const COMPUTE_ALL = 1e9
  * hoisted product `viewProj*world`, the same box — and share the cut with neither hole nor
  * duplicate. Requires `uni.viewport` and `uni.computeSpan`.
  */
-export const COMPUTE_TAKES_WGSL = `
-fn screen(p:vec4f)->vec2f{return vec2f((p.x/p.w*0.5+0.5)*uni.viewport.x,(1.0-(p.y/p.w*0.5+0.5))*uni.viewport.y);}
+export const COMPUTE_TAKES_WGSL = wgslBlock(
+  'COMPUTE_TAKES_WGSL',
+  [clipToPixel],
+  `
+fn screen(p:vec4f)->vec2f{return clipToPixel(p,uni.viewport);}
 struct ScreenBox{lo:vec2f,hi:vec2f,q0:vec2f,q1:vec2f,span:f32,}
 /** Screen-extent box clamped to the frame, and its span in integer pixels. */
 fn boxOf(lo:vec2f,hi:vec2f)->ScreenBox{
@@ -50,7 +55,8 @@ fn computeTakes(ca:vec4f,cb:vec4f,cc:vec4f)->bool{
  if(uni.computeSpan>=${COMPUTE_ALL}){return true;}
  if(uni.computeSpan<=0.0||ca.w-ca.z<0.0||cb.w-cb.z<0.0||cc.w-cc.z<0.0){return false;}
  return screenBox(screen(ca),screen(cb),screen(cc)).span<=uni.computeSpan;
-}`
+}`,
+)
 
 /** Words the list reserves before its entries: four counts, the frame's largest height in
  *  tiles, then the four dispatches the `plan` kernel derives from them. */

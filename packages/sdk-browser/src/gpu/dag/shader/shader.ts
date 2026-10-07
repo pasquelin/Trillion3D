@@ -1,7 +1,8 @@
 import { DAG_WORLD_POSE_WGSL } from './worldPoseWgsl.ts'
-import { DAG_BINDINGS_WGSL } from './bindings.ts'
+import { DAG_ACCESS_WGSL, DAG_BINDINGS_WGSL } from './bindings.ts'
+import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { DAG_ERROR_WGSL } from './error.ts'
-import { INVERSE_TRANSPOSE_WGSL } from '../../shader/inverseTransposeWgsl.ts'
+import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { DAG_COMPACT_WGSL } from './compactWgsl.ts'
 import { DAG_TOTALS_WGSL } from './totalsWgsl.ts'
 import { DAG_READING_WGSL } from './snapshotWgsl.ts'
@@ -25,7 +26,11 @@ import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts'
 import { FRAME_VEC4 } from '../types.ts'
 import { VIEW_UNIFORM_STRUCT } from '../viewLayout.ts'
 
-export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
+/** The selection kernel over the tables `access` reads (`DAG_ACCESS_WGSL`, or a split's,
+ *  `splitWgsl.ts`): the accessors are a declaration the program lists, never text replaced. */
+export const dagSelectionWgsl = (access: WgslDecl = DAG_ACCESS_WGSL) =>
+  wgslProgram(
+    `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
 // \`view\`, \`planes\` and \`worlds\` are those of the render frame; \`cameraWorld\` is its origin, which
 // the kernel need not read since the camera sits at zero there: it is sent so the block's reader can name it.
@@ -36,7 +41,6 @@ ${VIEW_UNIFORM_STRUCT}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,ahead:atomic<u32>,aheadPlaced:u32,pages:array<u32>,}
 // The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a camera or light cut's range.
 struct FrameRange{first:u32,count:u32,}
-${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the oracle's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
@@ -137,18 +141,33 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
  }}
  verseTotaux(lid);
 }
-${DAG_CONE_WGSL}
-${DAG_PRIMITIVE_WGSL}
-${DAG_WORLD_POSE_WGSL}
-${DAG_ERROR_WGSL}
-${CUT_RULE_WGSL}
-${INVERSE_TRANSPOSE_WGSL}
-${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_READING_WGSL}${DAG_DIFFERENCE_WGSL}${DAG_SWAP_WGSL}${DAG_WANTED_WGSL}
-${DAG_LIVE_WGSL}
-${DAG_LEVEL_WGSL}
-${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
-${DAG_FLOOR_WGSL}
-${FLAT_INDEX_WGSL}${OPEN_SLICE_WGSL}
-${DAG_VIEWS_WGSL}
-${DAG_RECORD_WGSL}
-${DAG_AHEAD_WGSL}`
+`,
+    [
+      access,
+      DAG_BINDINGS_WGSL,
+      DAG_CONE_WGSL,
+      DAG_PRIMITIVE_WGSL,
+      DAG_WORLD_POSE_WGSL,
+      DAG_ERROR_WGSL,
+      CUT_RULE_WGSL,
+      DAG_COMPACT_WGSL,
+      DAG_TOTALS_WGSL,
+      DAG_REQUEST_WGSL,
+      DAG_READING_WGSL,
+      DAG_DIFFERENCE_WGSL,
+      DAG_SWAP_WGSL,
+      DAG_WANTED_WGSL,
+      DAG_LIVE_WGSL,
+      DAG_LEVEL_WGSL,
+      DAG_LAST_USE_WGSL,
+      DAG_EVICT_WGSL,
+      DAG_FLOOR_WGSL,
+      FLAT_INDEX_WGSL,
+      OPEN_SLICE_WGSL,
+      DAG_VIEWS_WGSL,
+      DAG_RECORD_WGSL,
+      DAG_AHEAD_WGSL,
+    ],
+  )
+
+export const DAG_SELECTION_SHADER = dagSelectionWgsl()

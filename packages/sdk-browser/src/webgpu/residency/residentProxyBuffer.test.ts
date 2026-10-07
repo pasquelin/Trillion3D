@@ -20,6 +20,7 @@ import {
   replayWrites,
   type FakeBuffer,
 } from '../../../../../tests/kit/gpu/fakeDevice.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 /** The mapped range of the resident proxy's buffer, as its creation filled it. */
 const proxyBytes = (buffers: FakeBuffer[]) =>
@@ -141,7 +142,7 @@ test('motion uploads owner poses and conservative bounds once without rewriting 
 })
 
 test('the header words the host writes are the struct members the shader reads, in order', () => {
-  const body = residentProxyWgsl(1).match(/struct ResidentProxy\{([^]*?)words:/)![1]
+  const body = wgslSource(residentProxyWgsl(1)).match(/struct ResidentProxy\{([^]*?)words:/)![1]
   const members = body
     .split(',')
     .map((member) => member.trim().split(':')[0])

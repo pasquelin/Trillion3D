@@ -1,4 +1,6 @@
 import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { matrixWindingCwTriple } from '../../../../math/src/wgsl/matrix.ts'
 import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts'
 
 /** KHR_materials_volume's raster approximation applies the declared mesh-space path at
@@ -6,9 +8,11 @@ import { VOLUME_LAW_WGSL } from '../../webgpu/transparent/volumeLaw.ts'
  * https://github.com/KhronosGroup/glTF/tree/main/extensions/2.0/Khronos/KHR_materials_volume
  * Thin materials keep both independent sheets. A mirrored world reverses raster winding.
  * This uses the declared thickness, not a second geometry/intersection representation. */
-export const BLEND_TRANSMITTANCE_WGSL = `${VOLUME_LAW_WGSL}
-fn volumeBoundary(page:PageInfo,front:bool)->bool{
- let mirrored=dot(page.world[0].xyz,cross(page.world[1].xyz,page.world[2].xyz))<0.0;
+export const BLEND_TRANSMITTANCE_WGSL = wgslBlock(
+  'BLEND_TRANSMITTANCE_WGSL',
+  [matrixWindingCwTriple, VOLUME_LAW_WGSL],
+  `fn volumeBoundary(page:PageInfo,front:bool)->bool{
+ let mirrored=matrixWindingCwTriple(page.world);
  return page.transmission<=0.0||page.thickness<=0.0||(front!=mirrored);
 }
 /** Convert the declared local ray length to world units, including nonuniform scale/shear.
@@ -34,4 +38,5 @@ fn blendTransmittance(page:PageInfo,uv:vec2f,ddx:vec2f,ddy:vec2f,ray:vec3f)->vec
   if(path>0.0){tint*=volumeTransmittanceOf(vec3f(page.attenuationRG,page.attenuationB),page.attenuationDistance,path);}
  }
  return vec4f(mix(vec3f(1.0),tint*clamp(page.transmission,0.0,1.0),coverage),1.0-coverage);
-}`
+}`,
+)

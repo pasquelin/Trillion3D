@@ -7,6 +7,7 @@ import { createWebgpuRowState } from '../webgpu/row/state.ts'
 import type { PageRec } from '../page/selection/selection.ts'
 import type { PageSurface } from '../page/surface.ts'
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 export const physical = (roughness: number) => ({ lit: true, model: 0, roughness }) as PageSurface
 
@@ -42,7 +43,7 @@ export const ENVIRONMENT = [3, 3, 3],
 export function resolvedDisplay({
   enabled = 1,
   hit = true,
-  weight = (rough: number) => +(rough <= Number(ROUGHNESS_FLOOR)),
+  weight = (rough: number) => +(rough <= ROUGHNESS_FLOOR),
   shader = SCREEN_REFLECTION_WGSL,
   globals = {} as Record<string, unknown>,
   functions = [] as string[],
@@ -51,7 +52,7 @@ export function resolvedDisplay({
   const program = shaderRun<
     Record<string, (P: number[], N: number[], R: number[], rough: number) => number[]>
   >(
-    shader,
+    wgslModule(shader),
     [
       'resolvedReflectionRay',
       'filteredResolvedReflection',

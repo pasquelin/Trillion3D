@@ -1,4 +1,6 @@
 import { alignUp } from '../../../math/src/scalar/integers.ts'
+import { type WgslSource, wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
+import { withoutComments } from '../../../math/src/wgsl/comments.ts'
 
 /** The memory layout of a WGSL struct, computed from its source text by WGSL's layout rules. */
 export interface WgslStructLayout {
@@ -45,8 +47,9 @@ function fields(body: string): string[] {
 }
 
 /** The layout of `struct <name>{...}` in `src`; throws when the struct or a field's type is unknown. */
-export function wgslStructLayout(src: string, name: string): WgslStructLayout {
-  const text = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+export function wgslStructLayout(input: WgslSource, name: string): WgslStructLayout {
+  const src = wgslSource(input)
+  const text = withoutComments(src)
   const start = new RegExp(`struct\\s+${name}\\s*\\{`).exec(text)
   if (!start) throw new Error(`wgslStructLayout: no struct ${name}`)
   const from = start.index + start[0].length

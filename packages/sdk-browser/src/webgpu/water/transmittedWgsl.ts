@@ -1,15 +1,20 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
 /**
  * What the water composite reads through its surface (`compositeWgsl.ts`): the frozen backdrop at
  * the exit of the refracted ray, attenuated over the path the ray travels in the volume. The host
  * declares the views, the backdrop and its depth, `worldAt` and `volumeTransmittance`.
  */
-export const WATER_TRANSMITTED_WGSL = `// Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
+export const WATER_TRANSMITTED_WGSL = wgslBlock(
+  'WATER_TRANSMITTED_WGSL',
+  [ndcToPixel],
+  `// Pixel where the ray from P along dir, advanced by dist, lands; the straight pixel when it
 // leaves the frustum.
 fn exitPixel(P:vec3f,dir:vec3f,dist:f32,straight:vec2i,size:vec2f)->vec2i{
  let clipPos=uni.viewProj*vec4f(P+dir*dist,1.0);
  if(clipPos.w<=0.0){return straight;}
  let ndc=clipPos.xy/clipPos.w;
- return vec2i(clamp(vec2f((ndc.x*0.5+0.5)*size.x,(0.5-ndc.y*0.5)*size.y),vec2f(0.0),size-vec2f(1.0)));
+ return vec2i(clamp(ndcToPixel(ndc,size),vec2f(0.0),size-vec2f(1.0)));
 }
 // Distance from P to the backdrop at a pixel, or the declared thickness when nothing was drawn.
 fn backdropDistance(P:vec3f,pixel:vec2i,thickness:f32)->f32{
@@ -33,4 +38,5 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  }
  let sample=textureLoad(backdrop,chosen,0);
  return Transmitted(sample.rgb*volumeTransmittance(vol.attenuation.rgb,path),sample.a);
-}`
+}`,
+)

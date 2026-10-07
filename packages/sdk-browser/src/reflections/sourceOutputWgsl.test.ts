@@ -3,11 +3,13 @@ import assert from 'node:assert/strict'
 import { withScreenReflections } from './screenWgsl.ts'
 import { withReflectionSourceOutput } from './sourceOutputWgsl.ts'
 import { functionText } from '../bounce/wgslBody.fixture.ts'
-import { DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
+import { DIRECT_LIGHTING_PROGRAM } from '../gpu/core/shaderTexts.fixture.ts'
 
 // The source carries no camera fog and no mirror term; the reprojected HDR target has both.
 test('the lighting writes the source before camera fog and the mirror term, the lit image intact', () => {
-  const shader = withReflectionSourceOutput(withScreenReflections(DIRECT_LIGHTING_SHADER, true))
+  const shader = withReflectionSourceOutput(
+    withScreenReflections(DIRECT_LIGHTING_PROGRAM, { history: true }),
+  )
   const body = functionText(shader, 'litSurface')
   const held = 'reflectionSourceRgb=rgb;reflectionSourceHeld=true;'
   // Every fogged colour is held first, the lit one before its mirror term is added.
@@ -23,7 +25,7 @@ test('the lighting writes the source before camera fog and the mirror term, the 
 test('a lighting text the output cannot find refuses, never a silent source', () => {
   assert.throws(() => withReflectionSourceOutput('fn other(){}'), /UNMATCHED/)
   // A mirror term the lighting does not add right before its fog: refused, never held.
-  const lit = withScreenReflections(DIRECT_LIGHTING_SHADER, true)
+  const lit = withScreenReflections(DIRECT_LIGHTING_PROGRAM, { history: true })
   const moved = lit.replace(
     '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P);',
     '+mirrorLighting(base.rgb,base.a,normal.a,N,V,P);rgb=rgb;',

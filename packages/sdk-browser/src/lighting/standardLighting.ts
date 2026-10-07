@@ -1,5 +1,15 @@
-import { INVERSE_TRANSPOSE_WGSL } from '../gpu/shader/inverseTransposeWgsl.ts'
-import { PI } from './shaderConstants.ts'
+import { PI } from '../../../math/src/wgsl/constants.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { inverseTranspose3, uniteOuZero } from '../../../math/src/wgsl/inverseTranspose.ts'
+import {
+  DIELECTRIC_F0,
+  f0Of,
+  fresnelScalar,
+  fresnelSchlick,
+  lambertAlbedo,
+  ndotvFloor,
+} from '../../../math/src/wgsl/lighting.ts'
+import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
 /**
  * The engine's one GGX normal distribution, for \`alpha2\` = roughness⁴, of a
@@ -11,11 +21,15 @@ import { PI } from './shaderConstants.ts'
  * in a sharp highlight), 9 % off at worst. The cross product keeps the sine whole
  * (\`standardLighting.test.ts\`).
  */
-const GGX_DISTRIBUTION_WGSL = `
+const GGX_DISTRIBUTION_WGSL = wgslBlock(
+  'GGX_DISTRIBUTION_WGSL',
+  [PI],
+  `
 fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  let q=sine2+cosine*cosine*alpha2;
- return alpha2/(${PI}*q*q);
-}`
+ return alpha2/(PI*q*q);
+}`,
+)
 
 /** Shared opaque/forward lighting of one punctual light: the standard material's GGX lobe and its
  *  Lambert diffuse. The environment's irradiance is added apart (\`environmentLighting\`). Carries
@@ -32,20 +46,27 @@ fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
  *  \`standardLighting\` the same on a surface given whole. \`standardLobe\` is the light's term
  *  past its direction \`L\`, the half-vector \`H\` and \`NdotL\` above zero: what a clear coat
  *  (\`direct/lobesWgsl.ts\`) runs on its own normal with the base's \`L\` and \`H\`. */
-export const STANDARD_LIGHTING_WGSL = `${GGX_DISTRIBUTION_WGSL}
-const DIELECTRIC_F0=vec3f(0.04);
-fn fresnelSchlick(f0:vec3f,cosine:f32)->vec3f{let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(vec3f(1.0)-f0)*(x2*x2*x);}
-fn fresnelScalar(f0:f32,cosine:f32)->f32{let x=clamp(1.0-cosine,0.0,1.0);let x2=x*x;return f0+(1.0-f0)*(x2*x2*x);}
-struct LobeSurface{f0:vec3f,diffuse:vec3f,alpha2:f32,rest:f32,NdotV:f32,viewG:f32,}
+export const STANDARD_LIGHTING_WGSL = wgslBlock(
+  'STANDARD_LIGHTING_WGSL',
+  [
+    DIELECTRIC_F0,
+    fresnelSchlick,
+    fresnelScalar,
+    f0Of,
+    lambertAlbedo,
+    ndotvFloor,
+    GGX_DISTRIBUTION_WGSL,
+  ],
+  `struct LobeSurface{f0:vec3f,diffuse:vec3f,alpha2:f32,rest:f32,NdotV:f32,viewG:f32,}
 fn lobeSurface(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
  var s:LobeSurface;
  let alpha=rough*rough;
  s.alpha2=alpha*alpha;
  s.rest=1.0-s.alpha2;
- s.NdotV=max(dot(N,V),1e-4);
+ s.NdotV=ndotvFloor(N,V);
  s.viewG=sqrt(s.NdotV*s.NdotV*s.rest+s.alpha2);
- s.f0=mix(DIELECTRIC_F0,rgb,metal);
- s.diffuse=rgb*(1.0-metal)/${PI};
+ s.f0=f0Of(rgb,metal);
+ s.diffuse=lambertAlbedo(rgb,metal);
  return s;
 }
 fn standardLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,light:vec4f)->vec3f{
@@ -71,19 +92,23 @@ fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec
  let Vis=0.5/(gV+gL+1e-7);
  let F=fresnelSchlick(s.f0,VdotH);
  return s.diffuse*direct+D*Vis*F*direct;
-}`
+}`,
+)
 
 /**
  * WORLD normal of a local normal under a world pose: the inverse-transpose of the 3×3 when
  * it is regular, the transformed face normal when the pose flattens the primitive onto a
  * plane, the zero vector when it collapses it onto a line or a point — the whole convention is
- * written in `../math/inverseTransposeWgsl.ts`. `uniteOuZero` rather than `normalize`: `normalize` of the
+ * written in `packages/math/src/wgsl/inverseTranspose.ts`. `uniteOuZero` rather than `normalize`: `normalize` of the
  * zero vector yields NaN, and a shading NaN spreads through screen derivatives to neighbouring
  * pixels. On a non-zero vector, `uniteOuZero` returns `normalize(v)`: the regular case does not
  * move by a bit.
  */
-export const NORMAL_TRANSFORM_WGSL = `
-${INVERSE_TRANSPOSE_WGSL}
+export const NORMAL_TRANSFORM_WGSL = wgslBlock(
+  'NORMAL_TRANSFORM_WGSL',
+  [worldMatrix3, inverseTranspose3, uniteOuZero],
+  `
 fn xformNormal(world:mat4x4f,n:vec3f)->vec3f{
- return uniteOuZero(inverseTranspose3(mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz),n));
-}`
+ return uniteOuZero(inverseTranspose3(worldMatrix3(world),n));
+}`,
+)

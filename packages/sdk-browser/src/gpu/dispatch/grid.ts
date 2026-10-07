@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * DISPATCHES IN ROWS: a pass counts one thread per page, node, slot or listed entry, and a scene
@@ -42,19 +43,31 @@ export const groupWidth = (limits?: { maxComputeWorkgroupsPerDimension?: number 
 
 /** The flat rank in a dispatch in rows of one-dimensional workgroups of `lanes`: a thread's from
  *  `global_invocation_id`, or a workgroup's from `workgroup_id` with `lanes` of 1. */
-export const FLAT_INDEX_WGSL = `/** Rank of \`id\` among a dispatch of \`n\` workgroups of \`lanes\`, row after row. */
+export const FLAT_INDEX_WGSL = wgslBlock(
+  'FLAT_INDEX_WGSL',
+  [],
+  `/** Rank of \`id\` among a dispatch of \`n\` workgroups of \`lanes\`, row after row. */
 fn flatIndex(id:vec3u,n:vec3u,lanes:u32)->u32{return id.x+id.y*n.x*lanes;}
-`
+`,
+)
 
 /** The host's split (`dispatchGrid`) in WGSL, for a kernel that writes indirect arguments; the
  *  pipeline sets `GROUP_WIDTH` where the device's limit is not WebGPU's guaranteed one. */
-export const GROUP_GRID_WGSL = `override GROUP_WIDTH:u32=${DEFAULT_GROUP_WIDTH}u;
+export const GROUP_GRID_WGSL = wgslBlock(
+  'GROUP_GRID_WGSL',
+  [],
+  `override GROUP_WIDTH:u32=${DEFAULT_GROUP_WIDTH}u;
 /** The \`(x, y)\` workgroups of a dispatch of \`groups\`, in rows of at most \`GROUP_WIDTH\`. */
 fn groupGrid(groups:u32)->vec2u{return vec2u(min(groups,GROUP_WIDTH),(max(groups,1u)-1u)/GROUP_WIDTH+1u);}
-`
+`,
+)
 
 /** A list's indirect argument, x then y at `work[groups]`, raised by its appends as each slice of
  *  64 entries opens: the split only grows, so the last slice's stands. */
-export const OPEN_SLICE_WGSL = `${GROUP_GRID_WGSL}/** Slice \`slice\` of a list opened: the argument at \`groups\` covers it. */
+export const OPEN_SLICE_WGSL = wgslBlock(
+  'OPEN_SLICE_WGSL',
+  [GROUP_GRID_WGSL],
+  `/** Slice \`slice\` of a list opened: the argument at \`groups\` covers it. */
 fn openSlice(groups:u32,slice:u32){let g=groupGrid(slice+1u);atomicMax(&work[groups],g.x);atomicMax(&work[groups+1u],g.y);}
-`
+`,
+)

@@ -1,3 +1,11 @@
+import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
+/** The host's read of the depth a reflection walks (`reflectionDepthAt`, `fn(p:vec2i)->f32`) and
+ *  of its size in pixels (`reflectionSize`, `fn()->vec2f`), each a declaration under that name:
+ *  the screen's (`SCREEN_REFLECTION_DEPTH`, `screenWgsl.ts`) or the bounds pyramid's level 0
+ *  (`boundsPyramidWgsl.ts`). The fragments that call them list them. */
+export type ReflectionDepthRead = { depthAt: WgslDecl; size: WgslDecl }
+
 /** The ray from `P` along `R`, clipped to the view (`reflectionExit`) and projected: `start` and
  *  `delta` in pixels, depth `a.z` to `b.z`, `size` the drawn one; clipped away, a miss. The
  *  walk every mirror and rough ray takes (`screenReflection`) and the cone's (`coneShader.ts`)
@@ -26,8 +34,9 @@ export const REFLECTION_SEGMENT = `
  *    screen, its steps equal; a curved one's close), or both none (a surface facing the screen);
  *    never across the background. `reflectionSideSlope`: at a rim, the background on one side, the
  *    step to the drawn one; else none.
- *  - `reflectionTangent`: a unit vector across `v`, from the z axis, or the y axis where `v` is
- *    nearly z: one frame round a direction for every lobe and plane the walks span.
+ *  - `tangentAround` (the maths library): a unit vector across `v`, from the z axis, or the y axis
+ *    where `v` is nearly z: one frame round a direction for every lobe and plane the walks span,
+ *    which the cone and the sample list (`coneShader.ts`, `ggxSampleWgsl.ts`).
  *  - `reflectionHalves`: the opaque walk's surface along `axis`: the depth's change per pixel over
  *    the pixel's lower and upper half, the step to the neighbour on that side where it lies on the
  *    pixel's own surface. Two pixels of one surface then meet at the middle of their shared border
@@ -51,7 +60,11 @@ export const REFLECTION_SEGMENT = `
  *  Alone, it serves a program that builds the depth bounds (`boundsPyramidWgsl.ts`) rather than
  *  walks them; that program supplies the depth and its size. The clear depth is the reversed
  *  depth's zero (`REFLECTION_CLEAR_DEPTH`): nearer is greater, for every walk and bound. */
-export const REFLECTION_PLANE_WGSL = `
+export const reflectionPlaneWgsl = (read: ReflectionDepthRead) =>
+  wgslBlock(
+    'REFLECTION_PLANE_WGSL',
+    [read.depthAt, read.size],
+    `
 const REFLECTION_CLEAR_DEPTH:f32=0.0;
 fn reflectionDepthOrClear(p:vec2i)->f32{
  let size:vec2i=vec2i(reflectionSize());
@@ -66,11 +79,6 @@ fn reflectionSideSlope(z:f32,lo:f32,hi:f32)->f32{
  if(lo==REFLECTION_CLEAR_DEPTH&&hi!=REFLECTION_CLEAR_DEPTH){return hi-z;}
  if(hi==REFLECTION_CLEAR_DEPTH&&lo!=REFLECTION_CLEAR_DEPTH){return z-lo;}
  return 0.0;
-}
-fn reflectionTangent(v:vec3f)->vec3f{
- var axis:vec3f=vec3f(0.0,0.0,1.0);
- if(abs(v.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
- return normalize(cross(axis,v));
 }
 fn reflectionHalves(p:vec2i,z:f32,axis:vec2i,lo:f32,hi:f32,beyond:vec2f)->vec2f{
  if(reflectionContinues(z,lo,hi)){return vec2f(z-lo,hi-z);}
@@ -104,7 +112,8 @@ fn reflectionPixelBounds(p:vec2i)->vec2f{
  let low:f32=min(0.0,min(ends.x,ends.y))+min(0.0,min(ends.z,ends.w));
  let high:f32=max(0.0,max(ends.x,ends.y))+max(0.0,max(ends.z,ends.w));
  return vec2f(z+low,z+high);
-}`
+}`,
+  )
 
 /** A pyramid cell's side at `level`, the cell holding `pixel` there and the climb's (`into`): its
  *  coordinates shifted right by the level, the floor of their quotient by 2^level for any sign —
@@ -139,8 +148,11 @@ const into = `let into:vec2f=${CELL};`
  * texture-oriented Y, the hit's radiance, whose
  * alpha 0 is a pixel the source cannot answer: a miss, and the pyramid's levels above the pixels
  * (`reflectionBoundsLevels`). */
-export const SCREEN_TRACE_WGSL = `${REFLECTION_PLANE_WGSL}
-fn reflectionExit(c:vec4f,d:vec4f)->f32{
+export const screenTraceWgsl = (read: ReflectionDepthRead) =>
+  wgslBlock(
+    'SCREEN_TRACE_WGSL',
+    [reflectionPlaneWgsl(read), read.depthAt],
+    `fn reflectionExit(c:vec4f,d:vec4f)->f32{
  // The four side planes and the two depth planes: how far inside each the ray starts, and how fast
  // it leaves it.
  let p=vec4f(c.w+c.x,c.w-c.x,c.w+c.y,c.w-c.y);let pz=vec2f(c.z,c.w-c.z);
@@ -235,4 +247,5 @@ fn reflectionHiZWalk(start:vec2f,delta:vec2f,za:f32,zb:f32,size:vec2f)->vec4f{
  return vec4f(0.0);
 }
 fn screenReflection(P:vec3f,R:vec3f)->vec4f{${REFLECTION_SEGMENT} return reflectionHiZWalk(start,delta,a.z,b.z,size);
-}`
+}`,
+  )

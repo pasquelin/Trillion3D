@@ -11,6 +11,8 @@ import { vsmBindingsWgsl } from './resources.ts'
 import { directShadowWgsl } from '../lighting/direct/shadowWgsl.ts'
 import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS } from './constants.ts'
 import { vsmLayout, type VsmLayout } from './layout.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../math/src/wgsl/decl.ts'
 
 /** The TS mirror of `vsmPoolTexelIndexWgsl`. */
 function vsmPoolTexelIndex(layout: VsmLayout, x: number, y: number) {
@@ -65,7 +67,7 @@ test('a texel stays in the binding part its page row was in', () => {
 
 test('the passes and the consumers address the pool by the mirror', () => {
   // The consumers' read as the passes that bind the pool (the blend, the water) compose it.
-  const consumer = directShadowWgsl(null, 20)
+  const consumer = wgslModule(directShadowWgsl(20))
   for (const layout of LAYOUTS) {
     const specs = [{ resource: 'pagePool', binding: 0, access: 'read_write' }] as const
     const passes = vsmBindingsWgsl(0, specs, layout)
@@ -77,7 +79,7 @@ test('the passes and the consumers address the pool by the mirror', () => {
       )
     assert.match(functionText(consumer, 'vsmPoolLoad'), /let i=vsmPoolTexelIndex\(t\);/)
     type Run = { vsmPoolTexelIndex: (t: number[]) => number }
-    const run = (code: string) =>
+    const run = (code: string | WgslDecl) =>
       shaderRun<Run>(code, ['vsmPoolTexelIndex'], {
         vsm: { poolRowShift: layout.poolRowShift },
       }).vsmPoolTexelIndex

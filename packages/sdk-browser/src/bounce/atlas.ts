@@ -1,4 +1,5 @@
 import { PROBE_FLOATS } from '../../../sdk-core/src/index.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * THE BOUNCE ATLASES: the probe cascades and the surface cache are float textures read
@@ -32,9 +33,13 @@ export const atlasBytes = ([width, height, layers = 1]: readonly number[]) =>
 
 /** Vector `k` of the probe whose first texel is `probe` — column, row, layer (`probeAddress`,
  *  `gridWgsl.ts`) —: the texel `k` columns further on its row, read with no division. */
-export const PROBE_AT_WGSL = `fn probeAt(probe:vec3u,k:u32)->vec4f{
+export const PROBE_AT_WGSL = wgslBlock(
+  'PROBE_AT_WGSL',
+  [],
+  `fn probeAt(probe:vec3u,k:u32)->vec4f{
  return textureLoad(probes,vec2u(probe.x+k,probe.y),probe.z,0);
-}`
+}`,
+)
 
 /** A zeroed atlas one row of `width` texels long: what a pass binds while bounce is off. */
 export const emptyAtlas = (device: GPUDevice, label: string, width = 1) =>

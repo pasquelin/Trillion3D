@@ -14,7 +14,8 @@
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
  */
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts'
-import { INVERSE_PI } from '../lighting/shaderConstants.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { lambertAlbedoMul } from '../../../math/src/wgsl/lighting.ts'
 import { NORMAL_VIEW_COLOR } from './normalViewColor.ts'
 
 export const SURFACE_MODEL = {
@@ -92,28 +93,36 @@ export const shininessRoughness = (shininess: number) =>
 // The formulas of the models, written once: every pass shades a diffuse, toon or matcap surface
 // from the same text, never a restated copy.
 /** The diffuse lobe of a lamp's `energy`, occlusion `ao` included. */
-const MODEL_DIFFUSE = `rgb*(1.0-metal)*${INVERSE_PI}*energy*ao`
+const MODEL_DIFFUSE = `lambertAlbedoMul(rgb,metal)*energy*ao`
 /** Toon's two bands of the cosine `nl`, 0.7 and 1. */
 const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))'
 /** A diffuse surface's cosine. */
 const DIFFUSE_COSINE = 'max(nl,0.0)'
 /** The matcap coordinate of the view-space normal `n`. */
 const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495'
-export const NORMAL_VIEW_COLOR_WGSL = `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`
+export const NORMAL_VIEW_COLOR_WGSL = wgslBlock(
+  'NORMAL_VIEW_COLOR_WGSL',
+  [],
+  `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`,
+)
 
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
  * the private `surfaceModel` the resolve sets from the surface flag. Toon keeps the lamp's energy —
  * range, cone, shadow — and replaces the cosine by its two bands, 0.7 and 1.
  */
-export const SURFACE_MODEL_LIGHT_WGSL = `
+export const SURFACE_MODEL_LIGHT_WGSL = wgslBlock(
+  'SURFACE_MODEL_LIGHT_WGSL',
+  [lambertAlbedoMul],
+  `
 var<private> surfaceModel:u32;
 fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
  let diffuse=${MODEL_DIFFUSE};
  let nl=dot(N,L);
  if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
  return diffuse*${DIFFUSE_COSINE};
-}`
+}`,
+)
 
 /**
  * The unlit models in the surface pass: the view basis read off the view-projection (its first two
@@ -121,10 +130,14 @@ fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
  * the colour each shows. `depth` is the ramp of `writeDepthRamp` (`../camera/depthConvention.ts`):
  * white at the camera's near plane, black at its far one, linear in view distance.
  */
-export const SURFACE_MODEL_SHADE_WGSL = `
+export const SURFACE_MODEL_SHADE_WGSL = wgslBlock(
+  'SURFACE_MODEL_SHADE_WGSL',
+  [],
+  `
 fn viewNormal(N:vec3f)->vec3f{
  let right=normalize(vec3f(uni.viewProj[0].x,uni.viewProj[1].x,uni.viewProj[2].x));
  let up=normalize(vec3f(uni.viewProj[0].y,uni.viewProj[1].y,uni.viewProj[2].y));
  return vec3f(dot(N,right),dot(N,up),dot(N,cross(right,up)));
 }
-fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(${MATCAP_UV});}`
+fn matcapUv(N:vec3f)->vec2f{let n=viewNormal(N);return vec2f(${MATCAP_UV});}`,
+)

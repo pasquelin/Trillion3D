@@ -9,13 +9,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../texture/shaderRun.fixture.ts'
-import { PAGE_GEOMETRY_WGSL } from './pageGeometryWgsl.ts'
+import { PAGE_GEOMETRY_WGSL as PAGE_GEOMETRY } from './pageGeometryWgsl.ts'
 import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import { decodeGeometryPage } from '../../page/codec/geometryPage.ts'
 import { encodeGeometryPage } from '../../../../page-codec/src/geometryPage.ts'
 import { randomPage } from '../../page/codec/randomPages.fixture.ts'
 import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
 import { DEFORM_IN_POOL, FLAG_CLUSTER_PAGE } from '../types.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+
+/** The page geometry as a program holds it, its decode included. */
+const PAGE_GEOMETRY_WGSL = wgslModule(PAGE_GEOMETRY)
 
 let seed = 831
 const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 2 ** 32

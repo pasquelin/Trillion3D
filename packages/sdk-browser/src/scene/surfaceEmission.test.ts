@@ -9,7 +9,6 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { f16 } from '../effects/bloom.fixture.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { contractSurfaceBody } from '../lighting/deferred/surfaceWgsl.ts'
-import { UNLIT_LIGHTING_SHADER } from '../lighting/deferred/shaders.ts'
 import {
   EMISSIVE_AO_FLAG_WGSL,
   SURFACE_EMISSIVE_AO_WGSL,
@@ -21,6 +20,7 @@ import {
   SURFACE_MODEL_MASK,
 } from './surfaceModel.ts'
 import { SUBSURFACE_FLAG } from './subsurface.ts'
+import { UNLIT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
 type Texel = number[]
 const EDGES = [0, -0, 1e-9, 2 ** -24, 6e-5, 0.5, 1, 1 + 2 ** -12, 65504, 7e4, Infinity, -1, NaN]
@@ -85,8 +85,11 @@ test('the material pass writes the bit; the resolve and the unlit view fetch thr
     /return SurfaceOut\(vec4f\(rgb,metal\),vec4f\(N,rough\),vec4f\(emissive,ao\),flag\|emissiveAoFlag\(emissive,ao\),request\);/
   assert.match(SHADE_SHADER, lit)
   assert.match(SHADE_SHADER, /fn emissiveAoFlag\(/)
-  for (const reader of [contractSurfaceBody(''), UNLIT_LIGHTING_SHADER]) {
-    assert.doesNotMatch(reader.replace(SURFACE_EMISSIVE_AO_WGSL, ''), /textureLoad\(emissiveAo/)
+  for (const reader of [contractSurfaceBody('').text, UNLIT_LIGHTING_SHADER]) {
+    assert.doesNotMatch(
+      reader.replace(SURFACE_EMISSIVE_AO_WGSL.text, ''),
+      /textureLoad\(emissiveAo/,
+    )
     assert.match(reader, /surfaceEmissiveAo\(coord,(surfaceFlag|flag)\)/)
   }
 })

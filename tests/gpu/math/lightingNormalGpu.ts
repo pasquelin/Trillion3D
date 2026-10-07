@@ -8,6 +8,9 @@ import {
   STANDARD_LIGHTING_WGSL,
 } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
+import { uniteOuZero } from '../../../packages/math/src/wgsl/inverseTranspose.ts'
+import { inverseTransposeBeforeIn } from './substitutionBefore.ts'
 import { runOnDawn } from '../kit/onDawn.ts'
 import { openGpuModule } from '../kit/webgpuDevice.ts'
 import type { GpuRow, LitCase } from './lightingNormalCases.ts'
@@ -33,12 +36,12 @@ export const SUBSTITUTIONS = {
 }
 
 /** A fixed view and albedo: only the normal's orientation changes from case to case. */
-const lightingWgsl = (transform: string, substitution: string) => `
+const lightingWgsl = (substitution: string) =>
+  wgslProgram(
+    `
 struct Case{world:mat4x4f,normal:vec4f,truth:vec4f,light:vec4f,material:vec4f,}
 @group(0) @binding(0) var<storage, read> cases:array<Case>;
 @group(0) @binding(1) var<storage, read_write> out:array<vec4f>;
-${STANDARD_LIGHTING_WGSL}
-${transform}
 fn probed(N:vec3f)->vec3f{return ${substitution};}
 @compute @workgroup_size(${WORKGROUP}) fn normals(@builtin(global_invocation_id) gid:vec3u){
  let i=gid.x;
@@ -52,7 +55,9 @@ fn probed(N:vec3f)->vec3f{return ${substitution};}
  out[i*3u]=vec4f(N,0.0);
  out[i*3u+1u]=vec4f(lit,0.0);
  out[i*3u+2u]=vec4f(truth,0.0);
-}`
+}`,
+    [NORMAL_TRANSFORM_WGSL, uniteOuZero, STANDARD_LIGHTING_WGSL],
+  )
 
 type Input = { shader: string; data: Float32Array<ArrayBuffer>; count: number }
 
@@ -90,7 +95,8 @@ async function run({ shader, data, count }: Input) {
 /**
  * The normal the GPU renders for each case, and the two lit colours (`GpuRow`).
  *
- * `transform` replaces the `NORMAL_TRANSFORM_WGSL` text, to run two versions on the same cases;
+ * `before` puts the inverse-transpose from before the fix back into the program
+ * (`inverseTransposeBeforeIn`), to run two versions on the same cases;
  * `substitution` changes `xformNormal`'s output without touching the shipped shader, to put the
  * criterion to the test (`SUBSTITUTIONS`). Both are made sure of, not hoped for: the substitution
  * appears once and only once in the assembled text, and `xformNormal` is called once in it — one
@@ -98,9 +104,10 @@ async function run({ shader, data, count }: Input) {
  */
 export async function lightNormals(
   cases: LitCase[],
-  { transform = NORMAL_TRANSFORM_WGSL, substitution = SUBSTITUTIONS.none } = {},
+  { before = false, substitution = SUBSTITUTIONS.none } = {},
 ): Promise<{ adapter: string; rows: GpuRow[] }> {
-  const shader = lightingWgsl(transform, substitution)
+  const shipped = lightingWgsl(substitution)
+  const shader = before ? inverseTransposeBeforeIn(shipped, 'the lighting normals') : shipped
   const count = (text: string) => shader.split(text).length - 1
   assert.equal(count(`return ${substitution};`), 1, `substitution "${substitution}" not applied`)
   assert.equal(count('probed(xformNormal('), 1, 'xformNormal is no longer the probed output')

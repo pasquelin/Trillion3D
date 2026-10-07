@@ -2,6 +2,7 @@ import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { floatAtlasWgsl } from '../../webgpu/core/floatAtlas.ts'
 import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * Geometry of a page as the GPU reads it: the description of a cluster, the uniform of its draw
@@ -14,18 +15,29 @@ import { INSTANCE_WORD_WGSL } from '../../gpu/draw/contract.ts'
  *  float-pool record address plus one; zero means no deformation. `physical` is the surface's
  *  physical record rank plus one, zero without an anisotropic or clear-coat lobe
  *  (`../../webgpu/visibility/physicalTable.ts`). */
-export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,physical:u32,}`
+export const PAGE_INFO_STRUCT_WGSL = wgslBlock(
+  'PAGE_INFO_STRUCT_WGSL',
+  [],
+  `struct PageInfo{world:mat4x4f,baseColor:vec4f,metalness:f32,roughness:f32,mapIndex:u32,flags:u32,pageOffset:u32,indexCount:u32,vertexBase:u32,packedBase:u32,dash:vec2f,clusterHash:u32,hizSlot:u32,roughnessIndex:u32,metalnessIndex:u32,normalIndex:u32,normalScale:f32,sprite:vec2f,transmission:f32,thickness:f32,attenuationRG:vec2f,aoIndex:u32,aoIntensity:f32,attenuationB:f32,attenuationDistance:f32,emissiveIndex:u32,selectionIndex:u32,emissive:vec4f,subsurfaceRG:vec2f,normalScaleY:f32,pad1:f32,screenError:f32,blendCoverage:f32,subsurfaceB:f32,subsurfaceMap:u32,depthBias:u32,lineWidth:f32,placement:u32,materialClass:u32,deform:u32,deformCount:u32,deformOutput:u32,physical:u32,}`,
+)
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
  *  render pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`); `mipBias` the texture
  *  level offset of a frame drawn below the display (`../../webgpu/tile/wgsl.ts`). Its size is
  *  `VIS_UNIFORM_BYTES`. */
-export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`
+export const VIS_UNIFORMS_WGSL = wgslBlock(
+  'VIS_UNIFORMS_WGSL',
+  [],
+  `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`,
+)
 
 /** Description of a cluster, followed by the uniform of a page-geometry pass. */
-export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
-${VIS_UNIFORMS_WGSL}`
+export const PAGE_INFO_WGSL = wgslBlock(
+  'PAGE_INFO_WGSL',
+  [PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL],
+  ``,
+)
 
 /**
  * Bindings a page-geometry pass shares, one per line. They are named rather than grouped so that
@@ -43,46 +55,72 @@ export const PAGE_BINDING = {
 
 /** Page row and first corner of an instance: its instance word in indirect (\`INSTANCE_WORD_WGSL\`),
  *  its row from corner zero in an explicit draw. */
-export const PAGE_LOOKUP_WGSL = `${INSTANCE_WORD_WGSL}
-fn drawBatch(instanceIndex:u32)->vec2u{
+export const PAGE_LOOKUP_WGSL = wgslBlock(
+  'PAGE_LOOKUP_WGSL',
+  [INSTANCE_WORD_WGSL],
+  `fn drawBatch(instanceIndex:u32)->vec2u{
  if(uni.indirect==0u){return vec2u(instanceIndex,0u);}
  let word=instances[slotOffsets[uni.drawSlot]+instanceIndex];
  return vec2u(instanceRow(word),instanceCorner(word));
-}`
+}`,
+)
 
 /** Position of a page vertex in its local space. */
-export const PAGE_VERTEX_WGSL = `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}`
+export const PAGE_VERTEX_WGSL = wgslBlock(
+  'PAGE_VERTEX_WGSL',
+  [],
+  `fn vertPos(base:u32,idx:u32)->vec3f{let i=(base+idx)*3u;return vec3f(positions[i],positions[i+1u],positions[i+2u]);}`,
+)
 
 /** Texture coordinate of a page vertex. */
-export const PAGE_UV_WGSL = `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`
+export const PAGE_UV_WGSL = wgslBlock(
+  'PAGE_UV_WGSL',
+  [],
+  `fn vertUv(base:u32,idx:u32)->vec2f{let i=(base+idx)*2u;return vec2f(uvs[i],uvs[i+1u]);}`,
+)
 
 /** Normal and signed tangent of a vertex read as floats: seven per vertex, the normal then the
  *  tangent and its sign (`../../webgpu/core/geometryPrepare.ts`), from the float pool's atlas
  *  `normals` (`../../webgpu/core/floatAtlas.ts`, #1410), no storage buffer. Its second UV set, where
  *  the geometry has one: two floats a vertex counted back from the atlas's last texel
  *  (`../../webgpu/core/geometryPoolLayout.ts`), so neither the normals nor a growth move it. */
-const VERT_NORMAL_WGSL = `${floatAtlasWgsl('normals', 'normalAt')}
-fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normalAt(i),normalAt(i+1u),normalAt(i+2u));}
+const VERT_NORMAL_WGSL = wgslBlock(
+  'VERT_NORMAL_WGSL',
+  [floatAtlasWgsl('normals', 'normalAt')],
+  `fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normalAt(i),normalAt(i+1u),normalAt(i+2u));}
 fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normalAt(i),normalAt(i+1u),normalAt(i+2u),normalAt(i+3u));}
 /** The atlas's texels, where a second UV set's tail ends: read once by a caller of \`vertUv1\`. */
 fn normalTexels()->u32{let d=textureDimensions(normals);return d.x*d.y*textureNumLayers(normals);}
-fn vertUv1(end:u32,base:u32,idx:u32)->vec2f{let i=end-2u*(base+idx)-2u;return vec2f(normalAt(i),normalAt(i+1u));}`
-/** The normal atlas bound at `binding`, and the reads of `VERT_NORMAL_WGSL`: what a pass inserts. */
+fn vertUv1(end:u32,base:u32,idx:u32)->vec2f{let i=end-2u*(base+idx)-2u;return vec2f(normalAt(i),normalAt(i+1u));}`,
+)
+/** The normal atlas bound at `binding`, and the reads of `VERT_NORMAL_WGSL`: what a pass lists. */
 export const normalAtlasWgsl = (binding: number) =>
-  `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;\n${VERT_NORMAL_WGSL}`
+  wgslBlock(
+    `normalAtlasWgsl(${binding})`,
+    [VERT_NORMAL_WGSL],
+    `@group(0) @binding(${binding}) var normals:texture_2d_array<f32>;`,
+  )
 
 /** Signed area of the triangle `(a,b,p)` in screen coordinates; the raster takes its barycentrics from it. */
-export const EDGE_WGSL = `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`
+export const EDGE_WGSL = wgslBlock(
+  'EDGE_WGSL',
+  [],
+  `fn edge(a:vec2f,b:vec2f,p:vec2f)->f32{return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);}`,
+)
 
 /**
  * The three affine barycentric weights of the point `p`, the signed area already known, for
  * visibility-buffer shading. The compute raster has its own: it decides coverage on its three
- * edges, and a weight derived by `1-w0-w1` is not watertight. Requires `EDGE_WGSL`.
+ * edges, and a weight derived by `1-w0-w1` is not watertight. It lists `EDGE_WGSL`.
  */
-export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
+export const BARY_WEIGHTS_WGSL = wgslBlock(
+  'BARY_WEIGHTS_WGSL',
+  [EDGE_WGSL],
+  `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f,area:f32)->vec3f{
  let w0=edge(b,c,p)/area;let w1=edge(c,a,p)/area;
  return vec3f(w0,w1,1.0-w0-w1);
-}`
+}`,
+)
 
 /**
  * Texture coordinate of a vertex and the opacity-mask test of a cluster, as both the
@@ -108,11 +146,13 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * the colour factor's, the opacity (`surfaceOpacity`, in `blendCoverage`), as glTF 2.0 does (#748).
  * Shadows pass one: a depth pass reads no vertex colour.
  *
- * The host shader declares `uvs`, the colour pool and its page table, then inserts
- * `TILE_POOL_WGSL` (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and
- * `maskAlphaWgsl(...)` before this block.
+ * The host shader declares `uvs`, the colour pool and its page table, and lists `TILE_POOL_WGSL`
+ * (which carries the addressing rule), `COLOR_SAMPLE_WGSL` and `maskAlphaWgsl(...)`.
  */
-export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
+export const MASK_KEEP_WGSL = wgslBlock(
+  'MASK_KEEP_WGSL',
+  [],
+  `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}
  // A dashed line's gap (\`lineDash\`): its distance along the line rides the first coordinate.
  // Without an alpha test, its threshold is zero and the gaps are all it cuts.
@@ -129,4 +169,5 @@ export const MASK_KEEP_WGSL = `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f3
  var alpha=maskAlpha(page.mapIndex,uv,ddx,ddy,(page.flags&${FLAG_SAMPLED}u)!=0u)*page.blendCoverage;
  if(coloured){alpha*=vertexAlpha;}
  return alpha>=page.baseColor.w;
-}`
+}`,
+)

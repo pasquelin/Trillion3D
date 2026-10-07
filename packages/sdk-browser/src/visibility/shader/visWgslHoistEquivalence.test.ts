@@ -23,8 +23,8 @@ import {
 test('the hardware raster reads the share in the same text as the compute raster', () => {
   // The same predicate, on the same hoisted `viewProj*world` product: a triangle has exactly one
   // of the two rasters. At zero, the vertex stage does not read one more vertex.
-  assert.ok(VIS_SHADER.includes(COMPUTE_TAKES_WGSL))
-  assert.ok(rasterSource(4, 16).includes(COMPUTE_TAKES_WGSL))
+  assert.ok(VIS_SHADER.includes(COMPUTE_TAKES_WGSL.text))
+  assert.ok(rasterSource(4, 16).includes(COMPUTE_TAKES_WGSL.text))
   assert.match(
     VIS_SHADER,
     /fn hardwareIdle\(page:PageInfo,vertexIndex:u32\)->bool\{\n return vertexIndex>=page\.indexCount\|\|uni\.computeSpan>=1000000000;\n\}/,

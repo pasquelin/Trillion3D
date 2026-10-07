@@ -7,6 +7,7 @@ import { expandUniformWgsl } from './expandUniform.ts'
 import { EXPAND_BINDING as B } from './expandBindings.ts'
 import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -49,8 +50,8 @@ export function blendExpandDispatch(out: number[], entries: number, runs: number
  * dispatches are ordered; their instances and arguments live in two disjoint regions the uniform
  * names.
  */
-export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
-@group(0) @binding(${B.uni}) var<uniform> uni:Uni;
+export const BLEND_EXPAND_SHADER = wgslProgram(
+  `@group(0) @binding(${B.uni}) var<uniform> uni:Uni;
 @group(0) @binding(${B.plan}) var<storage,read> plan:array<u32>;
 @group(0) @binding(${B.keep}) var<storage,read> keep:array<u32>;
 @group(0) @binding(${B.draws}) var<storage,read> draws:array<vec4u>;
@@ -60,7 +61,7 @@ export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
 @group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
 @group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
-${FLAT_INDEX_WGSL}fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
+fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
 /** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
  *  primitive carries, nothing at all if the frustum rejected its item. */
@@ -71,7 +72,7 @@ fn instancesOf(i:u32)->u32{
  if(d.x==${DRAW_UNPAGED}u){return d.y;}
  return counts[d.x*4u+1u];
 }
-${LANE_SCAN_WGSL}/** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
+/** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
  *  in one go each local place and its total (the shared lane scan: EXPAND_GROUP is 64). */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -149,4 +150,6 @@ fn writeBlendRuns(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  args[o+2u]=base<<uni.vertexShift;
  args[o+3u]=0u;
 }
-`
+`,
+  [expandUniformWgsl(), LANE_SCAN_WGSL, FLAT_INDEX_WGSL],
+)

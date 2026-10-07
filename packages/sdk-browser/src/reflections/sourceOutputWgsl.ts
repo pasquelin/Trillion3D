@@ -1,8 +1,4 @@
-import {
-  CAMERA_FOG_WGSL,
-  LIGHT_SURFACE_ENTRY,
-  MIRROR_TERM_WGSL,
-} from '../lighting/deferred/surfaceWgsl.ts'
+import { CAMERA_FOG, LIGHT_SURFACE_ENTRY, MIRROR_TERM } from '../lighting/deferred/surfaceWgsl.ts'
 
 const HELD = 'reflectionSourceRgb=rgb;reflectionSourceHeld=true;'
 
@@ -14,14 +10,14 @@ const HELD = 'reflectionSourceRgb=rgb;reflectionSourceHeld=true;'
  * drawn after the lighting (transparents, water, particles) reaches it.
  */
 export function withReflectionSourceOutput(shader: string) {
-  if (!shader.includes(LIGHT_SURFACE_ENTRY) || !shader.includes(CAMERA_FOG_WGSL + '\n'))
+  if (!shader.includes(LIGHT_SURFACE_ENTRY) || !shader.includes(CAMERA_FOG + '\n'))
     throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED')
   const lit = shader
     .replace(LIGHT_SURFACE_ENTRY, 'fn litSurface(pixel:vec4f)->vec4f{')
-    .replaceAll(CAMERA_FOG_WGSL, HELD + CAMERA_FOG_WGSL)
-    .replaceAll(`${MIRROR_TERM_WGSL};${HELD}`, `;${HELD}rgb+=${MIRROR_TERM_WGSL.slice(1)};`)
+    .replaceAll(CAMERA_FOG, HELD + CAMERA_FOG)
+    .replaceAll(`${MIRROR_TERM};${HELD}`, `;${HELD}rgb+=${MIRROR_TERM.slice(1)};`)
   // A mirror term left in the held sum would reflect itself: its text moved, the output refuses.
-  if (lit.includes(`${MIRROR_TERM_WGSL};`)) throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED')
+  if (lit.includes(`${MIRROR_TERM};`)) throw new Error('REFLECTION_SOURCE_OUTPUT_UNMATCHED')
   return `${lit}
 var<private> reflectionSourceRgb:vec3f;
 var<private> reflectionSourceHeld:bool;

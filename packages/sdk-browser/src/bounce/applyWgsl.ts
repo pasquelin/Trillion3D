@@ -1,4 +1,6 @@
-import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
+import { BOUNCE_GRID_WGSL } from './gridWgsl.ts'
+import { INVERSE_PI_BOUNCE } from '../../../math/src/wgsl/lighting.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * Bounce application, at the bindings the calling pass gives it: opaque deferred resolve and
@@ -13,24 +15,29 @@ import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts'
  * A pure metal has no diffuse albedo: its indirect share is zero, as in the direct term.
  * Indirect specular is not part of this term, and its absence is declared rather than guessed.
  */
-export function bounceApplyWgsl(grid: number, probes: number): string {
-  return `
+export function bounceApplyWgsl(grid: number, probes: number) {
+  return wgslBlock(
+    `bounceApplyWgsl(${grid}, ${probes})`,
+    [INVERSE_PI_BOUNCE, BOUNCE_GRID_WGSL],
+    `
 @group(0) @binding(${grid}) var<uniform> bounce:BounceGrid;
 @group(0) @binding(${probes}) var probes:texture_2d_array<f32>;
-${BOUNCE_GRID_WGSL}
-${INVERSE_PI_WGSL}
 /** Diffuse radiance a pixel returns of the bounced \`irradiance\` at it. */
 fn bounceDiffuse(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{
- return rgb*(1.0-metal)*INVERSE_PI*irradiance*ao;
+ return rgb*(1.0-metal)*INVERSE_PI_BOUNCE*irradiance*ao;
 }
 /** Diffuse radiance a pixel returns from light that bounced before reaching it. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
  return bounceDiffuse(rgb,metal,sampleBounce(P,N),ao);
-}`
+}`,
+  )
 }
 
 /** Bounce application at the deferred-resolve bindings, and its two measurement views. */
-export const BOUNCE_APPLY_WGSL = `${bounceApplyWgsl(11, 12)}
+export const BOUNCE_APPLY_WGSL = wgslBlock(
+  'BOUNCE_APPLY_WGSL',
+  [bounceApplyWgsl(11, 12)],
+  `
 /** True when the host asked for the indirect-irradiance diagnostic view, and that view only. */
 fn bounceOnly()->bool{return bounce.reach.y>0.5;}
 /**
@@ -39,4 +46,5 @@ fn bounceOnly()->bool{return bounce.reach.y>0.5;}
  * image to look at, and exposure is there only to fit it in the eight bits of the capture.
  * A value beyond one is clipped, and the harness counts what it clipped.
  */
-fn bounceIrradiance(N:vec3f,P:vec3f,exposure:f32)->vec3f{return sampleBounce(P,N)*exposure;}`
+fn bounceIrradiance(N:vec3f,P:vec3f,exposure:f32)->vec3f{return sampleBounce(P,N)*exposure;}`,
+)

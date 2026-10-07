@@ -1,3 +1,6 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { tangentAround } from '../../../math/src/wgsl/basis.ts'
+
 /** Up to four mip cells enclose a cone section; integrate their covered areas.
  * The depth range rejects empty or disjoint cells, rather than treating the
  * farthest occlusion depth as a first-hit boundary.
@@ -15,9 +18,12 @@
  *   passes whole must.
  * - `reflectionConeCell`: the covered share of a section's cells, or, not `covered`, whether any
  *   of them may hold a hit (one, else none) — the test a coarser block passes whole by. */
-export const REFLECTION_CONE_FILTER_WGSL = `
+export const REFLECTION_CONE_FILTER_WGSL = wgslBlock(
+  'REFLECTION_CONE_FILTER_WGSL',
+  [tangentAround],
+  `
 fn reflectionReceiverPlane(c:vec4f,N:vec3f,q0:vec2f,z0:f32)->vec4f{
- let T:vec3f=reflectionTangent(N);let B:vec3f=cross(N,T);
+ let T:vec3f=tangentAround(N);let B:vec3f=cross(N,T);
  let offset:f32=0.01*abs(c.w);
  let c1:vec4f=c+reflectionProject(vec4f(T,0.0))*offset;
  let c2:vec4f=c+reflectionProject(vec4f(B,0.0))*offset;
@@ -66,4 +72,5 @@ fn reflectionConeCell(at:vec2f,footprint:vec2f,level:i32,limits:vec2f,receiver:v
  }
  if(!covered){return vec4f(0.0);}
  return sum/max(total,1.0);
-}`
+}`,
+)

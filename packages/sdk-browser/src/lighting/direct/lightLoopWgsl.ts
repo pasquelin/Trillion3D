@@ -1,6 +1,7 @@
 import { MODEL_FLAG } from '../../scene/surfaceModel.ts'
-import { INVERSE_PI } from '../shaderConstants.ts'
-import { LOBELESS_KEY, type ContractKey } from '../deferred/contractCuts.ts'
+import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
@@ -32,10 +33,12 @@ export const declaredLightWgsl = (
 ) => {
   const shadowed = !key.unshadowed,
     lobes = !key.lobeless
-  return `${pair ? LIGHT_PAIR_WGSL : ''}
-fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranchWgsl(pair, lobes)}
+  return wgslBlock(
+    `declaredLightWgsl(${variantLabel(key)}, ${pair})`,
+    [...(pair ? [LIGHT_PAIR_WGSL] : []), ...(key.rectless ? [] : [INVERSE_PI])],
+    `fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface${pair ? ',dielectric:LobeSurface' : ''})->${pair ? 'LightPair' : 'vec3f'}{${key.rectless ? '' : rectBranch(pair, lobes)}
  let incidence=directIncidence(light,P);
- if(incidence.w<=0.0){return ${zero(pair)};}${shadowed ? shadeWgsl(pair) : ''}
+ if(incidence.w<=0.0){return ${zero(pair)};}${shadowed ? shadeStatement(pair) : ''}
  let energy=light.colorIntensity.w*incidence.w${shadowed ? '*shade' : ''};
  let color=light.colorIntensity.rgb${shadowed ? '*shadowTransmission' : ''};
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
@@ -44,7 +47,8 @@ fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,roug
  if(any(thinSubsurface!=vec3f(0.0))){transmitted=thinSubsurface*thinTransmission(dot(N,${shadowed ? 'toward' : 'normalize(incidence.xyz)'}),energy);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return ${term(pair, (rgb, metal) => `(modelLight(${rgb},${metal},N,incidence.xyz,energy,ao)+transmitted)*color`)};}
  return ${term(pair, (_rgb, _metal, shading) => `(${lobes ? 'lobeLight' : 'surfaceLight'}(${shading},N,V,vec4f(incidence.xyz,energy))+transmitted)*color`)};
-}`
+}`,
+  )
 }
 
 /**
@@ -55,8 +59,11 @@ fn declaredLight${pair ? 'Pair' : ''}(light:DirectLight,rgb:vec3f,metal:f32,roug
  * what they share — the incidence, the shadow read, the transmission —
  * reads no albedo, so it is read once and both terms are those of two walks, bit for bit.
  */
-const LIGHT_PAIR_WGSL = `
-struct LightPair{lit:vec3f,specular:vec3f,}`
+const LIGHT_PAIR_WGSL = wgslBlock(
+  'LIGHT_PAIR_WGSL',
+  [],
+  'struct LightPair{lit:vec3f,specular:vec3f,}',
+)
 const zero = (pair: boolean) => (pair ? 'LightPair(vec3f(0.0),vec3f(0.0))' : 'vec3f(0.0)')
 const term = (pair: boolean, of: (rgb: string, metal: string, shading: string) => string) =>
   pair
@@ -64,14 +71,14 @@ const term = (pair: boolean, of: (rgb: string, metal: string, shading: string) =
     : of('rgb', 'metal', 'shading')
 
 /** A rectangle light's term, before any punctual one's: \`declaredLight\` without \`rectless\`. */
-const rectBranchWgsl = (pair: boolean, lobes: boolean) => `
+const rectBranch = (pair: boolean, lobes: boolean) => `
  if(isRect(light)){
   var transmitted=vec3f(0.0);
-  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*${INVERSE_PI}*light.colorIntensity.rgb*light.colorIntensity.w;}
+  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*INVERSE_PI*light.colorIntensity.rgb*light.colorIntensity.w;}
   return ${term(pair, (rgb, metal, shading) => `${lobes ? 'lobeRectLight' : 'rectLight'}(light,${rgb},${metal},rough,N,V,P,ao${lobes ? `,${shading}.f0` : ''})+transmitted`)};
  }`
 
-const shadeWgsl = (pair: boolean) => `
+const shadeStatement = (pair: boolean) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
  // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
  let toward=normalize(incidence.xyz);
@@ -93,22 +100,27 @@ const shadeWgsl = (pair: boolean) => `
  * the program with shadow code that 13 % is not repaid (42.3 → 47.9 ps a light in range), so that
  * program runs the loop without the reject.
  */
-export const sliceLightingWgsl = (reject: boolean, pair = false) => `
+export const sliceLightingWgsl = (reject: boolean, pair = false) =>
+  wgslBlock(
+    `sliceLightingWgsl(${reject}, ${pair})`,
+    [],
+    `
 fn sliceLighting${pair ? 'Pair' : ''}(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->${pair ? 'LightPair' : 'vec3f'}{
  var result=${zero(pair)};
  let shading=lobeSurface(rgb,metal,rough,N,V);${pair ? '\n let dielectric=lobeSurface(vec3f(0.0),0.0,rough,N,V);' : ''}
  for(var index=0u;index<slice.y;index++){
-  var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}${reject ? RANGE_REJECT_WGSL : ''}
-  ${pair ? PAIR_SUM_WGSL : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading);'}
+  var light=index;if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}${reject ? RANGE_REJECT_TEST : ''}
+  ${pair ? PAIR_SUM : 'result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading);'}
  }
  return result;
-}`
+}`,
+  )
 
 /** \`sliceLighting\` with \`pair\`: each sum in the same order as its own walk's. */
-const PAIR_SUM_WGSL = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
+const PAIR_SUM = `let term=declaredLightPair(directLights.items[light],rgb,metal,rough,N,V,P,ao,shading,dielectric);
   result.lit+=term.lit;result.specular+=term.specular;`
 
-const RANGE_REJECT_WGSL = `
+const RANGE_REJECT_TEST = `
   let sphere=directLights.items[light].positionRange;
   let offset=sphere.xyz-P;
   if(!isSunKind(directLights.items[light].params.x)&&dot(offset,offset)>sphere.w*sphere.w*RANGE_REJECT){continue;}`

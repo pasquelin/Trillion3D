@@ -1,10 +1,14 @@
 import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts'
-import { HASH_UNIT_WGSL } from '../gpu/shader/hashUnitWgsl.ts'
+import { hashUnit } from '../../../math/src/wgsl/sampling.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
+import type { LitProgram } from '../lighting/deferred/shaders.ts'
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts'
-import { withScreenReflections } from './screenWgsl.ts'
+import { SCREEN_REFLECTION_WGSL } from './screenWgsl.ts'
 import { GGX_REFLECTION_SAMPLE_WGSL } from './ggxSampleWgsl.ts'
 import { HIZ_TRACE_WGSL, REFLECTION_PHASE_WGSL } from './hizTraceWgsl.ts'
-import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
+import { SCREEN_MIRROR_RADIANCE, SCREEN_REFLECTION_CUTOFF } from './modelShader.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
 /** A sample is bounded: one ray per 2 × 2 block (`reflectionPhase`, the
  *  half-resolution trace), resolved by the bounded ray (`boundedReflectionRay`, `hizTraceWgsl.ts`):
@@ -15,10 +19,17 @@ import { SCREEN_REFLECTION_MAX_ROUGHNESS } from './modelShader.ts'
  *  the identifier, from the visibility buffer the lighting binds (`vis`, the resolve's
  *  `ids`), and the depth's bits, exact; a texel without weight, whose record no gather reads,
  *  none. */
-const stochasticReflectionWgsl = (unbounded: boolean) => `${GGX_REFLECTION_SAMPLE_WGSL}
-${REFLECTION_PHASE_WGSL}
-${unbounded ? '' : HIZ_TRACE_WGSL}
-@group(2) @binding(0) var reflectionOwners:texture_storage_2d<rg32uint,write>;
+const stochasticReflectionWgsl = (unbounded: boolean) =>
+  wgslBlock(
+    `stochasticReflectionWgsl(${unbounded})`,
+    [
+      hashUnit,
+      GGX_REFLECTION_SAMPLE_WGSL,
+      SCREEN_REFLECTION_WGSL,
+      REFLECTION_PHASE_WGSL,
+      ...(unbounded ? [] : [HIZ_TRACE_WGSL]),
+    ],
+    `@group(2) @binding(0) var reflectionOwners:texture_storage_2d<rg32uint,write>;
 @fragment fn traceRoughReflection(@builtin(position) texel:vec4f)->@location(0) vec4f{
  let seed=bitcast<u32>(reflectionView.enabled.w);
  let at=min(vec2i(texel.xy)*2+reflectionPhase(seed),vec2i(reflectionView.enabled.yz)-vec2i(1));
@@ -28,7 +39,7 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
  let nr=textureLoad(normalRough,at,0);
  // Mirrors take the exact ray; from the cutoff on, where the display's fade is zero, it reads
  // the environment alone.
- if(nr.a<=${ROUGHNESS_FLOOR}||nr.a>=${SCREEN_REFLECTION_MAX_ROUGHNESS}){return vec4f(0.0);}
+ if(nr.a<=${wgslF32(ROUGHNESS_FLOOR)}||nr.a>=${wgslF32(SCREEN_REFLECTION_CUTOFF)}){return vec4f(0.0);}
  let z=textureLoad(depth,at,0);
  let P=worldAt(pixel,z);
  shadowFootprint=length(worldAt(pixel+vec2f(1.0,0.0),z)-P);
@@ -44,15 +55,13 @@ ${unbounded ? '' : HIZ_TRACE_WGSL}
  if(sample.w<=0.0){return vec4f(0.0);}
  textureStore(reflectionOwners,vec2i(texel.xy),vec4u(textureLoad(vis,at,0).r,bitcast<u32>(z),0u,0u));
  return vec4f(${unbounded ? 'resolvedReflectionRay' : 'boundedReflectionRay'}(P,N,sample.xyz),sample.w);
-}`
-
-/** The trace borrows the same lighting/proxy bindings as the final resolve; `unbounded`, a
- *  reference session's program. */
-export function stochasticReflectionShader(shader: string, unbounded = false) {
-  const source = withScreenReflections(shader)
-  return (
-    source +
-    (source.includes('fn hashUnit(') ? '' : HASH_UNIT_WGSL) +
-    stochasticReflectionWgsl(unbounded)
+}`,
   )
-}
+
+/** The trace borrows the same lighting/proxy bindings as the final resolve, its lit program
+ *  (`contractLightingProgram`) at the screen's mirror radiance, with the screen's reflections;
+ *  `unbounded`, a reference session's program. */
+export const stochasticReflectionShader = (
+  lit: LitProgram,
+  { unbounded = false }: { unbounded?: boolean } = {},
+) => wgslModule(lit(SCREEN_MIRROR_RADIANCE), stochasticReflectionWgsl(unbounded))

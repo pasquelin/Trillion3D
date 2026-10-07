@@ -3,6 +3,7 @@ import type { PendingGrowth } from '../core/tableGrowth.ts'
 import { VIS_TRIANGLE_BITS } from '../../visibility/visWords.ts'
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
 import { ceilDiv, workgroupCount } from '../../../../math/src/scalar/integers.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 export const DRAW_INDIRECT_STRIDE = 16
 /** Corners an indirect instance launches at most: 32 triangles, three 32-lane vertex groups, the
@@ -12,8 +13,12 @@ const BATCH_CORNERS = 96
  *  triangle bits (`visWords.ts`). */
 export const BATCH_SHIFT = 32 - VIS_TRIANGLE_BITS
 /** The instance word's two halves, as every kernel reading an instance list decodes them. */
-export const INSTANCE_WORD_WGSL = `fn instanceRow(word:u32)->u32{return word&${(1 << BATCH_SHIFT) - 1}u;}
-fn instanceCorner(word:u32)->u32{return (word>>${BATCH_SHIFT}u)*3u;}`
+export const INSTANCE_WORD_WGSL = wgslBlock(
+  'INSTANCE_WORD_WGSL',
+  [],
+  `fn instanceRow(word:u32)->u32{return word&${(1 << BATCH_SHIFT) - 1}u;}
+fn instanceCorner(word:u32)->u32{return (word>>${BATCH_SHIFT}u)*3u;}`,
+)
 /**
  * The indirect draw's shape for a catalogue whose widest page has `maxCorners` corners: the corners
  * each instance launches, at most `BATCH_CORNERS`, and the instances a row takes at most.
@@ -50,8 +55,11 @@ export const UNIFORM_BYTES = 32,
  */
 export const DRAW_ITEM_U32 = 5
 /** The draw record as every kernel that reads `items` declares it: `DRAW_ITEM_U32` words. */
-export const DRAW_ITEM_WGSL =
-  'struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}'
+export const DRAW_ITEM_WGSL = wgslBlock(
+  'DRAW_ITEM_WGSL',
+  [],
+  `struct DrawItem{pageIndex:u32,bin:u32,selectionIndex:u32,layer:u32,triangles:u32,}`,
+)
 /**
  * Slots a compaction needs for `layerSlots` coplanar layers — one layer means `BASE_SLOTS`, and a
  * scene with no stacked coplanar surface asks for exactly that. Each extra layer is its own set:

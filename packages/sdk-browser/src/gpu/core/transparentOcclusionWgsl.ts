@@ -3,6 +3,7 @@ import { HIZ_HIDDEN_WGSL } from '../hiz/rectWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { PARTITION_WORKGROUP } from '../partition/contract.ts'
 import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * Occlusion test of transparent clusters, one table entry per thread.
@@ -27,13 +28,13 @@ import { TRANSPARENT_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts'
  * select leave.
  */
 export function transparentOcclusionShader(entryCount: number) {
-  return `${PARTITION_UNI_WGSL}@group(0) @binding(0) var<storage, read> corners:array<f32>;
+  return wgslProgram(
+    `@group(0) @binding(0) var<storage, read> corners:array<f32>;
 @group(0) @binding(1) var<storage, read> pyramid:array<f32>;
 @group(0) @binding(2) var<storage, read_write> occluded:array<u32>;
 @group(0) @binding(3) var<uniform> uni:Uni;
 @group(0) @binding(4) var<storage, read> unculled:array<u32>;
-${BOX_PROJECT_WGSL}
-${HIZ_HIDDEN_WGSL}${FLAT_INDEX_WGSL}@compute @workgroup_size(${PARTITION_WORKGROUP})
+@compute @workgroup_size(${PARTITION_WORKGROUP})
 fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=flatIndex(id,n,${PARTITION_WORKGROUP}u);if(i>=${Math.max(1, entryCount)}u){return;}
  let box=projectBox(i,max(uni.layerTop,${TRANSPARENT_DEPTH_LAYER}u));
@@ -44,5 +45,7 @@ fn testTransparentClusters(@builtin(global_invocation_id) id:vec3u,@builtin(num_
  let reject=!open&&box.clips==0u&&uni.levels>0u&&hiddenByPyramid(box.rect,box.nearest);
  occluded[i]=select(0u,1u,reject);
 }
-`
+`,
+    [PARTITION_UNI_WGSL, BOX_PROJECT_WGSL, HIZ_HIDDEN_WGSL, FLAT_INDEX_WGSL],
+  )
 }

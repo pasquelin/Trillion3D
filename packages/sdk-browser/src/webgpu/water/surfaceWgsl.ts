@@ -1,7 +1,7 @@
 // The surface stage's WGSL (`rank.ts` says what it stores), imported with transmission's code
 // (`transmissionCode.ts`): the core holds the rank alone.
 import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from './rank.ts'
-import { LOBE_PACK_WGSL } from '../../scene/physicalLobes.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { PHYSICAL_TEXEL_WGSL } from '../../visibility/shader/physicalWgsl.ts'
 
 /** The values of the surface stage, in their targets' order: the surface buffer, then, with
@@ -41,17 +41,23 @@ function waterEntry(lobed: boolean) {
  * — zero where neither lobe remains —, depth-tested as every other target, so the nearest
  * surface's lobes are the ones kept.
  */
-export const waterSurfaceWgsl = (lobes: boolean) => `
+export const waterSurfaceWgsl = (lobes: boolean) =>
+  wgslBlock(
+    'waterSurfaceWgsl',
+    lobes ? [WATER_LOBED_WGSL] : [],
+    `
 fn waterSurfaceWord(in:VSOut,s:BlendSurface)->vec4f{
  let opacity=u32(round(clamp(s.alpha,0.0,1.0)*65535.0));
  return unpack4x8unorm((in.water&${WATER_MAX_ITEMS}u)|(opacity<<${WATER_RANK_SHIFT}u));
 }
-${waterEntry(false)}
-${lobes ? WATER_LOBED_WGSL : ''}`
+${waterEntry(false)}`,
+  )
 
 /** The lobed entry and what it stores: the fragment's lobes as the lobes target holds them. */
-const WATER_LOBED_WGSL = `${LOBE_PACK_WGSL}
-${PHYSICAL_TEXEL_WGSL}
+const WATER_LOBED_WGSL = wgslBlock(
+  'WATER_LOBED_WGSL',
+  [PHYSICAL_TEXEL_WGSL],
+  `
 /** The fragment's lobes as the lobes target holds them, zero without either. */
 fn waterLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->vec4u{
  if(!physicalOn){return vec4u(0u);}
@@ -59,10 +65,15 @@ fn waterLobedTexel(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface)->vec4u{
  if(physicalLobeless(v)){return vec4u(0u);}
  return physicalTexel(v);
 }
-${waterEntry(true)}`
+${waterEntry(true)}`,
+)
 /** The composite's reading of that fourth word: rank and opacity, as the stage packed them. */
-export const WATER_UNPACK_WGSL = `
+export const WATER_UNPACK_WGSL = wgslBlock(
+  'WATER_UNPACK_WGSL',
+  [],
+  `
 fn waterWordAt(coord:vec2i)->u32{return pack4x8unorm(textureLoad(waterWord,coord,0));}
 fn waterRank(packed:u32)->u32{return (packed&${WATER_MAX_ITEMS}u)-1u;}
 fn waterOpacity(packed:u32)->f32{return f32(packed>>${WATER_RANK_SHIFT}u)/65535.0;}
-`
+`,
+)

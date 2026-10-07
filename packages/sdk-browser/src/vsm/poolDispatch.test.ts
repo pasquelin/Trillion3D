@@ -13,8 +13,8 @@ import { vsmLayout } from './layout.ts'
 test('the largest pool an entry addresses fits one row of every pool-wide dispatch', () => {
   // An entry holds a page's column in the low bits, its row from `rowShift` up to the fallback's
   // levels (`vsmPackTableEntry`, `vsmPackFallbackEntry`).
-  const rowShift = Number(/physicalAddress\.y<<(\d+)u/.exec(VSM_PAGE_ADDRESS_WGSL)![1])
-  const levelShift = Number(/coarserLevels<<(\d+)u/.exec(VSM_PAGE_ADDRESS_WGSL)![1])
+  const rowShift = Number(/physicalAddress\.y<<(\d+)u/.exec(VSM_PAGE_ADDRESS_WGSL.text)![1])
+  const levelShift = Number(/coarserLevels<<(\d+)u/.exec(VSM_PAGE_ADDRESS_WGSL.text)![1])
   const rows = 2 ** (levelShift - rowShift),
     perRow = VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS
   assert.ok(perRow <= 2 ** rowShift, 'a row of pages within its column bits')

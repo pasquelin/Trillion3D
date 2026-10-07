@@ -1,6 +1,7 @@
 import { LOBES_TARGET_WGSL } from '../../lighting/direct/lobesWgsl.ts'
 import { FORWARD_MIRROR_WGSL } from '../../reflections/modelShader.ts'
 import { VOLUME_LOBED } from '../transparent/transmission.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * The anisotropic and clear-coat lobes of a water pixel, in the composite's lobed programs
@@ -17,9 +18,10 @@ import { VOLUME_LOBED } from '../transparent/transmission.ts'
  * (`waterCoatMirror`), the forward passes' one (`FORWARD_MIRROR_WGSL`) on the coat normal at the
  * coat roughness.
  */
-export const WATER_LOBES_WGSL = `${LOBES_TARGET_WGSL}
-${FORWARD_MIRROR_WGSL}
-/** The lobes of the water pixel at \`coord\`, set for its lights (\`lobesAt\`, the opaque resolve's
+export const WATER_LOBES_WGSL = wgslBlock(
+  'WATER_LOBES_WGSL',
+  [LOBES_TARGET_WGSL, FORWARD_MIRROR_WGSL],
+  `/** The lobes of the water pixel at \`coord\`, set for its lights (\`lobesAt\`, the opaque resolve's
  *  decode); \`side\` is -1 where the composite turned the stored normal to face the eye. */
 fn waterLobes(vol:Volume,coord:vec2i,N:vec3f,V:vec3f,rough:f32,side:f32){
  if(!volumeMarked(vol,${VOLUME_LOBED}u)){return;}
@@ -31,8 +33,13 @@ fn waterLobes(vol:Volume,coord:vec2i,N:vec3f,V:vec3f,rough:f32,side:f32){
 fn waterCoatMirror(reflected:vec3f,V:vec3f,P:vec3f)->vec3f{
  if(!lobes.on||!(lobes.coat>0.0)){return reflected;}
  return reflected+lobes.coat*surfaceMirrorLighting(vec3f(0.0),0.0,lobes.coatRough,lobes.coatN,V,P);
-}`
+}`,
+)
 
 /** The composite's lobeless programs: no lobe is read, the reflection is the surface's alone. */
-export const WATER_LOBELESS_WGSL = `fn waterLobes(vol:Volume,coord:vec2i,N:vec3f,V:vec3f,rough:f32,side:f32){}
-fn waterCoatMirror(reflected:vec3f,V:vec3f,P:vec3f)->vec3f{return reflected;}`
+export const WATER_LOBELESS_WGSL = wgslBlock(
+  'WATER_LOBELESS_WGSL',
+  [],
+  `fn waterLobes(vol:Volume,coord:vec2i,N:vec3f,V:vec3f,rough:f32,side:f32){}
+fn waterCoatMirror(reflected:vec3f,V:vec3f,P:vec3f)->vec3f{return reflected;}`,
+)

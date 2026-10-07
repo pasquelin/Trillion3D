@@ -6,8 +6,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { directShadowWgsl } from './shadowWgsl.ts'
 import { saturate } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
-const SOURCE = directShadowWgsl(null, 18)
+const SOURCE = wgslModule(directShadowWgsl(18))
 
 test("the tent weights are develop's floor-and-fraction weights, bit for bit in f32", () => {
   // The shipped form, its columns read from the text; the floor-and-fraction form, in f32.

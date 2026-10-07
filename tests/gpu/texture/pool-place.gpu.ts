@@ -23,7 +23,7 @@ import { computeOnDawn } from '../kit/computeRun.ts'
 function poolLines() {
   const wanted =
     /^(const (TEXEL_PITCH|TEXEL_BORDER|POOL_SUBTEXEL|POOL_STEP):.*|struct TileTap\{.*|fn (poolAxis|poolTap|placeOrigin|placeLayer)\(.*)$/gm
-  const lines = TILE_POOL_WGSL.match(wanted) ?? []
+  const lines = TILE_POOL_WGSL.text.match(wanted) ?? []
   assert.equal(lines.length, 9, `the pool text no longer declares its place decode:\n${lines}`)
   return lines.join('\n')
 }

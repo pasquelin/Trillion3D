@@ -7,6 +7,7 @@
  */
 import { directLightingWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../../packages/sdk-browser/src/lighting/standardLighting.ts'
+import { wgslModule } from '../../../packages/math/src/wgsl/assemble.ts'
 import {
   CONTRACT_BINDINGS_WGSL,
   VIEW_WGSL,
@@ -29,12 +30,11 @@ function lighting(
   lobes: boolean,
   per: boolean,
 ) {
-  const shipped = directLightingWgsl({
-    narrow,
-    unshadowed: !shadowed,
-    rectless: !rects,
-    lobeless: !lobes,
-  })
+  // The lights with the standard lobe they shade with, each declaration once.
+  const shipped = wgslModule(
+    directLightingWgsl({ narrow, unshadowed: !shadowed, rectless: !rects, lobeless: !lobes }),
+    STANDARD_LIGHTING_WGSL,
+  )
   const term = '(surfaceLight(shading,N,V,'
   if (!per) return shipped
   if (lobes || shipped.split(term).length !== 2) throw new Error('PER_LIGHT_TERM_UNMATCHED')
@@ -52,10 +52,9 @@ export const resolveHarness = (
   lobes = false,
   perLight = false,
 ) => `
-${VIEW_WGSL}
+${VIEW_WGSL.text}
 @group(0) @binding(5) var<uniform> view:View;
-${CONTRACT_BINDINGS_WGSL}
-${STANDARD_LIGHTING_WGSL}
+${CONTRACT_BINDINGS_WGSL.text}
 ${lighting(narrow, shadowed, rects, lobes, perLight)}${lobes ? LOBE_ENTRIES_WGSL : ''}
 struct Sample{albedoMetal:vec4f,normalRough:vec4f,pointAo:vec4f,eyeFlag:vec4f,}
 @group(0) @binding(${SAMPLES_BINDING}) var<storage,read> samples:array<Sample>;

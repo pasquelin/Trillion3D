@@ -8,6 +8,7 @@ import { PAGE_POINTS_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts'
 import { deformationSlotBytes, deformOutputWord } from '../../deformation/slotLayout.ts'
 import type { PageRec } from '../../page/selection/selection.ts'
 import { pageHomes } from './homes.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type Fn = (...args: unknown[]) => unknown
 /** Words before the page: its first word is never the pool's. */
@@ -25,7 +26,7 @@ test('an index page and a deformation tail are read inside their own home', () =
     },
   })
   const run = shaderRun<Record<string, Fn>>(
-    PAGE_POINTS_WGSL,
+    wgslModule(PAGE_POINTS_WGSL),
     ['pageTriangle', 'pageCorner', 'pageDeformed'],
     { indices, positions: [] },
   )

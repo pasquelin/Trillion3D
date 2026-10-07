@@ -1,5 +1,6 @@
 import { LANE_SCAN_WGSL } from '../../core/laneScanWgsl.ts'
 import { SELECTION_HEADER_WORDS } from '../layout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * Compaction of the drawable-page list, done by the GPU.
@@ -24,7 +25,10 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts'
  * `out` — a count, seven padding words, then the ranks — so the snapshot remains one contiguous
  * copy.
  */
-export const DAG_COMPACT_WGSL = `const BLOCK:u32=64u;
+export const DAG_COMPACT_WGSL = wgslBlock(
+  'DAG_COMPACT_WGSL',
+  [LANE_SCAN_WGSL],
+  `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
 fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
 fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
@@ -38,7 +42,7 @@ fn drawMaskWord(i:u32)->u32{return drawMaskBase()+(i>>5u);}
 fn drawBit(i:u32)->u32{return 1u<<(i&31u);}
 /** The drawn pages of \`mask\`, page \`i\`'s word, below page \`i\`. */
 fn drawnBefore(i:u32,mask:u32)->u32{return countOneBits(mask&(drawBit(i)-1u));}
-${LANE_SCAN_WGSL}/** Each lane totals its run of blocks; the shared lane scan gives the run its offset. */
+/** Each lane totals its run of blocks; the shared lane scan gives the run its offset. */
 @compute @workgroup_size(64)
 fn dagDrawPrefix(@builtin(local_invocation_index) lane:u32){
  let count=blockCount();let base=blockBase();
@@ -70,4 +74,5 @@ fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  let at=off+rank;if(at>=views[0u].listCap){atomicOr(&out.overflow,1u);return;}
  out.pages[views[0u].listCap+HEAD+at]=i;
 }
-`
+`,
+)

@@ -1,16 +1,21 @@
 import { TONE_MAPPING_RANK } from '../../../sdk-core/src/scene/core/environment.ts'
-import { shaderFloat } from './shaderConstants.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { ACES, AGX, CINEON, NEUTRAL } from './toneCurveConstants.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /** The filmic curve (ACES, its 0.6 exposure scale folded in), the default one. */
-const ACES_WGSL = `
+const ACES_WGSL = wgslBlock(
+  'ACES_WGSL',
+  [],
+  `
 fn aces(color:vec3f)->vec3f{
  var c=color/${ACES.exposure};
  c=${ACES.input}*c;
  let a=${ACES.numerator};let b=${ACES.denominator};c=a/b;
  c=${ACES.output}*c;
  return clamp(c,vec3f(0.0),vec3f(1.0));
-}`
+}`,
+)
 
 const R = TONE_MAPPING_RANK
 
@@ -24,8 +29,10 @@ const R = TONE_MAPPING_RANK
  *   over [-12.47, 4.03] EV, the sixth-degree contrast fit, the outset, back to linear sRGB;
  * - `neutral` is a neutral operator, which keeps base colours below 0.76 as they are.
  */
-export const TONE_MAPPING_WGSL = `${ACES_WGSL}
-fn cineonCurve(color:vec3f)->vec3f{
+export const TONE_MAPPING_WGSL = wgslBlock(
+  'TONE_MAPPING_WGSL',
+  [ACES_WGSL],
+  `fn cineonCurve(color:vec3f)->vec3f{
  let x=max(vec3f(0.0),color-${CINEON.offset});
  return pow(${CINEON.curve},vec3f(2.2));
 }
@@ -34,7 +41,7 @@ fn agxCurve(color:vec3f)->vec3f{
  let toNarrow=${AGX.toNarrow};
  let inset=${AGX.inset};
  let outset=${AGX.outset};
- let low=${shaderFloat(AGX.low)};let high=${shaderFloat(AGX.high)};
+ let low=${wgslF32(AGX.low)};let high=${wgslF32(AGX.high)};
  var c=inset*(toWide*color);
  c=clamp((log2(max(c,vec3f(1e-10)))-low)/(high-low),vec3f(0.0),vec3f(1.0));
  let c2=c*c;let c4=c2*c2;
@@ -61,4 +68,5 @@ fn toneMap(color:vec3f,curve:u32)->vec3f{
   case ${R.neutral}u:{return neutralCurve(color);}
   default:{return aces(color);}
  }
-}`
+}`,
+)

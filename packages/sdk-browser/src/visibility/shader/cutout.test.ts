@@ -6,13 +6,14 @@ import { MASK_KEEP_WGSL } from './pageWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from '../types.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('the cutout is the hard threshold: the mask test, with the dash, vertex alpha and opacity', () => {
   // The mask test reads `maskAlpha(...)>=page.baseColor.w` after the flag test. A dashed line's
   // gaps cut it, the vertex alpha multiplies it and the colour factor's opacity does too;
   // nothing else may stand between the read and the threshold.
   assert.equal(
-    MASK_KEEP_WGSL.replace(/\n *\/\/[^\n]*/g, ''),
+    wgslSource(MASK_KEEP_WGSL).replace(/\n *\/\/[^\n]*/g, ''),
     `fn maskKeep(page:PageInfo,uv:vec2f,vertexAlpha:f32,ddx:vec2f,ddy:vec2f)->bool{
  if((page.flags&128u)==0u){return true;}
  if(!lineDash(uv.x,page.dash)){return false;}

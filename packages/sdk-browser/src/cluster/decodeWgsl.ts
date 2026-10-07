@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { octDecodeScalar } from '../../../math/src/wgsl/octahedral.ts'
 import {
   BLOCK_CORNERS,
   CLUSTER_HEADER_WORDS,
@@ -19,7 +21,10 @@ import {
  * The host declares the buffer and names it: `clusterDecodeWgsl('pageWords')` binds every routine
  * to `pageWords:array<u32>`.
  */
-const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
+const CLUSTER_HEADER_WGSL = wgslBlock(
+  'CLUSTER_HEADER_WGSL',
+  [],
+  `struct ClusterHeader{
  vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,prefixBits:u32,recordBits:u32,
  positionCount:u32,linkBits:u32,
  posBits:vec3u,posStep:f32,posMin:vec3f,
@@ -31,7 +36,8 @@ const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  // The skin (\`deform.rs\`): its joints' base and width, and its first stream; the morph targets'
  // count and the word their streams are counted from, each target's record after the header.
  skinBase:u32,skinBits:u32,skin:u32,influences:u32,morphCount:u32,streams:u32,
-}`
+}`,
+)
 
 /**
  * The tangent frame a page does not store, from the triangle: its normal `N`, two edges and the
@@ -41,17 +47,23 @@ const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  * follows `v`, both orthogonal to `N`, the longer of the two unit; a triangle with no texture
  * area yields zero vectors, not NaN.
  */
-export const COTANGENT_FRAME_WGSL = `struct CotangentFrame{T:vec3f,B:vec3f,}
+export const COTANGENT_FRAME_WGSL = wgslBlock(
+  'COTANGENT_FRAME_WGSL',
+  [],
+  `struct CotangentFrame{T:vec3f,B:vec3f,}
 fn cotangentFrame(N:vec3f,e1:vec3f,e2:vec3f,duv1:vec2f,duv2:vec2f)->CotangentFrame{
  let p=cross(e2,N);let q=cross(N,e1);
  let T=p*duv1.x+q*duv2.x;let B=p*duv1.y+q*duv2.y;
  let scale=inverseSqrt(max(max(dot(T,T),dot(B,B)),1e-20));
  return CotangentFrame(T*scale,B*scale);
-}`
+}`,
+)
 
 export function clusterDecodeWgsl(buffer: string) {
-  return `${CLUSTER_HEADER_WGSL}
-fn clusterPow2(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}
+  return wgslBlock(
+    `clusterDecodeWgsl(${buffer})`,
+    [octDecodeScalar, CLUSTER_HEADER_WGSL],
+    `fn clusterPow2(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}
 fn clusterBitsFor(range:u32)->u32{return 32u-countLeadingZeros(range);}
 // The \`bits\`-bit field at bit \`at\` of the page at word \`base\`.
 fn clusterField(base:u32,at:u32,bits:u32)->u32{
@@ -164,13 +176,7 @@ fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
 // Two octahedral bytes back to a unit vector.
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  let q=clusterField(base+h.normal,vertex*16u,16u);
- var x=f32(q&255u)*${OCT_SCALE}-1.0;var y=f32((q>>8u)&255u)*${OCT_SCALE}-1.0;
- let z=1.0-abs(x)-abs(y);
- if(z<0.0){
-  let fx=(1.0-abs(y))*select(-1.0,1.0,x>=0.0);let fy=(1.0-abs(x))*select(-1.0,1.0,y>=0.0);
-  x=fx;y=fy;
- }
- return normalize(vec3f(x,y,z));
+ return octDecodeScalar(vec2f(f32(q&255u)*${OCT_SCALE}-1.0,f32((q>>8u)&255u)*${OCT_SCALE}-1.0));
 }
 // Every influence is retained; weight words are exact source float32 bits.
 fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
@@ -193,5 +199,6 @@ fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
   clusterGrid(base,h.color.y,vertex,h.colorBits.y,h.colorMin.y,h.colorStep),
   clusterGrid(base,h.color.z,vertex,h.colorBits.z,h.colorMin.z,h.colorStep),
   clusterGrid(base,h.color.w,vertex,h.colorBits.w,h.colorMin.w,h.colorStep));
-}`
+}`,
+  )
 }

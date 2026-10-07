@@ -13,6 +13,8 @@ import {
 import { SAMPLING_WGSL, atlasReadWgsl } from './samplingWgsl.ts'
 import { maskAlphaWgsl } from './wgsl.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
 
@@ -63,16 +65,16 @@ test('each filter name sets its base filter and mip rule', () => {
 test('a filter without mip reads the footprint level, as the default read does', () => {
   assert.equal(filterOf({ minFilter: 'linear' }), 0, 'the default read')
   assert.equal(filterOf({ minFilter: 'nearest' }), SAMPLE_MIN_NEAREST)
-  assert.doesNotMatch(SAMPLING_WGSL, /lod=0\.0/)
-  assert.match(SAMPLING_WGSL, /var lod=clamp\(raw,0\.0,f32\(s\.last\)\);/)
-  assert.match(SAMPLING_WGSL, /if\(\(s\.sampling&4u\)!=0u\)\{lod=floor\(lod\+0\.5\);\}/)
+  assert.doesNotMatch(wgslSource(SAMPLING_WGSL), /lod=0\.0/)
+  assert.match(wgslSource(SAMPLING_WGSL), /var lod=clamp\(raw,0\.0,f32\(s\.last\)\);/)
+  assert.match(wgslSource(SAMPLING_WGSL), /if\(\(s\.sampling&4u\)!=0u\)\{lod=floor\(lod\+0\.5\);\}/)
 })
 
 // WebGPU's switch between magnification and minification: at level 0 for every filter. Under the
 // switch, level 0 with the magnification filter.
 test('minification starts past level 0 whatever the mip rule', () => {
-  assert.match(SAMPLING_WGSL, /let mag=raw<=0\.0;/)
-  assert.match(SAMPLING_WGSL, /select\(2u,1u,mag\)/)
+  assert.match(wgslSource(SAMPLING_WGSL), /let mag=raw<=0\.0;/)
+  assert.match(wgslSource(SAMPLING_WGSL), /select\(2u,1u,mag\)/)
 })
 
 // The grant: a linear magnification over a chain mixed across levels — a filter without `mip`
@@ -92,14 +94,14 @@ test('anisotropy is clamped to the ceiling, and granted only to a linear read mi
 // #360, #361: the shadow cutout reads one tap at the isotropic level; the camera cutout reads the
 // alpha of the colour's own read, the taps its footprint's elongation asks.
 test('the shadow cutout takes one tap, the camera cutout the colour read and its taps', () => {
-  const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true),
-    shadow = maskAlphaWgsl(true)
+  const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true).text,
+    shadow = wgslModule(maskAlphaWgsl(true))
   assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/)
   assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/)
   assert.match(shadow, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/)
   assert.doesNotMatch(shadow, /taps/i)
   assert.equal(
-    maskAlphaWgsl(false),
+    maskAlphaWgsl(false).text,
     'fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return colorSample(slot,uv,ddx,ddy,sampled).w;}',
   )
 })
@@ -109,7 +111,7 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
  *  unsigned literal dropped, `select` a ternary. */
 const readOf = (lx: number, ly: number, granted: number) => {
   const line = (name: string) => {
-    const found = SAMPLING_WGSL.match(new RegExp(`${name}=([^;]+);`))
+    const found = wgslSource(SAMPLING_WGSL).match(new RegExp(`${name}=([^;]+);`))
     assert.ok(found, name)
     return found[1]
       .replace(/\b(min|max|sqrt|ceil|log2)\(/g, 'Math.$1(')
@@ -155,7 +157,7 @@ test('the affine part of the transform is carried, and flagged when it is not th
 // level at a time — a table entry once per tile —, the two levels mixed once; a line that meets
 // a seam or leaves its period folds each tap alone, as a one-tap read does.
 test('an anisotropic line is folded once when it stays in its period', () => {
-  const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true)
+  const shaded = atlasReadWgsl('colorSample', 'color', 'vec4f', true).text
   // The seam test reaches half a texel of the coarsest level read, whose seam is the widest.
   assert.match(
     shaded,

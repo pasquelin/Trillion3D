@@ -1,5 +1,10 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+
 /** Bright, stable display colors derived from integer triangle IDs. */
-export const TRIANGLE_PALETTE_WGSL = `
+export const TRIANGLE_PALETTE_WGSL = wgslBlock(
+  'TRIANGLE_PALETTE_WGSL',
+  [],
+  `
 fn triangleHash(id:u32)->u32{
  var x=id+0x9e3779b9u;
  x=(x^(x>>16u))*0x7feb352du;
@@ -14,4 +19,5 @@ fn hashColor(id:u32)->vec3f{
  let value=0.78+0.20*f32((h>>24u)&255u)/255.0;
  let channels=abs(fract(vec3f(hue,hue+0.6666667,hue+0.3333333))*6.0-vec3f(3.0));
  return value*mix(vec3f(1.0),clamp(channels-vec3f(1.0),vec3f(0.0),vec3f(1.0)),saturation);
-}`
+}`,
+)

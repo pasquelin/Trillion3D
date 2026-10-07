@@ -10,6 +10,7 @@ import {
   mustRestartTaaAfterSettle,
   texturesConverged,
 } from './convergeRules.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 test('a quiet barrier leaves TAA history in place', () => {
   assert.equal(mustRestartTaaAfterSettle(0, 0), false)
@@ -37,19 +38,19 @@ test('a convergence image names, per pixel, the first of all its picks whose til
         named.add(pick(px + turn, choices).join())
       assert.equal(named.size, choices * PICK_BLENDS * PICK_TAPS, `pixel ${px}, ${choices} maps`)
     }
-  assert.match(TILE_REQUEST_WGSL, /const PICK_TURNS:u32=6u;/)
+  assert.match(wgslSource(TILE_REQUEST_WGSL), /const PICK_TURNS:u32=6u;/)
   assert.match(
-    TILE_REQUEST_WGSL,
+    wgslSource(TILE_REQUEST_WGSL),
     /fn everyPick\(pos:vec2f,choices:u32,turn:u32\)[^\n]*pickOf\(u32\(pos\.x\)\+u32\(pos\.y\)\+turn,choices\)/,
   )
   assert.match(
-    TILE_REQUEST_WGSL,
+    wgslSource(TILE_REQUEST_WGSL),
     /if\(missing&&word!=0u&&\(\(word>>24u\)&0x7fu\)==level\)\{return 0u;\}/,
   )
   for (const [name, text, choices] of [
-    ['shade', SHADE_REQUEST_WGSL, 'choices'],
-    ['blend', blendRequestWgsl(false), 'choices'],
-    ['lobed blend', blendRequestWgsl(true), 'choices'],
+    ['shade', wgslSource(SHADE_REQUEST_WGSL), 'choices'],
+    ['blend', wgslSource(blendRequestWgsl(false)), 'choices'],
+    ['lobed blend', wgslSource(blendRequestWgsl(true)), 'choices'],
   ]) {
     const loop = new RegExp(
       `if\\(feedbackEvery\\(uni\\.feedback\\)\\)\\{\\n  for\\(var turn=0u;turn<${choices}\\*PICK_TURNS;turn\\+\\+\\)\\{\\n` +

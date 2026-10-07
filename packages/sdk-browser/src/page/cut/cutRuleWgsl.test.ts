@@ -27,7 +27,7 @@ test('the kernel as written passes', () => {
 })
 
 test('a rule that forgets the missing finer group opens holes', () => {
-  assert.ok(DAG_SELECTION_SHADER.includes(CUT_RULE_WGSL), 'the kernel carries the rule')
+  assert.ok(DAG_SELECTION_SHADER.includes(CUT_RULE_WGSL.text), 'the kernel carries the rule')
   const forgets = edited('(ownWithin||!childResident)', 'ownWithin')
   assert.throws(() => randomFrames(wgslBackend(dag, THRESHOLD, forgets)), FAULT)
 })

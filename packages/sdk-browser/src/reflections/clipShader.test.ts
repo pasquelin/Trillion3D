@@ -1,12 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SCREEN_TRACE_WGSL } from './traceShader.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { SCREEN_REFLECTION_WGSL } from './screenWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 type Clip = { x: number; y: number; z: number; w: number }
 const { reflectionExit } = shaderRun<{ reflectionExit: (c: number[], d: number[]) => number }>(
-  SCREEN_TRACE_WGSL,
+  SCREEN_REFLECTION_WGSL,
   ['reflectionExit'],
   {},
 )
@@ -32,6 +32,6 @@ test('homogeneous clipping keeps near/far and viewport exits valid before perspe
 })
 
 test('the projection adapter flips texture Y and clears to the reversed depth zero', () => {
-  assert.match(SCREEN_REFLECTION_WGSL, /vec4f\(c.x,-c.y,c.z,c.w\)/)
-  assert.match(SCREEN_REFLECTION_WGSL, /\nconst REFLECTION_CLEAR_DEPTH:f32=0\.0;/)
+  assert.match(wgslModule(SCREEN_REFLECTION_WGSL), /vec4f\(c.x,-c.y,c.z,c.w\)/)
+  assert.match(wgslModule(SCREEN_REFLECTION_WGSL), /\nconst REFLECTION_CLEAR_DEPTH:f32=0\.0;/)
 })

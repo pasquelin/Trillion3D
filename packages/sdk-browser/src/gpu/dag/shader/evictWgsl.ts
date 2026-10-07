@@ -1,5 +1,6 @@
 import { EVICT_AGES, EVICT_LEVELS, KEY_PAGE_BITS } from '../evict.ts'
 import { EVICTION_BURST } from '../layout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * `dagListEvictions`: the eviction queue behind the drawn list (`evictionWord`, `../layout.ts`), a
@@ -7,7 +8,10 @@ import { EVICTION_BURST } from '../layout.ts'
  * counting sort of `dagSortRequests` without staging: a sweep of the pool's list counts each rank,
  * `placeRanks` places them, a second sweep scatters the highest ranks, at most `EVICTION_BURST`.
  */
-export const DAG_EVICT_WGSL = `const KEY_PAGE:u32=${(1 << KEY_PAGE_BITS) - 1}u;
+export const DAG_EVICT_WGSL = wgslBlock(
+  'DAG_EVICT_WGSL',
+  [],
+  `const KEY_PAGE:u32=${(1 << KEY_PAGE_BITS) - 1}u;
 /** Word \`k\` of the eviction queue in \`out.pages\`: 0 its count, \`HEAD+j\` its entry \`j\`. */
 fn evictAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
 /** Rank of canonical page \`i\` in the queue, \`RANKS\` when this cut read it. Integer only, as
@@ -41,4 +45,5 @@ fn dagListEvictions(@builtin(local_invocation_index) lane:u32){
  workgroupBarrier();
  sweepPool(lane,now,true);
 }
-`
+`,
+)

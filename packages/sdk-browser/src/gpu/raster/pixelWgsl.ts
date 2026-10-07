@@ -1,5 +1,6 @@
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts'
-import { wgslFloat } from '../partition/margins.ts'
+import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * What a visibility-buffer pixel receives, and the resolve of two triangles that fall at exactly
@@ -35,7 +36,10 @@ import { wgslFloat } from '../partition/margins.ts'
  * normalised on their sum: a weight that does not sum to one shifts the whole depth of a flat
  * surface, enough to lose a coplanar-layer resolve.
  */
-export const RASTER_PIXEL_WGSL = `
+export const RASTER_PIXEL_WGSL = wgslBlock(
+  'RASTER_PIXEL_WGSL',
+  [],
+  `
 /** Canonical order of two screen vertices: highest first, then leftmost. */
 fn canonBefore(a:vec2f,b:vec2f)->bool{return a.y<b.y||(a.y==b.y&&a.x<b.x);}
 /** \`edge(a,b,p)\` computed in canonical order: both triangles of an edge read the same bits. */
@@ -80,7 +84,7 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  let wa=cov.x;let wb=cov.y;let wc=cov.z;
  let depth=wa*t.ca.z/t.ca.w+wb*qb.z/qb.w+wc*qc.z/qc.w;
  // The far plane is infinite: depth falls toward far without ever reaching it.
- if(depth<=${wgslFloat(DEPTH_CLEAR)}||depth>${wgslFloat(DEPTH_NEAR)}){return;}
+ if(depth<=${wgslF32(DEPTH_CLEAR)}||depth>${wgslF32(DEPTH_NEAR)}){return;}
  let page=pages[t.row];
  if((page.flags&128u)!=0u){
   let inv=wa/t.ca.w+wb/qb.w+wc/qc.w;
@@ -90,8 +94,9 @@ fn rasterPixel(t:Tri,pixel:vec2i,writeId:bool){
  }
  let offset=u32(pixel.y)*u32(uni.viewport.x)+u32(pixel.x);
  let raw=bitcast<u32>(depth);
- let bits=min(bitcast<u32>(${wgslFloat(DEPTH_NEAR)}),raw+page.depthBias);
+ let bits=min(bitcast<u32>(${wgslF32(DEPTH_NEAR)}),raw+page.depthBias);
  if(writeId){if(atomicLoad(&work[offset])==bits){atomicMin(&work[pixelCount()+offset],page.packedBase|(t.triangle&0xffu));}}
  else{atomicMax(&work[offset],bits);}
 }
-`
+`,
+)

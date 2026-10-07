@@ -9,6 +9,7 @@ import { writeDepthRamp } from './depthConvention.ts'
 import { SURFACE_MODEL } from '../scene/surfaceModel.ts'
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { SHADE_DECL_WGSL } from '../visibility/shader/shadeDeclWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { DEPTH_RAMP_WORD, SHADE_UNIFORM_WORDS } from '../visibility/shader/request.ts'
 import {
   orthographicProjection,
@@ -82,7 +83,7 @@ test('The weights land at the offset they are given, nothing around them', () =>
 })
 
 test('The resolve uniform: the ramp is the last vec4f, 16-byte aligned', () => {
-  assert.match(SHADE_DECL_WGSL, /feedback:u32,depthRamp:vec4f,\}/)
+  assert.match(wgslModule(SHADE_DECL_WGSL), /feedback:u32,depthRamp:vec4f,\}/)
   // viewProj 16 words, viewport 2 and five scalars, one padding word: the ramp starts at word 24.
   assert.equal(DEPTH_RAMP_WORD, 16 + 4 + 4)
   assert.equal(DEPTH_RAMP_WORD % 4, 0)

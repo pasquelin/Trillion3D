@@ -1,5 +1,6 @@
 import { TRANSPARENT_GROUP, TRANSPARENT_NONE } from './table.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /**
  * Stable compaction of the transparent clusters an image selected, one indirect command per item.
@@ -17,7 +18,8 @@ import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
  * test found it ENTIRELY behind the already-drawn opaque (`../../gpu/core/transparentOcclusionWgsl.ts`). Neither
  * reorders anything: the output stays the table order, stripped of its dropped entries.
  */
-export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupCount:u32,itemCount:u32,selectionOffset:u32,vertexCount:u32,pad0:u32,pad1:u32,pad2:u32,}
+export const TRANSPARENT_COMPACT_SHADER = wgslProgram(
+  `struct Uniforms{entryCount:u32,groupCount:u32,itemCount:u32,selectionOffset:u32,vertexCount:u32,pad0:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> entries:array<u32>;
 @group(0) @binding(1) var<uniform> uni:Uniforms;
 @group(0) @binding(2) var<storage, read> selectionMask:array<u32>;
@@ -27,7 +29,7 @@ export const TRANSPARENT_COMPACT_SHADER = `struct Uniforms{entryCount:u32,groupC
 @group(0) @binding(6) var<storage, read_write> indirect:array<u32>;
 @group(0) @binding(7) var<storage, read> itemRanges:array<u32>;
 @group(0) @binding(8) var<storage, read> occluded:array<u32>;
-${FLAT_INDEX_WGSL}fn selected(i:u32)->bool{
+fn selected(i:u32)->bool{
  let cluster=entries[i];
  if(cluster==${TRANSPARENT_NONE}u){return false;}
  if(occluded[i]!=0u){return false;}
@@ -72,4 +74,6 @@ fn scatterTransparentGroups(@builtin(global_invocation_id) id:vec3u,@builtin(num
  for(var j=begin;j<i;j++){if(selected(j)){rank=rank+1u;}}
  instances[groupOffsets[group]+rank]=i;
 }
-`
+`,
+  [FLAT_INDEX_WGSL],
+)

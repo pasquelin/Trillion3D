@@ -5,13 +5,12 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
-import { UNLIT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts'
 import { createWebgpuBlendPipelines } from '../blend/pipelines.ts'
 import { litPrograms } from '../pages/prepare/contractLight.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts'
 import { settledRt, surface, view } from './hold.fixture.ts'
-import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { BLEND_SHADER, UNLIT_LIGHTING_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
 
 /** A fake device that names every render pipeline compiled off the thread, by its module. */
 function recordingDevice() {

@@ -16,6 +16,7 @@ import {
   SUN_READ,
   sunWorld,
 } from './vsmFilteredSample.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 test('each texel takes its own receiver-plane bias: a tilted receiver never shadows itself', () => {
   const p = [700.37, 900.81],
@@ -98,7 +99,12 @@ test('mode 0 is the point read as it stood, byte for byte, and the word picks th
   }
   assert.deepEqual(pick(SOURCE), ['point', 'filtered', 'traced', 'filtered'])
   // The program built without the traces (the setting at 0 or 1) reads 2 as the filtered taps.
-  assert.deepEqual(pick(directShadowWgsl(null, 18)), ['point', 'filtered', 'filtered', 'filtered'])
+  assert.deepEqual(pick(wgslModule(directShadowWgsl(18))), [
+    'point',
+    'filtered',
+    'filtered',
+    'filtered',
+  ])
 })
 
 test('every read is its own: no state is kept from one light to the next', () => {

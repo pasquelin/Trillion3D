@@ -21,6 +21,7 @@ import { SHADE_SHADER } from './shadeWgsl.ts'
 import { VIS_SHADER } from './visWgsl.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { TAA_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const SMALL_SHADER = rasterSource(4, 16)
 
@@ -33,8 +34,8 @@ function eachOnce(fragment: string, shaders: Record<string, string>) {
 }
 
 test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader that reads it', () => {
-  assert.match(PAGE_INFO_STRUCT_WGSL, /struct PageInfo\{/)
-  eachOnce(PAGE_INFO_STRUCT_WGSL, {
+  assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /struct PageInfo\{/)
+  eachOnce(PAGE_INFO_STRUCT_WGSL.text, {
     SMALL_SHADER,
     SHADE_SHADER,
     VIS_SHADER,
@@ -43,33 +44,33 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
 })
 
 test('EDGE_WGSL declares fn edge only once in the small-triangle raster and in shading', () => {
-  assert.match(EDGE_WGSL, /fn edge\(/)
-  eachOnce(EDGE_WGSL, { SMALL_SHADER, SHADE_SHADER })
+  assert.match(wgslSource(EDGE_WGSL), /fn edge\(/)
+  eachOnce(EDGE_WGSL.text, { SMALL_SHADER, SHADE_SHADER })
 })
 
 test('PAGE_VERTEX_WGSL declares fn vertPos only once in the raster and shading', () => {
-  assert.match(PAGE_VERTEX_WGSL, /fn vertPos\(/)
-  eachOnce(PAGE_VERTEX_WGSL, { SHADE_SHADER, VIS_SHADER })
+  assert.match(wgslSource(PAGE_VERTEX_WGSL), /fn vertPos\(/)
+  eachOnce(PAGE_VERTEX_WGSL.text, { SHADE_SHADER, VIS_SHADER })
 })
 
 test('PAGE_UV_WGSL declares fn vertUv only once in the raster and shading', () => {
-  assert.match(PAGE_UV_WGSL, /fn vertUv\(/)
-  eachOnce(PAGE_UV_WGSL, { SHADE_SHADER, VIS_SHADER })
+  assert.match(wgslSource(PAGE_UV_WGSL), /fn vertUv\(/)
+  eachOnce(PAGE_UV_WGSL.text, { SHADE_SHADER, VIS_SHADER })
 })
 
 test('WRAP_COORD_WGSL declares fn wrapCoord only once, directly as via MASK_KEEP_WGSL', () => {
-  assert.match(WRAP_COORD_WGSL, /fn wrapCoord\(/)
-  eachOnce(WRAP_COORD_WGSL, { SMALL_SHADER, SHADE_SHADER, VIS_SHADER })
+  assert.match(wgslSource(WRAP_COORD_WGSL), /fn wrapCoord\(/)
+  eachOnce(WRAP_COORD_WGSL.text, { SMALL_SHADER, SHADE_SHADER, VIS_SHADER })
 })
 
 test('MASK_KEEP_WGSL declares fn maskKeep only once in the raster', () => {
-  assert.match(MASK_KEEP_WGSL, /fn maskKeep\(/)
-  eachOnce(MASK_KEEP_WGSL, { SMALL_SHADER, VIS_SHADER })
+  assert.match(wgslSource(MASK_KEEP_WGSL), /fn maskKeep\(/)
+  eachOnce(MASK_KEEP_WGSL.text, { SMALL_SHADER, VIS_SHADER })
 })
 
 test('BARY_WEIGHTS_WGSL declares fn baryWeights only once in shading, never in the raster', () => {
-  assert.match(BARY_WEIGHTS_WGSL, /fn baryWeights\(/)
-  eachOnce(BARY_WEIGHTS_WGSL, { SHADE_SHADER })
+  assert.match(wgslSource(BARY_WEIGHTS_WGSL), /fn baryWeights\(/)
+  eachOnce(BARY_WEIGHTS_WGSL.text, { SHADE_SHADER })
   // The raster decides coverage on its three edges, not on derived weights.
   assert.doesNotMatch(SMALL_SHADER, /baryWeights/)
 })
@@ -108,17 +109,17 @@ test('wrapLinear mixes the two texels of the rule, a period seam included', () =
 // read that took the folded coordinate alone would reopen the defect.
 test("atlas reads fold by their texture's nibble and mix four taps", () => {
   assert.match(
-    WRAP_COORD_WGSL,
+    wgslSource(WRAP_COORD_WGSL),
     /struct WrapTaps\{proche:vec2f,loin:vec2f,poids:vec2f,couture:bool,\}/,
   )
   for (const [nom, bloc] of Object.entries({
-    COLOR_SAMPLE_WGSL,
-    MASK_ALPHA_WGSL: maskAlphaWgsl(true),
-    DATA_SAMPLE_WGSL,
+    COLOR_SAMPLE_WGSL: wgslSource(COLOR_SAMPLE_WGSL),
+    MASK_ALPHA_WGSL: wgslSource(maskAlphaWgsl(true)),
+    DATA_SAMPLE_WGSL: wgslSource(DATA_SAMPLE_WGSL),
   })) {
     // Each level folds on its own size: a mip level's seam is half of its own texel wide.
     assert.match(
-      `${COLOR_SAMPLE_WGSL}${DATA_SAMPLE_WGSL}${bloc}`,
+      `${wgslSource(COLOR_SAMPLE_WGSL)}${wgslSource(DATA_SAMPLE_WGSL)}${bloc}`,
       /(color|data)Blend\(/,
       `${nom} must read through the level blend`,
     )
@@ -136,7 +137,10 @@ test("atlas reads fold by their texture's nibble and mix four taps", () => {
       `${nom} must read its footprint once when sampled`,
     )
   }
-  for (const [nom, bloc] of Object.entries({ COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL })) {
+  for (const [nom, bloc] of Object.entries({
+    COLOR_SAMPLE_WGSL: wgslSource(COLOR_SAMPLE_WGSL),
+    DATA_SAMPLE_WGSL: wgslSource(DATA_SAMPLE_WGSL),
+  })) {
     assert.match(
       bloc,
       /let t=wrapUv\(uv,s\.wrap,levelSize\(s\.size,level\)\);/,

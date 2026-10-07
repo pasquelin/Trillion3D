@@ -10,6 +10,7 @@ import type { PageSurface } from '../page/surface.ts'
 import type { Texture } from '../../../sdk-core/src/index.ts'
 import { shaderFunctions, vec } from './shaderRule.fixture.ts'
 import { cutoffByte } from './cutoffByte.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 const NAMES = ['scaled', 'wide', 'pickKey', 'below', 'apart']
 
@@ -43,7 +44,10 @@ function pickOf(rule: Rule, histogram: number[], c: number, covered: number, tex
 }
 
 test("the WGSL pick of t and scale are the compiler's, on its table", () => {
-  const rule = shaderFunctions<Rule>(COVERAGE_SCALE_WGSL + COVERAGE_PICK_WGSL, NAMES)
+  const rule = shaderFunctions<Rule>(
+    wgslSource(COVERAGE_SCALE_WGSL) + wgslSource(COVERAGE_PICK_WGSL),
+    NAMES,
+  )
   for (const row of table.cases) {
     const [[cutoff], level0, level, [t], scaled] = row
       .split('|')

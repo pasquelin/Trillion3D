@@ -20,7 +20,7 @@ const prefixKernel = (shader: string) => {
 test('the shipped prefix kernel scans each slot over the 64 threads in workgroup memory', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k)
-    assert.ok(shader.includes(LANE_SCAN_WGSL), 'the shared lane scan')
+    assert.ok(shader.includes(LANE_SCAN_WGSL.text), 'the shared lane scan')
     assert.match(
       shader,
       /@compute @workgroup_size\(64\)\s*fn prefixGroups\(@builtin\(local_invocation_index\) lane:u32\)/,

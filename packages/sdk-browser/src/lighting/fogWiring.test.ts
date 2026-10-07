@@ -5,15 +5,17 @@
 // material, the diagnostic views and the composition are left as they were.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { CONTRACT_COMPOSITIONS, UNLIT_LIGHTING_SHADER } from './deferred/shaders.ts'
+import { CONTRACT_COMPOSITIONS } from './deferred/shaders.ts'
 import { BLEND_VIEW_SIZE, BLEND_VIEW_WGSL } from '../webgpu/blend/viewLayout.ts'
 import { SHADE_SHADER as SURFACE_SHADE } from '../visibility/shader/shadeWgsl.ts'
 import {
   BLEND_SHADER,
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
+  UNLIT_LIGHTING_SHADER,
   WATER_COMPOSITE_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../math/src/wgsl/source.fixture.ts'
 
 test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.yzw', () => {
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
@@ -52,6 +54,9 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
   // ratio a line's width is scaled by (#348), the texture level offset (#816) and the display
   // layers' exposure and curve (#558) follow it, in the struct's 16-byte alignment.
-  assert.match(BLEND_VIEW_WGSL, /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,\}/)
+  assert.match(
+    wgslSource(BLEND_VIEW_WGSL),
+    /pixelRatio:f32,mipBias:f32,exposure:f32,toneCurve:u32,\}/,
+  )
   assert.equal(BLEND_VIEW_SIZE, 144)
 })

@@ -3,17 +3,18 @@ import assert from 'node:assert/strict'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts'
 import { directLightSamplingWgsl, SAMPLED_RANKS } from './lightSamplingWgsl.ts'
 import { directLightingWgsl, declaredLightingWgsl } from './lightingWgsl.ts'
-import { HASH_UNIT_WGSL } from '../../gpu/shader/hashUnitWgsl.ts'
+import { hashUnit } from '../../../../math/src/wgsl/sampling.ts'
 import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts'
 import {
   BOUNCE_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
 } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 /** The sampled resolve of a program that shades rectangles, the default one. */
-const sampling = directLightSamplingWgsl()
+const sampling = directLightSamplingWgsl().text
 const K = wgslConstants(DIRECT_LIGHTING_WGSL)
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1
 
@@ -26,11 +27,14 @@ test('deferred resolve samples a shadowed list on a ranked image and walks every
   )
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
     assert.equal(occurrences(shader, sampling), 1)
-    assert.equal(occurrences(shader, HASH_UNIT_WGSL), 1, 'one hash, defined once')
+    assert.equal(occurrences(shader, hashUnit.text), 1, 'one hash, defined once')
   }
   // The blend pass shades its lights in full: a forward surface has no history to average.
   assert.equal(
-    occurrences(declaredLightingWgsl({ proxy: 11, transmittance: 26 }), 'sampledSliceLighting'),
+    occurrences(
+      wgslModule(declaredLightingWgsl({ proxy: 11, transmittance: 26 })),
+      'sampledSliceLighting',
+    ),
     0,
   )
 })
@@ -87,7 +91,10 @@ test("one loop shades the lights of a pixel in full: its cell's list or the scen
   // over the scene beside them, the no-list fallback of the blend pass included.
   assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1)
   assert.equal(
-    occurrences(declaredLightingWgsl({ proxy: 11, transmittance: 26 }), 'declaredLight('),
+    occurrences(
+      wgslModule(declaredLightingWgsl({ proxy: 11, transmittance: 26 })),
+      'declaredLight(',
+    ),
     2,
   )
 })

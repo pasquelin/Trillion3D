@@ -5,6 +5,7 @@ import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { VSM_TRANSMISSION_NONE, vsmTransmissionReadWgsl } from './transmissionWgsl.ts'
 import { type Tri, type V, BLOCK, geometry } from './transmissionSheets.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 const WIDTH = 1024
 
@@ -78,7 +79,7 @@ export function reader(memory: Map<string, V>): Read {
       return flat.length === 1 ? new Array<number>(n).fill(flat[0]) : flat
     }
   return shaderRun<Read>(
-    vsmTransmissionReadWgsl(14),
+    wgslModule(vsmTransmissionReadWgsl(14)),
     [
       'vsmTransmissionThrough',
       'vsmTransmissionBlocks',
@@ -95,6 +96,7 @@ export function reader(memory: Map<string, V>): Read {
       'vsmTEdgeHolds',
       'vsmTEdge',
       'vsmTWeights',
+      'bilinear3',
     ],
     {
       vsm: { poolPages: 4, poolPagesXY: [2, 2] },

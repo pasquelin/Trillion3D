@@ -9,6 +9,8 @@ import {
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts'
 import { HIZ_REJECTED_WGSL } from '../../gpu/partition/contract.ts'
 import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
+import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * Hardware raster of the visibility buffer, producer of the opaque and masked image. Under the
@@ -16,29 +18,21 @@ import { COMPUTE_ALL, COMPUTE_TAKES_WGSL } from '../../gpu/raster/contract.ts'
  * one takes — the same predicate, read on the same vertices — and draws all the others; at
  * zero, it draws the whole cut without reading one more vertex.
  */
-export const VIS_SHADER = `${PAGE_INFO_WGSL}
-${PAGE_BINDING.indices}
+export const visShader = ({ diagnostic }: { diagnostic?: WgslDecl } = {}) =>
+  wgslProgram(
+    `${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 @group(0) @binding(${VIS_BINDINGS.flags}) var<storage, read> hizFlags:array<u32>;
-${HIZ_REJECTED_WGSL}
 ${PAGE_BINDING.uniforms}
 @group(0) @binding(${VIS_BINDINGS.uv}) var<storage, read> uvs:array<f32>;
 ${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-${TILE_POOL_WGSL}
-${COLOR_SAMPLE_WGSL}
-${maskAlphaWgsl(false)}
-${PAGE_LOOKUP_WGSL}
 // \`tc\` is the UV and, on a masked row, the vertex alpha of its cutout: one interpolant, as the UV
 // alone was.
 struct VSOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) id:u32,@location(1) @interpolate(flat) instance:u32,@location(2) tc:vec3f,}
-${PAGE_GEOMETRY_WGSL}
-${PAGE_SCREEN_WGSL}
-${MASK_KEEP_WGSL}
-${COMPUTE_TAKES_WGSL}
 /** True when this vertex belongs to no triangle of the page, or when the compute raster draws
  *  the whole cut: neither case reads a page word, so neither decodes the page header. */
 fn hardwareIdle(page:PageInfo,vertexIndex:u32)->bool{
@@ -105,4 +99,21 @@ struct VisHizOut{@location(0) id:u32,@location(1) depth:f32,}
 // pixel of such a row, so it writes the same words without reading its page or discarding, and a
 // tile GPU's hidden-surface removal resolves its overdraw before it runs (#831).
 @fragment fn vis_hiz_opaque_fs(in:VSOut)->VisHizOut{var out:VisHizOut;out.id=in.id;out.depth=in.position.z;return out;}
-`
+`,
+    [
+      PAGE_INFO_WGSL,
+      HIZ_REJECTED_WGSL,
+      TILE_POOL_WGSL,
+      COLOR_SAMPLE_WGSL,
+      maskAlphaWgsl(false),
+      PAGE_LOOKUP_WGSL,
+      PAGE_SCREEN_WGSL,
+      MASK_KEEP_WGSL,
+      PAGE_GEOMETRY_WGSL,
+      COMPUTE_TAKES_WGSL,
+      ...(diagnostic ? [diagnostic] : []),
+    ],
+  )
+
+/** The raster's module without a diagnostic stage: what production compiles. */
+export const VIS_SHADER = visShader()

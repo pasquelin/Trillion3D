@@ -5,6 +5,7 @@ import {
 } from '../../../sdk-core/src/index.ts'
 import { PROXY_OWNER_WGSL } from './ownerWgsl.ts'
 import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 
 /**
  * Traversal of the resident proxy: a four-child BVH, ordered by distance, with early
@@ -21,14 +22,15 @@ import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts'
  * and stack depth — a wide node stacks three at most, and the tree is balanced by
  * construction, so the stack does not overflow; if it did, the extra child would be dropped, which darkens and never leaks.
  */
-export const BOUNCE_TRACE_WGSL = `
+export const BOUNCE_TRACE_WGSL = wgslBlock(
+  'BOUNCE_TRACE_WGSL',
+  [BOUNCE_NODE_WGSL, PROXY_OWNER_WGSL],
+  `
 const LEAF_TRIANGLES:u32=${BOUNCE_SETTINGS.proxyLeafTriangles}u;
 const TRIANGLE_FLOATS:u32=${PROXY_TRIANGLE_FLOATS}u;
 const CHILDREN:u32=${PROXY_CHILDREN}u;
 const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
 struct ProxyHit{distance:f32,triangle:u32,owner:u32,found:bool,}
-${BOUNCE_NODE_WGSL}
-${PROXY_OWNER_WGSL}
 /** The ray–triangle intersection, two-sided: a wall has no front or back for light. */
 fn triangleHit(index:u32,owner:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
  let a=proxyOwnerVertex(index,0u,owner);
@@ -131,4 +133,5 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
   depth--;node=stack[depth];
  }
  return false;
-}`
+}`,
+)

@@ -15,6 +15,7 @@ import { WORLD_AT_WGSL } from './shaders.ts'
 import { shadowJitterWords } from './jitterWords.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
 type V = number[]
 const W = 64,
@@ -29,8 +30,17 @@ const run = shaderRun<{
   pixelFootprint: (coord: V, pixel: V, z: number, P: V) => number
   worldAt: (pixel: V, z: number) => V
 }>(
-  WORLD_AT_WGSL + PIXEL_FOOTPRINT_WGSL,
-  ['pixelFootprint', 'unjitteredDepth', 'surfaceSlope', 'footprintDepth', 'worldAt'],
+  wgslModule(PIXEL_FOOTPRINT_WGSL, WORLD_AT_WGSL),
+  [
+    'pixelFootprint',
+    'unjitteredDepth',
+    'surfaceSlope',
+    'footprintDepth',
+    'worldAt',
+    'pixelToNdc',
+    'unprojectPoint',
+    'transformHomogeneousPoint',
+  ],
   {
     view: live.view,
     depth: null,

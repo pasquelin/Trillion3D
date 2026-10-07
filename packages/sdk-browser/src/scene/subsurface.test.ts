@@ -16,8 +16,9 @@ import {
   RECEIVER_TARGET_BYTES,
   RECEIVER_TARGET_FORMAT,
 } from '../visibility/shader/receiverTargetWgsl.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
-const DIRECT_LIGHTING_WGSL = directLightingWgsl()
+const DIRECT_LIGHTING_WGSL = wgslModule(directLightingWgsl())
 
 test('thin transmission stays independent of albedo, disabled by default and on single sides', () => {
   const material = G.standardSurface()

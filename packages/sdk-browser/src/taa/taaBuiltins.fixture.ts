@@ -1,7 +1,7 @@
 // What the temporal resolve calls beyond `shaderRunBuiltins.fixture.ts`, for the runs of its
 // shipped text in JavaScript: the half-float packing its flicker history is stored with (the
-// engine's own half conversion, `ltcTable.ts`), and the engine's integer hash
-// (`../math/hashUnitWgsl.ts`) in 32-bit integer arithmetic, which a double would not wrap.
+// engine's own half conversion, `ltcTable.ts`), and the engine's integer hash (the maths library's
+// `hashUnit`) in 32-bit integer arithmetic, which a double would not wrap.
 import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts'
 import { FLICKER_COUNT_RATE, flickerParallax } from './shadingHistoryWgsl.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
@@ -12,7 +12,7 @@ const pack2x16float = (v: number[]) => (toHalf(v[0]) | (toHalf(v[1]) << 16)) >>>
 /** `unpack2x16float`: the two half floats of a word, the low 16 bits first. */
 const unpack2x16float = (word: number) => [fromHalf(word & 0xffff), fromHalf(word >>> 16)]
 
-/** `hashUnit`, as `HASH_UNIT_WGSL` computes it in `u32`. */
+/** `hashUnit`, as the maths library's `hashUnit` computes it in `u32`. */
 function hashUnit(seed: number) {
   let x = (Math.imul(seed >>> 0, 747796405) + 2891336453) >>> 0
   x = Math.imul(((x >>> ((x >>> 28) + 4)) ^ x) >>> 0, 277803737) >>> 0

@@ -1,3 +1,4 @@
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 /**
  * The cull of a box and of its pages that the cache invalidation (`invalidationWgsl.ts`) and the
  * render cull (`renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
@@ -11,7 +12,10 @@
  *
  * Needs, in the module: `VSM_CONSTANTS_WGSL`, the `vsm` uniform and `VSM_PAGE_MARKS_GATHER_WGSL`.
  */
-export const VSM_BOX_CULL_WGSL = /* wgsl */ `
+export const VSM_BOX_CULL_WGSL = wgslBlock(
+  'VSM_BOX_CULL_WGSL',
+  [],
+  `
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,}
 /** The mip level whose texels cover a rect (inclusive) within a desired footprint. */
 fn vsmLevelHoldingRect(r:vec4i,spanTexels:i32)->i32{
@@ -111,4 +115,5 @@ fn vsmIsFineCaster(staticLayer:bool,casterPixelRadius:f32)->bool{
  if(staticLayer){return casterPixelRadius<vsm.detailPixelsStatic;}
  return casterPixelRadius<vsm.detailPixelsDynamic;
 }
-`
+`,
+)

@@ -13,7 +13,7 @@ import { DAG_LEVEL_WGSL } from '../../../packages/sdk-browser/src/gpu/dag/shader
 
 test('the shipped stages reach the frozen descent only through the calls it answers as they do', () => {
   const frozen = [...DESCENT_BEFORE.matchAll(/\bfn (\w+)\(/g)].map((m) => m[1])
-  const stages = SHIPPED_STAGES.replace(DAG_LEVEL_WGSL, '').replace(
+  const stages = SHIPPED_STAGES.replace(DAG_LEVEL_WGSL.text, '').replace(
     /\/\*[\s\S]*?\*\/|\/\/.*$/gm,
     '',
   )

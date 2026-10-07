@@ -1,4 +1,5 @@
 import { SELECTION_LIST_CAP } from '../layout.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /**
  * Cold record of a cluster, the working table and page residency, read by word in one buffer.
@@ -14,7 +15,10 @@ import { SELECTION_LIST_CAP } from '../layout.ts'
  * the layout: the oracle rereads them through `../records.fixture.ts`, which keeps it bit-for-bit on the
  * shader.
  */
-export const DAG_RECORD_WGSL = `const COLD:u32=13u;
+export const DAG_RECORD_WGSL = wgslBlock(
+  'DAG_RECORD_WGSL',
+  [],
+  `const COLD:u32=13u;
 fn pageWorld(i:u32)->u32{return coldAt(i);}
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
 fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[rowOf(w)*FRAME+6u].z);}
@@ -34,4 +38,5 @@ fn trianglesOf(r:u32)->u32{return coldAt(coldBase()+r*COLD+12u);}
  *  \`resident(c)\` then \`resident(childGroup(c))\` (\`../../../page/cut/readiness.ts\`). */
 fn isResident(i:u32)->bool{return (coldAt(views[0u].clusterCount+(i>>5u))&(1u<<(i&31u)))!=0u;}
 fn childResident(i:u32)->bool{return (coldAt(views[0u].clusterCount+residentWords()+(i>>5u))&(1u<<(i&31u)))!=0u;}
-`
+`,
+)

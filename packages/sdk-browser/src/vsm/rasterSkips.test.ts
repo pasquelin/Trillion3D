@@ -11,6 +11,7 @@ import { vsmBindingsWgsl } from './resources.ts'
 import { VSM_RENDER_RASTER_FRAGMENT_SPECS, vsmRenderRasterWgsl } from './renderRasterWgsl.ts'
 import { seeded } from './planFrames.fixture.ts'
 import { vsmLayout } from './layout.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }, 2 ** 27)
 const CODE = vsmRenderRasterWgsl(LAYOUT)
@@ -42,7 +43,7 @@ test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', (
 })
 
 test('the pool max writes only a greater depth, and every word ends the max of its depths', () => {
-  const pool = vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, LAYOUT)
+  const pool = wgslModule(vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, LAYOUT))
   const accessor = pool.slice(pool.indexOf('fn vsmPoolAtomicMax('))
   const parts = [...accessor.matchAll(/^ case \d+u:\{(.*)\}$/gm)].map((m) => m[1])
   assert.ok(parts.length >= 2, 'a part a slice at least')

@@ -17,6 +17,7 @@ import {
   DIRECT_LIGHTING_SHADER,
   WATER_COMPOSITE_SHADER,
 } from '../gpu/core/shaderTexts.fixture.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
 test('with bounce, a smooth surface adds what its mirror direction meets in the proxy', () => {
   // The term is part of the lit sum, fed the pixel's own roughness.
@@ -52,7 +53,9 @@ test('diffuse and toon keep no specular lobe, while rough physical materials ret
     new RegExp('if\\(surfaceModel==4u\\|\\|surfaceModel==5u\\)\\{return vec3f\\(0\\.0\\);\\}'),
   )
   // The floor is the clamp the surface buffer is written at, and it survives the half-float target.
-  assert.ok(SHADE_SHADER.includes(`clamp(page.roughness*roughSample.y,${ROUGHNESS_FLOOR},1.0)`))
+  assert.ok(
+    SHADE_SHADER.includes(`clamp(page.roughness*roughSample.y,${wgslF32(ROUGHNESS_FLOOR)},1.0)`),
+  )
   // In [2⁻⁵, 2⁻⁴) a half float steps by 2⁻¹⁵: the floor rounds to a value the test still admits.
   const floor = Number(ROUGHNESS_FLOOR)
   assert.ok(floor >= 2 ** -5 && floor < 2 ** -4)
@@ -92,13 +95,15 @@ test('water and probes read the same ray: one reflection model', () => {
     /reflected=waterCoatMirror\(F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)\*lobeThrough\(\),/,
   )
   assert.doesNotMatch(WATER_COMPOSITE_SHADER, /sampleBounce\(P,reflect/)
-  assert.ok(BOUNCE_PROBE_SHADER.includes(SURFACE_RAY_WGSL))
-  assert.ok(BOUNCE_LIGHTING_SHADER.includes(SURFACE_RAY_WGSL))
+  assert.ok(BOUNCE_PROBE_SHADER.includes(SURFACE_RAY_WGSL.text))
+  assert.ok(BOUNCE_LIGHTING_SHADER.includes(SURFACE_RAY_WGSL.text))
 })
 
 test('water preserves its exact mirror ray and transitions into filtered probe radiance', () => {
   // The water's roughness reaches the model, clamped to the floor it traces at.
-  assert.ok(WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);`))
+  assert.ok(
+    WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${wgslF32(ROUGHNESS_FLOOR)},1.0);`),
+  )
   assert.match(
     WATER_COMPOSITE_SHADER,
     /reflected=waterCoatMirror\(F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)\*lobeThrough\(\),/,

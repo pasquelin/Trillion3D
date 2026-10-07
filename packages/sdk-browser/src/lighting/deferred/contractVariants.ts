@@ -1,4 +1,4 @@
-import { CONTRACT_COMPOSITIONS, contractLightingShader } from './shaders.ts'
+import { CONTRACT_COMPOSITIONS, contractLightingProgram } from './shaders.ts'
 import { createDeferredProgram, type DeferredBindings, type DeferredProgram } from './program.ts'
 import {
   CUT_COUNT,
@@ -199,7 +199,7 @@ export const createContractVariants = (
       createDeferredProgram(
         device,
         {
-          lighting: contractLightingShader(bounce, key),
+          lighting: contractLightingProgram(bounce, key),
           compose: CONTRACT_COMPOSITIONS,
           label: `${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)}`,
           direct: true,

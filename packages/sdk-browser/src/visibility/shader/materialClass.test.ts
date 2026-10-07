@@ -14,6 +14,7 @@ import { DIAGNOSTICS } from '../../../../sdk-core/src/index.ts'
 import { createExplorerDiagnosticApi } from '../../world/api/diagnosticApi.ts'
 import { createWebgpuShadePipelines } from '../../webgpu/visibility/shadePipelines.ts'
 import { CLASS_FEATURE } from './classWords.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
 const noMaps = { rough: 0, metal: 0, ao: 0, emissive: 0, normal: 0 }
 const { HAS_UV, HAS_MAP, HAS_MASK, HAS_ROUGH, HAS_NORMAL_MAP, HAS_VERTEX_NORMAL } = CLASS_FEATURE
@@ -42,7 +43,7 @@ test('the resolve shader tests class overrides, never the page flags, for what a
   assert.doesNotMatch(fragment, /page\.[a-zA-Z]+Index!=0u/)
   // One override per feature, each derived from the key the pipeline is created with.
   assert.equal(
-    MATERIAL_CLASS_WGSL.match(/override [A-Z_]+:bool=\(CLASS_KEY&\d+u\)!=0u;/g)?.length,
+    wgslSource(MATERIAL_CLASS_WGSL).match(/override [A-Z_]+:bool=\(CLASS_KEY&\d+u\)!=0u;/g)?.length,
     Object.keys(CLASS_FEATURE).length,
   )
 })

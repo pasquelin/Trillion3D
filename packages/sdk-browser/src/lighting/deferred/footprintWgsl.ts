@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+
 /**
  * WHERE A PIXEL'S SHADOW LEVEL COMES FROM: its centre WITHOUT the TAA jitter — the world
  * point it holds there, and its footprint, the world distance to its right neighbour at that
@@ -19,7 +21,10 @@
  * (`view.jitter.xy` zero), the point is the one the pixel holds and the footprint is the jittered
  * sample's, to the bit.
  */
-export const PIXEL_FOOTPRINT_WGSL = `
+export const PIXEL_FOOTPRINT_WGSL = wgslBlock(
+  'PIXEL_FOOTPRINT_WGSL',
+  [],
+  `
 /** The depth held at \`coord + k·axis\`, clamped to the image. */
 fn footprintDepth(coord:vec2i,axis:vec2i,k:i32)->f32{
  return textureLoad(depth,clamp(coord+axis*k,vec2i(0),vec2i(view.viewport.xy)-vec2i(1)),0);
@@ -46,4 +51,5 @@ fn pixelFootprint(coord:vec2i,pixel:vec2f,z:f32,P:vec3f)->f32{
  let centre=pixel+view.jitter.xy;let held=unjitteredDepth(coord,z);
  let at=worldAt(centre,held);
  return length(worldAt(centre+vec2f(1.0,0.0),held)-at);
-}`
+}`,
+)

@@ -6,6 +6,7 @@ import {
   PHYSICAL_RECORD_MASK,
 } from '../../visibility/types.ts'
 import { physicalCoreWgsl, physicalTableWgsl } from '../../visibility/shader/physicalWgsl.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * The anisotropic and clear-coat lobes of a blend, in the blend pass's lobed programs alone
@@ -18,9 +19,10 @@ import { physicalCoreWgsl, physicalTableWgsl } from '../../visibility/shader/phy
  * target between them: a fragment whose item names no record, or whose maps leave neither lobe,
  * sets none, and every term then runs the standard lobe operand for operand.
  */
-export const BLEND_PHYSICAL_WGSL = `${physicalTableWgsl(BLEND_BINDINGS.physical)}
-${physicalCoreWgsl('physicalSampled')}
-var<private> physicalSampled:bool;
+export const BLEND_PHYSICAL_WGSL = wgslBlock(
+  'BLEND_PHYSICAL_WGSL',
+  [physicalCoreWgsl('physicalSampled'), physicalTableWgsl(BLEND_BINDINGS.physical)],
+  `var<private> physicalSampled:bool;
 var<private> physicalOn:bool;
 /** The item's record and the fragment's two UV sets, before its tile request (\`blendRequest\`). */
 fn blendPhysicalBegin(in:VSOut,g:BlendGrads){
@@ -46,8 +48,13 @@ fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32)
  let v=blendPhysicalValues(in,front,g,s);
  if(physicalLobeless(v)){return;}
  setLobes(v.direction,v.strength,v.coat,v.coatRough,v.coatN,s.N,V,rough);
-}`
+}`,
+)
 
 /** A lobeless program's stand-ins (\`BLEND_PHYSICAL_WGSL\`'s): no record is read, no lobe set. */
-export const BLEND_LOBELESS_WGSL = `fn blendPhysicalBegin(in:VSOut,g:BlendGrads){}
-fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32){}`
+export const BLEND_LOBELESS_WGSL = wgslBlock(
+  'BLEND_LOBELESS_WGSL',
+  [],
+  `fn blendPhysicalBegin(in:VSOut,g:BlendGrads){}
+fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32){}`,
+)

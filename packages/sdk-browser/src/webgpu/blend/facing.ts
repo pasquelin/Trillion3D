@@ -1,5 +1,6 @@
 import { FLOAT32_STEP } from '../../../../math/src/constants.ts'
 import { WATER_RANK_SHIFT } from '../water/rank.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * The cull an entry's pipeline leaves to the vertex stage (plan.ts, VERTEX CULL): mode 1 drops
@@ -36,7 +37,10 @@ export const FACING_SHIFT = WATER_RANK_SHIFT
 /** The two functions in WGSL; the host shader declares the page geometry
  *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `corners` are the
  *  triangle's local vertex indices (`pageTriangle`). */
-export const FACING_WGSL = `
+export const FACING_WGSL = wgslBlock(
+  'FACING_WGSL',
+  [],
+  `
 fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec3u)->u32{
  var c:array<vec3f,3>;
  var p:array<vec2f,3>;
@@ -59,4 +63,5 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  return select(0u,${FACING_DROP}u,area<0.0);
 }
 fn facingDiscarded(mode:u32,front:bool)->bool{return (mode==1u&&front)||(mode==2u&&!front);}
-`
+`,
+)

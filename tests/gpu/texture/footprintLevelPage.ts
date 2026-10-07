@@ -5,6 +5,7 @@
 import { SAMPLING_FOOTPRINT_WGSL } from '../../../packages/sdk-browser/src/texture/samplingFootprint.ts'
 import { tilePoolWgsl } from '../../../packages/sdk-browser/src/webgpu/tile/wgsl.ts'
 import { runCompute } from '../kit/computeRun.ts'
+import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
 
 /** One read: the texture's filter word and last level, its size, and the footprint's gradients. */
 export interface FootprintCase {
@@ -17,13 +18,13 @@ export interface FootprintCase {
 
 /** The pools' header and level of detail, at no bias, then the rule, then one read a thread. */
 function footprintWgsl() {
-  const pool = tilePoolWgsl('0.0')
+  const pool = tilePoolWgsl('0.0').text
   const slot = pool.match(/struct TileSlot\{[^}]*\}/)?.[0],
     lod = pool.match(/fn atlasLod\([^\n]*/)?.[0]
   if (!slot || !lod) throw new Error('the pool no longer declares TileSlot and atlasLod')
-  return `${slot}
+  return wgslProgram(
+    `${slot}
 ${lod}
-${SAMPLING_FOOTPRINT_WGSL}
 struct Case{sampling:u32,last:u32,size:vec2f,ddx:vec2f,ddy:vec2f,}
 @group(0) @binding(0) var<storage,read> cases:array<Case>;
 @group(0) @binding(1) var<storage,read_write> reads:array<vec4f>;
@@ -33,7 +34,9 @@ struct Case{sampling:u32,last:u32,size:vec2f,ddx:vec2f,ddy:vec2f,}
  let s=TileSlot(c.size,0u,c.last,0u,0u,0u,c.sampling,0u);
  let r=tileRead(s,vec2f(0.5),c.ddx,c.ddy,true);
  reads[id.x]=vec4f(r.lod,f32(r.taps),select(0.0,1.0,r.nearest),0.0);
-}`
+}`,
+    [SAMPLING_FOOTPRINT_WGSL],
+  )
 }
 
 /** Each case's read: its level, its taps, and 1 when it picks a texel. */

@@ -14,8 +14,9 @@ import { SHADE_SHADER } from './shadeWgsl.ts'
 import { rasterSource } from '../../gpu/raster/shader.ts'
 import { BLEND_ITEM_WGSL } from '../../webgpu/blend/items.ts'
 import { BLEND_SHADER } from '../../gpu/core/shaderTexts.fixture.ts'
+import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 
-const run = runShaderText(LINE_CLIP_WGSL)
+const run = runShaderText(wgslSource(LINE_CLIP_WGSL))
 
 /** The two corners of an endpoint `p` of the segment of direction `d`, widened to `width` CSS
  *  pixels at `pixelRatio` image pixels per CSS pixel. */
@@ -100,7 +101,7 @@ test('a segment seen end-on keeps no width', () => {
 // Every raster reads a line page's corners widened, and only a line page's: the expressions a
 // triangle page draws with stay, character for character, what they were.
 test('every page-geometry raster widens a line page, and a triangle page draws as before', () => {
-  assert.match(PAGE_INFO_STRUCT_WGSL, /depthBias:u32,lineWidth:f32,placement:u32/)
+  assert.match(wgslSource(PAGE_INFO_STRUCT_WGSL), /depthBias:u32,lineWidth:f32,placement:u32/)
   const raster = rasterSource(4, 16)
   assert.match(raster, /let ca=pageClip\(vp,page,h,ia\);let cb=pageClip\(vp,page,h,ib\);/)
   assert.match(VIS_SHADER, /computeTakes\(pageClip\(vp,page,h,ia\),pageClip\(vp,page,h,ib\)/)
@@ -112,10 +113,10 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
     SHADE_SHADER,
     /if\(page\.lineWidth>0\.0\)\{let vp=uni\.viewProj\*page\.world;c0=pageLine/,
   )
-  assert.match(BLEND_ITEM_WGSL, /emissiveIndex:u32,lineWidth:f32,alphaTest/)
+  assert.match(wgslSource(BLEND_ITEM_WGSL), /emissiveIndex:u32,lineWidth:f32,alphaTest/)
   assert.match(BLEND_SHADER, /out\.position=uni\.viewProj\*world;out\.view=world\.xyz;/)
   assert.match(BLEND_SHADER, /if\(it\.lineWidth>0\.0\)\{out\.position=lineClip\(out\.position,/)
-  assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL))
+  assert.ok(BLEND_SHADER.includes(LINE_CLIP_WGSL.text))
   for (const text of [VIS_SHADER, SHADE_SHADER, rasterSource(4, 16)])
     assert.ok(text.includes('page.lineWidth,uni.viewport.xy,uni.pixelRatio)'))
   assert.match(BLEND_SHADER, /it\.lineWidth,uni\.viewport,uni\.pixelRatio\)/)

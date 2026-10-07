@@ -4,10 +4,11 @@ import { REFLECTION_CONE_TRACE_WGSL } from './coneShader.ts'
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts'
 
 import { ggxIntegral } from './ggxIntegral.fixture.ts'
+import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 
 test('the cone aperture encloses half the weighted GGX lobe and grows with roughness', () => {
   const shader = shaderFunctions<{ reflectionConeSlope(rough: number): number }>(
-    REFLECTION_CONE_TRACE_WGSL,
+    wgslModule(REFLECTION_CONE_TRACE_WGSL),
     ['reflectionGgxMass', 'reflectionConeSlope'],
     { abs: Math.abs, log: Math.log, sqrt: Math.sqrt },
   )

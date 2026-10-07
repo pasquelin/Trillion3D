@@ -17,8 +17,9 @@
 // a rendered normal is tested separately in `normalTransformCriterion.test.ts`.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { INVERSE_TRANSPOSE_WGSL } from './inverseTransposeWgsl.ts'
-import { NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts'
+import { INVERSE_TRANSPOSE_SHIPPED } from './inverseTransposeBefore.fixture.ts'
+import { NORMAL_TRANSFORM_WGSL as NORMAL_TRANSFORM } from '../../lighting/standardLighting.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { DAG_SELECTION_SHADER } from '../dag/shader/shader.ts'
 import {
   DEG,
@@ -36,6 +37,9 @@ import {
   TINY_REGULAR,
   THRESHOLD_SCALE,
 } from '../../../../../tests/gpu/math/normalTransformCases.ts'
+
+/** The lighting normal transformation, as a program holds it. */
+const NORMAL_TRANSFORM_WGSL = wgslModule(NORMAL_TRANSFORM)
 
 /** Verdict — oriented direction, zero vector rejected, unit norm — of a write on a case. */
 const verdict = (cas: { truth: number[] }, rendered: number[]) =>
@@ -108,17 +112,19 @@ test('singular poses: flattened face keeps normal, collapsed face has none', () 
 const occurrences = (text: string, motif: RegExp) => text.match(motif)?.length ?? 0
 
 test('selection kernel and lighting read exact same text, character for character', () => {
-  for (const [nom, shader] of [
-    ['lighting', NORMAL_TRANSFORM_WGSL],
-    ['DAG selection', DAG_SELECTION_SHADER],
+  // The selection kernel lists the two functions it calls, the lighting the whole kernel and its
+  // unit-or-zero: each program holds the library's text of what it calls, once.
+  for (const [nom, shader, calls] of [
+    [
+      'lighting',
+      NORMAL_TRANSFORM_WGSL,
+      ['inverseTranspose3', 'invTranspose3Prep', 'invTranspose3Apply', 'uniteOuZero'],
+    ],
+    ['DAG selection', DAG_SELECTION_SHADER, ['invTranspose3Prep', 'invTranspose3Apply']],
   ] as const) {
-    assert.ok(shader.includes(INVERSE_TRANSPOSE_WGSL), `${nom} : shared text absent`)
-    for (const fonction of [
-      'inverseTranspose3',
-      'invTranspose3Prep',
-      'invTranspose3Apply',
-      'uniteOuZero',
-    ])
+    for (const text of Object.values(INVERSE_TRANSPOSE_SHIPPED))
+      assert.ok(shader.includes(text), `${nom} : shared text absent`)
+    for (const fonction of calls)
       assert.equal(
         occurrences(shader, new RegExp(`fn ${fonction}\\(`, 'g')),
         1,

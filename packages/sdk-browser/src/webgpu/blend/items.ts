@@ -15,6 +15,7 @@ import { FLAG_HAS_TANGENT, frameNormalScaleY } from '../../visibility/buffer.ts'
 import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts'
 import type { SessionDeformation } from '../../deformation/session.ts'
 import { fieldLayout } from './fieldLayout.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
  * Record of a transparent item: everything a blend draw reads about IT, and nothing that
@@ -173,4 +174,4 @@ function writeMaterialWords(
 }
 
 /** WGSL declaration of the record, made of its table (`BLEND_ITEM_FIELDS`). */
-export const BLEND_ITEM_WGSL = LAYOUT.wgsl
+export const BLEND_ITEM_WGSL = wgslBlock('BLEND_ITEM_WGSL', [], LAYOUT.wgsl)
