@@ -57,9 +57,6 @@ export type DagRoot = {
   /** The world DAG's alone (`scene/worldSuperRoots.ts`): per rank, the table object an object
    * root mirrors, -1 for a super-root. */
   origins?: Int32Array
-  /** The world object a placement places, an `origin` of the world DAG: the world stands in for it
-   *  where its world group suffices (`worldLinks.ts`). */
-  object?: number
 }
 /** What a placement's cut residency is derived from, and where its pages and nodes sit in the
  *  packing (`readiness.ts`). */

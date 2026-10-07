@@ -13,7 +13,6 @@
  */
 import type { GpuSelection, ResidencyChanges, SelectionUniforms } from '../core/selection.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
-import { objectClusters } from './worldLinks.ts'
 import { worldFadeScale } from './worldFade.ts'
 import type { PackedDag } from './types.ts'
 import { writeRanges, type DagParts } from './split.ts'
@@ -32,9 +31,7 @@ export function followWorldLinks(
   const { device, packed, coldParts } = resources,
     world = packed.world
   if (!world) return selection
-  const clusterOf = objectClusters(world.origins),
-    base = packed.cutLinks[world.root].pageBase,
-    { links } = world
+  const { links } = world
   /** The rows' flags the cut last received, and whether a link moved since. */
   let rows: Uint32Array | undefined,
     pending = false
@@ -53,8 +50,7 @@ export function followWorldLinks(
   }
   selection.worldStandsIn = (w) => w < links.length && links[w] !== NONE
   selection.placeObject = (w, object) => {
-    const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1,
-      c = rank >= 0 ? base + rank : NONE
+    const c = world.linkOf(object)
     if (w === world.root || links[w] === c) return
     links[w] = c
     world.moved.add(w)

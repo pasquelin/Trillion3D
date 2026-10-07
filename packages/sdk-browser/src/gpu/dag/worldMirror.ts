@@ -22,7 +22,6 @@ import type { PackedDag } from './types.ts'
 import { sortPages } from '../../../../sdk-core/src/page/integrationPlan.ts'
 import { createDenseKeySet } from '../../webgpu/cut/denseKeys.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
-import { objectClusters } from './worldLinks.ts'
 
 type WorldPacked = PackedDag & Required<Pick<PackedDag, 'world'>>
 type Mirror = ReturnType<typeof mirrorState>
@@ -32,7 +31,7 @@ function mirrorState(packed: WorldPacked) {
   const { root, origins } = packed.world
   const { pageBase, pageCount } = packed.cutLinks[root]
   if (origins.length !== pageCount) throw new Error('GPU_WORLD_ORIGINS_COUNT_CHANGED')
-  const clusterOf = objectClusters(origins)
+  const { clusterOf } = packed.world
   return {
     packed,
     pageBase,
@@ -165,8 +164,6 @@ export function createWorldResidencyMirror(packed: WorldPacked) {
         changed.byteLength
       )
     },
-    /** Placement `w` draws `object` (an `origin`), or nothing (`-1`). */
-    link: (w: number, object: number) => link(m, w, object),
     /**
      * The rows' residency `scene` — one flag per packed page — at the pages `changes` names (every
      * page without), each object cluster mirrored from its placement: the whole array, and the

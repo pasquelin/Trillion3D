@@ -28,10 +28,16 @@ export function worldScene(alone = 0) {
     const pages = [{ ...page, url: `object${u}` }]
     const elements = Float64Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, u, 0, 0, 1)
     const structure = structureIndex({ version: 1, roots: [0], groups: [] }, 1)
-    return { world: { elements }, pages, culling: flatHierarchy(pages), structure, object: u }
+    return { world: { elements }, pages, culling: flatHierarchy(pages), structure }
   })
   const roots = [...placements, world as unknown as DagRoot]
   const packed = packDagSelection(roots)
+  // Placement `u` places object `u`, as the cut is told it (`placeObject`): its link, in the cold
+  // table where the kernel reads it.
+  const placed = packed.world!,
+    cold = new Uint32Array(packed.pageCones.buffer)
+  for (let u = 0; u < world.leaves; u++)
+    cold[placed.linkBase + u] = placed.links[u] = placed.linkOf(u)
   const cam = stripCamera(world)
   packedWorldsToRenderOrigin(packed, roots, cam.eye)
   return { world, roots, packed, cam, base: packed.cutLinks[world.leaves].pageBase }

@@ -37,7 +37,13 @@ function scene() {
     const { pageBase: base, structure } = packed.cutLinks[w]
     for (const root of structure!.roots) rows[base + root] = resident ? 1 : 0
   }
-  return { world, packed, mirror, rows, pageBase, worldResidency, cover }
+  /** Placement `w` places `object` (an `origin`), or none (`-1`), as `placeObject` says it. */
+  const link = (w: number, object: number) => {
+    const placed = packed.world!
+    placed.links[w] = placed.linkOf(object)
+    placed.moved.add(w)
+  }
+  return { world, packed, mirror, rows, pageBase, worldResidency, cover, link }
 }
 
 test('the cut that packs the world DAG mirrors the rows; one without it reads them', async () => {
@@ -64,8 +70,8 @@ test('the cut that packs the world DAG mirrors the rows; one without it reads th
 })
 
 test('an object cluster is resident only while its object is placed and its cover resident', () => {
-  const { mirror, rows, pageBase, cover } = scene()
-  mirror.link(3, 3)
+  const { mirror, rows, pageBase, cover, link } = scene()
+  link(3, 3)
   mirror.update(rows)
   assert.equal(mirror.flags[pageBase + 3], 0, 'placed, its cover not yet read')
   cover(3, true)
@@ -78,18 +84,18 @@ test('an object cluster is resident only while its object is placed and its cove
     [...moved].sort((a, b) => a - b),
   )
   assert.ok(moved.includes(pageBase + 3))
-  mirror.link(3, -1)
+  link(3, -1)
   mirror.update(rows)
   assert.equal(mirror.flags[pageBase + 3], 0, 'its object left: the super-root stands in')
   assert.equal(mirror.update(rows).changes.count, 0, 'nothing moved, nothing handed over')
 })
 
 test('a cell coming near and going far is covered exactly once at every step', () => {
-  const { world, mirror, rows, worldResidency, cover } = scene()
+  const { world, mirror, rows, worldResidency, cover, link } = scene()
   const cut = oracleBackend(world, THRESHOLD)
   /** Cells 0 and 1 near (their objects placed, covers resident), cell 2 far. */
   for (let o = 0; o < 8; o++) {
-    mirror.link(o, o)
+    link(o, o)
     cover(o, true)
   }
   const steps: [string, () => void][] = [
@@ -97,7 +103,7 @@ test('a cell coming near and going far is covered exactly once at every step', (
     [
       'cell 2 placed, its covers not read yet',
       () => {
-        for (let o = 8; o < 12; o++) mirror.link(o, o)
+        for (let o = 8; o < 12; o++) link(o, o)
       },
     ],
     [
@@ -109,7 +115,7 @@ test('a cell coming near and going far is covered exactly once at every step', (
     [
       'cell 0 gone far',
       () => {
-        for (let o = 0; o < 4; o++) mirror.link(o, -1)
+        for (let o = 0; o < 4; o++) link(o, -1)
       },
     ],
   ]

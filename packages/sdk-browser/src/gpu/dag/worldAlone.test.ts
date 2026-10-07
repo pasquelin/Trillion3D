@@ -13,7 +13,6 @@ import { evaluateDagSelectionKernel } from './oracle/oracle.fixture.ts'
 import { cameraSelectionUniforms, SELECTION_NONE as NONE } from '../core/selection.ts'
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts'
 import { createWorldResidencyMirror } from './worldMirror.ts'
-import { objectClusters } from './worldLinks.ts'
 
 /** The scene with one lone object, the last, its world cluster, its copies, and the mirror. */
 function lone() {
@@ -21,7 +20,7 @@ function lone() {
     { structure } = s.world,
     world = s.packed.world!
   const object = s.world.leaves - 1,
-    cluster = objectClusters(world.origins)[object],
+    cluster = world.clusterOf[object],
     group = structure.owners[cluster]
   const { outputs, outputOffsets } = structure,
     copies = [...outputs.subarray(outputOffsets[group], outputOffsets[group + 1])]

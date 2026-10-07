@@ -10,8 +10,8 @@
  * by tile is placed objects like any other: each tile its own DAG near, its cell's super-roots
  * past, the regions far — continuous, and no second mechanism beside the cut.
  *
- * A placement whose object the world DAG holds (`DagRoot.object`, an `origin`) is linked here to
- * that object's world cluster, one word per placement behind the cold records. Before the descent
+ * A placement whose object the world DAG holds (an `origin`, `GpuSelection.placeObject`) is linked
+ * here to that object's world cluster, one word per placement behind the cold records. Before the descent
  * prepares a placement it asks whether the world draws it instead (`worldCovers`,
  * `shader/placementTreeWgsl.ts`): its object's world group is not ready — an object of the group
  * is not placed or its cover not resident, so the group's super-roots stand in —, or the group's
@@ -46,6 +46,10 @@ import type { DagCutLinks, DagRoot } from './types.ts'
 export type PackedWorld = {
   root: number
   origins: Int32Array
+  /** The world cluster of each object, by its `origin`, -1 for none: one cluster per object. */
+  clusterOf: Int32Array
+  /** The link a placement of `object` takes: its world cluster's packed page, `NONE` for none. */
+  linkOf: (object: number) => number
   links: Uint32Array
   linkBase: number
   moved: Set<number>
@@ -55,7 +59,7 @@ export type PackedWorld = {
 }
 
 /** The world cluster of each object, by its `origin`: one cluster per placed object. */
-export function objectClusters(origins: Int32Array) {
+function objectClusters(origins: Int32Array) {
   let objects = 0
   for (const origin of origins) objects = Math.max(objects, origin + 1)
   const rank = new Int32Array(objects).fill(-1)
@@ -68,9 +72,9 @@ export function objectClusters(origins: Int32Array) {
 export const worldLinkWords = (worldCount: number) => 1 + worldCount
 
 /**
- * The world DAG of `roots`, packed at `world` with `cutLinks` and its record `shift`, and each
- * placement's link to the world cluster of the object it places, written into the cold table
- * `cold` from `at`: the shift, then the links (`linkBase`).
+ * The world DAG of `roots`, packed at `world` with `cutLinks` and its record `shift`, written into
+ * the cold table `cold` from `at`: the shift, then one link per placement (`linkBase`), none until
+ * a placement says which object it places (`GpuSelection.placeObject`, `worldFollow.ts`).
  */
 export function packWorldLinks(
   roots: readonly DagRoot[],
@@ -85,10 +89,10 @@ export function packWorldLinks(
     clusterOf = objectClusters(origins),
     base = cutLinks[world].pageBase
   const links = new Uint32Array(roots.length).fill(NONE)
-  roots.forEach(({ object }, w) => {
-    const rank = object === undefined ? -1 : (clusterOf[object] ?? -1)
-    if (w !== world && rank >= 0) links[w] = base + rank
-  })
   cold.set(links, linkBase)
-  return { root: world, origins, links, linkBase, moved: new Set(), scale: 1 }
+  const linkOf = (object: number) => {
+    const rank = object >= 0 ? (clusterOf[object] ?? -1) : -1
+    return rank >= 0 ? base + rank : NONE
+  }
+  return { root: world, origins, clusterOf, linkOf, links, linkBase, moved: new Set(), scale: 1 }
 }
