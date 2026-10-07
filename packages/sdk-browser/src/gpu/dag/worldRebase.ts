@@ -87,7 +87,9 @@ export async function createWorldRebase(device: GPUDevice, ranges: Ranges) {
 /**
  * `selection` whose dispatches bring its worlds to the uniforms' eye first, when that eye moved or
  * worlds were written since, by whatever path (`worldsWritten`): the pass in the caller's encoder,
- * or in one of its own submitted before.
+ * or in one of its own submitted before. What the GPU holds is taken as rebased once the pass is
+ * queued — at once in its own encoder, at the caller's settlement in a shared one —: a buffer the
+ * caller drops, or a dispatch that throws, leaves the next cut to rebase again.
  */
 export function rebaseWorldsOnGpu(
   selection: GpuSelection,
@@ -97,17 +99,29 @@ export function rebaseWorldsOnGpu(
   const held = new Float64Array(3).fill(NaN)
   let rebased = -1
   const { dispatch, dispose } = selection
+  const commit = (eye: ArrayLike<number>, written: number) => {
+    held.set(eye)
+    rebased = written
+  }
   selection.dispatch = (uniforms: SelectionUniforms, shared?: GPUCommandEncoder) => {
-    const eye = uniforms.cameraWorld,
+    const eye = Float64Array.from(uniforms.cameraWorld),
       written = selection.worldsWritten
-    if (written !== rebased || eye[0] !== held[0] || eye[1] !== held[1] || eye[2] !== held[2]) {
+    const due =
+      written !== rebased || eye[0] !== held[0] || eye[1] !== held[1] || eye[2] !== held[2]
+    if (due) {
       const encoder = shared ?? device.createCommandEncoder()
       rebase.encode(encoder, eye)
-      if (!shared) device.queue.submit([encoder.finish()])
-      held.set(eye)
-      rebased = written
+      if (!shared) {
+        device.queue.submit([encoder.finish()])
+        commit(eye, written)
+      }
     }
-    return dispatch(uniforms, shared)
+    const settle = dispatch(uniforms, shared)
+    if (!due || !shared || !settle) return settle
+    return (submitted: boolean) => {
+      if (submitted) commit(eye, written)
+      settle(submitted)
+    }
   }
   selection.dispose = () => {
     rebase.dispose()

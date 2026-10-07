@@ -67,3 +67,28 @@ test('a selection rebases before a cut whose eye moved or after worlds were writ
     [1, 0, 0],
   ])
 })
+
+test("a rebase in the caller's buffer holds once queued, never once the buffer is dropped", () => {
+  const encoded: number[][] = [],
+    settled: boolean[] = []
+  const selection = {
+    worldsWritten: 0,
+    dispatch: () => (submitted: boolean) => void settled.push(submitted),
+    dispose: () => {},
+  } as unknown as GpuSelection
+  const device = {} as GPUDevice
+  rebaseWorldsOnGpu(selection, device, {
+    encode: (_: unknown, eye: ArrayLike<number>) => void encoded.push(Array.from(eye)),
+    dispose: () => undefined,
+  })
+  const at = { cameraWorld: [2, 0, 0] } as unknown as SelectionUniforms,
+    shared = {} as GPUCommandEncoder
+  selection.dispatch(at, shared)!(false)
+  selection.dispatch(at, shared)!(true)
+  selection.dispatch(at, shared)!(true)
+  assert.deepEqual(encoded, [
+    [2, 0, 0],
+    [2, 0, 0],
+  ])
+  assert.deepEqual(settled, [false, true, true], 'the cut is settled as the caller says')
+})
