@@ -102,7 +102,7 @@ export function worldSelectionRoot(
   dag: WorldDagSource,
   wear: (primitive: number) => WorldWearer | undefined,
   order: number,
-): (ClusterRoot<PageRec> & { origins: Int32Array }) | undefined {
+): (ClusterRoot<PageRec> & WorldHeld) | undefined {
   let fallback: WorldWearer | undefined
   for (const { primitive } of dag.pages)
     if ((fallback = primitive === null ? undefined : wear(primitive))) break
@@ -113,7 +113,14 @@ export function worldSelectionRoot(
     return worldRecord(wearer ? page : { ...page, url: '' }, rank, wearer ?? fallback, order)
   })
   const nodes = flatHierarchy(pages),
-    worldBox = boxOf(pages)
+    worldBox = boxOf(pages),
+    held = new Map<number, PageRec[]>()
+  // The roots each bundle holds for its cell, those with a page alone: a record without one is
+  // not a page, never held nor covered.
+  for (const [bundle, ranks] of dag.held) {
+    const own = ranks.map((rank) => pages[rank]).filter((page) => page.url)
+    if (own.length) held.set(bundle, own)
+  }
   return {
     world: IDENTITY_WORLD,
     pages,
@@ -127,7 +134,15 @@ export function worldSelectionRoot(
     localBox: worldBox,
     boxes: true,
     origins: dag.origins,
+    pagesOf: (bundle: number) => held.get(bundle) ?? [],
   }
+}
+
+/** The world DAG's root as the cut packs it: each placed object's origin, and the pages each
+ *  bundle past the pinned top holds for its cell (`pagesOf`), which join the cover with it. */
+export type WorldHeld = {
+  origins: Int32Array
+  pagesOf: (bundle: number) => readonly PageRec[]
 }
 
 /**

@@ -10,6 +10,8 @@ import { worldRootDag } from './worldSuperRoots.ts'
 import { worldRootPages } from './worldPageServe.ts'
 import { worldSelectionRoot, worldWearers } from './worldRecords.ts'
 import { meshSurface } from '../page/surface.ts'
+import { rootCoverOf } from '../webgpu/pages/prepare/setupCatalogue.ts'
+import { createWebgpuPageTracking } from '../webgpu/row/pageTracking.ts'
 
 /** The cook's world DAG, every cluster wearing primitive 0. */
 function dag() {
@@ -71,4 +73,18 @@ test('a world page is worn by the mesh of its primitive, never a blended one', (
   assert.equal(wear(1), undefined, 'its surface blends')
   assert.equal(wear(2), undefined, 'its primitive blends')
   assert.equal(wear(3), undefined, 'no mesh draws it')
+})
+
+test('a world root no mesh wears is no page: the cover and the floor take no slot for it', () => {
+  const mesh = G.triangleMesh(G.standardSurface()),
+    surface = meshSurface(mesh)
+  const world = dag(),
+    top = world.pages.length - 1
+  ;(world.pages as { primitive: number | null }[])[top].primitive = 1
+  const root = worldSelectionRoot(world, (p) => (p === 0 ? { mesh, surface } : undefined), 7)!
+  assert.equal(root.pages[top].url, '', 'the pinned top no mesh wears')
+  const cover = rootCoverOf([root], createWebgpuPageTracking(root.pages))
+  assert.ok(cover.bootstrap.length > 0 || cover.floorPages > 0)
+  assert.ok(!cover.bootstrapUrls.has(''), 'no page read at an empty address')
+  assert.equal(cover.bootstrap.indexOf(root.pages[top]), -1)
 })

@@ -15,7 +15,7 @@ import type { EngineContext } from '../../../engine/types.ts'
 import type { PageRec, ClusterRoot } from '../../../page/selection/types.ts'
 import { indexPageRequests } from '../../../page/selection/requests.ts'
 import { worldRootsOf } from '../../../scene/worldRoots.ts'
-import { worldSelectionRoot, worldWearers } from '../../../scene/worldRecords.ts'
+import { worldSelectionRoot, worldWearers, type WorldHeld } from '../../../scene/worldRecords.ts'
 import { WORLD_ROOTS_BIN } from '../../../../../sdk-core/src/manifest/worldRoots.ts'
 import { KEY_PAGE_MAX } from '../../../gpu/dag/evict.ts'
 import { rowCell } from '../../../partition/rowCells.ts'
@@ -30,8 +30,7 @@ type Collected = {
 }
 
 /** The world DAG's root among the cut's. */
-const isWorldRoot = <R extends object>(root: R): root is R & { origins: Int32Array } =>
-  'origins' in root
+const isWorldRoot = <R extends object>(root: R): root is R & WorldHeld => 'origins' in root
 
 /** The world DAG the cut packs for `context`'s scene: the stream a partitioned world drew at load. */
 const drawnWorld = (context: Pick<EngineContext, 'metadata'>) =>
@@ -127,30 +126,21 @@ export function coverHeldRoots(
   room: () => number,
 ) {
   const world = worldRootsOf(rt.context.metadata),
-    dag = world?.drawn?.dag,
     root = rt.layout.selectionRoots.find(isWorldRoot)
-  if (!world || !dag || !root) return
-  /** The roots of each bundle the cells hold now. */
-  const covered = new Map<number, PageRec[]>()
-  const cover = (pages: readonly PageRec[], held: boolean) => {
+  if (!world || !root) return
+  const cover = (bundle: number, held: boolean) => {
+    const pages = root.pagesOf(bundle)
+    if (!pages.length) return
     sets.holdCover(pages, held)
     rt.run.gate.resourcesChanged()
   }
-  const unwatch = world.watch((bundle, held) => {
-    // A root no mesh wears is a record without a page (`worldRecords.ts`): nothing to hold.
-    const pages = (dag.held.get(bundle) ?? []).map((rank) => root.pages[rank]).filter((p) => p.url)
-    if (!pages.length) return
-    if (held) covered.set(bundle, pages)
-    else covered.delete(bundle)
-    cover(pages, held)
-  })
+  const unwatch = world.watch(cover)
   // The floor's pages past the session's cover: the pages its roots' groups replace.
   const children = rt.setup.floorPages - rt.setup.bootstrap.length
   world.cover.room = () => Math.max(0, room() - children)
   const end = () => {
     unwatch()
-    for (const pages of covered.values()) cover(pages, false)
-    covered.clear()
+    for (const bundle of world.held()) cover(bundle, false)
     world.cover.room = undefined
   }
   rt.signal.addEventListener('abort', end, { once: true })
