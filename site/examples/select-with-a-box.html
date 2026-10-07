@@ -99,7 +99,7 @@
       function onScreen(point) {
         const { camera } = world, box = world.canvas.getBoundingClientRect();
         eye.copy(point).sub(camera.position).applyQuaternion(inverse.copy(camera.quaternion).invert());
-        const depth = -eye.z, half = Math.tan((camera.fov * Math.PI) / 360) * depth;
+        const depth = -eye.z, half = Math.tan(math.degToRad(camera.fov / 2)) * depth;
         if (depth <= camera.near) return null;
         return [box.left + (0.5 + eye.x / (2 * half * (box.width / box.height))) * box.width, box.top + (0.5 - eye.y / (2 * half)) * box.height];
       }

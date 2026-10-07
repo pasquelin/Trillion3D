@@ -21,7 +21,7 @@
   <body>
     <canvas id="view"></canvas>
     <script type="module">
-      import { createWorld, geometry, material, object, light } from '../runtime/engine.js';
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
       import { controls } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
@@ -69,7 +69,7 @@
       let at = 0, resting = false;
       const ui = controls({ climb: [0, 6, 2], turnPerStep: [5, 30, 16, 1], lantern: '#ffb45e' }, (values) => {
         resting = false;
-        flights.forEach((flight, index) => (flight.rotation.y = (index * values.turnPerStep * Math.PI) / 180));
+        flights.forEach((flight, index) => (flight.rotation.y = math.degToRad(index * values.turnPerStep)));
         lantern.color.set(values.lantern);
         world.invalidate();
       }, world);
@@ -77,7 +77,7 @@
         if (resting) return;
         resting = !ui.climb;
         at = (at + delta * ui.climb) % 34;
-        const turn = (at * ui.turnPerStep * Math.PI) / 180;
+        const turn = math.degToRad(at * ui.turnPerStep);
         const position = [Math.cos(turn) * 1.1, 0.75 + at * 0.18, -Math.sin(turn) * 1.1];
         bulb.position.set(...position);
         lantern.position.set(...position);

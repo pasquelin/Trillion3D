@@ -22,11 +22,15 @@
  */
 import { invertMatrix4, MATRIX_VALUES, transformAffinePoint } from '../../../sdk-core/src/index.ts'
 import { boxPointDistance } from '../../../math/src/geometry/box.ts'
-import { drawnView, perspectiveSlope } from '../../../math/src/projection/camera.ts'
+import {
+  drawnView,
+  frustumCornerDistance,
+  perspectiveSlope,
+} from '../../../math/src/projection/camera.ts'
 import type { CameraOptics } from '../camera/engineCamera.ts'
 import { stretchOf } from './boxes.ts'
 import type { CellIndex, IndexPage } from './cellIndex.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import { AHEAD } from './aheadShare.ts'
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../streaming/priority.ts'
 
@@ -51,10 +55,9 @@ export function cellReach(optics: PartitionOptics) {
     // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
     // to left, or top to bottom, is as wide.
     const depth = Math.max(Math.abs(far), Math.abs(optics.near))
-    return hypot3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
+    return length3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height))
   }
-  const slope = perspectiveSlope(optics.fov, zoom)
-  return far * Math.sqrt(1 + slope * slope * (1 + optics.aspect * optics.aspect))
+  return frustumCornerDistance(far, perspectiveSlope(optics.fov, zoom), optics.aspect)
 }
 
 /**

@@ -115,8 +115,10 @@
       // ever shows at the sides of any screen.
       const ARM = { SHOULDER: [0.19, -0.3, 0.06], UPPER: 0.3, FORE: 0.27, HAND: 0.075 };
       const along = (a, b, k = 1) => a.map((value, i) => value + b[i] * k);
-      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-      const unit = (a) => along([0, 0, 0], a, 1 / Math.hypot(...a));
+      const operandA = math.vector3(), operandB = math.vector3();
+      const dot = (a, b) => operandA.fromArray(a).dot(operandB.fromArray(b));
+      const direction = math.vector3();
+      const unit = (a) => direction.fromArray(a).normalize().toArray();
       // Running, each arm swings at its side against the leg of that side, the elbow bent near a
       // right angle, the fist loosely closed, palm in. The swing grows with the stride, so the
       // fist only rises into its lower corner, a little toward the chest, at the top of a fast
@@ -143,7 +145,7 @@
         const launch = world.controls.jumpSpeed;
         const t = vy > 0 ? 1 - Math.min(1, vy / launch) : 1 + Math.min(1, -vy / launch);
         const k = Math.max(1, LEAP.findIndex(([at]) => at >= t)), [a0, p0] = LEAP[k - 1], [a1, p1] = LEAP[k];
-        return mix(p0, p1, (t - a0) / (a1 - a0));
+        return mix({ math }, p0, p1, (t - a0) / (a1 - a0));
       }
       // A landing braces the hands low at the sides.
       const BRACE = [0.82, -0.97, 0.34, 0.55, 1.1, 0.1, -0.2, -1, 0.6, -1, 0.3];
@@ -156,8 +158,8 @@
       // `pose`: move (stride, 0 to 1.6), sprint (0 to 1), phase (the stride's), air and brace
       // (0 to 1) and leap, the jump's pose as its spring holds it.
       function handPose(side, pose, fov, aspect) {
-        const tan = Math.tan((fov * Math.PI) / 360);
-        const [nx, ny, depth, curl, roll, rx, ry, rz, hx, hy, hz] = mix(mix(runPose(side, pose), pose.leap, pose.air), BRACE, pose.brace);
+        const tan = Math.tan(math.degToRad(fov / 2));
+        const [nx, ny, depth, curl, roll, rx, ry, rz, hx, hy, hz] = mix({ math }, mix({ math }, runPose(side, pose), pose.leap, pose.air), BRACE, pose.brace);
         const reach = unit([side * rx, ry, rz]), hint = [side * hx, hy, hz];
         const shoulder = [side * ARM.SHOULDER[0], ARM.SHOULDER[1], ARM.SHOULDER[2]];
         const toWrist = along(along([side * nx * tan * aspect * depth, ny * tan * depth, -depth], reach, -ARM.HAND), shoulder, -1);
@@ -555,11 +557,12 @@
         sound.land(impact);
       };
       // Where the eye looks, and that direction on the level.
+      const level = math.vector2();
       function gaze() {
         const q = camera.quaternion;
         const look = [-2 * (q.x * q.z + q.w * q.y), -2 * (q.y * q.z - q.w * q.x), -(1 - 2 * (q.x * q.x + q.y * q.y))];
-        const flat = Math.hypot(look[0], look[2]) || 1;
-        return { look, fx: look[0] / flat, fz: look[2] / flat };
+        const flat = level.set(look[0], look[2]).normalize();
+        return { look, fx: flat.x, fz: flat.y };
       }
       // Poses the body from the eased state. The hands: swung by the stride, carried through the
       // jump, braced by a landing's dip, placed for this frame's field of view and aspect, the

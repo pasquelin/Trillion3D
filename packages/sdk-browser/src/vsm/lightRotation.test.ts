@@ -4,7 +4,8 @@
 // direction takes world Y as its horizontal axis, and nothing translates.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { vsmNormalizeOrZero, vsmTransformPoint, vsmWorldToLightRotation } from './clipmap.ts'
+import { VSM_MIN_DIRECTION_SQ, vsmWorldToLightRotation } from './clipmap.ts'
+import { normalizeVector3OrZero, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 
 const m = new Float64Array(16)
 const ULPS = 8 * 2 ** -52
@@ -14,9 +15,13 @@ test('the rotation takes the direction to +X, orthonormal and level, to a few ul
   const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32
   for (let k = 0; k < 20000; k++) {
     const tiny = k % 4 === 0 ? 10 ** (-15 * rnd()) : 1
-    const d = vsmNormalizeOrZero([tiny * (rnd() - 0.5), tiny * (rnd() - 0.5), rnd() - 0.5])
+    const d = normalizeVector3OrZero(
+      [0, 0, 0],
+      [tiny * (rnd() - 0.5), tiny * (rnd() - 0.5), rnd() - 0.5],
+      VSM_MIN_DIRECTION_SQ,
+    )
     vsmWorldToLightRotation(m, d)
-    const x = vsmTransformPoint(m, d[0], d[1], d[2])
+    const x = transformAffinePoint(new Float64Array(3), m, d[0], d[1], d[2])
     assert.ok(Math.abs(x[0] - 1) < ULPS && Math.abs(x[1]) < ULPS && Math.abs(x[2]) < ULPS, `${d}`)
     for (let r = 0; r < 3; r++)
       for (let s = 0; s < 3; s++) {
@@ -40,4 +45,15 @@ test('the world axes give exact matrices: +X the identity, a vertical direction 
   }
   vsmWorldToLightRotation(m, [0, 1, 0])
   assert.deepEqual([...m], [0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+})
+
+test('a direction within 1e-146 of vertical keeps its own horizontal axis (declared)', () => {
+  // Declared change: inside the length rule's band, `length2` is the former plain root bit for bit;
+  // below it (|x|, |y| ≲ 1e-146) that root underflowed to 0 and the rotation took world Y as its
+  // horizontal axis, a quarter turn from the axis just above the band. `length2` keeps
+  // (−d.y, d.x) / h at every size.
+  for (const tiny of [1e-140, 1e-160, 1e-300]) {
+    vsmWorldToLightRotation(m, [0, tiny, -1])
+    assert.deepEqual([m[1], m[5], m[9]], [-1, 0, 0], `${tiny}`)
+  }
 })

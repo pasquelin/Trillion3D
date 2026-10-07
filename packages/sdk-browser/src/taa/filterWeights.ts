@@ -6,8 +6,9 @@
  * table is computed once, and never per frame nor per pixel.
  */
 import { saturate } from '../../../math/src/scalar/reals.ts'
-import { hypot2 } from '../../../math/src/float/hypot.ts'
-import { PI } from '../../../math/src/wgsl/constants.ts'
+import { length2 } from '../../../math/src/vector/vector.ts'
+import { PI } from '../../../math/src/constants.ts'
+import { PI as PI_DECL } from '../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 
@@ -19,7 +20,7 @@ const BLACKMAN_HARRIS = [0.35875, 0.48829, 0.14128, 0.01168] as const
 
 /** The window on `[0, 1]` of the radius, zero beyond. */
 function blackmanHarris(distance: number) {
-  const x = saturate(distance) * Math.PI + Math.PI,
+  const x = saturate(distance) * PI + PI,
     [a0, a1, a2, a3] = BLACKMAN_HARRIS
   return a0 - a1 * Math.cos(x) + a2 * Math.cos(2 * x) - a3 * Math.cos(3 * x)
 }
@@ -31,7 +32,7 @@ export const BLACKMAN_HARRIS_WGSL = (() => {
   const [a0, a1, a2, a3] = BLACKMAN_HARRIS.map(wgslF32)
   return wgslBlock(
     'BLACKMAN_HARRIS_WGSL',
-    [PI],
+    [PI_DECL],
     `fn blackmanHarris(d:f32)->f32{
  if(d>=1.0){return 0.0;}
  let c=cos(d*PI);
@@ -51,7 +52,7 @@ export function taaWeights(jx: number, jy: number, out: Float32Array, at: number
     k = 0
   for (let dy = -1; dy <= 1; dy++)
     for (let dx = -1; dx <= 1; dx++, k++) {
-      const w = blackmanHarris(hypot2(dx - jx, dy + jy))
+      const w = blackmanHarris(length2(dx - jx, dy + jy))
       out[at + k] = w
       sum += w
     }

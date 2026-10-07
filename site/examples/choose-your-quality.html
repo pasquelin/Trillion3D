@@ -519,7 +519,7 @@
         const poses = name === 'Tour'
           ? Object.entries(VIEWS).map(([part, pose]) => ({ name: part, ...pose, seconds: 5, hold: 1.5 }))
           : [{ name, ...VIEWS[name], seconds: 1.5, hold: 0 }];
-        flight = tour(world, poses);
+        flight = tour({ math }, world, poses);
         show();
       };
       for (const type of ['pointerdown', 'wheel'])

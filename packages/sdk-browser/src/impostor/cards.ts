@@ -17,8 +17,7 @@ import {
   type ImpostorPlan,
   type ImpostorSection,
 } from '../../../sdk-core/src/index.ts'
-import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
-import { hypot3 } from '../../../math/src/float/hypot.ts'
+import { length3, transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { impostorCardCorners } from './card.ts'
 import { core } from './borrowed.ts'
 import type { EngineCamera } from '../camera/world.ts'
@@ -63,8 +62,7 @@ export type ImpostorCards<G> = ReturnType<typeof createImpostorCards<G>>
 /** Told of each root whose card bit moved: the GPU cut's copy of the mark follows it. */
 export type CardMoved = (rank: number, root: ClusterRoot<unknown>) => void
 
-const pixelScale = [0, 0],
-  pivot = new Float64Array(3),
+const pivot = new Float64Array(3),
   corners = new Float64Array(12),
   inverse = new Float64Array(16),
   shape: [number, number, number, number] = [0, 0, 0, 0],
@@ -154,8 +152,7 @@ export function planImpostorCards<G>(
   atlasOf: (mesh: number, maps: ImpostorMaps) => G | undefined,
   moved?: CardMoved,
 ) {
-  core.pixelScaleOf(cam.projection, viewport, pixelScale)
-  const focal = Math.max(pixelScale[0], pixelScale[1])
+  const focal = core.focalPixels(cam.projection, viewport?.[0], viewport?.[1])
   const plan = (state.plan = planImpostors(roots, state.section, cam.view, focal, state.plan))
   plan.cards.sort(byMesh)
   state.count = state.runCount = 0
@@ -188,7 +185,7 @@ export function planImpostorCards<G>(
     last = card.world
     impostorCardCorners(corners, cam.viewProjection, pivot, R)
     // The mip whose texel covers a pixel: the distance over the depth of one texel a pixel.
-    const distance = hypot3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2])
+    const distance = length3(x - cam.eye[0], y - cam.eye[1], z - cam.eye[2])
     shape[0] = entry.objectRadius ?? entry.radius
     shape[1] = entry.frames
     shape[2] = entry.hemi ? 1 : 0

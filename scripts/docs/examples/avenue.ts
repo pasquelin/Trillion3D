@@ -1,3 +1,4 @@
+import { TAU } from '../../../packages/math/src/constants.ts'
 import { SceneGltf, yaw } from './gltf-scene.ts'
 import { lathe, moved, pairs, solid } from './mesh.ts'
 import { randomStream } from './random.ts'
@@ -85,7 +86,7 @@ export async function writeAvenue(directory: string) {
         gltf.node({
           mesh: urn,
           translation: [side * 4.8, 0.5, z],
-          rotation: yaw(random.uniform(0, 2 * Math.PI)),
+          rotation: yaw(random.uniform(0, TAU)),
         }),
       )
     }

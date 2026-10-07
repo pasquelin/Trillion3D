@@ -17,6 +17,26 @@ export function axisAngleQuaternion(out: Float64Array, axis: ArrayLike<number>, 
   return out
 }
 
+/**
+ * The orientation of a camera turned by `yaw` about world +Y, then by `pitch` about its own X:
+ * `(cy·sx, sy·cx, −sy·sx, cy·cx)` of the half-angle sines and cosines — the product of the two
+ * axis-angle quaternions, yaw first, its zero terms left out. Both zero: the identity, looking
+ * down −Z.
+ */
+export function yawPitchQuaternion(out: Float64Array, yaw: number, pitch: number) {
+  const halfYaw = yaw / 2,
+    halfPitch = pitch / 2
+  const sy = Math.sin(halfYaw),
+    cy = Math.cos(halfYaw),
+    sx = Math.sin(halfPitch),
+    cx = Math.cos(halfPitch)
+  out[0] = cy * sx
+  out[1] = sy * cx
+  out[2] = -sy * sx
+  out[3] = cy * cx
+  return out
+}
+
 /** `out = a · b`, the rotation of `b` followed by that of `a`; `out` may alias `a` or `b`. */
 export function multiplyQuaternion(out: Float64Array, a: ArrayLike<number>, b: ArrayLike<number>) {
   const ax = a[0],
@@ -140,6 +160,38 @@ export function normalizeQuaternionAt(
   out[at + 2] = z / length
   out[at + 3] = w / length
   return out
+}
+
+/**
+ * The quaternion at `q[qAt]` turned at angular velocity `w` (radians per unit time, world axes, read
+ * at `wAt`) for the half step `h` — half the time — into `out` at `outAt`: one explicit step of
+ * `q̇ = ½ (ω, 0) ⊗ q`, `q + h · (ω, 0) ⊗ q`, each term summed in a fixed order, then made unit by
+ * `normalizeQuaternionAt`. `out` may be `q`: the eight numbers are read before the write.
+ */
+export function turnByAngularVelocity(
+  out: Float64Array,
+  outAt: number,
+  q: ArrayLike<number>,
+  qAt: number,
+  w: ArrayLike<number>,
+  wAt: number,
+  h: number,
+) {
+  const wx = w[wAt],
+    wy = w[wAt + 1],
+    wz = w[wAt + 2]
+  const tx = q[qAt],
+    ty = q[qAt + 1],
+    tz = q[qAt + 2],
+    tw = q[qAt + 3]
+  return normalizeQuaternionAt(
+    out,
+    outAt,
+    tx + h * (wx * tw + wy * tz - wz * ty),
+    ty + h * (wy * tw + wz * tx - wx * tz),
+    tz + h * (wz * tw + wx * ty - wy * tx),
+    tw - h * (wx * tx + wy * ty + wz * tz),
+  )
 }
 
 /** The arc `slerpQuaternion` follows, rewritten per call. */

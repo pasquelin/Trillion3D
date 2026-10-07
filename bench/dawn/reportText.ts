@@ -1,6 +1,7 @@
 // A bench report as Markdown: what was played and how, each segment's frame (GPU, CPU, hitches,
 // stability, same images), its GPU by stage and pass and its commands, the CPU by engine step and
 // by function, the engine's counters, and what went wrong.
+import { MIB } from '../../packages/math/src/constants.ts'
 import { REFRESH_MS } from './frames.ts'
 import type { BenchReport } from './merge.ts'
 import type { Spread } from './summary.ts'
@@ -79,9 +80,9 @@ function segmentDetail(segment: Segment) {
                 ms(h.cpuMs),
                 ms(h.gpuMs),
                 h.pipelinesMade,
-                `${h.buffersMade} (${(h.bufferBytesMade / 1048576).toFixed(2)} MiB)`,
+                `${h.buffersMade} (${(h.bufferBytesMade / MIB).toFixed(2)} MiB)`,
                 h.texturesMade,
-                `${(h.writtenBytes / 1048576).toFixed(2)} MiB`,
+                `${(h.writtenBytes / MIB).toFixed(2)} MiB`,
               ]),
           ),
           '',
@@ -90,7 +91,7 @@ function segmentDetail(segment: Segment) {
     'Commands per frame: ' +
       Object.entries(counts)
         .map(([key, value]) =>
-          key.endsWith('Bytes') ? `${key} ${(value / 1048576).toFixed(3)} MiB` : `${key} ${value}`,
+          key.endsWith('Bytes') ? `${key} ${(value / MIB).toFixed(3)} MiB` : `${key} ${value}`,
         )
         .join(' · '),
     '',
@@ -178,7 +179,7 @@ export function reportText(report: BenchReport) {
       .filter(([, value]) => typeof value === 'number' && value !== 0)
       .map(
         ([key, value]) =>
-          `${key} ${key.endsWith('Bytes') ? `${((value as number) / 1048576).toFixed(2)} MiB` : ms(value as number, 3)}`,
+          `${key} ${key.endsWith('Bytes') ? `${((value as number) / MIB).toFixed(2)} MiB` : ms(value as number, 3)}`,
       )
       .join(' · '),
     '',

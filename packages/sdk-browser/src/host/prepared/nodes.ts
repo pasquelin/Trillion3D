@@ -3,7 +3,7 @@
  * and the loader's rule for naming them, each built as the host loader built it from the same
  * declaration (`./graph.ts` assembles them).
  */
-import { RAD2DEG } from '../../../../math/src/constants.ts'
+import { QUARTER_PI, RAD2DEG } from '../../../../math/src/constants.ts'
 import type {
   TableCamera,
   TableLight,
@@ -38,7 +38,7 @@ export function light(declared: TableLight, name: string) {
   if (declared.color) made.color.setRGB(declared.color[0], declared.color[1], declared.color[2])
   if (declared.type === 'spot') {
     const inner = declared.innerConeAngle ?? 0,
-      outer = declared.outerConeAngle ?? Math.PI / 4
+      outer = declared.outerConeAngle ?? QUARTER_PI
     made.angle = outer
     made.penumbra = 1 - inner / outer
   }

@@ -38,7 +38,7 @@
       // rim from behind and the room's soft light keep the black pieces from going flat black. The
       // lights are in the scene before the model arrives, the sun already in its place.
       const sunAt = (degrees, height) => {
-        const turn = (degrees * Math.PI) / 180;
+        const turn = math.degToRad(degrees);
         return [Math.cos(turn) * 3, height, Math.sin(turn) * 3];
       };
       const sun = light.directional({
@@ -104,8 +104,8 @@
         for (const [to, seconds] of PATH) {
           if (time < seconds) {
             const t = ease.smooth(time / seconds);
-            world.camera.position.set(...mix(from.eye, to.eye, t));
-            world.controls.target.set(...mix(from.look, to.look, t));
+            world.camera.position.set(...mix({ math }, from.eye, to.eye, t));
+            world.controls.target.set(...mix({ math }, from.look, to.look, t));
             return true;
           }
           [from, time] = [to, time - seconds];

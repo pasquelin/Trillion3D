@@ -1,5 +1,6 @@
 import type { Locale } from '../content/locale.ts'
 import { localizeDemoText } from '../content/i18n/canvas.ts'
+import { axisAngleQuaternion } from './engine.ts'
 
 /** A demo's control: every demo drives its model with numeric sliders. */
 export interface DemoControlDef {
@@ -93,6 +94,10 @@ export function canvasView(
 ) {
   return { kind: 'canvas' as const, title, paint, height }
 }
+
+/** The quaternion of a turn of `turn` radians about +y, the pose every camera demo looks along. */
+export const turnAboutY = (turn: number) =>
+  axisAngleQuaternion(new Float64Array(4), [0, 1, 0], turn)
 
 export function formatNumber(value: number | null) {
   if (value === null || !Number.isFinite(value)) return String(value)

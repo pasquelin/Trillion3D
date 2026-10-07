@@ -8,6 +8,7 @@ import {
   localTurnQuaternion,
 } from '../../../../math/src/quaternion/quaternion.ts'
 import { clamp, clampCompare } from '../../../../math/src/scalar/reals.ts'
+import { PI } from '../../../../math/src/constants.ts'
 import type { ControlCamera, SteeredCameraControls } from './types.ts'
 
 /**
@@ -106,7 +107,7 @@ export function createFlyCameraControls(
     lookYaw = 0,
     held = false
   const look = (dx: number, dy: number) => {
-    const speed = api.lookSpeed ?? Math.PI / (surface.clientHeight || 1)
+    const speed = api.lookSpeed ?? PI / (surface.clientHeight || 1)
     lookYaw -= dx * speed
     lookPitch -= dy * speed
   }

@@ -1,7 +1,8 @@
 import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { resolveCameraWorld } from '../camera/world.ts'
-import { hypot2, hypot3 } from '../../../math/src/float/hypot.ts'
+import { normalizeVector3 } from '../../../math/src/vector/vector.ts'
+import { perspectiveDiagonalSlope } from '../../../math/src/projection/camera.ts'
 
 /**
  * The page's view as the simulation needs it (`VIEW`, `layout.ts`): distance decides what is
@@ -16,15 +17,16 @@ export function createPhysicsView() {
     now = new Float64Array(8)
   return (camera: Camera, writer: CommandWriter, range: number | null) => {
     const w = resolveCameraWorld(camera).matrixWorld.elements
-    // The eye is the world matrix's translation; the camera looks down its own −z.
-    const length = hypot3(w[8], w[9], w[10]) || 1
+    // The eye is the world matrix's translation; the camera looks down its own −z, made unit.
     now[0] = w[12]
     now[1] = w[13]
     now[2] = w[14]
-    for (let k = 0; k < 3; k++) now[3 + k] = -w[8 + k] / length
+    for (let k = 0; k < 3; k++) now[3 + k] = -w[8 + k]
+    normalizeVector3(now, 3)
+    // The half cone reaches the picture's corners: the angle of the diagonal slope.
     now[6] =
       camera.projection === 'perspective'
-        ? Math.atan(Math.tan((camera.fov * Math.PI) / 360) * hypot2(1, camera.aspect))
+        ? Math.atan(perspectiveDiagonalSlope(camera.fov, camera.aspect))
         : 0
     now[7] = range ?? camera.far
     let same = true

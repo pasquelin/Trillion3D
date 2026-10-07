@@ -1,6 +1,7 @@
 import { ceilFloat32, writeSplitDouble } from '../../../../math/src/float/splitDouble.ts'
 import { boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts'
-import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
+import { boxCenter } from '../../../../math/src/geometry/box.ts'
 import { rootOf, type PageRec } from '../../page/selection/selection.ts'
 import type { Placements } from '../../page/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts'
@@ -27,19 +28,19 @@ function writeClusterSphere(
     e = root.world.elements,
     { min, max } = rowBox(rec),
     reach = rowGrowth(rec, root.reach)
-  const cx = (min[0] + max[0]) / 2,
-    cy = (min[1] + max[1]) / 2,
-    cz = (min[2] + max[2]) / 2
+  // The local box's centre, then its world image in place.
+  const c = centreScratch
+  boxCenter(c, 0, min[0], min[1], min[2], max[0], max[1], max[2])
   const hx = (max[0] - min[0]) / 2 + reach,
     hy = (max[1] - min[1]) / 2 + reach,
     hz = (max[2] - min[2]) / 2 + reach
-  transformAffinePoint(centreScratch, e, cx, cy, cz, 0)
+  transformAffinePoint(c, e, c[0], c[1], c[2], 0)
   let centreError = 0
   for (let axis = 0; axis < 3; axis++) {
     writeSplitDouble(out, base + axis, base + 4 + axis, centreScratch[axis])
     centreError += (centreScratch[axis] - (out[base + axis] + out[base + 4 + axis])) ** 2
   }
-  const radius = hypot3(
+  const radius = length3(
     Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,
     Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,
     Math.abs(e[2]) * hx + Math.abs(e[6]) * hy + Math.abs(e[10]) * hz,

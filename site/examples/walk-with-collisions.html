@@ -53,7 +53,7 @@
         fixed([3, 0.2 * (k + 1), 0.4], [-7, 0.1 * (k + 1), 2 - k * 0.4], '#c7b89a');
       fixed([3, 1, 3], [-7, 0.5, -1.3], '#c7b89a');
       // A ramp of 20°, gentler than the steepest floor the character stands on.
-      const RAMP = (20 * Math.PI) / 180;
+      const RAMP = math.degToRad(20);
       fixed([3, 0.2, 6], [7, Math.sin(RAMP) * 3 - 0.1, -1], '#a8b8a0', [RAMP, 0, 0]);
       // A patch of ice, 2 cm thick: a rubber sole grips it five times less than stone, so a jog
       // let go on it slides almost 4 m, and a start from rest takes seconds.

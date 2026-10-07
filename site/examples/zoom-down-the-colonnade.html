@@ -54,13 +54,13 @@
       world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
       // Seen from where a 50° lens frames the door at the size the zoom then keeps.
       world.camera.fov = 50;
-      world.camera.position.set(0, 1.4, -23 + 4.8 / Math.tan((50 * Math.PI) / 360));
+      world.camera.position.set(0, 1.4, -23 + 4.8 / Math.tan(math.degToRad(25)));
 
       // The dolly zoom: the field of view narrows while the camera backs away along its view axis
       // just enough to keep the door the same size, so the colonnade around it seems to stretch.
       // What stays constant is the width the view spans at the target: distance × tan(fov / 2).
       const offset = math.vector3();
-      const halfTan = (fov) => Math.tan((fov * Math.PI) / 360);
+      const halfTan = (fov) => Math.tan(math.degToRad(fov / 2));
       const spanned = () => world.camera.position.distanceTo(world.controls.target) * halfTan(world.camera.fov);
       function place(fov, width = spanned()) {
         offset.subVectors(world.camera.position, world.controls.target).setLength(width / halfTan(fov));

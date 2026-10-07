@@ -115,7 +115,7 @@
       [camera.near, camera.far, camera.fov] = [0.5, 12000, 62];
       Object.assign(world.controls, { pointerLook: false, autoForward: true, movementSpeed: 0, inputResponse: 0.08 });
 
-      const deg = Math.PI / 180;
+      const deg = math.degToRad(1);
       // The kit's smoothstep, from `a` to `b` instead of 0 to 1.
       const smooth = (a, b, x) => ease.smooth((x - a) / (b - a));
       // A seeded sequence (the kit's `seeded`): the same valley on every run.
@@ -198,7 +198,8 @@
         return a.slerp(b, angle > 1e-6 ? Math.atan2(t * Math.sin(angle), 1 - t + t * cos) / angle : t);
       }
       const wrap = (angle) => angle - 2 * Math.PI * Math.round(angle / (2 * Math.PI));
-      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      const operandA = math.vector3(), operandB = math.vector3();
+      const dot = (a, b) => operandA.fromArray(a).dot(operandB.fromArray(b));
       // The attitude read off the axes, in radians: no angle is integrated, so it holds upside
       // down and through the vertical. Bank is positive with the right wing down.
       function attitude(q) {
@@ -247,10 +248,11 @@
       // the axis from it to the aim at a rate proportional to the angle, split into pitch and yaw;
       // the wings bank to what that turn needs — the bank whose lift turns the path at the rate
       // the heading error asks, within the wing's load and 70° — and level within 2° of the aim.
+      const aimAcross = math.vector2();
       function instructor(S) {
         const [x, y, z] = rotate(S.q.clone().invert(), rotate(S.aim, [0, 0, -1]));
         const off = Math.acos(math.clamp(-z, -1, 1)), { bank, pitch: climb, heading } = attitude(S.q), a = authority(S.v);
-        const across = Math.hypot(x, y) || 1, rate = off / ARCADE.nose, aimed = attitude(S.aim);
+        const across = aimAcross.set(x, y).length() || 1, rate = off / ARCADE.nose, aimed = attitude(S.aim);
         const pitch = math.clamp((rate * y) / across / pitchLimit(S, false), -0.5, 1);
         const yaw = math.clamp((-rate * x) / across / (YAW_RATE * a), -1, 1);
         // Near the vertical the heading means nothing: the bank is held and the pitch flies the loop.

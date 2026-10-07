@@ -1,4 +1,5 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts'
+import { sameMatrixFloat32 } from '../../../../math/src/matrix/matrixElements.ts'
 import { SELECTION_NONE as NONE } from '../core/selection.ts'
 import {
   DAG_NODE_FLOATS,
@@ -13,6 +14,9 @@ import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts'
 import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts'
 import { KEY_PAGE_MAX, canonicalPage, writeKeyColumn } from './evict.ts'
 import { createRecordTable } from './packRecords.ts'
+
+/** One root's world brought back to the origin, in double precision, before it is compared. */
+const rebased = new Float64Array(16)
 
 type Culling = NonNullable<DagRoot['culling']>
 
@@ -316,12 +320,8 @@ export function rootWorldsMoved(
   origin: ArrayLike<number>,
 ) {
   for (let w = 0; w < roots.length; w++) {
-    const world = roots[w].world.elements,
-      at = w * 16
-    for (let i = 0; i < 16; i++) {
-      const value = i >= 12 && i < 15 ? world[i] - origin[i - 12] : world[i]
-      if (worlds[at + i] !== Math.fround(value)) return true
-    }
+    worldToRenderOrigin(rebased, roots[w].world.elements, origin)
+    if (!sameMatrixFloat32(worlds, rebased, w * 16)) return true
   }
   return false
 }

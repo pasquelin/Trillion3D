@@ -4,6 +4,7 @@
 // normals; the ground's tiles read one height function, so two neighbours meet without a seam.
 import type { Random } from '../../../site/examples/kit/random.ts'
 import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts'
+import { length3 } from '../../../packages/math/src/vector/vector.ts'
 
 export interface ShapeMesh {
   positions: Float32Array
@@ -47,7 +48,7 @@ export function groundTile(x0: number, z0: number, size: number, cells: number, 
       // The normal from the height function itself, so a shared edge has one normal on both tiles.
       const dx = groundHeight(x + slope, z, relief) - groundHeight(x - slope, z, relief),
         dz = groundHeight(x, z + slope, relief) - groundHeight(x, z - slope, relief),
-        length = Math.hypot(dx, 2 * slope, dz)
+        length = length3(dx, 2 * slope, dz)
       normals.set([-dx / length, (2 * slope) / length, -dz / length], v)
     }
   return { positions, normals, indices: gridIndices(cells) }

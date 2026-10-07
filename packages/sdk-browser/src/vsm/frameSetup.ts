@@ -12,7 +12,10 @@
  *   finishVirtualShadowFrame(state, plan)                  // marks rendered, extracts the frame data, swaps
  */
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
-import { frustumPlanesFromMatrix } from '../../../math/src/geometry/frustum/frustum.ts'
+import {
+  frustumExcludesSphere,
+  frustumPlanesFromMatrix,
+} from '../../../math/src/geometry/frustum/frustum.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import {
   VSM_SINGLE_PAGE_MAP_SLOTS,
@@ -166,9 +169,7 @@ export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
   const [x, y, z] = light.position
   const reach =
     light.range + F32_ROOM * (light.range + Math.max(Math.abs(x), Math.abs(y), Math.abs(z)))
-  for (let p = 0; p < 24; p += 4)
-    if (planes[p] * x + planes[p + 1] * y + planes[p + 2] * z + planes[p + 3] < -reach) return false
-  return true
+  return !frustumExcludesSphere(planes, x, y, z, reach)
 }
 
 /** Where each light's maps landed this frame. */

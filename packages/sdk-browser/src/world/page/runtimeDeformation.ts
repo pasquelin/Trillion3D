@@ -1,4 +1,4 @@
-import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts'
 
 /** The compiler's conservative rest balls and target radii, measured once for page-authored data. */
@@ -38,12 +38,12 @@ export function runtimeDeformation(drawn: DrawnTriangles) {
     const x = (box[0] + box[3]) / 2,
       y = (box[1] + box[4]) / 2,
       z = (box[2] + box[5]) / 2
-    joints.push(x, y, z, hypot3(box[3] - x, box[4] - y, box[5] - z))
+    joints.push(x, y, z, length3(box[3] - x, box[4] - y, box[5] - z))
   }
   const targets = source.targets.map(({ positions }) => {
     let radius = 0
     for (let v = 0; v < positions.length; v += 3)
-      radius = Math.max(radius, hypot3(positions[v], positions[v + 1], positions[v + 2]))
+      radius = Math.max(radius, length3(positions[v], positions[v + 1], positions[v + 2]))
     return radius
   })
   return { joints, targets }

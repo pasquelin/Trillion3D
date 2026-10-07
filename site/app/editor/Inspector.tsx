@@ -1,4 +1,5 @@
 import type { Object3D } from '../../../packages/sdk-browser/src/index.ts'
+import { RAD2DEG } from '../../../packages/math/src/constants.ts'
 import { useWords } from '../i18n.ts'
 import { usePortal } from '../layout/PortalContext.ts'
 import { Note } from '../ui/Text.tsx'
@@ -10,13 +11,12 @@ import type { Editor } from './useEditor.ts'
 import { SurfaceFields } from './SurfaceFields.tsx'
 
 const AXES = ['x', 'y', 'z'] as const
-const DEGREES = 180 / Math.PI
 
 /** The three rows of the pose: position, rotation shown in degrees, scale. */
 function poseRows(node: Object3D) {
   return [
     { key: 'editor.position', read: node.position, factor: 1, step: 0.1 },
-    { key: 'editor.rotation', read: node.rotation, factor: DEGREES, step: 5 },
+    { key: 'editor.rotation', read: node.rotation, factor: RAD2DEG, step: 5 },
     { key: 'editor.scaleField', read: node.scale, factor: 1, step: 0.1 },
   ] as const
 }

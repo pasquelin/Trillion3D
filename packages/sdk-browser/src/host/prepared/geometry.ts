@@ -13,12 +13,17 @@ import type {
   TableDocument,
   TablePrimitive,
 } from '../../../../sdk-core/src/scene/core/tableDocuments.ts'
+import { boxCenter } from '../../../../math/src/geometry/box.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts'
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts'
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { normalisedScale, preparedAccessors, type PreparedBinary } from './accessors.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
+
+/** The centre of a box being bounded, in double precision. */
+const centreOf = new Float64Array(3)
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
 const NAMES: Record<string, string> = {
@@ -112,10 +117,11 @@ export function preparedGeometries(document: TableDocument, binary: PreparedBina
       new Vector3(high[0], high[1], high[2]),
     )
     const [dx, dy, dz] = [low[0] - high[0], low[1] - high[1], low[2] - high[2]]
+    boxCenter(centreOf, 0, low[0], low[1], low[2], high[0], high[1], high[2])
     const centre = geometry.boundingBox.isEmpty()
       ? new Vector3(0, 0, 0)
-      : new Vector3((low[0] + high[0]) * 0.5, (low[1] + high[1]) * 0.5, (low[2] + high[2]) * 0.5)
-    geometry.boundingSphere = new Sphere(centre, Math.sqrt(dx * dx + dy * dy + dz * dz) / 2)
+      : new Vector3(centreOf[0], centreOf[1], centreOf[2])
+    geometry.boundingSphere = new Sphere(centre, length3(dx, dy, dz) * 0.5)
   }
 
   return (mesh: number, primitive: number): Geometry => {

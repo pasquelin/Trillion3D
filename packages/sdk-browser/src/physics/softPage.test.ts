@@ -21,7 +21,7 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies, type Bodied } from './bodies.ts'
 import { createSessionHost } from './session/sessionHost.ts'
 import { createPhysicsPoses } from './poses.ts'
-import { createSoftVertices } from './softBodies.ts'
+import { createSoftVertices } from './softVertices.ts'
 import { createSoftTick } from './recordTick.ts'
 import { SOFT_WORDS } from '../../../sdk-core/src/physics/wire.fixture.ts'
 

@@ -1,3 +1,4 @@
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import {
   blocksAcross,
   levelBlockBytes,
@@ -17,7 +18,6 @@ import { cellOrigin, tailOrigin, type TileRegion } from './write.ts'
  * Bytes that are not the whole blocks their dimensions imply are refused once per path: a streamed
  * tile's where its read resolves (`../../texture/blockFormats.ts`), a tail's level here.
  */
-const roundUp = (texels: number) => blocksAcross(texels) * PREVIEW_BLOCK_SIDE
 
 /** Refuses a tail level whose bytes are not the whole blocks its dimensions imply. */
 function checkLevelBlocks(blocks: Uint8Array, size: readonly [number, number]) {
@@ -41,7 +41,7 @@ function writeBlocks(
       bytesPerRow: blocksAcross(width) * PREVIEW_BLOCK_BYTES,
       rowsPerImage: blocksAcross(height),
     },
-    { width: roundUp(width), height: roundUp(height) },
+    { width: alignUp(width, PREVIEW_BLOCK_SIDE), height: alignUp(height, PREVIEW_BLOCK_SIDE) },
   )
 }
 

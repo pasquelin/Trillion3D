@@ -6,6 +6,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { isLightNode } from '../../host/graph/kinds.ts'
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts'
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 
 /** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
@@ -116,7 +117,7 @@ function reach(state: LightsState, at: Vector3) {
   const dx = Math.max(Math.abs(min.x - at.x), Math.abs(max.x - at.x)),
     dy = Math.max(Math.abs(min.y - at.y), Math.abs(max.y - at.y)),
     dz = Math.max(Math.abs(min.z - at.z), Math.abs(max.z - at.z))
-  const far = Math.sqrt(dx * dx + dy * dy + dz * dz)
+  const far = length3(dx, dy, dz)
   return Number.isFinite(far) && far > 0 ? far : 1
 }
 

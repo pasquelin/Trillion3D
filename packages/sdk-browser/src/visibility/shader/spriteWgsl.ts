@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../types.ts'
-import { hypot3 } from '../../../../math/src/float/hypot.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { SHADOWLESS_ROOT } from './shadowlessRoot.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
@@ -105,8 +105,8 @@ export function spriteAt(
   cornerY: number,
   sprite: NonNullable<VisMaterial['sprite']>,
 ) {
-  let ax = cornerX * hypot3(place[0], place[1], place[2]),
-    ay = cornerY * hypot3(place[4], place[5], place[6])
+  let ax = cornerX * length3(place[0], place[1], place[2]),
+    ay = cornerY * length3(place[4], place[5], place[6])
   if (!sprite.sizeAttenuation) {
     const w = toClip[3] * place[12] + toClip[7] * place[13] + toClip[11] * place[14] + toClip[15]
     ax *= w
@@ -114,8 +114,8 @@ export function spriteAt(
   }
   const c = Math.cos(sprite.rotation),
     s = Math.sin(sprite.rotation)
-  const r = hypot3(toClip[0], toClip[4], toClip[8]),
-    u = hypot3(toClip[1], toClip[5], toClip[9])
+  const r = length3(toClip[0], toClip[4], toClip[8]),
+    u = length3(toClip[1], toClip[5], toClip[9])
   const x = c * ax - s * ay,
     y = s * ax + c * ay
   for (let i = 0; i < 3; i++)

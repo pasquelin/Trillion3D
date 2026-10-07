@@ -17,3 +17,16 @@ test('split coordinates retain centimetres and millimetres across high-word roun
       assert.ok(Math.abs(out[0] + out[1] - value) < 2e-6)
     }
 })
+
+test('a double sink keeps the residue exact: the high float32, then value − high', () => {
+  const out = new Float64Array(6)
+  for (const value of [0.1, -1e6 - 0.001, 1e9 + 0.01, 2 ** 24 + 0.5]) {
+    writeSplitDouble(out, 1, 4, value)
+    assert.equal(out[1], Math.fround(value))
+    assert.equal(out[4], value - Math.fround(value))
+    assert.equal(out[1] + out[4], value)
+  }
+  const single = new Float32Array(2)
+  writeSplitDouble(single, 0, 1, 0.1)
+  assert.equal(single[1], Math.fround(0.1 - Math.fround(0.1)))
+})

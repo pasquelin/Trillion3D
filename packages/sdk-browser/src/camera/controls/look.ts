@@ -3,10 +3,9 @@ import type { ControlBase } from './base.ts'
 import { trackPointers } from './input.ts'
 import type { ControlPose } from './pose.ts'
 import { orbitOrientation } from './math.ts'
-import { POLAR_EPSILON } from '../../../../math/src/vector/spherical.ts'
+import { directionYawPitch, POLAR_EPSILON } from '../../../../math/src/vector/spherical.ts'
 import { clampCompare } from '../../../../math/src/scalar/reals.ts'
 import { rotateByQuaternion } from '../../../../math/src/quaternion/quaternion.ts'
-import { hypot2 } from '../../../../math/src/float/hypot.ts'
 
 /**
  * THE HEAD OF A WALKER, pointer locked: the pointer turns it, the horizon stays level — yaw
@@ -61,6 +60,7 @@ export function createHead(
   const read = new Float64Array(4),
     written = new Float64Array(4),
     forward = new Float64Array(3),
+    turned = new Float64Array(2),
     angles = new Float64Array(3)
   let pitch = 0,
     yaw = 0,
@@ -75,8 +75,9 @@ export function createHead(
     // The elevation of the forward axis, by its height over its horizontal length: blind to the
     // length a quaternion off unit length gives it, and as well conditioned at the poles as at the
     // horizon, where the arc sine of the height alone loses half its digits.
-    pitch = Math.atan2(forward[1], hypot2(forward[0], forward[2]))
-    yaw = Math.atan2(-forward[0], -forward[2])
+    directionYawPitch(turned, forward[0], forward[1], forward[2])
+    yaw = turned[0]
+    pitch = turned[1]
   }
   const head = {
     locked: () => owner.pointerLockElement === surface,

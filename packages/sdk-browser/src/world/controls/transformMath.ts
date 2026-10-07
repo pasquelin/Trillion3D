@@ -1,6 +1,7 @@
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
 import { Plane, type Ray } from '../../../../sdk-core/src/world/math/volumes.ts'
+import { signedAngleVector3 } from '../../../../math/src/vector/vector.ts'
 
 /** What a transform control does to its object. */
 export type TransformMode = 'translate' | 'rotate' | 'scale'
@@ -110,7 +111,7 @@ export function dragTransform(
   const v0 = a.clone().sub(p0),
     v1 = b.clone().sub(p0)
   if (mode === 'rotate') {
-    const angle = Math.atan2(v0.clone().cross(v1).dot(normal), v0.dot(v1))
+    const angle = signedAngleVector3(v0.elements, v1.elements, normal.elements)
     const turn = new Quaternion().setFromAxisAngle(normal, round(angle, snap.rotate))
     pose.quaternion.premultiply(turn)
     return pose

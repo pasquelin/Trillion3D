@@ -22,8 +22,12 @@ Its layout, under `packages/math/src/`: `float/` (`hypot`, `trig`, `splitDouble`
 float16 encode and decode), `vector/` (with `spherical.ts`, and `lengthFloat32.ts`, the length
 rounded in float32 as the GPU computes it),
 `quaternion/`, `matrix/` (with `matrixElements.ts`, the pose comparisons), `geometry/` (boxes,
-spheres, cones, slabs, `frustum/`), `projection/` (camera frame, render origin, projection oracles),
-`color/`, `scalar/`, `sequence/` (`halton.ts`), `batch/` and `wgsl/` (below); `index.ts` is the
+spheres, cones, slabs, `frustum/`), `projection/` (`camera.ts`, the camera frame, focal and pixel
+scales; `renderOrigin.ts`; `clip.ts`, a clip window laid over a projection; `forwardZ.ts`, the
+reversed-depth projections down +z of a light's shadow map; `projectionOracles.ts`), `color/`,
+`scalar/` (`reals.ts`, `integers.ts`, `quantile.ts` — the nearest rank and the median), `sequence/`
+(`halton.ts`; `sweep.fixture.ts`, the Halton sweep and edge values every rewrite proof runs its old
+expression against), `batch/` and `wgsl/` (below); `index.ts` is the
 barrel `packages/sdk-core` re-exports, `wgsl/` left out of it. The path governor, the transform tree
 and the shader programs are not primitives and live in `sdk-core` and `sdk-browser`.
 
@@ -46,7 +50,14 @@ of its three terms (`decomposeMatrix4`). A normalise multiplies each component b
 would overflow, is first scaled by 2^1000, exactly (`normalizeVector3`, `normalizeVector2`). So a
 host axis, a wave direction or a light direction of 1e200 or 1e-170 normalises to a unit vector
 (`vector/lengthRange.test.ts`). The rule and `Math.hypot` differ in the last bit on many inputs
-of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves.
+of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves. A
+site moved from the plain root keeps its bits inside the band and, declared, gains the true
+length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
+bounding-sphere radius of `host/prepared/geometry.ts`, the lateral distance of
+`page/selection/projection.ts`, a light's far distance in `world/core/worldLights.ts`, and the
+light's horizontal axis in `vsmWorldToLightRotation` (`vsm/clipmap.ts`), which for a direction
+within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
+(`lightRotation.test.ts`).
 
 The declared exceptions, each held to bits the rule would change:
 
@@ -56,24 +67,28 @@ The declared exceptions, each held to bits the rule would change:
   of `packages/sdk-core/src/world/animation/ik.ts`, where the bend of a straight chain out of
   reach depends on the last bit; `closes` of `packages/sdk-core/src/world/math/curves.ts`, an
   outline's closing point dropped at a gap under 1e-12, where the rule's root would decide a gap
-  within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`).
-- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`):
-  `clusterErrorAtDepth` and `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts`,
-  held to `cut_error.rs` by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain
-  sum's Infinity.
+  within an ulp of 1e-12 the other way and change the triangulation (`shapeClose.test.ts`);
+  `spriteRow` of `packages/sdk-browser/src/world/core/worldPoses.ts`, where a uniform scale's two
+  axis lengths must round alike; and the generators whose published files hold the builtin's bits,
+  the normals of `scripts/docs/garden-source.ts` (`hypot3`) and the sun's rotation of
+  `scripts/docs/observatory/write.ts` (`hypot4`).
+- The plain root without the band, the twin of the Rust vectors (`packages/math/rust/src/vec2.rs`,
+  `vec3.rs`): `plainLength3` (`vector/vector.ts`), `Math.sqrt` of the three squares summed left to
+  right, the rule of every TypeScript twin of a Rust function; `clusterErrorAtDepth` and
+  `clusterErrorPixels` of `packages/sdk-core/src/lod/screenErrorBound.ts`, held to `cut_error.rs`
+  by `screenErrorBits.json`, whose row at a 1e308 depth pins the plain sum's Infinity; the gap of
+  `sphereUnion` (`geometry/sphere.ts`), held to `merge_spheres` of `packages/math/rust/src/sphere.rs`
+  past the band too (`sphereUnion.test.ts`).
 - A division by the length to normalise, which keeps each component correctly rounded:
   `normalizeQuaternion`, whose Kahan sum of the four squares, `hypot4` outside `2^-900..2^900`
   and division are held to `normalize` of `packages/page-codec-wasm/src/anim.rs`, the animation
   sampler's twin; the octahedral encoders of `packages/page-codec/src/pageGrids.ts`, float32
   twins of the Rust codec's (`length3Float32`, then each component divided); the bend axis of
-  `ik.ts`, for the reason of its length; and `normalized` of
+  `ik.ts`, for the reason of its length; `normalized` of
   `packages/sdk-core/src/scene/light/validate.ts`, a light direction divided by its `hypot3`,
   because the validated direction feeds the shadow clipmap's own normalise and basis in double and
-  the rule's product differs from that quotient in the last bit on about two directions in three.
-
-The `hypot2`, `hypot3` and `Math.hypot` calls of `packages/sdk-browser` (cameras, impostors,
-partitions, shadows, deformation) and of `scripts/` predate the rule and move onto it under
-#1493, each with its proof; until then they are not declarations of this list.
+  the rule's product differs from that quotient in the last bit on about two directions in three;
+  and `snapped()` of `scripts/docs/examples/mesh.ts`, whose published meshes hold the divide's bits.
 
 ### The WGSL library
 

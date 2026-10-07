@@ -29,7 +29,7 @@
       world.scene.background = math.color('#04060c');
 
       // The relief: smooth noise summed over five octaves, read on the direction from the centre.
-      const noise = valueNoise();
+      const noise = valueNoise({ math });
       const elevation = (x, y, z) => {
         let sum = 0, amplitude = 0.6, scale = 1.4;
         for (let octave = 0; octave < 5; octave++, amplitude *= 0.5, scale *= 2.1) sum += amplitude * noise(x * scale + 11, y * scale, z * scale - 7);
@@ -45,22 +45,22 @@
 
       // The planet's skin: a twenty-sided ball split six times over, every corner pushed out to the
       // radius its direction reads.
-      const cross = (u, v) => [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+      const operandA = math.vector3(), operandB = math.vector3();
+      const cross = (u, v) => operandA.fromArray(u).cross(operandB.fromArray(v)).toArray();
       const t = (1 + Math.sqrt(5)) / 2;
       const ICOSAHEDRON = [-1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, 0, 0, -1, t, 0, 1, t, 0, -1, -t, 0, 1, -t, t, 0, -1, t, 0, 1, -t, 0, -1, -t, 0, 1];
       const TWENTY = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1];
-      const corners = Array.from({ length: 12 }, (_, k) => {
-        const p = ICOSAHEDRON.slice(k * 3, k * 3 + 3), length = Math.hypot(...p);
-        return p.map((value) => value / length);
-      });
+      // The scratch every direction is made unit in and every length read from.
+      const direction = math.vector3();
+      const unit = (v) => direction.fromArray(v).normalize().toArray();
+      const corners = Array.from({ length: 12 }, (_, k) => unit(ICOSAHEDRON.slice(k * 3, k * 3 + 3)));
       let faces = TWENTY;
       for (let split = 0; split < 6; split++) {
         const middles = new Map(), next = [];
         const middle = (a, b) => {
           const key = a < b ? a * 1e6 + b : b * 1e6 + a;
           if (!middles.has(key)) {
-            const p = corners[a].map((value, axis) => value + corners[b][axis]), length = Math.hypot(...p);
-            middles.set(key, corners.push(p.map((value) => value / length)) - 1);
+            middles.set(key, corners.push(unit(corners[a].map((value, axis) => value + corners[b][axis]))) - 1);
           }
           return middles.get(key);
         };
@@ -88,8 +88,8 @@
       const SEA = RADIUS;
       const LEVELS = [-Infinity, SEA + 0.03, SEA + 0.18, SEA + 0.34, Infinity];
       const vertex = (k) => {
-        const [x, y, z] = surface[k], n = normals[k], length = Math.hypot(...n);
-        return [x, y, z, n[0] / length, n[1] / length, n[2] / length, Math.hypot(x, y, z)];
+        const [x, y, z] = surface[k], [nx, ny, nz] = unit(normals[k]);
+        return [x, y, z, nx, ny, nz, direction.set(x, y, z).length()];
       };
       const crossing = (p, q, level) => {
         const share = (level - p[6]) / (q[6] - p[6]);
@@ -135,17 +135,16 @@
         const y = next() * 2 - 1, around = next() * Math.PI * 2, ring = Math.sqrt(1 - y * y);
         const d = [ring * Math.cos(around), y, ring * Math.sin(around)];
         const side = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
-        const e1 = cross(d, side), l1 = Math.hypot(...e1);
-        const a = e1.map((value) => value / l1), b = cross(d, a);
+        const a = unit(cross(d, side)), b = cross(d, a);
         const point = (s, t) => {
-          const q = d.map((value, axis) => value + a[axis] * s + b[axis] * t), length = Math.hypot(...q), r = radiusAt(...q.map((value) => value / length));
-          return q.map((value) => (value / length) * r);
+          const q = unit(d.map((value, axis) => value + a[axis] * s + b[axis] * t)), r = radiusAt(...q);
+          return q.map((value) => value * r);
         };
         const here = point(0, 0), pa = point(step, 0), pb = point(0, step);
         const u = pa.map((value, axis) => value - here[axis]), v = pb.map((value, axis) => value - here[axis]);
-        const n = cross(u, v), length = Math.hypot(...n);
+        const n = cross(u, v), length = direction.fromArray(n).length();
         const slope = (Math.acos(Math.abs(n[0] * d[0] + n[1] * d[1] + n[2] * d[2]) / length) * 180) / Math.PI;
-        return { d, r: Math.hypot(...here), slope, size: 0.7 + next() * 0.7 };
+        return { d, r: direction.fromArray(here).length(), slope, size: 0.7 + next() * 0.7 };
       });
 
       // Trees and rocks, a pool of each, placed on the candidates the rules accept; each stands

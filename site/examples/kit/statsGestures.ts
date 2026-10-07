@@ -23,7 +23,8 @@ export function bindGestures(
     if (!press || event.pointerId !== press.id) return
     const dx = event.clientX - press.x,
       dy = event.clientY - press.y
-    if (!dragging && Math.hypot(dx, dy) < 6) return
+    // A press becomes a drag past 6 pixels: its squared reach against 36, no root taken.
+    if (!dragging && dx * dx + dy * dy < 36) return
     if (!dragging) {
       dragging = true
       head.setPointerCapture(event.pointerId)

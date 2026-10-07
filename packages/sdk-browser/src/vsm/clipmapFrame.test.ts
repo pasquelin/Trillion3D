@@ -12,7 +12,8 @@ import {
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
 } from './constants.ts'
-import { createVsmClipmap, vsmTransformPoint, type VsmClipmap } from './clipmap.ts'
+import { createVsmClipmap, type VsmClipmap } from './clipmap.ts'
+import { transformAffinePoint } from '../../../math/src/vector/vector.ts'
 import { VsmMapCache, VsmCacheManager, VsmLightCache } from './cacheManager.ts'
 import {
   SUN,
@@ -116,11 +117,12 @@ test('along the light, a cached level keeps its depth range until 0.9 of it; pas
   const depth = (clipmap: VsmClipmap, p: number[]) => {
     const level = clipmap.levels[0],
       translated = p.map((v, k) => v - level.worldCentre[k])
-    const v = vsmTransformPoint(
+    const v = transformAffinePoint(
+      new Float64Array(3),
       clipmap.lightViewRotation,
       ...(translated as [number, number, number]),
     )
-    return vsmTransformPoint(level.viewToClip, v[0], v[1], v[2])[2]
+    return transformAffinePoint(v, level.viewToClip, v[0], v[1], v[2])[2]
   }
   const point = along([0, 0, 0], z, 50)
   const before = createVsmClipmap(

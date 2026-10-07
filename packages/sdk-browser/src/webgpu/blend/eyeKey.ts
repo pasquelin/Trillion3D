@@ -1,11 +1,18 @@
+import { boxCenterFrom } from '../../../../math/src/geometry/box.ts'
+import { lengthSqVector3 } from '../../../../math/src/vector/vector.ts'
 import type { BlendGpuItem } from './state.ts'
+
+const offset = new Float64Array(3)
 
 /** Key of an item: without a usable box, the world origin of its mesh stands in. */
 export function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   const box = item.bounds,
     m = item.matrix.elements
-  const x = box ? (box[0] - ex + (box[3] - ex)) / 2 : m[12] - ex,
-    y = box ? (box[1] - ey + (box[4] - ey)) / 2 : m[13] - ey,
-    z = box ? (box[2] - ez + (box[5] - ez)) / 2 : m[14] - ez
-  return x * x + y * y + z * z
+  if (box) boxCenterFrom(offset, 0, box, 0, ex, ey, ez)
+  else {
+    offset[0] = m[12] - ex
+    offset[1] = m[13] - ey
+    offset[2] = m[14] - ez
+  }
+  return lengthSqVector3(offset)
 }

@@ -1,3 +1,4 @@
+import { length2 } from '../../../packages/math/src/vector/vector.ts'
 import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts'
 import { SceneGltf } from './gltf-scene.ts'
 import { empty, fromGeometry, merge, type Mesh } from './mesh.ts'
@@ -109,7 +110,7 @@ function log(axis: number, start: Vec3, length: number): Mesh {
 function shingleRoof(eaves: number): Mesh {
   const run = DEPTH / 2 + OVERHANG,
     angle = Math.atan2(RISE, run),
-    slope = Math.hypot(RISE, run),
+    slope = length2(RISE, run),
     along = WIDTH + 2 * OVERHANG,
     [bw, bl] = BOARD,
     lap = bl * (2 / 3),

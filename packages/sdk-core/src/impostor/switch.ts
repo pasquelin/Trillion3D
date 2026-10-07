@@ -9,7 +9,7 @@
  * - Root more costly than the pixels it covers: `T ≥ c·π(R·f/z)²` ⇒ `z ≥ z_tri = R·f·√(cπ/T)`.
  *
  * The switch is `z_s = max(z_tex, z_tri)`; the impostor draws when `z ≥ z_s`. `f` is the engine's
- * one focal length in pixels (`pixelScaleOf` on the CPU, `focalPixels()` in WGSL); `T`, `c`, `R`
+ * one focal length in pixels (`focalPixels`, on the CPU as in WGSL); `T`, `c`, `R`
  * and `r_f` come only from the baked manifest.
  */
 import { PI } from '../../../math/src/constants.ts'

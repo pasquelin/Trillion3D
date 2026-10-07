@@ -5,6 +5,7 @@
 // share. Both sides store the compared terms in the same loop, four or sixteen stores per element.
 // The view and view-projection are the inverse and the product measured by the matrices bench.
 import * as THREE from 'three'
+import { DEG2RAD } from '../../../packages/math/src/constants.ts'
 import { perspectiveProjection } from '../../../packages/math/src/projection/camera.ts'
 import {
   FRUSTUM_PLANE_VALUES,
@@ -17,7 +18,6 @@ import { N, duel, rnd, trsMatrices } from '../../oracles/core/three-duel.ts'
 const ASPECT = 1.5,
   NEAR = 0.1,
   FAR = 1000
-const DEG2RAD = Math.PI / 180
 const fov = Float64Array.from({ length: N }, () => rnd(20, 120))
 const projectionThree = new THREE.Matrix4()
 const projection = new Float64Array(16)

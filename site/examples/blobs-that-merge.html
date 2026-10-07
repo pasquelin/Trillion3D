@@ -42,7 +42,8 @@
       // The wax is a field: every blob adds a smooth bump that falls to zero at its reach, and the
       // surface is where the sum crosses a level. Two blobs close enough add up between them and
       // the level is crossed there too: a bridge grows, and the two become one.
-      const clamp01 = (value) => Math.min(1, Math.max(0, value));
+      // The scratch each surface normal is normalised in, and the one a distance from the axis is read in.
+      const fall = math.vector3(), ring = math.vector2();
       function field(x, y, z, blobs, reach2) {
         let sum = 0;
         for (let b = 0; b < blobs.length; b += 5) {
@@ -52,8 +53,8 @@
         }
         // The glass, the floor of the lamp and its neck fade the field out: the surface closes
         // before it would touch them.
-        const wall = wallAt(y) - 0.07 - Math.hypot(x, z);
-        return sum * clamp01(wall / 0.12) * clamp01((y - 1.62) / 0.1) * clamp01((5.15 - y) / 0.1);
+        const wall = wallAt(y) - 0.07 - ring.set(x, z).length();
+        return sum * math.clamp(wall / 0.12, 0, 1) * math.clamp((y - 1.62) / 0.1, 0, 1) * math.clamp((5.15 - y) / 0.1, 0, 1);
       }
 
       // The blobs at a moment `s` of the loop, 0 to 1: a flat pool of melted wax on the bottom,
@@ -120,11 +121,11 @@
               const gx = field(px + e, py, pz, blobs, reach2) - field(px - e, py, pz, blobs, reach2);
               const gy = field(px, py + e, pz, blobs, reach2) - field(px, py - e, pz, blobs, reach2);
               const gz = field(px, py, pz + e, blobs, reach2) - field(px, py, pz - e, blobs, reach2);
-              const length = Math.hypot(gx, gy, gz) || 1;
+              const down = fall.set(-gx, -gy, -gz).normalize();
               cellVertex[(k * NY + j) * NX + i] = position.length / 3;
               parent.push(position.length / 3);
               position.push(px, py, pz);
-              normal.push(-gx / length, -gy / length, -gz / length);
+              normal.push(down.x, down.y, down.z);
             }
         // Which drops are one piece: every square joins its four vertices into one set.
         const root = (a) => (parent[a] === a ? a : (parent[a] = root(parent[a])));

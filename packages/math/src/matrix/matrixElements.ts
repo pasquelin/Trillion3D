@@ -18,6 +18,14 @@ export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) 
   return true
 }
 
+/** True when the sixteen float32 numbers `held` holds from `heldAt` are those of `now` rounded to
+ *  float32, `held[heldAt + i] === Math.fround(now[i])`: whether a double matrix still says what a
+ *  GPU buffer already holds. By value: `-0` matches `0`, and a `NaN` never matches. */
+export function sameMatrixFloat32(held: ArrayLike<number>, now: ArrayLike<number>, heldAt = 0) {
+  for (let i = 0; i < 16; i++) if (held[heldAt + i] !== Math.fround(now[i])) return false
+  return true
+}
+
 /**
  * Whether pose `now` leaves local box `box` (its min, then its max) where pose `held` (at
  * `heldAt`) put it: no corner of it moves by one float32 step at the box's own reach in world. A
