@@ -6,6 +6,7 @@
 //! object's triangles turn back to the front: a world page is drawn under the identity.
 use super::*;
 use crate::compiler_world::{cofactor_direction, transform_point};
+use crate::dag::tight::ball_of_balls;
 use crate::geometry_page::{Attribute, FLAG_COLOR, FLAG_NORMAL};
 use crate::proxy::{place, world_scale};
 use crate::shared_math::{cross, dot, linear_columns, unit};
@@ -34,24 +35,6 @@ pub(super) fn empty(layout: u32) -> Vec<Attribute> {
             values: Vec::new(),
         })
         .collect()
-}
-
-/// The sphere holding every one of `spheres`, centred on their box.
-fn holding(spheres: &[[f64; 4]]) -> [f64; 4] {
-    let (mut low, mut high) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
-    for s in spheres {
-        for a in 0..3 {
-            low[a] = low[a].min(s[a] - s[3]);
-            high[a] = high[a].max(s[a] + s[3]);
-        }
-    }
-    let centre = [0, 1, 2].map(|a| (low[a] + high[a]) * 0.5);
-    let reach = |s: &[f64; 4]| {
-        let d = [0, 1, 2].map(|a| s[a] - centre[a]);
-        dot(d, d).sqrt() + s[3]
-    };
-    let radius = spheres.iter().map(reach).fold(0.0, f64::max);
-    [centre[0], centre[1], centre[2], radius]
 }
 
 /// `cover`'s attributes on its vertices placed by `matrix`, appended to `out` (`empty`'s order).
@@ -113,7 +96,7 @@ pub(super) fn gather(
             let [x, y, z] = transform_point(&placed.matrix, [x, y, z]);
             spheres.push([x, y, z, radius * scale]);
         }
-        roots.push((indices, error, holding(&spheres)));
+        roots.push((indices, error, ball_of_balls(&spheres)));
         origins.push(instance);
     }
     (positions, carried, roots, origins)
