@@ -19,7 +19,7 @@ import { verifiedRun } from '../cluster/verified.ts'
 import type { PageQueue, StreamPage } from '../streaming/types.ts'
 
 /** The name of bundle `bundle` of the binary at `url` in the queue's catalogue. */
-export const bundleUrl = (url: string, bundle: number) => `${url}#${bundle}`
+const bundleUrl = (url: string, bundle: number) => `${url}#${bundle}`
 
 /** The pages of `table`'s bundles from `first`, ranges of its binary at `url`: their holders keep
  *  what they view of them, not the page cache. A bundle of no bytes is none. */

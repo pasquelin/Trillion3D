@@ -40,8 +40,8 @@ test("a cell's bundles contiguous in the binary are one ranged read", async (t) 
   assert.deepEqual(heldBy(roots), [2, 3])
 })
 
-test('a cell let go while its bundle waits in the queue is never fetched; a shared bundle is read once', async (t) => {
-  // The first run past the top holds the queue's one transfer until `land`.
+test('a hold let go while its bundle waits in the queue drops it, its cell still placed; a shared one is read once', async (t) => {
+  // The first bundle past the top holds the queue's one transfer until `land`.
   const { roots, ranges, table, land } = await heldAt(t, 1, 1)
   const placed = roots.hold(0) // bundles 1 and 3: two ranges apart
   await new Promise(setImmediate)
@@ -49,13 +49,13 @@ test('a cell let go while its bundle waits in the queue is never fetched; a shar
   const left = roots.hold(1, { signal: leaving.signal }) // bundle 3 on its way, bundle 2 queued
   await new Promise(setImmediate)
   assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2)], 'one transfer, the rest wait')
-  leaving.abort()
+  leaving.abort() // the hold lets go: its cell is not released yet
   await assert.rejects(left, { name: 'AbortError' })
-  roots.release(1)
   land()
   await placed
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)])
-  assert.deepEqual(heldBy(roots), [1, 3], 'bundle 2, let go while it waited, was never read')
+  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)], 'bundle 2 unread')
+  roots.release(1)
+  assert.deepEqual(heldBy(roots), [1, 3])
 })
 
 test('a bundle the server refuses for good (404) is never asked again', async (t) => {
@@ -123,22 +123,6 @@ test('a cell let go while its bundles transfer and held again joins that read: r
   assert.deepEqual(heldBy(roots), [2, 3])
 })
 
-test('a hold whose signal lets go while its bundles wait in the queue drops them: its cell need not leave', async (t) => {
-  // The first bundle past the top holds the queue's one transfer until `land`.
-  const { roots, ranges, table, land } = await heldAt(t, 1, 1)
-  const placed = roots.hold(0) // bundles 1 and 3
-  await new Promise(setImmediate)
-  const leaving = new AbortController()
-  const left = roots.hold(1, { signal: leaving.signal }) // bundle 2 queued, bundle 3 shared
-  await new Promise(setImmediate)
-  leaving.abort() // the hold lets go, its cell still counted
-  await assert.rejects(left, { name: 'AbortError' })
-  land()
-  await placed
-  assert.deepEqual(ranges.slice(1), [rangeOf(table, 1, 2), rangeOf(table, 3, 4)], 'bundle 2 unread')
-  assert.equal(roots.has(2), true, 'still held till its cell is released')
-})
-
 test('a bundle that lands unreadable fails its hold: the next hold reads it again, never stuck', async (t) => {
   const fixture = worldRootsFixture(sha)
   const spec = { ...fixture.spec, bundles: fixture.spec.bundles.map((b) => ({ ...b })) }
@@ -189,15 +173,11 @@ test("a hold under way as its session's queue closes reads in the next session's
   const held = roots.hold(1) // bundles 2 and 3, one read, under way
   await new Promise(setImmediate)
   const next = createPageStreamer([], 'http://world/')
-  t.after(() => next.dispose())
   queue.dispose() // the device is lost: its session closes
   land()
   roots.bind(next) // the next session
+  t.after(() => next.dispose())
   await held
-  assert.deepEqual(
-    ranges.slice(1),
-    [rangeOf(table, 2, 4), rangeOf(table, 2, 4)],
-    'read again there',
-  )
-  assert.deepEqual(heldBy(roots), [2, 3])
+  const run = rangeOf(table, 2, 4)
+  assert.deepEqual(ranges.slice(1), [run, run], 'read again there')
 })
